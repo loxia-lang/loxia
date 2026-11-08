@@ -1,4 +1,4 @@
-from main import Lox
+from src.error_reporter import ErrorReporter
 from src.keywords import KEYWORDS
 from src.token import Token
 from src.token_type import TokenType
@@ -19,7 +19,7 @@ class Scanner:
             self._scan_token()
 
         self._tokens.append(Token(TokenType.EOF, "", None, self._line))
-        return self.tokens
+        return self._tokens
 
     def _scan_token(self):
         c = self._advance()
@@ -76,12 +76,12 @@ class Scanner:
             case '"':
                 self._string()
             case _:
-                if self._is_digit(c=c):
+                if Scanner._is_digit(c=c):
                     self._number()
-                elif self._is_alpha(c=c):
+                elif Scanner._is_alpha(c=c):
                     self._identifier()
                 else:
-                    Lox.error(self._line, f"Unexpected character: {c}")
+                    ErrorReporter.error(self._line, f"Unexpected character: {c}")
 
     def _is_at_end(self) -> bool:
         return self._current >= len(self._source)
@@ -96,7 +96,7 @@ class Scanner:
         self._tokens.append(Token(type, text, literal, self._line))
 
     def _match(self, expected: str) -> bool:
-        if self._is_at_end:
+        if self._is_at_end():
             return False
 
         if self._source[self._current] != expected:
@@ -117,24 +117,22 @@ class Scanner:
             self._advance()
 
         if self._is_at_end():
-            Lox.error(self._line, "Unterminated string.")
+            ErrorReporter.error(self._line, "Unterminated string.")
+            return
 
         self._advance()
 
         value = self._source[self._start + 1 : self._current - 1]
         self._add_token(TokenType.STRING, value)
 
-    def _is_digit(self, c: str) -> bool:
-        return "0" <= c <= "9"
-
     def _number(self) -> None:
-        while self._is_digit(self._peek()):
+        while Scanner._is_digit(self._peek()):
             self._advance()
 
-        if self._peek() == "." and self._is_digit(self._peek_next()):
+        if self._peek() == "." and Scanner._is_digit(self._peek_next()):
             self._advance()
 
-            while self._is_digit(self._peek()):
+            while Scanner._is_digit(self._peek()):
                 self._advance()
 
         value = float(self._source[self._start : self._current])
@@ -145,14 +143,20 @@ class Scanner:
             return "\0"
         return self._source[self._current + 1]
 
-    def _is_alpha(self, c: str) -> bool:
+    @staticmethod
+    def _is_digit(c: str) -> bool:
+        return "0" <= c <= "9"
+
+    @staticmethod
+    def _is_alpha(c: str) -> bool:
         return "a" <= c <= "z" or "A" <= c <= "Z" or c == "_"
 
-    def _is_alpha_numeric(self, c: str) -> bool:
-        return self._is_alpha(c) or self._is_digit(c)
+    @staticmethod
+    def _is_alpha_numeric(c: str) -> bool:
+        return Scanner._is_alpha(c) or Scanner._is_digit(c)
 
     def _identifier(self):
-        while self._is_alpha_numeric(self._peek()):
+        while Scanner._is_alpha_numeric(self._peek()):
             self._advance()
         text = self._source[self._start : self._current]
         token_type = KEYWORDS.get(text, TokenType.IDENTIFIER)

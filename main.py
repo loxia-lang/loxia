@@ -1,20 +1,23 @@
 import argparse
 import sys
 
+from src.ast_printer import AstPrinter
+from src.error_reporter import ErrorReporter
+from src.parser import Parser
+from src.scanner import Scanner
+
 
 class Lox:
+    def run(self, source: str) -> None:
+        scanner = Scanner(source)
+        tokens = scanner.scan_tokens()
+        parser = Parser(tokens)
+        expression = parser.parse()
 
-    def __init__(self):
-        self.had_error: bool = False
-
-    def run (self, source:str) -> None:
-        # Quando você implementar o Scanner:
-        # scanner = Scanner(source)
-        # tokens:list = scanner.scan_tokens()
-        # for token in tokens:
-        #     print(token)
-
-        print(f"Executando:\n{source}")
+        if ErrorReporter.had_error:
+            return
+        printer = AstPrinter()
+        print(printer.print(expression))
 
     def run_file(self, path: str) -> None:
         try:
@@ -22,11 +25,11 @@ class Lox:
                 source = file.read()
             self.run(source)
 
-            if (self.hadError): sys.exit(65)
+            if Lox.had_error:
+                sys.exit(65)
         except FileNotFoundError:
             print(f"Erro: Arquivo '{path}' não encontrado.", file=sys.stderr)
             sys.exit(66)
-
 
     def run_prompt(self) -> None:
         print("PyLox REPL (Ctrl+C ou Ctrl+D para sair)")
@@ -36,18 +39,10 @@ class Lox:
                 if not line:
                     break
                 self.run(line)
-                self.hadError = False
+                Lox.had_error = False
             except (KeyboardInterrupt, EOFError):
                 print("\nSaindo...")
                 break
-    
-    @classmethod
-    def error (cls, line: int, message: str)-> None:
-        cls.report(line, "", message)
-
-    def report (self, line:int, where: str, message:str) -> None:
-        print(f"[line {line}] Error{where}: {message}", file=sys.stderr)
-        self.had_error = True
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -55,12 +50,9 @@ def main() -> None:
         description="Interpretador Lox em Python",
         usage="%(prog)s [script]",
     )
-
-    # nargs="?" indica argumento opcional (0 ou 1 valor)
     parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
 
     parsed_args = parser.parse_args()
-
     lox = Lox()
 
     if parsed_args.script:
