@@ -1,23 +1,26 @@
 import argparse
 import sys
 
-from src.ast_printer import AstPrinter
 from src.error_reporter import ErrorReporter
+from src.interpreter import Interpreter
 from src.parser import Parser
 from src.scanner import Scanner
 
 
 class Lox:
+    def __init__(self):
+        self.interpreter = Interpreter()
+
     def run(self, source: str) -> None:
         scanner = Scanner(source)
         tokens = scanner.scan_tokens()
         parser = Parser(tokens)
         expression = parser.parse()
 
-        if ErrorReporter.had_error:
+        if ErrorReporter.had_error or expression is None:
             return
-        printer = AstPrinter()
-        print(printer.print(expression))
+
+        self.interpreter.interpret(expression)
 
     def run_file(self, path: str) -> None:
         try:
@@ -25,8 +28,10 @@ class Lox:
                 source = file.read()
             self.run(source)
 
-            if Lox.had_error:
+            if ErrorReporter.had_error:
                 sys.exit(65)
+            if ErrorReporter.had_runtime_error:
+                sys.exit(70)
         except FileNotFoundError:
             print(f"Erro: Arquivo '{path}' não encontrado.", file=sys.stderr)
             sys.exit(66)
@@ -39,10 +44,11 @@ class Lox:
                 if not line:
                     break
                 self.run(line)
-                Lox.had_error = False
+                ErrorReporter.had_error = False
             except (KeyboardInterrupt, EOFError):
                 print("\nSaindo...")
                 break
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
