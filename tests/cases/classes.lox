@@ -1,0 +1,10 @@
+class Cafe {
+  gostoso() {
+    print "cafe";
+  }
+}
+
+var c = Cafe();
+c.gostoso();  // expect: cafe
+print Cafe;   // expect: Cafe
+print c;      // expect: Cafe instance

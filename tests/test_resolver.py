@@ -93,3 +93,28 @@ def test_parameter_and_local_share_scope() -> None:
     reporter, _, _ = resolve('fun scope(a) { var a = "local"; }')
 
     assert reporter.had_error
+
+
+def test_this_outside_class_reports_error() -> None:
+    reporter, _, _ = resolve("print this;")
+
+    assert reporter.had_error
+
+
+def test_this_inside_method_is_resolved() -> None:
+    reporter, interpreter, _ = resolve("class Foo { bar() { print this; } }")
+
+    assert not reporter.had_error
+    assert list(interpreter.locals.values()) == [1]
+
+
+def test_initializer_cannot_return_a_value() -> None:
+    reporter, _, _ = resolve("class Foo { init() { return 1; } }")
+
+    assert reporter.had_error
+
+
+def test_initializer_can_return_without_value() -> None:
+    reporter, _, _ = resolve("class Foo { init() { return; } }")
+
+    assert not reporter.had_error

@@ -1,0 +1,3 @@
+var x = 1;
+print x.y;
+// expect runtime error: Only instances have properties.

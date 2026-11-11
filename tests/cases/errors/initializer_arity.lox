@@ -1,0 +1,5 @@
+class Foo {
+  init(a) {}
+}
+Foo();
+// expect runtime error: Expected 1 arguments but got 0.

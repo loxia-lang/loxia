@@ -119,7 +119,24 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._end_scope()
 
     def visit_class_stmt(self, stmt: Class) -> None:
-        raise NotImplementedError("classes: capítulo 12")
+        enclosing_class = self._current_class
+        self._current_class = ClassType.CLASS
+
+        self._declare(stmt.name)
+        self._define(stmt.name)
+
+        self._begin_scope()
+        self._scopes[-1]["this"] = True
+
+        for method in stmt.methods:
+            declaration = FunctionType.METHOD
+            if method.name.lexeme == "init":
+                declaration = FunctionType.INITIALIZER
+
+            self._resolve_function(method, declaration)
+
+        self._end_scope()
+        self._current_class = enclosing_class
 
     def visit_expression_stmt(self, stmt: Expression) -> None:
         self._resolve_expr(stmt.expression)
@@ -143,6 +160,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._reporter.error(stmt.keyword, "Can't return from top-level code.")
 
         if stmt.value is not None:
+            if self._current_function is FunctionType.INITIALIZER:
+                self._reporter.error(
+                    stmt.keyword, "Can't return a value from an initializer."
+                )
+
             self._resolve_expr(stmt.value)
 
     def visit_var_stmt(self, stmt: Var) -> None:
@@ -172,7 +194,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._resolve_expr(argument)
 
     def visit_get_expr(self, expr: Get) -> None:
-        raise NotImplementedError("propriedades: capítulo 12")
+        self._resolve_expr(expr.object)
 
     def visit_grouping_expr(self, expr: Grouping) -> None:
         self._resolve_expr(expr.expression)
@@ -185,13 +207,18 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(expr.right)
 
     def visit_set_expr(self, expr: Set) -> None:
-        raise NotImplementedError("propriedades: capítulo 12")
+        self._resolve_expr(expr.value)
+        self._resolve_expr(expr.object)
 
     def visit_super_expr(self, expr: Super) -> None:
         raise NotImplementedError("super: capítulo 13")
 
     def visit_this_expr(self, expr: This) -> None:
-        raise NotImplementedError("this: capítulo 12")
+        if self._current_class is ClassType.NONE:
+            self._reporter.error(expr.keyword, "Can't use 'this' outside of a class.")
+            return
+
+        self._resolve_local(expr, expr.keyword)
 
     def visit_unary_expr(self, expr: Unary) -> None:
         self._resolve_expr(expr.right)

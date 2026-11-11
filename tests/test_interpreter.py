@@ -215,3 +215,47 @@ def test_closure_uses_lexical_scope_not_dynamic(
 
     assert stdout == ["global", "global"]
     assert stderr == ""
+
+
+def test_classes_methods_and_this(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    class Pessoa {
+      init(nome) {
+        this.nome = nome;
+      }
+
+      falar() {
+        print this.nome;
+      }
+    }
+
+    var p = Pessoa("Ana");
+    p.falar();
+    print p.nome;
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["Ana", "Ana"]
+    assert stderr == ""
+
+
+def test_bound_method_keeps_this(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    class Foo {
+      init() {
+        this.x = 7;
+      }
+
+      getX() {
+        return this.x;
+      }
+    }
+
+    var f = Foo().getX;
+    print f();
+    """
+
+    stdout, _ = run(source, capsys)
+
+    assert stdout == ["7"]

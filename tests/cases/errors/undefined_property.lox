@@ -1,0 +1,5 @@
+class Foo {}
+
+var f = Foo();
+print f.bar;
+// expect runtime error: Undefined property 'bar'.

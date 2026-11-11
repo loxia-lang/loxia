@@ -1,0 +1,9 @@
+class Ponto {}
+
+var p = Ponto();
+p.x = 1;
+p.y = 2;
+print p.x + p.y;  // expect: 3
+
+p.x = 10;
+print p.x;        // expect: 10

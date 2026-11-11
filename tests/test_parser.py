@@ -5,7 +5,7 @@ import pytest
 from src.ast_printer import AstPrinter
 from src.parser import Parser
 from src.scanner import Scanner
-from src.stmt import Expression, Function, If, Print, Return, Stmt, Var, While
+from src.stmt import Class, Expression, Function, If, Print, Return, Stmt, Var, While
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:
@@ -131,3 +131,22 @@ def test_parses_function_declaration() -> None:
     assert [param.lexeme for param in function.params] == ["a", "b"]
     assert len(function.body) == 1
     assert isinstance(function.body[0], Return)
+
+
+def test_parses_class_declaration() -> None:
+    statements = parse("class Foo { bar(a) { return a; } }")
+
+    assert len(statements) == 1
+    klass = statements[0]
+    assert isinstance(klass, Class)
+    assert klass.name.lexeme == "Foo"
+    assert klass.superclass is None
+    assert len(klass.methods) == 1
+    assert klass.methods[0].name.lexeme == "bar"
+    assert [param.lexeme for param in klass.methods[0].params] == ["a"]
+
+
+def test_property_and_this_ast_shape() -> None:
+    assert ast("a.b") == "(. b a)"
+    assert ast("this.x") == "(. x this)"
+    assert ast("a.b = 1") == "(set b a 1)"

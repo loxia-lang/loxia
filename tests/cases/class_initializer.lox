@@ -1,0 +1,11 @@
+class Caixa {
+  init(v) {
+    this.v = v;
+    return;
+  }
+}
+
+var c = Caixa(42);
+print c.v;       // expect: 42
+print Caixa;     // expect: Caixa
+print Caixa(1);  // expect: Caixa instance

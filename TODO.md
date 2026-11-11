@@ -18,8 +18,8 @@ pretendo tipar e como chegar no LLVM.
 ## 0. Agora: base sã e primeira metade do livro
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. **Caps. 10 e 11 concluídos** (funções/closures e resolver); próximo passo:
-> capítulo 12 (classes).
+> no lugar. **Caps. 10, 11 e 12 concluídos** (funções/closures, resolver e classes);
+> próximo passo: capítulo 13 (herança).
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -57,9 +57,11 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
   - [x] identidade dos nós de AST (`eq=False`) para servir de chave no `locals`
   - [ ] `this` fora de classe (cap. 12)
   - [ ] (bônus) resolver já guarda *slots* em vez de nomes → prepara VM/LLVM
-- [ ] **Cap. 12 — Classes**
-  - [ ] `LoxClass`, `LoxInstance`, `Get`/`Set`, `this`, `init`
-  - [ ] chamada de método e `arity` do construtor
+- [x] **Cap. 12 — Classes**
+  - [x] `LoxClass`, `LoxInstance`, `Get`/`Set`, `this`, `init`
+  - [x] chamada de método e `arity` do construtor (`init` define a aridade)
+  - [x] métodos ligados (`bind`) e `this` resolvido pelo resolver
+  - [x] erros: `this` fora de classe, `return` com valor em `init`, propriedade inexistente
 - [ ] **Cap. 13 — Herança**
   - [ ] `<`, `super`, método herdado
   - [ ] decidir cedo se `super` continua com essa sintaxe (ver §1.3)

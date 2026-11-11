@@ -1,0 +1,13 @@
+class Pessoa {
+  init(nome) {
+    this.nome = nome;
+  }
+
+  falar() {
+    print this.nome;
+  }
+}
+
+var p = Pessoa("Ana");
+p.falar();     // expect: Ana
+print p.nome;  // expect: Ana
