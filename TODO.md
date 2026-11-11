@@ -149,7 +149,11 @@ fn main() {
 - [x] `P1` **`elif`** em vez de `else if` (açúcar para `If` aninhado; parênteses ainda
       obrigatórios).
 - [x] `P1` **`fn`** como keyword de função (`fun` deixou de ser palavra-chave).
-- [ ] `P2` **chaves opcionais** para corpo de uma instrução (`if x > 0 print x`).
+- [x] `P2` **corpo de uma instrução sem chaves** em `if`/`while`/`for` —
+      `if (x) print x` já funciona (o corpo é um `statement`, bloco é opcional).
+- [ ] `P2` **parênteses opcionais na condição** (`if x > 0 print x`) — precisa de um
+      delimitador entre condição e corpo (nova linha ou `then`); hoje os parênteses são
+      obrigatórios.
 - [x] `P2` **`val`** imutável + **`var`** mutável (erro em reatribuir `val`) —
       [ADR-0005](docs/adr/0005-val-var-imutabilidade.md); histórico em
       [`IDEIAS.md`](IDEIAS.md) I-1.
