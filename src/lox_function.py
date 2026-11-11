@@ -35,7 +35,7 @@ class LoxFunction:
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
         environment = Environment(self._closure)
         for param, argument in zip(self._declaration.params, arguments, strict=True):
-            environment.define(param.lexeme, argument)
+            environment.define(param.name.lexeme, argument, param.mutable)
 
         try:
             interpreter.execute_block(self._declaration.body, environment)

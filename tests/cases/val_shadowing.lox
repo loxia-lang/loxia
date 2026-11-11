@@ -1,0 +1,6 @@
+val x = "global";
+{
+  val x = "block";
+  print x;  // expect: block
+}
+print x;  // expect: global

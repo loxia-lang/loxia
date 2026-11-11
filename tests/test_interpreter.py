@@ -282,3 +282,64 @@ def test_inheritance_and_super(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert stdout == ["AB"]
     assert stderr == ""
+
+
+def test_global_val_assignment_is_a_runtime_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = Lox()
+    stdout, stderr = execute(lox, "val x = 1; x = 2;", capsys)
+
+    assert stdout == []
+    assert "'x' is immutable" in stderr
+    assert lox.reporter.had_runtime_error
+
+
+def test_val_global_cannot_be_redeclared(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = Lox()
+    _, stderr = execute(lox, "val x = 1; var x = 2;", capsys)
+
+    assert "Can't redeclare immutable variable 'x'." in stderr
+    assert lox.reporter.had_runtime_error
+
+
+def test_var_parameter_can_be_mutated(capsys: pytest.CaptureFixture[str]) -> None:
+    source = "fun f(var x) { x = x + 1; return x; } print f(1);"
+
+    stdout, _ = run(source, capsys)
+
+    assert stdout == ["2"]
+
+
+def test_immutable_parameter_assignment_is_compile_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = Lox()
+    stdout, stderr = execute(lox, "fun f(x) { x = 2; }", capsys)
+
+    assert stdout == []
+    assert "'x' is immutable" in stderr
+    assert lox.reporter.had_error
+
+
+def test_val_shadowing_and_var_redeclaration(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = """
+    val x = 1;
+    {
+      val x = 2;
+      print x;
+    }
+    print x;
+    var y = 1;
+    var y = 2;
+    print y;
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["2", "1", "2"]
+    assert stderr == ""

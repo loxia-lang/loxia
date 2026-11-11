@@ -25,7 +25,8 @@ gatilhos para revisitar**.
 
 ## I-1 — Declaração de variáveis: `val` vs `var` e mutabilidade
 
-**Status:** `em avaliação`
+**Status:** `decidida` — `val` imutável + `var` mutável; ver
+[ADR-0005](docs/adr/0005-val-var-imutabilidade.md). O texto abaixo fica como histórico.
 **Decidir até:** antes do capítulo 10 (funções) — depois disso os exemplos e testes
 multiplicam e a migração fica caro.
 
@@ -986,3 +987,231 @@ Comandos que tornam isso possível:
   <https://rustc-dev-guide.rust-lang.org/diagnostics.html#json-output>
 - LSP `Diagnostic`: <https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic>
 - Property-based testing: <https://hypothesis.readthedocs.io/>
+
+---
+
+## I-5 — Parâmetros opcionais/default e mutabilidade de campos de classe
+
+**Status:** `em avaliação`
+**Origem:** desdobramento de I-1/ADR-0005 — campos de classe foram adiados; a ideia é
+aproximar a assinatura de funções do estilo Python (`a: Int`, `b: Int | Nil = nil`) e
+definir como `val`/`var` valem dentro de objetos.
+
+### A pergunta
+
+1. Funções podem ter parâmetros **obrigatórios e opcionais com default**, como Python?
+2. Defaults valem para **todas** as funções, métodos e `init`?
+3. Quando o default é avaliado: na declaração ou na chamada?
+4. Como campos de classe ganham `val`/`var`? O que pode ser atribuído no `init`?
+5. Existe "classe imutável" ou isso é só "todos os campos são `val`"?
+
+### Proposta de sintaxe (alvo, com tipos futuros)
+
+```lox
+fn conectar(host: String, porta: Int = 80, timeout: Int | Nil = nil) -> Bool {
+  // ...
+}
+
+class Pessoa {
+  val nome: String
+  var idade: Int = 0
+
+  init(nome: String, idade: Int = 0) {
+    this.nome = nome
+    this.idade = idade
+  }
+
+  fn aniversario() {
+    this.idade = this.idade + 1   // ok: campo var
+  }
+}
+
+var p = Pessoa("Ana")            // idade = 0
+var q = Pessoa("Bia", 30)        // idade = 30
+```
+
+Ideias:
+- parâmetros obrigatórios vêm **antes** dos opcionais (como Python/Kotlin);
+- um parâmetro opcional carrega um valor default que também participa da checagem de tipo;
+- `T | Nil = nil` é o jeito explícito de "opcional que pode ser nulo";
+- a **aridade** de uma função deixa de ser um número e vira um intervalo
+  (`[obrigatórios, total]`), o que afeta mensagens de erro, classes e LLVM.
+
+### Defaults: quando avaliar?
+
+| Estratégia | Semântica | Prós | Contras |
+| --- | --- | --- | --- |
+| **Na chamada** (Kotlin) | o default é avaliado a cada chamada, no escopo do chamador | sem estado compartilhado; intuitivo | exige código de "preencher" no call site; LLVM gera mais IR |
+| **Na declaração** (Python) | avaliado uma vez, no escopo da declaração | simples de implementar | armadilha clássica: default mutável compartilhado entre chamadas |
+| **Só constante** | literal/`nil` apenas | trivial, determinístico, simples no codegen | menos expressivo (sem `list()` nem `agora()`) |
+
+Recomendação provisória: **só constante** no começo (`nil`, literais, talvez `true/false`)
+e evoluir para avaliação na chamada quando houver type checker. Evita copiar de graça o
+problema de `def f(xs=[])` do Python.
+
+### Impacto nos erros e na tipagem
+
+- Mensagem de aridade vira algo como `Expected 1 to 3 arguments but got 4.`
+  e, para chamada curta, `Expected at least 2 arguments but got 1.`
+- O checker precisa preencher os tipos dos parâmetros omitidos a partir do default.
+- Defaults em `init` definem a aridade da classe (hoje é a aridade exata do `init`).
+- Parâmetros `var` com default (`fn f(var x = 0)`) devem ser permitidos ou não? (decidir)
+- Defaults não podem referenciar parâmetros anteriores? (Python permite só no corpo;
+  Kotlin permite defaults independentes). Recomendo **não** permitir dependência entre
+  parâmetros no default na v1.
+
+### Campos de classe: opções
+
+**A) Continuar dinâmico (hoje).** Campos nascem no `init`/atribuição; todos mutáveis.
+Simples, mas sem `val`, sem checagem e sem tipo.
+
+**B) Campos declarados no corpo, com `val`/`var` (recomendado).**
+
+```lox
+class Pessoa {
+  val nome: String
+  var idade: Int = 0
+}
+```
+
+- `val` campo: inicializado na declaração **ou** dentro de `init` (uma vez), e não pode
+  ser atribuído depois que o `init` termina (checagem estática, como Kotlin).
+- `var` campo: atribuível em qualquer método.
+- Campo sem inicializador precisa ser atribuído no `init`; senão erro de compilação.
+- Herança: campo `val` não pode ser reatribuído na subclasse; `var` pode (com as regras de
+  visibilidade a definir).
+- `this.campo = ...` passa a ser checado pelo resolver/checker (hoje é dinâmico).
+
+**C) Estilo Kotlin: parâmetros do construtor viram campos.**
+
+```lox
+class Pessoa(val nome: String, var idade: Int = 0)
+```
+
+Muito conciso e resolve required/optional + campos de uma vez. Custo: muda a forma da
+classe, mistura construtor com declaração e conflita com o `init` explícito do Lox; mais
+difícil de casar com o modelo atual.
+
+**D) Estilo dataclass do Python: anotações e defaults no corpo, `init` gerado.**
+Ainda mais mágica; não combina com o `init` manual que já temos.
+
+Recomendação provisória: **B** quando o type checker chegar — mantém `init` explícito,
+torna a mutabilidade visível e mapeia bem para LLVM (campos com offset fixo). `val` de
+campo só é atribuível dentro do `init` (uma vez), `var` em qualquer lugar. "Classe
+imutável" seria apenas uma classe em que **todos** os campos são `val`; não precisa de
+keyword nova.
+
+### Impacto técnico
+
+| Camada | O que muda |
+| --- | --- |
+| Parser | `parameter (":" Type)? ("=" expression)?` temporário até tipos; campos no corpo da classe |
+| Resolver | saber se está dentro de `init` (para `val` field), rastrear campos por classe |
+| Checker | defaults, aridade variável, tipos de campo, atribuição em `init` |
+| Interpreter | preencher defaults; inicializar campos; checar `val` field em runtime (fallback) |
+| LLVM | defaults viram código no call site; campos viram offsets/`getelementptr` |
+
+### Perguntas abertas
+
+- [ ] Defaults: constante, avaliação na chamada ou na declaração?
+- [ ] Parâmetros opcionais podem ser `var`?
+- [ ] Named arguments (chamar `f(porta = 8080)`)? (provável P3)
+- [ ] `val` de campo: exigir inicialização na declaração ou permitir no `init` uma vez?
+- [ ] Campo sem `val`/`var` explícito: erro, ou default `var` por compatibilidade?
+- [ ] `val` field em classe herdada: proibir reatribuição em qualquer subclasse?
+- [ ] Classes imutáveis precisam de sintaxe própria (`immutable class`) ou é só "todos
+      os campos `val`"?
+- [ ] Defaults afetam `super(...)`/`init` herdado? (aridade da subclasse)
+
+### Referências
+
+- Kotlin — default arguments e `val`/`var` em propriedades:
+  <https://kotlinlang.org/docs/functions.html#default-arguments>
+- Python — default arguments e a armadilha de mutáveis:
+  <https://docs.python.org/3/tutorial/controlflow.html#default-argument-values>
+- C# — optional/named arguments:
+  <https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/named-and-optional-arguments>
+- Swift — default parameter values:
+  <https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/>
+
+### Complemento — `*args` e `**kwargs` (variádicos)
+
+**Status:** `em avaliação` (não implementar agora)
+
+Vale ter coleta de argumentos extras, no estilo Python?
+
+```lox
+// candidato 1: asteriscos
+fn somar(*numeros) -> Int { /* numeros é List[Int] */ }
+fn log(nivel: String, *partes) { /* ... */ }
+
+// candidato 2: reticências (Lox2/Kotlin-ish, evita colidir com multiplicação)
+fn somar(...numeros) -> Int { /* ... */ }
+fn log(nivel: String, ...partes) { /* ... */ }
+```
+
+`**kwargs` só faz sentido se existir **argumento nomeado** na chamada
+(`f(x = 1, y = 2)`), que é outra feature grande.
+
+#### Como outras linguagens resolvem
+
+| Linguagem | Extra posicionais | Extra nomeados |
+| --- | --- | --- |
+| Python | `*args` (tuple) | `**kwargs` (dict) |
+| Kotlin | `vararg` | não (named args explícitos) |
+| Go | `...T` | não |
+| Java | `T...` | não |
+| Rust | não tem varargs de usuário | não |
+| JavaScript | `...args` (rest) | object/`arguments` |
+| C | `...` (varargs não tipado) | — |
+
+#### Viabilidade de `*args`
+
+- **Runtime:** `LoxCallable.arity()` deixa de bastar. Seria preciso algo como
+  `min_arity()` + `accepts(n)` ou uma `Signature`, e `call` recebendo a lista de extras.
+  A mensagem de aridade vira "pelo menos N" (`Expected at least 2 arguments but got 1.`).
+- **Parser/AST:** `Param` ganha um flag `variadic`; só um rest por função e sempre por
+  último; a chamada **não** muda (os extras simplesmente são aceitos).
+- **Semântica:** o binding do rest é `val` (a lista pode ser mutável, mas o nome não muda);
+  defaults só antes do rest; `fn f(a = 1, ...xs)` é aceitável, `fn f(...xs, a)` não.
+- **Tipos:** `...numeros: Int` vira `List[Int]`; a chamada aceita qualquer quantidade e o
+  checker unifica todos os extras. No LLVM, empacotar os extras em array/lista alocada.
+- **Custo:** médio. Útil para `print`/logging/FFI/decorators, mas muita coisa se resolve
+  com uma lista explícita: `fn somar(ns: List[Int])` + `somar([1, 2, 3])`.
+- **Veredito:** viável e provavelmente útil, mas depois de existirem `List`, o type checker
+  e um caso de uso concreto (P2/P3).
+
+#### Viabilidade de `**kwargs`
+
+- **Depende de named arguments**, que é uma feature grande por si só: parser da chamada,
+  ordem de avaliação, nomes desconhecidos, duplicados, interação com defaults e com
+  `init`/herança.
+- **Sem named args, `**kwargs` é sempre vazio** — não serve para nada.
+- Com named args, `**kwargs` é o "resto dinâmico": vira `Map[String, Any]`, destrói a
+  tipagem estática, complica mensagens e o codegen LLVM. Python usa porque é dinâmico;
+  nós queremos tipos inferidos.
+- **Alternativa tipada:** named args + defaults + objeto de configuração explícito
+  (`fn conectar(cfg: Config)`), que é documentável, checável e fácil de compilar.
+- **Custo alto, benefício baixo** para este projeto.
+- **Veredito:** **não** no curto/médio prazo; provavelmente nunca. Se um dia, só com `Map`
+  tipado e regras de conversão explícitas.
+
+#### Interações com o resto de I-5
+
+- `*args` + defaults: defaults só antes do rest; chamada curta usa defaults, extras vão
+  para o rest.
+- `init` variádico: complica a aridade da classe e o `init` herdado; evitar no começo.
+- Spread no call site (`f(...lista)`) é o espelho do rest e também exige token novo
+  (`...`); não confundir declaração variádica com spread.
+- `*args` e `**kwargs` não são `val`/`var`: são parâmetros especiais; o binding do rest
+  deve ser imutável.
+
+#### Perguntas abertas
+
+- [ ] `*args` (Python) ou `...args` (Lox2/Kotlin)? `...` evita ambiguidade com `*` e
+      combina com spread.
+- [ ] o rest pode ser `var` (reatribuir a lista)? (recomendo não)
+- [ ] permitir rest em `init`/métodos? Se sim, a aridade da classe vira "pelo menos N".
+- [ ] defaults depois do rest? (recomendo proibir)
+- [ ] `print`/`log` nativos viram variádicos ou continuam aceitando uma lista?
+- [ ] named args vêm antes de `**kwargs`? (sim; `**kwargs` só depois)

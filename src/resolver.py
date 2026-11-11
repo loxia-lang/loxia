@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum, auto
 
 from src.error_reporter import ErrorReporter
+from src.errors import immutable_assignment_message
 from src.expr import (
     Assign,
     Binary,
@@ -49,13 +51,19 @@ class ClassType(Enum):
     SUBCLASS = auto()
 
 
+@dataclass
+class _VariableInfo:
+    defined: bool
+    mutable: bool
+
+
 class Resolver(ExprVisitor[None], StmtVisitor[None]):
     """Resolve escopos léxicos e grava no interpretador a distância de cada variável."""
 
     def __init__(self, interpreter: Interpreter, reporter: ErrorReporter) -> None:
         self._interpreter = interpreter
         self._reporter = reporter
-        self._scopes: list[dict[str, bool]] = []
+        self._scopes: list[dict[str, _VariableInfo]] = []
         self._current_function: FunctionType = FunctionType.NONE
         self._current_class: ClassType = ClassType.NONE
 
@@ -75,7 +83,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def _end_scope(self) -> None:
         self._scopes.pop()
 
-    def _declare(self, name: Token) -> None:
+    def _declare(self, name: Token, mutable: bool) -> None:
         if not self._scopes:
             return
 
@@ -83,19 +91,22 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         if name.lexeme in scope:
             self._reporter.error(name, "Already a variable with this name in this scope.")
 
-        scope[name.lexeme] = False
+        scope[name.lexeme] = _VariableInfo(defined=False, mutable=mutable)
 
     def _define(self, name: Token) -> None:
         if not self._scopes:
             return
 
-        self._scopes[-1][name.lexeme] = True
+        self._scopes[-1][name.lexeme].defined = True
 
-    def _resolve_local(self, expr: Expr, name: Token) -> None:
+    def _resolve_local(self, expr: Expr, name: Token) -> _VariableInfo | None:
         for i in range(len(self._scopes) - 1, -1, -1):
-            if name.lexeme in self._scopes[i]:
+            info = self._scopes[i].get(name.lexeme)
+            if info is not None:
                 self._interpreter.resolve(expr, len(self._scopes) - 1 - i)
-                return
+                return info
+
+        return None
 
     def _resolve_function(self, function: Function, function_type: FunctionType) -> None:
         enclosing_function = self._current_function
@@ -103,8 +114,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         self._begin_scope()
         for param in function.params:
-            self._declare(param)
-            self._define(param)
+            self._declare(param.name, param.mutable)
+            self._define(param.name)
 
         self.resolve(function.body)
         self._end_scope()
@@ -122,7 +133,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         enclosing_class = self._current_class
         self._current_class = ClassType.CLASS
 
-        self._declare(stmt.name)
+        self._declare(stmt.name, mutable=True)
         self._define(stmt.name)
 
         if (
@@ -139,10 +150,10 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         if stmt.superclass is not None:
             self._begin_scope()
-            self._scopes[-1]["super"] = True
+            self._scopes[-1]["super"] = _VariableInfo(defined=True, mutable=False)
 
         self._begin_scope()
-        self._scopes[-1]["this"] = True
+        self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False)
 
         for method in stmt.methods:
             declaration = FunctionType.METHOD
@@ -162,7 +173,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(stmt.expression)
 
     def visit_function_stmt(self, stmt: Function) -> None:
-        self._declare(stmt.name)
+        self._declare(stmt.name, mutable=True)
         self._define(stmt.name)
         self._resolve_function(stmt, FunctionType.FUNCTION)
 
@@ -188,7 +199,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._resolve_expr(stmt.value)
 
     def visit_var_stmt(self, stmt: Var) -> None:
-        self._declare(stmt.name)
+        self._declare(stmt.name, stmt.mutable)
         if stmt.initializer is not None:
             self._resolve_expr(stmt.initializer)
 
@@ -202,7 +213,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_assign_expr(self, expr: Assign) -> None:
         self._resolve_expr(expr.value)
-        self._resolve_local(expr, expr.name)
+        info = self._resolve_local(expr, expr.name)
+        if info is not None and not info.mutable:
+            self._reporter.error(
+                expr.name, immutable_assignment_message(expr.name.lexeme)
+            )
 
     def visit_binary_expr(self, expr: Binary) -> None:
         self._resolve_expr(expr.left)
@@ -253,9 +268,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(expr.right)
 
     def visit_variable_expr(self, expr: Variable) -> None:
-        if self._scopes and self._scopes[-1].get(expr.name.lexeme) is False:
-            self._reporter.error(
-                expr.name, "Can't read local variable in its own initializer."
-            )
+        if self._scopes:
+            info = self._scopes[-1].get(expr.name.lexeme)
+            if info is not None and not info.defined:
+                self._reporter.error(
+                    expr.name, "Can't read local variable in its own initializer."
+                )
 
         self._resolve_local(expr, expr.name)

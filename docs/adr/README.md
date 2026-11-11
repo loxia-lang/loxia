@@ -50,12 +50,13 @@ Crie quando a decisão:
 | [0002](0002-tree-walk-como-oraculo.md) | Tree-walk é a especificação executável | accepted | 2026-11-11 |
 | [0003](0003-diagnosticos-por-execucao.md) | Diagnósticos por execução, sem estado global | accepted | 2026-11-11 |
 | [0004](0004-identidade-dos-nos-de-ast.md) | Nós de AST têm identidade | accepted | 2026-11-11 |
+| [0005](0005-val-var-imutabilidade.md) | `val`/`var` e imutabilidade de bindings | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 
 Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`):
 
-- `val` vs `var` e imutabilidade por padrão — [I-1](../../IDEIAS.md);
+- campos de classe, parâmetros opcionais/default — [I-5](../../IDEIAS.md);
 - `Int` vs `Float` e regras numéricas — [D-1](../../TIPOS.md);
 - pipeline (`|>`/`:>`) e stdlib — [I-2](../../IDEIAS.md), [I-3](../../IDEIAS.md);
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md).

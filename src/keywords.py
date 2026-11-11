@@ -15,6 +15,7 @@ KEYWORDS: dict[str, TokenType] = {
     "super": TokenType.SUPER,
     "this": TokenType.THIS,
     "true": TokenType.TRUE,
+    "val": TokenType.VAL,
     "var": TokenType.VAR,
     "while": TokenType.WHILE,
 }

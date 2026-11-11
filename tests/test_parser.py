@@ -129,7 +129,7 @@ def test_parses_function_declaration() -> None:
     function = statements[0]
     assert isinstance(function, Function)
     assert function.name.lexeme == "soma"
-    assert [param.lexeme for param in function.params] == ["a", "b"]
+    assert [param.name.lexeme for param in function.params] == ["a", "b"]
     assert len(function.body) == 1
     assert isinstance(function.body[0], Return)
 
@@ -144,7 +144,7 @@ def test_parses_class_declaration() -> None:
     assert klass.superclass is None
     assert len(klass.methods) == 1
     assert klass.methods[0].name.lexeme == "bar"
-    assert [param.lexeme for param in klass.methods[0].params] == ["a"]
+    assert [param.name.lexeme for param in klass.methods[0].params] == ["a"]
 
 
 def test_property_and_this_ast_shape() -> None:
@@ -164,3 +164,31 @@ def test_parses_class_with_superclass() -> None:
 
 def test_super_ast_shape() -> None:
     assert ast("super.m()") == "(call (super m))"
+
+
+def test_val_and_var_mutability_flags() -> None:
+    statements = parse("val a = 1; var b = 2;")
+
+    val_stmt, var_stmt = statements
+    assert isinstance(val_stmt, Var)
+    assert isinstance(var_stmt, Var)
+    assert val_stmt.mutable is False
+    assert var_stmt.mutable is True
+
+
+def test_val_requires_initializer() -> None:
+    parser = parser_for("val a;")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_parameters_can_be_var() -> None:
+    statements = parse("fun f(a, var b) {}")
+
+    function = statements[0]
+    assert isinstance(function, Function)
+    assert [(param.name.lexeme, param.mutable) for param in function.params] == [
+        ("a", False),
+        ("b", True),
+    ]

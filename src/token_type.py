@@ -45,6 +45,7 @@ class TokenType(Enum):
     SUPER = auto()
     THIS = auto()
     TRUE = auto()
+    VAL = auto()
     VAR = auto()
     WHILE = auto()
 

@@ -55,9 +55,15 @@ class Expression(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
+class Param:
+    name: Token
+    mutable: bool
+
+
+@dataclass(frozen=True, eq=False)
 class Function(Stmt):
     name: Token
-    params: list[Token]
+    params: list[Param]
     body: list[Stmt]
 
     def accept[R](self, visitor: Visitor[R]) -> R:
@@ -95,6 +101,7 @@ class Return(Stmt):
 class Var(Stmt):
     name: Token
     initializer: Expr | None
+    mutable: bool
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)

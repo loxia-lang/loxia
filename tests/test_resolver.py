@@ -152,3 +152,39 @@ def test_this_depth_in_subclass() -> None:
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [1]
+
+
+def test_assignment_to_val_local_reports_error() -> None:
+    reporter, _, _ = resolve("{ val x = 1; x = 2; }")
+
+    assert reporter.had_error
+
+
+def test_assignment_to_var_local_is_allowed() -> None:
+    reporter, _, _ = resolve("{ var x = 1; x = 2; }")
+
+    assert not reporter.had_error
+
+
+def test_parameter_is_immutable_by_default() -> None:
+    reporter, _, _ = resolve("fun f(x) { x = 2; }")
+
+    assert reporter.had_error
+
+
+def test_var_parameter_is_mutable() -> None:
+    reporter, _, _ = resolve("fun f(var x) { x = 2; }")
+
+    assert not reporter.had_error
+
+
+def test_global_val_assignment_is_left_to_runtime() -> None:
+    reporter, _, _ = resolve("val x = 1; x = 2;")
+
+    assert not reporter.had_error
+
+
+def test_val_can_shadow_in_nested_scope() -> None:
+    reporter, _, _ = resolve("val x = 1; { val x = 2; }")
+
+    assert not reporter.had_error

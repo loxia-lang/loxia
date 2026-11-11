@@ -1,6 +1,10 @@
 from src.environment import Environment
 from src.error_reporter import ErrorReporter
-from src.errors import LoxRuntimeError, ReturnSignal
+from src.errors import (
+    LoxRuntimeError,
+    ReturnSignal,
+    immutable_redeclare_message,
+)
 from src.expr import (
     Assign,
     Binary,
@@ -52,6 +56,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def _execute(self, stmt: Stmt) -> None:
         stmt.accept(self)
+
+    def _reject_immutable_redeclaration(self, name: Token) -> None:
+        if self.environment is not self.globals:
+            return
+
+        if name.lexeme in self.environment.values and not self.environment.is_mutable(
+            name.lexeme
+        ):
+            raise LoxRuntimeError(name, immutable_redeclare_message(name.lexeme))
 
     def _is_truthy(self, obj: object) -> bool:
         if obj is None:
@@ -186,6 +199,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return callee.call(self, arguments)
 
     def visit_class_stmt(self, stmt: Class) -> None:
+        self._reject_immutable_redeclaration(stmt.name)
+
         superclass: LoxClass | None = None
         if stmt.superclass is not None:
             candidate = self._evaluate(stmt.superclass)
@@ -261,6 +276,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return self.look_up_variable(expr.keyword, expr)
 
     def visit_function_stmt(self, stmt: Function) -> None:
+        self._reject_immutable_redeclaration(stmt.name)
+
         function = LoxFunction(stmt, self.environment, False)
         self.environment.define(stmt.name.lexeme, function)
 
@@ -276,11 +293,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         raise ReturnSignal(stmt.keyword, value)
 
     def visit_var_stmt(self, stmt: Var) -> None:
+        self._reject_immutable_redeclaration(stmt.name)
+
         val: object = None
         if stmt.initializer is not None:
             val = self._evaluate(stmt.initializer)
 
-        self.environment.define(stmt.name.lexeme, val)
+        self.environment.define(stmt.name.lexeme, val, stmt.mutable)
 
     def visit_variable_expr(self, expr: Variable) -> object:
         return self.look_up_variable(expr.name, expr)

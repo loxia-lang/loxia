@@ -51,19 +51,26 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) s�
 - caso contrário, representação decimal do Python (`2.5`, `0.30000000000000004`);
 - sem notação científica explícita nossa: usa a do Python.
 
-## Variáveis e escopos
+## Variáveis, `val` e `var`
 
-- `var x;` define `x` com `nil`.
-- `var x = expr;` avalia a expressão e então define `x`.
-- No **escopo global**, redeclarar é permitido (`var a = 1; var a = 2;`); a segunda
-  declaração substitui.
-- Em **escopo local** (bloco, função, `for`), redeclarar o mesmo nome no mesmo escopo é erro
-  de compilação: `Already a variable with this name in this scope.`
-- Ler uma variável local no próprio inicializador é erro:
-  `Can't read local variable in its own initializer.` (global não: vira
+- `val x = expr;` cria binding **imutável** e **exige inicializador**.
+- `var x;` cria binding mutável com `nil`; `var x = expr;` idem com valor.
+- A imutabilidade é do **nome**, não do valor: `val lista` (quando listas existirem) ainda
+  pode ter conteúdo mutável.
+- Atribuir a `val` local (ou a parâmetro imutável) é **erro de compilação**:
+  `'x' is immutable; declare it with 'var' to allow assignment.`
+- Atribuir a `val` **global** é erro de **runtime** (mesma mensagem, exit 70): globais não
+  são rastreadas pelo resolver.
+- `val` global **não pode ser redeclarado** (`val x = 1; var x = 2;`): erro de runtime
+  `Can't redeclare immutable variable 'x'.` `var` global continua redeclarável; `var`
+  seguido de `val` é permitido e o nome passa a ser imutável.
+- Em escopo local (bloco, função, `for`), redeclarar o mesmo nome no mesmo escopo é erro de
+  compilação: `Already a variable with this name in this scope.` (vale para `val` e `var`).
+- Blocos aninhados podem **sombrear** nomes de escopos externos (inclusive `val`).
+- Ler variável local no próprio inicializador é erro:
+  `Can't read local variable in its own initializer.` (global vira
   `Undefined variable` em runtime).
-- Blocos aninhados podem **sombrear** nomes de escopos externos.
-- Atribuir a nome inexistente é erro de runtime: `Undefined variable 'x'.`
+- Declarações `fun` e `class` criam bindings **mutáveis** (decisão separada em aberto).
 - O resolver grava a **distância** de cada acesso local; variáveis globais continuam sendo
   buscadas em runtime no ambiente global. Isso garante escopo léxico: uma closure lê a
   variável do local onde foi **declarada**, não do local de onde é chamada.
@@ -117,6 +124,8 @@ var a = "global";
 - Declaração: `fun nome(params) { corpo }`; o nome é definido **antes** do corpo, então a
   função pode ser recursiva; funções no mesmo escopo podem se chamar (resolução em runtime
   para globais, distância para locais).
+- Parâmetros são **imutáveis por padrão** (`val` implícito). `fun f(var x)` permite
+  reatribuir `x`; sem `var`, a atribuição é erro de compilação.
 - Chamada: avalia o **callee** primeiro e os argumentos da esquerda para a direita; depois
   verifica se é chamável e a aridade.
 - Não é chamável: `Can only call functions and classes.`
@@ -200,5 +209,6 @@ class ContaPoupanca < Conta {
 - O REPL aceita `;` final opcional e imprime o valor de expressões.
 - `return` no topo é erro de compilação já no cap. 11 (no livro, o resolver faz isso).
 - Números são todos `float` hoje; `Int`/`Float` é decisão em aberto (`TIPOS.md`).
+- `val`/`var` não existem no livro (que só tem `var` mutável); ver ADR-0005.
 
 Tudo o mais segue o jlox do livro, inclusive as mensagens.

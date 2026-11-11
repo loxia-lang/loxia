@@ -47,7 +47,8 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Expect '{' before function body.` / `method body.` | função sem `{` |
 | `Expect '{' before class body.` | classe sem `{` |
 | `Expect '}' after block.` / `after class body.` | bloco/classe sem `}` |
-| `Expect variable name.` | `var` sem identificador |
+| `Expect variable name.` | `var`/`val` sem identificador |
+| `Expect initializer for 'val' declaration.` | `val x;` sem `=` |
 | `Expect function name.` / `method name.` | `fun`/método sem nome |
 | `Expect parameter name.` | parâmetro ausente |
 | `Expect class name.` | `class` sem nome |
@@ -63,7 +64,8 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 
 | Mensagem | Quando |
 | --- | --- |
-| `Already a variable with this name in this scope.` | `var a` repetido no mesmo escopo; parâmetro + `var a`; parâmetro repetido |
+| `Already a variable with this name in this scope.` | `val`/`var` repetido no mesmo escopo; parâmetro + local; parâmetro repetido |
+| `'x' is immutable; declare it with 'var' to allow assignment.` | atribuição a `val` local ou parâmetro imutável (compilação) |
 | `Can't read local variable in its own initializer.` | `{ var a = a; }` |
 | `Can't return from top-level code.` | `return` fora de função |
 | `Can't return a value from an initializer.` | `return valor;` dentro de `init` |
@@ -77,6 +79,8 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | Mensagem | Quando |
 | --- | --- |
 | `Undefined variable 'x'.` | leitura/atribuição de nome inexistente |
+| `'x' is immutable; declare it with 'var' to allow assignment.` | atribuição a `val` global |
+| `Can't redeclare immutable variable 'x'.` | redeclarar um `val` global |
 | `Operand must be a number.` | `-"a"` |
 | `Operands must be numbers.` | `1 < "a"` |
 | `Operands must be two numbers or two strings.` | `1 + "a"` |
@@ -87,6 +91,9 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Only instances have fields.` | `1.x = 2` |
 | `Undefined property 'x'.` | campo/método inexistente; `super.x` inexistente |
 | `Superclass must be a class.` | `class B < A` com `A = 1` |
+
+A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros
+(65) e runtime para globais (70). O texto é o mesmo de propósito.
 
 ## Como testar
 

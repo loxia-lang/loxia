@@ -1,0 +1,11 @@
+fun incrementa(var x) {
+  x = x + 1;
+  return x;
+}
+
+fun leitura(x) {
+  return x + 1;
+}
+
+print incrementa(1);  // expect: 2
+print leitura(1);     // expect: 2

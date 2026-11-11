@@ -21,6 +21,7 @@ from src.stmt import (
     Expression,
     Function,
     If,
+    Param,
     Print,
     Return,
     Stmt,
@@ -97,8 +98,11 @@ class Parser:
             if self._match(TokenType.FUN):
                 return self._function("function")
 
+            if self._match(TokenType.VAL):
+                return self._var_declaration(mutable=False)
+
             if self._match(TokenType.VAR):
-                return self._var_declaration()
+                return self._var_declaration(mutable=True)
 
             return self._statement()
         except ParseError:
@@ -123,16 +127,18 @@ class Parser:
 
         return Class(name, superclass, methods)
 
-    def _var_declaration(self) -> Stmt:
+    def _var_declaration(self, mutable: bool) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
         initializer: Expr | None = None
 
         if self._match(TokenType.EQUAL):
             initializer = self._expression()
+        elif not mutable:
+            raise self._error(self._peek(), "Expect initializer for 'val' declaration.")
 
         self._end_statement("Expect ';' after variable declaration.")
 
-        return Var(name, initializer)
+        return Var(name, initializer, mutable)
 
     def _statement(self) -> Stmt:
         if self._match(TokenType.FOR):
@@ -171,8 +177,10 @@ class Parser:
 
         if self._match(TokenType.SEMICOLON):
             initializer = None
+        elif self._match(TokenType.VAL):
+            initializer = self._var_declaration(mutable=False)
         elif self._match(TokenType.VAR):
-            initializer = self._var_declaration()
+            initializer = self._var_declaration(mutable=True)
         else:
             initializer = self._expression_statement()
 
@@ -260,15 +268,15 @@ class Parser:
         name = self._consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
 
-        parameters: list[Token] = []
+        parameters: list[Param] = []
         if not self._check(TokenType.RIGHT_PAREN):
             while True:
                 if len(parameters) >= 255:
                     self._error(self._peek(), "Can't have more than 255 parameters.")
 
-                parameters.append(
-                    self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
-                )
+                mutable = self._match(TokenType.VAR)
+                name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
+                parameters.append(Param(name_token, mutable))
 
                 if not self._match(TokenType.COMMA):
                     break
@@ -485,6 +493,7 @@ class Parser:
             if self._peek().type in {
                 TokenType.CLASS,
                 TokenType.FUN,
+                TokenType.VAL,
                 TokenType.VAR,
                 TokenType.FOR,
                 TokenType.IF,

@@ -78,3 +78,29 @@ def test_ancestor_walks_enclosing_chain() -> None:
 
     assert inner.ancestor(0) is inner
     assert inner.ancestor(1) is outer
+
+
+def test_immutable_binding_cannot_be_assigned() -> None:
+    environment = Environment()
+    environment.define("x", 1.0, mutable=False)
+
+    with pytest.raises(LoxRuntimeError, match="is immutable"):
+        environment.assign(ident("x"), 2.0)
+
+
+def test_mutable_binding_can_be_assigned() -> None:
+    environment = Environment()
+    environment.define("x", 1.0)
+
+    environment.assign(ident("x"), 2.0)
+
+    assert environment.get(ident("x")) == 2.0
+
+
+def test_assign_at_respects_immutability() -> None:
+    outer = Environment()
+    outer.define("x", 1.0, mutable=False)
+    inner = Environment(outer)
+
+    with pytest.raises(LoxRuntimeError, match="is immutable"):
+        inner.assign_at(1, ident("x"), 2.0)

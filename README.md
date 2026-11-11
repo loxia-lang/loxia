@@ -65,6 +65,6 @@ IDEIAS.md        discussões de design (parking lot)
 - **Roadmap**: [`TODO.md`](TODO.md) · **tipos**: [`TIPOS.md`](TIPOS.md) ·
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
-> A especificação descreve o que o código faz **hoje** (Lox do livro). A sintaxe planejada
-> (`val`, `;` opcional, `fn`, pipes, tipos) está nos documentos de roadmap e ainda **não**
-> está implementada.
+> A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`).
+> A sintaxe planejada (`;` opcional, `fn`, pipes, tipos) está nos documentos de roadmap e
+> ainda **não** está implementada.

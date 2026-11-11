@@ -18,8 +18,8 @@ pretendo tipar e como chegar no LLVM.
 ## 0. Agora: base sã e livro concluído
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. **Parte II concluída** (caps. 4–13: scanner, parser, resolver, funções,
-> classes e herança). Próximo: fechar decisões de sintaxe/tipos antes de seguir.
+> no lugar. **Parte II concluída** (caps. 4–13) e **`val`/`var` decididos e implementados**
+> (ADR-0005). Próximo: parâmetros default/campos (I-5), type checker ou sintaxe restante.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -119,17 +119,17 @@ fn fib(n: Int) -> Int {
 }
 
 fn main() {
-  let n = 30
+  val n = 30
   println("fib(${n}) = ${fib(n)}")          // interpolação
 
-  let pessoas = [Pessoa("Ana", 32), Pessoa("Bia", 28)]
+  val pessoas = [Pessoa("Ana", 32), Pessoa("Bia", 28)]
 
   for p in pessoas {
-    let rotulo = p.nome ?? "sem nome"       // fallback de nil
+    val rotulo = p.nome ?? "sem nome"       // fallback de nil
     println("${rotulo} tem ${p.idade} anos")
   }
 
-  let primeiro = pessoas[0]?.endereco?.cidade  // optional chaining
+  val primeiro = pessoas[0]?.endereco?.cidade  // optional chaining
 }
 ```
 
@@ -139,13 +139,14 @@ fn main() {
 - [ ] `P1` **`;` opcional** (inserção por newline). Regras: inserir no fim de linha,
       exceto antes de `)`, `]`, `}`, `,`, `.`, `?.`, e operadores binários/infixos
       (`+ - * / % == != < > <= >= and or ?? |>`) nem antes de `else`/`catch`.
-      Consequência: `let x = a\n-b` precisa de cuidado. Lox2 já faz isso — referência.
+      Consequência: `val x = a\n-b` precisa de cuidado. Lox2 já faz isso — referência.
 - [ ] `P1` **`elif`** em vez de `else if`.
 - [ ] `P2` **chaves opcionais** para corpo de uma instrução (`if x > 0 print x`).
-- [ ] `P2` **`val`** imutável + **`var`** mutável (erro em reatribuir `val`). Decisão e
-      argumentos dos dois lados em [`IDEIAS.md`](IDEIAS.md) I-1.
-- [ ] `P2` **parâmetros imutáveis** por padrão; `var` explícito para mutar (mesma decisão
-      I-1).
+- [x] `P2` **`val`** imutável + **`var`** mutável (erro em reatribuir `val`) —
+      [ADR-0005](docs/adr/0005-val-var-imutabilidade.md); histórico em
+      [`IDEIAS.md`](IDEIAS.md) I-1.
+- [x] `P2` **parâmetros imutáveis** por padrão; `var` explícito para mutar
+      (`fun f(var x)`), mesma decisão.
 - [ ] `P2` **corpo de expressão** em `fn` (`fn dobro(x) -> x * 2`).
 - [ ] `P2` **bloco como expressão** (último valor do bloco é o valor).
 - [ ] `P3` **`match`** estrutural com `=>` e exaustividade quando o tipo for enum/union.
@@ -170,11 +171,13 @@ fn main() {
 - [ ] `P2` **mapas** `{ "a": 1 }` — cuidado: `{` de mapa vs bloco. Opções: `#{...}`,
       ou exigir `:`/`,` para desambiguar. Lox2 resolveu? estudar antes.
 - [ ] `P2` **`for x in iterável`** + protocolo de iterador (método `iter()`).
-- [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista.
+- [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista. Viabilidade e
+      comparação com `**kwargs` em [`IDEIAS.md`](IDEIAS.md) I-5 (complemento): `*args`
+      talvez, `**kwargs` não (depende de named args e destrói tipagem).
 - [ ] `P2` **lambdas** `fn(x) -> x * 2` e **trailing closure** `lista.map { |x| x * 2 }`
       (a sintaxe de trailing closure é ideia do Lox2/Kotlin/Swift).
 - [ ] `P3` **argumentos nomeados** e **defaults** `fn ponto(x, y = 0)`.
-- [ ] `P3` **destructuring** `let (a, b) = par` / `let { nome, idade } = pessoa`.
+- [ ] `P3` **destructuring** `val (a, b) = par` / `val { nome, idade } = pessoa`.
 
 **Módulos e metaprogramação**
 - [ ] `P3` **namespaces/imports** (`namespace app.model`, `using app.model.Pessoa`).
@@ -223,8 +226,8 @@ E inferência na fronteira:
 
 ```lox
 fn soma(a, b) { a + b }   // 'a: T, 'b: T -> T
-let x = soma(1, 2)        // T := Int; x: Int
-let y = soma(1, "b")      // erro: T := Int e T := String não unificam
+val x = soma(1, 2)        // T := Int; x: Int
+val y = soma(1, "b")      // erro: T := Int e T := String não unificam
 ```
 
 O ponto central: **o argumento é checado contra o parâmetro**, e o parâmetro sem anotação
@@ -239,7 +242,7 @@ nas chamadas**, em camadas:
 | Etapa | O que faz | Ganho |
 | --- | --- | --- |
 | **T1** | `Ty` no AST, parser aceita `: Tipo` e `-> Tipo`; checker só valida o que está anotado, resto é `Any` | sintaxe pronta, zero falso positivo |
-| **T2** | inferência local: `let x = 1` → `Int`; `fn f() -> 1` → `Int`; checagem de `return` | erros óbvios |
+| **T2** | inferência local: `val x = 1` → `Int`; `fn f() -> 1` → `Int`; checagem de `return` | erros óbvios |
 | **T3** | parâmetro sem anotação vira `TyVar`; unificar a cada chamada **no arquivo** | o "check nos args" que eu quero |
 | **T4** | generalização (let-polymorphism) → funções genéricas implícitas; `fn id<T>(x: T) -> T` explícito | bibliotecas |
 | **T5** | uniões `Int \| String`, opcionais `T?`, narrowing em `if x != nil` | expressividade |
@@ -323,7 +326,7 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
 
 - [ ] `P2` **narrowing**: `if x != nil { x.metodo() }`, `if x is Pessoa { ... }`.
 - [ ] `P2` **exhaustividade** em `match`/enum.
-- [ ] `P3` **flow-sensitive** para `let` (uma atribuição só).
+- [ ] `P3` **flow-sensitive** para `val` (uma atribuição só).
 - [ ] `P3` **tipos de função** como valores de primeira classe (essencial p/ lambdas).
 - [ ] `P3` **generics com constraints** (`T with Show`).
 - [ ] `P3` **inferência de retorno** para funções com corpo de expressão.
@@ -672,7 +675,7 @@ cobre a parte de geração de código e eu quero manter o escopo humano.
 | **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (71), benchmark com baseline, lint/tipos/CI |
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** | Linguagem estável | suíte oficial do livro passando + exemplos + README |
-| **M3** | Sintaxe nova | `;` opcional, `let/var`, `fn`, interpolação, arrays, `for-in`, `?.`/`??` |
+| **M3** | Sintaxe nova | `;` opcional, `val`/`var` ✅, `fn`, interpolação, arrays, `for-in`, `?.`/`??` |
 | **M4** | Tipos v1 | T1–T3: anotações, inferência local, checagem nos args, `--check` |
 | **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing, exaustividade |
 | **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo |
@@ -713,8 +716,9 @@ Decisões **numéricas e de tipos** (`Int`/`Float`, literais, overflow, formata�
 nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 
 1. **Nome e extensão** da linguagem (hoje "PyLox", arquivos `.lox`).
-2. **`val` + `var`**, só `var`, ou `val` sempre mutável? Recomendação provisória e
-   argumentos em [`IDEIAS.md`](IDEIAS.md) I-1.
+2. **`val`/`var`** — **decidido**: `val` imutável (exige inicializador) e `var` mutável;
+   parâmetros `val` por padrão. Ver [ADR-0005](docs/adr/0005-val-var-imutabilidade.md).
+   Campos e defaults ficam em [`IDEIAS.md`](IDEIAS.md) I-5.
 3. **`Int` vs `Float`**: tipos separados (Lox2) ou um `Number` double (Lox)?
    Impacto direto no codegen — separar é melhor para LLVM.
 4. **Nullability**: `T?` explícito (Kotlin) ou tudo anulável (Lox atual)?

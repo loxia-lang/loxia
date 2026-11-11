@@ -3,7 +3,7 @@
 Portal da documentação técnica, sintática e das decisões de design.
 
 > **Estado:** a especificação descreve o interpretador **como ele existe hoje** (Lox da
-> Parte II do livro). A linguagem planejada — `val`/`var`, `;` opcional, `fn`, pipes,
+> Parte II do livro). A linguagem planejada — `;` opcional, `fn`, pipes,
 > tipagem — está em [`../TODO.md`](../TODO.md) §1/§2, [`../IDEIAS.md`](../IDEIAS.md) e
 > [`../TIPOS.md`](../TIPOS.md), e **não** vale para o código atual.
 
@@ -39,4 +39,5 @@ de reverter → novo ADR. Discussão ainda aberta → `IDEIAS.md`/`TODO.md`, nã
   - [ADR-0002](adr/0002-tree-walk-como-oraculo.md) — tree-walk é a especificação executável.
   - [ADR-0003](adr/0003-diagnosticos-por-execucao.md) — diagnósticos por execução.
   - [ADR-0004](adr/0004-identidade-dos-nos-de-ast.md) — nós de AST têm identidade.
+  - [ADR-0005](adr/0005-val-var-imutabilidade.md) — `val`/`var` e imutabilidade.
 - [Glossário](glossario.md)

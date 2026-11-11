@@ -3,9 +3,9 @@
 Gramática do parser atual ([`src/parser.py`](../../src/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`val`, `fn`, `;`
-> opcional, `?.`, pipes…) está em [`../../TODO.md`](../../TODO.md) §1 e **não** existe no
-> parser hoje.
+> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`fn`, `;` opcional,
+> `?.`, pipes…) está em [`../../TODO.md`](../../TODO.md) §1 e **não** existe no parser
+> hoje. `val`/`var` já existem (ADR-0005).
 
 ## Gramática (EBNF)
 
@@ -15,14 +15,17 @@ program        → declaration* EOF ;
 declaration    → classDecl
                | funDecl
                | varDecl
+               | valDecl
                | statement ;
 
 classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
-parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
+parameters     → parameter ( "," parameter )* ;
+parameter      → "var"? IDENTIFIER ;
 
 varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+valDecl        → "val" IDENTIFIER "=" expression ";" ;
 
 statement      → exprStmt
                | forStmt
@@ -33,7 +36,7 @@ statement      → exprStmt
                | block ;
 
 exprStmt       → expression ";" ;
-forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
                  expression? ";"
                  expression? ")" statement ;
 ifStmt         → "if" "(" expression ")" statement ( "else" statement )? ;
@@ -121,6 +124,9 @@ Por isso o `for` tem as mesmas regras de escopo de um bloco e uma condição omi
 - **Ponto e vírgula é obrigatório** em `var`, `print`, `return`, `for` e expressões, exceto
   no REPL: no modo `repl=True`, o `;` final pode ser omitido quando a entrada termina
   (`_end_statement`). Declarações continuam precisando de `;` no meio do arquivo.
+- `val` **exige inicializador** (`val x;` é erro). `var` pode omitir (`var x;` → `nil`).
+- Parâmetros são **`val` implícitos**; `var` antes do nome libera a reatribuição:
+  `fun f(x, var y)`. `val` explícito em parâmetro não é aceito.
 - Métodos de classe **não usam `fun`**:
 
   ```lox

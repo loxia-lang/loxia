@@ -76,11 +76,13 @@ estrutural, dois `a` na mesma linha (mesmo token) colidiriam. Ver
 
 ## Ambientes e resolução
 
-- `Environment` é uma lista ligada (`values: dict[str, object]`, `enclosing`).
-- `define` grava no escopo atual; `get`/`assign` sobem a corrente até achar (globais vivem
-  no ambiente raiz).
-- O resolver mantém uma pilha de escopos `dict[str, bool]` (`False` = declarada, `True` =
-  inicializada) e grava em `Interpreter.locals[expr] = distância`.
+- `Environment` é uma lista ligada (`values: dict[str, object]`, `_mutable: dict[str, bool]`,
+  `enclosing`).
+- `define(nome, valor, mutable)` grava no escopo atual; `get`/`assign` sobem a corrente até
+  achar (globais vivem no ambiente raiz). `assign`/`assign_at` recusam binding imutável.
+- O resolver mantém uma pilha de escopos `dict[str, _VariableInfo]` (`defined`, `mutable`)
+  e grava em `Interpreter.locals[expr] = distância`. É aqui que `val` local/parâmetro vira
+  erro de compilação; globais ficam para o `Environment`.
 - Em runtime, variável local usa `environment.get_at(distance, nome)`; global usa
   `globals.get`. Atribuição idem com `assign_at`.
 - `distance` é contada a partir do ambiente corrente: 0 = escopo atual.
@@ -92,8 +94,10 @@ chamada.
 
 - `LoxCallable` é um `Protocol` `runtime_checkable` com `arity()` e `call(interpreter, args)`.
   `isinstance(x, LoxCallable)` verifica presença dos métodos.
+- `Stmt.Function.params` é uma lista de `Param(name, mutable)`, e `Stmt.Var` carrega
+  `mutable`. Parâmetros são imutáveis por padrão (`var` no parser liga `mutable`).
 - `LoxFunction` guarda a declaração (`Stmt.Function`) e a `closure`; `call` cria um ambiente
-  novo, define os parâmetros e executa o corpo. `bind(instance)` cria um ambiente com
+  novo, define os parâmetros (com a mutabilidade de cada um) e executa o corpo. `bind(instance)` cria um ambiente com
   `this` (usado por métodos e por `super`).
 - `LoxClass` guarda `superclass` e `methods`; `find_method` procura na própria classe e
   sobe recursivamente. `call` cria a instância e roda `init`.

@@ -63,8 +63,8 @@ Strings:
 ### Palavras-chave
 
 ```
-and   class   else   false   for   fun   if   nil
-or    print   return  super   this  true  var   while
+and   class   else   false   for   fun     if    nil
+or    print   return  super   this  true    val   var   while
 ```
 
 São sensíveis a maiúsculas (`Class` é identificador).
