@@ -1,0 +1,6 @@
+class C {
+  var x;
+}
+
+C();
+// expect runtime error: Field 'x' must be initialized.

@@ -1,4 +1,5 @@
 class A {
+  var x;
   init(x) {
     this.x = x;
   }

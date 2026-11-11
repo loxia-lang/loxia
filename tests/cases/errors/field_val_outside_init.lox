@@ -1,0 +1,12 @@
+class C {
+  val x;
+
+  init() {
+    this.x = 1;
+  }
+
+  muda() {
+    this.x = 2;
+  }
+}
+// expect error: Can't assign to immutable field 'x'.

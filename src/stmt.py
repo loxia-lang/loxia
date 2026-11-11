@@ -38,9 +38,17 @@ class Block(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
+class Field:
+    name: Token
+    initializer: Expr | None
+    mutable: bool
+
+
+@dataclass(frozen=True, eq=False)
 class Class(Stmt):
     name: Token
     superclass: Variable | None
+    fields: list[Field]
     methods: list[Function]
 
     def accept[R](self, visitor: Visitor[R]) -> R:
@@ -59,6 +67,7 @@ class Expression(Stmt):
 class Param:
     name: Token
     mutable: bool
+    default: Expr | None = None
 
 
 @dataclass(frozen=True, eq=False)

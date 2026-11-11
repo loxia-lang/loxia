@@ -1,0 +1,23 @@
+// Campos declarados são herdados; `var` continua mutável na subclasse.
+class A {
+  var x;
+
+  init(x) {
+    this.x = x;
+  }
+}
+
+class B(A) {
+  var y;
+
+  init(x, y) {
+    super.init(x);
+    this.y = y;
+  }
+}
+
+var b = B(1, 2);
+print b.x + b.y;  // expect: 3
+
+b.x = 10;
+print b.x;  // expect: 10

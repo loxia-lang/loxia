@@ -52,7 +52,12 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Expect function name.` / `method name.` | `fun`/método sem nome |
 | `Expect parameter name.` | parâmetro ausente |
 | `Expect class name.` | `class` sem nome |
-| `Expect superclass name.` | `class B <` sem nome |
+| `Expect superclass name.` | `class B(` sem nome |
+| `Expect ')' after superclass.` | `class B(A` sem `)` |
+| `Expect ';' after field declaration.` | campo sem `;` |
+| `Field initializer must be a constant.` | `var x = 1 + 2;` no corpo da classe |
+| `Default value must be a constant.` | `fun f(x = 1 + 2)` |
+| `Required parameter can't follow an optional parameter.` | `fun f(a = 1, b)` |
 | `Expect '.' after 'super'.` | `super` sem ponto |
 | `Expect superclass method name.` | `super.` sem nome |
 | `Expect property name after '.'.` | `obj.` sem nome |
@@ -72,7 +77,10 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Can't use 'this' outside of a class.` | `this` fora de método |
 | `A class can't inherit from itself.` | `class A(A)` |
 | `Can't use 'super' outside of a class.` | `super.m` fora de classe |
-| `Can't use 'super' in a class with no superclass.` | `super.m` em classe sem `<` |
+| `Can't use 'super' in a class with no superclass.` | `super.m` em classe sem superclasse |
+| `Field 'x' already declared.` | campo repetido no mesmo corpo ou na subclasse |
+| `Field 'x' conflicts with a method.` | campo e método com o mesmo nome |
+| `Can't assign to immutable field 'x'.` | `this.x = ...` de campo `val` fora do `init` |
 
 ## Runtime
 
@@ -86,10 +94,15 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Operands must be two numbers or two strings.` | `1 + "a"` |
 | `Division by zero not allowed` | `/ 0` |
 | `Can only call functions and classes.` | `1()` |
-| `Expected N arguments but got M.` | aridade de função/classe |
+| `Expected N arguments but got M.` | aridade fixa de função/classe |
+| `Expected at least N arguments but got M.` | chamada curta com defaults |
+| `Expected N to M arguments but got K.` | chamada longa com defaults |
 | `Only instances have properties.` | `1.x` |
 | `Only instances have fields.` | `1.x = 2` |
 | `Undefined property 'x'.` | campo/método inexistente; `super.x` inexistente |
+| `Undefined field 'x'.` | atribuição a campo não declarado |
+| `Field 'x' must be initialized.` | instância criada sem inicializar o campo |
+| `Can't assign to immutable field 'x'.` | segunda atribuição a campo `val` |
 | `Superclass must be a class.` | `class B(A)` com `A = 1` |
 
 A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros

@@ -1,4 +1,5 @@
 class Caixa {
+  var v;
   init(v) {
     this.v = v;
     return;

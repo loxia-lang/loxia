@@ -13,7 +13,10 @@ if TYPE_CHECKING:
 class RangeNative:
     """`range(start, end, step)` — devolve um `LoxRange` lazy e reutilizável."""
 
-    def arity(self) -> int:
+    def min_arity(self) -> int:
+        return 3
+
+    def max_arity(self) -> int:
         return 3
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:

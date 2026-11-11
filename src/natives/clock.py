@@ -10,7 +10,10 @@ if TYPE_CHECKING:
 class Clock:
     """`clock()` nativa: segundos desde a época, como no livro."""
 
-    def arity(self) -> int:
+    def min_arity(self) -> int:
+        return 0
+
+    def max_arity(self) -> int:
         return 0
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:

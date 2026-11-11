@@ -18,11 +18,13 @@ declaration    → classDecl
                | valDecl
                | statement ;
 
-classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" function* "}" ;
+classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
+classMember    → fieldDecl | function ;
+fieldDecl      → ( "val" | "var" ) IDENTIFIER ( "=" expression )? ";" ;
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → parameter ( "," parameter )* ;
-parameter      → "var"? IDENTIFIER ;
+parameter      → "var"? IDENTIFIER ( "=" expression )? ;
 
 varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 valDecl        → "val" IDENTIFIER "=" expression ";" ;
@@ -63,6 +65,10 @@ primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | IDENTIFIER | "(" expression ")"
                | "super" "." IDENTIFIER ;
 ```
+
+Defaults de parâmetro e inicializadores de campo são **constantes na v1** (literal,
+`nil`, `true`/`false`, `-` de literal numérico ou parênteses em torno disso). Parâmetros
+obrigatórios vêm antes dos opcionais; campos podem aparecer antes ou depois dos métodos.
 
 ## Precedência e associatividade
 

@@ -27,7 +27,7 @@ from src.expr import (
 )
 from src.expr import Visitor as ExprVisitor
 from src.lox_callable import LoxCallable
-from src.lox_class import LoxClass
+from src.lox_class import FieldInfo, LoxClass
 from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
 from src.lox_range import LoxRange
@@ -73,6 +73,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def _evaluate(self, expr: Expr) -> object:
         return expr.accept(self)
+
+    def evaluate(self, expr: Expr) -> object:
+        """Ponto de avaliação público (usado por defaults de parâmetro)."""
+        return self._evaluate(expr)
 
     def _execute(self, stmt: Stmt) -> None:
         stmt.accept(self)
@@ -222,11 +226,19 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if not isinstance(callee, LoxCallable):
             raise LoxRuntimeError(expr.paren, "Can only call functions and classes.")
 
-        if len(arguments) != callee.arity():
-            raise LoxRuntimeError(
-                expr.paren,
-                f"Expected {callee.arity()} arguments but got {len(arguments)}.",
-            )
+        minimum = callee.min_arity()
+        maximum = callee.max_arity()
+        count = len(arguments)
+
+        if not minimum <= count <= maximum:
+            if minimum == maximum:
+                message = f"Expected {minimum} arguments but got {count}."
+            elif count < minimum:
+                message = f"Expected at least {minimum} arguments but got {count}."
+            else:
+                message = f"Expected {minimum} to {maximum} arguments but got {count}."
+
+            raise LoxRuntimeError(expr.paren, message)
 
         try:
             return callee.call(self, arguments)
@@ -259,7 +271,21 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
             methods[method.name.lexeme] = function
 
-        klass = LoxClass(stmt.name.lexeme, superclass, methods)
+        fields: dict[str, FieldInfo] = {}
+        if superclass is not None:
+            fields.update(superclass.fields)
+
+        for field in stmt.fields:
+            if field.name.lexeme in fields:
+                raise LoxRuntimeError(
+                    field.name, f"Field '{field.name.lexeme}' already declared."
+                )
+
+            fields[field.name.lexeme] = FieldInfo(
+                field.name, field.initializer, field.mutable
+            )
+
+        klass = LoxClass(stmt.name.lexeme, superclass, methods, fields)
 
         if stmt.superclass is not None:
             enclosing = self.environment.enclosing

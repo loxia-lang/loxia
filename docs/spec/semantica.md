@@ -171,10 +171,13 @@ for i in 5..2 { ... }             // vazio
   para globais, distância para locais).
 - Parâmetros são **imutáveis por padrão** (`val` implícito). `fun f(var x)` permite
   reatribuir `x`; sem `var`, a atribuição é erro de compilação.
+- Parâmetro pode ter **default constante**: `fun f(a, b = 10)`. Obrigatórios vêm antes dos
+  opcionais; depois de um default, todos os seguintes precisam de default.
 - Chamada: avalia o **callee** primeiro e os argumentos da esquerda para a direita; depois
   verifica se é chamável e a aridade.
 - Não é chamável: `Can only call functions and classes.`
-- Aridade errada: `Expected N arguments but got M.`
+- Aridade errada: aridade fixa usa `Expected N arguments but got M.`; com defaults,
+  `Expected at least N arguments but got M.` ou `Expected N to M arguments but got K.`
 - Closures: a função captura o ambiente onde foi **declarada** (por referência). Variáveis
   capturadas continuam mutáveis.
 - `return;` devolve `nil`. `return` no topo do programa é erro de compilação:
@@ -188,6 +191,8 @@ for i in 5..2 { ... }             // vazio
 
 ```lox
 class Conta {
+  var saldo;
+
   init(saldo) {
     this.saldo = saldo;
   }
@@ -204,18 +209,29 @@ class ContaPoupanca(Conta) {
 }
 ```
 
-- `class Nome { métodos }` cria a classe e a liga ao nome no escopo atual.
-- `class Nome(Super) { métodos }` declara herança simples; `class Nome < Super` é erro.
+- `class Nome { campos e métodos }` cria a classe e a liga ao nome no escopo atual.
+- `class Nome(Super) { ... }` declara herança simples; `class Nome < Super` é erro.
+- Campos são **declarados** no corpo com `val`/`var`; não existem campos dinâmicos:
+  `obj.x = 1` em campo não declarado é erro (`Undefined field 'x'.`).
+- Todo campo declarado precisa estar inicializado: por inicializador constante
+  (`var idade = 0`) ou por atribuição no `init`. Ao fim do `init`, campo não inicializado é
+  erro de runtime (`Field 'x' must be initialized.`).
+- `val` campo só pode ser atribuído **dentro do `init`** (e uma vez); fora dele o resolver
+  reporta `Can't assign to immutable field 'x'.` e o runtime também recusa uma segunda
+  atribuição. `var` campo é mutável em qualquer método.
+- Campo e método com o mesmo nome, ou campo redeclarado (inclusive na subclasse), é erro de
+  compilação (`Field 'x' already declared.`).
+- Inicializadores de campo são constantes na v1 e rodam na criação da instância, antes do
+  `init`.
 - Métodos **não** usam `fun`; são funções com `this` ligado.
 - `this` é **implícito**: métodos não recebem `self`.
 - `Nome(args)` cria instância, executa `init` (se existir) e devolve a instância.
-  A aridade da classe é a do `init` (0 se não houver).
+  A aridade da classe é o intervalo do `init` (0 se não houver).
 - `init` devolve sempre a instância: `return;` é permitido, `return valor;` é erro de
   compilação (`Can't return a value from an initializer.`).
 - `this` só existe dentro de métodos; fora de classe é erro de compilação
   (`Can't use 'this' outside of a class.`).
-- Campos são dinâmicos: `obj.x = 1` cria/atualiza; campos têm prioridade sobre métodos na
-  leitura.
+- Campos têm prioridade sobre métodos na leitura.
 - Ler propriedade que não é campo nem método: `Undefined property 'x'.`
 - `obj.campo = v` exige instância: `Only instances have fields.`
 - Ler propriedade de não-instância: `Only instances have properties.`
@@ -228,6 +244,9 @@ class ContaPoupanca(Conta) {
   silenciosamente (não há keyword `override`).
 - Subclasse **sem** `init` herda o `init` da superclasse. Se a subclasse define `init`, ela
   deve chamar `super.init(...)` explicitamente; não há chamada automática.
+- Campos são herdados; redeclarar um campo na subclasse é erro. `val` herdado não pode ser
+  reatribuído (nem no `init` da subclasse); `var` herdado pode.
+- Inicializadores de campo da superclasse rodam na criação da instância, antes do `init`.
 - `super.metodo(args)` busca `metodo` na superclasse e o liga ao `this` atual (não ao
   "this da superclasse").
 - `super` só pode aparecer dentro de método de classe **com** superclasse:

@@ -318,6 +318,8 @@ def test_closure_uses_lexical_scope_not_dynamic(
 def test_classes_methods_and_this(capsys: pytest.CaptureFixture[str]) -> None:
     source = """
     class Pessoa {
+      var nome;
+
       init(nome) {
         this.nome = nome;
       }
@@ -341,6 +343,8 @@ def test_classes_methods_and_this(capsys: pytest.CaptureFixture[str]) -> None:
 def test_bound_method_keeps_this(capsys: pytest.CaptureFixture[str]) -> None:
     source = """
     class Foo {
+      var x;
+
       init() {
         this.x = 7;
       }

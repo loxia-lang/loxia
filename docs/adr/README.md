@@ -54,6 +54,7 @@ Crie quando a decisão:
 | [0006](0006-int-float-separados.md) | `Int` (i64) e `Float` (f64) separados | accepted | 2026-11-11 |
 | [0007](0007-ranges-e-iteracao.md) | Ranges e iteração com protocolo embutido | accepted | 2026-11-11 |
 | [0008](0008-heranca-class-parens.md) | Herança com `class Dog(Animal)` e construtor `init` | accepted | 2026-11-11 |
+| [0009](0009-defaults-e-campos.md) | Parâmetros default e campos declarados | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 

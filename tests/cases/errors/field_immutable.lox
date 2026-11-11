@@ -1,0 +1,7 @@
+class C {
+  val x = 1;
+}
+
+var c = C();
+c.x = 2;
+// expect runtime error: Can't assign to immutable field 'x'.

@@ -611,7 +611,14 @@ Comandos que tornam isso possível:
 
 ## I-5 — Parâmetros opcionais/default e mutabilidade de campos de classe
 
-**Status:** `em avaliação`
+**Status:** `decidida` — ver [ADR-0009](docs/adr/0009-defaults-e-campos.md). O texto abaixo
+fica como histórico das opções.
+
+**Decisão (resumo):** defaults **constantes** (`param = expr`), obrigatórios antes dos
+opcionais, aridade `[mín, máx]`; campos declarados no corpo com `val`/`var`,
+inicializador constante ou atribuição no `init`, sem campo dinâmico e sem `nil` implícito.
+Tipos de campo/default entram com o type checker.
+
 **Origem:** desdobramento de I-1/ADR-0005 — campos de classe foram adiados; a ideia é
 aproximar a assinatura de funções do estilo Python (`a: Int`, `b: Int | Nil = nil`) e
 definir como `val`/`var` valem dentro de objetos.

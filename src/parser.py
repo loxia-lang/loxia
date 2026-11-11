@@ -20,6 +20,7 @@ from src.stmt import (
     Block,
     Class,
     Expression,
+    Field,
     ForIn,
     Function,
     If,
@@ -122,13 +123,32 @@ class Parser:
 
         self._consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
 
+        fields: list[Field] = []
         methods: list[Function] = []
         while not self._check(TokenType.RIGHT_BRACE) and not self._is_at_end():
-            methods.append(self._function("method"))
+            if self._match(TokenType.VAL):
+                fields.append(self._field_declaration(mutable=False))
+            elif self._match(TokenType.VAR):
+                fields.append(self._field_declaration(mutable=True))
+            else:
+                methods.append(self._function("method"))
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
-        return Class(name, superclass, methods)
+        return Class(name, superclass, fields, methods)
+
+    def _field_declaration(self, mutable: bool) -> Field:
+        name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
+
+        initializer: Expr | None = None
+        if self._match(TokenType.EQUAL):
+            initializer = self._expression()
+            if not self._is_constant_default(initializer):
+                self._error(name, "Field initializer must be a constant.")
+
+        self._consume(TokenType.SEMICOLON, "Expect ';' after field declaration.")
+
+        return Field(name, initializer, mutable)
 
     def _var_declaration(self, mutable: bool) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
@@ -285,6 +305,7 @@ class Parser:
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
 
         parameters: list[Param] = []
+        seen_default = False
         if not self._check(TokenType.RIGHT_PAREN):
             while True:
                 if len(parameters) >= 255:
@@ -292,7 +313,20 @@ class Parser:
 
                 mutable = self._match(TokenType.VAR)
                 name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
-                parameters.append(Param(name_token, mutable))
+
+                default: Expr | None = None
+                if self._match(TokenType.EQUAL):
+                    default = self._expression()
+                    if not self._is_constant_default(default):
+                        self._error(name_token, "Default value must be a constant.")
+                    seen_default = True
+                elif seen_default:
+                    self._error(
+                        name_token,
+                        "Required parameter can't follow an optional parameter.",
+                    )
+
+                parameters.append(Param(name_token, mutable, default))
 
                 if not self._match(TokenType.COMMA):
                     break
@@ -302,6 +336,17 @@ class Parser:
 
         body = self._block()
         return Function(name, parameters, body)
+
+    def _is_constant_default(self, expr: Expr) -> bool:
+        if isinstance(expr, Literal):
+            return True
+        if isinstance(expr, Grouping):
+            return self._is_constant_default(expr.expression)
+        if isinstance(expr, Unary) and expr.operator.type is TokenType.MINUS:
+            value = expr.right
+            return isinstance(value, Literal) and isinstance(value.value, (int, float))
+
+        return False
 
     def _expression(self) -> Expr:
         return self._assignment()

@@ -1,0 +1,6 @@
+fun soma(a, b = 10) {
+  return a + b;
+}
+
+print soma();
+// expect runtime error: Expected at least 1 arguments but got 0.

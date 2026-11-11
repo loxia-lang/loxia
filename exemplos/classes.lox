@@ -1,6 +1,8 @@
 // Classes, herança `class B(A)`, `super.init(...)`, `this` implícito e campo
 // que não vem de parâmetro.
 class Animal {
+  var nome;
+  var sexo;
   init(nome) {
     this.nome = nome;
     this.sexo = "M";
@@ -12,6 +14,7 @@ class Animal {
 }
 
 class Cachorro(Animal) {
+  var raca;
   init(nome, raca) {
     super.init(nome);
     this.raca = raca;

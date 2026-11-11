@@ -8,8 +8,13 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class LoxCallable(Protocol):
-    """Algo que pode ser chamado com `(...)`: funções de usuário e nativas."""
+    """Algo que pode ser chamado com `(...)`: funções de usuário e nativas.
 
-    def arity(self) -> int: ...
+    A aridade é um intervalo porque parâmetros com default podem ser omitidos.
+    """
+
+    def min_arity(self) -> int: ...
+
+    def max_arity(self) -> int: ...
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object: ...

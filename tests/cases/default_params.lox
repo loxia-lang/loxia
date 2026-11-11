@@ -1,0 +1,34 @@
+// Parâmetros com default: obrigatórios antes dos opcionais, const só na v1.
+fun soma(a, b = 10) {
+  return a + b;
+}
+
+print soma(1);     // expect: 11
+print soma(1, 2);  // expect: 3
+
+fun cumprimenta(nome, saudacao = "Oi", pontuacao = "!") {
+  return saudacao + ", " + nome + pontuacao;
+}
+
+print cumprimenta("Ana");         // expect: Oi, Ana!
+print cumprimenta("Ana", "Olá");  // expect: Olá, Ana!
+
+class Caixa {
+  var valor;
+
+  init(valor = 0) {
+    this.valor = valor;
+  }
+}
+
+print Caixa().valor;   // expect: 0
+print Caixa(7).valor;  // expect: 7
+
+class CaixaForte(Caixa) {}
+print CaixaForte().valor;  // expect: 0
+
+fun neg(x = -1) {
+  return x;
+}
+
+print neg();  // expect: -1

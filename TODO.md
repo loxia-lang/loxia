@@ -18,8 +18,9 @@ pretendo tipar e como chegar no LLVM.
 ## 0. Agora: base sã e livro concluído
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. **Parte II concluída** (caps. 4–13) e **`val`/`var` decididos e implementados**
-> (ADR-0005). Próximo: parâmetros default/campos (I-5), type checker ou sintaxe restante.
+> no lugar. **Parte II concluída** (caps. 4–13), **`val`/`var`** (ADR-0005), **ranges/for-in**
+> (ADR-0007), **herança `class B(A)`** (ADR-0008) e **defaults/campos** (ADR-0009)
+> implementados. Próximo: type checker ou sintaxe restante.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -183,7 +184,9 @@ fn main() {
       talvez, `**kwargs` não (depende de named args e destrói tipagem).
 - [ ] `P2` **lambdas** `fn(x) -> x * 2` e **trailing closure** `lista.map { |x| x * 2 }`
       (a sintaxe de trailing closure é ideia do Lox2/Kotlin/Swift).
-- [ ] `P3` **argumentos nomeados** e **defaults** `fn ponto(x, y = 0)`.
+- [x] `P2` **defaults** posicionais constantes (`fn ponto(x, y = 0)`) — aridade vira
+      intervalo; ver [ADR-0009](docs/adr/0009-defaults-e-campos.md).
+- [ ] `P3` **argumentos nomeados** (`fn ponto(x = 0)` na chamada).
 - [ ] `P3` **destructuring** `val (a, b) = par` / `val { nome, idade } = pessoa`.
 
 **Módulos e metaprogramação**
@@ -663,7 +666,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | `as` cast | ⏳ | S | junto com o checker |
 | extension methods | ⏳ | M | depois de traits |
 | separar `Int` de `Float` | ✅ | M | feito no tree-walk (ADR-0006); falta refletir no LLVM |
-| campos declarados fora do `init` | 🤔 | S | bom p/ tipagem; decidir junto com classes |
+| campos declarados com `val`/`var` | ✅ | S | feito no ADR-0009; tipos entram no checker |
 | classes como valores / metaclasses | 🤔 | L | poderoso, mas confunde; só se precisar |
 | interceptors (`get`/`set` mágicos) | ❌ | L | mágica demais para o meu gosto |
 | `Object` raiz / tudo é objeto | ❌ | L | simplifica o Lox2, mas custa no codegen |
@@ -732,7 +735,8 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 1. **Nome e extensão** da linguagem (hoje "PyLox", arquivos `.lox`).
 2. **`val`/`var`** — **decidido**: `val` imutável (exige inicializador) e `var` mutável;
    parâmetros `val` por padrão. Ver [ADR-0005](docs/adr/0005-val-var-imutabilidade.md).
-   Campos e defaults ficam em [`IDEIAS.md`](IDEIAS.md) I-5.
+   Campos e defaults: **decidido** em [ADR-0009](docs/adr/0009-defaults-e-campos.md)
+   (defaults constantes, campos declarados no corpo).
 3. **`Int` vs `Float`** — **decidido**: tipos separados, `Int` = i64 e `Float` = f64, com
    promoção só `Int → Float`; implementado no tree-walk. Ver
    [ADR-0006](docs/adr/0006-int-float-separados.md) e [`TIPOS.md`](TIPOS.md) §3.

@@ -68,6 +68,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._scopes: list[dict[str, _VariableInfo]] = []
         self._current_function: FunctionType = FunctionType.NONE
         self._current_class: ClassType = ClassType.NONE
+        self._current_fields: dict[str, bool] | None = None
+        self._class_fields: dict[str, dict[str, bool]] = {}
 
     def resolve(self, statements: list[Stmt]) -> None:
         for statement in statements:
@@ -154,6 +156,32 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._begin_scope()
             self._scopes[-1]["super"] = _VariableInfo(defined=True, mutable=False)
 
+        inherited: dict[str, bool] = {}
+        if stmt.superclass is not None:
+            inherited = self._class_fields.get(stmt.superclass.name.lexeme, {})
+
+        fields: dict[str, bool] = dict(inherited)
+        method_names = {method.name.lexeme for method in stmt.methods}
+        for field in stmt.fields:
+            if field.name.lexeme in fields:
+                self._reporter.error(
+                    field.name, f"Field '{field.name.lexeme}' already declared."
+                )
+            if field.name.lexeme in method_names:
+                self._reporter.error(
+                    field.name,
+                    f"Field '{field.name.lexeme}' conflicts with a method.",
+                )
+
+            fields[field.name.lexeme] = field.mutable
+            if field.initializer is not None:
+                self._resolve_expr(field.initializer)
+
+        self._class_fields[stmt.name.lexeme] = fields
+
+        enclosing_fields = self._current_fields
+        self._current_fields = fields
+
         self._begin_scope()
         self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False)
 
@@ -165,6 +193,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._resolve_function(method, declaration)
 
         self._end_scope()
+
+        self._current_fields = enclosing_fields
 
         if stmt.superclass is not None:
             self._end_scope()
@@ -260,6 +290,18 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_set_expr(self, expr: Set) -> None:
         self._resolve_expr(expr.value)
         self._resolve_expr(expr.object)
+
+        if (
+            self._current_fields is not None
+            and isinstance(expr.object, This)
+            and expr.name.lexeme in self._current_fields
+            and not self._current_fields[expr.name.lexeme]
+            and self._current_function is not FunctionType.INITIALIZER
+        ):
+            self._reporter.error(
+                expr.name,
+                f"Can't assign to immutable field '{expr.name.lexeme}'.",
+            )
 
     def visit_super_expr(self, expr: Super) -> None:
         if self._current_class is ClassType.NONE:

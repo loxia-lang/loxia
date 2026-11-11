@@ -29,13 +29,22 @@ class LoxFunction:
         environment.define("this", instance)
         return LoxFunction(self._declaration, environment, self._is_initializer)
 
-    def arity(self) -> int:
+    def min_arity(self) -> int:
+        return sum(1 for param in self._declaration.params if param.default is None)
+
+    def max_arity(self) -> int:
         return len(self._declaration.params)
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
         environment = Environment(self._closure)
-        for param, argument in zip(self._declaration.params, arguments, strict=True):
-            environment.define(param.name.lexeme, argument, param.mutable)
+        for index, param in enumerate(self._declaration.params):
+            if index < len(arguments):
+                value = arguments[index]
+            else:
+                assert param.default is not None
+                value = interpreter.evaluate(param.default)
+
+            environment.define(param.name.lexeme, value, param.mutable)
 
         try:
             interpreter.execute_block(self._declaration.body, environment)

@@ -1,4 +1,5 @@
 class Pessoa {
+  var nome;
   init(nome) {
     this.nome = nome;
   }

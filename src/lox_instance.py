@@ -6,13 +6,14 @@ from src.errors import LoxRuntimeError
 from src.tokens import Token
 
 if TYPE_CHECKING:
-    from src.lox_class import LoxClass
+    from src.lox_class import FieldInfo, LoxClass
 
 
 class LoxInstance:
     def __init__(self, klass: LoxClass) -> None:
         self._klass = klass
         self._fields: dict[str, object] = {}
+        self._initialized: set[str] = set()
 
     def get(self, name: Token) -> object:
         if name.lexeme in self._fields:
@@ -25,7 +26,28 @@ class LoxInstance:
         raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
 
     def set(self, name: Token, value: object) -> None:
+        field = self._klass.find_field(name.lexeme)
+        if field is None:
+            raise LoxRuntimeError(name, f"Undefined field '{name.lexeme}'.")
+
+        if not field.mutable and name.lexeme in self._initialized:
+            raise LoxRuntimeError(
+                name, f"Can't assign to immutable field '{name.lexeme}'."
+            )
+
         self._fields[name.lexeme] = value
+        self._initialized.add(name.lexeme)
+
+    def initialize(self, field: FieldInfo, value: object) -> None:
+        self._fields[field.name.lexeme] = value
+        self._initialized.add(field.name.lexeme)
+
+    def assert_initialized(self) -> None:
+        for field in self._klass.fields.values():
+            if field.name.lexeme not in self._initialized:
+                raise LoxRuntimeError(
+                    field.name, f"Field '{field.name.lexeme}' must be initialized."
+                )
 
     def __str__(self) -> str:
         return f"{self._klass.name} instance"

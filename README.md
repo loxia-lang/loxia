@@ -30,6 +30,8 @@ Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo
 
 ```lox
 class Conta {
+  var saldo;
+
   init(saldo) {
     this.saldo = saldo;
   }

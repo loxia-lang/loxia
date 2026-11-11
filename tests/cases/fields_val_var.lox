@@ -1,0 +1,23 @@
+// `val` é imutável (exceto a atribuição única no init); `var` é mutável.
+class Pessoa {
+  val nome;
+  var idade;
+  var ativo = true;
+
+  init(nome, idade) {
+    this.nome = nome;
+    this.idade = idade;
+  }
+
+  aniversario() {
+    this.idade = this.idade + 1;
+  }
+}
+
+var p = Pessoa("Ana", 30);
+print p.nome;   // expect: Ana
+print p.idade;  // expect: 30
+print p.ativo;  // expect: true
+
+p.aniversario();
+print p.idade;  // expect: 31
