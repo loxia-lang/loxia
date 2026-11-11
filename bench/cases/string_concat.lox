@@ -1,0 +1,8 @@
+// Concatenação repetida: mede o caminho de strings (sem interning).
+var texto = "";
+var i = 0;
+while (i < 50000) {
+  texto = texto + "x";
+  i = i + 1;
+}
+print i;

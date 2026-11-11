@@ -1,0 +1,14 @@
+// Ramificação + lógica: mede if/else e curto-circuito.
+var i = 0;
+var acc = 0;
+while (i < 80000) {
+  if (i < 40000 and acc >= 0) {
+    acc = acc + 2;
+  } else if (i >= 40000 or acc < 0) {
+    acc = acc - 1;
+  } else {
+    acc = 0;
+  }
+  i = i + 1;
+}
+print acc;

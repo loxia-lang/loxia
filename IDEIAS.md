@@ -1,0 +1,988 @@
+# IDEIAS — caderno de design (parking lot)
+
+Ideias ainda **não decididas**, com os argumentos dos dois lados, para pensar depois sem
+perder o raciocínio. Diferente do `TODO.md` (o que fazer) e do `TIPOS.md` (contrato de
+tipos): aqui é o **rascunho de decisões de linguagem**.
+
+## Como usar
+
+Cada entrada tem um id (`I-n`) e um status:
+
+| Status | Significado |
+| --- | --- |
+| `ideia` | capturada, sem análise — só não quero esquecer |
+| `em avaliação` | já tem opções e argumentos; falta decidir |
+| `decidida` | virou decisão em `TODO.md` §11 (e `D-n` no `TIPOS.md`, se for de tipo) |
+
+Formato: **pergunta → opções → argumentos → impacto técnico → recomendação provisória →
+gatilhos para revisitar**.
+
+> Regra: nada daqui é implementado antes de fechar a decisão no `TODO.md` §11. Quando
+> decidir, mova o resumo para lá e marque a entrada como `decidida` (mantendo os
+> argumentos como histórico).
+
+---
+
+## I-1 — Declaração de variáveis: `val` vs `var` e mutabilidade
+
+**Status:** `em avaliação`
+**Decidir até:** antes do capítulo 10 (funções) — depois disso os exemplos e testes
+multiplicam e a migração fica caro.
+
+### A pergunta
+
+1. A keyword de declaração deve ser `val`, `var`, `let` ou outra?
+2. Toda variável deve ser mutável (sem distinção), ou existem bindings imutáveis?
+3. E os parâmetros de função: mutáveis ou imutáveis por padrão?
+
+Contexto: hoje o código usa `var` (Lox do livro) e **tudo é mutável**.
+
+### Primeiro, separar três conceitos que costumam ser confundidos
+
+| Conceito | Exemplo | O que garante |
+| --- | --- | --- |
+| **Binding imutável** | `val x = 1; x = 2` → erro | o *nome* não muda de valor |
+| **Valor mutável** | `val lista = [1]; lista.push(2)` → ok | o objeto apontado pode mudar |
+| **Imutabilidade profunda** | `const` de C++ / `freeze` | nem o objeto nem o binding mudam |
+
+Ponto crucial: `val` em Kotlin/Scala significa **binding imutável**, não valor imutável.
+Uma `val lista` continua sendo uma lista mutável. Isso é útil, mas pode surpreender — se
+adotarmos `val`, temos que documentar essa distinção (e talvez oferecer `const` depois
+para imutabilidade profunda).
+
+### Opções
+
+**A) `val` (imutável) + `var` (mutável)** — Kotlin, Scala, Swift.
+
+```lox
+val pi = 3.14159        // reatribuir é erro de compilação
+var contador = 0        // reatribuir é permitido
+contador = contador + 1
+```
+
+**B) `let` (imutável) + `let mut` (mutável)** — Rust.
+
+```lox
+let pi = 3.14159
+let mut contador = 0
+```
+
+**C) Só `var`, sempre mutável** — Go/Python/JS (o `const` de Go é só compile-time).
+
+```lox
+var x = 1
+x = 2
+```
+
+**D) Só `val`, sempre mutável** — a proposta em discussão: nome "valor", mas reatribui.
+
+```lox
+val x = 1
+x = 2                   // permitido
+```
+
+**E) Três níveis** (`const` + `val` + `var`) — mais poder, mais cerimônia.
+
+### Argumentos a favor de imutável por padrão (`val` + `var`)
+
+1. **Raciocínio local.** Ao ler uma função, `val` garante que aquele nome não muda.
+   Menos estado para carregar na cabeça ao depurar.
+2. **Inferência de tipos fica sã.** Generalizar o tipo de uma variável mutável é
+   *unsound* (value restriction, lição de ML/OCaml). Com `val`, `val id = fn(x) -> x`
+   pode ser polimórfico; com `var`, o checker precisa restringir. Isso pesa direto no
+   plano do `TODO.md` §2.
+3. **Closures mais baratas.** Capturar um `var` exige célula/upvalue mutável (como o
+   clox faz); capturar um `val` pode ser por valor. Menos alocação e menos indireção.
+4. **LLVM/SSA.** Binding imutável vira valor SSA direto; mutável exige `alloca` +
+   `mem2reg`/`phi`. O otimizador recupera parte, mas imutável dá menos trabalho e
+   resultados melhores.
+5. **Constantes de graça.** `val pi = 3.14` é candidato a constant folding e a global em
+   `.rodata`; `var` não pode ser tratado assim.
+6. **Concorrência futura.** Se `async`/threads entrarem algum dia, binding imutável é
+   livre de data race por construção.
+7. **Contratos melhores.** APIs com `val` são mais fáceis de evoluir: menos estados
+   possíveis, menos casos para testar.
+8. **Erro cedo.** Reatribuição acidental (`x = 2` querendo comparar) vira erro de
+   compilação, não bug silencioso.
+
+### Argumentos a favor de sempre mutável (`var` único)
+
+1. **Menos cerimônia.** Uma keyword, nenhuma decisão por linha. Go e Python provam que
+   funciona em linguagens usadas por milhões.
+2. **"Variável" já implica mutabilidade.** Criar duas categorias para o mesmo conceito
+   pode parecer purismo; o nome `val` reforça que são "valores", mas todo binding guarda
+   um valor.
+3. **Curva de aprendizado.** Iniciante pergunta "uso `val` ou `var`?" — e a resposta
+   ("use `val` a menos que precise mudar") é uma regra a mais para memorizar.
+4. **Refatoração.** Começar mutável e "endurecer" depois é mecânico; começar imutável e
+   precisar mudar gera atrito (embora o compilador aponte exatamente onde).
+5. **`val` dá falsa sensação de segurança.** Como é imutável só no binding, `val lista`
+   ainda muda de conteúdo — quem lê rápido acha que é imutável de verdade.
+6. **Menos superfície no parser/realce/checker.** Uma keyword a menos.
+
+### O que as linguagens "modernas" realmente fazem
+
+| Linguagem | Imutável por padrão? | Como |
+| --- | --- | --- |
+| Kotlin | sim | `val` / `var` |
+| Scala | sim | `val` / `var` |
+| Swift | sim | `let` / `var` |
+| Rust | sim | `let` / `let mut` |
+| F# | sim | `let` / `let mutable` |
+| TypeScript | sim (recomendado) | `const` / `let` |
+| Go | **não** | `var` / `:=`; `const` só compile-time |
+| Python | **não** | atribuição simples |
+| JavaScript | **não** | `let`/`var` sempre mutáveis |
+| Java | **não** (opcional) | `final` é opt-in |
+
+**Resposta curta à pergunta "sempre mutável é a abordagem moderna?":** não é a tendência
+dominante. As linguagens modernas que priorizam **segurança e otimização** (Kotlin, Swift,
+Rust, Scala, F#) foram para **imutável por padrão**; as que priorizam **simplicidade e
+cerimônia mínima** (Go, Python, JS) ficaram mutáveis. Os dois grupos são "modernos" — é
+uma escolha de trade-off, não uma evolução linear.
+
+Para o **nosso** caso, há um detalhe que pesa: o objetivo é LLVM + inferência de tipos.
+Imutável por padrão conversa melhor com esses dois objetivos do que com "menos uma
+keyword".
+
+### Impacto técnico no projeto (se escolher A)
+
+| Camada | O que muda |
+| --- | --- |
+| Lexer | `val` vira keyword; `var` continua |
+| Parser | mesma produção `var_declaration`, com um flag de mutabilidade no nó `Var` |
+| Resolver (cap. 11) | reatribuir `val` → erro estático `Can't assign to immutable 'x'.` |
+| Interpretador | binding não muda; a checagem é estática, não runtime |
+| Type checker | value restriction: generalização só para `val` |
+| LLVM | `val` → SSA/const; `var` → `alloca` + `phi` |
+| Testes/exemplos | todo `.lox` atual usa `var`; se `val` for o padrão, migrar casos |
+
+Custo hoje é baixo: o parser é pequeno, o cap. 10 ainda não existe e há só 22 golden
+cases. Esse é exatamente o momento certo para decidir.
+
+### Recomendação provisória
+
+**Opção A — `val` (imutável) + `var` (mutável), parâmetros imutáveis por padrão**
+(com `var` explícito no parâmetro se precisar mutar a cópia local).
+
+Motivos, em ordem de peso:
+
+1. alinha com o objetivo de LLVM/SSA e com a inferência de tipos (value restriction);
+2. o nome `val` é curto e o par `val`/`var` é o mesmo padrão de Kotlin/Scala — quem vem
+   de fora entende rápido;
+3. o custo de adotar agora é mínimo;
+4. `val` como **padrão mental** ("declare como valor; mude para `var` quando precisar")
+   produz código mais previsível sem proibir mutação.
+
+Alternativa defensável: **C (só `var`)** se a prioridade for cerimônia mínima e simplicidade
+de parser. O que **não** recomendo é **D (`val` sempre mutável)**: o nome promete
+imutabilidade que o compilador não garante — é o pior dos dois mundos, e ainda cria duas
+palavras para o mesmo comportamento.
+
+Se a escolha for A, sugiro também:
+
+- `val` exige inicializador (`val x;` é erro);
+- reatribuição a `val` é erro **estático** (resolver), com mensagem que sugere `var`;
+- sombreamento de `val` permitido? (Rust permite, Kotlin não — decidir na implementação);
+- documentar que `val lista` não congela o conteúdo (é binding, não `const`).
+
+### Gatilhos para revisitar
+
+- antes de escrever os primeiros exemplos do cap. 10;
+- ao implementar o resolver (cap. 11) — é onde a regra de imutabilidade vira erro;
+- quando o type checker começar (value restriction);
+- se a sintaxe parecer verbosa nos exemplos reais (sinal de que C é melhor);
+- se aparecer caso de uso que exija imutabilidade profunda (aí sim, `const`).
+
+### Perguntas abertas
+
+- [ ] `val` ou `let`? (`val` é mais curto e "value"; `let` é tradição matemática/OCaml)
+- [ ] parâmetros: `fn f(x)` imutável e `fn f(var x)` mutável? Ou tudo mutável no corpo?
+- [ ] campos de classe: `val`/`var` também? (cap. 12)
+- [ ] `val` global vira constante em LLVM (`rodata`) automaticamente?
+- [ ] permitir `val x` sem valor e atribuir depois? (proposta: não)
+- [ ] permitir sombrear `val` no mesmo escopo? (Rust sim; Kotlin não)
+
+### Referências
+
+- Kotlin `val`/`var`: <https://kotlinlang.org/docs/basic-syntax.html#variables>
+- Rust `let` e `mut`: <https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html>
+- Swift `let`/`var`: <https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics/>
+- Go `var`/`:=`: <https://go.dev/ref/spec#Short_variable_declarations>
+- Value restriction (por que mutação atrapalha a generalização):
+  <https://en.wikipedia.org/wiki/Value_restriction>
+- SSA e `mem2reg`: <https://llvm.org/docs/Passes.html#mem2reg-promote-memory-to-register>
+
+---
+
+## I-2 — Pipeline: passar o valor da esquerda para a direita (`|>` / `:>`)
+
+**Status:** `em avaliação`
+**Decidir até:** depois do capítulo 10 (precisa de funções) e **antes** de desenhar a
+biblioteca padrão (a convenção de ordem dos argumentos vira contrato).
+
+### A pergunta
+
+1. Vale ter um operador de pipeline?
+2. Qual token: `|>` ou `:>`?
+3. O valor da esquerda entra como **primeiro** ou **último** argumento da chamada da
+   direita?
+4. Como isso convive com classes/métodos, `;` opcional e `print` como função?
+
+Exemplo da ideia:
+
+```lox
+foo() :> print()          // equivale a print(foo())
+
+ler("dados.csv") :> trim() :> split(",") :> len()
+```
+
+Em vez de `print(foo())` ou de `len(split(trim(ler("dados.csv")), ","))`, a leitura segue
+o fluxo dos dados.
+
+### Opções de token
+
+**A) `|>` — Elixir, F#, OCaml, Hack, Julia, R.**
+
+```lox
+foo() |> print()
+```
+
+Vantagens: é o "padrão de facto" do conceito, todo mundo reconhece, e `|>` é um token
+próprio (não conflita com `|` bitwise nem com união `A | B`). Desvantagem: visualmente
+parecido com `|`; quem vem de Python pode ler como "ou".
+
+**B) `:>` — a proposta em discussão.**
+
+```lox
+foo() :> print()
+```
+
+Vantagens: não se confunde com `|`; o `:` sugere "entra em / vira"; identidade visual
+própria. Desvantagens: em Scala `A :> B` significa **supertype** (o inverso da intuição
+de "passar para"); colide visualmente com anotação de tipo (`x: Int`) e com mapa
+(`{ "a": 1 }`); `x :> f` pode ser lido como cast/coerção. Lexer precisa tratar `:` +
+`>` juntos sem espaço.
+
+**C) `|` (Bash)** — conflita com bitwise e com união de tipos. Descartar.
+
+**D) `->`** — conflita com o tipo de retorno (`fn f() -> Int`). Descartar.
+
+**E) `>>`, `~>`, `=>`** — pouco familiares como pipe. Não.
+
+**F) Sem operador novo: métodos/UFCS.** Em vez de pipe, permitir `x.print()` / funções de
+extensão à la Kotlin. É a alternativa real, discutida mais abaixo.
+
+| Opção | Familiaridade | Conflito | Legibilidade |
+| --- | --- | --- | --- |
+| `|>` | alta | baixo | boa |
+| `:>` | baixa | Scala/`:` | boa, mas exige explicação |
+| `|` | alta | **alto** | ruim |
+| `->` | alta | **alto** (retorno) | ruim |
+| UFCS `.` | alta | baixo | boa, mas exige OO |
+
+### Semântica (independente do token escolhido)
+
+1. **Posição do valor.** Primeiro argumento (Elixir, Hack, Clojure `->`) ou último
+   (F#, Clojure `->>`)?
+
+   ```lox
+   // inserindo como PRIMEIRO:
+   5 |> soma(1)          // soma(5, 1)
+   lista |> map(fn(x) -> x * 2)   // map(lista, fn)
+
+   // inserindo como ÚLTIMO:
+   5 |> soma(1)          // soma(1, 5)
+   ```
+
+   O "último" faz sentido em linguagens com currying (F#), onde `soma 1` já é uma função
+   parcial. **Sem currying, recomendo o primeiro**: casa com "sujeito primeiro", com
+   receiver de método e com a ordem natural de `map(lista, fn)`.
+   Importante: é uma decisão **de API da stdlib**, não só de sintaxe — trocar depois
+   quebra todo código. Documentar como regra: "o sujeito vem primeiro".
+
+2. **Desugar.** `x |> f(a, b)` vira `f(x, a, b)`. Sem custo de runtime; o interpretador
+   e o LLVM nem sabem que existiu pipe.
+
+3. **Ordem de avaliação.** Esquerda primeiro, depois os argumentos da direita, depois a
+   chamada. Se a direita tiver efeito colateral (`x |> f(g())`), `g()` roda depois de
+   `x`. Documentar — é o tipo de detalhe que gera bug sutil.
+
+4. **Associatividade e precedência.** Associativo à esquerda (encadeia):
+
+   ```lox
+   a |> f() |> g()      // g(f(a))
+   ```
+
+   Nível de precedência: abaixo de aritmética/comparação (para `a + b |> f` significar
+   `(a + b) |> f`) e acima de `and`/`or` (para `a |> f and b` ser `(a |> f) and b`).
+   Registrar na tabela do `AGENTS.md` §3 quando decidir.
+
+5. **A armadilha do lado direito.** Se a direita for uma expressão livre, `a |> f + 1`
+   agrupa como `a |> (f + 1)` (pela precedência), o que é quase sempre um erro. Duas
+   saídas: (a) **restringir a gramática** do lado direito a identificador/chamada/acesso
+   (minha preferência — falha cedo e evita parênteses confusos); (b) permitir e deixar o
+   type checker reclamar ("lado direito do pipe não é função").
+
+6. **`print()` vazio.** `foo() |> print()` só funciona se `print` for **função** (hoje é
+   statement). Ou seja, pipeline força a decisão "print como função" (`TODO.md` §1.3).
+   Alternativa: `foo() |> print` (sem parênteses) se funções forem valores; eu aceitaria
+   os dois, exigindo `()` quando houver argumentos.
+
+7. **Quebras de linha.** Com `;` opcional, uma linha começando com `|>` (ou terminando
+   nele) precisa **continuar** a expressão, como `.` em chamadas encadeadas. Isso entra
+   na regra de inserção de `;` do parser.
+
+   ```lox
+   dados
+     |> limpar()
+     |> filtrar(fn(x) -> x > 0)
+     |> somar()
+   ```
+
+### Argumentos a favor
+
+1. **Fluxo de leitura.** A ordem do código passa a ser a ordem dos dados, não a ordem
+   inversa das chamadas aninhadas.
+2. **Menos variáveis temporárias.** Sem pipe, cada passo vira `val passo1 = ...`, que
+   polui escopo e nome.
+3. **Incentiva funções pequenas e compostas.** A linguagem empurra naturalmente para
+   "uma função, uma transformação".
+4. **Refatoração barata.** Inserir, remover ou reordenar uma etapa é editar uma linha;
+   em código aninhado é mexer em parênteses de fora para dentro.
+5. **Debug no meio do fluxo.** `x |> tap(print) |> f()` inspeciona sem quebrar a cadeia
+   (e `tap` é trivial de implementar).
+6. **Familiaridade.** Elixir/F#/Julia/R/Hack popularizaram; existe até proposta de
+   pipeline para JavaScript (TC39).
+7. **Implementação barata e sem custo em runtime.** Token + nível de precedência +
+   desugar; nada muda no interpretador.
+8. **Combina com lambdas e trailing closure** (`xs |> map { |x| x * 2 }`), que já estão
+   no plano de sintaxe.
+
+### Argumentos contra
+
+1. **Mais um operador e um nível de precedência** para aprender, documentar e testar —
+   incluindo a interação com `;` opcional e com `and`/`or`.
+2. **Três formas de dizer a mesma coisa**: chamada aninhada, método/UFCS e pipe. Isso
+   gera debate de estilo e inconsistência em código de terceiros.
+3. **Convenção invisível.** A posição do argumento inserido não aparece na chamada —
+   quem lê `x |> soma(1)` precisa saber a regra. Escolher errado na stdlib é caro.
+4. **Diagnóstico pior.** Se desugar puro, o erro de aridade aponta para `soma(x, 1)` e
+   não para o pipe; para mensagens boas pode ser preciso manter um nó `Pipe` no AST.
+5. **Acopla decisões.** O exemplo `print()` depende de `print` ser função; pipe e
+   "print-função" têm que ser decididos juntos.
+6. **Cadeias longas com lambdas** podem ficar mais difíceis de ler do que variáveis
+   nomeadas — pipe não é sempre mais legível.
+7. **Pode ser redundante** numa linguagem com classes e métodos: `x.print()` já resolve
+   o caso OO; pipe brilha com funções livres.
+8. **`:` já tem dois usos** planejados (anotação de tipo e mapa); `:>` adiciona um
+   terceiro significado visual ao mesmo sinal.
+
+### Quando **não** usar (regra de estilo a documentar)
+
+- uma única chamada: `f(x)` é mais claro que `x |> f()`;
+- cadeia que atravessa três telas: quebre em `val`s com nome;
+- quando um método já existe: `x.metodo()` ganha de `x |> metodo(x)`.
+
+### Alternativa concorrente: UFCS / extension functions
+
+```lox
+"  oi  ".trim().split(",").len()   // estilo Kotlin
+```
+
+Prós: sem operador novo; combina com classes (cap. 12); autocomplete melhor.
+Contras: exige modelo de métodos/estensões e `this`; não funciona para funções soltas
+nem para funções de duas pontas (`map`); empurra a linguagem para OO.
+**Podem conviver**: pipe para funções livres/composição, `.` para métodos. Mas escolher
+os dois aumenta a superfície da linguagem — vale decidir se vale a pena ter ambos.
+
+### Dependências e impacto técnico
+
+| Camada | O que muda |
+| --- | --- |
+| Lexer | token `PIPE`; se `:>`, tratar `:` + `>` juntos (e não confundir com `:` de tipo) |
+| Parser | novo nível entre `assignment` e `or`; associativo à esquerda; RHS restrito; `;` não inserido antes de `|>` |
+| AST | desugar para `Call` (ou nó `Pipe`, se quisermos diagnóstico específico) |
+| Interpreter | nada (se desugar) |
+| Checker | tipos fluem como chamada; erro de aridade citando o pipe |
+| LLVM | nada |
+| Testes | encadeamento, ordem de avaliação, aridade, newline, erro de RHS não-função |
+
+Pré-requisitos: funções (cap. 10) e `print` como função. Antes disso não há o que encadear.
+
+### Recomendação provisória
+
+- **Token `|>`**, não `:>`: é o padrão reconhecível e não tem conflito real (`|>` é token
+  próprio). `:>` é viável, mas carrega a bagagem de supertype do Scala e a proximidade com
+  anotação `:`.
+- **Valor como primeiro argumento**, com a stdlib seguindo "sujeito primeiro".
+- **Associativo à esquerda**, precedência logo acima de `and`/`or`, e **lado direito
+  restrito** a identificador/chamada (evita `a |> f + 1` virar `a |> (f + 1)`).
+- **Desugar no parser** para `Call`; só criar nó `Pipe` se os diagnósticos exigirem.
+- Aceitar `x |> print()` e `x |> print`.
+
+Se a estética `|` incomodar por causa de união/bitwise, `:>` é a alternativa defensável —
+mas então vale renomear o operador de união (ex.: `A or B`? não...) ou simplesmente
+conviver, já que `|>` é um token distinto.
+
+### Gatilhos para revisitar
+
+- ao terminar o cap. 10 (primeiro momento em que dá para implementar);
+- ao desenhar a stdlib (a ordem dos argumentos vira contrato);
+- se o código começar a acumular `val passo1 = ...` (sinal de que pipe ajudaria);
+- se UFCS/extension functions forem adotadas (pipe pode virar redundante);
+- ao definir a regra de `;` opcional (a interação com newline precisa estar pronta).
+
+### Perguntas abertas
+
+- [ ] `|>` ou `:>`? (estética + familiaridade; registrar em `TODO.md` §11)
+- [ ] valor como primeiro ou último argumento? (recomendo primeiro)
+- [ ] permitir placeholder `_` para posição arbitrária? (`x |> f(_, 2)`) — mais poder,
+      mais complexidade; deixar para P3
+- [ ] RHS restrito a chamada ou expressão livre? (recomendo restrito)
+- [ ] `x |> print` sem parênteses: permitir? (recomendo sim, sem args)
+- [ ] pipe com método de classe (`x |> Classe.metodo()`)? (só se RHS for função)
+- [ ] `tap`/`debug` como função nativa padrão? (P3, ótimo para depurar cadeias)
+
+### Referências
+
+- Elixir `|>`: <https://hexdocs.pm/elixir/Kernel.html#%7C%3E/2>
+- F# pipe e composição:
+  <https://learn.microsoft.com/dotnet/fsharp/language-reference/functions/function-composition>
+- Clojure threading macros (`->`, `->>`): <https://clojure.org/guides/threading_macros>
+- Hack `|>`: <https://docs.hhvm.com/hack/operators/pipe>
+- Proposta de pipeline para JavaScript: <https://github.com/tc39/proposal-pipeline-operator>
+- Kotlin extension functions (alternativa UFCS): <https://kotlinlang.org/docs/extensions.html>
+
+---
+
+## I-3 — Funções soltas vs métodos: por que Python tem `len`, `print`, `int()`?
+
+**Status:** `em avaliação`
+**Decidir até:** ao desenhar a biblioteca padrão (depois do cap. 10, junto com I-2).
+
+### A pergunta
+
+1. Por que Python tem tantas funções soltas (`print`, `len`, `range`, `int`, `float`,
+   `bool`, `dict`, `list`)?
+2. Esse estilo é mais elegante/clean/moderno que "tudo é método"?
+3. Para a nossa linguagem: builtins globais, métodos, funções namespaced ou extensões?
+
+### Por que Python faz isso (as razões reais)
+
+**1. Razão histórica.** O FAQ do CPython diz, na versão antiga: *"The major reason is
+history. Functions were used for those operations that were generic for a group of types
+and which were intended to work even for objects that didn't have methods at all (e.g.
+tuples)"*. Ou seja: funções para operações **genéricas entre tipos**, inclusive tipos sem
+métodos; e convenientes para `map()`/`zip()`.
+
+**2. A justificativa do Guido** (hoje é a resposta oficial do FAQ), em duas partes:
+
+> (a) For some operations, prefix notation just reads better than postfix — prefix (and
+> infix!) operations have a long tradition in mathematics...
+>
+> (b) When I read code that says `len(x)` I *know* that it is asking for the length of
+> something. This tells me two things: the result is an integer, and the argument is some
+> kind of container. To the contrary, when I read `x.len()`, I have to already know that
+> `x` is some kind of container implementing an interface or inheriting from a class that
+> has a standard `len()`. Witness the confusion we occasionally have when a class that is
+> not implementing a mapping has a `get()` or `keys()` method, or something that isn't a
+> file has a `write()` method.
+>
+> — Guido van Rossum, [python-3000, 2006](https://mail.python.org/pipermail/python-3000/2006-November/004643.html)
+
+O segundo ponto é o mais interessante: `len(x)` **documenta o contrato na leitura**, sem
+depender do tipo de `x`. `x.len()` exige que você já saiba o que `x` é — e permite que
+qualquer classe invente um `.get()` com semântica diferente.
+
+**3. Protocolos (dunders).** `len(x)` chama `x.__len__()`; `str(x)` chama `x.__str__()`;
+`iter(x)` chama `x.__iter__()`. O builtin é a **porta pública** do protocolo, e o dunder é
+o *hook* de implementação. Vantagens: nomes não colidem entre tipos, duck typing funciona
+sem herança, e `len`/`iter`/`next`/`str`/`hash`/`bool` espelham operadores da linguagem
+(`if x`, `for x in xs`, `f"{x}"`, `x in d`).
+
+**4. Implementação em C.** Adicionar `len()` a cada tipo C é mais código que uma função
+genérica que despacha por slot; e o builtin é rápido (C-level).
+
+**5. Tipos são callables.** `int`, `float`, `bool`, `list`, `dict` são **classes**, e
+chamar uma classe constrói/converte. Então "cast" não precisa de sintaxe própria:
+`int(x)` é o construtor de `int`. Uniforme e elegante — mas sobrecarrega o significado:
+`int("42")` faz parse, `int(3.9)` trunca, `int()` devolve 0.
+
+**6. `print` virou função no Python 3** porque um statement não consegue expressar
+`sep`, `end`, `file=` nem compor (`map(print, xs)`). Quando a operação precisa de
+flexibilidade, função ganha.
+
+**7. Escopo global sem import** é ergonomia de script; o preço é poluir o namespace
+(~150 builtins) e permitir shadowing acidental (`list = [1, 2]`).
+
+### O que as outras linguagens fazem
+
+| Linguagem | Onde ficam as operações | Exemplo |
+| --- | --- | --- |
+| Python | builtins globais + dunders + métodos | `len(x)`, `x.upper()`, `int(x)` |
+| Ruby | métodos de `Kernel` (privados em todo objeto) | `puts`, `gets`, `raise` |
+| Smalltalk | mensagens (tudo método) | `x printOn: t` |
+| Java | métodos em `Object`/interfaces | `x.toString()`, `x.hashCode()` |
+| C# | métodos + **extension methods** + LINQ | `xs.Where(f).ToList()`, `x.Foo()` |
+| Kotlin | funções top-level + **extension functions** | `println(x)`, `x.isBlank()` |
+| Swift | métodos + protocolos/extensões | `xs.map(f)` |
+| Rust | traits (métodos) + funções em módulos | `xs.len()`, `std::mem::swap()` |
+| Go | builtins para o irredutível + pacotes | `len(x)`, `slices.Sort(xs)` |
+| JavaScript | globais + estáticos + protótipos | `parseInt(x)`, `Object.keys(o)`, `xs.map(f)` |
+| Elixir | funções de `Kernel` importadas + pipe | `length(x)`, `x |> f()` |
+| Haskell/F# | funções livres + composição/pipe | `f $ g x`, `x |> f` |
+
+Padrão: **linguagens funcionais/dados** preferem funções livres + composição;
+**linguagens OO/tipadas** preferem métodos + extensões. Python é um híbrido histórico
+(procedural que ganhou classes), não uma escolha "moderna" deliberada.
+
+### Elegante, clean, moderno? Análise
+
+**Onde funções soltas ganham:**
+
+1. **Problema da expressão**: dá para adicionar operação nova a tipos existentes sem
+   tocar nos tipos (`len`, `map`, `filter` funcionam em qualquer coisa que implemente o
+   protocolo). Com métodos, a operação precisa existir na classe.
+2. **Tipos ficam pequenos**: protocolo mínimo em vez de dezenas de métodos em `Object`.
+3. **Operações multi-tipo não pertencem a ninguém**: `min(a, b)`, `zip(xs, ys)`,
+   `abs(x)` não são "método de" um dos operandos.
+4. **Composição com pipe** (Elixir/F#): `x |> trim() |> split(",")`.
+5. **Contrato visível na leitura** (argumento do Guido).
+
+**Onde funções soltas perdem:**
+
+1. **Descoberta**: autocomplete de `x.` não mostra `len`; o editor precisa tratar
+   builtins à parte. Em linguagem tipada, método dá completude precisa.
+2. **Namespace global**: ~150 nomes em Python; shadowing acidental é footgun.
+3. **Sobrecarga semântica**: `int()` é parse + conversão + default; difícil de tipar.
+4. **Tipagem estática**: `len(x)` exige um trait/protocolo genérico (`Sized`); sem isso,
+   vira `Any -> Int` e perde checagem.
+5. **Colisão com o usuário**: `list`, `str`, `id`, `type` como nomes de variável.
+
+**Onde métodos ganham:** descoberta, namespace, dispatch estático (vtable/trait),
+encadeamento natural (`xs.map(f).filter(g)`) e nada de função órfã.
+
+**Onde métodos perdem:** primitivos precisam de métodos (`5.toString()`), operações
+multi-tipo não cabem, estender tipo de terceiro exige extension methods/UFCS, e `nil`
+quebra (`x.len()` explode; `len(x)` pode validar).
+
+**Veredito:** o estilo Python é **coerente**, não "mais moderno". Os pontos fortes são
+uniformidade de protocolo e tipos pequenos; os fracos são descoberta, namespace e a
+composição. O mainstream tipado foi para **métodos + extensões** justamente para juntar
+descoberta e abertura.
+
+### O triângulo da ergonomia (conecta com I-2)
+
+Só se escolhem **dois** destes três:
+
+1. **funções livres + pipe** → composição linda (Elixir, F#);
+2. **métodos/UFCS** → encadeamento lindo sem operador novo (Kotlin, C#, Rust);
+3. **funções livres sem pipe** → aninhamento feio (`f(g(h(x)))`) — o canto do Python/JS.
+
+É por isso que Python precisa de `functools`, `map/filter` viram `list(map(...))` e o
+pessoal inventa `then`/method chaining. Se adotarmos pipe (I-2), a stdlib de funções
+livres fica ótima; se adotarmos UFCS, pipe vira opcional.
+
+### Recomendação para a nossa linguagem
+
+Híbrido explícito, com regra de bolso para decidir onde cada operação mora:
+
+| Caso | Onde mora | Exemplo |
+| --- | --- | --- |
+| Protocolo/operador genérico | **builtin global** (poucos) | `len(x)`, `str(x)`, `println(x)` |
+| Ação específica de um tipo | **método** | `lista.push(x)`, `texto.split(",")` |
+| Construção/conversão | **construtor namespaced** | `Int.parse("42") -> Option`, `List.of(...)` |
+| Combina dois tipos / composição | **função livre** | `min(a, b)`, `sum(xs)`, `map(xs, f)` |
+| Sintaxe de método em função de usuário | **extensão** (P3) | `x.minhaExtensao()` |
+
+Concretamente:
+
+1. Builtins globais **mínimos**: `len`, `str`, `print`/`println`, `iter`/`next` (se
+   houver `for-in`). Nada de `int()`/`float()` sobrecarregados.
+2. Conversão **com nome e tipo**: `Int.parse("42")` devolve `Option[Int]`/`Result`;
+   `x as Int` para cast explícito. Evita o `int()` de três significados.
+3. `str` e `repr` separados? (Python acertou em ter os dois: usuário vs debug — decidir.)
+4. Reservar builtins: redefinir `len` é erro (ou warning), não shadowing silencioso.
+5. Se a stdlib crescer, mover para módulos (`std.io.println`) em vez de encher o global.
+6. Adotar **extensões** (P3) para dar `x.metodo()` a funções — o melhor dos dois mundos.
+
+Regra mental: *"depende de um tipo só e é ação dele → método; vale para vários tipos ou
+combina dois → função livre; converte/constrói → construtor namespaced."*
+
+### Impacto técnico
+
+- **Checker**: `len` precisa de trait `Sized` (ou aceita `Any`); métodos precisam de
+  tabela de tipos. Builtin com protocolo é o caminho mais barato para começar.
+- **LLVM**: método = vtable/indireção; função livre = chamada direta (mais fácil de
+  inlinar); pipe = zero-cost (desugar).
+- **Stdlib**: cada operação precisa de uma casa; decidir cedo evita mover API depois.
+- **Compatibilidade**: builtins globais são promessa eterna; namespace é mais fácil de
+  evoluir.
+
+### Gatilhos para revisitar
+
+- ao desenhar a stdlib (depois do cap. 10);
+- ao decidir pipe vs UFCS (I-2) — as duas decisões são acopladas;
+- quando o type checker começar (protocolo `Sized`, generics);
+- se o global começar a inchar (>30 builtins é sinal de alerta).
+
+### Perguntas abertas
+
+- [ ] `len` como função ou `.length`/`.tamanho` como método?
+- [ ] `str` e `repr` separados? (debug vs usuário)
+- [ ] conversões: `Int.parse` + `as Int`, ou funções `to_int`?
+- [ ] builtins no escopo global ou em `std.*` importado por padrão?
+- [ ] shadowing de builtin: proibir, permitir com warning, ou ignorar?
+- [ ] métodos em primitivos (`5.toString()`)? Se sim, boxing?
+- [ ] extension functions entram em qual fase? (P3)
+
+### Referências
+
+- FAQ do CPython — *"Why does Python use methods for some functionality but functions for
+  other?"*:
+  <https://docs.python.org/3/faq/design.html#why-does-python-use-methods-for-some-functionality-e-g-list-index-but-functions-for-other-e-g-len-list>
+- Guido van Rossum, python-3000 (2006):
+  <https://mail.python.org/pipermail/python-3000/2006-November/004643.html>
+- Modelo de dados (protocolos `__len__`, `__iter__`, `__str__`):
+  <https://docs.python.org/3/reference/datamodel.html>
+- Ruby `Kernel` (funções como métodos privados):
+  <https://docs.ruby-lang.org/en/master/Kernel.html>
+- Kotlin extension functions: <https://kotlinlang.org/docs/extensions.html>
+- C# extension methods: <https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/extension-methods>
+- Go `len` embutido: <https://go.dev/ref/spec#Length_and_capacity>
+- *The Expression Problem* (Wadler): <https://homepages.inf.ed.ac.uk/wadler/papers/expression/expression.txt>
+
+---
+
+## I-4 — Linguagem "agent-friendly": contratos + erros estruturados determinísticos
+
+**Status:** `em avaliação`
+**Decidir até:** contratos depois do cap. 10 (funções) e antes do codegen; formato JSON
+junto com o redesign de diagnósticos (`TODO.md` §3.1).
+
+### A pergunta
+
+1. Design by Contract: `requires` / `ensures` / `invariant` na linguagem? Onde ficam?
+2. Contratos são opcionais? Em que sentido (declarar, checar, custo)?
+3. Erros em JSON estruturado para agentes, com resolução **determinística**, mantendo um
+   stack trace humano tradicional.
+
+### Parte A — Contratos (DbC)
+
+#### Terminologia (importante)
+
+O que foi descrito como "invariantes antes do bloco de código de uma função" é, na
+literatura, uma **pré-condição**. Os três conceitos:
+
+| Conceito | Onde | Verifica |
+| --- | --- | --- |
+| **Pré-condição** (`requires`) | antes do corpo | o que o chamador deve garantir |
+| **Pós-condição** (`ensures`) | depois do corpo | o que a função garante, dado que a pré valeu |
+| **Invariante de classe** (`invariant`) | na classe | vale na entrada e saída de todo método público |
+| **Invariante de laço** | no `while`/`for` | vale antes/depois de cada iteração (mais difícil; P3) |
+
+Usar "invariante" para "checagem no topo da função" confunde com invariante de classe e
+de laço. Recomendo os três nomes distintos desde o início.
+
+#### Sintaxe proposta (Eiffel/Dafny-like, entre assinatura e corpo)
+
+```lox
+fn dividir(a: Int, b: Int) -> Int
+  requires b != 0
+  requires a >= 0
+  ensures result * b <= a
+{
+  a / b
+}
+
+class Conta {
+  var saldo: Int
+  invariant saldo >= 0
+
+  fn sacar(valor: Int)
+    requires valor > 0
+    requires valor <= saldo
+    ensures saldo == old(saldo) - valor
+  {
+    saldo = saldo - valor
+  }
+}
+```
+
+Regras:
+- `requires`/`ensures`/`invariant` são **cláusulas opcionais** entre a assinatura e `{`.
+- No `ensures`, `result` é o valor de retorno e `old(expr)` é o valor da expressão na
+  entrada (snapshot **raso**; documentar que `old(lista)` não congela o conteúdo).
+- `invariant` de classe é checado na entrada e na saída de métodos públicos (não em
+  métodos privados, para não pagar duas vezes).
+- Expressões de contrato são **puras**: sem I/O, sem atribuição, sem `throw`. O checker
+  deve impor isso (ou restringir a um subconjunto: comparações, aritmética, `len`,
+  chamadas a funções marcadas `pure`).
+- Herança (cap. 13): pré-condições podem ser **enfraquecidas**, pós-condições
+  **fortalecidas** (Liskov); invariantes são herdados e checados junto.
+
+#### Opcional? Sim, em três eixos — mas com default esperto
+
+| Eixo | Opções | Recomendação |
+| --- | --- | --- |
+| **Declarar** | com/sem cláusulas | opcional por função (zero contrato = zero custo) |
+| **Checar** | `off` / `check` / `warn` | `check` no interpretador/dev; `off` no nativo release, ligável com `--contracts=check` |
+| **Onde** | runtime / estático | runtime por padrão; o checker pode provar alguns casos triviais e evitar a checagem |
+
+- `--contracts=off`: cláusulas são **parseadas e tipadas** (não podem ter erro de tipo),
+  mas não executadas. Documentar que "off" é otimização, não permissão para código
+  quebrado.
+- `--contracts=warn`: só para migração — loga a violação e continua. Perigoso (segue com
+  estado inválido); nunca default.
+- Violação é **falha fatal** (como `assert`), não `throw` recuperável: contrato violado é
+  bug, e `try/catch` em volta mascararia. No REPL, reporta e mantém a sessão viva.
+- Custo: pós-condição com `old(...)` pode alocar snapshot; contrato com `sorted(xs)` é
+  O(n log n) — documentar a complexidade e permitir `off`.
+
+#### Contratos como testes (bônus valioso)
+
+Pré e pós-condições são **oráculos de teste de graça**: um gerador (property-based testing,
+futuro `hypothesis`) pode produzir entradas que satisfazem `requires` e verificar
+`ensures`. Isso transforma contrato em teste sem escrever teste. É o argumento mais forte
+a favor de DbC na linguagem, e combina com o fuzzing já previsto no `TODO.md` §7.
+
+#### Impacto técnico
+
+- **Parser**: três cláusulas novas, só entre assinatura e corpo; sem ambiguidade.
+- **Resolver**: contratos enxergam parâmetros e (em `ensures`) `result`/`old`; `old` exige
+  guardar snapshot na entrada.
+- **Checker**: pureza, tipos, e `result` só em `ensures`.
+- **Interpretador**: avaliar antes/depois; erro estruturado em vez de `LoxRuntimeError`
+  genérico.
+- **LLVM**: cada cláusula vira `icmp` + branch para o runtime de falha; `--contracts=off`
+  remove tudo. Cuidado: **não** transformar contrato em `llvm.assume` sem checagem — se a
+  pré-condição for violada, o comportamento é UB em vez de erro. Primeiro checar, depois
+  (talvez) usar como hint.
+- **Testes**: golden de contrato (violação com `kind`, `clause`, `bindings`), e teste de
+  que `off` não altera o resultado.
+
+### Parte B — Erros estruturados em JSON
+
+#### Princípio
+
+Um único **modelo de diagnóstico** interno; dois renderizadores: **humano** (caret +
+cores + stack trace) e **JSON** (máquina). Nunca gerar a mensagem duas vezes.
+
+#### Esquema proposto (v1)
+
+```json
+{
+  "schema_version": "1.0",
+  "command": "check",
+  "success": false,
+  "summary": { "errors": 1, "warnings": 0 },
+  "diagnostics": [
+    {
+      "code": "E3001",
+      "kind": "type_mismatch",
+      "severity": "error",
+      "phase": "typecheck",
+      "message": "expected Float, found String",
+      "span": {
+        "file": "src/main.lox",
+        "start": { "line": 3, "column": 9, "offset": 41 },
+        "end":   { "line": 3, "column": 14, "offset": 46 }
+      },
+      "labels": [
+        { "span": { "file": "src/main.lox", "start": { "line": 3, "column": 9 }, "end": { "line": 3, "column": 14 } },
+          "message": "encontrado String" }
+      ],
+      "notes": ["o valor vem de `pessoa.nome` (linha 2)"],
+      "help": "use `as Float` para converter explicitamente",
+      "docs": "https://lox.dev/errors/E3001",
+      "fixes": [
+        {
+          "applicability": "machine-applicable",
+          "edits": [
+            { "file": "src/main.lox",
+              "span": { "start": { "offset": 41 }, "end": { "offset": 46 } },
+              "replacement": "(pessoa.nome as Float)" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Campos-chave:
+- `code` **estável** (`E3xxx` tipo, `E1xxx` parser, `C1xxx` contrato, `R1xxx` runtime) e
+  nunca reutilizado; `docs` aponta para o catálogo.
+- `span` com **linha, coluna e offset em bytes** (offset é o que o editor/agente usa para
+  editar sem ambiguidade; linha/coluna é o que o humano lê).
+- `fixes[]` com `applicability` (`machine-applicable`, `maybe-incorrect`, `manual`) e
+  `edits[]` com substituição por span — é o que permite o agente corrigir sem adivinhar.
+- `kind` separa categorias sem quebrar `code`.
+
+Violação de contrato usa o mesmo envelope:
+
+```json
+{
+  "code": "C1002",
+  "kind": "contract_violation",
+  "phase": "runtime",
+  "message": "precondition failed: b != 0",
+  "function": "dividir",
+  "clause": "requires",
+  "span": { "file": "src/main.lox", "start": { "line": 2, "column": 12 }, "end": { "line": 2, "column": 18 } },
+  "bindings": { "a": "10", "b": "0" },
+  "trace": [ { "function": "main", "file": "src/main.lox", "line": 9 } ]
+}
+```
+
+`bindings` mostra os valores das variáveis citadas na cláusula — o equivalente
+estruturado do "mostre os argumentos no panic".
+
+#### Determinismo (o que faz a resolução ser repetível)
+
+1. **Ordenação fixa**: por `(file, start.offset, code)`; nunca pela ordem de um `dict`
+   ou de um `set` (foi exatamente a classe de bug do `<object at 0x...>`).
+2. **Sem dados voláteis**: nada de timestamps, PID, endereço de memória, caminho absoluto,
+   locale ou ordem de `os.listdir`. Caminhos **relativos à raiz do projeto**.
+3. **Formatação numérica canônica**: uma única `stringify` (ver `TIPOS.md` `D-6`) para
+   mensagens e `bindings`; float sempre com representação round-trip.
+4. **Dedup e cascata**: um erro raiz gera um diagnóstico primário; derivados viram
+   `notes`/`related`, não erros novos. Limite `--max-errors`.
+5. **Códigos e schema versionados**: `schema_version` no envelope; código nunca muda de
+   significado. Mudança incompatível = nova major do schema.
+6. **Saída separada**: em `run`, o stdout é do **programa**; diagnósticos vão para o
+   **stderr** (JSON único ou NDJSON). Em `check`, o JSON vai para o stdout.
+7. **Mesmo input → mesmo output**: teste de determinismo roda duas vezes e compara bytes
+   (exceto nada — deve ser idêntico).
+
+#### Protocolo de reparo determinístico (para agentes)
+
+```
+1. lox check --json            → diagnostics[]
+2. selecionar fixes com applicability == "machine-applicable"
+3. descartar edits sobrepostos (aplicar só os disjuntos; reportar os demais)
+4. aplicar edições atomicamente (ou --fix --dry-run para só receber o diff)
+5. reexecutar
+6. progresso obrigatório: erros diminuíram OU conjunto de codes mudou
+7. parar após N iterações (ex.: 10) ou quando success == true
+8. se não houver fix: usar help/docs/code — nunca "adivinhar" edição
+```
+
+Comandos que tornam isso possível:
+- `lox check --json` / `lox build --json` / `lox run --json` (diagnósticos);
+- `lox check --fix --dry-run --json` (devolve `fixes[]` sem escrever);
+- `lox explain E3001 --json` (entrada do catálogo, com exemplo e contraexemplo);
+- `lox capabilities --json` (versão, schema, códigos suportados, exit codes).
+
+#### Lado humano
+
+- `--error-format=human|short|json|json-lines` (default `human` em TTY).
+- O renderizador humano usa os mesmos `Diagnostic`s: caret, cores (`NO_COLOR`), notas e
+  **stack trace** com frames (`at dividir (linha 2) ← main (linha 9)`).
+- `--json` não pode degradar a experiência humana: o humano vê o mesmo erro bonito, só que
+  em outro formato quando pedir.
+
+### Parte C — Checklist "agent-friendly" (além de erros)
+
+- [ ] `--json` em todos os comandos de inspeção (`check`, `ast`, `types`, `fmt --check`).
+- [ ] **Nunca** prompt interativo; `--yes`/`--non-interactive` onde houver risco.
+- [ ] Exit codes estáveis e documentados (65 sintaxe, 70 runtime, 66 arquivo; contrato
+      pode virar 71 no futuro, mas `kind` já distingue).
+- [ ] `--color=auto|always|never` e `NO_COLOR`; saída sem ANSI quando não-TTY.
+- [ ] `--no-progress`; progresso só em stderr.
+- [ ] Sem rede, sem telemetria, sem escrita fora do projeto.
+- [ ] `--timeout` para execução (agente não pode travar em loop infinito).
+- [ ] Catálogo de erros em JSON versionado no repo (`docs/erros/`), gerado dos códigos.
+- [ ] Formatter idempotente e determinístico (`fmt` duas vezes = igual).
+- [ ] Builds reproduzíveis (sem caminho absoluto no binário/objeto).
+- [ ] `llms.txt`/`docs/agents.md`? (documentação pensada para agente, curta e factual)
+
+### Argumentos a favor
+
+1. **Contrato é documentação executável**: a intenção fica no código e é verificada, não
+   em comentário que apodrece.
+2. **Erro cedo e local**: a violação aponta a cláusula e os valores, não um stack trace
+   genérico três camadas depois.
+3. **Testes de graça**: pré/pós viram oráculo para property-based testing e fuzzing.
+4. **Agente confiável**: JSON com `code`/`span`/`fixes` reduz alucinação; o protocolo de
+   reparo é auditável e repetível.
+5. **Humano não perde nada**: mesmo diagnóstico, renderizado bonito; JSON é opcional.
+6. **Determinismo ajuda todo mundo**: cache de CI, diff de diagnósticos, testes de
+   regressão de mensagem.
+7. **Barato de começar**: contratos são só cláusulas opcionais; JSON é um renderizador a
+   mais sobre o reporter que já existe.
+
+### Argumentos contra
+
+1. **Custo de execução**: pós-condições com `old`/`len`/ordenação podem dominar o tempo;
+   `off` no release é obrigatório, mas aí o contrato deixa de valer em produção.
+2. **Falsa segurança**: contrato não é verificação formal; cobre o que foi escrito.
+   DbC não substitui type checker nem testes.
+3. **Complexidade de linguagem**: mais três cláusulas, `old`, `result`, pureza, herança —
+   é bastante superfície para uma linguagem em construção.
+4. **JSON é contrato eterno**: schema e códigos viram API pública; errar cedo custa caro.
+5. **Risco de "agent-only"**: features que só agente usa tendem a apodrecer; por isso o
+   humano tem que consumir o mesmo modelo.
+6. **Determinismo dá trabalho**: caminhos, floats, ordem de diagnósticos e dedup exigem
+   disciplina em todo lugar (não só no reporter).
+7. **Contratos em LLVM**: fácil de implementar, fácil de errar (`assume` = UB).
+
+### Recomendação provisória
+
+- **Contratos: sim, opcionais por declaração**, com `requires`/`ensures`/`invariant`,
+  checagem **ligada por padrão no interpretador** e **desligável no nativo**
+  (`--contracts=off|check|warn`). Violação = erro fatal estruturado (`C1xxx`), não
+  exceção capturável.
+- **Erros: um modelo, dois renderizadores**, JSON v1 com `code`/`span`/`fixes`, ordenação
+  determinística e `--error-format`. Implementar **junto** com o redesign do §3.1 (não
+  depois), senão o formato nasce torto.
+- **Protocolo de reparo** documentado (`check --json` → aplicar `fixes` → reexecutar →
+  progresso), com `--fix --dry-run` e `explain`.
+- **Ordem prática**: JSON/determinismo primeiro (serve ao humano e ao agente, e é
+  pré-requisito do LSP); contratos depois do cap. 10, quando há funções para anotar.
+
+### Riscos e anti-metas
+
+- Não tratar contrato como fronteira de segurança: com `off`, ele não existe.
+- Não permitir efeito colateral em contrato (nem `print` de debug).
+- Não emitir JSON com endereço/timestamp/ordem instável — quebra cache e confiança.
+- Não criar um segundo modelo de erro para agente; o humano e o agente leem o mesmo.
+- Não usar `llvm.assume` em contrato antes de ter checagem (UB silencioso).
+- Não versionar schema sem `schema_version` e sem teste de compatibilidade.
+
+### Gatilhos para revisitar
+
+- ao implementar o redesign de diagnósticos (`TODO.md` §3.1);
+- ao terminar funções (cap. 10) — primeiro momento para `requires`/`ensures`;
+- ao entrar em classes (cap. 12) — `invariant`;
+- ao começar o codegen (contratos em LLVM);
+- quando houver `lox check --json` (aí medir se o agente realmente resolve com `fixes`).
+
+### Perguntas abertas
+
+- [ ] `requires`/`ensures` ou `pre`/`post` (mais curto)? E `old`/`result`?
+- [ ] Contrato no topo do corpo (`invariant x > 0`) em vez de cláusula? (não recomendo)
+- [ ] `off` remove a checagem **e** a avaliação das expressões? (sim, senão não otimiza)
+- [ ] Violação de contrato: exit 70 com `kind` ou exit 71 dedicado?
+- [ ] `fixes` automáticos: só para sintaxe/typo, ou também semânticos?
+- [ ] JSON em stderr (run) vs stdout (check) — confirmar contrato de CLI.
+- [ ] `schema_version` por major/minor? Onde fica o catálogo de códigos?
+- [ ] Contratos entram no AST público (`--ast --json`)? (sim, para tooling)
+- [ ] Invariante de laço entra em qual fase? (P3)
+
+### Referências
+
+- Design by Contract (Eiffel): <https://www.eiffel.com/values/design-by-contract/>
+- C++26 contracts: <https://en.cppreference.com/w/cpp/language/contracts>
+- Rust contracts (RFC/discussão): <https://github.com/rust-lang/rfcs/pull/2850>
+- Dafny (requires/ensures/invariant verificados): <https://dafny.org/>
+- SPARK/Ada (contratos + análise estática): <https://www.adacore.com/sparkpro>
+- Python `icontract`: <https://github.com/Parquery/icontract> · `deal`:
+  <https://deal.readthedocs.io/>
+- JSON Schema: <https://json-schema.org/>
+- SARIF (formato de diagnóstico para CI): <https://sarifweb.azurewebsites.net/>
+- Diagnósticos JSON do rustc:
+  <https://rustc-dev-guide.rust-lang.org/diagnostics.html#json-output>
+- LSP `Diagnostic`: <https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic>
+- Property-based testing: <https://hypothesis.readthedocs.io/>
