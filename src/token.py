@@ -11,7 +11,7 @@ class Token:
     line: int
 
     def __str__(self)-> str:
-        return f"{self.type.name} {self.lexame} {self.literal}"
+        return f"{self.type.name} {self.lexeme} {self.literal}"
 
     def __repr__(self):
         return self.__str__()

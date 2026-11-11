@@ -5,6 +5,7 @@ from src.error_reporter import ErrorReporter
 from src.interpreter import Interpreter
 from src.parser import Parser
 from src.scanner import Scanner
+from src.stmt import Stmt
 
 
 class Lox:
@@ -15,12 +16,25 @@ class Lox:
         scanner = Scanner(source)
         tokens = scanner.scan_tokens()
         parser = Parser(tokens)
-        expression = parser.parse()
+        statements:list[Stmt] | None = parser.parse()
 
-        if ErrorReporter.had_error or expression is None:
+        if ErrorReporter.had_error or statements is None:
             return
 
-        self.interpreter.interpret(expression)
+        self.interpreter.interpret(statements)
+
+    def run_repl(self, source: str) -> None:
+        scanner = Scanner(source)
+        tokens = scanner.scan_tokens()
+        parser = Parser(tokens)
+
+        statements = parser.parse_repl()
+
+        if ErrorReporter.had_error or statements is None:
+            return
+
+        self.interpreter.interpret(statements)
+
 
     def run_file(self, path: str) -> None:
         try:
@@ -41,10 +55,11 @@ class Lox:
         while True:
             try:
                 line = input("> ")
-                if not line:
-                    break
-                self.run(line)
+                if not line.strip():
+                    continue
+                self.run_repl(line)
                 ErrorReporter.had_error = False
+                ErrorReporter.had_runtime_error = False
             except (KeyboardInterrupt, EOFError):
                 print("\nSaindo...")
                 break

@@ -8,6 +8,7 @@ from src.token_type import TokenType
 class ErrorReporter:
     had_error: bool = False
     had_runtime_error: bool = False
+    silent: bool = False  # Flag para testes do REPL
 
     @classmethod
     def error(cls, target: Token | int, message: str) -> None:
@@ -26,8 +27,11 @@ class ErrorReporter:
 
     @classmethod
     def report(cls, line: int, where: str, message: str) -> None:
-        print(f"[line {line}] Error{where}: {message}", file=sys.stderr)
         cls.had_error = True
+        if cls.silent:
+            return
+
+        print(f"[line {line}] Error{where}: {message}", file=sys.stderr)
 
     @classmethod
     def reset(cls) -> None:

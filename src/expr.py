@@ -13,6 +13,14 @@ class Visitor[R](Protocol):
     def visit_grouping_expr(self, expr: Grouping) -> R: ...
     def visit_literal_expr(self, expr: Literal) -> R: ...
     def visit_unary_expr(self, expr: Unary) -> R: ...
+    def visit_assign_expr(self, expr: Assign) -> R: ...
+    def visit_call_expr(self, expr: Call) -> R: ...
+    def visit_get_expr(self, expr: Get) -> R: ...
+    def visit_logical_expr(self, expr: Logical) -> R: ...
+    def visit_set_expr(self, expr: Set) -> R: ...
+    def visit_super_expr(self, expr: Super) -> R: ...
+    def visit_this_expr(self, expr: This) -> R: ...
+    def visit_variable_expr(self, expr: Variable) -> R: ...
 
 
 class Expr(Protocol):
@@ -57,3 +65,76 @@ class Unary(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_unary_expr(self)
+
+
+@dataclass(frozen=True)
+class Assign:
+    name: Token
+    value: Expr
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_assign_expr(self)
+
+
+@dataclass(frozen=True)
+class Call:
+    callee: Expr
+    paren: Token
+    arguments: list[Expr]
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_call_expr(self)
+
+
+@dataclass(frozen=True)
+class Get:
+    object: Expr
+    name: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_get_expr(self)
+
+
+@dataclass(frozen=True)
+class Logical:
+    left: Expr
+    operator: Token
+    right: Expr
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_logical_expr(self)
+
+
+@dataclass(frozen=True)
+class Set:
+    object: Expr
+    name: Token
+    value: Expr
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_set_expr(self)
+
+
+@dataclass(frozen=True)
+class Super:
+    keyword: Token
+    method: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_super_expr(self)
+
+
+@dataclass(frozen=True)
+class This:
+    keyword: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_this_expr(self)
+
+
+@dataclass(frozen=True)
+class Variable:
+    name: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_variable_expr(self)

@@ -1,20 +1,30 @@
+from src.environment import Environment
 from src.error_reporter import ErrorReporter
 from src.errors import LoxRuntimeError
-from src.expr import Binary, Expr, Grouping, Literal, Unary, Visitor
+from src.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
+from src.expr import Visitor as ExprVisitor
+from src.stmt import Block, Expression, Print, Stmt, Var
+from src.stmt import Visitor as StmtVisitor
 from src.token import Token
 from src.token_type import TokenType
 
 
-class Interpreter(Visitor[object]):
-    def interpret(self, expression: Expr):
+class Interpreter(ExprVisitor[object], StmtVisitor[None]):
+    def __init__(self) -> None:
+        self.environment = Environment()
+
+    def interpret(self, statements: list[Stmt]):
         try:
-            value = self._evaluate(expression)
-            print(self._stringify(value))
+            for statement in statements:
+                self._execute(statement)
         except LoxRuntimeError as e:
             ErrorReporter.runtime_error(e)
 
     def _evaluate(self, expr: Expr) -> object:
         return expr.accept(self)
+
+    def _execute(self, stmt: Stmt) -> None:
+        stmt.accept(self)
 
     def _is_truthy(self, obj: object) -> bool:
         if obj is None:
@@ -58,6 +68,17 @@ class Interpreter(Visitor[object]):
 
         return str(obj)
 
+    def _execute_block(self, statements: list[Stmt], environment: Environment) -> None:
+        previous = self.environment
+
+        try:
+            self.environment = environment
+
+            for st in statements:
+                self._execute(st)
+        finally:
+            self.environment = previous
+
     def visit_literal_expr(self, expr: Literal) -> object:
         return expr.value
 
@@ -72,7 +93,8 @@ class Interpreter(Visitor[object]):
                 return self._is_truthy(right)
             case TokenType.MINUS:
                 self._check_number_operands(expr.operator, right)
-                return -float(right)
+                assert isinstance(right, float)
+                return -right
 
         return None
 
@@ -80,22 +102,31 @@ class Interpreter(Visitor[object]):
         left = self._evaluate(expr.left)
         right = self._evaluate(expr.right)
 
+        # TODO(desafio-cap-7): Suportar comparadores relacionais (>, >=, <, <=) para strings.
+        # Regra: permitir apenas entre dois números (float) OU duas strings (ordem lexicográfica).
+        # Jamais misturar tipos diferentes (ex: 3 < "pancake") para evitar coerções confusas à la JS/Python 2.
+
         match expr.operator.type:
             case TokenType.GREATER:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) > float(right)
+                assert isinstance(left, float) and isinstance(right, float)
+                return left > right
             case TokenType.GREATER_EQUAL:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) >= float(right)
+                assert isinstance(left, float) and isinstance(right, float)
+                return left >= right
             case TokenType.LESS:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) < float(right)
+                assert isinstance(left, float) and isinstance(right, float)
+                return left < right
             case TokenType.LESS_EQUAL:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) <= float(right)
+                assert isinstance(left, float) and isinstance(right, float)
+                return left <= right
             case TokenType.MINUS:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) - float(right)
+                assert isinstance(left, float) and isinstance(right, float)
+                return left - right
             case TokenType.PLUS:
                 if isinstance(left, float) and isinstance(right, float):
                     return float(left) + float(right)
@@ -106,13 +137,42 @@ class Interpreter(Visitor[object]):
                 )
             case TokenType.SLASH:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) / float(right)
+                if right == 0:
+                    raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
+                assert isinstance(left, float) and isinstance(right, float)
+                return left / right
             case TokenType.STAR:
                 self._check_number_operands(expr.operator, left, right)
-                return float(left) * float(right)
+                assert isinstance(left, float) and isinstance(right, float)
+                return left * right
             case TokenType.BANG_EQUAL:
                 return not self._is_equal(left, right)
             case TokenType.EQUAL_EQUAL:
                 return self._is_equal(left, right)
 
         return None
+
+    def visit_expression_stmt(self, stmt: Expression) -> None:
+        self._evaluate(stmt.expression)
+
+    def visit_print_stmt(self, stmt: Print) -> None:
+        value = self._evaluate(stmt.expression)
+        print(self._stringify(value))
+
+    def visit_var_stmt(self, stmt: Var) -> None:
+        val: object = object()
+        if stmt.initializer is not None:
+            val = self._evaluate(stmt.initializer)
+
+        self.environment.define(stmt.name.lexeme, val)
+
+    def visit_variable_expr(self, expr: Variable) -> object:
+        return self.environment.get(expr.name)
+
+    def visit_assign_expr(self, expr: Assign) -> object:
+        val = self._evaluate(expr.value)
+        self.environment.assign(expr.name, val)
+        return val
+
+    def visit_block_stmt(self, stmt: Block) -> None:
+        self._execute_block(stmt.statements, Environment(self.environment))
