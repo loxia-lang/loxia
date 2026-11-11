@@ -228,26 +228,25 @@ fn main() {
 
 ### 2.1 Objetivo
 
-Tipagem **estática opcional**, com anotações onde importam:
+Tipagem **estática gradual**, com anotações onde importam:
 
 ```lox
-fn soma(a: Int, b: Int) -> Int { a + b }
+fun soma(a: Int, b: Int) -> Int { return a + b; }
 soma(1, 2)        // ok
 soma("a", 2)      // erro em tempo de compilação:
-                  //   expected Int, found String
-                  //   --> linha 1, coluna 6
+                  //   Expected Int, found String.
 ```
 
-E inferência na fronteira:
+E inferência nos locais:
 
 ```lox
-fn soma(a, b) { a + b }   // 'a: T, 'b: T -> T
-val x = soma(1, 2)        // T := Int; x: Int
-val y = soma(1, "b")      // erro: T := Int e T := String não unificam
+val x = soma(1, 2)   // Int, sem anotação
+val nome: String? = nil
 ```
 
-O ponto central: **o argumento é checado contra o parâmetro**, e o parâmetro sem anotação
-vira uma variável de tipo unificada. Isso pega 90% dos erros bobos sem exigir anotação.
+O ponto central: **o argumento é checado contra o parâmetro** e o local infere do
+inicializador. Funções anotadas são obrigatórias no modo `--check`; inferir parâmetros sem
+anotação (T3) fica como evolução.
 
 ### 2.2 Estratégia (não fazer HM completo de cara)
 
@@ -257,13 +256,17 @@ nas chamadas**, em camadas:
 
 | Etapa | O que faz | Ganho |
 | --- | --- | --- |
-| **T1** | `Ty` no AST, parser aceita `: Tipo` e `-> Tipo`; checker só valida o que está anotado, resto é `Any` | sintaxe pronta, zero falso positivo |
-| **T2** | inferência local: `val x = 1` → `Int`; `fn f() -> 1` → `Int`; checagem de `return` | erros óbvios |
-| **T3** | parâmetro sem anotação vira `TyVar`; unificar a cada chamada **no arquivo** | o "check nos args" que eu quero |
-| **T4** | generalização (let-polymorphism) → funções genéricas implícitas; `fn id<T>(x: T) -> T` explícito | bibliotecas |
-| **T5** | uniões `Int \| String`, opcionais `T?`, narrowing em `if x != nil` | expressividade |
-| **T6** | traits/protocolos estruturais, checagem de exaustividade no `match` | abstração |
-| **T7** | erase (tipos só vivem em compile-time) e integração com o codegen | backend sabe layouts |
+| **T1** ✅ | `Ty` no AST, parser aceita `: Tipo`, `-> Tipo`, `T?` e `A \| B`; checker no AST | sintaxe e base prontas |
+| **T2** ✅ | inferência local (`val x = 1` → `Int`), checagem de `return`, chamadas e campos | erros óbvios sem anotar locais |
+| **T3** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | funções sem anotação |
+| **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
+| **T5** 🟡 | uniões `Int \| String` e `T?` prontos; falta narrowing em `if x != nil` | expressividade |
+| **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
+| **T7** ⬜ | erase e integração com o codegen | backend sabe layouts |
+
+O modo `--check` está implementado em `src/checker.py` (ADR-0010): funções precisam de
+anotações, locais inferem, uniões/`T?`/promoção/booleanos são checados. Sem `--check` o
+interpretador ignora as anotações.
 
 ### 2.3 Modelo de tipos
 
@@ -762,6 +765,12 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
     `range(a, b, step)` com 3 args; `for x in` sobre Range/String hoje (List/Map quando
     existirem), variável `val` por iteração. Ver
     [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e [`IDEIAS.md`](IDEIAS.md) I-6.
+18. **Defaults e campos** — **decidido em 2026-11-11**: defaults constantes com aridade
+    `[mín, máx]`; campos `val`/`var` declarados no corpo, sem campo dinâmico. Ver
+    [ADR-0009](docs/adr/0009-defaults-e-campos.md).
+19. **Tipagem estática gradual** — **decidido em 2026-11-11**: checker opt-in (`--check`),
+    funções anotadas, inferência local, `T?`/uniões, booleanos Python; sem narrowing de
+    fluxo ainda. Ver [ADR-0010](docs/adr/0010-tipagem-estatica.md).
 
 ---
 

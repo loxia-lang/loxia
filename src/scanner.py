@@ -39,12 +39,24 @@ class Scanner:
                 self._add_token(TokenType.RIGHT_BRACE)
             case ",":
                 self._add_token(TokenType.COMMA)
+            case ":":
+                self._add_token(TokenType.COLON)
+            case "[":
+                self._add_token(TokenType.LEFT_BRACKET)
+            case "]":
+                self._add_token(TokenType.RIGHT_BRACKET)
+            case "?":
+                self._add_token(TokenType.QUESTION)
+            case "|":
+                self._add_token(TokenType.PIPE)
             case ".":
                 self._add_token(
                     TokenType.DOT_DOT if self._match(".") else TokenType.DOT
                 )
             case "-":
-                self._add_token(TokenType.MINUS)
+                self._add_token(
+                    TokenType.ARROW if self._match(">") else TokenType.MINUS
+                )
             case "+":
                 self._add_token(TokenType.PLUS)
             case ";":

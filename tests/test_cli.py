@@ -72,3 +72,45 @@ def test_dump_ast_requires_script() -> None:
     result = run_cli("--dump-ast")
 
     assert result.returncode == 2
+
+
+def test_check_annotated_program_does_not_execute(tmp_path: Path) -> None:
+    script = tmp_path / "tipado.lox"
+    script.write_text(
+        "fun f(a: Int) -> Int { return a; }\nprint f(1);\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("--check", str(script))
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_check_type_error_exits_65_without_executing(tmp_path: Path) -> None:
+    script = tmp_path / "tipado.lox"
+    script.write_text(
+        'val x: Int = "a";\nprint "não devia imprimir";\n',
+        encoding="utf-8",
+    )
+
+    result = run_cli("--check", str(script))
+
+    assert result.returncode == 65
+    assert result.stdout == ""
+    assert "Expected Int, found String." in result.stderr
+
+
+def test_check_requires_script() -> None:
+    result = run_cli("--check")
+
+    assert result.returncode == 2
+
+
+def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
+    script = tmp_path / "x.lox"
+    script.write_text("print 1;\n", encoding="utf-8")
+
+    result = run_cli("--check", "--dump-ast", str(script))
+
+    assert result.returncode == 2

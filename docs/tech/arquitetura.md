@@ -18,11 +18,15 @@ Scanner ───────────────► list[Token]
    │                    Resolver ────────► Interpreter.locals: {Expr: depth}
    │                       │                (erros de escopo vinculante)
    │                       ▼
+   │                    Checker ─────────► erros de tipo (só em `--check`)
+   │                       │
+   ▼                       ▼
    └──────────────────► Interpreter ──────► efeitos (print, variáveis, objetos)
 ```
 
 Cada fase depende só da anterior. O **resolver** é obrigatório: sem ele, o interpretador
-não sabe a distância das variáveis locais.
+não sabe a distância das variáveis locais. O **checker** é opt-in (`--check`) e não roda
+no caminho normal; tipos são apagados antes da execução.
 
 ## Módulos
 
@@ -43,10 +47,12 @@ não sabe a distância das variáveis locais.
 | [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
 | [`src/values.py`](../../src/values.py) | `stringify` única |
 | [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`: predicados, promoção, wrapping, `%` |
+| [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), uniões, `T?`, `FnTy` e helpers |
+| [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
 | [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
 | [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
 | [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
-| [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `arity`/`call` |
+| [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
 | [`src/lox_function.py`](../../src/lox_function.py) | função de usuário + closure + `bind` |
 | [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
 | [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
@@ -97,17 +103,21 @@ chamada.
 
 ## Chamadas e objetos
 
-- `LoxCallable` é um `Protocol` `runtime_checkable` com `arity()` e `call(interpreter, args)`.
+- `LoxCallable` é um `Protocol` `runtime_checkable` com `min_arity()`, `max_arity()` e
+  `call(interpreter, args)`. A faixa cobre parâmetros com default.
   `isinstance(x, LoxCallable)` verifica presença dos métodos.
-- `Stmt.Function.params` é uma lista de `Param(name, mutable)`, e `Stmt.Var` carrega
-  `mutable`. Parâmetros são imutáveis por padrão (`var` no parser liga `mutable`).
+- `Stmt.Function.params` é uma lista de `Param(name, mutable, default, type_annotation)`, e
+  `Stmt.Var` carrega `mutable` e `type_annotation`. Parâmetros são imutáveis por padrão
+  (`var` no parser liga `mutable`).
 - `LoxFunction` guarda a declaração (`Stmt.Function`) e a `closure`; `call` cria um ambiente
-  novo, define os parâmetros (com a mutabilidade de cada um) e executa o corpo. `bind(instance)` cria um ambiente com
-  `this` (usado por métodos e por `super`).
-- `LoxClass` guarda `superclass` e `methods`; `find_method` procura na própria classe e
-  sobe recursivamente. `call` cria a instância e roda `init`.
-- `LoxInstance` tem `fields: dict[str, object]`; `get` procura campo, depois método (e
-  devolve o método ligado); `set` grava no campo.
+  novo, define os parâmetros (preenchendo defaults constantes) e executa o corpo.
+  `bind(instance)` cria um ambiente com `this` (usado por métodos e por `super`).
+- `LoxClass` guarda `superclass`, `methods` e `fields: dict[str, FieldInfo]` (campos
+  herdados já mesclados); `find_method`/`find_field` sobem recursivamente. `call` cria a
+  instância, roda inicializadores de campo e `init`, e valida os campos inicializados.
+- `LoxInstance` tem `fields: dict[str, object]` e `_initialized`; `get` procura campo,
+  depois método (e devolve o método ligado); `set` recusa campo não declarado e `val` já
+  inicializado.
 - `return` usa `ReturnSignal`, uma exceção interna capturada por `LoxFunction.call`.
   Não é erro de runtime e não deve vazar para o usuário.
 

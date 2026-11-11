@@ -10,12 +10,14 @@ inglês; o texto de CLI e a documentação em português.
 | léxico | `[line N] Error: mensagem` | 65 |
 | sintaxe | `[line N] Error at 'token': mensagem` (ou `at end`) | 65 |
 | resolver | `[line N] Error at 'token': mensagem` | 65 |
+| type checker (`--check`) | `[line N] Error at 'token': mensagem` | 65 |
 | runtime | `mensagem` + `\n[line N]` | 70 |
 | arquivo ausente | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |
 
 - Erros vão para **stderr**; a saída do programa, para stdout.
-- Compilação: o programa **não executa**. O parser se recupera (`synchronize`) e o resolver
-  percorre a AST inteira, então uma execução pode listar vários erros.
+- Compilação (léxico, parser, resolver e checker): o programa **não executa**. O parser se
+  recupera (`synchronize`) e o resolver percorre a AST inteira, então uma execução pode
+  listar vários erros.
 - Runtime: para no **primeiro** erro.
 - No REPL não há exit code; a linha com erro é descartada e a sessão continua.
 
@@ -107,6 +109,25 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 
 A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros
 (65) e runtime para globais (70). O texto é o mesmo de propósito.
+
+## Type checker (`--check`)
+
+| Mensagem | Quando |
+| --- | --- |
+| `Expected X, found Y.` | atribuição/argumento/retorno/campo com tipo incompatível |
+| `Unknown type 'X'.` / `Unknown superclass 'X'.` | anotação com nome inexistente |
+| `Parameter 'x' needs a type annotation.` | parâmetro sem tipo no `--check` |
+| `Function 'f' needs a return type annotation.` | função sem retorno no `--check` |
+| `Field 'x' needs a type annotation.` | campo sem tipo e sem inicializador |
+| `Can't infer type of 'x'; add an annotation.` | `var` sem inicializador e sem tipo |
+| `Can only call functions and classes.` | chamada de valor não chamável |
+| `Expected N arguments but got M.` (+ variantes com default) | aridade errada |
+| `Undefined variable 'x'.` / `Undefined property 'x'.` / `Undefined field 'x'.` | nome inexistente |
+| `Can't assign to immutable field 'x'.` | `val` de campo fora do `init` |
+| `Operands must be numbers.` / `Operand must be a number.` | operador aritmético com não-número |
+| `Operands must be two numbers or two strings.` | `+` misturando tipos |
+| `Range bounds must be integers.` | bound de `..` não-`Int` |
+| `Can only iterate over a range, a list or a string.` | `for-in` em tipo não iterável |
 
 ## Como testar
 

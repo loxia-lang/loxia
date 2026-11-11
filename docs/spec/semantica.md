@@ -187,6 +187,35 @@ for i in 5..2 { ... }             // vazio
 - `clock()` devolve segundos desde a época como `float`, aridade 0.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
 
+## Tipos e `--check`
+
+Anotações de tipo existem na AST, mas o **interpretador as ignora**: tipos são apagados em
+runtime. A checagem é opt-in pelo CLI (`--check`), que não executa o programa.
+
+```lox
+fun soma(a: Int, b: Int = 10) -> Int {
+  return a + b;
+}
+
+val x = soma(1);              // Int inferido, sem anotação
+val nome: String? = nil;      // String | Nil
+val rotulo = nome or "sem nome";  // String (truthy remove Nil)
+```
+
+- No `--check`, funções e métodos precisam de anotação em **todos os parâmetros e no
+  retorno**; `init` não declara retorno. Parâmetro/campo sem anotação e sem inicializador
+  é erro; local sem inicializador também.
+- Locais e expressões são inferidos: `val x = f()` não precisa de tipo.
+- Tipos: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
+  `List[T]`, `Map[K, V]`, uniões `A | B` e `T?` (= `T | Nil`). `Int` é non-null.
+- Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
+- Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
+  tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
+- Erros de tipo são de **compilação** e impedem a execução; exit code 65.
+- Limitações atuais: sem narrowing de fluxo (`if x != nil` não refina a união), sem
+  generics de verdade, sem tipo de função como valor e sem `as`. Anotar `Float` não
+  converte o valor em runtime (o tree-walk continua dinâmico).
+
 ## Classes
 
 ```lox

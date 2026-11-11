@@ -66,6 +66,18 @@ def test_scans_range_token_and_in_keyword() -> None:
     ]
 
 
+def test_scans_type_punctuation() -> None:
+    assert scan_types(": ? [ ] -> |") == [
+        TokenType.COLON,
+        TokenType.QUESTION,
+        TokenType.LEFT_BRACKET,
+        TokenType.RIGHT_BRACKET,
+        TokenType.ARROW,
+        TokenType.PIPE,
+        TokenType.EOF,
+    ]
+
+
 def test_integer_literal_overflow_reports_error() -> None:
     scanner = scan_with_reporter("9223372036854775808")
 

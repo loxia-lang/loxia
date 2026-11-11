@@ -29,6 +29,7 @@ from src.stmt import (
 )
 from src.token_type import TokenType
 from src.tokens import Token
+from src.ty import Ty, display
 from src.values import stringify
 
 
@@ -97,6 +98,17 @@ class AstPrinter:
         parts = [f"class {stmt.name.lexeme}"]
         if stmt.superclass is not None:
             parts.append(f"(super {stmt.superclass.name.lexeme})")
+
+        for field in stmt.fields:
+            keyword = "var" if field.mutable else "val"
+            suffix = self._type_suffix(field.type_annotation)
+            value = (
+                f" {field.initializer.accept(self)}"
+                if field.initializer is not None
+                else ""
+            )
+            parts.append(f"({keyword} {field.name.lexeme}{suffix}{value})")
+
         parts.extend(method.accept(self) for method in stmt.methods)
 
         return f"({' '.join(parts)})"
@@ -112,12 +124,19 @@ class AstPrinter:
 
     def visit_function_stmt(self, stmt: Function) -> str:
         params = " ".join(
-            f"var {param.name.lexeme}" if param.mutable else param.name.lexeme
+            ("var " if param.mutable else "")
+            + param.name.lexeme
+            + self._type_suffix(param.type_annotation)
             for param in stmt.params
+        )
+        returns = (
+            f" -> {display(stmt.return_type)}"
+            if stmt.return_type is not None
+            else ""
         )
         body = " ".join(statement.accept(self) for statement in stmt.body)
         inner = f"({params})"
-        return f"(fun {stmt.name.lexeme} {inner}{f' {body}' if body else ''})"
+        return f"(fun {stmt.name.lexeme} {inner}{returns}{f' {body}' if body else ''})"
 
     def visit_if_stmt(self, stmt: If) -> str:
         condition = stmt.condition.accept(self)
@@ -138,8 +157,15 @@ class AstPrinter:
 
     def visit_var_stmt(self, stmt: Var) -> str:
         keyword = "var" if stmt.mutable else "val"
+        suffix = self._type_suffix(stmt.type_annotation)
         value = "nil" if stmt.initializer is None else stmt.initializer.accept(self)
-        return f"({keyword} {stmt.name.lexeme} {value})"
+        return f"({keyword} {stmt.name.lexeme}{suffix} {value})"
+
+    def _type_suffix(self, ty: Ty | None) -> str:
+        if ty is None:
+            return ""
+
+        return f": {display(ty)}"
 
     def visit_while_stmt(self, stmt: While) -> str:
         return f"(while {stmt.condition.accept(self)} {stmt.body.accept(self)})"

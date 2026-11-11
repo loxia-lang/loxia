@@ -20,14 +20,20 @@ declaration    → classDecl
 
 classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
 classMember    → fieldDecl | function ;
-fieldDecl      → ( "val" | "var" ) IDENTIFIER ( "=" expression )? ";" ;
+fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? ";" ;
 funDecl        → "fun" function ;
-function       → IDENTIFIER "(" parameters? ")" block ;
+function       → IDENTIFIER "(" parameters? ")" ( "->" type )? block ;
 parameters     → parameter ( "," parameter )* ;
-parameter      → "var"? IDENTIFIER ( "=" expression )? ;
+parameter      → "var"? IDENTIFIER ( ":" type )? ( "=" expression )? ;
 
-varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
-valDecl        → "val" IDENTIFIER "=" expression ";" ;
+varDecl        → "var" IDENTIFIER ( ":" type )? ( "=" expression )? ";" ;
+valDecl        → "val" IDENTIFIER ( ":" type )? "=" expression ";" ;
+
+type           → unionType ;
+unionType      → postfixType ( "|" postfixType )* ;
+postfixType    → primaryType ( "?" )* ;
+primaryType    → IDENTIFIER ( "[" type ( "," type )* "]" )?
+               | "(" type ")" ;
 
 statement      → exprStmt
                | forStmt
@@ -69,6 +75,10 @@ primary        → "true" | "false" | "nil" | "this"
 Defaults de parâmetro e inicializadores de campo são **constantes na v1** (literal,
 `nil`, `true`/`false`, `-` de literal numérico ou parênteses em torno disso). Parâmetros
 obrigatórios vêm antes dos opcionais; campos podem aparecer antes ou depois dos métodos.
+
+Anotações de tipo são opcionais para o interpretador (que as ignora); no modo `--check`
+as funções precisam de anotações em todos os parâmetros e no retorno. `T?` é açúcar para
+`T | Nil`; `Int` é non-null.
 
 ## Precedência e associatividade
 

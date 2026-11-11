@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from src.expr import Expr
 from src.tokens import Token
+from src.ty import Ty
 
 if TYPE_CHECKING:
     from src.expr import Variable
@@ -42,6 +43,7 @@ class Field:
     name: Token
     initializer: Expr | None
     mutable: bool
+    type_annotation: Ty | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -68,6 +70,7 @@ class Param:
     name: Token
     mutable: bool
     default: Expr | None = None
+    type_annotation: Ty | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -75,6 +78,7 @@ class Function(Stmt):
     name: Token
     params: list[Param]
     body: list[Stmt]
+    return_type: Ty | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)
@@ -122,6 +126,7 @@ class Var(Stmt):
     name: Token
     initializer: Expr | None
     mutable: bool
+    type_annotation: Ty | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)

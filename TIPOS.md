@@ -26,6 +26,9 @@ Complementa:
 - [x] **Ranges e iteração** — `a..b` half-open, `range(a, b, step)`, `for-in` sobre
   Range/String e variável `val` por iteração. Ver
   [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
+- [x] **Checagem estática gradual (T1/T2)** — anotações em funções, inferência local,
+  `T?`/uniões, promoção e booleanos Python; `--check`. Ver
+  [ADR-0010](docs/adr/0010-tipagem-estatica.md) e [`TODO.md`](TODO.md) §2.
 
 ---
 
@@ -43,7 +46,7 @@ Complementa:
 | `Fn(P...) -> R` | `fn(a) -> a` | P1 | primeira classe, com closures |
 | `Range` | `0..10` | P2 | iterável; ver §3.6 |
 | `Tuple[A, B]` | `(1, "a")` | P2 | aridade fixa, destructuring |
-| `Option[T]` | `T?` | P2 | alternativa a `nil` (ver §6) |
+| `Option[T]` | `T?` | P1 | açúcar para `T | Nil`; non-null por padrão (`D-15`) |
 | `Result[T, E]` | `Result` | P3 | erros como valor (ver §6) |
 | `Class` | `class P {}` | P2 | nominal, com herança ou traits (§8) |
 | `Trait` | `trait Show` | P3 | structural/nominal a decidir |
@@ -151,28 +154,24 @@ range(10, 0, -1)   // passo/descendente (3 argumentos)
 
 ### 3.7 Inferência de tipos numéricos
 
-Interação com o `TODO.md` §2 (T1–T7):
+O checker T1/T2 já existe (`--check`): funções precisam de parâmetros e retorno anotados;
+locais e expressões são inferidos.
 
 ```lox
-let a = 1          // Int
-let b = 1.0        // Float
-let c = 1 + 2.0    // Float (promoção)
-let d = 1 / 2      // Float (D-4)
-let e = 1.0 as Int // Int
+val a = 1          // Int
+val b = 1.0        // Float
+val c = 1 + 2.0    // Float (promoção)
+val d = 1 / 2      // Float (D-4)
 
-fn metade(x) -> x / 2        // T := Int? Float? — ambíguo!
-metade(4)                    // erro ou Float?
-metade(4.0)
+fun metade(x: Float) -> Float { return x / 2; }
+metade(4)          // ok: Int promove para Float
 ```
 
-O caso `fn metade(x) -> x / 2` mostra o limite da inferência sem anotações: `/` força
-`Float`, então `x` precisa ser `Float` — e a chamada com `4` (Int) promove. Regra:
-**variáveis de tipo numéricas unificam com `Float` quando o corpo as usa em contexto
-Float**; literais `Int` no argumento promovem. Documentar com exemplos no checker.
-
-Regra de ouro: nunca deixar o tipo depender da ordem de avaliação; a unificação é
-puramente estática. A relação `Int <: Float` vale para checagem, mas **não** para
-variância: `List[Int]` não é `List[Float]` (mutação quebraria a segurança).
+Inferir parâmetros sem anotação (T3, estilo `fn metade(x) { x / 2 }`) e refinar uniões em
+`if x != nil` (T5) ficam para depois. Regra de ouro: nunca deixar o tipo depender da ordem
+de avaliação; a checagem é puramente estática. A relação `Int <: Float` vale para
+checagem, mas **não** para variância: `List[Int]` não é `List[Float]` (mutação quebraria a
+segurança).
 
 ### 3.8 Mapeamento em LLVM (`D-11`)
 
@@ -238,9 +237,10 @@ velocidade.
 
 ## 6. `nil`, `Option` e `Result`
 
-- Hoje `nil` é um valor de qualquer tipo (dinâmico). Com tipos: `T?` opcional e
-  **non-null por padrão** (Kotlin), `D-15`.
-- `Option[T]` explícito + narrowing (`if x != nil`) é mais seguro que `nil` universal.
+- **Decidido (`D-15`)**: `Int` é non-null; `T?` é açúcar para `T | Nil` e aceita `nil`.
+- Narrowing de fluxo (`if x != nil { ... }`) ainda **não** refina a união no checker (T5);
+  `x or default` já remove `Nil` do tipo via truthiness.
+- `Option[T]` explícito, se necessário, será só açúcar/alias de `T?`; não duplicar os dois.
 - `Result[T, E]` para erro recuperável; `throw` para erro excepcional. Não os dois para
   a mesma coisa.
 - `Never` no fluxo (`return`/`throw`) evita falsos erros de tipo.
@@ -308,15 +308,16 @@ Em aberto:
 | `D-12` | representação | boxeado / desboxado / NaN-box | boxeado → desboxado |
 | `D-13` | `len` de string | bytes / code points / graphemes | code points |
 | `D-14` | literal de map | `{}` / `#{}` / outro | decidir antes de P1 |
-| `D-15` | nullability | `T?` non-null / tudo anulável | non-null + `T?` |
 | `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
 
 Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-6` (formatação),
-`D-10` (ranges/iteração) e `D-18` (igualdade numérica) — ver o checkbox no topo e
-[ADR-0006](docs/adr/0006-int-float-separados.md) /
-[ADR-0007](docs/adr/0007-ranges-e-iteracao.md). Cada decisão implementada ganha caso
-golden e linha no `TODO.md` §11.
+`D-10` (ranges/iteração), `D-15` (non-null + `T?`) e `D-18` (igualdade numérica) — ver os
+checkboxes no topo e os ADRs
+[0006](docs/adr/0006-int-float-separados.md) /
+[0007](docs/adr/0007-ranges-e-iteracao.md) /
+[0010](docs/adr/0010-tipagem-estatica.md). Cada decisão implementada ganha caso golden e
+linha no `TODO.md` §11.
 
 ---
 

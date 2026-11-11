@@ -17,6 +17,7 @@ from src.stmt import (
     Var,
     While,
 )
+from src.ty import display
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:
@@ -180,6 +181,33 @@ def test_parses_class_with_superclass() -> None:
     assert isinstance(klass, Class)
     assert klass.superclass is not None
     assert klass.superclass.name.lexeme == "A"
+
+
+def test_parses_type_annotations() -> None:
+    statements = parse('fun f(a: Int, b: String = "x") -> Bool { return true; }')
+
+    function = statements[0]
+    assert isinstance(function, Function)
+
+    first, second = function.params[0].type_annotation, function.params[1].type_annotation
+    return_type = function.return_type
+    assert first is not None and second is not None and return_type is not None
+    assert display(first) == "Int"
+    assert display(second) == "String"
+    assert display(return_type) == "Bool"
+
+
+def test_parses_field_and_variable_types() -> None:
+    statements = parse("class C { val x: Int; var y: List[Int]? = nil; }")
+
+    klass = statements[0]
+    assert isinstance(klass, Class)
+
+    field_type = klass.fields[0].type_annotation
+    list_type = klass.fields[1].type_annotation
+    assert field_type is not None and list_type is not None
+    assert display(field_type) == "Int"
+    assert display(list_type) == "List[Int] | Nil"
 
 
 def test_old_inheritance_syntax_reports_error() -> None:

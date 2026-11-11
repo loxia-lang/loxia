@@ -33,6 +33,7 @@ from src.stmt import (
 )
 from src.token_type import TokenType
 from src.tokens import Token
+from src.ty import NIL, PRIMITIVES, ClassTy, ListTy, MapTy, Ty, union
 
 
 class Parser:
@@ -140,6 +141,10 @@ class Parser:
     def _field_declaration(self, mutable: bool) -> Field:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
 
+        type_annotation: Ty | None = None
+        if self._match(TokenType.COLON):
+            type_annotation = self._type()
+
         initializer: Expr | None = None
         if self._match(TokenType.EQUAL):
             initializer = self._expression()
@@ -148,10 +153,15 @@ class Parser:
 
         self._consume(TokenType.SEMICOLON, "Expect ';' after field declaration.")
 
-        return Field(name, initializer, mutable)
+        return Field(name, initializer, mutable, type_annotation)
 
     def _var_declaration(self, mutable: bool) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
+
+        type_annotation: Ty | None = None
+        if self._match(TokenType.COLON):
+            type_annotation = self._type()
+
         initializer: Expr | None = None
 
         if self._match(TokenType.EQUAL):
@@ -161,7 +171,7 @@ class Parser:
 
         self._end_statement("Expect ';' after variable declaration.")
 
-        return Var(name, initializer, mutable)
+        return Var(name, initializer, mutable, type_annotation)
 
     def _statement(self) -> Stmt:
         if self._match(TokenType.FOR):
@@ -314,6 +324,10 @@ class Parser:
                 mutable = self._match(TokenType.VAR)
                 name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
 
+                type_annotation: Ty | None = None
+                if self._match(TokenType.COLON):
+                    type_annotation = self._type()
+
                 default: Expr | None = None
                 if self._match(TokenType.EQUAL):
                     default = self._expression()
@@ -326,16 +340,76 @@ class Parser:
                         "Required parameter can't follow an optional parameter.",
                     )
 
-                parameters.append(Param(name_token, mutable, default))
+                parameters.append(Param(name_token, mutable, default, type_annotation))
 
                 if not self._match(TokenType.COMMA):
                     break
 
         self._consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+
+        return_type: Ty | None = None
+        if self._match(TokenType.ARROW):
+            return_type = self._type()
+
         self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
 
         body = self._block()
-        return Function(name, parameters, body)
+        return Function(name, parameters, body, return_type)
+
+    def _type(self) -> Ty:
+        ty = self._postfix_type()
+
+        while self._match(TokenType.PIPE):
+            ty = union(ty, self._postfix_type())
+
+        return ty
+
+    def _postfix_type(self) -> Ty:
+        ty = self._primary_type()
+
+        while self._match(TokenType.QUESTION):
+            ty = union(ty, NIL)
+
+        return ty
+
+    def _primary_type(self) -> Ty:
+        if self._match(TokenType.LEFT_PAREN):
+            ty = self._type()
+            self._consume(TokenType.RIGHT_PAREN, "Expect ')' after type.")
+            return ty
+
+        token = self._consume(TokenType.IDENTIFIER, "Expect type name.")
+        name = token.lexeme
+
+        if self._match(TokenType.LEFT_BRACKET):
+            arguments = [self._type()]
+            while self._match(TokenType.COMMA):
+                arguments.append(self._type())
+            self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after type arguments.")
+
+            return self._generic_type(token, name, arguments)
+
+        primitive = PRIMITIVES.get(name)
+        if primitive is not None:
+            return primitive
+
+        return ClassTy(name)
+
+    def _generic_type(self, token: Token, name: str, arguments: list[Ty]) -> Ty:
+        if name == "List" and len(arguments) == 1:
+            return ListTy(arguments[0])
+        if name == "Map" and len(arguments) == 2:
+            return MapTy(arguments[0], arguments[1])
+
+        if name in {"List", "Map"}:
+            expected = 1 if name == "List" else 2
+            self._error(
+                token,
+                f"{name} expects {expected} type argument(s), got {len(arguments)}.",
+            )
+
+        self._error(token, f"Unknown generic type '{name}'.")
+        return Ty()
 
     def _is_constant_default(self, expr: Expr) -> bool:
         if isinstance(expr, Literal):

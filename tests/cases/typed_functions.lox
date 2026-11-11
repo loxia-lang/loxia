@@ -1,0 +1,22 @@
+// Anotações de tipo não mudam o runtime; o programa precisa continuar executando.
+fun soma(a: Int, b: Int = 10) -> Int {
+  return a + b;
+}
+
+val x: Int = soma(1);
+print x;  // expect: 11
+
+class C {
+  var y: Int;
+
+  init(y: Int) {
+    this.y = y;
+  }
+
+  dobro() -> Int {
+    return this.y * 2;
+  }
+}
+
+val c: C = C(4);
+print c.dobro();  // expect: 8

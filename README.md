@@ -6,7 +6,7 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
-- 📐 Próximo passo: decisões de sintaxe e sistema de tipos antes do codegen.
+- 📐 Próximo passo: narrowing/generics no checker e depois o codegen LLVM.
 
 ## Rodar
 
@@ -18,6 +18,7 @@ uv run main.py programa.lox    # executa um arquivo
 uv run python -m lox           # mesma coisa, via pacote
 uv run main.py --version       # pylox 0.1.0
 uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não executa
+uv run main.py --check prog.lox      # checa os tipos, não executa
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make bench                     # benchmarks vs baseline
@@ -44,6 +45,20 @@ class Conta {
 var c = Conta(10);
 c.deposita(5);
 print c.saldo;  // 15
+```
+
+## Tipos
+
+Funções anotadas e inferência nos locais; o checker é opt-in (`--check`) e os tipos são
+apagados em runtime:
+
+```lox
+fun soma(a: Int, b: Int) -> Int {
+  return a + b;
+}
+
+val total = soma(1, 2);      // Int inferido
+val talvez: String? = nil;   // String | Nil
 ```
 
 ## Estrutura
@@ -74,5 +89,6 @@ IDEIAS.md        discussões de design (parking lot)
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
 > A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`,
-> `Int`/`Float`, ranges/`for-in` e herança `class B(A)`). O que falta — `;` opcional,
-> `fn`, `?.`, tipos — está nos documentos de roadmap e ainda **não** está implementado.
+> `Int`/`Float`, ranges/`for-in`, herança `class B(A)`, defaults/campos e checker
+> `--check`). O que falta — `;` opcional, `fn`, `?.`, narrowing/generics — está nos
+> documentos de roadmap e ainda **não** está implementado.

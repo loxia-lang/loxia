@@ -3,6 +3,7 @@ import sys
 
 from lox import __version__
 from src.ast_printer import AstPrinter
+from src.checker import Checker
 from src.error_reporter import ErrorReporter
 from src.interpreter import Interpreter
 from src.parser import Parser
@@ -52,7 +53,20 @@ class Lox:
         if statements is not None:
             print(AstPrinter().print_program(statements))
 
-    def run_file(self, path: str, *, dump_ast: bool = False) -> None:
+    def check(self, source: str) -> None:
+        statements = self._parse(source)
+        if statements is None:
+            return
+
+        Resolver(self.interpreter, self.reporter).resolve(statements)
+        if self.reporter.had_error:
+            return
+
+        Checker(self.reporter).check(statements)
+
+    def run_file(
+        self, path: str, *, dump_ast: bool = False, check: bool = False
+    ) -> None:
         try:
             with open(path, encoding="utf-8") as file:
                 source = file.read()
@@ -62,6 +76,8 @@ class Lox:
 
         if dump_ast:
             self.dump_ast(source)
+        elif check:
+            self.check(source)
         else:
             self.run(source)
 
@@ -94,22 +110,32 @@ def main() -> None:
         action="version",
         version=f"%(prog)s {__version__}",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--dump-ast",
         action="store_true",
         help="imprime a AST do script (S-expression) e não executa",
+    )
+    mode.add_argument(
+        "--check",
+        action="store_true",
+        help="checa os tipos do script e não executa",
     )
     parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
 
     parsed_args = parser.parse_args()
 
-    if parsed_args.dump_ast and not parsed_args.script:
-        parser.error("--dump-ast requires a script")
+    if (parsed_args.dump_ast or parsed_args.check) and not parsed_args.script:
+        parser.error("--dump-ast/--check requires a script")
 
     lox = Lox()
 
     if parsed_args.script:
-        lox.run_file(parsed_args.script, dump_ast=parsed_args.dump_ast)
+        lox.run_file(
+            parsed_args.script,
+            dump_ast=parsed_args.dump_ast,
+            check=parsed_args.check,
+        )
     else:
         lox.run_prompt()
 
