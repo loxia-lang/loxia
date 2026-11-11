@@ -30,8 +30,9 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | instância | chamada de classe | `Nome instance` |
 
 Números são **`Int` (i64) ou `Float` (f64)** — [ADR-0006](../adr/0006-int-float-separados.md).
-`print 3;` mostra `3` e `print 3.0;` mostra `3.0`: o tipo vem do literal. Detalhes das
-regras em [`../../TIPOS.md`](../../TIPOS.md) §3.
+`print 3;` mostra `3` e `print 3.0;` mostra `3.0`: o tipo vem do literal. As regras
+completas estão neste documento e no ADR; pendências em
+[`../../TIPOS.md`](../../TIPOS.md) §3.
 
 ### Truthiness
 

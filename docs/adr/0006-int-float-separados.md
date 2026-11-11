@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) §3/§11 (`D-1`…`D-6`, `D-18`),
+- **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) (catálogo e decisões em aberto),
   [`../../TODO.md`](../../TODO.md) §11, [`../spec/lexico.md`](../spec/lexico.md),
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/scanner.py`, `src/numeric.py`, `src/values.py`,
@@ -15,8 +15,8 @@ O Lox do livro tem **um** tipo numérico: `float` (IEEE-754 double). Todo litera
 `42.0`, e `stringify` esconde isso imprimindo `42`. Isso funciona para o interpretador,
 mas cobra caro no caminho planejado: índices de lista, contadores e bitwise querem
 inteiros exatos; no LLVM, `i64` e `double` são registradores e instruções diferentes, e
-`Number` único força boxing ou conversões em todo lugar. O modelo completo está em
-[`TIPOS.md`](../../TIPOS.md) §3; a decisão central é `D-1`.
+`Number` único força boxing ou conversões em todo lugar. O catálogo e as demais decisões
+de tipos ficam em [`TIPOS.md`](../../TIPOS.md); este ADR consolida o modelo numérico.
 
 ## Decisão
 

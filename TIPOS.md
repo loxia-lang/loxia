@@ -1,8 +1,9 @@
 # TIPOS — catálogo e decisões de tipos da linguagem
 
 Documento de design do sistema de tipos: o que suportar, como cada tipo se comporta e
-quais decisões ainda estão abertas. O **foco principal é o modelo numérico**, porque ele
-condiciona o parser, o type checker, o interpretador e o backend LLVM.
+quais decisões ainda estão **em aberto**. O foco principal continua sendo o modelo
+numérico, porque ele condiciona o parser, o type checker, o interpretador e o backend
+LLVM.
 
 Complementa:
 - [`TODO.md`](TODO.md) §2 (estratégia de implementação da inferência: T1 → T7);
@@ -11,15 +12,18 @@ Complementa:
 **Legenda:** `P0` agora · `P1` próximo · `P2` depois · `P3` algum dia
 `S` horas · `M` dias · `L` semanas · `XL` meses
 
-> Regra: este arquivo é o **contrato semântico**. Se o comportamento de um tipo mudar,
-> a decisão muda aqui primeiro, com o motivo. Cada decisão tem um id (`D-n`) citável
-> em commits e no `TODO.md`.
+> Regra: decisão **em aberto** mora aqui, com id `D-n`; decisão implementada vira ADR e
+> `docs/spec/`. O comportamento atual está em
+> [`docs/spec/semantica.md`](docs/spec/semantica.md) — este arquivo não repete o que já
+> funciona.
 
-> **Estado atual do código:** `Int` (i64) e `Float` (f64) já estão separados no tree-walk —
-> literais (incl. `_` e bases), promoção `Int → Float`, `/` sempre `Float`, `%` truncado,
-> wrapping e `stringify` distinto ([ADR-0006](docs/adr/0006-int-float-separados.md)).
-> Ainda **não** existem: `//` (colide com comentário), bitwise, `as`/conversões, `math`,
-> type checker e codegen. As decisões deste documento continuam sendo o contrato.
+## Feito
+
+- [x] **Números `Int` (i64) e `Float` (f64)** — literais (bases, `_`, expoente), promoção
+  só `Int → Float`, `/` sempre `Float`, `%` truncado, wrapping, `stringify` distinguível
+  e igualdade numérica (`1 == 1.0`). Ver
+  [ADR-0006](docs/adr/0006-int-float-separados.md) e
+  [`docs/spec/semantica.md`](docs/spec/semantica.md).
 
 ---
 
@@ -29,13 +33,13 @@ Complementa:
 | --- | --- | --- | --- |
 | `Nil` | `nil` | P0 | ausência de valor; tipo próprio, não "qualquer coisa" |
 | `Bool` | `true` / `false` | P0 | nunca é número |
-| `Int` | `42` | P0 | inteiro de 64 bits com sinal (ver §3) |
-| `Float` | `3.14` | P0 | IEEE-754 binary64 (ver §3) |
+| `Int` | `42` | P0 | inteiro de 64 bits com sinal (ver §3 e ADR-0006) |
+| `Float` | `3.14` | P0 | IEEE-754 binary64 (ver §3 e ADR-0006) |
 | `String` | `"oi"` | P0 | UTF-8 imutável (ver §4) |
 | `List[T]` | `[1, 2]` | P1 | mutável, indexada |
 | `Map[K, V]` | `{ "a": 1 }` | P1 | sintaxe a decidir (colisão com bloco) |
 | `Fn(P...) -> R` | `fn(a) -> a` | P1 | primeira classe, com closures |
-| `Range` | `0..10` | P2 | iterável; ver §3.10 |
+| `Range` | `0..10` | P2 | iterável; ver §3.6 |
 | `Tuple[A, B]` | `(1, "a")` | P2 | aridade fixa, destructuring |
 | `Option[T]` | `T?` | P2 | alternativa a `nil` (ver §6) |
 | `Result[T, E]` | `Result` | P3 | erros como valor (ver §6) |
@@ -62,159 +66,32 @@ Números são o único tipo que aparece em **toda** camada:
   (`sdiv` é UB com divisor 0; `fcmp` tem variantes ordenadas/não ordenadas);
 - igualdade/hash precisam ser consistentes entre `Int` e `Float` (`1 == 1.0`?).
 
-Errar aqui custa refatorar o codegen inteiro. Por isso as decisões `D-N` abaixo.
+Errar aqui custa refatorar o codegen inteiro. A parte implementada está no checkbox
+acima; o que falta está nas seções seguintes.
 
 ---
 
-## 3. Números
+## 3. Números — pendências e decisões abertas
 
-### 3.1 Decisão central: um `Number` ou `Int` + `Float`?
+### 3.1 Literais: sufixos (`D-2`)
 
-| Opção | Prós | Contras |
-| --- | --- | --- |
-| **`Number` único (double)**, como o Lox do livro | simples; uma tag; aritmética trivial | perde exatidão > 2^53; índices/bitwise exigem conversão; LLVM sempre `double` ou boxeado; `1` não é distinguível de `1.0` |
-| **`Int` + `Float` separados**, como Lox2/Rust/C | `i64` exato para índices/contadores; operações de inteiro no LLVM sem boxing; bitwise natural; performance | precisa de regras de promoção e de conversão explícita; `stringify` tem que distinguir; mais trabalho no checker |
-| `Int` + `Float` + `Decimal` | dinheiro correto | escopo e runtime muito maiores |
+`1i64` e `1.0f32` **não** entram por enquanto. Bases, `_` e expoente já existem; sufixos
+explícitos continuam sem decisão (provavelmente nunca, enquanto `Int` for sempre i64).
 
-**Recomendação (`D-1`): `Int` (i64) + `Float` (f64), com promoção implícita `Int → Float`
-e nenhuma conversão implícita no sentido contrário.** O Lox2 fez essa separação e a
-experiência mostra que o atrito é pequeno se as regras forem explícitas.
+### 3.2 Divisão inteira `//` (`D-4`)
 
-Isso muda a semântica atual do Lox (tudo é `float`). A migração é faseada:
+`//` colide com o comentário de linha: para existir, precisa de token próprio (`div`,
+`\`) ou de trocar o comentário (`#`, ...). Até essa decisão, não há divisão inteira — só
+`/` (Float) e `%` (truncado). O codegen deve emitir guarda de divisor ≠ 0 em
+`sdiv`/`srem`, porque divisor zero é UB no LLVM.
 
-1. lexer passa a emitir `int` para literais sem `.`/expoente e `float` para o resto;
-2. interferência mínima: `stringify` já distingue (`1` vs `1.0` — ver `D-7`);
-3. checker só começa a impor regras quando existir (`TODO.md` §2);
-4. interpretador continua aceitando os dois e promovendo em tempo de execução.
+### 3.3 Overflow checado no debug (`D-5`)
 
-### 3.2 Literais (`D-2`)
+O padrão é wrapping (implementado). Quando houver codegen, um modo debug pode detectar
+overflow e abortar: `llvm.sadd.with.overflow` no nativo e checagem equivalente no
+interpretador, para os dois continuarem batendo.
 
-```lox
-0          // Int
-42         // Int
-1_000_000  // Int (separador _ é açúcar sintático; ignorado no valor)
-0xFF       // Int = 255
-0b1010     // Int = 10
-0o755      // Int = 493
-3.14       // Float
-0.5        // Float
-1e9        // Float = 1000000000.0
-1.5e-3     // Float = 0.0015
-1.0        // Float (e não Int)
-```
-
-Regras propostas:
-
-- `_` permitido em qualquer posição entre dígitos, nunca no começo/fim (`1__0` inválido).
-- `0x`/`0b`/`0o` **não** aceitam ponto nem expoente.
-- Sufixos explícitos (`1i64`, `1.0f32`) **não** por enquanto — `D-2` deixa aberto.
-- `.5` e `1.` **não**: exigir dígito dos dois lados do ponto (igual ao scanner atual).
-  Evita ambiguidade com `..` de range e com acesso a membro.
-- `1..10` é range, não float: o scanner precisa ver `.` seguido de `.` antes de decidir
-  (já é o caso no scanner atual, que exige dígito depois do ponto).
-- Overflow de literal: `999999999999999999999` é erro de compilação ("literal inteiro
-  grande demais"), não vira `Float` silenciosamente.
-- Implementação atual: a magnitude máxima do literal é `2^63 - 1`; `INT_MIN` não tem
-  literal próprio — use aritmética (`-9223372036854775807 - 1`).
-
-### 3.3 Promoção e coerção (`D-3`)
-
-| Expressão | Resultado | Regra |
-| --- | --- | --- |
-| `Int op Int` | `Int` | exceto `/` (ver §3.4) |
-| `Int op Float` | `Float` | promove o `Int` (seguro) |
-| `Float op Int` | `Float` | idem |
-| `Float op Float` | `Float` | |
-| atribuição `let f: Float = 1` | ok | literal `Int` promove no contexto `Float` |
-| atribuição `let i: Int = 1.5` | **erro** | nunca trunca implicitamente |
-| `let i: Int = f` (var `Float`) | **erro** | exige `as Int` explícito |
-| argumento `fn f(x: Float)` chamado com `1` | ok | literal promove |
-| `fn f(x: Int)` chamado com `f2` (`Float`) | **erro** | exige `as Int` |
-
-Regra de bolso: **promoção só para cima (`Int → Float`) e só quando não perde
-informação.** Float→Int é sempre explícito (`as Int`), com semântica truncada (em
-direção a zero), e `NaN`/`Inf` são erro de runtime.
-
-Isso implica uma relação de subtipagem numérica `Int <: Float` para checagem. Cuidado
-com variância de `List` (§5): `List[Int]` **não** é `List[Float]` (mutação quebraria a
-segurança).
-
-### 3.4 Divisão, módulo e resto (`D-4`)
-
-O ponto onde linguagens mais divergem:
-
-| Operador | Proposta | Por quê |
-| --- | --- | --- |
-| `/` entre `Int` | **`Float`** (ex.: `1 / 2 == 0.5`) | `1/2 == 0` é a armadilha nº 1 de C/Rust/Go; errar aqui gera bug silencioso |
-| `//` entre `Int` | `Int`, truncado em direção a zero | divisão inteira explícita |
-| `%` entre `Int` | resto com sinal do dividendo (truncado) | casa com `srem` do LLVM; `-7 % 3 == -1` |
-| `%` entre `Float` | `fmod` (sinal do dividendo) | consistente com `Int` |
-| divisão por zero | **erro de runtime** para `Int` e `Float` | determinístico e testável; evita `NaN`/`inf` vazando (decisão atual mantida) |
-
-Alternativa rejeitada: `%` com sinal do divisor (estilo Python, `-7 % 3 == 2`). É ótimo
-para aritmética modular, mas surpreende quem vem de C/JS e não casa com `srem`.
-Se `mod` matemático for necessário, criar função `math.mod(a, b)` depois.
-
-**Pendência (`//`)**: em Lox `//` já significa **comentário de linha**. Usar `//` como
-divisão inteira exige outra sintaxe (`div`, `\`) ou trocar o comentário — decisão
-separada. Por isso `//` não existe no interpretador hoje; só `%` foi implementado.
-
-Notas de codegen:
-- `sdiv`/`srem` do LLVM são **UB com divisor zero** → o codegen precisa emitir um `icmp`
-  + branch para o runtime de erro. Nunca confie no hardware.
-- Divisão inteira de `INT_MIN / -1` também é UB em LLVM; tratar como overflow (ou erro).
-
-### 3.5 Overflow e precisão (`D-5`)
-
-- `Int` é `i64` com sinal. Operações **wrapping** no release (padrão do LLVM).
-- O interpretador em Python deve **simular** o wrapping (`((a+b+2**63) % 2**64) - 2**63`)
-  para o oráculo bater com o nativo. Sem isso, testes diferenciais divergem.
-- Modo debug (futuro): detectar overflow e abortar com `integer overflow` — no LLVM via
-  `llvm.sadd.with.overflow`, no interpretador com checagem. `D-5` fica aberto até existir
-  o codegen.
-- `Float` é IEEE-754 binary64: `0.1 + 0.2 != 0.3`. Isso é esperado e documentado; **não**
-  arredondar comparações. Para dinheiro, a resposta é `Decimal`/inteiro de centavos, não
-  epsilon.
-- Precisão exata de `Int` em `Float`: até 2^53. Acima disso, `Int as Float` pode perder
-  bits — permitido, documentado.
-
-### 3.6 Formatação (`D-6`)
-
-`stringify` é contrato de testes (todo `// expect:` depende dele). Proposta:
-
-| Valor | Saída |
-| --- | --- |
-| `Int 42` | `42` |
-| `Float 42.0` | `42.0` (com `.0`, para distinguir de `Int`) — **muda o comportamento atual** |
-| `Float 3.14` | `3.14` |
-| `Float 1e20` | `1e+20` (notação científica a partir de certa magnitude) |
-| `Float -0.0` | `-0.0` |
-| `Float NaN` | `NaN` |
-| `Float +inf` | `inf` / `-inf` |
-| `Bool` | `true` / `false` |
-| `Nil` | `nil` |
-
-Duas abordagens para `Float`:
-- **curta e round-trip** (Ryu/Grisu, como Rust/JS): `0.1+0.2` → `0.30000000000000004`;
-- **limitada** (`%.15g`/`%.17g`): mais "bonita", mas pode não voltar ao mesmo valor.
-
-Recomendação: **round-trip** (correção > estética) e nunca imprimir `1.0` como `1` quando
-o tipo for `Float`, senão o teste não sabe se o valor é `Int` ou `Float`.
-
-Impacto: `tests/cases/*` e `bench` hoje esperam `10` para `4 * 2.5`. Ao separar `Int` e
-`Float`, esse caso passa a imprimir `10.0` e **os golden cases precisam ser atualizados
-no mesmo commit** — é exatamente o tipo de mudança que o `TODO.md` §11 exige registrar.
-
-### 3.7 `NaN`, infinito e zero negativo (`D-7`)
-
-- Divisão por zero é erro (§3.4) → `inf` só aparece via `math.inf`/overflow de float.
-- `NaN != NaN` (IEEE). Igualdade deve seguir IEEE; `is_nan(x)` explícito.
-- Comparações com `NaN` são `false` (inclusive `<` e `>`); ordenar lista com `NaN` é
-  comportamento indefinido — documentar.
-- `-0.0 == 0.0` é `true`, mas `1 / -0.0` seria `-inf` (não acontece: divisão por zero é
-  erro). `stringify(-0.0)` preserva o sinal.
-
-### 3.8 Conversões e funções matemáticas (`D-8`)
+### 3.4 Conversões e funções matemáticas (`D-8`)
 
 ```lox
 let i = 3.9 as Int        // 3 (trunca em direção a zero)
@@ -231,8 +108,10 @@ let s = 42.toString()     // "42"
   fora do range) ou `Float`? Recomendação: devolvem `Int` — é o que se quer para índices.
 - `pow(Int, Int)` → `Int` com overflow wrapping? ou `Float`? Recomendação: `Float` para
   `**` e `math.pow`; `Int` só com expoente não negativo e via função explícita.
+- `Int as Float` pode perder precisão acima de `2^53`; `Float as Int` exige checar
+  `NaN`/`Inf` e o range de i64 antes de truncar.
 
-### 3.9 Operadores bit a bit (`D-9`)
+### 3.5 Operadores bit a bit (`D-9`)
 
 Só para `Int`, sem promoção (ainda **não implementado**):
 
@@ -245,11 +124,10 @@ a << n  // shift left; n em [0, 63] senão erro (evita UB no LLVM)
 a >> n  // shift aritmético (sinal); >>>
 ```
 
-Precedência: `|` < `^` < `&` < shift, abaixo de comparação, acima de `+`? A convenção C
-(`&` abaixo de `==`) é uma armadilha; adotar precedência **toda acima de comparação**
-(como Rust) e registrar `D-9`.
+Precedência: a convenção C (`&` abaixo de `==`) é uma armadilha; adotar precedência
+**toda acima de comparação** (como Rust) e registrar `D-9`.
 
-### 3.10 Ranges (`D-10`)
+### 3.6 Ranges (`D-10`)
 
 ```lox
 0..10      // Range Int, fim exclusivo
@@ -262,7 +140,7 @@ for i in 0..n { ... }
 - `for i in 0..n` é o substituto do `for` C-style (§1.3 do TODO).
 - Decidir se `..` cria lista (eager) ou é iterador preguiçoso: **iterador** (P2).
 
-### 3.11 Inferência de tipos numéricos
+### 3.7 Inferência de tipos numéricos
 
 Interação com o `TODO.md` §2 (T1–T7):
 
@@ -284,9 +162,10 @@ O caso `fn metade(x) -> x / 2` mostra o limite da inferência sem anotações: `
 Float**; literais `Int` no argumento promovem. Documentar com exemplos no checker.
 
 Regra de ouro: nunca deixar o tipo depender da ordem de avaliação; a unificação é
-puramente estática.
+puramente estática. A relação `Int <: Float` vale para checagem, mas **não** para
+variância: `List[Int]` não é `List[Float]` (mutação quebraria a segurança).
 
-### 3.12 Mapeamento em LLVM (`D-11`)
+### 3.8 Mapeamento em LLVM (`D-11`)
 
 | Conceito | IR | Observações |
 | --- | --- | --- |
@@ -303,7 +182,7 @@ puramente estática.
 **Nunca** emitir `sdiv` sem guarda: divisor zero = UB (pode crashar ou dar lixo).
 **Nunca** converter `Float` → `Int` sem checar `is.finite` e range.
 
-### 3.13 Representação em runtime (`D-12`)
+### 3.9 Representação em runtime (`D-12`)
 
 Ordem de evolução (detalhada no `TODO.md` §6.3):
 
@@ -313,20 +192,12 @@ Ordem de evolução (detalhada no `TODO.md` §6.3):
 3. **Avançado**: NaN-boxing (payload em bits de `double`), reservando padrões para
    `nil`/`bool`/ponteiro; ~48 bits de ponteiro em x86-64.
 
-Separar `Int` e `Float` desde o início evita que a representação mude quando a otimização
-chegar.
+### 3.10 Performance e benchmarks
 
-### 3.14 Performance e benchmarks
-
-Quando o modelo numérico entrar, adicionar benchmarks específicos:
-
-- laço com `Int` puro (já existe: `loop_sum`);
-- laço com `Float` (novo) — mede custo de conversão/promoção;
-- `fib` recursivo (após o cap. 10) — mede chamadas, não números;
-- comparação interpretador × LLVM no mesmo `.lox` (`TODO.md` §7).
-
-`Int` em Python é um objeto; `Float` também. O ganho real de performance só vem com o
-backend nativo — no interpretador, o objetivo é **correção**, não velocidade.
+`loop_sum` cobre laço com `Int`; falta um caso com `Float` para medir promoção/conversão
+quando o modelo estabilizar. `Int` e `Float` em Python são objetos — o ganho real de
+performance só vem com o backend nativo; no interpretador, o objetivo é **correção**, não
+velocidade.
 
 ---
 
@@ -402,20 +273,16 @@ backend nativo — no interpretador, o objetivo é **correção**, não velocida
 
 ## 10. Igualdade, hash e ordenação
 
-| Tipo | `==` | Hash | Ordenável |
-| --- | --- | --- | --- |
-| `Int`/`Float` | numérica com promoção (`1 == 1.0` → `true`) | por valor numérico normalizado | sim |
-| `Nil` | só igual a `Nil` | constante | não |
-| `Bool` | por valor; **nunca** igual a número | sim | `false < true`? evitar |
-| `String` | conteúdo | conteúdo | sim (léxico) |
-| `List` | elemento a elemento | combinação dos elementos | não |
-| `Map` | igualdade estrutural? | inviável em geral | não |
-| objeto | identidade (padrão) ou `__eq__` explícito | identidade | não |
+Já implementado e descrito na spec: `Nil`, `Bool`, `Int`/`Float` (numérica com promoção,
+`D-18`), `String` (conteúdo) e funções/classes/instâncias (identidade).
 
-Ponto delicado: `1 == 1.0`. Recomendação (`D-18`): **`true`** (igualdade numérica),
-porque o usuário pensa em números, não em representações; mas `Int 1` e `Float 1.0` são
-tipos diferentes para o checker. Documentar; hash de `1` e `1.0` deve ser igual se ambos
-forem chave de `Map`, senão o mapa quebra.
+Em aberto:
+
+- `List`: igualdade elemento a elemento (quando existir).
+- `Map`: igualdade estrutural é inviável em geral; provavelmente identidade.
+- Hash consistente com `==` para `Map[K, V]`: `1` e `1.0` precisam do mesmo hash se
+  ambos puderem ser chave.
+- Ordenação: `Int`/`Float`/`String`; `Bool` não ordenável.
 
 ---
 
@@ -423,13 +290,9 @@ forem chave de `Map`, senão o mapa quebra.
 
 | Id | Decisão | Opções | Recomendação |
 | --- | --- | --- | --- |
-| `D-1` | modelo numérico | `Number` único / `Int`+`Float` / + `Decimal` | **`Int`+`Float`** |
-| `D-2` | literais | separadores, bases, sufixos, `.5`/`1.` | bases + `_`; sem sufixos |
-| `D-3` | promoção | só `Int→Float` / nenhuma / coercitiva | só `Int→Float` implícito |
-| `D-4` | divisão/módulo | `/` float vs int; `%` truncado vs floored | `/`→Float, `//` int, `%` truncado |
-| `D-5` | overflow | wrapping / checado / saturante | wrapping; debug checado |
-| `D-6` | formatação | round-trip vs `%g`; `42.0` vs `42` | round-trip, `42.0` |
-| `D-7` | NaN/Inf | IEEE completo / proibir | IEEE + erro em div/0 |
+| `D-2` | sufixos de literal | `1i64` / `1.0f32` / não ter | não ter por enquanto |
+| `D-4` | divisão inteira `//` | `div` / `\` / trocar comentário | decidir antes de usar |
+| `D-5` | overflow no debug | checado / só wrapping | debug checado, release wrapping |
 | `D-8` | conversões | `as` / funções | `as` + funções `math` |
 | `D-9` | bitwise | precedência C vs Rust; shifts | Rust; shift inválido = erro |
 | `D-10` | ranges | Int only / Float / passo | Int, iterador |
@@ -440,10 +303,11 @@ forem chave de `Map`, senão o mapa quebra.
 | `D-15` | nullability | `T?` non-null / tudo anulável | non-null + `T?` |
 | `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
-| `D-18` | `1 == 1.0` | `true` / `false` / erro | **`true`** |
 
-Cada decisão precisa de: um caso golden demonstrando o comportamento, uma linha no
-`TODO.md` §11 e (quando for semântica) atualização do `AGENTS.md` §3.
+Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-6` (formatação) e `D-18`
+(igualdade numérica) — ver o checkbox no topo e
+[ADR-0006](docs/adr/0006-int-float-separados.md). Cada decisão implementada ganha caso
+golden e linha no `TODO.md` §11.
 
 ---
 
@@ -459,8 +323,7 @@ Cada decisão precisa de: um caso golden demonstrando o comportamento, uma linha
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
 | **N6** | ranges, `for-in` numérico | sintaxe §1.3 |
 
-Ordem prática: N0–N1 cabem **antes** do cap. 10 e já valem teste; N2+ só depois do
-resolver (cap. 11), porque o checker depende de escopo.
+Ordem prática: N2+ só depois do resolver (cap. 11), porque o checker depende de escopo.
 
 ---
 

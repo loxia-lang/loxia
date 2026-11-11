@@ -464,7 +464,8 @@ estruturado do "mostre os argumentos no panic".
    ou de um `set` (foi exatamente a classe de bug do `<object at 0x...>`).
 2. **Sem dados voláteis**: nada de timestamps, PID, endereço de memória, caminho absoluto,
    locale ou ordem de `os.listdir`. Caminhos **relativos à raiz do projeto**.
-3. **Formatação numérica canônica**: uma única `stringify` (ver `TIPOS.md` `D-6`) para
+3. **Formatação numérica canônica**: uma única `stringify` (ver
+   [ADR-0006](docs/adr/0006-int-float-separados.md)) para
    mensagens e `bindings`; float sempre com representação round-trip.
 4. **Dedup e cascata**: um erro raiz gera um diagnóstico primário; derivados viram
    `notes`/`related`, não erros novos. Limite `--max-errors`.
