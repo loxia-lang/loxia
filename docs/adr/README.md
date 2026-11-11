@@ -51,13 +51,14 @@ Crie quando a decisão:
 | [0003](0003-diagnosticos-por-execucao.md) | Diagnósticos por execução, sem estado global | accepted | 2026-11-11 |
 | [0004](0004-identidade-dos-nos-de-ast.md) | Nós de AST têm identidade | accepted | 2026-11-11 |
 | [0005](0005-val-var-imutabilidade.md) | `val`/`var` e imutabilidade de bindings | accepted | 2026-11-11 |
+| [0006](0006-int-float-separados.md) | `Int` (i64) e `Float` (f64) separados | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 
 Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`):
 
 - campos de classe, parâmetros opcionais/default — [I-5](../../IDEIAS.md);
-- `Int` vs `Float` e regras numéricas — [D-1](../../TIPOS.md);
+- divisão inteira `//` (token vs comentário) e bitwise — [`TIPOS.md`](../../TIPOS.md) `D-4`/`D-9`;
 - stdlib: builtins globais vs métodos/UFCS — [I-3](../../IDEIAS.md) (a alternativa
   pipeline foi rejeitada por enquanto; ver [I-2](../../IDEIAS.md));
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md).

@@ -29,6 +29,48 @@ def test_arithmetic_and_stringify(capsys: pytest.CaptureFixture[str]) -> None:
     assert stdout == ["7", "2.5", "10"]
 
 
+def test_number_literals_keep_int_and_float(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run("print 1; print 1.0; print 1e9;", capsys)
+
+    assert stdout == ["1", "1.0", "1000000000.0"]
+
+
+def test_int_promotes_to_float_and_division_is_float(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, _ = run("print 1 + 2.0; print 1 / 2; print 4 / 2; print 2 * 3;", capsys)
+
+    assert stdout == ["3.0", "0.5", "2.0", "6"]
+
+
+def test_modulo_truncates_toward_zero(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run("print 7 % 3; print -7 % 3; print 7 % -3; print 7.5 % 2;", capsys)
+
+    assert stdout == ["1", "-1", "1", "1.5"]
+
+
+def test_numeric_equality_promotes_int_to_float(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, _ = run("print 1 == 1.0; print 1 != 1.0; print 1 == 2.0;", capsys)
+
+    assert stdout == ["true", "false", "false"]
+
+
+def test_int_arithmetic_wraps_on_overflow(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run(
+        "print 9223372036854775807 + 1; print -9223372036854775807 - 2;", capsys
+    )
+
+    assert stdout == ["-9223372036854775808", "9223372036854775807"]
+
+
+def test_float_stringify_round_trips(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run("print 0.1 + 0.2; print -0.0; print 1.0;", capsys)
+
+    assert stdout == ["0.30000000000000004", "-0.0", "1.0"]
+
+
 def test_variables_and_uninitialized_default_to_nil(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

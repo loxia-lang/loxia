@@ -153,7 +153,11 @@ fn main() {
 - [ ] `P3` **`loop { }`** infinito e `break`/`continue` com rótulo (`break outer`).
 
 **Operadores e literais**
-- [ ] `P2` **`%`** (resto) e **`**`** (potência, associativa à direita).
+- [x] `P0` **`%`** (resto truncado, sinal do dividendo; `Int` e `Float`) —
+      [ADR-0006](docs/adr/0006-int-float-separados.md).
+- [ ] `P2` **`**`** (potência, associativa à direita).
+- [ ] `P2` **`//`** divisão inteira? bloqueado: colide com comentário; decidir token
+      ([`TIPOS.md`](TIPOS.md) `D-4`).
 - [ ] `P2` **ranges** `0..10` (exclusivo) e `0..=10` (inclusivo) — iteráveis.
 - [ ] `P2` **ternário** `cond ? a : b` (ou só `if` expressão; decidir).
 - [ ] `P2` **`?.`** optional chaining e **`??`** coalescência de nil.
@@ -496,8 +500,9 @@ Começar simples e evoluir:
 
 Regras:
 - inteiros pequenos sem alocar (tagged).
-- **`Int` e `Float` separados** (como o Lox2) ou um só `Number`? Ver §11 — para LLVM,
-  separar é bem melhor (`i64` vs `double`, sem boxing no caminho quente).
+- **`Int` e `Float` separados** (i64 + f64), decidido em
+  [ADR-0006](docs/adr/0006-int-float-separados.md) — para LLVM, separar é bem melhor
+  (`i64` vs `double`, sem boxing no caminho quente).
 - string = `{ i64 len, i8* data }` imutável; concatenar aloca.
 - toda operação aritmética tem caminho rápido desboxado e fallback que chama o runtime.
 
@@ -649,7 +654,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | `match` estrutural | ⏳ | L | depois de uniões/enums |
 | `as` cast | ⏳ | S | junto com o checker |
 | extension methods | ⏳ | M | depois de traits |
-| separar `Int` de `Float` | 🤔 | M | bom p/ LLVM, muda semântica do livro |
+| separar `Int` de `Float` | ✅ | M | feito no tree-walk (ADR-0006); falta refletir no LLVM |
 | campos declarados fora do `init` | 🤔 | S | bom p/ tipagem; decidir junto com classes |
 | classes como valores / metaclasses | 🤔 | L | poderoso, mas confunde; só se precisar |
 | interceptors (`get`/`set` mágicos) | ❌ | L | mágica demais para o meu gosto |
@@ -720,8 +725,9 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 2. **`val`/`var`** — **decidido**: `val` imutável (exige inicializador) e `var` mutável;
    parâmetros `val` por padrão. Ver [ADR-0005](docs/adr/0005-val-var-imutabilidade.md).
    Campos e defaults ficam em [`IDEIAS.md`](IDEIAS.md) I-5.
-3. **`Int` vs `Float`**: tipos separados (Lox2) ou um `Number` double (Lox)?
-   Impacto direto no codegen — separar é melhor para LLVM.
+3. **`Int` vs `Float`** — **decidido**: tipos separados, `Int` = i64 e `Float` = f64, com
+   promoção só `Int → Float`; implementado no tree-walk. Ver
+   [ADR-0006](docs/adr/0006-int-float-separados.md) e [`TIPOS.md`](TIPOS.md) §3.
 4. **Nullability**: `T?` explícito (Kotlin) ou tudo anulável (Lox atual)?
 5. **Blocos/`if` como expressão**: último valor implícito ou `return` obrigatório?
    (afeta legibilidade e o parser)

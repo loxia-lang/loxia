@@ -1,5 +1,8 @@
+from collections.abc import Callable
+
 from src.error_reporter import ErrorReporter
 from src.keywords import KEYWORDS
+from src.numeric import INT_MAX
 from src.token_type import TokenType
 from src.tokens import Token
 
@@ -46,6 +49,8 @@ class Scanner:
                 self._add_token(TokenType.SEMICOLON)
             case "*":
                 self._add_token(TokenType.STAR)
+            case "%":
+                self._add_token(TokenType.PERCENT)
             case "!":
                 self._add_token(
                     TokenType.BANG_EQUAL if self._match("=") else TokenType.BANG
@@ -127,26 +132,112 @@ class Scanner:
         self._add_token(TokenType.STRING, value)
 
     def _number(self) -> None:
-        while Scanner._is_digit(self._peek()):
-            self._advance()
+        if self._source[self._start] == "0" and self._peek() in "xXbBoO":
+            self._based_number()
+        else:
+            self._decimal_number()
+
+    def _decimal_number(self) -> None:
+        self._scan_digits(Scanner._is_digit)
+        is_float = False
 
         if self._peek() == "." and Scanner._is_digit(self._peek_next()):
+            is_float = True
             self._advance()
+            self._scan_digits(Scanner._is_digit)
 
-            while Scanner._is_digit(self._peek()):
+        exponent_digits = 2 if self._peek_at(1) in ("+", "-") else 1
+        if self._peek() in ("e", "E") and Scanner._is_digit(
+            self._peek_at(exponent_digits)
+        ):
+            is_float = True
+            self._advance()
+            if self._peek() in ("+", "-"):
                 self._advance()
+            self._scan_digits(Scanner._is_digit)
 
-        value = float(self._source[self._start : self._current])
+        raw = self._source[self._start : self._current]
+        if not Scanner._valid_separators(raw, Scanner._is_digit):
+            self.reporter.error(self._line, "Invalid number literal.")
+            return
+
+        text = raw.replace("_", "")
+        if is_float:
+            self._add_token(TokenType.NUMBER, float(text))
+            return
+
+        value = int(text)
+        if value > INT_MAX:
+            self.reporter.error(self._line, "Too large integer literal.")
+            return
+
         self._add_token(TokenType.NUMBER, value)
 
-    def _peek_next(self) -> str:
-        if self._current + 1 >= len(self._source):
+    def _based_number(self) -> None:
+        prefix = self._advance().lower()
+        is_digit: Callable[[str], bool]
+        if prefix == "x":
+            base, is_digit = 16, Scanner._is_hex_digit
+        elif prefix == "b":
+            base, is_digit = 2, Scanner._is_binary_digit
+        else:
+            base, is_digit = 8, Scanner._is_octal_digit
+
+        digits_start = self._current
+        self._scan_digits(is_digit)
+        raw = self._source[digits_start : self._current]
+
+        if not raw or not Scanner._valid_separators(raw, is_digit):
+            self.reporter.error(self._line, "Invalid number literal.")
+            return
+
+        value = int(raw.replace("_", ""), base)
+        if value > INT_MAX:
+            self.reporter.error(self._line, "Too large integer literal.")
+            return
+
+        self._add_token(TokenType.NUMBER, value)
+
+    def _scan_digits(self, is_digit: Callable[[str], bool]) -> None:
+        while is_digit(self._peek()) or self._peek() == "_":
+            self._advance()
+
+    @staticmethod
+    def _valid_separators(raw: str, is_digit: Callable[[str], bool]) -> bool:
+        for index, char in enumerate(raw):
+            if char != "_":
+                continue
+            if index == 0 or index == len(raw) - 1:
+                return False
+            if not is_digit(raw[index - 1]) or not is_digit(raw[index + 1]):
+                return False
+
+        return True
+
+    def _peek_at(self, offset: int) -> str:
+        index = self._current + offset
+        if index >= len(self._source):
             return "\0"
-        return self._source[self._current + 1]
+        return self._source[index]
+
+    def _peek_next(self) -> str:
+        return self._peek_at(1)
 
     @staticmethod
     def _is_digit(c: str) -> bool:
         return "0" <= c <= "9"
+
+    @staticmethod
+    def _is_binary_digit(c: str) -> bool:
+        return c in ("0", "1")
+
+    @staticmethod
+    def _is_octal_digit(c: str) -> bool:
+        return "0" <= c <= "7"
+
+    @staticmethod
+    def _is_hex_digit(c: str) -> bool:
+        return Scanner._is_digit(c) or "a" <= c <= "f" or "A" <= c <= "F"
 
     @staticmethod
     def _is_alpha(c: str) -> bool:

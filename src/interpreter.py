@@ -1,3 +1,4 @@
+from src import numeric
 from src.environment import Environment
 from src.error_reporter import ErrorReporter
 from src.errors import (
@@ -76,25 +77,25 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def _is_equal(self, a: object, b: object) -> bool:
         if a is None and b is None:
             return True
-        if a is None:
+        if a is None or b is None:
             return False
 
-        if type(a) is not type(b) and (isinstance(a, bool) or isinstance(b, bool)):
-            return False
+        if isinstance(a, bool) or isinstance(b, bool):
+            return isinstance(a, bool) and isinstance(b, bool) and a == b
+
+        if numeric.is_number(a) and numeric.is_number(b):
+            return numeric.equal(a, b)
 
         return a == b
 
+    def _check_number_operand(self, operator: Token, operand: object) -> None:
+        if not numeric.is_number(operand):
+            raise LoxRuntimeError(operator, "Operand must be a number.")
+
     def _check_number_operands(self, operator: Token, *operands: object) -> None:
         for operand in operands:
-            if isinstance(operand, float) and not isinstance(operand, bool):
-                continue
-
-            message = (
-                "Operand must be a number."
-                if len(operands) == 1
-                else "Operands must be numbers."
-            )
-            raise LoxRuntimeError(operator, message)
+            if not numeric.is_number(operand):
+                raise LoxRuntimeError(operator, "Operands must be numbers.")
 
     def execute_block(self, statements: list[Stmt], environment: Environment) -> None:
         previous = self.environment
@@ -120,9 +121,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             case TokenType.BANG:
                 return not self._is_truthy(right)
             case TokenType.MINUS:
-                self._check_number_operands(expr.operator, right)
-                assert isinstance(right, float)
-                return -right
+                self._check_number_operand(expr.operator, right)
+                return numeric.negate(right)
 
         return None
 
@@ -137,27 +137,26 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         match expr.operator.type:
             case TokenType.GREATER:
                 self._check_number_operands(expr.operator, left, right)
-                assert isinstance(left, float) and isinstance(right, float)
-                return left > right
+                comparison = numeric.compare(left, right)
+                return comparison is not None and comparison > 0
             case TokenType.GREATER_EQUAL:
                 self._check_number_operands(expr.operator, left, right)
-                assert isinstance(left, float) and isinstance(right, float)
-                return left >= right
+                comparison = numeric.compare(left, right)
+                return comparison is not None and comparison >= 0
             case TokenType.LESS:
                 self._check_number_operands(expr.operator, left, right)
-                assert isinstance(left, float) and isinstance(right, float)
-                return left < right
+                comparison = numeric.compare(left, right)
+                return comparison is not None and comparison < 0
             case TokenType.LESS_EQUAL:
                 self._check_number_operands(expr.operator, left, right)
-                assert isinstance(left, float) and isinstance(right, float)
-                return left <= right
+                comparison = numeric.compare(left, right)
+                return comparison is not None and comparison <= 0
             case TokenType.MINUS:
                 self._check_number_operands(expr.operator, left, right)
-                assert isinstance(left, float) and isinstance(right, float)
-                return left - right
+                return numeric.subtract(left, right)
             case TokenType.PLUS:
-                if isinstance(left, float) and isinstance(right, float):
-                    return float(left) + float(right)
+                if numeric.is_number(left) and numeric.is_number(right):
+                    return numeric.add(left, right)
                 if isinstance(left, str) and isinstance(right, str):
                     return str(left) + str(right)
                 raise LoxRuntimeError(
@@ -167,12 +166,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 self._check_number_operands(expr.operator, left, right)
                 if right == 0:
                     raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
-                assert isinstance(left, float) and isinstance(right, float)
-                return left / right
+                return numeric.divide(left, right)
+            case TokenType.PERCENT:
+                self._check_number_operands(expr.operator, left, right)
+                if right == 0:
+                    raise LoxRuntimeError(expr.operator, "Modulo by zero not allowed")
+                return numeric.modulo(left, right)
             case TokenType.STAR:
                 self._check_number_operands(expr.operator, left, right)
-                assert isinstance(left, float) and isinstance(right, float)
-                return left * right
+                return numeric.multiply(left, right)
             case TokenType.BANG_EQUAL:
                 return not self._is_equal(left, right)
             case TokenType.EQUAL_EQUAL:

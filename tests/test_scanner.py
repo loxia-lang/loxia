@@ -31,8 +31,37 @@ def test_scans_declaration_and_literal_value() -> None:
         TokenType.EOF,
     ]
     assert tokens[1].lexeme == "a"
-    assert tokens[3].literal == 1.0
-    assert isinstance(tokens[3].literal, float)
+    assert tokens[3].literal == 1
+    assert isinstance(tokens[3].literal, int)
+
+
+def test_scan_number_literals_split_int_and_float() -> None:
+    tokens = scan("42 3.14 1e9 1.5e-3 1_000 0xFF 0b1010 0o755")
+    literals = [token.literal for token in tokens if token.type is TokenType.NUMBER]
+
+    assert literals == [42, 3.14, 1e9, 1.5e-3, 1000, 255, 10, 493]
+    assert [isinstance(value, int) for value in literals] == [
+        True,
+        False,
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+    ]
+
+
+def test_integer_literal_overflow_reports_error() -> None:
+    scanner = scan_with_reporter("9223372036854775808")
+
+    assert scanner.reporter.had_error
+
+
+def test_invalid_number_separator_reports_error() -> None:
+    scanner = scan_with_reporter("1__0")
+
+    assert scanner.reporter.had_error
 
 
 def test_tracks_line_numbers() -> None:

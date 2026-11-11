@@ -39,7 +39,7 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/scanner.py`](
 
 | Token | Regra | Valor |
 | --- | --- | --- |
-| `NUMBER` | `DIGIT+ ( "." DIGIT+ )?` | `float` (IEEE-754 double) |
+| `NUMBER` | ver abaixo | `int` (i64) ou `float` (f64) |
 | `STRING` | `"` … `"` | `str` com o conteúdo entre aspas |
 | `IDENTIFIER` | `ALPHA ( ALPHA \| DIGIT )*` | lexema |
 
@@ -48,11 +48,23 @@ DIGIT   → "0" … "9"
 ALPHA   → "a" … "z" | "A" … "Z" | "_"
 ```
 
-Números (detalhes em [`../../TIPOS.md`](../../TIPOS.md)):
-- `123` vira `123.0` — **todo número é `Float` hoje**;
-- sem expoente (`1e9`), sem hexadecimal/binário, sem `_`, sem sinal (o `-` é operador);
-- `1.` e `.5` não são números válidos;
-- `123.456` é aceito; `123.` lê `123` e depois `.` (erro de sintaxe no `primary`).
+Números ([`../../TIPOS.md`](../../TIPOS.md) §3, [ADR-0006](../adr/0006-int-float-separados.md)):
+
+- **`Int`**: `DIGIT+` com `_` opcional entre dígitos (`42`, `1_000_000`), ou base
+  `0x`/`0X` (hex), `0b`/`0B` (binário) e `0o`/`0O` (octal) — `0xFF` = 255, `0b1010` = 10,
+  `0o755` = 493;
+- **`Float`**: tem `.` com dígito dos dois lados e/ou expoente (`3.14`, `1e9`, `1.5e-3`,
+  `1.0`);
+- `1` é `Int`, `1.0` é `Float`; não há sufixos (`1i64`, `1.0f32`) nem sinal no literal
+  (o `-` é operador unário);
+- `_` só entre dígitos: `1__0`, `_1` e `1_` são erro;
+- `.5` e `1.` não são números (`1.` lê `1` e depois `.`, erro de sintaxe); bases não
+  aceitam `.` nem expoente;
+- magnitude máxima de `Int` é `9223372036854775807` (`2^63 - 1`); literal maior é erro de
+  compilação. `INT_MIN` não tem literal próprio: use `-9223372036854775807 - 1`;
+- `1..10` (range) ainda não existe; o scanner exige dígito depois do `.` exatamente para
+  não engolir `..`;
+- `Float` é IEEE-754 binary64; um literal que estoura vira `inf` (comportamento do Python).
 
 Strings:
 - não têm escapes: `"\n"` é barra + `n`, não quebra de linha;
@@ -79,5 +91,7 @@ Sempre existe um token `EOF`, com a linha atual. O parser depende dele.
 | --- | --- | --- |
 | caractere fora do alfabeto | `Unexpected character: X` | erro de compilação (exit 65) |
 | string sem fechamento | `Unterminated string.` | erro de compilação (exit 65) |
+| literal numérico malformado (`1__0`, `0x` sem dígitos) | `Invalid number literal.` | erro de compilação (exit 65) |
+| literal `Int` acima de `2^63 - 1` | `Too large integer literal.` | erro de compilação (exit 65) |
 
 Depois de um erro o scanner continua; o parser pode reportar mais erros na mesma execução.

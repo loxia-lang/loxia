@@ -15,10 +15,11 @@ Complementa:
 > a decisão muda aqui primeiro, com o motivo. Cada decisão tem um id (`D-n`) citável
 > em commits e no `TODO.md`.
 
-> **Estado atual do código:** números ainda são **todos `float`** (Lox do livro; ver
-> `AGENTS.md` §3). As decisões deste documento são o **alvo**. A migração começa em N0
-> (§12) e vai exigir atualizar `src/values.py`, os golden cases de formatação (`10` vira
-> `10.0`) e o `stringify`. Nada disso foi implementado ainda.
+> **Estado atual do código:** `Int` (i64) e `Float` (f64) já estão separados no tree-walk —
+> literais (incl. `_` e bases), promoção `Int → Float`, `/` sempre `Float`, `%` truncado,
+> wrapping e `stringify` distinto ([ADR-0006](docs/adr/0006-int-float-separados.md)).
+> Ainda **não** existem: `//` (colide com comentário), bitwise, `as`/conversões, `math`,
+> type checker e codegen. As decisões deste documento continuam sendo o contrato.
 
 ---
 
@@ -113,6 +114,8 @@ Regras propostas:
   (já é o caso no scanner atual, que exige dígito depois do ponto).
 - Overflow de literal: `999999999999999999999` é erro de compilação ("literal inteiro
   grande demais"), não vira `Float` silenciosamente.
+- Implementação atual: a magnitude máxima do literal é `2^63 - 1`; `INT_MIN` não tem
+  literal próprio — use aritmética (`-9223372036854775807 - 1`).
 
 ### 3.3 Promoção e coerção (`D-3`)
 
@@ -151,6 +154,10 @@ O ponto onde linguagens mais divergem:
 Alternativa rejeitada: `%` com sinal do divisor (estilo Python, `-7 % 3 == 2`). É ótimo
 para aritmética modular, mas surpreende quem vem de C/JS e não casa com `srem`.
 Se `mod` matemático for necessário, criar função `math.mod(a, b)` depois.
+
+**Pendência (`//`)**: em Lox `//` já significa **comentário de linha**. Usar `//` como
+divisão inteira exige outra sintaxe (`div`, `\`) ou trocar o comentário — decisão
+separada. Por isso `//` não existe no interpretador hoje; só `%` foi implementado.
 
 Notas de codegen:
 - `sdiv`/`srem` do LLVM são **UB com divisor zero** → o codegen precisa emitir um `icmp`
@@ -227,7 +234,7 @@ let s = 42.toString()     // "42"
 
 ### 3.9 Operadores bit a bit (`D-9`)
 
-Só para `Int`, sem promoção:
+Só para `Int`, sem promoção (ainda **não implementado**):
 
 ```lox
 a & b   // and
@@ -444,8 +451,8 @@ Cada decisão precisa de: um caso golden demonstrando o comportamento, uma linha
 
 | Fase | Entrega | Depende de |
 | --- | --- | --- |
-| **N0** | `Int` literal no lexer + `stringify` distinto + testes | nada |
-| **N1** | promoção `Int↔Float` no interpretador + `//`, `%`, bitwise | N0 |
+| **N0** | ✅ `Int` literal no lexer + `stringify` distinto + testes | nada |
+| **N1** | 🟡 promoção `Int → Float`, `/` sempre `Float` e `%` truncado no interpretador; falta `//` (token) e bitwise | N0 |
 | **N2** | sintaxe de anotação (`: Int`, `-> Float`) e `Ty` no AST | checker T1 |
 | **N3** | unificação/checagem nas chamadas com promoção (T3) | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |

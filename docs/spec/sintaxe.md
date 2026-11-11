@@ -53,7 +53,7 @@ logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
+factor         → unary ( ( "/" | "*" | "%" ) unary )* ;
 unary          → ( "!" | "-" ) unary | call ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 arguments      → expression ( "," expression )* ;
@@ -74,7 +74,7 @@ Do menor para o maior:
 | igualdade | `==` `!=` | esquerda |
 | comparação | `<` `<=` `>` `>=` | esquerda |
 | termo | `+` `-` | esquerda |
-| fator | `*` `/` | esquerda |
+| fator | `*` `/` `%` | esquerda |
 | unário | `!` `-` | direita |
 | chamada | `()` `.` | encadeia à esquerda |
 | primário | literais, `this`, `super.x`, `( … )` | — |

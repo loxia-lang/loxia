@@ -40,6 +40,7 @@ não sabe a distância das variáveis locais.
 | [`src/interpreter.py`](../../src/interpreter.py) | execução; `globals`, `environment`, `locals` |
 | [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
 | [`src/values.py`](../../src/values.py) | `stringify` única |
+| [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`: predicados, promoção, wrapping, `%` |
 | [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
 | [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `ReturnSignal` |
 | [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `arity`/`call` |
@@ -133,7 +134,8 @@ de um arquivo continuam exigindo `;`.
 ## Limitações conhecidas
 
 - Sem colunas/spans, sem stack trace, sem códigos de erro.
-- Números só `float` (decisão de `Int`/`Float` em [`../../TIPOS.md`](../../TIPOS.md)).
+- `Int` (i64) e `Float` (f64) separados; `/` sempre `Float`, `%` truncado, `Int` com
+  wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
 - Recursão limitada pela pilha do Python (sem tail call).
 - Sem GC próprio: objetos são coletados pelo Python.
 - Sem bytecode/VM: o alvo é LLVM, e o tree-walk é o oráculo (ADR-0002).

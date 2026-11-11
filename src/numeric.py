@@ -1,0 +1,103 @@
+"""Modelo numérico: `Int` (i64) e `Float` (f64), com promoção e wrapping.
+
+Contrato em [`TIPOS.md`](../TIPOS.md) §3 (decisões `D-1`..`D-6`) e ADR-0006.
+As funções recebem `object` porque o interpretador valida os operandos antes; aqui o
+`cast` documenta a pré-condição sem pagar o custo de `assert` no caminho quente.
+"""
+
+from __future__ import annotations
+
+import math
+from typing import TypeGuard, cast
+
+type Number = int | float
+
+INT_MIN = -(2**63)
+INT_MAX = 2**63 - 1
+_UINT64 = 1 << 64
+
+
+def is_int(value: object) -> TypeGuard[int]:
+    """`bool` é subclasse de `int` em Python, mas `type` exato já o exclui."""
+    return type(value) is int
+
+
+def is_float(value: object) -> TypeGuard[float]:
+    return type(value) is float
+
+
+def is_number(value: object) -> TypeGuard[Number]:
+    return type(value) is int or type(value) is float
+
+
+def to_float(value: object) -> float:
+    return float(cast(Number, value))
+
+
+def wrap_int(value: int) -> int:
+    """Simula o `i64` com sinal (wrapping), como o `add`/`mul` do LLVM."""
+    if INT_MIN <= value <= INT_MAX:
+        return value
+
+    wrapped = value & (_UINT64 - 1)
+    return wrapped - _UINT64 if wrapped > INT_MAX else wrapped
+
+
+def add(left: object, right: object) -> Number:
+    if type(left) is int and type(right) is int:
+        return wrap_int(left + right)
+    return to_float(left) + to_float(right)
+
+
+def subtract(left: object, right: object) -> Number:
+    if type(left) is int and type(right) is int:
+        return wrap_int(left - right)
+    return to_float(left) - to_float(right)
+
+
+def multiply(left: object, right: object) -> Number:
+    if type(left) is int and type(right) is int:
+        return wrap_int(left * right)
+    return to_float(left) * to_float(right)
+
+
+def divide(left: object, right: object) -> float:
+    """`/` é sempre `Float` (D-4): `1 / 2` é `0.5`, não `0`."""
+    return to_float(left) / to_float(right)
+
+
+def modulo(left: object, right: object) -> Number:
+    """Resto truncado (sinal do dividendo), como `srem`/`fmod` (D-4)."""
+    if type(left) is int and type(right) is int:
+        remainder = abs(left) % abs(right)
+        return -remainder if left < 0 else remainder
+    return math.fmod(to_float(left), to_float(right))
+
+
+def negate(value: object) -> Number:
+    if type(value) is int:
+        return wrap_int(-value)
+    return -cast(float, value)
+
+
+def equal(left: object, right: object) -> bool:
+    """Igualdade numérica com promoção (`1 == 1.0` → `true`, D-18)."""
+    if type(left) is int and type(right) is int:
+        return left == right
+    return to_float(left) == to_float(right)
+
+
+def compare(left: object, right: object) -> int | None:
+    """Comparação numérica: `-1`, `0` ou `1`; `None` quando há `NaN`."""
+    if type(left) is int and type(right) is int:
+        if left < right:
+            return -1
+        return 0 if left == right else 1
+
+    left_float = to_float(left)
+    right_float = to_float(right)
+    if math.isnan(left_float) or math.isnan(right_float):
+        return None
+    if left_float < right_float:
+        return -1
+    return 0 if left_float == right_float else 1

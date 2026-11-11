@@ -1,0 +1,2 @@
+print 1__0;
+// expect error: Invalid number literal.

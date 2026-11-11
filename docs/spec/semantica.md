@@ -21,15 +21,17 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | --- | --- | --- |
 | `nil` | `nil`, `var` sem inicializador, `return;` | `nil` |
 | `true`/`false` | literais, comparações | `true`/`false` |
-| número | literais, aritmética | inteiro → `3`; resto → `2.5` |
+| `Int` | literais sem `.`/expoente, aritmética inteira | decimal (`42`, `-3`) |
+| `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
 | string | literais, `+` | conteúdo |
 | função | `fun` | `<fn nome>` |
 | função nativa | `clock` | `<native fn>` |
 | classe | `class` | nome da classe |
 | instância | chamada de classe | `Nome instance` |
 
-Hoje **todo número é `float`** (double). `print 3;` mostra `3` por formatação, não porque
-exista `Int`. A separação `Int`/`Float` está planejada em [`../../TIPOS.md`](../../TIPOS.md).
+Números são **`Int` (i64) ou `Float` (f64)** — [ADR-0006](../adr/0006-int-float-separados.md).
+`print 3;` mostra `3` e `print 3.0;` mostra `3.0`: o tipo vem do literal. Detalhes das
+regras em [`../../TIPOS.md`](../../TIPOS.md) §3.
 
 ### Truthiness
 
@@ -38,18 +40,23 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) s�
 ### Igualdade (`==`, `!=`)
 
 - `nil == nil` → `true`; `nil` vs qualquer outro → `false`;
-- tipos diferentes são diferentes, exceto números entre si (`1 == 1.0` → `true`, pois ambos
-  são `float`);
+- `Int` e `Float` comparam por valor numérico, com promoção: `1 == 1.0` → `true` (o `Int`
+  é convertido para `Float`; acima de `2^53` a conversão pode perder precisão, como no
+  LLVM);
 - `true == 1` → `false` (booleano nunca é número);
 - strings comparam por conteúdo;
 - funções, classes e instâncias comparam por **identidade** (o mesmo objeto);
-- `NaN` não existe como valor produzível hoje (divisão por zero é erro).
+- `NaN != NaN` (IEEE); nenhum literal produz `NaN` hoje.
 
 ### Formatação de números
 
-- valor inteiro → sem casas (`2.0` → `2`, `-0.0` → `0`);
-- caso contrário, representação decimal do Python (`2.5`, `0.30000000000000004`);
-- sem notação científica explícita nossa: usa a do Python.
+- `Int` → decimal, sem casas (`42`, `-3`);
+- `Float` → menor representação que volta ao mesmo `double`, **sempre** distinguindo de
+  `Int`: `2.0`, `-0.0`, `3.14`, `0.30000000000000004`;
+- notação científica do Python a partir da magnitude correspondente (`1e+20`, `1e-07`);
+- `NaN`, `inf` e `-inf` são os textos de `Float` não finitos; `inf` só aparece por
+  overflow de `Float` (divisão por zero é erro);
+- a formatação é contrato dos golden cases: `42` e `42.0` são saídas diferentes.
 
 ## Variáveis, `val` e `var`
 
@@ -92,17 +99,25 @@ var a = "global";
 | Operador | Tipos | Resultado |
 | --- | --- | --- |
 | `!` | qualquer | nega a truthiness |
-| `-` | número | negação |
-| `+` | dois números **ou** duas strings | soma/concatenação |
-| `-` `*` `/` | dois números | aritmética |
-| `<` `<=` `>` `>=` | dois números | booleano |
+| `-` | número | negação (em `Int`, com wrapping) |
+| `+` | dois números **ou** duas strings | soma com promoção / concatenação |
+| `-` `*` | dois números | aritmética com promoção; `Int` faz wrapping |
+| `/` | dois números | divisão **sempre `Float`** (`4 / 2` → `2.0`) |
+| `%` | dois números | resto truncado (sinal do dividendo); `fmod` se houver `Float` |
+| `<` `<=` `>` `>=` | dois números | booleano (promoção; com `NaN`, tudo `false`) |
 | `==` `!=` | qualquer | igualdade |
 | `and` `or` | qualquer | curto-circuito, devolve o operando |
 
+- `Int op Float` promove o `Int` para `Float` (`1 + 2.0` → `3.0`); `Float → Int` nunca é
+  implícito.
 - `+` **não** mistura número e string: `Operands must be two numbers or two strings.`
 - Comparações relacionais são só numéricas: `Operands must be numbers.`
-- Divisão por zero é **erro de runtime** (`Division by zero not allowed`), para qualquer
-  numerador — decisão nossa, diferente do livro (que devolveria `inf`/`NaN`).
+- Divisão por zero é **erro de runtime** (`Division by zero not allowed`), para `Int` e
+  `Float` — decisão nossa, diferente do livro (que devolveria `inf`/`NaN`).
+- Resto por zero também é erro de runtime (`Modulo by zero not allowed`).
+- `%` segue C/LLVM: `-7 % 3` → `-1` (sinal do dividendo), não `2`.
+- A divisão inteira `//` **não existe**: colide com o comentário `//` e o token ainda
+  está em aberto ([`../../TIPOS.md`](../../TIPOS.md) `D-4`).
 - `and`/`or` devolvem o valor do operando, não um booleano:
   `nil or 2` → `2`; `false and 1` → `false`.
 - A ordem de avaliação é esquerda→direita; `and`/`or` só avaliam a direita se necessário.
@@ -208,7 +223,8 @@ class ContaPoupanca < Conta {
 - Divisão por zero é erro (o livro devolve `inf`).
 - O REPL aceita `;` final opcional e imprime o valor de expressões.
 - `return` no topo é erro de compilação já no cap. 11 (no livro, o resolver faz isso).
-- Números são todos `float` hoje; `Int`/`Float` é decisão em aberto (`TIPOS.md`).
-- `val`/`var` não existem no livro (que só tem `var` mutável); ver ADR-0005.
+- Números são `Int` e `Float` separados (o livro usa só `float`); `/` é sempre `Float`,
+  `%` é truncado e `Int` faz wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
+- `val`/`var` não existem no livro (que só tem `var` mutável); ver [ADR-0005](../adr/0005-val-var-imutabilidade.md).
 
 Tudo o mais segue o jlox do livro, inclusive as mensagens.
