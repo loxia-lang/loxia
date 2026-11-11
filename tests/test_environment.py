@@ -58,3 +58,23 @@ def test_define_is_local_to_the_environment() -> None:
 
     with pytest.raises(LoxRuntimeError):
         outer.get(ident("x"))
+
+
+def test_get_at_and_assign_at_by_distance() -> None:
+    outer = Environment()
+    outer.define("a", 1.0)
+    inner = Environment(outer)
+
+    assert inner.get_at(1, "a") == 1.0
+
+    inner.assign_at(1, ident("a"), 2.0)
+
+    assert outer.get(ident("a")) == 2.0
+
+
+def test_ancestor_walks_enclosing_chain() -> None:
+    outer = Environment()
+    inner = Environment(outer)
+
+    assert inner.ancestor(0) is inner
+    assert inner.ancestor(1) is outer

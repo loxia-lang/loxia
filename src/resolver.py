@@ -1,0 +1,205 @@
+from __future__ import annotations
+
+from enum import Enum, auto
+
+from src.error_reporter import ErrorReporter
+from src.expr import (
+    Assign,
+    Binary,
+    Call,
+    Expr,
+    Get,
+    Grouping,
+    Literal,
+    Logical,
+    Set,
+    Super,
+    This,
+    Unary,
+    Variable,
+)
+from src.expr import Visitor as ExprVisitor
+from src.interpreter import Interpreter
+from src.stmt import (
+    Block,
+    Class,
+    Expression,
+    Function,
+    If,
+    Print,
+    Return,
+    Stmt,
+    Var,
+    While,
+)
+from src.stmt import Visitor as StmtVisitor
+from src.tokens import Token
+
+
+class FunctionType(Enum):
+    NONE = auto()
+    FUNCTION = auto()
+    METHOD = auto()
+    INITIALIZER = auto()
+
+
+class ClassType(Enum):
+    NONE = auto()
+    CLASS = auto()
+    SUBCLASS = auto()
+
+
+class Resolver(ExprVisitor[None], StmtVisitor[None]):
+    """Resolve escopos léxicos e grava no interpretador a distância de cada variável."""
+
+    def __init__(self, interpreter: Interpreter, reporter: ErrorReporter) -> None:
+        self._interpreter = interpreter
+        self._reporter = reporter
+        self._scopes: list[dict[str, bool]] = []
+        self._current_function: FunctionType = FunctionType.NONE
+        self._current_class: ClassType = ClassType.NONE
+
+    def resolve(self, statements: list[Stmt]) -> None:
+        for statement in statements:
+            self._resolve_stmt(statement)
+
+    def _resolve_stmt(self, stmt: Stmt) -> None:
+        stmt.accept(self)
+
+    def _resolve_expr(self, expr: Expr) -> None:
+        expr.accept(self)
+
+    def _begin_scope(self) -> None:
+        self._scopes.append({})
+
+    def _end_scope(self) -> None:
+        self._scopes.pop()
+
+    def _declare(self, name: Token) -> None:
+        if not self._scopes:
+            return
+
+        scope = self._scopes[-1]
+        if name.lexeme in scope:
+            self._reporter.error(name, "Already a variable with this name in this scope.")
+
+        scope[name.lexeme] = False
+
+    def _define(self, name: Token) -> None:
+        if not self._scopes:
+            return
+
+        self._scopes[-1][name.lexeme] = True
+
+    def _resolve_local(self, expr: Expr, name: Token) -> None:
+        for i in range(len(self._scopes) - 1, -1, -1):
+            if name.lexeme in self._scopes[i]:
+                self._interpreter.resolve(expr, len(self._scopes) - 1 - i)
+                return
+
+    def _resolve_function(self, function: Function, function_type: FunctionType) -> None:
+        enclosing_function = self._current_function
+        self._current_function = function_type
+
+        self._begin_scope()
+        for param in function.params:
+            self._declare(param)
+            self._define(param)
+
+        self.resolve(function.body)
+        self._end_scope()
+
+        self._current_function = enclosing_function
+
+    # --- statements ---
+
+    def visit_block_stmt(self, stmt: Block) -> None:
+        self._begin_scope()
+        self.resolve(stmt.statements)
+        self._end_scope()
+
+    def visit_class_stmt(self, stmt: Class) -> None:
+        raise NotImplementedError("classes: capítulo 12")
+
+    def visit_expression_stmt(self, stmt: Expression) -> None:
+        self._resolve_expr(stmt.expression)
+
+    def visit_function_stmt(self, stmt: Function) -> None:
+        self._declare(stmt.name)
+        self._define(stmt.name)
+        self._resolve_function(stmt, FunctionType.FUNCTION)
+
+    def visit_if_stmt(self, stmt: If) -> None:
+        self._resolve_expr(stmt.condition)
+        self._resolve_stmt(stmt.then_branch)
+        if stmt.else_branch is not None:
+            self._resolve_stmt(stmt.else_branch)
+
+    def visit_print_stmt(self, stmt: Print) -> None:
+        self._resolve_expr(stmt.expression)
+
+    def visit_return_stmt(self, stmt: Return) -> None:
+        if self._current_function is FunctionType.NONE:
+            self._reporter.error(stmt.keyword, "Can't return from top-level code.")
+
+        if stmt.value is not None:
+            self._resolve_expr(stmt.value)
+
+    def visit_var_stmt(self, stmt: Var) -> None:
+        self._declare(stmt.name)
+        if stmt.initializer is not None:
+            self._resolve_expr(stmt.initializer)
+
+        self._define(stmt.name)
+
+    def visit_while_stmt(self, stmt: While) -> None:
+        self._resolve_expr(stmt.condition)
+        self._resolve_stmt(stmt.body)
+
+    # --- expressions ---
+
+    def visit_assign_expr(self, expr: Assign) -> None:
+        self._resolve_expr(expr.value)
+        self._resolve_local(expr, expr.name)
+
+    def visit_binary_expr(self, expr: Binary) -> None:
+        self._resolve_expr(expr.left)
+        self._resolve_expr(expr.right)
+
+    def visit_call_expr(self, expr: Call) -> None:
+        self._resolve_expr(expr.callee)
+        for argument in expr.arguments:
+            self._resolve_expr(argument)
+
+    def visit_get_expr(self, expr: Get) -> None:
+        raise NotImplementedError("propriedades: capítulo 12")
+
+    def visit_grouping_expr(self, expr: Grouping) -> None:
+        self._resolve_expr(expr.expression)
+
+    def visit_literal_expr(self, expr: Literal) -> None:
+        pass
+
+    def visit_logical_expr(self, expr: Logical) -> None:
+        self._resolve_expr(expr.left)
+        self._resolve_expr(expr.right)
+
+    def visit_set_expr(self, expr: Set) -> None:
+        raise NotImplementedError("propriedades: capítulo 12")
+
+    def visit_super_expr(self, expr: Super) -> None:
+        raise NotImplementedError("super: capítulo 13")
+
+    def visit_this_expr(self, expr: This) -> None:
+        raise NotImplementedError("this: capítulo 12")
+
+    def visit_unary_expr(self, expr: Unary) -> None:
+        self._resolve_expr(expr.right)
+
+    def visit_variable_expr(self, expr: Variable) -> None:
+        if self._scopes and self._scopes[-1].get(expr.name.lexeme) is False:
+            self._reporter.error(
+                expr.name, "Can't read local variable in its own initializer."
+            )
+
+        self._resolve_local(expr, expr.name)

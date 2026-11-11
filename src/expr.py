@@ -32,7 +32,7 @@ class Expr(Protocol):
 # --- Nós da AST (Classes Concretas) ---
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Binary(Expr):
     left: Expr
     operator: Token
@@ -42,7 +42,7 @@ class Binary(Expr):
         return visitor.visit_binary_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Grouping(Expr):
     expression: Expr
 
@@ -50,7 +50,7 @@ class Grouping(Expr):
         return visitor.visit_grouping_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Literal(Expr):
     value: object
 
@@ -58,7 +58,7 @@ class Literal(Expr):
         return visitor.visit_literal_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Unary(Expr):
     operator: Token
     right: Expr
@@ -67,7 +67,7 @@ class Unary(Expr):
         return visitor.visit_unary_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Assign(Expr):
     name: Token
     value: Expr
@@ -76,7 +76,7 @@ class Assign(Expr):
         return visitor.visit_assign_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Call(Expr):
     callee: Expr
     paren: Token
@@ -86,7 +86,7 @@ class Call(Expr):
         return visitor.visit_call_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Get(Expr):
     object: Expr
     name: Token
@@ -95,7 +95,7 @@ class Get(Expr):
         return visitor.visit_get_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Logical(Expr):
     left: Expr
     operator: Token
@@ -105,7 +105,7 @@ class Logical(Expr):
         return visitor.visit_logical_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Set(Expr):
     object: Expr
     name: Token
@@ -115,7 +115,7 @@ class Set(Expr):
         return visitor.visit_set_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Super(Expr):
     keyword: Token
     method: Token
@@ -124,7 +124,7 @@ class Super(Expr):
         return visitor.visit_super_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class This(Expr):
     keyword: Token
 
@@ -132,7 +132,7 @@ class This(Expr):
         return visitor.visit_this_expr(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Variable:
     name: Token
 

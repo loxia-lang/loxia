@@ -18,6 +18,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
         self.globals = Environment()
         self.environment = self.globals
+        self.locals: dict[Expr, int] = {}
         self.globals.define("clock", Clock())
 
     def interpret(self, statements: list[Stmt]) -> None:
@@ -26,12 +27,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 self._execute(statement)
         except LoxRuntimeError as e:
             self.reporter.runtime_error(e)
-        except ReturnSignal as return_value:
-            # Ainda não há resolver (cap. 11): `return` no topo é reportado aqui.
-            # No cap. 11 o resolver transforma isso em erro de compilação.
-            self.reporter.runtime_error(
-                LoxRuntimeError(return_value.keyword, "Can't return from top-level code.")
-            )
+
+    def resolve(self, expr: Expr, depth: int) -> None:
+        self.locals[expr] = depth
 
     def _evaluate(self, expr: Expr) -> object:
         return expr.accept(self)
@@ -197,12 +195,25 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.environment.define(stmt.name.lexeme, val)
 
     def visit_variable_expr(self, expr: Variable) -> object:
-        return self.environment.get(expr.name)
+        return self.look_up_variable(expr.name, expr)
+
+    def look_up_variable(self, name: Token, expr: Expr) -> object:
+        distance = self.locals.get(expr)
+        if distance is not None:
+            return self.environment.get_at(distance, name.lexeme)
+
+        return self.globals.get(name)
 
     def visit_assign_expr(self, expr: Assign) -> object:
-        val = self._evaluate(expr.value)
-        self.environment.assign(expr.name, val)
-        return val
+        value = self._evaluate(expr.value)
+
+        distance = self.locals.get(expr)
+        if distance is not None:
+            self.environment.assign_at(distance, expr.name, value)
+        else:
+            self.globals.assign(expr.name, value)
+
+        return value
 
     def visit_block_stmt(self, stmt: Block) -> None:
         self.execute_block(stmt.statements, Environment(self.environment))

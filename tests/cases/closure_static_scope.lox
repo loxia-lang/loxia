@@ -1,0 +1,11 @@
+// O exemplo que motiva o resolver: a closure deve ver o escopo léxico, não o atual.
+var a = "global";
+{
+  fun showA() {
+    print a;
+  }
+
+  showA();  // expect: global
+  var a = "block";
+  showA();  // expect: global
+}

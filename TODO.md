@@ -18,8 +18,8 @@ pretendo tipar e como chegar no LLVM.
 ## 0. Agora: base sã e primeira metade do livro
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. **Cap. 10 concluído** (funções, closures, `return`, `clock()`); próximo passo:
-> capítulo 11 (resolver).
+> no lugar. **Caps. 10 e 11 concluídos** (funções/closures e resolver); próximo passo:
+> capítulo 12 (classes).
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -49,11 +49,13 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
   - [x] `clock()` nativa
   - [ ] erro de runtime com `stack trace` de frames (o livro só faz no clox; aqui vale a pena)
   - [x] testes: aridade, não-chamável, closure, recursão, ordem de avaliação, `return` no topo
-- [ ] **Cap. 11 — Resolver**
-  - [ ] escopo léxico estático, `depth` por variável
-  - [ ] erros: `Can't read local variable in its own initializer.`,
+- [x] **Cap. 11 — Resolver**
+  - [x] escopo léxico estático, `depth` por variável (`Interpreter.locals`)
+  - [x] erros: `Can't read local variable in its own initializer.`,
         `Already a variable with this name in this scope.`
-  - [ ] `return` fora de função, `this` fora de classe
+  - [x] `return` fora de função (agora erro de compilação, exit 65)
+  - [x] identidade dos nós de AST (`eq=False`) para servir de chave no `locals`
+  - [ ] `this` fora de classe (cap. 12)
   - [ ] (bônus) resolver já guarda *slots* em vez de nomes → prepara VM/LLVM
 - [ ] **Cap. 12 — Classes**
   - [ ] `LoxClass`, `LoxInstance`, `Get`/`Set`, `this`, `init`

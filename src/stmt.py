@@ -28,7 +28,7 @@ class Stmt(Protocol):
     def accept[R](self, visitor: Visitor[R]) -> R: ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Block(Stmt):
     statements: list[Stmt]
 
@@ -36,7 +36,7 @@ class Block(Stmt):
         return visitor.visit_block_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Class(Stmt):
     name: Token
     superclass: Variable | None
@@ -46,7 +46,7 @@ class Class(Stmt):
         return visitor.visit_class_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Expression(Stmt):
     expression: Expr
 
@@ -54,7 +54,7 @@ class Expression(Stmt):
         return visitor.visit_expression_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Function(Stmt):
     name: Token
     params: list[Token]
@@ -64,7 +64,7 @@ class Function(Stmt):
         return visitor.visit_function_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class If(Stmt):
     condition: Expr
     then_branch: Stmt
@@ -74,7 +74,7 @@ class If(Stmt):
         return visitor.visit_if_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Print(Stmt):
     expression: Expr
 
@@ -82,7 +82,7 @@ class Print(Stmt):
         return visitor.visit_print_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Return(Stmt):
     keyword: Token
     value: Expr | None
@@ -91,7 +91,7 @@ class Return(Stmt):
         return visitor.visit_return_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Var(Stmt):
     name: Token
     initializer: Expr | None
@@ -100,7 +100,7 @@ class Var(Stmt):
         return visitor.visit_var_stmt(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class While(Stmt):
     condition: Expr
     body: Stmt

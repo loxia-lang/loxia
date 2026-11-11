@@ -1,3 +1,2 @@
-// Cap. 10: reportado em runtime; no cap. 11 o resolver passa a ser erro de compilação.
 return 1;
-// expect runtime error: Can't return from top-level code.
+// expect error: Can't return from top-level code.

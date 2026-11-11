@@ -183,9 +183,35 @@ def test_native_clock_is_available(capsys: pytest.CaptureFixture[str]) -> None:
     assert stdout == ["true"]
 
 
-def test_top_level_return_is_reported(capsys: pytest.CaptureFixture[str]) -> None:
+def test_top_level_return_is_a_compile_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     lox = Lox()
     stdout, stderr = execute(lox, "return 1;", capsys)
 
     assert stdout == []
     assert "Can't return from top-level code." in stderr
+    assert lox.reporter.had_error
+    assert lox.reporter.had_runtime_error is False
+
+
+def test_closure_uses_lexical_scope_not_dynamic(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = """
+    var a = "global";
+    {
+      fun showA() {
+        print a;
+      }
+
+      showA();
+      var a = "block";
+      showA();
+    }
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["global", "global"]
+    assert stderr == ""

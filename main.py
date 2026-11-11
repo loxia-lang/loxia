@@ -4,6 +4,7 @@ import sys
 from src.error_reporter import ErrorReporter
 from src.interpreter import Interpreter
 from src.parser import Parser
+from src.resolver import Resolver
 from src.scanner import Scanner
 from src.stmt import Stmt
 
@@ -24,6 +25,11 @@ class Lox:
         if self.reporter.had_error or statements is None:
             return
 
+        Resolver(self.interpreter, self.reporter).resolve(statements)
+
+        if self.reporter.had_error:
+            return
+
         self.interpreter.interpret(statements)
 
     def run_repl(self, source: str) -> None:
@@ -36,6 +42,11 @@ class Lox:
         statements = parser.parse_repl()
 
         if self.reporter.had_error or statements is None:
+            return
+
+        Resolver(self.interpreter, self.reporter).resolve(statements)
+
+        if self.reporter.had_error:
             return
 
         self.interpreter.interpret(statements)
