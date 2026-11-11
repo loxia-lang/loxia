@@ -75,7 +75,8 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
 - [x] benchmarks com baseline (`bench/`)
 - [x] ruff + mypy strict + Makefile + CI + skills (`.dsh/skills`)
 - [x] [`TIPOS.md`](TIPOS.md): catálogo de tipos e modelo numérico (`Int` vs `Float`)
-- [ ] `README.md` de verdade: o que é, como rodar, sintaxe atual, roadmap resumido
+- [x] `README.md` de verdade: o que é, como rodar, sintaxe atual, roadmap resumido
+- [x] documentação em `docs/` (`spec`, `tech`, `adr`) + glossário + teste de links
 - [ ] `exemplos/` com 4–5 programas (fib, fizzbuzz, closures, classes, quicksort)
 - [ ] `--version` e `--dump-ast` no CLI
 - [ ] entrypoint `python -m lox` além de `main.py`
@@ -604,7 +605,10 @@ imports para `print`).
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
       [`IDEIAS.md`](IDEIAS.md) I-4).
 - [ ] `P3` **`lox fmt`** e teste de idempotência (formatar duas vezes = igual).
-- [ ] `P3` **docs** (`mdbook` ou site estático) com tutorial + referência da linguagem.
+- [x] `P1` **estrutura de docs**: `docs/spec` (comportamento atual), `docs/tech`
+      (arquitetura), `docs/adr` (decisões) e glossário; links verificados por
+      `tests/test_docs_links.py`.
+- [ ] `P3` **site publicado** (mkdocs/mdbook) gerado a partir de `docs/`.
 
 ---
 

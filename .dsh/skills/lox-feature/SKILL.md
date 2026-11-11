@@ -29,7 +29,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 | 7 | Semântica | `src/interpreter.py` |
 | 8 | Debug | `src/ast_printer.py` — todo nó precisa de `visit_*`, senão o dump quebra |
 | 9 | Teste | `tests/cases/` + unitário se a lógica interna for não trivial |
-| 10 | Docs | marque no `TODO.md`; atualize `main.py --help` se mudou o CLI |
+| 10 | Docs | `docs/spec/` (comportamento) e ADR em `docs/adr/` se for decisão; marque no `TODO.md` |
 
 ## Invariantes que não podem quebrar
 
@@ -50,7 +50,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 - [ ] `AstPrinter` cobre o nó novo (teste de parser, se possível).
 - [ ] Mensagem de erro no estilo do livro (`Expect ';' after value.`).
 - [ ] Sem regressão: suíte inteira verde.
-- [ ] Se mudou sintaxe: `TODO.md` e exemplos atualizados.
+- [ ] Se mudou comportamento: `docs/spec/` atualizado; decisão de design → ADR em `docs/adr/`.
 
 ## Armadilhas
 
