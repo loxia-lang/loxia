@@ -161,9 +161,6 @@ fn main() {
 - [ ] `P2` **interpolação** `"${expr}"` no scanner (e escapes `\n`, `\t`, `\"`, `\\`, `\u{...}`).
 - [ ] `P2` **strings multilinha** com `"""` e raw strings `r"..."`.
 - [ ] `P2` **UTF-8** de verdade em identificadores e strings (hoje o scanner é ASCII puro).
-- [ ] `P3` **pipeline** `valor |> fn` (ou `valor :> fn`): composição legível, estilo
-      Elixir/F#. Sintaxe, posição do argumento e trade-offs em
-      [`IDEIAS.md`](IDEIAS.md) I-2.
 - [ ] `P3` **spread** `...lista` em chamadas e literais.
 
 **Dados e funções**
@@ -201,6 +198,10 @@ fn main() {
 - `print` como statement? fica, **mas** `println`/`print` como funções também (Lox2 fez
   isso e simplifica a stdlib). Ver §11.
 - Herança com `<` → provavelmente `extends` (mais legível, e libera `<` só para comparação).
+- Pipeline `|>` / `:>` → **não** por enquanto (decisão de 2026-11-11): mais um operador e
+  nível de precedência, convenção invisível da posição do argumento e acoplamento com
+  `print`-função/stdlib, sem caso de uso urgente antes de `List`. Histórico e gatilhos de
+  reabertura em [`IDEIAS.md`](IDEIAS.md) I-2.
 
 ---
 
@@ -732,7 +733,8 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 11. **Módulos**: namespaces hierárquicos (Lox2) ou arquivos = módulos (Python/Go)?
 12. **Backend**: `llvmlite` desde o começo ou `.ll` textual + clang primeiro?
 13. **Escopo da stdlib**: `math`, `io`, `string` e `collections` bastam no início?
-14. **Pipeline**: `|>` ou `:>`? valor entra como 1º ou último argumento? Ver
+14. **Pipeline** — **decidido (rejeitado) em 2026-11-11**: sem operador `|>`/`:>` por
+    enquanto. Argumentos, alternativas e gatilhos de reabertura em
     [`IDEIAS.md`](IDEIAS.md) I-2.
 15. **Stdlib**: builtins globais (`len`, `println`) ou métodos/extensões? Conversão
     namespaced (`Int.parse`) vs `int()` sobrecarregado? Ver [`IDEIAS.md`](IDEIAS.md) I-3.

@@ -3,7 +3,7 @@
 Portal da documentação técnica, sintática e das decisões de design.
 
 > **Estado:** a especificação descreve o interpretador **como ele existe hoje** (Lox da
-> Parte II do livro). A linguagem planejada — `;` opcional, `fn`, pipes,
+> Parte II do livro). A linguagem planejada — `;` opcional, `fn`, `?.`,
 > tipagem — está em [`../TODO.md`](../TODO.md) §1/§2, [`../IDEIAS.md`](../IDEIAS.md) e
 > [`../TIPOS.md`](../TIPOS.md), e **não** vale para o código atual.
 

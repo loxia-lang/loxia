@@ -58,5 +58,6 @@ Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`):
 
 - campos de classe, parâmetros opcionais/default — [I-5](../../IDEIAS.md);
 - `Int` vs `Float` e regras numéricas — [D-1](../../TIPOS.md);
-- pipeline (`|>`/`:>`) e stdlib — [I-2](../../IDEIAS.md), [I-3](../../IDEIAS.md);
+- stdlib: builtins globais vs métodos/UFCS — [I-3](../../IDEIAS.md) (a alternativa
+  pipeline foi rejeitada por enquanto; ver [I-2](../../IDEIAS.md));
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md).

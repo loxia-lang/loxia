@@ -66,5 +66,5 @@ IDEIAS.md        discussões de design (parking lot)
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
 > A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`).
-> A sintaxe planejada (`;` opcional, `fn`, pipes, tipos) está nos documentos de roadmap e
+> A sintaxe planejada (`;` opcional, `fn`, `?.`, tipos) está nos documentos de roadmap e
 > ainda **não** está implementada.

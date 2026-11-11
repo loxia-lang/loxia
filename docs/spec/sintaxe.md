@@ -4,7 +4,7 @@ Gramática do parser atual ([`src/parser.py`](../../src/parser.py)) — recursiv
 uma função por nível de precedência.
 
 > Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`fn`, `;` opcional,
-> `?.`, pipes…) está em [`../../TODO.md`](../../TODO.md) §1 e **não** existe no parser
+> `?.`, `??`…) está em [`../../TODO.md`](../../TODO.md) §1 e **não** existe no parser
 > hoje. `val`/`var` já existem (ADR-0005).
 
 ## Gramática (EBNF)

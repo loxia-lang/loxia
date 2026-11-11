@@ -13,6 +13,7 @@ Cada entrada tem um id (`I-n`) e um status:
 | `ideia` | capturada, sem análise — só não quero esquecer |
 | `em avaliação` | já tem opções e argumentos; falta decidir |
 | `decidida` | virou decisão em `TODO.md` §11 (e `D-n` no `TIPOS.md`, se for de tipo) |
+| `rejeitada` | descartada por ora, com o porquê registrado; os gatilhos dizem quando reabrir |
 
 Formato: **pergunta → opções → argumentos → impacto técnico → recomendação provisória →
 gatilhos para revisitar**.
@@ -27,440 +28,54 @@ gatilhos para revisitar**.
 
 **Status:** `decidida` — `val` imutável + `var` mutável; ver
 [ADR-0005](docs/adr/0005-val-var-imutabilidade.md). O texto abaixo fica como histórico.
-**Decidir até:** antes do capítulo 10 (funções) — depois disso os exemplos e testes
-multiplicam e a migração fica caro.
 
-### A pergunta
-
-1. A keyword de declaração deve ser `val`, `var`, `let` ou outra?
-2. Toda variável deve ser mutável (sem distinção), ou existem bindings imutáveis?
-3. E os parâmetros de função: mutáveis ou imutáveis por padrão?
-
-Contexto: hoje o código usa `var` (Lox do livro) e **tudo é mutável**.
-
-### Primeiro, separar três conceitos que costumam ser confundidos
-
-| Conceito | Exemplo | O que garante |
-| --- | --- | --- |
-| **Binding imutável** | `val x = 1; x = 2` → erro | o *nome* não muda de valor |
-| **Valor mutável** | `val lista = [1]; lista.push(2)` → ok | o objeto apontado pode mudar |
-| **Imutabilidade profunda** | `const` de C++ / `freeze` | nem o objeto nem o binding mudam |
-
-Ponto crucial: `val` em Kotlin/Scala significa **binding imutável**, não valor imutável.
-Uma `val lista` continua sendo uma lista mutável. Isso é útil, mas pode surpreender — se
-adotarmos `val`, temos que documentar essa distinção (e talvez oferecer `const` depois
-para imutabilidade profunda).
-
-### Opções
-
-**A) `val` (imutável) + `var` (mutável)** — Kotlin, Scala, Swift.
-
-```lox
-val pi = 3.14159        // reatribuir é erro de compilação
-var contador = 0        // reatribuir é permitido
-contador = contador + 1
-```
-
-**B) `let` (imutável) + `let mut` (mutável)** — Rust.
-
-```lox
-let pi = 3.14159
-let mut contador = 0
-```
-
-**C) Só `var`, sempre mutável** — Go/Python/JS (o `const` de Go é só compile-time).
-
-```lox
-var x = 1
-x = 2
-```
-
-**D) Só `val`, sempre mutável** — a proposta em discussão: nome "valor", mas reatribui.
-
-```lox
-val x = 1
-x = 2                   // permitido
-```
-
-**E) Três níveis** (`const` + `val` + `var`) — mais poder, mais cerimônia.
-
-### Argumentos a favor de imutável por padrão (`val` + `var`)
-
-1. **Raciocínio local.** Ao ler uma função, `val` garante que aquele nome não muda.
-   Menos estado para carregar na cabeça ao depurar.
-2. **Inferência de tipos fica sã.** Generalizar o tipo de uma variável mutável é
-   *unsound* (value restriction, lição de ML/OCaml). Com `val`, `val id = fn(x) -> x`
-   pode ser polimórfico; com `var`, o checker precisa restringir. Isso pesa direto no
-   plano do `TODO.md` §2.
-3. **Closures mais baratas.** Capturar um `var` exige célula/upvalue mutável (como o
-   clox faz); capturar um `val` pode ser por valor. Menos alocação e menos indireção.
-4. **LLVM/SSA.** Binding imutável vira valor SSA direto; mutável exige `alloca` +
-   `mem2reg`/`phi`. O otimizador recupera parte, mas imutável dá menos trabalho e
-   resultados melhores.
-5. **Constantes de graça.** `val pi = 3.14` é candidato a constant folding e a global em
-   `.rodata`; `var` não pode ser tratado assim.
-6. **Concorrência futura.** Se `async`/threads entrarem algum dia, binding imutável é
-   livre de data race por construção.
-7. **Contratos melhores.** APIs com `val` são mais fáceis de evoluir: menos estados
-   possíveis, menos casos para testar.
-8. **Erro cedo.** Reatribuição acidental (`x = 2` querendo comparar) vira erro de
-   compilação, não bug silencioso.
-
-### Argumentos a favor de sempre mutável (`var` único)
-
-1. **Menos cerimônia.** Uma keyword, nenhuma decisão por linha. Go e Python provam que
-   funciona em linguagens usadas por milhões.
-2. **"Variável" já implica mutabilidade.** Criar duas categorias para o mesmo conceito
-   pode parecer purismo; o nome `val` reforça que são "valores", mas todo binding guarda
-   um valor.
-3. **Curva de aprendizado.** Iniciante pergunta "uso `val` ou `var`?" — e a resposta
-   ("use `val` a menos que precise mudar") é uma regra a mais para memorizar.
-4. **Refatoração.** Começar mutável e "endurecer" depois é mecânico; começar imutável e
-   precisar mudar gera atrito (embora o compilador aponte exatamente onde).
-5. **`val` dá falsa sensação de segurança.** Como é imutável só no binding, `val lista`
-   ainda muda de conteúdo — quem lê rápido acha que é imutável de verdade.
-6. **Menos superfície no parser/realce/checker.** Uma keyword a menos.
-
-### O que as linguagens "modernas" realmente fazem
-
-| Linguagem | Imutável por padrão? | Como |
-| --- | --- | --- |
-| Kotlin | sim | `val` / `var` |
-| Scala | sim | `val` / `var` |
-| Swift | sim | `let` / `var` |
-| Rust | sim | `let` / `let mut` |
-| F# | sim | `let` / `let mutable` |
-| TypeScript | sim (recomendado) | `const` / `let` |
-| Go | **não** | `var` / `:=`; `const` só compile-time |
-| Python | **não** | atribuição simples |
-| JavaScript | **não** | `let`/`var` sempre mutáveis |
-| Java | **não** (opcional) | `final` é opt-in |
-
-**Resposta curta à pergunta "sempre mutável é a abordagem moderna?":** não é a tendência
-dominante. As linguagens modernas que priorizam **segurança e otimização** (Kotlin, Swift,
-Rust, Scala, F#) foram para **imutável por padrão**; as que priorizam **simplicidade e
-cerimônia mínima** (Go, Python, JS) ficaram mutáveis. Os dois grupos são "modernos" — é
-uma escolha de trade-off, não uma evolução linear.
-
-Para o **nosso** caso, há um detalhe que pesa: o objetivo é LLVM + inferência de tipos.
-Imutável por padrão conversa melhor com esses dois objetivos do que com "menos uma
-keyword".
-
-### Impacto técnico no projeto (se escolher A)
-
-| Camada | O que muda |
-| --- | --- |
-| Lexer | `val` vira keyword; `var` continua |
-| Parser | mesma produção `var_declaration`, com um flag de mutabilidade no nó `Var` |
-| Resolver (cap. 11) | reatribuir `val` → erro estático `Can't assign to immutable 'x'.` |
-| Interpretador | binding não muda; a checagem é estática, não runtime |
-| Type checker | value restriction: generalização só para `val` |
-| LLVM | `val` → SSA/const; `var` → `alloca` + `phi` |
-| Testes/exemplos | todo `.lox` atual usa `var`; se `val` for o padrão, migrar casos |
-
-Custo hoje é baixo: o parser é pequeno, o cap. 10 ainda não existe e há só 22 golden
-cases. Esse é exatamente o momento certo para decidir.
-
-### Recomendação provisória
-
-**Opção A — `val` (imutável) + `var` (mutável), parâmetros imutáveis por padrão**
-(com `var` explícito no parâmetro se precisar mutar a cópia local).
-
-Motivos, em ordem de peso:
-
-1. alinha com o objetivo de LLVM/SSA e com a inferência de tipos (value restriction);
-2. o nome `val` é curto e o par `val`/`var` é o mesmo padrão de Kotlin/Scala — quem vem
-   de fora entende rápido;
-3. o custo de adotar agora é mínimo;
-4. `val` como **padrão mental** ("declare como valor; mude para `var` quando precisar")
-   produz código mais previsível sem proibir mutação.
-
-Alternativa defensável: **C (só `var`)** se a prioridade for cerimônia mínima e simplicidade
-de parser. O que **não** recomendo é **D (`val` sempre mutável)**: o nome promete
-imutabilidade que o compilador não garante — é o pior dos dois mundos, e ainda cria duas
-palavras para o mesmo comportamento.
-
-Se a escolha for A, sugiro também:
-
-- `val` exige inicializador (`val x;` é erro);
-- reatribuição a `val` é erro **estático** (resolver), com mensagem que sugere `var`;
-- sombreamento de `val` permitido? (Rust permite, Kotlin não — decidir na implementação);
-- documentar que `val lista` não congela o conteúdo (é binding, não `const`).
-
-### Gatilhos para revisitar
-
-- antes de escrever os primeiros exemplos do cap. 10;
-- ao implementar o resolver (cap. 11) — é onde a regra de imutabilidade vira erro;
-- quando o type checker começar (value restriction);
-- se a sintaxe parecer verbosa nos exemplos reais (sinal de que C é melhor);
-- se aparecer caso de uso que exija imutabilidade profunda (aí sim, `const`).
-
-### Perguntas abertas
-
-- [ ] `val` ou `let`? (`val` é mais curto e "value"; `let` é tradição matemática/OCaml)
-- [ ] parâmetros: `fn f(x)` imutável e `fn f(var x)` mutável? Ou tudo mutável no corpo?
-- [ ] campos de classe: `val`/`var` também? (cap. 12)
-- [ ] `val` global vira constante em LLVM (`rodata`) automaticamente?
-- [ ] permitir `val x` sem valor e atribuir depois? (proposta: não)
-- [ ] permitir sombrear `val` no mesmo escopo? (Rust sim; Kotlin não)
-
-### Referências
-
-- Kotlin `val`/`var`: <https://kotlinlang.org/docs/basic-syntax.html#variables>
-- Rust `let` e `mut`: <https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html>
-- Swift `let`/`var`: <https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics/>
-- Go `var`/`:=`: <https://go.dev/ref/spec#Short_variable_declarations>
-- Value restriction (por que mutação atrapalha a generalização):
-  <https://en.wikipedia.org/wiki/Value_restriction>
-- SSA e `mem2reg`: <https://llvm.org/docs/Passes.html#mem2reg-promote-memory-to-register>
-
+[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 ---
 
 ## I-2 — Pipeline: passar o valor da esquerda para a direita (`|>` / `:>`)
 
-**Status:** `em avaliação`
-**Decidir até:** depois do capítulo 10 (precisa de funções) e **antes** de desenhar a
-biblioteca padrão (a convenção de ordem dos argumentos vira contrato).
+**Status:** `rejeitada` — **não haverá operador de pipeline** por enquanto (decisão de
+2026-11-11). O texto abaixo fica como histórico: os argumentos continuam válidos e os
+gatilhos dizem quando vale reabrir. Resumo registrado no [`TODO.md`](TODO.md) §11 (item 14)
+e §1.4.
 
-### A pergunta
+### Por que rejeitada (por enquanto)
 
-1. Vale ter um operador de pipeline?
-2. Qual token: `|>` ou `:>`?
-3. O valor da esquerda entra como **primeiro** ou **último** argumento da chamada da
-   direita?
-4. Como isso convive com classes/métodos, `;` opcional e `print` como função?
+- **Superfície demais para o ganho.** É um token, um nível de precedência e um conjunto de
+  interações (com `;` opcional, com `and`/`or`, com o RHS) a aprender, documentar e testar.
+- **Acopla decisões ainda abertas.** O exemplo canônico `foo() :> print()` só funciona com
+  `print` como função ([`TODO.md`](TODO.md) §11 item 6) e a posição do argumento vira
+  contrato da stdlib antes de a stdlib existir.
+- **Convenção invisível.** Quem lê `x |> soma(1)` precisa saber onde o valor entra; errar
+  cedo é caro porque muda toda API.
+- **Redundante com o caminho OO.** `x.print()` / UFCS cobre boa parte dos casos sem
+  operador novo (a alternativa segue viva em I-3), e o `TODO.md` §1 não tem caso de uso
+  urgente antes de `List` e da stdlib.
+- **Não é agora.** O código atual e os testes não sofrem com aninhamento; sem dor real, o
+  custo de manutenção vem inteiro.
 
-Exemplo da ideia:
+O que fica de pé: a regra "sujeito primeiro" para a stdlib e a análise do trade-off
+abaixo, para o caso de reabertura. As perguntas abertas ficam sem resposta enquanto a
+rejeição valer.
 
-```lox
-foo() :> print()          // equivale a print(foo())
+[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
-ler("dados.csv") :> trim() :> split(",") :> len()
-```
+### Gatilhos para revisitar (caso a rejeição seja reaberta)
 
-Em vez de `print(foo())` ou de `len(split(trim(ler("dados.csv")), ","))`, a leitura segue
-o fluxo dos dados.
-
-### Opções de token
-
-**A) `|>` — Elixir, F#, OCaml, Hack, Julia, R.**
-
-```lox
-foo() |> print()
-```
-
-Vantagens: é o "padrão de facto" do conceito, todo mundo reconhece, e `|>` é um token
-próprio (não conflita com `|` bitwise nem com união `A | B`). Desvantagem: visualmente
-parecido com `|`; quem vem de Python pode ler como "ou".
-
-**B) `:>` — a proposta em discussão.**
-
-```lox
-foo() :> print()
-```
-
-Vantagens: não se confunde com `|`; o `:` sugere "entra em / vira"; identidade visual
-própria. Desvantagens: em Scala `A :> B` significa **supertype** (o inverso da intuição
-de "passar para"); colide visualmente com anotação de tipo (`x: Int`) e com mapa
-(`{ "a": 1 }`); `x :> f` pode ser lido como cast/coerção. Lexer precisa tratar `:` +
-`>` juntos sem espaço.
-
-**C) `|` (Bash)** — conflita com bitwise e com união de tipos. Descartar.
-
-**D) `->`** — conflita com o tipo de retorno (`fn f() -> Int`). Descartar.
-
-**E) `>>`, `~>`, `=>`** — pouco familiares como pipe. Não.
-
-**F) Sem operador novo: métodos/UFCS.** Em vez de pipe, permitir `x.print()` / funções de
-extensão à la Kotlin. É a alternativa real, discutida mais abaixo.
-
-| Opção | Familiaridade | Conflito | Legibilidade |
-| --- | --- | --- | --- |
-| `|>` | alta | baixo | boa |
-| `:>` | baixa | Scala/`:` | boa, mas exige explicação |
-| `|` | alta | **alto** | ruim |
-| `->` | alta | **alto** (retorno) | ruim |
-| UFCS `.` | alta | baixo | boa, mas exige OO |
-
-### Semântica (independente do token escolhido)
-
-1. **Posição do valor.** Primeiro argumento (Elixir, Hack, Clojure `->`) ou último
-   (F#, Clojure `->>`)?
-
-   ```lox
-   // inserindo como PRIMEIRO:
-   5 |> soma(1)          // soma(5, 1)
-   lista |> map(fn(x) -> x * 2)   // map(lista, fn)
-
-   // inserindo como ÚLTIMO:
-   5 |> soma(1)          // soma(1, 5)
-   ```
-
-   O "último" faz sentido em linguagens com currying (F#), onde `soma 1` já é uma função
-   parcial. **Sem currying, recomendo o primeiro**: casa com "sujeito primeiro", com
-   receiver de método e com a ordem natural de `map(lista, fn)`.
-   Importante: é uma decisão **de API da stdlib**, não só de sintaxe — trocar depois
-   quebra todo código. Documentar como regra: "o sujeito vem primeiro".
-
-2. **Desugar.** `x |> f(a, b)` vira `f(x, a, b)`. Sem custo de runtime; o interpretador
-   e o LLVM nem sabem que existiu pipe.
-
-3. **Ordem de avaliação.** Esquerda primeiro, depois os argumentos da direita, depois a
-   chamada. Se a direita tiver efeito colateral (`x |> f(g())`), `g()` roda depois de
-   `x`. Documentar — é o tipo de detalhe que gera bug sutil.
-
-4. **Associatividade e precedência.** Associativo à esquerda (encadeia):
-
-   ```lox
-   a |> f() |> g()      // g(f(a))
-   ```
-
-   Nível de precedência: abaixo de aritmética/comparação (para `a + b |> f` significar
-   `(a + b) |> f`) e acima de `and`/`or` (para `a |> f and b` ser `(a |> f) and b`).
-   Registrar na tabela do `AGENTS.md` §3 quando decidir.
-
-5. **A armadilha do lado direito.** Se a direita for uma expressão livre, `a |> f + 1`
-   agrupa como `a |> (f + 1)` (pela precedência), o que é quase sempre um erro. Duas
-   saídas: (a) **restringir a gramática** do lado direito a identificador/chamada/acesso
-   (minha preferência — falha cedo e evita parênteses confusos); (b) permitir e deixar o
-   type checker reclamar ("lado direito do pipe não é função").
-
-6. **`print()` vazio.** `foo() |> print()` só funciona se `print` for **função** (hoje é
-   statement). Ou seja, pipeline força a decisão "print como função" (`TODO.md` §1.3).
-   Alternativa: `foo() |> print` (sem parênteses) se funções forem valores; eu aceitaria
-   os dois, exigindo `()` quando houver argumentos.
-
-7. **Quebras de linha.** Com `;` opcional, uma linha começando com `|>` (ou terminando
-   nele) precisa **continuar** a expressão, como `.` em chamadas encadeadas. Isso entra
-   na regra de inserção de `;` do parser.
-
-   ```lox
-   dados
-     |> limpar()
-     |> filtrar(fn(x) -> x > 0)
-     |> somar()
-   ```
-
-### Argumentos a favor
-
-1. **Fluxo de leitura.** A ordem do código passa a ser a ordem dos dados, não a ordem
-   inversa das chamadas aninhadas.
-2. **Menos variáveis temporárias.** Sem pipe, cada passo vira `val passo1 = ...`, que
-   polui escopo e nome.
-3. **Incentiva funções pequenas e compostas.** A linguagem empurra naturalmente para
-   "uma função, uma transformação".
-4. **Refatoração barata.** Inserir, remover ou reordenar uma etapa é editar uma linha;
-   em código aninhado é mexer em parênteses de fora para dentro.
-5. **Debug no meio do fluxo.** `x |> tap(print) |> f()` inspeciona sem quebrar a cadeia
-   (e `tap` é trivial de implementar).
-6. **Familiaridade.** Elixir/F#/Julia/R/Hack popularizaram; existe até proposta de
-   pipeline para JavaScript (TC39).
-7. **Implementação barata e sem custo em runtime.** Token + nível de precedência +
-   desugar; nada muda no interpretador.
-8. **Combina com lambdas e trailing closure** (`xs |> map { |x| x * 2 }`), que já estão
-   no plano de sintaxe.
-
-### Argumentos contra
-
-1. **Mais um operador e um nível de precedência** para aprender, documentar e testar —
-   incluindo a interação com `;` opcional e com `and`/`or`.
-2. **Três formas de dizer a mesma coisa**: chamada aninhada, método/UFCS e pipe. Isso
-   gera debate de estilo e inconsistência em código de terceiros.
-3. **Convenção invisível.** A posição do argumento inserido não aparece na chamada —
-   quem lê `x |> soma(1)` precisa saber a regra. Escolher errado na stdlib é caro.
-4. **Diagnóstico pior.** Se desugar puro, o erro de aridade aponta para `soma(x, 1)` e
-   não para o pipe; para mensagens boas pode ser preciso manter um nó `Pipe` no AST.
-5. **Acopla decisões.** O exemplo `print()` depende de `print` ser função; pipe e
-   "print-função" têm que ser decididos juntos.
-6. **Cadeias longas com lambdas** podem ficar mais difíceis de ler do que variáveis
-   nomeadas — pipe não é sempre mais legível.
-7. **Pode ser redundante** numa linguagem com classes e métodos: `x.print()` já resolve
-   o caso OO; pipe brilha com funções livres.
-8. **`:` já tem dois usos** planejados (anotação de tipo e mapa); `:>` adiciona um
-   terceiro significado visual ao mesmo sinal.
-
-### Quando **não** usar (regra de estilo a documentar)
-
-- uma única chamada: `f(x)` é mais claro que `x |> f()`;
-- cadeia que atravessa três telas: quebre em `val`s com nome;
-- quando um método já existe: `x.metodo()` ganha de `x |> metodo(x)`.
-
-### Alternativa concorrente: UFCS / extension functions
-
-```lox
-"  oi  ".trim().split(",").len()   // estilo Kotlin
-```
-
-Prós: sem operador novo; combina com classes (cap. 12); autocomplete melhor.
-Contras: exige modelo de métodos/estensões e `this`; não funciona para funções soltas
-nem para funções de duas pontas (`map`); empurra a linguagem para OO.
-**Podem conviver**: pipe para funções livres/composição, `.` para métodos. Mas escolher
-os dois aumenta a superfície da linguagem — vale decidir se vale a pena ter ambos.
-
-### Dependências e impacto técnico
-
-| Camada | O que muda |
-| --- | --- |
-| Lexer | token `PIPE`; se `:>`, tratar `:` + `>` juntos (e não confundir com `:` de tipo) |
-| Parser | novo nível entre `assignment` e `or`; associativo à esquerda; RHS restrito; `;` não inserido antes de `|>` |
-| AST | desugar para `Call` (ou nó `Pipe`, se quisermos diagnóstico específico) |
-| Interpreter | nada (se desugar) |
-| Checker | tipos fluem como chamada; erro de aridade citando o pipe |
-| LLVM | nada |
-| Testes | encadeamento, ordem de avaliação, aridade, newline, erro de RHS não-função |
-
-Pré-requisitos: funções (cap. 10) e `print` como função. Antes disso não há o que encadear.
-
-### Recomendação provisória
-
-- **Token `|>`**, não `:>`: é o padrão reconhecível e não tem conflito real (`|>` é token
-  próprio). `:>` é viável, mas carrega a bagagem de supertype do Scala e a proximidade com
-  anotação `:`.
-- **Valor como primeiro argumento**, com a stdlib seguindo "sujeito primeiro".
-- **Associativo à esquerda**, precedência logo acima de `and`/`or`, e **lado direito
-  restrito** a identificador/chamada (evita `a |> f + 1` virar `a |> (f + 1)`).
-- **Desugar no parser** para `Call`; só criar nó `Pipe` se os diagnósticos exigirem.
-- Aceitar `x |> print()` e `x |> print`.
-
-Se a estética `|` incomodar por causa de união/bitwise, `:>` é a alternativa defensável —
-mas então vale renomear o operador de união (ex.: `A or B`? não...) ou simplesmente
-conviver, já que `|>` é um token distinto.
-
-### Gatilhos para revisitar
-
-- ao terminar o cap. 10 (primeiro momento em que dá para implementar);
+- dor real de aninhamento: o código passar a acumular `val passo1 = ...` (sinal de que
+  pipe ajudaria);
 - ao desenhar a stdlib (a ordem dos argumentos vira contrato);
-- se o código começar a acumular `val passo1 = ...` (sinal de que pipe ajudaria);
-- se UFCS/extension functions forem adotadas (pipe pode virar redundante);
+- se UFCS/extension functions forem adotadas, pipe fica ainda mais redundante — sinal
+  para manter rejeitado;
 - ao definir a regra de `;` opcional (a interação com newline precisa estar pronta).
 
-### Perguntas abertas
-
-- [ ] `|>` ou `:>`? (estética + familiaridade; registrar em `TODO.md` §11)
-- [ ] valor como primeiro ou último argumento? (recomendo primeiro)
-- [ ] permitir placeholder `_` para posição arbitrária? (`x |> f(_, 2)`) — mais poder,
-      mais complexidade; deixar para P3
-- [ ] RHS restrito a chamada ou expressão livre? (recomendo restrito)
-- [ ] `x |> print` sem parênteses: permitir? (recomendo sim, sem args)
-- [ ] pipe com método de classe (`x |> Classe.metodo()`)? (só se RHS for função)
-- [ ] `tap`/`debug` como função nativa padrão? (P3, ótimo para depurar cadeias)
-
-### Referências
-
-- Elixir `|>`: <https://hexdocs.pm/elixir/Kernel.html#%7C%3E/2>
-- F# pipe e composição:
-  <https://learn.microsoft.com/dotnet/fsharp/language-reference/functions/function-composition>
-- Clojure threading macros (`->`, `->>`): <https://clojure.org/guides/threading_macros>
-- Hack `|>`: <https://docs.hhvm.com/hack/operators/pipe>
-- Proposta de pipeline para JavaScript: <https://github.com/tc39/proposal-pipeline-operator>
-- Kotlin extension functions (alternativa UFCS): <https://kotlinlang.org/docs/extensions.html>
-
----
+[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
 ## I-3 — Funções soltas vs métodos: por que Python tem `len`, `print`, `int()`?
 
 **Status:** `em avaliação`
-**Decidir até:** ao desenhar a biblioteca padrão (depois do cap. 10, junto com I-2).
+**Decidir até:** ao desenhar a biblioteca padrão (depois do cap. 10). Com I-2 rejeitada, a
+escolha fica entre **builtins puros** (canto 3 do triângulo) e **métodos/UFCS** (canto 2).
 
 ### A pergunta
 
@@ -583,7 +198,9 @@ Só se escolhem **dois** destes três:
 
 É por isso que Python precisa de `functools`, `map/filter` viram `list(map(...))` e o
 pessoal inventa `then`/method chaining. Se adotarmos pipe (I-2), a stdlib de funções
-livres fica ótima; se adotarmos UFCS, pipe vira opcional.
+livres fica ótima; se adotarmos UFCS, pipe vira opcional. **Como I-2 está rejeitada**, o
+primeiro canto sai do jogo por enquanto: ou aceitamos o aninhamento (3), ou vamos de
+métodos/UFCS (2).
 
 ### Recomendação para a nossa linguagem
 
@@ -624,7 +241,8 @@ combina dois → função livre; converte/constrói → construtor namespaced."*
 ### Gatilhos para revisitar
 
 - ao desenhar a stdlib (depois do cap. 10);
-- ao decidir pipe vs UFCS (I-2) — as duas decisões são acopladas;
+- ao decidir builtins vs métodos/UFCS (I-2 rejeitada: resta escolher onde as operações
+  moram);
 - quando o type checker começar (protocolo `Sized`, generics);
 - se o global começar a inchar (>30 builtins é sinal de alerta).
 
@@ -1195,6 +813,56 @@ fn log(nivel: String, ...partes) { /* ... */ }
 - **Custo alto, benefício baixo** para este projeto.
 - **Veredito:** **não** no curto/médio prazo; provavelmente nunca. Se um dia, só com `Map`
   tipado e regras de conversão explícitas.
+
+#### Named args ≠ `**kwargs` (esclarecimento)
+
+**Argumento nomeado** é uma forma de **chamar**: o nome do parâmetro aparece no call site.
+
+```lox
+fn conectar(host: String, porta: Int = 80, tls: Bool = false) { ... }
+
+conectar("exemplo.com", porta = 443, tls = true)
+```
+
+- os nomes são **declarados na assinatura** (conjunto fixo e conhecido);
+- o compilador casa nome → posição, aplica defaults e checa tipos;
+- nome desconhecido, duplicado ou obrigatório faltando = erro de compilação;
+- no LLVM vira chamada posicional normal (custo zero).
+
+**`**kwargs`** é um **parâmetro que captura nomes não declarados**:
+
+```python
+def config(**opcoes):      # opcoes é dict[str, Any]
+    ...
+
+config(cor="azul", tamanho=3)
+```
+
+- a função **não declara** `cor` nem `tamanho`; qualquer nome entra no dicionário;
+- erros de digitação passam, os tipos se misturam e o checker só vê `Map[String, Any]`;
+- no LLVM vira estrutura dinâmica (hash map), não offset fixo.
+
+Resumindo: **named args são o mecanismo; `**kwargs` é a coleta aberta do que sobrar.**
+Em Python, `f(a=1, b=2, c=3)` com `def f(a, b=0, **kw)` produz `a=1`, `b=2` e
+`kw={"c": 3}` — os dois primeiros são argumentos nomeados casados com parâmetros; o
+terceiro "cai" no `**kwargs` porque não foi declarado.
+
+| Aspecto | Named args | `**kwargs` |
+| --- | --- | --- |
+| Onde os nomes existem | assinatura | call site (qualquer nome) |
+| Checagem | compilação | runtime |
+| Tipo de cada valor | declarado | `Map[String, Any]` |
+| Typo no nome | erro | aceito silenciosamente |
+| Autocomplete/IDE | sim | não |
+| Defaults | por parâmetro | decididos pela função |
+| LLVM | posicional, custo zero | hash map dinâmico |
+
+**Na nossa linguagem:** chamadas são 100% posicionais hoje. Named args exigiriam resolver
+uma ambiguidade real: `f(x = 1)` hoje é uma chamada cujo argumento é a **expressão de
+atribuição** `x = 1`; com named args passaria a significar "passe `1` para o parâmetro
+`x`". Seria preciso proibir atribuição solta como argumento (exigir `f((x = 1))`) ou
+escolher outra sintaxe. É factível, mas é uma decisão de parser/checker, não só de açúcar.
+`**kwargs` continua dependendo de `Map` tipado e de named args, e por isso não compensa.
 
 #### Interações com o resto de I-5
 
