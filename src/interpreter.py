@@ -1,3 +1,4 @@
+from expr import Logical
 from src.environment import Environment
 from src.error_reporter import ErrorReporter
 from src.errors import LoxRuntimeError
@@ -7,6 +8,7 @@ from src.stmt import Block, Expression, Print, Stmt, Var
 from src.stmt import Visitor as StmtVisitor
 from src.token import Token
 from src.token_type import TokenType
+from stmt import If, While
 
 
 class Interpreter(ExprVisitor[object], StmtVisitor[None]):
@@ -176,3 +178,24 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_block_stmt(self, stmt: Block) -> None:
         self._execute_block(stmt.statements, Environment(self.environment))
+
+    def visit_if_stmt(self, stmt: If) -> None:
+        if self._is_truthy(self._evaluate(stmt.condition)):
+            self._execute(stmt.then_branch)
+        elif stmt.else_branch is not None:
+            self._execute(stmt.else_branch)
+
+    def visit_logical_expr(self, expr: Logical) -> object:
+        left = self._evaluate(expr.left)
+
+        if expr.operator.type == TokenType.OR:
+            if self._is_truthy(left):
+                return left
+        elif not self._is_truthy(left):  # TokenType.AND
+            return left
+
+        return self._evaluate(expr.right)
+
+    def visit_while_stmt(self, stmt: While) -> None:
+        while self._is_truthy(self._evaluate(stmt.condition)):
+            self._execute(stmt.body)
