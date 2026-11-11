@@ -61,6 +61,9 @@ class AstPrinter:
         return "this"
 
     def _parenthesize(self, name: str, *exprs: Expr) -> str:
+        if not exprs:
+            return f"({name})"
+
         inner = " ".join(expr.accept(self) for expr in exprs)
         return f"({name} {inner})"
 

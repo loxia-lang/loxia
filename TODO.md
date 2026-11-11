@@ -15,11 +15,11 @@ pretendo tipar e como chegar no LLVM.
 
 ---
 
-## 0. Agora: base sã e primeira metade do livro
+## 0. Agora: base sã e livro concluído
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. **Caps. 10, 11 e 12 concluídos** (funções/closures, resolver e classes);
-> próximo passo: capítulo 13 (herança).
+> no lugar. **Parte II concluída** (caps. 4–13: scanner, parser, resolver, funções,
+> classes e herança). Próximo: fechar decisões de sintaxe/tipos antes de seguir.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -62,9 +62,11 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
   - [x] chamada de método e `arity` do construtor (`init` define a aridade)
   - [x] métodos ligados (`bind`) e `this` resolvido pelo resolver
   - [x] erros: `this` fora de classe, `return` com valor em `init`, propriedade inexistente
-- [ ] **Cap. 13 — Herança**
-  - [ ] `<`, `super`, método herdado
-  - [ ] decidir cedo se `super` continua com essa sintaxe (ver §1.3)
+- [x] **Cap. 13 — Herança**
+  - [x] `<`, `super`, método herdado (`find_method` recursivo)
+  - [x] `super` ligado ao `this` atual; resolver com escopo próprio de `super`
+  - [ ] decisão de sintaxe final (`extends` vs `<`, `super`) — ver §11 ao planejar a
+        linguagem própria
 
 ### 0.3 Higiene (P1, S)
 
@@ -664,7 +666,7 @@ cobre a parte de geração de código e eu quero manter o escopo humano.
 | # | Marco | Critério de pronto |
 | --- | --- | --- |
 | **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (71), benchmark com baseline, lint/tipos/CI |
-| **M1** | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
+| **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** | Linguagem estável | suíte oficial do livro passando + exemplos + README |
 | **M3** | Sintaxe nova | `;` opcional, `let/var`, `fn`, interpolação, arrays, `for-in`, `?.`/`??` |
 | **M4** | Tipos v1 | T1–T3: anotações, inferência local, checagem nos args, `--check` |

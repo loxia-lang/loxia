@@ -10,8 +10,14 @@ if TYPE_CHECKING:
 
 
 class LoxClass:
-    def __init__(self, name: str, methods: dict[str, LoxFunction]) -> None:
+    def __init__(
+        self,
+        name: str,
+        superclass: LoxClass | None,
+        methods: dict[str, LoxFunction],
+    ) -> None:
         self._name = name
+        self._superclass = superclass
         self._methods = methods
 
     @property
@@ -19,7 +25,13 @@ class LoxClass:
         return self._name
 
     def find_method(self, name: str) -> LoxFunction | None:
-        return self._methods.get(name)
+        if name in self._methods:
+            return self._methods[name]
+
+        if self._superclass is not None:
+            return self._superclass.find_method(name)
+
+        return None
 
     def arity(self) -> int:
         initializer = self.find_method("init")

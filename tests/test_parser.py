@@ -113,6 +113,7 @@ def test_repl_does_not_print_declaration_errors() -> None:
 
 
 def test_call_ast_shape() -> None:
+    assert ast("f()") == "(call f)"
     assert ast("f(1, 2)") == "(call f 1 2)"
     assert ast("f(g(1), 2 + 3)") == "(call f (call g 1) (+ 2 3))"
 
@@ -150,3 +151,16 @@ def test_property_and_this_ast_shape() -> None:
     assert ast("a.b") == "(. b a)"
     assert ast("this.x") == "(. x this)"
     assert ast("a.b = 1") == "(set b a 1)"
+
+
+def test_parses_class_with_superclass() -> None:
+    statements = parse("class B < A {}")
+
+    klass = statements[0]
+    assert isinstance(klass, Class)
+    assert klass.superclass is not None
+    assert klass.superclass.name.lexeme == "A"
+
+
+def test_super_ast_shape() -> None:
+    assert ast("super.m()") == "(call (super m))"

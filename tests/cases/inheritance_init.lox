@@ -1,0 +1,9 @@
+class A {
+  init(x) {
+    this.x = x;
+  }
+}
+
+class B < A {}
+
+print B(5).x;  // expect: 5

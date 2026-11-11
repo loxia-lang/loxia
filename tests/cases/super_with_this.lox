@@ -1,0 +1,20 @@
+class Base {
+  init(x) {
+    this.x = x;
+  }
+
+  soma(y) {
+    return this.x + y;
+  }
+}
+
+class Derived < Base {
+  init(x) {
+    super.init(x);
+    this.x = this.x + 10;
+  }
+}
+
+var d = Derived(5);
+print d.x;        // expect: 15
+print d.soma(1);  // expect: 16

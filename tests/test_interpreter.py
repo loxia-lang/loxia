@@ -259,3 +259,26 @@ def test_bound_method_keeps_this(capsys: pytest.CaptureFixture[str]) -> None:
     stdout, _ = run(source, capsys)
 
     assert stdout == ["7"]
+
+
+def test_inheritance_and_super(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    class A {
+      method() {
+        return "A";
+      }
+    }
+
+    class B < A {
+      method() {
+        return super.method() + "B";
+      }
+    }
+
+    print B().method();
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["AB"]
+    assert stderr == ""

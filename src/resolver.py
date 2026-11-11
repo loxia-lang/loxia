@@ -125,6 +125,22 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._declare(stmt.name)
         self._define(stmt.name)
 
+        if (
+            stmt.superclass is not None
+            and stmt.name.lexeme == stmt.superclass.name.lexeme
+        ):
+            self._reporter.error(
+                stmt.superclass.name, "A class can't inherit from itself."
+            )
+
+        if stmt.superclass is not None:
+            self._current_class = ClassType.SUBCLASS
+            self._resolve_expr(stmt.superclass)
+
+        if stmt.superclass is not None:
+            self._begin_scope()
+            self._scopes[-1]["super"] = True
+
         self._begin_scope()
         self._scopes[-1]["this"] = True
 
@@ -136,6 +152,10 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._resolve_function(method, declaration)
 
         self._end_scope()
+
+        if stmt.superclass is not None:
+            self._end_scope()
+
         self._current_class = enclosing_class
 
     def visit_expression_stmt(self, stmt: Expression) -> None:
@@ -211,7 +231,16 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(expr.object)
 
     def visit_super_expr(self, expr: Super) -> None:
-        raise NotImplementedError("super: capítulo 13")
+        if self._current_class is ClassType.NONE:
+            self._reporter.error(
+                expr.keyword, "Can't use 'super' outside of a class."
+            )
+        elif self._current_class is not ClassType.SUBCLASS:
+            self._reporter.error(
+                expr.keyword, "Can't use 'super' in a class with no superclass."
+            )
+
+        self._resolve_local(expr, expr.keyword)
 
     def visit_this_expr(self, expr: This) -> None:
         if self._current_class is ClassType.NONE:

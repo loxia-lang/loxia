@@ -30,9 +30,6 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-# O `Interpreter` ainda não implementa todos os nós do visitor (caps. 10–13).
-# Remover esta linha quando funções/classes/herança estiverem prontas.
-disable_error_code = ["abstract"]
 files = ["src", "main.py", "tests", "bench"]
 
 [[tool.mypy.overrides]]

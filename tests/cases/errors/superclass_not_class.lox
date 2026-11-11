@@ -1,0 +1,3 @@
+var Foo = 1;
+class Bar < Foo {}
+// expect runtime error: Superclass must be a class.

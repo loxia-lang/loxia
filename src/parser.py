@@ -10,6 +10,7 @@ from src.expr import (
     Literal,
     Logical,
     Set,
+    Super,
     This,
     Unary,
     Variable,
@@ -106,6 +107,12 @@ class Parser:
 
     def _class_declaration(self) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")
+
+        superclass: Variable | None = None
+        if self._match(TokenType.LESS):
+            self._consume(TokenType.IDENTIFIER, "Expect superclass name.")
+            superclass = Variable(self._previous())
+
         self._consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
 
         methods: list[Function] = []
@@ -114,7 +121,7 @@ class Parser:
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
-        return Class(name, None, methods)
+        return Class(name, superclass, methods)
 
     def _var_declaration(self) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
@@ -410,6 +417,14 @@ class Parser:
 
         if self._match(TokenType.NUMBER, TokenType.STRING):
             return Literal(self._previous().literal)
+
+        if self._match(TokenType.SUPER):
+            keyword = self._previous()
+            self._consume(TokenType.DOT, "Expect '.' after 'super'.")
+            method = self._consume(
+                TokenType.IDENTIFIER, "Expect superclass method name."
+            )
+            return Super(keyword, method)
 
         if self._match(TokenType.THIS):
             return This(self._previous())

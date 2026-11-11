@@ -118,3 +118,37 @@ def test_initializer_can_return_without_value() -> None:
     reporter, _, _ = resolve("class Foo { init() { return; } }")
 
     assert not reporter.had_error
+
+
+def test_super_outside_class_reports_error() -> None:
+    reporter, _, _ = resolve("super.method();")
+
+    assert reporter.had_error
+
+
+def test_super_without_superclass_reports_error() -> None:
+    reporter, _, _ = resolve("class Foo { method() { super.method(); } }")
+
+    assert reporter.had_error
+
+
+def test_class_cannot_inherit_from_itself() -> None:
+    reporter, _, _ = resolve("class Foo < Foo {}")
+
+    assert reporter.had_error
+
+
+def test_super_depth_in_subclass() -> None:
+    reporter, interpreter, _ = resolve("class A {} class B < A { m() { super.m(); } }")
+
+    assert not reporter.had_error
+    assert list(interpreter.locals.values()) == [2]
+
+
+def test_this_depth_in_subclass() -> None:
+    reporter, interpreter, _ = resolve(
+        "class A {} class B < A { m() { print this; } }"
+    )
+
+    assert not reporter.had_error
+    assert list(interpreter.locals.values()) == [1]

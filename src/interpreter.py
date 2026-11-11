@@ -11,6 +11,7 @@ from src.expr import (
     Literal,
     Logical,
     Set,
+    Super,
     This,
     Unary,
     Variable,
@@ -185,7 +186,21 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return callee.call(self, arguments)
 
     def visit_class_stmt(self, stmt: Class) -> None:
+        superclass: LoxClass | None = None
+        if stmt.superclass is not None:
+            candidate = self._evaluate(stmt.superclass)
+            if not isinstance(candidate, LoxClass):
+                raise LoxRuntimeError(
+                    stmt.superclass.name, "Superclass must be a class."
+                )
+
+            superclass = candidate
+
         self.environment.define(stmt.name.lexeme, None)
+
+        if stmt.superclass is not None:
+            self.environment = Environment(self.environment)
+            self.environment.define("super", superclass)
 
         methods: dict[str, LoxFunction] = {}
         for method in stmt.methods:
@@ -194,7 +209,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
             methods[method.name.lexeme] = function
 
-        klass = LoxClass(stmt.name.lexeme, methods)
+        klass = LoxClass(stmt.name.lexeme, superclass, methods)
+
+        if stmt.superclass is not None:
+            enclosing = self.environment.enclosing
+            assert enclosing is not None
+            self.environment = enclosing
+
         self.environment.assign(stmt.name, klass)
 
     def visit_expression_stmt(self, stmt: Expression) -> None:
@@ -217,6 +238,24 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         value = self._evaluate(expr.value)
         ob.set(expr.name, value)
         return value
+
+    def visit_super_expr(self, expr: Super) -> object:
+        distance = self.locals.get(expr)
+        assert distance is not None
+
+        superclass = self.environment.get_at(distance, "super")
+        assert isinstance(superclass, LoxClass)
+
+        ob = self.environment.get_at(distance - 1, "this")
+        assert isinstance(ob, LoxInstance)
+
+        method = superclass.find_method(expr.method.lexeme)
+        if method is None:
+            raise LoxRuntimeError(
+                expr.method, f"Undefined property '{expr.method.lexeme}'."
+            )
+
+        return method.bind(ob)
 
     def visit_this_expr(self, expr: This) -> object:
         return self.look_up_variable(expr.keyword, expr)

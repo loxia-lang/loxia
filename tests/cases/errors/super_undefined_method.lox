@@ -1,0 +1,8 @@
+class A {}
+class B < A {
+  method() {
+    super.nope();
+  }
+}
+B().method();
+// expect runtime error: Undefined property 'nope'.
