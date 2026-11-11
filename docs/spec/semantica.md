@@ -23,6 +23,7 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | `true`/`false` | literais, comparações | `true`/`false` |
 | `Int` | literais sem `.`/expoente, aritmética inteira | decimal (`42`, `-3`) |
 | `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
+| `Range` | `a..b`, `range(a, b, step)` | `<range 0..10>` |
 | string | literais, `+` | conteúdo |
 | função | `fun` | `<fn nome>` |
 | função nativa | `clock` | `<native fn>` |
@@ -44,6 +45,7 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) s�
 - `Int` e `Float` comparam por valor numérico, com promoção: `1 == 1.0` → `true` (o `Int`
   é convertido para `Float`; acima de `2^53` a conversão pode perder precisão, como no
   LLVM);
+- `Range` compara **estruturalmente** (`start`, `end`, `step`): `(0..3) == (0..3)` → `true`;
 - `true == 1` → `false` (booleano nunca é número);
 - strings comparam por conteúdo;
 - funções, classes e instâncias comparam por **identidade** (o mesmo objeto);
@@ -123,6 +125,32 @@ var a = "global";
   `nil or 2` → `2`; `false and 1` → `false`.
 - A ordem de avaliação é esquerda→direita; `and`/`or` só avaliam a direita se necessário.
 
+## Ranges e `for-in`
+
+`a..b` cria um `Range` **half-open** (`a` incluso, `b` exclusivo), só com bounds `Int`;
+`range(a, b, step)` faz o mesmo com passo explícito (inclusive negativo). Range é um valor
+lazy e reutilizável: não materializa elementos e cada `for` cria a sua própria iteração.
+
+```lox
+for i in 0..4 { print i; }        // 0 1 2 3
+for i in range(5, 0, -2) { ... }  // 5 3 1
+for i in 5..2 { ... }             // vazio
+```
+
+- Fontes aceitas hoje: `Range` (produz `Int`) e `String` (produz `String` de 1 code
+  point). List/Map entram quando existirem (Map produzirá chaves em ordem de inserção).
+- O iterável é avaliado **uma vez**, antes do binding do laço; bounds são avaliados uma vez
+  da esquerda para a direita.
+- A variável do laço é um **`val` novo por iteração**: reatribuí-la é erro de compilação e
+  closures capturam o valor daquela iteração.
+- Mutar a coleção durante a iteração é **proibido** (comportamento indefinido na v1).
+- `Range` é truthy, imprime como `<range a..b>` (ou `<range a..b step s>`) e compara
+  estruturalmente.
+- Erros de runtime: `Can only iterate over a range or a string.`,
+  `Range bounds must be integers.`, `range() arguments must be integers.`,
+  `range() step can't be zero.`; aridade errada usa a mensagem padrão
+  (`Expected 3 arguments but got N.`).
+
 ## Statements
 
 | Statement | Efeito |
@@ -133,6 +161,7 @@ var a = "global";
 | `if (c) s else s` | executa o ramo conforme truthiness |
 | `while (c) s` | repete enquanto truthy |
 | `for (init; cond; incr) s` | desaçucarado para bloco + `while` (ver sintaxe) |
+| `for x in e s` | itera `e` (Range/String hoje); `x` é `val` por iteração |
 | `return expr?;` | desempilha até a chamada da função |
 
 ## Funções
@@ -152,7 +181,8 @@ var a = "global";
   `Can't return from top-level code.`
 - Parâmetros e locais do corpo compartilham o mesmo escopo: declarar `var a` quando existe
   parâmetro `a` é erro (mesma mensagem de redeclaração).
-- `clock()` é a única nativa: devolve segundos desde a época como `float`, aridade 0.
+- `clock()` devolve segundos desde a época como `float`, aridade 0.
+- `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
 
 ## Classes
 
@@ -227,5 +257,7 @@ class ContaPoupanca < Conta {
 - Números são `Int` e `Float` separados (o livro usa só `float`); `/` é sempre `Float`,
   `%` é truncado e `Int` faz wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
 - `val`/`var` não existem no livro (que só tem `var` mutável); ver [ADR-0005](../adr/0005-val-var-imutabilidade.md).
+- `for x in` e `Range` (`0..10`) não existem no livro; ver
+  [ADR-0007](../adr/0007-ranges-e-iteracao.md).
 
 Tudo o mais segue o jlox do livro, inclusive as mensagens.

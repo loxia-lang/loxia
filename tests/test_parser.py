@@ -5,7 +5,18 @@ import pytest
 from src.ast_printer import AstPrinter
 from src.parser import Parser
 from src.scanner import Scanner
-from src.stmt import Class, Expression, Function, If, Print, Return, Stmt, Var, While
+from src.stmt import (
+    Class,
+    Expression,
+    ForIn,
+    Function,
+    If,
+    Print,
+    Return,
+    Stmt,
+    Var,
+    While,
+)
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:
@@ -39,6 +50,8 @@ def ast(expression: str) -> str:
         ("1 < 2 == true", "(== (< 1 2) true)"),
         ("!nil", "(! nil)"),
         ("a", "a"),
+        ("0..10", "(.. 0 10)"),
+        ("0..1 + 2", "(.. 0 (+ 1 2))"),
     ],
 )
 def test_precedence_and_ast_shape(expression: str, expected: str) -> None:
@@ -52,6 +65,13 @@ def test_parses_statements() -> None:
     assert isinstance(statements[1], Print)
     assert isinstance(statements[2], If)
     assert isinstance(statements[3], While)
+
+
+def test_parses_for_in_statement() -> None:
+    statements = parse("for i in 0..3 print i;")
+
+    assert isinstance(statements[0], ForIn)
+    assert statements[0].name.lexeme == "i"
 
 
 def test_missing_semicolon_reports_error_and_recovers() -> None:

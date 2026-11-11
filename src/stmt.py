@@ -16,6 +16,7 @@ class Visitor[R](Protocol):
     def visit_block_stmt(self, stmt: Block) -> R: ...
     def visit_class_stmt(self, stmt: Class) -> R: ...
     def visit_expression_stmt(self, stmt: Expression) -> R: ...
+    def visit_for_in_stmt(self, stmt: ForIn) -> R: ...
     def visit_function_stmt(self, stmt: Function) -> R: ...
     def visit_if_stmt(self, stmt: If) -> R: ...
     def visit_print_stmt(self, stmt: Print) -> R: ...
@@ -68,6 +69,16 @@ class Function(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ForIn(Stmt):
+    name: Token
+    iterable: Expr
+    body: Stmt
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_for_in_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)

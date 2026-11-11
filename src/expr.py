@@ -12,6 +12,7 @@ class Visitor[R](Protocol):
     def visit_binary_expr(self, expr: Binary) -> R: ...
     def visit_grouping_expr(self, expr: Grouping) -> R: ...
     def visit_literal_expr(self, expr: Literal) -> R: ...
+    def visit_range_expr(self, expr: Range) -> R: ...
     def visit_unary_expr(self, expr: Unary) -> R: ...
     def visit_assign_expr(self, expr: Assign) -> R: ...
     def visit_call_expr(self, expr: Call) -> R: ...
@@ -56,6 +57,16 @@ class Literal(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_literal_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Range(Expr):
+    start: Expr
+    end: Expr
+    operator: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_range_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

@@ -8,6 +8,7 @@ KEYWORDS: dict[str, TokenType] = {
     "for": TokenType.FOR,
     "fun": TokenType.FUN,
     "if": TokenType.IF,
+    "in": TokenType.IN,
     "nil": TokenType.NIL,
     "or": TokenType.OR,
     "print": TokenType.PRINT,

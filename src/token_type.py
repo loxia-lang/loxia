@@ -25,6 +25,7 @@ class TokenType(Enum):
     GREATER_EQUAL = auto()
     LESS = auto()
     LESS_EQUAL = auto()
+    DOT_DOT = auto()
 
     #Literals.
     IDENTIFIER = auto()
@@ -39,6 +40,7 @@ class TokenType(Enum):
     FUN = auto()
     FOR = auto()
     IF = auto()
+    IN = auto()
     NIL = auto()
     OR = auto()
     PRINT = auto()

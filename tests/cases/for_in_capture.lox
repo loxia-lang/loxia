@@ -1,0 +1,11 @@
+// A variável do for é um `val` novo por iteração: a closure guarda o valor daquela
+// iteração, não o valor final do laço.
+var f;
+
+for i in 0..3 {
+  fun captura() { print i; }
+  if (i == 1) { f = captura; }
+}
+
+f();
+// expect: 1

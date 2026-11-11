@@ -40,7 +40,9 @@ class Scanner:
             case ",":
                 self._add_token(TokenType.COMMA)
             case ".":
-                self._add_token(TokenType.DOT)
+                self._add_token(
+                    TokenType.DOT_DOT if self._match(".") else TokenType.DOT
+                )
             case "-":
                 self._add_token(TokenType.MINUS)
             case "+":

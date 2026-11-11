@@ -52,6 +52,7 @@ Crie quando a decisão:
 | [0004](0004-identidade-dos-nos-de-ast.md) | Nós de AST têm identidade | accepted | 2026-11-11 |
 | [0005](0005-val-var-imutabilidade.md) | `val`/`var` e imutabilidade de bindings | accepted | 2026-11-11 |
 | [0006](0006-int-float-separados.md) | `Int` (i64) e `Float` (f64) separados | accepted | 2026-11-11 |
+| [0007](0007-ranges-e-iteracao.md) | Ranges e iteração com protocolo embutido | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 

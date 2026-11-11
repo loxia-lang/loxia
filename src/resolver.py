@@ -14,6 +14,7 @@ from src.expr import (
     Grouping,
     Literal,
     Logical,
+    Range,
     Set,
     Super,
     This,
@@ -26,6 +27,7 @@ from src.stmt import (
     Block,
     Class,
     Expression,
+    ForIn,
     Function,
     If,
     Print,
@@ -172,6 +174,16 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_expression_stmt(self, stmt: Expression) -> None:
         self._resolve_expr(stmt.expression)
 
+    def visit_for_in_stmt(self, stmt: ForIn) -> None:
+        # O iterável é avaliado antes do binding do laço (como em Python).
+        self._resolve_expr(stmt.iterable)
+
+        self._begin_scope()
+        self._declare(stmt.name, mutable=False)
+        self._define(stmt.name)
+        self._resolve_stmt(stmt.body)
+        self._end_scope()
+
     def visit_function_stmt(self, stmt: Function) -> None:
         self._declare(stmt.name, mutable=True)
         self._define(stmt.name)
@@ -240,6 +252,10 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_logical_expr(self, expr: Logical) -> None:
         self._resolve_expr(expr.left)
         self._resolve_expr(expr.right)
+
+    def visit_range_expr(self, expr: Range) -> None:
+        self._resolve_expr(expr.start)
+        self._resolve_expr(expr.end)
 
     def visit_set_expr(self, expr: Set) -> None:
         self._resolve_expr(expr.value)

@@ -7,6 +7,7 @@ from src.expr import (
     Grouping,
     Literal,
     Logical,
+    Range,
     Set,
     Super,
     This,
@@ -38,6 +39,9 @@ class AstPrinter:
 
     def visit_logical_expr(self, expr: Logical) -> str:
         return self._parenthesize(expr.operator.lexeme, expr.left, expr.right)
+
+    def visit_range_expr(self, expr: Range) -> str:
+        return self._parenthesize("..", expr.start, expr.end)
 
     def visit_assign_expr(self, expr: Assign) -> str:
         return self._parenthesize(f"= {expr.name.lexeme}", expr.value)

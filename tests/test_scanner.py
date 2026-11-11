@@ -52,6 +52,20 @@ def test_scan_number_literals_split_int_and_float() -> None:
     ]
 
 
+def test_scans_range_token_and_in_keyword() -> None:
+    assert scan_types("0..10 in 1.0 a.b") == [
+        TokenType.NUMBER,
+        TokenType.DOT_DOT,
+        TokenType.NUMBER,
+        TokenType.IN,
+        TokenType.NUMBER,
+        TokenType.IDENTIFIER,
+        TokenType.DOT,
+        TokenType.IDENTIFIER,
+        TokenType.EOF,
+    ]
+
+
 def test_integer_literal_overflow_reports_error() -> None:
     scanner = scan_with_reporter("9223372036854775808")
 

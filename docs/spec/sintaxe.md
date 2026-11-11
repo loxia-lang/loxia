@@ -38,7 +38,8 @@ statement      → exprStmt
 exprStmt       → expression ";" ;
 forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
                  expression? ";"
-                 expression? ")" statement ;
+                 expression? ")" statement
+               | "for" IDENTIFIER "in" expression statement ;
 ifStmt         → "if" "(" expression ")" statement ( "else" statement )? ;
 printStmt      → "print" expression ";" ;
 returnStmt     → "return" expression? ";" ;
@@ -51,7 +52,8 @@ assignment     → ( call "." )? IDENTIFIER "=" assignment
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+comparison     → range ( ( ">" | ">=" | "<" | "<=" ) range )* ;
+range          → term ( ".." term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" | "%" ) unary )* ;
 unary          → ( "!" | "-" ) unary | call ;
@@ -73,6 +75,7 @@ Do menor para o maior:
 | and | `and` | esquerda |
 | igualdade | `==` `!=` | esquerda |
 | comparação | `<` `<=` `>` `>=` | esquerda |
+| range | `..` | esquerda |
 | termo | `+` `-` | esquerda |
 | fator | `*` `/` `%` | esquerda |
 | unário | `!` `-` | direita |
@@ -83,7 +86,9 @@ Consequências:
 - `-a.b()` = `-(a.b())` — a chamada liga mais forte que o unário;
 - `a = b = c` atribui da direita para a esquerda;
 - `a or b and c` = `a or (b and c)`;
-- `!a == b` = `(!a) == b`.
+- `!a == b` = `(!a) == b`;
+- `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range;
+- `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação.
 
 `<` tem dois papéis sintáticos: comparação em expressões e **herança** logo após o nome da
 classe (`class B < A`). Não há ambiguidade porque o parser de classe consome o `<` antes do
@@ -91,9 +96,9 @@ corpo.
 
 ## Açúcar sintático
 
-### `for` vira `while`
+### `for` C-style vira `while`
 
-Não existe nó de `for` na AST. O parser desaçucara:
+Não existe nó para o `for` C-style na AST. O parser desaçucara:
 
 ```lox
 for (var i = 0; i < 3; i = i + 1) print i;
@@ -113,6 +118,10 @@ vira
 
 Por isso o `for` tem as mesmas regras de escopo de um bloco e uma condição omitida vira
 `true` (laço infinito).
+
+O `for-in` é diferente: vira o nó `ForIn(name, iterable, body)` e **não** desaçucara para
+`while`, porque o interpretador precisa reportar "não iterável" e o codegen precisa do laço
+por iterável (Range/String/List/Map). Ver [`semantica.md`](semantica.md#ranges-e-for-in).
 
 ### Blocos
 

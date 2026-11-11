@@ -9,6 +9,7 @@ from src.expr import (
     Grouping,
     Literal,
     Logical,
+    Range,
     Set,
     Super,
     This,
@@ -19,6 +20,7 @@ from src.stmt import (
     Block,
     Class,
     Expression,
+    ForIn,
     Function,
     If,
     Param,
@@ -172,6 +174,9 @@ class Parser:
         return statements
 
     def _for_statement(self) -> Stmt:
+        if not self._check(TokenType.LEFT_PAREN):
+            return self._for_in_statement()
+
         self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
         initializer: Stmt | None = None
 
@@ -212,6 +217,16 @@ class Parser:
             body = Block([initializer, body])
 
         return body
+
+    def _for_in_statement(self) -> Stmt:
+        name = self._consume(
+            TokenType.IDENTIFIER, "Expect loop variable name after 'for'."
+        )
+        self._consume(TokenType.IN, "Expect 'in' after loop variable.")
+        iterable = self._expression()
+        body = self._statement()
+
+        return ForIn(name, iterable, body)
 
     def _while_statement(self) -> Stmt:
         self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
@@ -339,7 +354,7 @@ class Parser:
         return expr
 
     def _comparison(self) -> Expr:
-        expr: Expr = self._term()
+        expr: Expr = self._range()
 
         while self._match(
             TokenType.GREATER,
@@ -348,8 +363,18 @@ class Parser:
             TokenType.LESS_EQUAL,
         ):
             operator: Token = self._previous()
-            right: Expr = self._term()
+            right: Expr = self._range()
             expr = Binary(expr, operator, right)
+
+        return expr
+
+    def _range(self) -> Expr:
+        expr: Expr = self._term()
+
+        while self._match(TokenType.DOT_DOT):
+            operator: Token = self._previous()
+            end: Expr = self._term()
+            expr = Range(expr, end, operator)
 
         return expr
 

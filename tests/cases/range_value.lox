@@ -1,0 +1,6 @@
+// Range é valor: imprime em formato de debug e compara estruturalmente.
+print 0..10;              // expect: <range 0..10>
+print range(10, 0, -1);   // expect: <range 10..0 step -1>
+print (0..3) == (0..3);   // expect: true
+print (0..3) == (0..4);   // expect: false
+print 0..0;               // expect: <range 0..0>

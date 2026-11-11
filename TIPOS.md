@@ -1,9 +1,8 @@
 # TIPOS — catálogo e decisões de tipos da linguagem
 
 Documento de design do sistema de tipos: o que suportar, como cada tipo se comporta e
-quais decisões ainda estão **em aberto**. O foco principal continua sendo o modelo
-numérico, porque ele condiciona o parser, o type checker, o interpretador e o backend
-LLVM.
+quais decisões ainda estão **em aberto**. O foco é o que falta — iteração/coleções,
+nullability, checker e mapeamento para LLVM.
 
 Complementa:
 - [`TODO.md`](TODO.md) §2 (estratégia de implementação da inferência: T1 → T7);
@@ -24,6 +23,9 @@ Complementa:
   e igualdade numérica (`1 == 1.0`). Ver
   [ADR-0006](docs/adr/0006-int-float-separados.md) e
   [`docs/spec/semantica.md`](docs/spec/semantica.md).
+- [x] **Ranges e iteração** — `a..b` half-open, `range(a, b, step)`, `for-in` sobre
+  Range/String e variável `val` por iteração. Ver
+  [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
 
 ---
 
@@ -127,18 +129,25 @@ a >> n  // shift aritmético (sinal); >>>
 Precedência: a convenção C (`&` abaixo de `==`) é uma armadilha; adotar precedência
 **toda acima de comparação** (como Rust) e registrar `D-9`.
 
-### 3.6 Ranges (`D-10`)
+### 3.6 Ranges e iteração (`D-10`) — decidido
+
+Implementado no tree-walk para `Range` e `String`; List/Map entram quando existirem. Ver
+[ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e [`IDEIAS.md`](IDEIAS.md) I-6.
 
 ```lox
-0..10      // Range Int, fim exclusivo
-0..=10     // Range Int, fim inclusivo
+0..10              // Range Int, half-open (0..9), lazy e reutilizável
 for i in 0..n { ... }
+range(10, 0, -1)   // passo/descendente (3 argumentos)
 ```
 
-- Só `Int` no início (range de `Float` não tem passo natural) — `D-10`.
-- `Range` é tipo próprio, iterável; `len(r)`, `contains`.
-- `for i in 0..n` é o substituto do `for` C-style (§1.3 do TODO).
-- Decidir se `..` cria lista (eager) ou é iterador preguiçoso: **iterador** (P2).
+- Só `Int` nos bounds (range de `Float` não tem passo natural).
+- Range é **valor** lazy (start, end, step), não lista; não materializa elementos.
+- `..=` (inclusivo) ficou **adiado**; por enquanto `a..b` é sempre half-open.
+- `for x in`: Range → `Int`; String → `String` de 1 code point; List → elementos; Map →
+  chaves em ordem de inserção. Iterável de usuário (`Iterable[T]`) só depois de
+  `Option`/traits.
+- Variável do laço é `val` por iteração (closures capturam o valor daquela iteração).
+- `len(r)`/`contains` ainda não existem (stdlib).
 
 ### 3.7 Inferência de tipos numéricos
 
@@ -295,7 +304,6 @@ Em aberto:
 | `D-5` | overflow no debug | checado / só wrapping | debug checado, release wrapping |
 | `D-8` | conversões | `as` / funções | `as` + funções `math` |
 | `D-9` | bitwise | precedência C vs Rust; shifts | Rust; shift inválido = erro |
-| `D-10` | ranges | Int only / Float / passo | Int, iterador |
 | `D-11` | LLVM | i64/double; guards | i64/double + guardas |
 | `D-12` | representação | boxeado / desboxado / NaN-box | boxeado → desboxado |
 | `D-13` | `len` de string | bytes / code points / graphemes | code points |
@@ -304,9 +312,10 @@ Em aberto:
 | `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
 
-Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-6` (formatação) e `D-18`
-(igualdade numérica) — ver o checkbox no topo e
-[ADR-0006](docs/adr/0006-int-float-separados.md). Cada decisão implementada ganha caso
+Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-6` (formatação),
+`D-10` (ranges/iteração) e `D-18` (igualdade numérica) — ver o checkbox no topo e
+[ADR-0006](docs/adr/0006-int-float-separados.md) /
+[ADR-0007](docs/adr/0007-ranges-e-iteracao.md). Cada decisão implementada ganha caso
 golden e linha no `TODO.md` §11.
 
 ---
@@ -321,7 +330,7 @@ golden e linha no `TODO.md` §11.
 | **N3** | unificação/checagem nas chamadas com promoção (T3) | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
-| **N6** | ranges, `for-in` numérico | sintaxe §1.3 |
+| **N6** | ✅ ranges e `for-in` (Range/String); List/Map quando existirem | sintaxe §1.3 |
 
 Ordem prática: N2+ só depois do resolver (cap. 11), porque o checker depende de escopo.
 

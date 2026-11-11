@@ -884,3 +884,53 @@ escolher outra sintaxe. É factível, mas é uma decisão de parser/checker, nã
 - [ ] defaults depois do rest? (recomendo proibir)
 - [ ] `print`/`log` nativos viram variádicos ou continuam aceitando uma lista?
 - [ ] named args vêm antes de `**kwargs`? (sim; `**kwargs` só depois)
+
+---
+
+## I-6 — Ranges e iteráveis: o que pode aparecer no `for x in`
+
+**Status:** `decidida` — ver [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e
+[`TIPOS.md`](TIPOS.md) §3.6. Implementado no tree-walk para `Range` e `String`; `List`/`Map`
+entram quando existirem.
+
+### A pergunta
+
+1. Range é literal (`0..10`) ou função (`range(...)`)?
+2. O que é iterável numa linguagem em que primitivos não são objetos?
+3. Range é lista eager ou valor lazy? O laço é protocolo ou desaçúcar para C-style?
+
+### Decisão
+
+- **`a..b` half-open**, só `Int`, lazy e reutilizável; `range(a, b, step)` (3 argumentos)
+  para passo/descendente. `..=` fica adiado.
+- **`for x in` v1**: `Range` → `Int`; `String` → `String` de 1 code point. List/Map quando
+  existirem (Map → chaves em ordem de inserção).
+- **Variável do laço é `val` novo por iteração**; reatribuir é erro e closures capturam o
+  valor daquela iteração.
+- **Mutar a coleção durante a iteração** é proibido/indefinido na v1.
+- `map`/`filter` serão **eager** (`List`) quando existirem; `contains` será função, não
+  operador `in`.
+- **Protocolo de usuário** (`Iterable[T]` estrutural, `next() -> T?`) só depois de
+  `Option`/traits.
+
+### Por que (resumo)
+
+- Iteração é protocolo, não herança: primitivos podem ser iteráveis sem virarem classes.
+- Builtin-only agora evita expor `Iterator`/`Option` cedo e não fecha a porta para classes.
+- Range lazy evita alocar (`0..1_000_000_000`) e half-open evita off-by-one.
+- Binding novo por iteração elimina o *late binding* de closure do Python.
+- Ordem de inserção em Map preserva o determinismo do I-4.
+
+### O que falta
+
+- `List`/`Map` como fontes de iteração (os tipos ainda não existem).
+- `..=` e ranges inclusivos.
+- `Iterable` de usuário (depende de `Option` para o fim do iterator).
+- `contains`, `sum`, `enumerate`, `zip` (stdlib/Tuple).
+
+### Gatilhos para revisitar
+
+- quando List/Map chegarem;
+- quando `Option`/traits entrarem (protocolo de usuário);
+- se `..=`/passo virarem necessidade real;
+- se `map`/`filter` eager começarem a doer em memória.

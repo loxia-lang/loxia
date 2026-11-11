@@ -158,7 +158,8 @@ fn main() {
 - [ ] `P2` **`**`** (potência, associativa à direita).
 - [ ] `P2` **`//`** divisão inteira? bloqueado: colide com comentário; decidir token
       ([`TIPOS.md`](TIPOS.md) `D-4`).
-- [ ] `P2` **ranges** `0..10` (exclusivo) e `0..=10` (inclusivo) — iteráveis.
+- [x] `P2` **ranges** `0..10` (half-open), iteráveis e valor lazy; `0..=10` adiado.
+      Ver [`IDEIAS.md`](IDEIAS.md) I-6 e [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
 - [ ] `P2` **ternário** `cond ? a : b` (ou só `if` expressão; decidir).
 - [ ] `P2` **`?.`** optional chaining e **`??`** coalescência de nil.
 - [ ] `P2` **`?:`** elvis (`a ?: b`) como atalho de `a ?? b`? (evitar duplicar; decidir)
@@ -171,7 +172,9 @@ fn main() {
 - [ ] `P2` **arrays** `[1, 2, 3]`, acesso `a[i]`, `push`, `len`.
 - [ ] `P2` **mapas** `{ "a": 1 }` — cuidado: `{` de mapa vs bloco. Opções: `#{...}`,
       ou exigir `:`/`,` para desambiguar. Lox2 resolveu? estudar antes.
-- [ ] `P2` **`for x in iterável`** + protocolo de iterador (método `iter()`).
+- [x] `P2` **`for x in iterável`** — implementado para `Range` e `String`; List/Map
+      entram quando existirem (protocolo de usuário depois de `Option`/traits). Ver
+      [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
 - [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista. Viabilidade e
       comparação com `**kwargs` em [`IDEIAS.md`](IDEIAS.md) I-5 (complemento): `*args`
       talvez, `**kwargs` não (depende de named args e destrói tipagem).
@@ -746,6 +749,10 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
     namespaced (`Int.parse`) vs `int()` sobrecarregado? Ver [`IDEIAS.md`](IDEIAS.md) I-3.
 16. **Contratos e agentes**: `requires`/`ensures`/`invariant` opcionais? `--contracts`
     default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
+17. **Ranges e iteração** — **decidido em 2026-11-11**: `a..b` half-open, `Int`, lazy;
+    `range(a, b, step)` com 3 args; `for x in` sobre Range/String hoje (List/Map quando
+    existirem), variável `val` por iteração. Ver
+    [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e [`IDEIAS.md`](IDEIAS.md) I-6.
 
 ---
 

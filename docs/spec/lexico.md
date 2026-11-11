@@ -31,9 +31,11 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/scanner.py`](
 =    ==
 <    <=
 >    >=
+.    ..
 ```
 
-`//` é comentário; `/` sozinho é divisão.
+`//` é comentário; `/` sozinho é divisão. `..` é o operador de range (`0..10`); não existe
+`..=`.
 
 ### Literais
 
@@ -62,8 +64,8 @@ Números ([`../../TIPOS.md`](../../TIPOS.md) §3, [ADR-0006](../adr/0006-int-flo
   aceitam `.` nem expoente;
 - magnitude máxima de `Int` é `9223372036854775807` (`2^63 - 1`); literal maior é erro de
   compilação. `INT_MIN` não tem literal próprio: use `-9223372036854775807 - 1`;
-- `1..10` (range) ainda não existe; o scanner exige dígito depois do `.` exatamente para
-  não engolir `..`;
+- `1..10` (range) existe: o scanner exige dígito depois do `.` de um float exatamente para
+  não engolir o `..`;
 - `Float` é IEEE-754 binary64; um literal que estoura vira `inf` (comportamento do Python).
 
 Strings:
@@ -75,8 +77,9 @@ Strings:
 ### Palavras-chave
 
 ```
-and   class   else   false   for   fun     if    nil
-or    print   return  super   this  true    val   var   while
+and   class   else    false   for     fun     if    in
+nil   or      print   return  super   this    true  val
+var   while
 ```
 
 São sensíveis a maiúsculas (`Class` é identificador).

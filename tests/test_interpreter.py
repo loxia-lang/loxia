@@ -71,6 +71,62 @@ def test_float_stringify_round_trips(capsys: pytest.CaptureFixture[str]) -> None
     assert stdout == ["0.30000000000000004", "-0.0", "1.0"]
 
 
+def test_for_in_iterates_range_and_string(capsys: pytest.CaptureFixture[str]) -> None:
+    source = 'for i in 0..3 { print i; } for c in "ab" { print c; }'
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["0", "1", "2", "a", "b"]
+    assert stderr == ""
+
+
+def test_for_in_supports_descending_and_empty_ranges(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = "for i in range(3, 0, -1) { print i; } for i in 5..2 { print i; }"
+
+    stdout, _ = run(source, capsys)
+
+    assert stdout == ["3", "2", "1"]
+
+
+def test_for_in_loop_variable_is_immutable(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = Lox()
+    stdout, stderr = execute(lox, "for i in 0..3 { i = 1; }", capsys)
+
+    assert stdout == []
+    assert "'i' is immutable" in stderr
+    assert lox.reporter.had_error
+
+
+def test_for_in_closure_captures_iteration_value(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = """
+    var f;
+    for i in 0..3 {
+      fun captura() { print i; }
+      if (i == 1) { f = captura; }
+    }
+    f();
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["1"]
+    assert stderr == ""
+
+
+def test_range_value_stringify_and_equality(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run(
+        "print 0..3; print range(3, 0, -1); print (0..3) == (0..3);", capsys
+    )
+
+    assert stdout == ["<range 0..3>", "<range 3..0 step -1>", "true"]
+
+
 def test_variables_and_uninitialized_default_to_nil(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

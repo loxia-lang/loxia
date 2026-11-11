@@ -41,13 +41,15 @@ não sabe a distância das variáveis locais.
 | [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
 | [`src/values.py`](../../src/values.py) | `stringify` única |
 | [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`: predicados, promoção, wrapping, `%` |
+| [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
 | [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
-| [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `ReturnSignal` |
+| [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
 | [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `arity`/`call` |
 | [`src/lox_function.py`](../../src/lox_function.py) | função de usuário + closure + `bind` |
 | [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
 | [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
 | [`src/natives/clock.py`](../../src/natives/clock.py) | `clock()` |
+| [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
 | [`src/ast_printer.py`](../../src/ast_printer.py) | dump S-expression (debug/testes) |
 
 `src` é um pacote normal (`__init__.py`). Os imports são sempre absolutos

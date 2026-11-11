@@ -1,8 +1,11 @@
+from collections.abc import Iterator
+
 from src import numeric
 from src.environment import Environment
 from src.error_reporter import ErrorReporter
 from src.errors import (
     LoxRuntimeError,
+    NativeError,
     ReturnSignal,
     immutable_redeclare_message,
 )
@@ -15,6 +18,7 @@ from src.expr import (
     Grouping,
     Literal,
     Logical,
+    Range,
     Set,
     Super,
     This,
@@ -26,8 +30,22 @@ from src.lox_callable import LoxCallable
 from src.lox_class import LoxClass
 from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
+from src.lox_range import LoxRange
 from src.natives.clock import Clock
-from src.stmt import Block, Class, Expression, Function, If, Print, Return, Stmt, Var, While
+from src.natives.range import RangeNative
+from src.stmt import (
+    Block,
+    Class,
+    Expression,
+    ForIn,
+    Function,
+    If,
+    Print,
+    Return,
+    Stmt,
+    Var,
+    While,
+)
 from src.stmt import Visitor as StmtVisitor
 from src.token_type import TokenType
 from src.tokens import Token
@@ -41,6 +59,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
         self.globals.define("clock", Clock())
+        self.globals.define("range", RangeNative())
 
     def interpret(self, statements: list[Stmt]) -> None:
         try:
@@ -113,6 +132,17 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
+
+    def visit_range_expr(self, expr: Range) -> object:
+        start = self._evaluate(expr.start)
+        end = self._evaluate(expr.end)
+
+        if not numeric.is_int(start):
+            raise LoxRuntimeError(expr.operator, "Range bounds must be integers.")
+        if not numeric.is_int(end):
+            raise LoxRuntimeError(expr.operator, "Range bounds must be integers.")
+
+        return LoxRange(start, end)
 
     def visit_unary_expr(self, expr: Unary) -> object:
         right = self._evaluate(expr.right)
@@ -198,7 +228,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 f"Expected {callee.arity()} arguments but got {len(arguments)}.",
             )
 
-        return callee.call(self, arguments)
+        try:
+            return callee.call(self, arguments)
+        except NativeError as error:
+            raise LoxRuntimeError(expr.paren, str(error)) from error
 
     def visit_class_stmt(self, stmt: Class) -> None:
         self._reject_immutable_redeclaration(stmt.name)
@@ -282,6 +315,22 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         function = LoxFunction(stmt, self.environment, False)
         self.environment.define(stmt.name.lexeme, function)
+
+    def visit_for_in_stmt(self, stmt: ForIn) -> None:
+        iterable = self._evaluate(stmt.iterable)
+
+        for value in self._iterate(stmt.name, iterable):
+            environment = Environment(self.environment)
+            environment.define(stmt.name.lexeme, value, mutable=False)
+            self.execute_block([stmt.body], environment)
+
+    def _iterate(self, name: Token, iterable: object) -> Iterator[object]:
+        if isinstance(iterable, LoxRange):
+            return iter(range(iterable.start, iterable.end, iterable.step))
+        if isinstance(iterable, str):
+            return iter(iterable)
+
+        raise LoxRuntimeError(name, "Can only iterate over a range or a string.")
 
     def visit_print_stmt(self, stmt: Print) -> None:
         value = self._evaluate(stmt.expression)

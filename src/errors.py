@@ -20,6 +20,14 @@ class LoxRuntimeError(Exception):
         self.message = message
 
 
+class NativeError(Exception):
+    """Erro de argumento de função nativa.
+
+    A nativa não conhece o token da chamada; o interpretador captura e reemite como
+    `LoxRuntimeError` no `(` da chamada.
+    """
+
+
 class ReturnSignal(Exception):
     """Controle de fluxo interno do `return` (o `Return` do livro).
 
