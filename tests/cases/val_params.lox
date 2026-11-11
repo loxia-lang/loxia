@@ -1,9 +1,9 @@
-fun incrementa(var x) {
+fn incrementa(var x) {
   x = x + 1;
   return x;
 }
 
-fun leitura(x) {
+fn leitura(x) {
   return x + 1;
 }
 

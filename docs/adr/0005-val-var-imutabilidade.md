@@ -23,7 +23,7 @@ A decisão maior: **usar `val` (imutável) e `var` (mutável), os dois**.
 2. **`val` exige inicializador** (`val x;` é erro de sintaxe). `var` pode omitir e vale
    `nil`.
 3. **Parâmetros são imutáveis por padrão**; `var` antes do parâmetro permite reatribuir:
-   `fun f(x, var y)`. Parâmetro é `val` implícito.
+   `fn f(x, var y)`. Parâmetro é `val` implícito.
 4. **Sombreamento**: permitido em escopo aninhado; redeclaração no **mesmo** escopo é erro
    (comportamento atual do resolver, agora também com `val`).
 5. **Locais x globais**: locais são checados em **compilação** pelo resolver (exit 65);
@@ -37,7 +37,7 @@ A decisão maior: **usar `val` (imutável) e `var` (mutável), os dois**.
 8. **Campos de classe não entram ainda**: campos continuam dinâmicos e mutáveis; a
    mutabilidade de campos (e parâmetros opcionais/default) fica para [I-5](../../IDEIAS.md).
 
-`fun` e `class` continuam criando bindings **mutáveis** (redeclaráveis/reatribuíveis) —
+`fn` e `class` continuam criando bindings **mutáveis** (redeclaráveis/reatribuíveis) —
 decisão separada, registrada como consequência em aberto.
 
 ## Consequências
@@ -88,4 +88,4 @@ Golden cases e testes que travam o comportamento:
   (`define(mutable=...)`, `assign_at`) e `tests/test_interpreter.py`.
 
 Critério para revisar: se a checagem de globais em compilação for implementada, ou se
-campos/`fun`/`class` ganharem regra própria, este ADR é substituído por um novo.
+campos/`fn`/`class` ganharem regra própria, este ADR é substituído por um novo.

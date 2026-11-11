@@ -1,4 +1,4 @@
-fun f(a, a) {
+fn f(a, a) {
   return a;
 }
 // expect error: Already a variable with this name in this scope.

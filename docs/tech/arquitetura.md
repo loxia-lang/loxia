@@ -41,7 +41,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/keywords.py`](../../src/keywords.py) | mapa lexema → token |
 | [`src/expr.py`](../../src/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
 | [`src/stmt.py`](../../src/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
-| [`src/parser.py`](../../src/parser.py) | recursive descent + recuperação (`synchronize`) |
+| [`src/parser.py`](../../src/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif` e `fn` |
 | [`src/resolver.py`](../../src/resolver.py) | escopos léxicos, validações estáticas, `depth` |
 | [`src/interpreter.py`](../../src/interpreter.py) | execução; `globals`, `environment`, `locals` |
 | [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
@@ -142,8 +142,8 @@ chamada.
    funções/classes definidas antes continuam válidas;
 4. o `ErrorReporter` é resetado no início de cada `run`.
 
-O `;` final é opcional quando a entrada termina (`_end_statement`), mas declarações no meio
-de um arquivo continuam exigindo `;`.
+O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
+obrigatório quando há outra instrução na mesma linha.
 
 ## Limitações conhecidas
 
@@ -153,6 +153,8 @@ de um arquivo continuam exigindo `;`.
 - Recursão limitada pela pilha do Python (sem tail call).
 - Sem GC próprio: objetos são coletados pelo Python.
 - Sem bytecode/VM: o alvo é LLVM, e o tree-walk é o oráculo (ADR-0002).
+- `;` opcional é decidido no parser, não por inserção no scanner; operador no começo da
+  linha não continua a expressão (ADR-0011).
 
 ## Testes e benchmark
 

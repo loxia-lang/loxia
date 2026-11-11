@@ -1,6 +1,6 @@
 var log = "";
 
-fun registra(x) {
+fn registra(x) {
   log = log + x;
   return x;
 }

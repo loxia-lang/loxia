@@ -1,9 +1,9 @@
-fun f() {
+fn f() {
   return "global";
 }
 
 {
-  fun f() {
+  fn f() {
     return "local";
   }
   print f();  // expect: local

@@ -1,5 +1,5 @@
 // Fibonacci recursivo — exemplo de funções, if/return e for-in.
-fun fib(n) {
+fn fib(n) {
   if (n < 2) {
     return n;
   }

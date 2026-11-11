@@ -1,4 +1,4 @@
-fun f(x = 1, y) {
+fn f(x = 1, y) {
   return x + y;
 }
 // expect error: Required parameter can't follow an optional parameter.

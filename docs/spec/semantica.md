@@ -13,7 +13,7 @@ programa no ponto em que ocorreu; o que já foi impresso permanece.
 
 O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
 Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declarações
-(`var`, `fun`, `class`) não imprimem nada.
+(`var`, `fn`, `class`) não imprimem nada.
 
 ## Valores
 
@@ -25,7 +25,7 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
 | `Range` | `a..b`, `range(a, b, step)` | `<range 0..10>` |
 | string | literais, `+` | conteúdo |
-| função | `fun` | `<fn nome>` |
+| função | `fn` | `<fn nome>` |
 | função nativa | `clock` | `<native fn>` |
 | classe | `class` | nome da classe |
 | instância | chamada de classe | `Nome instance` |
@@ -80,7 +80,7 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) s�
 - Ler variável local no próprio inicializador é erro:
   `Can't read local variable in its own initializer.` (global vira
   `Undefined variable` em runtime).
-- Declarações `fun` e `class` criam bindings **mutáveis** (decisão separada em aberto).
+- Declarações `fn` e `class` criam bindings **mutáveis** (decisão separada em aberto).
 - O resolver grava a **distância** de cada acesso local; variáveis globais continuam sendo
   buscadas em runtime no ambiente global. Isso garante escopo léxico: uma closure lê a
   variável do local onde foi **declarada**, não do local de onde é chamada.
@@ -90,7 +90,7 @@ Exemplo canônico:
 ```lox
 var a = "global";
 {
-  fun showA() { print a; }
+  fn showA() { print a; }
   showA();        // global
   var a = "block";
   showA();        // global (não "block")
@@ -158,20 +158,24 @@ for i in 5..2 { ... }             // vazio
 | `print expr;` | avalia e imprime com `stringify` + `\n` |
 | `expr;` | avalia e descarta |
 | `{ … }` | novo escopo |
-| `if (c) s else s` | executa o ramo conforme truthiness |
+| `if (c) s elif (c) s else s` | executa o ramo conforme truthiness; `elif` é `else if` |
 | `while (c) s` | repete enquanto truthy |
 | `for (init; cond; incr) s` | desaçucarado para bloco + `while` (ver sintaxe) |
 | `for x in e s` | itera `e` (Range/String hoje); `x` é `val` por iteração |
 | `return expr?;` | desempilha até a chamada da função |
 
+O `;` é opcional no fim da linha (ou EOF); duas instruções na mesma linha ainda precisam
+dele. Continuação de expressão exige o operador no **fim** da linha; operador no começo
+da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil`.
+
 ## Funções
 
-- Declaração: `fun nome(params) { corpo }`; o nome é definido **antes** do corpo, então a
+- Declaração: `fn nome(params) { corpo }`; o nome é definido **antes** do corpo, então a
   função pode ser recursiva; funções no mesmo escopo podem se chamar (resolução em runtime
   para globais, distância para locais).
-- Parâmetros são **imutáveis por padrão** (`val` implícito). `fun f(var x)` permite
+- Parâmetros são **imutáveis por padrão** (`val` implícito). `fn f(var x)` permite
   reatribuir `x`; sem `var`, a atribuição é erro de compilação.
-- Parâmetro pode ter **default constante**: `fun f(a, b = 10)`. Obrigatórios vêm antes dos
+- Parâmetro pode ter **default constante**: `fn f(a, b = 10)`. Obrigatórios vêm antes dos
   opcionais; depois de um default, todos os seguintes precisam de default.
 - Chamada: avalia o **callee** primeiro e os argumentos da esquerda para a direita; depois
   verifica se é chamável e a aridade.
@@ -181,7 +185,8 @@ for i in 5..2 { ... }             // vazio
 - Closures: a função captura o ambiente onde foi **declarada** (por referência). Variáveis
   capturadas continuam mutáveis.
 - `return;` devolve `nil`. `return` no topo do programa é erro de compilação:
-  `Can't return from top-level code.`
+  `Can't return from top-level code.` Para retornar um valor, ele precisa estar na mesma
+  linha do `return`; `return` sozinho na linha devolve `nil`.
 - Parâmetros e locais do corpo compartilham o mesmo escopo: declarar `var a` quando existe
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` devolve segundos desde a época como `float`, aridade 0.
@@ -193,7 +198,7 @@ Anotações de tipo existem na AST, mas o **interpretador as ignora**: tipos sã
 runtime. A checagem é opt-in pelo CLI (`--check`), que não executa o programa.
 
 ```lox
-fun soma(a: Int, b: Int = 10) -> Int {
+fn soma(a: Int, b: Int = 10) -> Int {
   return a + b;
 }
 
@@ -252,7 +257,7 @@ class ContaPoupanca(Conta) {
   compilação (`Field 'x' already declared.`).
 - Inicializadores de campo são constantes na v1 e rodam na criação da instância, antes do
   `init`.
-- Métodos **não** usam `fun`; são funções com `this` ligado.
+- Métodos **não** usam `fn`; são funções com `this` ligado.
 - `this` é **implícito**: métodos não recebem `self`.
 - `Nome(args)` cria instância, executa `init` (se existir) e devolve a instância.
   A aridade da classe é o intervalo do `init` (0 se não houver).

@@ -5,6 +5,7 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 **LLVM**.
 
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
+- ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 📐 Próximo passo: narrowing/generics no checker e depois o codegen LLVM.
 
@@ -50,15 +51,15 @@ print c.saldo;  // 15
 ## Tipos
 
 Funções anotadas e inferência nos locais; o checker é opt-in (`--check`) e os tipos são
-apagados em runtime:
+apagados em runtime. `;` é opcional no fim da linha e `elif` substitui `else if`:
 
 ```lox
-fun soma(a: Int, b: Int) -> Int {
-  return a + b;
+fn soma(a: Int, b: Int) -> Int {
+  return a + b
 }
 
-val total = soma(1, 2);      // Int inferido
-val talvez: String? = nil;   // String | Nil
+val total = soma(1, 2)      // Int inferido
+val talvez: String? = nil   // String | Nil
 ```
 
 ## Estrutura
@@ -89,6 +90,6 @@ IDEIAS.md        discussões de design (parking lot)
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
 > A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`,
-> `Int`/`Float`, ranges/`for-in`, herança `class B(A)`, defaults/campos e checker
-> `--check`). O que falta — `;` opcional, `fn`, `?.`, narrowing/generics — está nos
-> documentos de roadmap e ainda **não** está implementado.
+> `Int`/`Float`, ranges/`for-in`, herança `class B(A)`, defaults/campos, checker
+> `--check` e `fn`/`elif`/`;` opcional). O que falta — `?.`, `??`, narrowing/generics,
+> interpolação — está nos documentos de roadmap e ainda **não** está implementado.

@@ -22,7 +22,7 @@ inferidos. A discussão está no histórico do `TODO.md` §2 e em `TIPOS.md`.
    Interpreter`. Tipos são **apagados em runtime**; o tree-walk continua dinâmico.
 2. **Modo `--check`**: valida tipos, não executa e retorna exit 65 em erro. Sem `--check`,
    o programa roda como antes (anotações são ignoradas pelo interpretador).
-3. **Anotações obrigatórias nas funções** quando checadas: `fun f(a: Int, b: String = "x")
+3. **Anotações obrigatórias nas funções** quando checadas: `fn f(a: Int, b: String = "x")
    -> Bool`. `init` não declara retorno. Métodos seguem a mesma regra.
 4. **Inferência local**: `val x = f()` infere sem anotação; `var`/`val` sem inicializador
    exigem anotação quando checadas (`Can't infer type of 'x'; add an annotation.`).
@@ -57,7 +57,7 @@ inferidos. A discussão está no histórico do `TODO.md` §2 e em `TIPOS.md`.
 - Sem narrowing, `Int?` exige checagem manual/`??` (P2) antes de usar como `Int`.
 - Anotações de `Int → Float` são apagadas no tree-walk: `val f: Float = 1` checa, mas
   imprime `1` em runtime (o LLVM converteria). Documentado como limitação do oráculo.
-- Sem `fun` genérica/traits; `List`/`Map` só entram de verdade com o checker T4/T6.
+- Sem `fn` genérica/traits; `List`/`Map` só entram de verdade com o checker T4/T6.
 - Mensagens do checker são simples (`Expected Int, found String.`); spans/códigos ficam
   para o redesign de diagnósticos.
 

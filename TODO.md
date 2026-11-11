@@ -19,8 +19,9 @@ pretendo tipar e como chegar no LLVM.
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
 > no lugar. **Parte II concluída** (caps. 4–13), **`val`/`var`** (ADR-0005), **ranges/for-in**
-> (ADR-0007), **herança `class B(A)`** (ADR-0008) e **defaults/campos** (ADR-0009)
-> implementados. Próximo: type checker ou sintaxe restante.
+> (ADR-0007), **herança `class B(A)`** (ADR-0008), **defaults/campos** (ADR-0009), checker
+> `--check` (ADR-0010) e **`fn`/`elif`/`;` opcional** (ADR-0011) implementados. Próximo:
+> narrowing/generics ou a sintaxe restante.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -32,7 +33,8 @@ pretendo tipar e como chegar no LLVM.
 - [x] **P1-5** `ErrorReporter.reset()` limpa `had_error`, `had_runtime_error` e `silent`;
       o REPL usa `reset()`.
 - [x] **P1-6** `Assign`/`Call`/`Get`/`Logical`/`Set`/`Super`/`This` herdam de `Expr`.
-- [x] **P1-7** REPL: `;` final opcional (`1+1;` imprime) via `Parser(repl=True)`.
+- [x] **P1-7** REPL: `;` final opcional (`1+1` imprime) — hoje o `;` é opcional no fim da
+      linha/EOF em qualquer script (ADR-0011).
 - [x] **Extra** `AstPrinter` implementa todos os nós (quebrava em `a and b`) e
       `stringify` foi centralizado em `src/values.py`.
 
@@ -107,7 +109,7 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
 ```lox
 // hoje
 for (var i = 0; i < 10; i = i + 1) { print i; }
-fun soma(a, b) { return a + b; }
+fn soma(a, b) { return a + b; }
 
 // proposta
 for i in 0..10 { println(i) }
@@ -140,17 +142,19 @@ fn main() {
 ### 1.3 Checklist de sintaxe
 
 **Estrutural**
-- [ ] `P1` **`;` opcional** (inserção por newline). Regras: inserir no fim de linha,
-      exceto antes de `)`, `]`, `}`, `,`, `.`, `?.`, e operadores binários/infixos
-      (`+ - * / % == != < > <= >= and or ?? |>`) nem antes de `else`/`catch`.
-      Consequência: `val x = a\n-b` precisa de cuidado. Lox2 já faz isso — referência.
-- [ ] `P1` **`elif`** em vez de `else if`.
+- [x] `P1` **`;` opcional** — statement/campo termina no fim da linha ou EOF; duas
+      instruções na mesma linha ainda exigem `;`. Operador no **fim** da linha continua a
+      expressão; operador no começo inicia outro statement; `return` sozinho devolve `nil`.
+      Ver [ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md).
+- [x] `P1` **`elif`** em vez de `else if` (açúcar para `If` aninhado; parênteses ainda
+      obrigatórios).
+- [x] `P1` **`fn`** como keyword de função (`fun` deixou de ser palavra-chave).
 - [ ] `P2` **chaves opcionais** para corpo de uma instrução (`if x > 0 print x`).
 - [x] `P2` **`val`** imutável + **`var`** mutável (erro em reatribuir `val`) —
       [ADR-0005](docs/adr/0005-val-var-imutabilidade.md); histórico em
       [`IDEIAS.md`](IDEIAS.md) I-1.
 - [x] `P2` **parâmetros imutáveis** por padrão; `var` explícito para mutar
-      (`fun f(var x)`), mesma decisão.
+      (`fn f(var x)`), mesma decisão.
 - [ ] `P2` **corpo de expressão** em `fn` (`fn dobro(x) -> x * 2`).
 - [ ] `P2` **bloco como expressão** (último valor do bloco é o valor).
 - [ ] `P3` **`match`** estrutural com `=>` e exaustividade quando o tipo for enum/union.
@@ -231,7 +235,7 @@ fn main() {
 Tipagem **estática gradual**, com anotações onde importam:
 
 ```lox
-fun soma(a: Int, b: Int) -> Int { return a + b; }
+fn soma(a: Int, b: Int) -> Int { return a + b; }
 soma(1, 2)        // ok
 soma("a", 2)      // erro em tempo de compilação:
                   //   Expected Int, found String.
@@ -771,6 +775,10 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 19. **Tipagem estática gradual** — **decidido em 2026-11-11**: checker opt-in (`--check`),
     funções anotadas, inferência local, `T?`/uniões, booleanos Python; sem narrowing de
     fluxo ainda. Ver [ADR-0010](docs/adr/0010-tipagem-estatica.md).
+20. **Sintaxe `fn`/`elif`/`;` opcional** — **decidido em 2026-11-11**: `fn` substitui
+    `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha (operador continua
+    só se estiver na mesma linha; `return` sozinho devolve `nil`). Ver
+    [ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md).
 
 ---
 

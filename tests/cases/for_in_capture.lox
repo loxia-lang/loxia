@@ -3,7 +3,7 @@
 var f;
 
 for i in 0..3 {
-  fun captura() { print i; }
+  fn captura() { print i; }
   if (i == 1) { f = captura; }
 }
 

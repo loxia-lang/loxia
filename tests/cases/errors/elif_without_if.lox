@@ -1,0 +1,2 @@
+elif (true) print 1;
+// expect error: Expect expression.

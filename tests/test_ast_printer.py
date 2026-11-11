@@ -20,7 +20,7 @@ def test_dump_program_statements() -> None:
     if (b) print b; else print 0;
     while (b) b = b - 1;
     { var z = 3; }
-    fun soma(x, var y) { return x + y; }
+    fn soma(x, var y) { return x + y; }
     return;
     """
 
@@ -31,7 +31,7 @@ def test_dump_program_statements() -> None:
         "(if b (print b) (print 0))\n"
         "(while b (expr (= b (- b 1))))\n"
         "(block (var z 3))\n"
-        "(fun soma (x var y) (return (+ x y)))\n"
+        "(fn soma (x var y) (return (+ x y)))\n"
         "(return)"
     )
 
@@ -44,7 +44,7 @@ def test_dump_class_and_for_in() -> None:
     """
 
     assert dump(source) == (
-        "(class A (fun init (x) (expr (set x this x))))\n"
+        "(class A (fn init (x) (expr (set x this x))))\n"
         "(class B (super A))\n"
         "(for-in i (.. 0 2) (block (print i)))"
     )

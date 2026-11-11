@@ -76,11 +76,54 @@ def test_parses_for_in_statement() -> None:
 
 
 def test_missing_semicolon_reports_error_and_recovers() -> None:
-    parser = parser_for("print 1")
-    statements = parser.parse()
+    parser = parser_for("val a = 1 val b = 2")
+    parser.parse()
 
     assert parser.reporter.had_error
-    assert statements == []
+
+
+def test_newline_ends_statement_without_semicolon() -> None:
+    statements = parse("val a = 1\nprint a\n")
+
+    assert len(statements) == 2
+    assert isinstance(statements[0], Var)
+    assert isinstance(statements[1], Print)
+
+
+def test_elif_is_nested_if() -> None:
+    statements = parse("if (a) print 1\nelif (b) print 2\nelse print 3")
+
+    outer = statements[0]
+    assert isinstance(outer, If)
+    assert isinstance(outer.else_branch, If)
+    assert isinstance(outer.else_branch.else_branch, Print)
+
+
+def test_return_at_line_end_is_bare() -> None:
+    statements = parse("fn f() {\n  return\n  1\n}")
+
+    function = statements[0]
+    assert isinstance(function, Function)
+    ret = function.body[0]
+    assert isinstance(ret, Return)
+    assert ret.value is None
+
+
+def test_operator_on_next_line_starts_new_statement() -> None:
+    statements = parse("var x = 1\n-2\n")
+
+    assert len(statements) == 2
+    assert isinstance(statements[0], Var)
+    assert isinstance(statements[1], Expression)
+    assert "- 2" in AstPrinter().print_program(statements)
+
+
+def test_class_field_without_semicolon() -> None:
+    statements = parse("class C {\n  var x\n  m() {}\n}")
+
+    klass = statements[0]
+    assert isinstance(klass, Class)
+    assert [field.name.lexeme for field in klass.fields] == ["x"]
 
 
 def test_invalid_assignment_target_reports_error() -> None:
@@ -144,7 +187,7 @@ def test_call_binds_tighter_than_unary() -> None:
 
 
 def test_parses_function_declaration() -> None:
-    statements = parse("fun soma(a, b) { return a + b; }")
+    statements = parse("fn soma(a, b) { return a + b; }")
 
     assert len(statements) == 1
     function = statements[0]
@@ -184,7 +227,7 @@ def test_parses_class_with_superclass() -> None:
 
 
 def test_parses_type_annotations() -> None:
-    statements = parse('fun f(a: Int, b: String = "x") -> Bool { return true; }')
+    statements = parse('fn f(a: Int, b: String = "x") -> Bool { return true; }')
 
     function = statements[0]
     assert isinstance(function, Function)
@@ -239,7 +282,7 @@ def test_val_requires_initializer() -> None:
 
 
 def test_parameters_can_be_var() -> None:
-    statements = parse("fun f(a, var b) {}")
+    statements = parse("fn f(a, var b) {}")
 
     function = statements[0]
     assert isinstance(function, Function)

@@ -13,7 +13,7 @@ def check(source: str) -> Lox:
 
 def test_annotated_program_is_clean() -> None:
     source = """
-    fun soma(a: Int, b: Int = 10) -> Int {
+    fn soma(a: Int, b: Int = 10) -> Int {
       return a + b;
     }
 
@@ -63,20 +63,20 @@ def test_annotated_program_is_clean() -> None:
     [
         ('val x: Int = "a";', "Expected Int, found String."),
         (
-            'fun f(a: Int) -> Int { return a; } f("x");',
+            'fn f(a: Int) -> Int { return a; } f("x");',
             "Expected Int, found String.",
         ),
         (
-            'fun f(a: Int) -> Int { return a; } f();',
+            'fn f(a: Int) -> Int { return a; } f();',
             "Expected 1 arguments but got 0.",
         ),
         ("val x: Desconhecido = 1;", "Unknown type 'Desconhecido'."),
         (
-            "fun f(a) -> Int { return a; }",
+            "fn f(a) -> Int { return a; }",
             "Parameter 'a' needs a type annotation.",
         ),
         (
-            "fun f(a: Int) { return a; }",
+            "fn f(a: Int) { return a; }",
             "Function 'f' needs a return type annotation.",
         ),
         (
@@ -94,8 +94,8 @@ def test_annotated_program_is_clean() -> None:
             "Undefined field 'y'.",
         ),
         (
-            "fun f(n: Int) -> Int { return n; }"
-            " fun g() -> Int { return f(true); }",
+            "fn f(n: Int) -> Int { return n; }"
+            " fn g() -> Int { return f(true); }",
             "Expected Int, found Bool.",
         ),
         (
@@ -122,7 +122,7 @@ def test_type_errors(
 def test_union_is_assignable_to_member_and_nil() -> None:
     lox = check(
         """
-        fun f(flag: Bool) -> Int | Nil {
+        fn f(flag: Bool) -> Int | Nil {
           if (flag) { return 1; }
           return nil;
         }

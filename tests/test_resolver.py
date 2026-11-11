@@ -58,7 +58,7 @@ def test_identical_tokens_do_not_collide_in_locals() -> None:
 
 
 def test_function_parameter_depth() -> None:
-    reporter, interpreter, _ = resolve("fun f(a) { print a; }")
+    reporter, interpreter, _ = resolve("fn f(a) { print a; }")
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [0]
@@ -83,14 +83,14 @@ def test_return_at_top_level_reports_error() -> None:
 
 
 def test_return_inside_function_is_allowed() -> None:
-    reporter, _, _ = resolve("fun f() { return 1; }")
+    reporter, _, _ = resolve("fn f() { return 1; }")
 
     assert not reporter.had_error
 
 
 def test_parameter_and_local_share_scope() -> None:
     # Decisão do challenge 3: parâmetro e local no mesmo escopo = erro.
-    reporter, _, _ = resolve('fun scope(a) { var a = "local"; }')
+    reporter, _, _ = resolve('fn scope(a) { var a = "local"; }')
 
     assert reporter.had_error
 
@@ -167,13 +167,13 @@ def test_assignment_to_var_local_is_allowed() -> None:
 
 
 def test_parameter_is_immutable_by_default() -> None:
-    reporter, _, _ = resolve("fun f(x) { x = 2; }")
+    reporter, _, _ = resolve("fn f(x) { x = 2; }")
 
     assert reporter.had_error
 
 
 def test_var_parameter_is_mutable() -> None:
-    reporter, _, _ = resolve("fun f(var x) { x = 2; }")
+    reporter, _, _ = resolve("fn f(var x) { x = 2; }")
 
     assert not reporter.had_error
 

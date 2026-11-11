@@ -77,7 +77,7 @@ def test_dump_ast_requires_script() -> None:
 def test_check_annotated_program_does_not_execute(tmp_path: Path) -> None:
     script = tmp_path / "tipado.lox"
     script.write_text(
-        "fun f(a: Int) -> Int { return a; }\nprint f(1);\n",
+        "fn f(a: Int) -> Int { return a; }\nprint f(1);\n",
         encoding="utf-8",
     )
 

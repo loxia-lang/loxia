@@ -1,12 +1,12 @@
 // Parâmetros com default: obrigatórios antes dos opcionais, const só na v1.
-fun soma(a, b = 10) {
+fn soma(a, b = 10) {
   return a + b;
 }
 
 print soma(1);     // expect: 11
 print soma(1, 2);  // expect: 3
 
-fun cumprimenta(nome, saudacao = "Oi", pontuacao = "!") {
+fn cumprimenta(nome, saudacao = "Oi", pontuacao = "!") {
   return saudacao + ", " + nome + pontuacao;
 }
 
@@ -27,7 +27,7 @@ print Caixa(7).valor;  // expect: 7
 class CaixaForte(Caixa) {}
 print CaixaForte().valor;  // expect: 0
 
-fun neg(x = -1) {
+fn neg(x = -1) {
   return x;
 }
 

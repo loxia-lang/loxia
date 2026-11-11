@@ -3,9 +3,9 @@
 Gramática do parser atual ([`src/parser.py`](../../src/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`fn`, `;` opcional,
-> `?.`, `??`…) está em [`../../TODO.md`](../../TODO.md) §1 e **não** existe no parser
-> hoje. `val`/`var` já existem (ADR-0005).
+> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`?.`, `??`, `match`…)
+> está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif` e o `;` opcional já existem;
+> `val`/`var` existem desde o ADR-0005.
 
 ## Gramática (EBNF)
 
@@ -20,14 +20,14 @@ declaration    → classDecl
 
 classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
 classMember    → fieldDecl | function ;
-fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? ";" ;
-funDecl        → "fun" function ;
+fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
+funDecl        → "fn" function ;
 function       → IDENTIFIER "(" parameters? ")" ( "->" type )? block ;
 parameters     → parameter ( "," parameter )* ;
 parameter      → "var"? IDENTIFIER ( ":" type )? ( "=" expression )? ;
 
-varDecl        → "var" IDENTIFIER ( ":" type )? ( "=" expression )? ";" ;
-valDecl        → "val" IDENTIFIER ( ":" type )? "=" expression ";" ;
+varDecl        → "var" IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
+valDecl        → "val" IDENTIFIER ( ":" type )? "=" expression terminator ;
 
 type           → unionType ;
 unionType      → postfixType ( "|" postfixType )* ;
@@ -43,14 +43,18 @@ statement      → exprStmt
                | whileStmt
                | block ;
 
-exprStmt       → expression ";" ;
+terminator     → ";"? ;   (* ver “Ponto e vírgula opcional” *)
+
+exprStmt       → expression terminator ;
 forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
                  expression? ";"
                  expression? ")" statement
                | "for" IDENTIFIER "in" expression statement ;
-ifStmt         → "if" "(" expression ")" statement ( "else" statement )? ;
-printStmt      → "print" expression ";" ;
-returnStmt     → "return" expression? ";" ;
+ifStmt         → "if" "(" expression ")" statement
+                 ( "elif" "(" expression ")" statement )*
+                 ( "else" statement )? ;
+printStmt      → "print" expression terminator ;
+returnStmt     → "return" expression? terminator ;
 whileStmt      → "while" "(" expression ")" statement ;
 block          → "{" declaration* "}" ;
 
@@ -79,6 +83,47 @@ obrigatórios vêm antes dos opcionais; campos podem aparecer antes ou depois do
 Anotações de tipo são opcionais para o interpretador (que as ignora); no modo `--check`
 as funções precisam de anotações em todos os parâmetros e no retorno. `T?` é açúcar para
 `T | Nil`; `Int` é non-null.
+
+## Ponto e vírgula opcional
+
+`;` termina statements e campos, mas pode ser omitido quando o próximo token começa em
+outra linha (ou no EOF). Duas instruções na mesma linha ainda exigem `;`.
+
+```lox
+val a = 1
+var b = 2
+print a + b
+
+val c = 1; val d = 2
+```
+
+Para continuar uma expressão na linha seguinte, deixe o **operador no fim** da linha:
+
+```lox
+val total = 1 +
+  2            // ok: 3
+```
+
+Operador no começo da linha seguinte **não** continua a expressão; ele inicia outro
+statement:
+
+```lox
+var x = 1
+-2             // statement separado; x continua 1
+```
+
+`return` sozinho no fim da linha devolve `nil`; para retornar um valor, mantenha-o na
+mesma linha do `return`. Uma chamada com `(` precisa começar na mesma linha do callee;
+quebrar antes de `.` é permitido (encadeamento de propriedades). Os `;` do cabeçalho do
+`for` C-style continuam obrigatórios.
+
+`elif` é açúcar para `else if`, com a mesma exigência de parênteses na condição:
+
+```lox
+if (n < 0) print "negativo"
+elif (n == 0) print "zero"
+else print "positivo"
+```
 
 ## Precedência e associatividade
 
@@ -150,8 +195,8 @@ por iterável (Range/String/List/Map). Ver [`semantica.md`](semantica.md#ranges-
   (`_end_statement`). Declarações continuam precisando de `;` no meio do arquivo.
 - `val` **exige inicializador** (`val x;` é erro). `var` pode omitir (`var x;` → `nil`).
 - Parâmetros são **`val` implícitos**; `var` antes do nome libera a reatribuição:
-  `fun f(x, var y)`. `val` explícito em parâmetro não é aceito.
-- Métodos de classe **não usam `fun`**:
+  `fn f(x, var y)`. `val` explícito em parâmetro não é aceito.
+- Métodos de classe **não usam `fn`**:
 
   ```lox
   class Foo {
@@ -163,7 +208,7 @@ por iterável (Range/String/List/Map). Ver [`semantica.md`](semantica.md#ranges-
   função. Ao ultrapassar, o erro é reportado mas o parser continua (os argumentos são
   descartados da AST).
 - `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
-- Não existem: `break`/`continue`, `switch`, `match`, `elif`, operador ternário, arrays,
+- Não existem: `break`/`continue`, `switch`, `match`, operador ternário, arrays,
   mapas, `+=`, `++`, `import`, `try/catch`, interpolação, funções anônimas (challenge #2
   pendente).
-- `fun` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.
+- `fn` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.

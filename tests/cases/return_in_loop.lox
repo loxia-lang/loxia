@@ -1,4 +1,4 @@
-fun procura(n) {
+fn procura(n) {
   var i = 0;
   while (i < n) {
     if (i == 3) return i;

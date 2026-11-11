@@ -99,7 +99,7 @@ class Parser:
             if self._match(TokenType.CLASS):
                 return self._class_declaration()
 
-            if self._match(TokenType.FUN):
+            if self._match(TokenType.FN):
                 return self._function("function")
 
             if self._match(TokenType.VAL):
@@ -151,7 +151,7 @@ class Parser:
             if not self._is_constant_default(initializer):
                 self._error(name, "Field initializer must be a constant.")
 
-        self._consume(TokenType.SEMICOLON, "Expect ';' after field declaration.")
+        self._end_statement("Expect ';' after field declaration.")
 
         return Field(name, initializer, mutable, type_annotation)
 
@@ -177,7 +177,7 @@ class Parser:
         if self._match(TokenType.FOR):
             return self._for_statement()
         if self._match(TokenType.IF):
-            return self._if_statement()
+            return self._if_statement("if")
 
         if self._match(TokenType.PRINT):
             return self._print_statement()
@@ -276,22 +276,30 @@ class Parser:
         keyword = self._previous()
         value: Expr | None = None
 
-        if not self._check(TokenType.SEMICOLON):
+        if (
+            not self._check(TokenType.SEMICOLON)
+            and not self._is_at_end()
+            and self._peek().line == keyword.line
+        ):
             value = self._expression()
 
         self._end_statement("Expect ';' after return value.")
         return Return(keyword, value)
 
-    def _if_statement(self) -> Stmt:
-        self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.")
+    def _if_statement(self, keyword: str) -> Stmt:
+        self._consume(TokenType.LEFT_PAREN, f"Expect '(' after '{keyword}'.")
         cond = self._expression()
-        self._consume(TokenType.RIGHT_PAREN, "Expect ')' after 'if' condition.")
+        self._consume(
+            TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword}' condition."
+        )
 
         then_branch = self._statement()
         else_branch = None
 
         if self._match(TokenType.ELSE):
             else_branch = self._statement()
+        elif self._match(TokenType.ELIF):
+            else_branch = self._if_statement("elif")
 
         return If(cond, then_branch, else_branch)
 
@@ -301,11 +309,17 @@ class Parser:
         return Expression(expr)
 
     def _end_statement(self, message: str) -> None:
-        """Consome o `;` final; no REPL ele é opcional no fim da entrada."""
+        """Consome o `;` final; no REPL/EOF ou no fim da linha ele é opcional."""
         if self._match(TokenType.SEMICOLON):
             return
 
         if self._repl and self._is_at_end():
+            return
+
+        if self._is_at_end():
+            return
+
+        if self._peek().line > self._previous().line:
             return
 
         raise self._error(self._peek(), message)
@@ -428,7 +442,8 @@ class Parser:
     def _assignment(self) -> Expr:
         expr = self._or()
 
-        if self._match(TokenType.EQUAL):
+        if self._check(TokenType.EQUAL) and self._peek().line == self._previous().line:
+            self._advance()
             equals = self._previous()
             value = self._assignment()
 
@@ -446,7 +461,7 @@ class Parser:
     def _or(self) -> Expr:
         expr = self._and()
 
-        while self._match(TokenType.OR):
+        while self._match_inline(TokenType.OR):
             operator = self._previous()
             right = self._and()
             expr = Logical(expr, operator, right)
@@ -456,7 +471,7 @@ class Parser:
     def _and(self) -> Expr:
         expr = self._equality()
 
-        while self._match(TokenType.AND):
+        while self._match_inline(TokenType.AND):
             operator = self._previous()
             right = self._equality()
             expr = Logical(expr, operator, right)
@@ -466,7 +481,7 @@ class Parser:
     def _equality(self) -> Expr:
         expr = self._comparison()
 
-        while self._match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL):
+        while self._match_inline(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL):
             operator: Token = self._previous()
             right: Expr = self._comparison()
             expr = Binary(expr, operator, right)
@@ -476,7 +491,7 @@ class Parser:
     def _comparison(self) -> Expr:
         expr: Expr = self._range()
 
-        while self._match(
+        while self._match_inline(
             TokenType.GREATER,
             TokenType.GREATER_EQUAL,
             TokenType.LESS,
@@ -491,7 +506,7 @@ class Parser:
     def _range(self) -> Expr:
         expr: Expr = self._term()
 
-        while self._match(TokenType.DOT_DOT):
+        while self._match_inline(TokenType.DOT_DOT):
             operator: Token = self._previous()
             end: Expr = self._term()
             expr = Range(expr, end, operator)
@@ -501,7 +516,7 @@ class Parser:
     def _term(self) -> Expr:
         expr: Expr = self._factor()
 
-        while self._match(TokenType.MINUS, TokenType.PLUS):
+        while self._match_inline(TokenType.MINUS, TokenType.PLUS):
             operator: Token = self._previous()
             right: Expr = self._factor()
             expr = Binary(expr, operator, right)
@@ -511,7 +526,7 @@ class Parser:
     def _factor(self) -> Expr:
         expr: Expr = self._unary()
 
-        while self._match(TokenType.SLASH, TokenType.STAR, TokenType.PERCENT):
+        while self._match_inline(TokenType.SLASH, TokenType.STAR, TokenType.PERCENT):
             operator: Token = self._previous()
             right: Expr = self._unary()
             expr = Binary(expr, operator, right)
@@ -530,7 +545,11 @@ class Parser:
         expr = self._primary()
 
         while True:
-            if self._match(TokenType.LEFT_PAREN):
+            if (
+                self._check(TokenType.LEFT_PAREN)
+                and self._peek().line == self._previous().line
+            ):
+                self._advance()
                 expr = self._finish_call(expr)
             elif self._match(TokenType.DOT):
                 name = self._consume(
@@ -599,6 +618,16 @@ class Parser:
                 return True
         return False
 
+    def _match_inline(self, *types: TokenType) -> bool:
+        """Como `_match`, mas só consome operador que esteja na mesma linha."""
+        for token_type in types:
+            if self._check(token_type):
+                if self._peek().line != self._previous().line:
+                    return False
+                self._advance()
+                return True
+        return False
+
     def _check(self, type: TokenType) -> bool:
         if self._is_at_end():
             return False
@@ -637,7 +666,7 @@ class Parser:
 
             if self._peek().type in {
                 TokenType.CLASS,
-                TokenType.FUN,
+                TokenType.FN,
                 TokenType.VAL,
                 TokenType.VAR,
                 TokenType.FOR,

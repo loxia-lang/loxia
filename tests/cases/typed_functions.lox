@@ -1,5 +1,5 @@
 // Anotações de tipo não mudam o runtime; o programa precisa continuar executando.
-fun soma(a: Int, b: Int = 10) -> Int {
+fn soma(a: Int, b: Int = 10) -> Int {
   return a + b;
 }
 

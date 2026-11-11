@@ -41,9 +41,10 @@ class TokenType(Enum):
     #Keywords.
     AND = auto()
     CLASS = auto()
+    ELIF = auto()
     ELSE = auto()
     FALSE = auto()
-    FUN = auto()
+    FN = auto()
     FOR = auto()
     IF = auto()
     IN = auto()

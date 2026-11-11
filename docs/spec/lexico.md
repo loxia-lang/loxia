@@ -77,10 +77,13 @@ Strings:
 ### Palavras-chave
 
 ```
-and   class   else    false   for     fun     if    in
-nil   or      print   return  super   this    true  val
-var   while
+and    class  elif   else   false  for
+fn     if     in     nil    or     print
+return super  this   true   val    var
+while
 ```
+
+`fn` substituiu `fun`; `fun` agora é identificador comum (não é palavra-chave).
 
 São sensíveis a maiúsculas (`Class` é identificador).
 

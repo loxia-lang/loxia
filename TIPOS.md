@@ -163,7 +163,7 @@ val b = 1.0        // Float
 val c = 1 + 2.0    // Float (promoção)
 val d = 1 / 2      // Float (D-4)
 
-fun metade(x: Float) -> Float { return x / 2; }
+fn metade(x: Float) -> Float { return x / 2; }
 metade(4)          // ok: Int promove para Float
 ```
 

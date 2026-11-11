@@ -1,4 +1,4 @@
-fun soma(a, b = 10) {
+fn soma(a, b = 10) {
   return a + b;
 }
 

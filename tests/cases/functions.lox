@@ -1,10 +1,10 @@
-fun soma(a, b) {
+fn soma(a, b) {
   return a + b;
 }
 print soma(1, 2);  // expect: 3
 print soma;        // expect: <fn soma>
 
-fun vazio() {
+fn vazio() {
   return;
 }
 print vazio();     // expect: nil

@@ -1,5 +1,5 @@
 // Primos com funções, for-in e return antecipado.
-fun ehPrimo(n) {
+fn ehPrimo(n) {
   if (n < 2) {
     return false;
   }

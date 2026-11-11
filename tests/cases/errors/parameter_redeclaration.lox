@@ -1,4 +1,4 @@
-fun scope(a) {
+fn scope(a) {
   var a = "local";
 }
 // expect error: Already a variable with this name in this scope.

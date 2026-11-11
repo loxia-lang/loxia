@@ -107,7 +107,7 @@ def test_for_in_closure_captures_iteration_value(
     source = """
     var f;
     for i in 0..3 {
-      fun captura() { print i; }
+      fn captura() { print i; }
       if (i == 1) { f = captura; }
     }
     f();
@@ -205,7 +205,7 @@ def test_runtime_error_stops_execution(capsys: pytest.CaptureFixture[str]) -> No
 
 def test_syntax_error_does_not_execute(capsys: pytest.CaptureFixture[str]) -> None:
     lox = Lox()
-    stdout, _ = execute(lox, "print 1", capsys)
+    stdout, _ = execute(lox, "print 1 + ;", capsys)
 
     assert stdout == []
     assert lox.reporter.had_error
@@ -232,9 +232,9 @@ def test_equality_between_bool_and_number(capsys: pytest.CaptureFixture[str]) ->
 
 def test_functions_and_closures(capsys: pytest.CaptureFixture[str]) -> None:
     source = """
-    fun makeCounter() {
+    fn makeCounter() {
       var i = 0;
-      fun count() {
+      fn count() {
         i = i + 1;
         print i;
       }
@@ -254,7 +254,7 @@ def test_functions_and_closures(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_function_arity_error(capsys: pytest.CaptureFixture[str]) -> None:
     lox = Lox()
-    stdout, stderr = execute(lox, "fun soma(a, b) { return a + b; } soma(1);", capsys)
+    stdout, stderr = execute(lox, "fn soma(a, b) { return a + b; } soma(1);", capsys)
 
     assert stdout == []
     assert "Expected 2 arguments but got 1." in stderr
@@ -270,7 +270,7 @@ def test_calling_non_callable_is_a_runtime_error(
 
 
 def test_return_without_value_is_nil(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, _ = run("fun f() { return; } print f();", capsys)
+    stdout, _ = run("fn f() { return; } print f();", capsys)
 
     assert stdout == ["nil"]
 
@@ -299,7 +299,7 @@ def test_closure_uses_lexical_scope_not_dynamic(
     source = """
     var a = "global";
     {
-      fun showA() {
+      fn showA() {
         print a;
       }
 
@@ -408,7 +408,7 @@ def test_val_global_cannot_be_redeclared(
 
 
 def test_var_parameter_can_be_mutated(capsys: pytest.CaptureFixture[str]) -> None:
-    source = "fun f(var x) { x = x + 1; return x; } print f(1);"
+    source = "fn f(var x) { x = x + 1; return x; } print f(1);"
 
     stdout, _ = run(source, capsys)
 
@@ -419,7 +419,7 @@ def test_immutable_parameter_assignment_is_compile_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     lox = Lox()
-    stdout, stderr = execute(lox, "fun f(x) { x = 2; }", capsys)
+    stdout, stderr = execute(lox, "fn f(x) { x = 2; }", capsys)
 
     assert stdout == []
     assert "'x' is immutable" in stderr

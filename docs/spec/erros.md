@@ -35,13 +35,13 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | Mensagem | Quando |
 | --- | --- |
 | `Expect expression.` | `primary` não encontrou começo de expressão |
-| `Expect ';' after value.` | `print` sem `;` |
-| `Expect ';' after expression.` | expressão solta sem `;` |
-| `Expect ';' after variable declaration.` | `var` sem `;` |
-| `Expect ';' after return value.` | `return` sem `;` |
+| `Expect ';' after value.` | `print` sem `;` na mesma linha |
+| `Expect ';' after expression.` | expressão solta sem `;` na mesma linha |
+| `Expect ';' after variable declaration.` | `var`/`val` sem `;` na mesma linha |
+| `Expect ';' after return value.` | `return` sem `;` na mesma linha |
 | `Expect ';' after loop condition.` | `for` sem `;` na condição |
 | `Expect ')' after for clauses.` | `for` sem `)` |
-| `Expect ')' after if condition.` | `if` sem `)` |
+| `Expect ')' after if condition.` | `if`/`elif` sem `)` |
 | `Expect ')' after condition.` | `while` sem `)` |
 | `Expect ')' after arguments.` | chamada sem `)` |
 | `Expect ')' after expression.` | agrupamento sem `)` |
@@ -51,15 +51,15 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Expect '}' after block.` / `after class body.` | bloco/classe sem `}` |
 | `Expect variable name.` | `var`/`val` sem identificador |
 | `Expect initializer for 'val' declaration.` | `val x;` sem `=` |
-| `Expect function name.` / `method name.` | `fun`/método sem nome |
+| `Expect function name.` / `method name.` | `fn`/método sem nome |
 | `Expect parameter name.` | parâmetro ausente |
 | `Expect class name.` | `class` sem nome |
 | `Expect superclass name.` | `class B(` sem nome |
 | `Expect ')' after superclass.` | `class B(A` sem `)` |
 | `Expect ';' after field declaration.` | campo sem `;` |
 | `Field initializer must be a constant.` | `var x = 1 + 2;` no corpo da classe |
-| `Default value must be a constant.` | `fun f(x = 1 + 2)` |
-| `Required parameter can't follow an optional parameter.` | `fun f(a = 1, b)` |
+| `Default value must be a constant.` | `fn f(x = 1 + 2)` |
+| `Required parameter can't follow an optional parameter.` | `fn f(a = 1, b)` |
 | `Expect '.' after 'super'.` | `super` sem ponto |
 | `Expect superclass method name.` | `super.` sem nome |
 | `Expect property name after '.'.` | `obj.` sem nome |

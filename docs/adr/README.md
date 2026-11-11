@@ -56,6 +56,7 @@ Crie quando a decisão:
 | [0008](0008-heranca-class-parens.md) | Herança com `class Dog(Animal)` e construtor `init` | accepted | 2026-11-11 |
 | [0009](0009-defaults-e-campos.md) | Parâmetros default e campos declarados | accepted | 2026-11-11 |
 | [0010](0010-tipagem-estatica.md) | Tipagem estática gradual com `--check` | accepted | 2026-11-11 |
+| [0011](0011-fn-elif-ponto-e-virgula.md) | `fn`, `elif` e `;` opcional | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 

@@ -78,6 +78,15 @@ def test_scans_type_punctuation() -> None:
     ]
 
 
+def test_keywords_fn_elif_and_fun_as_identifier() -> None:
+    assert scan_types("fn elif fun") == [
+        TokenType.FN,
+        TokenType.ELIF,
+        TokenType.IDENTIFIER,
+        TokenType.EOF,
+    ]
+
+
 def test_integer_literal_overflow_reports_error() -> None:
     scanner = scan_with_reporter("9223372036854775808")
 
