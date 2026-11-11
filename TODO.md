@@ -18,7 +18,8 @@ pretendo tipar e como chegar no LLVM.
 ## 0. Agora: base sã e primeira metade do livro
 
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. Próximo passo: capítulo 10 (funções e closures).
+> no lugar. **Cap. 10 concluído** (funções, closures, `return`, `clock()`); próximo passo:
+> capítulo 11 (resolver).
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -39,14 +40,15 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
 
 ### 0.2 Livro — capítulos 10 a 13 (P0/P1, M)
 
-- [ ] **Cap. 10 — Funções**
-  - [ ] nó `Function` (params, body) e `Call` (callee, paren, args)
-  - [ ] `return` + `LoxRuntimeError` como controle de fluxo interno / `LoxReturn`
-  - [ ] `LoxCallable` (Protocol): `arity()`, `call(interpreter, args)`
-  - [ ] `LoxFunction` com `environment` de fechamento (closure)
-  - [ ] `call` na cadeia de precedência (entre `unary` e `primary`)
-  - [ ] `clock()` nativa
+- [x] **Cap. 10 — Funções**
+  - [x] nós `Function`/`Call` (já existiam na AST) + parser
+  - [x] `return` via `ReturnSignal` (controle de fluxo interno, como o `Return` do livro)
+  - [x] `LoxCallable` (Protocol): `arity()`, `call(interpreter, args)`
+  - [x] `LoxFunction` com `environment` de fechamento (closure)
+  - [x] `call` na cadeia de precedência (entre `unary` e `primary`)
+  - [x] `clock()` nativa
   - [ ] erro de runtime com `stack trace` de frames (o livro só faz no clox; aqui vale a pena)
+  - [x] testes: aridade, não-chamável, closure, recursão, ordem de avaliação, `return` no topo
 - [ ] **Cap. 11 — Resolver**
   - [ ] escopo léxico estático, `depth` por variável
   - [ ] erros: `Can't read local variable in its own initializer.`,

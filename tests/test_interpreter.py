@@ -130,3 +130,62 @@ def test_equality_between_bool_and_number(capsys: pytest.CaptureFixture[str]) ->
     stdout, _ = run("print true == 1; print 1 == 1;", capsys)
 
     assert stdout == ["false", "true"]
+
+
+def test_functions_and_closures(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    fun makeCounter() {
+      var i = 0;
+      fun count() {
+        i = i + 1;
+        print i;
+      }
+      return count;
+    }
+
+    var counter = makeCounter();
+    counter();
+    counter();
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["1", "2"]
+    assert stderr == ""
+
+
+def test_function_arity_error(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = Lox()
+    stdout, stderr = execute(lox, "fun soma(a, b) { return a + b; } soma(1);", capsys)
+
+    assert stdout == []
+    assert "Expected 2 arguments but got 1." in stderr
+    assert lox.reporter.had_runtime_error
+
+
+def test_calling_non_callable_is_a_runtime_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, stderr = run("var x = 1; x();", capsys)
+
+    assert "Can only call functions and classes." in stderr
+
+
+def test_return_without_value_is_nil(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run("fun f() { return; } print f();", capsys)
+
+    assert stdout == ["nil"]
+
+
+def test_native_clock_is_available(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run("print clock() > 0;", capsys)
+
+    assert stdout == ["true"]
+
+
+def test_top_level_return_is_reported(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = Lox()
+    stdout, stderr = execute(lox, "return 1;", capsys)
+
+    assert stdout == []
+    assert "Can't return from top-level code." in stderr

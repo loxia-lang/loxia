@@ -5,7 +5,7 @@ import pytest
 from src.ast_printer import AstPrinter
 from src.parser import Parser
 from src.scanner import Scanner
-from src.stmt import Expression, If, Print, Stmt, Var, While
+from src.stmt import Expression, Function, If, Print, Return, Stmt, Var, While
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:
@@ -110,3 +110,24 @@ def test_repl_does_not_print_declaration_errors() -> None:
     parser.parse_repl()
 
     assert parser.reporter.had_error
+
+
+def test_call_ast_shape() -> None:
+    assert ast("f(1, 2)") == "(call f 1 2)"
+    assert ast("f(g(1), 2 + 3)") == "(call f (call g 1) (+ 2 3))"
+
+
+def test_call_binds_tighter_than_unary() -> None:
+    assert ast("-f(1)") == "(- (call f 1))"
+
+
+def test_parses_function_declaration() -> None:
+    statements = parse("fun soma(a, b) { return a + b; }")
+
+    assert len(statements) == 1
+    function = statements[0]
+    assert isinstance(function, Function)
+    assert function.name.lexeme == "soma"
+    assert [param.lexeme for param in function.params] == ["a", "b"]
+    assert len(function.body) == 1
+    assert isinstance(function.body[0], Return)

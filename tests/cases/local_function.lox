@@ -1,0 +1,12 @@
+fun f() {
+  return "global";
+}
+
+{
+  fun f() {
+    return "local";
+  }
+  print f();  // expect: local
+}
+
+print f();  // expect: global

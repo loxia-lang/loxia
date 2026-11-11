@@ -1,9 +1,12 @@
 from src.environment import Environment
 from src.error_reporter import ErrorReporter
-from src.errors import LoxRuntimeError
-from src.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
+from src.errors import LoxRuntimeError, ReturnSignal
+from src.expr import Assign, Binary, Call, Expr, Grouping, Literal, Logical, Unary, Variable
 from src.expr import Visitor as ExprVisitor
-from src.stmt import Block, Expression, If, Print, Stmt, Var, While
+from src.lox_callable import LoxCallable
+from src.lox_function import LoxFunction
+from src.natives.clock import Clock
+from src.stmt import Block, Expression, Function, If, Print, Return, Stmt, Var, While
 from src.stmt import Visitor as StmtVisitor
 from src.token_type import TokenType
 from src.tokens import Token
@@ -13,7 +16,9 @@ from src.values import stringify
 class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def __init__(self, reporter: ErrorReporter | None = None) -> None:
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
-        self.environment = Environment()
+        self.globals = Environment()
+        self.environment = self.globals
+        self.globals.define("clock", Clock())
 
     def interpret(self, statements: list[Stmt]) -> None:
         try:
@@ -21,6 +26,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 self._execute(statement)
         except LoxRuntimeError as e:
             self.reporter.runtime_error(e)
+        except ReturnSignal as return_value:
+            # Ainda não há resolver (cap. 11): `return` no topo é reportado aqui.
+            # No cap. 11 o resolver transforma isso em erro de compilação.
+            self.reporter.runtime_error(
+                LoxRuntimeError(return_value.keyword, "Can't return from top-level code.")
+            )
 
     def _evaluate(self, expr: Expr) -> object:
         return expr.accept(self)
@@ -58,7 +69,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
             raise LoxRuntimeError(operator, message)
 
-    def _execute_block(self, statements: list[Stmt], environment: Environment) -> None:
+    def execute_block(self, statements: list[Stmt], environment: Environment) -> None:
         previous = self.environment
 
         try:
@@ -142,12 +153,41 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         return None
 
+    def visit_call_expr(self, expr: Call) -> object:
+        callee = self._evaluate(expr.callee)
+
+        arguments: list[object] = []
+        for argument in expr.arguments:
+            arguments.append(self._evaluate(argument))
+
+        if not isinstance(callee, LoxCallable):
+            raise LoxRuntimeError(expr.paren, "Can only call functions and classes.")
+
+        if len(arguments) != callee.arity():
+            raise LoxRuntimeError(
+                expr.paren,
+                f"Expected {callee.arity()} arguments but got {len(arguments)}.",
+            )
+
+        return callee.call(self, arguments)
+
     def visit_expression_stmt(self, stmt: Expression) -> None:
         self._evaluate(stmt.expression)
+
+    def visit_function_stmt(self, stmt: Function) -> None:
+        function = LoxFunction(stmt, self.environment)
+        self.environment.define(stmt.name.lexeme, function)
 
     def visit_print_stmt(self, stmt: Print) -> None:
         value = self._evaluate(stmt.expression)
         print(stringify(value))
+
+    def visit_return_stmt(self, stmt: Return) -> None:
+        value: object = None
+        if stmt.value is not None:
+            value = self._evaluate(stmt.value)
+
+        raise ReturnSignal(stmt.keyword, value)
 
     def visit_var_stmt(self, stmt: Var) -> None:
         val: object = None
@@ -165,7 +205,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return val
 
     def visit_block_stmt(self, stmt: Block) -> None:
-        self._execute_block(stmt.statements, Environment(self.environment))
+        self.execute_block(stmt.statements, Environment(self.environment))
 
     def visit_if_stmt(self, stmt: If) -> None:
         if self._is_truthy(self._evaluate(stmt.condition)):

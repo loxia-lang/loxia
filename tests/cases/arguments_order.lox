@@ -1,0 +1,9 @@
+var log = "";
+
+fun registra(x) {
+  log = log + x;
+  return x;
+}
+
+registra("a") + registra("b");
+print log;  // expect: ab
