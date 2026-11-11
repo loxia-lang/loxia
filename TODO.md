@@ -65,8 +65,9 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
 - [x] **Cap. 13 — Herança**
   - [x] `<`, `super`, método herdado (`find_method` recursivo)
   - [x] `super` ligado ao `this` atual; resolver com escopo próprio de `super`
-  - [ ] decisão de sintaxe final (`extends` vs `<`, `super`) — ver §11 ao planejar a
-        linguagem própria
+  - [x] decisão de sintaxe final: `class B(A)` (parens = superclasse), `init` com
+        `super.init(...)` explícito e `this` implícito — ver
+        [ADR-0008](docs/adr/0008-heranca-class-parens.md)
 
 ### 0.3 Higiene (P1, S)
 
@@ -77,10 +78,12 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
 - [x] [`TIPOS.md`](TIPOS.md): catálogo de tipos e modelo numérico (`Int` vs `Float`)
 - [x] `README.md` de verdade: o que é, como rodar, sintaxe atual, roadmap resumido
 - [x] documentação em `docs/` (`spec`, `tech`, `adr`) + glossário + teste de links
-- [ ] `exemplos/` com 4–5 programas (fib, fizzbuzz, closures, classes, quicksort)
-- [ ] `--version` e `--dump-ast` no CLI
-- [ ] entrypoint `python -m lox` além de `main.py`
-- [ ] remover `disable_error_code = ["abstract"]` do mypy ao terminar o cap. 13
+- [x] `exemplos/` com 5 programas (`fib`, `fizzbuzz`, `closures`, `classes`, `primos`);
+      quicksort entra quando `List` existir
+- [x] `--version` e `--dump-ast` no CLI (AST em S-expression, sem executar)
+- [x] entrypoint `python -m lox` além de `main.py` (pacote `lox/`, `main.py` é shim)
+- [x] remover `disable_error_code = ["abstract"]` do mypy ao terminar o cap. 13 (já não
+      existe no `pyproject.toml`; `mypy strict` limpo)
 
 ---
 
@@ -204,7 +207,9 @@ fn main() {
 - Off-side rule (indentação significativa) → **não**: caro no scanner e ruim no REPL.
 - `print` como statement? fica, **mas** `println`/`print` como funções também (Lox2 fez
   isso e simplifica a stdlib). Ver §11.
-- Herança com `<` → provavelmente `extends` (mais legível, e libera `<` só para comparação).
+- Herança com `(` `)` → **decidido**: `class Cachorro(Animal)` (uma superclasse; `<`
+  removido). `init` fica no corpo, `this` é implícito e `super.init(...)` é explícito —
+  ver [ADR-0008](docs/adr/0008-heranca-class-parens.md).
 - Pipeline `|>` / `:>` → **não** por enquanto (decisão de 2026-11-11): mais um operador e
   nível de precedência, convenção invisível da posição do argumento e acoplamento com
   `print`-função/stdlib, sem caso de uso urgente antes de `List`. Histórico e gatilhos de
@@ -642,7 +647,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | `for x in` + iterator protocol | ✅ | M | substitui o `for` C-style |
 | parâmetros imutáveis por padrão | ✅ | S | combina com `val` |
 | `let` (`val` no Lox2) imutável | ✅ | S | imutável por padrão |
-| `extends` em vez de `<` | ✅ | S | mais legível |
+| herança com `class B(A)` (não `extends`/`<`) | ✅ | S | parens = superclasse; ADR-0008 |
 | `print` como função (`println`) | ✅ | S | simplifica a stdlib |
 | variádicos `...args` | ✅ | S | fácil e útil |
 | lambdas anônimas | ✅ | M | precisa de closures (cap. 10) |

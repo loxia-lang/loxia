@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from src.ast_printer import AstPrinter
+from src.parser import Parser
+from src.scanner import Scanner
+
+
+def dump(source: str) -> str:
+    statements = Parser(Scanner(source).scan_tokens()).parse()
+
+    assert statements is not None
+    return AstPrinter().print_program(statements)
+
+
+def test_dump_program_statements() -> None:
+    source = """
+    var a = 1;
+    val b = a + 2;
+    print b;
+    if (b) print b; else print 0;
+    while (b) b = b - 1;
+    { var z = 3; }
+    fun soma(x, var y) { return x + y; }
+    return;
+    """
+
+    assert dump(source) == (
+        "(var a 1)\n"
+        "(val b (+ a 2))\n"
+        "(print b)\n"
+        "(if b (print b) (print 0))\n"
+        "(while b (expr (= b (- b 1))))\n"
+        "(block (var z 3))\n"
+        "(fun soma (x var y) (return (+ x y)))\n"
+        "(return)"
+    )
+
+
+def test_dump_class_and_for_in() -> None:
+    source = """
+    class A { init(x) { this.x = x; } }
+    class B(A) {}
+    for i in 0..2 { print i; }
+    """
+
+    assert dump(source) == (
+        "(class A (fun init (x) (expr (set x this x))))\n"
+        "(class B (super A))\n"
+        "(for-in i (.. 0 2) (block (print i)))"
+    )

@@ -1,0 +1,20 @@
+// Primos com funções, for-in e return antecipado.
+fun ehPrimo(n) {
+  if (n < 2) {
+    return false;
+  }
+
+  for divisor in 2..n {
+    if (n % divisor == 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+for n in 0..50 {
+  if (ehPrimo(n)) {
+    print n;
+  }
+}

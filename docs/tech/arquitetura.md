@@ -28,7 +28,9 @@ não sabe a distância das variáveis locais.
 
 | Módulo | Responsabilidade |
 | --- | --- |
-| [`main.py`](../../main.py) | CLI, `Lox.run`, REPL, exit codes |
+| [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
+| [`lox/cli.py`](../../lox/cli.py) | CLI, `Lox.run`, REPL, `--version`, `--dump-ast`, exit codes |
+| [`lox/__main__.py`](../../lox/__main__.py) | entrypoint `python -m lox` |
 | [`src/scanner.py`](../../src/scanner.py) | lexer manual (estado: `_start`, `_current`, `_line`) |
 | [`src/tokens.py`](../../src/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
 | [`src/token_type.py`](../../src/token_type.py) | enum `TokenType` |

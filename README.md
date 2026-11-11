@@ -15,12 +15,16 @@ Requisitos: Python 3.13 e [`uv`](https://docs.astral.sh/uv/).
 ```bash
 uv run main.py                 # REPL (Ctrl+C/Ctrl+D para sair)
 uv run main.py programa.lox    # executa um arquivo
+uv run python -m lox           # mesma coisa, via pacote
+uv run main.py --version       # pylox 0.1.0
+uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não executa
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make bench                     # benchmarks vs baseline
 ```
 
-Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente.
+Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,
+`2` uso inválido (ex.: `--dump-ast` sem script).
 
 ## Exemplo
 
@@ -43,8 +47,10 @@ print c.saldo;  // 15
 ## Estrutura
 
 ```
-main.py          CLI e REPL
+main.py          entrypoint compatível (delega para lox/cli.py)
+lox/             pacote do CLI: `python -m lox`, --version, --dump-ast
 src/             scanner, parser, AST, resolver, interpreter, classes
+exemplos/        programas de exemplo (fib, fizzbuzz, closures, classes, primos)
 tests/           pytest + golden cases (.lox)
 bench/           harness de performance e baseline
 docs/            especificação, arquitetura e ADRs
@@ -65,6 +71,6 @@ IDEIAS.md        discussões de design (parking lot)
 - **Roadmap**: [`TODO.md`](TODO.md) · **tipos**: [`TIPOS.md`](TIPOS.md) ·
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
-> A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`).
-> A sintaxe planejada (`;` opcional, `fn`, `?.`, tipos) está nos documentos de roadmap e
-> ainda **não** está implementada.
+> A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`,
+> `Int`/`Float`, ranges/`for-in` e herança `class B(A)`). O que falta — `;` opcional,
+> `fn`, `?.`, tipos — está nos documentos de roadmap e ainda **não** está implementado.

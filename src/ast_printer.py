@@ -14,6 +14,19 @@ from src.expr import (
     Unary,
     Variable,
 )
+from src.stmt import (
+    Block,
+    Class,
+    Expression,
+    ForIn,
+    Function,
+    If,
+    Print,
+    Return,
+    Stmt,
+    Var,
+    While,
+)
 from src.token_type import TokenType
 from src.tokens import Token
 from src.values import stringify
@@ -24,6 +37,9 @@ class AstPrinter:
 
     def print(self, expr: Expr) -> str:
         return expr.accept(self)
+
+    def print_program(self, statements: list[Stmt]) -> str:
+        return "\n".join(statement.accept(self) for statement in statements)
 
     def visit_binary_expr(self, expr: Binary) -> str:
         return self._parenthesize(expr.operator.lexeme, expr.left, expr.right)
@@ -70,6 +86,63 @@ class AstPrinter:
 
         inner = " ".join(expr.accept(self) for expr in exprs)
         return f"({name} {inner})"
+
+    # --- statements ---
+
+    def visit_block_stmt(self, stmt: Block) -> str:
+        inner = " ".join(statement.accept(self) for statement in stmt.statements)
+        return f"(block {inner})" if inner else "(block)"
+
+    def visit_class_stmt(self, stmt: Class) -> str:
+        parts = [f"class {stmt.name.lexeme}"]
+        if stmt.superclass is not None:
+            parts.append(f"(super {stmt.superclass.name.lexeme})")
+        parts.extend(method.accept(self) for method in stmt.methods)
+
+        return f"({' '.join(parts)})"
+
+    def visit_expression_stmt(self, stmt: Expression) -> str:
+        return f"(expr {stmt.expression.accept(self)})"
+
+    def visit_for_in_stmt(self, stmt: ForIn) -> str:
+        return (
+            f"(for-in {stmt.name.lexeme} {stmt.iterable.accept(self)} "
+            f"{stmt.body.accept(self)})"
+        )
+
+    def visit_function_stmt(self, stmt: Function) -> str:
+        params = " ".join(
+            f"var {param.name.lexeme}" if param.mutable else param.name.lexeme
+            for param in stmt.params
+        )
+        body = " ".join(statement.accept(self) for statement in stmt.body)
+        inner = f"({params})"
+        return f"(fun {stmt.name.lexeme} {inner}{f' {body}' if body else ''})"
+
+    def visit_if_stmt(self, stmt: If) -> str:
+        condition = stmt.condition.accept(self)
+        then_branch = stmt.then_branch.accept(self)
+        if stmt.else_branch is None:
+            return f"(if {condition} {then_branch})"
+
+        return f"(if {condition} {then_branch} {stmt.else_branch.accept(self)})"
+
+    def visit_print_stmt(self, stmt: Print) -> str:
+        return f"(print {stmt.expression.accept(self)})"
+
+    def visit_return_stmt(self, stmt: Return) -> str:
+        if stmt.value is None:
+            return "(return)"
+
+        return f"(return {stmt.value.accept(self)})"
+
+    def visit_var_stmt(self, stmt: Var) -> str:
+        keyword = "var" if stmt.mutable else "val"
+        value = "nil" if stmt.initializer is None else stmt.initializer.accept(self)
+        return f"({keyword} {stmt.name.lexeme} {value})"
+
+    def visit_while_stmt(self, stmt: While) -> str:
+        return f"(while {stmt.condition.accept(self)} {stmt.body.accept(self)})"
 
 
 # Teste manual do capítulo 6:
