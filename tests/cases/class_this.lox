@@ -10,5 +10,5 @@ class Pessoa {
 }
 
 var p = Pessoa("Ana");
-p.falar();     // expect: Ana
-print p.nome;  // expect: Ana
+p.falar();     # expect: Ana
+print p.nome;  # expect: Ana

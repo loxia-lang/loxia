@@ -7,6 +7,6 @@ class Caixa {
 }
 
 var c = Caixa(42);
-print c.v;       // expect: 42
-print Caixa;     // expect: Caixa
-print Caixa(1);  // expect: Caixa instance
+print c.v;       # expect: 42
+print Caixa;     # expect: Caixa
+print Caixa(1);  # expect: Caixa instance

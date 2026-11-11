@@ -5,6 +5,6 @@ class Cafe {
 }
 
 var c = Cafe();
-c.gostoso();  // expect: cafe
-print Cafe;   // expect: Cafe
-print c;      // expect: Cafe instance
+c.gostoso();  # expect: cafe
+print Cafe;   # expect: Cafe
+print c;      # expect: Cafe instance

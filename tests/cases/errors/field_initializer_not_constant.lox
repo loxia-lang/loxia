@@ -1,4 +1,4 @@
 class C {
   var x = 1 + 2;
 }
-// expect error: Field initializer must be a constant.
+# expect error: Field initializer must be a constant.

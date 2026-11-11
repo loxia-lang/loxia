@@ -2,4 +2,4 @@
   val x = 1;
   val x = 2;
 }
-// expect error: Already a variable with this name in this scope.
+# expect error: Already a variable with this name in this scope.

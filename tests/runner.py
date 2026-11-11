@@ -2,10 +2,10 @@
 
 Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):
 
-    print 1 + 2;                       // expect: 3
-    // expect runtime error: Undefined variable 'a'.
-    // expect error: Expect ';' after value.
-    // expect exit: 65
+    print 1 + 2;                       # expect: 3
+    # expect runtime error: Undefined variable 'a'.
+    # expect error: Expect ';' after value.
+    # expect exit: 65
 
 O runner executa `main.py` como subprocesso para testar o CLI de verdade
 (exit codes e stderr incluídos), não só a AST.
@@ -47,22 +47,22 @@ def parse_expectations(source: str) -> Expectations:
     exit_code = 0
 
     for line in source.splitlines():
-        marker = line.find("//")
+        marker = line.find("#")
         if marker == -1:
             continue
 
         stripped = line[marker:].strip()
 
-        if stripped.startswith("// expect runtime error:"):
+        if stripped.startswith("# expect runtime error:"):
             error = stripped.split(":", 1)[1].strip()
             exit_code = EXIT_RUNTIME_ERROR
-        elif stripped.startswith("// expect error:"):
+        elif stripped.startswith("# expect error:"):
             error = stripped.split(":", 1)[1].strip()
             exit_code = EXIT_SYNTAX_ERROR
-        elif stripped.startswith("// expect exit:"):
+        elif stripped.startswith("# expect exit:"):
             exit_code = int(stripped.split(":", 1)[1].strip())
-        elif stripped.startswith("// expect:"):
-            stdout.append(stripped[len("// expect:") :].strip())
+        elif stripped.startswith("# expect:"):
+            stdout.append(stripped[len("# expect:") :].strip())
 
     return Expectations(stdout=stdout, error=error, exit_code=exit_code)
 

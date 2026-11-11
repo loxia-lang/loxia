@@ -2,4 +2,4 @@ class Foo {
   bar(a) {}
 }
 Foo().bar();
-// expect runtime error: Expected 1 arguments but got 0.
+# expect runtime error: Expected 1 arguments but got 0.

@@ -7,35 +7,39 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/scanner.py`](
 
 - Codificação: UTF-8 (é o que o `main.py` lê).
 - O scanner trabalha **byte a byte sobre a string Python**; identificadores são ASCII.
-- Não há BOM especial, diretivas, `#!` nem módulos: um arquivo `.lox` é um programa.
+- Não há BOM especial, diretivas nem módulos: um arquivo `.lox` é um programa. Uma
+  primeira linha `#!` é só um comentário `#` normal.
 
 ## Espaços e comentários
 
 - Ignorados: espaço, `\t`, `\r`.
 - `\n` encerra a linha e incrementa o contador (linhas começam em **1**).
-- Comentário de linha: `//` até o fim da linha. **Não existe** comentário de bloco.
-- Comentários aparecem em qualquer lugar entre tokens (inclusive no fim de linha).
+- Comentário de linha: `#` até o fim da linha.
+- Comentário de bloco: `/* ... */`, **aninhado** (`/* /* */ */`); bloco não fechado é
+  `Unterminated block comment.` e conta as linhas internas.
+- Comentários aparecem em qualquer lugar entre tokens (inclusive no fim de linha); `#`
+  dentro de string não é comentário. Não existe `--`.
 
 ## Tokens
 
 ### Um caractere
 
 ```
-(   )   {   }   ,   .   -   +   ;   /   *
+(   )   {   }   ,   .   -   +   ;   /   *   %   |   &   ^   ~
 ```
 
 ### Um ou dois caracteres
 
 ```
-!    !=
-=    ==
-<    <=
->    >=
-.    ..
+!    !=          =    ==
+<    <=          >    >=
+.    ..          -    ->
+/    //          *    **
+<    <<          >    >>    >>>
 ```
 
-`//` é comentário; `/` sozinho é divisão. `..` é o operador de range (`0..10`); não existe
-`..=`.
+`//` é divisão inteira; `/` sozinho é divisão `Float`. `..` é o operador de range
+(`0..10`); não existe `..=`. `#` e `/*` iniciam comentários, não tokens.
 
 ### Literais
 

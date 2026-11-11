@@ -1,4 +1,4 @@
 fn f(x = 1, y) {
   return x + y;
 }
-// expect error: Required parameter can't follow an optional parameter.
+# expect error: Required parameter can't follow an optional parameter.

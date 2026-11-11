@@ -493,6 +493,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._numeric(left, operator)
                 self._numeric(right, operator)
                 return FLOAT
+            case TokenType.SLASH_SLASH:
+                return self._integer_result(left, right, operator)
+            case TokenType.STAR_STAR:
+                return self._power_type(left, right, operator)
+            case (
+                TokenType.AMPERSAND
+                | TokenType.PIPE
+                | TokenType.CARET
+                | TokenType.LESS_LESS
+                | TokenType.GREATER_GREATER
+                | TokenType.GREATER_GREATER_GREATER
+            ):
+                return self._integer_result(left, right, operator)
             case TokenType.GREATER | TokenType.GREATER_EQUAL:
                 return self._comparison(left, right, operator)
             case TokenType.LESS | TokenType.LESS_EQUAL:
@@ -501,6 +514,34 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return BOOL
 
         return ANY
+
+    def _integer_result(self, left: Ty, right: Ty, operator: Token) -> Ty:
+        if left is ANY or right is ANY:
+            return ANY
+
+        self._integer(left, operator)
+        self._integer(right, operator)
+        return INT
+
+    def _integer(self, ty: Ty, token: Token) -> None:
+        if ty is INT or ty is ANY:
+            return
+
+        self._error(token, "Operands must be integers.")
+
+    def _power_type(self, left: Ty, right: Ty, operator: Token) -> Ty:
+        if left is ANY or right is ANY:
+            return ANY
+        for ty in (left, right):
+            if ty is INT or ty is FLOAT:
+                continue
+            self._error(operator, "Operands must be numbers.")
+            return ERROR
+
+        if left is FLOAT or right is FLOAT:
+            return FLOAT
+
+        return INT
 
     def _is_string(self, ty: Ty) -> bool:
         return ty is STRING
@@ -691,6 +732,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         if expr.operator.type is TokenType.BANG:
             return BOOL
+        if expr.operator.type is TokenType.TILDE:
+            if right is ANY:
+                return ANY
+            if right is INT:
+                return INT
+            self._error(expr.operator, "Operand must be an integer.")
+            return ERROR
         if right is ANY:
             return ANY
         if right is INT or right is FLOAT:

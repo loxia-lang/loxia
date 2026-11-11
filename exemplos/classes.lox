@@ -1,5 +1,5 @@
-// Classes, herança `class B(A)`, `super.init(...)`, `this` implícito e campo
-// que não vem de parâmetro.
+# Classes, herança `class B(A)`, `super.init(...)`, `this` implícito e campo
+# que não vem de parâmetro.
 class Animal {
   var nome;
   var sexo;

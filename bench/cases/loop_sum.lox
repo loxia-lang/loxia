@@ -1,4 +1,4 @@
-// Soma 1..N: mede custo de laço + aritmética + atribuição.
+# Soma 1..N: mede custo de laço + aritmética + atribuição.
 var i = 0;
 var soma = 0;
 while (i < 150000) {

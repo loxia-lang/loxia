@@ -1,7 +1,7 @@
-// Literais básicos e sua representação textual.
-print true;      // expect: true
-print false;     // expect: false
-print nil;       // expect: nil
-print 123;       // expect: 123
-print 123.5;     // expect: 123.5
-print "texto";   // expect: texto
+# Literais básicos e sua representação textual.
+print true;      # expect: true
+print false;     # expect: false
+print nil;       # expect: nil
+print 123;       # expect: 123
+print 123.5;     # expect: 123.5
+print "texto";   # expect: texto

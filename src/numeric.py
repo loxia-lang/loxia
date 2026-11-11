@@ -15,6 +15,7 @@ type Number = int | float
 INT_MIN = -(2**63)
 INT_MAX = 2**63 - 1
 _UINT64 = 1 << 64
+_UINT64_MASK = _UINT64 - 1
 
 
 def is_int(value: object) -> TypeGuard[int]:
@@ -72,6 +73,68 @@ def modulo(left: object, right: object) -> Number:
         remainder = abs(left) % abs(right)
         return -remainder if left < 0 else remainder
     return math.fmod(to_float(left), to_float(right))
+
+
+def int_divide(left: object, right: object) -> int:
+    """Divisão inteira truncada em direção a zero, com wrap i64 (ADR-0012)."""
+    dividend = cast(int, left)
+    divisor = cast(int, right)
+    quotient = abs(dividend) // abs(divisor)
+    if (dividend < 0) != (divisor < 0):
+        quotient = -quotient
+
+    return wrap_int(quotient)
+
+
+def power(left: object, right: object) -> Number:
+    """`**`: `Int ** Int` inteiro (expoente >= 0); caso contrário `Float`."""
+    if type(left) is int and type(right) is int:
+        base = left
+        exponent = right
+        if exponent < 0:
+            raise ValueError("negative integer exponent")
+
+        result = 1
+        while exponent:
+            if exponent & 1:
+                result = wrap_int(result * base)
+            base = wrap_int(base * base)
+            exponent >>= 1
+
+        return result
+
+    return math.pow(to_float(left), to_float(right))
+
+
+def bit_and(left: object, right: object) -> int:
+    return wrap_int(cast(int, left) & cast(int, right))
+
+
+def bit_or(left: object, right: object) -> int:
+    return wrap_int(cast(int, left) | cast(int, right))
+
+
+def bit_xor(left: object, right: object) -> int:
+    return wrap_int(cast(int, left) ^ cast(int, right))
+
+
+def bit_not(value: object) -> int:
+    return wrap_int(~cast(int, value))
+
+
+def shift_left(value: object, count: object) -> int:
+    return wrap_int(cast(int, value) << cast(int, count))
+
+
+def shift_right(value: object, count: object) -> int:
+    """Shift à direita aritmético (preenche com o sinal)."""
+    return wrap_int(cast(int, value) >> cast(int, count))
+
+
+def shift_right_logical(value: object, count: object) -> int:
+    """Shift à direita lógico: opera no padrão unsigned de 64 bits."""
+    unsigned = cast(int, value) & _UINT64_MASK
+    return wrap_int(unsigned >> cast(int, count))
 
 
 def negate(value: object) -> Number:

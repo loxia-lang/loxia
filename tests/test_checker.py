@@ -132,3 +132,42 @@ def test_union_is_assignable_to_member_and_nil() -> None:
     )
 
     assert lox.reporter.had_error is False
+
+
+def test_operator_types_are_clean() -> None:
+    lox = check(
+        """
+        val a: Int = 7 // 2
+        val b: Float = 2 ** 0.5
+        val c: Int = 5 & 3
+        val d: Bool = ~0 == -1
+        val e: Float = 2 ** 3.0
+        print a
+        print b
+        print c
+        print d
+        print e
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("val x: Int = 7 // 2.0;", "Operands must be integers."),
+        ("val x: Int = ~1.0;", "Operand must be an integer."),
+        ("val x: Int = 1.0 & 1;", "Operands must be integers."),
+        ("val x: Int = 2 ** 0.5;", "Expected Int, found Float."),
+        ("val x: Bool = 5 & 3;", "Expected Bool, found Int."),
+    ],
+)
+def test_operator_type_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err

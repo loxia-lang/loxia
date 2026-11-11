@@ -5,4 +5,4 @@ class A {
 class B(A) {
   var x;
 }
-// expect error: Field 'x' already declared.
+# expect error: Field 'x' already declared.

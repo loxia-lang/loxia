@@ -6,7 +6,7 @@ fn f() {
   fn f() {
     return "local";
   }
-  print f();  // expect: local
+  print f();  # expect: local
 }
 
-print f();  // expect: global
+print f();  # expect: global

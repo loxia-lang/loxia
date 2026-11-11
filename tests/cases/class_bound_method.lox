@@ -10,4 +10,4 @@ class Foo {
 }
 
 var f = Foo().getX;
-print f();  // expect: 7
+print f();  # expect: 7

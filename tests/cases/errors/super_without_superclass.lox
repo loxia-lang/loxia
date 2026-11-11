@@ -3,4 +3,4 @@ class Foo {
     super.method();
   }
 }
-// expect error: Can't use 'super' in a class with no superclass.
+# expect error: Can't use 'super' in a class with no superclass.

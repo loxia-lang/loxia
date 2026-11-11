@@ -2,4 +2,4 @@
   val x = 1;
   x = 2;
 }
-// expect error: 'x' is immutable; declare it with 'var' to allow assignment.
+# expect error: 'x' is immutable; declare it with 'var' to allow assignment.

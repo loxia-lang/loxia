@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from src.scanner import Scanner
 from src.token_type import TokenType
 from src.tokens import Token
@@ -107,10 +109,42 @@ def test_tracks_line_numbers() -> None:
 
 
 def test_skips_comments_and_whitespace() -> None:
-    assert scan_types("// nada aqui\n  var   a;  \n") == [
+    assert scan_types("# nada aqui\n  var   a;  \n/* bloco */\n") == [
         TokenType.VAR,
         TokenType.IDENTIFIER,
         TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+
+
+def test_nested_block_comments() -> None:
+    assert scan_types("/* a /* b */ c */ var x;") == [
+        TokenType.VAR,
+        TokenType.IDENTIFIER,
+        TokenType.SEMICOLON,
+        TokenType.EOF,
+    ]
+
+
+def test_unterminated_block_comment_reports_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scanner = scan_with_reporter("/* aberto")
+
+    assert scanner.reporter.had_error
+    assert "Unterminated block comment." in capsys.readouterr().err
+
+
+def test_scans_arithmetic_and_bitwise_tokens() -> None:
+    assert scan_types("// ** & ^ ~ << >> >>>") == [
+        TokenType.SLASH_SLASH,
+        TokenType.STAR_STAR,
+        TokenType.AMPERSAND,
+        TokenType.CARET,
+        TokenType.TILDE,
+        TokenType.LESS_LESS,
+        TokenType.GREATER_GREATER,
+        TokenType.GREATER_GREATER_GREATER,
         TokenType.EOF,
     ]
 

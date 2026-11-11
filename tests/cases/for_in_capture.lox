@@ -1,5 +1,5 @@
-// A variável do for é um `val` novo por iteração: a closure guarda o valor daquela
-// iteração, não o valor final do laço.
+# A variável do for é um `val` novo por iteração: a closure guarda o valor daquela
+# iteração, não o valor final do laço.
 var f;
 
 for i in 0..3 {
@@ -8,4 +8,4 @@ for i in 0..3 {
 }
 
 f();
-// expect: 1
+# expect: 1

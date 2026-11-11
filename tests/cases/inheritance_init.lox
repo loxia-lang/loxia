@@ -7,4 +7,4 @@ class A {
 
 class B(A) {}
 
-print B(5).x;  // expect: 5
+print B(5).x;  # expect: 5

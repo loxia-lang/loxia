@@ -1,1 +1,1 @@
-print clock() >= 0;  // expect: true
+print clock() >= 0;  # expect: true

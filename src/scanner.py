@@ -49,6 +49,15 @@ class Scanner:
                 self._add_token(TokenType.QUESTION)
             case "|":
                 self._add_token(TokenType.PIPE)
+            case "&":
+                self._add_token(TokenType.AMPERSAND)
+            case "^":
+                self._add_token(TokenType.CARET)
+            case "~":
+                self._add_token(TokenType.TILDE)
+            case "#":
+                while self._peek() != "\n" and not self._is_at_end():
+                    self._advance()
             case ".":
                 self._add_token(
                     TokenType.DOT_DOT if self._match(".") else TokenType.DOT
@@ -62,7 +71,9 @@ class Scanner:
             case ";":
                 self._add_token(TokenType.SEMICOLON)
             case "*":
-                self._add_token(TokenType.STAR)
+                self._add_token(
+                    TokenType.STAR_STAR if self._match("*") else TokenType.STAR
+                )
             case "%":
                 self._add_token(TokenType.PERCENT)
             case "!":
@@ -74,18 +85,29 @@ class Scanner:
                     TokenType.EQUAL_EQUAL if self._match("=") else TokenType.EQUAL
                 )
             case "<":
-                self._add_token(
-                    TokenType.LESS_EQUAL if self._match("=") else TokenType.LESS
-                )
+                if self._match("<"):
+                    self._add_token(TokenType.LESS_LESS)
+                else:
+                    self._add_token(
+                        TokenType.LESS_EQUAL if self._match("=") else TokenType.LESS
+                    )
             case ">":
-                self._add_token(
-                    TokenType.GREATER_EQUAL if self._match("=") else TokenType.GREATER
-                )
+                if self._match(">"):
+                    self._add_token(
+                        TokenType.GREATER_GREATER_GREATER
+                        if self._match(">")
+                        else TokenType.GREATER_GREATER
+                    )
+                else:
+                    self._add_token(
+                        TokenType.GREATER_EQUAL if self._match("=") else TokenType.GREATER
+                    )
 
             case "/":
-                if self._match("/"):
-                    while self._peek() != "\n" and not self._is_at_end():
-                        self._advance()
+                if self._match("*"):
+                    self._block_comment()
+                elif self._match("/"):
+                    self._add_token(TokenType.SLASH_SLASH)
                 else:
                     self._add_token(TokenType.SLASH)
             case " " | "\r" | "\t":
@@ -102,6 +124,26 @@ class Scanner:
                     self._identifier()
                 else:
                     self.reporter.error(self._line, f"Unexpected character: {c}")
+
+    def _block_comment(self) -> None:
+        depth = 1
+
+        while depth > 0 and not self._is_at_end():
+            if self._peek() == "/" and self._peek_next() == "*":
+                self._advance()
+                self._advance()
+                depth += 1
+            elif self._peek() == "*" and self._peek_next() == "/":
+                self._advance()
+                self._advance()
+                depth -= 1
+            else:
+                if self._peek() == "\n":
+                    self._line += 1
+                self._advance()
+
+        if depth > 0:
+            self.reporter.error(self._line, "Unterminated block comment.")
 
     def _is_at_end(self) -> bool:
         return self._current >= len(self._source)

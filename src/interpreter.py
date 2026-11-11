@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from src import numeric
 from src.environment import Environment
@@ -120,6 +120,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             if not numeric.is_number(operand):
                 raise LoxRuntimeError(operator, "Operands must be numbers.")
 
+    def _check_int_operand(self, operator: Token, operand: object) -> None:
+        if not numeric.is_int(operand):
+            raise LoxRuntimeError(operator, "Operand must be an integer.")
+
+    def _check_int_operands(self, operator: Token, *operands: object) -> None:
+        for operand in operands:
+            if not numeric.is_int(operand):
+                raise LoxRuntimeError(operator, "Operands must be integers.")
+
     def execute_block(self, statements: list[Stmt], environment: Environment) -> None:
         previous = self.environment
 
@@ -157,6 +166,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             case TokenType.MINUS:
                 self._check_number_operand(expr.operator, right)
                 return numeric.negate(right)
+            case TokenType.TILDE:
+                self._check_int_operand(expr.operator, right)
+                return numeric.bit_not(right)
 
         return None
 
@@ -201,6 +213,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 if right == 0:
                     raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
                 return numeric.divide(left, right)
+            case TokenType.SLASH_SLASH:
+                self._check_int_operands(expr.operator, left, right)
+                if right == 0:
+                    raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
+                return numeric.int_divide(left, right)
             case TokenType.PERCENT:
                 self._check_number_operands(expr.operator, left, right)
                 if right == 0:
@@ -209,12 +226,60 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             case TokenType.STAR:
                 self._check_number_operands(expr.operator, left, right)
                 return numeric.multiply(left, right)
+            case TokenType.STAR_STAR:
+                self._check_number_operands(expr.operator, left, right)
+                if numeric.is_int(left) and numeric.is_int(right) and right < 0:
+                    raise LoxRuntimeError(
+                        expr.operator,
+                        "Negative exponent not allowed for integer power.",
+                    )
+                try:
+                    return numeric.power(left, right)
+                except ValueError:
+                    raise LoxRuntimeError(
+                        expr.operator, "Invalid exponentiation."
+                    ) from None
+                except OverflowError:
+                    raise LoxRuntimeError(
+                        expr.operator, "Exponentiation overflow."
+                    ) from None
+            case TokenType.AMPERSAND:
+                self._check_int_operands(expr.operator, left, right)
+                return numeric.bit_and(left, right)
+            case TokenType.PIPE:
+                self._check_int_operands(expr.operator, left, right)
+                return numeric.bit_or(left, right)
+            case TokenType.CARET:
+                self._check_int_operands(expr.operator, left, right)
+                return numeric.bit_xor(left, right)
+            case TokenType.LESS_LESS:
+                return self._shift(expr.operator, left, right, numeric.shift_left)
+            case TokenType.GREATER_GREATER:
+                return self._shift(expr.operator, left, right, numeric.shift_right)
+            case TokenType.GREATER_GREATER_GREATER:
+                return self._shift(
+                    expr.operator, left, right, numeric.shift_right_logical
+                )
             case TokenType.BANG_EQUAL:
                 return not self._is_equal(left, right)
             case TokenType.EQUAL_EQUAL:
                 return self._is_equal(left, right)
 
         return None
+
+    def _shift(
+        self,
+        operator: Token,
+        left: object,
+        right: object,
+        operation: Callable[[object, object], int],
+    ) -> int:
+        self._check_int_operands(operator, left, right)
+        assert numeric.is_int(right)
+        if not 0 <= right <= 63:
+            raise LoxRuntimeError(operator, "Shift count must be between 0 and 63.")
+
+        return operation(left, right)
 
     def visit_call_expr(self, expr: Call) -> object:
         callee = self._evaluate(expr.callee)

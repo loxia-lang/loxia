@@ -1,2 +1,2 @@
 val x;
-// expect error: Expect initializer for 'val' declaration.
+# expect error: Expect initializer for 'val' declaration.

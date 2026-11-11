@@ -1,4 +1,4 @@
-// Concatenação repetida: mede o caminho de strings (sem interning).
+# Concatenação repetida: mede o caminho de strings (sem interning).
 var texto = "";
 var i = 0;
 while (i < 50000) {

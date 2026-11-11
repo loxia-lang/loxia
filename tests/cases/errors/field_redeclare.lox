@@ -2,4 +2,4 @@ class C {
   var x;
   var x;
 }
-// expect error: Field 'x' already declared.
+# expect error: Field 'x' already declared.

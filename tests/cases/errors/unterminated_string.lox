@@ -1,2 +1,2 @@
 print "abc;
-// expect error: Unterminated string.
+# expect error: Unterminated string.

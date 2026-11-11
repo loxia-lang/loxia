@@ -3,4 +3,4 @@ class Foo {
     return 1;
   }
 }
-// expect error: Can't return a value from an initializer.
+# expect error: Can't return a value from an initializer.

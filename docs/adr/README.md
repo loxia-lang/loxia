@@ -57,13 +57,12 @@ Crie quando a decisão:
 | [0009](0009-defaults-e-campos.md) | Parâmetros default e campos declarados | accepted | 2026-11-11 |
 | [0010](0010-tipagem-estatica.md) | Tipagem estática gradual com `--check` | accepted | 2026-11-11 |
 | [0011](0011-fn-elif-ponto-e-virgula.md) | `fn`, `elif` e `;` opcional | accepted | 2026-11-11 |
+| [0012](0012-comentarios-divisao-potencia-bits.md) | Comentários, `//`, `**` e bits | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 
 Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`):
 
-- campos de classe, parâmetros opcionais/default — [I-5](../../IDEIAS.md);
-- divisão inteira `//` (token vs comentário) e bitwise — [`TIPOS.md`](../../TIPOS.md) `D-4`/`D-9`;
 - stdlib: builtins globais vs métodos/UFCS — [I-3](../../IDEIAS.md) (a alternativa
   pipeline foi rejeitada por enquanto; ver [I-2](../../IDEIAS.md));
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md).

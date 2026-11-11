@@ -6,5 +6,5 @@ fn comValor() {
   return 42
 }
 
-print vazio()    // expect: nil
-print comValor() // expect: 42
+print vazio()    # expect: nil
+print comValor() # expect: 42

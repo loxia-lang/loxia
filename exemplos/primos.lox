@@ -1,4 +1,4 @@
-// Primos com funções, for-in e return antecipado.
+# Primos com funções, for-in e return antecipado.
 fn ehPrimo(n) {
   if (n < 2) {
     return false;

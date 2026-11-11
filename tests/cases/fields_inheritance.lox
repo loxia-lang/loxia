@@ -1,4 +1,4 @@
-// Campos declarados são herdados; `var` continua mutável na subclasse.
+# Campos declarados são herdados; `var` continua mutável na subclasse.
 class A {
   var x;
 
@@ -17,7 +17,7 @@ class B(A) {
 }
 
 var b = B(1, 2);
-print b.x + b.y;  // expect: 3
+print b.x + b.y;  # expect: 3
 
 b.x = 10;
-print b.x;  // expect: 10
+print b.x;  # expect: 10

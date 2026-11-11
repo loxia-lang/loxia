@@ -1,3 +1,3 @@
 val x = 1;
 x = 2;
-// expect runtime error: 'x' is immutable; declare it with 'var' to allow assignment.
+# expect runtime error: 'x' is immutable; declare it with 'var' to allow assignment.

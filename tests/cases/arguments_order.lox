@@ -6,4 +6,4 @@ fn registra(x) {
 }
 
 registra("a") + registra("b");
-print log;  // expect: ab
+print log;  # expect: ab

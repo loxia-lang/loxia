@@ -1,2 +1,2 @@
 1 = 2;
-// expect error: Invalid assignment target.
+# expect error: Invalid assignment target.

@@ -1,10 +1,10 @@
-// Anotações de tipo não mudam o runtime; o programa precisa continuar executando.
+# Anotações de tipo não mudam o runtime; o programa precisa continuar executando.
 fn soma(a: Int, b: Int = 10) -> Int {
   return a + b;
 }
 
 val x: Int = soma(1);
-print x;  // expect: 11
+print x;  # expect: 11
 
 class C {
   var y: Int;
@@ -19,4 +19,4 @@ class C {
 }
 
 val c: C = C(4);
-print c.dobro();  // expect: 8
+print c.dobro();  # expect: 8

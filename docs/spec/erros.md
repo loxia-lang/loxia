@@ -25,8 +25,9 @@ inglês; o texto de CLI e a documentação em português.
 
 | Mensagem | Quando |
 | --- | --- |
-| `Unexpected character: X` | caractere fora do alfabeto (ex.: `@`, `$`, `?`) |
+| `Unexpected character: X` | caractere fora do alfabeto (ex.: `@`, `$`) |
 | `Unterminated string.` | `"` sem fechamento até EOF |
+| `Unterminated block comment.` | `/*` sem `*/` até EOF |
 
 ## Sintaxe
 
@@ -92,9 +93,16 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `'x' is immutable; declare it with 'var' to allow assignment.` | atribuição a `val` global |
 | `Can't redeclare immutable variable 'x'.` | redeclarar um `val` global |
 | `Operand must be a number.` | `-"a"` |
+| `Operand must be an integer.` | `~1.0` |
 | `Operands must be numbers.` | `1 < "a"` |
+| `Operands must be integers.` | `1.0 & 1`, `7 // 2.0`, `1 << 2.0` |
 | `Operands must be two numbers or two strings.` | `1 + "a"` |
-| `Division by zero not allowed` | `/ 0` |
+| `Division by zero not allowed` | `/ 0` ou `// 0` |
+| `Modulo by zero not allowed` | `% 0` |
+| `Negative exponent not allowed for integer power.` | `2 ** -1`; use `2.0 ** -1` |
+| `Invalid exponentiation.` | `0.0 ** -1.0`, `(-1.0) ** 0.5` |
+| `Exponentiation overflow.` | `1e308 ** 2` |
+| `Shift count must be between 0 and 63.` | `1 << 64`, `1 >> -1` |
 | `Can only call functions and classes.` | `1()` |
 | `Expected N arguments but got M.` | aridade fixa de função/classe |
 | `Expected at least N arguments but got M.` | chamada curta com defaults |
@@ -125,6 +133,7 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Undefined variable 'x'.` / `Undefined property 'x'.` / `Undefined field 'x'.` | nome inexistente |
 | `Can't assign to immutable field 'x'.` | `val` de campo fora do `init` |
 | `Operands must be numbers.` / `Operand must be a number.` | operador aritmético com não-número |
+| `Operands must be integers.` / `Operand must be an integer.` | `//`, bits ou `~` com não-`Int` |
 | `Operands must be two numbers or two strings.` | `+` misturando tipos |
 | `Range bounds must be integers.` | bound de `..` não-`Int` |
 | `Can only iterate over a range, a list or a string.` | `for-in` em tipo não iterável |
@@ -132,7 +141,7 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 ## Como testar
 
 - Casos golden em [`tests/cases/errors/`](../../tests/cases/errors) usam marcadores
-  `// expect error:` (65) e `// expect runtime error:` (70). Ver
+  `# expect error:` (65) e `# expect runtime error:` (70). Ver
   [skill `lox-testing`](../../.dsh/skills/lox-testing/SKILL.md).
 
 ## Próximo passo (não implementado)

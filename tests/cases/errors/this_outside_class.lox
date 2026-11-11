@@ -1,2 +1,2 @@
 print this;
-// expect error: Can't use 'this' outside of a class.
+# expect error: Can't use 'this' outside of a class.

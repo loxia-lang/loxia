@@ -1,2 +1,2 @@
 naoexiste = 1;
-// expect runtime error: Undefined variable 'naoexiste'.
+# expect runtime error: Undefined variable 'naoexiste'.

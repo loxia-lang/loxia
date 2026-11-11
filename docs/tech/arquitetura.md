@@ -35,7 +35,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
 | [`lox/cli.py`](../../lox/cli.py) | CLI, `Lox.run`, REPL, `--version`, `--dump-ast`, exit codes |
 | [`lox/__main__.py`](../../lox/__main__.py) | entrypoint `python -m lox` |
-| [`src/scanner.py`](../../src/scanner.py) | lexer manual (estado: `_start`, `_current`, `_line`) |
+| [`src/scanner.py`](../../src/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
 | [`src/tokens.py`](../../src/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
 | [`src/token_type.py`](../../src/token_type.py) | enum `TokenType` |
 | [`src/keywords.py`](../../src/keywords.py) | mapa lexema → token |
@@ -46,7 +46,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/interpreter.py`](../../src/interpreter.py) | execução; `globals`, `environment`, `locals` |
 | [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
 | [`src/values.py`](../../src/values.py) | `stringify` única |
-| [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`: predicados, promoção, wrapping, `%` |
+| [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
 | [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), uniões, `T?`, `FnTy` e helpers |
 | [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
 | [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |

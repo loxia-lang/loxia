@@ -7,5 +7,5 @@ fn procura(n) {
   return -1;
 }
 
-print procura(10);  // expect: 3
-print procura(1);   // expect: -1
+print procura(10);  # expect: 3
+print procura(1);   # expect: -1

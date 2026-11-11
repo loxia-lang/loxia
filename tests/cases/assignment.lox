@@ -1,7 +1,7 @@
-// Regressão: atribuir de dentro do bloco deve atualizar o escopo onde a variável vive.
+# Regressão: atribuir de dentro do bloco deve atualizar o escopo onde a variável vive.
 var a = 1;
 {
   var b = 2;
   a = b + 10;
 }
-print a;  // expect: 12
+print a;  # expect: 12

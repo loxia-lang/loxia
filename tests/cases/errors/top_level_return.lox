@@ -1,2 +1,2 @@
 return 1;
-// expect error: Can't return from top-level code.
+# expect error: Can't return from top-level code.

@@ -20,20 +20,20 @@ uv run python -m tests.runner for  # um caso (filtro por substring)
 O próprio `.lox` carrega a expectativa em comentário:
 
 ```lox
-print 1 + 2;                          // expect: 3
+print 1 + 2;                          # expect: 3
 print naoexiste;
-// expect runtime error: Undefined variable 'naoexiste'.
+# expect runtime error: Undefined variable 'naoexiste'.
 ```
 
-Marcadores aceitos (qualquer posição; a ordem das linhas `// expect:` é a ordem
+Marcadores aceitos (qualquer posição; a ordem das linhas `# expect:` é a ordem
 esperada do stdout):
 
 | Marcador | Efeito |
 |---|---|
-| `// expect: X` | linha de stdout esperada |
-| `// expect runtime error: MSG` | stderr contém MSG; exit **70** |
-| `// expect error: MSG` | erro de sintaxe/resolução; exit **65** |
-| `// expect exit: N` | exit code explícito |
+| `# expect: X` | linha de stdout esperada |
+| `# expect runtime error: MSG` | stderr contém MSG; exit **70** |
+| `# expect error: MSG` | erro de sintaxe/resolução; exit **65** |
+| `# expect exit: N` | exit code explícito |
 
 Exit codes do CLI: 65 sintaxe, 70 runtime, 66 arquivo não encontrado.
 Se não houver marcador de erro, o teste exige stdout idêntico, stderr vazio e exit 0.
@@ -53,8 +53,8 @@ existia, ele falhou antes do fix — cite isso na mensagem de commit.
 
 ## Armadilhas
 
-- O runner procura `//` em **qualquer** posição da linha (expectativa no fim da
-  linha, como no livro). Comentário com `//` dentro de string ainda funciona?
+- O runner procura `#` em **qualquer** posição da linha (expectativa no fim da
+  linha, como no livro). Comentário com `#` dentro de string ainda funciona?
   Evite: pode ser confundido com expectativa.
 - Números são `float`: `print 3;` sai `3` por causa do `stringify`, não porque é int.
 - Teste de REPL usa `Parser(tokens, repl=True)`; sem isso o `;` é obrigatório.

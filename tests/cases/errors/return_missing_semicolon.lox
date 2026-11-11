@@ -1,2 +1,2 @@
 fn f() { return 1 }
-// expect error: Expect ';' after return value.
+# expect error: Expect ';' after return value.

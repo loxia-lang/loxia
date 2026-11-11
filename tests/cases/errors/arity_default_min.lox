@@ -3,4 +3,4 @@ fn soma(a, b = 10) {
 }
 
 print soma();
-// expect runtime error: Expected at least 1 arguments but got 0.
+# expect runtime error: Expected at least 1 arguments but got 0.

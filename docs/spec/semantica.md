@@ -103,10 +103,15 @@ var a = "global";
 | --- | --- | --- |
 | `!` | qualquer | nega a truthiness |
 | `-` | número | negação (em `Int`, com wrapping) |
+| `~` | `Int` | complemento de 64 bits (`~x == -x - 1`) |
 | `+` | dois números **ou** duas strings | soma com promoção / concatenação |
 | `-` `*` | dois números | aritmética com promoção; `Int` faz wrapping |
 | `/` | dois números | divisão **sempre `Float`** (`4 / 2` → `2.0`) |
+| `//` | `Int` | divisão inteira truncada; divisor zero é erro |
 | `%` | dois números | resto truncado (sinal do dividendo); `fmod` se houver `Float` |
+| `**` | números | `Int ** Int` → `Int`; qualquer `Float` → `Float`; direito-associativo |
+| `&` `\|` `^` | `Int` | operações bit a bit em 64 bits |
+| `<<` `>>` `>>>` | `Int` | shift; `>>` aritmético, `>>>` lógico; contagem `0..63` |
 | `<` `<=` `>` `>=` | dois números | booleano (promoção; com `NaN`, tudo `false`) |
 | `==` `!=` | qualquer | igualdade |
 | `and` `or` | qualquer | curto-circuito, devolve o operando |
@@ -119,11 +124,20 @@ var a = "global";
   `Float` — decisão nossa, diferente do livro (que devolveria `inf`/`NaN`).
 - Resto por zero também é erro de runtime (`Modulo by zero not allowed`).
 - `%` segue C/LLVM: `-7 % 3` → `-1` (sinal do dividendo), não `2`.
-- A divisão inteira `//` **não existe**: colide com o comentário `//` e o token ainda
-  está em aberto ([`../../TIPOS.md`](../../TIPOS.md) `D-4`).
+- `//` também é truncado (`-7 // 2` → `-3`); com `%`, vale
+  `a == (a // b) * b + (a % b)`. Overflow de `INT_MIN // -1` faz wrap.
+- `**`: `2 ** 3` → `Int` 8; `2 ** -1` é erro (`Negative exponent not allowed for integer
+  power.`); use `2.0 ** -1` para `0.5`. `2 ** 63` faz wrap para `INT_MIN`. Expoente
+  negativo em `Float` é permitido; domínio/overflow inválido é erro.
+- `~`, `&`, `|`, `^` e shifts são **só `Int`**; `Bool` e `Float` são
+  `Operands must be integers.` (unário: `Operand must be an integer.`). `>>>` opera no
+  padrão unsigned de 64 bits (`-1 >>> 1 == INT_MAX`).
+- Shift fora de `0..63` é erro (`Shift count must be between 0 and 63.`), não máscara.
 - `and`/`or` devolvem o valor do operando, não um booleano:
   `nil or 2` → `2`; `false and 1` → `false`.
 - A ordem de avaliação é esquerda→direita; `and`/`or` só avaliam a direita se necessário.
+- Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
+  não comentário.
 
 ## Ranges e `for-in`
 

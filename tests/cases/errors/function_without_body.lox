@@ -1,2 +1,2 @@
 fn f() print 1;
-// expect error: Expect '{' before function body.
+# expect error: Expect '{' before function body.

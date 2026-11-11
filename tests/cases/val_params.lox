@@ -7,5 +7,5 @@ fn leitura(x) {
   return x + 1;
 }
 
-print incrementa(1);  // expect: 2
-print leitura(1);     // expect: 2
+print incrementa(1);  # expect: 2
+print leitura(1);     # expect: 2

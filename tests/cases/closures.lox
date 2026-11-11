@@ -8,5 +8,5 @@ fn makeCounter() {
 }
 
 var counter = makeCounter();
-counter();  // expect: 1
-counter();  // expect: 2
+counter();  # expect: 1
+counter();  # expect: 2

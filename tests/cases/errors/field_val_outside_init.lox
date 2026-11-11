@@ -9,4 +9,4 @@ class C {
     this.x = 2;
   }
 }
-// expect error: Can't assign to immutable field 'x'.
+# expect error: Can't assign to immutable field 'x'.

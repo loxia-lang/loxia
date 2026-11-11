@@ -26,6 +26,9 @@ Complementa:
 - [x] **Ranges e iteração** — `a..b` half-open, `range(a, b, step)`, `for-in` sobre
   Range/String e variável `val` por iteração. Ver
   [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
+- [x] **Divisão inteira, potência e bits** — `//` truncado só `Int`, `**` (`Int`/`Float`),
+  `& | ^ ~ << >> >>>` em i64, shifts com contagem `0..63`. Ver
+  [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
 - [x] **Checagem estática gradual (T1/T2)** — anotações em funções, inferência local,
   `T?`/uniões, promoção e booleanos Python; `--check`. Ver
   [ADR-0010](docs/adr/0010-tipagem-estatica.md) e [`TODO.md`](TODO.md) §2.
@@ -83,12 +86,13 @@ acima; o que falta está nas seções seguintes.
 `1i64` e `1.0f32` **não** entram por enquanto. Bases, `_` e expoente já existem; sufixos
 explícitos continuam sem decisão (provavelmente nunca, enquanto `Int` for sempre i64).
 
-### 3.2 Divisão inteira `//` (`D-4`)
+### 3.2 Divisão inteira `//` (`D-4`) — decidido
 
-`//` colide com o comentário de linha: para existir, precisa de token próprio (`div`,
-`\`) ou de trocar o comentário (`#`, ...). Até essa decisão, não há divisão inteira — só
-`/` (Float) e `%` (truncado). O codegen deve emitir guarda de divisor ≠ 0 em
-`sdiv`/`srem`, porque divisor zero é UB no LLVM.
+`//` é divisão **truncada em direção a zero**, só `Int`:
+`-7 // 2 == -3`, `7 // -2 == -3`. É consistente com o `%` truncado
+(`a == (a // b) * b + (a % b)`), e `//` não colide mais com comentário porque comentários
+de linha usam `#`. `/` continua sempre `Float`. Divisor zero é erro de runtime e
+`INT_MIN // -1` faz wrap i64. Ver [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
 
 ### 3.3 Overflow checado no debug (`D-5`)
 
@@ -99,10 +103,10 @@ interpretador, para os dois continuarem batendo.
 ### 3.4 Conversões e funções matemáticas (`D-8`)
 
 ```lox
-let i = 3.9 as Int        // 3 (trunca em direção a zero)
-let f = 3 as Float        // 3.0
-let n = Int.parse("42")   // Result/Option, nunca crash silencioso
-let s = 42.toString()     // "42"
+let i = 3.9 as Int        # 3 (trunca em direção a zero)
+let f = 3 as Float        # 3.0
+let n = Int.parse("42")   # Result/Option, nunca crash silencioso
+let s = 42.toString()     # "42"
 ```
 
 - `as` é cast **explícito** (sem exceção implícita) e verificado pelo checker quando
@@ -116,21 +120,24 @@ let s = 42.toString()     // "42"
 - `Int as Float` pode perder precisão acima de `2^53`; `Float as Int` exige checar
   `NaN`/`Inf` e o range de i64 antes de truncar.
 
-### 3.5 Operadores bit a bit (`D-9`)
+### 3.5 Operadores bit a bit (`D-9`) — decidido
 
-Só para `Int`, sem promoção (ainda **não implementado**):
+Só para `Int`, sem promoção. Implementado no checker e no runtime:
 
 ```lox
-a & b   // and
-a | b   // or
-a ^ b   // xor
-~a      // not (complemento de 64 bits)
-a << n  // shift left; n em [0, 63] senão erro (evita UB no LLVM)
-a >> n  // shift aritmético (sinal); >>>
+a & b    # and
+a | b    # or
+a ^ b    # xor
+~a       # not (complemento de 64 bits)
+a << n   # shift left; n em [0, 63] senão erro (evita UB no LLVM)
+a >> n   # shift aritmético (sinal)
+a >>> n  # shift lógico (zero-fill)
 ```
 
-Precedência: a convenção C (`&` abaixo de `==`) é uma armadilha; adotar precedência
-**toda acima de comparação** (como Rust) e registrar `D-9`.
+Precedência: bits **acima de comparação/igualdade** (evita `flags & MASK == 0` virar
+`flags & (MASK == 0)`); shifts abaixo de `+`/`-`. `Bool`/`Float` são erro. O resultado é
+sempre i64 com wrapping; `~x == -x - 1`. Ver
+[ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
 
 ### 3.6 Ranges e iteração (`D-10`) — decidido
 
@@ -138,9 +145,9 @@ Implementado no tree-walk para `Range` e `String`; List/Map entram quando existi
 [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e [`IDEIAS.md`](IDEIAS.md) I-6.
 
 ```lox
-0..10              // Range Int, half-open (0..9), lazy e reutilizável
+0..10              # Range Int, half-open (0..9), lazy e reutilizável
 for i in 0..n { ... }
-range(10, 0, -1)   // passo/descendente (3 argumentos)
+range(10, 0, -1)   # passo/descendente (3 argumentos)
 ```
 
 - Só `Int` nos bounds (range de `Float` não tem passo natural).
@@ -158,13 +165,13 @@ O checker T1/T2 já existe (`--check`): funções precisam de parâmetros e reto
 locais e expressões são inferidos.
 
 ```lox
-val a = 1          // Int
-val b = 1.0        // Float
-val c = 1 + 2.0    // Float (promoção)
-val d = 1 / 2      // Float (D-4)
+val a = 1          # Int
+val b = 1.0        # Float
+val c = 1 + 2.0    # Float (promoção)
+val d = 1 / 2      # Float (D-4)
 
 fn metade(x: Float) -> Float { return x / 2; }
-metade(4)          // ok: Int promove para Float
+metade(4)          # ok: Int promove para Float
 ```
 
 Inferir parâmetros sem anotação (T3, estilo `fn metade(x) { x / 2 }`) e refinar uniões em
@@ -300,24 +307,23 @@ Em aberto:
 | Id | Decisão | Opções | Recomendação |
 | --- | --- | --- | --- |
 | `D-2` | sufixos de literal | `1i64` / `1.0f32` / não ter | não ter por enquanto |
-| `D-4` | divisão inteira `//` | `div` / `\` / trocar comentário | decidir antes de usar |
 | `D-5` | overflow no debug | checado / só wrapping | debug checado, release wrapping |
 | `D-8` | conversões | `as` / funções | `as` + funções `math` |
-| `D-9` | bitwise | precedência C vs Rust; shifts | Rust; shift inválido = erro |
 | `D-11` | LLVM | i64/double; guards | i64/double + guardas |
 | `D-12` | representação | boxeado / desboxado / NaN-box | boxeado → desboxado |
 | `D-13` | `len` de string | bytes / code points / graphemes | code points |
-| `D-14` | literal de map | `{}` / `#{}` / outro | decidir antes de P1 |
+| `D-14` | literal de map | `{}` / `Map{}` / outro | `#{}` descartado (comentário `#`) |
 | `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
 
-Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-6` (formatação),
-`D-10` (ranges/iteração), `D-15` (non-null + `T?`) e `D-18` (igualdade numérica) — ver os
-checkboxes no topo e os ADRs
+Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-4` (divisão inteira),
+`D-6` (formatação), `D-9` (bits), `D-10` (ranges/iteração), `D-15` (non-null + `T?`) e
+`D-18` (igualdade numérica) — ver os checkboxes no topo e os ADRs
 [0006](docs/adr/0006-int-float-separados.md) /
 [0007](docs/adr/0007-ranges-e-iteracao.md) /
-[0010](docs/adr/0010-tipagem-estatica.md). Cada decisão implementada ganha caso golden e
-linha no `TODO.md` §11.
+[0010](docs/adr/0010-tipagem-estatica.md) /
+[0012](docs/adr/0012-comentarios-divisao-potencia-bits.md). Cada decisão implementada ganha
+caso golden e linha no `TODO.md` §11.
 
 ---
 
@@ -326,7 +332,7 @@ linha no `TODO.md` §11.
 | Fase | Entrega | Depende de |
 | --- | --- | --- |
 | **N0** | ✅ `Int` literal no lexer + `stringify` distinto + testes | nada |
-| **N1** | 🟡 promoção `Int → Float`, `/` sempre `Float` e `%` truncado no interpretador; falta `//` (token) e bitwise | N0 |
+| **N1** | ✅ promoção `Int → Float`, `/` sempre `Float`, `%`/`//` truncados, `**` e bitwise | N0 |
 | **N2** | sintaxe de anotação (`: Int`, `-> Float`) e `Ty` no AST | checker T1 |
 | **N3** | unificação/checagem nas chamadas com promoção (T3) | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |

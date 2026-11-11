@@ -1,4 +1,4 @@
-if (true) print "entao"; else print "senao";  // expect: entao
+if (true) print "entao"; else print "senao";  # expect: entao
 
 var x = 2;
 if (x == 1) {
@@ -8,4 +8,4 @@ if (x == 1) {
 } else {
   print "outro";
 }
-// expect: dois
+# expect: dois

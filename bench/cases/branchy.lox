@@ -1,4 +1,4 @@
-// Ramificação + lógica: mede if/else e curto-circuito.
+# Ramificação + lógica: mede if/else e curto-circuito.
 var i = 0;
 var acc = 0;
 while (i < 80000) {

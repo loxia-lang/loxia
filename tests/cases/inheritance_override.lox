@@ -10,5 +10,5 @@ class B(A) {
   }
 }
 
-B().method();  // expect: B
-A().method();  // expect: A
+B().method();  # expect: B
+A().method();  # expect: A

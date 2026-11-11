@@ -20,8 +20,8 @@ pretendo tipar e como chegar no LLVM.
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
 > no lugar. **Parte II concluída** (caps. 4–13), **`val`/`var`** (ADR-0005), **ranges/for-in**
 > (ADR-0007), **herança `class B(A)`** (ADR-0008), **defaults/campos** (ADR-0009), checker
-> `--check` (ADR-0010) e **`fn`/`elif`/`;` opcional** (ADR-0011) implementados. Próximo:
-> narrowing/generics ou a sintaxe restante.
+> `--check` (ADR-0010), **`fn`/`elif`/`;` opcional** (ADR-0011) e **`//`/`**`/bits**
+> (ADR-0012) implementados. Próximo: narrowing/generics ou a sintaxe restante.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -107,35 +107,35 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
 ### 1.2 De/para (Lox atual → proposta)
 
 ```lox
-// hoje
+# hoje
 for (var i = 0; i < 10; i = i + 1) { print i; }
 fn soma(a, b) { return a + b; }
 
-// proposta
+# proposta
 for i in 0..10 { println(i) }
-fn soma(a, b) -> a + b            // corpo de expressão, sem return
+fn soma(a, b) -> a + b            # corpo de expressão, sem return
 ```
 
 Programa-alvo (mistura tudo o que quero):
 
 ```lox
-// fib.lox — como eu gostaria que a linguagem fosse em ~1 ano
+# fib.lox — como eu gostaria que a linguagem fosse em ~1 ano
 fn fib(n: Int) -> Int {
   if n < 2 { n } else { fib(n - 1) + fib(n - 2) }
 }
 
 fn main() {
   val n = 30
-  println("fib(${n}) = ${fib(n)}")          // interpolação
+  println("fib(${n}) = ${fib(n)}")          # interpolação
 
   val pessoas = [Pessoa("Ana", 32), Pessoa("Bia", 28)]
 
   for p in pessoas {
-    val rotulo = p.nome ?? "sem nome"       // fallback de nil
+    val rotulo = p.nome ?? "sem nome"       # fallback de nil
     println("${rotulo} tem ${p.idade} anos")
   }
 
-  val primeiro = pessoas[0]?.endereco?.cidade  // optional chaining
+  val primeiro = pessoas[0]?.endereco?.cidade  # optional chaining
 }
 ```
 
@@ -167,9 +167,14 @@ fn main() {
 **Operadores e literais**
 - [x] `P0` **`%`** (resto truncado, sinal do dividendo; `Int` e `Float`) —
       [ADR-0006](docs/adr/0006-int-float-separados.md).
-- [ ] `P2` **`**`** (potência, associativa à direita).
-- [ ] `P2` **`//`** divisão inteira? bloqueado: colide com comentário; decidir token
-      ([`TIPOS.md`](TIPOS.md) `D-4`).
+- [x] `P2` **`**`** potência associativa à direita; `Int ** Int -> Int`, Float envolvido
+      vira Float; expoente negativo em `Int` é erro. Ver
+      [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
+- [x] `P2` **`//`** divisão inteira truncada, só `Int`; comentários passaram para `#` e
+      `/* */` aninhado. Ver [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
+- [x] `P2` **bits** `& | ^ ~ << >> >>>` só em `Int`, i64; precedence de bits acima de
+      comparação; shift fora de `0..63` é erro. Ver
+      [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
 - [x] `P2` **ranges** `0..10` (half-open), iteráveis e valor lazy; `0..=10` adiado.
       Ver [`IDEIAS.md`](IDEIAS.md) I-6 e [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
 - [ ] `P2` **ternário** `cond ? a : b` (ou só `if` expressão; decidir).
@@ -240,15 +245,15 @@ Tipagem **estática gradual**, com anotações onde importam:
 
 ```lox
 fn soma(a: Int, b: Int) -> Int { return a + b; }
-soma(1, 2)        // ok
-soma("a", 2)      // erro em tempo de compilação:
-                  //   Expected Int, found String.
+soma(1, 2)        # ok
+soma("a", 2)      # erro em tempo de compilação:
+                  #   Expected Int, found String.
 ```
 
 E inferência nos locais:
 
 ```lox
-val x = soma(1, 2)   // Int, sem anotação
+val x = soma(1, 2)   # Int, sem anotação
 val nome: String? = nil
 ```
 
@@ -615,7 +620,7 @@ imports para `print`).
 ## 7. Tooling e qualidade
 
 - [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
-      (`// expect:`, `// expect runtime error:`), com runner próprio
+      (`# expect:`, `# expect runtime error:`), com runner próprio
       (`tests/runner.py`, roda também fora do pytest). 71 testes hoje.
 - [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
       (`make lint`, `make type`).
@@ -732,7 +737,7 @@ persegue uma linguagem que ainda muda.
 - [ ] **Dialeto embutido**: `lox` como linguagem de script de um app Python (via CFFI).
 - [ ] **Gerador de AST a partir de schema** (o livro faz à mão; um script evita erro
       quando a linguagem crescer).
-- [ ] **`lox doc`** — gera docs a partir de comentários `///`.
+- [ ] **`lox doc`** — gera docs a partir de comentários de documentação (ex.: `##`).
 - [ ] **Modo "strict"** vs "loose" para compatibilidade com Lox puro durante a transição.
 
 ---
@@ -783,6 +788,10 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
     `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha (operador continua
     só se estiver na mesma linha; `return` sozinho devolve `nil`). Ver
     [ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md).
+21. **Comentários, `//`, `**` e bits** — **decidido em 2026-11-11**: `#` + `/* */`
+    aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`;
+    `& | ^ ~ << >> >>>` em i64, shift inválido é erro; bits acima de comparação. Ver
+    [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
 
 ---
 

@@ -1,4 +1,4 @@
-// Subclasse com `init` chama `super.init(...)` explicitamente.
+# Subclasse com `init` chama `super.init(...)` explicitamente.
 class Animal {
   var nome;
   init(nome) {
@@ -15,5 +15,5 @@ class Cachorro(Animal) {
 }
 
 var rex = Cachorro("Rex", "vira-lata");
-print rex.nome;  // expect: Rex
-print rex.raca;  // expect: vira-lata
+print rex.nome;  # expect: Rex
+print rex.raca;  # expect: vira-lata

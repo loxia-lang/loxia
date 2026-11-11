@@ -5,4 +5,4 @@ class B(A) {
   }
 }
 B().method();
-// expect runtime error: Undefined property 'nope'.
+# expect runtime error: Undefined property 'nope'.

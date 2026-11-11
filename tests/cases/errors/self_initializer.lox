@@ -1,4 +1,4 @@
 {
   var a = a;
 }
-// expect error: Can't read local variable in its own initializer.
+# expect error: Can't read local variable in its own initializer.

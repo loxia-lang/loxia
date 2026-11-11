@@ -45,7 +45,7 @@ class Conta {
 
 var c = Conta(10);
 c.deposita(5);
-print c.saldo;  // 15
+print c.saldo;  # 15
 ```
 
 ## Tipos
@@ -58,9 +58,12 @@ fn soma(a: Int, b: Int) -> Int {
   return a + b
 }
 
-val total = soma(1, 2)      // Int inferido
-val talvez: String? = nil   // String | Nil
+val total = soma(1, 2)      # Int inferido
+val talvez: String? = nil   # String | Nil
 ```
+
+Aritmética inclui `//` (divisão inteira), `**` (potência) e bits
+`& | ^ ~ << >> >>>`; comentários usam `#` e `/* */` (aninhado).
 
 ## Estrutura
 

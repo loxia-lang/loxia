@@ -1,4 +1,4 @@
-// Closures: a função interna guarda o ambiente onde foi declarada.
+# Closures: a função interna guarda o ambiente onde foi declarada.
 fn makeCounter() {
   var count = 0;
 

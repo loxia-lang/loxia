@@ -3,4 +3,4 @@ class C {
 }
 
 C();
-// expect runtime error: Field 'x' must be initialized.
+# expect runtime error: Field 'x' must be initialized.

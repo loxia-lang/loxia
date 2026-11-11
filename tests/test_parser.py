@@ -186,6 +186,21 @@ def test_call_binds_tighter_than_unary() -> None:
     assert ast("-f(1)") == "(- (call f 1))"
 
 
+def test_int_division_and_power_ast_shape() -> None:
+    assert ast("7 // 2") == "(// 7 2)"
+    assert ast("2 ** 3 ** 2") == "(** 2 (** 3 2))"
+    assert ast("-2 ** 2") == "(- (** 2 2))"
+    assert ast("2 ** -1") == "(** 2 (- 1))"
+
+
+def test_bitwise_precedence_ast_shape() -> None:
+    assert ast("1 & 3 == 1") == "(== (& 1 3) 1)"
+    assert ast("1 + 2 << 2") == "(<< (+ 1 2) 2)"
+    assert ast("1 << 1 + 2") == "(<< 1 (+ 1 2))"
+    assert ast("5 & 3 | 8") == "(| (& 5 3) 8)"
+    assert ast("~0 & 0xFF") == "(& (~ 0) 255)"
+
+
 def test_parses_function_declaration() -> None:
     statements = parse("fn soma(a, b) { return a + b; }")
 

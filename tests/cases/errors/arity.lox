@@ -2,4 +2,4 @@ fn soma(a, b) {
   return a + b;
 }
 soma(1);
-// expect runtime error: Expected 2 arguments but got 1.
+# expect runtime error: Expected 2 arguments but got 1.

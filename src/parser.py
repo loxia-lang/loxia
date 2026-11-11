@@ -489,7 +489,7 @@ class Parser:
         return expr
 
     def _comparison(self) -> Expr:
-        expr: Expr = self._range()
+        expr: Expr = self._bitwise_or()
 
         while self._match_inline(
             TokenType.GREATER,
@@ -498,18 +498,62 @@ class Parser:
             TokenType.LESS_EQUAL,
         ):
             operator: Token = self._previous()
+            right: Expr = self._bitwise_or()
+            expr = Binary(expr, operator, right)
+
+        return expr
+
+    def _bitwise_or(self) -> Expr:
+        expr: Expr = self._bitwise_xor()
+
+        while self._match_inline(TokenType.PIPE):
+            operator: Token = self._previous()
+            right: Expr = self._bitwise_xor()
+            expr = Binary(expr, operator, right)
+
+        return expr
+
+    def _bitwise_xor(self) -> Expr:
+        expr: Expr = self._bitwise_and()
+
+        while self._match_inline(TokenType.CARET):
+            operator: Token = self._previous()
+            right: Expr = self._bitwise_and()
+            expr = Binary(expr, operator, right)
+
+        return expr
+
+    def _bitwise_and(self) -> Expr:
+        expr: Expr = self._range()
+
+        while self._match_inline(TokenType.AMPERSAND):
+            operator: Token = self._previous()
             right: Expr = self._range()
             expr = Binary(expr, operator, right)
 
         return expr
 
     def _range(self) -> Expr:
-        expr: Expr = self._term()
+        expr: Expr = self._shift()
 
         while self._match_inline(TokenType.DOT_DOT):
             operator: Token = self._previous()
-            end: Expr = self._term()
+            end: Expr = self._shift()
             expr = Range(expr, end, operator)
+
+        return expr
+
+    def _shift(self) -> Expr:
+        expr: Expr = self._term()
+
+        while self._match_inline(
+            TokenType.LESS_LESS,
+            TokenType.GREATER_GREATER,
+            TokenType.GREATER_GREATER_GREATER,
+        ):
+            operator: Token = self._previous()
+            right: Expr = self._term()
+            expr = Binary(expr, operator, right)
 
         return expr
 
@@ -526,7 +570,12 @@ class Parser:
     def _factor(self) -> Expr:
         expr: Expr = self._unary()
 
-        while self._match_inline(TokenType.SLASH, TokenType.STAR, TokenType.PERCENT):
+        while self._match_inline(
+            TokenType.SLASH,
+            TokenType.SLASH_SLASH,
+            TokenType.STAR,
+            TokenType.PERCENT,
+        ):
             operator: Token = self._previous()
             right: Expr = self._unary()
             expr = Binary(expr, operator, right)
@@ -534,12 +583,22 @@ class Parser:
         return expr
 
     def _unary(self) -> Expr:
-        if self._match(TokenType.BANG, TokenType.MINUS):
+        if self._match(TokenType.BANG, TokenType.MINUS, TokenType.TILDE):
             operator: Token = self._previous()
             right: Expr = self._unary()
             return Unary(operator, right)
 
-        return self._call()
+        return self._power()
+
+    def _power(self) -> Expr:
+        expr: Expr = self._call()
+
+        if self._match_inline(TokenType.STAR_STAR):
+            operator: Token = self._previous()
+            right: Expr = self._unary()
+            return Binary(expr, operator, right)
+
+        return expr
 
     def _call(self) -> Expr:
         expr = self._primary()

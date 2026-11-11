@@ -64,11 +64,16 @@ assignment     → ( call "." )? IDENTIFIER "=" assignment
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → range ( ( ">" | ">=" | "<" | "<=" ) range )* ;
-range          → term ( ".." term )* ;
+comparison     → bitwise_or ( ( ">" | ">=" | "<" | "<=" ) bitwise_or )* ;
+bitwise_or     → bitwise_xor ( "|" bitwise_xor )* ;
+bitwise_xor    → bitwise_and ( "^" bitwise_and )* ;
+bitwise_and    → range ( "&" range )* ;
+range          → shift ( ".." shift )* ;
+shift          → term ( ( "<<" | ">>" | ">>>" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" | "%" ) unary )* ;
-unary          → ( "!" | "-" ) unary | call ;
+factor         → unary ( ( "*" | "/" | "//" | "%" ) unary )* ;
+unary          → ( "!" | "-" | "~" ) unary | power ;
+power          → call ( "**" unary )? ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil" | "this"
@@ -101,7 +106,7 @@ Para continuar uma expressão na linha seguinte, deixe o **operador no fim** da 
 
 ```lox
 val total = 1 +
-  2            // ok: 3
+  2            # ok: 3
 ```
 
 Operador no começo da linha seguinte **não** continua a expressão; ele inicia outro
@@ -109,7 +114,7 @@ statement:
 
 ```lox
 var x = 1
--2             // statement separado; x continua 1
+-2             # statement separado; x continua 1
 ```
 
 `return` sozinho no fim da linha devolve `nil`; para retornar um valor, mantenha-o na
@@ -136,11 +141,22 @@ Do menor para o maior:
 | and | `and` | esquerda |
 | igualdade | `==` `!=` | esquerda |
 | comparação | `<` `<=` `>` `>=` | esquerda |
+| or de bits | `\|` | esquerda |
+| xor de bits | `^` | esquerda |
+| and de bits | `&` | esquerda |
 | range | `..` | esquerda |
+| shift | `<<` `>>` `>>>` | esquerda |
 | termo | `+` `-` | esquerda |
-| fator | `*` `/` `%` | esquerda |
-| unário | `!` `-` | direita |
+| fator | `*` `/` `//` `%` | esquerda |
+| unário | `!` `-` `~` | direita |
+| potência | `**` | direita; lado direito aceita unário |
 | chamada | `()` `.` | encadeia à esquerda |
+| primário | literais, `this`, `super.x`, `( … )` | — |
+
+`**` é o caso especial: `-2 ** 2` é `-(2 ** 2)` (potência liga mais forte que o sinal
+unário à esquerda), mas `2 ** -1` é permitido. Os operadores de bits ligam mais forte que
+`==`/`!=`/comparações, então `flags & MASK == 0` é `(flags & MASK) == 0`; shifts ficam
+abaixo de `+`/`-`, como no C.
 | primário | literais, `this`, `super.x`, `( … )` | — |
 
 Consequências:
