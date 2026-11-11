@@ -16,6 +16,7 @@ class Visitor[R](Protocol):
     def visit_unary_expr(self, expr: Unary) -> R: ...
     def visit_assign_expr(self, expr: Assign) -> R: ...
     def visit_call_expr(self, expr: Call) -> R: ...
+    def visit_conditional_expr(self, expr: Conditional) -> R: ...
     def visit_get_expr(self, expr: Get) -> R: ...
     def visit_logical_expr(self, expr: Logical) -> R: ...
     def visit_set_expr(self, expr: Set) -> R: ...
@@ -92,15 +93,27 @@ class Call(Expr):
     callee: Expr
     paren: Token
     arguments: list[Expr]
+    optional: bool = False
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_call_expr(self)
 
 
 @dataclass(frozen=True, eq=False)
+class Conditional(Expr):
+    condition: Expr
+    then_branch: Expr
+    else_branch: Expr
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_conditional_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
 class Get(Expr):
     object: Expr
     name: Token
+    optional: bool = False
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_get_expr(self)

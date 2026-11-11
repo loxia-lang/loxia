@@ -4,6 +4,7 @@ from src.expr import (
     Assign,
     Binary,
     Call,
+    Conditional,
     Expr,
     Get,
     Grouping,
@@ -440,7 +441,7 @@ class Parser:
         return self._assignment()
 
     def _assignment(self) -> Expr:
-        expr = self._or()
+        expr = self._conditional()
 
         if self._check(TokenType.EQUAL) and self._peek().line == self._previous().line:
             self._advance()
@@ -452,9 +453,45 @@ class Parser:
                 return Assign(name, value)
 
             if isinstance(expr, Get):
+                if self._has_optional_chain(expr):
+                    self._error(equals, "Can't assign through optional chaining.")
+                    return expr
                 return Set(expr.object, expr.name, value)
 
             self._error(equals, "Invalid assignment target.")
+
+        return expr
+
+    def _has_optional_chain(self, expr: Expr) -> bool:
+        if isinstance(expr, Get):
+            return expr.optional or self._has_optional_chain(expr.object)
+        if isinstance(expr, Call):
+            return expr.optional or self._has_optional_chain(expr.callee)
+        if isinstance(expr, Grouping):
+            return self._has_optional_chain(expr.expression)
+
+        return False
+
+    def _conditional(self) -> Expr:
+        expr = self._coalesce()
+
+        if self._match_inline(TokenType.IF):
+            condition = self._coalesce()
+            self._consume(
+                TokenType.ELSE, "Expect 'else' after conditional expression."
+            )
+            else_branch = self._conditional()
+            return Conditional(condition, expr, else_branch)
+
+        return expr
+
+    def _coalesce(self) -> Expr:
+        expr = self._or()
+
+        if self._match_inline(TokenType.QUESTION_QUESTION):
+            operator = self._previous()
+            right = self._coalesce()
+            return Logical(expr, operator, right)
 
         return expr
 
@@ -602,6 +639,7 @@ class Parser:
 
     def _call(self) -> Expr:
         expr = self._primary()
+        optional_call = False
 
         while True:
             if (
@@ -609,18 +647,26 @@ class Parser:
                 and self._peek().line == self._previous().line
             ):
                 self._advance()
-                expr = self._finish_call(expr)
+                expr = self._finish_call(expr, optional=optional_call)
+                optional_call = False
+            elif self._match(TokenType.QUESTION_DOT):
+                name = self._consume(
+                    TokenType.IDENTIFIER, "Expect property name after '?.'."
+                )
+                expr = Get(expr, name, optional=True)
+                optional_call = True
             elif self._match(TokenType.DOT):
                 name = self._consume(
                     TokenType.IDENTIFIER, "Expect property name after '.'."
                 )
                 expr = Get(expr, name)
+                optional_call = False
             else:
                 break
 
         return expr
 
-    def _finish_call(self, callee: Expr) -> Expr:
+    def _finish_call(self, callee: Expr, *, optional: bool = False) -> Expr:
         arguments: list[Expr] = []
         if not self._check(TokenType.RIGHT_PAREN):
             while True:
@@ -633,7 +679,7 @@ class Parser:
                     break
 
         paren = self._consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
-        return Call(callee, paren, arguments)
+        return Call(callee, paren, arguments, optional)
 
     def _primary(self) -> Expr:
 

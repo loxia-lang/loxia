@@ -1,0 +1,38 @@
+class Pessoa {
+  var nome
+  init(nome) {
+    this.nome = nome
+  }
+
+  tamanho() {
+    return 10
+  }
+}
+
+var efeitos = 0
+fn efeito() {
+  efeitos = efeitos + 1
+  return 1
+}
+
+val vazio = Pessoa(nil)
+val ana = Pessoa("Ana")
+
+print vazio?.nome ?? "sem nome"    # expect: sem nome
+print ana?.nome ?? "sem nome"      # expect: Ana
+print nil?.nome ?? "x"             # expect: x
+print nil?.tamanho() ?? 0          # expect: 0
+print ana?.tamanho() ?? 0          # expect: 10
+print 0 ?? 5                       # expect: 0
+print false ?? true                # expect: false
+print 1 ?? efeito()                # expect: 1
+print efeitos                      # expect: 0
+
+class C {
+  m(x) {
+    return x
+  }
+}
+val c = nil
+print c?.m(efeito()) ?? "nada"     # expect: nada
+print efeitos                      # expect: 0

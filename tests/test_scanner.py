@@ -149,6 +149,43 @@ def test_scans_arithmetic_and_bitwise_tokens() -> None:
     ]
 
 
+def test_scans_nil_aware_tokens() -> None:
+    assert scan_types("? ?? ?.") == [
+        TokenType.QUESTION,
+        TokenType.QUESTION_QUESTION,
+        TokenType.QUESTION_DOT,
+        TokenType.EOF,
+    ]
+
+
+def test_string_escapes() -> None:
+    token = scan(r'"a\nb\t\"\\\0"')[0]
+
+    assert token.literal == 'a\nb\t"\\\0'
+
+
+def test_unicode_escape() -> None:
+    assert scan(r'"\u{1F600}"')[0].literal == "😀"
+
+
+def test_unknown_escape_reports_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scanner = scan_with_reporter(r'"\q"')
+
+    assert scanner.reporter.had_error
+    assert "Unknown escape sequence '\\q'." in capsys.readouterr().err
+
+
+def test_invalid_unicode_escape_reports_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scanner = scan_with_reporter(r'"\u{110000}"')
+
+    assert scanner.reporter.had_error
+    assert "Invalid Unicode escape." in capsys.readouterr().err
+
+
 def test_scans_two_character_operators() -> None:
     assert scan_types("!= == <= >= ! = < >") == [
         TokenType.BANG_EQUAL,

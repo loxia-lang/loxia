@@ -6,6 +6,7 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
+- ✅ Expressões: ternário `a if c else b`, `??`, `?.` e escapes de string.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
 - 📐 Próximo passo: narrowing/generics no checker e depois o codegen LLVM.
@@ -65,6 +66,13 @@ val talvez: String? = nil   # String | Nil
 
 Aritmética inclui `//` (divisão inteira), `**` (potência) e bits
 `& | ^ ~ << >> >>>`; comentários usam `#` e `/* */` (aninhado).
+
+```lox
+val rotulo = nome ?? "sem nome"          # default só para nil
+val cidade = pessoa?.endereco?.cidade    # acesso seguro
+val status = "adulto" if idade >= 18 else "menor"
+print "linha 1\nlinha 2"                 # escapes
+```
 
 ## Estrutura
 

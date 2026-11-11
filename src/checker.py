@@ -13,6 +13,7 @@ from src.expr import (
     Assign,
     Binary,
     Call,
+    Conditional,
     Expr,
     Get,
     Grouping,
@@ -61,6 +62,8 @@ from src.ty import (
     UnionTy,
     display,
     falsy,
+    is_nilable,
+    non_nil,
     truthy,
     union,
 )
@@ -556,26 +559,53 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_call_expr(self, expr: Call) -> Ty:
         callee = self._infer(expr.callee)
         arguments = [self._infer(argument) for argument in expr.arguments]
+        return self._call_type(callee, expr, arguments)
 
+    def _call_type(self, callee: Ty, expr: Call, arguments: list[Ty]) -> Ty:
         if callee is ANY:
             return ANY
+        if callee is ERROR:
+            return ERROR
 
-        if isinstance(callee, ClassObjectTy):
-            info = self._classes.get(callee.name)
+        nilable = callee is NIL or (
+            isinstance(callee, UnionTy)
+            and any(member is NIL for member in callee.members)
+        )
+        if nilable and not expr.optional:
+            self._error(expr.paren, "Can only call functions and classes.")
+            return ERROR
+        if callee is NIL:
+            return NIL
+
+        members = list(callee.members) if isinstance(callee, UnionTy) else [callee]
+        if expr.optional:
+            members = [member for member in members if member is not NIL]
+        if not members:
+            return NIL
+        if any(member != members[0] for member in members):
+            self._error(expr.paren, "Can only call functions and classes.")
+            return ERROR
+
+        callable_ty = members[0]
+        result: Ty
+
+        if isinstance(callable_ty, ClassObjectTy):
+            info = self._classes.get(callable_ty.name)
             if info is None:
-                self._error(expr.paren, f"Unknown class '{callee.name}'.")
+                self._error(expr.paren, f"Unknown class '{callable_ty.name}'.")
                 return ERROR
 
-            signature = info.init or FnTy((), ClassTy(callee.name), 0)
+            signature = info.init or FnTy((), ClassTy(callable_ty.name), 0)
             self._check_call(expr.paren, signature, arguments)
-            return ClassTy(callee.name)
+            result = ClassTy(callable_ty.name)
+        elif isinstance(callable_ty, FnTy):
+            self._check_call(expr.paren, callable_ty, arguments)
+            result = callable_ty.ret
+        else:
+            self._error(expr.paren, "Can only call functions and classes.")
+            return ERROR
 
-        if isinstance(callee, FnTy):
-            self._check_call(expr.paren, callee, arguments)
-            return callee.ret
-
-        self._error(expr.paren, "Can only call functions and classes.")
-        return ERROR
+        return union(result, NIL) if expr.optional and nilable else result
 
     def _check_call(self, token: Token, signature: FnTy, arguments: list[Ty]) -> None:
         maximum = len(signature.params)
@@ -601,24 +631,44 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_get_expr(self, expr: Get) -> Ty:
         obj = self._infer(expr.object)
+        return self._get_property_type(obj, expr.name, expr.optional)
 
+    def _get_property_type(self, obj: Ty, name: Token, optional: bool) -> Ty:
         if obj is ANY:
             return ANY
-        if isinstance(obj, ClassTy):
-            return self._instance_property(obj, expr.name)
-        if isinstance(obj, UnionTy):
-            results = [
-                self._instance_property(member, expr.name, report=False)
-                for member in obj.members
-                if isinstance(member, ClassTy)
-            ]
-            if len(results) == len(obj.members) and results and all(
-                result == results[0] for result in results
-            ):
-                return results[0]
 
-        self._error(expr.name, "Only instances have properties.")
-        return ERROR
+        nilable = obj is NIL or (
+            isinstance(obj, UnionTy) and any(member is NIL for member in obj.members)
+        )
+        if nilable and not optional:
+            self._error(name, "Only instances have properties.")
+            return ERROR
+        if obj is NIL:
+            return NIL
+
+        members = list(obj.members) if isinstance(obj, UnionTy) else [obj]
+        if optional:
+            members = [member for member in members if member is not NIL]
+        if not members:
+            return NIL
+
+        result: Ty
+        if len(members) == 1 and isinstance(members[0], ClassTy):
+            result = self._instance_property(members[0], name)
+        else:
+            results: list[Ty] = []
+            for member in members:
+                if not isinstance(member, ClassTy):
+                    self._error(name, "Only instances have properties.")
+                    return ERROR
+                results.append(self._instance_property(member, name, report=False))
+
+            if not results or any(item != results[0] for item in results):
+                self._error(name, "Only instances have properties.")
+                return ERROR
+            result = results[0]
+
+        return union(result, NIL) if optional and nilable else result
 
     def _instance_property(
         self, obj: ClassTy, name: Token, *, report: bool = True
@@ -654,10 +704,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return ANY
 
+    def visit_conditional_expr(self, expr: Conditional) -> Ty:
+        self._infer(expr.condition)
+        then_ty = self._infer(expr.then_branch)
+        else_ty = self._infer(expr.else_branch)
+        return union(then_ty, else_ty)
+
     def visit_logical_expr(self, expr: Logical) -> Ty:
         left = self._infer(expr.left)
         right = self._infer(expr.right)
 
+        if expr.operator.type is TokenType.QUESTION_QUESTION:
+            if left is ANY:
+                return ANY
+            if not is_nilable(left):
+                return left
+            return union(non_nil(left), right)
         if expr.operator.type is TokenType.OR:
             return union(truthy(left), right)
 

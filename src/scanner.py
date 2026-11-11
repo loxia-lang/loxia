@@ -46,7 +46,12 @@ class Scanner:
             case "]":
                 self._add_token(TokenType.RIGHT_BRACKET)
             case "?":
-                self._add_token(TokenType.QUESTION)
+                if self._match("?"):
+                    self._add_token(TokenType.QUESTION_QUESTION)
+                elif self._match("."):
+                    self._add_token(TokenType.QUESTION_DOT)
+                else:
+                    self._add_token(TokenType.QUESTION)
             case "|":
                 self._add_token(TokenType.PIPE)
             case "&":
@@ -173,19 +178,101 @@ class Scanner:
         return self._source[self._current]
 
     def _string(self) -> None:
-        while self._peek() != '"' and not self._is_at_end():
-            if self._peek() == "\n":
+        value: list[str] = []
+        closed = False
+
+        while not self._is_at_end():
+            char = self._peek()
+
+            if char == '"':
+                self._advance()
+                closed = True
+                break
+
+            if char == "\n":
                 self._line += 1
+                value.append(self._advance())
+                continue
+
+            if char != "\\":
+                value.append(self._advance())
+                continue
+
             self._advance()
 
-        if self._is_at_end():
+            if self._is_at_end():
+                break
+
+            escape = self._advance()
+
+            if escape == "\n":
+                self._line += 1
+
+            match escape:
+                case '"':
+                    value.append('"')
+                case "\\":
+                    value.append("\\")
+                case "n":
+                    value.append("\n")
+                case "t":
+                    value.append("\t")
+                case "r":
+                    value.append("\r")
+                case "0":
+                    value.append("\0")
+                case "u":
+                    self._unicode_escape(value)
+                case _:
+                    self.reporter.error(
+                        self._line, f"Unknown escape sequence '\\{escape}'."
+                    )
+
+        if not closed:
             self.reporter.error(self._line, "Unterminated string.")
             return
 
-        self._advance()
+        self._add_token(TokenType.STRING, "".join(value))
 
-        value = self._source[self._start + 1 : self._current - 1]
-        self._add_token(TokenType.STRING, value)
+    def _unicode_escape(self, value: list[str]) -> None:
+        if self._peek() != "{":
+            self.reporter.error(self._line, "Expect '{' after '\\u'.")
+            return
+
+        self._advance()
+        digits: list[str] = []
+
+        while self._peek() != "}" and not self._is_at_end():
+            char = self._advance()
+            if char not in "0123456789abcdefABCDEF":
+                self.reporter.error(self._line, "Invalid Unicode escape.")
+                while self._peek() not in ("}", "\0") and not self._is_at_end():
+                    if self._peek() == "\n":
+                        self._line += 1
+                    self._advance()
+                if self._peek() == "}":
+                    self._advance()
+                return
+            digits.append(char)
+
+        if not digits or len(digits) > 6:
+            self.reporter.error(self._line, "Invalid Unicode escape.")
+            if self._peek() == "}":
+                self._advance()
+            return
+
+        if self._peek() != "}":
+            self.reporter.error(self._line, "Invalid Unicode escape.")
+            return
+
+        self._advance()
+        codepoint = int("".join(digits), 16)
+
+        if codepoint > 0x10FFFF or 0xD800 <= codepoint <= 0xDFFF:
+            self.reporter.error(self._line, "Invalid Unicode escape.")
+            return
+
+        value.append(chr(codepoint))
 
     def _number(self) -> None:
         if self._source[self._start] == "0" and self._peek() in "xXbBoO":

@@ -58,6 +58,7 @@ Crie quando a decisão:
 | [0010](0010-tipagem-estatica.md) | Tipagem estática gradual com `--check` | accepted | 2026-11-11 |
 | [0011](0011-fn-elif-ponto-e-virgula.md) | `fn`, `elif` e `;` opcional | accepted | 2026-11-11 |
 | [0012](0012-comentarios-divisao-potencia-bits.md) | Comentários, `//`, `**` e bits | accepted | 2026-11-11 |
+| [0013](0013-ternario-nil-aware-escapes.md) | Ternário, `??`, `?.` e escapes | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 

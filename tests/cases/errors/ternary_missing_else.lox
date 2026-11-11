@@ -1,0 +1,2 @@
+val x = 1 if true;
+# expect error: Expect 'else' after conditional expression.

@@ -57,6 +57,38 @@ def test_numeric_equality_promotes_int_to_float(
     assert stdout == ["true", "false", "false"]
 
 
+def test_nil_aware_and_conditional_short_circuit(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, _ = run(
+        """
+        var calls = 0
+        fn f() {
+          calls = calls + 1
+          return 2
+        }
+
+        print 1 if true else f()
+        print (f() if false else 9)
+        print 0 ?? f()
+        print false ?? true
+        print calls
+
+        class C {
+          m(x) {
+            return x
+          }
+        }
+        val c = nil
+        print c?.m(f()) ?? "nada"
+        print calls
+        """,
+        capsys,
+    )
+
+    assert stdout == ["1", "9", "0", "false", "0", "nada", "0"]
+
+
 def test_int_arithmetic_wraps_on_overflow(capsys: pytest.CaptureFixture[str]) -> None:
     stdout, _ = run(
         "print 9223372036854775807 + 1; print -9223372036854775807 - 2;", capsys

@@ -137,6 +137,18 @@ def is_union(ty: Ty) -> bool:
     return isinstance(ty, UnionTy)
 
 
+def non_nil(ty: Ty) -> Ty:
+    """Remove `Nil` de `ty`; `nil ?? b` sempre cai em `b`."""
+    if ty is NIL:
+        return NEVER
+    if ty is ANY:
+        return ANY
+    if isinstance(ty, UnionTy):
+        return union(*(member for member in ty.members if member is not NIL))
+
+    return ty
+
+
 def truthy(ty: Ty) -> Ty:
     """Remove de `ty` as partes que nunca são truthy (só `Nil` hoje)."""
     if ty is NIL:

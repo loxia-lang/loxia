@@ -2,6 +2,7 @@ from src.expr import (
     Assign,
     Binary,
     Call,
+    Conditional,
     Expr,
     Get,
     Grouping,
@@ -67,10 +68,17 @@ class AstPrinter:
         return expr.name.lexeme
 
     def visit_call_expr(self, expr: Call) -> str:
-        return self._parenthesize(f"call {self.print(expr.callee)}", *expr.arguments)
+        name = "?call" if expr.optional else "call"
+        return self._parenthesize(f"{name} {self.print(expr.callee)}", *expr.arguments)
+
+    def visit_conditional_expr(self, expr: Conditional) -> str:
+        return self._parenthesize(
+            "if", expr.condition, expr.then_branch, expr.else_branch
+        )
 
     def visit_get_expr(self, expr: Get) -> str:
-        return self._parenthesize(f". {expr.name.lexeme}", expr.object)
+        name = "?." if expr.optional else "."
+        return self._parenthesize(f"{name} {expr.name.lexeme}", expr.object)
 
     def visit_set_expr(self, expr: Set) -> str:
         return self._parenthesize(f"set {expr.name.lexeme}", expr.object, expr.value)

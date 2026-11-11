@@ -115,6 +115,9 @@ var a = "global";
 | `<` `<=` `>` `>=` | dois números | booleano (promoção; com `NaN`, tudo `false`) |
 | `==` `!=` | qualquer | igualdade |
 | `and` `or` | qualquer | curto-circuito, devolve o operando |
+| `a if c else b` | condição qualquer | escolhe um ramo; só avalia o escolhido |
+| `a ?? b` | qualquer | devolve `a`, ou `b` se `a` for `nil` |
+| `a?.b` | objeto anulável | `nil` se `a` for nil; senão acessa `b` |
 
 - `Int op Float` promove o `Int` para `Float` (`1 + 2.0` → `3.0`); `Float → Int` nunca é
   implícito.
@@ -136,6 +139,18 @@ var a = "global";
 - `and`/`or` devolvem o valor do operando, não um booleano:
   `nil or 2` → `2`; `false and 1` → `false`.
 - A ordem de avaliação é esquerda→direita; `and`/`or` só avaliam a direita se necessário.
+- `a if c else b`: condição usa truthiness; só um ramo é avaliado. Tipo é a união dos
+  ramos (`Int`/`Int` → `Int`); o `else` é associativo à direita.
+- `??` é **só nil**: `0 ?? 5` → `0`, `false ?? true` → `false`, `"" ?? "x"` → `""`;
+  `or` continua truthiness. O direito só é avaliado se o esquerdo for `nil`.
+- `?.` só protege `nil`: `nil?.x` → `nil`; `a?.b.c` não protege `b`; use `a?.b?.c`.
+  Em `a?.m()`, se `a` for nil, o método e os argumentos não são avaliados; se `a` não for
+  nil mas `m` não existir, continua erro. `a?.b = c` é inválido.
+- `a?.b ?? c` combina os dois: `?.` evita o acesso e `??` aplica o default quando o
+  resultado é nil. Sem `?.`, `a.b ?? c` ainda erra se `a` for nil.
+- `?:` elvis **não existe**; `??` é a única coalescência.
+- Strings processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0` e `\u{XXXX}`; escape desconhecido
+  é erro. Ainda não há interpolação, `"""` nem raw strings.
 - Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
   não comentário.
 

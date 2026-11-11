@@ -13,6 +13,7 @@ from src.expr import (
     Assign,
     Binary,
     Call,
+    Conditional,
     Expr,
     Get,
     Grouping,
@@ -284,6 +285,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_call_expr(self, expr: Call) -> object:
         callee = self._evaluate(expr.callee)
 
+        if expr.optional and callee is None:
+            return None
+
         arguments: list[object] = []
         for argument in expr.arguments:
             arguments.append(self._evaluate(argument))
@@ -365,10 +369,19 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_get_expr(self, expr: Get) -> object:
         ob = self._evaluate(expr.object)
 
+        if expr.optional and ob is None:
+            return None
+
         if isinstance(ob, LoxInstance):
             return ob.get(expr.name)
 
         raise LoxRuntimeError(expr.name, "Only instances have properties.")
+
+    def visit_conditional_expr(self, expr: Conditional) -> object:
+        if self._is_truthy(self._evaluate(expr.condition)):
+            return self._evaluate(expr.then_branch)
+
+        return self._evaluate(expr.else_branch)
 
     def visit_set_expr(self, expr: Set) -> object:
         ob = self._evaluate(expr.object)
@@ -475,6 +488,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_logical_expr(self, expr: Logical) -> object:
         left = self._evaluate(expr.left)
+
+        if expr.operator.type is TokenType.QUESTION_QUESTION:
+            return left if left is not None else self._evaluate(expr.right)
 
         if expr.operator.type == TokenType.OR:
             if self._is_truthy(left):

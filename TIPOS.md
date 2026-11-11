@@ -32,6 +32,9 @@ Complementa:
 - [x] **Checagem estática gradual (T1/T2)** — anotações em funções, inferência local,
   `T?`/uniões, promoção e booleanos Python; `--check`. Ver
   [ADR-0010](docs/adr/0010-tipagem-estatica.md) e [`TODO.md`](TODO.md) §2.
+- [x] **Ternário, `??` e `?.`** — união dos ramos; `??` remove `Nil`; `?.` produz
+  `P | Nil` quando o objeto é anulável. Ver
+  [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
 
 ---
 
@@ -245,8 +248,10 @@ velocidade.
 ## 6. `nil`, `Option` e `Result`
 
 - **Decidido (`D-15`)**: `Int` é non-null; `T?` é açúcar para `T | Nil` e aceita `nil`.
+- Ternário: tipo é `união(ramo1, ramo2)`; `??`: tipo é `non_nil(A) | B` (se `A` já é
+  non-null, o tipo é `A`); `?.` em `T | Nil` produz `P | Nil`. Ver ADR-0013.
 - Narrowing de fluxo (`if x != nil { ... }`) ainda **não** refina a união no checker (T5);
-  `x or default` já remove `Nil` do tipo via truthiness.
+  `x or default` já remove `Nil` do tipo via truthiness, e `x ?? default` remove por nil.
 - `Option[T]` explícito, se necessário, será só açúcar/alias de `T?`; não duplicar os dois.
 - `Result[T, E]` para erro recuperável; `throw` para erro excepcional. Não os dois para
   a mesma coisa.

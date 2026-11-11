@@ -36,10 +36,12 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/scanner.py`](
 .    ..          -    ->
 /    //          *    **
 <    <<          >    >>    >>>
+?    ??          ?.
 ```
 
 `//` é divisão inteira; `/` sozinho é divisão `Float`. `..` é o operador de range
-(`0..10`); não existe `..=`. `#` e `/*` iniciam comentários, não tokens.
+(`0..10`); não existe `..=`. `?` é o sufixo de tipo opcional; `??` é coalescência e
+`?.` é optional chaining. `#` e `/*` iniciam comentários, não tokens.
 
 ### Literais
 
@@ -73,10 +75,12 @@ Números ([`../../TIPOS.md`](../../TIPOS.md) §3, [ADR-0006](../adr/0006-int-flo
 - `Float` é IEEE-754 binary64; um literal que estoura vira `inf` (comportamento do Python).
 
 Strings:
-- não têm escapes: `"\n"` é barra + `n`, não quebra de linha;
+- aceitam `\n`, `\t`, `\r`, `\"`, `\\`, `\0` e `\u{XXXX}` (code point Unicode);
+- escape desconhecido é `Unknown escape sequence '\q'.`; `\u` inválido é
+  `Invalid Unicode escape.`;
 - podem conter quebras de linha reais (o contador de linha acompanha);
 - `"` não escapado encerra; sem fechar → `Unterminated string.`;
-- não há interpolação nem raw strings.
+- não há interpolação nem raw strings ainda.
 
 ### Palavras-chave
 
@@ -101,6 +105,8 @@ Sempre existe um token `EOF`, com a linha atual. O parser depende dele.
 | --- | --- | --- |
 | caractere fora do alfabeto | `Unexpected character: X` | erro de compilação (exit 65) |
 | string sem fechamento | `Unterminated string.` | erro de compilação (exit 65) |
+| escape desconhecido | `Unknown escape sequence '\q'.` | erro de compilação (exit 65) |
+| `\u{...}` inválido | `Invalid Unicode escape.` | erro de compilação (exit 65) |
 | literal numérico malformado (`1__0`, `0x` sem dígitos) | `Invalid number literal.` | erro de compilação (exit 65) |
 | literal `Int` acima de `2^63 - 1` | `Too large integer literal.` | erro de compilação (exit 65) |
 

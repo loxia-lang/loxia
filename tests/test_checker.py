@@ -171,3 +171,70 @@ def test_operator_type_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_nil_aware_and_conditional_types_are_clean() -> None:
+    lox = check(
+        """
+        class Pessoa {
+          var nome: String
+
+          init(nome: String) {
+            this.nome = nome
+          }
+
+          tamanho() -> Int {
+            return 10
+          }
+        }
+
+        val p: Pessoa? = nil
+        val nome: String = p?.nome ?? "sem nome"
+        val tamanho: Int = p?.tamanho() ?? 0
+        val escolha: Int = 1 if true else 2
+        val numero: Float = 1 if true else 2.0
+        val zero: Int = 0 ?? 1
+        val falso: Bool = false ?? true
+        val texto: String = "a" ?? "b"
+        val nulo: Int = nil ?? 1
+        print nome
+        print tamanho
+        print escolha
+        print numero
+        print zero
+        print falso
+        print texto
+        print nulo
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            'val x: Int = 1 if true else "a";',
+            "Expected Int, found Int | String.",
+        ),
+        (
+            "class C { var nome: String; init() { this.nome = \"x\"; } }"
+            " val c: C? = nil; val x: Int = c?.nome ?? 0;",
+            "Expected Int, found String | Int.",
+        ),
+        ("print 1?.x;", "Only instances have properties."),
+        (
+            "class C { init() {} } val c: C? = nil; print c?.naoExiste;",
+            "Undefined property 'naoExiste'.",
+        ),
+    ],
+)
+def test_nil_aware_and_conditional_type_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err

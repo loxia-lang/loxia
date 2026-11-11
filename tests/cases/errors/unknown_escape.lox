@@ -1,0 +1,2 @@
+print "a\q";
+# expect error: Unknown escape sequence '\q'.

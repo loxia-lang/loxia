@@ -19,6 +19,8 @@ class TokenType(Enum):
     STAR_STAR = auto()
     PERCENT = auto()
     QUESTION = auto()
+    QUESTION_QUESTION = auto()
+    QUESTION_DOT = auto()
     LEFT_BRACKET = auto()
     RIGHT_BRACKET = auto()
     AMPERSAND = auto()

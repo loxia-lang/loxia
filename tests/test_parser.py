@@ -201,6 +201,39 @@ def test_bitwise_precedence_ast_shape() -> None:
     assert ast("~0 & 0xFF") == "(& (~ 0) 255)"
 
 
+def test_conditional_and_coalesce_ast_shape() -> None:
+    assert ast("1 if true else 2") == "(if true 1 2)"
+    assert ast("1 ?? 2") == "(?? 1 2)"
+    assert ast("1 ?? 2 or 3") == "(?? 1 (or 2 3))"
+    assert ast("1 ?? 2 if true else 3") == "(if true (?? 1 2) 3)"
+    assert ast("1 if true else 2 ?? 3") == "(if true 1 (?? 2 3))"
+    assert ast("1 if true else 2 if false else 3") == (
+        "(if true 1 (if false 2 3))"
+    )
+
+
+def test_optional_chain_ast_shape() -> None:
+    assert ast("a?.b") == "(?. b a)"
+    assert ast("a?.b.c") == "(. c (?. b a))"
+    assert ast("a?.m()") == "(?call (?. m a))"
+    assert ast("a?.m()?.x") == "(?. x (?call (?. m a)))"
+    assert ast("a?.b()") == "(?call (?. b a))"
+
+
+def test_optional_assignment_reports_error() -> None:
+    parser = parser_for("a?.b = 1;")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_nested_optional_assignment_reports_error() -> None:
+    parser = parser_for("a?.b.c = 1;")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
 def test_parses_function_declaration() -> None:
     statements = parse("fn soma(a, b) { return a + b; }")
 

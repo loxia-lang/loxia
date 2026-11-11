@@ -3,9 +3,9 @@
 Gramática do parser atual ([`src/parser.py`](../../src/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`?.`, `??`, `match`…)
-> está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif` e o `;` opcional já existem;
-> `val`/`var` existem desde o ADR-0005.
+> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`match`, interpolação,
+> `"""`…) está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif`, o `;` opcional,
+> ternário, `??`, `?.` e escapes já existem; `val`/`var` existem desde o ADR-0005.
 
 ## Gramática (EBNF)
 
@@ -60,7 +60,9 @@ block          → "{" declaration* "}" ;
 
 expression     → assignment ;
 assignment     → ( call "." )? IDENTIFIER "=" assignment
-               | logic_or ;
+               | conditional ;
+conditional    → coalesce ( "if" coalesce "else" conditional )? ;
+coalesce       → logic_or ( "??" coalesce )? ;
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -74,7 +76,7 @@ term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "*" | "/" | "//" | "%" ) unary )* ;
 unary          → ( "!" | "-" | "~" ) unary | power ;
 power          → call ( "**" unary )? ;
-call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
+call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFIER )* ;
 arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | IDENTIFIER | "(" expression ")"
@@ -137,6 +139,8 @@ Do menor para o maior:
 | Nível | Operadores | Associatividade |
 | --- | --- | --- |
 | atribuição | `=` | direita |
+| condicional | `a if c else b` | direita no `else` |
+| coalescência | `??` | direita |
 | or | `or` | esquerda |
 | and | `and` | esquerda |
 | igualdade | `==` `!=` | esquerda |
@@ -150,7 +154,7 @@ Do menor para o maior:
 | fator | `*` `/` `//` `%` | esquerda |
 | unário | `!` `-` `~` | direita |
 | potência | `**` | direita; lado direito aceita unário |
-| chamada | `()` `.` | encadeia à esquerda |
+| chamada | `()` `.` `?.` | encadeia à esquerda |
 | primário | literais, `this`, `super.x`, `( … )` | — |
 
 `**` é o caso especial: `-2 ** 2` é `-(2 ** 2)` (potência liga mais forte que o sinal
@@ -165,7 +169,11 @@ Consequências:
 - `a or b and c` = `a or (b and c)`;
 - `!a == b` = `(!a) == b`;
 - `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range;
-- `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação.
+- `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação;
+- `a ?? b or c` = `a ?? (b or c)`;
+- `a ?? b if c else d` = `(a ?? b) if c else d`;
+- `a?.b.c` protege só `a`; `a?.b?.c` protege os dois;
+- `a?.b = c` é erro (não há assignment opcional).
 
 `<` é **só** comparação. Herança usa parênteses após o nome da classe
 (`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe.

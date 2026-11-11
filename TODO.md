@@ -20,8 +20,9 @@ pretendo tipar e como chegar no LLVM.
 > **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
 > no lugar. **Parte II concluída** (caps. 4–13), **`val`/`var`** (ADR-0005), **ranges/for-in**
 > (ADR-0007), **herança `class B(A)`** (ADR-0008), **defaults/campos** (ADR-0009), checker
-> `--check` (ADR-0010), **`fn`/`elif`/`;` opcional** (ADR-0011) e **`//`/`**`/bits**
-> (ADR-0012) implementados. Próximo: narrowing/generics ou a sintaxe restante.
+> `--check` (ADR-0010), **`fn`/`elif`/`;` opcional** (ADR-0011), **`//`/`**`/bits**
+> (ADR-0012) e **ternário/`??`/`?.`/escapes** (ADR-0013) implementados. Próximo:
+> narrowing/generics ou a sintaxe restante.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -177,10 +178,14 @@ fn main() {
       [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
 - [x] `P2` **ranges** `0..10` (half-open), iteráveis e valor lazy; `0..=10` adiado.
       Ver [`IDEIAS.md`](IDEIAS.md) I-6 e [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
-- [ ] `P2` **ternário** `cond ? a : b` (ou só `if` expressão; decidir).
-- [ ] `P2` **`?.`** optional chaining e **`??`** coalescência de nil.
-- [ ] `P2` **`?:`** elvis (`a ?: b`) como atalho de `a ?? b`? (evitar duplicar; decidir)
-- [ ] `P2` **interpolação** `"${expr}"` no scanner (e escapes `\n`, `\t`, `\"`, `\\`, `\u{...}`).
+- [x] `P2` **ternário** `a if c else b` (Python-style, parênteses opcionais; sem `? :`).
+      Ver [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
+- [x] `P2` **`?.`** optional chaining e **`??`** coalescência de nil, incluindo
+      `a?.m() ?? default`. Ver [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
+- [x] `P2` **`?:`** elvis — **rejeitado**: duplicaria `??`; só há uma forma.
+- [x] `P2` **escapes de string** `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\u{...}`;
+      escape desconhecido é erro.
+- [ ] `P2` **interpolação** `"${expr}"` no scanner.
 - [ ] `P2` **strings multilinha** com `"""` e raw strings `r"..."`.
 - [ ] `P2` **UTF-8** de verdade em identificadores e strings (hoje o scanner é ASCII puro).
 - [ ] `P3` **spread** `...lista` em chamadas e literais.
@@ -795,6 +800,10 @@ nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
     aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`;
     `& | ^ ~ << >> >>>` em i64, shift inválido é erro; bits acima de comparação. Ver
     [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
+22. **Ternário, nil-aware e escapes** — **decidido em 2026-11-11**: `a if c else b`
+    (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes
+    `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. Ver
+    [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
 
 ---
 

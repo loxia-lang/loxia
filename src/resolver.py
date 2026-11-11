@@ -9,6 +9,7 @@ from src.expr import (
     Assign,
     Binary,
     Call,
+    Conditional,
     Expr,
     Get,
     Grouping,
@@ -269,6 +270,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(expr.callee)
         for argument in expr.arguments:
             self._resolve_expr(argument)
+
+    def visit_conditional_expr(self, expr: Conditional) -> None:
+        self._resolve_expr(expr.condition)
+        self._resolve_expr(expr.then_branch)
+        self._resolve_expr(expr.else_branch)
 
     def visit_get_expr(self, expr: Get) -> None:
         self._resolve_expr(expr.object)
