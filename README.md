@@ -7,6 +7,7 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
+- 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
 - 📐 Próximo passo: narrowing/generics no checker e depois o codegen LLVM.
 
 ## Rodar
@@ -73,6 +74,7 @@ lox/             pacote do CLI: `python -m lox`, --version, --dump-ast
 src/             scanner, parser, AST, resolver, interpreter, classes
 exemplos/        programas de exemplo (fib, fizzbuzz, closures, classes, primos)
 tests/           pytest + golden cases (.lox)
+tests/official/  suíte oficial do livro (caps. 10–13), adaptada
 bench/           harness de performance e baseline
 docs/            especificação, arquitetura e ADRs
 TODO.md          roadmap e decisões em aberto
@@ -81,6 +83,15 @@ IDEIAS.md        discussões de design (parking lot)
 ```
 
 `AGENTS.md` é local (não versionado), com regras de contribuição para agentes/devs.
+
+A suíte oficial do livro roda com:
+
+```bash
+uv run pytest tests/test_official_suite.py -q
+```
+
+Ela é mantida separada dos golden cases; detalhes de adaptação e `xfail` em
+[`tests/official/README.md`](tests/official/README.md).
 
 ## Documentação
 

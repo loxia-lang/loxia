@@ -51,12 +51,20 @@ existia, ele falhou antes do fix — cite isso na mensagem de commit.
 - Interpreter: `run(source, capsys)` captura stdout/stderr; não use `print` no teste.
 - Para AST, compare com `AstPrinter` — é o snapshot canônico da árvore.
 
+## Suíte oficial do livro
+
+`tests/official/cases/` guarda os testes oficiais dos caps. 10–13 sem alteração;
+`tests/test_official_suite.py` adapta (`fun`→`fn`, `//`→`#`, `class B < A`→`class B(A)`,
+campos `this.x` declarados) e roda pelo CLI. 112 passam e 8 são `xfail` documentados
+(campos dinâmicos do ADR-0009 e o teste de sintaxe antiga de superclasse). Rode com
+`uv run pytest tests/test_official_suite.py -q`.
+
 ## Armadilhas
 
 - O runner procura `#` em **qualquer** posição da linha (expectativa no fim da
   linha, como no livro). Comentário com `#` dentro de string ainda funciona?
   Evite: pode ser confundido com expectativa.
-- Números são `float`: `print 3;` sai `3` por causa do `stringify`, não porque é int.
+- Números são `Int`/`Float`: `print 3` sai `3` e `print 3.0` sai `3.0`.
 - Teste de REPL usa `Parser(tokens, repl=True)`; sem isso o `;` é obrigatório.
 - Não "conserte" a expectativa para o teste passar. Se o comportamento está errado,
   o código está errado.

@@ -621,7 +621,7 @@ imports para `print`).
 
 - [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
       (`# expect:`, `# expect runtime error:`), com runner próprio
-      (`tests/runner.py`, roda também fora do pytest). 71 testes hoje.
+      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 419 testes.
 - [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
       (`make lint`, `make type`).
 - [x] `P1` **skills de projeto** em `.dsh/skills/` (`lox-feature`, `lox-testing`,
@@ -630,8 +630,11 @@ imports para `print`).
 - [x] `P1` **CI** (GitHub Actions): `uv sync`, ruff, mypy, pytest.
 - [x] `P1` **`Makefile`**: `run`, `test`, `case`, `lint`, `type`, `fmt`, `check`, `bench`,
       `baseline`.
-- [ ] `P2` **importar a suíte oficial** do craftinginterpreters como casos extras
+- [x] `P2` **importar a suíte oficial** do craftinginterpreters como casos extras
       (adaptando o formato de expectativa); ótimo para validar o cap. 10–13.
+      Implementado em [`tests/official/`](tests/official/README.md) + runner
+      `tests/test_official_suite.py`: 120 casos, 112 passando e 8 `xfail` documentados
+      (7 de campo dinâmico e 1 de sintaxe antiga de superclasse).
 - [ ] `P2` **testes diferenciais** interpretador × LLVM (mesmo stdout, exit code).
 - [ ] `P3` **fuzzing** do scanner/parser com `hypothesis`: "nunca crashar, nunca loopar".
 - [ ] `P3` **snapshot de AST** em arquivo (hoje o `AstPrinter` é usado em testes pontuais).

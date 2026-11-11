@@ -160,4 +160,6 @@ obrigatório quando há outra instrução na mesma linha.
 
 - `tests/` — pytest + golden cases `.lox`; ver a skill
   [`lox-testing`](../../.dsh/skills/lox-testing/SKILL.md).
+- `tests/official/` — suíte oficial do Crafting Interpreters (caps. 10–13), adaptada por
+  `tests/test_official_suite.py`; 112 passam, 8 são `xfail` documentados.
 - `bench/` — harness de performance com baseline; ver AGENTS §6.
