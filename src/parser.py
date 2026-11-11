@@ -2,14 +2,22 @@ from src.error_reporter import ErrorReporter
 from src.errors import ParseError
 from src.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
 from src.stmt import Block, Expression, If, Print, Stmt, Var, While
-from src.token import Token
 from src.token_type import TokenType
+from src.tokens import Token
 
 
 class Parser:
-    def __init__(self, tokens: list[Token]) -> None:
+    def __init__(
+        self,
+        tokens: list[Token],
+        *,
+        repl: bool = False,
+        reporter: ErrorReporter | None = None,
+    ) -> None:
         self._tokens: list[Token] = tokens
         self._current: int = 0
+        self._repl: bool = repl
+        self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
 
     def parse(self) -> list[Stmt] | None:
         statements: list[Stmt] = []
@@ -29,26 +37,29 @@ class Parser:
         # Salva a posição atual para poder dar rollback caso não seja uma expressão
         saved_current = self._current
 
-        # Silencia temporariamente o ErrorReporter durante o teste
-        ErrorReporter.silent = True
-        had_error_before = ErrorReporter.had_error
+        # Silencia temporariamente o reporter durante o teste
+        self.reporter.silent = True
+        had_error_before = self.reporter.had_error
 
         try:
             expr = self._expression()
+            # `;` final é opcional no REPL: `1 + 1;` imprime como `1 + 1`.
+            self._match(TokenType.SEMICOLON)
+
             # Se consumiu a expressão e chegou exatamente ao fim da linha:
-            if not ErrorReporter.had_error and self._is_at_end():
-                ErrorReporter.silent = False
-                ErrorReporter.had_error = had_error_before
+            if not self.reporter.had_error and self._is_at_end():
+                self.reporter.silent = False
+                self.reporter.had_error = had_error_before
                 # Envelopa como um nó Print para ser avaliado e exibido!
                 return [Print(expr)]
         except ParseError:
             pass
         finally:
-            ErrorReporter.silent = False
+            self.reporter.silent = False
 
         # Rollback: restaura a posição dos tokens e reseta flags de erro
         self._current = saved_current
-        ErrorReporter.had_error = had_error_before
+        self.reporter.had_error = had_error_before
 
         # Faz o parse padrão de statements
         return self.parse()
@@ -59,7 +70,7 @@ class Parser:
                 return self._var_declaration()
 
             return self._statement()
-        except ParseError as e:
+        except ParseError:
             self._synchronize()
             return None
 
@@ -70,7 +81,7 @@ class Parser:
         if self._match(TokenType.EQUAL):
             initializer = self._expression()
 
-        self._consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
+        self._end_statement("Expect ';' after variable declaration.")
 
         return Var(name, initializer)
 
@@ -152,7 +163,7 @@ class Parser:
 
     def _print_statement(self) -> Stmt:
         value = self._expression()
-        self._consume(TokenType.SEMICOLON, "Expect ';' after value.")
+        self._end_statement("Expect ';' after value.")
         return Print(value)
 
     def _if_statement(self) -> Stmt:
@@ -170,8 +181,18 @@ class Parser:
 
     def _expression_statement(self) -> Stmt:
         expr = self._expression()
-        self._consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+        self._end_statement("Expect ';' after expression.")
         return Expression(expr)
+
+    def _end_statement(self, message: str) -> None:
+        """Consome o `;` final; no REPL ele é opcional no fim da entrada."""
+        if self._match(TokenType.SEMICOLON):
+            return
+
+        if self._repl and self._is_at_end():
+            return
+
+        raise self._error(self._peek(), message)
 
     def _expression(self) -> Expr:
         return self._assignment()
@@ -321,10 +342,10 @@ class Parser:
         raise self._error(self._peek(), message)
 
     def _error(self, token: Token, message: str) -> ParseError:
-        ErrorReporter.error(token, message)
+        self.reporter.error(token, message)
         return ParseError()
 
-    def _synchronize(self):
+    def _synchronize(self) -> None:
         self._advance()
 
         while not self._is_at_end():

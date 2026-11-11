@@ -1,26 +1,26 @@
-from expr import Logical
 from src.environment import Environment
 from src.error_reporter import ErrorReporter
 from src.errors import LoxRuntimeError
-from src.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
+from src.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
 from src.expr import Visitor as ExprVisitor
-from src.stmt import Block, Expression, Print, Stmt, Var
+from src.stmt import Block, Expression, If, Print, Stmt, Var, While
 from src.stmt import Visitor as StmtVisitor
-from src.token import Token
 from src.token_type import TokenType
-from stmt import If, While
+from src.tokens import Token
+from src.values import stringify
 
 
 class Interpreter(ExprVisitor[object], StmtVisitor[None]):
-    def __init__(self) -> None:
+    def __init__(self, reporter: ErrorReporter | None = None) -> None:
+        self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
         self.environment = Environment()
 
-    def interpret(self, statements: list[Stmt]):
+    def interpret(self, statements: list[Stmt]) -> None:
         try:
             for statement in statements:
                 self._execute(statement)
         except LoxRuntimeError as e:
-            ErrorReporter.runtime_error(e)
+            self.reporter.runtime_error(e)
 
     def _evaluate(self, expr: Expr) -> object:
         return expr.accept(self)
@@ -58,18 +58,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
             raise LoxRuntimeError(operator, message)
 
-    def _stringify(self, obj: object) -> str:
-        if obj is None:
-            return "nil"
-        if isinstance(obj, bool):
-            return str(obj).lower()
-        if isinstance(obj, float):
-            if obj.is_integer():
-                return str(int(obj))
-            return str(obj)
-
-        return str(obj)
-
     def _execute_block(self, statements: list[Stmt], environment: Environment) -> None:
         previous = self.environment
 
@@ -92,7 +80,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         match expr.operator.type:
             case TokenType.BANG:
-                return self._is_truthy(right)
+                return not self._is_truthy(right)
             case TokenType.MINUS:
                 self._check_number_operands(expr.operator, right)
                 assert isinstance(right, float)
@@ -159,10 +147,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_print_stmt(self, stmt: Print) -> None:
         value = self._evaluate(stmt.expression)
-        print(self._stringify(value))
+        print(stringify(value))
 
     def visit_var_stmt(self, stmt: Var) -> None:
-        val: object = object()
+        val: object = None
         if stmt.initializer is not None:
             val = self._evaluate(stmt.initializer)
 

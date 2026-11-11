@@ -1,16 +1,17 @@
 from src.error_reporter import ErrorReporter
 from src.keywords import KEYWORDS
-from src.token import Token
 from src.token_type import TokenType
+from src.tokens import Token
 
 
 class Scanner:
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, reporter: ErrorReporter | None = None) -> None:
         self._source: str = source
         self._tokens: list[Token] = []
         self._start: int = 0
         self._current: int = 0
         self._line: int = 1
+        self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
 
     def scan_tokens(self) -> list[Token]:
 
@@ -21,7 +22,7 @@ class Scanner:
         self._tokens.append(Token(TokenType.EOF, "", None, self._line))
         return self._tokens
 
-    def _scan_token(self):
+    def _scan_token(self) -> None:
         c = self._advance()
 
         match c:
@@ -81,7 +82,7 @@ class Scanner:
                 elif Scanner._is_alpha(c=c):
                     self._identifier()
                 else:
-                    ErrorReporter.error(self._line, f"Unexpected character: {c}")
+                    self.reporter.error(self._line, f"Unexpected character: {c}")
 
     def _is_at_end(self) -> bool:
         return self._current >= len(self._source)
@@ -110,14 +111,14 @@ class Scanner:
             return "\0"
         return self._source[self._current]
 
-    def _string(self):
+    def _string(self) -> None:
         while self._peek() != '"' and not self._is_at_end():
             if self._peek() == "\n":
                 self._line += 1
             self._advance()
 
         if self._is_at_end():
-            ErrorReporter.error(self._line, "Unterminated string.")
+            self.reporter.error(self._line, "Unterminated string.")
             return
 
         self._advance()
@@ -138,7 +139,7 @@ class Scanner:
         value = float(self._source[self._start : self._current])
         self._add_token(TokenType.NUMBER, value)
 
-    def _peek_next(self):
+    def _peek_next(self) -> str:
         if self._current + 1 >= len(self._source):
             return "\0"
         return self._source[self._current + 1]
@@ -155,7 +156,7 @@ class Scanner:
     def _is_alpha_numeric(c: str) -> bool:
         return Scanner._is_alpha(c) or Scanner._is_digit(c)
 
-    def _identifier(self):
+    def _identifier(self) -> None:
         while Scanner._is_alpha_numeric(self._peek()):
             self._advance()
         text = self._source[self._start : self._current]

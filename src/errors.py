@@ -1,4 +1,4 @@
-from src.token import Token
+from src.tokens import Token
 
 
 class ParseError(Exception):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.errors import LoxRuntimeError
-from src.token import Token
+from src.tokens import Token
 
 
 class Environment:
@@ -13,19 +13,21 @@ class Environment:
         self.values[name] = value
 
     def get(self, name: Token) -> object:
-        if name.lexeme not in self.values:
-            raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+        if name.lexeme in self.values:
+            return self.values[name.lexeme]
 
         if self.enclosing is not None:
             return self.enclosing.get(name)
 
-        return self.values[name.lexeme]
+        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
 
     def assign(self, name: Token, value: object) -> None:
-        if name.lexeme not in self.values:
-            raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+        if name.lexeme in self.values:
+            self.values[name.lexeme] = value
+            return
 
         if self.enclosing is not None:
             self.enclosing.assign(name, value)
+            return
 
-        self.values[name.lexeme] = value
+        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")

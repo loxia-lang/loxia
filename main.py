@@ -9,28 +9,33 @@ from src.stmt import Stmt
 
 
 class Lox:
-    def __init__(self):
-        self.interpreter = Interpreter()
+    def __init__(self) -> None:
+        self.reporter = ErrorReporter()
+        self.interpreter = Interpreter(self.reporter)
 
     def run(self, source: str) -> None:
-        scanner = Scanner(source)
-        tokens = scanner.scan_tokens()
-        parser = Parser(tokens)
-        statements:list[Stmt] | None = parser.parse()
+        self.reporter.reset()
 
-        if ErrorReporter.had_error or statements is None:
+        scanner = Scanner(source, self.reporter)
+        tokens = scanner.scan_tokens()
+        parser = Parser(tokens, reporter=self.reporter)
+        statements: list[Stmt] | None = parser.parse()
+
+        if self.reporter.had_error or statements is None:
             return
 
         self.interpreter.interpret(statements)
 
     def run_repl(self, source: str) -> None:
-        scanner = Scanner(source)
+        self.reporter.reset()
+
+        scanner = Scanner(source, self.reporter)
         tokens = scanner.scan_tokens()
-        parser = Parser(tokens)
+        parser = Parser(tokens, repl=True, reporter=self.reporter)
 
         statements = parser.parse_repl()
 
-        if ErrorReporter.had_error or statements is None:
+        if self.reporter.had_error or statements is None:
             return
 
         self.interpreter.interpret(statements)
@@ -38,13 +43,13 @@ class Lox:
 
     def run_file(self, path: str) -> None:
         try:
-            with open(path, "r", encoding="utf-8") as file:
+            with open(path, encoding="utf-8") as file:
                 source = file.read()
             self.run(source)
 
-            if ErrorReporter.had_error:
+            if self.reporter.had_error:
                 sys.exit(65)
-            if ErrorReporter.had_runtime_error:
+            if self.reporter.had_runtime_error:
                 sys.exit(70)
         except FileNotFoundError:
             print(f"Erro: Arquivo '{path}' não encontrado.", file=sys.stderr)
@@ -58,8 +63,6 @@ class Lox:
                 if not line.strip():
                     continue
                 self.run_repl(line)
-                ErrorReporter.had_error = False
-                ErrorReporter.had_runtime_error = False
             except (KeyboardInterrupt, EOFError):
                 print("\nSaindo...")
                 break

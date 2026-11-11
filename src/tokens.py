@@ -13,5 +13,5 @@ class Token:
     def __str__(self)-> str:
         return f"{self.type.name} {self.lexeme} {self.literal}"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

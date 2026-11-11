@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from src.token import Token
+from src.tokens import Token
 
 
 class Visitor[R](Protocol):
@@ -68,7 +68,7 @@ class Unary(Expr):
 
 
 @dataclass(frozen=True)
-class Assign:
+class Assign(Expr):
     name: Token
     value: Expr
 
@@ -77,7 +77,7 @@ class Assign:
 
 
 @dataclass(frozen=True)
-class Call:
+class Call(Expr):
     callee: Expr
     paren: Token
     arguments: list[Expr]
@@ -87,7 +87,7 @@ class Call:
 
 
 @dataclass(frozen=True)
-class Get:
+class Get(Expr):
     object: Expr
     name: Token
 
@@ -96,7 +96,7 @@ class Get:
 
 
 @dataclass(frozen=True)
-class Logical:
+class Logical(Expr):
     left: Expr
     operator: Token
     right: Expr
@@ -106,7 +106,7 @@ class Logical:
 
 
 @dataclass(frozen=True)
-class Set:
+class Set(Expr):
     object: Expr
     name: Token
     value: Expr
@@ -116,7 +116,7 @@ class Set:
 
 
 @dataclass(frozen=True)
-class Super:
+class Super(Expr):
     keyword: Token
     method: Token
 
@@ -125,7 +125,7 @@ class Super:
 
 
 @dataclass(frozen=True)
-class This:
+class This(Expr):
     keyword: Token
 
     def accept[R](self, visitor: Visitor[R]) -> R:

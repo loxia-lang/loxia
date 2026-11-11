@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from src.expr import Expr
-from src.token import Token
+from src.tokens import Token
 
 if TYPE_CHECKING:
     from src.expr import Variable
