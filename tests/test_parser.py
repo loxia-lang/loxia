@@ -174,12 +174,19 @@ def test_property_and_this_ast_shape() -> None:
 
 
 def test_parses_class_with_superclass() -> None:
-    statements = parse("class B < A {}")
+    statements = parse("class B(A) {}")
 
     klass = statements[0]
     assert isinstance(klass, Class)
     assert klass.superclass is not None
     assert klass.superclass.name.lexeme == "A"
+
+
+def test_old_inheritance_syntax_reports_error() -> None:
+    parser = parser_for("class B < A {}")
+    parser.parse()
+
+    assert parser.reporter.had_error
 
 
 def test_super_ast_shape() -> None:

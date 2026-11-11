@@ -367,7 +367,7 @@ def test_inheritance_and_super(capsys: pytest.CaptureFixture[str]) -> None:
       }
     }
 
-    class B < A {
+    class B(A) {
       method() {
         return super.method() + "B";
       }

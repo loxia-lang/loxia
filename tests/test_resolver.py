@@ -133,13 +133,13 @@ def test_super_without_superclass_reports_error() -> None:
 
 
 def test_class_cannot_inherit_from_itself() -> None:
-    reporter, _, _ = resolve("class Foo < Foo {}")
+    reporter, _, _ = resolve("class Foo(Foo) {}")
 
     assert reporter.had_error
 
 
 def test_super_depth_in_subclass() -> None:
-    reporter, interpreter, _ = resolve("class A {} class B < A { m() { super.m(); } }")
+    reporter, interpreter, _ = resolve("class A {} class B(A) { m() { super.m(); } }")
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [2]
@@ -147,7 +147,7 @@ def test_super_depth_in_subclass() -> None:
 
 def test_this_depth_in_subclass() -> None:
     reporter, interpreter, _ = resolve(
-        "class A {} class B < A { m() { print this; } }"
+        "class A {} class B(A) { m() { print this; } }"
     )
 
     assert not reporter.had_error

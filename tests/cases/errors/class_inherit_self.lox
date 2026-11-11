@@ -1,2 +1,2 @@
-class Foo < Foo {}
+class Foo(Foo) {}
 // expect error: A class can't inherit from itself.

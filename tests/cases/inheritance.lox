@@ -4,6 +4,6 @@ class Doughnut {
   }
 }
 
-class BostonCream < Doughnut {}
+class BostonCream(Doughnut) {}
 
 BostonCream().cook();  // expect: Fry until golden brown.

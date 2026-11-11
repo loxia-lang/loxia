@@ -197,7 +197,7 @@ class Conta {
   }
 }
 
-class ContaPoupanca < Conta {
+class ContaPoupanca(Conta) {
   render() {
     this.saldo = this.saldo * 1.1;
   }
@@ -205,7 +205,9 @@ class ContaPoupanca < Conta {
 ```
 
 - `class Nome { métodos }` cria a classe e a liga ao nome no escopo atual.
+- `class Nome(Super) { métodos }` declara herança simples; `class Nome < Super` é erro.
 - Métodos **não** usam `fun`; são funções com `this` ligado.
+- `this` é **implícito**: métodos não recebem `self`.
 - `Nome(args)` cria instância, executa `init` (se existir) e devolve a instância.
   A aridade da classe é a do `init` (0 se não houver).
 - `init` devolve sempre a instância: `return;` é permitido, `return valor;` é erro de
@@ -221,8 +223,11 @@ class ContaPoupanca < Conta {
 
 ### Herança
 
-- Sintaxe: `class B < A` (herança simples; a decisão `extends` fica para a linguagem final).
-- Métodos e `init` são herdados; o método da subclasse **sobrescreve** o da superclasse.
+- Sintaxe: `class B(A)` (herança simples; sem `extends`, `:` ou `<`).
+- Métodos e `init` são herdados; o método da subclasse **sobrescreve** o da superclasse
+  silenciosamente (não há keyword `override`).
+- Subclasse **sem** `init` herda o `init` da superclasse. Se a subclasse define `init`, ela
+  deve chamar `super.init(...)` explicitamente; não há chamada automática.
 - `super.metodo(args)` busca `metodo` na superclasse e o liga ao `this` atual (não ao
   "this da superclasse").
 - `super` só pode aparecer dentro de método de classe **com** superclasse:

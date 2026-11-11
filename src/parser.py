@@ -115,9 +115,10 @@ class Parser:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")
 
         superclass: Variable | None = None
-        if self._match(TokenType.LESS):
+        if self._match(TokenType.LEFT_PAREN):
             self._consume(TokenType.IDENTIFIER, "Expect superclass name.")
             superclass = Variable(self._previous())
+            self._consume(TokenType.RIGHT_PAREN, "Expect ')' after superclass.")
 
         self._consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
 

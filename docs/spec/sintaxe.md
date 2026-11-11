@@ -18,7 +18,7 @@ declaration    → classDecl
                | valDecl
                | statement ;
 
-classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
+classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" function* "}" ;
 funDecl        → "fun" function ;
 function       → IDENTIFIER "(" parameters? ")" block ;
 parameters     → parameter ( "," parameter )* ;
@@ -90,9 +90,8 @@ Consequências:
 - `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range;
 - `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação.
 
-`<` tem dois papéis sintáticos: comparação em expressões e **herança** logo após o nome da
-classe (`class B < A`). Não há ambiguidade porque o parser de classe consome o `<` antes do
-corpo.
+`<` é **só** comparação. Herança usa parênteses após o nome da classe
+(`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe.
 
 ## Açúcar sintático
 

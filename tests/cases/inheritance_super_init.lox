@@ -1,0 +1,17 @@
+// Subclasse com `init` chama `super.init(...)` explicitamente.
+class Animal {
+  init(nome) {
+    this.nome = nome;
+  }
+}
+
+class Cachorro(Animal) {
+  init(nome, raca) {
+    super.init(nome);
+    this.raca = raca;
+  }
+}
+
+var rex = Cachorro("Rex", "vira-lata");
+print rex.nome;  // expect: Rex
+print rex.raca;  // expect: vira-lata

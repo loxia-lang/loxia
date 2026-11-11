@@ -70,7 +70,7 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Can't return from top-level code.` | `return` fora de função |
 | `Can't return a value from an initializer.` | `return valor;` dentro de `init` |
 | `Can't use 'this' outside of a class.` | `this` fora de método |
-| `A class can't inherit from itself.` | `class A < A` |
+| `A class can't inherit from itself.` | `class A(A)` |
 | `Can't use 'super' outside of a class.` | `super.m` fora de classe |
 | `Can't use 'super' in a class with no superclass.` | `super.m` em classe sem `<` |
 
@@ -90,7 +90,7 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Only instances have properties.` | `1.x` |
 | `Only instances have fields.` | `1.x = 2` |
 | `Undefined property 'x'.` | campo/método inexistente; `super.x` inexistente |
-| `Superclass must be a class.` | `class B < A` com `A = 1` |
+| `Superclass must be a class.` | `class B(A)` com `A = 1` |
 
 A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros
 (65) e runtime para globais (70). O texto é o mesmo de propósito.
