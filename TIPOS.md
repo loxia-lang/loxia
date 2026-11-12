@@ -139,8 +139,10 @@ val s = 42.toString()     # "42"
 - **T3a (feito)** — assinaturas explícitas; funções de topo são pré-declaradas para que o
   corpo possa chamar funções declaradas depois (recursão mútua). Ver
   [ADR-0020](docs/adr/0020-assinaturas-explicitas.md).
-- **T3b (adiado)** — variáveis de tipo e generics explícitos (`fn id[T](x: T) -> T`), com
-  unificação no call site.
+- **T3b (feito, funções)** — `fn id[T](x: T) -> T` com unificação no call site; sem
+  constraints, só operações universais; inferência apenas (sem `id[Int]`); monomorfização
+  no backend. Classes/métodos genéricos ficam para depois. Ver
+  [ADR-0027](docs/adr/0027-generics-t3b.md).
 - **T3c (adiado)** — parâmetro sem anotação; depende de generalização (T4) e de uma regra
   explícita para não ficar monomórfico.
 - **T5** — narrowing de `T?` em `if x != nil`/`if x == nil`/truthiness/early return já
@@ -250,11 +252,16 @@ velocidade.
 ## 7. Funções
 
 - Tipo: `fn(Int, String) -> Bool`; funções de primeira classe; closures.
-- Parâmetros e retorno continuam **assinados**; generics explícitos e inferência de
-  parâmetro ficam para T3b/T4 ([ADR-0020](docs/adr/0020-assinaturas-explicitas.md)).
+- Parâmetros e retorno continuam **assinados**; generics explícitos de função já existem
+  (`fn id[T]`), mas parâmetro sem anotação ainda é T3c/T4
+  ([ADR-0020](docs/adr/0020-assinaturas-explicitas.md)).
 - **Tipos de função nas anotações** já existem: `fn(Int) -> Int`, com variância
   (parâmetros contravariantes, retorno covariante) e classe como construtor
   ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
+- **Genéricos de função** existem: `fn map[T, U] (xs: List[T], f: fn(T) -> U) -> List[U]`.
+  O corpo é checado uma vez, sem constraints; a chamada infere por unificação. Sem
+  `id[Int](1)`, sem classes genéricas e sem função genérica como valor; monomorfização no
+  backend ([ADR-0027](docs/adr/0027-generics-t3b.md)).
 - **Lambdas** existem: `fn(x) => expr` / `fn(x) { ... }`, com tipagem contextual pelo tipo
   esperado e retorno inferido; mistura de retornos não-nil exige anotação
   ([ADR-0022](docs/adr/0022-lambdas.md)).
@@ -342,7 +349,7 @@ resumo em [`docs/decisoes.md`](docs/decisoes.md); o que ainda está aberto fica 
 | **N0** | ✅ `Int` literal no lexer + `stringify` distinto + testes | nada |
 | **N1** | ✅ promoção `Int → Float`, `/` sempre `Float`, `%`/`//` truncados, `**` e bitwise | N0 |
 | **N2** | sintaxe de anotação (`: Int`, `-> Float`) e `Ty` no AST | checker T1 |
-| **N3** | ✅ T3a: assinaturas explícitas + pré-declaração; unificação/generics ficam para T3b | N2 |
+| **N3** | ✅ T3a + T3b (funções): assinaturas, pré-declaração e unificação; monomorfização no backend | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
 | **N6** | ✅ ranges e `for-in` (Range/String/List/Map); `Map` implementado no ADR-0017 | sintaxe §1.1 |

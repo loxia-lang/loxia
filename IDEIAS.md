@@ -97,6 +97,22 @@ combina dois → função livre; converte/constrói → construtor namespaced."*
 - extensões/UFCS: depois do LLVM MVP, ou quando a stdlib precisar de operação em tipo
   existente.
 
+### Generics além do T3b (futuro)
+
+O T3b entregou só **funções** genéricas, sem constraints, com inferência e monomorfização
+([ADR-0027](docs/adr/0027-generics-t3b.md)). Ficam para depois:
+
+- **classes genéricas** (`class Box[T] { val value: T; ... }`) e **métodos genéricos**;
+- **constraints/traits** (`T: Add`, `T: Show`) para permitir `a + b`/`len(x)`/métodos em
+  `T`;
+- **type application explícita** (`id[Int](1)`) quando a ambiguidade com indexação for
+  resolvida;
+- **função genérica como valor** (passar `id` como callback, guardar em `val`);
+- **backend híbrido** (mono para primitivos, box para `Any`/dinâmico) se `Any`/módulos
+  entrarem no MVP;
+- **recursão polimórfica** com limite/dicionários em vez de recusa;
+- **variance declarada** (`List<out T>`) se a invariância incomodar.
+
 ### Perguntas abertas
 
 - [x] `len` como função ou `.length`/`.tamanho` como método? → **função global** `len(x)`;

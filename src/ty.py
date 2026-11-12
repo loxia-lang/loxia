@@ -44,6 +44,21 @@ PRIMITIVES: dict[str, Ty] = {
 
 
 @dataclass(frozen=True)
+class TyVar(Ty):
+    """Parâmetro de tipo de uma função genérica.
+
+    `id` é único por instanciação para não confundir `T` de funções diferentes; o `name`
+    serve só para diagnóstico.
+    """
+
+    name: str
+    id: int
+
+    def __str__(self) -> str:
+        return self.name
+
+
+@dataclass(frozen=True)
 class ListTy(Ty):
     element: Ty
 
@@ -85,6 +100,19 @@ class FnTy(Ty):
 
 
 @dataclass(frozen=True)
+class GenericFnTy(Ty):
+    """Função genérica ainda não instanciada.
+
+    Só é válida como callee de uma chamada; o checker instancia os parâmetros de tipo e
+    unifica com os argumentos/contexto.
+    """
+
+    name: str
+    type_params: tuple[TyVar, ...]
+    fn: FnTy
+
+
+@dataclass(frozen=True)
 class NativeFnTy(Ty):
     """Função nativa cuja assinatura o checker valida caso a caso (ex.: `len`)."""
 
@@ -92,12 +120,16 @@ class NativeFnTy(Ty):
 
 
 def display(ty: Ty) -> str:
-    if isinstance(ty, (Prim, ClassTy, ClassObjectTy)):
+    if isinstance(ty, (Prim, ClassTy, ClassObjectTy, TyVar)):
         return ty.name
     if isinstance(ty, ListTy):
         return f"List[{display(ty.element)}]"
     if isinstance(ty, MapTy):
         return f"Map[{display(ty.key)}, {display(ty.value)}]"
+    if isinstance(ty, GenericFnTy):
+        params = ", ".join(var.name for var in ty.type_params)
+        args = ", ".join(display(param) for param in ty.fn.params)
+        return f"fn[{params}]({args}) -> {display(ty.fn.ret)}"
     if isinstance(ty, UnionTy):
         return " | ".join(
             f"({display(member)})" if isinstance(member, FnTy) else display(member)

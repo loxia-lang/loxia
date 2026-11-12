@@ -39,6 +39,10 @@ que produz efeito (`print`, `var`, `if`, `while`, `return`, bloco).
 **Golden case** — arquivo `.lox` de teste com a saída esperada em comentários
 (`// expect: …`). Ver §5 do `AGENTS.md` (local) e a skill `lox-testing`.
 
+**Generics** — função que recebe parâmetros de tipo (`fn id[T] (x: T) -> T`) e é usada com
+vários tipos; o checker infere os argumentos na chamada. Ver
+[ADR-0027](adr/0027-generics-t3b.md).
+
 **Global / local** — global vive no ambiente raiz e é resolvido em runtime; local tem
 distância calculada estaticamente.
 
@@ -61,6 +65,10 @@ conteúdo. Ver [ADR-0015](adr/0015-listas-tipadas.md).
 **Initializer (`init`)** — método especial chamado na criação da instância; sempre devolve
 a instância.
 
+**Monomorfização** — gerar uma versão do código para cada tipo concreto usado em uma função
+genérica (`id$Int`, `id$String`); é a estratégia do backend, não do tree-walk. Ver
+[ADR-0027](adr/0027-generics-t3b.md).
+
 **Oráculo** — implementação de referência usada para comparar o comportamento de outro
 backend (LLVM). Ver [ADR-0002](adr/0002-tree-walk-como-oraculo.md).
 
@@ -79,6 +87,12 @@ instance`). Ver [`spec/semantica.md`](spec/semantica.md).
 **Token** — menor unidade léxica (palavra-chave, identificador, literal, operador).
 
 **Truthiness** — regra de "verdadeiro/falso" em condições: só `nil` e `false` são falsos.
+
+**TyVar** — variável de tipo usada pelo checker para representar `T` enquanto ele não foi
+inferido; tem nome e id únicos. Ver [ADR-0027](adr/0027-generics-t3b.md).
+
+**Unificação** — resolver `T` comparando a assinatura genérica com os tipos dos argumentos
+e o tipo esperado; falha se sobrar variável ou se ocorrer `T = List[T]`.
 
 **Visitor** — padrão em que cada nó chama `visitor.visit_<no>_<expr|stmt>`; permite
 adicionar passes (resolver, interpretador, printer) sem espalhar `isinstance`.

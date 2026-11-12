@@ -363,6 +363,7 @@ class Parser:
 
     def _function(self, kind: str) -> Function:
         name = self._consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
+        type_params = self._type_parameters()
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
         parameters = self._parameters()
 
@@ -373,7 +374,22 @@ class Parser:
         self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
 
         body = self._block()
-        return Function(name, parameters, body, return_type)
+        return Function(name, parameters, body, return_type, type_params)
+
+    def _type_parameters(self) -> list[Token]:
+        if not self._match(TokenType.LEFT_BRACKET):
+            return []
+
+        parameters = [self._consume(TokenType.IDENTIFIER, "Expect type parameter name.")]
+        while self._match(TokenType.COMMA):
+            parameters.append(
+                self._consume(TokenType.IDENTIFIER, "Expect type parameter name.")
+            )
+
+        self._consume(
+            TokenType.RIGHT_BRACKET, "Expect ']' after type parameters."
+        )
+        return parameters
 
     def _parameters(self) -> list[Param]:
         parameters: list[Param] = []

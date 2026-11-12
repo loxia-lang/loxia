@@ -72,6 +72,7 @@ Crie quando a decisão:
 | [0024](0024-mutacao-monomorfica.md) | Mutação monomórfica e `var x = nil` | accepted | 2026-11-12 |
 | [0025](0025-is-e-narrowing.md) | `is T` e narrowing de uniões | accepted | 2026-11-12 |
 | [0026](0026-freeze-1.0.md) | Freeze da 1.0: erros, determinismo, UTF-8 e escopo | accepted | 2026-11-12 |
+| [0027](0027-generics-t3b.md) | Generics T3b: funções, monomorfização e inferência | accepted | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 

@@ -171,6 +171,15 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Can't infer the key and value types of an empty map; annotate it as Map[K, V].` | `val m = {}` |
 | `Map method requires a single key/value type.` | união de mapas com `K`/`V` diferentes |
 | `Expected a string, a list or a map, found X.` | `len(3)` no `--check` |
+| `Can't infer type argument(s) 'T'.` | chamada genérica sem contexto/argumento que determine `T` |
+| `Can't infer type argument 'T' from Any.` | argumento `Any` para um parâmetro `T` |
+| `Recursive type inferred for 'T'.` | `T` seria `List[T]` etc. |
+| `Generic function 'id' can't be used as a value yet; ...` | `val f = id`, callback `id` sem chamada |
+| `Generic methods aren't supported yet.` | `get[T] (...)` em classe |
+| `Type parameter 'T' is already declared.` | `fn f[T, T]` |
+| `Type parameter can't be named 'Int'.` | nome de tipo reservado como parâmetro |
+| `Polymorphic recursion is not supported yet; ...` | `grow[T]` chamando `grow([x])` |
+| `Type arguments on a call aren't supported; ...` | `id[Int] (1)` (use inferência) |
 | `Can't redefine builtin 'x'.` | `fn len`, `val str` ou `class range` no escopo global |
 
 ## Como testar

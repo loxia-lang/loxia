@@ -23,9 +23,9 @@ pretendo tipar e como chegar no LLVM.
 >
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
 > assinaturas/funções (ADR-0020/0021), lambdas (ADR-0022), soundness do checker (ADR-0023),
-> mutação monomórfica (ADR-0024), `is T`/narrowing (ADR-0025) e o freeze da 1.0
-> (ADR-0026: erros fatais, `clock` removido, UTF-8/ASCII, `print` statement). **A seguir:**
-> T3b (generics) ou o backend LLVM — o escopo da 1.0 está congelado.
+> mutação monomórfica (ADR-0024), `is T`/narrowing (ADR-0025), freeze da 1.0 (ADR-0026) e
+> generics T3b (ADR-0027). **A seguir:** backend LLVM ou diagnósticos; classes/métodos
+> genéricos e constraints ficam para depois.
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -179,7 +179,8 @@ val nome: String? = nil
 
 O ponto central: **o argumento é checado contra o parâmetro** e o local infere do
 inicializador. Funções anotadas continuam obrigatórias no modo `--check` (T3a, ADR-0020);
-inferir parâmetros sem anotação (T3c) e generics explícitos (T3b) ficam como evolução.
+generics explícitos de função (T3b) já existem ([ADR-0027](docs/adr/0027-generics-t3b.md));
+inferir parâmetros sem anotação (T3c) fica como evolução.
 
 ### 2.2 Estratégia (não fazer HM completo de cara)
 
@@ -192,7 +193,7 @@ nas chamadas**, em camadas:
 | **T1** ✅ | `Ty` no AST, parser aceita `: Tipo`, `-> Tipo`, `T?` e `A \| B`; checker no AST | sintaxe e base prontas |
 | **T2** ✅ | inferência local (`val x = 1` → `Int`), checagem de `return`, chamadas e campos | erros óbvios sem anotar locais |
 | **T3a** ✅ | assinaturas explícitas; funções de topo pré-declaradas para o corpo chamar funções declaradas depois | recursão mútua sem depender da ordem |
-| **T3b** ⬜ | variável de tipo + generics explícitos (`fn id[T](x: T) -> T`), unificando no call site | funções genéricas de verdade |
+| **T3b** ✅ | funções genéricas explícitas (`fn id[T](x: T) -> T`), unificação no call site, sem constraints, inferência na chamada | funções genéricas de verdade (funções apenas) |
 | **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | adiado: sem T4 fica monomórfico e depende da ordem |
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
 | **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo | expressividade |
@@ -643,8 +644,8 @@ manda.
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
 | **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, listas, mapas, interpolação e lambdas; ⬜ trailing closure |
-| **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`) e T3a (assinaturas explícitas, pré-declaração); ⬜ T3b/T3c (generics/inferência de parâmetro) |
-| **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing completo, exaustividade |
+| **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`), T3a (assinaturas explícitas, pré-declaração) e T3b (funções genéricas, ADR-0027); ⬜ T3c (inferência de parâmetro) |
+| **M5** | Tipos v2 | T4–T6: classes/métodos genéricos, constraints/traits, uniões/opcionais, narrowing completo, exaustividade |
 | **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |
 | **M7** | Runtime completo | L3–L5: strings, closures, classes, GC (Boehm); **I1** verde no corpus completo |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks, JIT |
@@ -698,8 +699,9 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 
 ### Ainda em aberto (pós-1.0)
 
-1. **Generics:** monomorfização (perf) ou erasure (simplicidade)? Se T3b entrar antes do
-   backend, decidir junto. (tende a mono)
+1. **Generics além de funções:** classes/métodos genéricos, constraints/traits (`T: Add`),
+   type application explícita (`id[Int](1)`) e funções genéricas como valor. A estratégia
+   de backend já foi decidida: monomorfização ([ADR-0027](docs/adr/0027-generics-t3b.md)).
 2. **Backend:** `llvmlite` desde o começo ou `.ll` textual + clang primeiro? (tende a
    `llvmlite`)
 3. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).

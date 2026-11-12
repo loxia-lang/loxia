@@ -1133,6 +1133,136 @@ def test_narrowing_in_and_and_while() -> None:
     assert lox.reporter.had_error is False
 
 
+def test_generic_functions_identity_map_filter_and_context() -> None:
+    lox = check(
+        """
+        fn id[T](x: T) -> T {
+          return x;
+        }
+
+        fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] {
+          val out: List[U] = [];
+          for x in xs {
+            out.push(f(x));
+          }
+          return out;
+        }
+
+        fn filter[T](xs: List[T], f: fn(T) -> Bool) -> List[T] {
+          val out: List[T] = [];
+          for x in xs {
+            if (f(x)) {
+              out.push(x);
+            }
+          }
+          return out;
+        }
+
+        fn first[T](xs: List[T]) -> T? {
+          for x in xs {
+            return x;
+          }
+          return nil;
+        }
+
+        fn empty[T]() -> List[T] {
+          return [];
+        }
+
+        fn identity[T](xs: List[T]) -> List[T] {
+          return xs;
+        }
+
+        print id(1);
+        print id("a");
+        print map([1, 2, 3], fn(x) => x * 2);
+        print filter([1, 2, 3], fn(x) => x > 1);
+        print first([1, 2]);
+        val vazio: Int? = first([]);
+        print vazio;
+        val xs: List[Int] = empty();
+        print xs;
+        val nested: List[Int] = identity(empty());
+        print nested;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            "fn soma[T](a: T, b: T) -> T { return a + b; }",
+            "Operands must be numbers.",
+        ),
+        (
+            "fn empty[T]() -> List[T] { return []; } print empty();",
+            "Can't infer type argument(s) 'T'.",
+        ),
+        (
+            "fn id[T](x: T) -> T { return x; } val f = id;",
+            "Generic function 'id' can't be used as a value yet",
+        ),
+        (
+            "fn id[T](x: T) -> T { return x; }"
+            " fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U]"
+            " { return []; }"
+            " print map([1], id);",
+            "Generic function 'id' can't be used as a value yet",
+        ),
+        (
+            "fn f[T, T](x: T) -> T { return x; }",
+            "Type parameter 'T' is already declared.",
+        ),
+        (
+            "fn f[Int](x: Int) -> Int { return x; }",
+            "Type parameter can't be named 'Int'.",
+        ),
+        (
+            "fn grow[T](x: T) -> Int { return grow([x]); } print grow(1);",
+            "Polymorphic recursion is not supported yet",
+        ),
+        (
+            "class Box { get[T](x: T) -> T { return x; } }",
+            "Generic methods aren't supported yet.",
+        ),
+        (
+            "fn f[T](m: Map[T, Int]) -> Int { return 0; }",
+            "Map keys must be String, Int or Bool.",
+        ),
+        (
+            "fn f[T](x: T) -> T { return 1; }",
+            "Expected T, found Int.",
+        ),
+    ],
+)
+def test_generic_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
+def test_generic_function_can_recurse_with_same_type_arguments() -> None:
+    lox = check(
+        """
+        fn length[T](xs: List[T]) -> Int {
+          if (len(xs) == 0) { return 0; }
+          return 1 + length(xs);
+        }
+
+        print length([1, 2, 3]);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
 def test_is_narrows_union_and_else() -> None:
     lox = check(
         """

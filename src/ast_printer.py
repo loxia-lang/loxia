@@ -206,7 +206,15 @@ class AstPrinter:
         )
         body = " ".join(statement.accept(self) for statement in stmt.body)
         inner = f"({params})"
-        return f"(fn {stmt.name.lexeme} {inner}{returns}{f' {body}' if body else ''})"
+        type_params = (
+            "[" + " ".join(token.lexeme for token in stmt.type_params) + "]"
+            if stmt.type_params
+            else ""
+        )
+        return (
+            f"(fn {stmt.name.lexeme}{type_params} {inner}{returns}"
+            f"{f' {body}' if body else ''})"
+        )
 
     def visit_if_stmt(self, stmt: If) -> str:
         condition = stmt.condition.accept(self)

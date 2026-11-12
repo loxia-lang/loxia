@@ -13,6 +13,11 @@
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)
 
+> **Atualização (ADR-0027, 2026-11-12):** T3b entra como exceção explícita ao freeze:
+> funções genéricas com inferência, sem constraints, monomorfização no backend. Classes/
+> métodos genéricos, type application explícita, traits e funções genéricas como valor
+> continuam fora. Ver [ADR-0027](0027-generics-t3b.md).
+
 ## Contexto
 
 Depois de assinaturas, lambdas, soundness, mutação monomórfica e `is T`, a linguagem já

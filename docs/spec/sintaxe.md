@@ -22,7 +22,8 @@ classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" classMember* "
 classMember    → fieldDecl | function ;
 fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
 funDecl        → "fn" function ;
-function       → IDENTIFIER "(" parameters? ")" ( "->" type )? block ;
+function       → IDENTIFIER typeParameters? "(" parameters? ")" ( "->" type )? block ;
+typeParameters → "[" IDENTIFIER ( "," IDENTIFIER )* "]" ;
 parameters     → parameter ( "," parameter )* ;
 parameter      → "var"? IDENTIFIER ( ":" type )? ( "=" expression )? ;
 
@@ -123,6 +124,20 @@ aplicar(fn(x) => x * 2, 3)
 `return` explícito. `-> Tipo` é opcional antes de qualquer corpo. Parâmetros seguem as
 regras de funções, **menos defaults** (`fn(x: Int = 1) => ...` é erro). `fn(` em expressão
 é lambda; `fn nome(` é declaração. Ver [ADR-0022](../adr/0022-lambdas.md).
+
+Funções genéricas declaram parâmetros de tipo entre o nome e `(`:
+
+```lox
+fn id[T] (x: T) -> T { return x; }
+fn map[T, U] (xs: List[T], f: fn(T) -> U) -> List[U] { ... }
+```
+
+`T`/`U` são nomes comuns (ASCII), válidos em `: T`, `-> T`, `List[T]`, `Map[String, T]`,
+`fn(T) -> U` e no corpo. Não há constraints, `T: Add` nem type application explícita:
+`id(1)` infere `T = Int`; `id[Int] (1)` **não** existe. Chamadas sem argumento/contexto que
+permitam inferir todos os `T` são erro. Classes e métodos genéricos (`class Box[T]`,
+`get[T] (...)`) ainda não existem; métodos com `[T]` são recusados no `--check`. Ver
+[ADR-0027](../adr/0027-generics-t3b.md).
 
 `expr is Tipo` é uma expressão booleana; o lado direito usa a gramática de tipos e o
 operador fica no nível de comparação. `is` testa primitivos, classes/subclasses,

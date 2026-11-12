@@ -17,6 +17,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ Tipos de função nas anotações: `fn(Int) -> Int`, callbacks, variância e classe como
   construtor.
 - ✅ Lambdas `fn(x) => ...` e `fn(x) { ... }`, com tipagem contextual e retorno inferido.
+- ✅ Funções genéricas `fn id[T] (x: T) -> T`, `map`/`filter`, inferência na chamada e
+  monomorfização planejada no backend ([ADR-0027](docs/adr/0027-generics-t3b.md)).
 - ✅ Checker valida retorno em todos os caminhos, inicialização de campos e override
   compatível.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
@@ -24,9 +26,10 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - 🧊 **1.0 congelada** ([ADR-0026](docs/adr/0026-freeze-1.0.md)): erros de runtime fatais,
   `clock` removido do prelúdio, strings UTF-8 com identificadores ASCII, `print` como
   statement e escopo single-file.
-- 📐 Próximo passo: T3b (generics explícitos) ou o backend LLVM; trailing closure fica
-  para depois. T3a (assinaturas explícitas + recursão mútua), tipos de função e lambdas já
-  estão feitos (ADR-0020/0021/0022).
+- 📐 Próximo passo: backend LLVM (L0–L2) ou diagnóstico com spans/caret; classes/métodos
+  genéricos, constraints e type application explícita ficam para depois. T3a
+  (assinaturas explícitas + recursão mútua), tipos de função, lambdas e T3b (funções
+  genéricas) já estão feitos (ADR-0020/0021/0022/0027).
 
 ## O que esta linguagem promete
 

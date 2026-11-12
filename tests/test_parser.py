@@ -285,6 +285,21 @@ def test_parses_function_declaration() -> None:
     assert isinstance(function.body[0], Return)
 
 
+def test_parses_generic_function_type_params() -> None:
+    statements = parse(
+        "fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] { return []; }"
+    )
+
+    function = statements[0]
+    assert isinstance(function, Function)
+    assert [token.lexeme for token in function.type_params] == ["T", "U"]
+    first = function.params[0].type_annotation
+    second = function.params[1].type_annotation
+    assert first is not None and second is not None
+    assert display(first) == "List[T]"
+    assert display(second) == "fn(T) -> U"
+
+
 def test_parses_class_declaration() -> None:
     statements = parse("class Foo { bar(a) { return a; } }")
 

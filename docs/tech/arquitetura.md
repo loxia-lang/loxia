@@ -41,13 +41,13 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/keywords.py`](../../src/keywords.py) | mapa lexema → token |
 | [`src/expr.py`](../../src/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
 | [`src/stmt.py`](../../src/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
-| [`src/parser.py`](../../src/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif` e `fn` |
+| [`src/parser.py`](../../src/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
 | [`src/resolver.py`](../../src/resolver.py) | escopos léxicos, validações estáticas, `depth` |
 | [`src/interpreter.py`](../../src/interpreter.py) | execução; `globals`, `environment`, `locals` |
 | [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
 | [`src/values.py`](../../src/values.py) | `stringify` única |
 | [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
-| [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), uniões, `T?`, `FnTy` e helpers |
+| [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), `TyVar`, `GenericFnTy`, uniões, `T?`, `FnTy` e helpers |
 | [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
 | [`src/type_test.py`](../../src/type_test.py) | teste dinâmico de tipo para `x is T` |
 | [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
@@ -204,6 +204,32 @@ chamada.
   mistura de retornos não-nil exige anotação.
 - `AstPrinter.visit_lambda_expr` imprime `(lambda (params) [-> Tipo] corpo)`.
   Ver [ADR-0022](../adr/0022-lambdas.md).
+
+## Generics
+
+- `Function.type_params` guarda os tokens de `[T, U]`; o parser aceita o bloco só em
+  declarações de função, nunca em lambda. O dump imprime `(fn id[T] ...)`.
+- O checker tem `FunctionSignature(type_params, type_param_names, fn)`. `_signature` cria
+  `TyVar` frescas (`id` único), empilha `_type_param_scopes` e resolve parâmetros/retorno
+  com `_resolve_type`; `T` vira `TyVar` em vez de `ClassTy`. O corpo é checado **uma vez**
+  com `_check_function_body(..., type_params=...)`; o escopo de tipos fica ativo para
+  anotações e lambdas aninhadas.
+- `_lookup` de uma função genérica devolve `GenericFnTy` (parâmetros + assinatura), não
+  `FnTy`. Ela só é válida como callee; `val f = id` e passar `id` como callback são erros.
+- `visit_call_expr` delega para `_infer_call`. Se o callee é `GenericFnTy`,
+  `_instantiate_generic` renomeia as `TyVar` e `_infer_generic_call`:
+  - unifica o retorno com o tipo esperado (quando há);
+  - checa argumentos em ordem, usando `_check_generic_argument` (contexto para lambda/
+    lista/mapa, unificação para o resto);
+  - aplica as substituições, exige que todo `T` tenha sido inferido e devolve o tipo
+    concreto.
+- `_unify` cobre `TyVar`, `List`, `Map`, `Fn`, uniões e casos concretos via `_assignable`;
+  `_occurs` recusa `T = List[T]`; `_substitute` aplica o mapa. Sem constraints, `a + b`
+  em `T` continua erro (`_numeric` não aceita `TyVar`).
+- `_check_polymorphic_recursion` recusa `f[T]` chamando `f([x])` (muda os argumentos de
+  tipo); `f(x)` com os mesmos `T` é permitido.
+- O runtime não muda: `T` é apagado; o monomorphization é responsabilidade do backend
+  (ADR-0027). Nada de `LoxValue` boxeado no tree-walk.
 
 ## Narrowing
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 from src.expr import Expr
@@ -79,6 +79,7 @@ class Function(Stmt):
     params: list[Param]
     body: list[Stmt]
     return_type: Ty | None = None
+    type_params: list[Token] = field(default_factory=list)
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)

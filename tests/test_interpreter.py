@@ -411,6 +411,29 @@ def test_is_runtime_type_test(capsys: pytest.CaptureFixture[str]) -> None:
     assert stderr == ""
 
 
+def test_generic_types_are_erased_at_runtime(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = """
+    fn id[T](x: T) -> T { return x; }
+
+    fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] {
+      val out: List[U] = [];
+      for x in xs { out.push(f(x)); }
+      return out;
+    }
+
+    print id(1);
+    print id("a");
+    print map([1, 2], fn(x) => x * 2);
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["1", "a", "[2, 4]"]
+    assert stderr == ""
+
+
 def test_stringify_lambda_is_deterministic(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

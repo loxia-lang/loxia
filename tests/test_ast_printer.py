@@ -92,6 +92,12 @@ def test_dump_lambda_nodes() -> None:
     )
 
 
+def test_dump_generic_function() -> None:
+    assert dump("fn id[T](x: T) -> T { return x; }") == (
+        "(fn id[T] (x: T) -> T (return x))"
+    )
+
+
 def test_dump_is_expression() -> None:
     assert dump("print x is Int") == "(print (is x Int))"
 

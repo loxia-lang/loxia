@@ -416,7 +416,15 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 - Tipos de função: parâmetros são **contravariantes** e o retorno é **covariante**;
   defaults contam como intervalo de aridade. Uma classe (`Animal`) é atribuível à
   assinatura do seu construtor (`fn(String) -> Animal`), mas uma instância (`: Animal`)
-  não é. Generics ainda não existem; ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
+  não é. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
+- Funções genéricas introduzem parâmetros de tipo (`T`, `U`) que podem aparecer em
+  `List[T]`, `Map[String, T]`, `fn(T) -> U`, uniões e `T?`. O checker cria uma variável de
+  tipo fresca por declaração e resolve a chamada por unificação: argumentos e tipo
+  esperado (retorno, `val` anotado, argumento de função) preenchem os `T`. Se sobrar algum
+  sem inferência, é erro (`Can't infer type argument(s) 'T'.`). Não há constraints,
+  variance declarada, type application explícita nem `T` em chave de `Map` sem constraint;
+  `Any` não infere `T`. No runtime os tipos são apagados; o backend monomorfiza
+  ([ADR-0027](../adr/0027-generics-t3b.md)).
 - Lambdas: `fn(x) => expr` e `fn(x) { ... }`. O corpo de expressão vira retorno
   implícito; o bloco exige `return`. O tipo esperado preenche parâmetros sem anotação
   (`aplicar(fn(x) => x * 2, 3)`); sem contexto, anotar é obrigatório. O retorno é inferido;
@@ -424,6 +432,18 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   e retorno declarado não-nil exige todos os caminhos. Defaults em parâmetro de lambda são
   erro. `this`/`super` são lexicais e `return` volta da lambda. `print` de lambda sai
   `<lambda>`. Ver [ADR-0022](../adr/0022-lambdas.md).
+- Funções genéricas: `fn id[T] (x: T) -> T { ... }`. Os parâmetros de tipo são declarados
+  entre o nome e `(` e valem nas anotações e no corpo (`T`, `List[T]`, `Map[String, T]`,
+  `fn(T) -> U`). O corpo é checado **uma vez**, sem constraints: só operações universais
+  valem (`==`, `str`/`repr`, atribuir, listas/mapas, chamar funções passadas). `a + b` e
+  `len(x)` em `T` são erro até existir trait. A chamada infere por unificação dos
+  argumentos e do tipo esperado; `id(1)` ⇒ `T = Int`. A inferência é da esquerda para a
+  direita: uma lambda antes do argumento que fixa `T` precisa de anotação. Não há
+  `id[Int] (1)` nem função genérica como valor (`val f = id` é erro); zero-arg exige
+  contexto (`val xs: List[Int] = empty();`). Recursão com os mesmos argumentos de tipo é
+  permitida; recursão polimórfica é recusada. Classes/métodos genéricos ainda não existem.
+  O runtime apaga `T`; o backend monomorfiza (ADR-0027). Ver
+  [ADR-0027](../adr/0027-generics-t3b.md).
 - Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
   esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
   elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string/mapa. `xs.pop()` e
