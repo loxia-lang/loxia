@@ -111,6 +111,39 @@ def cstring_pointer(builder: Any, global_: Any) -> Any:
     return builder.gep(global_, [index, index])
 
 
+_STRING_STRUCT = ir.LiteralStructType(
+    [ir.IntType(64), ir.IntType(64), ir.IntType(8).as_pointer()]
+)
+
+
+def string_literal(module: Any, value: str, index: int) -> Any:
+    """Global de `LoxStr` constante: header + bytes UTF-8 + NUL."""
+    encoded = value.encode("utf-8")
+    data = bytearray(encoded + b"\0")
+    array = ir.Constant(ir.ArrayType(ir.IntType(8), len(data)), data)
+
+    data_global = ir.GlobalVariable(module, array.type, name=f"str.data.{index}")
+    data_global.initializer = array
+    data_global.global_constant = True
+    data_global.linkage = "private"
+    data_global.unnamed_addr = True
+
+    i64 = ir.IntType(64)
+    header = ir.Constant(
+        _STRING_STRUCT, [i64(len(encoded)), i64(len(value)), data_global]
+    )
+    # Não é `constant`: o header tem relocação e em .rodata geraria DT_TEXTREL.
+    struct_global = ir.GlobalVariable(module, _STRING_STRUCT, name=f"str.{index}")
+    struct_global.initializer = header
+    struct_global.linkage = "private"
+    struct_global.unnamed_addr = True
+    return struct_global
+
+
+def null_pointer() -> Any:
+    return ir.Constant(ir.IntType(8).as_pointer(), None)
+
+
 def global_variable(module: Any, name: str, ty: Any) -> Any:
     """Global `internal` inicializada com zero (variáveis de topo)."""
     global_ = ir.GlobalVariable(module, ty, name=name)

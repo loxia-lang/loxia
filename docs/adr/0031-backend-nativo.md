@@ -1,6 +1,6 @@
 # ADR-0031 — Backend nativo: contrato de valor, runtime e corpus
 
-- **Status:** accepted (L0–L2 completos, exceto a normalização de açúcar; L3–L7 pendentes)
+- **Status:** accepted (L0–L2 completos; L3 parcial — strings/arena; L4–L7 pendentes)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md) (`Int`/`Float`),
@@ -145,8 +145,8 @@ Regras de operação do harness:
 | 3. `T?` (nulo/tag) | L2 (escalar) e L3 (referência) | ⬜ |
 | 4. `lox_panic` | L0 | ✅ |
 | 5. `Float` + formatação | L1 (fuzz contra `repr`) | ✅ |
-| 6. `String` UTF-8 + `cp_len` | L3 | ⬜ |
-| 7. Arena com teto | L3 (primeiro heap) | ⬜ |
+| 6. `String` UTF-8 + `cp_len` | L3 | ✅ |
+| 7. Arena com teto | L3 (primeiro heap) | ✅ (64 MiB) |
 | 8. Monomorfização | L6 (até lá, função genérica é rejeitada) | ⬜ |
 | 9. Erro estático → panic site | L0 para operandos; L2/L5 para aridade e nomes | 🟡 |
 | 10. Normalização leve | L2b: ternário/`and`/`or`/`??` ✅; `for-in` depende de `Range` | 🟡 |

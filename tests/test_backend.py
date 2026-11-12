@@ -150,6 +150,13 @@ CASES = [
         "print (false and e()); print (7 ?? e()); print n;",
         "curto-circuito não avalia o lado direito",
     ),
+    ('print "hello";', "literal de string"),
+    ('print "";', "string vazia"),
+    ('print "a" + "b";', "concatenação"),
+    ('val s = "aço"; print len(s);', "len em code points"),
+    ('print "ab" == "ab"; print "ab" != "ab";', "igualdade de string"),
+    ('fn g(n: String) -> String { return "oi " + n; } print g("ana");', "string em função"),
+    ('print 1 + "a";', "tipos misturados em + viram panic"),
 
 ]
 
@@ -175,8 +182,8 @@ def test_binario_concorda_com_interpretador(
 
 
 @pytest.mark.backend
-def test_string_ainda_e_rejeitada_com_erro_explicito(tmp_path: Path) -> None:
-    path = _write(tmp_path, 'print "a";\n')
+def test_recurso_sem_representacao_e_rejeitado_explicitamente(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print [1];\n")
 
     result, binary = _build(path, tmp_path)
 

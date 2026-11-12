@@ -21,6 +21,18 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/numbers.lox",
         "tests/cases/precedence.lox",
     ),
+    "l3": (
+        "tests/cases/arguments_order.lox",
+        "tests/cases/block_scope.lox",
+        "tests/cases/elif.lox",
+        "tests/cases/equality.lox",
+        "tests/cases/if_else.lox",
+        "tests/cases/literals.lox",
+        "tests/cases/scope_identity.lox",
+        "tests/cases/string_escapes.lox",
+        "tests/cases/strings.lox",
+        "tests/cases/val_shadowing.lox",
+    ),
     "l2": (
         "tests/cases/assignment.lox",
         "tests/cases/builtin_shadow_local.lox",

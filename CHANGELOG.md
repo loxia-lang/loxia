@@ -37,6 +37,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - Backend L2b (açúcar): ternário, `and`/`or` e `??` com blocos + `phi`, curto-circuito
   preservado e dobra de literais (`false and x`, `true or x`); `for-in` fica para o L3/L6
   por depender de `Range`/`List`/`String`.
+- Backend L3 (strings): `String` como `{byte_len, cp_len, data}` em globais constantes,
+  concatenação (`lox_str_concat`), igualdade (`memcmp`), `len` em code points e `print`;
+  arena de 64 MiB com panic determinístico. `len` de não-string e interpolação ainda não.
 
 ### Mudado
 

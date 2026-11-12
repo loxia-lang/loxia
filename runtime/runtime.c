@@ -24,6 +24,74 @@ void lox_init(void) {
     setlocale(LC_NUMERIC, "C");
 }
 
+/*
+ * String imutável: bytes UTF-8 + contagem de code points (ADR-0031, decisão 6).
+ * O IR usa `i8*` para o ponteiro; o layout é este struct.
+ */
+typedef struct {
+    int64_t byte_len;
+    int64_t cp_len;
+    const char *data;
+} LoxStr;
+
+/* Arena: um bloco, sem free, com teto determinístico (decisão 7). */
+#define LOX_HEAP_BYTES (64ull * 1024ull * 1024ull)
+
+static unsigned char *lox_heap = NULL;
+static size_t lox_heap_used = 0;
+
+static void *lox_alloc(size_t size) {
+    if (lox_heap == NULL) {
+        lox_heap = malloc(LOX_HEAP_BYTES);
+        if (lox_heap == NULL) {
+            lox_panic(0, "Out of memory.");
+        }
+    }
+    size = (size + 7u) & ~(size_t)7u;
+    if (lox_heap_used + size > LOX_HEAP_BYTES) {
+        lox_panic(0, "Out of memory.");
+    }
+    void *pointer = lox_heap + lox_heap_used;
+    lox_heap_used += size;
+    return pointer;
+}
+
+void lox_print_str(const void *pointer) {
+    const LoxStr *string = pointer;
+    fwrite(string->data, 1, (size_t)string->byte_len, stdout);
+    fputc('\n', stdout);
+}
+
+int64_t lox_str_len(const void *pointer) {
+    return ((const LoxStr *)pointer)->cp_len;
+}
+
+int32_t lox_str_equal(const void *left_pointer, const void *right_pointer) {
+    const LoxStr *left = left_pointer;
+    const LoxStr *right = right_pointer;
+    if (left->byte_len != right->byte_len) {
+        return 0;
+    }
+    return memcmp(left->data, right->data, (size_t)left->byte_len) == 0;
+}
+
+void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
+    const LoxStr *left = left_pointer;
+    const LoxStr *right = right_pointer;
+    size_t bytes = (size_t)left->byte_len + (size_t)right->byte_len;
+
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + bytes + 1);
+    char *data = (char *)(result + 1);
+    memcpy(data, left->data, (size_t)left->byte_len);
+    memcpy(data + left->byte_len, right->data, (size_t)right->byte_len);
+    data[bytes] = '\0';
+
+    result->byte_len = (int64_t)bytes;
+    result->cp_len = left->cp_len + right->cp_len;
+    result->data = data;
+    return result;
+}
+
 void lox_panic(int32_t line, const char *message) {
     fflush(stdout);
     fprintf(stderr, "%s\n[line %" PRId32 "]\n", message, line);

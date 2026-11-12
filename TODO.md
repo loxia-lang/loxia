@@ -248,7 +248,7 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `Float` | `double` | L1 ✅ |
 | `T?` escalar | `{i1, T}` | L2 |
 | `T?` referência | ponteiro nulo | L3 |
-| `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 |
+| `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*}` | L4 |
 | instância | ponteiro para struct | L5 |
 | `Any` (quando entrar) | caixa `LoxValue` **só** no caminho dinâmico | L6 |
@@ -335,7 +335,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       `Range`/`List`/`String`, ou seja, L3/L6). Limitação conhecida: o slot é monomórfico, então
       `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
       interpretador aceita; resolver junto com a representação numérica unificada (L6).
-- [ ] **L3 — Strings**: literais em globals, concatenação, interpolação, `print`.
+- [ ] **L3 — Strings**: literais em globals, concatenação, `print`, igualdade e `len`
+      (code points) ✅, com arena de 64 MiB e panic determinístico; falta **interpolação**
+      (`"${expr}"`, exige converter `Int`/`Float` para string) e `str`/`repr`.
 - [ ] **L4 — Closures**: env struct, captura por valor e por célula.
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable.
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`.

@@ -47,6 +47,7 @@ from src.frontend.ty import BOOL as TY_BOOL
 from src.frontend.ty import FLOAT as TY_FLOAT
 from src.frontend.ty import INT as TY_INT
 from src.frontend.ty import NIL as TY_NIL
+from src.frontend.ty import STRING as TY_STRING
 from src.frontend.ty import Ty
 
 _INT = llvm_ir.int_type(64)
@@ -85,6 +86,7 @@ class ValueType(Enum):
     INT = auto()
     FLOAT = auto()
     BOOL = auto()
+    STRING = auto()
     NIL = auto()
 
 
@@ -137,6 +139,7 @@ class Lowerer:
         self._runtime: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
         self._poison_count = 0
+        self._string_count = 0
         self._scopes: list[dict[str, Binding]] = [{}]
         self._globals: dict[str, Binding] = {}
         self._functions: dict[str, FunctionInfo] = {}
@@ -256,6 +259,8 @@ class Lowerer:
             return ValueType.FLOAT
         if ty is TY_BOOL:
             return ValueType.BOOL
+        if ty is TY_STRING:
+            return ValueType.STRING
         if ty is TY_NIL:
             return ValueType.NIL
 
@@ -269,6 +274,8 @@ class Lowerer:
                 return _FLOAT
             case ValueType.BOOL:
                 return _BOOL
+            case ValueType.STRING:
+                return _I8_PTR
             case ValueType.NIL:
                 return _VOID
 
@@ -280,6 +287,8 @@ class Lowerer:
                 return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
             case ValueType.BOOL:
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
+            case ValueType.STRING:
+                return Value(ValueType.STRING, llvm_ir.null_pointer())
             case ValueType.NIL:
                 return Value(ValueType.NIL)
 
@@ -370,6 +379,10 @@ class Lowerer:
                 widened = self.builder.zext(value.llvm, _I32)
                 self.builder.call(
                     self._function("lox_print_bool", _VOID, [_I32]), [widened]
+                )
+            case ValueType.STRING:
+                self.builder.call(
+                    self._function("lox_print_str", _VOID, [_I8_PTR]), [value.llvm]
                 )
             case ValueType.NIL:
                 self.builder.call(self._function("lox_print_nil", _VOID, []), [])
@@ -477,8 +490,12 @@ class Lowerer:
             return Value(ValueType.INT, llvm_ir.constant(_INT, value))
         if isinstance(value, float):
             return Value(ValueType.FLOAT, llvm_ir.float_constant(value))
+        if isinstance(value, str):
+            global_ = llvm_ir.string_literal(self.module, value, self._string_count)
+            self._string_count += 1
+            return Value(ValueType.STRING, self.builder.bitcast(global_, _I8_PTR))
 
-        raise _unsupported("String", None)
+        raise _unsupported("Literal", None)
 
     def _unary(self, expr: Unary) -> Value:
         operand = self._expr(expr.right)
@@ -541,6 +558,11 @@ class Lowerer:
         operator: TokenType,
         line: int,
     ) -> Value:
+        if operator is TokenType.PLUS and (
+            left.ty is ValueType.STRING and right.ty is ValueType.STRING
+        ):
+            return self._concat(left, right)
+
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
             operation = getattr(self.builder, integer_op)
             return Value(ValueType.INT, operation(left.llvm, right.llvm))
@@ -636,6 +658,14 @@ class Lowerer:
                 ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
             )
 
+        if left.ty is ValueType.STRING and right.ty is ValueType.STRING:
+            function = self._function("lox_str_equal", _I32, [_I8_PTR, _I8_PTR])
+            comparison = self.builder.call(function, [left.llvm, right.llvm])
+            result = self.builder.icmp_signed(
+                "!=" if equal else "==", comparison, llvm_ir.constant(_I32, 0)
+            )
+            return Value(ValueType.BOOL, result)
+
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
             result = self.builder.icmp_signed(
                 "==" if equal else "!=", left.llvm, right.llvm
@@ -689,6 +719,9 @@ class Lowerer:
             raise _unsupported("Indirect calls", expr.paren.line)
 
         name = expr.callee.name.lexeme
+        if name == "len":
+            return self._len(expr)
+
         info = self._functions.get(name)
         if info is None:
             raise _unsupported(f"Call to '{name}'", expr.paren.line)
@@ -839,11 +872,31 @@ class Lowerer:
             return f"Expected at least {minimum} arguments but got {count}."
         return f"Expected {minimum} to {maximum} arguments but got {count}."
 
+    def _concat(self, left: Value, right: Value) -> Value:
+        function = self._function("lox_str_concat", _I8_PTR, [_I8_PTR, _I8_PTR])
+        return Value(ValueType.STRING, self.builder.call(function, [left.llvm, right.llvm]))
+
+    def _len(self, expr: Call) -> Value:
+        arguments = [self._expr(argument) for argument in expr.arguments]
+        if len(arguments) != 1:
+            self._poison(
+                expr.paren.line,
+                f"Expected 1 arguments but got {len(arguments)}.",
+            )
+            return self._zero(ValueType.INT)
+
+        argument = arguments[0]
+        if argument.ty is not ValueType.STRING:
+            raise _unsupported("len of non-String", expr.paren.line)
+
+        function = self._function("lox_str_len", _INT, [_I8_PTR])
+        return Value(ValueType.INT, self.builder.call(function, [argument.llvm]))
+
     def _truthy(self, value: Value) -> Any:
         match value.ty:
             case ValueType.BOOL:
                 return value.llvm
-            case ValueType.INT | ValueType.FLOAT:
+            case ValueType.INT | ValueType.FLOAT | ValueType.STRING:
                 # Só nil e false são falsy: `0`, `0.0` e `""` são truthy (ADR-0006).
                 return llvm_ir.constant(_BOOL, 1)
             case ValueType.NIL:
