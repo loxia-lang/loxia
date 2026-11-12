@@ -101,10 +101,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._current_class: ClassInfo | None = None
         self._current_return: Ty | None = None
         self._in_initializer = False
+        self._signatures: dict[Function, FnTy] = {}
+        self._predeclared_by_name: dict[str, FnTy] = {}
+        self._function_depth = 0
         self._define_builtins()
 
     def check(self, statements: list[Stmt]) -> None:
         self._predeclare_classes(statements)
+        self._predeclare_functions(statements)
         for statement in statements:
             self._check_stmt(statement)
 
@@ -134,6 +138,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 statement.name.lexeme, ClassObjectTy(statement.name.lexeme)
             )
 
+    def _predeclare_functions(self, statements: list[Stmt]) -> None:
+        """Calcula assinaturas de topo antes dos corpos.
+
+        A assinatura é o contrato: um corpo de função pode chamar outra função mesmo que
+        ela apareça depois. A ordem das declarações continua valendo para o código de topo
+        (o runtime executa os statements na ordem em que estão escritos).
+        """
+        for statement in statements:
+            if not isinstance(statement, Function):
+                continue
+
+            signature = self._signature(statement, is_init=False)
+            self._signatures[statement] = signature
+            self._predeclared_by_name[statement.name.lexeme] = signature
+
     def _begin_scope(self) -> None:
         self._scopes.append({})
         self._narrowings.append({})
@@ -160,6 +179,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _lookup(self, name: Token) -> Ty:
         found = self._find_decl(name.lexeme)
         if found is None:
+            predeclared = self._predeclared_by_name.get(name.lexeme)
+            if predeclared is not None and self._function_depth > 0:
+                return predeclared
+
             self._error(name, f"Undefined variable '{name.lexeme}'.")
             return ERROR
 
@@ -192,6 +215,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _error(self, token: Token, message: str) -> None:
         self._reporter.error(token, message)
 
+    def _mismatch_message(self, expected: Ty, actual: Ty) -> str:
+        if (
+            isinstance(expected, ClassTy)
+            and isinstance(actual, ClassObjectTy)
+            and expected.name == actual.name
+        ):
+            return (
+                f"Expected an instance of {expected.name}, "
+                f"found the class {actual.name}."
+            )
+
+        return f"Expected {display(expected)}, found {display(actual)}."
+
     def _check_stmt(self, stmt: Stmt) -> None:
         stmt.accept(self)
 
@@ -221,9 +257,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         actual = self._infer(expr)
         if not self._assignable(expected, actual):
-            self._error(
-                token, f"Expected {display(expected)}, found {display(actual)}."
-            )
+            self._error(token, self._mismatch_message(expected, actual))
 
         return actual
 
@@ -468,7 +502,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return ERROR
 
     def visit_function_stmt(self, stmt: Function) -> None:
-        signature = self._signature(stmt, is_init=False)
+        signature = self._signatures.get(stmt)
+        if signature is None:
+            signature = self._signature(stmt, is_init=False)
+
         self._define(stmt.name, signature)
         self._check_function_body(stmt, signature, None, is_init=False)
 
@@ -527,23 +564,28 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._current_return = NIL if is_init else signature.ret
         self._in_initializer = is_init
 
-        self._begin_scope()
-        if class_info is not None:
-            self._scopes[-1]["this"] = ClassTy(class_info.name)
-            if class_info.superclass is not None:
-                self._scopes[-1]["super"] = ClassObjectTy(class_info.superclass)
+        self._function_depth += 1
+        try:
+            self._begin_scope()
+            if class_info is not None:
+                self._scopes[-1]["this"] = ClassTy(class_info.name)
+                if class_info.superclass is not None:
+                    self._scopes[-1]["super"] = ClassObjectTy(
+                        class_info.superclass
+                    )
 
-        for param, param_ty in zip(stmt.params, signature.params, strict=True):
-            self._define(param.name, param_ty)
+            for param, param_ty in zip(stmt.params, signature.params, strict=True):
+                self._define(param.name, param_ty)
 
-        for statement in stmt.body:
-            self._check_stmt(statement)
+            for statement in stmt.body:
+                self._check_stmt(statement)
 
-        self._end_scope()
-
-        self._current_class = enclosing_class
-        self._current_return = enclosing_return
-        self._in_initializer = enclosing_init
+            self._end_scope()
+        finally:
+            self._function_depth -= 1
+            self._current_class = enclosing_class
+            self._current_return = enclosing_return
+            self._in_initializer = enclosing_init
 
     def visit_if_stmt(self, stmt: If) -> None:
         self._infer(stmt.condition)
@@ -940,11 +982,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(token, message)
             return
 
-        for argument, param in zip(arguments, signature.params, strict=False):
+        for index, (argument, param) in enumerate(
+            zip(arguments, signature.params, strict=False), start=1
+        ):
             if not self._assignable(param, argument):
                 self._error(
                     token,
-                    f"Expected {display(param)}, found {display(argument)}.",
+                    f"Argument {index}: {self._mismatch_message(param, argument)}",
                 )
 
     def visit_get_expr(self, expr: Get) -> Ty:

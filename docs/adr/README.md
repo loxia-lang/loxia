@@ -65,6 +65,7 @@ Crie quando a decisão:
 | [0017](0017-mapas-hash.md) | Mapas `Map[K, V]`, literal `{ k: v }` e chave ausente explícita | accepted | 2026-11-11 |
 | [0018](0018-narrowing.md) | Narrowing de fluxo para `T?` | accepted | 2026-11-11 |
 | [0019](0019-interpolacao.md) | Interpolação `"${expr}"` | accepted | 2026-11-11 |
+| [0020](0020-assinaturas-explicitas.md) | Assinaturas explícitas e funções declaradas depois | accepted | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 

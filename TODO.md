@@ -21,9 +21,9 @@ pretendo tipar e como chegar no LLVM.
 > defaults/campos, checker `--check`, `fn`/`elif`/`;`, `//`/`**`/bits, ternário/`??`/`?.`,
 > `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
 >
-> **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Próxima
-> feature:** T3 (parâmetros sem anotação, unificação nas chamadas). **Recém-feitos:**
-> narrowing `T?` (ADR-0018) e interpolação `"${expr}"` (ADR-0019).
+> **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
+> T3a: assinaturas explícitas + pré-declaração de funções (ADR-0020). **A seguir:** T3b
+> (generics explícitos) — T3 literal (parâmetro sem anotação) fica adiado.
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -170,8 +170,8 @@ val nome: String? = nil
 ```
 
 O ponto central: **o argumento é checado contra o parâmetro** e o local infere do
-inicializador. Funções anotadas são obrigatórias no modo `--check`; inferir parâmetros sem
-anotação (T3) fica como evolução.
+inicializador. Funções anotadas continuam obrigatórias no modo `--check` (T3a, ADR-0020);
+inferir parâmetros sem anotação (T3c) e generics explícitos (T3b) ficam como evolução.
 
 ### 2.2 Estratégia (não fazer HM completo de cara)
 
@@ -183,7 +183,9 @@ nas chamadas**, em camadas:
 | --- | --- | --- |
 | **T1** ✅ | `Ty` no AST, parser aceita `: Tipo`, `-> Tipo`, `T?` e `A \| B`; checker no AST | sintaxe e base prontas |
 | **T2** ✅ | inferência local (`val x = 1` → `Int`), checagem de `return`, chamadas e campos | erros óbvios sem anotar locais |
-| **T3** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | funções sem anotação |
+| **T3a** ✅ | assinaturas explícitas; funções de topo pré-declaradas para o corpo chamar funções declaradas depois | recursão mútua sem depender da ordem |
+| **T3b** ⬜ | variável de tipo + generics explícitos (`fn id[T](x: T) -> T`), unificando no call site | funções genéricas de verdade |
+| **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | adiado: sem T4 fica monomórfico e depende da ordem |
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
 | **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return pronto; falta `is T`, loops e `and`/`or` | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
@@ -617,7 +619,7 @@ manda.
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
 | **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, listas, mapas, interpolação; ⬜ lambdas |
-| **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`); ⬜ T3 (parâmetros sem anotação) |
+| **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`) e T3a (assinaturas explícitas, pré-declaração); ⬜ T3b/T3c (generics/inferência de parâmetro) |
 | **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing completo, exaustividade |
 | **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |
 | **M7** | Runtime completo | L3–L5: strings, closures, classes, GC (Boehm); **I1** verde no corpus completo |

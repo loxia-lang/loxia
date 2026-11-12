@@ -58,6 +58,75 @@ def test_annotated_program_is_clean() -> None:
     assert lox.reporter.had_error is False
 
 
+def test_functions_can_call_functions_declared_later() -> None:
+    lox = check(
+        """
+        fn par(n: Int) -> Bool {
+          if (n == 0) { return true; }
+          return impar(n - 1);
+        }
+
+        fn impar(n: Int) -> Bool {
+          if (n == 0) { return false; }
+          return par(n - 1);
+        }
+
+        print par(4);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_top_level_call_before_declaration_is_an_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        print f();
+        fn f() -> Int { return 1; }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Undefined variable 'f'." in captured.err
+
+
+def test_call_error_reports_the_argument_position(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f(a: Int, b: String) -> Nil { return nil; }
+        f(1, 2);
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Argument 2: Expected String, found Int." in captured.err
+
+
+def test_class_value_is_not_an_instance(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class Animal { init() {} }
+        fn recebe(a: Animal) -> Nil { return nil; }
+        recebe(Animal);
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert (
+        "Expected an instance of Animal, found the class Animal."
+        in captured.err
+    )
+
+
 @pytest.mark.parametrize(
     ("source", "message"),
     [

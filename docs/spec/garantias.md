@@ -75,7 +75,8 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
 3. **Imutável por padrão** — `val`/`var` implementados; parâmetros são imutáveis e `var x`
    libera a mutação. Argumentos em [`IDEIAS.md`](../../IDEIAS.md) I-1.
 4. **Tipos opcionais, não cerimônia** — anotar só onde ajuda; no `--check` a inferência
-   local já existe, mas parâmetros ainda exigem anotação (T3).
+   local já existe e parâmetros/retorno continuam assinados. Inferir parâmetro sem
+   anotação ficou adiado; ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).
 5. **Falhar cedo e claro** — spans, caret e stack trace são P1; hoje há linha e mensagem.
 6. **Previsível** — nada de coerção implícita, nada de `nil` surpresa; é o I2.
 7. **Identidade = invariantes, não features** — o contrato é o

@@ -23,6 +23,7 @@ decisão.
 | Defaults e campos | Defaults posicionais constantes com aridade `[mín, máx]`; campos `val`/`var` declarados no corpo, sem campo dinâmico. | [ADR-0009](adr/0009-defaults-e-campos.md) |
 | Herança | `class B(A)` com parênteses (sem `extends`/`:`/`<`); `init` no corpo; `this` implícito; `super.init(...)` explícito. | [ADR-0008](adr/0008-heranca-class-parens.md) |
 | Tipagem gradual | Checker opt-in (`--check`), funções anotadas, inferência local, `T?`/uniões e truthiness Python; sem narrowing de fluxo ainda. | [ADR-0010](adr/0010-tipagem-estatica.md) |
+| Assinaturas explícitas | Parâmetros/retorno obrigatórios; assinaturas de topo pré-declaradas para corpos (recursão mútua), mas o topo segue a ordem dos statements; inferir parâmetro ficou adiado. | [ADR-0020](adr/0020-assinaturas-explicitas.md) |
 | `fn`/`elif`/`;` | `fn` substitui `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha, EOF ou antes de `}`; operador só continua na mesma linha; `return` sozinho devolve `nil`. | [ADR-0011](adr/0011-fn-elif-ponto-e-virgula.md) |
 | Comentários, `//`, `**` e bits | `#` e `/* */` aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`; `& \| ^ ~ << >> >>>` em i64; shift inválido é erro. | [ADR-0012](adr/0012-comentarios-divisao-potencia-bits.md) |
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |

@@ -384,6 +384,11 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 - No `--check`, funções e métodos precisam de anotação em **todos os parâmetros e no
   retorno**; `init` não declara retorno. Parâmetro/campo sem anotação e sem inicializador
   é erro; local sem inicializador também.
+- Assinaturas de funções de topo são conhecidas **antes** dos corpos: uma função pode
+  chamar outra declarada depois, inclusive recursão mútua. O código de topo continua na
+  ordem dos statements: chamar uma função antes da declaração dela ainda é erro; métodos e
+  campos de classes seguem a ordem da classe. Ver
+  [ADR-0020](../adr/0020-assinaturas-explicitas.md).
 - Locais e expressões são inferidos: `val x = f()` não precisa de tipo.
 - Tipos: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
   `List[T]`, `Map[K, V]`, uniões `A | B` e `T?` (= `T | Nil`). `Int` é
@@ -402,6 +407,9 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 - Interpolação: cada expressão é checada normalmente e o resultado é `String`; qualquer
   tipo é convertido por `stringify`.
 - Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
+- Erro de chamada identifica o argumento: `Argument 2: Expected String, found Int.`
+  Passar a classe onde se espera uma instância é reportado como
+  `Expected an instance of Animal, found the class Animal.`
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
   tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
 - Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)` e `!` em volta disso refinam `x`
@@ -412,8 +420,8 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   [ADR-0018](../adr/0018-narrowing.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
 - Limitações atuais: narrowing completo (`is T`, loops, `and`/`or`), generics de verdade,
-  tipo de função como valor e `as`. Anotar `Float` não converte o valor em runtime (o
-  tree-walk continua dinâmico).
+  tipo de função como valor, inferência de parâmetro sem anotação e `as`. Anotar `Float`
+  não converte o valor em runtime (o tree-walk continua dinâmico).
 
 ## Classes
 

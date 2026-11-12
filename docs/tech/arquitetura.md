@@ -163,6 +163,19 @@ chamada.
 - Tipos são apagados no runtime: o `LoxMap` não conhece `K`/`V`; o `Checker` aplica
   `MapTy`, invariância, a restrição de chaves e as assinaturas dos métodos.
 
+## Assinaturas e ordem
+
+- `Checker.check` pré-declara as classes e calcula as assinaturas das **funções de topo**
+  antes de checar os corpos. O corpo de uma função pode chamar outra declarada depois,
+  inclusive recursão mútua, porque a assinatura já está na tabela
+  `_predeclared_by_name`.
+- A tabela só é consultada quando `_function_depth > 0` (dentro de um corpo). Statements de
+  topo continuam na ordem: chamar uma função antes da declaração dela ainda é erro.
+- A assinatura é calculada uma vez e guardada por nó de AST (`_signatures`); o
+  `visit_function_stmt` reutiliza o mesmo `FnTy` em vez de recalcular.
+- Métodos e campos de classes não são antecipados; seguem a ordem de visita da classe.
+  Ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).
+
 ## Narrowing
 
 - O checker mantém `_scopes` (declarações) e `_narrowings` (refinamentos), uma pilha

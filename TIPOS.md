@@ -136,8 +136,13 @@ val s = 42.toString()     # "42"
 
 ### 3.4 Inferência pendente (`T3`/`T5`)
 
-- **T3** — parâmetro sem anotação vira variável de tipo e é unificado a cada chamada
-  (`fn metade(x) { x / 2 }`).
+- **T3a (feito)** — assinaturas explícitas; funções de topo são pré-declaradas para que o
+  corpo possa chamar funções declaradas depois (recursão mútua). Ver
+  [ADR-0020](docs/adr/0020-assinaturas-explicitas.md).
+- **T3b (adiado)** — variáveis de tipo e generics explícitos (`fn id[T](x: T) -> T`), com
+  unificação no call site.
+- **T3c (adiado)** — parâmetro sem anotação; depende de generalização (T4) e de uma regra
+  explícita para não ficar monomórfico.
 - **T5** — narrowing de `T?` em `if x != nil`/`if x == nil`/truthiness/early return já
   existe (ADR-0018); falta `is T`, loops e `and`/`or`.
 
@@ -236,7 +241,8 @@ velocidade.
 ## 7. Funções
 
 - Tipo: `fn(Int, String) -> Bool`; funções de primeira classe; closures.
-- Parâmetros sem anotação viram variáveis de tipo (inferência na chamada, T3).
+- Parâmetros e retorno continuam **assinados**; generics explícitos e inferência de
+  parâmetro ficam para T3b/T4 ([ADR-0020](docs/adr/0020-assinaturas-explicitas.md)).
 - Sem overloading por tipo no início (complica resolução e LLVM); usar nomes distintos
   ou traits.
 - Retorno inferido quando o corpo é expressão (`fn dobro(x) -> x * 2`).
@@ -320,7 +326,7 @@ resumo em [`docs/decisoes.md`](docs/decisoes.md); o que ainda está aberto fica 
 | **N0** | ✅ `Int` literal no lexer + `stringify` distinto + testes | nada |
 | **N1** | ✅ promoção `Int → Float`, `/` sempre `Float`, `%`/`//` truncados, `**` e bitwise | N0 |
 | **N2** | sintaxe de anotação (`: Int`, `-> Float`) e `Ty` no AST | checker T1 |
-| **N3** | unificação/checagem nas chamadas com promoção (T3) | N2 |
+| **N3** | ✅ T3a: assinaturas explícitas + pré-declaração; unificação/generics ficam para T3b | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
 | **N6** | ✅ ranges e `for-in` (Range/String/List/Map); `Map` implementado no ADR-0017 | sintaxe §1.1 |
