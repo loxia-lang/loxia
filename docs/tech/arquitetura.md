@@ -336,7 +336,7 @@ chamada.
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
 
-## Backend nativo (L0–L2 parcial)
+## Backend nativo (L0–L2)
 
 O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
 não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
@@ -353,6 +353,11 @@ convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` f
 Variáveis usam `alloca` (locais) e globais LLVM (topo); o `depth` do resolver decide o
 escopo (`depths`), e o tipo do slot é o tipo do **valor** em runtime, não o da anotação —
 como no interpretador, `val f: Float = 2` guarda `Int`.
+
+Funções de topo são pré-declaradas (recursão e chamada antes da definição), com o tipo
+**anotado** na assinatura; `return` e argumentos precisam casar (sem coerção implícita) e
+`Nil` vira `void`. Aridade errada vira `lox_panic` com a mensagem montada no compile time
+(os números são estáticos), e o corpo roda em blocos próprios com `ret`/`unreachable`.
 
 `main` gerado devolve `0` no sucesso; sucesso/falha nunca é o valor de retorno de uma
 função do usuário. O `--emit=ll` é artefato de inspeção: o build emite object file com o

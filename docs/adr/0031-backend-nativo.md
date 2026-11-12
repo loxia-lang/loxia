@@ -1,6 +1,6 @@
 # ADR-0031 — Backend nativo: contrato de valor, runtime e corpus
 
-- **Status:** accepted (L0–L1 completos; L2 em andamento — variáveis prontas, funções pendentes)
+- **Status:** accepted (L0–L2 completos, exceto a normalização de açúcar; L3–L7 pendentes)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md) (`Int`/`Float`),
@@ -106,8 +106,13 @@ O interpretador erra em runtime (exit 70) em casos que o checker pega em compile
 casos de erro, o backend **rebaixa** esse diagnóstico a `lox_panic` no ponto exato,
 avaliando os operandos na ordem da linguagem (os efeitos colaterais antes do erro precisam
 sair no stdout). Erros que não têm contrapartida em runtime (falta de anotação) continuam
-exit 65. **Ainda não implementado** — é pré-requisito do L1; o `ErrorReporter` vai precisar
-classificar o diagnóstico.
+exit 65.
+
+**Parcialmente implementado**: o `ErrorReporter` classifica diagnóstico (`lowerable`) e o
+lowering rebaixa erro de operando (`1 + true`, `-true`, `true // 2`), **aridade**
+(`Expected N arguments but got M.`, mensagem montada no compile time) e **variável
+indefinida** a `lox_panic` num bloco inalcançável, preservando stdout e exit code.
+Propriedade indefinida e índice fora da faixa entram no L5/L6.
 
 ### 10. HIR: normalização leve, não HIR completa
 
@@ -144,7 +149,7 @@ Regras de operação do harness:
 | 7. Arena com teto | L3 (primeiro heap) | ⬜ |
 | 8. Monomorfização | L6 (até lá, função genérica é rejeitada) | ⬜ |
 | 9. Erro estático → panic site | L0 para operandos; L2/L5 para aridade e nomes | 🟡 |
-| 10. Normalização leve | L2 (precisa de variáveis para `for-in`/`??`) | ⬜ |
+| 10. Normalização leve | L2b (`for-in`/`??` dependem de `Range`/`T?`) | ⬜ |
 | 11. Corpus anotado | bloqueia o L2 (corpus do nível) | 🟡 (54 de 78 `tests/cases` e 4 de 5 `exemplos/` passam no `--check`) |
 
 ## Consequências

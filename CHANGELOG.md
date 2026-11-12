@@ -31,6 +31,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   escopo de bloco e sombreamento; o `for` C-style (desaçucarado pelo parser) já compila.
   O tipo do binding é o tipo do valor em runtime — `val f: Float = 2` guarda `Int`, como
   no interpretador (anotação não converte).
+- Backend L2 (funções): declaração de topo, chamada direta, `return`, recursão e defaults
+  resolvidos no call site; `Nil` vira `void`. Aridade errada e variável indefinida viram
+  `lox_panic` com a mensagem do interpretador (stdout e exit code preservados).
 
 ### Mudado
 

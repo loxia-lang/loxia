@@ -326,10 +326,12 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [x] **L1 — Aritmética e controle de fluxo**: `Float` desboxado, promoção `Int → Float`,
       `/` sempre Float, `%` de Float, comparações com NaN, `if`/`while`/blocos e impressão
       de `double` pela menor representação (fuzz contra `repr`). Manifesto `l0`/`l1`.
-- [ ] **L2 — Variáveis e funções**: variáveis ✅ (`val`/`var`, atribuição, escopo,
-      sombreamento, globais via `alloca`/global; `for` C-style desaçucarado já compila);
-      falta **funções** (chamada, `return`, aridade como panic site) e a **normalização**
-      (`for-in`, `??`, ternário). Limitação conhecida: o slot é monomórfico, então
+- [x] **L2 — Variáveis e funções**: `val`/`var` com `alloca`/globais, atribuição, escopo,
+      sombreamento; funções de topo com chamada direta, `return`, recursão, defaults no
+      call site e **aridade/variável indefinida como panic site**; `for` C-style
+      (desaçucarado pelo parser) compila.
+- [ ] **L2b — Normalização**: ternário (blocos + `phi`), `??` (depende de `T?`) e `for-in`
+      (depende de `Range`/`List`/`String`, ou seja, L3/L6). Limitação conhecida: o slot é monomórfico, então
       `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
       interpretador aceita; resolver junto com a representação numérica unificada (L6).
 - [ ] **L3 — Strings**: literais em globals, concatenação, interpolação, `print`.

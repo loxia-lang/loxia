@@ -256,7 +256,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if predeclared is not None and self._function_depth > 0:
                 return self._function_value_type(name.lexeme, predeclared)
 
-            self._error(name, f"Undefined variable '{name.lexeme}'.")
+            self._error(
+                name, f"Undefined variable '{name.lexeme}'.", lowerable=True
+            )
             return ERROR
 
         index, declared = found
@@ -270,7 +272,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _lookup_declared(self, name: Token) -> Ty:
         found = self._find_decl(name.lexeme)
         if found is None:
-            self._error(name, f"Undefined variable '{name.lexeme}'.")
+            self._error(
+                name, f"Undefined variable '{name.lexeme}'.", lowerable=True
+            )
             return ERROR
 
         return found[1]
@@ -1763,7 +1767,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 message = f"Expected at least {minimum} arguments but got {count}."
             else:
                 message = f"Expected {minimum} to {maximum} arguments but got {count}."
-            self._error(token, message)
+            self._error(token, message, lowerable=True)
             return
 
         for index, (argument, param) in enumerate(

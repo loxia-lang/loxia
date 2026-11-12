@@ -130,6 +130,13 @@ CASES = [
     ("val f: Float = 2; print f + 1;", "anotação não converte em runtime"),
     ("var n = 0; while (n < 3) { n = n + 1; print n; }", "laço que termina"),
     ("val x = 1; val y = x * 2; print y;", "dependência entre variáveis"),
+    ("fn soma(a: Int, b: Int) -> Int { return a + b; } print soma(1, 2);", "função e chamada"),
+    ("fn fib(n: Int) -> Int { if (n < 2) return n; return fib(n - 1) + fib(n - 2); } print fib(10);", "recursão"),
+    ("fn vazio() -> Nil { return; } print vazio();", "retorno Nil"),
+    ("fn f(a: Int) -> Int { return a; } print f();", "aridade vira panic"),
+    ("fn soma(a: Int, b: Int = 10) -> Int { return a + b; } print soma(1);", "default no call site"),
+    ("print naoexiste;", "variável indefinida vira panic"),
+    ("fn f(a: Int) -> Int { return a // 0; } print f(1);", "panic dentro de função"),
 
 ]
 
