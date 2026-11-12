@@ -336,7 +336,7 @@ chamada.
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
 
-## Backend nativo (L0–L1)
+## Backend nativo (L0–L2 parcial)
 
 O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
 não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
@@ -349,6 +349,10 @@ sai com 70.
 convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` fixa
 `LC_NUMERIC=C` para não depender de locale (I3). A paridade é policiada por fuzz contra
 `repr()` em `tests/test_backend.py`.
+
+Variáveis usam `alloca` (locais) e globais LLVM (topo); o `depth` do resolver decide o
+escopo (`depths`), e o tipo do slot é o tipo do **valor** em runtime, não o da anotação —
+como no interpretador, `val f: Float = 2` guarda `Int`.
 
 `main` gerado devolve `0` no sucesso; sucesso/falha nunca é o valor de retorno de uma
 função do usuário. O `--emit=ll` é artefato de inspeção: o build emite object file com o

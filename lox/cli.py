@@ -85,7 +85,8 @@ class Lox:
         # Erro que o interpretador só levantaria em runtime é rebaixável: não bloqueia
         # o build e não é impresso agora — vira `lox_panic` no ponto (ADR-0031).
         self.reporter.defer_lowerable = True
-        Checker(self.reporter).check(statements)
+        checker = Checker(self.reporter)
+        checker.check(statements)
         if self.reporter.had_fatal_error:
             return False
 
@@ -99,6 +100,8 @@ class Lox:
                 emit=cast("Emit", emit),
                 output=output,
                 stem=stem,
+                types=checker.types,
+                depths=self.interpreter.locals,
             )
         except BackendError as error:
             self.reporter.backend_error(error.line, error.message)

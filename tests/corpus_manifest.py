@@ -21,6 +21,14 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/numbers.lox",
         "tests/cases/precedence.lox",
     ),
+    "l2": (
+        "tests/cases/assignment.lox",
+        "tests/cases/for.lox",
+        "tests/cases/operator_line.lox",
+        "tests/cases/same_line_semicolon.lox",
+        "tests/cases/val_var.lox",
+        "tests/cases/while.lox",
+    ),
 }
 
 

@@ -80,8 +80,9 @@ Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo
 `2` uso inválido (ex.: `--dump-ast` sem script). O binário gerado por `--emit=exe` segue o
 mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
 
-O backend nativo cobre **L0–L1** (`Int`/`Float`/`Bool`/`nil`, `if`/`while` e aritmética);
-o que ainda não tem representação falha com erro explícito, nunca com lowering silencioso.
+O backend nativo cobre **L0–L2 parcial** (`Int`/`Float`/`Bool`/`nil`, `if`/`while`,
+variáveis e `for` C-style); funções ainda não têm representação. O que falta falha com erro
+explícito, nunca com lowering silencioso.
 Contrato completo em [`docs/adr/0031-backend-nativo.md`](docs/adr/0031-backend-nativo.md).
 
 ## Exemplo

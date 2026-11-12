@@ -16,7 +16,9 @@ from typing import Literal
 
 from src.backend import llvm_ir
 from src.backend.lower import BackendError, lower_program
+from src.frontend.expr import Expr
 from src.frontend.stmt import Stmt
+from src.frontend.ty import Ty
 
 Emit = Literal["ll", "obj", "exe"]
 
@@ -29,9 +31,11 @@ def build(
     emit: Emit,
     output: Path | None,
     stem: str,
+    types: dict[Expr, Ty],
+    depths: dict[Expr, int],
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
-    module = lower_program(statements)
+    module = lower_program(statements, types=types, depths=depths)
 
     if emit == "ll":
         text = llvm_ir.emit_text(module)

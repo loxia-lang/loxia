@@ -125,6 +125,11 @@ CASES = [
     ("if (1 < 2) print 1;", "if verdadeiro"),
     ("if (false) print 1; else print 2;", "if com else"),
     ("while (false) { print 1; } print 2;", "while que não executa"),
+    ("val a = 1; var b = a + 1; b = b * 2; print b;", "variáveis e atribuição"),
+    ("val a = 1; { val a = 2; print a; } print a;", "sombreamento em bloco"),
+    ("val f: Float = 2; print f + 1;", "anotação não converte em runtime"),
+    ("var n = 0; while (n < 3) { n = n + 1; print n; }", "laço que termina"),
+    ("val x = 1; val y = x * 2; print y;", "dependência entre variáveis"),
 
 ]
 

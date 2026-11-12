@@ -27,6 +27,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - Manifesto do corpus diferencial (`tests/corpus_manifest.py`) com os níveis `l0` e `l1`.
 - 15 golden cases de `tests/cases` e 3 de `exemplos/` anotados (54 de 78 em `tests/cases`
   passam no `--check` agora; antes eram 39).
+- Backend L2 (variáveis): `val`/`var` com `alloca` local e global para o topo, atribuição,
+  escopo de bloco e sombreamento; o `for` C-style (desaçucarado pelo parser) já compila.
+  O tipo do binding é o tipo do valor em runtime — `val f: Float = 2` guarda `Int`, como
+  no interpretador (anotação não converte).
 
 ### Mudado
 

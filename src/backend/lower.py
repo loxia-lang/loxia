@@ -19,9 +19,10 @@ from enum import Enum, auto
 from typing import Any
 
 from src.backend import llvm_ir
-from src.frontend.expr import Binary, Expr, Grouping, Literal, Unary
-from src.frontend.stmt import Block, Expression, If, Print, Stmt, While
+from src.frontend.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
+from src.frontend.stmt import Block, Expression, If, Print, Stmt, Var, While
 from src.frontend.token_type import TokenType
+from src.frontend.ty import Ty
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -66,6 +67,14 @@ NUMERIC = (ValueType.INT, ValueType.FLOAT)
 
 
 @dataclass(frozen=True)
+class Binding:
+    """Variável: slot de memória (`alloca` local ou global) e tipo do binding."""
+
+    storage: Any
+    ty: ValueType
+
+
+@dataclass(frozen=True)
 class Value:
     """Valor no IR. `NIL` não tem representação em LLVM: `llvm` fica `None`."""
 
@@ -78,13 +87,23 @@ def _unsupported(what: str, line: int | None) -> BackendError:
 
 
 class Lowerer:
-    def __init__(self, module: Any) -> None:
+    def __init__(
+        self,
+        module: Any,
+        *,
+        types: dict[Expr, Ty],
+        depths: dict[Expr, int],
+    ) -> None:
         self.module: Any = module
+        self.types = types
+        self.depths = depths
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
         self._poison_count = 0
+        self._scopes: list[dict[str, Binding]] = [{}]
+        self._globals: dict[str, Binding] = {}
 
     # --- programa ---
 
@@ -104,8 +123,14 @@ class Lowerer:
 
     def _stmt(self, stmt: Stmt) -> None:
         if isinstance(stmt, Block):
-            for inner in stmt.statements:
-                self._stmt(inner)
+            self._scopes.append({})
+            try:
+                for inner in stmt.statements:
+                    self._stmt(inner)
+            finally:
+                self._scopes.pop()
+        elif isinstance(stmt, Var):
+            self._var(stmt)
         elif isinstance(stmt, If):
             self._if(stmt)
         elif isinstance(stmt, While):
@@ -182,6 +207,10 @@ class Lowerer:
     # --- expressões ---
 
     def _expr(self, expr: Expr) -> Value:
+        if isinstance(expr, Variable):
+            return self._variable(expr)
+        if isinstance(expr, Assign):
+            return self._assign(expr)
         if isinstance(expr, Literal):
             return self._literal(expr)
         if isinstance(expr, Grouping):
@@ -192,6 +221,73 @@ class Lowerer:
             return self._binary(expr)
 
         raise _unsupported(type(expr).__name__, None)
+
+    def _var(self, stmt: Var) -> None:
+        if stmt.initializer is None:
+            raise BackendError(
+                "Uninitialized variables are not supported by the backend yet.",
+                stmt.name.line,
+            )
+
+        value = self._expr(stmt.initializer)
+        # O tipo é o do valor em runtime, não o da anotação: tipos são apagados e
+        # `val f: Float = 2` guarda um `Int` (o interpretador imprime `3`, não `3.0`).
+        declared = value.ty
+        if declared is ValueType.NIL:
+            raise BackendError(
+                "Variables of type Nil are not supported by the backend yet.",
+                stmt.name.line,
+            )
+
+        if len(self._scopes) == 1:
+            name = f"g.{stmt.name.lexeme}"
+            global_ = llvm_ir.global_variable(self.module, name, self._llvm_type(declared))
+            self._globals[stmt.name.lexeme] = Binding(global_, declared)
+            self.builder.store(value.llvm, global_)
+            return
+
+        slot = self.builder.alloca(
+            self._llvm_type(declared), name=stmt.name.lexeme
+        )
+        self.builder.store(value.llvm, slot)
+        self._scopes[-1][stmt.name.lexeme] = Binding(slot, declared)
+
+    def _variable(self, expr: Variable) -> Value:
+        binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
+        return Value(binding.ty, self.builder.load(binding.storage))
+
+    def _assign(self, expr: Assign) -> Value:
+        value = self._expr(expr.value)
+        binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
+        if value.ty is not binding.ty:
+            raise BackendError(
+                f"Can't assign {value.ty.name} to a {binding.ty.name} variable "
+                "for the backend yet.",
+                expr.name.line,
+            )
+        self.builder.store(value.llvm, binding.storage)
+        return value
+
+    def _lookup(self, expr: Expr, name: str, line: int) -> Binding:
+        depth = self.depths.get(expr)
+        if depth is None:
+            binding = self._globals.get(name)
+            if binding is None:
+                raise BackendError(f"Undefined variable '{name}'.", line)
+            return binding
+
+        return self._scopes[-1 - depth][name]
+
+    def _llvm_type(self, ty: ValueType) -> Any:
+        match ty:
+            case ValueType.INT:
+                return _INT
+            case ValueType.FLOAT:
+                return _FLOAT
+            case ValueType.BOOL:
+                return _BOOL
+            case ValueType.NIL:
+                return _VOID
 
     def _literal(self, expr: Literal) -> Value:
         value = expr.value
@@ -438,7 +534,12 @@ class Lowerer:
         return function
 
 
-def lower_program(statements: list[Stmt]) -> Any:
+def lower_program(
+    statements: list[Stmt],
+    *,
+    types: dict[Expr, Ty],
+    depths: dict[Expr, int],
+) -> Any:
     module = llvm_ir.new_module()
-    Lowerer(module).lower(statements)
+    Lowerer(module, types=types, depths=depths).lower(statements)
     return module

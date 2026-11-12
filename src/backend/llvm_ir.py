@@ -111,6 +111,14 @@ def cstring_pointer(builder: Any, global_: Any) -> Any:
     return builder.gep(global_, [index, index])
 
 
+def global_variable(module: Any, name: str, ty: Any) -> Any:
+    """Global `internal` inicializada com zero (variáveis de topo)."""
+    global_ = ir.GlobalVariable(module, ty, name=name)
+    global_.initializer = ir.Constant(ty, None)
+    global_.linkage = "internal"
+    return global_
+
+
 def define_main(module: Any) -> Any:
     return ir.Function(module, ir.FunctionType(ir.IntType(32), []), name="main")
 

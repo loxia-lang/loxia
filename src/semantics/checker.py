@@ -125,6 +125,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._next_type_var_id = 0
         self._generic_context: list[tuple[str, tuple[TyVar, ...]]] = []
         self._native_modules: dict[str, dict[str, Ty]] = {}
+        # Tipos inferidos por nó, consumidos pelo backend (ADR-0031, decisão 7).
+        self.types: dict[Expr, Ty] = {}
         self._function_depth = 0
         self._return_collector: list[Ty] | None = None
         self._define_builtins()
@@ -313,7 +315,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         stmt.accept(self)
 
     def _infer(self, expr: Expr) -> Ty:
-        return expr.accept(self)
+        ty = expr.accept(self)
+        self.types[expr] = ty
+        return ty
 
     def _check(
         self, expr: Expr, expected: Ty, token: Token

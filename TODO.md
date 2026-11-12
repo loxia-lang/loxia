@@ -326,9 +326,10 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [x] **L1 — Aritmética e controle de fluxo**: `Float` desboxado, promoção `Int → Float`,
       `/` sempre Float, `%` de Float, comparações com NaN, `if`/`while`/blocos e impressão
       de `double` pela menor representação (fuzz contra `repr`). Manifesto `l0`/`l1`.
-- [ ] **L2 — Variáveis e funções**: `alloca`/`mem2reg`, chamadas, `return`, aridade como
-      panic site e a **normalização** (`for-in`, `??`, ternário), que precisa de
-      variáveis/temporários.
+- [ ] **L2 — Variáveis e funções**: variáveis ✅ (`val`/`var`, atribuição, escopo,
+      sombreamento, globais via `alloca`/global; `for` C-style desaçucarado já compila);
+      falta **funções** (chamada, `return`, aridade como panic site) e a **normalização**
+      (`for-in`, `??`, ternário).
 - [ ] **L3 — Strings**: literais em globals, concatenação, interpolação, `print`.
 - [ ] **L4 — Closures**: env struct, captura por valor e por célula.
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable.
