@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from src.environment import Environment
 from src.errors import ReturnSignal
+from src.expr import Lambda
 from src.stmt import Function
 
 if TYPE_CHECKING:
@@ -16,7 +17,7 @@ class LoxFunction:
 
     def __init__(
         self,
-        declaration: Function,
+        declaration: Function | Lambda,
         closure: Environment,
         is_initializer: bool,
     ) -> None:
@@ -60,4 +61,7 @@ class LoxFunction:
         return None
 
     def __str__(self) -> str:
+        if isinstance(self._declaration, Lambda):
+            return "<lambda>"
+
         return f"<fn {self._declaration.name.lexeme}>"

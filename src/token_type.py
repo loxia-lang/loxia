@@ -41,6 +41,7 @@ class TokenType(Enum):
     GREATER_GREATER_GREATER = auto()
     DOT_DOT = auto()
     ARROW = auto()
+    FAT_ARROW = auto()
     PIPE = auto()
 
     #Literals.

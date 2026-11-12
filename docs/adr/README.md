@@ -67,6 +67,7 @@ Crie quando a decisão:
 | [0019](0019-interpolacao.md) | Interpolação `"${expr}"` | accepted | 2026-11-11 |
 | [0020](0020-assinaturas-explicitas.md) | Assinaturas explícitas e funções declaradas depois | accepted | 2026-11-12 |
 | [0021](0021-tipos-de-funcao.md) | Tipos de função nas anotações | accepted | 2026-11-12 |
+| [0022](0022-lambdas.md) | Lambdas com `fn(x) => ...` e tipagem contextual | accepted | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 

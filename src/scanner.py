@@ -86,9 +86,14 @@ class Scanner:
                     TokenType.BANG_EQUAL if self._match("=") else TokenType.BANG
                 )
             case "=":
-                self._add_token(
-                    TokenType.EQUAL_EQUAL if self._match("=") else TokenType.EQUAL
-                )
+                if self._match(">"):
+                    self._add_token(TokenType.FAT_ARROW)
+                else:
+                    self._add_token(
+                        TokenType.EQUAL_EQUAL
+                        if self._match("=")
+                        else TokenType.EQUAL
+                    )
             case "<":
                 if self._match("<"):
                     self._add_token(TokenType.LESS_LESS)

@@ -284,6 +284,82 @@ def test_functions_and_closures(capsys: pytest.CaptureFixture[str]) -> None:
     assert stderr == ""
 
 
+def test_lambdas_capture_and_return(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    fn makeAdder(n: Int) -> fn(Int) -> Int {
+      return fn(x: Int) => x + n;
+    }
+
+    val add2 = makeAdder(2);
+    print add2(5);
+
+    val dobro = fn(x: Int) => x * 2;
+    print dobro(4);
+
+    fn outer() -> Int {
+      val inner = fn() -> Int { return 5; };
+      return inner() + 1;
+    }
+    print outer();
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["7", "8", "6"]
+    assert stderr == ""
+
+
+def test_lambda_block_body_returns(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    val f = fn(x: Int) -> Int {
+      if (x < 0) { return 0; }
+      return x;
+    }
+
+    print f(-2);
+    print f(3);
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["0", "3"]
+    assert stderr == ""
+
+
+def test_lambda_captures_this(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    class C {
+      var n: Int;
+
+      init(n: Int) {
+        this.n = n;
+      }
+
+      getter() -> fn() -> Int {
+        return fn() => this.n;
+      }
+    }
+
+    val c = C(9);
+    val get = c.getter();
+    print get();
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == ["9"]
+    assert stderr == ""
+
+
+def test_stringify_lambda_is_deterministic(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run("print fn() => 1;", capsys)
+
+    assert stdout == ["<lambda>"]
+    assert stderr == ""
+
+
 def test_function_arity_error(capsys: pytest.CaptureFixture[str]) -> None:
     lox = Lox()
     stdout, stderr = execute(lox, "fn soma(a, b) { return a + b; } soma(1);", capsys)

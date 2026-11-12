@@ -20,6 +20,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Lambda,
     ListLiteral,
     Literal,
     Logical,
@@ -104,6 +105,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._signatures: dict[Function, FnTy] = {}
         self._predeclared_by_name: dict[str, FnTy] = {}
         self._function_depth = 0
+        self._return_collector: list[Ty] | None = None
         self._define_builtins()
 
     def check(self, statements: list[Stmt]) -> None:
@@ -260,6 +262,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
                 return MapTy(key_ty, value_ty)
 
+        if isinstance(expr, Lambda):
+            actual = self._lambda_type(expr, self._expected_fn(expected))
+            if not self._assignable(expected, actual):
+                self._error(token, self._mismatch_message(expected, actual))
+                return ERROR
+
+            return actual
+
         actual = self._infer(expr)
         if not self._assignable(expected, actual):
             self._error(token, self._mismatch_message(expected, actual))
@@ -293,6 +303,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             ]
             if len(maps) == 1:
                 return (maps[0].key, maps[0].value)
+
+        return None
+
+    def _expected_fn(self, expected: Ty) -> FnTy | None:
+        if isinstance(expected, FnTy):
+            return expected
+        if isinstance(expected, UnionTy):
+            functions = [
+                member for member in expected.members if isinstance(member, FnTy)
+            ]
+            if len(functions) == 1:
+                return functions[0]
 
         return None
 
@@ -589,24 +611,29 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _check_function_body(
         self,
-        stmt: Function,
+        stmt: Function | Lambda,
         signature: FnTy,
         class_info: ClassInfo | None,
         *,
         is_init: bool,
-    ) -> None:
+        preserve_class: bool = False,
+        collect_returns: bool = False,
+    ) -> list[Ty]:
         enclosing_class = self._current_class
         enclosing_return = self._current_return
         enclosing_init = self._in_initializer
+        enclosing_collector = self._return_collector
 
-        self._current_class = class_info
+        if not preserve_class:
+            self._current_class = class_info
         self._current_return = NIL if is_init else signature.ret
         self._in_initializer = is_init
+        self._return_collector = [] if collect_returns else None
 
         self._function_depth += 1
         try:
             self._begin_scope()
-            if class_info is not None:
+            if not preserve_class and class_info is not None:
                 self._scopes[-1]["this"] = ClassTy(class_info.name)
                 if class_info.superclass is not None:
                     self._scopes[-1]["super"] = ClassObjectTy(
@@ -625,6 +652,93 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._current_class = enclosing_class
             self._current_return = enclosing_return
             self._in_initializer = enclosing_init
+            collected = self._return_collector or []
+            self._return_collector = enclosing_collector
+
+        return collected
+
+    def visit_lambda_expr(self, expr: Lambda) -> Ty:
+        return self._lambda_type(expr, None)
+
+    def _lambda_type(self, expr: Lambda, expected: FnTy | None) -> Ty:
+        param_types: list[Ty] = []
+
+        for index, param in enumerate(expr.params):
+            if param.type_annotation is not None:
+                param_ty = self._resolve_type(param.type_annotation, param.name)
+            elif expected is not None and index < len(expected.params):
+                param_ty = expected.params[index]
+            else:
+                self._error(
+                    param.name,
+                    f"Parameter '{param.name.lexeme}' needs a type annotation; "
+                    "use the lambda where a function type is expected.",
+                )
+                param_ty = ANY
+
+            if param.default is not None:
+                self._check(param.default, param_ty, param.name)
+
+            param_types.append(param_ty)
+
+        declared_return: Ty | None = None
+        if expr.return_type is not None:
+            declared_return = self._resolve_type(expr.return_type, expr.keyword)
+        elif expected is not None:
+            declared_return = expected.ret
+
+        minimum = sum(1 for param in expr.params if param.default is None)
+        signature = FnTy(
+            tuple(param_types),
+            declared_return if declared_return is not None else ANY,
+            minimum,
+        )
+        returns = self._check_function_body(
+            expr,
+            signature,
+            None,
+            is_init=False,
+            preserve_class=True,
+            collect_returns=True,
+        )
+
+        all_paths_return = self._body_always_returns(expr.body)
+        if declared_return is not None:
+            if (
+                not all_paths_return
+                and not is_nilable(declared_return)
+                and declared_return not in (ANY, NEVER)
+            ):
+                self._error(
+                    expr.keyword,
+                    f"Lambda body must return {display(declared_return)}.",
+                )
+            return_ty = declared_return
+        else:
+            return_ty = self._infer_lambda_return(expr, returns, all_paths_return)
+
+        return FnTy(tuple(param_types), return_ty, minimum)
+
+    def _infer_lambda_return(
+        self, expr: Lambda, returns: list[Ty], all_paths_return: bool
+    ) -> Ty:
+        if not returns:
+            return NIL
+
+        inferred = union(*returns)
+        if not all_paths_return:
+            inferred = union(inferred, NIL)
+
+        if isinstance(inferred, UnionTy):
+            non_nil = [member for member in inferred.members if member is not NIL]
+            if len(non_nil) > 1 and len(returns) > 1:
+                self._error(
+                    expr.keyword,
+                    f"Lambda returns {display(inferred)}; annotate the return type.",
+                )
+                return ANY
+
+        return inferred
 
     def visit_if_stmt(self, stmt: If) -> None:
         self._infer(stmt.condition)
@@ -722,11 +836,25 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return False
 
+    def _body_always_returns(self, body: list[Stmt]) -> bool:
+        return any(self._always_returns(stmt) for stmt in body)
+
     def visit_print_stmt(self, stmt: Print) -> None:
         self._infer(stmt.expression)
 
     def visit_return_stmt(self, stmt: Return) -> None:
         if stmt.value is None:
+            if self._return_collector is not None:
+                self._return_collector.append(NIL)
+                if (
+                    self._current_return is not None
+                    and not is_nilable(self._current_return)
+                    and self._current_return not in (ANY, NEVER)
+                ):
+                    self._error(
+                        stmt.keyword,
+                        f"Expected {display(self._current_return)}, found Nil.",
+                    )
             return
 
         if self._in_initializer:
@@ -734,7 +862,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return
 
         if self._current_return is not None:
-            self._check(stmt.value, self._current_return, stmt.keyword)
+            actual = self._check(stmt.value, self._current_return, stmt.keyword)
+        else:
+            actual = self._infer(stmt.value)
+
+        if self._return_collector is not None:
+            self._return_collector.append(actual)
 
     def visit_var_stmt(self, stmt: Var) -> None:
         if stmt.type_annotation is not None:
@@ -862,7 +995,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if signature is not None and index < len(signature.params):
                 expected = self._expected_element(signature.params[index])
 
-            if isinstance(argument, ListLiteral) and expected is not None:
+            if (
+                isinstance(argument, Lambda)
+                and signature is not None
+                and index < len(signature.params)
+            ):
+                arguments.append(
+                    self._check(argument, signature.params[index], expr.paren)
+                )
+            elif isinstance(argument, ListLiteral) and expected is not None:
                 assert signature is not None
                 arguments.append(
                     self._check(argument, signature.params[index], expr.paren)

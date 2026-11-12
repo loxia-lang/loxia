@@ -180,6 +180,23 @@ chamada.
   retorno; um `ClassObjectTy` também é atribuível à assinatura do seu `init`, então uma
   classe pode ser passada como fábrica. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
 
+## Lambdas
+
+- `Lambda(Expr)` guarda `keyword`, `params`, `body` e `return_type`. O parser transforma
+  `=> expr` em `body = [Return(arrow, expr)]`; bloco usa o corpo normal. O runtime não
+  precisa saber a diferença.
+- `LoxFunction` aceita `Function | Lambda`; a lambda é uma closure sobre o ambiente onde
+  foi avaliada (`visit_lambda_expr`), e `__str__` devolve `<lambda>`.
+- O resolver reutiliza `_resolve_function` para lambda: muda `_current_function` para
+  `FUNCTION`, mas **não** muda `_current_class`; `this`/`super` continuam sendo resolvidos
+  no escopo do método que envolve a lambda.
+- O checker usa `_lambda_type`. O tipo esperado (`FnTy`) preenche parâmetros sem anotação;
+  o retorno é coletado por `_check_function_body(..., collect_returns=True)` e inferido; o
+  flag `preserve_class` mantém `this`/`super` visíveis. Parâmetro sem contexto é erro;
+  mistura de retornos não-nil exige anotação.
+- `AstPrinter.visit_lambda_expr` imprime `(lambda (params) [-> Tipo] corpo)`.
+  Ver [ADR-0022](../adr/0022-lambdas.md).
+
 ## Narrowing
 
 - O checker mantém `_scopes` (declarações) e `_narrowings` (refinamentos), uma pilha

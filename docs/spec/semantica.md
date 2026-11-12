@@ -365,6 +365,12 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   imutáveis: redefinir `len`/`str`/`repr`/`clock`/`range` no escopo global é erro; local e
   parâmetro podem sombrear.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
+- Lambdas: `fn(x) => expr` (corpo de expressão, retorno implícito) e `fn(x) { ... }`
+  (bloco com `return`), com `-> Tipo` opcional antes do corpo. São closures sobre o
+  ambiente onde foram avaliadas; `this`/`super` são lexicais e `return` volta da lambda.
+  Parâmetros seguem as regras de funções, mas **defaults são erro**. `print` de lambda sai
+  `<lambda>`. A tipagem está em “Tipos e `--check`”. Ver
+  [ADR-0022](../adr/0022-lambdas.md).
 
 ## Tipos e `--check`
 
@@ -398,8 +404,14 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 - Tipos de função: parâmetros são **contravariantes** e o retorno é **covariante**;
   defaults contam como intervalo de aridade. Uma classe (`Animal`) é atribuível à
   assinatura do seu construtor (`fn(String) -> Animal`), mas uma instância (`: Animal`)
-  não é. Lambdas e generics ainda não existem; ver
-  [ADR-0021](../adr/0021-tipos-de-funcao.md).
+  não é. Generics ainda não existem; ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
+- Lambdas: `fn(x) => expr` e `fn(x) { ... }`. O corpo de expressão vira retorno
+  implícito; o bloco exige `return`. O tipo esperado preenche parâmetros sem anotação
+  (`aplicar(fn(x) => x * 2, 3)`); sem contexto, anotar é obrigatório. O retorno é inferido;
+  mistura de `return`s não-nil exige `-> T`; bloco que pode cair no fim acrescenta `Nil`,
+  e retorno declarado não-nil exige todos os caminhos. Defaults em parâmetro de lambda são
+  erro. `this`/`super` são lexicais e `return` volta da lambda. `print` de lambda sai
+  `<lambda>`. Ver [ADR-0022](../adr/0022-lambdas.md).
 - Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
   esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
   elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string/mapa. `xs.pop()` e
@@ -426,9 +438,9 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   [ADR-0018](../adr/0018-narrowing.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
 - Limitações atuais: narrowing completo (`is T`, loops, `and`/`or`), generics de verdade,
-  lambdas (tipos de função existem, mas não literais de função), inferência de parâmetro
-  sem anotação e `as`. Anotar `Float` não converte o valor em runtime (o tree-walk
-  continua dinâmico).
+  inferência de parâmetro sem anotação e `as`; lambdas existem, mas sem trailing closure,
+  parâmetro único sem parênteses ou retorno implícito de bloco. Anotar `Float` não converte
+  o valor em runtime (o tree-walk continua dinâmico).
 
 ## Classes
 

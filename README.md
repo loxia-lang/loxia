@@ -14,11 +14,12 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ API híbrida: `len`/`str`/`repr` globais e métodos específicos de lista/mapa.
 - ✅ Tipos de função nas anotações: `fn(Int) -> Int`, callbacks, variância e classe como
   construtor.
+- ✅ Lambdas `fn(x) => ...` e `fn(x) { ... }`, com tipagem contextual e retorno inferido.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
-- 📐 Próximo passo: T3b (generics explícitos) e lambdas; depois o codegen LLVM.
-  T3a (assinaturas explícitas + recursão mútua) e tipos de função já estão feitos
-  (ADR-0020/0021).
+- 📐 Próximo passo: T3b (generics explícitos) e trailing closure; depois o codegen LLVM.
+  T3a (assinaturas explícitas + recursão mútua), tipos de função e lambdas já estão feitos
+  (ADR-0020/0021/0022).
 
 ## O que esta linguagem promete
 

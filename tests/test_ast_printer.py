@@ -80,6 +80,18 @@ def test_dump_map_nodes() -> None:
     )
 
 
+def test_dump_lambda_nodes() -> None:
+    source = """
+    val f = fn(x: Int) => x * 2
+    val g = fn(a: Int, b: Int) -> Int { return a + b }
+    """
+
+    assert dump(source) == (
+        "(val f (lambda (x: Int) (return (* x 2))))\n"
+        "(val g (lambda (a: Int b: Int) -> Int (return (+ a b))))"
+    )
+
+
 def test_dump_interpolated_string() -> None:
     source = """
     val s = "a ${1 + 2} b"

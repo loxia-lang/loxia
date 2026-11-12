@@ -105,6 +105,23 @@ liga ao tipo de retorno, então `fn(Int) -> Int | Nil` devolve `Int | Nil`. Para
 função ser opcional, use parênteses: `(fn(Int) -> Int)?`. Ver
 [ADR-0021](../adr/0021-tipos-de-funcao.md).
 
+Lambdas usam `fn` em posição de expressão:
+
+```
+lambda := "fn" "(" params? ")" ("->" type)? ( "=>" expression | block )
+```
+
+```lox
+val dobro = fn(x: Int) => x * 2
+val soma = fn(a: Int, b: Int) { return a + b }
+aplicar(fn(x) => x * 2, 3)
+```
+
+`=>` introduz corpo de expressão (o valor é o retorno); `{ ... }` introduz bloco com
+`return` explícito. `-> Tipo` é opcional antes de qualquer corpo. Parâmetros seguem as
+regras de funções, **menos defaults** (`fn(x: Int = 1) => ...` é erro). `fn(` em expressão
+é lambda; `fn nome(` é declaração. Ver [ADR-0022](../adr/0022-lambdas.md).
+
 O literal de mapa só existe em **posição de expressão** (`val m = {...}`, argumento,
 `return`, condição). No início de um statement, `{` abre um **bloco**:
 

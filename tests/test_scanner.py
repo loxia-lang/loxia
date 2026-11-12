@@ -69,12 +69,13 @@ def test_scans_range_token_and_in_keyword() -> None:
 
 
 def test_scans_type_punctuation() -> None:
-    assert scan_types(": ? [ ] -> |") == [
+    assert scan_types(": ? [ ] -> => |") == [
         TokenType.COLON,
         TokenType.QUESTION,
         TokenType.LEFT_BRACKET,
         TokenType.RIGHT_BRACKET,
         TokenType.ARROW,
+        TokenType.FAT_ARROW,
         TokenType.PIPE,
         TokenType.EOF,
     ]

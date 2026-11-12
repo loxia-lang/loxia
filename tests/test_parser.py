@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.ast_printer import AstPrinter
-from src.expr import MapLiteral
+from src.expr import Lambda, MapLiteral
 from src.parser import Parser
 from src.scanner import Scanner
 from src.stmt import (
@@ -342,6 +342,50 @@ def test_parses_function_type_annotations() -> None:
     assert display(first) == "fn(Int) -> String"
     assert display(second) == "(fn() -> Int) | Nil"
     assert display(return_type) == "fn(String) -> Int"
+
+
+def test_parses_lambda_expression_body() -> None:
+    statements = parse("val f = fn(x: Int) => x * 2;")
+
+    declaration = statements[0]
+    assert isinstance(declaration, Var)
+    initializer = declaration.initializer
+    assert isinstance(initializer, Lambda)
+
+    param = initializer.params[0]
+    assert param.type_annotation is not None
+    assert display(param.type_annotation) == "Int"
+    assert initializer.return_type is None
+    assert len(initializer.body) == 1
+    assert isinstance(initializer.body[0], Return)
+
+
+def test_parses_lambda_block_body_and_return_type() -> None:
+    statements = parse("val f = fn(x: Int) -> Int { return x * 2; };")
+
+    declaration = statements[0]
+    assert isinstance(declaration, Var)
+    initializer = declaration.initializer
+    assert isinstance(initializer, Lambda)
+
+    assert initializer.return_type is not None
+    assert display(initializer.return_type) == "Int"
+    assert isinstance(initializer.body[0], Return)
+
+
+def test_parses_lambda_at_statement_start() -> None:
+    statements = parse("fn(x: Int) => x * 2;")
+
+    statement = statements[0]
+    assert isinstance(statement, Expression)
+    assert isinstance(statement.expression, Lambda)
+
+
+def test_lambda_parameters_cannot_have_defaults() -> None:
+    parser = parser_for("val f = fn(x: Int = 1) => x;")
+    parser.parse()
+
+    assert parser.reporter.had_error
 
 
 def test_parses_field_and_variable_types() -> None:

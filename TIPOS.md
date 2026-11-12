@@ -245,10 +245,14 @@ velocidade.
   parâmetro ficam para T3b/T4 ([ADR-0020](docs/adr/0020-assinaturas-explicitas.md)).
 - **Tipos de função nas anotações** já existem: `fn(Int) -> Int`, com variância
   (parâmetros contravariantes, retorno covariante) e classe como construtor
-  ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)). Lambdas ainda não.
+  ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
+- **Lambdas** existem: `fn(x) => expr` / `fn(x) { ... }`, com tipagem contextual pelo tipo
+  esperado e retorno inferido; mistura de retornos não-nil exige anotação
+  ([ADR-0022](docs/adr/0022-lambdas.md)).
 - Sem overloading por tipo no início (complica resolução e LLVM); usar nomes distintos
   ou traits.
-- Retorno inferido quando o corpo é expressão (`fn dobro(x) -> x * 2`).
+- Retorno inferido em lambda (corpo de expressão ou bloco); funções declaradas ainda
+  exigem `-> T` no `--check`.
 - Erros/`throw` interagem com o tipo de retorno: `Never` no caminho que lança.
 
 ---

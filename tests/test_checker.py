@@ -226,6 +226,128 @@ def test_function_type_is_contravariant_in_params_and_covariant_in_return() -> N
     assert lox.reporter.had_error is False
 
 
+def test_lambda_parameters_are_typed_from_context() -> None:
+    lox = check(
+        """
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int {
+          return f(x);
+        }
+
+        val a = aplicar(fn(x) => x * 2, 3);
+        val b = aplicar(fn(x) { return x * 2; }, 4);
+
+        fn make(n: Int) -> fn(Int) -> Int {
+          return fn(x: Int) => x + n;
+        }
+
+        val c = make(2);
+        print a;
+        print b;
+        print c(3);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_lambda_without_context_needs_annotations(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check("val f = fn(x) => x * 2;")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Parameter 'x' needs a type annotation" in captured.err
+
+
+def test_lambda_mixed_returns_need_an_annotation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        val f = fn(x: Int) {
+          if (x > 0) { return 1; }
+          return "a";
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Lambda returns Int | String; annotate the return type." in captured.err
+
+
+def test_lambda_annotated_mixed_returns_are_clean() -> None:
+    lox = check(
+        """
+        val f = fn(x: Int) -> Int | String {
+          if (x > 0) { return 1; }
+          return "a";
+        }
+        print f(1);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_lambda_missing_return_is_an_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int {
+          return f(x);
+        }
+        aplicar(fn(x) { print x; }, 3);
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Lambda body must return Int." in captured.err
+
+
+def test_lambda_captures_this_type() -> None:
+    lox = check(
+        """
+        class C {
+          var n: Int;
+
+          init(n: Int) {
+            this.n = n;
+          }
+
+          getter() -> fn() -> Int {
+            return fn() => this.n;
+          }
+        }
+
+        val c = C(9);
+        val get = c.getter();
+        print get();
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_lambda_wrong_signature_is_rejected(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int {
+          return f(x);
+        }
+        aplicar(fn(x: String) => x, 3);
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected fn(Int) -> Int, found fn(String) -> Int." in captured.err
+
 
 @pytest.mark.parametrize(
     ("source", "message"),

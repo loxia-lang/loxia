@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from src.tokens import Token
+from src.ty import Ty
+
+if TYPE_CHECKING:
+    from src.stmt import Param, Stmt
 
 
 class Visitor[R](Protocol):
@@ -13,6 +17,7 @@ class Visitor[R](Protocol):
     def visit_grouping_expr(self, expr: Grouping) -> R: ...
     def visit_index_expr(self, expr: Index) -> R: ...
     def visit_index_set_expr(self, expr: IndexSet) -> R: ...
+    def visit_lambda_expr(self, expr: Lambda) -> R: ...
     def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_map_expr(self, expr: MapLiteral) -> R: ...
     def visit_interpolated_expr(self, expr: InterpolatedString) -> R: ...
@@ -72,6 +77,19 @@ class InterpolatedString(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_interpolated_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Lambda(Expr):
+    """Função sem nome. O corpo de expressão vira um `Return` sintético."""
+
+    keyword: Token
+    params: list[Param]
+    body: list[Stmt]
+    return_type: Ty | None = None
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_lambda_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

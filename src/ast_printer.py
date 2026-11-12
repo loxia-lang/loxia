@@ -9,6 +9,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Lambda,
     ListLiteral,
     Literal,
     Logical,
@@ -170,6 +171,22 @@ class AstPrinter:
             f"(for-in {stmt.name.lexeme} {stmt.iterable.accept(self)} "
             f"{stmt.body.accept(self)})"
         )
+
+    def visit_lambda_expr(self, expr: Lambda) -> str:
+        params = " ".join(
+            ("var " if param.mutable else "")
+            + param.name.lexeme
+            + self._type_suffix(param.type_annotation)
+            for param in expr.params
+        )
+        returns = (
+            f" -> {display(expr.return_type)}"
+            if expr.return_type is not None
+            else ""
+        )
+        body = " ".join(statement.accept(self) for statement in expr.body)
+        inner = f"({params})"
+        return f"(lambda {inner}{returns}{f' {body}' if body else ''})"
 
     def visit_function_stmt(self, stmt: Function) -> str:
         params = " ".join(

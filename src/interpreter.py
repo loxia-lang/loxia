@@ -20,6 +20,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Lambda,
     ListLiteral,
     Literal,
     Logical,
@@ -553,6 +554,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         function = LoxFunction(stmt, self.environment, False)
         self.environment.define(stmt.name.lexeme, function)
+
+    def visit_lambda_expr(self, expr: Lambda) -> object:
+        return LoxFunction(expr, self.environment, False)
 
     def visit_for_in_stmt(self, stmt: ForIn) -> None:
         iterable = self._evaluate(stmt.iterable)

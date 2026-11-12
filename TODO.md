@@ -22,8 +22,9 @@ pretendo tipar e como chegar no LLVM.
 > `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
 >
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
-> T3a (assinaturas explícitas + pré-declaração, ADR-0020) e tipos de função nas anotações
-> (ADR-0021). **A seguir:** T3b (generics explícitos) e lambdas — T3 literal fica adiado.
+> T3a (assinaturas explícitas + pré-declaração, ADR-0020), tipos de função (ADR-0021) e
+> lambdas com tipagem contextual (ADR-0022). **A seguir:** T3b (generics explícitos) —
+> T3 literal fica adiado.
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -105,8 +106,10 @@ pretendo tipar e como chegar no LLVM.
 - [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista. Viabilidade e
       comparação com `**kwargs` em [`IDEIAS.md`](IDEIAS.md) I-5 (complemento): `*args`
       talvez, `**kwargs` não (depende de named args e destrói tipagem).
-- [ ] `P2` **lambdas** `fn(x) -> x * 2` e **trailing closure** `lista.map { |x| x * 2 }`
-      (a sintaxe de trailing closure é ideia do Lox2/Kotlin/Swift).
+- [x] `P2` **lambdas** `fn(x) => x * 2` e bloco `fn(x) { ... }`, com tipagem contextual
+      e retorno inferido — [ADR-0022](docs/adr/0022-lambdas.md).
+- [ ] `P2` **trailing closure** `lista.map { |x| x * 2 }` (ideia do Lox2/Kotlin/Swift;
+      depois de generics e de decidir o conflito com literal de mapa).
 - [x] `P2` **defaults** posicionais constantes (`fn ponto(x, y = 0)`) — aridade vira
       intervalo; ver [ADR-0009](docs/adr/0009-defaults-e-campos.md).
 - [ ] `P3` **argumentos nomeados** (`fn ponto(x = 0)` na chamada).
@@ -279,10 +282,11 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
 - [x] `P2` **tipos de função nas anotações** (`fn(Int) -> Int`), funções passadas como
       argumento/retorno, variância e classe como construtor
       ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
-- [ ] `P3` **lambdas** e trailing closures (`fn(x) -> x * 2`) — próximo passo natural
-      depois de generics; o tipo de função já existe.
+- [x] `P3` **lambdas** `fn(x) => x * 2` e bloco com `return`, com tipagem contextual e
+      retorno inferido ([ADR-0022](docs/adr/0022-lambdas.md)).
+- [ ] `P3` **trailing closures** (`lista.map { |x| x * 2 }`) — depois de generics.
 - [ ] `P3` **generics com constraints** (`T with Show`).
-- [ ] `P3` **inferência de retorno** para funções com corpo de expressão.
+- [ ] `P3` **inferência de retorno** para funções declaradas com corpo de expressão.
 - [ ] `P3` **LSP**: `--check --json` com spans para o editor sublinhar.
 
 ### 2.8 Referências de design
@@ -622,7 +626,7 @@ manda.
 | **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 586), benchmark com baseline, lint/tipos/CI |
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
-| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, listas, mapas, interpolação; ⬜ lambdas |
+| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, listas, mapas, interpolação e lambdas; ⬜ trailing closure |
 | **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`) e T3a (assinaturas explícitas, pré-declaração); ⬜ T3b/T3c (generics/inferência de parâmetro) |
 | **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing completo, exaustividade |
 | **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |

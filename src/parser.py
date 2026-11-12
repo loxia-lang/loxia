@@ -13,6 +13,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Lambda,
     ListLiteral,
     Literal,
     Logical,
@@ -125,6 +126,11 @@ class Parser:
                 return self._class_declaration()
 
             if self._match(TokenType.FN):
+                if self._check(TokenType.LEFT_PAREN):
+                    expression = self._lambda(self._previous())
+                    self._end_statement("Expect ';' after expression.")
+                    return Expression(expression)
+
                 return self._function("function")
 
             if self._match(TokenType.VAL):
@@ -357,7 +363,18 @@ class Parser:
     def _function(self, kind: str) -> Function:
         name = self._consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
+        parameters = self._parameters()
 
+        return_type: Ty | None = None
+        if self._match(TokenType.ARROW):
+            return_type = self._type()
+
+        self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
+
+        body = self._block()
+        return Function(name, parameters, body, return_type)
+
+    def _parameters(self) -> list[Param]:
         parameters: list[Param] = []
         seen_default = False
         if not self._check(TokenType.RIGHT_PAREN):
@@ -366,7 +383,9 @@ class Parser:
                     self._error(self._peek(), "Can't have more than 255 parameters.")
 
                 mutable = self._match(TokenType.VAR)
-                name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
+                name_token = self._consume(
+                    TokenType.IDENTIFIER, "Expect parameter name."
+                )
 
                 type_annotation: Ty | None = None
                 if self._match(TokenType.COLON):
@@ -390,15 +409,32 @@ class Parser:
                     break
 
         self._consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+        return parameters
+
+    def _lambda(self, keyword: Token) -> Lambda:
+        self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'fn' in lambda.")
+        parameters = self._parameters()
+        for param in parameters:
+            if param.default is not None:
+                self._error(param.name, "Lambda parameters can't have defaults.")
 
         return_type: Ty | None = None
         if self._match(TokenType.ARROW):
             return_type = self._type()
 
-        self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
+        body: list[Stmt]
+        if self._match(TokenType.FAT_ARROW):
+            arrow = self._previous()
+            expression = self._expression()
+            body = [Return(arrow, expression)]
+        elif self._match(TokenType.LEFT_BRACE):
+            body = self._block()
+        else:
+            raise self._error(
+                self._peek(), "Expect '=>' or '{' after lambda parameters."
+            )
 
-        body = self._block()
-        return Function(name, parameters, body, return_type)
+        return Lambda(keyword, parameters, body, return_type)
 
     def _type(self) -> Ty:
         ty = self._postfix_type()
@@ -798,6 +834,9 @@ class Parser:
         return MapLiteral(entries, brace)
 
     def _primary(self) -> Expr:
+
+        if self._match(TokenType.FN):
+            return self._lambda(self._previous())
 
         if self._match(TokenType.FALSE):
             return Literal(False)
