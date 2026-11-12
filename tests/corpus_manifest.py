@@ -25,6 +25,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/assignment.lox",
         "tests/cases/builtin_shadow_local.lox",
         "tests/cases/for.lox",
+        "tests/cases/logical.lox",
         "tests/cases/operator_line.lox",
         "tests/cases/recursion.lox",
         "tests/cases/return_in_loop.lox",

@@ -137,6 +137,19 @@ CASES = [
     ("fn soma(a: Int, b: Int = 10) -> Int { return a + b; } print soma(1);", "default no call site"),
     ("print naoexiste;", "variável indefinida vira panic"),
     ("fn f(a: Int) -> Int { return a // 0; } print f(1);", "panic dentro de função"),
+    ("print (1 if true else 2);", "ternário verdadeiro"),
+    ("print (1 if false else 2);", "ternário falso"),
+    ("print (true and false);", "and de Bool"),
+    ("print (false or true);", "or de Bool"),
+    ("print (1 and 2);", "and devolve o segundo"),
+    ("print (0 or 3);", "0 é truthy"),
+    ("print (nil ?? 4);", "?? troca nil"),
+    ("print (1 ?? 4);", "?? mantém não-nil"),
+    (
+        "var n = 0; fn e() -> Int { n = n + 1; return 9; } "
+        "print (false and e()); print (7 ?? e()); print n;",
+        "curto-circuito não avalia o lado direito",
+    ),
 
 ]
 

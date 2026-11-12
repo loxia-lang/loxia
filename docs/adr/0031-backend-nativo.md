@@ -149,7 +149,7 @@ Regras de operação do harness:
 | 7. Arena com teto | L3 (primeiro heap) | ⬜ |
 | 8. Monomorfização | L6 (até lá, função genérica é rejeitada) | ⬜ |
 | 9. Erro estático → panic site | L0 para operandos; L2/L5 para aridade e nomes | 🟡 |
-| 10. Normalização leve | L2b (`for-in`/`??` dependem de `Range`/`T?`) | ⬜ |
+| 10. Normalização leve | L2b: ternário/`and`/`or`/`??` ✅; `for-in` depende de `Range` | 🟡 |
 | 11. Corpus anotado | bloqueia o L2 (corpus do nível) | 🟡 (54 de 78 `tests/cases` e 4 de 5 `exemplos/` passam no `--check`) |
 
 ## Consequências

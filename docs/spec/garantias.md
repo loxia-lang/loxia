@@ -24,7 +24,8 @@ nos dois motores; se divergirem, o bug é do backend.
 
 O backend nativo cobre **L0–L2** (ADR-0031): `Int`, `Float`, `Bool`, `nil`, aritmética com
 promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if`, `while`,
-`val`/`var` com escopo e sombreamento, e funções de topo com `return`, recursão e defaults. O teste diferencial (`tests/test_backend.py`) compila cada caso, executa o binário
+`val`/`var` com escopo e sombreamento, funções de topo com `return`, recursão e defaults,
+e ternário/`and`/`or`/`??` com curto-circuito. O teste diferencial (`tests/test_backend.py`) compila cada caso, executa o binário
 e compara os três canais com o interpretador — nunca com uma expectativa escrita à mão. O
 manifesto `tests/corpus_manifest.py` declara os casos por nível.
 

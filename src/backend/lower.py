@@ -22,9 +22,11 @@ from src.frontend.expr import (
     Assign,
     Binary,
     Call,
+    Conditional,
     Expr,
     Grouping,
     Literal,
+    Logical,
     Unary,
     Variable,
 )
@@ -389,6 +391,10 @@ class Lowerer:
             return self._binary(expr)
         if isinstance(expr, Call):
             return self._call(expr)
+        if isinstance(expr, Conditional):
+            return self._conditional(expr)
+        if isinstance(expr, Logical):
+            return self._logical(expr)
 
         raise _unsupported(type(expr).__name__, None)
 
@@ -715,6 +721,116 @@ class Lowerer:
         if info.return_type is ValueType.NIL:
             return Value(ValueType.NIL)
         return Value(info.return_type, call)
+
+    def _conditional(self, expr: Conditional) -> Value:
+        condition = self._truthy(self._expr(expr.condition))
+        then_block = llvm_ir.append_block(self._function_ir, "cond.then")
+        else_block = llvm_ir.append_block(self._function_ir, "cond.else")
+        end_block = llvm_ir.append_block(self._function_ir, "cond.end")
+        self.builder.cbranch(condition, then_block, else_block)
+
+        self.builder = llvm_ir.builder(then_block)
+        then_value = self._expr(expr.then_branch)
+        then_open = not self.builder.block.is_terminated
+        if then_open:
+            self.builder.branch(end_block)
+
+        self.builder = llvm_ir.builder(else_block)
+        else_value = self._expr(expr.else_branch)
+        else_open = not self.builder.block.is_terminated
+        if else_open:
+            self.builder.branch(end_block)
+
+        self.builder = llvm_ir.builder(end_block)
+
+        if then_value.ty is not else_value.ty:
+            raise BackendError(
+                f"Ternary branches are {then_value.ty.name} and "
+                f"{else_value.ty.name}; union types are not supported by the "
+                "backend yet.",
+                None,
+            )
+
+        if then_value.ty is ValueType.NIL:
+            if not (then_open or else_open):
+                self.builder.unreachable()
+                return self._zero(ValueType.INT)
+            return Value(ValueType.NIL)
+
+        if then_open and else_open:
+            merged = self.builder.phi(self._llvm_type(then_value.ty), "cond.value")
+            merged.add_incoming(then_value.llvm, then_block)
+            merged.add_incoming(else_value.llvm, else_block)
+            return Value(then_value.ty, merged)
+
+        if then_open:
+            return then_value
+        if else_open:
+            return else_value
+
+        self.builder.unreachable()
+        return self._zero(then_value.ty)
+
+    def _logical(self, expr: Logical) -> Value:
+        operator = expr.operator.type
+
+        if operator is TokenType.QUESTION_QUESTION:
+            left = self._expr(expr.left)
+            # No L2 um valor não-nil é sempre não-nil: o lado direito é código morto.
+            if left.ty is not ValueType.NIL:
+                return left
+            return self._expr(expr.right)
+
+        left = self._expr(expr.left)
+        if left.ty is ValueType.NIL:
+            # Só `nil` é falsy: `nil and x` é nil; `nil or x` é x.
+            if operator is TokenType.AND:
+                return Value(ValueType.NIL)
+            return self._expr(expr.right)
+
+        if isinstance(expr.left, Literal) and isinstance(expr.left.value, bool):
+            # `false and x` e `true or x` não avaliam x; `true and x` e `false or x`
+            # são exatamente x. Evita a união `Bool | T` no caminho comum.
+            evaluate_right = (operator is TokenType.AND and expr.left.value) or (
+                operator is TokenType.OR and not expr.left.value
+            )
+            if evaluate_right:
+                return self._expr(expr.right)
+            return left
+
+        condition = self._truthy(left)
+        short_block = self.builder.block
+        right_block = llvm_ir.append_block(self._function_ir, "logical.right")
+        end_block = llvm_ir.append_block(self._function_ir, "logical.end")
+
+        if operator is TokenType.AND:
+            self.builder.cbranch(condition, right_block, end_block)
+        else:
+            self.builder.cbranch(condition, end_block, right_block)
+
+        self.builder = llvm_ir.builder(right_block)
+        right = self._expr(expr.right)
+        right_open = not self.builder.block.is_terminated
+        if right_open:
+            self.builder.branch(end_block)
+
+        self.builder = llvm_ir.builder(end_block)
+
+        if left.ty is not right.ty:
+            raise BackendError(
+                f"Operands of '{expr.operator.lexeme}' are {left.ty.name} and "
+                f"{right.ty.name}; union types are not supported by the backend "
+                "yet.",
+                expr.operator.line,
+            )
+
+        if not right_open:
+            return left
+
+        merged = self.builder.phi(self._llvm_type(left.ty), "logical.value")
+        merged.add_incoming(left.llvm, short_block)
+        merged.add_incoming(right.llvm, right_block)
+        return Value(left.ty, merged)
 
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
         if minimum == maximum:

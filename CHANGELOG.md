@@ -34,6 +34,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - Backend L2 (funções): declaração de topo, chamada direta, `return`, recursão e defaults
   resolvidos no call site; `Nil` vira `void`. Aridade errada e variável indefinida viram
   `lox_panic` com a mensagem do interpretador (stdout e exit code preservados).
+- Backend L2b (açúcar): ternário, `and`/`or` e `??` com blocos + `phi`, curto-circuito
+  preservado e dobra de literais (`false and x`, `true or x`); `for-in` fica para o L3/L6
+  por depender de `Range`/`List`/`String`.
 
 ### Mudado
 

@@ -330,8 +330,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       sombreamento; funções de topo com chamada direta, `return`, recursão, defaults no
       call site e **aridade/variável indefinida como panic site**; `for` C-style
       (desaçucarado pelo parser) compila.
-- [ ] **L2b — Normalização**: ternário (blocos + `phi`), `??` (depende de `T?`) e `for-in`
-      (depende de `Range`/`List`/`String`, ou seja, L3/L6). Limitação conhecida: o slot é monomórfico, então
+- [ ] **L2b — Normalização**: ternário, `and`/`or` e `??` ✅ (blocos + `phi`, com
+      curto-circuito e dobra de literais); falta `for-in` (depende de
+      `Range`/`List`/`String`, ou seja, L3/L6). Limitação conhecida: o slot é monomórfico, então
       `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
       interpretador aceita; resolver junto com a representação numérica unificada (L6).
 - [ ] **L3 — Strings**: literais em globals, concatenação, interpolação, `print`.
