@@ -421,3 +421,6 @@ fn log(nivel: String, ...partes) { /* ... */ }
 - `Iterable` de usuário (depende de traits/`Option` para o fim do iterator).
 - `contains`, `sum`, `enumerate`, `zip` (stdlib + tuplas).
 - Iterar tuplas (depois do ADR-0030).
+
+**No backend:** `for-in` ainda não existe (depende de `Range`, L6); o `for` C-style
+desaçucara para blocos + `while` e compila desde o L2. Ver TODO §6.8.

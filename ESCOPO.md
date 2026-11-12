@@ -11,7 +11,7 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 - **[`TODO.md`](TODO.md)**, **[`TIPOS.md`](TIPOS.md)** e **[`IDEIAS.md`](IDEIAS.md)** são
   **pós-1.0**. Se uma ideia está lá, ela **não** é 1.0.
 - **1.0 é o congelamento da linguagem/tree-walk**, não um build nativo. O backend LLVM é
-  pós-1.0. **1.0 ≠ MVP do backend**: o MVP compilado é o L0–L2, depois da 1.0.
+  pós-1.0. **1.0 ≠ MVP do backend**: o MVP compilado é o L0–L3, depois da 1.0.
 
 | Documento | Responde |
 | --- | --- |
@@ -22,8 +22,9 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 | [`TIPOS.md`](TIPOS.md) | catálogo atual + decisões de tipo pós-1.0 |
 | [`IDEIAS.md`](IDEIAS.md) | ideias ainda em avaliação (pós-1.0) |
 
-**Hoje:** a linguagem 1.0 está implementada no tree-walk; o backend nativo ainda não
-existe. O que está em [`TODO.md`](TODO.md) é o que vem **depois** dela.
+**Hoje:** a linguagem 1.0 está implementada no tree-walk e o backend nativo existe em
+**L0–L3** (ADR-0031). O que está em [`TODO.md`](TODO.md) é o que vem **depois** dela; o
+próximo marco é o **M5 (tipos v2)** e o codegen fica pausado no L4 até lá.
 
 ## Status da entrega
 
@@ -31,13 +32,13 @@ existe. O que está em [`TODO.md`](TODO.md) é o que vem **depois** dela.
 | --- | --- |
 | Escopo/linguagem 1.0 | ✅ congelado e implementado |
 | Runtime tree-walk | ✅ |
-| Suíte e docs | ✅ `make check` verde; 678 pass + 8 `xfail` intencionais |
-| Backend nativo | ⬜ pós-1.0 (L0–L2) |
+| Suíte e docs | ✅ `make check` verde; 795 pass + 8 `xfail` intencionais |
+| Backend nativo | 🟡 pós-1.0: L0–L3 entregues (Int/Float/Bool/nil/String, funções, açúcar, arena); L4+ pausado até o M5 |
 | **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 
 **Nenhuma feature de linguagem da 1.0 está pendente.** A release local está preparada;
-publicar (push/tag remota/pacote) fica para quando você decidir. O backend pode começar
-sem esperar publicação.
+publicar (push/tag remota/pacote) fica para quando você decidir. O backend começou sem
+esperar publicação; a continuação depende do M5, não da release.
 
 ## 1.0 — dentro
 
@@ -56,7 +57,7 @@ sem esperar publicação.
 - D-8: `as` explícito, `Int.parse`/`Float.parse` → `T?` e `math.*` determinístico.
 - Freeze: erro de runtime fatal (exit 70), sem `try`/`Result`; `clock` fora; strings UTF-8
   com `len` em code points e identificadores ASCII; single-file.
-- `Any` existe no tree-walk; o backend L0–L2 o rejeita.
+- `Any` existe no tree-walk; o backend L0–L3 o rejeita.
 
 ### Tooling 1.0
 
@@ -75,7 +76,8 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 
 | Item | Ordem | Observação |
 | --- | --- | --- |
-| Backend LLVM L0–L2 | **próximo** | objetivo do projeto; não muda a linguagem 1.0 |
+| Backend LLVM L0–L3 | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
+| M5 — Tipos v2 (T3c/T4–T6) | **próximo** | bloqueia L4+ do codegen (TODO §9) |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
 | Tuplas | depois | sintaxe no [ADR-0030](docs/adr/0030-tuplas.md) |
 | Classes/métodos genéricos, constraints/traits | M5 | extensão do T3b |

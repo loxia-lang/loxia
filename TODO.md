@@ -20,13 +20,17 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Agora
 
 O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/parse e
-`math.*` estão feitos e o **backend L0–L1 está implementado** (ADR-0031): `Int`, `Float`,
-`Bool`, `nil`, `if`/`while`, panic sites de operando e formatação de `Float` validada por
-fuzz. O teste diferencial compara stdout, stderr e exit code e o manifesto
-(`tests/corpus_manifest.py`) declara os casos por nível. **Próximo:** **L2**
-(variáveis/funções, `alloca`/`mem2reg`, normalização de `for-in`/`??`/ternário) e anotar os
-22 casos de classe/coleção que faltam. **Depois:** L3 (strings + arena) e o pacote de
-diagnósticos (spans → caret → stack trace).
+`math.*` estão feitos. O backend LLVM está em **L0–L3** (ADR-0031): `Int`/`Float`/`Bool`/
+`nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
+`or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
+compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
+casos por nível — **30 dos 79** golden cases compilam e **55** passam no `--check`.
+
+**Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
+valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6 vêm
+antes (regra do §9). Fora do M5, só correções do que já existe. **Depois do M5:** L4
+(closures), L5 (objetos) e L6 (coleções/monomorfização); o pacote de diagnósticos
+(spans → caret → stack trace) volta junto com o codegen.
 
 ---
 
@@ -86,7 +90,7 @@ Pendências pontuais:
 
 Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
 `ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e `Never`.
-`Any` é escape no tree-walk, mas o backend L0–L2 o rejeita.
+`Any` é escape no tree-walk, mas o backend L0–L3 o rejeita.
 
 ---
 
@@ -230,9 +234,9 @@ AST → Resolver → TypeChecker (tipos concretos/monomorfizados)
                               └→ MCJIT (modo `lox jit` / REPL) — L7
 ```
 
-Sem HIR completa no L0–L2: a normalização só desaçucara. Uma HIR tipada (slots, SSA leve,
+Sem HIR completa no L0–L3: a normalização só desaçucara. Uma HIR tipada (slots, SSA leve,
 células) entra quando closures/classes exigirem — o gatilho é o `lower_expr` começar a
-duplicar o `interpreter.py`.
+duplicar o `interpreter.py`. É o que separa o M6 do L4.
 
 ### 6.3 Representação de valor (a decisão mais importante)
 
@@ -247,7 +251,7 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `nil` | ausência (`void` no print) | L0 ✅ |
 | `Float` | `double` | L1 ✅ |
 | `T?` escalar | `{i1, T}` | L2 |
-| `T?` referência | ponteiro nulo | L3 |
+| `T?` referência | ponteiro nulo | L5 |
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*}` | L4 |
 | instância | ponteiro para struct | L5 |
@@ -274,9 +278,14 @@ int64_t  lox_int_mod(int64_t a, int64_t b, int32_t line);  // L0 ✅
 void     lox_print_float(double v);                 // L1 ✅ (menor representação)
 double   lox_float_div(double a, double b, int32_t line);  // L1 ✅
 double   lox_float_mod(double a, double b, int32_t line);  // L1 ✅
-void     lox_print_str(LoxStr *s);                  // L3
-LoxStr  *lox_str_concat(LoxStr *a, LoxStr *b);      // L3
-void    *lox_alloc(size_t n);                       // L3 (arena com teto)
+void     lox_print_str(const void *s);              // L3 ✅
+void    *lox_str_concat(const void *a, const void *b);  // L3 ✅
+int64_t  lox_str_len(const void *s);                // L3 ✅ (code points)
+int32_t  lox_str_equal(const void *a, const void *b);   // L3 ✅
+void    *lox_str_from_int/double/bool;              // L3 ✅ (interpolação)
+void    *lox_str_nil(void);                         // L3 ✅
+void    *lox_str_quote(const void *s);              // L3 ✅ (`repr`)
+void    *lox_alloc(size_t n);                       // L3 ✅ (arena com teto)
 ```
 
 O runtime é compilado por build com o mesmo `cc` do link (`.o` em diretório temporário).
@@ -330,18 +339,21 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       sombreamento; funções de topo com chamada direta, `return`, recursão, defaults no
       call site e **aridade/variável indefinida como panic site**; `for` C-style
       (desaçucarado pelo parser) compila.
-- [ ] **L2b — Normalização**: ternário, `and`/`or` e `??` ✅ (blocos + `phi`, com
-      curto-circuito e dobra de literais); falta `for-in` (depende de
-      `Range`/`List`/`String`, ou seja, L3/L6). Limitação conhecida: o slot é monomórfico, então
+- [x] **L2b — Normalização**: ternário, `and`/`or` e `??` (blocos + `phi`, com
+      curto-circuito e dobra de literais); `for-in` fica no L6 (depende de
+      `Range`/`List`/`String`). Limitação conhecida: o slot é monomórfico, então
       `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
       interpretador aceita; resolver junto com a representação numérica unificada (L6).
 - [x] **L3 — Strings**: literais em globals, concatenação, `print`, igualdade e `len`
       (code points), **interpolação** (`"${expr}"` com `stringify` de escalares),
       `str`/`repr` (com citação/escapes) e arena de 64 MiB com panic determinístico.
       `repr` de listas/mapas entra no L6.
-- [ ] **L4 — Closures**: env struct, captura por valor e por célula.
-- [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable.
-- [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`.
+- [ ] **L4 — Closures**: env struct, captura por valor e por célula — **pausado até o M5
+      fechar** (§9).
+- [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable — depois do M5 (layouts
+      dependem dos tipos v2).
+- [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
+      `Range` e `for-in`.
 - [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, testes diferenciais
       interpretador × nativo, benchmarks, JIT no REPL, mensagens de erro de codegen.
 
@@ -367,18 +379,18 @@ Isso permitiria um playground no navegador sem Pyodide — a linguagem rodando a
 browser. Guardar como ideia P3 (precisa de runtime mínimo em wasm e de uma ABI de
 imports para `print`).
 
-### 6.11 Corpus diferencial (bloqueia o L1)
+### 6.11 Corpus diferencial (bloqueia o I1)
 
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (54 de 78 passam no `--check` agora; antes eram 39);
+- [x] anotar 15 `tests/cases` (55 de 79 passam no `--check`; 30 compilam hoje);
+- [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
+- [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
       eles compilam (L5/L6), para não tipar sem poder testar;
 - [ ] anotar `exemplos/classes.lox` (o único dos 5 que falta);
-- [ ] anotar `tests/official/cases` (120 arquivos, um diretório por PR);
-- [ ] declarar o manifesto de casos por nível e a promoção monotônica;
-- [ ] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip).
+- [ ] anotar `tests/official/cases` (120 arquivos, um diretório por PR).
 
 ```bash
 uv sync --extra llvm
@@ -391,8 +403,8 @@ uv run pytest tests/test_backend.py -q
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0 cobre
-      `Int`/`Bool`/`nil`, comparando stdout, stderr e exit code).
+- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0–L3,
+      comparando stdout, stderr e exit code).
 - [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
       [`IDEIAS.md`](IDEIAS.md) I-4).
@@ -402,7 +414,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 678 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 795 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -437,15 +449,19 @@ Fora: VM própria, GC geracional, async/await, JIT tracing, cache de bytecode e
 
 M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
-| # | Marco | Critério de pronto |
-| --- | --- | --- |
-| **M5** | Tipos v2 | T4–T6: classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade |
-| **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções e binário nativo; I1 verde no corpus |
-| **M7** | Runtime completo | L3–L5: strings, closures, classes e GC; I1 verde no corpus completo |
-| **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT |
-| **M9** | Ecossistema | formatter, LSP, docs, CI e playground |
+| # | Marco | Critério de pronto | Estado |
+| --- | --- | --- | --- |
+| **M5** | Tipos v2 | T3c + T4–T6: generalização, classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade | ⬜ **próximo** |
+| **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
+| **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
+| **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
+| **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |
 
-Regra: M6 só começa com M5 verde (tipos v2); sem isso o codegen persegue uma linguagem que ainda muda.
+**Regra (revisada nesta sessão):** o codegen **pausa no L4** até o M5 fechar. L0–L3
+avançaram antes do M5 e foi seguro porque esse subconjunto já estava congelado (sem
+layout de classe, generics de classe ou traits); de L4 em diante o modelo de valores e os
+layouts de tipo mudam, e L6 depende da monomorfização que só o M5 habilita. Se o M5 mudar
+a semântica de algo já compilado, o nível afetado volta para a fila com caso diferencial.
 
 ---
 
@@ -478,17 +494,18 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
 
 1. **Generics além de funções:** classes/métodos genéricos, constraints/traits, type
    application explícita e função genérica como valor; monomorfização já decidida
-   ([ADR-0027](docs/adr/0027-generics-t3b.md)).
-2. **Backend:** `llvmlite` desde o começo ou `.ll` textual + clang primeiro? (tende a
-   `llvmlite`).
-3. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
-4. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
+   ([ADR-0027](docs/adr/0027-generics-t3b.md)). É o núcleo do M5.
+2. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
+3. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
    transcendentais de `math` fora do I3.
-5. **Tuplas:** implementação pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
-6. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
+4. **Tuplas:** implementação pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
+5. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
-7. **`if`/bloco como expressão, `match`/enums e traits:** fora da 1.0; reavaliar depois
-   do backend/M5.
+6. **`if`/bloco como expressão, `match`/enums e traits:** fora da 1.0; reavaliar depois
+   do M5.
+
+Fechadas nesta sessão: backend em `llvmlite` (ADR-0031), normalização de ternário/
+`and`/`or`/`??` e strings do L3 (ver [`docs/adr`](docs/adr/) e [`CHANGELOG.md`](CHANGELOG.md)).
 
 ---
 

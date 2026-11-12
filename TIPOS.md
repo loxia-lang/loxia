@@ -27,7 +27,7 @@ Comportamento observável fica em [`docs/spec/`](docs/spec/); decisões fechadas
 | `Fn(P...) -> R` | `fn(Int) -> Bool` | ✅ | anotação, variância e lambdas ([ADR-0021](docs/adr/0021-tipos-de-funcao.md), [ADR-0022](docs/adr/0022-lambdas.md)) |
 | `Range` | `0..10` | ✅ | half-open, lazy ([ADR-0007](docs/adr/0007-ranges-e-iteracao.md)) |
 | `Class` | `class P {}` | ✅ | nominal, herança simples ([ADR-0008](docs/adr/0008-heranca-class-parens.md)) |
-| `Any` | `Any` | ✅ | escape hatch; o backend L0–L2 o rejeita |
+| `Any` | `Any` | ✅ | escape hatch; o backend L0–L3 o rejeita |
 | `Never` | — | 🟡 | interno de fluxo (`return`/loop); sem `throw` público |
 | `Tuple` | `(1, "a")` / `(A, B)` | ⬜ | sintaxe no [ADR-0030](docs/adr/0030-tuplas.md), implementação pós-1.0 |
 | `Trait` | `trait Show` | ⬜ | nominal ou estrutural a decidir (`D-17`) |
@@ -56,6 +56,9 @@ promoção só `Int → Float`, `/` sempre `Float`, `%` truncado, `//` só `Int`
 - **T6** — traits/protocolos e exaustividade de `match`.
 - **T7** — monomorfização no codegen.
 
+T3c–T6 formam o **M5** (TODO §9); é o próximo marco e o codegen fica pausado no L4 até ele
+fechar — L5/L6 dependem de layouts e monomorfização que só existem com tipos v2.
+
 ### 2.3 Mapeamento em LLVM (`D-11`)
 
 | Conceito | IR | Observações |
@@ -72,8 +75,8 @@ Nunca emitir `sdiv` sem guarda; nunca converter `Float` para `Int` sem checar fi
 
 ### 2.4 Representação em runtime (`D-12`)
 
-1. **L0–L2:** `Int`/`Float` concretos (i64/f64), strings/listas/mapas como ponteiros;
-   `Any` rejeitado ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
+1. **L0–L3:** `Int`/`Float`/`String` concretos (i64/f64/`i8*`), listas/mapas como
+   ponteiros; `Any` rejeitado ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 2. **Depois do MVP:** `Any` boxeado/tagged; monomorfização evita box nos caminhos concretos.
 3. **Avançado:** NaN-boxing, se houver necessidade real.
 
@@ -121,6 +124,8 @@ interpretador o objetivo é correção; ganho real vem do backend.
 ## 6. Funções
 
 - Tipo `fn(Int, String) -> Bool`; primeira classe; closures ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
+  No backend, hoje só existem funções de topo chamadas diretamente (L2); função como valor
+  e closures chegam no L4, depois do M5.
 - Parâmetros/retorno assinados; generics de função T3b ([ADR-0027](docs/adr/0027-generics-t3b.md));
   parâmetro sem anotação é T3c/T4.
 - Sem overloading por tipo; usar nomes distintos ou traits.
@@ -138,7 +143,7 @@ interpretador o objetivo é correção; ganho real vem do backend.
 
 ## 8. Tipos especiais
 
-- `Any`: aceita tudo, desliga checagem; backend L0–L2 rejeita; boxeado só depois.
+- `Any`: aceita tudo, desliga checagem; backend L0–L3 rejeita; boxeado só depois.
 - `Never`: subtipo de todos; útil para `throw`/`return`/loop.
 - União `A | B`: implementada com narrowing de variáveis; faltam campos/índices e merge.
 - Aliases `type UserId = Int` (P3); sem tipos literais nem dependentes.
@@ -172,10 +177,11 @@ Fechadas: `D-1`–`D-10`, `D-14`, `D-15`, `D-18`–`D-20` — ver ADRs e
 
 | Fase | Entrega |
 | --- | --- |
-| **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) |
+| **N5** ✅ | codegen LLVM de `Int`/`Float` com guards (L1) e strings (L3); falta monomorfização (L6) |
 | **N6+** | tuplas, traits/enums, `Result`/`Option` explícito e stdlib |
 
-N0–N4 (números, anotações, T3a/T3b e D-8) estão fechados.
+N0–N5 estão fechados no que toca ao codegen desboxado de `Int`/`Float`/`String`; o que
+falta é do M5 (tipos v2) em diante.
 
 ## 12. Anti-metas
 

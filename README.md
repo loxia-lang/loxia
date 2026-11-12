@@ -33,11 +33,12 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: backend LLVM (L0–L2) ou diagnóstico com spans/caret; tuplas têm
-  sintaxe decidida, mas ficam para pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md));
-  classes/métodos genéricos, constraints e type application explícita também ficam para
-  depois. T3a (assinaturas + recursão mútua), tipos de função, lambdas, T3b e D-8 já estão
-  feitos (ADR-0020/0021/0022/0027/0029).
+- 📐 Próximo passo: **M5 (tipos v2)** — generalização, generics de classe/método,
+  constraints/traits, narrowing completo e exaustividade (TODO §9). O codegen está em
+  L0–L3 e fica pausado no L4 até o M5 fechar; tuplas têm sintaxe decidida, mas ficam para
+  pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)). T3a (assinaturas + recursão
+  mútua), tipos de função, lambdas, T3b e D-8 já estão feitos
+  (ADR-0020/0021/0022/0027/0029).
 
 ## O que esta linguagem promete
 
