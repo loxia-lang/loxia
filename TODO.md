@@ -329,7 +329,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [ ] **L2 — Variáveis e funções**: variáveis ✅ (`val`/`var`, atribuição, escopo,
       sombreamento, globais via `alloca`/global; `for` C-style desaçucarado já compila);
       falta **funções** (chamada, `return`, aridade como panic site) e a **normalização**
-      (`for-in`, `??`, ternário).
+      (`for-in`, `??`, ternário). Limitação conhecida: o slot é monomórfico, então
+      `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
+      interpretador aceita; resolver junto com a representação numérica unificada (L6).
 - [ ] **L3 — Strings**: literais em globals, concatenação, interpolação, `print`.
 - [ ] **L4 — Closures**: env struct, captura por valor e por célula.
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable.
