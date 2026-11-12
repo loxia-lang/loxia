@@ -54,12 +54,15 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
 | [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
 | [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
+| [`src/prelude.py`](../../src/prelude.py) | nomes dos builtins globais reservados |
 | [`src/lox_function.py`](../../src/lox_function.py) | função de usuário + closure + `bind` |
 | [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
 | [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
 | [`src/natives/clock.py`](../../src/natives/clock.py) | `clock()` |
 | [`src/natives/len.py`](../../src/natives/len.py) | `len(xs)` / `len(s)` |
+| [`src/natives/repr.py`](../../src/natives/repr.py) | `repr(x)` |
 | [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
+| [`src/natives/str.py`](../../src/natives/str.py) | `str(x)` |
 | [`src/ast_printer.py`](../../src/ast_printer.py) | dump S-expression (debug/testes) |
 
 `src` é um pacote normal (`__init__.py`). Os imports são sempre absolutos
@@ -137,6 +140,16 @@ chamada.
   usa um conjunto de pares `(id(a), id(b))`.
 - Tipos são apagados: o `LoxList` não conhece `T`; o `Checker` é quem aplica `ListTy`,
   invariância e as assinaturas de `push`/`pop`/`len`.
+
+## Builtins e sombreamento
+
+- `Interpreter.__init__` define `clock`, `len`, `range`, `repr` e `str` com
+  `mutable=False`; `_reject_immutable_redeclaration` recusa redefinição no escopo global.
+- O checker tem a mesma lista em `src/prelude.py::BUILTIN_NAMES`: `_define` reporta
+  `Can't redefine builtin 'x'.` quando o escopo é o global; `visit_class_stmt` faz a
+  checagem própria porque classes são pré-declaradas.
+- Escopos locais (parâmetro, bloco, `for`) podem sombrear o nome normalmente; a resolução
+  léxica já existente cuida do resto.
 
 ## Diagnósticos
 

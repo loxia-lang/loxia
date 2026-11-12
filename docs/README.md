@@ -4,9 +4,10 @@ Portal da documentação técnica, sintática e das decisões de design.
 
 > **Estado:** a especificação descreve o interpretador **como ele existe hoje** (Lox da
 > Parte II do livro + `fn`, `elif`, `;` opcional, `val`/`var`, `?.`/`??`, ternário,
-> escapes, listas `List[T]` e checker `--check`). O que ainda é plano está em
-> [`../TODO.md`](../TODO.md) §1/§2, [`../IDEIAS.md`](../IDEIAS.md) e
-> [`../TIPOS.md`](../TIPOS.md), e **não** vale para o código atual.
+> escapes, listas `List[T]`, API híbrida `len`/`str`/`repr` + métodos e checker
+> `--check`). O que ainda é plano está em [`../TODO.md`](../TODO.md) §1/§2,
+> [`../IDEIAS.md`](../IDEIAS.md) e [`../TIPOS.md`](../TIPOS.md), e **não** vale para o
+> código atual.
 
 ## Fontes de verdade
 
@@ -45,4 +46,5 @@ de reverter → novo ADR. Discussão ainda aberta → `IDEIAS.md`/`TODO.md`, nã
   - [ADR-0004](adr/0004-identidade-dos-nos-de-ast.md) — nós de AST têm identidade.
   - [ADR-0005](adr/0005-val-var-imutabilidade.md) — `val`/`var` e imutabilidade.
   - [ADR-0015](adr/0015-listas-tipadas.md) — listas `List[T]`.
+  - [ADR-0016](adr/0016-api-stdlib-hibrida.md) — API híbrida da stdlib.
 - [Glossário](glossario.md)

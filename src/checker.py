@@ -30,6 +30,7 @@ from src.expr import (
     Variable,
 )
 from src.expr import Visitor as ExprVisitor
+from src.prelude import BUILTIN_NAMES
 from src.stmt import (
     Block,
     Class,
@@ -110,6 +111,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["clock"] = FnTy((), FLOAT, 0)
         self._scopes[0]["len"] = NativeFnTy("len")
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
+        self._scopes[0]["repr"] = NativeFnTy("repr")
+        self._scopes[0]["str"] = NativeFnTy("str")
 
     def _predeclare_classes(self, statements: list[Stmt]) -> None:
         for statement in statements:
@@ -135,6 +138,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes.pop()
 
     def _define(self, name: Token, ty: Ty) -> None:
+        if len(self._scopes) == 1 and name.lexeme in BUILTIN_NAMES:
+            self._error(name, f"Can't redefine builtin '{name.lexeme}'.")
+
         self._scopes[-1][name.lexeme] = ty
 
     def _lookup(self, name: Token) -> Ty:
@@ -293,6 +299,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_class_stmt(self, stmt: Class) -> None:
         name = stmt.name.lexeme
+        if name in BUILTIN_NAMES:
+            self._error(stmt.name, f"Can't redefine builtin '{name}'.")
+
         superclass_token = (
             stmt.superclass.name if stmt.superclass is not None else None
         )
@@ -609,6 +618,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return self._call_type(callee, expr, arguments)
 
     def _call_signature(self, callee: Ty, expr: Call) -> FnTy | None:
+        if isinstance(callee, NativeFnTy):
+            if callee.name == "len":
+                return FnTy((ANY,), INT, 1)
+            if callee.name in {"str", "repr"}:
+                return FnTy((ANY,), STRING, 1)
+            return None
         if isinstance(callee, FnTy):
             return callee
         if isinstance(callee, ClassObjectTy):
@@ -701,6 +716,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return ERROR
 
             return INT
+
+        if callee.name in {"str", "repr"}:
+            if len(arguments) != 1:
+                self._error(
+                    expr.paren, f"Expected 1 arguments but got {len(arguments)}."
+                )
+                return ERROR
+
+            if arguments[0] is ERROR:
+                return ERROR
+
+            return STRING
 
         self._error(expr.paren, "Can only call functions and classes.")
         return ERROR

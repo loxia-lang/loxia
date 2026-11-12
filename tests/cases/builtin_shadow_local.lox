@@ -1,0 +1,7 @@
+# Builtins são reservados no escopo global, mas podem ser sombreados localmente.
+fn f(len: Int) -> Int {
+  return len;
+}
+
+print f(3);
+# expect: 3

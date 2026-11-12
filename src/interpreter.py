@@ -39,6 +39,8 @@ from src.lox_range import LoxRange
 from src.natives.clock import Clock
 from src.natives.len import Len
 from src.natives.range import RangeNative
+from src.natives.repr import Repr
+from src.natives.str import Str
 from src.stmt import (
     Block,
     Class,
@@ -64,9 +66,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals = Environment()
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
-        self.globals.define("clock", Clock())
-        self.globals.define("len", Len())
-        self.globals.define("range", RangeNative())
+        self.globals.define("clock", Clock(), mutable=False)
+        self.globals.define("len", Len(), mutable=False)
+        self.globals.define("range", RangeNative(), mutable=False)
+        self.globals.define("repr", Repr(), mutable=False)
+        self.globals.define("str", Str(), mutable=False)
 
     def interpret(self, statements: list[Stmt]) -> None:
         try:

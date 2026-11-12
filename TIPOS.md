@@ -110,6 +110,10 @@ continuarem batendo. Esse modo ainda não existe.
 
 ### 3.3 Conversões e funções matemáticas (`D-8`)
 
+> **Em aberto (ADR-0016):** `as` também é candidato a alias de import (estilo Python), então
+> a sintaxe de cast e a API de parsing (`Int.parse` vs `to_int`/`parse_int`) continuam em
+> aberto no [`TODO.md`](TODO.md) §11. O modelo híbrido não fecha essa parte.
+
 Proposta ainda **não implementada**:
 
 ```lox

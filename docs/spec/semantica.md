@@ -278,6 +278,11 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
 - `clock()` devolve segundos desde a época como `float`, aridade 0.
 - `len(x)` aceita `List` ou `String`; devolve `Int` (O(1) para lista, code points para
   string). Outro tipo é erro: `len() expects a string or a list.`
+- `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
+  de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
+  `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
+  imutáveis: redefinir `len`/`str`/`repr`/`clock`/`range` no escopo global é erro; local e
+  parâmetro podem sombrear.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
 
 ## Tipos e `--check`

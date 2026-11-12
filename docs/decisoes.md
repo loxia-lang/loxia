@@ -23,6 +23,7 @@ decisão.
 | `fn`/`elif`/`;` | `fn` substitui `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha, EOF ou antes de `}`; operador só continua na mesma linha; `return` sozinho devolve `nil`. | [ADR-0011](adr/0011-fn-elif-ponto-e-virgula.md) |
 | Comentários, `//`, `**` e bits | `#` e `/* */` aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`; `& \| ^ ~ << >> >>>` em i64; shift inválido é erro. | [ADR-0012](adr/0012-comentarios-divisao-potencia-bits.md) |
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
+| API da stdlib | Modelo **híbrido**: builtins globais para operações genéricas/protocolos (`len`, `str`, `repr`), métodos para ações específicas (`xs.push/pop`), construtores namespaced para conversão (sintaxe em aberto) e funções livres para multi-tipo/composição. Builtins globais são reservados (shadowing só local); sem métodos em primitivos; extensões/UFCS em P3 pós-LLVM. | [ADR-0016](adr/0016-api-stdlib-hibrida.md) |
 
 ## Processo e escopo
 
@@ -34,6 +35,6 @@ decisão.
 ## O que ainda não está aqui
 
 Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`,
-futuro de classes/traits, exceções vs `Result`, generics, módulos, backend, escopo da
-stdlib, contratos e unificação mutável continuam **em aberto** no
+futuro de classes/traits, exceções vs `Result`, generics, módulos, backend, **conversões da
+stdlib**, contratos e unificação mutável continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11.

@@ -225,7 +225,9 @@ fn main() {
 - [ ] `P3` **namespaces/imports** (`namespace app.model`, `using app.model.Pessoa`).
       Ideia boa do Lox2; essencial quando existir biblioteca padrão.
 - [ ] `P3` **traits/protocolos** (`trait Show { fn show() -> String }` + `with Show`).
-- [ ] `P3` **extension methods** (`impl String { fn gritar() }`).
+- [ ] `P3` **extension methods** (`impl String { fn gritar() }`) — depois do LLVM MVP
+      ([ADR-0016](docs/adr/0016-api-stdlib-hibrida.md)); é a saída para `s.upper()` sem
+      boxing.
 - [ ] `P3` **operator overloading** via métodos mágicos (`__add__`, `__eq__`) — igual Lox2.
 - [ ] `P3` **`type` alias** (`type UserId = Int`) e **`as`** cast explícito.
 - [ ] `P3` **`derive`** de `show`/`eq`/`hash` para classes simples.
@@ -640,7 +642,7 @@ imports para `print`).
 
 - [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
       (`# expect:`, `# expect runtime error:`), com runner próprio
-      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 521 testes.
+      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 531 testes.
 - [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
       (`make lint`, `make type`).
 - [x] `P1` **skills de projeto** em `.dsh/skills/` (`lox-feature`, `lox-testing`,
@@ -702,7 +704,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | `throw`/`try`/`catch`/`finally` | ⏳ | L | ótimo na VM; caro no LLVM (§6.7) |
 | `match` estrutural | ⏳ | L | depois de uniões/enums |
 | `as` cast | ⏳ | S | junto com o checker |
-| extension methods | ⏳ | M | depois de traits |
+| extension methods | ⏳ | M | depois do LLVM MVP e de traits (ADR-0016) |
 | separar `Int` de `Float` | ✅ | M | feito no tree-walk (ADR-0006); falta refletir no LLVM |
 | campos declarados com `val`/`var` | ✅ | S | feito no ADR-0009; tipos entram no checker |
 | classes como valores / metaclasses | 🤔 | L | poderoso, mas confunde; só se precisar |
@@ -727,7 +729,7 @@ cobre a parte de geração de código e eu quero manter o escopo humano.
 
 | # | Marco | Critério de pronto |
 | --- | --- | --- |
-| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 521), benchmark com baseline, lint/tipos/CI |
+| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 531), benchmark com baseline, lint/tipos/CI |
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
 | **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, **listas**; ⬜ interpolação, `Map`, lambdas |
@@ -785,8 +787,11 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 8. **Módulos**: namespaces hierárquicos (Lox2) ou arquivos = módulos (Python/Go)?
 9. **Backend**: `llvmlite` desde o começo ou `.ll` textual + clang primeiro?
 10. **Escopo da stdlib**: `math`, `io`, `string` e `collections` bastam no início?
-11. **API da stdlib**: builtins globais (`len`, `println`) ou métodos/extensões? Conversão
-    namespaced (`Int.parse`) vs `int()` sobrecarregado? Ver [`IDEIAS.md`](IDEIAS.md) I-3.
+11. **Conversões da stdlib**: `Int.parse` + cast, ou funções `to_int`/`parse_int`? `as`
+    também é candidato a alias de import (estilo Python), então o cast precisa de sintaxe
+    própria ou de `as` contextual. O **modelo híbrido** já foi decidido no
+    [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md); falta só a API de conversão. Ver
+    [`IDEIAS.md`](IDEIAS.md) I-3 e `D-8` no [`TIPOS.md`](TIPOS.md) §3.3.
 12. **Contratos e agentes**: `requires`/`ensures`/`invariant` opcionais? `--contracts`
     default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
 13. **Mutação na unificação**: `var x = nil; x = 1` deve virar união, `Any` ou erro?

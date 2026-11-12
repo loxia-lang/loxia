@@ -7,10 +7,12 @@ print xs.pop()
 print xs
 print len("abc")
 print len("")
+print len([])
 # expect: nil
 # expect: [1, 2, 3]
 # expect: 3
 # expect: 3
 # expect: [1, 2]
 # expect: 3
+# expect: 0
 # expect: 0

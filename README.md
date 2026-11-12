@@ -8,6 +8,7 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
 - ✅ Expressões: ternário `a if c else b`, `??`, `?.` e escapes de string.
 - ✅ Listas tipadas `List[T]`: literal, indexação, `push`/`pop`, `len` e `for-in`.
+- ✅ API híbrida: `len`/`str`/`repr` globais e métodos específicos de lista.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
 - 📐 Próximo passo: `Map[K, V]`, narrowing/generics no checker e depois o codegen LLVM.
@@ -140,5 +141,5 @@ Ela é mantida separada dos golden cases; detalhes de adaptação e `xfail` em
 > A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`,
 > `Int`/`Float`, ranges/`for-in`, listas, herança `class B(A)`, defaults/campos, checker
 > `--check`, `fn`/`elif`/`;` opcional, ternário/`??`/`?.` e escapes). O que falta —
-> narrowing/generics, interpolação, `Map` e o backend LLVM — está nos documentos de
-> roadmap e ainda **não** está implementado.
+> narrowing/generics, interpolação, `Map`, conversões da stdlib e o backend LLVM — está
+> nos documentos de roadmap e ainda **não** está implementado.

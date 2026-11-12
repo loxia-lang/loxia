@@ -101,7 +101,7 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | --- | --- |
 | `Undefined variable 'x'.` | leitura/atribuição de nome inexistente |
 | `'x' is immutable; declare it with 'var' to allow assignment.` | atribuição a `val` global |
-| `Can't redeclare immutable variable 'x'.` | redeclarar um `val` global |
+| `Can't redeclare immutable variable 'x'.` | redeclarar um `val` global **ou um builtin** (`len`, `str`, `repr`, `clock`, `range`) |
 | `Operand must be a number.` | `-"a"` |
 | `Operand must be an integer.` | `~1.0` |
 | `Operands must be numbers.` | `1 < "a"` |
@@ -158,6 +158,7 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Can't infer the element type of an empty list; annotate it as List[T].` | `val xs = []` |
 | `List index must be an integer, found X.` | `xs["0"]` no `--check` |
 | `Expected a string or a list, found X.` | `len(3)` no `--check` |
+| `Can't redefine builtin 'x'.` | `fn len`, `val clock` ou `class range` no escopo global |
 
 ## Como testar
 

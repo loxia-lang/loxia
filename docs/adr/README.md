@@ -61,16 +61,18 @@ Crie quando a decisão:
 | [0013](0013-ternario-nil-aware-escapes.md) | Ternário, `??`, `?.` e escapes | accepted | 2026-11-11 |
 | [0014](0014-identidade-e-invariantes.md) | Identidade: três invariantes e portão de admissão | accepted | 2026-11-11 |
 | [0015](0015-listas-tipadas.md) | Listas tipadas `List[T]`, mutáveis e invariantes | accepted | 2026-11-11 |
+| [0016](0016-api-stdlib-hibrida.md) | API da stdlib: modelo híbrido, prelúdio mínimo e builtins reservados | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 
 Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`/`TODO.md` §11):
 
-- stdlib: builtins globais vs métodos/UFCS — [I-3](../../IDEIAS.md) (a alternativa
-  pipeline foi rejeitada por enquanto; ver [I-2](../../IDEIAS.md));
+- conversões da stdlib (cast/parse e o uso de `as`) — [I-3](../../IDEIAS.md) e
+  [`../../TODO.md`](../../TODO.md) §11; o modelo híbrido já foi decidido no
+  [ADR-0016](0016-api-stdlib-hibrida.md);
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md);
 - decisões de linguagem ainda abertas (nome, `if` expressão, `match`, exceções, generics,
-  módulos, backend, stdlib, unificação mutável) — [`../../TODO.md`](../../TODO.md) §11.
+  módulos, backend, conversões, unificação mutável) — [`../../TODO.md`](../../TODO.md) §11.
 
 O resumo das decisões **já fechadas** fica em [`../decisoes.md`](../decisoes.md); este
 índice continua sendo o histórico completo.

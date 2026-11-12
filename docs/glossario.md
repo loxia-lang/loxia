@@ -17,6 +17,10 @@ Neste projeto os nós têm identidade (`eq=False`).
 **Binding (ligação)** — associação entre um nome e um valor em um escopo. Em métodos,
 "bind" é criar um ambiente com `this` apontando para a instância.
 
+**Builtin** — função nativa do prelúdio global (`len`, `str`, `repr`, `clock`, `range`).
+É imutável no escopo global (redefinir é erro), mas pode ser sombreada em escopo local.
+Ver [ADR-0016](adr/0016-api-stdlib-hibrida.md).
+
 **Closure (fechamento)** — função que carrega o ambiente onde foi declarada, permitindo
 acessar variáveis locais mesmo depois que o escopo terminou.
 
@@ -40,6 +44,10 @@ distância calculada estaticamente.
 
 **Instância** — objeto criado por uma classe, com campos próprios e métodos ligados a
 `this`.
+
+**`repr`** — forma de debug de um valor (`repr("a")` → `"a"`). `str` é a forma de exibição
+(`str("a")` → `a`); ambas são builtins globais. Ver
+[ADR-0016](adr/0016-api-stdlib-hibrida.md).
 
 **Invariância** — regra de subtipagem em que `List[Int]` **não** é `List[Float]`, mesmo
 com `Int <: Float`. Necessária porque a lista é mutável: aceitar `List[Int]` onde se espera

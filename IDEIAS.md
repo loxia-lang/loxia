@@ -73,9 +73,12 @@ rejeição valer.
 
 ## I-3 — Funções soltas vs métodos: por que Python tem `len`, `print`, `int()`?
 
-**Status:** `em avaliação`
-**Decidir até:** ao desenhar a biblioteca padrão (depois do cap. 10). Com I-2 rejeitada, a
-escolha fica entre **builtins puros** (canto 3 do triângulo) e **métodos/UFCS** (canto 2).
+**Status:** `decidida` em 2026-11-11 — modelo híbrido; ver
+[ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). A API de **conversões** continua em aberto
+(último item das perguntas).
+**Decidir até:** conversões junto com módulos/`Option`/`Result` e a sintaxe de cast
+(`D-8` no [`TIPOS.md`](TIPOS.md) §3.3). Com I-2 rejeitada, o modelo híbrido foi o caminho
+escolhido: builtins globais para operações genéricas + métodos para ações específicas.
 
 ### A pergunta
 
@@ -202,28 +205,37 @@ livres fica ótima; se adotarmos UFCS, pipe vira opcional. **Como I-2 está reje
 primeiro canto sai do jogo por enquanto: ou aceitamos o aninhamento (3), ou vamos de
 métodos/UFCS (2).
 
-### Recomendação para a nossa linguagem
+### Decisão: modelo híbrido
+
+A decisão está registrada no [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). O texto
+abaixo fica como histórico do raciocínio e das alternativas.
 
 Híbrido explícito, com regra de bolso para decidir onde cada operação mora:
 
 | Caso | Onde mora | Exemplo |
 | --- | --- | --- |
-| Protocolo/operador genérico | **builtin global** (poucos) | `len(x)`, `str(x)`, `println(x)` |
+| Protocolo/operador genérico | **builtin global** (poucos) | `len(x)`, `str(x)`, `repr(x)`, `println(x)` |
 | Ação específica de um tipo | **método** | `lista.push(x)`, `texto.split(",")` |
-| Construção/conversão | **construtor namespaced** | `Int.parse("42") -> Option`, `List.of(...)` |
+| Construção/conversão | **construtor namespaced** (sintaxe em aberto) | `Int.parse("42") -> Option`, `List.of(...)` |
 | Combina dois tipos / composição | **função livre** | `min(a, b)`, `sum(xs)`, `map(xs, f)` |
 | Sintaxe de método em função de usuário | **extensão** (P3) | `x.minhaExtensao()` |
 
-Concretamente:
+Concretamente, o que foi decidido:
 
-1. Builtins globais **mínimos**: `len`, `str`, `print`/`println`, `iter`/`next` (se
-   houver `for-in`). Nada de `int()`/`float()` sobrecarregados.
-2. Conversão **com nome e tipo**: `Int.parse("42")` devolve `Option[Int]`/`Result`;
-   `x as Int` para cast explícito. Evita o `int()` de três significados.
-3. `str` e `repr` separados? (Python acertou em ter os dois: usuário vs debug — decidir.)
-4. Reservar builtins: redefinir `len` é erro (ou warning), não shadowing silencioso.
-5. Se a stdlib crescer, mover para módulos (`std.io.println`) em vez de encher o global.
-6. Adotar **extensões** (P3) para dar `x.metodo()` a funções — o melhor dos dois mundos.
+1. Builtins globais **mínimos**: `len`, `str`, `repr`, `print`/`println`, `clock`, `range`.
+   Nada de `int()`/`float()` sobrecarregados.
+2. `str` **e** `repr` existem desde já: `str` para exibição, `repr` para debug (string
+   citada/escapada). A distinção em listas coincide hoje; hooks de classe ficam para
+   depois.
+3. Builtins são **reservados no escopo global**: `fn len`, `val clock`, `class range` são
+   erro; sombreamento local/parâmetro é permitido.
+4. Prelúdio pequeno; o resto vai para `std.*` quando módulos existirem.
+5. Sem métodos em primitivos agora (`5.toString()`/`s.upper()` não entram); extensões/UFCS
+   dão isso depois, sem boxing.
+6. Extensões/UFCS ficam em **P3, depois do LLVM MVP**; gatilho: stdlib precisar de operação
+   em tipo existente ou usuários pedirem.
+7. Conversões continuam **em aberto**: `as` é candidato a alias de import (Python), então
+   cast/parse precisam de decisão própria (ver [`TODO.md`](TODO.md) §11).
 
 Regra mental: *"depende de um tipo só e é ação dele → método; vale para vários tipos ou
 combina dois → função livre; converte/constrói → construtor namespaced."*
@@ -240,21 +252,30 @@ combina dois → função livre; converte/constrói → construtor namespaced."*
 
 ### Gatilhos para revisitar
 
-- ao desenhar a stdlib (depois do cap. 10);
-- ao decidir builtins vs métodos/UFCS (I-2 rejeitada: resta escolher onde as operações
-  moram);
-- quando o type checker começar (protocolo `Sized`, generics);
-- se o global começar a inchar (>30 builtins é sinal de alerta).
+- conversões: quando módulos/`Option`/`Result` e a sintaxe de cast (`as` como alias de
+  import vs cast) forem decididos;
+- módulos: quando `std.*` entrar, revisar o que sai do prelúdio;
+- quando o type checker começar a precisar de protocolo `Sized`/generics;
+- se o global começar a inchar (>30 builtins é sinal de alerta);
+- extensões/UFCS: depois do LLVM MVP, ou quando a stdlib precisar de operação em tipo
+  existente.
 
 ### Perguntas abertas
 
-- [ ] `len` como função ou `.length`/`.tamanho` como método?
-- [ ] `str` e `repr` separados? (debug vs usuário)
-- [ ] conversões: `Int.parse` + `as Int`, ou funções `to_int`?
-- [ ] builtins no escopo global ou em `std.*` importado por padrão?
-- [ ] shadowing de builtin: proibir, permitir com warning, ou ignorar?
-- [ ] métodos em primitivos (`5.toString()`)? Se sim, boxing?
-- [ ] extension functions entram em qual fase? (P3)
+- [x] `len` como função ou `.length`/`.tamanho` como método? → **função global** `len(x)`;
+  não existe `xs.len()`.
+- [x] `str` e `repr` separados? → **sim, ambos desde já**; ver ADR-0016.
+- [ ] conversões: `Int.parse` + cast, ou funções `to_int`? **Em aberto**: `as` também é
+  candidato a alias de import (`import x as y`), então a sintaxe de cast precisa de decisão
+  própria — opções: `as` contextual (import vs cast), palavra separada (`to`/`cast`),
+  método (`x.toInt()`) ou construtor (`Int(x)`); parsing: `Int.parse` (namespaced) vs
+  `parse_int`/`to_int` (livre). Ver [`TODO.md`](TODO.md) §11 e `D-8` no
+  [`TIPOS.md`](TIPOS.md) §3.3.
+- [x] builtins no escopo global ou em `std.*`? → **prelúdio global mínimo + `std.*`
+  depois**.
+- [x] shadowing de builtin? → **proibido no global, permitido localmente**.
+- [x] métodos em primitivos? → **não agora**; extensões/UFCS depois, sem boxing.
+- [x] extension functions em qual fase? → **P3, depois do LLVM MVP**.
 
 ### Referências
 

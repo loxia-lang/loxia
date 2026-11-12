@@ -342,6 +342,22 @@ def test_list_types_are_clean() -> None:
             'fn f(xs: List[Int]) -> Int { return len(xs); } f([1, "a"]);',
             "Expected Int, found String.",
         ),
+        (
+            "fn len(x: Int) -> Int { return x; }",
+            "Can't redefine builtin 'len'.",
+        ),
+        (
+            "val clock = 1;",
+            "Can't redefine builtin 'clock'.",
+        ),
+        (
+            "class range {}",
+            "Can't redefine builtin 'range'.",
+        ),
+        (
+            "print str(1, 2);",
+            "Expected 1 arguments but got 2.",
+        ),
     ],
 )
 def test_list_type_errors(
@@ -352,3 +368,25 @@ def test_list_type_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_builtin_shadowing_is_local_only() -> None:
+    lox = check(
+        """
+        fn f(len: Int) -> Int {
+          return len;
+        }
+
+        val s: String = str(1);
+        val r: String = repr([1]);
+        val vazio: Int = len([]);
+        val misto: String = str([1, "a"]);
+        print f(3);
+        print s;
+        print r;
+        print vazio;
+        print misto;
+        """
+    )
+
+    assert lox.reporter.had_error is False

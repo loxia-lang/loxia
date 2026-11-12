@@ -37,6 +37,7 @@ CASES = [
     "tests/cases/list_iteration.lox",
     "tests/cases/list_stringify.lox",
     "tests/cases/nil_aware.lox",
+    "tests/cases/str_repr.lox",
     "tests/cases/strings.lox",
     "tests/cases/typed_functions.lox",
     "tests/cases/errors/undefined_variable.lox",

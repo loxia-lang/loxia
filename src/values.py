@@ -12,6 +12,14 @@ def stringify(value: object) -> str:
     return _stringify(value, set())
 
 
+def repr_value(value: object) -> str:
+    """Forma de debug: string sempre citada/escapada; o resto igual a `stringify`."""
+    if isinstance(value, str):
+        return _quote(value)
+
+    return _stringify(value, set())
+
+
 def _stringify(value: object, stack: set[int]) -> str:
     if value is None:
         return "nil"
