@@ -9,11 +9,15 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 ## Antes de tocar em código
 
 1. `make check` precisa estar verde. Se não estiver, conserte a base primeiro.
-2. Escolha **um** comportamento observável e escreva o caso antes do código:
-   `tests/cases/<nome>.lox` com `// expect: ...` (ver skill `lox-testing`).
-3. Feature que muda gramática → registrar em `TODO.md` §1. Escolha de rumo da
+2. **Passe a feature pelo portão de admissão** ([`docs/adr/0014-identidade-e-invariantes.md`](../../../docs/adr/0014-identidade-e-invariantes.md)):
+   não viola I1–I3 (equivalência, nada implícito, determinismo), cabe na semântica que o
+   LLVM reproduz (ou tem plano verificável), a ausência dói de verdade e existe teste que
+   a policia. Feature bonita que só compra superfície = dívida paga pelo codegen.
+3. Escolha **um** comportamento observável e escreva o caso antes do código:
+   `tests/cases/<nome>.lox` com `# expect: ...` (ver skill `lox-testing`).
+4. Feature que muda gramática → registrar em `TODO.md` §1. Escolha de rumo da
    linguagem → registrar em `TODO.md` §11 **antes** de implementar.
-4. Nunca implemente um capítulo futuro do livro "de passagem" (ex.: funções antes do
+5. Nunca implemente um capítulo futuro do livro "de passagem" (ex.: funções antes do
    cap. 10). Ver `AGENTS.md` §8.
 
 ## Ordem de implementação
@@ -33,8 +37,11 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 
 ## Invariantes que não podem quebrar
 
-- Números são `float`; `True`/`False` são `bool`. Em checagem numérica use
-  `isinstance(v, float)`, nunca `int` (bool passaria).
+- Números são `Int` (i64) e `Float` (f64), **separados** ([ADR-0006](../../../docs/adr/0006-int-float-separados.md)).
+  Em checagem numérica use `src.numeric.is_number`/`is_int`; nunca
+  `isinstance(x, (int, float))` direto — `isinstance(True, int)` é `True`.
+- Saída e diagnóstico são **determinísticos** (I3): nada de endereço, PID, timestamp,
+  caminho absoluto ou ordem de `set`/`dict`. `tests/test_determinism.py` policia.
 - `nil` é `None` — nunca use sentinela própria.
 - Truthiness: só `nil` e `false` são falsos.
 - Stringify vem de `src/values.py::stringify`; não duplique formatação.
@@ -51,6 +58,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 - [ ] Mensagem de erro no estilo do livro (`Expect ';' after value.`).
 - [ ] Sem regressão: suíte inteira verde.
 - [ ] Se mudou comportamento: `docs/spec/` atualizado; decisão de design → ADR em `docs/adr/`.
+- [ ] `tests/test_determinism.py` verde (nada volátil na saída).
 
 ## Armadilhas
 

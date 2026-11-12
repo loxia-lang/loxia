@@ -44,7 +44,7 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Expect ';' after value.` | `print` sem `;` na mesma linha |
 | `Expect ';' after expression.` | expressão solta sem `;` na mesma linha |
 | `Expect ';' after variable declaration.` | `var`/`val` sem `;` na mesma linha |
-| `Expect ';' after return value.` | `return` sem `;` na mesma linha |
+| `Expect ';' after return value.` | `return` seguido de outro statement na mesma linha (antes de `}` ou de nova linha, o `;` é opcional) |
 | `Expect ';' after loop condition.` | `for` sem `;` na condição |
 | `Expect ')' after for clauses.` | `for` sem `)` |
 | `Expect ')' after if condition.` | `if`/`elif` sem `)` |
@@ -69,6 +69,11 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Expect '.' after 'super'.` | `super` sem ponto |
 | `Expect superclass method name.` | `super.` sem nome |
 | `Expect property name after '.'.` | `obj.` sem nome |
+| `Expect index expression.` | `xs[]` |
+| `Expect ']' after index.` | `xs[0` sem `]` |
+| `Expect ']' after list elements.` | `[1, 2` sem `]` |
+| `List expects 1 type argument(s), got 0.` | `val xs: List = [];` |
+| `Unknown generic type 'list'. Did you mean 'List'?` | `list[int]` (nome minúsculo) |
 | `Invalid assignment target.` | `1 = 2`, `f() = 3` |
 | `Can't have more than 255 arguments.` | chamada gigante |
 | `Can't have more than 255 parameters.` | função gigante |
@@ -119,6 +124,13 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Field 'x' must be initialized.` | instância criada sem inicializar o campo |
 | `Can't assign to immutable field 'x'.` | segunda atribuição a campo `val` |
 | `Superclass must be a class.` | `class B(A)` com `A = 1` |
+| `Only lists can be indexed.` | `xs[i]`/`xs[i] = v` com `xs` não-lista |
+| `List index must be an integer.` | `xs["0"]` |
+| `List index N out of bounds for length M.` | índice negativo ou `>= len(xs)` |
+| `Can't pop from an empty list.` | `[].pop()` |
+| `Can't modify a list while iterating over it.` | `for x in xs { xs.push(x) }` |
+| `len() expects a string or a list.` | `len(3)` |
+| `Can only iterate over a range, a list or a string.` | `for x in 42` |
 
 A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros
 (65) e runtime para globais (70). O texto é o mesmo de propósito.
@@ -142,6 +154,10 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Operands must be two numbers or two strings.` | `+` misturando tipos |
 | `Range bounds must be integers.` | bound de `..` não-`Int` |
 | `Can only iterate over a range, a list or a string.` | `for-in` em tipo não iterável |
+| `List elements must have a common type; found X and Y. ...` | literal misto sem anotação |
+| `Can't infer the element type of an empty list; annotate it as List[T].` | `val xs = []` |
+| `List index must be an integer, found X.` | `xs["0"]` no `--check` |
+| `Expected a string or a list, found X.` | `len(3)` no `--check` |
 
 ## Como testar
 

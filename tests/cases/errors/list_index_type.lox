@@ -1,0 +1,3 @@
+val xs: List[Int] = [1]
+print xs["0"]
+# expect runtime error: List index must be an integer.

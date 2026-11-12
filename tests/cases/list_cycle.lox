@@ -1,0 +1,7 @@
+# Lista auto-referente: stringify e igualdade não entram em loop.
+val xs: List[Any] = []
+xs.push(xs)
+print xs
+print xs == xs
+# expect: [[...]]
+# expect: true

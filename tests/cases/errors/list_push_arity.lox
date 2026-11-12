@@ -1,0 +1,3 @@
+val xs: List[Int] = [1]
+xs.push()
+# expect runtime error: Expected 1 arguments but got 0.

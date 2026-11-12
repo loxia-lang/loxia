@@ -84,6 +84,13 @@ class FnTy(Ty):
         return f"fn({params}) -> {display(self.ret)}"
 
 
+@dataclass(frozen=True)
+class NativeFnTy(Ty):
+    """Função nativa cuja assinatura o checker valida caso a caso (ex.: `len`)."""
+
+    name: str
+
+
 def display(ty: Ty) -> str:
     if isinstance(ty, (Prim, ClassTy, ClassObjectTy)):
         return ty.name
@@ -95,6 +102,8 @@ def display(ty: Ty) -> str:
         return " | ".join(display(member) for member in ty.members)
     if isinstance(ty, FnTy):
         return str(ty)
+    if isinstance(ty, NativeFnTy):
+        return f"fn {ty.name}"
 
     return str(ty)
 

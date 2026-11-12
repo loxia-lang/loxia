@@ -1,0 +1,15 @@
+# Literais de lista, aninhamento e formatação.
+val xs: List[Int] = [1, 2, 3]
+print xs
+print ["a", "b"]
+print [[1], [2, 3]]
+print []
+print [1, 2.0]
+val talvez: List[Int?] = [1, nil]
+print talvez
+# expect: [1, 2, 3]
+# expect: ["a", "b"]
+# expect: [[1], [2, 3]]
+# expect: []
+# expect: [1, 2.0]
+# expect: [1, nil]

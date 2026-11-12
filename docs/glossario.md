@@ -41,6 +41,15 @@ distância calculada estaticamente.
 **Instância** — objeto criado por uma classe, com campos próprios e métodos ligados a
 `this`.
 
+**Invariância** — regra de subtipagem em que `List[Int]` **não** é `List[Float]`, mesmo
+com `Int <: Float`. Necessária porque a lista é mutável: aceitar `List[Int]` onde se espera
+`List[Float]` permitiria `push(1.5)` e quebraria o tipo. Ver
+[ADR-0015](adr/0015-listas-tipadas.md).
+
+**Lista (`List[T]`)** — sequência homogênea e mutável in-place; literal `[1, 2]`,
+indexação `xs[i]`, `push`/`pop`, `len(xs)` e `for-in`. `val` congela o binding, não o
+conteúdo. Ver [ADR-0015](adr/0015-listas-tipadas.md).
+
 **Initializer (`init`)** — método especial chamado na criação da instância; sempre devolve
 a instância.
 

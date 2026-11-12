@@ -11,6 +11,9 @@ class Visitor[R](Protocol):
 
     def visit_binary_expr(self, expr: Binary) -> R: ...
     def visit_grouping_expr(self, expr: Grouping) -> R: ...
+    def visit_index_expr(self, expr: Index) -> R: ...
+    def visit_index_set_expr(self, expr: IndexSet) -> R: ...
+    def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_literal_expr(self, expr: Literal) -> R: ...
     def visit_range_expr(self, expr: Range) -> R: ...
     def visit_unary_expr(self, expr: Unary) -> R: ...
@@ -58,6 +61,36 @@ class Literal(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_literal_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ListLiteral(Expr):
+    elements: list[Expr]
+    bracket: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_list_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Index(Expr):
+    object: Expr
+    index: Expr
+    bracket: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_index_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class IndexSet(Expr):
+    object: Expr
+    index: Expr
+    value: Expr
+    bracket: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_index_set_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

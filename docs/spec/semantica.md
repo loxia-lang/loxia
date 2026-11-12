@@ -23,6 +23,7 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | `true`/`false` | literais, comparações | `true`/`false` |
 | `Int` | literais sem `.`/expoente, aritmética inteira | decimal (`42`, `-3`) |
 | `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
+| `List` | literal `[...]` | `[1, 2, 3]` (strings citadas dentro da lista) |
 | `Range` | `a..b`, `range(a, b, step)` | `<range 0..10>` |
 | string | literais, `+` | conteúdo |
 | função | `fn` | `<fn nome>` |
@@ -37,7 +38,8 @@ completas estão neste documento e no ADR; pendências em
 
 ### Truthiness
 
-Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) são **verdadeiros**.
+Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (inclusive vazias) são
+**verdadeiros**.
 
 ### Igualdade (`==`, `!=`)
 
@@ -46,6 +48,9 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) s�
   é convertido para `Float`; acima de `2^53` a conversão pode perder precisão, como no
   LLVM);
 - `Range` compara **estruturalmente** (`start`, `end`, `step`): `(0..3) == (0..3)` → `true`;
+- `List` compara **estruturalmente**, elemento a elemento, inclusive aninhada e com
+  igualdade numérica (`[1, 2] == [1, 2.0]` → `true`). Comprimentos diferentes são
+  `false`; ciclos são tratados com um conjunto de pares visitados;
 - `true == 1` → `false` (booleano nunca é número);
 - strings comparam por conteúdo;
 - funções, classes e instâncias comparam por **identidade** (o mesmo objeto);
@@ -61,12 +66,16 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (quando existirem) s�
   overflow de `Float` (divisão por zero é erro);
 - a formatação é contrato dos golden cases: `42` e `42.0` são saídas diferentes.
 
+Listas formatam como `[1, 2, 3]`; strings dentro de listas são citadas e escapadas
+(`["a\nb"]`); uma lista que contém a si mesma imprime `[[...]]`. Fora de lista, string
+continua sem aspas.
+
 ## Variáveis, `val` e `var`
 
 - `val x = expr;` cria binding **imutável** e **exige inicializador**.
 - `var x;` cria binding mutável com `nil`; `var x = expr;` idem com valor.
-- A imutabilidade é do **nome**, não do valor: `val lista` (quando listas existirem) ainda
-  pode ter conteúdo mutável.
+- A imutabilidade é do **nome**, não do valor: `val lista` ainda pode ter conteúdo mutável
+  (`lista.push(1)` é permitido).
 - Atribuir a `val` local (ou a parâmetro imutável) é **erro de compilação**:
   `'x' is immutable; declare it with 'var' to allow assignment.`
 - Atribuir a `val` **global** é erro de **runtime** (mesma mensagem, exit 70): globais não
@@ -154,6 +163,52 @@ var a = "global";
 - Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
   não comentário.
 
+## Listas
+
+`List[T]` é a única sequência da linguagem: **homogênea no tipo**, **mutável in-place** e
+**invariante**. Ver [ADR-0015](../adr/0015-listas-tipadas.md).
+
+```lox
+val xs: List[Int] = [1, 2, 3]
+print xs[0]          # 1
+xs[1] = 20
+xs.push(4)
+print len(xs)        # 4
+print xs.pop()       # 4
+for x in xs { print x }
+```
+
+- **Literal**: `[a, b, c]`; `[]` é a lista vazia. O tipo é inferido por unificação dos
+  elementos: `[1, 2]` é `List[Int]`, `[1, 2.0]` é `List[Float]` (promoção). Mistura não
+  numérica (`[1, "a"]`) é erro no `--check`; heterogeneidade exige anotação explícita
+  (`List[Int | String]` ou `List[Any]`). Lista vazia sem tipo esperado é erro; com `Any`
+  explícito, vira `List[Any]`.
+- **Acesso**: `xs[i]`, com `i` `Int` e base zero. Índice negativo ou fora do intervalo é
+  erro de runtime; `xs[i]` em não-lista é `Only lists can be indexed.`
+- **Atribuição**: `xs[i] = v` muta e devolve `v`; `v` precisa ser atribuível a `T` no
+  `--check`; os mesmos limites de índice valem em runtime.
+- **Métodos**: `xs.push(v)` adiciona ao fim e devolve `nil`; `xs.pop()` remove e devolve o
+  último, e lista vazia é erro (`Can't pop from an empty list.`). `xs.len()` não existe;
+  use `len(xs)`.
+- **`len`**: `len(xs)` é O(1) e devolve `Int`; `len(s)` devolve o número de code points da
+  string. `len` de outro tipo é erro de runtime no tree-walk e erro de tipo no `--check`.
+- **Iteração**: `for x in xs` percorre na ordem de inserção; mutar a lista durante o laço é
+  erro (`Can't modify a list while iterating over it.`), não snapshot silencioso.
+- **Igualdade**: estrutural (ver acima). **Stringify**: `[1, 2, 3]`, com strings citadas e
+  escapadas (`["a\nb"]`) e ciclos como `[[...]]`.
+- **Aliasing**: listas são referências. `val ys = xs` não copia; mutar `ys` é visível em
+  `xs`. `val` congela o binding, não o conteúdo.
+- **Opcional**: `List[T]?` e `xs?.push(...)`/`xs?.pop()` funcionam; `len(xs)` e `for` sobre
+  `List[T]?` exigem narrowing (ainda não implementado).
+- **Tipos apagados**: sem `--check`, a lista aceita qualquer elemento em runtime; a
+  homogeneidade é contrato estático. Não há checagem de tipo em `push` no runtime.
+  A promoção `Int → Float` também é só de checagem: `xs.push(1)` em `List[Float]` é aceito,
+  mas o valor continua `Int` em runtime (`print xs` → `[1, 2.0]`), como
+  `val f: Float = 1`.
+- **Limites**: sem slice, `+` de listas, `map`/`filter`, `contains`, `sort` nem indexação de
+  string na v1. Lista literal não é default de parâmetro nem inicializador de campo; em
+  `init`, `this.xs = []` funciona.
+
 ## Ranges e `for-in`
 
 `a..b` cria um `Range` **half-open** (`a` incluso, `b` exclusivo), só com bounds `Int`;
@@ -166,16 +221,18 @@ for i in range(5, 0, -2) { ... }  // 5 3 1
 for i in 5..2 { ... }             // vazio
 ```
 
-- Fontes aceitas hoje: `Range` (produz `Int`) e `String` (produz `String` de 1 code
-  point). List/Map entram quando existirem (Map produzirá chaves em ordem de inserção).
+- Fontes aceitas hoje: `Range` (produz `Int`), `String` (produz `String` de 1 code point)
+  e `List[T]` (produz `T`, na ordem de inserção). `Map` entra quando existir (produzirá
+  chaves em ordem de inserção).
 - O iterável é avaliado **uma vez**, antes do binding do laço; bounds são avaliados uma vez
   da esquerda para a direita.
 - A variável do laço é um **`val` novo por iteração**: reatribuí-la é erro de compilação e
   closures capturam o valor daquela iteração.
-- Mutar a coleção durante a iteração é **proibido** (comportamento indefinido na v1).
+- Mutar a coleção durante a iteração é **proibido**: em `List` é erro de runtime
+  (`Can't modify a list while iterating over it.`); `Range`/`String` são imutáveis.
 - `Range` é truthy, imprime como `<range a..b>` (ou `<range a..b step s>`) e compara
   estruturalmente.
-- Erros de runtime: `Can only iterate over a range or a string.`,
+- Erros de runtime: `Can only iterate over a range, a list or a string.`,
   `Range bounds must be integers.`, `range() arguments must be integers.`,
   `range() step can't be zero.`; aridade errada usa a mensagem padrão
   (`Expected 3 arguments but got N.`).
@@ -190,7 +247,7 @@ for i in 5..2 { ... }             // vazio
 | `if (c) s elif (c) s else s` | executa o ramo conforme truthiness; `elif` é `else if` |
 | `while (c) s` | repete enquanto truthy |
 | `for (init; cond; incr) s` | desaçucarado para bloco + `while` (ver sintaxe) |
-| `for x in e s` | itera `e` (Range/String hoje); `x` é `val` por iteração |
+| `for x in e s` | itera `e` (Range/String/List hoje); `x` é `val` por iteração |
 | `return expr?;` | desempilha até a chamada da função |
 
 O `;` é opcional no fim da linha (ou EOF); duas instruções na mesma linha ainda precisam
@@ -219,6 +276,8 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
 - Parâmetros e locais do corpo compartilham o mesmo escopo: declarar `var a` quando existe
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` devolve segundos desde a época como `float`, aridade 0.
+- `len(x)` aceita `List` ou `String`; devolve `Int` (O(1) para lista, code points para
+  string). Outro tipo é erro: `len() expects a string or a list.`
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
 
 ## Tipos e `--check`
@@ -241,7 +300,12 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   é erro; local sem inicializador também.
 - Locais e expressões são inferidos: `val x = f()` não precisa de tipo.
 - Tipos: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
-  `List[T]`, `Map[K, V]`, uniões `A | B` e `T?` (= `T | Nil`). `Int` é non-null.
+  `List[T]`, `Map[K, V]` (só anotação), uniões `A | B` e `T?` (= `T | Nil`). `Int` é
+  non-null. `List[T]` é invariante: `List[Int]` não é `List[Float]` nem `List[Any]`.
+- Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
+  esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
+  elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string. `xs.pop()` e
+  `xs[i]` devolvem `T`.
 - Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
   tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
@@ -346,5 +410,7 @@ class ContaPoupanca(Conta) {
 - `val`/`var` não existem no livro (que só tem `var` mutável); ver [ADR-0005](../adr/0005-val-var-imutabilidade.md).
 - `for x in` e `Range` (`0..10`) não existem no livro; ver
   [ADR-0007](../adr/0007-ranges-e-iteracao.md).
+- `List[T]` (literal, indexação, `push`/`pop`, `len` e igualdade estrutural) não existe no
+  livro; ver [ADR-0015](../adr/0015-listas-tipadas.md).
 
 Tudo o mais segue o jlox do livro, inclusive as mensagens.

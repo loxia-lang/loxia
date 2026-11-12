@@ -195,6 +195,35 @@ def test_int_division_and_power_ast_shape() -> None:
 
 def test_bitwise_precedence_ast_shape() -> None:
     assert ast("1 & 3 == 1") == "(== (& 1 3) 1)"
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("[1, 2, 3]", "(list 1 2 3)"),
+        ("[]", "(list)"),
+        ("[[1], [2, 3]]", "(list (list 1) (list 2 3))"),
+        ("xs[0]", "(index xs 0)"),
+        ("xs[0] = 1", "(index-set xs 0 1)"),
+        ("f()[0]", "(index (call f) 0)"),
+    ],
+)
+def test_list_and_index_ast_shape(expression: str, expected: str) -> None:
+    assert ast(expression) == expected
+
+
+def test_empty_index_reports_error() -> None:
+    parser = parser_for("print xs[];")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_bare_list_type_reports_error() -> None:
+    parser = parser_for("val xs: List = [];")
+    parser.parse()
+
+    assert parser.reporter.had_error
     assert ast("1 + 2 << 2") == "(<< (+ 1 2) 2)"
     assert ast("1 << 1 + 2") == "(<< 1 (+ 1 2))"
     assert ast("5 & 3 | 8") == "(| (& 5 3) 8)"

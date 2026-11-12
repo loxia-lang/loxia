@@ -48,3 +48,17 @@ def test_dump_class_and_for_in() -> None:
         "(class B (super A))\n"
         "(for-in i (.. 0 2) (block (print i)))"
     )
+
+
+def test_dump_list_nodes() -> None:
+    source = """
+    val xs = [1, 2]
+    print xs[0]
+    xs[1] = 3
+    """
+
+    assert dump(source) == (
+        "(val xs (list 1 2))\n"
+        "(print (index xs 0))\n"
+        "(expr (index-set xs 1 3))"
+    )

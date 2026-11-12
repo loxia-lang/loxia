@@ -6,6 +6,9 @@ from src.expr import (
     Expr,
     Get,
     Grouping,
+    Index,
+    IndexSet,
+    ListLiteral,
     Literal,
     Logical,
     Range,
@@ -51,6 +54,21 @@ class AstPrinter:
 
     def visit_literal_expr(self, expr: Literal) -> str:
         return stringify(expr.value)
+
+    def visit_list_expr(self, expr: ListLiteral) -> str:
+        if not expr.elements:
+            return "(list)"
+
+        inner = " ".join(element.accept(self) for element in expr.elements)
+        return f"(list {inner})"
+
+    def visit_index_expr(self, expr: Index) -> str:
+        return self._parenthesize("index", expr.object, expr.index)
+
+    def visit_index_set_expr(self, expr: IndexSet) -> str:
+        return self._parenthesize(
+            "index-set", expr.object, expr.index, expr.value
+        )
 
     def visit_unary_expr(self, expr: Unary) -> str:
         return self._parenthesize(expr.operator.lexeme, expr.right)

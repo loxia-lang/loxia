@@ -1,0 +1,2 @@
+print len(1)
+# expect runtime error: len() expects a string or a list.

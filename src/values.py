@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import math
 
+from src.lox_list import LoxList
 from src.numeric import is_float, is_int
 
 
 def stringify(value: object) -> str:
+    return _stringify(value, set())
+
+
+def _stringify(value: object, stack: set[int]) -> str:
     if value is None:
         return "nil"
     if isinstance(value, bool):
@@ -16,8 +21,43 @@ def stringify(value: object) -> str:
         return str(value)
     if is_float(value):
         return _stringify_float(value)
+    if isinstance(value, LoxList):
+        return _stringify_list(value, stack)
 
     return str(value)
+
+
+def _stringify_list(value: LoxList, stack: set[int]) -> str:
+    identity = id(value)
+    if identity in stack:
+        return "[...]"
+
+    stack.add(identity)
+    try:
+        parts = [_stringify_element(item, stack) for item in value.elements]
+    finally:
+        stack.remove(identity)
+
+    return "[" + ", ".join(parts) + "]"
+
+
+def _stringify_element(value: object, stack: set[int]) -> str:
+    if isinstance(value, str):
+        return _quote(value)
+
+    return _stringify(value, stack)
+
+
+def _quote(value: str) -> str:
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+        .replace("\0", "\\0")
+    )
+    return f'"{escaped}"'
 
 
 def _stringify_float(value: float) -> str:

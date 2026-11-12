@@ -8,6 +8,9 @@ from src.expr import (
     Expr,
     Get,
     Grouping,
+    Index,
+    IndexSet,
+    ListLiteral,
     Literal,
     Logical,
     Range,
@@ -34,7 +37,7 @@ from src.stmt import (
 )
 from src.token_type import TokenType
 from src.tokens import Token
-from src.ty import NIL, PRIMITIVES, ClassTy, ListTy, MapTy, Ty, union
+from src.ty import ERROR, NIL, PRIMITIVES, ClassTy, ListTy, MapTy, Ty, union
 
 
 class Parser:
@@ -310,7 +313,7 @@ class Parser:
         return Expression(expr)
 
     def _end_statement(self, message: str) -> None:
-        """Consome o `;` final; no REPL/EOF ou no fim da linha ele é opcional."""
+        """Consome o `;` final; no REPL/EOF, no fim da linha ou antes de `}` ele é opcional."""
         if self._match(TokenType.SEMICOLON):
             return
 
@@ -318,6 +321,11 @@ class Parser:
             return
 
         if self._is_at_end():
+            return
+
+        # `}` nunca continua uma expressão: fechar o bloco/pai termina o statement
+        # (permite `if (ok) { print 1 }` na mesma linha).
+        if self._check(TokenType.RIGHT_BRACE):
             return
 
         if self._peek().line > self._previous().line:
@@ -404,6 +412,13 @@ class Parser:
 
             return self._generic_type(token, name, arguments)
 
+        if name in {"List", "Map"}:
+            expected = 1 if name == "List" else 2
+            self._error(
+                token, f"{name} expects {expected} type argument(s), got 0."
+            )
+            return ERROR
+
         primitive = PRIMITIVES.get(name)
         if primitive is not None:
             return primitive
@@ -422,9 +437,15 @@ class Parser:
                 token,
                 f"{name} expects {expected} type argument(s), got {len(arguments)}.",
             )
+        elif name in {"list", "map"}:
+            self._error(
+                token,
+                f"Unknown generic type '{name}'. Did you mean '{name.capitalize()}'?",
+            )
+        else:
+            self._error(token, f"Unknown generic type '{name}'.")
 
-        self._error(token, f"Unknown generic type '{name}'.")
-        return Ty()
+        return ERROR
 
     def _is_constant_default(self, expr: Expr) -> bool:
         if isinstance(expr, Literal):
@@ -458,6 +479,12 @@ class Parser:
                     return expr
                 return Set(expr.object, expr.name, value)
 
+            if isinstance(expr, Index):
+                if self._has_optional_chain(expr):
+                    self._error(equals, "Can't assign through optional chaining.")
+                    return expr
+                return IndexSet(expr.object, expr.index, value, expr.bracket)
+
             self._error(equals, "Invalid assignment target.")
 
         return expr
@@ -465,6 +492,8 @@ class Parser:
     def _has_optional_chain(self, expr: Expr) -> bool:
         if isinstance(expr, Get):
             return expr.optional or self._has_optional_chain(expr.object)
+        if isinstance(expr, Index):
+            return self._has_optional_chain(expr.object)
         if isinstance(expr, Call):
             return expr.optional or self._has_optional_chain(expr.callee)
         if isinstance(expr, Grouping):
@@ -661,6 +690,18 @@ class Parser:
                 )
                 expr = Get(expr, name)
                 optional_call = False
+            elif (
+                self._check(TokenType.LEFT_BRACKET)
+                and self._peek().line == self._previous().line
+            ):
+                bracket = self._advance()
+                if self._check(TokenType.RIGHT_BRACKET):
+                    raise self._error(self._peek(), "Expect index expression.")
+
+                index = self._expression()
+                self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
+                expr = Index(expr, index, bracket)
+                optional_call = False
             else:
                 break
 
@@ -708,6 +749,20 @@ class Parser:
 
         if self._match(TokenType.IDENTIFIER):
             return Variable(self._previous())
+
+        if self._match(TokenType.LEFT_BRACKET):
+            bracket = self._previous()
+            elements: list[Expr] = []
+
+            if not self._check(TokenType.RIGHT_BRACKET):
+                while True:
+                    elements.append(self._expression())
+
+                    if not self._match(TokenType.COMMA):
+                        break
+
+            self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.")
+            return ListLiteral(elements, bracket)
 
         if self._match(TokenType.LEFT_PAREN):
             expr: Expr = self._expression()

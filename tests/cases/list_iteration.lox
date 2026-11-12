@@ -1,0 +1,14 @@
+# for-in sobre lista mantém a ordem de inserção.
+val xs: List[Int] = [10, 20, 30]
+var total = 0
+for x in xs {
+  total = total + x
+}
+print total
+
+for x in [] {
+  print x
+}
+print "done"
+# expect: 60
+# expect: done

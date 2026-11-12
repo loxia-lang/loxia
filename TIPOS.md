@@ -35,30 +35,37 @@ Complementa:
 - [x] **Ternário, `??` e `?.`** — união dos ramos; `??` remove `Nil`; `?.` produz
   `P | Nil` quando o objeto é anulável. Ver
   [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
+- [x] **Listas tipadas `List[T]`** — um tipo homogêneo e invariante, mutável in-place,
+  literal `[1, 2]`, indexação/atribuição, `push`/`pop`, `len(xs)`, `for-in`, igualdade
+  estrutural e `--check` com promoção numérica. Ver
+  [ADR-0015](docs/adr/0015-listas-tipadas.md).
 
 ---
 
 ## 1. Catálogo de tipos
 
-| Tipo | Sintaxe | Prioridade | Notas |
-| --- | --- | --- | --- |
-| `Nil` | `nil` | P0 | ausência de valor; tipo próprio, não "qualquer coisa" |
-| `Bool` | `true` / `false` | P0 | nunca é número |
-| `Int` | `42` | P0 | inteiro de 64 bits com sinal (ver §3 e ADR-0006) |
-| `Float` | `3.14` | P0 | IEEE-754 binary64 (ver §3 e ADR-0006) |
-| `String` | `"oi"` | P0 | UTF-8 imutável (ver §4) |
-| `List[T]` | `[1, 2]` | P1 | mutável, indexada |
-| `Map[K, V]` | `{ "a": 1 }` | P1 | sintaxe a decidir (colisão com bloco) |
-| `Fn(P...) -> R` | `fn(a) -> a` | P1 | primeira classe, com closures |
-| `Range` | `0..10` | P2 | iterável; ver §3.6 |
-| `Tuple[A, B]` | `(1, "a")` | P2 | aridade fixa, destructuring |
-| `Option[T]` | `T?` | P1 | açúcar para `T | Nil`; non-null por padrão (`D-15`) |
-| `Result[T, E]` | `Result` | P3 | erros como valor (ver §6) |
-| `Class` | `class P {}` | P2 | nominal, com herança ou traits (§8) |
-| `Trait` | `trait Show` | P3 | structural/nominal a decidir |
-| `Enum` / ADT | `enum Cor { Vermelho, ... }` | P3 | com `match` exaustivo |
-| `Any` | `Any` | P1 | escape hatch; desliga checagem naquele ponto |
-| `Never` | — | P2 | fundo: `throw`/`return`/loop infinito |
+| Tipo | Sintaxe | Status | Prioridade | Notas |
+| --- | --- | --- | --- | --- |
+| `Nil` | `nil` | ✅ | P0 | ausência de valor; tipo próprio, não "qualquer coisa" |
+| `Bool` | `true` / `false` | ✅ | P0 | nunca é número |
+| `Int` | `42` | ✅ | P0 | inteiro de 64 bits com sinal (ver §3 e ADR-0006) |
+| `Float` | `3.14` | ✅ | P0 | IEEE-754 binary64 (ver §3 e ADR-0006) |
+| `String` | `"oi"` | ✅ | P0 | UTF-8 imutável (ver §4) |
+| `List[T]` | `[1, 2]` | ✅ | P1 | homogênea, mutável e invariante; literais, indexação, `push`/`pop`, `len` e `for-in` (ADR-0015) |
+| `Map[K, V]` | `{ "a": 1 }` | 🟡 | P1 | anotação existe; literais/operações ainda não; sintaxe e chave ausente a decidir |
+| `Fn(P...) -> R` | `fn(a) -> a` | 🟡 | P1 | funções existem; o tipo é inferido, sem sintaxe de anotação `fn(...)` |
+| `Range` | `0..10` | ✅ | P2 | iterável; ver ADR-0007 |
+| `Tuple[A, B]` | `(1, "a")` | ⬜ | P2 | aridade fixa, destructuring |
+| `Option[T]` | `T?` | 🟡 | P1 | `T?` implementado; `Option[T]` como nome ainda não; non-null por padrão (`D-15`) |
+| `Result[T, E]` | `Result` | ⬜ | P3 | erros como valor (ver §6) |
+| `Class` | `class P {}` | ✅ | P2 | nominal, com herança ou traits (§8) |
+| `Trait` | `trait Show` | ⬜ | P3 | structural/nominal a decidir |
+| `Enum` / ADT | `enum Cor { Vermelho, ... }` | ⬜ | P3 | com `match` exaustivo |
+| `Any` | `Any` | ✅ | P1 | escape hatch do checker; desliga a checagem naquele ponto |
+| `Never` | — | 🟡 | P2 | interno do fluxo (`return`/loop); ainda sem `throw` público |
+
+Legenda: **✅** existe no runtime e no checker · **🟡** existe só em parte (checker,
+anotação ou runtime incompleto) · **⬜** ainda não implementado.
 
 Tipos que **não** entram no curto prazo: `Complex`, `Rational`, `Decimal`, `UInt`,
 `f32`, tipos dependentes, refinamentos. Ver §13.
@@ -84,32 +91,32 @@ acima; o que falta está nas seções seguintes.
 
 ## 3. Números — pendências e decisões abertas
 
+Decisões já fechadas e implementadas — modelo `Int`/`Float` ([ADR-0006](docs/adr/0006-int-float-separados.md)),
+`//` e bits ([ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md)) e
+ranges/`for-in` ([ADR-0007](docs/adr/0007-ranges-e-iteracao.md)) — estão em
+[`docs/decisoes.md`](docs/decisoes.md) e nos ADRs. Esta seção só lista o que ainda falta
+decidir ou implementar.
+
 ### 3.1 Literais: sufixos (`D-2`)
 
-`1i64` e `1.0f32` **não** entram por enquanto. Bases, `_` e expoente já existem; sufixos
-explícitos continuam sem decisão (provavelmente nunca, enquanto `Int` for sempre i64).
+`1i64` e `1.0f32` **não** entram por enquanto; sufixos explícitos continuam sem
+decisão (provavelmente nunca, enquanto `Int` for sempre i64).
 
-### 3.2 Divisão inteira `//` (`D-4`) — decidido
+### 3.2 Overflow checado no debug (`D-5`)
 
-`//` é divisão **truncada em direção a zero**, só `Int`:
-`-7 // 2 == -3`, `7 // -2 == -3`. É consistente com o `%` truncado
-(`a == (a // b) * b + (a % b)`), e `//` não colide mais com comentário porque comentários
-de linha usam `#`. `/` continua sempre `Float`. Divisor zero é erro de runtime e
-`INT_MIN // -1` faz wrap i64. Ver [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
+Falta decidir se haverá um modo debug que detecta overflow e aborta, usando
+`llvm.sadd.with.overflow` no nativo e checagem equivalente no interpretador para os dois
+continuarem batendo. Esse modo ainda não existe.
 
-### 3.3 Overflow checado no debug (`D-5`)
+### 3.3 Conversões e funções matemáticas (`D-8`)
 
-O padrão é wrapping (implementado). Quando houver codegen, um modo debug pode detectar
-overflow e abortar: `llvm.sadd.with.overflow` no nativo e checagem equivalente no
-interpretador, para os dois continuarem batendo.
-
-### 3.4 Conversões e funções matemáticas (`D-8`)
+Proposta ainda **não implementada**:
 
 ```lox
-let i = 3.9 as Int        # 3 (trunca em direção a zero)
-let f = 3 as Float        # 3.0
-let n = Int.parse("42")   # Result/Option, nunca crash silencioso
-let s = 42.toString()     # "42"
+val i = 3.9 as Int        # 3 (trunca em direção a zero)
+val f = 3 as Float        # 3.0
+val n = Int.parse("42")   # Result/Option, nunca crash silencioso
+val s = 42.toString()     # "42"
 ```
 
 - `as` é cast **explícito** (sem exceção implícita) e verificado pelo checker quando
@@ -123,67 +130,17 @@ let s = 42.toString()     # "42"
 - `Int as Float` pode perder precisão acima de `2^53`; `Float as Int` exige checar
   `NaN`/`Inf` e o range de i64 antes de truncar.
 
-### 3.5 Operadores bit a bit (`D-9`) — decidido
+### 3.4 Inferência pendente (`T3`/`T5`)
 
-Só para `Int`, sem promoção. Implementado no checker e no runtime:
+- **T3** — parâmetro sem anotação vira variável de tipo e é unificado a cada chamada
+  (`fn metade(x) { x / 2 }`).
+- **T5** — narrowing de uniões em `if x != nil { ... }`/`if x is Pessoa { ... }`.
 
-```lox
-a & b    # and
-a | b    # or
-a ^ b    # xor
-~a       # not (complemento de 64 bits)
-a << n   # shift left; n em [0, 63] senão erro (evita UB no LLVM)
-a >> n   # shift aritmético (sinal)
-a >>> n  # shift lógico (zero-fill)
-```
+A regra de ouro continua: nunca deixar o tipo depender da ordem de avaliação; a checagem
+é puramente estática. A relação `Int <: Float` vale para checagem, mas **não** para
+variância: `List[Int]` não é `List[Float]` (mutação quebraria a segurança).
 
-Precedência: bits **acima de comparação/igualdade** (evita `flags & MASK == 0` virar
-`flags & (MASK == 0)`); shifts abaixo de `+`/`-`. `Bool`/`Float` são erro. O resultado é
-sempre i64 com wrapping; `~x == -x - 1`. Ver
-[ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
-
-### 3.6 Ranges e iteração (`D-10`) — decidido
-
-Implementado no tree-walk para `Range` e `String`; List/Map entram quando existirem. Ver
-[ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e [`IDEIAS.md`](IDEIAS.md) I-6.
-
-```lox
-0..10              # Range Int, half-open (0..9), lazy e reutilizável
-for i in 0..n { ... }
-range(10, 0, -1)   # passo/descendente (3 argumentos)
-```
-
-- Só `Int` nos bounds (range de `Float` não tem passo natural).
-- Range é **valor** lazy (start, end, step), não lista; não materializa elementos.
-- `..=` (inclusivo) ficou **adiado**; por enquanto `a..b` é sempre half-open.
-- `for x in`: Range → `Int`; String → `String` de 1 code point; List → elementos; Map →
-  chaves em ordem de inserção. Iterável de usuário (`Iterable[T]`) só depois de
-  `Option`/traits.
-- Variável do laço é `val` por iteração (closures capturam o valor daquela iteração).
-- `len(r)`/`contains` ainda não existem (stdlib).
-
-### 3.7 Inferência de tipos numéricos
-
-O checker T1/T2 já existe (`--check`): funções precisam de parâmetros e retorno anotados;
-locais e expressões são inferidos.
-
-```lox
-val a = 1          # Int
-val b = 1.0        # Float
-val c = 1 + 2.0    # Float (promoção)
-val d = 1 / 2      # Float (D-4)
-
-fn metade(x: Float) -> Float { return x / 2; }
-metade(4)          # ok: Int promove para Float
-```
-
-Inferir parâmetros sem anotação (T3, estilo `fn metade(x) { x / 2 }`) e refinar uniões em
-`if x != nil` (T5) ficam para depois. Regra de ouro: nunca deixar o tipo depender da ordem
-de avaliação; a checagem é puramente estática. A relação `Int <: Float` vale para
-checagem, mas **não** para variância: `List[Int]` não é `List[Float]` (mutação quebraria a
-segurança).
-
-### 3.8 Mapeamento em LLVM (`D-11`)
+### 3.5 Mapeamento em LLVM (`D-11`)
 
 | Conceito | IR | Observações |
 | --- | --- | --- |
@@ -200,7 +157,7 @@ segurança).
 **Nunca** emitir `sdiv` sem guarda: divisor zero = UB (pode crashar ou dar lixo).
 **Nunca** converter `Float` → `Int` sem checar `is.finite` e range.
 
-### 3.9 Representação em runtime (`D-12`)
+### 3.6 Representação em runtime (`D-12`)
 
 Ordem de evolução (detalhada no `TODO.md` §6.3):
 
@@ -210,7 +167,7 @@ Ordem de evolução (detalhada no `TODO.md` §6.3):
 3. **Avançado**: NaN-boxing (payload em bits de `double`), reservando padrões para
    `nil`/`bool`/ponteiro; ~48 bits de ponteiro em x86-64.
 
-### 3.10 Performance e benchmarks
+### 3.7 Performance e benchmarks
 
 `loop_sum` cobre laço com `Int`; falta um caso com `Float` para medir promoção/conversão
 quando o modelo estabilizar. `Int` e `Float` em Python são objetos — o ganho real de
@@ -235,13 +192,19 @@ velocidade.
 
 ## 5. Listas, mapas e tuplas
 
-- `List[T]`: mutável, `push/pop/len`, indexação com checagem de limites (erro de runtime).
-  Literal `[1, 2, 3]`; tipo inferido como `List[Int]` se todos os elementos unificam,
-  senão `List[Any]` ou erro (decidir: homogêneo é mais seguro).
-- `Map[K, V]`: chaves `String`/`Int`/`Bool` (hasháveis); literal `{ "a": 1 }` com
-  ambiguidade de bloco a resolver (`#{...}` ou exigir `:` — `D-14`).
+- **`List[T]` (implementada)** — um tipo homogêneo, mutável in-place e **invariante**;
+  literal `[1, 2, 3]`, indexação `xs[i]`, atribuição `xs[i] = v`, `xs.push(v)`,
+  `xs.pop()`, `len(xs)` e `for x in xs`. Tipo inferido por unificação dos elementos
+  (`[1, 2.0]` → `List[Float]`); mistura não numérica exige anotação explícita
+  (`List[Int | String]` ou `List[Any]`). Lista vazia exige contexto. Índice é `Int`,
+  zero-based, sem negativo; fora do intervalo é erro. Igualdade estrutural, sem hash
+  (não pode ser chave de `Map`). Ver [ADR-0015](docs/adr/0015-listas-tipadas.md).
+- `Map[K, V]`: anotação existe; literal, operações e runtime ainda não. Decisões em
+  aberto: literal vs bloco (`D-14`), chaves hasháveis, chave ausente (erro, `nil` ou
+  `Option`) e ordem de inserção. Entra depois de List, numa mudança própria.
 - `Tuple`: aridade fixa, imutável, destructuring; útil para múltiplos retornos.
 - Variância: **invariante** por padrão (mutação); `List[Int]` não é `List[Float]`.
+  `List[Any]` é escape explícito, não supertipo.
 
 ---
 
@@ -299,11 +262,14 @@ Já implementado e descrito na spec: `Nil`, `Bool`, `Int`/`Float` (numérica com
 
 Em aberto:
 
-- `List`: igualdade elemento a elemento (quando existir).
-- `Map`: igualdade estrutural é inviável em geral; provavelmente identidade.
+- `Map`: igualdade estrutural é inviável em geral; provavelmente identidade; chave
+  ausente e hash ainda a decidir.
 - Hash consistente com `==` para `Map[K, V]`: `1` e `1.0` precisam do mesmo hash se
   ambos puderem ser chave.
 - Ordenação: `Int`/`Float`/`String`; `Bool` não ordenável.
+
+Implementado: `List` compara **estruturalmente** (elemento a elemento, com guarda de
+ciclo) e não é hashável; `nil`, `Bool`, `Int`/`Float`, `String` seguem as regras acima.
 
 ---
 
@@ -320,15 +286,18 @@ Em aberto:
 | `D-14` | literal de map | `{}` / `Map{}` / outro | `#{}` descartado (comentário `#`) |
 | `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
+| `D-19` | `List[T]` | um tipo / `List`+`MutableList` / `Array` | um tipo mutável e invariante (ADR-0015) |
 
 Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-4` (divisão inteira),
-`D-6` (formatação), `D-9` (bits), `D-10` (ranges/iteração), `D-15` (non-null + `T?`) e
-`D-18` (igualdade numérica) — ver os checkboxes no topo e os ADRs
+`D-6` (formatação), `D-9` (bits), `D-10` (ranges/iteração), `D-15` (non-null + `T?`),
+`D-18` (igualdade numérica) e `D-19` (List) — ver os checkboxes no topo e os ADRs
 [0006](docs/adr/0006-int-float-separados.md) /
 [0007](docs/adr/0007-ranges-e-iteracao.md) /
 [0010](docs/adr/0010-tipagem-estatica.md) /
-[0012](docs/adr/0012-comentarios-divisao-potencia-bits.md). Cada decisão implementada ganha
-caso golden e linha no `TODO.md` §11.
+[0012](docs/adr/0012-comentarios-divisao-potencia-bits.md) /
+[0015](docs/adr/0015-listas-tipadas.md). Cada decisão implementada ganha caso golden e
+resumo em [`docs/decisoes.md`](docs/decisoes.md); o que ainda está aberto fica no
+`TODO.md` §11.
 
 ---
 
@@ -342,7 +311,7 @@ caso golden e linha no `TODO.md` §11.
 | **N3** | unificação/checagem nas chamadas com promoção (T3) | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
-| **N6** | ✅ ranges e `for-in` (Range/String); List/Map quando existirem | sintaxe §1.3 |
+| **N6** | ✅ ranges e `for-in` (Range/String/List); `Map` quando existir | sintaxe §1.3 |
 
 Ordem prática: N2+ só depois do resolver (cap. 11), porque o checker depende de escopo.
 

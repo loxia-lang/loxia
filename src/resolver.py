@@ -13,6 +13,9 @@ from src.expr import (
     Expr,
     Get,
     Grouping,
+    Index,
+    IndexSet,
+    ListLiteral,
     Literal,
     Logical,
     Range,
@@ -278,6 +281,19 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_get_expr(self, expr: Get) -> None:
         self._resolve_expr(expr.object)
+
+    def visit_index_expr(self, expr: Index) -> None:
+        self._resolve_expr(expr.object)
+        self._resolve_expr(expr.index)
+
+    def visit_index_set_expr(self, expr: IndexSet) -> None:
+        self._resolve_expr(expr.object)
+        self._resolve_expr(expr.index)
+        self._resolve_expr(expr.value)
+
+    def visit_list_expr(self, expr: ListLiteral) -> None:
+        for element in expr.elements:
+            self._resolve_expr(element)
 
     def visit_grouping_expr(self, expr: Grouping) -> None:
         self._resolve_expr(expr.expression)

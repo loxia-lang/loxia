@@ -17,6 +17,9 @@ from src.expr import (
     Expr,
     Get,
     Grouping,
+    Index,
+    IndexSet,
+    ListLiteral,
     Literal,
     Logical,
     Range,
@@ -31,8 +34,10 @@ from src.lox_callable import LoxCallable
 from src.lox_class import FieldInfo, LoxClass
 from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
+from src.lox_list import LoxList
 from src.lox_range import LoxRange
 from src.natives.clock import Clock
+from src.natives.len import Len
 from src.natives.range import RangeNative
 from src.stmt import (
     Block,
@@ -60,6 +65,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
         self.globals.define("clock", Clock())
+        self.globals.define("len", Len())
         self.globals.define("range", RangeNative())
 
     def interpret(self, statements: list[Stmt]) -> None:
@@ -98,11 +104,21 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return bool(obj)
         return True
 
-    def _is_equal(self, a: object, b: object) -> bool:
+    def _is_equal(
+        self,
+        a: object,
+        b: object,
+        seen: set[tuple[int, int]] | None = None,
+    ) -> bool:
         if a is None and b is None:
             return True
         if a is None or b is None:
             return False
+
+        if isinstance(a, LoxList) or isinstance(b, LoxList):
+            if not isinstance(a, LoxList) or not isinstance(b, LoxList):
+                return False
+            return self._lists_equal(a, b, set() if seen is None else seen)
 
         if isinstance(a, bool) or isinstance(b, bool):
             return isinstance(a, bool) and isinstance(b, bool) and a == b
@@ -111,6 +127,29 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return numeric.equal(a, b)
 
         return a == b
+
+    def _lists_equal(
+        self,
+        a: LoxList,
+        b: LoxList,
+        seen: set[tuple[int, int]],
+    ) -> bool:
+        if a is b:
+            return True
+
+        pair = (id(a), id(b))
+        if pair in seen:
+            return True
+
+        seen.add(pair)
+        if len(a.elements) != len(b.elements):
+            return False
+
+        for left, right in zip(a.elements, b.elements, strict=True):
+            if not self._is_equal(left, right, seen):
+                return False
+
+        return True
 
     def _check_number_operand(self, operator: Token, operand: object) -> None:
         if not numeric.is_number(operand):
@@ -143,6 +182,28 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_literal_expr(self, expr: Literal) -> object:
         return expr.value
+
+    def visit_list_expr(self, expr: ListLiteral) -> object:
+        return LoxList([self._evaluate(element) for element in expr.elements])
+
+    def visit_index_expr(self, expr: Index) -> object:
+        ob = self._evaluate(expr.object)
+
+        if not isinstance(ob, LoxList):
+            raise LoxRuntimeError(expr.bracket, "Only lists can be indexed.")
+
+        index = self._evaluate(expr.index)
+        return ob.get(index, expr.bracket)
+
+    def visit_index_set_expr(self, expr: IndexSet) -> object:
+        ob = self._evaluate(expr.object)
+
+        if not isinstance(ob, LoxList):
+            raise LoxRuntimeError(expr.bracket, "Only lists can be indexed.")
+
+        index = self._evaluate(expr.index)
+        value = self._evaluate(expr.value)
+        return ob.set(index, value, expr.bracket)
 
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
@@ -375,6 +436,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if isinstance(ob, LoxInstance):
             return ob.get(expr.name)
 
+        if isinstance(ob, LoxList):
+            return ob.get_method(expr.name)
+
         raise LoxRuntimeError(expr.name, "Only instances have properties.")
 
     def visit_conditional_expr(self, expr: Conditional) -> object:
@@ -433,8 +497,28 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return iter(range(iterable.start, iterable.end, iterable.step))
         if isinstance(iterable, str):
             return iter(iterable)
+        if isinstance(iterable, LoxList):
+            return self._iterate_list(name, iterable)
 
-        raise LoxRuntimeError(name, "Can only iterate over a range or a string.")
+        raise LoxRuntimeError(name, "Can only iterate over a range, a list or a string.")
+
+    def _iterate_list(self, name: Token, values: LoxList) -> Iterator[object]:
+        version = values.version
+        index = 0
+
+        while index < len(values.elements):
+            if values.version != version:
+                raise LoxRuntimeError(
+                    name, "Can't modify a list while iterating over it."
+                )
+
+            yield values.elements[index]
+            index += 1
+
+        if values.version != version:
+            raise LoxRuntimeError(
+                name, "Can't modify a list while iterating over it."
+            )
 
     def visit_print_stmt(self, stmt: Print) -> None:
         value = self._evaluate(stmt.expression)

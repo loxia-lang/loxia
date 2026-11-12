@@ -12,15 +12,15 @@ Cada entrada tem um id (`I-n`) e um status:
 | --- | --- |
 | `ideia` | capturada, sem análise — só não quero esquecer |
 | `em avaliação` | já tem opções e argumentos; falta decidir |
-| `decidida` | virou decisão em `TODO.md` §11 (e `D-n` no `TIPOS.md`, se for de tipo) |
+| `decidida` | virou ADR/decisão e resumo em [`docs/decisoes.md`](docs/decisoes.md) (e `D-n` no `TIPOS.md`, se for de tipo) |
 | `rejeitada` | descartada por ora, com o porquê registrado; os gatilhos dizem quando reabrir |
 
 Formato: **pergunta → opções → argumentos → impacto técnico → recomendação provisória →
 gatilhos para revisitar**.
 
 > Regra: nada daqui é implementado antes de fechar a decisão no `TODO.md` §11. Quando
-> decidir, mova o resumo para lá e marque a entrada como `decidida` (mantendo os
-> argumentos como histórico).
+> decidir, crie/atualize o ADR, mova o resumo para [`docs/decisoes.md`](docs/decisoes.md)
+> e marque a entrada como `decidida` (mantendo os argumentos como histórico).
 
 ---
 
@@ -36,15 +36,15 @@ gatilhos para revisitar**.
 
 **Status:** `rejeitada` — **não haverá operador de pipeline** por enquanto (decisão de
 2026-11-11). O texto abaixo fica como histórico: os argumentos continuam válidos e os
-gatilhos dizem quando vale reabrir. Resumo registrado no [`TODO.md`](TODO.md) §11 (item 14)
-e §1.4.
+gatilhos dizem quando vale reabrir. Resumo registrado em
+[`docs/decisoes.md`](docs/decisoes.md) e §1.4.
 
 ### Por que rejeitada (por enquanto)
 
 - **Superfície demais para o ganho.** É um token, um nível de precedência e um conjunto de
   interações (com `;` opcional, com `and`/`or`, com o RHS) a aprender, documentar e testar.
 - **Acopla decisões ainda abertas.** O exemplo canônico `foo() :> print()` só funciona com
-  `print` como função ([`TODO.md`](TODO.md) §11 item 6) e a posição do argumento vira
+  `print` como função ([`TODO.md`](TODO.md) §11 item 3) e a posição do argumento vira
   contrato da stdlib antes de a stdlib existir.
 - **Convenção invisível.** Quem lê `x |> soma(1)` precisa saber onde o valor entra; errar
   cedo é caro porque muda toda API.
@@ -897,8 +897,8 @@ escolher outra sintaxe. É factível, mas é uma decisão de parser/checker, nã
 ## I-6 — Ranges e iteráveis: o que pode aparecer no `for x in`
 
 **Status:** `decidida` — ver [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e
-[`TIPOS.md`](TIPOS.md) §3.6. Implementado no tree-walk para `Range` e `String`; `List`/`Map`
-entram quando existirem.
+[`docs/decisoes.md`](docs/decisoes.md). Implementado no tree-walk para `Range` e `String`;
+`List`/`Map` entram quando existirem.
 
 ### A pergunta
 
@@ -941,3 +941,87 @@ entram quando existirem.
 - quando `Option`/traits entrarem (protocolo de usuário);
 - se `..=`/passo virarem necessidade real;
 - se `map`/`filter` eager começarem a doer em memória.
+
+---
+
+## I-7 — Identidade: existe algo único, ou é colcha de retalhos?
+
+**Status:** `decidida` em 2026-11-11 — ver
+[ADR-0014](docs/adr/0014-identidade-e-invariantes.md) e
+[`docs/decisoes.md`](docs/decisoes.md).
+A decisão é: identidade = **três invariantes + portão de admissão de feature**, não
+catálogo de features. O texto abaixo fica como histórico do raciocínio e da lista de
+recusa.
+
+### A pergunta
+
+> "A nossa linguagem tem algum atributo único? Algo que pudesse fazer outras pessoas
+> quererem ela? Ou nada mais é que uma colcha de retalhos C/Python/Kotlin-like?"
+
+### Diagnóstico honesto: hoje é colcha (bem costurada)
+
+O inventário está no [`TODO.md`](TODO.md) §8 e não há exceção: `?.`/`??`
+(Kotlin/Swift/TS), `val`/`var` (Kotlin/Swift), `;` opcional (Go/Kotlin), interpolação
+(Kotlin), `class B(A)` (Lox2), `Int`/`Float` separados (Rust/C), `fn` (Rust), `elif`
+(Ruby/Go). Nenhuma peça é original.
+
+E está tudo bem: linguagem boa é colcha bem costurada. O que distingue colcha de
+linguagem não são as peças, é **o critério único que escolheu as peças**.
+
+### O que o repo já tem sem ter nomeado
+
+**1. Uma atitude coerente: "nada acontece implicitamente".** Olhando os ADRs lado a lado:
+`Float → Int` nunca implícito, `+` não coage número com string, truthiness só `nil`/`false`,
+`??` troca só `nil`, `val`/parâmetro imutáveis por padrão, divisão por zero é erro, zero
+estado global de erro. É a tese de Rust numa linguagem do tamanho de Go. Coerência é
+higiene, não é diferencial — mas é pré-requisito de qualquer identidade.
+
+**2. Um invariante que quase ninguém consegue prometer.** Tree-walk como especificação
+([ADR-0002](docs/adr/0002-tree-walk-como-oraculo.md)) + tipos apagados
+([ADR-0010](docs/adr/0010-tipagem-estatica.md)) + aritmética i64 determinística que simula
+o LLVM ([ADR-0006](docs/adr/0006-int-float-separados.md)) permitem:
+
+> mesmo programa interpretado e compilado → mesmo stdout e exit code, **byte a byte**,
+> verificado em CI.
+
+Python/PyPy, Lua/LuaJIT e a maioria das linguagens não prometem isso. É caro de copiar
+(exige semântica num só lugar + suíte diferencial) e é **barato agora**, porque o backend
+ainda não existe. Depois de 20k linhas de codegen, é refactor impossível.
+
+**3. O eixo que ainda está no papel:** erros como dados ([I-4](#i-4--linguagem-agent-friendly-contratos--erros-estruturados-determinísticos)).
+"Sintaxe fluida" é a parte mais copiável de todas e não deve ser vendida como diferencial.
+
+### O teste de uma frase
+
+| Frase | Verificável? | Público | Veredito |
+| --- | --- | --- | --- |
+| "O interpretador **é** a spec: mesmo resultado interpretado e compilado, byte a byte." | sim, em CI | quem escreve/ensina linguagem, embedders | **escolhida** |
+| "Lox com tipos opcionais checáveis sem pagar em runtime." | sim | quem já usa TS/mypy | verdadeira, não única |
+| "A linguagem cujos erros são dados, não texto." | sim | tooling/agentes | boa, mas depende do I-4 pronto |
+| "Sintaxe fluida e moderna." | não | ninguém | **não vender** |
+
+### Lista de recusa (o que a identidade custa)
+
+Feature que só compra superfície é dívida paga pelo codegen — cada uma precisa ser
+replicada exatamente pelo LLVM. Ficam para depois do backend, ou nunca:
+
+- `match` estrutural, extension methods, operator overloading, `traits` — depois do LLVM
+  MVP, e só com dor real;
+- `**kwargs`, named args, exceções recuperáveis, `async` — já rejeitados ou adiados;
+- pipeline `|>` — rejeitado ([I-2](#i-2--pipeline-passar-o-valor-da-esquerda-para-a-direita--));
+- qualquer coisa que exija coerção implícita — vetada por I2.
+
+### O que a decisão NÃO resolve
+
+- Nome da linguagem e extensão (`PyLox`/`.lox`) continuam em aberto ([`TODO.md`](TODO.md)
+  §11 item 1).
+- I-4 (contratos + JSON) continua em avaliação: entra como consequência de I3
+  (determinismo), não como segundo posicionamento paralelo.
+
+### Gatilhos para revisitar
+
+- se I1 se mostrar impossível para alguma feature (timing de GC, otimização que muda
+  resultado observável) — aí é ADR novo restringindo, nunca silêncio;
+- quando o backend nascer (o teste diferencial deixa de ser promessa e vira gate);
+- se o portão começar a barrar tudo e a linguagem parar de crescer (sinal de que o eixo
+  ficou estreito demais).

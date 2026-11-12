@@ -17,6 +17,9 @@ from src.expr import (
     Expr,
     Get,
     Grouping,
+    Index,
+    IndexSet,
+    ListLiteral,
     Literal,
     Logical,
     Range,
@@ -58,6 +61,7 @@ from src.ty import (
     FnTy,
     ListTy,
     MapTy,
+    NativeFnTy,
     Ty,
     UnionTy,
     display,
@@ -104,6 +108,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _define_builtins(self) -> None:
         self._scopes[0]["clock"] = FnTy((), FLOAT, 0)
+        self._scopes[0]["len"] = NativeFnTy("len")
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
 
     def _predeclare_classes(self, statements: list[Stmt]) -> None:
@@ -152,6 +157,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _check(
         self, expr: Expr, expected: Ty, token: Token
     ) -> Ty:
+        if isinstance(expr, ListLiteral):
+            element = self._expected_element(expected)
+            if element is not None:
+                for item in expr.elements:
+                    self._check(item, element, expr.bracket)
+
+                return ListTy(element)
+
         actual = self._infer(expr)
         if not self._assignable(expected, actual):
             self._error(
@@ -159,6 +172,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             )
 
         return actual
+
+    def _expected_element(self, expected: Ty) -> Ty | None:
+        if expected is ANY:
+            return ANY
+        if isinstance(expected, ListTy):
+            return expected.element
+
+        if isinstance(expected, UnionTy):
+            lists = [
+                member for member in expected.members if isinstance(member, ListTy)
+            ]
+            if len(lists) == 1:
+                return lists[0].element
+
+        return None
 
     def _assignable(self, expected: Ty, actual: Ty) -> bool:
         if expected is ANY or actual is ANY or expected is ERROR or actual is ERROR:
@@ -173,6 +201,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return any(self._assignable(member, actual) for member in expected.members)
         if actual is INT and expected is FLOAT:
             return True
+        if isinstance(expected, ListTy) and isinstance(actual, ListTy):
+            if expected.element is ERROR or actual.element is ERROR:
+                return True
+            return expected.element == actual.element
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
             return self._is_subclass(actual.name, expected.name)
 
@@ -558,8 +590,49 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_call_expr(self, expr: Call) -> Ty:
         callee = self._infer(expr.callee)
-        arguments = [self._infer(argument) for argument in expr.arguments]
+        signature = self._call_signature(callee, expr)
+        arguments: list[Ty] = []
+
+        for index, argument in enumerate(expr.arguments):
+            expected: Ty | None = None
+            if signature is not None and index < len(signature.params):
+                expected = self._expected_element(signature.params[index])
+
+            if isinstance(argument, ListLiteral) and expected is not None:
+                assert signature is not None
+                arguments.append(
+                    self._check(argument, signature.params[index], expr.paren)
+                )
+            else:
+                arguments.append(self._infer(argument))
+
         return self._call_type(callee, expr, arguments)
+
+    def _call_signature(self, callee: Ty, expr: Call) -> FnTy | None:
+        if isinstance(callee, FnTy):
+            return callee
+        if isinstance(callee, ClassObjectTy):
+            info = self._classes.get(callee.name)
+            if info is None:
+                return None
+            return info.init or FnTy((), ClassTy(callee.name), 0)
+        if isinstance(callee, UnionTy):
+            members = list(callee.members)
+            if expr.optional:
+                members = [member for member in members if member is not NIL]
+            if len(members) != 1:
+                return None
+
+            member = members[0]
+            if isinstance(member, FnTy):
+                return member
+            if isinstance(member, ClassObjectTy):
+                info = self._classes.get(member.name)
+                if info is None:
+                    return None
+                return info.init or FnTy((), ClassTy(member.name), 0)
+
+        return None
 
     def _call_type(self, callee: Ty, expr: Call, arguments: list[Ty]) -> Ty:
         if callee is ANY:
@@ -601,11 +674,44 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif isinstance(callable_ty, FnTy):
             self._check_call(expr.paren, callable_ty, arguments)
             result = callable_ty.ret
+        elif isinstance(callable_ty, NativeFnTy):
+            result = self._call_native(callable_ty, expr, arguments)
         else:
             self._error(expr.paren, "Can only call functions and classes.")
             return ERROR
 
         return union(result, NIL) if expr.optional and nilable else result
+
+    def _call_native(
+        self, callee: NativeFnTy, expr: Call, arguments: list[Ty]
+    ) -> Ty:
+        if callee.name == "len":
+            if len(arguments) != 1:
+                self._error(
+                    expr.paren, f"Expected 1 arguments but got {len(arguments)}."
+                )
+                return ERROR
+
+            argument = arguments[0]
+            if not self._is_len_able(argument):
+                self._error(
+                    expr.paren,
+                    f"Expected a string or a list, found {display(argument)}.",
+                )
+                return ERROR
+
+            return INT
+
+        self._error(expr.paren, "Can only call functions and classes.")
+        return ERROR
+
+    def _is_len_able(self, ty: Ty) -> bool:
+        if ty is ANY or ty is STRING or ty is ERROR or isinstance(ty, ListTy):
+            return True
+        if isinstance(ty, UnionTy):
+            return all(self._is_len_able(member) for member in ty.members)
+
+        return False
 
     def _check_call(self, token: Token, signature: FnTy, arguments: list[Ty]) -> None:
         maximum = len(signature.params)
@@ -653,22 +759,41 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return NIL
 
         result: Ty
-        if len(members) == 1 and isinstance(members[0], ClassTy):
-            result = self._instance_property(members[0], name)
-        else:
-            results: list[Ty] = []
-            for member in members:
-                if not isinstance(member, ClassTy):
+        if all(isinstance(member, ListTy) for member in members):
+            lists = [member for member in members if isinstance(member, ListTy)]
+            result = self._list_property(lists, name)
+        elif all(isinstance(member, ClassTy) for member in members):
+            classes = [member for member in members if isinstance(member, ClassTy)]
+            if len(classes) == 1:
+                result = self._instance_property(classes[0], name)
+            else:
+                results = [
+                    self._instance_property(member, name, report=False)
+                    for member in classes
+                ]
+                if any(item != results[0] for item in results):
                     self._error(name, "Only instances have properties.")
                     return ERROR
-                results.append(self._instance_property(member, name, report=False))
-
-            if not results or any(item != results[0] for item in results):
-                self._error(name, "Only instances have properties.")
-                return ERROR
-            result = results[0]
+                result = results[0]
+        else:
+            self._error(name, "Only instances have properties.")
+            return ERROR
 
         return union(result, NIL) if optional and nilable else result
+
+    def _list_property(self, lists: list[ListTy], name: Token) -> Ty:
+        element = lists[0].element
+        if any(item.element != element for item in lists[1:]):
+            self._error(name, "List method requires a single element type.")
+            return ERROR
+
+        if name.lexeme == "push":
+            return FnTy((element,), NIL, 1)
+        if name.lexeme == "pop":
+            return FnTy((), element, 0)
+
+        self._error(name, f"Undefined property '{name.lexeme}'.")
+        return ERROR
 
     def _instance_property(
         self, obj: ClassTy, name: Token, *, report: bool = True
@@ -704,6 +829,96 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return ANY
 
+    def visit_list_expr(self, expr: ListLiteral) -> Ty:
+        if not expr.elements:
+            self._error(
+                expr.bracket,
+                "Can't infer the element type of an empty list; "
+                "annotate it as List[T].",
+            )
+            return ListTy(ERROR)
+
+        element = self._infer(expr.elements[0])
+        for item in expr.elements[1:]:
+            element = self._join_element(element, self._infer(item), expr.bracket)
+
+        return ListTy(element)
+
+    def _join_element(self, left: Ty, right: Ty, token: Token) -> Ty:
+        if left is ERROR or right is ERROR:
+            return ERROR
+        if left == right:
+            return left
+        if left is ANY or right is ANY:
+            return ANY
+        if (left is INT and right is FLOAT) or (left is FLOAT and right is INT):
+            return FLOAT
+        if isinstance(left, UnionTy) or isinstance(right, UnionTy):
+            self._error(
+                token,
+                "List elements must have a common type; annotate the list as "
+                "List[A | B] to allow mixed elements.",
+            )
+            return ERROR
+        if self._assignable(left, right):
+            return left
+        if self._assignable(right, left):
+            return right
+
+        self._error(
+            token,
+            "List elements must have a common type; found "
+            f"{display(left)} and {display(right)}. Annotate as "
+            f"List[{display(left)} | {display(right)}] to allow mixed elements.",
+        )
+        return ERROR
+
+    def visit_index_expr(self, expr: Index) -> Ty:
+        obj = self._infer(expr.object)
+        index = self._infer(expr.index)
+
+        if obj is ANY:
+            return ANY
+        if obj is ERROR:
+            return ERROR
+        if not isinstance(obj, ListTy):
+            self._error(expr.bracket, "Only lists can be indexed.")
+            return ERROR
+
+        self._check_index_type(index, expr)
+        return obj.element
+
+    def visit_index_set_expr(self, expr: IndexSet) -> Ty:
+        obj = self._infer(expr.object)
+        index = self._infer(expr.index)
+        value = self._infer(expr.value)
+
+        if obj is ANY:
+            return value
+        if obj is ERROR:
+            return ERROR
+        if not isinstance(obj, ListTy):
+            self._error(expr.bracket, "Only lists can be indexed.")
+            return value
+
+        self._check_index_type(index, expr)
+        if not self._assignable(obj.element, value):
+            self._error(
+                expr.bracket,
+                f"Expected {display(obj.element)}, found {display(value)}.",
+            )
+
+        return value
+
+    def _check_index_type(self, index: Ty, expr: Index | IndexSet) -> None:
+        if index is INT or index is ANY or index is ERROR:
+            return
+
+        self._error(
+            expr.bracket,
+            f"List index must be an integer, found {display(index)}.",
+        )
+
     def visit_conditional_expr(self, expr: Conditional) -> Ty:
         self._infer(expr.condition)
         then_ty = self._infer(expr.then_branch)
@@ -712,7 +927,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_logical_expr(self, expr: Logical) -> Ty:
         left = self._infer(expr.left)
-        right = self._infer(expr.right)
+
+        if (
+            expr.operator.type is TokenType.QUESTION_QUESTION
+            and left is not ANY
+            and is_nilable(left)
+        ):
+            expected = non_nil(left)
+            if (
+                isinstance(expr.right, ListLiteral)
+                and self._expected_element(expected) is not None
+            ):
+                right = self._check(expr.right, expected, expr.operator)
+            else:
+                right = self._infer(expr.right)
+        else:
+            right = self._infer(expr.right)
 
         if expr.operator.type is TokenType.QUESTION_QUESTION:
             if left is ANY:
@@ -742,30 +972,28 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_set_expr(self, expr: Set) -> Ty:
         obj = self._infer(expr.object)
-        value = self._infer(expr.value)
 
         if obj is ANY:
-            return value
+            return self._infer(expr.value)
 
         if not isinstance(obj, ClassTy):
+            self._infer(expr.value)
             self._error(expr.name, "Only instances have fields.")
-            return value
+            return ANY
 
         field_info = self._find_field(obj.name, expr.name.lexeme)
         if field_info is None:
+            self._infer(expr.value)
             self._error(expr.name, f"Undefined field '{expr.name.lexeme}'.")
-            return value
+            return ANY
+
+        value = self._check(expr.value, field_info.ty, expr.name)
 
         is_initializer_this = self._in_initializer and isinstance(expr.object, This)
         if not field_info.mutable and not is_initializer_this:
             self._error(
                 expr.name,
                 f"Can't assign to immutable field '{expr.name.lexeme}'.",
-            )
-        elif not self._assignable(field_info.ty, value):
-            self._error(
-                expr.name,
-                f"Expected {display(field_info.ty)}, found {display(value)}.",
             )
 
         return value

@@ -21,8 +21,13 @@ pretendo tipar e como chegar no LLVM.
 > no lugar. **Parte II concluída** (caps. 4–13), **`val`/`var`** (ADR-0005), **ranges/for-in**
 > (ADR-0007), **herança `class B(A)`** (ADR-0008), **defaults/campos** (ADR-0009), checker
 > `--check` (ADR-0010), **`fn`/`elif`/`;` opcional** (ADR-0011), **`//`/`**`/bits**
-> (ADR-0012) e **ternário/`??`/`?.`/escapes** (ADR-0013) implementados. Próximo:
-> narrowing/generics ou a sintaxe restante.
+> (ADR-0012) e **ternário/`??`/`?.`/escapes** (ADR-0013) implementados. **Listas
+> tipadas** (`List[T]`, ADR-0015) implementadas. Próximo: `Map` tipado, narrowing/generics
+> ou a sintaxe restante.
+>
+> **P0 aberto:** nenhum. **P1 aberto:** o pacote de diagnósticos (spans → caret → stack
+> traces) e o pre-commit. **Milestone atual:** M3 (sintaxe), com M4 adiantado em T1/T2;
+> M2 fechado com 8 `xfail` intencionais.
 
 ### 0.1 Bugs — corrigidos, com regressão na suíte
 
@@ -59,7 +64,7 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
         `Already a variable with this name in this scope.`
   - [x] `return` fora de função (agora erro de compilação, exit 65)
   - [x] identidade dos nós de AST (`eq=False`) para servir de chave no `locals`
-  - [ ] `this` fora de classe (cap. 12)
+  - [x] `this` fora de classe (cap. 12; resolver já rejeita)
   - [ ] (bônus) resolver já guarda *slots* em vez de nomes → prepara VM/LLVM
 - [x] **Cap. 12 — Classes**
   - [x] `LoxClass`, `LoxInstance`, `Get`/`Set`, `this`, `init`
@@ -104,6 +109,10 @@ Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variable
    só onde ajuda (`fn fib(n: Int) -> Int`).
 5. **Falhar cedo e claro** — erro com linha/coluna, sublinhado e dica.
 6. **Previsível** — nada de coerção implícita, nada de `nil` surpresa.
+7. **Identidade = invariantes, não features** — o que se promete é o contrato do
+   [ADR-0014](docs/adr/0014-identidade-e-invariantes.md): equivalência
+   interpretado↔compilado, nada implícito e determinismo. Toda feature nova passa pelo
+   portão de admissão (ver [`docs/spec/garantias.md`](docs/spec/garantias.md)).
 
 ### 1.2 De/para (Lox atual → proposta)
 
@@ -143,9 +152,10 @@ fn main() {
 ### 1.3 Checklist de sintaxe
 
 **Estrutural**
-- [x] `P1` **`;` opcional** — statement/campo termina no fim da linha ou EOF; duas
-      instruções na mesma linha ainda exigem `;`. Operador no **fim** da linha continua a
-      expressão; operador no começo inicia outro statement; `return` sozinho devolve `nil`.
+- [x] `P1` **`;` opcional** — statement/campo termina no fim da linha, no EOF ou num `}`
+      de fechamento (permite `if (ok) { print 1 }`); duas instruções na mesma linha ainda
+      exigem `;`. Operador no **fim** da linha continua a expressão; operador no começo
+      inicia outro statement; `return` sozinho devolve `nil`.
       Ver [ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md).
 - [x] `P1` **`elif`** em vez de `else if` (açúcar para `If` aninhado; parênteses ainda
       obrigatórios).
@@ -191,12 +201,16 @@ fn main() {
 - [ ] `P3` **spread** `...lista` em chamadas e literais.
 
 **Dados e funções**
-- [ ] `P2` **arrays** `[1, 2, 3]`, acesso `a[i]`, `push`, `len`.
+- [x] `P2` **arrays/listas** `[1, 2, 3]`, acesso `a[i]`, atribuição `a[i] = v`,
+      `push`/`pop`/`len`, homogêneo e invariante; `for-in` incluso. Ver
+      [ADR-0015](docs/adr/0015-listas-tipadas.md). `Map` fica para a próxima mudança.
 - [ ] `P2` **mapas** `{ "a": 1 }` — cuidado: `{` de mapa vs bloco. Opções: `#{...}`,
-      ou exigir `:`/`,` para desambiguar. Lox2 resolveu? estudar antes.
-- [x] `P2` **`for x in iterável`** — implementado para `Range` e `String`; List/Map
-      entram quando existirem (protocolo de usuário depois de `Option`/traits). Ver
-      [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
+      ou exigir `:`/`,` para desambiguar. Lox2 resolveu? estudar antes. Decisões de chave
+      ausente/hash em aberto no §11.
+- [x] `P2` **`for x in iterável`** — implementado para `Range`, `String` e `List`; `Map`
+      entra quando existir (chaves em ordem de inserção). Protocolo de usuário depois de
+      `Option`/traits. Ver [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e
+      [ADR-0015](docs/adr/0015-listas-tipadas.md).
 - [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista. Viabilidade e
       comparação com `**kwargs` em [`IDEIAS.md`](IDEIAS.md) I-5 (complemento): `*args`
       talvez, `**kwargs` não (depende de named args e destrói tipagem).
@@ -227,7 +241,7 @@ fn main() {
 - `end` no estilo Ruby/Lua → **não**: chaves são melhores para erro de parser.
 - Off-side rule (indentação significativa) → **não**: caro no scanner e ruim no REPL.
 - `print` como statement? fica, **mas** `println`/`print` como funções também (Lox2 fez
-  isso e simplifica a stdlib). Ver §11.
+  isso e simplifica a stdlib). Ver §11 item 3.
 - Herança com `(` `)` → **decidido**: `class Cachorro(Animal)` (uma superclasse; `<`
   removido). `init` fica no corpo, `this` é implícito e `super.init(...)` é explícito —
   ver [ADR-0008](docs/adr/0008-heranca-class-parens.md).
@@ -326,7 +340,7 @@ Detalhes que mordem:
   monomórfico e contamina o arquivo.
 - **value restriction**: generalizar tudo que é mutável dá unsoundness; generalizar só
   funções/valores imutáveis.
-- unificação **mutável** (`var x = nil; x = 1`) pede união ou `Any` — decidir em §11.
+- unificação **mutável** (`var x = nil; x = 1`) pede união ou `Any` — decidir em §11 item 13.
 - **mensagens de erro**: sempre apontar o `Token`/span, nunca só "type mismatch".
 
 ### 2.5 Checagem de chamada (o caso que mais importa)
@@ -626,7 +640,7 @@ imports para `print`).
 
 - [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
       (`# expect:`, `# expect runtime error:`), com runner próprio
-      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 419 testes.
+      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 521 testes.
 - [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
       (`make lint`, `make type`).
 - [x] `P1` **skills de projeto** em `.dsh/skills/` (`lox-feature`, `lox-testing`,
@@ -666,7 +680,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | --- | --- | --- | --- |
 | `;` inferido por newline | ✅ | M | melhora muito a fluidez; cuidado com `else`/operadores |
 | tipagem estática opcional + erase | ✅ | L | é exatamente o meu §2 |
-| arrays e dicionários literais | ✅ | M | básico de qualquer linguagem útil |
+| arrays e dicionários literais | ✅ | M | básico de qualquer linguagem útil; listas prontas (ADR-0015), mapas depois |
 | `?.`, `??`, `?:` | ✅ | S | alto ganho, baixo custo |
 | `%` e ranges `..` | ✅ | S | ranges viabilizam `for i in 0..10` |
 | interpolação de string | ✅ | S | ergonomia enorme |
@@ -713,19 +727,21 @@ cobre a parte de geração de código e eu quero manter o escopo humano.
 
 | # | Marco | Critério de pronto |
 | --- | --- | --- |
-| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (71), benchmark com baseline, lint/tipos/CI |
+| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 521), benchmark com baseline, lint/tipos/CI |
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
-| **M2** | Linguagem estável | suíte oficial do livro passando + exemplos + README |
-| **M3** | Sintaxe nova | `;` opcional, `val`/`var` ✅, `fn`, interpolação, arrays, `for-in`, `?.`/`??` |
-| **M4** | Tipos v1 | T1–T3: anotações, inferência local, checagem nos args, `--check` |
+| **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
+| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, **listas**; ⬜ interpolação, `Map`, lambdas |
+| **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`); ⬜ T3 (parâmetros sem anotação) |
 | **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing, exaustividade |
-| **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo |
-| **M7** | Runtime completo | L3–L5: strings, closures, classes, GC (Boehm) |
+| **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |
+| **M7** | Runtime completo | L3–L5: strings, closures, classes, GC (Boehm); **I1** verde no corpus completo |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks, JIT |
 | **M9** | Ecossistema | formatter, LSP, docs, CI, playground |
 
 Regra: **M3 só começa com M2 verde**, e **M6 só com M4 verde**. Sem isso, o codegen
-persegue uma linguagem que ainda muda.
+persegue uma linguagem que ainda muda. **Agora:** M3 em andamento, com M4 adiantado em
+T1/T2; M2 fechado com os 8 `xfail` aceitos (divergências intencionais de campo dinâmico e
+sintaxe antiga de superclasse).
 
 ---
 
@@ -752,58 +768,32 @@ persegue uma linguagem que ainda muda.
 
 ## 11. Decisões em aberto
 
-Registrar a decisão aqui **antes** de implementar, para não refatorar duas vezes.
-Decisões **numéricas e de tipos** (`Int`/`Float`, literais, overflow, formatação,
-nullability, `1 == 1.0`…) ficam em [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
+Só o que **ainda não foi decidido**. As decisões fechadas saíram daqui e viraram um
+registro executivo em [`docs/decisoes.md`](docs/decisoes.md); a fonte de verdade continua
+sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
+[`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 
 1. **Nome e extensão** da linguagem (hoje "PyLox", arquivos `.lox`).
-2. **`val`/`var`** — **decidido**: `val` imutável (exige inicializador) e `var` mutável;
-   parâmetros `val` por padrão. Ver [ADR-0005](docs/adr/0005-val-var-imutabilidade.md).
-   Campos e defaults: **decidido** em [ADR-0009](docs/adr/0009-defaults-e-campos.md)
-   (defaults constantes, campos declarados no corpo).
-3. **`Int` vs `Float`** — **decidido**: tipos separados, `Int` = i64 e `Float` = f64, com
-   promoção só `Int → Float`; implementado no tree-walk. Ver
-   [ADR-0006](docs/adr/0006-int-float-separados.md) e [`TIPOS.md`](TIPOS.md) §3.
-4. **Nullability**: `T?` explícito (Kotlin) ou tudo anulável (Lox atual)?
-5. **Blocos/`if` como expressão**: último valor implícito ou `return` obrigatório?
-   (afeta legibilidade e o parser)
-6. **`print`**: statement (livro) ou função `println` (Lox2)? Ou ambos?
-7. **`match`**: antes ou depois do codegen? (antes facilita enums; depois é mais seguro)
-8. **Classes**: manter herança simples ou trocar por `struct` + traits/composição?
-9. **Exceções**: `throw/try` na linguagem ou `Result`? (LLVM pesa contra exceções)
-10. **Generics**: monomorfização (perf) ou erasure (simplicidade)? (tende a mono)
-11. **Módulos**: namespaces hierárquicos (Lox2) ou arquivos = módulos (Python/Go)?
-12. **Backend**: `llvmlite` desde o começo ou `.ll` textual + clang primeiro?
-13. **Escopo da stdlib**: `math`, `io`, `string` e `collections` bastam no início?
-14. **Pipeline** — **decidido (rejeitado) em 2026-11-11**: sem operador `|>`/`:>` por
-    enquanto. Argumentos, alternativas e gatilhos de reabertura em
-    [`IDEIAS.md`](IDEIAS.md) I-2.
-15. **Stdlib**: builtins globais (`len`, `println`) ou métodos/extensões? Conversão
+2. **Blocos/`if` como expressão**: último valor implícito ou `return` obrigatório?
+   (afeta legibilidade e o parser; independente do corpo de expressão em `fn`)
+3. **`print`**: statement (livro), função `println` (Lox2), ou ambos? Ver §1.4.
+4. **`match`**: antes ou depois do codegen? (antes facilita enums; depois é mais seguro)
+5. **Classes**: manter herança simples (direção curta em `D-16`) ou trocar por `struct` +
+   traits/composição? A sintaxe `class B(A)` já está fechada no ADR-0008.
+6. **Exceções**: `throw`/`try` na linguagem ou `Result`? (LLVM pesa contra exceções)
+7. **Generics**: monomorfização (perf) ou erasure (simplicidade)? (tende a mono)
+8. **Módulos**: namespaces hierárquicos (Lox2) ou arquivos = módulos (Python/Go)?
+9. **Backend**: `llvmlite` desde o começo ou `.ll` textual + clang primeiro?
+10. **Escopo da stdlib**: `math`, `io`, `string` e `collections` bastam no início?
+11. **API da stdlib**: builtins globais (`len`, `println`) ou métodos/extensões? Conversão
     namespaced (`Int.parse`) vs `int()` sobrecarregado? Ver [`IDEIAS.md`](IDEIAS.md) I-3.
-16. **Contratos e agentes**: `requires`/`ensures`/`invariant` opcionais? `--contracts`
+12. **Contratos e agentes**: `requires`/`ensures`/`invariant` opcionais? `--contracts`
     default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
-17. **Ranges e iteração** — **decidido em 2026-11-11**: `a..b` half-open, `Int`, lazy;
-    `range(a, b, step)` com 3 args; `for x in` sobre Range/String hoje (List/Map quando
-    existirem), variável `val` por iteração. Ver
-    [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e [`IDEIAS.md`](IDEIAS.md) I-6.
-18. **Defaults e campos** — **decidido em 2026-11-11**: defaults constantes com aridade
-    `[mín, máx]`; campos `val`/`var` declarados no corpo, sem campo dinâmico. Ver
-    [ADR-0009](docs/adr/0009-defaults-e-campos.md).
-19. **Tipagem estática gradual** — **decidido em 2026-11-11**: checker opt-in (`--check`),
-    funções anotadas, inferência local, `T?`/uniões, booleanos Python; sem narrowing de
-    fluxo ainda. Ver [ADR-0010](docs/adr/0010-tipagem-estatica.md).
-20. **Sintaxe `fn`/`elif`/`;` opcional** — **decidido em 2026-11-11**: `fn` substitui
-    `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha (operador continua
-    só se estiver na mesma linha; `return` sozinho devolve `nil`). Ver
-    [ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md).
-21. **Comentários, `//`, `**` e bits** — **decidido em 2026-11-11**: `#` + `/* */`
-    aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`;
-    `& | ^ ~ << >> >>>` em i64, shift inválido é erro; bits acima de comparação. Ver
-    [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
-22. **Ternário, nil-aware e escapes** — **decidido em 2026-11-11**: `a if c else b`
-    (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes
-    `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. Ver
-    [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
+13. **Mutação na unificação**: `var x = nil; x = 1` deve virar união, `Any` ou erro?
+    (o checker atual infere local, mas ainda não fecha essa regra; ver §2.4)
+14. **`Map[K, V]`**: literal (`{...}` vs `#{...}` vs outra forma), chaves hasháveis
+    (`String`/`Int`/`Bool`), chave ausente (erro, `nil` ou `Option`) e ordem de inserção.
+    Entra depois de `List`, numa mudança própria (ADR-0015).
 
 ---
 

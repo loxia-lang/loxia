@@ -50,6 +50,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), uniões, `T?`, `FnTy` e helpers |
 | [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
 | [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
+| [`src/lox_list.py`](../../src/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
 | [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
 | [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
 | [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
@@ -57,6 +58,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
 | [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
 | [`src/natives/clock.py`](../../src/natives/clock.py) | `clock()` |
+| [`src/natives/len.py`](../../src/natives/len.py) | `len(xs)` / `len(s)` |
 | [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
 | [`src/ast_printer.py`](../../src/ast_printer.py) | dump S-expression (debug/testes) |
 
@@ -120,6 +122,21 @@ chamada.
   inicializado.
 - `return` usa `ReturnSignal`, uma exceção interna capturada por `LoxFunction.call`.
   Não é erro de runtime e não deve vazar para o usuário.
+
+## Listas
+
+- `LoxList` envolve `list[object]` e um `version` incremental; `push`/`pop`/`set` mudam a
+  versão. `get_method(name)` devolve um `LoxCallable` ligado (`ListPushMethod`/
+  `ListPopMethod`), e o `Get` do interpretador aceita `LoxInstance` ou `LoxList`.
+- `ListLiteral`, `Index` e `IndexSet` são nós de expressão; `Index`/`IndexSet` carregam o
+  token `[` para o diagnóstico. `IndexSet` é o alvo de `xs[i] = v` (o parser transforma
+  `Index` em `IndexSet` quando vê `=`).
+- `for-in` usa `_iterate_list`: confere `version` antes de cada elemento e ao final; mutação
+  no meio do laço vira `LoxRuntimeError`.
+- `stringify` é recursivo com pilha de identidades (ciclo → `[...]`); igualdade estrutural
+  usa um conjunto de pares `(id(a), id(b))`.
+- Tipos são apagados: o `LoxList` não conhece `T`; o `Checker` é quem aplica `ListTy`,
+  invariância e as assinaturas de `push`/`pop`/`len`.
 
 ## Diagnósticos
 

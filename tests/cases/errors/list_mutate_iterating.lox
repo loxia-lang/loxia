@@ -1,0 +1,5 @@
+val xs: List[Int] = [1, 2]
+for x in xs {
+  xs.push(x)
+}
+# expect runtime error: Can't modify a list while iterating over it.

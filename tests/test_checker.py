@@ -238,3 +238,117 @@ def test_nil_aware_and_conditional_type_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_list_types_are_clean() -> None:
+    lox = check(
+        """
+        val xs: List[Int] = [1, 2, 3]
+        val ys: List[Float] = [1, 2.0]
+        val zs: List[Int | String] = [1, "a"]
+        val talvez: List[Int?] = [1, nil]
+        val empty: List[Int] = []
+        val qualquer: Any = []
+
+        xs.push(4)
+        val last: Int = xs.pop()
+        val first: Int = xs[0]
+        xs[0] = 9
+
+        val n: Int = len(xs)
+        val m: Int = len("abc")
+
+        val maybe: List[Int]? = nil
+        val p: Int? = maybe?.pop()
+        val vazioOuLista: List[Int] = maybe ?? []
+
+        fn conta(xs: List[Int]) -> Int {
+          return len(xs)
+        }
+
+        val vazio = conta([])
+        val tres = conta([1, 2, 3])
+
+        for x in xs {
+          print x
+        }
+
+        print last
+        print first
+        print n
+        print m
+        print p
+        print ys
+        print zs
+        print empty
+        print vazio
+        print tres
+        print vazioOuLista
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            "val xs: List[Int] = [1]; val ys: List[Float] = xs;",
+            "Expected List[Float], found List[Int].",
+        ),
+        (
+            "val xs: List[Int] = [1]; val ys: List[Any] = xs;",
+            "Expected List[Any], found List[Int].",
+        ),
+        (
+            'val xs = [1, "a"];',
+            "List elements must have a common type; found Int and String.",
+        ),
+        (
+            "val xs = [];",
+            "Can't infer the element type of an empty list",
+        ),
+        (
+            'val xs: List[Int] = [1]; xs.push("a");',
+            "Expected Int, found String.",
+        ),
+        (
+            'val xs: List[Int] = [1]; print xs["a"];',
+            "List index must be an integer, found String.",
+        ),
+        (
+            'val xs: List[Int] = [1]; xs[0] = "a";',
+            "Expected Int, found String.",
+        ),
+        (
+            'val xs: List[Int] = [1, 2.0];',
+            "Expected Int, found Float.",
+        ),
+        (
+            "print len(3);",
+            "Expected a string or a list, found Int.",
+        ),
+        (
+            "val xs: List[Int] = [1]; print xs.foo;",
+            "Undefined property 'foo'.",
+        ),
+        (
+            "val xs: List[Int] = [1];"
+            " for x in xs { val y: String = x; }",
+            "Expected String, found Int.",
+        ),
+        (
+            'fn f(xs: List[Int]) -> Int { return len(xs); } f([1, "a"]);',
+            "Expected Int, found String.",
+        ),
+    ],
+)
+def test_list_type_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err

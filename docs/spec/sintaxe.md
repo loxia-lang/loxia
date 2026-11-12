@@ -59,8 +59,7 @@ whileStmt      → "while" "(" expression ")" statement ;
 block          → "{" declaration* "}" ;
 
 expression     → assignment ;
-assignment     → ( call "." )? IDENTIFIER "=" assignment
-               | conditional ;
+assignment     → conditional ( "=" assignment )? ;   (* alvo: variável, propriedade ou índice *)
 conditional    → coalesce ( "if" coalesce "else" conditional )? ;
 coalesce       → logic_or ( "??" coalesce )? ;
 logic_or       → logic_and ( "or" logic_and )* ;
@@ -76,11 +75,13 @@ term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "*" | "/" | "//" | "%" ) unary )* ;
 unary          → ( "!" | "-" | "~" ) unary | power ;
 power          → call ( "**" unary )? ;
-call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFIER )* ;
+call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFIER
+                 | "[" expression "]" )* ;
 arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | IDENTIFIER | "(" expression ")"
-               | "super" "." IDENTIFIER ;
+               | "super" "." IDENTIFIER
+               | "[" ( expression ( "," expression )* )? "]" ;
 ```
 
 Defaults de parâmetro e inicializadores de campo são **constantes na v1** (literal,
@@ -89,12 +90,15 @@ obrigatórios vêm antes dos opcionais; campos podem aparecer antes ou depois do
 
 Anotações de tipo são opcionais para o interpretador (que as ignora); no modo `--check`
 as funções precisam de anotações em todos os parâmetros e no retorno. `T?` é açúcar para
-`T | Nil`; `Int` é non-null.
+`T | Nil`; `Int` é non-null. `List[T]` e `Map[K, V]` são os únicos genéricos: o nome é
+capitalizado, `List`/`Map` sem argumentos é erro e `list[int]`/`map[...]` também (com
+sugestão de capitalização).
 
 ## Ponto e vírgula opcional
 
 `;` termina statements e campos, mas pode ser omitido quando o próximo token começa em
-outra linha (ou no EOF). Duas instruções na mesma linha ainda exigem `;`.
+outra linha, no EOF ou num `}` de fechamento. Duas instruções na mesma linha ainda exigem
+`;`.
 
 ```lox
 val a = 1
@@ -102,6 +106,8 @@ var b = 2
 print a + b
 
 val c = 1; val d = 2
+
+if (ok) { print "um" }     # `}` fecha o statement: `;` é opcional antes da chave
 ```
 
 Para continuar uma expressão na linha seguinte, deixe o **operador no fim** da linha:
@@ -120,7 +126,7 @@ var x = 1
 ```
 
 `return` sozinho no fim da linha devolve `nil`; para retornar um valor, mantenha-o na
-mesma linha do `return`. Uma chamada com `(` precisa começar na mesma linha do callee;
+mesma linha do `return` (antes de `;`, `}` ou de outra linha, não precisa de `;`). Uma chamada com `(` precisa começar na mesma linha do callee;
 quebrar antes de `.` é permitido (encadeamento de propriedades). Os `;` do cabeçalho do
 `for` C-style continuam obrigatórios.
 
@@ -154,14 +160,13 @@ Do menor para o maior:
 | fator | `*` `/` `//` `%` | esquerda |
 | unário | `!` `-` `~` | direita |
 | potência | `**` | direita; lado direito aceita unário |
-| chamada | `()` `.` `?.` | encadeia à esquerda |
-| primário | literais, `this`, `super.x`, `( … )` | — |
+| chamada | `()` `.` `?.` `[ ]` | encadeia à esquerda |
+| primário | literais, `this`, `super.x`, `( … )`, `[ … ]` | — |
 
 `**` é o caso especial: `-2 ** 2` é `-(2 ** 2)` (potência liga mais forte que o sinal
 unário à esquerda), mas `2 ** -1` é permitido. Os operadores de bits ligam mais forte que
 `==`/`!=`/comparações, então `flags & MASK == 0` é `(flags & MASK) == 0`; shifts ficam
 abaixo de `+`/`-`, como no C.
-| primário | literais, `this`, `super.x`, `( … )` | — |
 
 Consequências:
 - `-a.b()` = `-(a.b())` — a chamada liga mais forte que o unário;
@@ -173,7 +178,11 @@ Consequências:
 - `a ?? b or c` = `a ?? (b or c)`;
 - `a ?? b if c else d` = `(a ?? b) if c else d`;
 - `a?.b.c` protege só `a`; `a?.b?.c` protege os dois;
-- `a?.b = c` é erro (não há assignment opcional).
+- `a?.b = c` é erro (não há assignment opcional);
+- `xs[0]` indexa e `xs[0] = v` atribui; o `[` precisa estar na **mesma linha** da
+  expressão anterior, como o `(` de chamada;
+- `[1, 2]` é literal de lista e `[]` é a lista vazia; não há vírgula final
+  (`[1,]` é erro).
 
 `<` é **só** comparação. Herança usa parênteses após o nome da classe
 (`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe.
@@ -232,7 +241,7 @@ por iterável (Range/String/List/Map). Ver [`semantica.md`](semantica.md#ranges-
   função. Ao ultrapassar, o erro é reportado mas o parser continua (os argumentos são
   descartados da AST).
 - `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
-- Não existem: `break`/`continue`, `switch`, `match`, operador ternário, arrays,
-  mapas, `+=`, `++`, `import`, `try/catch`, interpolação, funções anônimas (challenge #2
-  pendente).
+- Não existem: `break`/`continue`, `switch`, `match`, operador ternário no estilo `?:`,
+  **mapas**, `+=`, `++`, `import`, `try/catch`, interpolação, funções anônimas
+  (challenge #2 pendente). Listas existem desde o [ADR-0015](../adr/0015-listas-tipadas.md).
 - `fn` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.

@@ -1,0 +1,2 @@
+val xs: list[int] = []
+# expect error: Unknown generic type 'list'. Did you mean 'List'?
