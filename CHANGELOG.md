@@ -39,7 +39,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   por depender de `Range`/`List`/`String`.
 - Backend L3 (strings): `String` como `{byte_len, cp_len, data}` em globais constantes,
   concatenação (`lox_str_concat`), igualdade (`memcmp`), `len` em code points e `print`;
-  arena de 64 MiB com panic determinístico. `len` de não-string e interpolação ainda não.
+  arena de 64 MiB com panic determinístico.
+- Backend L3 (interpolação): `"${expr}"` com `stringify` de `Int`/`Float`/`Bool`/`nil`/
+  `String` (`lox_str_from_*`), `str()` e `repr()` com citação e escapes (`lox_str_quote`).
 
 ### Mudado
 

@@ -335,9 +335,10 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       `Range`/`List`/`String`, ou seja, L3/L6). Limitação conhecida: o slot é monomórfico, então
       `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
       interpretador aceita; resolver junto com a representação numérica unificada (L6).
-- [ ] **L3 — Strings**: literais em globals, concatenação, `print`, igualdade e `len`
-      (code points) ✅, com arena de 64 MiB e panic determinístico; falta **interpolação**
-      (`"${expr}"`, exige converter `Int`/`Float` para string) e `str`/`repr`.
+- [x] **L3 — Strings**: literais em globals, concatenação, `print`, igualdade e `len`
+      (code points), **interpolação** (`"${expr}"` com `stringify` de escalares),
+      `str`/`repr` (com citação/escapes) e arena de 64 MiB com panic determinístico.
+      `repr` de listas/mapas entra no L6.
 - [ ] **L4 — Closures**: env struct, captura por valor e por célula.
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable.
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`.

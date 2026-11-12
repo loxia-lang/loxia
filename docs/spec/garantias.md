@@ -12,7 +12,7 @@ A decisão por trás destas garantias (e o porquê de cada custo) está no
 
 | # | Garantia | Status |
 | --- | --- | --- |
-| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L3 parcial (strings/arena); corpus parcialmente anotado |
+| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L3 (strings/arena); corpus parcialmente anotado |
 | **I2** | Nada acontece implicitamente | ✅ vale hoje |
 | **I3** | Determinismo observável: mesma entrada ⇒ mesmos bytes | ✅ vale hoje e é testado em CI |
 
@@ -26,7 +26,7 @@ O backend nativo cobre **L0–L2** (ADR-0031): `Int`, `Float`, `Bool`, `nil`, ar
 promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if`, `while`,
 `val`/`var` com escopo e sombreamento, funções de topo com `return`, recursão e defaults,
 ternário/`and`/`or`/`??` com curto-circuito, e `String` (concatenação, igualdade, `len`
-em code points) com arena. O teste diferencial (`tests/test_backend.py`) compila cada caso, executa o binário
+em code points, interpolação e `str`/`repr`) com arena. O teste diferencial (`tests/test_backend.py`) compila cada caso, executa o binário
 e compara os três canais com o interpretador — nunca com uma expectativa escrita à mão. O
 manifesto `tests/corpus_manifest.py` declara os casos por nível.
 

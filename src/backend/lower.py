@@ -25,6 +25,7 @@ from src.frontend.expr import (
     Conditional,
     Expr,
     Grouping,
+    InterpolatedString,
     Literal,
     Logical,
     Unary,
@@ -408,6 +409,8 @@ class Lowerer:
             return self._conditional(expr)
         if isinstance(expr, Logical):
             return self._logical(expr)
+        if isinstance(expr, InterpolatedString):
+            return self._interpolated(expr)
 
         raise _unsupported(type(expr).__name__, None)
 
@@ -491,11 +494,56 @@ class Lowerer:
         if isinstance(value, float):
             return Value(ValueType.FLOAT, llvm_ir.float_constant(value))
         if isinstance(value, str):
-            global_ = llvm_ir.string_literal(self.module, value, self._string_count)
-            self._string_count += 1
-            return Value(ValueType.STRING, self.builder.bitcast(global_, _I8_PTR))
+            return self._string_literal(value)
 
         raise _unsupported("Literal", None)
+
+    def _string_literal(self, value: str) -> Value:
+        global_ = llvm_ir.string_literal(self.module, value, self._string_count)
+        self._string_count += 1
+        return Value(ValueType.STRING, self.builder.bitcast(global_, _I8_PTR))
+
+    def _interpolated(self, expr: InterpolatedString) -> Value:
+        pieces: list[Value] = []
+        for part in expr.parts:
+            if isinstance(part, str):
+                if part:
+                    pieces.append(self._string_literal(part))
+            else:
+                pieces.append(self._to_string(self._expr(part)))
+
+        if not pieces:
+            return self._string_literal("")
+
+        result = pieces[0]
+        for piece in pieces[1:]:
+            result = self._concat(result, piece)
+
+        return result
+
+    def _to_string(self, value: Value) -> Value:
+        match value.ty:
+            case ValueType.STRING:
+                return value
+            case ValueType.INT:
+                function = self._function("lox_str_from_int", _I8_PTR, [_INT])
+                return Value(
+                    ValueType.STRING, self.builder.call(function, [value.llvm])
+                )
+            case ValueType.FLOAT:
+                function = self._function("lox_str_from_double", _I8_PTR, [_FLOAT])
+                return Value(
+                    ValueType.STRING, self.builder.call(function, [value.llvm])
+                )
+            case ValueType.BOOL:
+                function = self._function("lox_str_from_bool", _I8_PTR, [_I32])
+                widened = self.builder.zext(value.llvm, _I32)
+                return Value(
+                    ValueType.STRING, self.builder.call(function, [widened])
+                )
+            case ValueType.NIL:
+                function = self._function("lox_str_nil", _I8_PTR, [])
+                return Value(ValueType.STRING, self.builder.call(function, []))
 
     def _unary(self, expr: Unary) -> Value:
         operand = self._expr(expr.right)
@@ -721,6 +769,10 @@ class Lowerer:
         name = expr.callee.name.lexeme
         if name == "len":
             return self._len(expr)
+        if name == "str":
+            return self._str(expr)
+        if name == "repr":
+            return self._repr(expr)
 
         info = self._functions.get(name)
         if info is None:
@@ -875,6 +927,33 @@ class Lowerer:
     def _concat(self, left: Value, right: Value) -> Value:
         function = self._function("lox_str_concat", _I8_PTR, [_I8_PTR, _I8_PTR])
         return Value(ValueType.STRING, self.builder.call(function, [left.llvm, right.llvm]))
+
+    def _repr(self, expr: Call) -> Value:
+        arguments = [self._expr(argument) for argument in expr.arguments]
+        if len(arguments) != 1:
+            self._poison(
+                expr.paren.line,
+                f"Expected 1 arguments but got {len(arguments)}.",
+            )
+            return self._zero(ValueType.STRING)
+
+        argument = arguments[0]
+        if argument.ty is not ValueType.STRING:
+            return self._to_string(argument)
+
+        function = self._function("lox_str_quote", _I8_PTR, [_I8_PTR])
+        return Value(ValueType.STRING, self.builder.call(function, [argument.llvm]))
+
+    def _str(self, expr: Call) -> Value:
+        arguments = [self._expr(argument) for argument in expr.arguments]
+        if len(arguments) != 1:
+            self._poison(
+                expr.paren.line,
+                f"Expected 1 arguments but got {len(arguments)}.",
+            )
+            return self._zero(ValueType.STRING)
+
+        return self._to_string(arguments[0])
 
     def _len(self, expr: Call) -> Value:
         arguments = [self._expr(argument) for argument in expr.arguments]

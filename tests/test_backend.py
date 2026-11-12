@@ -157,6 +157,14 @@ CASES = [
     ('print "ab" == "ab"; print "ab" != "ab";', "igualdade de string"),
     ('fn g(n: String) -> String { return "oi " + n; } print g("ana");', "string em função"),
     ('print 1 + "a";', "tipos misturados em + viram panic"),
+    ('print "a${1}b";', "interpolação de Int"),
+    ('print "${1.5} ${true} ${nil}";', "interpolação de Float/Bool/nil"),
+    ("val n = 7; print \"n=${n}\";", "interpolação de variável"),
+    ('print "nested: ${"a" + "b"}";', "interpolação com expressão de string"),
+    ('print "escape: \\${x}";', "escape de $"),
+    ('print str(42) + "!";', "str de Int"),
+    ('print repr("a\nb");', "repr escapa nova linha"),
+    ('print repr(1.0);', "repr de Float"),
 
 ]
 

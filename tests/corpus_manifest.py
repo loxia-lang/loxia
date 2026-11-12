@@ -27,6 +27,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/elif.lox",
         "tests/cases/equality.lox",
         "tests/cases/if_else.lox",
+        "tests/cases/interpolation_scalars.lox",
         "tests/cases/literals.lox",
         "tests/cases/scope_identity.lox",
         "tests/cases/string_escapes.lox",

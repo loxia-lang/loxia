@@ -218,20 +218,108 @@ static void format_double(double value, char *out, size_t size) {
     write[used] = '\0';
 }
 
-void lox_print_float(double value) {
+static void format_float_value(double value, char *out, size_t size) {
     if (isnan(value)) {
-        fputs("NaN\n", stdout);
+        snprintf(out, size, "NaN");
         return;
     }
     if (isinf(value)) {
-        fputs(value < 0 ? "-inf\n" : "inf\n", stdout);
+        snprintf(out, size, value < 0 ? "-inf" : "inf");
         return;
     }
+    format_double(value, out, size);
+}
 
+void lox_print_float(double value) {
     char buffer[64];
-    format_double(value, buffer, sizeof buffer);
+    format_float_value(value, buffer, sizeof buffer);
     fputs(buffer, stdout);
     fputc('\n', stdout);
+}
+
+/* Aloca uma LoxStr ASCII (números, booleanos, "nil") dentro da arena. */
+static LoxStr *string_from_ascii(const char *data, size_t length) {
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
+    char *copy = (char *)(result + 1);
+    memcpy(copy, data, length);
+    copy[length] = '\0';
+    result->byte_len = (int64_t)length;
+    result->cp_len = (int64_t)length;
+    result->data = copy;
+    return result;
+}
+
+void *lox_str_from_int(int64_t value) {
+    char buffer[32];
+    int length = snprintf(buffer, sizeof buffer, "%" PRId64, value);
+    return string_from_ascii(buffer, (size_t)length);
+}
+
+void *lox_str_from_double(double value) {
+    char buffer[64];
+    format_float_value(value, buffer, sizeof buffer);
+    return string_from_ascii(buffer, strlen(buffer));
+}
+
+void *lox_str_from_bool(int32_t value) {
+    return value ? string_from_ascii("true", 4)
+                 : string_from_ascii("false", 5);
+}
+
+void *lox_str_nil(void) {
+    return string_from_ascii("nil", 3);
+}
+
+/* `repr` de string: aspas + escapes, como `values._quote` do interpretador. */
+void *lox_str_quote(const void *pointer) {
+    const LoxStr *source = pointer;
+    size_t bytes = (size_t)source->byte_len;
+
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + bytes * 2 + 3);
+    char *data = (char *)(result + 1);
+    size_t used = 0;
+    data[used++] = '"';
+
+    for (size_t index = 0; index < bytes; index++) {
+        char byte = source->data[index];
+        switch (byte) {
+            case '\\':
+                data[used++] = '\\';
+                data[used++] = '\\';
+                break;
+            case '"':
+                data[used++] = '\\';
+                data[used++] = '"';
+                break;
+            case '\n':
+                data[used++] = '\\';
+                data[used++] = 'n';
+                break;
+            case '\r':
+                data[used++] = '\\';
+                data[used++] = 'r';
+                break;
+            case '\t':
+                data[used++] = '\\';
+                data[used++] = 't';
+                break;
+            case '\0':
+                data[used++] = '\\';
+                data[used++] = '0';
+                break;
+            default:
+                data[used++] = byte;
+                break;
+        }
+    }
+
+    data[used++] = '"';
+    data[used] = '\0';
+
+    result->byte_len = (int64_t)used;
+    result->cp_len = source->cp_len + 2;
+    result->data = data;
+    return result;
 }
 
 /*

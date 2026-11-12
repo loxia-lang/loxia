@@ -336,7 +336,7 @@ chamada.
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
 
-## Backend nativo (L0–L3 parcial)
+## Backend nativo (L0–L3)
 
 O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
 não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
@@ -361,7 +361,9 @@ Funções de topo são pré-declaradas (recursão e chamada antes da definição
 
 `String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
 header), concatenação aloca na arena de 64 MiB e `len` devolve `cp_len` (code points).
-Igualdade é `memcmp`; `print` é um `fwrite`.
+Igualdade é `memcmp`; `print` é um `fwrite`. Interpolação concatena as partes, convertendo
+escalares com `lox_str_from_int/double/bool` e `lox_str_nil`; `repr` cita e escapa com
+`lox_str_quote`.
 
 `main` gerado devolve `0` no sucesso; sucesso/falha nunca é o valor de retorno de uma
 função do usuário. O `--emit=ll` é artefato de inspeção: o build emite object file com o
