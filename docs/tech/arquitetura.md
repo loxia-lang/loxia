@@ -64,6 +64,10 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/natives/repr.py`](../../src/natives/repr.py) | `repr(x)` |
 | [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
 | [`src/natives/str.py`](../../src/natives/str.py) | `str(x)` |
+| [`src/native_module.py`](../../src/native_module.py) | namespace nativo somente leitura (`Int`, `Float`, `math`) |
+| [`src/natives/parse.py`](../../src/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, sem crash) |
+| [`src/natives/math.py`](../../src/natives/math.py) | `math.*` determinístico (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
+| [`src/natives/modules.py`](../../src/natives/modules.py) | montagem dos namespaces nativos |
 | [`src/ast_printer.py`](../../src/ast_printer.py) | dump S-expression (debug/testes) |
 
 `src` é um pacote normal (`__init__.py`). Os imports são sempre absolutos
@@ -269,9 +273,16 @@ chamada.
 
 ## Builtins e sombreamento
 
-- `Interpreter.__init__` define `len`, `range`, `repr` e `str` com `mutable=False`;
-  `_reject_immutable_redeclaration` recusa redefinição no escopo global. `clock` foi
-  removido da 1.0 ([ADR-0026](../adr/0026-freeze-1.0.md)); pode ser nome comum.
+- `Interpreter.__init__` define `len`, `range`, `repr`, `str`, `Int`, `Float` e `math`
+  com `mutable=False`; `_reject_immutable_redeclaration` recusa redefinição no escopo
+  global. `clock` foi removido da 1.0 ([ADR-0026](../adr/0026-freeze-1.0.md)); pode ser
+  nome comum.
+- `Int`/`Float`/`math` são `NativeModule` (namespace somente leitura), não classes
+  instanciáveis. O checker associa cada nome a `NativeModuleTy(name)` e resolve membros
+  em `_native_modules`; o interpreter resolve `visit_get_expr` para o membro.
+- `as` é um nó `As(left, target_type, operator)` no parser (entre `factor` e `unary`); o
+  checker valida targets/`Any` e o interpreter converte/checa em runtime
+  ([ADR-0029](../adr/0029-conversoes-math.md)).
 - O checker tem a mesma lista em `src/prelude.py::BUILTIN_NAMES`: `_define` reporta
   `Can't redefine builtin 'x'.` quando o escopo é o global; `visit_class_stmt` faz a
   checagem própria porque classes são pré-declaradas.

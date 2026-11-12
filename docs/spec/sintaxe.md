@@ -217,6 +217,7 @@ Do menor para o maior:
 | shift | `<<` `>>` `>>>` | esquerda |
 | termo | `+` `-` | esquerda |
 | fator | `*` `/` `//` `%` | esquerda |
+| cast | `as T` | esquerda |
 | unário | `!` `-` `~` | direita |
 | potência | `**` | direita; lado direito aceita unário |
 | chamada | `()` `.` `?.` `[ ]` | encadeia à esquerda |
@@ -226,6 +227,11 @@ Do menor para o maior:
 unário à esquerda), mas `2 ** -1` é permitido. Os operadores de bits ligam mais forte que
 `==`/`!=`/comparações, então `flags & MASK == 0` é `(flags & MASK) == 0`; shifts ficam
 abaixo de `+`/`-`, como no C.
+
+`as` liga mais forte que `*` e mais fraco que unário: `-x as Int` é `(-x) as Int` e
+`x as Int + 1` é `(x as Int) + 1`. O lado direito é um `type`; `as Int | String` é cast
+para a união (hoje recusado), não um `|` bitwise. Ver
+[ADR-0029](../adr/0029-conversoes-math.md).
 
 Consequências:
 - `-a.b()` = `-(a.b())` — a chamada liga mais forte que o unário;

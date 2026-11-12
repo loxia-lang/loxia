@@ -104,35 +104,30 @@ decisão (provavelmente nunca, enquanto `Int` for sempre i64).
 
 ### 3.2 Overflow checado no debug (`D-5`)
 
-Falta decidir se haverá um modo debug que detecta overflow e aborta, usando
-`llvm.sadd.with.overflow` no nativo e checagem equivalente no interpretador para os dois
-continuarem batendo. Esse modo ainda não existe.
+**Decidido e implementado** ([ADR-0028](docs/adr/0028-overflow-debug.md)): `--debug` checa
+`+ - * ** -`, `INT_MIN // -1` e `INT_MIN % -1`; overflow é erro fatal (`Integer overflow.`,
+exit 70). Release continua wrapping; shifts continuam bitwise. O backend debug usará
+`llvm.sadd.with.overflow`/`ssub`/`smul`; release precisa de guarda para `sdiv`/`srem` de
+`INT_MIN / -1`, que é UB.
 
 ### 3.3 Conversões e funções matemáticas (`D-8`)
 
-> **Em aberto (ADR-0016):** `as` também é candidato a alias de import (estilo Python), então
-> a sintaxe de cast e a API de parsing (`Int.parse` vs `to_int`/`parse_int`) continuam em
-> aberto no [`TODO.md`](TODO.md) §11. O modelo híbrido não fecha essa parte.
-
-Proposta ainda **não implementada**:
+**Decidido e implementado** ([ADR-0029](docs/adr/0029-conversoes-math.md)):
 
 ```lox
 val i = 3.9 as Int        # 3 (trunca em direção a zero)
 val f = 3 as Float        # 3.0
-val n = Int.parse("42")   # Result/Option, nunca crash silencioso
-val s = 42.toString()     # "42"
+val n = Int.parse("42")   # Int? (nil se inválido)
+val s = str(42)           # "42"; não existe 42.toString()
 ```
 
-- `as` é cast **explícito** (sem exceção implícita) e verificado pelo checker quando
-  possível.
-- `Int(3.9)`/`Float("3.14")` como conversão: decidir função vs construtor (ver §8).
-- `math`: `abs`, `min`, `max`, `floor`, `ceil`, `round`, `trunc`, `sqrt`, `pow`, `log`,
-  `exp`, `sin`, `cos`, `tan`, `clamp`. `floor/ceil/round` devolvem **`Int`** (com erro se
-  fora do range) ou `Float`? Recomendação: devolvem `Int` — é o que se quer para índices.
-- `pow(Int, Int)` → `Int` com overflow wrapping? ou `Float`? Recomendação: `Float` para
-  `**` e `math.pow`; `Int` só com expoente não negativo e via função explícita.
-- `Int as Float` pode perder precisão acima de `2^53`; `Float as Int` exige checar
-  `NaN`/`Inf` e o range de i64 antes de truncar.
+- `as` é cast **explícito**; `Int as Float` arredonda e pode perder precisão acima de
+  `2^53`; `Float as Int` falha em `NaN`/`Inf`/fora do range; `Any as T` checa runtime.
+- `Int.parse`/`Float.parse` são namespaces nativos e devolvem `T?`, sem crash.
+- `math.*` cobre `abs`, `min`, `max`, `clamp`, `floor`, `ceil`, `round`, `trunc`, `sqrt`;
+  `floor/ceil/round/trunc` devolvem `Int` e exigem valor finito no range.
+- `log`, `exp`, `sin`, `cos`, `tan` e `pow` ficam fora da 1.0/I3 (libm não é determinística
+  bit a bit).
 
 ### 3.4 Inferência pendente (`T3`/`T5`)
 
@@ -225,7 +220,9 @@ velocidade.
   opcional. Chaves são `String`, `Int` ou `Bool` (uniões explícitas permitidas); `Float`
   fica de fora até resolver `1 == 1.0`. Igualdade estrutural independente de ordem; mapas
   não são hasháveis. Ver [ADR-0017](docs/adr/0017-mapas-hash.md).
-- `Tuple`: aridade fixa, imutável, destructuring; útil para múltiplos retornos.
+- `Tuple`: sintaxe decidida (aridade 2+, imutável, `t[0]` e destructuring), mas
+  implementação pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)); útil para múltiplos
+  retornos.
 - Variância: **invariante** por padrão (mutação); `List[Int]` não é `List[Float]` e
   `Map[String, Int]` não é `Map[String, Any]`. `Any` é escape explícito, não supertipo.
 
@@ -321,8 +318,8 @@ as regras acima.
 | Id | Decisão | Opções | Recomendação |
 | --- | --- | --- | --- |
 | `D-2` | sufixos de literal | `1i64` / `1.0f32` / não ter | não ter por enquanto |
-| `D-5` | overflow no debug | checado / só wrapping | debug checado, release wrapping |
-| `D-8` | conversões | `as` / funções | `as` + funções `math` |
+| `D-5` | overflow no debug | checado / só wrapping | ✅ debug checado, release wrapping (ADR-0028) |
+| `D-8` | conversões | `as` / funções | ✅ `as` + `Int.parse`/`Float.parse` + `math.*` (ADR-0029) |
 | `D-11` | LLVM | i64/double; guards | i64/double + guardas |
 | `D-12` | representação | boxeado / desboxado / NaN-box | boxeado → desboxado |
 | `D-13` | `len` de string | bytes / code points / graphemes | code points |
@@ -351,9 +348,9 @@ resumo em [`docs/decisoes.md`](docs/decisoes.md); o que ainda está aberto fica 
 | --- | --- | --- |
 | **N0** | ✅ `Int` literal no lexer + `stringify` distinto + testes | nada |
 | **N1** | ✅ promoção `Int → Float`, `/` sempre `Float`, `%`/`//` truncados, `**` e bitwise | N0 |
-| **N2** | sintaxe de anotação (`: Int`, `-> Float`) e `Ty` no AST | checker T1 |
+| **N2** | ✅ sintaxe de anotação (`: Int`, `-> Float`) e `Ty` no AST | checker T1 |
 | **N3** | ✅ T3a + T3b (funções): assinaturas, pré-declaração e unificação; monomorfização no backend | N2 |
-| **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |
+| **N4** | ✅ `as`, `math.*` determinístico e `Int.parse`/`Float.parse`; erros de conversão | N3 |
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
 | **N6** | ✅ ranges e `for-in` (Range/String/List/Map); `Map` implementado no ADR-0017 | sintaxe §1.1 |
 
@@ -365,7 +362,7 @@ Ordem prática: N2+ só depois do resolver (cap. 11), porque o checker depende d
 
 - `Decimal`/fixed-point: só quando houver caso de uso real (dinheiro). Enquanto isso,
   documentar "use `Int` de centavos".
-- `BigInt`: não. Overflow é wrapping; quem precisa de bignum usa biblioteca.
+- `BigInt`: não. Overflow é wrapping no release e erro no `--debug`; quem precisa de bignum usa biblioteca.
 - `UInt` separado: não. `Int` cobre; bitwise opera em 64 bits.
 - `f32`: não. `Float` é sempre `double`; `f32` só se GPU/SIMD entrar no escopo.
 - `Complex`, `Rational`: não.

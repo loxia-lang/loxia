@@ -43,6 +43,7 @@ print 1 == 1.0     # true — igualdade numérica com promoção
 print 1 == "1"     # false — tipos diferentes nunca são iguais
 if ("") { print "vazio é truthy" }  # imprime: só nil e false são falsy
 print (nil ?? 0)   # 0    — `??` troca apenas nil
+print 3.9 as Int   # 3    — cast explícito, truncado
 ```
 
 Se você quiser a conversão, ela é escrita: não há "o compilador resolve".
@@ -56,6 +57,11 @@ PID, timestamp, caminho absoluto, ordem de `set`/`dict`, locale e ordem de diret
 O prelúdio da 1.0 não lê o relógio nem outras entradas ambiente: `clock` foi removido
 ([ADR-0026](../adr/0026-freeze-1.0.md)). Um módulo `time` futuro, se existir, fica
 explicitamente **fora** desta garantia e do corpus diferencial.
+
+`math.*` implementado é determinístico: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,
+`round`, `trunc` e `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` e `pow` dependem da libm e
+ficam **fora** da 1.0/I3 ([ADR-0029](../adr/0029-conversoes-math.md)). `--debug` muda o
+comportamento de overflow por design; a garantia vale para as mesmas flags.
 
 ```bash
 ./lox programa.lox > a.txt 2>&1   # duas vezes, em máquinas/flags diferentes

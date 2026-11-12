@@ -2,6 +2,7 @@ from src.token_type import TokenType
 
 KEYWORDS: dict[str, TokenType] = {
     "and": TokenType.AND,
+    "as": TokenType.AS,
     "class": TokenType.CLASS,
     "elif": TokenType.ELIF,
     "else": TokenType.ELSE,

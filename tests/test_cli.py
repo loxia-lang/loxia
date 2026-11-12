@@ -114,3 +114,16 @@ def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
     result = run_cli("--check", "--dump-ast", str(script))
 
     assert result.returncode == 2
+
+
+def test_debug_flag_checks_overflow(tmp_path: Path) -> None:
+    script = tmp_path / "overflow.lox"
+    script.write_text("print 9223372036854775807 + 1;\n", encoding="utf-8")
+
+    debug = run_cli("--debug", str(script))
+    release = run_cli(str(script))
+
+    assert debug.returncode == 70
+    assert "Integer overflow." in debug.stderr
+    assert release.returncode == 0
+    assert release.stdout.strip() == "-9223372036854775808"

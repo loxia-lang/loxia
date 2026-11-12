@@ -123,10 +123,10 @@ var a = "global";
 | Operador | Tipos | Resultado |
 | --- | --- | --- |
 | `!` | qualquer | nega a truthiness |
-| `-` | número | negação (em `Int`, com wrapping) |
+| `-` | número | negação (em `Int`, com wrapping; debug checa overflow) |
 | `~` | `Int` | complemento de 64 bits (`~x == -x - 1`) |
 | `+` | dois números **ou** duas strings | soma com promoção / concatenação |
-| `-` `*` | dois números | aritmética com promoção; `Int` faz wrapping |
+| `-` `*` | dois números | aritmética com promoção; `Int` faz wrapping (debug checa) |
 | `/` | dois números | divisão **sempre `Float`** (`4 / 2` → `2.0`) |
 | `//` | `Int` | divisão inteira truncada; divisor zero é erro |
 | `%` | dois números | resto truncado (sinal do dividendo); `fmod` se houver `Float` |
@@ -139,9 +139,13 @@ var a = "global";
 | `a if c else b` | condição qualquer | escolhe um ramo; só avalia o escolhido |
 | `a ?? b` | qualquer | devolve `a`, ou `b` se `a` for `nil` |
 | `a?.b` | objeto anulável | `nil` se `a` for nil; senão acessa `b` |
+| `a as T` | `Int`/`Float`/`Any`/classe/lista/mapa | cast explícito; falha em runtime se não converter |
 
 - `Int op Float` promove o `Int` para `Float` (`1 + 2.0` → `3.0`); `Float → Int` nunca é
   implícito.
+- **`--debug`** checa overflow de `Int` em `+ - * ** -`, `INT_MIN // -1` e `INT_MIN % -1`;
+  overflow é erro fatal (`Integer overflow.`, exit 70). Sem a flag, release faz wrapping.
+  Shifts continuam bitwise. Ver [ADR-0028](../adr/0028-overflow-debug.md).
 - `+` **não** mistura número e string: `Operands must be two numbers or two strings.`
 - Comparações relacionais são só numéricas: `Operands must be numbers.`
 - Divisão por zero é **erro de runtime** (`Division by zero not allowed`), para `Int` e
@@ -149,10 +153,12 @@ var a = "global";
 - Resto por zero também é erro de runtime (`Modulo by zero not allowed`).
 - `%` segue C/LLVM: `-7 % 3` → `-1` (sinal do dividendo), não `2`.
 - `//` também é truncado (`-7 // 2` → `-3`); com `%`, vale
-  `a == (a // b) * b + (a % b)`. Overflow de `INT_MIN // -1` faz wrap.
+  `a == (a // b) * b + (a % b)`. Overflow de `INT_MIN // -1` faz wrap; no `--debug` é
+  erro. `INT_MIN % -1` é `0` no release e erro no debug.
 - `**`: `2 ** 3` → `Int` 8; `2 ** -1` é erro (`Negative exponent not allowed for integer
-  power.`); use `2.0 ** -1` para `0.5`. `2 ** 63` faz wrap para `INT_MIN`. Expoente
-  negativo em `Float` é permitido; domínio/overflow inválido é erro.
+  power.`); use `2.0 ** -1` para `0.5`. `2 ** 63` faz wrap para `INT_MIN`; no `--debug`
+  cada multiplicação intermediária é checada. Expoente negativo em `Float` é permitido;
+  domínio/overflow inválido é erro.
 - `~`, `&`, `|`, `^` e shifts são **só `Int`**; `Bool` e `Float` são
   `Operands must be integers.` (unário: `Operand must be an integer.`). `>>>` opera no
   padrão unsigned de 64 bits (`-1 >>> 1 == INT_MAX`).
@@ -367,16 +373,61 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` **não existe na 1.0**: tempo é entrada ambiente e violaria o I3. Um módulo
   `time` explicitamente não determinístico fica para depois. O prelúdio determinístico é
-  `len`, `str`, `repr` e `range`.
+  `len`, `str`, `repr`, `range`, `Int`, `Float` e `math`.
 - `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
   points para string). Outro tipo é erro:
   `len() expects a string, a list or a map.`
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
-  imutáveis: redefinir `len`/`str`/`repr`/`range` no escopo global é erro; local e
-  parâmetro podem sombrear. `clock` deixou de ser builtin; pode ser usado como nome comum.
+  imutáveis: redefinir `len`/`str`/`repr`/`range`/`Int`/`Float`/`math` no escopo global é
+  erro; local e parâmetro podem sombrear. `clock` deixou de ser builtin; pode ser usado
+  como nome comum.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
+### Conversões e `math`
+
+Casts são explícitos com `as`; não há conversão implícita:
+
+```lox
+val i = 3.9 as Int        # 3 (trunca em direção a zero)
+val f = 3 as Float        # 3.0
+val d = anyValue as Dog   # checagem de runtime
+```
+
+- `Int as Float` arredonda para f64 (pode perder precisão acima de `2^53`).
+- `Float as Int` trunca em direção a zero; `NaN`, `Inf` ou fora de `[INT_MIN, INT_MAX]`
+  é erro fatal (`Can't cast this Float to Int.`).
+- `Any as T` checa o runtime: números convertem para `Int`/`Float`; classes, listas e
+  mapas usam a mesma checagem de `is`.
+- `T as T` é identidade; `as Any` devolve o valor. Target união (`Int?`, `Int | String`)
+  ainda não existe; use narrowing/`is`.
+- String não vira número por cast; use `parse`.
+
+```lox
+val n = Int.parse("42")      # Int? (nil se inválido)
+val f = Float.parse("3.14")  # Float?
+```
+
+`Int.parse`/`Float.parse` são membros dos namespaces nativos `Int`/`Float`; texto inválido,
+vazio, com espaços ou fora do range devolve `nil`. Não existe `42.toString()`; use `str`.
+
+`math` é um namespace nativo somente leitura:
+
+```lox
+math.abs(x)   math.min(a, b)   math.max(a, b)   math.clamp(x, lo, hi)
+math.floor(x) math.ceil(x)     math.round(x)    math.trunc(x)
+math.sqrt(x)
+```
+
+- `abs/min/max/clamp` aceitam `Int`/`Float` e promovem na mistura; `min/max` de dois
+  argumentos; `clamp` exige `low <= high`.
+- `floor/ceil/round/trunc` devolvem `Int`; exigem valor finito no range i64. `round`
+  arredonda metade para longe de zero.
+- `sqrt` devolve `Float`; negativo vira `NaN`.
+- `abs(INT_MIN)` é wrap no release e erro no `--debug`.
+- **Fora da 1.0**: `log`, `exp`, `sin`, `cos`, `tan`, `pow` e `math.pi`; dependem da libm
+  e ficam fora do I3. Ver [ADR-0029](../adr/0029-conversoes-math.md).
+
 - Lambdas: `fn(x) => expr` (corpo de expressão, retorno implícito) e `fn(x) { ... }`
   (bloco com `return`), com `-> Tipo` opcional antes do corpo. São closures sobre o
   ambiente onde foram avaliadas; `this`/`super` são lexicais e `return` volta da lambda.
@@ -480,10 +531,11 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   coleção após o teste ainda **não** refinam; ver
   [ADR-0018](../adr/0018-narrowing.md) e [ADR-0025](../adr/0025-is-e-narrowing.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
-- Limitações atuais: narrowing de campos/índices e merge completo, generics de verdade,
-  inferência de parâmetro sem anotação, tipos de função em `is` e `as`; lambdas existem, mas
-  sem trailing closure, parâmetro único sem parênteses ou retorno implícito de bloco.
-  Anotar `Float` não converte o valor em runtime (o tree-walk continua dinâmico).
+- Limitações atuais: narrowing de campos/índices e merge completo, classes/métodos
+  genéricos, inferência de parâmetro sem anotação, tipos de função/casts de união em `is`,
+  e cast de união em `as`; lambdas existem, mas sem trailing closure, parâmetro único sem
+  parênteses ou retorno implícito de bloco. Anotar `Float` não converte o valor em runtime
+  (o tree-walk continua dinâmico).
 
 ## Classes
 

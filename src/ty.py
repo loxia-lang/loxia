@@ -84,6 +84,13 @@ class ClassObjectTy(Ty):
 
 
 @dataclass(frozen=True)
+class NativeModuleTy(Ty):
+    """Namespace nativo somente leitura (`Int`, `Float`, `math`)."""
+
+    name: str
+
+
+@dataclass(frozen=True)
 class UnionTy(Ty):
     members: tuple[Ty, ...]
 
@@ -120,7 +127,7 @@ class NativeFnTy(Ty):
 
 
 def display(ty: Ty) -> str:
-    if isinstance(ty, (Prim, ClassTy, ClassObjectTy, TyVar)):
+    if isinstance(ty, (Prim, ClassTy, ClassObjectTy, NativeModuleTy, TyVar)):
         return ty.name
     if isinstance(ty, ListTy):
         return f"List[{display(ty.element)}]"

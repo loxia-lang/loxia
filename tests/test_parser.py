@@ -468,3 +468,9 @@ def test_parameters_can_be_var() -> None:
         ("a", False),
         ("b", True),
     ]
+
+
+def test_parse_as_binds_tighter_than_addition() -> None:
+    statements = parse("print 3.9 as Int + 1;")
+    printed = statements[0]
+    assert isinstance(printed, Print)

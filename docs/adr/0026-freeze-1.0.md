@@ -17,6 +17,12 @@
 > funções genéricas com inferência, sem constraints, monomorfização no backend. Classes/
 > métodos genéricos, type application explícita, traits e funções genéricas como valor
 > continuam fora. Ver [ADR-0027](0027-generics-t3b.md).
+>
+> **Atualização (ADR-0028/0029/0030, 2026-11-12):** `--debug` adiciona checagem de overflow
+> sem mudar o release; D-8 entra como exceção (`as`, parse e `math.*` determinístico);
+> tuplas têm sintaxe decidida, mas ficam pós-1.0. Ver
+> [ADR-0028](0028-overflow-debug.md), [ADR-0029](0029-conversoes-math.md) e
+> [ADR-0030](0030-tuplas.md).
 
 ## Contexto
 

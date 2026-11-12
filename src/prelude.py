@@ -7,4 +7,6 @@ interpretador para não divergirem.
 
 from __future__ import annotations
 
-BUILTIN_NAMES = frozenset({"len", "range", "repr", "str"})
+BUILTIN_NAMES = frozenset(
+    {"len", "range", "repr", "str", "Int", "Float", "math"}
+)

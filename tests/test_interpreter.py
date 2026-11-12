@@ -637,3 +637,112 @@ def test_val_shadowing_and_var_redeclaration(
 
     assert stdout == ["2", "1", "2"]
     assert stderr == ""
+
+
+def test_debug_mode_checks_integer_overflow(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = execute(
+        Lox(debug=True), "print 9223372036854775807 + 1;", capsys
+    )
+
+    assert stdout == []
+    assert "Integer overflow." in stderr
+
+
+def test_release_mode_wraps_integer_overflow(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = run("print 9223372036854775807 + 1;", capsys)
+
+    assert stdout == ["-9223372036854775808"]
+    assert stderr == ""
+
+
+def test_casts_parse_and_math(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = run(
+        """
+        print 3.9 as Int;
+        print 3 as Float;
+        print Int.parse("42");
+        print Int.parse("x");
+        print Float.parse("3.5");
+        print math.abs(-3);
+        print math.abs(-3.5);
+        print math.floor(3.9);
+        print math.ceil(3.1);
+        print math.round(2.5);
+        print math.round(-2.5);
+        print math.trunc(-3.9);
+        print math.sqrt(9.0);
+        print math.min(2, 3);
+        print math.max(2.0, 3);
+        print math.clamp(10, 0, 5);
+        """,
+        capsys,
+    )
+
+    assert stderr == ""
+    assert stdout == [
+        "3",
+        "3.0",
+        "42",
+        "nil",
+        "3.5",
+        "3",
+        "3.5",
+        "3",
+        "4",
+        "3",
+        "-3",
+        "-3",
+        "3.0",
+        "2",
+        "3.0",
+        "5",
+    ]
+
+
+def test_invalid_casts_and_math_domains_fail(capsys: pytest.CaptureFixture[str]) -> None:
+    _stdout, stderr = run("print math.floor(1e100);", capsys)
+    assert "math.floor() requires a finite Float in Int range." in stderr
+
+    _stdout, stderr = run("print math.sqrt(-1.0) as Int;", capsys)
+    assert "Can't cast this Float to Int." in stderr
+
+    _stdout, stderr = run('print "1" as Int;', capsys)
+    assert "Can't cast value to Int." in stderr
+
+
+def test_debug_mode_checks_abs_overflow(capsys: pytest.CaptureFixture[str]) -> None:
+    source = "val min = -9223372036854775807 - 1; print math.abs(min);"
+    stdout, stderr = execute(Lox(debug=True), source, capsys)
+    assert stdout == []
+    assert "Integer overflow." in stderr
+
+    stdout, stderr = run(source, capsys)
+    assert stdout == ["-9223372036854775808"]
+    assert stderr == ""
+
+
+def test_parse_rejects_overflow_and_nan(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = run(
+        """
+        print Int.parse("9223372036854775808");
+        print Float.parse("1e999");
+        print Int.parse("  1");
+        """,
+        capsys,
+    )
+
+    assert stderr == ""
+    assert stdout == ["nil", "nil", "nil"]
+
+
+def test_debug_mode_checks_integer_division_and_power(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = "val min = -9223372036854775807 - 1; print min // -1;"
+    stdout, stderr = execute(Lox(debug=True), source, capsys)
+    assert stdout == []
+    assert "Integer overflow." in stderr
+
+    stdout, stderr = execute(Lox(debug=True), "print 2 ** 63;", capsys)
+    assert stdout == []
+    assert "Integer overflow." in stderr

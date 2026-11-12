@@ -3,6 +3,7 @@ from typing import cast
 from src.error_reporter import ErrorReporter
 from src.errors import ParseError
 from src.expr import (
+    As,
     Assign,
     Binary,
     Call,
@@ -737,7 +738,7 @@ class Parser:
         return expr
 
     def _factor(self) -> Expr:
-        expr: Expr = self._unary()
+        expr: Expr = self._as()
 
         while self._match_inline(
             TokenType.SLASH,
@@ -746,8 +747,18 @@ class Parser:
             TokenType.PERCENT,
         ):
             operator: Token = self._previous()
-            right: Expr = self._unary()
+            right: Expr = self._as()
             expr = Binary(expr, operator, right)
+
+        return expr
+
+    def _as(self) -> Expr:
+        expr: Expr = self._unary()
+
+        while self._match_inline(TokenType.AS):
+            operator: Token = self._previous()
+            target = self._type()
+            expr = As(expr, target, operator)
 
         return expr
 

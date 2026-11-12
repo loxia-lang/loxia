@@ -10,6 +10,7 @@ from src.errors import (
     immutable_redeclare_message,
 )
 from src.expr import (
+    As,
     Assign,
     Binary,
     Call,
@@ -41,7 +42,9 @@ from src.lox_instance import LoxInstance
 from src.lox_list import LoxList
 from src.lox_map import LoxMap
 from src.lox_range import LoxRange
+from src.native_module import NativeModule
 from src.natives.len import Len
+from src.natives.modules import float_module, int_module, math_module
 from src.natives.range import RangeNative
 from src.natives.repr import Repr
 from src.natives.str import Str
@@ -61,13 +64,20 @@ from src.stmt import (
 from src.stmt import Visitor as StmtVisitor
 from src.token_type import TokenType
 from src.tokens import Token
+from src.ty import ANY, FLOAT, INT, UnionTy, display
 from src.type_test import matches_type
 from src.values import stringify
 
 
 class Interpreter(ExprVisitor[object], StmtVisitor[None]):
-    def __init__(self, reporter: ErrorReporter | None = None) -> None:
+    def __init__(
+        self,
+        reporter: ErrorReporter | None = None,
+        *,
+        checked_overflow: bool = False,
+    ) -> None:
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
+        self.checked_overflow = checked_overflow
         self.globals = Environment()
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
@@ -75,6 +85,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals.define("range", RangeNative(), mutable=False)
         self.globals.define("repr", Repr(), mutable=False)
         self.globals.define("str", Str(), mutable=False)
+        self.globals.define("Int", int_module(), mutable=False)
+        self.globals.define("Float", float_module(), mutable=False)
+        self.globals.define("math", math_module(), mutable=False)
 
     def interpret(self, statements: list[Stmt]) -> None:
         try:
@@ -206,6 +219,22 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             if not numeric.is_int(operand):
                 raise LoxRuntimeError(operator, "Operands must be integers.")
 
+    def _numeric_op(
+        self,
+        operation: Callable[..., object],
+        token: Token,
+        *arguments: object,
+    ) -> object:
+        if not self.checked_overflow:
+            return operation(*arguments)
+
+        try:
+            return operation(*arguments, checked=True)
+        except numeric.NumericOverflow:
+            raise LoxRuntimeError(token, "Integer overflow.") from None
+        except numeric.NumericConversionError:
+            raise LoxRuntimeError(token, "Numeric conversion failed.") from None
+
     def execute_block(self, statements: list[Stmt], environment: Environment) -> None:
         previous = self.environment
 
@@ -280,6 +309,39 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         value = self._evaluate(expr.left)
         return matches_type(value, expr.test_type)
 
+    def visit_as_expr(self, expr: As) -> object:
+        value = self._evaluate(expr.left)
+        target = expr.target_type
+
+        if target is INT:
+            if numeric.is_int(value):
+                return value
+            if numeric.is_float(value):
+                try:
+                    return numeric.float_to_int(value)
+                except numeric.NumericConversionError:
+                    raise LoxRuntimeError(
+                        expr.operator, "Can't cast this Float to Int."
+                    ) from None
+        elif target is FLOAT:
+            if numeric.is_float(value):
+                return value
+            if numeric.is_int(value):
+                return numeric.int_to_float(value)
+        elif target is ANY:
+            return value
+        elif isinstance(target, UnionTy):
+            raise LoxRuntimeError(
+                expr.operator, "as doesn't support union types yet; narrow first."
+            )
+        elif matches_type(value, target):
+            return value
+
+        raise LoxRuntimeError(
+            expr.operator,
+            f"Can't cast value to {display(target)}.",
+        )
+
     def visit_range_expr(self, expr: Range) -> object:
         start = self._evaluate(expr.start)
         end = self._evaluate(expr.end)
@@ -299,7 +361,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return not self._is_truthy(right)
             case TokenType.MINUS:
                 self._check_number_operand(expr.operator, right)
-                return numeric.negate(right)
+                return self._numeric_op(numeric.negate, expr.operator, right)
             case TokenType.TILDE:
                 self._check_int_operand(expr.operator, right)
                 return numeric.bit_not(right)
@@ -333,10 +395,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return comparison is not None and comparison <= 0
             case TokenType.MINUS:
                 self._check_number_operands(expr.operator, left, right)
-                return numeric.subtract(left, right)
+                return self._numeric_op(numeric.subtract, expr.operator, left, right)
             case TokenType.PLUS:
                 if numeric.is_number(left) and numeric.is_number(right):
-                    return numeric.add(left, right)
+                    return self._numeric_op(numeric.add, expr.operator, left, right)
                 if isinstance(left, str) and isinstance(right, str):
                     return str(left) + str(right)
                 raise LoxRuntimeError(
@@ -351,15 +413,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 self._check_int_operands(expr.operator, left, right)
                 if right == 0:
                     raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
-                return numeric.int_divide(left, right)
+                return self._numeric_op(numeric.int_divide, expr.operator, left, right)
             case TokenType.PERCENT:
                 self._check_number_operands(expr.operator, left, right)
                 if right == 0:
                     raise LoxRuntimeError(expr.operator, "Modulo by zero not allowed")
-                return numeric.modulo(left, right)
+                return self._numeric_op(numeric.modulo, expr.operator, left, right)
             case TokenType.STAR:
                 self._check_number_operands(expr.operator, left, right)
-                return numeric.multiply(left, right)
+                return self._numeric_op(numeric.multiply, expr.operator, left, right)
             case TokenType.STAR_STAR:
                 self._check_number_operands(expr.operator, left, right)
                 if numeric.is_int(left) and numeric.is_int(right) and right < 0:
@@ -368,7 +430,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                         "Negative exponent not allowed for integer power.",
                     )
                 try:
-                    return numeric.power(left, right)
+                    return self._numeric_op(numeric.power, expr.operator, left, right)
                 except ValueError:
                     raise LoxRuntimeError(
                         expr.operator, "Invalid exponentiation."
@@ -446,6 +508,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return callee.call(self, arguments)
         except NativeError as error:
             raise LoxRuntimeError(expr.paren, str(error)) from error
+        except numeric.NumericOverflow:
+            raise LoxRuntimeError(expr.paren, "Integer overflow.") from None
+        except numeric.NumericConversionError:
+            raise LoxRuntimeError(
+                expr.paren, "Numeric conversion failed."
+            ) from None
 
     def visit_class_stmt(self, stmt: Class) -> None:
         self._reject_immutable_redeclaration(stmt.name)
@@ -513,6 +581,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if isinstance(ob, LoxMap):
             return ob.get_method(expr.name)
+
+        if isinstance(ob, NativeModule):
+            value = ob.get(expr.name.lexeme)
+            if value is None:
+                raise LoxRuntimeError(
+                    expr.name,
+                    f"Undefined property '{expr.name.lexeme}'.",
+                )
+            return value
 
         raise LoxRuntimeError(expr.name, "Only instances have properties.")
 

@@ -13,9 +13,11 @@ from src.stmt import Stmt
 
 
 class Lox:
-    def __init__(self) -> None:
+    def __init__(self, *, debug: bool = False) -> None:
         self.reporter = ErrorReporter()
-        self.interpreter = Interpreter(self.reporter)
+        self.interpreter = Interpreter(
+            self.reporter, checked_overflow=debug
+        )
 
     def _parse(self, source: str, *, repl: bool = False) -> list[Stmt] | None:
         self.reporter.reset()
@@ -121,6 +123,11 @@ def main() -> None:
         action="store_true",
         help="checa os tipos do script e não executa",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="checa overflow de Int em runtime (release faz wrapping)",
+    )
     parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
 
     parsed_args = parser.parse_args()
@@ -128,7 +135,7 @@ def main() -> None:
     if (parsed_args.dump_ast or parsed_args.check) and not parsed_args.script:
         parser.error("--dump-ast/--check requires a script")
 
-    lox = Lox()
+    lox = Lox(debug=parsed_args.debug)
 
     if parsed_args.script:
         lox.run_file(

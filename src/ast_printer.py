@@ -1,4 +1,5 @@
 from src.expr import (
+    As,
     Assign,
     Binary,
     Call,
@@ -97,6 +98,9 @@ class AstPrinter:
 
     def visit_is_expr(self, expr: Is) -> str:
         return f"(is {expr.left.accept(self)} {display(expr.test_type)})"
+
+    def visit_as_expr(self, expr: As) -> str:
+        return f"(as {expr.left.accept(self)} {display(expr.target_type)})"
 
     def visit_unary_expr(self, expr: Unary) -> str:
         return self._parenthesize(expr.operator.lexeme, expr.right)

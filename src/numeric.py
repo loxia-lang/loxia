@@ -18,6 +18,18 @@ _UINT64 = 1 << 64
 _UINT64_MASK = _UINT64 - 1
 
 
+class NumericError(Exception):
+    """Falha numérica que o interpretador converte em erro de runtime."""
+
+
+class NumericOverflow(NumericError):
+    """`Int` saiu do range i64 em modo `--debug`."""
+
+
+class NumericConversionError(NumericError):
+    """Cast numérico inválido (NaN/Inf/fora do range)."""
+
+
 def is_int(value: object) -> TypeGuard[int]:
     """`bool` é subclasse de `int` em Python, mas `type` exato já o exclui."""
     return type(value) is int
@@ -44,21 +56,45 @@ def wrap_int(value: int) -> int:
     return wrapped - _UINT64 if wrapped > INT_MAX else wrapped
 
 
-def add(left: object, right: object) -> Number:
+def _checked_int(value: int) -> int:
+    if not INT_MIN <= value <= INT_MAX:
+        raise NumericOverflow
+    return value
+
+
+def float_to_int(value: object) -> int:
+    """Trunca um Float em direção a zero; erro se NaN/Inf/fora do range i64."""
+    number = cast(float, value)
+    if not math.isfinite(number):
+        raise NumericConversionError
+    truncated = math.trunc(number)
+    if not INT_MIN <= truncated <= INT_MAX:
+        raise NumericConversionError
+    return truncated
+
+
+def int_to_float(value: object) -> float:
+    return float(cast(int, value))
+
+
+def add(left: object, right: object, *, checked: bool = False) -> Number:
     if type(left) is int and type(right) is int:
-        return wrap_int(left + right)
+        result = left + right
+        return _checked_int(result) if checked else wrap_int(result)
     return to_float(left) + to_float(right)
 
 
-def subtract(left: object, right: object) -> Number:
+def subtract(left: object, right: object, *, checked: bool = False) -> Number:
     if type(left) is int and type(right) is int:
-        return wrap_int(left - right)
+        result = left - right
+        return _checked_int(result) if checked else wrap_int(result)
     return to_float(left) - to_float(right)
 
 
-def multiply(left: object, right: object) -> Number:
+def multiply(left: object, right: object, *, checked: bool = False) -> Number:
     if type(left) is int and type(right) is int:
-        return wrap_int(left * right)
+        result = left * right
+        return _checked_int(result) if checked else wrap_int(result)
     return to_float(left) * to_float(right)
 
 
@@ -67,18 +103,23 @@ def divide(left: object, right: object) -> float:
     return to_float(left) / to_float(right)
 
 
-def modulo(left: object, right: object) -> Number:
+def modulo(left: object, right: object, *, checked: bool = False) -> Number:
     """Resto truncado (sinal do dividendo), como `srem`/`fmod` (D-4)."""
     if type(left) is int and type(right) is int:
+        if checked and left == INT_MIN and right == -1:
+            raise NumericOverflow
         remainder = abs(left) % abs(right)
         return -remainder if left < 0 else remainder
     return math.fmod(to_float(left), to_float(right))
 
 
-def int_divide(left: object, right: object) -> int:
+def int_divide(left: object, right: object, *, checked: bool = False) -> int:
     """Divisão inteira truncada em direção a zero, com wrap i64 (ADR-0012)."""
     dividend = cast(int, left)
     divisor = cast(int, right)
+    if checked and dividend == INT_MIN and divisor == -1:
+        raise NumericOverflow
+
     quotient = abs(dividend) // abs(divisor)
     if (dividend < 0) != (divisor < 0):
         quotient = -quotient
@@ -86,7 +127,7 @@ def int_divide(left: object, right: object) -> int:
     return wrap_int(quotient)
 
 
-def power(left: object, right: object) -> Number:
+def power(left: object, right: object, *, checked: bool = False) -> Number:
     """`**`: `Int ** Int` inteiro (expoente >= 0); caso contrário `Float`."""
     if type(left) is int and type(right) is int:
         base = left
@@ -97,9 +138,12 @@ def power(left: object, right: object) -> Number:
         result = 1
         while exponent:
             if exponent & 1:
-                result = wrap_int(result * base)
-            base = wrap_int(base * base)
+                product = result * base
+                result = _checked_int(product) if checked else wrap_int(product)
             exponent >>= 1
+            if exponent:
+                square = base * base
+                base = _checked_int(square) if checked else wrap_int(square)
 
         return result
 
@@ -137,9 +181,10 @@ def shift_right_logical(value: object, count: object) -> int:
     return wrap_int(unsigned >> cast(int, count))
 
 
-def negate(value: object) -> Number:
+def negate(value: object, *, checked: bool = False) -> Number:
     if type(value) is int:
-        return wrap_int(-value)
+        result = -value
+        return _checked_int(result) if checked else wrap_int(result)
     return -cast(float, value)
 
 

@@ -6,6 +6,7 @@ from enum import Enum, auto
 from src.error_reporter import ErrorReporter
 from src.errors import immutable_assignment_message
 from src.expr import (
+    As,
     Assign,
     Binary,
     Call,
@@ -298,6 +299,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(expr.value)
 
     def visit_is_expr(self, expr: Is) -> None:
+        self._resolve_expr(expr.left)
+
+    def visit_as_expr(self, expr: As) -> None:
         self._resolve_expr(expr.left)
 
     def visit_lambda_expr(self, expr: Lambda) -> None:

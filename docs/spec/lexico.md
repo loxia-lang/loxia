@@ -91,7 +91,7 @@ Strings:
 ### Palavras-chave
 
 ```
-and    class  elif   else   false  for
+and    as     class  elif   else   false  for
 fn     if     in     is     nil    or
 print  return super  this   true   val
 var    while

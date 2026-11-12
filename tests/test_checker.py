@@ -1539,3 +1539,49 @@ def test_builtin_shadowing_is_local_only() -> None:
     )
 
     assert lox.reporter.had_error is False
+
+
+def test_casts_parse_and_math_are_typed() -> None:
+    lox = check(
+        """
+        val i = 3.9 as Int;
+        val f = 3 as Float;
+        val n: Int? = Int.parse("42");
+        val g: Float? = Float.parse("3.5");
+        val a = math.abs(-3);
+        val b = math.abs(-3.5);
+        val c = math.min(1, 2.0);
+        val d = math.floor(3.9);
+        val e = math.sqrt(9);
+        val h = math.clamp(10, 0, 5);
+        val ci: Int = math.min(1, 2);
+        val cf: Float = math.min(1, 2.0);
+        val cd: Int = math.floor(3.9);
+        print i; print f; print n; print g;
+        print a; print b; print c; print d; print e; print h;
+        print ci; print cf; print cd;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    "source, message",
+    [
+        ('val x = "1" as Int;', "Can't cast String to Int."),
+        ("val x = 1 as Int | String;", "as doesn't support union types"),
+        ('val x = math.abs("1");', "math.abs() expects numbers."),
+        ('val x = math.floor("1");', "Expected Float, found String."),
+        ("val x = Int.parse(1);", "Expected String, found Int."),
+        ("val x = Float.parse(1);", "Expected String, found Int."),
+    ],
+)
+def test_cast_parse_and_math_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err

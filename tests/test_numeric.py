@@ -43,3 +43,30 @@ def test_bitwise_operations_use_i64() -> None:
 def test_float_power_accepts_negative_exponent() -> None:
     assert numeric.power(2.0, -1) == 0.5
     assert numeric.power(2, -1.0) == 0.5
+
+
+def test_checked_arithmetic_detects_i64_overflow() -> None:
+    assert numeric.add(numeric.INT_MAX, 1) == numeric.INT_MIN
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.add(numeric.INT_MAX, 1, checked=True)
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.subtract(numeric.INT_MIN, 1, checked=True)
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.multiply(numeric.INT_MAX, 2, checked=True)
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.negate(numeric.INT_MIN, checked=True)
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.power(2, 63, checked=True)
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.int_divide(numeric.INT_MIN, -1, checked=True)
+    with pytest.raises(numeric.NumericOverflow):
+        numeric.modulo(numeric.INT_MIN, -1, checked=True)
+
+
+def test_float_to_int_truncates_and_rejects_invalid() -> None:
+    assert numeric.float_to_int(3.9) == 3
+    assert numeric.float_to_int(-3.9) == -3
+    assert numeric.float_to_int(-0.0) == 0
+    for value in (float("nan"), float("inf"), float("-inf"), 2.0**63, -(2.0**64)):
+        with pytest.raises(numeric.NumericConversionError):
+            numeric.float_to_int(value)

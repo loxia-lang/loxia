@@ -112,3 +112,7 @@ def test_dump_interpolated_string() -> None:
         '(val s (interp "a " (+ 1 2) " b"))\n'
         "(print (interp nome))"
     )
+
+
+def test_dump_as_expression() -> None:
+    assert dump("print 3.9 as Int + 1") == "(print (+ (as 3.9 Int) 1))"

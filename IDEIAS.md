@@ -53,11 +53,10 @@ gatilhos dizem quando vale reabrir. Resumo registrado em
 ## I-3 — Funções soltas vs métodos: por que Python tem `len`, `print`, `int()`?
 
 **Status:** `decidida` em 2026-11-11 — modelo híbrido; ver
-[ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). A API de **conversões** continua em aberto
-(último item das perguntas).
-**Decidir até:** conversões junto com módulos/`Option`/`Result` e a sintaxe de cast
-(`D-8` no [`TIPOS.md`](TIPOS.md) §3.3). Com I-2 rejeitada, o modelo híbrido foi o caminho
-escolhido: builtins globais para operações genéricas + métodos para ações específicas.
+[ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). Conversões fechadas em 2026-11-12 no
+[ADR-0029](docs/adr/0029-conversoes-math.md): `as` + `Int.parse`/`Float.parse` + `math.*`.
+**Decidir até:** resolvido; com I-2 rejeitada, o modelo híbrido foi o caminho escolhido:
+builtins globais para operações genéricas + métodos para ações específicas.
 
 [TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
@@ -68,7 +67,8 @@ abaixo fica como histórico do raciocínio e das alternativas.
 
 Concretamente, o que foi decidido:
 
-1. Builtins globais **mínimos**: `len`, `str`, `repr`, `range`; `print` é **statement**
+1. Builtins globais **mínimos**: `len`, `str`, `repr`, `range`, `Int`, `Float`, `math`;
+   `print` é **statement**
    (não função). Nada de `int()`/`float()` sobrecarregados; `clock`/tempo fica para um
    módulo não determinístico depois ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 2. `str` **e** `repr` existem desde já: `str` para exibição, `repr` para debug (string
@@ -81,16 +81,15 @@ Concretamente, o que foi decidido:
    dão isso depois, sem boxing.
 6. Extensões/UFCS ficam em **P3, depois do LLVM MVP**; gatilho: stdlib precisar de operação
    em tipo existente ou usuários pedirem.
-7. Conversões continuam **em aberto**: `as` é candidato a alias de import (Python), então
-   cast/parse precisam de decisão própria (ver [`TODO.md`](TODO.md) §11).
+7. Conversões **decididas**: `as` explícito para casts, `Int.parse`/`Float.parse`
+   devolvendo `T?` e `math.*` determinístico; sem `toString()` (use `str`). Ver
+   [ADR-0029](docs/adr/0029-conversoes-math.md).
 
 Regra mental: *"depende de um tipo só e é ação dele → método; vale para vários tipos ou
 combina dois → função livre; converte/constrói → construtor namespaced."*
 
 ### Gatilhos para revisitar
 
-- conversões: quando módulos/`Option`/`Result` e a sintaxe de cast (`as` como alias de
-  import vs cast) forem decididos;
 - módulos: quando `std.*` entrar, revisar o que sai do prelúdio;
 - quando o type checker começar a precisar de protocolo `Sized`/traits/constraints (as
   funções genéricas T3b já existem, mas sem constraints);
@@ -114,17 +113,30 @@ O T3b entregou só **funções** genéricas, sem constraints, com inferência e 
 - **recursão polimórfica** com limite/dicionários em vez de recusa;
 - **variance declarada** (`List<out T>`) se a invariância incomodar.
 
+### Tuplas (pós-1.0)
+
+Sintaxe decidida no [ADR-0030](docs/adr/0030-tuplas.md), implementação adiada para depois do
+backend/1.0:
+
+```lox
+val par: (Int, String) = (1, "a")
+print par[0]
+val (n, s) = par
+```
+
+- `(a, b)` e `(A, B)`; 2+ elementos (sem unit/1-tuple).
+- Acesso `t[0]`; destructuring só `val`; elementos imutáveis.
+- `==` estrutural, `str`/`repr` como `(1, "a")`, `len(t)`.
+- `for x in t` e `is (A, B)` ficam para depois.
+- Alternativas rejeitadas: `[a,b]` (lista), `t.0`, vírgula sem parênteses, classes/`Pair`.
+
 ### Perguntas abertas
 
 - [x] `len` como função ou `.length`/`.tamanho` como método? → **função global** `len(x)`;
   não existe `xs.len()`.
 - [x] `str` e `repr` separados? → **sim, ambos desde já**; ver ADR-0016.
-- [ ] conversões: `Int.parse` + cast, ou funções `to_int`? **Em aberto**: `as` também é
-  candidato a alias de import (`import x as y`), então a sintaxe de cast precisa de decisão
-  própria — opções: `as` contextual (import vs cast), palavra separada (`to`/`cast`),
-  método (`x.toInt()`) ou construtor (`Int(x)`); parsing: `Int.parse` (namespaced) vs
-  `parse_int`/`to_int` (livre). Ver [`TODO.md`](TODO.md) §11 e `D-8` no
-  [`TIPOS.md`](TIPOS.md) §3.3.
+- [x] conversões: `as` + `Int.parse`/`Float.parse` (namespaced, `T?`) + `math.*`; sem
+  `to_int`/`toString`. Ver [ADR-0029](docs/adr/0029-conversoes-math.md).
 - [x] builtins no escopo global ou em `std.*`? → **prelúdio global mínimo + `std.*`
   depois**.
 - [x] shadowing de builtin? → **proibido no global, permitido localmente**.

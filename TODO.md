@@ -24,8 +24,9 @@ pretendo tipar e como chegar no LLVM.
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
 > assinaturas/funções (ADR-0020/0021), lambdas (ADR-0022), soundness do checker (ADR-0023),
 > mutação monomórfica (ADR-0024), `is T`/narrowing (ADR-0025), freeze da 1.0 (ADR-0026) e
-> generics T3b (ADR-0027). **A seguir:** backend LLVM ou diagnósticos; classes/métodos
-> genéricos e constraints ficam para depois.
+> generics T3b (ADR-0027), overflow `--debug` (ADR-0028) e conversões/`math.*`
+> (ADR-0029). **A seguir:** backend LLVM ou diagnósticos; tuplas (ADR-0030) ficam para
+> pós-1.0; classes/métodos genéricos e constraints também.
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -135,7 +136,7 @@ pretendo tipar e como chegar no LLVM.
       **Fora da 1.0** (runtime fatal; [ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - [ ] `P2` **`assert`** e **`panic`** como funções nativas.
 - [ ] `P3` **erros como valores** (`Result`/`Option`) para código que compila puro —
-      depois de generics + `match`; não na 1.0.
+      depois de generics de classes + `match`; não na 1.0.
 
 ### 1.2 Decisões de sintaxe já descartadas (para não revisitar)
 
@@ -199,6 +200,8 @@ nas chamadas**, em camadas:
 | **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
+| **N2** ✅ | anotações `: Int`/`-> Float` e `Ty` no AST (já coberto por T1/T3a) | base do checker |
+| **N4** ✅ | `as`, `Int.parse`/`Float.parse` e `math.*` determinístico | conversões prontas |
 
 O modo `--check` está implementado em `src/checker.py` (ADR-0010): funções precisam de
 anotações, locais inferem, uniões/`T?`/promoção/booleanos são checados. Sem `--check` o
@@ -696,6 +699,12 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 - **`print`:** continua statement; `println` função fica para depois.
 - **Generics T3b:** funções genéricas com inferência, sem constraints, monomorfização no
   backend; classes/métodos genéricos e type application explícita ficam para depois.
+- **Overflow no debug:** `--debug` checa aritmética `Int`; release faz wrapping
+  ([ADR-0028](docs/adr/0028-overflow-debug.md)).
+- **Conversões e `math`:** `as`, `Int.parse`/`Float.parse` → `T?` e núcleo determinístico
+  de `math.*`; transcendentais ficam fora ([ADR-0029](docs/adr/0029-conversoes-math.md)).
+- **Tuplas:** sintaxe escolhida, implementação pós-1.0/backend
+  ([ADR-0030](docs/adr/0030-tuplas.md)).
 - **Escopo:** single-file; sem módulos, `if`-expr, `match`/enums, traits, exceções,
   named args, operator overloading, trailing closure; stdlib mínima; `Any` na linguagem
   mas fora do backend L0–L2.
@@ -708,12 +717,11 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 2. **Backend:** `llvmlite` desde o começo ou `.ll` textual + clang primeiro? (tende a
    `llvmlite`)
 3. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
-4. **Escopo da stdlib pós-1.0:** `math`, `io`, `string`, `collections` e um módulo
-   `time` explicitamente não determinístico.
-5. **Conversões da stdlib:** `Int.parse` + cast, ou funções `to_int`/`parse_int`? `as`
-   também é candidato a alias de import; o **modelo híbrido** já foi decidido no
-   [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md); falta só a API de conversão. Ver
-   [`IDEIAS.md`](IDEIAS.md) I-3 e `D-8` no [`TIPOS.md`](TIPOS.md) §3.3.
+4. **Escopo da stdlib pós-1.0:** `io`, `string`, `collections` e um módulo `time`
+   explicitamente não determinístico. O núcleo de `math` já existe; transcendentais
+   (`log`/`exp`/trig/`pow`) ficam fora do I3.
+5. **Tuplas:** sintaxe decidida (`(a,b)`, `t[0]`, `val (a,b) = t`), implementação
+   pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
 6. **Contratos e agentes:** `requires`/`ensures`/`invariant` opcionais? `--contracts`
    default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
 7. **`if`/bloco como expressão, `match`/enums e traits:** explicitamente fora da 1.0;

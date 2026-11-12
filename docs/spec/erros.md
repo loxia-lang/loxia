@@ -116,6 +116,11 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Negative exponent not allowed for integer power.` | `2 ** -1`; use `2.0 ** -1` |
 | `Invalid exponentiation.` | `0.0 ** -1.0`, `(-1.0) ** 0.5` |
 | `Exponentiation overflow.` | `1e308 ** 2` |
+| `Integer overflow.` | `--debug` com `9223372036854775807 + 1`; exit 70 |
+| `Can't cast this Float to Int.` | `math.sqrt(-1.0) as Int` (NaN/Inf/fora do range) |
+| `Can't cast value to Int.` | `"1" as Int` em runtime |
+| `math.floor() requires a finite Float in Int range.` | `math.floor(1e100)`; idem ceil/round/trunc |
+| `math.floor() expects numbers.` | `math.floor("1")` em runtime |
 | `Shift count must be between 0 and 63.` | `1 << 64`, `1 >> -1` |
 | `Can only call functions and classes.` | `1()` |
 | `Expected N arguments but got M.` | aridade fixa de função/classe |
@@ -180,7 +185,11 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Type parameter can't be named 'Int'.` | nome de tipo reservado como parâmetro |
 | `Polymorphic recursion is not supported yet; ...` | `grow[T]` chamando `grow([x])` |
 | `Type arguments on a call aren't supported; ...` | `id[Int] (1)` (use inferência) |
-| `Can't redefine builtin 'x'.` | `fn len`, `val str` ou `class range` no escopo global |
+| `Can't redefine builtin 'x'.` | `fn len`, `val str`, `class range`, `val math` no escopo global |
+| `Can't cast X to Y.` | `"1" as Int` no `--check` |
+| `as doesn't support union types yet; narrow first.` | `1 as Int \| String` |
+| `as doesn't support this type yet.` | `x as fn(Int) -> Int` |
+| `math.abs() expects numbers.` | `math.abs("1")` |
 
 ## Como testar
 

@@ -19,17 +19,22 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ Lambdas `fn(x) => ...` e `fn(x) { ... }`, com tipagem contextual e retorno inferido.
 - ✅ Funções genéricas `fn id[T] (x: T) -> T`, `map`/`filter`, inferência na chamada e
   monomorfização planejada no backend ([ADR-0027](docs/adr/0027-generics-t3b.md)).
+- ✅ Casts explícitos com `as`, `Int.parse`/`Float.parse` → `T?` e `math.*` determinístico
+  ([ADR-0029](docs/adr/0029-conversoes-math.md)).
+- ✅ Overflow checado com `--debug`; release continua wrapping
+  ([ADR-0028](docs/adr/0028-overflow-debug.md)).
 - ✅ Checker valida retorno em todos os caminhos, inicialização de campos e override
   compatível.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
-- 🧊 **Escopo da 1.0 congelado** ([ADR-0026](docs/adr/0026-freeze-1.0.md), com T3b como
-  exceção): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8 com
-  identificadores ASCII, `print` como statement e escopo single-file.
-- 📐 Próximo passo: backend LLVM (L0–L2) ou diagnóstico com spans/caret; classes/métodos
-  genéricos, constraints e type application explícita ficam para depois. T3a
-  (assinaturas explícitas + recursão mútua), tipos de função, lambdas e T3b (funções
-  genéricas) já estão feitos (ADR-0020/0021/0022/0027).
+- 🧊 **Escopo da 1.0 congelado** ([ADR-0026](docs/adr/0026-freeze-1.0.md), com T3b e D-8
+  como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
+  com identificadores ASCII, `print` como statement e escopo single-file.
+- 📐 Próximo passo: backend LLVM (L0–L2) ou diagnóstico com spans/caret; tuplas têm
+  sintaxe decidida, mas ficam para pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md));
+  classes/métodos genéricos, constraints e type application explícita também ficam para
+  depois. T3a (assinaturas + recursão mútua), tipos de função, lambdas, T3b e D-8 já estão
+  feitos (ADR-0020/0021/0022/0027/0029).
 
 ## O que esta linguagem promete
 
@@ -57,6 +62,7 @@ uv run python -m lox           # mesma coisa, via pacote
 uv run main.py --version       # pylox 0.1.0
 uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não executa
 uv run main.py --check prog.lox      # checa os tipos, não executa
+uv run main.py --debug prog.lox      # checa overflow de Int em runtime (release faz wrap)
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make hooks                     # instala o hook de pre-commit
@@ -116,6 +122,9 @@ if (saudacao != nil) {
   print "Oi, ${saudacao}!"   # narrowing: saudacao é String aqui
 }
 ```
+
+Conversões são explícitas: `3.9 as Int`, `Int.parse("42")` (devolve `Int?`) e
+`math.floor(3.9)`; não há coerção implícita nem `42.toString()` (use `str(42)`).
 
 Listas e mapas são **homogêneos** e **invariantes**: `List[Int]` não é `List[Float]`, e
 `[1, "a"]` é erro no `--check` (a heterogeneidade exige `List[Int | String]` ou

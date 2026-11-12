@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from src.error_reporter import ErrorReporter
 from src.expr import (
+    As,
     Assign,
     Binary,
     Call,
@@ -68,6 +69,7 @@ from src.ty import (
     ListTy,
     MapTy,
     NativeFnTy,
+    NativeModuleTy,
     Ty,
     TyVar,
     UnionTy,
@@ -122,6 +124,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._type_param_scopes: list[dict[str, TyVar]] = []
         self._next_type_var_id = 0
         self._generic_context: list[tuple[str, tuple[TyVar, ...]]] = []
+        self._native_modules: dict[str, dict[str, Ty]] = {}
         self._function_depth = 0
         self._return_collector: list[Ty] | None = None
         self._define_builtins()
@@ -141,6 +144,28 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")
         self._scopes[0]["str"] = NativeFnTy("str")
+
+        self._native_modules = {
+            "Int": {
+                "parse": FnTy((STRING,), union(INT, NIL), 1),
+            },
+            "Float": {
+                "parse": FnTy((STRING,), union(FLOAT, NIL), 1),
+            },
+            "math": {
+                "abs": NativeFnTy("math.abs"),
+                "min": NativeFnTy("math.min"),
+                "max": NativeFnTy("math.max"),
+                "clamp": NativeFnTy("math.clamp"),
+                "floor": FnTy((FLOAT,), INT, 1),
+                "ceil": FnTy((FLOAT,), INT, 1),
+                "round": FnTy((FLOAT,), INT, 1),
+                "trunc": FnTy((FLOAT,), INT, 1),
+                "sqrt": FnTy((FLOAT,), FLOAT, 1),
+            },
+        }
+        for name in self._native_modules:
+            self._scopes[0][name] = NativeModuleTy(name)
 
     def _function_value_type(self, name: str, signature: FunctionSignature) -> Ty:
         if signature.type_params:
@@ -956,6 +981,55 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return BOOL
 
+    def visit_as_expr(self, expr: As) -> Ty:
+        target = self._resolve_type(expr.target_type, expr.operator)
+        self._validate_as_target(target, expr.operator)
+        source = self._infer(expr.left)
+
+        if target is ERROR or source is ERROR:
+            return target if target is not ERROR else ERROR
+        if target is ANY:
+            return ANY
+        if source is ANY or source is target:
+            return target
+        if target in (INT, FLOAT):
+            if source in (INT, FLOAT):
+                return target
+        elif isinstance(target, ClassTy):
+            if isinstance(source, ClassTy):
+                return target
+        elif source == target and (
+            isinstance(target, (ListTy, MapTy))
+            or target in (BOOL, STRING, NIL, RANGE)
+        ):
+            return target
+
+        self._error(
+            expr.operator,
+            f"Can't cast {display(source)} to {display(target)}.",
+        )
+        return ERROR
+
+    def _validate_as_target(self, ty: Ty, token: Token) -> None:
+        if ty is ERROR or ty is ANY:
+            return
+        if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
+            return
+        if isinstance(ty, ClassTy):
+            return
+        if isinstance(ty, ListTy):
+            self._validate_is_type(ty.element, token)
+            return
+        if isinstance(ty, MapTy):
+            self._validate_is_type(ty.key, token)
+            self._validate_is_type(ty.value, token)
+            return
+        if isinstance(ty, UnionTy):
+            self._error(token, "as doesn't support union types yet; narrow first.")
+            return
+
+        self._error(token, "as doesn't support this type yet.")
+
     def _validate_is_type(self, ty: Ty, token: Token) -> None:
         if ty is ERROR or ty is ANY or ty is NEVER:
             return
@@ -1611,8 +1685,52 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             return STRING
 
+        if callee.name.startswith("math."):
+            return self._call_math(callee.name, expr, arguments)
+
         self._error(expr.paren, "Can only call functions and classes.")
         return ERROR
+
+    def _call_math(
+        self, name: str, expr: Call, arguments: list[Ty]
+    ) -> Ty:
+        expected = 3 if name == "math.clamp" else 2 if name in {
+            "math.min",
+            "math.max",
+        } else 1
+        if len(arguments) != expected:
+            self._error(
+                expr.paren,
+                f"Expected {expected} arguments but got {len(arguments)}.",
+            )
+            return ERROR
+
+        if any(argument is ERROR for argument in arguments):
+            return ERROR
+        if name == "math.abs":
+            return self._math_numeric_result("math.abs", arguments, expr.paren)
+        if name in {"math.min", "math.max", "math.clamp"}:
+            return self._math_numeric_result(name, arguments, expr.paren)
+
+        self._error(expr.paren, "Can only call functions and classes.")
+        return ERROR
+
+    def _math_numeric_result(
+        self, name: str, arguments: list[Ty], token: Token
+    ) -> Ty:
+        for argument in arguments:
+            if argument is ANY:
+                continue
+            if argument is INT or argument is FLOAT:
+                continue
+            self._error(token, f"{name}() expects numbers.")
+            return ERROR
+
+        if any(argument is FLOAT for argument in arguments):
+            return FLOAT
+        if all(argument is INT for argument in arguments):
+            return INT
+        return union(INT, FLOAT)
 
     def _is_len_able(self, ty: Ty) -> bool:
         if ty is ANY or ty is STRING or ty is ERROR or isinstance(ty, ListTy):
@@ -2027,6 +2145,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _get_property_type(self, obj: Ty, name: Token, optional: bool) -> Ty:
         if obj is ANY:
             return ANY
+        if isinstance(obj, NativeModuleTy):
+            member = self._native_modules.get(obj.name, {}).get(name.lexeme)
+            if member is None:
+                self._error(
+                    name, f"Undefined property '{name.lexeme}'."
+                )
+                return ERROR
+            return member
 
         nilable = obj is NIL or (
             isinstance(obj, UnionTy) and any(member is NIL for member in obj.members)

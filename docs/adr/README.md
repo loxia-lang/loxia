@@ -73,17 +73,19 @@ Crie quando a decisão:
 | [0025](0025-is-e-narrowing.md) | `is T` e narrowing de uniões | accepted | 2026-11-12 |
 | [0026](0026-freeze-1.0.md) | Freeze da 1.0: erros, determinismo, UTF-8 e escopo | accepted | 2026-11-12 |
 | [0027](0027-generics-t3b.md) | Generics T3b: funções, monomorfização e inferência | accepted | 2026-11-12 |
+| [0028](0028-overflow-debug.md) | Overflow checado no modo `--debug` | accepted | 2026-11-12 |
+| [0029](0029-conversoes-math.md) | Conversões (`as`, parse) e `math.*` determinístico | accepted | 2026-11-12 |
+| [0030](0030-tuplas.md) | Tuplas: sintaxe escolhida, implementação pós-1.0 | accepted (pós-1.0) | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 
 Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`/`TODO.md` §11):
 
-- conversões da stdlib (cast/parse e o uso de `as`) — [I-3](../../IDEIAS.md) e
-  [`../../TODO.md`](../../TODO.md) §11; o modelo híbrido já foi decidido no
-  [ADR-0016](0016-api-stdlib-hibrida.md);
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md);
-- decisões de linguagem ainda abertas (nome, `if` expressão, `match`, exceções, generics,
-  módulos, backend, conversões, unificação mutável) — [`../../TODO.md`](../../TODO.md) §11.
+- decisões de linguagem ainda abertas (nome, `if` expressão, `match`, exceções, generics
+  de classes/métodos e constraints, módulos, backend, unificação mutável) —
+  [`../../TODO.md`](../../TODO.md) §11. Tuplas já têm sintaxe decidida no
+  [ADR-0030](0030-tuplas.md), mas implementação pós-1.0.
 
 O resumo das decisões **já fechadas** fica em [`../decisoes.md`](../decisoes.md); este
 índice continua sendo o histórico completo.

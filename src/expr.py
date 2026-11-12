@@ -18,6 +18,7 @@ class Visitor[R](Protocol):
     def visit_index_expr(self, expr: Index) -> R: ...
     def visit_index_set_expr(self, expr: IndexSet) -> R: ...
     def visit_is_expr(self, expr: Is) -> R: ...
+    def visit_as_expr(self, expr: As) -> R: ...
     def visit_lambda_expr(self, expr: Lambda) -> R: ...
     def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_map_expr(self, expr: MapLiteral) -> R: ...
@@ -71,6 +72,16 @@ class Is(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_is_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class As(Expr):
+    left: Expr
+    target_type: Ty
+    operator: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_as_expr(self)
 
 
 @dataclass(frozen=True, eq=False)
