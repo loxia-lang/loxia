@@ -17,6 +17,7 @@ Portal da documentação técnica, sintática e das decisões de design.
 | Como funciona por dentro? | [`tech/arquitetura.md`](tech/arquitetura.md) |
 | Por que decidimos X? | [`adr/`](adr/) — Architecture Decision Records |
 | Quais decisões já foram tomadas? | [`decisoes.md`](decisoes.md) — resumo executivo + links |
+| O que é 1.0 e o que é depois? | [`../ESCOPO.md`](../ESCOPO.md) |
 | O que ainda está em aberto? | [`../TODO.md`](../TODO.md) §11 |
 | O que queremos fazer depois? | [`../TODO.md`](../TODO.md), [`../IDEIAS.md`](../IDEIAS.md) |
 | Tipos e modelo numérico | [`../TIPOS.md`](../TIPOS.md) |

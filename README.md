@@ -29,7 +29,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
 - 🧊 **Escopo da 1.0 congelado** ([ADR-0026](docs/adr/0026-freeze-1.0.md), com T3b e D-8
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
-  com identificadores ASCII, `print` como statement e escopo single-file.
+  com identificadores ASCII, `print` como statement e escopo single-file. O mapa
+  **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
 - 📐 Próximo passo: backend LLVM (L0–L2) ou diagnóstico com spans/caret; tuplas têm
   sintaxe decidida, mas ficam para pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md));
   classes/métodos genéricos, constraints e type application explícita também ficam para

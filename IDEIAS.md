@@ -3,6 +3,10 @@
 Só ficam aqui **coisas que ainda precisam ser feitas ou decididas**. Decisões fechadas
 viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado sai daqui.
 
+> **Escopo:** nada aqui é 1.0; o freeze está no
+> [ADR-0026](docs/adr/0026-freeze-1.0.md). Para o mapa 1.0 × depois, veja
+> [`ESCOPO.md`](ESCOPO.md).
+
 ## Pendências com direção já decidida
 
 - **Tuplas:** sintaxe escolhida (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), implementação

@@ -5,6 +5,10 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 [`docs/decisoes.md`](docs/decisoes.md). Discussões em aberto ficam em
 [`IDEIAS.md`](IDEIAS.md); tipos e números em [`TIPOS.md`](TIPOS.md).
 
+> **Escopo:** nada neste arquivo é 1.0. O escopo 1.0 está congelado no
+> [ADR-0026](docs/adr/0026-freeze-1.0.md) (com T3b/D-8 como exceções); este TODO é
+> **pós-1.0**. Para o mapa completo, veja [`ESCOPO.md`](ESCOPO.md).
+
 **Legenda:** `P0` agora · `P1` próximo · `P2` depois · `P3` algum dia
 **Esforço:** `S` (horas) · `M` (dias) · `L` (semanas) · `XL` (meses)
 

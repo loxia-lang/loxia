@@ -4,6 +4,9 @@ O que a linguagem tem hoje, o que falta e quais decisões de tipo ainda estão a
 Comportamento observável fica em [`docs/spec/`](docs/spec/); decisões fechadas viram ADR +
 [`docs/decisoes.md`](docs/decisoes.md). Este arquivo não repete o que já funciona.
 
+> **Escopo:** o catálogo atual é o que existe na 1.0; as decisões em aberto e o roadmap
+> são **pós-1.0**. Para o mapa 1.0 × depois, veja [`ESCOPO.md`](ESCOPO.md).
+
 **Legenda:** `P0` agora · `P1` próximo · `P2` depois · `P3` algum dia
 `S` horas · `M` dias · `L` semanas · `XL` meses
 
