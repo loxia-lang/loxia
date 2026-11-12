@@ -25,6 +25,20 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 **Hoje:** a linguagem 1.0 está implementada no tree-walk; o backend nativo ainda não
 existe. O que está em [`TODO.md`](TODO.md) é o que vem **depois** dela.
 
+## Status da entrega
+
+| Camada | Estado |
+| --- | --- |
+| Escopo/linguagem 1.0 | ✅ congelado e implementado |
+| Runtime tree-walk | ✅ |
+| Suíte e docs | ✅ `make check` verde; 678 pass + 8 `xfail` intencionais |
+| Backend nativo | ⬜ pós-1.0 (L0–L2) |
+| **Publicação 1.0** | ⬜ **pendente**: versão ainda `0.1.0`, sem tag/changelog/release notes |
+
+**Nenhuma feature de linguagem da 1.0 está pendente.** O que falta é a **entrega**:
+decidir a versão `1.0.0`, escrever release notes, rodar a auditoria final e criar a tag.
+Isso não bloqueia começar o backend; só não chame o release de 1.0 antes de publicá-lo.
+
 ## 1.0 — dentro
 
 ### Linguagem
