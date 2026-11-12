@@ -8,6 +8,7 @@ from src.expr import (
     Grouping,
     Index,
     IndexSet,
+    InterpolatedString,
     ListLiteral,
     Literal,
     Logical,
@@ -62,6 +63,17 @@ class AstPrinter:
 
         inner = " ".join(element.accept(self) for element in expr.elements)
         return f"(list {inner})"
+
+    def visit_interpolated_expr(self, expr: InterpolatedString) -> str:
+        parts: list[str] = []
+        for part in expr.parts:
+            if isinstance(part, str):
+                if part:
+                    parts.append(repr_value(part))
+            else:
+                parts.append(part.accept(self))
+
+        return f"(interp {' '.join(parts)})"
 
     def visit_map_expr(self, expr: MapLiteral) -> str:
         if not expr.entries:

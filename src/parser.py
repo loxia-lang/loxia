@@ -1,3 +1,5 @@
+from typing import cast
+
 from src.error_reporter import ErrorReporter
 from src.errors import ParseError
 from src.expr import (
@@ -10,6 +12,7 @@ from src.expr import (
     Grouping,
     Index,
     IndexSet,
+    InterpolatedString,
     ListLiteral,
     Literal,
     Logical,
@@ -62,6 +65,13 @@ class Parser:
                 statements.append(declaration)
 
         return statements
+
+    def parse_expression(self) -> Expr:
+        expr = self._expression()
+        if not self._is_at_end():
+            raise self._error(self._peek(), "Expect end of interpolation.")
+
+        return expr
 
     def parse_repl(self) -> list[Stmt] | None:
         """Tenta fazer o parse de uma única expressão (para REPL).
@@ -723,6 +733,19 @@ class Parser:
         paren = self._consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
         return Call(callee, paren, arguments, optional)
 
+    def _interpolated_string(self, token: Token) -> Expr:
+        raw_parts = cast(list[str | list[Token]], token.literal)
+        parts: list[str | Expr] = []
+
+        for part in raw_parts:
+            if isinstance(part, str):
+                parts.append(part)
+            else:
+                sub_parser = Parser(part, reporter=self.reporter)
+                parts.append(sub_parser.parse_expression())
+
+        return InterpolatedString(parts, token)
+
     def _map_literal(self, brace: Token) -> Expr:
         entries: list[tuple[Expr, Expr]] = []
 
@@ -752,6 +775,9 @@ class Parser:
 
         if self._match(TokenType.NIL):
             return Literal(None)
+
+        if self._match(TokenType.INTERPOLATED_STRING):
+            return self._interpolated_string(self._previous())
 
         if self._match(TokenType.NUMBER, TokenType.STRING):
             return Literal(self._previous().literal)

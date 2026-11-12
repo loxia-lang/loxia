@@ -15,6 +15,7 @@ from src.expr import (
     Grouping,
     Index,
     IndexSet,
+    InterpolatedString,
     ListLiteral,
     Literal,
     Logical,
@@ -295,6 +296,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_list_expr(self, expr: ListLiteral) -> None:
         for element in expr.elements:
             self._resolve_expr(element)
+
+    def visit_interpolated_expr(self, expr: InterpolatedString) -> None:
+        for part in expr.parts:
+            if not isinstance(part, str):
+                self._resolve_expr(part)
 
     def visit_map_expr(self, expr: MapLiteral) -> None:
         for key, value in expr.entries:

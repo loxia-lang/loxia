@@ -24,8 +24,9 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | `Int` | literais sem `.`/expoente, aritmética inteira | decimal (`42`, `-3`) |
 | `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
 | `List` | literal `[...]` | `[1, 2, 3]` (strings citadas dentro da lista) |
+| `Map` | literal `{...}` | `{"a": 1, "b": 2}` (ordem de inserção) |
 | `Range` | `a..b`, `range(a, b, step)` | `<range 0..10>` |
-| string | literais, `+` | conteúdo |
+| string | literais, `+`, interpolação | conteúdo |
 | função | `fn` | `<fn nome>` |
 | função nativa | `clock` | `<native fn>` |
 | classe | `class` | nome da classe |
@@ -162,10 +163,31 @@ var a = "global";
 - `a?.b ?? c` combina os dois: `?.` evita o acesso e `??` aplica o default quando o
   resultado é nil. Sem `?.`, `a.b ?? c` ainda erra se `a` for nil.
 - `?:` elvis **não existe**; `??` é a única coalescência.
-- Strings processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0` e `\u{XXXX}`; escape desconhecido
-  é erro. Ainda não há interpolação, `"""` nem raw strings.
+- Strings processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}`; escape
+  desconhecido é erro. `"${expressão}"` interpola (ver abaixo). Ainda não há `"""` nem raw
+  strings.
 - Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
   não comentário.
+
+## Interpolação
+
+`"texto ${expressão} mais texto"` avalia cada expressão da esquerda para a direita e
+concatena os trechos. A conversão é a mesma `stringify` do `print`:
+
+```lox
+val nome = "Ana"
+print "Oi, ${nome}!"        # Oi, Ana!
+print "1 + 2 = ${1 + 2}"    # 1 + 2 = 3
+print "mapa: ${{"a": 1}}"   # mapa: {"a": 1}
+print "escape: \${nome}"   # escape: ${nome}
+print "cifrão: $5"          # cifrão: $5
+```
+
+- Qualquer expressão é aceita, inclusive chamada, índice, mapa/lista e outra string
+  interpolada; o resultado é sempre `String`.
+- `\$` e `\${` produzem `$`/`${` literais; fora de `${...}`, `$`, `{` e `}` são literais.
+- O checker checa cada expressão; erro dentro dela é erro normal do `--check`.
+- Sem format spec, `"""` ou raw strings na v1.
 
 ## Listas
 
@@ -204,7 +226,7 @@ for x in xs { print x }
 - **Aliasing**: listas são referências. `val ys = xs` não copia; mutar `ys` é visível em
   `xs`. `val` congela o binding, não o conteúdo.
 - **Opcional**: `List[T]?` e `xs?.push(...)`/`xs?.pop()` funcionam; `len(xs)` e `for` sobre
-  `List[T]?` exigem narrowing (ainda não implementado).
+  `List[T]?` exigem `if (xs != nil)` (narrowing) ou `??`/`?.`.
 - **Tipos apagados**: sem `--check`, a lista aceita qualquer elemento em runtime; a
   homogeneidade é contrato estático. Não há checagem de tipo em `push` no runtime.
   A promoção `Int → Float` também é só de checagem: `xs.push(1)` em `List[Float]` é aceito,
@@ -261,7 +283,7 @@ for nome in idades { print nome }   # Ana, Bia (ordem de inserção)
 - **Aliasing**: mapas são referências. `val n = m` não copia; mutar `n` é visível em `m`.
   `val` congela o binding, não o conteúdo. Mapas **não** são hasháveis e não podem ser chave.
 - **Opcional**: `Map[K, V]?` e `m?.get(...)`/`m?.has(...)` funcionam; `len(m)` e `for` sobre
-  `Map[K, V]?` exigem narrowing (ainda não implementado).
+  `Map[K, V]?` exigem `if (m != nil)` (narrowing) ou `??`/`?.`.
 - **Limites**: sem `clear`, `entries`, `map`/`filter`, `contains` nem `+` de mapas na v1.
   Sem `--check`, os tipos são apagados: o runtime não valida `V` no `m[k] = v`, só o tipo da
   chave; a homogeneidade é contrato estático.
@@ -377,13 +399,21 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   `m.keys()`/`m.values()` devolvem `List[K]`/`List[V]`; `for k in m` liga `k: K`; `len(m)`
   é `Int`. Só `String`, `Int`, `Bool` (e uniões desses) são chaves válidas; `Map[Float, V]`
   é erro de tipo.
+- Interpolação: cada expressão é checada normalmente e o resultado é `String`; qualquer
+  tipo é convertido por `stringify`.
 - Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
   tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
+- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)` e `!` em volta disso refinam `x`
+  no ramo; `if (x == nil) { return }` refina o resto do bloco. `val` e `var` estreitam, mas
+  uma atribuição invalida o refinamento. Chamadas/closure que mutam um `var` durante a
+  execução não são rastreadas — prefira `val` quando precisar da garantia. `is T`, loops,
+  `and`/`or` e campos/índices ainda **não** refinam; ver
+  [ADR-0018](../adr/0018-narrowing.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
-- Limitações atuais: sem narrowing de fluxo (`if x != nil` não refina a união), sem
-  generics de verdade, sem tipo de função como valor e sem `as`. Anotar `Float` não
-  converte o valor em runtime (o tree-walk continua dinâmico).
+- Limitações atuais: narrowing completo (`is T`, loops, `and`/`or`), generics de verdade,
+  tipo de função como valor e `as`. Anotar `Float` não converte o valor em runtime (o
+  tree-walk continua dinâmico).
 
 ## Classes
 

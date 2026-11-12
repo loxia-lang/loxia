@@ -34,6 +34,7 @@ CASES = [
     "tests/cases/class_fields.lox",
     "tests/cases/for_in.lox",
     "tests/cases/inheritance.lox",
+    "tests/cases/interpolation.lox",
     "tests/cases/list_iteration.lox",
     "tests/cases/list_stringify.lox",
     "tests/cases/map_iteration.lox",

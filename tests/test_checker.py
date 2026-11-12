@@ -430,6 +430,166 @@ def test_map_type_errors(
     assert message in captured.err
 
 
+def test_narrowing_types_are_clean() -> None:
+    lox = check(
+        """
+        val nome: String? = "Ana"
+        if (nome != nil) {
+          print len(nome)
+        } else {
+          print "sem nome"
+        }
+
+        if (nome == nil) {
+          print "nada"
+        } else {
+          print len(nome)
+        }
+
+        if (nome) {
+          print len(nome)
+        }
+
+        if (!(nome == nil)) {
+          print len(nome)
+        }
+
+        val xs: List[Int]? = [1]
+        if (xs != nil) {
+          print len(xs)
+          xs.push(2)
+          print xs[0]
+        }
+
+        val mapa: Map[String, Int]? = {"a": 1}
+        if (mapa != nil) {
+          print len(mapa)
+          mapa["b"] = 2
+          print mapa.get("b")
+        }
+
+        var mutavel: String? = "Bia"
+        if (mutavel != nil) {
+          print len(mutavel)
+        }
+
+        fn primeiro(nome: String?) -> Int {
+          if (nome == nil) { return 0 }
+          return len(nome)
+        }
+
+        fn mapaTamanho(mapa: Map[String, Int]?) -> Int {
+          if (mapa == nil) { return 0 }
+          return len(mapa)
+        }
+
+        val a: String? = "a"
+        val b: String? = "b"
+        if (a != nil) {
+          print len(a)
+        } elif (b != nil) {
+          print len(b)
+        } else {
+          print "vazio"
+        }
+
+        print primeiro("Ana")
+        print primeiro(nil)
+        print mapaTamanho(nil)
+        print nome
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            'val nome: String? = "Ana";'
+            " if (nome != nil) { print 1 } else { print len(nome); }",
+            "Expected a string, a list or a map, found Nil.",
+        ),
+        (
+            'var nome: String? = "Ana";'
+            " if (nome != nil) { nome = nil; print len(nome); }",
+            "Expected a string, a list or a map, found String | Nil.",
+        ),
+        (
+            'val nome: String? = "Ana"; val outro: String? = "Bia";'
+            " if (nome != nil and outro != nil) { print len(nome); }",
+            "Expected a string, a list or a map, found String | Nil.",
+        ),
+        (
+            'val nome: String? = "Ana";'
+            " while (nome != nil) { print len(nome); }",
+            "Expected a string, a list or a map, found String | Nil.",
+        ),
+    ],
+)
+def test_narrowing_limitations(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
+def test_interpolation_types_are_clean() -> None:
+    lox = check(
+        """
+        val nome = "Ana"
+        val oi: String = "Oi, ${nome}!"
+        val conta: String = "1 + 2 = ${1 + 2}"
+        val mapa: String = "mapa: ${{"a": 1}}"
+        val lista: String = "lista: ${[1, 2]}"
+        val n: Int = len("${nome}")
+        print oi
+        print conta
+        print mapa
+        print lista
+        print "${nome}${n}"
+        print "${nil}"
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            'val i: Int = "x ${1}";',
+            "Expected Int, found String.",
+        ),
+        (
+            'print "${naoexiste}";',
+            "Undefined variable 'naoexiste'.",
+        ),
+        (
+            'print "${[1, "a"]}";',
+            "List elements must have a common type; found Int and String.",
+        ),
+        (
+            'print "${}";',
+            "Expect expression.",
+        ),
+    ],
+)
+def test_interpolation_type_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
 @pytest.mark.parametrize(
     ("source", "message"),
     [

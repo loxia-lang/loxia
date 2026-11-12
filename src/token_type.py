@@ -46,6 +46,7 @@ class TokenType(Enum):
     #Literals.
     IDENTIFIER = auto()
     STRING = auto()
+    INTERPOLATED_STRING = auto()
     NUMBER = auto()
 
     #Keywords.

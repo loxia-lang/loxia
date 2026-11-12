@@ -1,0 +1,26 @@
+# Interpolação: qualquer expressão, convertida com stringify.
+val nome = "Ana"
+print "Oi, ${nome}!"
+print "1 + 2 = ${1 + 2}"
+print "mapa: ${{"a": 1}}"
+print "lista: ${[1, "a"]}"
+print "nil: ${nil}"
+print "bool: ${true}"
+print "escape: \${nome}"
+print "cifrao: $5"
+print "${nome}${nome}"
+print "nested: ${"a" + "b"}"
+print "lookup: ${{"a": 1}["a"]}"
+print "[${""}]"
+# expect: Oi, Ana!
+# expect: 1 + 2 = 3
+# expect: mapa: {"a": 1}
+# expect: lista: [1, "a"]
+# expect: nil: nil
+# expect: bool: true
+# expect: escape: ${nome}
+# expect: cifrao: $5
+# expect: AnaAna
+# expect: nested: ab
+# expect: lookup: 1
+# expect: []

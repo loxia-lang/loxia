@@ -6,14 +6,15 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
-- ✅ Expressões: ternário `a if c else b`, `??`, `?.` e escapes de string.
+- ✅ Expressões: ternário `a if c else b`, `??`, `?.`, interpolação `"${expr}"` e escapes.
+- ✅ Narrowing de `T?`: `if (x != nil)`, `if (x == nil)`/early return e truthiness no `--check`.
 - ✅ Listas tipadas `List[T]`: literal, indexação, `push`/`pop`, `len` e `for-in`.
 - ✅ Mapas tipados `Map[K, V]`: literal `{ "a": 1 }`, `get`/`has`/`remove`/`keys`/`values`,
   igualdade estrutural e `for-in` de chaves.
 - ✅ API híbrida: `len`/`str`/`repr` globais e métodos específicos de lista/mapa.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
-- 📐 Próximo passo: narrowing/generics no checker e depois o codegen LLVM.
+- 📐 Próximo passo: T3 (parâmetros sem anotação) e narrowing completo; depois o codegen LLVM.
 
 ## O que esta linguagem promete
 
@@ -94,6 +95,11 @@ print idades["Ana"]          # 32
 print idades.get("Bia") ?? 0 # 0 (get devolve Int?)
 idades["Bia"] = 28
 for nome in idades { print nome }   # chaves, em ordem de inserção
+
+val saudacao: String? = "Ana"
+if (saudacao != nil) {
+  print "Oi, ${saudacao}!"   # narrowing: saudacao é String aqui
+}
 ```
 
 Listas e mapas são **homogêneos** e **invariantes**: `List[Int]` não é `List[Float]`, e

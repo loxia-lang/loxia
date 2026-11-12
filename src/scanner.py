@@ -178,7 +178,10 @@ class Scanner:
         return self._source[self._current]
 
     def _string(self) -> None:
+        string_start = self._start
         value: list[str] = []
+        parts: list[str | list[Token]] = []
+        interpolated = False
         closed = False
 
         while not self._is_at_end():
@@ -192,6 +195,20 @@ class Scanner:
             if char == "\n":
                 self._line += 1
                 value.append(self._advance())
+                continue
+
+            if char == "$" and self._peek_next() == "{":
+                self._advance()
+                self._advance()
+                parts.append("".join(value))
+                value.clear()
+
+                expression = self._scan_expression_tokens()
+                if expression is None:
+                    return
+
+                parts.append(expression)
+                interpolated = True
                 continue
 
             if char != "\\":
@@ -221,6 +238,8 @@ class Scanner:
                     value.append("\r")
                 case "0":
                     value.append("\0")
+                case "$":
+                    value.append("$")
                 case "u":
                     self._unicode_escape(value)
                 case _:
@@ -232,7 +251,50 @@ class Scanner:
             self.reporter.error(self._line, "Unterminated string.")
             return
 
-        self._add_token(TokenType.STRING, "".join(value))
+        self._start = string_start
+        if interpolated:
+            parts.append("".join(value))
+            self._add_token(TokenType.INTERPOLATED_STRING, parts)
+        else:
+            self._add_token(TokenType.STRING, "".join(value))
+
+    def _scan_expression_tokens(self) -> list[Token] | None:
+        """Escaneia a expressão de `${...}` em um buffer próprio.
+
+        O `}` de fechamento não entra nos tokens; chaves internas (mapa, bloco) são
+        contadas para não confundir o fechamento da interpolação.
+        """
+        saved = self._tokens
+        tokens: list[Token] = []
+        self._tokens = tokens
+        depth = 0
+        closed = False
+
+        try:
+            while not self._is_at_end():
+                if self._peek() == "}" and depth == 0:
+                    self._advance()
+                    closed = True
+                    break
+
+                self._start = self._current
+                before = len(self._tokens)
+                self._scan_token()
+
+                for token in self._tokens[before:]:
+                    if token.type is TokenType.LEFT_BRACE:
+                        depth += 1
+                    elif token.type is TokenType.RIGHT_BRACE:
+                        depth -= 1
+        finally:
+            self._tokens = saved
+
+        if not closed:
+            self.reporter.error(self._line, "Unterminated interpolation.")
+            return None
+
+        tokens.append(Token(TokenType.EOF, "", None, self._line))
+        return tokens
 
     def _unicode_escape(self, value: list[str]) -> None:
         if self._peek() != "{":

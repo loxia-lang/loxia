@@ -19,6 +19,7 @@ from src.expr import (
     Grouping,
     Index,
     IndexSet,
+    InterpolatedString,
     ListLiteral,
     Literal,
     Logical,
@@ -95,6 +96,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def __init__(self, reporter: ErrorReporter) -> None:
         self._reporter = reporter
         self._scopes: list[dict[str, Ty]] = [{}]
+        self._narrowings: list[dict[str, tuple[int, Ty]]] = [{}]
         self._classes: dict[str, ClassInfo] = {}
         self._current_class: ClassInfo | None = None
         self._current_return: Ty | None = None
@@ -134,23 +136,58 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _begin_scope(self) -> None:
         self._scopes.append({})
+        self._narrowings.append({})
 
     def _end_scope(self) -> None:
         self._scopes.pop()
+        self._narrowings.pop()
 
     def _define(self, name: Token, ty: Ty) -> None:
         if len(self._scopes) == 1 and name.lexeme in BUILTIN_NAMES:
             self._error(name, f"Can't redefine builtin '{name.lexeme}'.")
 
         self._scopes[-1][name.lexeme] = ty
+        self._narrowings[-1].pop(name.lexeme, None)
+
+    def _find_decl(self, name: str) -> tuple[int, Ty] | None:
+        for index in range(len(self._scopes) - 1, -1, -1):
+            ty = self._scopes[index].get(name)
+            if ty is not None:
+                return index, ty
+
+        return None
 
     def _lookup(self, name: Token) -> Ty:
-        for scope in reversed(self._scopes):
-            if name.lexeme in scope:
-                return scope[name.lexeme]
+        found = self._find_decl(name.lexeme)
+        if found is None:
+            self._error(name, f"Undefined variable '{name.lexeme}'.")
+            return ERROR
 
-        self._error(name, f"Undefined variable '{name.lexeme}'.")
-        return ERROR
+        index, declared = found
+        for narrowing in reversed(self._narrowings):
+            entry = narrowing.get(name.lexeme)
+            if entry is not None and entry[0] == index:
+                return entry[1]
+
+        return declared
+
+    def _lookup_declared(self, name: Token) -> Ty:
+        found = self._find_decl(name.lexeme)
+        if found is None:
+            self._error(name, f"Undefined variable '{name.lexeme}'.")
+            return ERROR
+
+        return found[1]
+
+    def _invalidate(self, name: str) -> None:
+        for narrowing in self._narrowings:
+            narrowing.pop(name, None)
+
+    def _apply_refinements(self, refinements: dict[str, Ty]) -> None:
+        for name, ty in refinements.items():
+            found = self._find_decl(name)
+            if found is not None:
+                self._narrowings[-1][name] = (found[0], ty)
 
     def _error(self, token: Token, message: str) -> None:
         self._reporter.error(token, message)
@@ -510,9 +547,99 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_if_stmt(self, stmt: If) -> None:
         self._infer(stmt.condition)
-        self._check_stmt(stmt.then_branch)
+        then_refinements = self._refinements(stmt.condition, True)
+        else_refinements = self._refinements(stmt.condition, False)
+
+        then_returns = self._check_branch(stmt.then_branch, then_refinements)
+        else_returns = False
         if stmt.else_branch is not None:
-            self._check_stmt(stmt.else_branch)
+            else_returns = self._check_branch(stmt.else_branch, else_refinements)
+
+        # `if (x == nil) { return }` refina o resto do bloco com o ramo oposto.
+        if then_returns and not else_returns:
+            self._apply_refinements(else_refinements)
+        elif else_returns and not then_returns:
+            self._apply_refinements(then_refinements)
+
+    def _check_branch(self, stmt: Stmt, refinements: dict[str, Ty]) -> bool:
+        self._narrowings.append({})
+        try:
+            self._apply_refinements(refinements)
+            self._check_stmt(stmt)
+            return self._always_returns(stmt)
+        finally:
+            self._narrowings.pop()
+
+    def _refinements(self, expr: Expr, truth: bool) -> dict[str, Ty]:
+        if isinstance(expr, Grouping):
+            return self._refinements(expr.expression, truth)
+
+        if isinstance(expr, Unary) and expr.operator.type is TokenType.BANG:
+            return self._refinements(expr.right, not truth)
+
+        if isinstance(expr, Binary) and expr.operator.type in (
+            TokenType.EQUAL_EQUAL,
+            TokenType.BANG_EQUAL,
+        ):
+            left, right = expr.left, expr.right
+            equal = expr.operator.type is TokenType.EQUAL_EQUAL
+            variable = self._as_variable(left)
+            if self._is_nil_literal(right) and variable is not None:
+                return self._nil_refinement(variable.name.lexeme, truth, equal=equal)
+
+            variable = self._as_variable(right)
+            if self._is_nil_literal(left) and variable is not None:
+                return self._nil_refinement(variable.name.lexeme, truth, equal=equal)
+
+        if isinstance(expr, Variable):
+            found = self._find_decl(expr.name.lexeme)
+            if found is None:
+                return {}
+
+            ty = truthy(found[1]) if truth else falsy(found[1])
+            return {expr.name.lexeme: ty} if ty != found[1] else {}
+
+        return {}
+
+    def _nil_refinement(self, name: str, truth: bool, *, equal: bool) -> dict[str, Ty]:
+        found = self._find_decl(name)
+        if found is None:
+            return {}
+
+        declared = found[1]
+        if equal:
+            # x == nil
+            narrowed = NIL if truth else non_nil(declared)
+        else:
+            # x != nil
+            narrowed = non_nil(declared) if truth else NIL
+
+        return {name: narrowed} if narrowed != declared else {}
+
+    def _is_nil_literal(self, expr: Expr) -> bool:
+        return isinstance(expr, Literal) and expr.value is None
+
+    def _as_variable(self, expr: Expr) -> Variable | None:
+        if isinstance(expr, Grouping):
+            return self._as_variable(expr.expression)
+        if isinstance(expr, Variable):
+            return expr
+
+        return None
+
+    def _always_returns(self, stmt: Stmt) -> bool:
+        if isinstance(stmt, Return):
+            return True
+        if isinstance(stmt, Block):
+            return any(self._always_returns(inner) for inner in stmt.statements)
+        if isinstance(stmt, If):
+            return (
+                stmt.else_branch is not None
+                and self._always_returns(stmt.then_branch)
+                and self._always_returns(stmt.else_branch)
+            )
+
+        return False
 
     def visit_print_stmt(self, stmt: Print) -> None:
         self._infer(stmt.expression)
@@ -553,8 +680,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     # --- expressões ---
 
     def visit_assign_expr(self, expr: Assign) -> Ty:
-        expected = self._lookup(expr.name)
+        expected = self._lookup_declared(expr.name)
         self._check(expr.value, expected, expr.name)
+        self._invalidate(expr.name.lexeme)
         return expected
 
     def visit_binary_expr(self, expr: Binary) -> Ty:
@@ -980,6 +1108,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             f"List[{display(left)} | {display(right)}] to allow mixed elements.",
         )
         return ERROR
+
+    def visit_interpolated_expr(self, expr: InterpolatedString) -> Ty:
+        for part in expr.parts:
+            if not isinstance(part, str):
+                self._infer(part)
+
+        return STRING
 
     def visit_map_expr(self, expr: MapLiteral) -> Ty:
         if not expr.entries:

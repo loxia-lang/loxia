@@ -22,8 +22,8 @@ pretendo tipar e como chegar no LLVM.
 > `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
 >
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Próxima
-> feature:** T3 (parâmetros sem anotação, unificação nas chamadas). **Em paralelo:**
-> interpolação e narrowing.
+> feature:** T3 (parâmetros sem anotação, unificação nas chamadas). **Recém-feitos:**
+> narrowing `T?` (ADR-0018) e interpolação `"${expr}"` (ADR-0019).
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -82,7 +82,8 @@ pretendo tipar e como chegar no LLVM.
 - [x] `P2` **`?:`** elvis — **rejeitado**: duplicaria `??`; só há uma forma.
 - [x] `P2` **escapes de string** `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\u{...}`;
       escape desconhecido é erro.
-- [ ] `P2` **interpolação** `"${expr}"` no scanner.
+- [x] `P2` **interpolação** `"${expr}"`, qualquer expressão e `stringify` —
+      [ADR-0019](docs/adr/0019-interpolacao.md).
 - [ ] `P2` **strings multilinha** com `"""` e raw strings `r"..."`.
 - [ ] `P2` **UTF-8** de verdade em identificadores e strings (hoje o scanner é ASCII puro).
 - [ ] `P3` **spread** `...lista` em chamadas e literais.
@@ -184,7 +185,7 @@ nas chamadas**, em camadas:
 | **T2** ✅ | inferência local (`val x = 1` → `Int`), checagem de `return`, chamadas e campos | erros óbvios sem anotar locais |
 | **T3** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | funções sem anotação |
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
-| **T5** 🟡 | uniões `Int \| String` e `T?` prontos; falta narrowing em `if x != nil` | expressividade |
+| **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return pronto; falta `is T`, loops e `and`/`or` | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
 | **T7** ⬜ | erase e integração com o codegen | backend sabe layouts |
 
@@ -267,7 +268,10 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
 
 ### 2.7 Extras que valem o esforço
 
-- [ ] `P2` **narrowing**: `if x != nil { x.metodo() }`, `if x is Pessoa { ... }`.
+- [x] `P2` **narrowing** de `T?`: `if x != nil`, `if x == nil`, truthiness e early
+      return; `val`/`var` com invalidação ([ADR-0018](docs/adr/0018-narrowing.md)).
+- [ ] `P2` **narrowing completo**: `is T`, `and`/`or` de curto-circuito, loops,
+      merge de fluxo e refinamento de campos/índices.
 - [ ] `P2` **exhaustividade** em `match`/enum.
 - [ ] `P3` **flow-sensitive** para `val` (uma atribuição só).
 - [ ] `P3` **tipos de função** como valores de primeira classe (essencial p/ lambdas).
@@ -532,7 +536,7 @@ imports para `print`).
 
 - [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
       (`# expect:`, `# expect runtime error:`), com runner próprio
-      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 569 testes.
+      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 586 testes.
 - [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
       (`make lint`, `make type`).
 - [x] `P1` **skills de projeto** em `.dsh/skills/` (`lox-feature`, `lox-testing`,
@@ -571,7 +575,6 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 
 | Recurso do Lox2 | Vale? | Esforço | Nota |
 | --- | --- | --- | --- |
-| interpolação de string | ✅ | S | ergonomia enorme |
 | UTF-8 em strings e identificadores | ✅ | M | hoje o scanner é ASCII |
 | `for-in` + protocolo de iterador de usuário | ⏳ | M | o `for-in` embutido já existe; falta iterável de usuário |
 | `print` como função (`println`) | ✅ | S | simplifica a stdlib |
@@ -580,7 +583,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | trailing closure | ✅ | M | ergonomia p/ `map`/`filter` |
 | `type` alias | ✅ | S | útil com generics |
 | generics + constraints | ⏳ | XL | só depois de T4 (§2) |
-| uniões + narrowing | ⏳ | L | o tipo `Int \| String` já existe; falta narrowing |
+| uniões + narrowing | ⏳ | L | `T?` e narrowing de nil prontos; falta `is T`, loops e `and`/`or` |
 | traits + `with` | ⏳ | L | ótimo para composição; depois de classes |
 | operator overloading | ⏳ | M | divertido e barato depois de classes |
 | namespaces/import | ⏳ | L | necessário quando houver stdlib |
@@ -610,12 +613,12 @@ manda.
 
 | # | Marco | Critério de pronto |
 | --- | --- | --- |
-| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 569), benchmark com baseline, lint/tipos/CI |
+| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 586), benchmark com baseline, lint/tipos/CI |
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
-| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, **listas**, **mapas**; ⬜ interpolação, lambdas |
+| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, listas, mapas, interpolação; ⬜ lambdas |
 | **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`); ⬜ T3 (parâmetros sem anotação) |
-| **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing, exaustividade |
+| **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing completo, exaustividade |
 | **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |
 | **M7** | Runtime completo | L3–L5: strings, closures, classes, GC (Boehm); **I1** verde no corpus completo |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks, JIT |

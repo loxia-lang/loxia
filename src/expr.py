@@ -15,6 +15,7 @@ class Visitor[R](Protocol):
     def visit_index_set_expr(self, expr: IndexSet) -> R: ...
     def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_map_expr(self, expr: MapLiteral) -> R: ...
+    def visit_interpolated_expr(self, expr: InterpolatedString) -> R: ...
     def visit_literal_expr(self, expr: Literal) -> R: ...
     def visit_range_expr(self, expr: Range) -> R: ...
     def visit_unary_expr(self, expr: Unary) -> R: ...
@@ -62,6 +63,15 @@ class Literal(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_literal_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class InterpolatedString(Expr):
+    parts: list[str | Expr]
+    token: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_interpolated_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

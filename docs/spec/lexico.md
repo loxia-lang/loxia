@@ -75,12 +75,16 @@ Números ([`../../TIPOS.md`](../../TIPOS.md) §3, [ADR-0006](../adr/0006-int-flo
 - `Float` é IEEE-754 binary64; um literal que estoura vira `inf` (comportamento do Python).
 
 Strings:
-- aceitam `\n`, `\t`, `\r`, `\"`, `\\`, `\0` e `\u{XXXX}` (code point Unicode);
+- aceitam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}` (code point Unicode);
 - escape desconhecido é `Unknown escape sequence '\q'.`; `\u` inválido é
   `Invalid Unicode escape.`;
 - podem conter quebras de linha reais (o contador de linha acompanha);
 - `"` não escapado encerra; sem fechar → `Unterminated string.`;
-- não há interpolação nem raw strings ainda.
+- `${expressão}` interpola uma expressão (qualquer uma, inclusive outra string
+  interpolada); os tokens da expressão são escaneados em um buffer próprio e o `}` de
+  fechamento não entra nele. `\$` e `\${` produzem `$`/`${` literais; `$` sem `{` é
+  literal;
+- não há raw strings nem `"""` ainda.
 
 ### Palavras-chave
 
@@ -105,6 +109,7 @@ Sempre existe um token `EOF`, com a linha atual. O parser depende dele.
 | --- | --- | --- |
 | caractere fora do alfabeto | `Unexpected character: X` | erro de compilação (exit 65) |
 | string sem fechamento | `Unterminated string.` | erro de compilação (exit 65) |
+| interpolação sem `}` | `Unterminated interpolation.` | erro de compilação (exit 65) |
 | escape desconhecido | `Unknown escape sequence '\q'.` | erro de compilação (exit 65) |
 | `\u{...}` inválido | `Invalid Unicode escape.` | erro de compilação (exit 65) |
 | literal numérico malformado (`1__0`, `0x` sem dígitos) | `Invalid number literal.` | erro de compilação (exit 65) |

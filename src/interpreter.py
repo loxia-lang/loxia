@@ -19,6 +19,7 @@ from src.expr import (
     Grouping,
     Index,
     IndexSet,
+    InterpolatedString,
     ListLiteral,
     Literal,
     Logical,
@@ -220,6 +221,16 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_list_expr(self, expr: ListLiteral) -> object:
         return LoxList([self._evaluate(element) for element in expr.elements])
+
+    def visit_interpolated_expr(self, expr: InterpolatedString) -> object:
+        parts: list[str] = []
+        for part in expr.parts:
+            if isinstance(part, str):
+                parts.append(part)
+            else:
+                parts.append(stringify(self._evaluate(part)))
+
+        return "".join(parts)
 
     def visit_map_expr(self, expr: MapLiteral) -> object:
         result = LoxMap()

@@ -27,6 +27,7 @@ inglês; o texto de CLI e a documentação em português.
 | --- | --- |
 | `Unexpected character: X` | caractere fora do alfabeto (ex.: `@`, `$`) |
 | `Unterminated string.` | `"` sem fechamento até EOF |
+| `Unterminated interpolation.` | `${...}` sem `}` até EOF |
 | `Unknown escape sequence '\q'.` | escape de string desconhecido |
 | `Invalid Unicode escape.` | `\u{...}` inválido ou fora de `0..10FFFF` |
 | `Unterminated block comment.` | `/*` sem `*/` até EOF |
@@ -38,6 +39,7 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | Mensagem | Quando |
 | --- | --- |
 | `Expect expression.` | `primary` não encontrou começo de expressão |
+| `Expect end of interpolation.` | sobrou token depois da expressão de `${...}` |
 | `Expect 'else' after conditional expression.` | ternário sem `else` |
 | `Expect property name after '?.'.` | `a?.` sem nome |
 | `Can't assign through optional chaining.` | `a?.b = 1` |

@@ -78,3 +78,15 @@ def test_dump_map_nodes() -> None:
         '(expr (index-set m "b" 3))\n'
         "(print (map))"
     )
+
+
+def test_dump_interpolated_string() -> None:
+    source = """
+    val s = "a ${1 + 2} b"
+    print "${nome}"
+    """
+
+    assert dump(source) == (
+        '(val s (interp "a " (+ 1 2) " b"))\n'
+        "(print (interp nome))"
+    )

@@ -149,8 +149,8 @@ chamada.
   `String`/`Int`/`Bool`; qualquer outra chave vira `LoxRuntimeError`.
 - `MapLiteral(entries, brace)` guarda pares `(chave, valor)` como expressões; o parser só
   cria esse nó em posição de expressão (no início do statement, `{` é bloco). O
-  interpretador avalia chave→valor, da esquerda para a direita, e usa `set_new` para
-  recusar chave duplicada no literal.
+  interpretador avalia chave→valor, da esquerda para a direita, e confere `has` antes de
+  inserir, para recusar chave duplicada no literal.
 - `Index`/`IndexSet` já eram genéricos: o interpretador despacha para `LoxList` ou
   `LoxMap`. `m.get(k)`/`m.has(k)`/`m.remove(k)`/`m.keys()`/`m.values()` vêm de
   `get_method` (métodos nativos ligados), e `Get` aceita `LoxInstance`, `LoxList` e
@@ -162,6 +162,34 @@ chamada.
   conjunto de pares `(id(a), id(b))`.
 - Tipos são apagados no runtime: o `LoxMap` não conhece `K`/`V`; o `Checker` aplica
   `MapTy`, invariância, a restrição de chaves e as assinaturas dos métodos.
+
+## Narrowing
+
+- O checker mantém `_scopes` (declarações) e `_narrowings` (refinamentos), uma pilha
+  paralela. Cada entrada de `_narrowings` guarda `(índice_do_escopo_da_declaração, Ty)`,
+  para um refinamento antigo não vazar para uma variável redefinida em escopo interno.
+- `_find_decl` acha a declaração mais próxima; `_lookup` procura refinamento do nível mais
+  interno até a declaração (com o índice batendo) e cai para o tipo declarado.
+- `_refinements(cond, truth)` reconhece `x == nil`, `x != nil`, `if (x)` por truthiness e
+  `!`; `_check_branch` empilha um nível temporário e `_always_returns` decide se o ramo
+  oposto persiste após um retorno antecipado.
+- `_invalidate` remove o nome de todos os níveis ativos quando há atribuição. É
+  conservador: perder refinamento é seguro; manter um refinamento inválido não seria.
+- Runtime não participa; `T?` continua apagado.
+
+## Interpolação
+
+- `Scanner._string` reconhece `${` e delega a expressão a `_scan_expression_tokens`, que
+  escaneia em um buffer de tokens próprio, conta chaves internas (mapa/bloco) e ignora
+  strings/comentários. O token `INTERPOLATED_STRING` guarda `list[str | list[Token]]`.
+- `Parser._interpolated_string` cria um sub-`Parser` por buffer e chama
+  `parse_expression`; o resultado é `InterpolatedString(parts, token)`, com trechos de texto
+  e nós de expressão.
+- `Interpreter.visit_interpolated_expr` avalia cada expressão da esquerda para a direita e
+  concatena com `stringify`; `Checker` infere cada parte e devolve `String`; `Resolver`
+  resolve as subexpressões.
+- `\$` e `\${` são escapes de texto; `$` sem `{` é literal. O AST printer mostra
+  `(interp "texto" expr ...)`.
 
 ## Builtins e sombreamento
 

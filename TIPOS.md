@@ -138,7 +138,8 @@ val s = 42.toString()     # "42"
 
 - **T3** — parâmetro sem anotação vira variável de tipo e é unificado a cada chamada
   (`fn metade(x) { x / 2 }`).
-- **T5** — narrowing de uniões em `if x != nil { ... }`/`if x is Pessoa { ... }`.
+- **T5** — narrowing de `T?` em `if x != nil`/`if x == nil`/truthiness/early return já
+  existe (ADR-0018); falta `is T`, loops e `and`/`or`.
 
 A regra de ouro continua: nunca deixar o tipo depender da ordem de avaliação; a checagem
 é puramente estática. A relação `Int <: Float` vale para checagem, mas **não** para
@@ -188,7 +189,8 @@ velocidade.
   point (O(n)) — aceitável no início, otimizar depois com cache.
 - `s[i]` devolve `String` de 1 code point (não existe `Char`; evita um tipo novo).
 - Concatenação `+`, comparação léxica `<`, `==` por conteúdo.
-- Interpolação `"${expr}"` (TODO §1.1), escapes `\n \t \" \\ \u{...}`.
+- Interpolação `"${expr}"` (ADR-0019), com qualquer expressão convertida por `stringify`;
+  escapes `\n \t \" \\ \$ \u{...}`.
 - `String.parse_int`/`to_int` devolvem `Option`/`Result`, nunca `NaN`/0 silencioso.
 - Hash consistente com `==` — obrigatório para `Map[String, V]`.
 
@@ -221,8 +223,9 @@ velocidade.
 - **Decidido (`D-15`)**: `Int` é non-null; `T?` é açúcar para `T | Nil` e aceita `nil`.
 - Ternário: tipo é `união(ramo1, ramo2)`; `??`: tipo é `non_nil(A) | B` (se `A` já é
   non-null, o tipo é `A`); `?.` em `T | Nil` produz `P | Nil`. Ver ADR-0013.
-- Narrowing de fluxo (`if x != nil { ... }`) ainda **não** refina a união no checker (T5);
-  `x or default` já remove `Nil` do tipo via truthiness, e `x ?? default` remove por nil.
+- Narrowing de fluxo (`if x != nil { ... }`, `if x == nil { return }`, `if x`) refina a
+  união no checker (ADR-0018); `x or default` remove `Nil` via truthiness e `x ?? default`
+  remove por nil. `is T`, loops e `and`/`or` ainda faltam.
 - `Option[T]` explícito, se necessário, será só açúcar/alias de `T?`; não duplicar os dois.
 - `Result[T, E]` para erro recuperável; `throw` para erro excepcional. Não os dois para
   a mesma coisa.

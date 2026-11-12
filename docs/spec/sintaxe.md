@@ -3,9 +3,9 @@
 Gramática do parser atual ([`src/parser.py`](../../src/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`match`, interpolação,
-> `"""`…) está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif`, o `;` opcional,
-> ternário, `??`, `?.` e escapes já existem; `val`/`var` existem desde o ADR-0005.
+> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`match`, `"""`…)
+> está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif`, o `;` opcional, ternário,
+> `??`, `?.`, interpolação e escapes já existem; `val`/`var` existem desde o ADR-0005.
 
 ## Gramática (EBNF)
 
@@ -79,12 +79,15 @@ call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFI
                  | "[" expression "]" )* ;
 arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil" | "this"
-               | NUMBER | STRING | IDENTIFIER | "(" expression ")"
+               | NUMBER | STRING | INTERPOLATED_STRING | IDENTIFIER | "(" expression ")"
                | "super" "." IDENTIFIER
                | "[" ( expression ( "," expression )* )? "]"
                | "{" ( expression ":" expression
                        ( "," expression ":" expression )* )? "}" ;
 ```
+
+`INTERPOLATED_STRING` é o literal `"texto ${expressão} mais texto"`; a expressão é qualquer
+`expression` e pode conter outra string interpolada. `\${` e `\$` escapam o cifrão.
 
 Defaults de parâmetro e inicializadores de campo são **constantes na v1** (literal,
 `nil`, `true`/`false`, `-` de literal numérico ou parênteses em torno disso). Parâmetros
@@ -254,7 +257,8 @@ por iterável (Range/String/List/Map — `Map` produz as chaves). Ver
   descartados da AST).
 - `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
 - Não existem: `break`/`continue`, `switch`, `match`, operador ternário no estilo `?:`,
-  `+=`, `++`, `import`, `try/catch`, interpolação, funções anônimas
-  (challenge #2 pendente). Listas e mapas existem desde os
-  [ADR-0015](../adr/0015-listas-tipadas.md) e [ADR-0017](../adr/0017-mapas-hash.md).
+  `+=`, `++`, `import`, `try/catch`, funções anônimas (challenge #2 pendente). Listas,
+  mapas e interpolação existem desde os
+  [ADR-0015](../adr/0015-listas-tipadas.md), [ADR-0017](../adr/0017-mapas-hash.md) e
+  [ADR-0019](../adr/0019-interpolacao.md).
 - `fn` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.
