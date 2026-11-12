@@ -68,12 +68,13 @@ abaixo fica como histórico do raciocínio e das alternativas.
 
 Concretamente, o que foi decidido:
 
-1. Builtins globais **mínimos**: `len`, `str`, `repr`, `print`/`println`, `clock`, `range`.
-   Nada de `int()`/`float()` sobrecarregados.
+1. Builtins globais **mínimos**: `len`, `str`, `repr`, `print`, `range`. Nada de
+   `int()`/`float()` sobrecarregados; `clock`/tempo fica para um módulo não determinístico
+   depois ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 2. `str` **e** `repr` existem desde já: `str` para exibição, `repr` para debug (string
    citada/escapada). A distinção em listas coincide hoje; hooks de classe ficam para
    depois.
-3. Builtins são **reservados no escopo global**: `fn len`, `val clock`, `class range` são
+3. Builtins são **reservados no escopo global**: `fn len`, `val str`, `class range` são
    erro; sombreamento local/parâmetro é permitido.
 4. Prelúdio pequeno; o resto vai para `std.*` quando módulos existirem.
 5. Sem métodos em primitivos agora (`5.toString()`/`s.upper()` não entram); extensões/UFCS

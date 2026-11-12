@@ -18,7 +18,9 @@ inglês; o texto de CLI e a documentação em português.
 - Compilação (léxico, parser, resolver e checker): o programa **não executa**. O parser se
   recupera (`synchronize`) e o resolver percorre a AST inteira, então uma execução pode
   listar vários erros.
-- Runtime: para no **primeiro** erro.
+- Runtime: para no **primeiro** erro. Na 1.0 o erro de runtime é **fatal** (exit 70):
+  não há `try`/`catch`/`Result`; o que já foi impresso permanece
+  ([ADR-0026](../adr/0026-freeze-1.0.md)).
 - No REPL não há exit code; a linha com erro é descartada e a sessão continua.
 
 ## Léxico
@@ -103,7 +105,7 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | --- | --- |
 | `Undefined variable 'x'.` | leitura/atribuição de nome inexistente |
 | `'x' is immutable; declare it with 'var' to allow assignment.` | atribuição a `val` global |
-| `Can't redeclare immutable variable 'x'.` | redeclarar um `val` global **ou um builtin** (`len`, `str`, `repr`, `clock`, `range`) |
+| `Can't redeclare immutable variable 'x'.` | redeclarar um `val` global **ou um builtin** (`len`, `str`, `repr`, `range`) |
 | `Operand must be a number.` | `-"a"` |
 | `Operand must be an integer.` | `~1.0` |
 | `Operands must be numbers.` | `1 < "a"` |
@@ -169,7 +171,7 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Can't infer the key and value types of an empty map; annotate it as Map[K, V].` | `val m = {}` |
 | `Map method requires a single key/value type.` | união de mapas com `K`/`V` diferentes |
 | `Expected a string, a list or a map, found X.` | `len(3)` no `--check` |
-| `Can't redefine builtin 'x'.` | `fn len`, `val clock` ou `class range` no escopo global |
+| `Can't redefine builtin 'x'.` | `fn len`, `val str` ou `class range` no escopo global |
 
 ## Como testar
 

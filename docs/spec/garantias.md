@@ -53,6 +53,10 @@ Mesma entrada + mesmas flags ⇒ **mesmos bytes** de saída e de diagnóstico. I
 stdout, stderr, exit code e `--dump-ast`. Ficam proibidos na saída: endereço de memória,
 PID, timestamp, caminho absoluto, ordem de `set`/`dict`, locale e ordem de diretório.
 
+O prelúdio da 1.0 não lê o relógio nem outras entradas ambiente: `clock` foi removido
+([ADR-0026](../adr/0026-freeze-1.0.md)). Um módulo `time` futuro, se existir, fica
+explicitamente **fora** desta garantia e do corpus diferencial.
+
 ```bash
 ./lox programa.lox > a.txt 2>&1   # duas vezes, em máquinas/flags diferentes
 ./lox programa.lox > b.txt 2>&1
@@ -71,7 +75,8 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
 1. **Sem ruído** — `;` opcional, `elif`, corpo de uma linha; a sintaxe não deve exigir
    cerimônia para o caso comum.
 2. **Expressões primeiro** — quase tudo produz valor; `if`/`match`/bloco como expressão
-   ainda está em aberto no [`TODO.md`](../../TODO.md) §11.
+   ficou **fora da 1.0** ([ADR-0026](../adr/0026-freeze-1.0.md)); ternário e `??` cobrem o
+   caso comum.
 3. **Imutável por padrão** — `val`/`var` implementados; parâmetros são imutáveis e `var x`
    libera a mutação. Argumentos em [`IDEIAS.md`](../../IDEIAS.md) I-1.
 4. **Tipos opcionais, não cerimônia** — anotar só onde ajuda; no `--check` a inferência

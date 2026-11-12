@@ -3,6 +3,8 @@
 Os `.lox` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:
 - `fun` → `fn` e comentários `//` → `#`;
 - campos atribuídos via `this.x =` são declarados como `var x = nil` (ADR-0009);
+- `clock` (removido da 1.0, ADR-0026) é trocado por `len`, que também imprime
+  `<native fn>`;
 - testes que criam campos por fora (pasta `field/` ou `obj.x =`) são `xfail`;
 - expectativas oficiais são traduzidas para stdout/exit codes do nosso CLI.
 """
@@ -177,6 +179,7 @@ def _declare_this_fields(source: str) -> str:
 def adapt_source(source: str) -> str:
     adapted = source.replace("//", "#")
     adapted = re.sub(r"\bfun\b", "fn", adapted)
+    adapted = re.sub(r"\bclock\b", "len", adapted)
     adapted = re.sub(
         r"\bclass\s+(\w+)\s*<\s*(\w+)", r"class \1(\2)", adapted
     )

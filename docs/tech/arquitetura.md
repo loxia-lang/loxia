@@ -60,7 +60,6 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/lox_function.py`](../../src/lox_function.py) | função de usuário + closure + `bind` |
 | [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
 | [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
-| [`src/natives/clock.py`](../../src/natives/clock.py) | `clock()` |
 | [`src/natives/len.py`](../../src/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
 | [`src/natives/repr.py`](../../src/natives/repr.py) | `repr(x)` |
 | [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
@@ -244,8 +243,9 @@ chamada.
 
 ## Builtins e sombreamento
 
-- `Interpreter.__init__` define `clock`, `len`, `range`, `repr` e `str` com
-  `mutable=False`; `_reject_immutable_redeclaration` recusa redefinição no escopo global.
+- `Interpreter.__init__` define `len`, `range`, `repr` e `str` com `mutable=False`;
+  `_reject_immutable_redeclaration` recusa redefinição no escopo global. `clock` foi
+  removido da 1.0 ([ADR-0026](../adr/0026-freeze-1.0.md)); pode ser nome comum.
 - O checker tem a mesma lista em `src/prelude.py::BUILTIN_NAMES`: `_define` reporta
   `Can't redefine builtin 'x'.` quando o escopo é o global; `visit_class_stmt` faz a
   checagem própria porque classes são pré-declaradas.

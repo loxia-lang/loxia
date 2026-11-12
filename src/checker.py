@@ -121,7 +121,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     # --- infraestrutura ---
 
     def _define_builtins(self) -> None:
-        self._scopes[0]["clock"] = FnTy((), FLOAT, 0)
         self._scopes[0]["len"] = NativeFnTy("len")
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")

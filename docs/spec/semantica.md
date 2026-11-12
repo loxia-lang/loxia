@@ -9,7 +9,9 @@ Comportamento observável do interpretador. Implementação: [`src/interpreter.p
 
 Um programa é uma lista de declarações executadas **em ordem**. Um erro de compilação
 (léxico, sintaxe ou resolver) impede a execução inteira. Um erro de runtime interrompe o
-programa no ponto em que ocorreu; o que já foi impresso permanece.
+programa no ponto em que ocorreu; o que já foi impresso permanece. Desde o
+[ADR-0026](../adr/0026-freeze-1.0.md), erro de runtime é **fatal** (exit 70): a 1.0 não tem
+`try`/`throw`/`Result`; erros de tipo/sintaxe saem 65.
 
 O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
 Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declarações
@@ -28,7 +30,7 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | `Range` | `a..b`, `range(a, b, step)` | `<range 0..10>` |
 | string | literais, `+`, interpolação | conteúdo |
 | função | `fn` | `<fn nome>` |
-| função nativa | `clock` | `<native fn>` |
+| função nativa | `len` | `<native fn>` |
 | classe | `class` | nome da classe |
 | instância | chamada de classe | `Nome instance` |
 
@@ -171,6 +173,9 @@ var a = "global";
 - Strings processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}`; escape
   desconhecido é erro. `"${expressão}"` interpola (ver abaixo). Ainda não há `"""` nem raw
   strings.
+- Fonte e strings são UTF-8; `len(s)` conta **code points**, não bytes. Indexação de string
+  não existe na 1.0. Identificadores são ASCII (sem normalização Unicode); ver
+  [ADR-0026](../adr/0026-freeze-1.0.md).
 - Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
   não comentário.
 
@@ -360,15 +365,17 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   linha do `return`; `return` sozinho na linha devolve `nil`.
 - Parâmetros e locais do corpo compartilham o mesmo escopo: declarar `var a` quando existe
   parâmetro `a` é erro (mesma mensagem de redeclaração).
-- `clock()` devolve segundos desde a época como `float`, aridade 0.
+- `clock()` **não existe na 1.0**: tempo é entrada ambiente e violaria o I3. Um módulo
+  `time` explicitamente não determinístico fica para depois. O prelúdio determinístico é
+  `len`, `str`, `repr` e `range`.
 - `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
   points para string). Outro tipo é erro:
   `len() expects a string, a list or a map.`
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
-  imutáveis: redefinir `len`/`str`/`repr`/`clock`/`range` no escopo global é erro; local e
-  parâmetro podem sombrear.
+  imutáveis: redefinir `len`/`str`/`repr`/`range` no escopo global é erro; local e
+  parâmetro podem sombrear. `clock` deixou de ser builtin; pode ser usado como nome comum.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
 - Lambdas: `fn(x) => expr` (corpo de expressão, retorno implícito) e `fn(x) { ... }`
   (bloco com `return`), com `-> Tipo` opcional antes do corpo. São closures sobre o

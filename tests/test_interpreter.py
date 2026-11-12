@@ -103,6 +103,15 @@ def test_float_stringify_round_trips(capsys: pytest.CaptureFixture[str]) -> None
     assert stdout == ["0.30000000000000004", "-0.0", "1.0"]
 
 
+def test_utf8_strings_use_code_points(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run('print len("ação"); print "ação";', capsys)
+
+    assert stdout == ["4", "ação"]
+    assert stderr == ""
+
+
 def test_for_in_iterates_range_and_string(capsys: pytest.CaptureFixture[str]) -> None:
     source = 'for i in 0..3 { print i; } for c in "ab" { print c; }'
 
@@ -434,10 +443,11 @@ def test_return_without_value_is_nil(capsys: pytest.CaptureFixture[str]) -> None
     assert stdout == ["nil"]
 
 
-def test_native_clock_is_available(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, _ = run("print clock() > 0;", capsys)
+def test_clock_is_not_a_builtin(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = run("val clock = 1; print clock;", capsys)
 
-    assert stdout == ["true"]
+    assert stdout == ["1"]
+    assert stderr == ""
 
 
 def test_top_level_return_is_a_compile_error(

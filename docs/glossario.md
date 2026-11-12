@@ -17,7 +17,7 @@ Neste projeto os nós têm identidade (`eq=False`).
 **Binding (ligação)** — associação entre um nome e um valor em um escopo. Em métodos,
 "bind" é criar um ambiente com `this` apontando para a instância.
 
-**Builtin** — função nativa do prelúdio global (`len`, `str`, `repr`, `clock`, `range`).
+**Builtin** — função nativa do prelúdio global (`len`, `str`, `repr`, `range`).
 É imutável no escopo global (redefinir é erro), mas pode ser sombreada em escopo local.
 Ver [ADR-0016](adr/0016-api-stdlib-hibrida.md).
 

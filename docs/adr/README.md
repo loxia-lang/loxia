@@ -71,6 +71,7 @@ Crie quando a decisão:
 | [0023](0023-soundness-do-checker.md) | Soundness do checker: retorno, campos e override | accepted | 2026-11-12 |
 | [0024](0024-mutacao-monomorfica.md) | Mutação monomórfica e `var x = nil` | accepted | 2026-11-12 |
 | [0025](0025-is-e-narrowing.md) | `is T` e narrowing de uniões | accepted | 2026-11-12 |
+| [0026](0026-freeze-1.0.md) | Freeze da 1.0: erros, determinismo, UTF-8 e escopo | accepted | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 

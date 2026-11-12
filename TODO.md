@@ -23,8 +23,9 @@ pretendo tipar e como chegar no LLVM.
 >
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
 > assinaturas/funções (ADR-0020/0021), lambdas (ADR-0022), soundness do checker (ADR-0023),
-> mutação monomórfica (ADR-0024) e `is T`/narrowing (ADR-0025). **A seguir:** T3b
-> (generics explícitos) ou as decisões de 1.0 (print/erros/clock/UTF-8).
+> mutação monomórfica (ADR-0024), `is T`/narrowing (ADR-0025) e o freeze da 1.0
+> (ADR-0026: erros fatais, `clock` removido, UTF-8/ASCII, `print` statement). **A seguir:**
+> T3b (generics) ou o backend LLVM — o escopo da 1.0 está congelado.
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -86,7 +87,9 @@ pretendo tipar e como chegar no LLVM.
 - [x] `P2` **interpolação** `"${expr}"`, qualquer expressão e `stringify` —
       [ADR-0019](docs/adr/0019-interpolacao.md).
 - [ ] `P2` **strings multilinha** com `"""` e raw strings `r"..."`.
-- [ ] `P2` **UTF-8** de verdade em identificadores e strings (hoje o scanner é ASCII puro).
+- [x] `P2` **UTF-8**: strings UTF-8 com `len`/índice em code points; identificadores
+      ASCII (decisão do [ADR-0026](docs/adr/0026-freeze-1.0.md)). UTF-8 completo em
+      identificadores fica para depois.
 - [ ] `P3` **spread** `...lista` em chamadas e literais.
 
 **Dados e funções**
@@ -129,15 +132,17 @@ pretendo tipar e como chegar no LLVM.
 **Erros**
 - [ ] `P2` **`throw` / `try` / `catch` / `finally`** com stack trace. Alternativa mais
       simples primeiro: `Result<T, E>` como tipo. Exceções em LLVM são caras (§6.7).
+      **Fora da 1.0** (runtime fatal; [ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - [ ] `P2` **`assert`** e **`panic`** como funções nativas.
-- [ ] `P3` **erros como valores** (`Result`/`Option`) para código que compila puro.
+- [ ] `P3` **erros como valores** (`Result`/`Option`) para código que compila puro —
+      depois de generics + `match`; não na 1.0.
 
 ### 1.2 Decisões de sintaxe já descartadas (para não revisitar)
 
 - `end` no estilo Ruby/Lua → **não**: chaves são melhores para erro de parser.
 - Off-side rule (indentação significativa) → **não**: caro no scanner e ruim no REPL.
-- `print` como statement? fica, **mas** `println`/`print` como funções também (Lox2 fez
-  isso e simplifica a stdlib). Ver §11 item 3.
+- `print` como function? **não na 1.0**: continua statement; `println(x)` pode entrar
+  depois como função, sem quebrar o statement ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - Herança com `(` `)` → **decidido**: `class Cachorro(Animal)` (uma superclasse; `<`
   removido). `init` fica no corpo, `this` é implícito e `super.init(...)` é explícito —
   ver [ADR-0008](docs/adr/0008-heranca-class-parens.md).
@@ -211,7 +216,9 @@ Ty = Any | Nil | Bool | Int | Float | String
    | Never                        # bottom: throw/return
 ```
 
-- `Any` é a válvula de escape: desliga checagem naquele ponto (e no LLVM vira valor boxeado).
+- `Any` é a válvula de escape: desliga checagem naquele ponto. No backend L0–L2 ele é
+  **rejeitado** com erro claro; valor boxeado só depois
+  ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - `Never` faz `throw`/`return` não estragarem o fluxo de tipos.
 - Guardar em `src/types.py` (novo), com `__eq__`/`__hash__` para unificação rápida.
 
@@ -362,7 +369,8 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
       ```
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
 - [ ] `P2` **`assert`/`panic`/`exit`** nativos.
-- [ ] `P2` **`try/catch/finally`** se a decisão for exceções (§1.1).
+- [ ] `P2` **`try/catch/finally`** se a decisão for exceções (§1.1); fora da 1.0
+      ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - [ ] `P2` **REPL multiline** (continua enquanto `(`/`{`/`[` abertos) + histórico
       (`readline`) + `:help`, `:ast`, `:type expr`, `:clear`.
 - [ ] `P3` **`import`/módulos** com cache de compilação.
@@ -593,9 +601,9 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 
 | Recurso do Lox2 | Vale? | Esforço | Nota |
 | --- | --- | --- | --- |
-| UTF-8 em strings e identificadores | ✅ | M | hoje o scanner é ASCII |
+| UTF-8 em strings | ✅ | M | strings UTF-8/code points; identificadores ASCII na 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md)) |
 | `for-in` + protocolo de iterador de usuário | ⏳ | M | o `for-in` embutido já existe; falta iterável de usuário |
-| `print` como função (`println`) | ✅ | S | simplifica a stdlib |
+| `print` como função (`println`) | ⏳ | S | fica para depois da 1.0; statement é a decisão ([ADR-0026](docs/adr/0026-freeze-1.0.md)) |
 | variádicos `...args` | ✅ | S | fácil e útil |
 | lambdas anônimas | ✅ | M | precisa de closures (cap. 10) |
 | trailing closure | ✅ | M | ergonomia p/ `map`/`filter` |
@@ -677,25 +685,34 @@ registro executivo em [`docs/decisoes.md`](docs/decisoes.md); a fonte de verdade
 sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 
-1. **Nome e extensão** da linguagem (hoje "PyLox", arquivos `.lox`).
-2. **Blocos/`if` como expressão**: último valor implícito ou `return` obrigatório?
-   (afeta legibilidade e o parser; independente do corpo de expressão em `fn`)
-3. **`print`**: statement (livro), função `println` (Lox2), ou ambos? Ver §1.2.
-4. **`match`**: antes ou depois do codegen? (antes facilita enums; depois é mais seguro)
-5. **Classes**: manter herança simples (direção curta em `D-16`) ou trocar por `struct` +
-   traits/composição? A sintaxe `class B(A)` já está fechada no ADR-0008.
-6. **Exceções**: `throw`/`try` na linguagem ou `Result`? (LLVM pesa contra exceções)
-7. **Generics**: monomorfização (perf) ou erasure (simplicidade)? (tende a mono)
-8. **Módulos**: namespaces hierárquicos (Lox2) ou arquivos = módulos (Python/Go)?
-9. **Backend**: `llvmlite` desde o começo ou `.ll` textual + clang primeiro?
-10. **Escopo da stdlib**: `math`, `io`, `string` e `collections` bastam no início?
-11. **Conversões da stdlib**: `Int.parse` + cast, ou funções `to_int`/`parse_int`? `as`
-    também é candidato a alias de import (estilo Python), então o cast precisa de sintaxe
-    própria ou de `as` contextual. O **modelo híbrido** já foi decidido no
-    [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md); falta só a API de conversão. Ver
-    [`IDEIAS.md`](IDEIAS.md) I-3 e `D-8` no [`TIPOS.md`](TIPOS.md) §3.3.
-12. **Contratos e agentes**: `requires`/`ensures`/`invariant` opcionais? `--contracts`
-    default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
+### Fechadas para a 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md))
+
+- **Erros:** runtime é fatal (exit 70); sem `try`/`Result` na 1.0.
+- **`clock`:** removido do prelúdio; tempo vira módulo não determinístico depois.
+- **UTF-8:** strings UTF-8 com `len` em code points; identificadores ASCII; indexação de
+  string fica fora da 1.0.
+- **`print`:** continua statement; `println` função fica para depois.
+- **Escopo:** single-file; sem módulos, `if`-expr, `match`/enums, traits, exceções,
+  named args, operator overloading, trailing closure; stdlib mínima; `Any` na linguagem
+  mas fora do backend L0–L2.
+
+### Ainda em aberto (pós-1.0)
+
+1. **Generics:** monomorfização (perf) ou erasure (simplicidade)? Se T3b entrar antes do
+   backend, decidir junto. (tende a mono)
+2. **Backend:** `llvmlite` desde o começo ou `.ll` textual + clang primeiro? (tende a
+   `llvmlite`)
+3. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
+4. **Escopo da stdlib pós-1.0:** `math`, `io`, `string`, `collections` e um módulo
+   `time` explicitamente não determinístico.
+5. **Conversões da stdlib:** `Int.parse` + cast, ou funções `to_int`/`parse_int`? `as`
+   também é candidato a alias de import; o **modelo híbrido** já foi decidido no
+   [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md); falta só a API de conversão. Ver
+   [`IDEIAS.md`](IDEIAS.md) I-3 e `D-8` no [`TIPOS.md`](TIPOS.md) §3.3.
+6. **Contratos e agentes:** `requires`/`ensures`/`invariant` opcionais? `--contracts`
+   default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
+7. **`if`/bloco como expressão, `match`/enums e traits:** explicitamente fora da 1.0;
+   reavaliar depois do backend/M5.
 
 ---
 

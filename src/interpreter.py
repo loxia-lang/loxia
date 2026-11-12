@@ -41,7 +41,6 @@ from src.lox_instance import LoxInstance
 from src.lox_list import LoxList
 from src.lox_map import LoxMap
 from src.lox_range import LoxRange
-from src.natives.clock import Clock
 from src.natives.len import Len
 from src.natives.range import RangeNative
 from src.natives.repr import Repr
@@ -72,7 +71,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals = Environment()
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
-        self.globals.define("clock", Clock(), mutable=False)
         self.globals.define("len", Len(), mutable=False)
         self.globals.define("range", RangeNative(), mutable=False)
         self.globals.define("repr", Repr(), mutable=False)

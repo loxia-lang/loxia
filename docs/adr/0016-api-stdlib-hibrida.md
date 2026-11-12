@@ -13,6 +13,10 @@
   [`tests/cases/str_repr.lox`](../../tests/cases/str_repr.lox),
   [`tests/cases/builtin_shadow_local.lox`](../../tests/cases/builtin_shadow_local.lox)
 
+> **Atualização (ADR-0026, 2026-11-12):** `clock` saiu do prelúdio da 1.0. Onde este ADR
+> o lista como builtin reservado, vale o [ADR-0026](0026-freeze-1.0.md): o prelúdio é
+> `len`, `str`, `repr` e `range`.
+
 ## Contexto
 
 O [I-3](../../IDEIAS.md) compara **funções soltas** e **métodos** e conclui que o estilo

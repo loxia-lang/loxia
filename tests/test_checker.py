@@ -1364,10 +1364,6 @@ def test_interpolation_type_errors(
             "Can't redefine builtin 'len'.",
         ),
         (
-            "val clock = 1;",
-            "Can't redefine builtin 'clock'.",
-        ),
-        (
             "class range {}",
             "Can't redefine builtin 'range'.",
         ),
@@ -1385,6 +1381,12 @@ def test_list_type_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_clock_is_a_regular_name_after_removal() -> None:
+    lox = check("val clock = 1; print clock;")
+
+    assert lox.reporter.had_error is False
 
 
 def test_builtin_shadowing_is_local_only() -> None:

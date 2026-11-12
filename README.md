@@ -21,9 +21,12 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   compatível.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
-- 📐 Próximo passo: T3b (generics explícitos) e trailing closure; depois o codegen LLVM.
-  T3a (assinaturas explícitas + recursão mútua), tipos de função e lambdas já estão feitos
-  (ADR-0020/0021/0022).
+- 🧊 **1.0 congelada** ([ADR-0026](docs/adr/0026-freeze-1.0.md)): erros de runtime fatais,
+  `clock` removido do prelúdio, strings UTF-8 com identificadores ASCII, `print` como
+  statement e escopo single-file.
+- 📐 Próximo passo: T3b (generics explícitos) ou o backend LLVM; trailing closure fica
+  para depois. T3a (assinaturas explícitas + recursão mútua), tipos de função e lambdas já
+  estão feitos (ADR-0020/0021/0022).
 
 ## O que esta linguagem promete
 

@@ -5,8 +5,10 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/scanner.py`](
 
 ## Arquivos
 
-- Codificação: UTF-8 (é o que o `main.py` lê).
-- O scanner trabalha **byte a byte sobre a string Python**; identificadores são ASCII.
+- Codificação: UTF-8 (é o que o `main.py` lê). Strings aceitam Unicode; `len`/índice
+  contam code points ([ADR-0026](../adr/0026-freeze-1.0.md)).
+- Identificadores são **ASCII** (`[A-Za-z_][A-Za-z0-9_]*`), sem normalização Unicode;
+  `ação` ainda não é um nome válido. O scanner percorre a string Python.
 - Não há BOM especial, diretivas nem módulos: um arquivo `.lox` é um programa. Uma
   primeira linha `#!` é só um comentário `#` normal.
 

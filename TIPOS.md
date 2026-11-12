@@ -191,10 +191,13 @@ velocidade.
 ## 4. Strings e texto
 
 - **UTF-8 imutável**, armazenada como bytes + length. Mutação gera nova string.
+  Identificadores são ASCII na 1.0; strings aceitam Unicode
+  ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - `len(s)`: bytes (O(1)) ou code points (O(n))? **Decisão (`D-13`): `len` em code points**
   (menos surpresa para o usuário), com `byte_len` separado. Indexação `s[i]` por code
-  point (O(n)) — aceitável no início, otimizar depois com cache.
-- `s[i]` devolve `String` de 1 code point (não existe `Char`; evita um tipo novo).
+  point (O(n)) fica para depois da 1.0 — hoje string não é indexável.
+- `s[i]` devolve `String` de 1 code point (não existe `Char`; evita um tipo novo), quando
+  entrar.
 - Concatenação `+`, comparação léxica `<`, `==` por conteúdo.
 - Interpolação `"${expr}"` (ADR-0019), com qualquer expressão convertida por `stringify`;
   escapes `\n \t \" \\ \$ \u{...}`.

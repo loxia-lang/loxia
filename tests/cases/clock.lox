@@ -1,1 +1,0 @@
-print clock() >= 0;  # expect: true

@@ -27,7 +27,9 @@ hora:
 6. `inheritance/parenthesized_superclass.lox` testa a sintaxe antiga `< (Foo)` de
    propósito; é `xfail` (o teste equivalente na nossa sintaxe seria outro);
 7. expectativas são traduzidas: `// expect:` → stdout, `// expect runtime error:` →
-   stderr/exit 70, `// [line N] Error...` → erro de compilação/exit 65.
+   stderr/exit 70, `// [line N] Error...` → erro de compilação/exit 65;
+8. `clock` foi removido da 1.0 ([ADR-0026](../../docs/adr/0026-freeze-1.0.md)); em
+   `function/print.lox`, ele é trocado por `len`, que também imprime `<native fn>`.
 
 Resultado atual: **120 casos, 112 passando e 8 `xfail`**. Não é uma suíte de conformidade:
 é uma rede extra para o interpretador, especialmente para funções, closures, classes,

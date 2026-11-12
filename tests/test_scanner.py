@@ -103,6 +103,12 @@ def test_invalid_number_separator_reports_error() -> None:
     assert scanner.reporter.had_error
 
 
+def test_non_ascii_identifier_reports_error() -> None:
+    scanner = scan_with_reporter("val ação = 1;")
+
+    assert scanner.reporter.had_error
+
+
 def test_tracks_line_numbers() -> None:
     tokens = scan("1;\n2;\n\n3;")
     numbers = [token for token in tokens if token.type is TokenType.NUMBER]
