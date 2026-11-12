@@ -1,4 +1,4 @@
-# PyLox
+# PyLox 1.0.0
 
 Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Interpreters*
 (Parte II — jlox), com o objetivo de evoluir para uma linguagem própria e um backend
@@ -27,6 +27,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   compatível.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
+- 🏷️ **Versão 1.0.0**: release local da linguagem no tree-walk; backend nativo é
+  pós-1.0. Ver [`CHANGELOG.md`](CHANGELOG.md).
 - 🧊 **Escopo da 1.0 congelado** ([ADR-0026](docs/adr/0026-freeze-1.0.md), com T3b e D-8
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
@@ -60,7 +62,7 @@ Requisitos: Python 3.13 e [`uv`](https://docs.astral.sh/uv/).
 uv run main.py                 # REPL (Ctrl+C/Ctrl+D para sair)
 uv run main.py programa.lox    # executa um arquivo
 uv run python -m lox           # mesma coisa, via pacote
-uv run main.py --version       # pylox 0.1.0
+uv run main.py --version       # pylox 1.0.0
 uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não executa
 uv run main.py --check prog.lox      # checa os tipos, não executa
 uv run main.py --debug prog.lox      # checa overflow de Int em runtime (release faz wrap)

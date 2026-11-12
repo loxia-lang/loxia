@@ -33,11 +33,11 @@ existe. O que está em [`TODO.md`](TODO.md) é o que vem **depois** dela.
 | Runtime tree-walk | ✅ |
 | Suíte e docs | ✅ `make check` verde; 678 pass + 8 `xfail` intencionais |
 | Backend nativo | ⬜ pós-1.0 (L0–L2) |
-| **Publicação 1.0** | ⬜ **pendente**: versão ainda `0.1.0`, sem tag/changelog/release notes |
+| **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 
-**Nenhuma feature de linguagem da 1.0 está pendente.** O que falta é a **entrega**:
-decidir a versão `1.0.0`, escrever release notes, rodar a auditoria final e criar a tag.
-Isso não bloqueia começar o backend; só não chame o release de 1.0 antes de publicá-lo.
+**Nenhuma feature de linguagem da 1.0 está pendente.** A release local está preparada;
+publicar (push/tag remota/pacote) fica para quando você decidir. O backend pode começar
+sem esperar publicação.
 
 ## 1.0 — dentro
 
