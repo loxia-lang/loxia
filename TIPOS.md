@@ -144,7 +144,9 @@ val s = 42.toString()     # "42"
 - **T3c (adiado)** — parâmetro sem anotação; depende de generalização (T4) e de uma regra
   explícita para não ficar monomórfico.
 - **T5** — narrowing de `T?` em `if x != nil`/`if x == nil`/truthiness/early return já
-  existe (ADR-0018); falta `is T`, loops e `and`/`or`.
+  existe (ADR-0018); `is T`, `and`/`or` e `while` entraram no
+  [ADR-0025](docs/adr/0025-is-e-narrowing.md); falta refinamento de campos/índices e merge
+  completo de fluxo.
 
 A regra de ouro continua: nunca deixar o tipo depender da ordem de avaliação; a checagem
 é puramente estática. A relação `Int <: Float` vale para checagem, mas **não** para
@@ -232,8 +234,9 @@ velocidade.
 - Ternário: tipo é `união(ramo1, ramo2)`; `??`: tipo é `non_nil(A) | B` (se `A` já é
   non-null, o tipo é `A`); `?.` em `T | Nil` produz `P | Nil`. Ver ADR-0013.
 - Narrowing de fluxo (`if x != nil { ... }`, `if x == nil { return }`, `if x`) refina a
-  união no checker (ADR-0018); `x or default` remove `Nil` via truthiness e `x ?? default`
-  remove por nil. `is T`, loops e `and`/`or` ainda faltam.
+  união no checker (ADR-0018); `x is T` também refina, e `and`/`or`/`while` combinam
+  (ADR-0025); `x or default` remove `Nil` via truthiness e `x ?? default` remove por nil.
+  Campos/índices e merge completo de fluxo ainda faltam.
 - `Option[T]` explícito, se necessário, será só açúcar/alias de `T?`; não duplicar os dois.
 - `Result[T, E]` para erro recuperável; `throw` para erro excepcional. Não os dois para
   a mesma coisa.

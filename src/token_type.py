@@ -60,6 +60,7 @@ class TokenType(Enum):
     FOR = auto()
     IF = auto()
     IN = auto()
+    IS = auto()
     NIL = auto()
     OR = auto()
     PRINT = auto()

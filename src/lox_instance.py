@@ -42,6 +42,9 @@ class LoxInstance:
         self._fields[field.name.lexeme] = value
         self._initialized.add(field.name.lexeme)
 
+    def is_instance_of(self, name: str) -> bool:
+        return self._klass.is_subclass_of(name)
+
     def assert_initialized(self) -> None:
         for field in self._klass.fields.values():
             if field.name.lexeme not in self._initialized:

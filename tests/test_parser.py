@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.ast_printer import AstPrinter
-from src.expr import Lambda, MapLiteral
+from src.expr import Is, Lambda, MapLiteral
 from src.parser import Parser
 from src.scanner import Scanner
 from src.stmt import (
@@ -386,6 +386,21 @@ def test_lambda_parameters_cannot_have_defaults() -> None:
     parser.parse()
 
     assert parser.reporter.had_error
+
+
+def test_parses_is_expression() -> None:
+    statements = parse("val ok = x is Int | String;")
+
+    declaration = statements[0]
+    assert isinstance(declaration, Var)
+    initializer = declaration.initializer
+    assert isinstance(initializer, Is)
+    assert display(initializer.test_type) == "Int | String"
+
+
+def test_is_binds_tighter_than_equality() -> None:
+    assert ast("1 is Int == true") == "(== (is 1 Int) true)"
+    assert ast("xs is List[Int]") == "(is xs List[Int])"
 
 
 def test_parses_field_and_variable_types() -> None:

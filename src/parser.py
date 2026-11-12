@@ -13,6 +13,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Is,
     Lambda,
     ListLiteral,
     Literal,
@@ -636,15 +637,22 @@ class Parser:
     def _comparison(self) -> Expr:
         expr: Expr = self._bitwise_or()
 
-        while self._match_inline(
-            TokenType.GREATER,
-            TokenType.GREATER_EQUAL,
-            TokenType.LESS,
-            TokenType.LESS_EQUAL,
-        ):
-            operator: Token = self._previous()
-            right: Expr = self._bitwise_or()
-            expr = Binary(expr, operator, right)
+        while True:
+            if self._match_inline(
+                TokenType.GREATER,
+                TokenType.GREATER_EQUAL,
+                TokenType.LESS,
+                TokenType.LESS_EQUAL,
+            ):
+                operator: Token = self._previous()
+                right: Expr = self._bitwise_or()
+                expr = Binary(expr, operator, right)
+            elif self._match_inline(TokenType.IS):
+                operator = self._previous()
+                test_type = self._type()
+                expr = Is(expr, test_type, operator)
+            else:
+                break
 
         return expr
 

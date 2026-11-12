@@ -351,6 +351,57 @@ def test_lambda_captures_this(capsys: pytest.CaptureFixture[str]) -> None:
     assert stderr == ""
 
 
+def test_is_runtime_type_test(capsys: pytest.CaptureFixture[str]) -> None:
+    source = """
+    print 1 is Int;
+    print 1 is Float;
+    print 1.0 is Float;
+    print true is Bool;
+    print 1 is Bool;
+    print nil is Nil;
+    print "a" is String;
+    print [1, 2] is List[Int];
+    val xs: List[Int | String] = [1, "a"];
+    print xs is List[Int];
+    print {"a": 1} is Map[String, Int];
+    print 0..3 is Range;
+    print nil is Int?;
+    print 1 is Int?;
+    print "a" is Int?;
+
+    class Animal { init() {} }
+    class Dog(Animal) { init() { super.init(); } }
+    print Animal() is Animal;
+    print Dog() is Animal;
+    print Animal() is Dog;
+    print Animal is Animal;
+    """
+
+    stdout, stderr = run(source, capsys)
+
+    assert stdout == [
+        "true",
+        "false",
+        "true",
+        "true",
+        "false",
+        "true",
+        "true",
+        "true",
+        "false",
+        "true",
+        "true",
+        "true",
+        "true",
+        "false",
+        "true",
+        "true",
+        "false",
+        "false",
+    ]
+    assert stderr == ""
+
+
 def test_stringify_lambda_is_deterministic(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

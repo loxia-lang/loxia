@@ -58,6 +58,15 @@ class LoxClass:
 
         return None
 
+    def is_subclass_of(self, name: str) -> bool:
+        klass: LoxClass | None = self
+        while klass is not None:
+            if klass.name == name:
+                return True
+            klass = klass._superclass
+
+        return False
+
     def min_arity(self) -> int:
         initializer = self.find_method("init")
         if initializer is None:

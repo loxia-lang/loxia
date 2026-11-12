@@ -22,9 +22,9 @@ pretendo tipar e como chegar no LLVM.
 > `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
 >
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
-> T3a (assinaturas explícitas + pré-declaração, ADR-0020), tipos de função (ADR-0021) e
-> lambdas com tipagem contextual (ADR-0022). **A seguir:** T3b (generics explícitos) —
-> T3 literal fica adiado.
+> assinaturas/funções (ADR-0020/0021), lambdas (ADR-0022), soundness do checker (ADR-0023),
+> mutação monomórfica (ADR-0024) e `is T`/narrowing (ADR-0025). **A seguir:** T3b
+> (generics explícitos) ou as decisões de 1.0 (print/erros/clock/UTF-8).
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -190,7 +190,7 @@ nas chamadas**, em camadas:
 | **T3b** ⬜ | variável de tipo + generics explícitos (`fn id[T](x: T) -> T`), unificando no call site | funções genéricas de verdade |
 | **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | adiado: sem T4 fica monomórfico e depende da ordem |
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
-| **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return pronto; falta `is T`, loops e `and`/`or` | expressividade |
+| **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
 | **T7** ⬜ | erase e integração com o codegen | backend sabe layouts |
 
@@ -281,8 +281,10 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
       implícito ([ADR-0024](docs/adr/0024-mutacao-monomorfica.md)).
 - [x] `P2` **narrowing** de `T?`: `if x != nil`, `if x == nil`, truthiness e early
       return; `val`/`var` com invalidação ([ADR-0018](docs/adr/0018-narrowing.md)).
-- [ ] `P2` **narrowing completo**: `is T`, `and`/`or` de curto-circuito, loops,
-      merge de fluxo e refinamento de campos/índices.
+- [x] `P2` **`is T` + narrowing**: uniões, `and`/`or` de curto-circuito e `while`; listas,
+      mapas e classes no teste ([ADR-0025](docs/adr/0025-is-e-narrowing.md)).
+- [ ] `P2` **narrowing restante**: merge completo de fluxo, refinamento de campos/índices e
+      invalidação por mutação de coleção.
 - [ ] `P2` **exhaustividade** em `match`/enum.
 - [ ] `P3` **flow-sensitive** para `val` (uma atribuição só).
 - [x] `P2` **tipos de função nas anotações** (`fn(Int) -> Int`), funções passadas como
@@ -599,7 +601,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | trailing closure | ✅ | M | ergonomia p/ `map`/`filter` |
 | `type` alias | ✅ | S | útil com generics |
 | generics + constraints | ⏳ | XL | só depois de T4 (§2) |
-| uniões + narrowing | ⏳ | L | `T?` e narrowing de nil prontos; falta `is T`, loops e `and`/`or` |
+| uniões + narrowing | ⏳ | L | `T?`, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo |
 | traits + `with` | ⏳ | L | ótimo para composição; depois de classes |
 | operator overloading | ⏳ | M | divertido e barato depois de classes |
 | namespaces/import | ⏳ | L | necessário quando houver stdlib |

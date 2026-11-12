@@ -92,6 +92,10 @@ def test_dump_lambda_nodes() -> None:
     )
 
 
+def test_dump_is_expression() -> None:
+    assert dump("print x is Int") == "(print (is x Int))"
+
+
 def test_dump_interpolated_string() -> None:
     source = """
     val s = "a ${1 + 2} b"

@@ -49,6 +49,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
 | [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), uniões, `T?`, `FnTy` e helpers |
 | [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
+| [`src/type_test.py`](../../src/type_test.py) | teste dinâmico de tipo para `x is T` |
 | [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
 | [`src/lox_list.py`](../../src/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
 | [`src/lox_map.py`](../../src/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
@@ -212,9 +213,17 @@ chamada.
   para um refinamento antigo não vazar para uma variável redefinida em escopo interno.
 - `_find_decl` acha a declaração mais próxima; `_lookup` procura refinamento do nível mais
   interno até a declaração (com o índice batendo) e cai para o tipo declarado.
-- `_refinements(cond, truth)` reconhece `x == nil`, `x != nil`, `if (x)` por truthiness e
-  `!`; `_check_branch` empilha um nível temporário e `_always_returns` decide se o ramo
-  oposto persiste após um retorno antecipado.
+- `_refinements(cond, truth)` reconhece `x == nil`, `x != nil`, `if (x)`, `x is T`,
+  `!`, e combina `and` (ramo verdadeiro) / `or` (ramo falso); `_check_branch` empilha um
+  nível temporário e `_always_returns` decide se o ramo oposto persiste após retorno
+  antecipado. `while` aplica o refinamento verdadeiro ao corpo.
+- `x is T` usa `_intersect_types`/`_narrow_to` no ramo verdadeiro e `_narrow_away` no falso
+  (remove membros da união totalmente cobertos por `T`); `_merge_refinements` combina
+  `and`/`or` por interseção.
+- `Is` é um nó de expressão (`left`, `test_type`, `operator`); o interpreter chama
+  `matches_type`, que mora em `src/type_test.py` e cobre primitivos, classes/subclasses,
+  `List[T]`/`Map[K, V]` (recursivo) e uniões. O runtime não ganha um sistema de tipos
+  geral; `matches_type` existe só para `is`.
 - `_invalidate` remove o nome de todos os níveis ativos quando há atribuição. É
   conservador: perder refinamento é seguro; manter um refinamento inválido não seria.
 - Runtime não participa; `T?` continua apagado.

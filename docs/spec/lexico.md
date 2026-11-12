@@ -90,9 +90,9 @@ Strings:
 
 ```
 and    class  elif   else   false  for
-fn     if     in     nil    or     print
-return super  this   true   val    var
-while
+fn     if     in     is     nil    or
+print  return super  this   true   val
+var    while
 ```
 
 `fn` substituiu `fun`; `fun` agora é identificador comum (não é palavra-chave).

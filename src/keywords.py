@@ -10,6 +10,7 @@ KEYWORDS: dict[str, TokenType] = {
     "for": TokenType.FOR,
     "if": TokenType.IF,
     "in": TokenType.IN,
+    "is": TokenType.IS,
     "nil": TokenType.NIL,
     "or": TokenType.OR,
     "print": TokenType.PRINT,

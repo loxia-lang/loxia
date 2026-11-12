@@ -82,10 +82,11 @@ def test_scans_type_punctuation() -> None:
 
 
 def test_keywords_fn_elif_and_fun_as_identifier() -> None:
-    assert scan_types("fn elif fun") == [
+    assert scan_types("fn elif fun is") == [
         TokenType.FN,
         TokenType.ELIF,
         TokenType.IDENTIFIER,
+        TokenType.IS,
         TokenType.EOF,
     ]
 

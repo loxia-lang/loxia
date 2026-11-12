@@ -65,7 +65,7 @@ coalesce       → logic_or ( "??" coalesce )? ;
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → bitwise_or ( ( ">" | ">=" | "<" | "<=" ) bitwise_or )* ;
+comparison     → bitwise_or ( ( ">" | ">=" | "<" | "<=" ) bitwise_or | "is" type )* ;
 bitwise_or     → bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    → bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    → range ( "&" range )* ;
@@ -83,7 +83,9 @@ primary        → "true" | "false" | "nil" | "this"
                | "super" "." IDENTIFIER
                | "[" ( expression ( "," expression )* )? "]"
                | "{" ( expression ":" expression
-                       ( "," expression ":" expression )* )? "}" ;
+                       ( "," expression ":" expression )* )? "}"
+               | lambda ;
+lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | block ) ;
 ```
 
 `INTERPOLATED_STRING` é o literal `"texto ${expressão} mais texto"`; a expressão é qualquer
@@ -121,6 +123,12 @@ aplicar(fn(x) => x * 2, 3)
 `return` explícito. `-> Tipo` é opcional antes de qualquer corpo. Parâmetros seguem as
 regras de funções, **menos defaults** (`fn(x: Int = 1) => ...` é erro). `fn(` em expressão
 é lambda; `fn nome(` é declaração. Ver [ADR-0022](../adr/0022-lambdas.md).
+
+`expr is Tipo` é uma expressão booleana; o lado direito usa a gramática de tipos e o
+operador fica no nível de comparação. `is` testa primitivos, classes/subclasses,
+`List[T]`/`Map[K, V]` (elementos inclusos) e uniões; tipos de função são recusados no
+`--check`. `Animal` como valor não é instância: `Animal is Animal` é `false`. Ver
+[ADR-0025](../adr/0025-is-e-narrowing.md).
 
 O literal de mapa só existe em **posição de expressão** (`val m = {...}`, argumento,
 `return`, condição). No início de um statement, `{` abre um **bloco**:
@@ -186,7 +194,7 @@ Do menor para o maior:
 | or | `or` | esquerda |
 | and | `and` | esquerda |
 | igualdade | `==` `!=` | esquerda |
-| comparação | `<` `<=` `>` `>=` | esquerda |
+| comparação | `<` `<=` `>` `>=` `is T` | esquerda |
 | or de bits | `\|` | esquerda |
 | xor de bits | `^` | esquerda |
 | and de bits | `&` | esquerda |

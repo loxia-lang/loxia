@@ -1102,16 +1102,6 @@ def test_narrowing_types_are_clean() -> None:
             " if (nome != nil) { nome = nil; print len(nome); }",
             "Expected a string, a list or a map, found String | Nil.",
         ),
-        (
-            'val nome: String? = "Ana"; val outro: String? = "Bia";'
-            " if (nome != nil and outro != nil) { print len(nome); }",
-            "Expected a string, a list or a map, found String | Nil.",
-        ),
-        (
-            'val nome: String? = "Ana";'
-            " while (nome != nil) { print len(nome); }",
-            "Expected a string, a list or a map, found String | Nil.",
-        ),
     ],
 )
 def test_narrowing_limitations(
@@ -1122,6 +1112,147 @@ def test_narrowing_limitations(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_narrowing_in_and_and_while() -> None:
+    lox = check(
+        """
+        val nome: String? = "Ana"
+        val outro: String? = "Bia"
+
+        if (nome != nil and outro != nil) {
+          print len(nome)
+        }
+
+        while (nome != nil) {
+          print len(nome)
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_narrows_union_and_else() -> None:
+    lox = check(
+        """
+        fn f(x: Int | String) -> String {
+          if (x is Int) {
+            return "int";
+          } else {
+            print len(x);
+          }
+          return x;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_narrows_until_early_return() -> None:
+    lox = check(
+        """
+        fn f(x: Int | String) -> String {
+          if (x is Int) {
+            return "int";
+          }
+          return x;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_narrowing_does_not_promote_numbers() -> None:
+    lox = check(
+        """
+        fn soInt(x: Int | Float) -> Int {
+          if (x is Float) { return 0; }
+          return x;
+        }
+
+        fn soFloat(x: Int | Float) -> Float {
+          if (x is Float) { return x; }
+          return 0.0;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_gives_context_to_empty_literals() -> None:
+    lox = check(
+        """
+        print [] is List[Int];
+        print {} is Map[String, Int];
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_narrows_class_to_subclass() -> None:
+    lox = check(
+        """
+        class Animal { init() {} }
+        class Dog(Animal) {
+          init() { super.init(); }
+          bark() -> String { return "woof"; }
+        }
+
+        fn fala(a: Animal) -> String {
+          if (a is Dog) {
+            return a.bark();
+          }
+          return "...";
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_narrows_any_to_list() -> None:
+    lox = check(
+        """
+        val xs: Any = [1, 2];
+        if (xs is List[Int]) {
+          print xs[0] + 1;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_is_rejects_function_types(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f(x: Any) -> Bool {
+          return x is fn(Int) -> Int;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "is doesn't support this type yet." in captured.err
+
+
+def test_is_result_is_bool() -> None:
+    lox = check(
+        """
+        val b: Bool = 1 is Int;
+        print b;
+        """
+    )
+
+    assert lox.reporter.had_error is False
 
 
 def test_interpolation_types_are_clean() -> None:

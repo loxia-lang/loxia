@@ -8,6 +8,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
 - ✅ Expressões: ternário `a if c else b`, `??`, `?.`, interpolação `"${expr}"` e escapes.
 - ✅ Narrowing de `T?`: `if (x != nil)`, `if (x == nil)`/early return e truthiness no `--check`.
+- ✅ `x is T`: primitivos, classes/subclasses, `List[T]`/`Map[K, V]` e uniões; narrowing em
+  `if`/`else`, `while` e `and`/`or`.
 - ✅ Listas tipadas `List[T]`: literal, indexação, `push`/`pop`, `len` e `for-in`.
 - ✅ Mapas tipados `Map[K, V]`: literal `{ "a": 1 }`, `get`/`has`/`remove`/`keys`/`values`,
   igualdade estrutural e `for-in` de chaves.

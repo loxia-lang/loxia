@@ -9,6 +9,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Is,
     Lambda,
     ListLiteral,
     Literal,
@@ -93,6 +94,9 @@ class AstPrinter:
         return self._parenthesize(
             "index-set", expr.object, expr.index, expr.value
         )
+
+    def visit_is_expr(self, expr: Is) -> str:
+        return f"(is {expr.left.accept(self)} {display(expr.test_type)})"
 
     def visit_unary_expr(self, expr: Unary) -> str:
         return self._parenthesize(expr.operator.lexeme, expr.right)

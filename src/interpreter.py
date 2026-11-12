@@ -20,6 +20,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Is,
     Lambda,
     ListLiteral,
     Literal,
@@ -61,6 +62,7 @@ from src.stmt import (
 from src.stmt import Visitor as StmtVisitor
 from src.token_type import TokenType
 from src.tokens import Token
+from src.type_test import matches_type
 from src.values import stringify
 
 
@@ -275,6 +277,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
+
+    def visit_is_expr(self, expr: Is) -> object:
+        value = self._evaluate(expr.left)
+        return matches_type(value, expr.test_type)
 
     def visit_range_expr(self, expr: Range) -> object:
         start = self._evaluate(expr.start)

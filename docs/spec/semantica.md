@@ -439,17 +439,24 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   `Expected an instance of Animal, found the class Animal.`
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
   tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
-- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)` e `!` em volta disso refinam `x`
-  no ramo; `if (x == nil) { return }` refina o resto do bloco. `val` e `var` estreitam, mas
-  uma atribuição invalida o refinamento. Chamadas/closure que mutam um `var` durante a
-  execução não são rastreadas — prefira `val` quando precisar da garantia. `is T`, loops,
-  `and`/`or` e campos/índices ainda **não** refinam; ver
-  [ADR-0018](../adr/0018-narrowing.md).
+- `expr is T` devolve `Bool` e testa o valor em runtime: primitivos, classe/subclasse,
+  `List[T]`/`Map[K, V]` (elementos inclusos; O(n)) e uniões. `Any` sempre verdadeiro,
+  `Never` sempre falso; tipos de função são recusados no `--check`. Uma classe como valor
+  não é instância (`Animal is Animal` é `false`). Ver
+  [ADR-0025](../adr/0025-is-e-narrowing.md).
+- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` e `!` em volta disso
+  refinam `x` no ramo; `if (x == nil) { return }` refina o resto do bloco. `and` no ramo
+  verdadeiro e `or` no ramo falso combinam refinamentos; `while` aplica o refinamento
+  verdadeiro ao corpo. `val` e `var` estreitam, mas uma atribuição invalida o refinamento.
+  Chamadas/closure que mutam um `var` durante a execução não são rastreadas — prefira `val`
+  quando precisar da garantia. Campos/índices, merge completo de fluxo e mutação de
+  coleção após o teste ainda **não** refinam; ver
+  [ADR-0018](../adr/0018-narrowing.md) e [ADR-0025](../adr/0025-is-e-narrowing.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
-- Limitações atuais: narrowing completo (`is T`, loops, `and`/`or`), generics de verdade,
-  inferência de parâmetro sem anotação e `as`; lambdas existem, mas sem trailing closure,
-  parâmetro único sem parênteses ou retorno implícito de bloco. Anotar `Float` não converte
-  o valor em runtime (o tree-walk continua dinâmico).
+- Limitações atuais: narrowing de campos/índices e merge completo, generics de verdade,
+  inferência de parâmetro sem anotação, tipos de função em `is` e `as`; lambdas existem, mas
+  sem trailing closure, parâmetro único sem parênteses ou retorno implícito de bloco.
+  Anotar `Float` não converte o valor em runtime (o tree-walk continua dinâmico).
 
 ## Classes
 

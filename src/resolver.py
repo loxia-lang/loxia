@@ -16,6 +16,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Is,
     Lambda,
     ListLiteral,
     Literal,
@@ -295,6 +296,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_expr(expr.object)
         self._resolve_expr(expr.index)
         self._resolve_expr(expr.value)
+
+    def visit_is_expr(self, expr: Is) -> None:
+        self._resolve_expr(expr.left)
 
     def visit_lambda_expr(self, expr: Lambda) -> None:
         self._resolve_function(expr, FunctionType.FUNCTION)

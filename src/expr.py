@@ -17,6 +17,7 @@ class Visitor[R](Protocol):
     def visit_grouping_expr(self, expr: Grouping) -> R: ...
     def visit_index_expr(self, expr: Index) -> R: ...
     def visit_index_set_expr(self, expr: IndexSet) -> R: ...
+    def visit_is_expr(self, expr: Is) -> R: ...
     def visit_lambda_expr(self, expr: Lambda) -> R: ...
     def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_map_expr(self, expr: MapLiteral) -> R: ...
@@ -60,6 +61,16 @@ class Grouping(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_grouping_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Is(Expr):
+    left: Expr
+    test_type: Ty
+    operator: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_is_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

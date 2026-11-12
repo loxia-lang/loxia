@@ -20,6 +20,7 @@ from src.expr import (
     Index,
     IndexSet,
     InterpolatedString,
+    Is,
     Lambda,
     ListLiteral,
     Literal,
@@ -817,6 +818,49 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_lambda_expr(self, expr: Lambda) -> Ty:
         return self._lambda_type(expr, None)
 
+    def visit_is_expr(self, expr: Is) -> Ty:
+        test_type = self._resolve_type(expr.test_type, expr.operator)
+        self._validate_is_type(test_type, expr.operator)
+
+        if isinstance(expr.left, ListLiteral) and not expr.left.elements:
+            element = self._expected_element(test_type)
+            if element is not None:
+                self._check(expr.left, ListTy(element), expr.left.bracket)
+            else:
+                self._infer(expr.left)
+        elif isinstance(expr.left, MapLiteral) and not expr.left.entries:
+            entry_types = self._expected_map(test_type)
+            if entry_types is not None:
+                key_ty, value_ty = entry_types
+                self._check(expr.left, MapTy(key_ty, value_ty), expr.left.brace)
+            else:
+                self._infer(expr.left)
+        else:
+            self._infer(expr.left)
+
+        return BOOL
+
+    def _validate_is_type(self, ty: Ty, token: Token) -> None:
+        if ty is ERROR or ty is ANY or ty is NEVER:
+            return
+        if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
+            return
+        if isinstance(ty, ClassTy):
+            return
+        if isinstance(ty, ListTy):
+            self._validate_is_type(ty.element, token)
+            return
+        if isinstance(ty, MapTy):
+            self._validate_is_type(ty.key, token)
+            self._validate_is_type(ty.value, token)
+            return
+        if isinstance(ty, UnionTy):
+            for member in ty.members:
+                self._validate_is_type(member, token)
+            return
+
+        self._error(token, "is doesn't support this type yet.")
+
     def _lambda_type(self, expr: Lambda, expected: FnTy | None) -> Ty:
         param_types: list[Ty] = []
 
@@ -944,6 +988,31 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if self._is_nil_literal(left) and variable is not None:
                 return self._nil_refinement(variable.name.lexeme, truth, equal=equal)
 
+        if isinstance(expr, Is):
+            variable = self._as_variable(expr.left)
+            if variable is None or self._find_decl(variable.name.lexeme) is None:
+                return {}
+
+            current = self._lookup(variable.name)
+            narrowed = (
+                self._narrow_to(current, expr.test_type)
+                if truth
+                else self._narrow_away(current, expr.test_type)
+            )
+            if narrowed is None or narrowed == current:
+                return {}
+
+            return {variable.name.lexeme: narrowed}
+
+        if isinstance(expr, Logical) and (
+            (expr.operator.type is TokenType.AND and truth)
+            or (expr.operator.type is TokenType.OR and not truth)
+        ):
+            return self._merge_refinements(
+                self._refinements(expr.left, truth),
+                self._refinements(expr.right, truth),
+            )
+
         if isinstance(expr, Variable):
             found = self._find_decl(expr.name.lexeme)
             if found is None:
@@ -968,6 +1037,113 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             narrowed = non_nil(declared) if truth else NIL
 
         return {name: narrowed} if narrowed != declared else {}
+
+    def _narrow_to(self, current: Ty, test: Ty) -> Ty | None:
+        narrowed = self._intersect_types(current, test)
+        if narrowed is NEVER or narrowed == current:
+            return None
+
+        return narrowed
+
+    def _narrow_away(self, current: Ty, test: Ty) -> Ty | None:
+        if current is ANY or current is ERROR:
+            return None
+        if self._is_test_subtype(current, test):
+            return None
+        if isinstance(current, UnionTy):
+            remaining = [
+                member
+                for member in current.members
+                if not self._is_test_subtype(member, test)
+            ]
+            if not remaining:
+                return None
+            narrowed = union(*remaining)
+            return narrowed if narrowed != current else None
+
+        return None
+
+    def _is_test_subtype(self, actual: Ty, expected: Ty) -> bool:
+        """Subtipo para teste de runtime, **sem** promoção `Int → Float`.
+
+        `_assignable` é a relação de atribuição (aceita `Int` onde se espera `Float`); para
+        `is`, `1` não é `Float`, então a relação precisa ser mais estrita.
+        """
+        if expected is ANY:
+            return True
+        if actual is NEVER:
+            return True
+        if actual == expected:
+            return True
+        if isinstance(expected, UnionTy):
+            return any(
+                self._is_test_subtype(actual, member)
+                for member in expected.members
+            )
+        if isinstance(actual, UnionTy):
+            return all(
+                self._is_test_subtype(member, expected)
+                for member in actual.members
+            )
+        if isinstance(actual, ClassTy) and isinstance(expected, ClassTy):
+            return self._is_subclass(actual.name, expected.name)
+        if isinstance(actual, ListTy) and isinstance(expected, ListTy):
+            return expected.element is ANY or self._is_test_subtype(
+                actual.element, expected.element
+            )
+        if isinstance(actual, MapTy) and isinstance(expected, MapTy):
+            key_ok = expected.key is ANY or self._is_test_subtype(
+                actual.key, expected.key
+            )
+            value_ok = expected.value is ANY or self._is_test_subtype(
+                actual.value, expected.value
+            )
+            return key_ok and value_ok
+
+        return False
+
+    def _intersect_types(self, left: Ty, right: Ty) -> Ty:
+        if left is ANY:
+            return right
+        if right is ANY:
+            return left
+        if left is ERROR or right is ERROR:
+            return ERROR
+        if left is NEVER or right is NEVER:
+            return NEVER
+        if left == right:
+            return left
+        if isinstance(left, UnionTy):
+            return union(
+                *(self._intersect_types(member, right) for member in left.members)
+            )
+        if isinstance(right, UnionTy):
+            return union(
+                *(self._intersect_types(left, member) for member in right.members)
+            )
+        if self._is_test_subtype(left, right):
+            return left
+        if self._is_test_subtype(right, left):
+            return right
+
+        return NEVER
+
+    def _merge_refinements(
+        self, left: dict[str, Ty], right: dict[str, Ty]
+    ) -> dict[str, Ty]:
+        result = dict(left)
+        for name, ty in right.items():
+            if name not in result:
+                result[name] = ty
+                continue
+
+            merged = self._intersect_types(result[name], ty)
+            if merged is NEVER:
+                result.pop(name)
+            else:
+                result[name] = merged
+
+        return result
 
     def _is_nil_literal(self, expr: Expr) -> bool:
         return isinstance(expr, Literal) and expr.value is None
@@ -1058,7 +1234,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)
-        self._check_stmt(stmt.body)
+        self._check_branch(stmt.body, self._refinements(stmt.condition, True))
 
     # --- expressões ---
 
