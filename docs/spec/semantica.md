@@ -391,9 +391,15 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   [ADR-0020](../adr/0020-assinaturas-explicitas.md).
 - Locais e expressões são inferidos: `val x = f()` não precisa de tipo.
 - Tipos: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
-  `List[T]`, `Map[K, V]`, uniões `A | B` e `T?` (= `T | Nil`). `Int` é
-  non-null. `List[T]` e `Map[K, V]` são invariantes: `List[Int]` não é `List[Float]` nem
-  `List[Any]`; `Map[String, Int]` não é `Map[String, Any]`.
+  `List[T]`, `Map[K, V]`, tipos de função `fn(Int) -> Int`, uniões `A | B` e `T?`
+  (= `T | Nil`). `Int` é non-null. `List[T]` e `Map[K, V]` são invariantes:
+  `List[Int]` não é `List[Float]` nem `List[Any]`; `Map[String, Int]` não é
+  `Map[String, Any]`.
+- Tipos de função: parâmetros são **contravariantes** e o retorno é **covariante**;
+  defaults contam como intervalo de aridade. Uma classe (`Animal`) é atribuível à
+  assinatura do seu construtor (`fn(String) -> Animal`), mas uma instância (`: Animal`)
+  não é. Lambdas e generics ainda não existem; ver
+  [ADR-0021](../adr/0021-tipos-de-funcao.md).
 - Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
   esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
   elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string/mapa. `xs.pop()` e
@@ -420,8 +426,9 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   [ADR-0018](../adr/0018-narrowing.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
 - Limitações atuais: narrowing completo (`is T`, loops, `and`/`or`), generics de verdade,
-  tipo de função como valor, inferência de parâmetro sem anotação e `as`. Anotar `Float`
-  não converte o valor em runtime (o tree-walk continua dinâmico).
+  lambdas (tipos de função existem, mas não literais de função), inferência de parâmetro
+  sem anotação e `as`. Anotar `Float` não converte o valor em runtime (o tree-walk
+  continua dinâmico).
 
 ## Classes
 

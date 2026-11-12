@@ -22,8 +22,8 @@ pretendo tipar e como chegar no LLVM.
 > `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
 >
 > **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
-> T3a: assinaturas explícitas + pré-declaração de funções (ADR-0020). **A seguir:** T3b
-> (generics explícitos) — T3 literal (parâmetro sem anotação) fica adiado.
+> T3a (assinaturas explícitas + pré-declaração, ADR-0020) e tipos de função nas anotações
+> (ADR-0021). **A seguir:** T3b (generics explícitos) e lambdas — T3 literal fica adiado.
 >
 > **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
 > (tipos) em andamento; M0–M2 fechados.
@@ -276,7 +276,11 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
       merge de fluxo e refinamento de campos/índices.
 - [ ] `P2` **exhaustividade** em `match`/enum.
 - [ ] `P3` **flow-sensitive** para `val` (uma atribuição só).
-- [ ] `P3` **tipos de função** como valores de primeira classe (essencial p/ lambdas).
+- [x] `P2` **tipos de função nas anotações** (`fn(Int) -> Int`), funções passadas como
+      argumento/retorno, variância e classe como construtor
+      ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
+- [ ] `P3` **lambdas** e trailing closures (`fn(x) -> x * 2`) — próximo passo natural
+      depois de generics; o tipo de função já existe.
 - [ ] `P3` **generics com constraints** (`T with Show`).
 - [ ] `P3` **inferência de retorno** para funções com corpo de expressão.
 - [ ] `P3` **LSP**: `--check --json` com spans para o editor sublinhar.

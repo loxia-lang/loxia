@@ -108,23 +108,123 @@ def test_call_error_reports_the_argument_position(
     assert "Argument 2: Expected String, found Int." in captured.err
 
 
-def test_class_value_is_not_an_instance(
+def test_function_type_parameter_and_return_are_clean() -> None:
+    lox = check(
+        """
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int {
+          return f(x);
+        }
+
+        fn dobro(n: Int) -> Int { return n * 2; }
+
+        val y = aplicar(dobro, 3);
+
+        fn escolhe() -> fn(Int) -> Int { return dobro; }
+        val g = escolhe();
+
+        print y;
+        print g(4);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_function_type_rejects_wrong_signature(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     lox = check(
         """
-        class Animal { init() {} }
-        fn recebe(a: Animal) -> Nil { return nil; }
-        recebe(Animal);
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int { return f(x); }
+        fn texto(n: Int) -> String { return "x"; }
+        aplicar(texto, 1);
         """
     )
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
     assert (
-        "Expected an instance of Animal, found the class Animal."
+        "Argument 1: Expected fn(Int) -> Int, found fn(Int) -> String."
         in captured.err
     )
+
+
+def test_function_type_rejects_non_function(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int { return f(x); }
+        aplicar(1, 2);
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Argument 1: Expected fn(Int) -> Int, found Int." in captured.err
+
+
+def test_function_type_checks_callback_body(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn aplicar(f: fn(Int) -> Int, x: Int) -> Int {
+          return f("x");
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Argument 1: Expected Int, found String." in captured.err
+
+
+def test_function_type_accepts_class_as_constructor() -> None:
+    lox = check(
+        """
+        class Animal {
+          var nome: String;
+
+          init(nome: String) {
+            this.nome = nome;
+          }
+        }
+
+        fn criar(f: fn(String) -> Animal) -> Animal {
+          return f("Rex");
+        }
+
+        val a: Animal = criar(Animal);
+        print a.nome;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_function_type_is_contravariant_in_params_and_covariant_in_return() -> None:
+    lox = check(
+        """
+        class Animal { init() {} }
+        class Dog(Animal) { init() { super.init(); } }
+
+        fn aceitaAnimal(a: Animal) -> Animal { return a; }
+        fn usaAnimal(f: fn(Dog) -> Animal) -> Nil { return nil; }
+        usaAnimal(aceitaAnimal);
+
+        fn fazDog() -> Dog { return Dog(); }
+        fn usaRetorno(f: fn() -> Animal) -> Nil { return nil; }
+        usaRetorno(fazDog);
+
+        fn soma(a: Int, b: Int = 1) -> Int { return a + b; }
+        fn usaUm(f: fn(Int) -> Int) -> Int { return f(1); }
+        usaUm(soma);
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
 
 
 @pytest.mark.parametrize(

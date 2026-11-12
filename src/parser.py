@@ -41,7 +41,17 @@ from src.stmt import (
 )
 from src.token_type import TokenType
 from src.tokens import Token
-from src.ty import ERROR, NIL, PRIMITIVES, ClassTy, ListTy, MapTy, Ty, union
+from src.ty import (
+    ERROR,
+    NIL,
+    PRIMITIVES,
+    ClassTy,
+    FnTy,
+    ListTy,
+    MapTy,
+    Ty,
+    union,
+)
 
 
 class Parser:
@@ -407,6 +417,9 @@ class Parser:
         return ty
 
     def _primary_type(self) -> Ty:
+        if self._match(TokenType.FN):
+            return self._function_type()
+
         if self._match(TokenType.LEFT_PAREN):
             ty = self._type()
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after type.")
@@ -435,6 +448,25 @@ class Parser:
             return primitive
 
         return ClassTy(name)
+
+    def _function_type(self) -> Ty:
+        self._consume(
+            TokenType.LEFT_PAREN, "Expect '(' after 'fn' in function type."
+        )
+        params: list[Ty] = []
+        if not self._check(TokenType.RIGHT_PAREN):
+            params.append(self._type())
+            while self._match(TokenType.COMMA):
+                params.append(self._type())
+
+        self._consume(
+            TokenType.RIGHT_PAREN, "Expect ')' after function type parameters."
+        )
+        self._consume(
+            TokenType.ARROW, "Expect '->' after function type parameters."
+        )
+        ret = self._type()
+        return FnTy(tuple(params), ret, len(params))
 
     def _generic_type(self, token: Token, name: str, arguments: list[Ty]) -> Ty:
         if name == "List" and len(arguments) == 1:

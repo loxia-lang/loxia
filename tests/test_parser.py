@@ -327,6 +327,23 @@ def test_parses_type_annotations() -> None:
     assert display(return_type) == "Bool"
 
 
+def test_parses_function_type_annotations() -> None:
+    statements = parse(
+        "fn aplicar(f: fn(Int) -> String, g: (fn() -> Int)?)"
+        " -> fn(String) -> Int { return f; }"
+    )
+
+    function = statements[0]
+    assert isinstance(function, Function)
+
+    first, second = function.params[0].type_annotation, function.params[1].type_annotation
+    return_type = function.return_type
+    assert first is not None and second is not None and return_type is not None
+    assert display(first) == "fn(Int) -> String"
+    assert display(second) == "(fn() -> Int) | Nil"
+    assert display(return_type) == "fn(String) -> Int"
+
+
 def test_parses_field_and_variable_types() -> None:
     statements = parse("class C { val x: Int; var y: List[Int]? = nil; }")
 

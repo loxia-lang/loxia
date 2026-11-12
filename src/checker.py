@@ -225,6 +225,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Expected an instance of {expected.name}, "
                 f"found the class {actual.name}."
             )
+        if isinstance(expected, FnTy) and isinstance(actual, ClassObjectTy):
+            return (
+                f"Expected a function {display(expected)}, "
+                f"found the class {actual.name}."
+            )
 
         return f"Expected {display(expected)}, found {display(actual)}."
 
@@ -314,10 +319,38 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if expected.value is ERROR or actual.value is ERROR:
                 return True
             return expected.key == actual.key and expected.value == actual.value
+        if isinstance(expected, FnTy):
+            if isinstance(actual, FnTy):
+                return self._assignable_fn(expected, actual)
+            if isinstance(actual, ClassObjectTy):
+                info = self._classes.get(actual.name)
+                if info is None:
+                    return False
+                signature = info.init or FnTy((), ClassTy(actual.name), 0)
+                return self._assignable_fn(expected, signature)
+            if isinstance(actual, NativeFnTy):
+                native_signature = self._native_signature(actual.name)
+                return native_signature is not None and self._assignable_fn(
+                    expected, native_signature
+                )
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
             return self._is_subclass(actual.name, expected.name)
 
         return False
+
+    def _assignable_fn(self, expected: FnTy, actual: FnTy) -> bool:
+        """Função é contravariante nos parâmetros e covariante no retorno."""
+        count = len(expected.params)
+        if not actual.min_params <= count <= len(actual.params):
+            return False
+
+        for expected_param, actual_param in zip(
+            expected.params, actual.params, strict=False
+        ):
+            if not self._assignable(actual_param, expected_param):
+                return False
+
+        return self._assignable(expected.ret, actual.ret)
 
     def _is_subclass(self, actual: str, expected: str) -> bool:
         name: str | None = actual
@@ -344,6 +377,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(token, "Map keys must be String, Int or Bool.")
                 key = ERROR
             return MapTy(key, value)
+        if isinstance(ty, FnTy):
+            return FnTy(
+                tuple(self._resolve_type(param, token) for param in ty.params),
+                self._resolve_type(ty.ret, token),
+                ty.min_params,
+            )
         if isinstance(ty, UnionTy):
             return union(
                 *(self._resolve_type(member, token) for member in ty.members)
@@ -842,13 +881,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return self._call_type(callee, expr, arguments)
 
+    def _native_signature(self, name: str) -> FnTy | None:
+        if name == "len":
+            return FnTy((ANY,), INT, 1)
+        if name in {"str", "repr"}:
+            return FnTy((ANY,), STRING, 1)
+
+        return None
+
     def _call_signature(self, callee: Ty, expr: Call) -> FnTy | None:
         if isinstance(callee, NativeFnTy):
-            if callee.name == "len":
-                return FnTy((ANY,), INT, 1)
-            if callee.name in {"str", "repr"}:
-                return FnTy((ANY,), STRING, 1)
-            return None
+            return self._native_signature(callee.name)
         if isinstance(callee, FnTy):
             return callee
         if isinstance(callee, ClassObjectTy):

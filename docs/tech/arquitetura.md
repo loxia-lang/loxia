@@ -175,6 +175,10 @@ chamada.
   `visit_function_stmt` reutiliza o mesmo `FnTy` em vez de recalcular.
 - Métodos e campos de classes não são antecipados; seguem a ordem de visita da classe.
   Ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).
+- Anotações de função (`fn(Int) -> Int`) viram `FnTy` no parser e são resolvidas em
+  `_resolve_type`. `_assignable_fn` aplica contravariância nos parâmetros e covariância no
+  retorno; um `ClassObjectTy` também é atribuível à assinatura do seu `init`, então uma
+  classe pode ser passada como fábrica. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
 
 ## Narrowing
 

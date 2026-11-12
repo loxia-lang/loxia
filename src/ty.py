@@ -99,7 +99,10 @@ def display(ty: Ty) -> str:
     if isinstance(ty, MapTy):
         return f"Map[{display(ty.key)}, {display(ty.value)}]"
     if isinstance(ty, UnionTy):
-        return " | ".join(display(member) for member in ty.members)
+        return " | ".join(
+            f"({display(member)})" if isinstance(member, FnTy) else display(member)
+            for member in ty.members
+        )
     if isinstance(ty, FnTy):
         return str(ty)
     if isinstance(ty, NativeFnTy):

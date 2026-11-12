@@ -100,6 +100,11 @@ capitalizado, `List`/`Map` sem argumentos é erro e `list[int]`/`map[...]` tamb�
 sugestão de capitalização). Em `Map[K, V]`, `K` precisa ser `String`, `Int`, `Bool` (ou
 união desses); `Map[Float, V]`, `Map[List[T], V]` etc. são erro de tipo.
 
+Tipos de função são escritos `fn(Int, String) -> Bool`; `fn()` não tem parâmetros. A seta
+liga ao tipo de retorno, então `fn(Int) -> Int | Nil` devolve `Int | Nil`. Para a própria
+função ser opcional, use parênteses: `(fn(Int) -> Int)?`. Ver
+[ADR-0021](../adr/0021-tipos-de-funcao.md).
+
 O literal de mapa só existe em **posição de expressão** (`val m = {...}`, argumento,
 `return`, condição). No início de um statement, `{` abre um **bloco**:
 
