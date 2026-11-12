@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0005](0005-val-var-imutabilidade.md),
   [ADR-0006](0006-int-float-separados.md), [ADR-0007](0007-ranges-e-iteracao.md),
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md),
-  [`TIPOS.md`](../../TIPOS.md) §5, [`TODO.md`](../../TODO.md) §1.1
+  [`TIPOS.md`](../../TIPOS.md) §4, [`TODO.md`](../../TODO.md) §1
 - **Implementação:** [`src/lox_list.py`](../../src/lox_list.py),
   [`src/interpreter.py`](../../src/interpreter.py), [`src/checker.py`](../../src/checker.py),
   [`docs/spec/semantica.md`](../spec/semantica.md),
@@ -17,7 +17,7 @@
 `for x in` já existia para `Range` e `String`, e a spec prometia `List`/`Map` "quando
 existirem" ([ADR-0007](0007-ranges-e-iteracao.md)). Sem coleção, faltava o caso de uso mais
 básico de uma linguagem — ordenar, acumular, percorrer dados — e o exemplo de `quicksort`
-ficava impossível. O `TODO.md` §1.1 listava `arrays` e `mapas` como P2.
+ficava impossível. O `TODO.md` §1 listava `arrays` e `mapas` como P2.
 
 A pergunta que abriu a decisão foi dupla:
 
@@ -234,7 +234,7 @@ O tree-walk é a spec; o codegen futuro precisa reproduzir:
 - [ADR-0007](0007-ranges-e-iteracao.md) — `for-in` e iteráveis.
 - [ADR-0010](0010-tipagem-estatica.md) — checker gradual e tipos apagados.
 - [ADR-0014](0014-identidade-e-invariantes.md) — portão de admissão e I1–I3.
-- [`TIPOS.md`](../../TIPOS.md) §5 — listas, mapas e tuplas.
-- [`TODO.md`](../../TODO.md) §1.1 — checklist de sintaxe.
+- [`TIPOS.md`](../../TIPOS.md) §4 — listas, mapas e tuplas.
+- [`TODO.md`](../../TODO.md) §1 — checklist de sintaxe.
 - Kotlin `List`/`MutableList` (invariância e mutabilidade), Python `list` (ordem e
   igualdade estrutural), Rust `Vec<T>` (layout e crescimento).

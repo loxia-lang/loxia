@@ -6,8 +6,8 @@
 - **Relacionados:** [ADR-0005](0005-val-var-imutabilidade.md),
   [ADR-0006](0006-int-float-separados.md), [ADR-0007](0007-ranges-e-iteracao.md),
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md),
-  [ADR-0015](0015-listas-tipadas.md), [`TIPOS.md`](../../TIPOS.md) §5 e §10,
-  [`TODO.md`](../../TODO.md) §1.1 e §11
+  [ADR-0015](0015-listas-tipadas.md), [`TIPOS.md`](../../TIPOS.md) §4 e §9,
+  [`TODO.md`](../../TODO.md) §1 e §11
 - **Implementação:** [`src/lox_map.py`](../../src/lox_map.py),
   [`src/interpreter.py`](../../src/interpreter.py), [`src/checker.py`](../../src/checker.py),
   [`docs/spec/semantica.md`](../spec/semantica.md),
@@ -18,7 +18,7 @@
 `List[T]` já existe, mas o caso de uso mais comum depois de uma sequência — associar uma
 chave a um valor — ainda não tem runtime. `Map[K, V]` existe **só como anotação**: o parser
 resolve `Map[String, Int]` para `MapTy`, o checker aceita, mas não há literal, indexação,
-métodos, igualdade nem iteração. A spec prometia `Map` "quando existir" e o `TODO.md` §1.1
+métodos, igualdade nem iteração. A spec prometia `Map` "quando existir" e o `TODO.md` §1
 listava mapas como P2.
 
 A decisão não é só "implementar um dicionário". Há quatro perguntas que mudam a linguagem:
@@ -244,7 +244,7 @@ O tree-walk é a spec; o codegen futuro precisa reproduzir:
   separar `Map`.
 - [ADR-0014](0014-identidade-e-invariantes.md) — portão de admissão e I1–I3.
 - [ADR-0016](0016-api-stdlib-hibrida.md) — `len` global; métodos para ações específicas.
-- [`TIPOS.md`](../../TIPOS.md) §5 e §10 — catálogo de tipos, igualdade e hash.
+- [`TIPOS.md`](../../TIPOS.md) §4 e §9 — catálogo de tipos, igualdade e hash.
 - Lox2 Collections (`Dictionary`, literal `["k": v]`, chave ausente `nil`):
   <https://mysidia-inc.gitbook.io/lox2/basics/collections>.
 - Python `dict` (`d[k]` erro, `get` opcional), Rust `HashMap`/`BTreeMap`, Kotlin `Map` e

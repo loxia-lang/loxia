@@ -1,153 +1,28 @@
-# IDEIAS — caderno de design (parking lot)
+# IDEIAS — parking lot (só o que ainda está aberto)
 
-Ideias ainda **não decididas**, com os argumentos dos dois lados, para pensar depois sem
-perder o raciocínio. Diferente do `TODO.md` (o que fazer) e do `TIPOS.md` (contrato de
-tipos): aqui é o **rascunho de decisões de linguagem**.
+Só ficam aqui **coisas que ainda precisam ser feitas ou decididas**. Decisões fechadas
+viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado sai daqui.
 
-## Como usar
+## Pendências com direção já decidida
 
-Cada entrada tem um id (`I-n`) e um status:
-
-| Status | Significado |
-| --- | --- |
-| `ideia` | capturada, sem análise — só não quero esquecer |
-| `em avaliação` | já tem opções e argumentos; falta decidir |
-| `decidida` | virou ADR/decisão e resumo em [`docs/decisoes.md`](docs/decisoes.md) (e `D-n` no `TIPOS.md`, se for de tipo) |
-| `rejeitada` | descartada por ora, com o porquê registrado; os gatilhos dizem quando reabrir |
-
-Formato: **pergunta → opções → argumentos → impacto técnico → recomendação provisória →
-gatilhos para revisitar**.
-
-> Regra: nada daqui é implementado antes de fechar a decisão no `TODO.md` §11. Quando
-> decidir, crie/atualize o ADR, mova o resumo para [`docs/decisoes.md`](docs/decisoes.md)
-> e marque a entrada como `decidida` (mantendo os argumentos como histórico).
-
----
-
-## I-1 — Declaração de variáveis: `val` vs `var` e mutabilidade
-
-**Status:** `decidida` — `val` imutável + `var` mutável; ver
-[ADR-0005](docs/adr/0005-val-var-imutabilidade.md). O texto abaixo fica como histórico.
-
-[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
----
-
-## I-2 — Pipeline: passar o valor da esquerda para a direita (`|>` / `:>`)
-
-**Status:** `rejeitada` — **não haverá operador de pipeline** por enquanto (decisão de
-2026-11-11). O texto abaixo fica como histórico: os argumentos continuam válidos e os
-gatilhos dizem quando vale reabrir. Resumo registrado em
-[`docs/decisoes.md`](docs/decisoes.md) e §1.2.
-
-[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
-
-### Gatilhos para revisitar (caso a rejeição seja reaberta)
-
-- dor real de aninhamento: o código passar a acumular `val passo1 = ...` (sinal de que
-  pipe ajudaria);
-- ao desenhar a stdlib (a ordem dos argumentos vira contrato);
-- se UFCS/extension functions forem adotadas, pipe fica ainda mais redundante — sinal
-  para manter rejeitado;
-- ao definir a regra de `;` opcional (a interação com newline precisa estar pronta).
-
-## I-3 — Funções soltas vs métodos: por que Python tem `len`, `print`, `int()`?
-
-**Status:** `decidida` em 2026-11-11 — modelo híbrido; ver
-[ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). Conversões fechadas em 2026-11-12 no
-[ADR-0029](docs/adr/0029-conversoes-math.md): `as` + `Int.parse`/`Float.parse` + `math.*`.
-**Decidir até:** resolvido; com I-2 rejeitada, o modelo híbrido foi o caminho escolhido:
-builtins globais para operações genéricas + métodos para ações específicas.
-
-[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
-
-### Decisão: modelo híbrido
-
-A decisão está registrada no [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). O texto
-abaixo fica como histórico do raciocínio e das alternativas.
-
-Concretamente, o que foi decidido:
-
-1. Builtins globais **mínimos**: `len`, `str`, `repr`, `range`, `Int`, `Float`, `math`;
-   `print` é **statement**
-   (não função). Nada de `int()`/`float()` sobrecarregados; `clock`/tempo fica para um
-   módulo não determinístico depois ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
-2. `str` **e** `repr` existem desde já: `str` para exibição, `repr` para debug (string
-   citada/escapada). A distinção em listas coincide hoje; hooks de classe ficam para
-   depois.
-3. Builtins são **reservados no escopo global**: `fn len`, `val str`, `class range` são
-   erro; sombreamento local/parâmetro é permitido.
-4. Prelúdio pequeno; o resto vai para `std.*` quando módulos existirem.
-5. Sem métodos em primitivos agora (`5.toString()`/`s.upper()` não entram); extensões/UFCS
-   dão isso depois, sem boxing.
-6. Extensões/UFCS ficam em **P3, depois do LLVM MVP**; gatilho: stdlib precisar de operação
-   em tipo existente ou usuários pedirem.
-7. Conversões **decididas**: `as` explícito para casts, `Int.parse`/`Float.parse`
-   devolvendo `T?` e `math.*` determinístico; sem `toString()` (use `str`). Ver
-   [ADR-0029](docs/adr/0029-conversoes-math.md).
-
-Regra mental: *"depende de um tipo só e é ação dele → método; vale para vários tipos ou
-combina dois → função livre; converte/constrói → construtor namespaced."*
-
-### Gatilhos para revisitar
-
-- módulos: quando `std.*` entrar, revisar o que sai do prelúdio;
-- quando o type checker começar a precisar de protocolo `Sized`/traits/constraints (as
-  funções genéricas T3b já existem, mas sem constraints);
-- se o global começar a inchar (>30 builtins é sinal de alerta);
-- extensões/UFCS: depois do LLVM MVP, ou quando a stdlib precisar de operação em tipo
-  existente.
-
-### Generics além do T3b (futuro)
-
-O T3b entregou só **funções** genéricas, sem constraints, com inferência e monomorfização
-([ADR-0027](docs/adr/0027-generics-t3b.md)). Ficam para depois:
-
-- **classes genéricas** (`class Box[T] { val value: T; ... }`) e **métodos genéricos**;
-- **constraints/traits** (`T: Add`, `T: Show`) para permitir `a + b`/`len(x)`/métodos em
-  `T`;
-- **type application explícita** (`id[Int](1)`) quando a ambiguidade com indexação for
-  resolvida;
-- **função genérica como valor** (passar `id` como callback, guardar em `val`);
-- **backend híbrido** (mono para primitivos, box para `Any`/dinâmico) se `Any`/módulos
-  entrarem no MVP;
-- **recursão polimórfica** com limite/dicionários em vez de recusa;
-- **variance declarada** (`List<out T>`) se a invariância incomodar.
-
-### Tuplas (pós-1.0)
-
-Sintaxe decidida no [ADR-0030](docs/adr/0030-tuplas.md), implementação adiada para depois do
-backend/1.0:
-
-```lox
-val par: (Int, String) = (1, "a")
-print par[0]
-val (n, s) = par
-```
-
-- `(a, b)` e `(A, B)`; 2+ elementos (sem unit/1-tuple).
-- Acesso `t[0]`; destructuring só `val`; elementos imutáveis.
-- `==` estrutural, `str`/`repr` como `(1, "a")`, `len(t)`.
-- `for x in t` e `is (A, B)` ficam para depois.
-- Alternativas rejeitadas: `[a,b]` (lista), `t.0`, vírgula sem parênteses, classes/`Pair`.
-
-### Perguntas abertas
-
-- [x] `len` como função ou `.length`/`.tamanho` como método? → **função global** `len(x)`;
-  não existe `xs.len()`.
-- [x] `str` e `repr` separados? → **sim, ambos desde já**; ver ADR-0016.
-- [x] conversões: `as` + `Int.parse`/`Float.parse` (namespaced, `T?`) + `math.*`; sem
-  `to_int`/`toString`. Ver [ADR-0029](docs/adr/0029-conversoes-math.md).
-- [x] builtins no escopo global ou em `std.*`? → **prelúdio global mínimo + `std.*`
-  depois**.
-- [x] shadowing de builtin? → **proibido no global, permitido localmente**.
-- [x] métodos em primitivos? → **não agora**; extensões/UFCS depois, sem boxing.
-- [x] extension functions em qual fase? → **P3, depois do LLVM MVP**.
+- **Tuplas:** sintaxe escolhida (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), implementação
+  pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
+- **Generics além do T3b:** classes/métodos genéricos, constraints/traits, type application
+  explícita, função genérica como valor, recursão polimórfica e variance declarada.
+- **Math:** `log`, `exp`, `sin`, `cos`, `tan`, `pow` e constantes (`math.pi`) dependem da
+  libm; ficam fora do I3 até existir uma biblioteca determinística.
+- **Módulos/stdlib:** `std.*`, `io`, `string`, `collections` e `time` explicitamente não
+  determinístico.
+- **Diagnósticos:** spans/caret/stack trace e JSON determinístico (ver I-4).
+- **Variádicos:** `...args`/`*args` continua em avaliação (I-5).
+- **Iteráveis:** `..=`, `Iterable` de usuário e utilitários (`contains`, `sum`,
+  `enumerate`, `zip`) dependem de traits/tuplas (I-6).
 
 ## I-4 — Linguagem "agent-friendly": contratos + erros estruturados determinísticos
 
 **Status:** `em avaliação`
-**Decidir até:** contratos depois do cap. 10 (funções) e antes do codegen; formato JSON
-junto com o redesign de diagnósticos (`TODO.md` §3.1).
+**Decidir até:** contratos depois do backend/1.0 e antes de estabilizar a stdlib; formato
+JSON junto com o redesign de diagnósticos (`TODO.md` §3.1).
 
 ### A pergunta
 
@@ -443,8 +318,6 @@ Comandos que tornam isso possível:
 ### Gatilhos para revisitar
 
 - ao implementar o redesign de diagnósticos (`TODO.md` §3.1);
-- ao terminar funções (cap. 10) — primeiro momento para `requires`/`ensures`;
-- ao entrar em classes (cap. 12) — `invariant`;
 - ao começar o codegen (contratos em LLVM);
 - quando houver `lox check --json` (aí medir se o agente realmente resolve com `fixes`).
 
@@ -478,19 +351,8 @@ Comandos que tornam isso possível:
 
 ---
 
-## I-5 — Parâmetros opcionais/default e mutabilidade de campos de classe
 
-**Status:** `decidida` — ver [ADR-0009](docs/adr/0009-defaults-e-campos.md). O texto abaixo
-fica como histórico das opções.
-
-**Decisão (resumo):** defaults **constantes** (`param = expr`), obrigatórios antes dos
-opcionais, aridade `[mín, máx]`; campos declarados no corpo com `val`/`var`,
-inicializador constante ou atribuição no `init`, sem campo dinâmico e sem `nil` implícito.
-Tipos de campo/default entram com o type checker.
-
-[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
-
-### Complemento — `*args` e `**kwargs` (variádicos)
+## I-5 — Variádicos (`...args` / `*args`)
 
 **Status:** `em avaliação` (não implementar agora)
 
@@ -534,8 +396,8 @@ fn log(nivel: String, ...partes) { /* ... */ }
   checker unifica todos os extras. No LLVM, empacotar os extras em array/lista alocada.
 - **Custo:** médio. Útil para `print`/logging/FFI/decorators, mas muita coisa se resolve
   com uma lista explícita: `fn somar(ns: List[Int])` + `somar([1, 2, 3])`.
-- **Veredito:** viável e provavelmente útil, mas depois de existirem `List`, o type checker
-  e um caso de uso concreto (P2/P3).
+- **Veredito:** viável e provavelmente útil, mas falta um caso de uso concreto; `List` e o
+  type checker já existem. Fica P2/P3.
 
 #### Perguntas abertas
 
@@ -546,111 +408,12 @@ fn log(nivel: String, ...partes) { /* ... */ }
 - [ ] defaults depois do rest? (recomendo proibir)
 - [ ] `print`/`log` nativos viram variádicos ou continuam aceitando uma lista?
 
+## I-6 — Iteráveis: o que ainda falta no `for x in`
 
----
+**Status:** `em avaliação` — `Range`, `String`, `List` e `Map` já funcionam
+([ADR-0007](docs/adr/0007-ranges-e-iteracao.md)); resta:
 
-## I-6 — Ranges e iteráveis: o que pode aparecer no `for x in`
-
-**Status:** `decidida` — ver [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e
-[`docs/decisoes.md`](docs/decisoes.md). Implementado no tree-walk para `Range` e `String`;
-`List`/`Map` entram quando existirem.
-
-[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
-
-### O que falta
-
-- `List`/`Map` como fontes de iteração (os tipos ainda não existem).
 - `..=` e ranges inclusivos.
-- `Iterable` de usuário (depende de `Option` para o fim do iterator).
-- `contains`, `sum`, `enumerate`, `zip` (stdlib/Tuple).
-
-### Gatilhos para revisitar
-
-- quando List/Map chegarem;
-- quando `Option`/traits entrarem (protocolo de usuário);
-- se `..=`/passo virarem necessidade real;
-- se `map`/`filter` eager começarem a doer em memória.
-
----
-
-## I-7 — Identidade: existe algo único, ou é colcha de retalhos?
-
-**Status:** `decidida` em 2026-11-11 — ver
-[ADR-0014](docs/adr/0014-identidade-e-invariantes.md) e
-[`docs/decisoes.md`](docs/decisoes.md).
-A decisão é: identidade = **três invariantes + portão de admissão de feature**, não
-catálogo de features. O texto abaixo fica como histórico do raciocínio e da lista de
-recusa.
-
-### A pergunta
-
-> "A nossa linguagem tem algum atributo único? Algo que pudesse fazer outras pessoas
-> quererem ela? Ou nada mais é que uma colcha de retalhos C/Python/Kotlin-like?"
-
-### Diagnóstico honesto: hoje é colcha (bem costurada)
-
-O inventário está no [`TODO.md`](TODO.md) §8 e não há exceção: `?.`/`??`
-(Kotlin/Swift/TS), `val`/`var` (Kotlin/Swift), `;` opcional (Go/Kotlin), interpolação
-(Kotlin), `class B(A)` (Lox2), `Int`/`Float` separados (Rust/C), `fn` (Rust), `elif`
-(Ruby/Go). Nenhuma peça é original.
-
-E está tudo bem: linguagem boa é colcha bem costurada. O que distingue colcha de
-linguagem não são as peças, é **o critério único que escolheu as peças**.
-
-### O que o repo já tem sem ter nomeado
-
-**1. Uma atitude coerente: "nada acontece implicitamente".** Olhando os ADRs lado a lado:
-`Float → Int` nunca implícito, `+` não coage número com string, truthiness só `nil`/`false`,
-`??` troca só `nil`, `val`/parâmetro imutáveis por padrão, divisão por zero é erro, zero
-estado global de erro. É a tese de Rust numa linguagem do tamanho de Go. Coerência é
-higiene, não é diferencial — mas é pré-requisito de qualquer identidade.
-
-**2. Um invariante que quase ninguém consegue prometer.** Tree-walk como especificação
-([ADR-0002](docs/adr/0002-tree-walk-como-oraculo.md)) + tipos apagados
-([ADR-0010](docs/adr/0010-tipagem-estatica.md)) + aritmética i64 determinística que simula
-o LLVM ([ADR-0006](docs/adr/0006-int-float-separados.md)) permitem:
-
-> mesmo programa interpretado e compilado → mesmo stdout e exit code, **byte a byte**,
-> verificado em CI.
-
-Python/PyPy, Lua/LuaJIT e a maioria das linguagens não prometem isso. É caro de copiar
-(exige semântica num só lugar + suíte diferencial) e é **barato agora**, porque o backend
-ainda não existe. Depois de 20k linhas de codegen, é refactor impossível.
-
-**3. O eixo que ainda está no papel:** erros como dados ([I-4](#i-4--linguagem-agent-friendly-contratos--erros-estruturados-determinísticos)).
-"Sintaxe fluida" é a parte mais copiável de todas e não deve ser vendida como diferencial.
-
-### O teste de uma frase
-
-| Frase | Verificável? | Público | Veredito |
-| --- | --- | --- | --- |
-| "O interpretador **é** a spec: mesmo resultado interpretado e compilado, byte a byte." | sim, em CI | quem escreve/ensina linguagem, embedders | **escolhida** |
-| "Lox com tipos opcionais checáveis sem pagar em runtime." | sim | quem já usa TS/mypy | verdadeira, não única |
-| "A linguagem cujos erros são dados, não texto." | sim | tooling/agentes | boa, mas depende do I-4 pronto |
-| "Sintaxe fluida e moderna." | não | ninguém | **não vender** |
-
-### Lista de recusa (o que a identidade custa)
-
-Feature que só compra superfície é dívida paga pelo codegen — cada uma precisa ser
-replicada exatamente pelo LLVM. Ficam para depois do backend, ou nunca:
-
-- `match` estrutural, extension methods, operator overloading, `traits` — depois do LLVM
-  MVP, e só com dor real;
-- `**kwargs`, named args, exceções recuperáveis, `async` — já rejeitados ou adiados;
-- pipeline `|>` — rejeitado ([I-2](#i-2--pipeline-passar-o-valor-da-esquerda-para-a-direita--));
-- qualquer coisa que exija coerção implícita — vetada por I2.
-
-### O que a decisão NÃO resolve
-
-- Nome da linguagem e extensão (`PyLox`/`.lox`) continuam em aberto ([`TODO.md`](TODO.md)
-  §11 item 1).
-- I-4 (contratos + JSON) continua em avaliação: entra como consequência de I3
-  (determinismo), não como segundo posicionamento paralelo.
-
-### Gatilhos para revisitar
-
-- se I1 se mostrar impossível para alguma feature (timing de GC, otimização que muda
-  resultado observável) — aí é ADR novo restringindo, nunca silêncio;
-- quando o backend nascer (o teste diferencial deixa de ser promessa e vira gate);
-- se o portão começar a barrar tudo e a linguagem parar de crescer (sinal de que o eixo
-  ficou estreito demais).
+- `Iterable` de usuário (depende de traits/`Option` para o fim do iterator).
+- `contains`, `sum`, `enumerate`, `zip` (stdlib + tuplas).
+- Iterar tuplas (depois do ADR-0030).

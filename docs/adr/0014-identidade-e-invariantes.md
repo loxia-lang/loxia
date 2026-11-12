@@ -5,7 +5,7 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0002](0002-tree-walk-como-oraculo.md),
   [ADR-0003](0003-diagnosticos-por-execucao.md), [ADR-0006](0006-int-float-separados.md),
-  [ADR-0010](0010-tipagem-estatica.md), [I-7](../../IDEIAS.md), [TODO §11](../../TODO.md)
+  [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md), [TODO §11](../../TODO.md)
 - **Implementação:** [`docs/spec/garantias.md`](../spec/garantias.md),
   [`tests/test_determinism.py`](../../tests/test_determinism.py)
 
@@ -111,7 +111,7 @@ interpretador e custo de fidelidade no backend.
 
 - **Corta features populares.** `match` estrutural cedo, extension methods, operator
   overloading, `**kwargs`, exceções recuperáveis: todas ficam depois do backend, ou não
-  entram (ver "lista de recusa" em [I-7](../../IDEIAS.md)).
+  entram (ver "lista de recusa" em [ADR-0014](0014-identidade-e-invariantes.md)).
 - **"Nada implícito" é mais verboso que Python.** `1 + 2.0` é ok, mas não há açúcar de
   coerção; quem vem de scripting estranha.
 - **I1 limita otimizações observáveis.** Reassociação de float, eliminação de código que
@@ -163,7 +163,7 @@ interpretador e custo de fidelidade no backend.
 - [ADR-0002](0002-tree-walk-como-oraculo.md) — tree-walk como especificação executável.
 - [ADR-0006](0006-int-float-separados.md) — modelo numérico determinístico.
 - [ADR-0010](0010-tipagem-estatica.md) — tipos apagados em runtime (o que permite I1).
-- [I-7](../../IDEIAS.md) — diagnóstico da "colcha" e lista de recusa.
+- [ADR-0014](0014-identidade-e-invariantes.md) — diagnóstico da "colcha" e lista de recusa.
 - [TODO §8](../../TODO.md) — inventário do que é emprestado.
 - `docs/spec/garantias.md` — a versão para quem usa a linguagem.
 - Crafting Interpreters: <https://craftinginterpreters.com/>

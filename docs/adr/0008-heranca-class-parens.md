@@ -3,7 +3,7 @@
 - **Status:** accepted
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
-  [`../../IDEIAS.md`](../../IDEIAS.md) I-5 (campos/defaults),
+  [ADR-0009](0009-defaults-e-campos.md) (campos/defaults),
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/parser.py`; casos em `tests/cases/inheritance*.lox`,
   `super*.lox` e `tests/cases/errors/class_inherit_self.lox`,
@@ -29,7 +29,7 @@ estão livres.
 1. **Herança com parênteses**: `class Cachorro(Animal)` (uma única superclasse). Classe sem
    superclasse continua `class Cachorro { ... }`. O `<` é **removido**, sem alias.
 2. **Construtor continua `init`**, sem parâmetros no cabeçalho da classe. Campos declarados
-   ficam para [`IDEIAS.md` I-5](../../IDEIAS.md) **no corpo da classe** (opção B), não no
+   ficam para [ADR-0009](0009-defaults-e-campos.md) **no corpo da classe** (opção B), não no
    cabeçalho — assim os parênteses nunca precisam ser reaproveitados.
 3. **`this` implícito**, sem `self`: métodos não recebem o receptor como parâmetro.
 4. **`super.init(...)` explícito** quando a subclasse define `init` (como Python); não há
@@ -46,7 +46,7 @@ estão livres.
 
 - Sintaxe familiar a quem vem de Python, sem keyword nova e sem sobrecarregar `:`.
 - Como o construtor fica em `init`, os parênteses têm um único significado para sempre.
-- Reforça a decisão do I-5: campos no corpo, não no cabeçalho.
+- Reforça a decisão do ADR-0009: campos no corpo, não no cabeçalho.
 - `this` implícito evita o ruído do `self` em cada método.
 
 ### Negativas / custos

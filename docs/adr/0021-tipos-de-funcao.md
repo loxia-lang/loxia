@@ -5,8 +5,8 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0020](0020-assinaturas-explicitas.md),
-  [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §2.7,
-  [`../../TIPOS.md`](../../TIPOS.md) §7,
+  [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §2,
+  [`../../TIPOS.md`](../../TIPOS.md) §6,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/parser.py`](../../src/parser.py), [`src/ty.py`](../../src/ty.py),
   [`src/checker.py`](../../src/checker.py), [`tests/test_parser.py`](../../tests/test_parser.py),

@@ -3,7 +3,7 @@
 - **Status:** accepted
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) `D-10`, [`../decisoes.md`](../decisoes.md), [`../../TODO.md`](../../TODO.md)
-  §1.1/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
+  §1/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
 - **Implementação:** `src/scanner.py`, `src/token_type.py`, `src/keywords.py`,
   `src/expr.py`, `src/stmt.py`, `src/parser.py`, `src/resolver.py`,
@@ -72,7 +72,7 @@ futuros sem exigir OO?**
 - Sem `..=` não há range inclusivo; o usuário escreve `a..b + 1` (cuidado com overflow no
   futuro codegen).
 - `range` de 3 argumentos é menos ergonômico que o do Python; `range(10)` só quando
-  defaults entrarem (I-5/P3).
+  defaults entrarem ([ADR-0009](0009-defaults-e-campos.md), P3).
 - `map`/`filter` eager podem alocar; um `Iter` lazy fica para depois, se houver dor.
 - Iteráveis de usuário e o par `iter()`/`next()` não existem; classes não entram em
   `for-in` ainda.

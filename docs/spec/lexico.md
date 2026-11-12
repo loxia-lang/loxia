@@ -58,7 +58,7 @@ DIGIT   → "0" … "9"
 ALPHA   → "a" … "z" | "A" … "Z" | "_"
 ```
 
-Números ([`../../TIPOS.md`](../../TIPOS.md) §3, [ADR-0006](../adr/0006-int-float-separados.md)):
+Números ([`../../TIPOS.md`](../../TIPOS.md) §2, [ADR-0006](../adr/0006-int-float-separados.md)):
 
 - **`Int`**: `DIGIT+` com `_` opcional entre dígitos (`42`, `1_000_000`), ou base
   `0x`/`0X` (hex), `0b`/`0B` (binário) e `0o`/`0O` (octal) — `0xFF` = 255, `0b1010` = 10,

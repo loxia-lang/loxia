@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md),
   [ADR-0012](0012-comentarios-divisao-potencia-bits.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [ADR-0026](0026-freeze-1.0.md),
-  [`../../TIPOS.md`](../../TIPOS.md) §3.2, [`../spec/semantica.md`](../spec/semantica.md),
+  [`../../TIPOS.md`](../../TIPOS.md) §2, [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/erros.md`](../spec/erros.md)
 - **Implementação:** [`src/numeric.py`](../../src/numeric.py),
   [`src/interpreter.py`](../../src/interpreter.py), [`lox/cli.py`](../../lox/cli.py),

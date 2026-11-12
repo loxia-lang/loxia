@@ -5,7 +5,7 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0013](0013-ternario-nil-aware-escapes.md),
-  [ADR-0014](0014-identidade-e-invariantes.md), [`TIPOS.md`](../../TIPOS.md) §2.7
+  [ADR-0014](0014-identidade-e-invariantes.md), [`TIPOS.md`](../../TIPOS.md) §2.2
 - **Implementação:** [`src/checker.py`](../../src/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
@@ -52,7 +52,7 @@ len(nome)                             # depois do if: String
   `if (x == nil) { return }` aplica o ramo oposto ao restante do bloco. Funciona com
   `else` e com blocos que sempre retornam.
 - **Fora da v1:** `is T`, `while`, `and`/`or` de curto-circuito, refinamento de campos,
-  merge completo de fluxo em CFG e aliasing. Ficam registrados no `TODO.md` §2.7.
+  merge completo de fluxo em CFG e aliasing. Ficam registrados no `TODO.md` §2.
 
 ### Mecânica
 
@@ -106,5 +106,5 @@ len(nome)                             # depois do if: String
 ## Referências
 
 - [ADR-0010](0010-tipagem-estatica.md) — checker gradual.
-- [TIPOS.md](../../TIPOS.md) §6 — `T?` e non-null.
+- [TIPOS.md](../../TIPOS.md) §5 — `T?` e non-null.
 - Kotlin smart casts, TypeScript control-flow analysis e mypy narrowing — modelos mentais.

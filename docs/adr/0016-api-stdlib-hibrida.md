@@ -4,8 +4,8 @@
 - **Data:** 2026-11-11
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md),
-  [ADR-0015](0015-listas-tipadas.md), [I-3](../../IDEIAS.md),
-  [`TODO.md`](../../TODO.md) §11, [`TIPOS.md`](../../TIPOS.md) §3.3
+  [ADR-0015](0015-listas-tipadas.md), a discussão histórica de I-3 (git),
+  [`TODO.md`](../../TODO.md) §11, [`TIPOS.md`](../../TIPOS.md) §1
 - **Implementação:** [`src/prelude.py`](../../src/prelude.py),
   [`src/natives/str.py`](../../src/natives/str.py),
   [`src/natives/repr.py`](../../src/natives/repr.py),
@@ -19,13 +19,13 @@
 
 ## Contexto
 
-O [I-3](../../IDEIAS.md) compara **funções soltas** e **métodos** e conclui que o estilo
+A discussão histórica de I-3 compara **funções soltas** e **métodos** e conclui que o estilo
 Python é coerente, mas não é a única escolha: linguagens tipadas foram para métodos +
-extensões para ganhar descoberta sem perder abertura. Com o pipe rejeitado no I-2, sobravam
+extensões para ganhar descoberta sem perder abertura. Com o pipe rejeitado, sobravam
 dois cantos: aninhamento de funções ou métodos/UFCS.
 
 A implementação de `List[T]` ([ADR-0015](0015-listas-tipadas.md)) deu o primeiro caso real
-e resolveu a pergunta mais importante do I-3:
+e resolveu a pergunta mais importante daquela discussão:
 
 - `len(xs)` é **função global** — funciona para `List`, `String` e, no futuro, `Map`, sem
   exigir método em primitivo;
@@ -125,7 +125,7 @@ class range {}            # erro
 Extensões são a saída para dar `s.minhaExtensao()` a funções sem inchar o tipo ou o
 prelúdio, mas adicionam resolução de métodos, interação com traits e codegen. Ficam em P3,
 depois do LLVM MVP, com gatilho: a stdlib precisar de uma operação em tipo existente ou
-usuários pedirem. O item está registrado no [`TODO.md`](../../TODO.md) §1.1 e §8.
+usuários pedirem. O item está registrado no [`TODO.md`](../../TODO.md) §1 e §8.
 
 ### 7. Conversões continuam em aberto
 
@@ -139,9 +139,9 @@ concreta** não foi decidida:
 - alternativas para parsing: `Int.parse("42") -> Option/Result`, `parse_int(s)` ou
   `to_int(s)`.
 
-Nada disso entra neste ADR. Fica no [`TODO.md`](../../TODO.md) §11 e no I-3; a decisão será
+Nada disso entra neste ADR. Fica no [`TODO.md`](../../TODO.md) §11; a decisão será
 tomada junto com módulos/`Option`/`Result` e a sintaxe de cast (`D-8` no
-[`TIPOS.md`](../../TIPOS.md) §3.3).
+[`TIPOS.md`](../../TIPOS.md) §1).
 
 ## Consequências
 
@@ -187,7 +187,7 @@ tomada junto com módulos/`Option`/`Result` e a sintaxe de cast (`D-8` no
 | Proibir shadowing em qualquer escopo | Rígido demais; impede sombreamento lexical normal e nomes comuns em parâmetros. |
 | Métodos em primitivos com boxing | Uniformiza OO, mas cria boxing em `Int`/`String` e encarece checker/LLVM. |
 | Extensões já em P2 | Melhora ergonomia cedo, mas adia o backend e aumenta a superfície antes do teste diferencial. |
-| `int()`/`Int(...)` sobrecarregado | Três significados (parse, cast, default), difícil de tipar e de explicar; o I-3 já rejeita. |
+| `int()`/`Int(...)` sobrecarregado | Três significados (parse, cast, default), difícil de tipar e de explicar; a discussão histórica já rejeitava. |
 
 ## Como verificar
 
@@ -204,9 +204,9 @@ tomada junto com módulos/`Option`/`Result` e a sintaxe de cast (`D-8` no
 
 ## Referências
 
-- [I-3](../../IDEIAS.md) — funções soltas vs métodos, argumentos e análise.
+- a discussão histórica de I-3 (git) — funções soltas vs métodos, argumentos e análise.
 - [ADR-0015](0015-listas-tipadas.md) — primeiro caso real do modelo híbrido.
 - [ADR-0014](0014-identidade-e-invariantes.md) — portão de admissão e I1–I3.
 - [`docs/spec/semantica.md`](../spec/semantica.md) — comportamento de `len`/`str`/`repr`.
-- Python FAQ e Guido (2006) — as razões de `len(x)` vs `x.len()` (links no I-3).
+- Python FAQ e Guido (2006) — as razões de `len(x)` vs `x.len()` (links na discussão histórica de I-3).
 - Kotlin/C# extension functions — o modelo de extensões que fica para P3.

@@ -84,7 +84,7 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
    ficou **fora da 1.0** ([ADR-0026](../adr/0026-freeze-1.0.md)); ternário e `??` cobrem o
    caso comum.
 3. **Imutável por padrão** — `val`/`var` implementados; parâmetros são imutáveis e `var x`
-   libera a mutação. Argumentos em [`IDEIAS.md`](../../IDEIAS.md) I-1.
+   libera a mutação. Argumentos no [ADR-0005](../adr/0005-val-var-imutabilidade.md).
 4. **Tipos opcionais, não cerimônia** — anotar só onde ajuda; no `--check` a inferência
    local já existe e parâmetros/retorno continuam assinados. Inferir parâmetro sem
    anotação ficou adiado; ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).

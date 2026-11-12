@@ -3,7 +3,7 @@
 - **Status:** proposed | accepted | rejected | superseded by ADR-XXXX | deprecated
 - **Data:** AAAA-MM-DD
 - **Decisores:** quem participou
-- **Relacionados:** [I-1](../../IDEIAS.md), [D-1](../../TIPOS.md), ADR-XXXX
+- **Relacionados:** [`IDEIAS.md`](../../IDEIAS.md), [`TIPOS.md`](../../TIPOS.md), ADR-XXXX
 - **Implementação:** arquivos/casos que materializam a decisão
 
 ## Contexto

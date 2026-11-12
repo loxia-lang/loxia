@@ -1,321 +1,84 @@
 # TODO — Roadmap e ideias
 
-Documento vivo do projeto: o que falta no livro, o que quero mudar na linguagem, como
-pretendo tipar e como chegar no LLVM.
-
-> **Tipos e números têm documento próprio:** [`TIPOS.md`](TIPOS.md) — catálogo de tipos,
-> `Int` vs `Float`, literais, overflow, formatação, mapeamento LLVM e decisões `D-*`.
-> **Discussões de design em aberto:** [`IDEIAS.md`](IDEIAS.md) — ex.: `val` vs `var`.
+Documento vivo do projeto: o que **falta** na linguagem, no checker, no runtime e no
+backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](docs/spec/) e
+[`docs/decisoes.md`](docs/decisoes.md). Discussões em aberto ficam em
+[`IDEIAS.md`](IDEIAS.md); tipos e números em [`TIPOS.md`](TIPOS.md).
 
 **Legenda:** `P0` agora · `P1` próximo · `P2` depois · `P3` algum dia
 **Esforço:** `S` (horas) · `M` (dias) · `L` (semanas) · `XL` (meses)
 
 > Regra de ouro: a linguagem precisa **fechar semanticamente** antes do backend.
-> Cada feature nova entra com teste; cada mudança de sintaxe entra documentada aqui.
+> Cada feature nova entra com teste; cada mudança de sintaxe entra documentada no mesmo commit.
 
 ---
 
 ## 0. Agora
 
-> **Concluído:** caps. 4–13, M0–M2, `val`/`var`, ranges/`for-in`, `class B(A)`,
-> defaults/campos, checker `--check`, `fn`/`elif`/`;`, `//`/`**`/bits, ternário/`??`/`?.`,
-> `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
->
-> **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Recém-feito:**
-> assinaturas/funções (ADR-0020/0021), lambdas (ADR-0022), soundness do checker (ADR-0023),
-> mutação monomórfica (ADR-0024), `is T`/narrowing (ADR-0025), freeze da 1.0 (ADR-0026) e
-> generics T3b (ADR-0027), overflow `--debug` (ADR-0028) e conversões/`math.*`
-> (ADR-0029). **A seguir:** backend LLVM ou diagnósticos; tuplas (ADR-0030) ficam para
-> pós-1.0; classes/métodos genéricos e constraints também.
->
-> **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
-> (tipos) em andamento; M0–M2 fechados.
+O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/parse e
+`math.*` estão feitos. **Próximo:** backend LLVM (L0–L2) ou o pacote de diagnósticos
+(spans → caret → stack trace). **Depois:** tuplas (ADR-0030), classes/métodos genéricos e
+constraints.
 
 ---
 
-## 1. Linguagem: a sintaxe que eu quero
-
-> Princípios de design e identidade: [`docs/spec/garantias.md`](docs/spec/garantias.md#princípios-de-design).
-> Esta seção é só o checklist do que falta e o registro do que já foi descartado.
-
-### 1.1 Checklist de sintaxe
+## 1. Sintaxe pendente
 
 **Estrutural**
-- [x] `P1` **`;` opcional** — statement/campo termina no fim da linha, no EOF ou num `}`
-      de fechamento (permite `if (ok) { print 1 }`); duas instruções na mesma linha ainda
-      exigem `;`. Operador no **fim** da linha continua a expressão; operador no começo
-      inicia outro statement; `return` sozinho devolve `nil`.
-      Ver [ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md).
-- [x] `P1` **`elif`** em vez de `else if` (açúcar para `If` aninhado; parênteses ainda
-      obrigatórios).
-- [x] `P1` **`fn`** como keyword de função (`fun` deixou de ser palavra-chave).
-- [x] `P2` **corpo de uma instrução sem chaves** em `if`/`while`/`for` —
-      `if (x) print x` já funciona (o corpo é um `statement`, bloco é opcional).
-- [ ] `P2` **parênteses opcionais na condição** (`if x > 0 print x`) — precisa de um
-      delimitador entre condição e corpo (nova linha ou `then`); hoje os parênteses são
-      obrigatórios.
-- [x] `P2` **`val`** imutável + **`var`** mutável (erro em reatribuir `val`) —
-      [ADR-0005](docs/adr/0005-val-var-imutabilidade.md); histórico em
-      [`IDEIAS.md`](IDEIAS.md) I-1.
-- [x] `P2` **parâmetros imutáveis** por padrão; `var` explícito para mutar
-      (`fn f(var x)`), mesma decisão.
-- [ ] `P2` **corpo de expressão** em `fn` (`fn dobro(x) -> x * 2`).
-- [ ] `P2` **bloco como expressão** (último valor do bloco é o valor).
-- [ ] `P3` **`match`** estrutural com `=>` e exaustividade quando o tipo for enum/union.
-- [ ] `P3` **`loop { }`** infinito e `break`/`continue` com rótulo (`break outer`).
-
+- [ ] `P2` parênteses opcionais na condição (`if x > 0 print x`) — precisa de delimitador
+      entre condição e corpo (nova linha ou `then`).
+- [ ] `P2` corpo de expressão em `fn` (`fn dobro(x) -> x * 2`).
+- [ ] `P2` bloco como expressão (último valor do bloco é o valor).
+- [ ] `P3` `match` estrutural com `=>` e exaustividade para enum/união.
+- [ ] `P3` `loop { }` infinito e `break`/`continue` com rótulo.
 
 **Operadores e literais**
-- [x] `P0` **`%`** (resto truncado, sinal do dividendo; `Int` e `Float`) —
-      [ADR-0006](docs/adr/0006-int-float-separados.md).
-- [x] `P2` **`**`** potência associativa à direita; `Int ** Int -> Int`, Float envolvido
-      vira Float; expoente negativo em `Int` é erro. Ver
-      [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
-- [x] `P2` **`//`** divisão inteira truncada, só `Int`; comentários passaram para `#` e
-      `/* */` aninhado. Ver [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
-- [x] `P2` **bits** `& | ^ ~ << >> >>>` só em `Int`, i64; precedence de bits acima de
-      comparação; shift fora de `0..63` é erro. Ver
-      [ADR-0012](docs/adr/0012-comentarios-divisao-potencia-bits.md).
-- [x] `P2` **ranges** `0..10` (half-open), iteráveis e valor lazy; `0..=10` adiado.
-      Ver [`IDEIAS.md`](IDEIAS.md) I-6 e [ADR-0007](docs/adr/0007-ranges-e-iteracao.md).
-- [x] `P2` **ternário** `a if c else b` (Python-style, parênteses opcionais; sem `? :`).
-      Ver [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
-- [x] `P2` **`?.`** optional chaining e **`??`** coalescência de nil, incluindo
-      `a?.m() ?? default`. Ver [ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md).
-- [x] `P2` **`?:`** elvis — **rejeitado**: duplicaria `??`; só há uma forma.
-- [x] `P2` **escapes de string** `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\u{...}`;
-      escape desconhecido é erro.
-- [x] `P2` **interpolação** `"${expr}"`, qualquer expressão e `stringify` —
-      [ADR-0019](docs/adr/0019-interpolacao.md).
-- [ ] `P2` **strings multilinha** com `"""` e raw strings `r"..."`.
-- [x] `P2` **UTF-8**: strings UTF-8 com `len` em code points; identificadores ASCII
-      (decisão do [ADR-0026](docs/adr/0026-freeze-1.0.md)). Indexação de string e UTF-8
-      completo em identificadores ficam para depois.
-- [ ] `P3` **spread** `...lista` em chamadas e literais.
+- [ ] `P2` strings multilinha (`"""`) e raw strings (`r"..."`).
+- [ ] `P2` indexação de string e UTF-8 completo em identificadores (hoje só `len`).
+- [ ] `P3` spread `...lista` em chamadas e literais.
 
 **Dados e funções**
-- [x] `P2` **arrays/listas** `[1, 2, 3]`, acesso `a[i]`, atribuição `a[i] = v`,
-      `push`/`pop`/`len`, homogêneo e invariante; `for-in` incluso. Ver
-      [ADR-0015](docs/adr/0015-listas-tipadas.md).
-- [x] `P2` **mapas** `{ "a": 1 }` — literal em posição de expressão (`{` no início do
-      statement continua bloco), chaves são expressões, `m[k]`/`m[k] = v`,
-      `get`/`has`/`remove`/`keys`/`values`, `len`, `for k in m` em ordem de inserção.
-      Chave ausente em `m[k]` é erro; `m.get(k)` devolve `V?`; sem `get(k, default)`
-      (use `??`). Ver [ADR-0017](docs/adr/0017-mapas-hash.md).
-- [x] `P2` **`for x in iterável`** — implementado para `Range`, `String`, `List` e `Map`
-      (chaves em ordem de inserção). Protocolo de usuário depois de `Option`/traits. Ver
-      [ADR-0007](docs/adr/0007-ranges-e-iteracao.md),
-      [ADR-0015](docs/adr/0015-listas-tipadas.md) e
-      [ADR-0017](docs/adr/0017-mapas-hash.md).
-- [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista. Viabilidade e
-      comparação com `**kwargs` em [`IDEIAS.md`](IDEIAS.md) I-5 (complemento): `*args`
-      talvez, `**kwargs` não (depende de named args e destrói tipagem).
-- [x] `P2` **lambdas** `fn(x) => x * 2` e bloco `fn(x) { ... }`, com tipagem contextual
-      e retorno inferido — [ADR-0022](docs/adr/0022-lambdas.md).
-- [ ] `P2` **trailing closure** `lista.map { |x| x * 2 }` (ideia do Lox2/Kotlin/Swift;
-      depois de resolver o conflito com literal de mapa e com o corpo de bloco).
-- [x] `P2` **defaults** posicionais constantes (`fn ponto(x, y = 0)`) — aridade vira
-      intervalo; ver [ADR-0009](docs/adr/0009-defaults-e-campos.md).
-- [ ] `P3` **argumentos nomeados** (`fn ponto(x = 0)` na chamada).
-- [ ] `P3` **destructuring** `val (a, b) = par` / `val { nome, idade } = pessoa`.
-
-**Módulos e metaprogramação**
-- [ ] `P3` **namespaces/imports** (`namespace app.model`, `using app.model.Pessoa`).
-      Ideia boa do Lox2; essencial quando existir biblioteca padrão.
-- [ ] `P3` **traits/protocolos** (`trait Show { fn show() -> String }` + `with Show`).
-- [ ] `P3` **extension methods** (`impl String { fn gritar() }`) — depois do LLVM MVP
-      ([ADR-0016](docs/adr/0016-api-stdlib-hibrida.md)); é a saída para `s.upper()` sem
-      boxing.
-- [ ] `P3` **operator overloading** via métodos mágicos (`__add__`, `__eq__`) — igual Lox2.
-- [ ] `P3` **`type` alias** (`type UserId = Int`) e **`as`** cast explícito.
-- [ ] `P3` **`derive`** de `show`/`eq`/`hash` para classes simples.
+- [ ] `P2` variádicos (`fn log(nivel, ...args)`); ver [`IDEIAS.md`](IDEIAS.md) I-5.
+- [ ] `P2` trailing closure (`lista.map { |x| x * 2 }`) — depois do conflito com `{}`.
+- [ ] `P2` tuplas: implementar a sintaxe do [ADR-0030](docs/adr/0030-tuplas.md)
+      (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), pós-1.0/backend.
+- [ ] `P3` argumentos nomeados e destructuring de campos.
+- [ ] `P3` namespaces/imports, traits, extension methods, operator overloading,
+      `type` alias e `derive`.
 
 **Erros**
-- [ ] `P2` **`throw` / `try` / `catch` / `finally`** com stack trace. Alternativa mais
-      simples primeiro: `Result<T, E>` como tipo. Exceções em LLVM são caras (§6.7).
-      **Fora da 1.0** (runtime fatal; [ADR-0026](docs/adr/0026-freeze-1.0.md)).
-- [ ] `P2` **`assert`** e **`panic`** como funções nativas.
-- [ ] `P3` **erros como valores** (`Result`/`Option`) para código que compila puro —
-      depois de generics de classes + `match`; não na 1.0.
-
-### 1.2 Decisões de sintaxe já descartadas (para não revisitar)
-
-- `end` no estilo Ruby/Lua → **não**: chaves são melhores para erro de parser.
-- Off-side rule (indentação significativa) → **não**: caro no scanner e ruim no REPL.
-- `print` como function? **não na 1.0**: continua statement; `println(x)` pode entrar
-  depois como função, sem quebrar o statement ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
-- Herança com `(` `)` → **decidido**: `class Cachorro(Animal)` (uma superclasse; `<`
-  removido). `init` fica no corpo, `this` é implícito e `super.init(...)` é explícito —
-  ver [ADR-0008](docs/adr/0008-heranca-class-parens.md).
-- Pipeline `|>` / `:>` → **não** por enquanto (decisão de 2026-11-11): mais um operador e
-  nível de precedência, convenção invisível da posição do argumento e acoplamento com
-  `print`-função/stdlib, sem caso de uso urgente antes de `List`. Histórico e gatilhos de
-  reabertura em [`IDEIAS.md`](IDEIAS.md) I-2.
+- [ ] `P2` `throw`/`try`/`catch`/`finally` e stack trace; alternativa: `Result<T, E>`.
+      Fora da 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
+- [ ] `P2` `assert`/`panic`/`exit` nativos.
+- [ ] `P3` `Result`/`Option` como erros esperados; depois de generics de classes + `match`.
 
 ---
 
-## 2. Sistema de tipos com inferência
+## 2. Tipos: o que ainda falta
 
-> **Catálogo de tipos e modelo numérico:** [`TIPOS.md`](TIPOS.md) — o que existe, como
-> `Int`/`Float` se comportam, decisões abertas (`D-1`…) e roadmap de números.
-> Esta seção cobre **como implementar** a inferência.
+O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
+[`TIPOS.md`](TIPOS.md) e [ADR-0027](docs/adr/0027-generics-t3b.md).
 
-### 2.1 Objetivo
-
-Tipagem **estática gradual**, com anotações onde importam:
-
-```lox
-fn soma(a: Int, b: Int) -> Int { return a + b; }
-soma(1, 2)        # ok
-soma("a", 2)      # erro em tempo de compilação:
-                  #   Expected Int, found String.
-```
-
-E inferência nos locais:
-
-```lox
-val x = soma(1, 2)   # Int, sem anotação
-val nome: String? = nil
-```
-
-O ponto central: **o argumento é checado contra o parâmetro** e o local infere do
-inicializador. Funções anotadas continuam obrigatórias no modo `--check` (T3a, ADR-0020);
-generics explícitos de função (T3b) já existem ([ADR-0027](docs/adr/0027-generics-t3b.md));
-inferir parâmetros sem anotação (T3c) fica como evolução.
-
-### 2.2 Estratégia (não fazer HM completo de cara)
-
-Hindley–Milner puro é incompatível com o que a linguagem já tem/quere: mutação
-(`var`), `nil`, subclasses e métodos. O caminho realista é **bidirecional + unificação
-nas chamadas**, em camadas:
-
-| Etapa | O que faz | Ganho |
+| Etapa | O que falta | Ganho |
 | --- | --- | --- |
-| **T1** ✅ | `Ty` no AST, parser aceita `: Tipo`, `-> Tipo`, `T?` e `A \| B`; checker no AST | sintaxe e base prontas |
-| **T2** ✅ | inferência local (`val x = 1` → `Int`), checagem de `return`, chamadas e campos | erros óbvios sem anotar locais |
-| **T3a** ✅ | assinaturas explícitas; funções de topo pré-declaradas para o corpo chamar funções declaradas depois | recursão mútua sem depender da ordem |
-| **T3b** ✅ | funções genéricas explícitas (`fn id[T](x: T) -> T`), unificação no call site, sem constraints, inferência na chamada | funções genéricas de verdade (funções apenas) |
-| **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | adiado: sem T4 fica monomórfico e depende da ordem |
+| **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | inferência de parâmetro |
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
-| **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo | expressividade |
-| **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
+| **T5** 🟡 | narrowing restante: merge de fluxo, campos/índices e invalidação por mutação | expressividade |
+| **T6** ⬜ | traits/protocolos estruturais e exaustividade no `match` | abstração |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
-| **N2** ✅ | anotações `: Int`/`-> Float` e `Ty` no AST (já coberto por T1/T3a) | base do checker |
-| **N4** ✅ | `as`, `Int.parse`/`Float.parse` e `math.*` determinístico | conversões prontas |
 
-O modo `--check` está implementado em `src/checker.py` (ADR-0010): funções precisam de
-anotações, locais inferem, uniões/`T?`/promoção/booleanos são checados. Sem `--check` o
-interpretador ignora as anotações.
+Pendências pontuais:
+- [ ] `P2` narrowing de campos/índices e merge completo de fluxo.
+- [ ] `P2` exaustividade em `match`/enum.
+- [ ] `P3` flow-sensitive para `val` (uma atribuição só).
+- [ ] `P3` generics com constraints (`T with Show`), classes/métodos genéricos, type
+      application explícita (`id[Int] (1)`) e função genérica como valor.
+- [ ] `P3` inferência de retorno para funções com corpo de expressão.
+- [ ] `P3` `--check --json` com spans para editor/LSP.
 
-### 2.3 Modelo de tipos
-
-```
-Ty = Any | Nil | Bool | Int | Float | String
-   | List[T] | Map[K, V] | Tuple[T...]
-   | Fn[params..., ret]           # fn(Int, String) -> Bool
-   | Class(name, args...)         # instância
-   | ClassType(name)              # a classe como valor
-   | Union[A, B, ...]
-   | TyVar(id)                    # variável de unificação
-   | Never                        # bottom: throw/return
-```
-
-- `Any` é a válvula de escape: desliga checagem naquele ponto. No backend L0–L2 ele é
-  **rejeitado** com erro claro; valor boxeado só depois
-  ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
-- `Never` faz `throw`/`return` não estragarem o fluxo de tipos.
-- Guardar em `src/types.py` (novo), com `__eq__`/`__hash__` para unificação rápida.
-
-### 2.4 Unificação (núcleo)
-
-```python
-def unify(a: Ty, b: Ty) -> None:
-    a, b = resolve(a), resolve(b)
-    if a == b: return
-    if isinstance(a, TyVar): a.bind(b); return
-    if isinstance(b, TyVar): b.bind(a); return
-    if isinstance(a, Fn) and isinstance(b, Fn):
-        if len(a.params) != len(b.params): raise TypeError(...)
-        for pa, pb in zip(a.params, b.params): unify(pa, pb)
-        unify(a.ret, b.ret); return
-    if isinstance(a, List) and isinstance(b, List): unify(a.elem, b.elem); return
-    if a is Any or b is Any: return          # escape hatch
-    raise TypeError(f"expected {b}, found {a}")
-```
-
-Detalhes que mordem:
-- **occurs check** (`T = List[T]`) → erro claro, senão loop infinito.
-- **níveis/escopo de generalização** (estilo `let`), senão `fn id(x) { x }` vira
-  monomórfico e contamina o arquivo.
-- **value restriction**: generalizar tudo que é mutável dá unsoundness; generalizar só
-  funções/valores imutáveis.
-- unificação **mutável** (`var x = nil; x = 1`) foi decidida no
-  [ADR-0024](docs/adr/0024-mutacao-monomorfica.md): variável monomórfica e `var x = nil`
-  sem anotação é erro.
-- **mensagens de erro**: sempre apontar o `Token`/span, nunca só "type mismatch".
-
-### 2.5 Checagem de chamada (o caso que mais importa)
-
-```
-infer(Call(callee, args)):
-    f = infer(callee)
-    if not isinstance(f, Fn): erro "não é função"
-    if len(args) != len(f.params): erro de aridade (com dica: "f espera 2, veio 3")
-    for arg, param in zip(args, f.params):
-        check(arg, param)      # bidirectional: empurra o tipo esperado pra baixo
-    return f.ret
-```
-
-`check(expr, expected)` desce empurrando o tipo: literal numérico em contexto `Float`
-vira `Float`; lista vazia `[]` em `List[Int]` funciona. `infer(expr)` sobe sintetizando.
-Essa assimetria é o que faz a inferência parecer "mágica" sem ser HM.
-
-### 2.6 Onde plugar no pipeline
-
-```
-Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
-                                                     │
-                                                     └→ (futuro) HIR → LLVM
-```
-
-- O checker roda **depois** do resolver (precisa de escopo e `depth`).
-- `--check` no CLI: só checa, não executa (útil em CI e editor).
-- O interpretador continua dinâmico; tipos são apagados em runtime (como o Lox2).
-  Isso permite `Any` e mantém o tree-walk como oráculo dos testes diferenciais.
-- Anotação errada é **erro**, não warning. `Any` é o opt-out explícito.
-
-### 2.7 Extras que valem o esforço
-
-- [x] `P1` **soundness do checker**: retorno em todos os caminhos, inicialização de campos
-      no `init` e override compatível ([ADR-0023](docs/adr/0023-soundness-do-checker.md)).
-- [x] `P1` **mutação monomórfica**: `var x = nil` exige anotação; sem união/`Any`
-      implícito ([ADR-0024](docs/adr/0024-mutacao-monomorfica.md)).
-- [x] `P2` **narrowing** de `T?`: `if x != nil`, `if x == nil`, truthiness e early
-      return; `val`/`var` com invalidação ([ADR-0018](docs/adr/0018-narrowing.md)).
-- [x] `P2` **`is T` + narrowing**: uniões, `and`/`or` de curto-circuito e `while`; listas,
-      mapas e classes no teste ([ADR-0025](docs/adr/0025-is-e-narrowing.md)).
-- [ ] `P2` **narrowing restante**: merge completo de fluxo, refinamento de campos/índices e
-      invalidação por mutação de coleção.
-- [ ] `P2` **exhaustividade** em `match`/enum.
-- [ ] `P3` **flow-sensitive** para `val` (uma atribuição só).
-- [x] `P2` **tipos de função nas anotações** (`fn(Int) -> Int`), funções passadas como
-      argumento/retorno, variância e classe como construtor
-      ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
-- [x] `P3` **lambdas** `fn(x) => x * 2` e bloco com `return`, com tipagem contextual e
-      retorno inferido ([ADR-0022](docs/adr/0022-lambdas.md)).
-- [ ] `P3` **trailing closures** (`lista.map { |x| x * 2 }`) — depois do backend ou de
-      resolver o conflito com `{}`/bloco.
-- [ ] `P3` **generics com constraints** (`T with Show`).
-- [ ] `P3` **inferência de retorno** para funções declaradas com corpo de expressão.
-- [ ] `P3` **LSP**: `--check --json` com spans para o editor sublinhar.
-
-### 2.8 Referências de design
-
-- **Lox2**: tipagem opcional, `T?`, uniões, generics, `type` alias, erase em runtime.
-  É a maior referência prática aqui (mesmo tendo ido para VM em C).
-- **Kotlin/Swift**: nullability explícita, smart casts, trailing closures.
-- **TypeScript**: `Any` como escape e "structural typing" — bom modelo mental para traits.
-- **HM clássico** (OCaml): inspiração para unificação/generalização, mas não copiar.
+Modelo atual em [`src/ty.py`](src/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
+`ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e `Never`.
+`Any` é escape no tree-walk, mas o backend L0–L2 o rejeita.
 
 ---
 
@@ -374,7 +137,7 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
       ```
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
 - [ ] `P2` **`assert`/`panic`/`exit`** nativos.
-- [ ] `P2` **`try/catch/finally`** se a decisão for exceções (§1.1); fora da 1.0
+- [ ] `P2` **`try/catch/finally`** se a decisão for exceções (§1); fora da 1.0
       ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 - [ ] `P2` **REPL multiline** (continua enquanto `(`/`{`/`[` abertos) + histórico
       (`readline`) + `:help`, `:ast`, `:type expr`, `:clear`.
@@ -404,15 +167,14 @@ Sintaxe, opcionalidade e protocolo de reparo: [`IDEIAS.md`](IDEIAS.md) I-4.
 Objetivo: não otimizar por otimizar, mas **não deixar o oráculo lento demais** para os
 testes diferenciais.
 
-- [x] `P1` **harness de benchmark** (`bench/run.py`) com baseline versionado e gate de
-      regressão (`make bench`). Casos: `loop_sum`, `nested_loop`, `branchy`,
-      `string_concat`.
+- Benchmark harness e baseline já existem (`make bench`); casos: `loop_sum`,
+  `nested_loop`, `branchy`, `string_concat`.
 - [ ] `P2` resolver já com **slots** (índice inteiro) em vez de dict de nomes.
       É o maior ganho por linha de código no tree-walk.
 - [ ] `P2` `Environment` com lista + profundidade em vez de dict encadeado.
 - [ ] `P3` inline caching de `Get`/métodos.
-- [ ] `P3` novos casos quando a linguagem crescer: `fib` recursivo (cap. 10), criação de
-      objetos/`Get` (cap. 12), `List`/`Map` (sintaxe nova).
+- [ ] `P3` novos casos de benchmark: `fib` recursivo, criação de objetos/`Get`,
+      `List`/`Map` e (depois) tuplas/generics.
 - [ ] `P3` `--profile` simples (contagem de nós visitados).
 
 > Não vale reescrever o interpretador em Cython/PyPy agora. O alvo é LLVM.
@@ -563,102 +325,63 @@ imports para `print`).
 
 ---
 
+
 ## 7. Tooling e qualidade
 
-- [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
-      (`# expect:`, `# expect runtime error:`), com runner próprio
-      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 586 testes.
-- [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
-      (`make lint`, `make type`).
-- [x] `P1` **skills de projeto** em `.dsh/skills/` (`lox-feature`, `lox-testing`,
-      `lox-bench`, `lox-debug`) — procedimentos carregáveis por tarefa.
-- [x] `P1` **pre-commit** rodando ruff/mypy/pytest — hooks locais em
-      [`.pre-commit-config.yaml`](.pre-commit-config.yaml); `make hooks` instala.
-- [x] `P1` **CI** (GitHub Actions): `uv sync`, ruff, mypy, pytest.
-- [x] `P1` **`Makefile`**: `run`, `test`, `case`, `lint`, `type`, `fmt`, `check`, `hooks`,
-      `bench`, `baseline`.
-- [x] `P2` **importar a suíte oficial** do craftinginterpreters como casos extras
-      (adaptando o formato de expectativa); ótimo para validar o cap. 10–13.
-      Implementado em [`tests/official/`](tests/official/README.md) + runner
-      `tests/test_official_suite.py`: 120 casos, 112 passando e 8 `xfail` documentados
-      (7 de campo dinâmico e 1 de sintaxe antiga de superclasse).
-- [ ] `P2` **testes diferenciais** interpretador × LLVM (mesmo stdout, exit code).
-- [ ] `P3` **fuzzing** do scanner/parser com `hypothesis`: "nunca crashar, nunca loopar".
-- [ ] `P3` **snapshot de AST** em arquivo (hoje o `AstPrinter` é usado em testes pontuais).
-- [ ] `P3` **tree-sitter grammar** → highlight no Neovim/VS Code.
-- [ ] `P3` **LSP** mínimo (diagnostics + hover de tipo) — depois do checker.
-- [ ] `P2` **CLI agent-friendly**: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
+- [ ] `P2` testes diferenciais interpretador × LLVM (mesmo stdout, exit code).
+- [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
       [`IDEIAS.md`](IDEIAS.md) I-4).
-- [ ] `P3` **`lox fmt`** e teste de idempotência (formatar duas vezes = igual).
-- [x] `P1` **estrutura de docs**: `docs/spec` (comportamento atual), `docs/tech`
-      (arquitetura), `docs/adr` (decisões) e glossário; links verificados por
-      `tests/test_docs_links.py`.
-- [ ] `P3` **site publicado** (mkdocs/mdbook) gerado a partir de `docs/`.
+- [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
+- [ ] `P3` snapshot de AST em arquivo.
+- [ ] `P3` tree-sitter grammar + LSP mínimo (diagnostics/hover).
+- [ ] `P3` `lox fmt` e teste de idempotência.
+- [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
+
+Infra já pronta: pytest (golden `.lox`; 678 pass + 8 `xfail`), ruff, mypy strict,
+`make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
 
-## 8. Ideias do Lox2 ainda não implementadas (e as que não valem)
+## 8. Lox2: o que ainda vale
 
-Contexto: o Lox2 é um **superset de Lox em C** com VM de bytecode, tipagem estática
-opcional, namespaces, exceções, async e JIT — caminho bem diferente do meu (Python +
-tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referências.
+| Recurso | Status | Nota |
+| --- | --- | --- |
+| `for-in` + iterador de usuário | ⏳ | o `for-in` embutido existe; falta protocolo de usuário |
+| `print` como função (`println`) | ⏳ | depois da 1.0; statement é a decisão |
+| variádicos `...args` | ⏳ | falta implementar |
+| trailing closure | ⏳ | falta implementar |
+| `type` alias | ⏳ | falta implementar |
+| generics + constraints/traits | ⏳ | funções T3b prontas; constraints depois de T4 |
+| uniões + narrowing | 🟡 | `T?`/`is`/`while` prontos; falta campos/índices e merge |
+| traits + `with` | ⏳ | depois de classes |
+| operator overloading | ⏳ | depois de classes |
+| namespaces/import | ⏳ | necessário com stdlib |
+| `throw`/`try` | ⏳ | caro no LLVM |
+| `match` estrutural | ⏳ | depois de uniões/enums |
+| extension methods | ⏳ | depois do LLVM MVP e de traits |
+| classes como valores / metaclasses | 🤔 | só se precisar |
+| FFI com C | ⏳ | depois de linking estável |
+| stdlib (`io`, `string`, `collections`) | ⏳ | mínima primeiro |
 
-| Recurso do Lox2 | Vale? | Esforço | Nota |
-| --- | --- | --- | --- |
-| UTF-8 em strings | ✅ | M | strings UTF-8/code points; identificadores ASCII na 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md)) |
-| `for-in` + protocolo de iterador de usuário | ⏳ | M | o `for-in` embutido já existe; falta iterável de usuário |
-| `print` como função (`println`) | ⏳ | S | fica para depois da 1.0; statement é a decisão ([ADR-0026](docs/adr/0026-freeze-1.0.md)) |
-| variádicos `...args` | ✅ | S | fácil e útil |
-| lambdas anônimas | ✅ | M | precisa de closures (cap. 10) |
-| trailing closure | ✅ | M | ergonomia p/ `map`/`filter` |
-| `type` alias | ✅ | S | útil com generics |
-| generics + constraints/traits | ⏳ | XL | funções T3b prontas; constraints ficam depois de T4 (§2) |
-| uniões + narrowing | ⏳ | L | `T?`, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo |
-| traits + `with` | ⏳ | L | ótimo para composição; depois de classes |
-| operator overloading | ⏳ | M | divertido e barato depois de classes |
-| namespaces/import | ⏳ | L | necessário quando houver stdlib |
-| `throw`/`try`/`catch`/`finally` | ⏳ | L | ótimo na VM; caro no LLVM (§6.7) |
-| `match` estrutural | ⏳ | L | depois de uniões/enums |
-| `as` cast | ⏳ | S | junto com o checker |
-| extension methods | ⏳ | M | depois do LLVM MVP e de traits (ADR-0016) |
-| classes como valores / metaclasses | 🤔 | L | poderoso, mas confunde; só se precisar |
-| interceptors (`get`/`set` mágicos) | ❌ | L | mágica demais para o meu gosto |
-| `Object` raiz / tudo é objeto | ❌ | L | simplifica o Lox2, mas custa no codegen |
-| generators/`yield` | ❌ | XL | precisa de corrotinas; ótimo, mas fora de escopo |
-| `async`/`await` + event loop | ❌ | XL | projeto inteiro; não é o objetivo |
-| JIT tracing / SSA / CFG | ❌ | XL | o LLVM já faz otimização por mim |
-| GC geracional, shapes, inline cache | ❌ | XL | otimizações de VM que não vou ter |
-| cache de bytecode `.loxo` | ❌ | M | substituído por cache de `.o`/IR |
-| FFI com C | ⏳ | L | legal, mas depois de linking estável |
-| biblioteca padrão (lang/util/io/net) | ⏳ | L | mínima primeiro (`math`, `io`, `string`) |
-
-**Resumo:** o que ainda vale do Lox2 é a lista acima — tipos opcionais com erasure,
-`for-in` com protocolo de iterador e as features de ergonomia ainda ausentes. Ficam fora a
-VM, o GC geracional, o async e o JIT: o LLVM cobre a geração de código e o escopo humano
-manda.
+Fora: VM própria, GC geracional, async/await, JIT tracing, cache de bytecode e
+`Object` raiz — o LLVM cobre o codegen e o escopo humano manda.
 
 ---
 
-## 9. Milestones (ordem sugerida)
+## 9. Milestones pendentes
+
+M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 | # | Marco | Critério de pronto |
 | --- | --- | --- |
-| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 586), benchmark com baseline, lint/tipos/CI |
-| **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
-| **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
-| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, listas, mapas, interpolação e lambdas; ⬜ trailing closure |
-| **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`), T3a (assinaturas explícitas, pré-declaração) e T3b (funções genéricas, ADR-0027); ⬜ T3c (inferência de parâmetro) |
-| **M5** | Tipos v2 | T4–T6: classes/métodos genéricos, constraints/traits, uniões/opcionais, narrowing completo, exaustividade |
-| **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |
-| **M7** | Runtime completo | L3–L5: strings, closures, classes, GC (Boehm); **I1** verde no corpus completo |
-| **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks, JIT |
-| **M9** | Ecossistema | formatter, LSP, docs, CI, playground |
+| **M5** | Tipos v2 | T4–T6: classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade |
+| **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções e binário nativo; I1 verde no corpus |
+| **M7** | Runtime completo | L3–L5: strings, closures, classes e GC; I1 verde no corpus completo |
+| **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT |
+| **M9** | Ecossistema | formatter, LSP, docs, CI e playground |
 
-Regra: **M3 só começa com M2 verde**, e **M6 só com M4 verde**. Sem isso, o codegen
-persegue uma linguagem que ainda muda. **Agora:** M3 em andamento, com M4 adiantado em
-T1/T2; M2 fechado com os 8 `xfail` aceitos (divergências intencionais de campo dinâmico e
-sintaxe antiga de superclasse).
+Regra: M6 só começa com M5 verde (tipos v2); sem isso o codegen persegue uma linguagem que ainda muda.
 
 ---
 
@@ -683,49 +406,25 @@ sintaxe antiga de superclasse).
 
 ---
 
+
 ## 11. Decisões em aberto
 
-Só o que **ainda não foi decidido**. As decisões fechadas saíram daqui e viraram um
-registro executivo em [`docs/decisoes.md`](docs/decisoes.md); a fonte de verdade continua
-sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
-[`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
+Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md); tipos:
+[`TIPOS.md`](TIPOS.md) §10.
 
-### Fechadas para a 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md), [ADR-0027](docs/adr/0027-generics-t3b.md))
-
-- **Erros:** runtime é fatal (exit 70); sem `try`/`Result` na 1.0.
-- **`clock`:** removido do prelúdio; tempo vira módulo não determinístico depois.
-- **UTF-8:** strings UTF-8 com `len` em code points; identificadores ASCII; indexação de
-  string fica fora da 1.0.
-- **`print`:** continua statement; `println` função fica para depois.
-- **Generics T3b:** funções genéricas com inferência, sem constraints, monomorfização no
-  backend; classes/métodos genéricos e type application explícita ficam para depois.
-- **Overflow no debug:** `--debug` checa aritmética `Int`; release faz wrapping
-  ([ADR-0028](docs/adr/0028-overflow-debug.md)).
-- **Conversões e `math`:** `as`, `Int.parse`/`Float.parse` → `T?` e núcleo determinístico
-  de `math.*`; transcendentais ficam fora ([ADR-0029](docs/adr/0029-conversoes-math.md)).
-- **Tuplas:** sintaxe escolhida, implementação pós-1.0/backend
-  ([ADR-0030](docs/adr/0030-tuplas.md)).
-- **Escopo:** single-file; sem módulos, `if`-expr, `match`/enums, traits, exceções,
-  named args, operator overloading, trailing closure; stdlib mínima; `Any` na linguagem
-  mas fora do backend L0–L2.
-
-### Ainda em aberto (pós-1.0)
-
-1. **Generics além de funções:** classes/métodos genéricos, constraints/traits (`T: Add`),
-   type application explícita (`id[Int](1)`) e funções genéricas como valor. A estratégia
-   de backend já foi decidida: monomorfização ([ADR-0027](docs/adr/0027-generics-t3b.md)).
+1. **Generics além de funções:** classes/métodos genéricos, constraints/traits, type
+   application explícita e função genérica como valor; monomorfização já decidida
+   ([ADR-0027](docs/adr/0027-generics-t3b.md)).
 2. **Backend:** `llvmlite` desde o começo ou `.ll` textual + clang primeiro? (tende a
-   `llvmlite`)
+   `llvmlite`).
 3. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
-4. **Escopo da stdlib pós-1.0:** `io`, `string`, `collections` e um módulo `time`
-   explicitamente não determinístico. O núcleo de `math` já existe; transcendentais
-   (`log`/`exp`/trig/`pow`) ficam fora do I3.
-5. **Tuplas:** sintaxe decidida (`(a,b)`, `t[0]`, `val (a,b) = t`), implementação
-   pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
-6. **Contratos e agentes:** `requires`/`ensures`/`invariant` opcionais? `--contracts`
-   default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
-7. **`if`/bloco como expressão, `match`/enums e traits:** explicitamente fora da 1.0;
-   reavaliar depois do backend/M5.
+4. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
+   transcendentais de `math` fora do I3.
+5. **Tuplas:** implementação pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
+6. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
+   schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
+7. **`if`/bloco como expressão, `match`/enums e traits:** fora da 1.0; reavaliar depois
+   do backend/M5.
 
 ---
 

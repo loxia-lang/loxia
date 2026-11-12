@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [I-1](../../IDEIAS.md), [I-5](../../IDEIAS.md), [`../../TODO.md`](../../TODO.md) §1.1/§11,
+- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/parser.py`, `src/stmt.py`, `src/resolver.py`, `src/environment.py`,
   `src/interpreter.py`, `src/lox_function.py`, casos em `tests/cases/val_*.lox`
@@ -12,7 +12,7 @@
 O Lox do livro só tem `var`, sempre mutável. Queremos declarações mais expressivas, com
 imutabilidade como opção explícita, e essa escolha precisa conversar com os objetivos de
 inferência de tipos e de codegen LLVM (SSA). A discussão completa está em
-[`IDEIAS.md` I-1](../../IDEIAS.md).
+[ADR-0005](0005-val-var-imutabilidade.md).
 
 A decisão maior: **usar `val` (imutável) e `var` (mutável), os dois**.
 
@@ -35,7 +35,7 @@ A decisão maior: **usar `val` (imutável) e `var` (mutável), os dois**.
 7. **Mensagem** de atribuição a imutável (inglês, padrão do projeto):
    `'x' is immutable; declare it with 'var' to allow assignment.`
 8. **Campos de classe não entram ainda**: campos continuam dinâmicos e mutáveis; a
-   mutabilidade de campos (e parâmetros opcionais/default) fica para [I-5](../../IDEIAS.md).
+   mutabilidade de campos (e parâmetros opcionais/default) fica para [ADR-0009](0009-defaults-e-campos.md).
 
 `fn` e `class` continuam criando bindings **mutáveis** (redeclaráveis/reatribuíveis) —
 decisão separada, registrada como consequência em aberto.

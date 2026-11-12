@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1.1,
+- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/lexico.md`](../spec/lexico.md),
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/token_type.py`, `src/keywords.py`, `src/parser.py`,

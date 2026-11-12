@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [`../../IDEIAS.md`](../../IDEIAS.md) I-5, [`../../TIPOS.md`](../../TIPOS.md)
+- **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md)
   (futuro: tipos de campo/default), [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/parser.py`, `src/stmt.py`, `src/lox_callable.py`,
@@ -12,7 +12,7 @@
 
 ## Contexto
 
-O I-5 estava em aberto: funções não tinham parâmetros opcionais (aridade era um número
+A decisão estava em aberto: funções não tinham parâmetros opcionais (aridade era um número
 fixo) e campos de classe nasciam dinamicamente em `this.x = ...`, sem `val`/`var`, sem
 checagem e sem lugar para o type checker se apoiar. A decisão de herança
 ([ADR-0008](0008-heranca-class-parens.md)) já tinha reservado os parênteses da classe para
