@@ -226,6 +226,9 @@ velocidade.
 ## 6. `nil`, `Option` e `Result`
 
 - **Decidido (`D-15`)**: `Int` é non-null; `T?` é açúcar para `T | Nil` e aceita `nil`.
+- **Mutação monomórfica**: `var x = nil` sem anotação é erro no `--check`; use `T?` ou
+  `Any`. Variável não muda de tipo por atribuição; sem união implícita
+  ([ADR-0024](docs/adr/0024-mutacao-monomorfica.md)).
 - Ternário: tipo é `união(ramo1, ramo2)`; `??`: tipo é `non_nil(A) | B` (se `A` já é
   non-null, o tipo é `A`); `?.` em `T | Nil` produz `P | Nil`. Ver ADR-0013.
 - Narrowing de fluxo (`if x != nil { ... }`, `if x == nil { return }`, `if x`) refina a

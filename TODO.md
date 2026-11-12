@@ -238,7 +238,9 @@ Detalhes que mordem:
   monomórfico e contamina o arquivo.
 - **value restriction**: generalizar tudo que é mutável dá unsoundness; generalizar só
   funções/valores imutáveis.
-- unificação **mutável** (`var x = nil; x = 1`) pede união ou `Any` — decidir em §11 item 13.
+- unificação **mutável** (`var x = nil; x = 1`) foi decidida no
+  [ADR-0024](docs/adr/0024-mutacao-monomorfica.md): variável monomórfica e `var x = nil`
+  sem anotação é erro.
 - **mensagens de erro**: sempre apontar o `Token`/span, nunca só "type mismatch".
 
 ### 2.5 Checagem de chamada (o caso que mais importa)
@@ -275,6 +277,8 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
 
 - [x] `P1` **soundness do checker**: retorno em todos os caminhos, inicialização de campos
       no `init` e override compatível ([ADR-0023](docs/adr/0023-soundness-do-checker.md)).
+- [x] `P1` **mutação monomórfica**: `var x = nil` exige anotação; sem união/`Any`
+      implícito ([ADR-0024](docs/adr/0024-mutacao-monomorfica.md)).
 - [x] `P2` **narrowing** de `T?`: `if x != nil`, `if x == nil`, truthiness e early
       return; `val`/`var` com invalidação ([ADR-0018](docs/adr/0018-narrowing.md)).
 - [ ] `P2` **narrowing completo**: `is T`, `and`/`or` de curto-circuito, loops,
@@ -690,8 +694,6 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
     [`IDEIAS.md`](IDEIAS.md) I-3 e `D-8` no [`TIPOS.md`](TIPOS.md) §3.3.
 12. **Contratos e agentes**: `requires`/`ensures`/`invariant` opcionais? `--contracts`
     default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
-13. **Mutação na unificação**: `var x = nil; x = 1` deve virar união, `Any` ou erro?
-    (o checker atual infere local, mas ainda não fecha essa regra; ver §2.4)
 
 ---
 

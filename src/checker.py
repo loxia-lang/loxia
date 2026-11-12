@@ -504,6 +504,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
             elif field_decl.initializer is not None:
                 field_ty = self._infer(field_decl.initializer)
+                if field_decl.mutable and field_ty is NIL:
+                    self._error(
+                        field_decl.name,
+                        f"Field '{field_decl.name.lexeme}' initialized with nil "
+                        "needs a type annotation.",
+                    )
+                    field_ty = ANY
             else:
                 self._error(
                     field_decl.name,
@@ -1037,7 +1044,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._define(stmt.name, ANY)
             return
 
-        self._define(stmt.name, self._infer(stmt.initializer))
+        inferred = self._infer(stmt.initializer)
+        if stmt.mutable and inferred is NIL:
+            self._error(
+                stmt.name,
+                f"Can't infer type of '{stmt.name.lexeme}' from nil; "
+                "add an annotation.",
+            )
+            self._define(stmt.name, ANY)
+            return
+
+        self._define(stmt.name, inferred)
 
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)

@@ -79,6 +79,11 @@ a si mesmo imprime `{"self": {...}}`. Fora de lista/mapa, string continua sem as
 
 - `val x = expr;` cria binding **imutável** e **exige inicializador**.
 - `var x;` cria binding mutável com `nil`; `var x = expr;` idem com valor.
+- No `--check`, todo binding é **monomórfico**: `var x = 1` é `Int` para sempre; `x = 2.0`
+  é erro. `var x = nil` sem anotação é erro (`Can't infer type of 'x' from nil; add an
+  annotation.`); use `var x: Int? = nil` ou `var x: Any = nil`. Campo mutável com
+  inicializador `nil` segue a mesma regra; `val x = nil` é permitido. Ver
+  [ADR-0024](../adr/0024-mutacao-monomorfica.md).
 - A imutabilidade é do **nome**, não do valor: `val lista` ainda pode ter conteúdo mutável
   (`lista.push(1)` é permitido).
 - Atribuir a `val` local (ou a parâmetro imutável) é **erro de compilação**:

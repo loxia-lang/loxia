@@ -486,6 +486,108 @@ def test_field_initializer_satisfies_initialization() -> None:
     assert lox.reporter.had_error is False
 
 
+def test_var_initialized_with_nil_needs_annotation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check("var x = nil;")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Can't infer type of 'x' from nil; add an annotation." in captured.err
+
+
+def test_var_nil_with_annotation_can_receive_values() -> None:
+    lox = check(
+        """
+        var x: Int? = nil;
+        x = 1;
+        x = nil;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_mutable_var_is_monomorphic(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x = 1;
+        x = 2.0;
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected Int, found Float." in captured.err
+
+
+def test_var_nil_with_any_annotation_allows_any_value() -> None:
+    lox = check(
+        """
+        var x: Any = nil;
+        x = 1;
+        x = "a";
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_val_initialized_with_nil_is_allowed() -> None:
+    lox = check(
+        """
+        val x = nil;
+        print x;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_mutable_field_initialized_with_nil_needs_annotation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var x = nil;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert (
+        "Field 'x' initialized with nil needs a type annotation." in captured.err
+    )
+
+
+def test_mutable_field_nil_with_annotation_is_clean() -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int? = nil;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_immutable_field_initialized_with_nil_is_allowed() -> None:
+    lox = check(
+        """
+        class C {
+          val x = nil;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
 def test_override_must_be_compatible(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
