@@ -1,8 +1,8 @@
 # Closures: a função interna guarda o ambiente onde foi declarada.
-fn makeCounter() {
+fn makeCounter() -> fn() -> Int {
   var count = 0;
 
-  fn increment() {
+  fn increment() -> Int {
     count = count + 1;
     return count;
   }

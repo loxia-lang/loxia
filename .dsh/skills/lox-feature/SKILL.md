@@ -24,27 +24,27 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 
 | # | O quê | Onde |
 |---|-------|------|
-| 1 | Token / keyword | `src/token_type.py`, `src/keywords.py` |
-| 2 | Lexema (símbolo novo) | `src/scanner.py::_scan_token` |
-| 3 | Nó de AST | `src/expr.py` ou `src/stmt.py` — `@dataclass(frozen=True)` herdando de `Expr`/`Stmt` |
+| 1 | Token / keyword | `src/frontend/token_type.py`, `src/frontend/keywords.py` |
+| 2 | Lexema (símbolo novo) | `src/frontend/scanner.py::_scan_token` |
+| 3 | Nó de AST | `src/frontend/expr.py` ou `src/frontend/stmt.py` — `@dataclass(frozen=True)` herdando de `Expr`/`Stmt` |
 | 4 | Método no `Visitor` | mesmo arquivo (`visit_<no>_expr` / `visit_<no>_stmt`) |
 | 5 | `accept` | mesmo arquivo |
-| 6 | Parsing | `src/parser.py` (respeite a cascata de precedência do `AGENTS.md` §3) |
-| 7 | Semântica | `src/interpreter.py` |
-| 8 | Debug | `src/ast_printer.py` — todo nó precisa de `visit_*`, senão o dump quebra |
+| 6 | Parsing | `src/frontend/parser.py` (respeite a cascata de precedência do `AGENTS.md` §3) |
+| 7 | Semântica | `src/execution/interpreter.py` |
+| 8 | Debug | `src/frontend/ast_printer.py` — todo nó precisa de `visit_*`, senão o dump quebra |
 | 9 | Teste | `tests/cases/` + unitário se a lógica interna for não trivial |
 | 10 | Docs | `docs/spec/` (comportamento) e ADR em `docs/adr/` se for decisão; marque no `TODO.md` |
 
 ## Invariantes que não podem quebrar
 
 - Números são `Int` (i64) e `Float` (f64), **separados** ([ADR-0006](../../../docs/adr/0006-int-float-separados.md)).
-  Em checagem numérica use `src.numeric.is_number`/`is_int`; nunca
+  Em checagem numérica use `src.execution.numeric.is_number`/`is_int`; nunca
   `isinstance(x, (int, float))` direto — `isinstance(True, int)` é `True`.
 - Saída e diagnóstico são **determinísticos** (I3): nada de endereço, PID, timestamp,
   caminho absoluto ou ordem de `set`/`dict`. `tests/test_determinism.py` policia.
 - `nil` é `None` — nunca use sentinela própria.
 - Truthiness: só `nil` e `false` são falsos.
-- Stringify vem de `src/values.py::stringify`; não duplique formatação.
+- Stringify vem de `src/execution/values.py::stringify`; não duplique formatação.
 - Erro de sintaxe → `self.reporter.error(...)` + `ParseError`; erro de runtime →
   `raise LoxRuntimeError(token, msg)`. O reporter vem por injeção.
 - Imports sempre `from src.x import Y` (nunca `from x import Y`).

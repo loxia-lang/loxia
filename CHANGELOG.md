@@ -3,6 +3,37 @@
 Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada versão está em
 [`ESCOPO.md`](ESCOPO.md); decisões fechadas em [`docs/decisoes.md`](docs/decisoes.md).
 
+## [Não lançado]
+
+### Adicionado
+
+- Backend nativo **L0** ([ADR-0031](docs/adr/0031-backend-nativo.md)): `--emit=ll|obj|exe`
+  compila `print` de `Int`/`Bool`/`nil` com `+ - * // %`, comparações, igualdade e unário
+  para binário nativo, usando `llvmlite` como extra opcional (`uv sync --extra llvm`).
+- Runtime C (`runtime/runtime.c`): `lox_print_int/bool/nil`, `lox_panic` (exit 70 com o
+  mesmo stderr do interpretador) e as guardas de `//`/`%` (zero e `INT_MIN / -1`).
+- Teste diferencial (`tests/test_backend.py`): compila cada caso, executa o binário e
+  compara stdout, stderr e exit code com o interpretador.
+- Erro de compilação explícito (exit 65) para o que o backend ainda não representa
+  (`Float`, `String`, variáveis, funções, classes) — nunca lowering silencioso.
+- Erro de operando detectado pelo checker (`1 + true`, `-true`, `true // 2`) é rebaixado
+  a `lox_panic`: o binário sai com 70 e a mesma mensagem do interpretador, inclusive
+  depois de já ter impresso stdout (ADR-0031, decisão 9).
+- Backend **L1**: `Float` desboxado (`double`), promoção `Int → Float`, `/` sempre `Float`,
+  `%` de `Float`, comparações com semântica de `NaN` e `if`/`while`/blocos.
+- Impressão de `Float` pela menor representação que faz round-trip, com as convenções do
+  `repr` do Python, validada por fuzz contra `repr()` (400 bit patterns + especiais) e
+  independente de locale (`lox_init` fixa `LC_NUMERIC=C`).
+- Manifesto do corpus diferencial (`tests/corpus_manifest.py`) com os níveis `l0` e `l1`.
+- 15 golden cases de `tests/cases` e 3 de `exemplos/` anotados (54 de 78 em `tests/cases`
+  passam no `--check` agora; antes eram 39).
+
+### Mudado
+
+- `docs/spec/garantias.md`: I1 passa a valer para o corpus declarado e cobre stderr.
+- `pyproject.toml`: extra `llvm` (`llvmlite>=0.50`); o interpretador continua sem
+  dependências.
+
 ## [1.0.0] — 2026-11-12
 
 **1.0.0 é a versão de referência da linguagem no tree-walk.** Não há backend nativo

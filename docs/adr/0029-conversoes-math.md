@@ -8,12 +8,12 @@
   [ADR-0026](0026-freeze-1.0.md), [ADR-0028](0028-overflow-debug.md),
   [`../../TIPOS.md`](../../TIPOS.md) §1 e §3, [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/erros.md`](../spec/erros.md)
-- **Implementação:** [`src/expr.py`](../../src/expr.py), [`src/parser.py`](../../src/parser.py),
-  [`src/checker.py`](../../src/checker.py), [`src/interpreter.py`](../../src/interpreter.py),
-  [`src/numeric.py`](../../src/numeric.py), [`src/native_module.py`](../../src/native_module.py),
-  [`src/natives/parse.py`](../../src/natives/parse.py),
-  [`src/natives/math.py`](../../src/natives/math.py),
-  [`src/natives/modules.py`](../../src/natives/modules.py)
+- **Implementação:** [`src/frontend/expr.py`](../../src/frontend/expr.py), [`src/frontend/parser.py`](../../src/frontend/parser.py),
+  [`src/semantics/checker.py`](../../src/semantics/checker.py), [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
+  [`src/execution/numeric.py`](../../src/execution/numeric.py), [`src/execution/native_module.py`](../../src/execution/native_module.py),
+  [`src/execution/natives/parse.py`](../../src/execution/natives/parse.py),
+  [`src/execution/natives/math.py`](../../src/execution/natives/math.py),
+  [`src/execution/natives/modules.py`](../../src/execution/natives/modules.py)
 
 ## Contexto
 

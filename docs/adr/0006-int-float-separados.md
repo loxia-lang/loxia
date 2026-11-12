@@ -5,8 +5,8 @@
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) (catálogo e decisões em aberto),
   [`../../TODO.md`](../../TODO.md) §11, [`../spec/lexico.md`](../spec/lexico.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/scanner.py`, `src/numeric.py`, `src/values.py`,
-  `src/interpreter.py`, `src/token_type.py`, `src/parser.py`; casos em
+- **Implementação:** `src/frontend/scanner.py`, `src/execution/numeric.py`, `src/execution/values.py`,
+  `src/execution/interpreter.py`, `src/frontend/token_type.py`, `src/frontend/parser.py`; casos em
   `tests/cases/numbers.lox` e `tests/cases/errors/`
 
 ## Contexto
@@ -68,7 +68,7 @@ Fora do escopo deste ADR: bitwise (`D-9`), `as`/conversões (`D-8`), type checke
 ### Neutras
 
 - `%` ganhou token e nível de precedência (junto de `*` e `/`).
-- `src/numeric.py` centraliza promoção, wrapping e comparação; o interpretador só decide
+- `src/execution/numeric.py` centraliza promoção, wrapping e comparação; o interpretador só decide
   mensagens de erro.
 
 ## Alternativas consideradas

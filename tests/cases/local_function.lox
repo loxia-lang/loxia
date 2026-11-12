@@ -1,9 +1,9 @@
-fn f() {
+fn f() -> String {
   return "global";
 }
 
 {
-  fn f() {
+  fn f() -> String {
     return "local";
   }
   print f();  # expect: local

@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from src.diagnostics.errors import LoxRuntimeError
+from src.frontend.tokens import Token
+
+if TYPE_CHECKING:
+    from src.execution.lox_class import FieldInfo, LoxClass
+
+
+class LoxInstance:
+    def __init__(self, klass: LoxClass) -> None:
+        self._klass = klass
+        self._fields: dict[str, object] = {}
+        self._initialized: set[str] = set()
+
+    def get(self, name: Token) -> object:
+        if name.lexeme in self._fields:
+            return self._fields[name.lexeme]
+
+        method = self._klass.find_method(name.lexeme)
+        if method is not None:
+            return method.bind(self)
+
+        raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
+
+    def set(self, name: Token, value: object) -> None:
+        field = self._klass.find_field(name.lexeme)
+        if field is None:
+            raise LoxRuntimeError(name, f"Undefined field '{name.lexeme}'.")
+
+        if not field.mutable and name.lexeme in self._initialized:
+            raise LoxRuntimeError(
+                name, f"Can't assign to immutable field '{name.lexeme}'."
+            )
+
+        self._fields[name.lexeme] = value
+        self._initialized.add(name.lexeme)
+
+    def initialize(self, field: FieldInfo, value: object) -> None:
+        self._fields[field.name.lexeme] = value
+        self._initialized.add(field.name.lexeme)
+
+    def is_instance_of(self, name: str) -> bool:
+        return self._klass.is_subclass_of(name)
+
+    def assert_initialized(self) -> None:
+        for field in self._klass.fields.values():
+            if field.name.lexeme not in self._initialized:
+                raise LoxRuntimeError(
+                    field.name, f"Field '{field.name.lexeme}' must be initialized."
+                )
+
+    def __str__(self) -> str:
+        return f"{self._klass.name} instance"

@@ -4,8 +4,8 @@
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/parser.py`, `src/stmt.py`, `src/resolver.py`, `src/environment.py`,
-  `src/interpreter.py`, `src/lox_function.py`, casos em `tests/cases/val_*.lox`
+- **Implementação:** `src/frontend/parser.py`, `src/frontend/stmt.py`, `src/semantics/resolver.py`, `src/execution/environment.py`,
+  `src/execution/interpreter.py`, `src/execution/lox_function.py`, casos em `tests/cases/val_*.lox`
 
 ## Contexto
 

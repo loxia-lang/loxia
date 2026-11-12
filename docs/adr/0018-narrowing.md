@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0013](0013-ternario-nil-aware-escapes.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [`TIPOS.md`](../../TIPOS.md) §2.2
-- **Implementação:** [`src/checker.py`](../../src/checker.py),
+- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

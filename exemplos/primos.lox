@@ -1,5 +1,5 @@
 # Primos com funções, for-in e return antecipado.
-fn ehPrimo(n) {
+fn ehPrimo(n: Int) -> Bool {
   if (n < 2) {
     return false;
   }

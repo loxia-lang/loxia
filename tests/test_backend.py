@@ -1,0 +1,326 @@
+"""Testes diferenciais do backend nativo (L0).
+
+O contrato (ADR-0031) é: o interpretador é o oráculo. Cada caso compila, executa o
+binário e compara **stdout, stderr e exit code** com a execução interpretada — não com
+uma expectativa escrita à mão, que poderia "consertar" uma divergência.
+
+Dependências: `llvmlite` (extra `llvm`) e um compilador C para linkar. No CI a env
+`LOX_REQUIRE_LLVM=1` transforma a ausência em falha, não em skip.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from tests.corpus_manifest import LEVELS
+
+MANIFEST_CASES = [
+    (level, case) for level, cases in LEVELS.items() for case in cases
+]
+
+ROOT = Path(__file__).resolve().parents[1]
+ENTRYPOINT = ROOT / "main.py"
+TIMEOUT_SECONDS = 60
+
+
+def _require(reason: str) -> None:
+    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
+        pytest.fail(reason, pytrace=False)
+
+    pytest.skip(reason, allow_module_level=True)
+
+
+if importlib.util.find_spec("llvmlite") is None:
+    _require("llvmlite não instalado; rode `uv sync --extra llvm`")
+
+if not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
+    _require("nenhum compilador C encontrado (cc, clang ou gcc)")
+
+
+def _run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        arguments,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+
+
+def _write(tmp_path: Path, source: str, name: str = "caso.lox") -> Path:
+    path = tmp_path / name
+    path.write_text(source, encoding="utf-8")
+    return path
+
+
+def _interpret(path: Path) -> subprocess.CompletedProcess[str]:
+    return _run([sys.executable, str(ENTRYPOINT), str(path)])
+
+
+def _build(path: Path, tmp_path: Path) -> tuple[subprocess.CompletedProcess[str], Path]:
+    binary = tmp_path / "programa"
+    result = _run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "--emit",
+            "exe",
+            "-o",
+            str(binary),
+            str(path),
+        ]
+    )
+    return result, binary
+
+
+CASES = [
+    ("print 1 + 2;", "adição"),
+    ("print 7 // 2;", "divisão inteira"),
+    ("print -7 // 2;", "divisão inteira trunca para zero"),
+    ("print 7 % 3;", "resto"),
+    ("print -7 % 3;", "resto com sinal do dividendo"),
+    ("print 2 * 21;", "multiplicação"),
+    ("print 1 - 2 - 3;", "subtração associativa à esquerda"),
+    ("print 9223372036854775807 + 1;", "wrapping de i64"),
+    ("print 1 < 2;", "comparação"),
+    ("print 3 == 4;", "igualdade falsa"),
+    ("print nil != nil;", "desigualdade de nil"),
+    ("print 2 <= 1;", "comparação falsa"),
+    ("print true == false;", "igualdade de Bool"),
+    ("print nil == nil;", "igualdade de nil"),
+    ("print !true;", "negação"),
+    ("print !nil;", "negação de nil"),
+    ("print !0;", "zero é truthy"),
+    ("print -1;", "menos unário"),
+    ("print (1 + 2) * 3;", "agrupamento"),
+    ("print 1 + 2; print 4 * 5;", "duas instruções"),
+    ("print 1; print 1 // 0;", "panico de divisão por zero"),
+    ("print 1; print 5 % 0;", "panico de módulo por zero"),
+    ("print 1 + true;", "operando de + com tipo errado vira panic"),
+    ("print -true;", "menos unário com tipo errado"),
+    ("print true // 2;", "// com Bool"),
+    ("print 1 < true;", "comparação com Bool"),
+    ("print 3 == true;", "tipos diferentes nunca são iguais"),
+    ("print nil == 1;", "nil nunca é igual a Int"),
+    ("print 5; print 1 + true;", "panic depois de stdout"),
+    ("print 1 + 2.0;", "promoção Int -> Float"),
+    ("print 4 / 2;", "divisão sempre Float"),
+    ("print 0.1;", "float decimal"),
+    ("print 1e16;", "float em notação científica"),
+    ("print -0.0;", "zero negativo"),
+    ("print 1 == 1.0;", "igualdade numérica com promoção"),
+    ("print 1 == 1.5;", "igualdade numérica falsa"),
+    ("print 1 < 2.5;", "comparação mista"),
+    ("print 2.5 % 1.0;", "resto de Float"),
+    ("print 1.0 / 0.0;", "panico de divisão por zero em Float"),
+    ("print 1.5 % 0.0;", "panico de módulo por zero em Float"),
+    ("if (1 < 2) print 1;", "if verdadeiro"),
+    ("if (false) print 1; else print 2;", "if com else"),
+    ("while (false) { print 1; } print 2;", "while que não executa"),
+
+]
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(("source", "label"), CASES, ids=[case[1] for case in CASES])
+def test_binario_concorda_com_interpretador(
+    tmp_path: Path, source: str, label: str
+) -> None:
+    path = _write(tmp_path, source + "\n")
+
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    assert binary.exists()
+
+    compiled = _run([str(binary)])
+
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_string_ainda_e_rejeitada_com_erro_explicito(tmp_path: Path) -> None:
+    path = _write(tmp_path, 'print "a";\n')
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 65
+    assert "not supported by the backend yet" in result.stderr
+    assert not binary.exists()
+    # O interpretador roda o mesmo programa: a lacuna é do backend, não da linguagem.
+    assert _interpret(path).returncode == 0
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(
+    ("level", "case"),
+    MANIFEST_CASES,
+    ids=[f"{level}-{Path(case).stem}" for level, case in MANIFEST_CASES],
+)
+def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
+    path = ROOT / case
+
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+def test_manifesto_referencia_casos_existentes() -> None:
+    for cases in LEVELS.values():
+        for case in cases:
+            assert (ROOT / case).exists(), case
+
+
+@pytest.mark.backend
+def test_formatacao_de_float_igual_ao_repr(tmp_path: Path) -> None:
+    import random
+    import struct
+
+    from src.execution.values import stringify
+
+    values = [
+        0.0,
+        -0.0,
+        1.0,
+        -1.0,
+        0.1,
+        1e15,
+        1e16,
+        1e-4,
+        1e-5,
+        1.7976931348623157e308,
+        5e-324,
+        float("inf"),
+        float("-inf"),
+        float("nan"),
+    ]
+    rng = random.Random(20261112)
+    for _ in range(400):
+        bits = rng.getrandbits(64)
+        values.append(struct.unpack("<d", struct.pack("<Q", bits))[0])
+
+    helper_source = tmp_path / "helper.c"
+    helper_source.write_text(
+        """
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "runtime/runtime.c"
+
+int main(void) {
+    char line[64];
+    while (fgets(line, sizeof line, stdin)) {
+        uint64_t bits = strtoull(line, NULL, 16);
+        double value;
+        memcpy(&value, &bits, sizeof value);
+        lox_print_float(value);
+    }
+    return 0;
+}
+""",
+        encoding="utf-8",
+    )
+    compiler = shutil.which("cc") or shutil.which("clang") or shutil.which("gcc")
+    assert compiler is not None
+    helper = tmp_path / "helper"
+    compiled = subprocess.run(
+        [
+            compiler,
+            "-O2",
+            "-std=c11",
+            "-I",
+            str(ROOT),
+            str(helper_source),
+            "-o",
+            str(helper),
+            "-lm",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert compiled.returncode == 0, compiled.stderr
+
+    payload = "".join(
+        f"{struct.unpack('<Q', struct.pack('<d', value))[0]:x}\n" for value in values
+    )
+    result = subprocess.run(
+        [str(helper)], input=payload, capture_output=True, text=True, check=False
+    )
+
+    expected = "".join(f"{stringify(value)}\n" for value in values)
+    assert result.stdout == expected
+
+
+@pytest.mark.backend
+def test_erro_rebaixavel_nao_e_impresso_no_build(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print 1 + true;\n")
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    assert binary.exists()
+
+
+@pytest.mark.backend
+def test_erro_nao_rebaixavel_bloqueia_o_build(tmp_path: Path) -> None:
+    path = _write(tmp_path, "val x: Int = true;\n")
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 65
+    assert "Error" in result.stderr
+    assert not binary.exists()
+
+
+@pytest.mark.backend
+def test_emit_ll_mostra_ir_sem_caminho_absoluto(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print 1 + 2;\n")
+
+    result = _run([sys.executable, str(ENTRYPOINT), "--emit", "ll", str(path)])
+
+    assert result.returncode == 0, result.stderr
+    assert "define i32" in result.stdout
+    assert "lox_print_int" in result.stdout
+    assert str(tmp_path) not in result.stdout
+
+
+@pytest.mark.backend
+def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print 1 + 2;\n")
+    output = tmp_path / "programa.o"
+
+    result = _run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "--emit",
+            "obj",
+            "-o",
+            str(output),
+            str(path),
+        ]
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output.exists()
+    assert output.stat().st_size > 0

@@ -1,6 +1,6 @@
 var log = "";
 
-fn registra(x) {
+fn registra(x: String) -> String {
   log = log + x;
   return x;
 }

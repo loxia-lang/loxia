@@ -8,8 +8,8 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [ADR-0026](0026-freeze-1.0.md),
   [`../../TIPOS.md`](../../TIPOS.md) §2, [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/erros.md`](../spec/erros.md)
-- **Implementação:** [`src/numeric.py`](../../src/numeric.py),
-  [`src/interpreter.py`](../../src/interpreter.py), [`lox/cli.py`](../../lox/cli.py),
+- **Implementação:** [`src/execution/numeric.py`](../../src/execution/numeric.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`lox/cli.py`](../../lox/cli.py),
   [`tests/test_numeric.py`](../../tests/test_numeric.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py),
   [`tests/test_cli.py`](../../tests/test_cli.py)

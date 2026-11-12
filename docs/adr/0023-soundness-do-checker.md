@@ -7,7 +7,7 @@
   [ADR-0018](0018-narrowing.md), [ADR-0022](0022-lambdas.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/checker.py`](../../src/checker.py),
+- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

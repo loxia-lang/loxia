@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src import numeric
+from src.execution import numeric
 
 
 def test_int_division_truncates_toward_zero() -> None:

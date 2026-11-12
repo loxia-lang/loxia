@@ -8,9 +8,9 @@
   [ADR-0026](0026-freeze-1.0.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../../TIPOS.md`](../../TIPOS.md) §2.2, [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/ty.py`](../../src/ty.py), [`src/stmt.py`](../../src/stmt.py),
-  [`src/parser.py`](../../src/parser.py), [`src/checker.py`](../../src/checker.py),
-  [`src/ast_printer.py`](../../src/ast_printer.py),
+- **Implementação:** [`src/frontend/ty.py`](../../src/frontend/ty.py), [`src/frontend/stmt.py`](../../src/frontend/stmt.py),
+  [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
+  [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)

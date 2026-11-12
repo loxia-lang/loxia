@@ -22,56 +22,79 @@ Scanner ───────────────► list[Token]
    │                       │
    ▼                       ▼
    └──────────────────► Interpreter ──────► efeitos (print, variáveis, objetos)
+
+   (caminho `--emit`)     Checker ─────────► Lowerer ──► llvmlite.ir ──► .o ──► cc
+                                                                    └─► `--emit=ll`
 ```
 
 Cada fase depende só da anterior. O **resolver** é obrigatório: sem ele, o interpretador
 não sabe a distância das variáveis locais. O **checker** é opt-in (`--check`) e não roda
 no caminho normal; tipos são apagados antes da execução.
 
+No caminho do backend (`--emit`, [ADR-0031](../adr/0031-backend-nativo.md)) o checker é
+**obrigatório**: o lowering consome tipos concretos. O que ainda não tem representação
+(`Float`, `String`, variáveis, funções, classes, `Any`) falha com erro de compilação
+explícito — o backend nunca gera código "mais ou menos".
+
 ## Módulos
+
+Pacotes por fase (dependência só para baixo):
+
+| Pacote | Fase |
+| --- | --- |
+| [`src/frontend/`](../../src/frontend) | lexing → tokens → AST → parser; tipos de anotação (`ty.py`) e `ast_printer` |
+| [`src/semantics/`](../../src/semantics) | `resolver` (escopos/`depth`) e `checker` gradual |
+| [`src/execution/`](../../src/execution) | valores, ambiente, objetos, nativos e `interpreter` |
+| [`src/diagnostics/`](../../src/diagnostics) | `errors` e `error_reporter` |
+| [`src/backend/`](../../src/backend) | lowering e emissão LLVM (opt-in via `--emit`) |
 
 | Módulo | Responsabilidade |
 | --- | --- |
 | [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
 | [`lox/cli.py`](../../lox/cli.py) | CLI, `Lox.run`, REPL, `--version`, `--dump-ast`, exit codes |
 | [`lox/__main__.py`](../../lox/__main__.py) | entrypoint `python -m lox` |
-| [`src/scanner.py`](../../src/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
-| [`src/tokens.py`](../../src/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
-| [`src/token_type.py`](../../src/token_type.py) | enum `TokenType` |
-| [`src/keywords.py`](../../src/keywords.py) | mapa lexema → token |
-| [`src/expr.py`](../../src/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
-| [`src/stmt.py`](../../src/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
-| [`src/parser.py`](../../src/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
-| [`src/resolver.py`](../../src/resolver.py) | escopos léxicos, validações estáticas, `depth` |
-| [`src/interpreter.py`](../../src/interpreter.py) | execução; `globals`, `environment`, `locals` |
-| [`src/environment.py`](../../src/environment.py) | escopos encadeados (`values` + `enclosing`) |
-| [`src/values.py`](../../src/values.py) | `stringify` única |
-| [`src/numeric.py`](../../src/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
-| [`src/ty.py`](../../src/ty.py) | tipos (`Ty`), `TyVar`, `GenericFnTy`, uniões, `T?`, `FnTy` e helpers |
-| [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
-| [`src/type_test.py`](../../src/type_test.py) | teste dinâmico de tipo para `x is T` |
-| [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
-| [`src/lox_list.py`](../../src/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
-| [`src/lox_map.py`](../../src/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
-| [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
-| [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
-| [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
-| [`src/prelude.py`](../../src/prelude.py) | nomes dos builtins globais reservados |
-| [`src/lox_function.py`](../../src/lox_function.py) | função de usuário + closure + `bind` |
-| [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
-| [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
-| [`src/natives/len.py`](../../src/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
-| [`src/natives/repr.py`](../../src/natives/repr.py) | `repr(x)` |
-| [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
-| [`src/natives/str.py`](../../src/natives/str.py) | `str(x)` |
-| [`src/native_module.py`](../../src/native_module.py) | namespace nativo somente leitura (`Int`, `Float`, `math`) |
-| [`src/natives/parse.py`](../../src/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, sem crash) |
-| [`src/natives/math.py`](../../src/natives/math.py) | `math.*` determinístico (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
-| [`src/natives/modules.py`](../../src/natives/modules.py) | montagem dos namespaces nativos |
-| [`src/ast_printer.py`](../../src/ast_printer.py) | dump S-expression (debug/testes) |
+| [`src/frontend/scanner.py`](../../src/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
+| [`src/frontend/tokens.py`](../../src/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
+| [`src/frontend/token_type.py`](../../src/frontend/token_type.py) | enum `TokenType` |
+| [`src/frontend/keywords.py`](../../src/frontend/keywords.py) | mapa lexema → token |
+| [`src/frontend/expr.py`](../../src/frontend/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
+| [`src/frontend/stmt.py`](../../src/frontend/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
+| [`src/frontend/parser.py`](../../src/frontend/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
+| [`src/backend/llvm_ir.py`](../../src/backend/llvm_ir.py) | única fronteira com o `llvmlite` (módulo, target machine, object file) |
+| [`src/backend/lower.py`](../../src/backend/lower.py) | AST → IR; L1 cobre `Int`/`Float`/`Bool`/`nil`, `if`/`while` e panic sites |
+| [`src/backend/driver.py`](../../src/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
+| [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%` |
+| [`src/semantics/resolver.py`](../../src/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
+| [`src/execution/interpreter.py`](../../src/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
+| [`src/execution/environment.py`](../../src/execution/environment.py) | escopos encadeados (`values` + `enclosing`) |
+| [`src/execution/values.py`](../../src/execution/values.py) | `stringify` única |
+| [`src/execution/numeric.py`](../../src/execution/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
+| [`src/frontend/ty.py`](../../src/frontend/ty.py) | tipos (`Ty`), `TyVar`, `GenericFnTy`, uniões, `T?`, `FnTy` e helpers |
+| [`src/semantics/checker.py`](../../src/semantics/checker.py) | checker estático gradual (`--check`) |
+| [`src/execution/type_test.py`](../../src/execution/type_test.py) | teste dinâmico de tipo para `x is T` |
+| [`src/execution/lox_range.py`](../../src/execution/lox_range.py) | `Range` lazy (start, end, step) |
+| [`src/execution/lox_list.py`](../../src/execution/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
+| [`src/execution/lox_map.py`](../../src/execution/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
+| [`src/diagnostics/error_reporter.py`](../../src/diagnostics/error_reporter.py) | coleta/impressão de diagnósticos |
+| [`src/diagnostics/errors.py`](../../src/diagnostics/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
+| [`src/execution/lox_callable.py`](../../src/execution/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
+| [`src/execution/prelude.py`](../../src/execution/prelude.py) | nomes dos builtins globais reservados |
+| [`src/execution/lox_function.py`](../../src/execution/lox_function.py) | função de usuário + closure + `bind` |
+| [`src/execution/lox_class.py`](../../src/execution/lox_class.py) | classe (métodos, herança, `init`) |
+| [`src/execution/lox_instance.py`](../../src/execution/lox_instance.py) | instância (campos + métodos ligados) |
+| [`src/execution/natives/len.py`](../../src/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
+| [`src/execution/natives/repr.py`](../../src/execution/natives/repr.py) | `repr(x)` |
+| [`src/execution/natives/range.py`](../../src/execution/natives/range.py) | `range(a, b, step)` |
+| [`src/execution/natives/str.py`](../../src/execution/natives/str.py) | `str(x)` |
+| [`src/execution/native_module.py`](../../src/execution/native_module.py) | namespace nativo somente leitura (`Int`, `Float`, `math`) |
+| [`src/execution/natives/parse.py`](../../src/execution/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, sem crash) |
+| [`src/execution/natives/math.py`](../../src/execution/natives/math.py) | `math.*` determinístico (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
+| [`src/execution/natives/modules.py`](../../src/execution/natives/modules.py) | montagem dos namespaces nativos |
+| [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py) | dump S-expression (debug/testes) |
 
-`src` é um pacote normal (`__init__.py`). Os imports são sempre absolutos
-(`from src.foo import Bar`) e o programa roda da raiz do repositório.
+`src` é um pacote normal (`__init__.py`). Os imports são sempre absolutos e apontam para
+o pacote da fase (`from src.frontend.expr import Binary`, `from src.execution.numeric
+import wrap_int`). O programa roda da raiz do repositório.
 
 ## Visitor
 
@@ -250,7 +273,7 @@ chamada.
   (remove membros da união totalmente cobertos por `T`); `_merge_refinements` combina
   `and`/`or` por interseção.
 - `Is` é um nó de expressão (`left`, `test_type`, `operator`); o interpreter chama
-  `matches_type`, que mora em `src/type_test.py` e cobre primitivos, classes/subclasses,
+  `matches_type`, que mora em `src/execution/type_test.py` e cobre primitivos, classes/subclasses,
   `List[T]`/`Map[K, V]` (recursivo) e uniões. O runtime não ganha um sistema de tipos
   geral; `matches_type` existe só para `is`.
 - `_invalidate` remove o nome de todos os níveis ativos quando há atribuição. É
@@ -283,7 +306,7 @@ chamada.
 - `as` é um nó `As(left, target_type, operator)` no parser (entre `factor` e `unary`); o
   checker valida targets/`Any` e o interpreter converte/checa em runtime
   ([ADR-0029](../adr/0029-conversoes-math.md)).
-- O checker tem a mesma lista em `src/prelude.py::BUILTIN_NAMES`: `_define` reporta
+- O checker tem a mesma lista em `src/execution/prelude.py::BUILTIN_NAMES`: `_define` reporta
   `Can't redefine builtin 'x'.` quando o escopo é o global; `visit_class_stmt` faz a
   checagem própria porque classes são pré-declaradas.
 - Escopos locais (parâmetro, bloco, `for`) podem sombrear o nome normalmente; a resolução
@@ -312,6 +335,28 @@ chamada.
 
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
+
+## Backend nativo (L0–L1)
+
+O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
+não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
+`Int → Float`); `if`/`while` viram blocos com `br`/`cbranch`. `//`, `%`, `/` e o `%` de
+Float chamam o runtime: `INT_MIN / -1` é UB em LLVM (`idiv` trap no x86) e divisão por
+zero é erro fatal no interpretador. Esses casos viram `lox_panic`, que reproduz o stderr e
+sai com 70.
+
+`Float` impresso usa a menor representação que reconstrói o mesmo bit pattern, com as
+convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` fixa
+`LC_NUMERIC=C` para não depender de locale (I3). A paridade é policiada por fuzz contra
+`repr()` em `tests/test_backend.py`.
+
+`main` gerado devolve `0` no sucesso; sucesso/falha nunca é o valor de retorno de uma
+função do usuário. O `--emit=ll` é artefato de inspeção: o build emite object file com o
+mesmo LLVM que construiu o módulo e linka com `cc`, sem depender da versão do LLVM do
+sistema.
+
+O teste diferencial (`tests/test_backend.py`) compila, executa e compara stdout, stderr e
+exit code com o interpretador — o oráculo é sempre o tree-walk.
 
 ## Limitações conhecidas
 

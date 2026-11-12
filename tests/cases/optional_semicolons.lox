@@ -1,4 +1,4 @@
-fn soma(a, b) {
+fn soma(a: Int, b: Int) -> Int {
   return a + b
 }
 
@@ -14,15 +14,15 @@ if (a < b) print "menor"
 else print "maior"  # expect: menor
 
 class P {
-  var x
-  var y
+  var x: Int
+  var y: Int
 
   init() {
     this.x = 1
     this.y = 2
   }
 
-  soma() {
+  soma() -> Int {
     return this.x + this.y
   }
 }

@@ -6,6 +6,11 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
 
+[project.optional-dependencies]
+# Backend nativo (ADR-0031). O interpretador continua sem dependências: `uv sync`
+# instala só o runtime; `uv sync --extra llvm` habilita `--emit` e os testes do backend.
+llvm = ["llvmlite>=0.50"]
+
 [dependency-groups]
 dev = [
     "mypy>=2.4.1",
@@ -17,7 +22,10 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
-markers = ["bench: benchmarks lentos, não rodam na suíte padrão"]
+markers = [
+    "bench: benchmarks lentos, não rodam na suíte padrão",
+    "backend: compila e executa binários nativos (precisa de llvmlite e de um cc)",
+]
 
 [tool.ruff]
 line-length = 100
@@ -32,6 +40,11 @@ ignore = ["E501"]
 python_version = "3.13"
 strict = true
 files = ["src", "lox", "main.py", "tests", "bench"]
+
+[[tool.mypy.overrides]]
+# llvmlite não publica stubs; a fronteira é `src/backend/llvm_ir.py`.
+module = ["llvmlite.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["tests.*", "bench.*"]

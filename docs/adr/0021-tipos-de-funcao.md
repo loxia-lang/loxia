@@ -8,8 +8,8 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../../TIPOS.md`](../../TIPOS.md) §6,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/parser.py`](../../src/parser.py), [`src/ty.py`](../../src/ty.py),
-  [`src/checker.py`](../../src/checker.py), [`tests/test_parser.py`](../../tests/test_parser.py),
+- **Implementação:** [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/frontend/ty.py`](../../src/frontend/ty.py),
+  [`src/semantics/checker.py`](../../src/semantics/checker.py), [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

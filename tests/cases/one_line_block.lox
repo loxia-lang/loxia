@@ -3,10 +3,10 @@
 if (true) { print "if" }              # expect: if
 while (false) { print "nunca" }
 
-fn f() { print "fn" }
+fn f() -> Nil { print "fn" }
 f()                                   # expect: fn
 
-fn g() { return 7 }
+fn g() -> Int { return 7 }
 print g()                             # expect: 7
 
 class C { var x = 3 }

@@ -5,8 +5,8 @@
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/lexico.md`](../spec/lexico.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/token_type.py`, `src/keywords.py`, `src/parser.py`,
-  `src/ast_printer.py`; testes em `tests/test_parser.py`, `tests/test_scanner.py` e
+- **Implementação:** `src/frontend/token_type.py`, `src/frontend/keywords.py`, `src/frontend/parser.py`,
+  `src/frontend/ast_printer.py`; testes em `tests/test_parser.py`, `tests/test_scanner.py` e
   `tests/cases/optional_semicolons.lox` / `elif.lox` / `return_newline.lox` /
   `operator_line.lox`
 

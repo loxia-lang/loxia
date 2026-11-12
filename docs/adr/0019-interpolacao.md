@@ -5,9 +5,9 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0013](0013-ternario-nil-aware-escapes.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [`TIPOS.md`](../../TIPOS.md) §3
-- **Implementação:** [`src/scanner.py`](../../src/scanner.py),
-  [`src/parser.py`](../../src/parser.py), [`src/expr.py`](../../src/expr.py),
-  [`src/interpreter.py`](../../src/interpreter.py), [`src/checker.py`](../../src/checker.py),
+- **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
+  [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/cases/interpolation.lox`](../../tests/cases/interpolation.lox)
 
 ## Contexto

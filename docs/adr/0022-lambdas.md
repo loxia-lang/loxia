@@ -8,12 +8,12 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §1,
   [`../../TIPOS.md`](../../TIPOS.md) §6,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/scanner.py`](../../src/scanner.py),
-  [`src/token_type.py`](../../src/token_type.py), [`src/expr.py`](../../src/expr.py),
-  [`src/parser.py`](../../src/parser.py), [`src/resolver.py`](../../src/resolver.py),
-  [`src/interpreter.py`](../../src/interpreter.py),
-  [`src/lox_function.py`](../../src/lox_function.py), [`src/checker.py`](../../src/checker.py),
-  [`src/ast_printer.py`](../../src/ast_printer.py),
+- **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
+  [`src/frontend/token_type.py`](../../src/frontend/token_type.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),
+  [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/semantics/resolver.py`](../../src/semantics/resolver.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
+  [`src/execution/lox_function.py`](../../src/execution/lox_function.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
+  [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py),
   [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)

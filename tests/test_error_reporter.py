@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from src.error_reporter import ErrorReporter
-from src.errors import LoxRuntimeError
-from src.token_type import TokenType
-from src.tokens import Token
+from src.diagnostics.error_reporter import ErrorReporter
+from src.diagnostics.errors import LoxRuntimeError
+from src.frontend.token_type import TokenType
+from src.frontend.tokens import Token
 
 
 def test_reset_clears_both_error_flags() -> None:

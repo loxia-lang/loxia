@@ -20,7 +20,7 @@ ideal). Bug sem reprodução mínima costuma virar dois bugs.
 
 | Sintoma | Camada provável | Como inspecionar |
 |---|---|---|
-| `ModuleNotFoundError` | imports | `uv run python -c "import src.interpreter"` — imports são `from src.x` |
+| `ModuleNotFoundError` | imports | `uv run python -c "import src.execution.interpreter"` — imports são `from src.x` |
 | erro de sintaxe inesperado | scanner/parser | `python -c` com `Scanner(src).scan_tokens()`; veja lexemas e linhas |
 | AST errada (precedência) | parser | `AstPrinter().print(expr)` em `python -c` |
 | `Undefined variable` indevido | `Environment` | lembre: `get` procura no escopo atual **antes** do `enclosing` |
@@ -48,5 +48,5 @@ ideal). Bug sem reprodução mínima costuma virar dois bugs.
 
 - `parser.reporter.silent = True` silencia erros de sintaxe (usado pelo REPL); o
   `parse_repl` restaura sozinho, mas se mexer nisso devolva para `False`.
-- `uv run python -m src.ast_printer` roda o exemplo do cap. 6 e valida o printer.
+- `uv run python -m src.frontend.ast_printer` roda o exemplo do cap. 6 e valida o printer.
 - `git bisect` + `make test`: a suíte é rápida (<2 s), dá para bisectar à vontade.

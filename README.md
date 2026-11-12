@@ -66,6 +66,10 @@ uv run main.py --version       # pylox 1.0.0
 uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não executa
 uv run main.py --check prog.lox      # checa os tipos, não executa
 uv run main.py --debug prog.lox      # checa overflow de Int em runtime (release faz wrap)
+uv sync --extra llvm                 # habilita o backend nativo (llvmlite)
+uv run main.py --emit=ll prog.lox    # IR do LLVM (inspeção)
+uv run main.py --emit=obj prog.lox   # .o para linkar
+uv run main.py --emit=exe -o app prog.lox   # binário nativo
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make hooks                     # instala o hook de pre-commit
@@ -73,7 +77,12 @@ make bench                     # benchmarks vs baseline
 ```
 
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,
-`2` uso inválido (ex.: `--dump-ast` sem script).
+`2` uso inválido (ex.: `--dump-ast` sem script). O binário gerado por `--emit=exe` segue o
+mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
+
+O backend nativo cobre **L0–L1** (`Int`/`Float`/`Bool`/`nil`, `if`/`while` e aritmética);
+o que ainda não tem representação falha com erro explícito, nunca com lowering silencioso.
+Contrato completo em [`docs/adr/0031-backend-nativo.md`](docs/adr/0031-backend-nativo.md).
 
 ## Exemplo
 
@@ -150,7 +159,13 @@ print "linha 1\nlinha 2"                 # escapes
 ```
 main.py          entrypoint compatível (delega para lox/cli.py)
 lox/             pacote do CLI: `python -m lox`, --version, --dump-ast
-src/             scanner, parser, AST, resolver, interpreter, classes, listas e mapas
+src/             núcleo em pacotes por fase
+src/frontend/    lexing, AST, parser, tipos de anotação e ast_printer
+src/semantics/   resolver de escopos e checker gradual
+src/execution/   valores, ambiente, objetos, nativos e interpreter
+src/diagnostics/ erros e ErrorReporter
+src/backend/     backend LLVM (llvm_ir isolando a lib, lowering, driver de build)
+runtime/         runtime C do código gerado (print, panic, casos de borda de // e %)
 exemplos/        programas de exemplo (fib, fizzbuzz, closures, classes, primos, quicksort)
 tests/           pytest + golden cases (.lox)
 tests/official/  suíte oficial do livro (caps. 10–13), adaptada

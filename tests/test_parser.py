@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from src.ast_printer import AstPrinter
-from src.expr import Is, Lambda, MapLiteral
-from src.parser import Parser
-from src.scanner import Scanner
-from src.stmt import (
+from src.frontend.ast_printer import AstPrinter
+from src.frontend.expr import Is, Lambda, MapLiteral
+from src.frontend.parser import Parser
+from src.frontend.scanner import Scanner
+from src.frontend.stmt import (
     Class,
     Expression,
     ForIn,
@@ -18,7 +18,7 @@ from src.stmt import (
     Var,
     While,
 )
-from src.ty import display
+from src.frontend.ty import display
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:

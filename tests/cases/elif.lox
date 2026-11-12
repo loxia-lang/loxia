@@ -1,4 +1,4 @@
-fn classifica(n) {
+fn classifica(n: Int) -> String {
   if (n < 0) {
     return "negativo"
   } elif (n == 0) {

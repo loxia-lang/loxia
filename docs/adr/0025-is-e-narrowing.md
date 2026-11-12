@@ -8,9 +8,9 @@
   [ADR-0024](0024-mutacao-monomorfica.md),
   [`../../TODO.md`](../../TODO.md) §2, [`../../TIPOS.md`](../../TIPOS.md) §5,
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/expr.py`](../../src/expr.py), [`src/parser.py`](../../src/parser.py),
-  [`src/interpreter.py`](../../src/interpreter.py), [`src/type_test.py`](../../src/type_test.py),
-  [`src/checker.py`](../../src/checker.py), [`src/ast_printer.py`](../../src/ast_printer.py),
+- **Implementação:** [`src/frontend/expr.py`](../../src/frontend/expr.py), [`src/frontend/parser.py`](../../src/frontend/parser.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/execution/type_test.py`](../../src/execution/type_test.py),
+  [`src/semantics/checker.py`](../../src/semantics/checker.py), [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)
 
@@ -46,7 +46,7 @@ print [1, 2] is List[Int];      # true
 print {"a": 1} is Map[String, Int];  # true
 ```
 
-`matches_type(value, Ty)` em `src/type_test.py` é a única ponte runtime:
+`matches_type(value, Ty)` em `src/execution/type_test.py` é a única ponte runtime:
 
 - primitivos: `Nil`, `Bool`, `Int`, `Float`, `String`, `Range`;
 - **classe**: qualquer instância da classe ou de uma subclasse;

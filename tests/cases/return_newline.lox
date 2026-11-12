@@ -1,8 +1,8 @@
-fn vazio() {
+fn vazio() -> Nil {
   return
 }
 
-fn comValor() {
+fn comValor() -> Int {
   return 42
 }
 

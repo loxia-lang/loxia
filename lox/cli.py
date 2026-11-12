@@ -1,15 +1,20 @@
 import argparse
 import sys
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from lox import __version__
-from src.ast_printer import AstPrinter
-from src.checker import Checker
-from src.error_reporter import ErrorReporter
-from src.interpreter import Interpreter
-from src.parser import Parser
-from src.resolver import Resolver
-from src.scanner import Scanner
-from src.stmt import Stmt
+from src.diagnostics.error_reporter import ErrorReporter
+from src.execution.interpreter import Interpreter
+from src.frontend.ast_printer import AstPrinter
+from src.frontend.parser import Parser
+from src.frontend.scanner import Scanner
+from src.frontend.stmt import Stmt
+from src.semantics.checker import Checker
+from src.semantics.resolver import Resolver
+
+if TYPE_CHECKING:
+    from src.backend.driver import Emit
 
 
 class Lox:
@@ -66,8 +71,49 @@ class Lox:
 
         Checker(self.reporter).check(statements)
 
+    def build(
+        self, source: str, *, emit: str, output: Path | None, stem: str
+    ) -> bool:
+        statements = self._parse(source)
+        if statements is None:
+            return False
+
+        Resolver(self.interpreter, self.reporter).resolve(statements)
+        if self.reporter.had_error:
+            return False
+
+        # Erro que o interpretador só levantaria em runtime é rebaixável: não bloqueia
+        # o build e não é impresso agora — vira `lox_panic` no ponto (ADR-0031).
+        self.reporter.defer_lowerable = True
+        Checker(self.reporter).check(statements)
+        if self.reporter.had_fatal_error:
+            return False
+
+        # Import tardio: `llvmlite` só é exigido quando o backend é usado.
+        from src.backend.driver import build as build_native
+        from src.backend.lower import BackendError
+
+        try:
+            build_native(
+                statements,
+                emit=cast("Emit", emit),
+                output=output,
+                stem=stem,
+            )
+        except BackendError as error:
+            self.reporter.backend_error(error.line, error.message)
+            return False
+
+        return True
+
     def run_file(
-        self, path: str, *, dump_ast: bool = False, check: bool = False
+        self,
+        path: str,
+        *,
+        dump_ast: bool = False,
+        check: bool = False,
+        emit: str | None = None,
+        output: str | None = None,
     ) -> None:
         try:
             with open(path, encoding="utf-8") as file:
@@ -80,6 +126,13 @@ class Lox:
             self.dump_ast(source)
         elif check:
             self.check(source)
+        elif emit is not None:
+            destination = Path(output) if output is not None else None
+            if not self.build(
+                source, emit=emit, output=destination, stem=Path(path).stem
+            ):
+                sys.exit(65)
+            return
         else:
             self.run(source)
 
@@ -123,6 +176,16 @@ def main() -> None:
         action="store_true",
         help="checa os tipos do script e não executa",
     )
+    mode.add_argument(
+        "--emit",
+        choices=("ll", "obj", "exe"),
+        help="compila para código nativo (ll: IR textual, obj: .o, exe: binário)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="caminho de saída do build (padrão: nome do script)",
+    )
     parser.add_argument(
         "--debug",
         action="store_true",
@@ -132,8 +195,12 @@ def main() -> None:
 
     parsed_args = parser.parse_args()
 
-    if (parsed_args.dump_ast or parsed_args.check) and not parsed_args.script:
-        parser.error("--dump-ast/--check requires a script")
+    if (parsed_args.dump_ast or parsed_args.check or parsed_args.emit) and not (
+        parsed_args.script
+    ):
+        parser.error("--dump-ast/--check/--emit requires a script")
+    if parsed_args.output and not parsed_args.emit:
+        parser.error("-o/--output requires --emit")
 
     lox = Lox(debug=parsed_args.debug)
 
@@ -142,6 +209,8 @@ def main() -> None:
             parsed_args.script,
             dump_ast=parsed_args.dump_ast,
             check=parsed_args.check,
+            emit=parsed_args.emit,
+            output=parsed_args.output,
         )
     else:
         lox.run_prompt()

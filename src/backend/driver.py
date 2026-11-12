@@ -1,0 +1,96 @@
+"""Pipeline de build: AST → IR → objeto → executável.
+
+O link é feito pelo compilador C do sistema (`cc`, `clang` ou `gcc`): o `llvmlite` emite
+o object file com o LLVM que ele mesmo embarca, e o C compiler só faz o que sabe fazer —
+linkar. Assim não há descompasso entre a versão do LLVM que gera o `.ll` e a que linka.
+"""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Literal
+
+from src.backend import llvm_ir
+from src.backend.lower import BackendError, lower_program
+from src.frontend.stmt import Stmt
+
+Emit = Literal["ll", "obj", "exe"]
+
+RUNTIME_SOURCE = Path(__file__).resolve().parents[2] / "runtime" / "runtime.c"
+
+
+def build(
+    statements: list[Stmt],
+    *,
+    emit: Emit,
+    output: Path | None,
+    stem: str,
+) -> Path | None:
+    """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
+    module = lower_program(statements)
+
+    if emit == "ll":
+        text = llvm_ir.emit_text(module)
+        if output is None:
+            sys.stdout.write(text if text.endswith("\n") else f"{text}\n")
+            return None
+        output.write_text(text, encoding="utf-8")
+        return output
+
+    object_bytes = llvm_ir.emit_object(module)
+
+    if emit == "obj":
+        target = output or Path(f"{stem}.o")
+        target.write_bytes(object_bytes)
+        return target
+
+    target = output or Path(stem)
+    _link(object_bytes, target)
+    return target
+
+
+def _link(object_bytes: bytes, target: Path) -> None:
+    compiler = _compiler()
+
+    with tempfile.TemporaryDirectory(prefix="lox-build-") as directory:
+        build_dir = Path(directory)
+        program_object = build_dir / "program.o"
+        runtime_object = build_dir / "runtime.o"
+        program_object.write_bytes(object_bytes)
+
+        _run(
+            [
+                compiler,
+                "-O2",
+                "-std=c11",
+                "-c",
+                str(RUNTIME_SOURCE),
+                "-o",
+                str(runtime_object),
+            ]
+        )
+        _run(
+            [compiler, str(program_object), str(runtime_object), "-o", str(target), "-lm"]
+        )
+
+
+def _compiler() -> str:
+    for candidate in ("cc", "clang", "gcc"):
+        found = shutil.which(candidate)
+        if found is not None:
+            return found
+
+    raise BackendError("no C compiler found (tried cc, clang and gcc).")
+
+
+def _run(command: list[str]) -> None:
+    process = subprocess.run(command, capture_output=True, text=True, check=False)
+    if process.returncode == 0:
+        return
+
+    detail = process.stderr.strip() or process.stdout.strip()
+    raise BackendError(f"{Path(command[0]).name} failed: {detail}")

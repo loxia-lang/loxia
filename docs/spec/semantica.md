@@ -1,9 +1,9 @@
 # Semântica
 
-Comportamento observável do interpretador. Implementação: [`src/interpreter.py`](../../src/interpreter.py),
-[`src/resolver.py`](../../src/resolver.py), [`src/environment.py`](../../src/environment.py),
-[`src/lox_function.py`](../../src/lox_function.py), [`src/lox_class.py`](../../src/lox_class.py),
-[`src/lox_instance.py`](../../src/lox_instance.py), [`src/values.py`](../../src/values.py).
+Comportamento observável do interpretador. Implementação: [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
+[`src/semantics/resolver.py`](../../src/semantics/resolver.py), [`src/execution/environment.py`](../../src/execution/environment.py),
+[`src/execution/lox_function.py`](../../src/execution/lox_function.py), [`src/execution/lox_class.py`](../../src/execution/lox_class.py),
+[`src/execution/lox_instance.py`](../../src/execution/lox_instance.py), [`src/execution/values.py`](../../src/execution/values.py).
 
 ## Execução
 

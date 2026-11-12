@@ -7,7 +7,7 @@
   [ADR-0018](0018-narrowing.md), [ADR-0023](0023-soundness-do-checker.md),
   [`../../TODO.md`](../../TODO.md) §11, [`../../TIPOS.md`](../../TIPOS.md) §5,
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/checker.py`](../../src/checker.py),
+- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

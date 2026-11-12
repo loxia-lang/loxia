@@ -1,4 +1,4 @@
-fn efeito(x) {
+fn efeito(x: Int) -> Int {
   print "efeito"
   return x
 }

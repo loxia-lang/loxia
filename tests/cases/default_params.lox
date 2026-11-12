@@ -1,12 +1,12 @@
 # Parâmetros com default: obrigatórios antes dos opcionais, const só na v1.
-fn soma(a, b = 10) {
+fn soma(a: Int, b: Int = 10) -> Int {
   return a + b;
 }
 
 print soma(1);     # expect: 11
 print soma(1, 2);  # expect: 3
 
-fn cumprimenta(nome, saudacao = "Oi", pontuacao = "!") {
+fn cumprimenta(nome: String, saudacao: String = "Oi", pontuacao: String = "!") -> String {
   return saudacao + ", " + nome + pontuacao;
 }
 
@@ -14,9 +14,9 @@ print cumprimenta("Ana");         # expect: Oi, Ana!
 print cumprimenta("Ana", "Olá");  # expect: Olá, Ana!
 
 class Caixa {
-  var valor;
+  var valor: Int;
 
-  init(valor = 0) {
+  init(valor: Int = 0) {
     this.valor = valor;
   }
 }
@@ -27,7 +27,7 @@ print Caixa(7).valor;  # expect: 7
 class CaixaForte(Caixa) {}
 print CaixaForte().valor;  # expect: 0
 
-fn neg(x = -1) {
+fn neg(x: Int = -1) -> Int {
   return x;
 }
 

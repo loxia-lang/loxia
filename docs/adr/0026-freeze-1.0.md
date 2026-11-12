@@ -7,8 +7,8 @@
   [ADR-0016](0016-api-stdlib-hibrida.md), [ADR-0025](0025-is-e-narrowing.md),
   [`../../TODO.md`](../../TODO.md) §11, [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** [`src/prelude.py`](../../src/prelude.py),
-  [`src/interpreter.py`](../../src/interpreter.py), [`src/checker.py`](../../src/checker.py),
+- **Implementação:** [`src/execution/prelude.py`](../../src/execution/prelude.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/test_official_suite.py`](../../tests/test_official_suite.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)

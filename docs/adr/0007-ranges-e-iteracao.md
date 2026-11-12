@@ -5,9 +5,9 @@
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) `D-10`, [`../decisoes.md`](../decisoes.md), [`../../TODO.md`](../../TODO.md)
   §1/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
-- **Implementação:** `src/scanner.py`, `src/token_type.py`, `src/keywords.py`,
-  `src/expr.py`, `src/stmt.py`, `src/parser.py`, `src/resolver.py`,
-  `src/interpreter.py`, `src/lox_range.py`, `src/natives/range.py`; casos em
+- **Implementação:** `src/frontend/scanner.py`, `src/frontend/token_type.py`, `src/frontend/keywords.py`,
+  `src/frontend/expr.py`, `src/frontend/stmt.py`, `src/frontend/parser.py`, `src/semantics/resolver.py`,
+  `src/execution/interpreter.py`, `src/execution/lox_range.py`, `src/execution/natives/range.py`; casos em
   `tests/cases/for_in*.lox`, `range_value.lox` e `tests/cases/errors/for_in*.lox`,
   `range_*.lox`
 

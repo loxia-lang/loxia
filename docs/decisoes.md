@@ -39,6 +39,22 @@ decisão.
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
 | API da stdlib | Modelo **híbrido**: builtins globais para operações genéricas/protocolos (`len`, `str`, `repr`), métodos para ações específicas (`xs.push/pop`), namespaces nativos para conversão (`Int.parse`/`Float.parse`, `math.*`) e funções livres para composição. Builtins globais são reservados (shadowing só local); sem métodos em primitivos; extensões/UFCS em P3 pós-LLVM. | [ADR-0016](adr/0016-api-stdlib-hibrida.md), [ADR-0029](adr/0029-conversoes-math.md) |
 
+## Backend nativo (LLVM)
+
+| Decisão | Resumo | Fonte |
+| --- | --- | --- |
+| Ferramenta | `llvmlite` como **extra opcional** (`uv sync --extra llvm`); object file emitido pelo LLVM embutido e link com `cc`; `.ll` é artefato de inspeção, não etapa de build; lib isolada em `src/backend/llvm_ir.py`. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Modelo de valor | Desboxado por tipo concreto (`Int`=i64, `Float`=f64, `Bool`=i1); `Any`/`List` cru/`Map` heterogêneo são erro de compilação até o L6; `lox build` sempre roda checker. | [ADR-0031](adr/0031-backend-nativo.md) |
+| `T?` | Ponteiro nulo para referência (`String?`, instância); `{i1, T}` para escalar (`Int?`, `Float?`, `Bool?`); narrowing devolve o `T` cru. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Erro de runtime | `lox_panic(linha, msg)`: flush do stdout, mensagem idêntica ao interpretador no stderr e exit 70; `main` devolve 0 no sucesso; traps de hardware proibidos. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Erro estático | Diagnóstico que o interpretador levantaria em runtime é **rebaixado a panic site** (ordem de avaliação preservada); o que só existe em compile-time (anotação) continua exit 65. | [ADR-0031](adr/0031-backend-nativo.md) |
+| `Float` impresso | Menor representação testando `%.{p}e` + `strtod` (p = 1..17) e aplicando as convenções do `repr` do Python; fuzz contra `repr()`; `printf("%g")` proibido (locale) e `lox_init` fixa `LC_NUMERIC=C`. | [ADR-0031](adr/0031-backend-nativo.md) |
+| `String` | Bytes UTF-8 com `byte_len`, `cp_len` e ponteiro; `len` O(1); ASCII detectado por `byte_len == cp_len`; semântica de `s[i]` em code points. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Memória | Arena (bump) com teto e panic determinístico; `lox_alloc` é o ponto de troca para Boehm; sem RC (ciclos são permitidos). | [ADR-0031](adr/0031-backend-nativo.md) |
+| Generics | Monomorfização lazy com `type_of`/substituição publicados pelo checker, mangling por tipo e limite de instâncias (exit 65). | [ADR-0031](adr/0031-backend-nativo.md) |
+| HIR | Normalização leve `AST → AST` (desugar), sem HIR completa no L0–L2; promove quando o lowering duplicar o interpretador. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
+
 ## Processo e escopo
 
 | Decisão | Resumo | Fonte |
@@ -50,5 +66,5 @@ decisão.
 
 Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`,
 futuro de classes/traits, exceções vs `Result`, **generics de classes/métodos e
-constraints**, módulos, backend, contratos e unificação mutável continuam **em aberto** no
+constraints**, módulos, contratos e unificação mutável continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11. Tuplas têm sintaxe decidida, mas implementação pós-1.0.

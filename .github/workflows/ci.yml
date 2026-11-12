@@ -17,9 +17,13 @@ jobs:
           enable-cache: true
 
       - name: Sincronizar dependências (Python vem do .python-version)
-        run: uv sync --all-groups
+        run: uv sync --all-groups --extra llvm
 
+      # O backend nativo é opcional para quem usa, mas obrigatório no CI: se o
+      # llvmlite faltar, os testes do backend falham em vez de pular.
       - name: "Qualidade (pre-commit: ruff + mypy + pytest)"
+        env:
+          LOX_REQUIRE_LLVM: "1"
         run: uv run pre-commit run --all-files --show-diff-on-failure
 
 # Benchmarks ficam fora do CI: tempo de runner é ruidoso demais para gate.

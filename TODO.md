@@ -20,9 +20,13 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Agora
 
 O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/parse e
-`math.*` estão feitos. **Próximo:** backend LLVM (L0–L2) ou o pacote de diagnósticos
-(spans → caret → stack trace). **Depois:** tuplas (ADR-0030), classes/métodos genéricos e
-constraints.
+`math.*` estão feitos e o **backend L0–L1 está implementado** (ADR-0031): `Int`, `Float`,
+`Bool`, `nil`, `if`/`while`, panic sites de operando e formatação de `Float` validada por
+fuzz. O teste diferencial compara stdout, stderr e exit code e o manifesto
+(`tests/corpus_manifest.py`) declara os casos por nível. **Próximo:** **L2**
+(variáveis/funções, `alloca`/`mem2reg`, normalização de `for-in`/`??`/ternário) e anotar os
+22 casos de classe/coleção que faltam. **Depois:** L3 (strings + arena) e o pacote de
+diagnósticos (spans → caret → stack trace).
 
 ---
 
@@ -80,7 +84,7 @@ Pendências pontuais:
 - [ ] `P3` inferência de retorno para funções com corpo de expressão.
 - [ ] `P3` `--check --json` com spans para editor/LSP.
 
-Modelo atual em [`src/ty.py`](src/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
+Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
 `ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e `Never`.
 `Any` é escape no tree-walk, mas o backend L0–L2 o rejeita.
 
@@ -210,64 +214,85 @@ sentido como *exercício* do livro (Parte III), em repositório separado.
 | Transpilar para **C** | MVP em dias, ótimo para validar semântica | não é LLVM, perde tipos, vira dívida |
 | `inkwell` (Rust) | cobertura completa | reescrever o compilador em Rust |
 
-Plano: **`llvmlite` para construir o módulo**, com `--emit=ll` para inspecionar o IR e
-`clang` como linker. Isso dá JIT no REPL e binário nativo no mesmo caminho.
+**Decidido** ([ADR-0031](docs/adr/0031-backend-nativo.md)): `llvmlite` como *extra*
+opcional (`uv sync --extra llvm`), object file emitido pelo LLVM embutido e link com o
+`cc` do sistema. `.ll` é artefato de inspeção (`--emit=ll`), não etapa de build — evita
+descompasso entre a versão do LLVM que gera o IR e a que o parseia. Implementado no L0:
+`src/backend/`, `runtime/runtime.c`, `--emit=ll|obj|exe` e `tests/test_backend.py`.
 
 ### 6.2 Pipeline
 
 ```
 AST → Resolver → TypeChecker (tipos concretos/monomorfizados)
-    → HIR tipada (expressões com tipo, slots, depth)
+    → normalização leve (AST → AST; desugar)      ← ADR-0031, decisão 10
     → LLVM IR (llvmlite.ir)
-    → otimização (passes) → object file → clang → executável
-                              └→ MCJIT (modo `lox jit` / REPL)
+    → object file (LLVM embutido) → cc → executável
+                              └→ MCJIT (modo `lox jit` / REPL) — L7
 ```
 
-Por que passar por HIR: o LLVM IR exige SSA e tipos concretos. A HIR é onde ficam as
-decisões da linguagem (boxing, slots, ordem de avaliação); o codegen só traduz.
+Sem HIR completa no L0–L2: a normalização só desaçucara. Uma HIR tipada (slots, SSA leve,
+células) entra quando closures/classes exigirem — o gatilho é o `lower_expr` começar a
+duplicar o `interpreter.py`.
 
 ### 6.3 Representação de valor (a decisão mais importante)
 
-Começar simples e evoluir:
+**Decidido: desboxado por tipo concreto** ([ADR-0031](docs/adr/0031-backend-nativo.md)).
+A ideia de `i64` tagged foi **descartada**: 3 bits de tag deixam 61 bits de payload e
+conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 
-| Versão | Representação | Quando |
+| Tipo | Representação | Nível |
 | --- | --- | --- |
-| V0 | `i64` só para inteiros; sem float/string | primeiro "hello, 42" compilado |
-| V1 | `i64` **tagged**: 3 bits baixos = tag (`0` int, `1` bool, `2` nil, `3` ptr, `4` float*) | MVP completo de expressões |
-| V2 | ponteiro para struct `{ i8 tag, [N x i8] payload }` | objetos/classes |
-| V3 | NaN-boxing (`f64` com payload nos bits) | otimização, depois que tudo funciona |
+| `Int` | `i64` (wrap nativo, sem `nsw`) | L0 ✅ |
+| `Bool` | `i1` | L0 ✅ |
+| `nil` | ausência (`void` no print) | L0 ✅ |
+| `Float` | `double` | L1 ✅ |
+| `T?` escalar | `{i1, T}` | L2 |
+| `T?` referência | ponteiro nulo | L3 |
+| `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 |
+| closure | `{fnptr, env*}` | L4 |
+| instância | ponteiro para struct | L5 |
+| `Any` (quando entrar) | caixa `LoxValue` **só** no caminho dinâmico | L6 |
 
 Regras:
-- inteiros pequenos sem alocar (tagged).
-- **`Int` e `Float` separados** (i64 + f64), decidido em
-  [ADR-0006](docs/adr/0006-int-float-separados.md) — para LLVM, separar é bem melhor
-  (`i64` vs `double`, sem boxing no caminho quente).
-- string = `{ i64 len, i8* data }` imutável; concatenar aloca.
-- toda operação aritmética tem caminho rápido desboxado e fallback que chama o runtime.
+- `Int` e `Float` separados (ADR-0006), sem boxing no caminho quente.
+- `Any`, `List` cru e `Map` heterogêneo são erro de compilação até o L6.
+- `//` e `%` passam pelo runtime (guarda de zero e de `INT_MIN / -1`, que é UB em LLVM).
+- toda operação tem caminho desboxado; o runtime só entra onde há caso de borda ou I/O.
 
 ### 6.4 Runtime em C (`runtime/runtime.c`)
 
 Funções chamadas pelo código gerado — mantém o IR pequeno e legível:
 
 ```c
-void lox_print_int(i64 v);
-void lox_print_float(double v);
-void lox_print_str(LoxStr* s);
-LoxStr* lox_str_concat(LoxStr* a, LoxStr* b);
-void* lox_alloc(size_t n);
-void lox_panic(const char* msg);
-void lox_throw(LoxValue v);   // se exceções entrarem
+void     lox_panic(int32_t line, const char *msg);   // exit 70, stderr idêntico
+void     lox_init(void);                            // LC_NUMERIC=C (I3) — L1 ✅
+void     lox_print_int(int64_t v);                  // L0 ✅
+void     lox_print_bool(int32_t v);                 // L0 ✅
+void     lox_print_nil(void);                       // L0 ✅
+int64_t  lox_int_div(int64_t a, int64_t b, int32_t line);  // L0 ✅
+int64_t  lox_int_mod(int64_t a, int64_t b, int32_t line);  // L0 ✅
+void     lox_print_float(double v);                 // L1 ✅ (menor representação)
+double   lox_float_div(double a, double b, int32_t line);  // L1 ✅
+double   lox_float_mod(double a, double b, int32_t line);  // L1 ✅
+void     lox_print_str(LoxStr *s);                  // L3
+LoxStr  *lox_str_concat(LoxStr *a, LoxStr *b);      // L3
+void    *lox_alloc(size_t n);                       // L3 (arena com teto)
 ```
 
-Compilar o runtime como `.o`/`.a` e linkar com `clang`. `main` gerado só chama
-`lox_entry()` e devolve 0.
+O runtime é compilado por build com o mesmo `cc` do link (`.o` em diretório temporário).
+`main` gerado devolve `0` no sucesso — o valor de retorno de uma função do usuário não é
+exit code.
 
-### 6.5 GC
+### 6.5 Memória
 
-- **Fase 1:** Boehm GC (`GC_malloc`, linkar `-lgc`). Roda em 20 minutos e evita
-  use-after-free enquanto o codegen amadurece.
-- **Fase 2 (talvez):** alocador por arena + sem liberar (CLI curta) — simples e rápido.
+**Decidido** ([ADR-0031](docs/adr/0031-backend-nativo.md)): arena (bump) com teto
+configurável e `lox_panic` determinístico ao estourar. `lox_alloc` é o único ponto de
+alocação, então trocar por Boehm é mudar o corpo de uma função.
+
+- **Fase 1:** arena sem `free` (CLI curta) — simples, rápida e determinística na falha.
+- **Fase 2 (se rodar programa longo):** Boehm (`GC_malloc`, `-lgc`), opt-in por flag.
 - **Fase 3 (talvez):** GC preciso com shadow stack — só se o projeto virar sério.
+- Contagem de referência está fora: a linguagem permite ciclos (`list_cycle.lox`).
 - Referência: *Mapping High-Level Constructs to LLVM IR* (capítulo de GC) — ver §12.
 
 ### 6.6 Closures e classes
@@ -288,18 +313,22 @@ Compilar o runtime como `.o`/`.a` e linkar com `clang`. `main` gerado só chama
 | exceções em LLVM (`invoke`/landingpad) são difíceis | começar com `setjmp/longjmp` no runtime; ou `Result` na linguagem |
 | GC + LLVM não têm integração nativa | Boehm; ou arena sem free |
 | debug info ruim no llvmlite | `--emit=ll` + `lli` no começo; DWARF depois |
+| `llvmlite` 0.50 mudou a inicialização (`initialize()` agora levanta) | usar só `initialize_native_target()`/`initialize_native_asmprinter()`; isolado em `llvm_ir.py` |
 | ABI/linking em Windows | usar `clang` como driver, sempre; testar cedo |
 | otimizar antes de funcionar | `-O0` até passar a suíte inteira; depois ligar passes |
 | erros de codegen são crípticos | verificar módulo (`mod.verify()`), testes pequenos por feature |
 
 ### 6.8 Marcos do backend
 
-- [ ] **L0 — Hello, IR**: `fn main() -> Int { 42 }` vira `.ll`, compila com `clang`,
-      `./a.out` retorna 42. `--emit=ll|obj|exe`.
-- [ ] **L1 — Aritmética**: `Int` tagged, `+ - * / %`, comparações, `if`, `while` com
-      `phi`/blocos básicos; `println` via runtime.
-- [ ] **L2 — Variáveis e funções**: `alloca`/`mem2reg`, chamadas, `return`, aridade
-      checada em compile-time.
+- [x] **L0 — Hello, IR**: `print` de `Int`/`Bool`/`nil`, `+ - * // %`, comparações,
+      igualdade e unário; `--emit=ll|obj|exe`; runtime C (`lox_print_*`, `lox_panic`) e
+      teste diferencial nos três canais.
+- [x] **L1 — Aritmética e controle de fluxo**: `Float` desboxado, promoção `Int → Float`,
+      `/` sempre Float, `%` de Float, comparações com NaN, `if`/`while`/blocos e impressão
+      de `double` pela menor representação (fuzz contra `repr`). Manifesto `l0`/`l1`.
+- [ ] **L2 — Variáveis e funções**: `alloca`/`mem2reg`, chamadas, `return`, aridade como
+      panic site e a **normalização** (`for-in`, `??`, ternário), que precisa de
+      variáveis/temporários.
 - [ ] **L3 — Strings**: literais em globals, concatenação, interpolação, `print`.
 - [ ] **L4 — Closures**: env struct, captura por valor e por célula.
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable.
@@ -310,11 +339,13 @@ Compilar o runtime como `.o`/`.a` e linkar com `clang`. `main` gerado só chama
 ### 6.9 CLI alvo
 
 ```bash
-lox run script.lox            # interpretador (hoje: main.py)
-lox check script.lox          # só typecheck/resolver
-lox build script.lox -o app   # nativo
-lox build script.lox --emit=ll        # inspecionar LLVM IR
-lox build script.lox --emit=obj       # .o para linkar
+lox run script.lox            # interpretador (hoje: main.py script.lox)
+lox check script.lox          # só typecheck/resolver (hoje: --check)
+uv run main.py --emit=ll  script.lox  # inspecionar LLVM IR (hoje)
+uv run main.py --emit=obj script.lox  # .o para linkar (hoje)
+uv run main.py --emit=exe -o app script.lox  # nativo (hoje)
+lox build script.lox -o app   # nativo (quando o CLI ganhar subcomandos)
+lox build script.lox --emit=ll        # equivalente futuro
 lox jit script.lox            # MCJIT, sem arquivo intermediário
 lox fmt script.lox            # formatador (dogfooding do parser)
 lox repl                      # REPL, com :type, :ast
@@ -327,12 +358,32 @@ Isso permitiria um playground no navegador sem Pyodide — a linguagem rodando a
 browser. Guardar como ideia P3 (precisa de runtime mínimo em wasm e de uma ABI de
 imports para `print`).
 
+### 6.11 Corpus diferencial (bloqueia o L1)
+
+O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
+(`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
+
+- [x] anotar 15 `tests/cases` (54 de 78 passam no `--check` agora; antes eram 39);
+- [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
+      eles compilam (L5/L6), para não tipar sem poder testar;
+- [ ] anotar `exemplos/classes.lox` (o único dos 5 que falta);
+- [ ] anotar `tests/official/cases` (120 arquivos, um diretório por PR);
+- [ ] declarar o manifesto de casos por nível e a promoção monotônica;
+- [ ] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip).
+
+```bash
+uv sync --extra llvm
+uv run pytest tests/test_backend.py -q
+```
+
+
 ---
 
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` testes diferenciais interpretador × LLVM (mesmo stdout, exit code).
+- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0 cobre
+      `Int`/`Bool`/`nil`, comparando stdout, stderr e exit code).
 - [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
       [`IDEIAS.md`](IDEIAS.md) I-4).

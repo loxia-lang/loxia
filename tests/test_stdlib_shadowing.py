@@ -9,14 +9,18 @@ SRC = ROOT / "src"
 
 
 def test_src_nao_sombreia_modulos_da_stdlib() -> None:
-    """Nenhum módulo de `src/` pode ter nome de módulo da stdlib.
+    """Nenhum módulo/pacote de topo de `src/` pode ter nome da stdlib.
 
     Se `src/` entrar no `sys.path` (ex.: `PYTHONPATH=src`), um `token.py` local
     sombreia o `token` da stdlib e quebra `dataclasses`/`inspect` com erro de
-    import circular — por isso o módulo se chama `tokens.py`.
+    import circular — por isso o módulo se chama `tokens.py`. Só o topo importa:
+    módulos dentro de pacotes (`src/frontend/tokens.py`) não são alcançáveis por
+    `import tokens`.
     """
     offenders = sorted(
-        path.stem for path in SRC.glob("*.py") if path.stem in sys.stdlib_module_names
+        path.stem if path.is_file() else path.name
+        for path in SRC.iterdir()
+        if path.name != "__pycache__" and path.name in sys.stdlib_module_names
     )
 
     assert offenders == [], (

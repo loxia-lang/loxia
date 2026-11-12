@@ -12,22 +12,38 @@ A decisão por trás destas garantias (e o porquê de cada custo) está no
 
 | # | Garantia | Status |
 | --- | --- | --- |
-| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 metade (determinismo); equivalência com o backend quando o LLVM existir |
+| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L1 verificados (`Int`, `Float`, `Bool`, `nil`, `if`/`while`); corpus parcialmente anotado |
 | **I2** | Nada acontece implicitamente | ✅ vale hoje |
 | **I3** | Determinismo observável: mesma entrada ⇒ mesmos bytes | ✅ vale hoje e é testado em CI |
 
 ### I1 — Equivalência executável
 
-O tree-walk é a **definição normativa** da linguagem. Quando o backend nativo existir,
-todo programa do corpus oficial terá que produzir o **mesmo stdout (bytes)** e o **mesmo
-exit code** nos dois motores; se divergirem, o bug é do backend.
+O tree-walk é a **definição normativa** da linguagem. Todo programa do corpus declarado
+tem que produzir o **mesmo stdout (bytes)**, o **mesmo stderr** e o **mesmo exit code**
+nos dois motores; se divergirem, o bug é do backend.
 
-Hoje a metade que dá para prometer é: **a mesma execução repetida produz os mesmos
-bytes**. E o corpus que o teste diferencial vai usar já é o corpus de conformidade — não
-vai ser escolhido depois, olhando o que o backend já acerta.
+O backend nativo cobre **L0–L1** (ADR-0031): `Int`, `Float`, `Bool`, `nil`, aritmética
+com promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if` e
+`while`. O teste diferencial (`tests/test_backend.py`) compila cada caso, executa o binário
+e compara os três canais com o interpretador — nunca com uma expectativa escrita à mão. O
+manifesto `tests/corpus_manifest.py` declara os casos por nível.
+
+O **corpus** é o corpus de conformidade inteiro, anotado: `tests/cases`, `exemplos/` e
+`tests/official/cases`. A suíte do livro ainda é código cru do Crafting Interpreters
+(`fun`, `//`, sem anotações) e por isso **não compila** enquanto não for anotada — a
+anotação é pré-requisito do L1, e o I1 só vale para os programas efetivamente no corpus.
+Não se escolhe o corpus depois olhando o que o backend já acerta.
+
+Os níveis ainda não implementados rejeitam com **erro de compilação explícito** (exit 65),
+nunca com lowering silencioso: variáveis e funções (L2), `String` (L3), closures (L4),
+classes (L5), `Any`/`List`/`Map` (L6).
+
+A comparação é feita por canal: quando stdout e stderr vão para o **mesmo** descritor
+(`2>&1`), a ordem de intercalação das duas saídas não faz parte da garantia.
 
 Não existe promessa de que código interpretado e compilado tenham a mesma **velocidade**,
 o mesmo consumo de memória ou o mesmo stack trace — só o mesmo resultado observável.
+Recursão profunda fica fora do corpus até existir contador de pilha no runtime.
 
 ### I2 — Nada acontece implicitamente
 

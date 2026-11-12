@@ -5,8 +5,8 @@
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/lexico.md`](../spec/lexico.md), [`../spec/erros.md`](../spec/erros.md)
-- **Implementação:** `src/expr.py`, `src/parser.py`, `src/scanner.py`,
-  `src/checker.py`, `src/interpreter.py`, `src/ast_printer.py`, `src/ty.py`;
+- **Implementação:** `src/frontend/expr.py`, `src/frontend/parser.py`, `src/frontend/scanner.py`,
+  `src/semantics/checker.py`, `src/execution/interpreter.py`, `src/frontend/ast_printer.py`, `src/frontend/ty.py`;
   testes em `tests/cases/ternary.lox`, `tests/cases/nil_aware.lox`,
   `tests/test_scanner.py`, `tests/test_parser.py`, `tests/test_checker.py`
 

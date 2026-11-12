@@ -4,8 +4,8 @@
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §2/§11, [`../../TIPOS.md`](../../TIPOS.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
-- **Implementação:** `src/ty.py`, `src/checker.py`, `src/parser.py`, `src/stmt.py`,
-  `src/token_type.py`, `src/scanner.py`, `lox/cli.py`; testes em `tests/test_checker.py`,
+- **Implementação:** `src/frontend/ty.py`, `src/semantics/checker.py`, `src/frontend/parser.py`, `src/frontend/stmt.py`,
+  `src/frontend/token_type.py`, `src/frontend/scanner.py`, `lox/cli.py`; testes em `tests/test_checker.py`,
   `tests/test_cli.py`, `tests/cases/typed_functions.lox`
 
 ## Contexto
@@ -64,7 +64,7 @@ inferidos. A discussão está no histórico do `TODO.md` §2 e em `TIPOS.md`.
 ### Neutras
 
 - Novos tokens `:`, `?`, `[`, `]`, `->`, `|`; `Ty` no `Param`/`Var`/`Field`/`Function`.
-- `src/ty.py` (tipos e helpers de união) e `src/checker.py` separados do interpretador.
+- `src/frontend/ty.py` (tipos e helpers de união) e `src/semantics/checker.py` separados do interpretador.
 
 ## Alternativas consideradas
 

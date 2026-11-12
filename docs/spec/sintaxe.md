@@ -1,6 +1,6 @@
 # Sintaxe
 
-Gramática do parser atual ([`src/parser.py`](../../src/parser.py)) — recursive descent,
+Gramática do parser atual ([`src/frontend/parser.py`](../../src/frontend/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
 > Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`match`, `"""`…)

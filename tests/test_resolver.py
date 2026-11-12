@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.error_reporter import ErrorReporter
-from src.interpreter import Interpreter
-from src.parser import Parser
-from src.resolver import Resolver
-from src.scanner import Scanner
-from src.stmt import Stmt
+from src.diagnostics.error_reporter import ErrorReporter
+from src.execution.interpreter import Interpreter
+from src.frontend.parser import Parser
+from src.frontend.scanner import Scanner
+from src.frontend.stmt import Stmt
+from src.semantics.resolver import Resolver
 
 
 def resolve(source: str) -> tuple[ErrorReporter, Interpreter, list[Stmt]]:

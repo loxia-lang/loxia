@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from src.scanner import Scanner
-from src.token_type import TokenType
-from src.tokens import Token
+from src.frontend.scanner import Scanner
+from src.frontend.token_type import TokenType
+from src.frontend.tokens import Token
 
 
 def scan(source: str) -> list[Token]:
