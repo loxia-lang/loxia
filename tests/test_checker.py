@@ -104,7 +104,7 @@ def test_annotated_program_is_clean() -> None:
         ),
         (
             'for x in 42 { print x; }',
-            "Can only iterate over a range, a list or a string.",
+            "Can only iterate over a range, a list, a map or a string.",
         ),
     ],
 )
@@ -290,6 +290,146 @@ def test_list_types_are_clean() -> None:
     assert lox.reporter.had_error is False
 
 
+def test_map_types_are_clean() -> None:
+    lox = check(
+        """
+        val vazio: Map[String, Int] = {}
+        val idades: Map[String, Int] = {"Ana": 32, "Bia": 28}
+        val misto: Map[Int | String, Int] = {1: 1, "a": 2}
+        val qualquer: Any = {}
+
+        idades["Caio"] = 20
+        val idade: Int = idades["Ana"]
+        val talvez: Int? = idades.get("Zoe")
+        val tem: Bool = idades.has("Ana")
+        val chaves: List[String] = idades.keys()
+        val valores: List[Int] = idades.values()
+        val removida: Int = idades.remove("Ana")
+        val n: Int = len(idades)
+
+        for nome in idades {
+          val chave: String = nome
+          print chave
+        }
+
+        fn total(m: Map[String, Int]) -> Int {
+          return len(m)
+        }
+
+        fn vazio() -> Map[String, Int] {
+          return {}
+        }
+
+        val totalIdades = total(idades)
+        val totalVazio = total({})
+        val mapaVazio = vazio()
+        val opcional: Map[String, Int]? = nil
+        val opcionalIdade: Int? = opcional?.get("Ana")
+        val opcionalTem: Bool? = opcional?.has("Ana")
+
+        print idade
+        print talvez
+        print tem
+        print chaves
+        print valores
+        print removida
+        print n
+        print totalIdades
+        print totalVazio
+        print opcionalIdade
+        print opcionalTem
+        print misto
+        print qualquer
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            'val m: Map[String, Int] = {"a": "b"};',
+            "Expected Int, found String.",
+        ),
+        (
+            'val m = {"a": 1, "b": "x"};',
+            "Map values must have a common type; found Int and String.",
+        ),
+        (
+            'val m = {1: "a", "b": 2};',
+            "Map keys must have a common type; found Int and String.",
+        ),
+        (
+            'val m = {1.5: "a"};',
+            "Map keys must be String, Int or Bool.",
+        ),
+        (
+            "val m: Map[Float, Int] = {};",
+            "Map keys must be String, Int or Bool.",
+        ),
+        (
+            "val m: Map[String, Int] = {}; val n: Map[String, Any] = m;",
+            "Expected Map[String, Any], found Map[String, Int].",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print m[1];",
+            "Expected String, found Int.",
+        ),
+        (
+            'val m: Map[String, Int] = {}; m["a"] = "x";',
+            "Expected Int, found String.",
+        ),
+        (
+            'val m: Map[String, Int] = {}; print m.get(1);',
+            "Expected String, found Int.",
+        ),
+        (
+            "val m: Map[String, Int] = {};"
+            " for k in m { val n: Int = k; }",
+            "Expected Int, found String.",
+        ),
+        (
+            "val m = {};",
+            "Can't infer the key and value types of an empty map",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print m.foo;",
+            "Undefined property 'foo'.",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print m.get();",
+            "Expected 1 arguments but got 0.",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print m.keys(1);",
+            "Expected 0 arguments but got 1.",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print len(3);",
+            "Expected a string, a list or a map, found Int.",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print m.foo();",
+            "Undefined property 'foo'.",
+        ),
+        (
+            "val m: Map[String, Int] = {}; print 1[m];",
+            "Only lists and maps can be indexed.",
+        ),
+    ],
+)
+def test_map_type_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
 @pytest.mark.parametrize(
     ("source", "message"),
     [
@@ -327,7 +467,7 @@ def test_list_types_are_clean() -> None:
         ),
         (
             "print len(3);",
-            "Expected a string or a list, found Int.",
+            "Expected a string, a list or a map, found Int.",
         ),
         (
             "val xs: List[Int] = [1]; print xs.foo;",

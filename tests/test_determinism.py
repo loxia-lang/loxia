@@ -36,6 +36,8 @@ CASES = [
     "tests/cases/inheritance.lox",
     "tests/cases/list_iteration.lox",
     "tests/cases/list_stringify.lox",
+    "tests/cases/map_iteration.lox",
+    "tests/cases/map_stringify.lox",
     "tests/cases/nil_aware.lox",
     "tests/cases/str_repr.lox",
     "tests/cases/strings.lox",

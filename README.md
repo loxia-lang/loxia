@@ -8,10 +8,12 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
 - ✅ Expressões: ternário `a if c else b`, `??`, `?.` e escapes de string.
 - ✅ Listas tipadas `List[T]`: literal, indexação, `push`/`pop`, `len` e `for-in`.
-- ✅ API híbrida: `len`/`str`/`repr` globais e métodos específicos de lista.
+- ✅ Mapas tipados `Map[K, V]`: literal `{ "a": 1 }`, `get`/`has`/`remove`/`keys`/`values`,
+  igualdade estrutural e `for-in` de chaves.
+- ✅ API híbrida: `len`/`str`/`repr` globais e métodos específicos de lista/mapa.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
-- 📐 Próximo passo: `Map[K, V]`, narrowing/generics no checker e depois o codegen LLVM.
+- 📐 Próximo passo: narrowing/generics no checker e depois o codegen LLVM.
 
 ## O que esta linguagem promete
 
@@ -41,6 +43,7 @@ uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não execut
 uv run main.py --check prog.lox      # checa os tipos, não executa
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
+make hooks                     # instala o hook de pre-commit
 make bench                     # benchmarks vs baseline
 ```
 
@@ -85,11 +88,19 @@ xs.push(4)
 print len(xs)               # 4
 print xs[0]                 # 3
 for x in xs { print x }
+
+val idades: Map[String, Int] = {"Ana": 32}
+print idades["Ana"]          # 32
+print idades.get("Bia") ?? 0 # 0 (get devolve Int?)
+idades["Bia"] = 28
+for nome in idades { print nome }   # chaves, em ordem de inserção
 ```
 
-Listas são **homogêneas** e **invariantes**: `List[Int]` não é `List[Float]`, e
+Listas e mapas são **homogêneos** e **invariantes**: `List[Int]` não é `List[Float]`, e
 `[1, "a"]` é erro no `--check` (a heterogeneidade exige `List[Int | String]` ou
-`List[Any]`). `val` congela o binding, não o conteúdo: `xs.push(4)` é permitido.
+`List[Any]`). Mapas aceitam chaves `String`, `Int` e `Bool`; `m["ausente"]` é erro e
+`m.get("ausente")` devolve `nil`. `val` congela o binding, não o conteúdo: `xs.push(4)` e
+`idades["Bia"] = 28` são permitidos.
 
 Aritmética inclui `//` (divisão inteira), `**` (potência) e bits
 `& | ^ ~ << >> >>>`; comentários usam `#` e `/* */` (aninhado).
@@ -106,7 +117,7 @@ print "linha 1\nlinha 2"                 # escapes
 ```
 main.py          entrypoint compatível (delega para lox/cli.py)
 lox/             pacote do CLI: `python -m lox`, --version, --dump-ast
-src/             scanner, parser, AST, resolver, interpreter, classes, listas
+src/             scanner, parser, AST, resolver, interpreter, classes, listas e mapas
 exemplos/        programas de exemplo (fib, fizzbuzz, closures, classes, primos, quicksort)
 tests/           pytest + golden cases (.lox)
 tests/official/  suíte oficial do livro (caps. 10–13), adaptada
@@ -139,7 +150,7 @@ Ela é mantida separada dos golden cases; detalhes de adaptação e `xfail` em
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
 > A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`,
-> `Int`/`Float`, ranges/`for-in`, listas, herança `class B(A)`, defaults/campos, checker
-> `--check`, `fn`/`elif`/`;` opcional, ternário/`??`/`?.` e escapes). O que falta —
-> narrowing/generics, interpolação, `Map`, conversões da stdlib e o backend LLVM — está
-> nos documentos de roadmap e ainda **não** está implementado.
+> `Int`/`Float`, ranges/`for-in`, listas, mapas, herança `class B(A)`, defaults/campos,
+> checker `--check`, `fn`/`elif`/`;` opcional, ternário/`??`/`?.` e escapes). O que falta —
+> narrowing/generics, interpolação, conversões da stdlib e o backend LLVM — está nos
+> documentos de roadmap e ainda **não** está implementado.

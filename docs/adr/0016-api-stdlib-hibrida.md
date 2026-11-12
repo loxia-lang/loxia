@@ -121,7 +121,7 @@ class range {}            # erro
 Extensões são a saída para dar `s.minhaExtensao()` a funções sem inchar o tipo ou o
 prelúdio, mas adicionam resolução de métodos, interação com traits e codegen. Ficam em P3,
 depois do LLVM MVP, com gatilho: a stdlib precisar de uma operação em tipo existente ou
-usuários pedirem. O item está registrado no [`TODO.md`](../../TODO.md) §1.3 e §8.
+usuários pedirem. O item está registrado no [`TODO.md`](../../TODO.md) §1.1 e §8.
 
 ### 7. Conversões continuam em aberto
 

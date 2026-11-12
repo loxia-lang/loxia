@@ -1,2 +1,2 @@
 print 1[0]
-# expect runtime error: Only lists can be indexed.
+# expect runtime error: Only lists and maps can be indexed.

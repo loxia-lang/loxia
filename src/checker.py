@@ -22,6 +22,7 @@ from src.expr import (
     ListLiteral,
     Literal,
     Logical,
+    MapLiteral,
     Range,
     Set,
     Super,
@@ -171,6 +172,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
                 return ListTy(element)
 
+        if isinstance(expr, MapLiteral):
+            entry_types = self._expected_map(expected)
+            if entry_types is not None:
+                key_ty, value_ty = entry_types
+                for key, value in expr.entries:
+                    self._check(key, key_ty, expr.brace)
+                    self._check(value, value_ty, expr.brace)
+
+                return MapTy(key_ty, value_ty)
+
         actual = self._infer(expr)
         if not self._assignable(expected, actual):
             self._error(
@@ -194,6 +205,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return None
 
+    def _expected_map(self, expected: Ty) -> tuple[Ty, Ty] | None:
+        if expected is ANY:
+            return (ANY, ANY)
+        if isinstance(expected, MapTy):
+            return (expected.key, expected.value)
+
+        if isinstance(expected, UnionTy):
+            maps = [
+                member for member in expected.members if isinstance(member, MapTy)
+            ]
+            if len(maps) == 1:
+                return (maps[0].key, maps[0].value)
+
+        return None
+
     def _assignable(self, expected: Ty, actual: Ty) -> bool:
         if expected is ANY or actual is ANY or expected is ERROR or actual is ERROR:
             return True
@@ -211,6 +237,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if expected.element is ERROR or actual.element is ERROR:
                 return True
             return expected.element == actual.element
+        if isinstance(expected, MapTy) and isinstance(actual, MapTy):
+            if expected.key is ERROR or actual.key is ERROR:
+                return True
+            if expected.value is ERROR or actual.value is ERROR:
+                return True
+            return expected.key == actual.key and expected.value == actual.value
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
             return self._is_subclass(actual.name, expected.name)
 
@@ -235,16 +267,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, ListTy):
             return ListTy(self._resolve_type(ty.element, token))
         if isinstance(ty, MapTy):
-            return MapTy(
-                self._resolve_type(ty.key, token),
-                self._resolve_type(ty.value, token),
-            )
+            key = self._resolve_type(ty.key, token)
+            value = self._resolve_type(ty.value, token)
+            if not self._valid_map_key(key):
+                self._error(token, "Map keys must be String, Int or Bool.")
+                key = ERROR
+            return MapTy(key, value)
         if isinstance(ty, UnionTy):
             return union(
                 *(self._resolve_type(member, token) for member in ty.members)
             )
 
         return ty
+
+    def _valid_map_key(self, ty: Ty) -> bool:
+        if ty is ANY or ty is ERROR or ty is STRING or ty is INT or ty is BOOL:
+            return True
+        if isinstance(ty, UnionTy):
+            return all(self._valid_map_key(member) for member in ty.members)
+
+        return False
 
     def _find_field(self, class_name: str, field_name: str) -> FieldBinding | None:
         name: str | None = class_name
@@ -380,8 +422,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return STRING
         if isinstance(iterable, ListTy):
             return iterable.element
+        if isinstance(iterable, MapTy):
+            return iterable.key
 
-        self._error(token, "Can only iterate over a range, a list or a string.")
+        self._error(
+            token, "Can only iterate over a range, a list, a map or a string."
+        )
         return ERROR
 
     def visit_function_stmt(self, stmt: Function) -> None:
@@ -612,6 +658,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 arguments.append(
                     self._check(argument, signature.params[index], expr.paren)
                 )
+            elif (
+                isinstance(argument, MapLiteral)
+                and signature is not None
+                and index < len(signature.params)
+                and self._expected_map(signature.params[index]) is not None
+            ):
+                arguments.append(
+                    self._check(argument, signature.params[index], expr.paren)
+                )
             else:
                 arguments.append(self._infer(argument))
 
@@ -711,7 +766,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if not self._is_len_able(argument):
                 self._error(
                     expr.paren,
-                    f"Expected a string or a list, found {display(argument)}.",
+                    f"Expected a string, a list or a map, found {display(argument)}.",
                 )
                 return ERROR
 
@@ -734,6 +789,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _is_len_able(self, ty: Ty) -> bool:
         if ty is ANY or ty is STRING or ty is ERROR or isinstance(ty, ListTy):
+            return True
+        if isinstance(ty, MapTy):
             return True
         if isinstance(ty, UnionTy):
             return all(self._is_len_able(member) for member in ty.members)
@@ -789,6 +846,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if all(isinstance(member, ListTy) for member in members):
             lists = [member for member in members if isinstance(member, ListTy)]
             result = self._list_property(lists, name)
+        elif all(isinstance(member, MapTy) for member in members):
+            maps = [member for member in members if isinstance(member, MapTy)]
+            result = self._map_property(maps, name)
         elif all(isinstance(member, ClassTy) for member in members):
             classes = [member for member in members if isinstance(member, ClassTy)]
             if len(classes) == 1:
@@ -818,6 +878,27 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return FnTy((element,), NIL, 1)
         if name.lexeme == "pop":
             return FnTy((), element, 0)
+
+        self._error(name, f"Undefined property '{name.lexeme}'.")
+        return ERROR
+
+    def _map_property(self, maps: list[MapTy], name: Token) -> Ty:
+        key = maps[0].key
+        value = maps[0].value
+        if any(item.key != key or item.value != value for item in maps[1:]):
+            self._error(name, "Map method requires a single key/value type.")
+            return ERROR
+
+        if name.lexeme == "get":
+            return FnTy((key,), union(value, NIL), 1)
+        if name.lexeme == "has":
+            return FnTy((key,), BOOL, 1)
+        if name.lexeme == "remove":
+            return FnTy((key,), value, 1)
+        if name.lexeme == "keys":
+            return FnTy((), ListTy(key), 0)
+        if name.lexeme == "values":
+            return FnTy((), ListTy(value), 0)
 
         self._error(name, f"Undefined property '{name.lexeme}'.")
         return ERROR
@@ -900,6 +981,83 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
         return ERROR
 
+    def visit_map_expr(self, expr: MapLiteral) -> Ty:
+        if not expr.entries:
+            self._error(
+                expr.brace,
+                "Can't infer the key and value types of an empty map; "
+                "annotate it as Map[K, V].",
+            )
+            return MapTy(ERROR, ERROR)
+
+        key_ty = self._infer(expr.entries[0][0])
+        value_ty = self._infer(expr.entries[0][1])
+        for key, value in expr.entries[1:]:
+            key_ty = self._join_map_key(key_ty, self._infer(key), expr.brace)
+            value_ty = self._join_map_value(value_ty, self._infer(value), expr.brace)
+
+        if not self._valid_map_key(key_ty):
+            self._error(expr.brace, "Map keys must be String, Int or Bool.")
+            key_ty = ERROR
+
+        return MapTy(key_ty, value_ty)
+
+    def _join_map_key(self, left: Ty, right: Ty, token: Token) -> Ty:
+        if left is ERROR or right is ERROR:
+            return ERROR
+        if left == right:
+            return left
+        if left is ANY or right is ANY:
+            return ANY
+        if isinstance(left, UnionTy) or isinstance(right, UnionTy):
+            self._error(
+                token,
+                "Map keys must have a common type; annotate the map as "
+                "Map[K, V] to allow mixed keys.",
+            )
+            return ERROR
+        if self._assignable(left, right):
+            return left
+        if self._assignable(right, left):
+            return right
+
+        self._error(
+            token,
+            "Map keys must have a common type; found "
+            f"{display(left)} and {display(right)}. Annotate as "
+            f"Map[{display(left)} | {display(right)}, V] to allow mixed keys.",
+        )
+        return ERROR
+
+    def _join_map_value(self, left: Ty, right: Ty, token: Token) -> Ty:
+        if left is ERROR or right is ERROR:
+            return ERROR
+        if left == right:
+            return left
+        if left is ANY or right is ANY:
+            return ANY
+        if (left is INT and right is FLOAT) or (left is FLOAT and right is INT):
+            return FLOAT
+        if isinstance(left, UnionTy) or isinstance(right, UnionTy):
+            self._error(
+                token,
+                "Map values must have a common type; annotate the map as "
+                "Map[K, V] to allow mixed values.",
+            )
+            return ERROR
+        if self._assignable(left, right):
+            return left
+        if self._assignable(right, left):
+            return right
+
+        self._error(
+            token,
+            "Map values must have a common type; found "
+            f"{display(left)} and {display(right)}. Annotate as "
+            f"Map[K, {display(left)} | {display(right)}] to allow mixed values.",
+        )
+        return ERROR
+
     def visit_index_expr(self, expr: Index) -> Ty:
         obj = self._infer(expr.object)
         index = self._infer(expr.index)
@@ -908,8 +1066,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
         if obj is ERROR:
             return ERROR
+        if isinstance(obj, MapTy):
+            if not self._assignable(obj.key, index):
+                self._error(
+                    expr.bracket,
+                    f"Expected {display(obj.key)}, found {display(index)}.",
+                )
+            return obj.value
         if not isinstance(obj, ListTy):
-            self._error(expr.bracket, "Only lists can be indexed.")
+            self._error(expr.bracket, "Only lists and maps can be indexed.")
             return ERROR
 
         self._check_index_type(index, expr)
@@ -924,8 +1089,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return value
         if obj is ERROR:
             return ERROR
+        if isinstance(obj, MapTy):
+            if not self._assignable(obj.key, index):
+                self._error(
+                    expr.bracket,
+                    f"Expected {display(obj.key)}, found {display(index)}.",
+                )
+            if not self._assignable(obj.value, value):
+                self._error(
+                    expr.bracket,
+                    f"Expected {display(obj.value)}, found {display(value)}.",
+                )
+            return value
         if not isinstance(obj, ListTy):
-            self._error(expr.bracket, "Only lists can be indexed.")
+            self._error(expr.bracket, "Only lists and maps can be indexed.")
             return value
 
         self._check_index_type(index, expr)

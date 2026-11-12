@@ -22,6 +22,7 @@ from src.expr import (
     ListLiteral,
     Literal,
     Logical,
+    MapLiteral,
     Range,
     Set,
     Super,
@@ -35,6 +36,7 @@ from src.lox_class import FieldInfo, LoxClass
 from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
 from src.lox_list import LoxList
+from src.lox_map import LoxMap
 from src.lox_range import LoxRange
 from src.natives.clock import Clock
 from src.natives.len import Len
@@ -124,6 +126,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return False
             return self._lists_equal(a, b, set() if seen is None else seen)
 
+        if isinstance(a, LoxMap) or isinstance(b, LoxMap):
+            if not isinstance(a, LoxMap) or not isinstance(b, LoxMap):
+                return False
+            return self._maps_equal(a, b, set() if seen is None else seen)
+
         if isinstance(a, bool) or isinstance(b, bool):
             return isinstance(a, bool) and isinstance(b, bool) and a == b
 
@@ -151,6 +158,30 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         for left, right in zip(a.elements, b.elements, strict=True):
             if not self._is_equal(left, right, seen):
+                return False
+
+        return True
+
+    def _maps_equal(
+        self,
+        a: LoxMap,
+        b: LoxMap,
+        seen: set[tuple[int, int]],
+    ) -> bool:
+        if a is b:
+            return True
+
+        pair = (id(a), id(b))
+        if pair in seen:
+            return True
+
+        seen.add(pair)
+        if a.size != b.size:
+            return False
+
+        for key, value in a.items:
+            found, other = b.find(key)
+            if not found or not self._is_equal(value, other, seen):
                 return False
 
         return True
@@ -190,24 +221,45 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_list_expr(self, expr: ListLiteral) -> object:
         return LoxList([self._evaluate(element) for element in expr.elements])
 
+    def visit_map_expr(self, expr: MapLiteral) -> object:
+        result = LoxMap()
+        for key, value in expr.entries:
+            entry_key = self._evaluate(key)
+            if result.has(entry_key, expr.brace):
+                raise LoxRuntimeError(expr.brace, "Duplicate key in map literal.")
+
+            entry_value = self._evaluate(value)
+            result.set(entry_key, entry_value, expr.brace)
+
+        return result
+
     def visit_index_expr(self, expr: Index) -> object:
         ob = self._evaluate(expr.object)
 
-        if not isinstance(ob, LoxList):
-            raise LoxRuntimeError(expr.bracket, "Only lists can be indexed.")
+        if isinstance(ob, LoxList):
+            index = self._evaluate(expr.index)
+            return ob.get(index, expr.bracket)
 
-        index = self._evaluate(expr.index)
-        return ob.get(index, expr.bracket)
+        if isinstance(ob, LoxMap):
+            key = self._evaluate(expr.index)
+            return ob.get(key, expr.bracket)
+
+        raise LoxRuntimeError(expr.bracket, "Only lists and maps can be indexed.")
 
     def visit_index_set_expr(self, expr: IndexSet) -> object:
         ob = self._evaluate(expr.object)
 
-        if not isinstance(ob, LoxList):
-            raise LoxRuntimeError(expr.bracket, "Only lists can be indexed.")
+        if isinstance(ob, LoxList):
+            index = self._evaluate(expr.index)
+            value = self._evaluate(expr.value)
+            return ob.set(index, value, expr.bracket)
 
-        index = self._evaluate(expr.index)
-        value = self._evaluate(expr.value)
-        return ob.set(index, value, expr.bracket)
+        if isinstance(ob, LoxMap):
+            key = self._evaluate(expr.index)
+            value = self._evaluate(expr.value)
+            return ob.set(key, value, expr.bracket)
+
+        raise LoxRuntimeError(expr.bracket, "Only lists and maps can be indexed.")
 
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
@@ -443,6 +495,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if isinstance(ob, LoxList):
             return ob.get_method(expr.name)
 
+        if isinstance(ob, LoxMap):
+            return ob.get_method(expr.name)
+
         raise LoxRuntimeError(expr.name, "Only instances have properties.")
 
     def visit_conditional_expr(self, expr: Conditional) -> object:
@@ -503,8 +558,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return iter(iterable)
         if isinstance(iterable, LoxList):
             return self._iterate_list(name, iterable)
+        if isinstance(iterable, LoxMap):
+            return self._iterate_map(name, iterable)
 
-        raise LoxRuntimeError(name, "Can only iterate over a range, a list or a string.")
+        raise LoxRuntimeError(
+            name, "Can only iterate over a range, a list, a map or a string."
+        )
 
     def _iterate_list(self, name: Token, values: LoxList) -> Iterator[object]:
         version = values.version
@@ -522,6 +581,25 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if values.version != version:
             raise LoxRuntimeError(
                 name, "Can't modify a list while iterating over it."
+            )
+
+    def _iterate_map(self, name: Token, values: LoxMap) -> Iterator[object]:
+        version = values.version
+        keys = values.keys()
+        index = 0
+
+        while index < len(keys):
+            if values.version != version:
+                raise LoxRuntimeError(
+                    name, "Can't modify a map while iterating over it."
+                )
+
+            yield keys[index]
+            index += 1
+
+        if values.version != version:
+            raise LoxRuntimeError(
+                name, "Can't modify a map while iterating over it."
             )
 
     def visit_print_stmt(self, stmt: Print) -> None:

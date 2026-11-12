@@ -124,13 +124,17 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Field 'x' must be initialized.` | instância criada sem inicializar o campo |
 | `Can't assign to immutable field 'x'.` | segunda atribuição a campo `val` |
 | `Superclass must be a class.` | `class B(A)` com `A = 1` |
-| `Only lists can be indexed.` | `xs[i]`/`xs[i] = v` com `xs` não-lista |
+| `Only lists and maps can be indexed.` | `xs[i]`/`xs[i] = v` com valor que não é lista nem mapa |
 | `List index must be an integer.` | `xs["0"]` |
 | `List index N out of bounds for length M.` | índice negativo ou `>= len(xs)` |
 | `Can't pop from an empty list.` | `[].pop()` |
 | `Can't modify a list while iterating over it.` | `for x in xs { xs.push(x) }` |
-| `len() expects a string or a list.` | `len(3)` |
-| `Can only iterate over a range, a list or a string.` | `for x in 42` |
+| `Map keys must be strings, integers or booleans.` | `m[1.5]`, `{1.5: 1}`, `m[nil]` |
+| `Key not found in map.` | `m["ausente"]`, `m.remove("ausente")` |
+| `Duplicate key in map literal.` | `{"a": 1, "a": 2}` |
+| `Can't modify a map while iterating over it.` | `for k in m { m["b"] = 2 }` |
+| `len() expects a string, a list or a map.` | `len(3)` |
+| `Can only iterate over a range, a list, a map or a string.` | `for x in 42` |
 
 A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros
 (65) e runtime para globais (70). O texto é o mesmo de propósito.
@@ -153,11 +157,16 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Operands must be integers.` / `Operand must be an integer.` | `//`, bits ou `~` com não-`Int` |
 | `Operands must be two numbers or two strings.` | `+` misturando tipos |
 | `Range bounds must be integers.` | bound de `..` não-`Int` |
-| `Can only iterate over a range, a list or a string.` | `for-in` em tipo não iterável |
+| `Can only iterate over a range, a list, a map or a string.` | `for-in` em tipo não iterável |
 | `List elements must have a common type; found X and Y. ...` | literal misto sem anotação |
 | `Can't infer the element type of an empty list; annotate it as List[T].` | `val xs = []` |
 | `List index must be an integer, found X.` | `xs["0"]` no `--check` |
-| `Expected a string or a list, found X.` | `len(3)` no `--check` |
+| `Map keys must be String, Int or Bool.` | `Map[Float, Int]`, `{1.5: 1}` |
+| `Map keys must have a common type; found X and Y. ...` | `{1: 1, "a": 2}` sem anotação |
+| `Map values must have a common type; found X and Y. ...` | `{"a": 1, "b": "x"}` sem anotação |
+| `Can't infer the key and value types of an empty map; annotate it as Map[K, V].` | `val m = {}` |
+| `Map method requires a single key/value type.` | união de mapas com `K`/`V` diferentes |
+| `Expected a string, a list or a map, found X.` | `len(3)` no `--check` |
 | `Can't redefine builtin 'x'.` | `fn len`, `val clock` ou `class range` no escopo global |
 
 ## Como testar

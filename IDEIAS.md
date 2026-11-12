@@ -37,26 +37,7 @@ gatilhos para revisitar**.
 **Status:** `rejeitada` — **não haverá operador de pipeline** por enquanto (decisão de
 2026-11-11). O texto abaixo fica como histórico: os argumentos continuam válidos e os
 gatilhos dizem quando vale reabrir. Resumo registrado em
-[`docs/decisoes.md`](docs/decisoes.md) e §1.4.
-
-### Por que rejeitada (por enquanto)
-
-- **Superfície demais para o ganho.** É um token, um nível de precedência e um conjunto de
-  interações (com `;` opcional, com `and`/`or`, com o RHS) a aprender, documentar e testar.
-- **Acopla decisões ainda abertas.** O exemplo canônico `foo() :> print()` só funciona com
-  `print` como função ([`TODO.md`](TODO.md) §11 item 3) e a posição do argumento vira
-  contrato da stdlib antes de a stdlib existir.
-- **Convenção invisível.** Quem lê `x |> soma(1)` precisa saber onde o valor entra; errar
-  cedo é caro porque muda toda API.
-- **Redundante com o caminho OO.** `x.print()` / UFCS cobre boa parte dos casos sem
-  operador novo (a alternativa segue viva em I-3), e o `TODO.md` §1 não tem caso de uso
-  urgente antes de `List` e da stdlib.
-- **Não é agora.** O código atual e os testes não sofrem com aninhamento; sem dor real, o
-  custo de manutenção vem inteiro.
-
-O que fica de pé: a regra "sujeito primeiro" para a stdlib e a análise do trade-off
-abaixo, para o caso de reabertura. As perguntas abertas ficam sem resposta enquanto a
-rejeição valer.
+[`docs/decisoes.md`](docs/decisoes.md) e §1.2.
 
 [TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
@@ -69,8 +50,6 @@ rejeição valer.
   para manter rejeitado;
 - ao definir a regra de `;` opcional (a interação com newline precisa estar pronta).
 
-[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
-
 ## I-3 — Funções soltas vs métodos: por que Python tem `len`, `print`, `int()`?
 
 **Status:** `decidida` em 2026-11-11 — modelo híbrido; ver
@@ -80,145 +59,12 @@ rejeição valer.
 (`D-8` no [`TIPOS.md`](TIPOS.md) §3.3). Com I-2 rejeitada, o modelo híbrido foi o caminho
 escolhido: builtins globais para operações genéricas + métodos para ações específicas.
 
-### A pergunta
-
-1. Por que Python tem tantas funções soltas (`print`, `len`, `range`, `int`, `float`,
-   `bool`, `dict`, `list`)?
-2. Esse estilo é mais elegante/clean/moderno que "tudo é método"?
-3. Para a nossa linguagem: builtins globais, métodos, funções namespaced ou extensões?
-
-### Por que Python faz isso (as razões reais)
-
-**1. Razão histórica.** O FAQ do CPython diz, na versão antiga: *"The major reason is
-history. Functions were used for those operations that were generic for a group of types
-and which were intended to work even for objects that didn't have methods at all (e.g.
-tuples)"*. Ou seja: funções para operações **genéricas entre tipos**, inclusive tipos sem
-métodos; e convenientes para `map()`/`zip()`.
-
-**2. A justificativa do Guido** (hoje é a resposta oficial do FAQ), em duas partes:
-
-> (a) For some operations, prefix notation just reads better than postfix — prefix (and
-> infix!) operations have a long tradition in mathematics...
->
-> (b) When I read code that says `len(x)` I *know* that it is asking for the length of
-> something. This tells me two things: the result is an integer, and the argument is some
-> kind of container. To the contrary, when I read `x.len()`, I have to already know that
-> `x` is some kind of container implementing an interface or inheriting from a class that
-> has a standard `len()`. Witness the confusion we occasionally have when a class that is
-> not implementing a mapping has a `get()` or `keys()` method, or something that isn't a
-> file has a `write()` method.
->
-> — Guido van Rossum, [python-3000, 2006](https://mail.python.org/pipermail/python-3000/2006-November/004643.html)
-
-O segundo ponto é o mais interessante: `len(x)` **documenta o contrato na leitura**, sem
-depender do tipo de `x`. `x.len()` exige que você já saiba o que `x` é — e permite que
-qualquer classe invente um `.get()` com semântica diferente.
-
-**3. Protocolos (dunders).** `len(x)` chama `x.__len__()`; `str(x)` chama `x.__str__()`;
-`iter(x)` chama `x.__iter__()`. O builtin é a **porta pública** do protocolo, e o dunder é
-o *hook* de implementação. Vantagens: nomes não colidem entre tipos, duck typing funciona
-sem herança, e `len`/`iter`/`next`/`str`/`hash`/`bool` espelham operadores da linguagem
-(`if x`, `for x in xs`, `f"{x}"`, `x in d`).
-
-**4. Implementação em C.** Adicionar `len()` a cada tipo C é mais código que uma função
-genérica que despacha por slot; e o builtin é rápido (C-level).
-
-**5. Tipos são callables.** `int`, `float`, `bool`, `list`, `dict` são **classes**, e
-chamar uma classe constrói/converte. Então "cast" não precisa de sintaxe própria:
-`int(x)` é o construtor de `int`. Uniforme e elegante — mas sobrecarrega o significado:
-`int("42")` faz parse, `int(3.9)` trunca, `int()` devolve 0.
-
-**6. `print` virou função no Python 3** porque um statement não consegue expressar
-`sep`, `end`, `file=` nem compor (`map(print, xs)`). Quando a operação precisa de
-flexibilidade, função ganha.
-
-**7. Escopo global sem import** é ergonomia de script; o preço é poluir o namespace
-(~150 builtins) e permitir shadowing acidental (`list = [1, 2]`).
-
-### O que as outras linguagens fazem
-
-| Linguagem | Onde ficam as operações | Exemplo |
-| --- | --- | --- |
-| Python | builtins globais + dunders + métodos | `len(x)`, `x.upper()`, `int(x)` |
-| Ruby | métodos de `Kernel` (privados em todo objeto) | `puts`, `gets`, `raise` |
-| Smalltalk | mensagens (tudo método) | `x printOn: t` |
-| Java | métodos em `Object`/interfaces | `x.toString()`, `x.hashCode()` |
-| C# | métodos + **extension methods** + LINQ | `xs.Where(f).ToList()`, `x.Foo()` |
-| Kotlin | funções top-level + **extension functions** | `println(x)`, `x.isBlank()` |
-| Swift | métodos + protocolos/extensões | `xs.map(f)` |
-| Rust | traits (métodos) + funções em módulos | `xs.len()`, `std::mem::swap()` |
-| Go | builtins para o irredutível + pacotes | `len(x)`, `slices.Sort(xs)` |
-| JavaScript | globais + estáticos + protótipos | `parseInt(x)`, `Object.keys(o)`, `xs.map(f)` |
-| Elixir | funções de `Kernel` importadas + pipe | `length(x)`, `x |> f()` |
-| Haskell/F# | funções livres + composição/pipe | `f $ g x`, `x |> f` |
-
-Padrão: **linguagens funcionais/dados** preferem funções livres + composição;
-**linguagens OO/tipadas** preferem métodos + extensões. Python é um híbrido histórico
-(procedural que ganhou classes), não uma escolha "moderna" deliberada.
-
-### Elegante, clean, moderno? Análise
-
-**Onde funções soltas ganham:**
-
-1. **Problema da expressão**: dá para adicionar operação nova a tipos existentes sem
-   tocar nos tipos (`len`, `map`, `filter` funcionam em qualquer coisa que implemente o
-   protocolo). Com métodos, a operação precisa existir na classe.
-2. **Tipos ficam pequenos**: protocolo mínimo em vez de dezenas de métodos em `Object`.
-3. **Operações multi-tipo não pertencem a ninguém**: `min(a, b)`, `zip(xs, ys)`,
-   `abs(x)` não são "método de" um dos operandos.
-4. **Composição com pipe** (Elixir/F#): `x |> trim() |> split(",")`.
-5. **Contrato visível na leitura** (argumento do Guido).
-
-**Onde funções soltas perdem:**
-
-1. **Descoberta**: autocomplete de `x.` não mostra `len`; o editor precisa tratar
-   builtins à parte. Em linguagem tipada, método dá completude precisa.
-2. **Namespace global**: ~150 nomes em Python; shadowing acidental é footgun.
-3. **Sobrecarga semântica**: `int()` é parse + conversão + default; difícil de tipar.
-4. **Tipagem estática**: `len(x)` exige um trait/protocolo genérico (`Sized`); sem isso,
-   vira `Any -> Int` e perde checagem.
-5. **Colisão com o usuário**: `list`, `str`, `id`, `type` como nomes de variável.
-
-**Onde métodos ganham:** descoberta, namespace, dispatch estático (vtable/trait),
-encadeamento natural (`xs.map(f).filter(g)`) e nada de função órfã.
-
-**Onde métodos perdem:** primitivos precisam de métodos (`5.toString()`), operações
-multi-tipo não cabem, estender tipo de terceiro exige extension methods/UFCS, e `nil`
-quebra (`x.len()` explode; `len(x)` pode validar).
-
-**Veredito:** o estilo Python é **coerente**, não "mais moderno". Os pontos fortes são
-uniformidade de protocolo e tipos pequenos; os fracos são descoberta, namespace e a
-composição. O mainstream tipado foi para **métodos + extensões** justamente para juntar
-descoberta e abertura.
-
-### O triângulo da ergonomia (conecta com I-2)
-
-Só se escolhem **dois** destes três:
-
-1. **funções livres + pipe** → composição linda (Elixir, F#);
-2. **métodos/UFCS** → encadeamento lindo sem operador novo (Kotlin, C#, Rust);
-3. **funções livres sem pipe** → aninhamento feio (`f(g(h(x)))`) — o canto do Python/JS.
-
-É por isso que Python precisa de `functools`, `map/filter` viram `list(map(...))` e o
-pessoal inventa `then`/method chaining. Se adotarmos pipe (I-2), a stdlib de funções
-livres fica ótima; se adotarmos UFCS, pipe vira opcional. **Como I-2 está rejeitada**, o
-primeiro canto sai do jogo por enquanto: ou aceitamos o aninhamento (3), ou vamos de
-métodos/UFCS (2).
+[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
 ### Decisão: modelo híbrido
 
 A decisão está registrada no [ADR-0016](docs/adr/0016-api-stdlib-hibrida.md). O texto
 abaixo fica como histórico do raciocínio e das alternativas.
-
-Híbrido explícito, com regra de bolso para decidir onde cada operação mora:
-
-| Caso | Onde mora | Exemplo |
-| --- | --- | --- |
-| Protocolo/operador genérico | **builtin global** (poucos) | `len(x)`, `str(x)`, `repr(x)`, `println(x)` |
-| Ação específica de um tipo | **método** | `lista.push(x)`, `texto.split(",")` |
-| Construção/conversão | **construtor namespaced** (sintaxe em aberto) | `Int.parse("42") -> Option`, `List.of(...)` |
-| Combina dois tipos / composição | **função livre** | `min(a, b)`, `sum(xs)`, `map(xs, f)` |
-| Sintaxe de método em função de usuário | **extensão** (P3) | `x.minhaExtensao()` |
 
 Concretamente, o que foi decidido:
 
@@ -239,16 +85,6 @@ Concretamente, o que foi decidido:
 
 Regra mental: *"depende de um tipo só e é ação dele → método; vale para vários tipos ou
 combina dois → função livre; converte/constrói → construtor namespaced."*
-
-### Impacto técnico
-
-- **Checker**: `len` precisa de trait `Sized` (ou aceita `Any`); métodos precisam de
-  tabela de tipos. Builtin com protocolo é o caminho mais barato para começar.
-- **LLVM**: método = vtable/indireção; função livre = chamada direta (mais fácil de
-  inlinar); pipe = zero-cost (desugar).
-- **Stdlib**: cada operação precisa de uma casa; decidir cedo evita mover API depois.
-- **Compatibilidade**: builtins globais são promessa eterna; namespace é mais fácil de
-  evoluir.
 
 ### Gatilhos para revisitar
 
@@ -276,24 +112,6 @@ combina dois → função livre; converte/constrói → construtor namespaced."*
 - [x] shadowing de builtin? → **proibido no global, permitido localmente**.
 - [x] métodos em primitivos? → **não agora**; extensões/UFCS depois, sem boxing.
 - [x] extension functions em qual fase? → **P3, depois do LLVM MVP**.
-
-### Referências
-
-- FAQ do CPython — *"Why does Python use methods for some functionality but functions for
-  other?"*:
-  <https://docs.python.org/3/faq/design.html#why-does-python-use-methods-for-some-functionality-e-g-list-index-but-functions-for-other-e-g-len-list>
-- Guido van Rossum, python-3000 (2006):
-  <https://mail.python.org/pipermail/python-3000/2006-November/004643.html>
-- Modelo de dados (protocolos `__len__`, `__iter__`, `__str__`):
-  <https://docs.python.org/3/reference/datamodel.html>
-- Ruby `Kernel` (funções como métodos privados):
-  <https://docs.ruby-lang.org/en/master/Kernel.html>
-- Kotlin extension functions: <https://kotlinlang.org/docs/extensions.html>
-- C# extension methods: <https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/extension-methods>
-- Go `len` embutido: <https://go.dev/ref/spec#Length_and_capacity>
-- *The Expression Problem* (Wadler): <https://homepages.inf.ed.ac.uk/wadler/papers/expression/expression.txt>
-
----
 
 ## I-4 — Linguagem "agent-friendly": contratos + erros estruturados determinísticos
 
@@ -640,146 +458,7 @@ opcionais, aridade `[mín, máx]`; campos declarados no corpo com `val`/`var`,
 inicializador constante ou atribuição no `init`, sem campo dinâmico e sem `nil` implícito.
 Tipos de campo/default entram com o type checker.
 
-**Origem:** desdobramento de I-1/ADR-0005 — campos de classe foram adiados; a ideia é
-aproximar a assinatura de funções do estilo Python (`a: Int`, `b: Int | Nil = nil`) e
-definir como `val`/`var` valem dentro de objetos.
-
-### A pergunta
-
-1. Funções podem ter parâmetros **obrigatórios e opcionais com default**, como Python?
-2. Defaults valem para **todas** as funções, métodos e `init`?
-3. Quando o default é avaliado: na declaração ou na chamada?
-4. Como campos de classe ganham `val`/`var`? O que pode ser atribuído no `init`?
-5. Existe "classe imutável" ou isso é só "todos os campos são `val`"?
-
-### Proposta de sintaxe (alvo, com tipos futuros)
-
-```lox
-fn conectar(host: String, porta: Int = 80, timeout: Int | Nil = nil) -> Bool {
-  // ...
-}
-
-class Pessoa {
-  val nome: String
-  var idade: Int = 0
-
-  init(nome: String, idade: Int = 0) {
-    this.nome = nome
-    this.idade = idade
-  }
-
-  fn aniversario() {
-    this.idade = this.idade + 1   // ok: campo var
-  }
-}
-
-var p = Pessoa("Ana")            // idade = 0
-var q = Pessoa("Bia", 30)        // idade = 30
-```
-
-Ideias:
-- parâmetros obrigatórios vêm **antes** dos opcionais (como Python/Kotlin);
-- um parâmetro opcional carrega um valor default que também participa da checagem de tipo;
-- `T | Nil = nil` é o jeito explícito de "opcional que pode ser nulo";
-- a **aridade** de uma função deixa de ser um número e vira um intervalo
-  (`[obrigatórios, total]`), o que afeta mensagens de erro, classes e LLVM.
-
-### Defaults: quando avaliar?
-
-| Estratégia | Semântica | Prós | Contras |
-| --- | --- | --- | --- |
-| **Na chamada** (Kotlin) | o default é avaliado a cada chamada, no escopo do chamador | sem estado compartilhado; intuitivo | exige código de "preencher" no call site; LLVM gera mais IR |
-| **Na declaração** (Python) | avaliado uma vez, no escopo da declaração | simples de implementar | armadilha clássica: default mutável compartilhado entre chamadas |
-| **Só constante** | literal/`nil` apenas | trivial, determinístico, simples no codegen | menos expressivo (sem `list()` nem `agora()`) |
-
-Recomendação provisória: **só constante** no começo (`nil`, literais, talvez `true/false`)
-e evoluir para avaliação na chamada quando houver type checker. Evita copiar de graça o
-problema de `def f(xs=[])` do Python.
-
-### Impacto nos erros e na tipagem
-
-- Mensagem de aridade vira algo como `Expected 1 to 3 arguments but got 4.`
-  e, para chamada curta, `Expected at least 2 arguments but got 1.`
-- O checker precisa preencher os tipos dos parâmetros omitidos a partir do default.
-- Defaults em `init` definem a aridade da classe (hoje é a aridade exata do `init`).
-- Parâmetros `var` com default (`fn f(var x = 0)`) devem ser permitidos ou não? (decidir)
-- Defaults não podem referenciar parâmetros anteriores? (Python permite só no corpo;
-  Kotlin permite defaults independentes). Recomendo **não** permitir dependência entre
-  parâmetros no default na v1.
-
-### Campos de classe: opções
-
-**A) Continuar dinâmico (hoje).** Campos nascem no `init`/atribuição; todos mutáveis.
-Simples, mas sem `val`, sem checagem e sem tipo.
-
-**B) Campos declarados no corpo, com `val`/`var` (recomendado).**
-
-```lox
-class Pessoa {
-  val nome: String
-  var idade: Int = 0
-}
-```
-
-- `val` campo: inicializado na declaração **ou** dentro de `init` (uma vez), e não pode
-  ser atribuído depois que o `init` termina (checagem estática, como Kotlin).
-- `var` campo: atribuível em qualquer método.
-- Campo sem inicializador precisa ser atribuído no `init`; senão erro de compilação.
-- Herança: campo `val` não pode ser reatribuído na subclasse; `var` pode (com as regras de
-  visibilidade a definir).
-- `this.campo = ...` passa a ser checado pelo resolver/checker (hoje é dinâmico).
-
-**C) Estilo Kotlin: parâmetros do construtor viram campos.**
-
-```lox
-class Pessoa(val nome: String, var idade: Int = 0)
-```
-
-Muito conciso e resolve required/optional + campos de uma vez. Custo: muda a forma da
-classe, mistura construtor com declaração e conflita com o `init` explícito do Lox; mais
-difícil de casar com o modelo atual.
-
-**D) Estilo dataclass do Python: anotações e defaults no corpo, `init` gerado.**
-Ainda mais mágica; não combina com o `init` manual que já temos.
-
-Recomendação provisória: **B** quando o type checker chegar — mantém `init` explícito,
-torna a mutabilidade visível e mapeia bem para LLVM (campos com offset fixo). `val` de
-campo só é atribuível dentro do `init` (uma vez), `var` em qualquer lugar. "Classe
-imutável" seria apenas uma classe em que **todos** os campos são `val`; não precisa de
-keyword nova.
-
-### Impacto técnico
-
-| Camada | O que muda |
-| --- | --- |
-| Parser | `parameter (":" Type)? ("=" expression)?` temporário até tipos; campos no corpo da classe |
-| Resolver | saber se está dentro de `init` (para `val` field), rastrear campos por classe |
-| Checker | defaults, aridade variável, tipos de campo, atribuição em `init` |
-| Interpreter | preencher defaults; inicializar campos; checar `val` field em runtime (fallback) |
-| LLVM | defaults viram código no call site; campos viram offsets/`getelementptr` |
-
-### Perguntas abertas
-
-- [ ] Defaults: constante, avaliação na chamada ou na declaração?
-- [ ] Parâmetros opcionais podem ser `var`?
-- [ ] Named arguments (chamar `f(porta = 8080)`)? (provável P3)
-- [ ] `val` de campo: exigir inicialização na declaração ou permitir no `init` uma vez?
-- [ ] Campo sem `val`/`var` explícito: erro, ou default `var` por compatibilidade?
-- [ ] `val` field em classe herdada: proibir reatribuição em qualquer subclasse?
-- [ ] Classes imutáveis precisam de sintaxe própria (`immutable class`) ou é só "todos
-      os campos `val`"?
-- [ ] Defaults afetam `super(...)`/`init` herdado? (aridade da subclasse)
-
-### Referências
-
-- Kotlin — default arguments e `val`/`var` em propriedades:
-  <https://kotlinlang.org/docs/functions.html#default-arguments>
-- Python — default arguments e a armadilha de mutáveis:
-  <https://docs.python.org/3/tutorial/controlflow.html#default-argument-values>
-- C# — optional/named arguments:
-  <https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/named-and-optional-arguments>
-- Swift — default parameter values:
-  <https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/>
+[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
 ### Complemento — `*args` e `**kwargs` (variádicos)
 
@@ -828,81 +507,6 @@ fn log(nivel: String, ...partes) { /* ... */ }
 - **Veredito:** viável e provavelmente útil, mas depois de existirem `List`, o type checker
   e um caso de uso concreto (P2/P3).
 
-#### Viabilidade de `**kwargs`
-
-- **Depende de named arguments**, que é uma feature grande por si só: parser da chamada,
-  ordem de avaliação, nomes desconhecidos, duplicados, interação com defaults e com
-  `init`/herança.
-- **Sem named args, `**kwargs` é sempre vazio** — não serve para nada.
-- Com named args, `**kwargs` é o "resto dinâmico": vira `Map[String, Any]`, destrói a
-  tipagem estática, complica mensagens e o codegen LLVM. Python usa porque é dinâmico;
-  nós queremos tipos inferidos.
-- **Alternativa tipada:** named args + defaults + objeto de configuração explícito
-  (`fn conectar(cfg: Config)`), que é documentável, checável e fácil de compilar.
-- **Custo alto, benefício baixo** para este projeto.
-- **Veredito:** **não** no curto/médio prazo; provavelmente nunca. Se um dia, só com `Map`
-  tipado e regras de conversão explícitas.
-
-#### Named args ≠ `**kwargs` (esclarecimento)
-
-**Argumento nomeado** é uma forma de **chamar**: o nome do parâmetro aparece no call site.
-
-```lox
-fn conectar(host: String, porta: Int = 80, tls: Bool = false) { ... }
-
-conectar("exemplo.com", porta = 443, tls = true)
-```
-
-- os nomes são **declarados na assinatura** (conjunto fixo e conhecido);
-- o compilador casa nome → posição, aplica defaults e checa tipos;
-- nome desconhecido, duplicado ou obrigatório faltando = erro de compilação;
-- no LLVM vira chamada posicional normal (custo zero).
-
-**`**kwargs`** é um **parâmetro que captura nomes não declarados**:
-
-```python
-def config(**opcoes):      # opcoes é dict[str, Any]
-    ...
-
-config(cor="azul", tamanho=3)
-```
-
-- a função **não declara** `cor` nem `tamanho`; qualquer nome entra no dicionário;
-- erros de digitação passam, os tipos se misturam e o checker só vê `Map[String, Any]`;
-- no LLVM vira estrutura dinâmica (hash map), não offset fixo.
-
-Resumindo: **named args são o mecanismo; `**kwargs` é a coleta aberta do que sobrar.**
-Em Python, `f(a=1, b=2, c=3)` com `def f(a, b=0, **kw)` produz `a=1`, `b=2` e
-`kw={"c": 3}` — os dois primeiros são argumentos nomeados casados com parâmetros; o
-terceiro "cai" no `**kwargs` porque não foi declarado.
-
-| Aspecto | Named args | `**kwargs` |
-| --- | --- | --- |
-| Onde os nomes existem | assinatura | call site (qualquer nome) |
-| Checagem | compilação | runtime |
-| Tipo de cada valor | declarado | `Map[String, Any]` |
-| Typo no nome | erro | aceito silenciosamente |
-| Autocomplete/IDE | sim | não |
-| Defaults | por parâmetro | decididos pela função |
-| LLVM | posicional, custo zero | hash map dinâmico |
-
-**Na nossa linguagem:** chamadas são 100% posicionais hoje. Named args exigiriam resolver
-uma ambiguidade real: `f(x = 1)` hoje é uma chamada cujo argumento é a **expressão de
-atribuição** `x = 1`; com named args passaria a significar "passe `1` para o parâmetro
-`x`". Seria preciso proibir atribuição solta como argumento (exigir `f((x = 1))`) ou
-escolher outra sintaxe. É factível, mas é uma decisão de parser/checker, não só de açúcar.
-`**kwargs` continua dependendo de `Map` tipado e de named args, e por isso não compensa.
-
-#### Interações com o resto de I-5
-
-- `*args` + defaults: defaults só antes do rest; chamada curta usa defaults, extras vão
-  para o rest.
-- `init` variádico: complica a aridade da classe e o `init` herdado; evitar no começo.
-- Spread no call site (`f(...lista)`) é o espelho do rest e também exige token novo
-  (`...`); não confundir declaração variádica com spread.
-- `*args` e `**kwargs` não são `val`/`var`: são parâmetros especiais; o binding do rest
-  deve ser imutável.
-
 #### Perguntas abertas
 
 - [ ] `*args` (Python) ou `...args` (Lox2/Kotlin)? `...` evita ambiguidade com `*` e
@@ -911,7 +515,7 @@ escolher outra sintaxe. É factível, mas é uma decisão de parser/checker, nã
 - [ ] permitir rest em `init`/métodos? Se sim, a aridade da classe vira "pelo menos N".
 - [ ] defaults depois do rest? (recomendo proibir)
 - [ ] `print`/`log` nativos viram variádicos ou continuam aceitando uma lista?
-- [ ] named args vêm antes de `**kwargs`? (sim; `**kwargs` só depois)
+
 
 ---
 
@@ -921,33 +525,7 @@ escolher outra sintaxe. É factível, mas é uma decisão de parser/checker, nã
 [`docs/decisoes.md`](docs/decisoes.md). Implementado no tree-walk para `Range` e `String`;
 `List`/`Map` entram quando existirem.
 
-### A pergunta
-
-1. Range é literal (`0..10`) ou função (`range(...)`)?
-2. O que é iterável numa linguagem em que primitivos não são objetos?
-3. Range é lista eager ou valor lazy? O laço é protocolo ou desaçúcar para C-style?
-
-### Decisão
-
-- **`a..b` half-open**, só `Int`, lazy e reutilizável; `range(a, b, step)` (3 argumentos)
-  para passo/descendente. `..=` fica adiado.
-- **`for x in` v1**: `Range` → `Int`; `String` → `String` de 1 code point. List/Map quando
-  existirem (Map → chaves em ordem de inserção).
-- **Variável do laço é `val` novo por iteração**; reatribuir é erro e closures capturam o
-  valor daquela iteração.
-- **Mutar a coleção durante a iteração** é proibido/indefinido na v1.
-- `map`/`filter` serão **eager** (`List`) quando existirem; `contains` será função, não
-  operador `in`.
-- **Protocolo de usuário** (`Iterable[T]` estrutural, `next() -> T?`) só depois de
-  `Option`/traits.
-
-### Por que (resumo)
-
-- Iteração é protocolo, não herança: primitivos podem ser iteráveis sem virarem classes.
-- Builtin-only agora evita expor `Iterator`/`Option` cedo e não fecha a porta para classes.
-- Range lazy evita alocar (`0..1_000_000_000`) e half-open evita off-by-one.
-- Binding novo por iteração elimina o *late binding* de closure do Python.
-- Ordem de inserção em Map preserva o determinismo do I-4.
+[TEXTO OMITIDO, SE UM DIA PRECISAR, OLHAR NO COMMIT PASSADO]
 
 ### O que falta
 

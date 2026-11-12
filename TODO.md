@@ -15,141 +15,27 @@ pretendo tipar e como chegar no LLVM.
 
 ---
 
-## 0. Agora: base sã e livro concluído
+## 0. Agora
 
-> **M0 concluído** (ver §9): bugs corrigidos, suíte de testes, benchmarks, lint/tipos e CI
-> no lugar. **Parte II concluída** (caps. 4–13), **`val`/`var`** (ADR-0005), **ranges/for-in**
-> (ADR-0007), **herança `class B(A)`** (ADR-0008), **defaults/campos** (ADR-0009), checker
-> `--check` (ADR-0010), **`fn`/`elif`/`;` opcional** (ADR-0011), **`//`/`**`/bits**
-> (ADR-0012) e **ternário/`??`/`?.`/escapes** (ADR-0013) implementados. **Listas
-> tipadas** (`List[T]`, ADR-0015) implementadas. Próximo: `Map` tipado, narrowing/generics
-> ou a sintaxe restante.
+> **Concluído:** caps. 4–13, M0–M2, `val`/`var`, ranges/`for-in`, `class B(A)`,
+> defaults/campos, checker `--check`, `fn`/`elif`/`;`, `//`/`**`/bits, ternário/`??`/`?.`,
+> `List[T]` e `Map[K, V]`. O histórico está nos ADRs e no git; esta seção não o repete.
 >
-> **P0 aberto:** nenhum. **P1 aberto:** o pacote de diagnósticos (spans → caret → stack
-> traces) e o pre-commit. **Milestone atual:** M3 (sintaxe), com M4 adiantado em T1/T2;
-> M2 fechado com 8 `xfail` intencionais.
-
-### 0.1 Bugs — corrigidos, com regressão na suíte
-
-- [x] **P0-1** imports `from expr` / `from stmt` → `from src.*` (o programa não iniciava).
-- [x] **P0-2** `Environment.get`/`assign` procuravam no escopo errado → busca do escopo atual
-      para o `enclosing`; blocos, `for` e futuras closures funcionam.
-- [x] **P0-3** `!` retornava a truthiness → `not ...`; `!nil` agora é `true`.
-- [x] **P0-4** `var a;` usava sentinela `object()` → `None` (imprime `nil`).
-- [x] **P1-5** `ErrorReporter.reset()` limpa `had_error`, `had_runtime_error` e `silent`;
-      o REPL usa `reset()`.
-- [x] **P1-6** `Assign`/`Call`/`Get`/`Logical`/`Set`/`Super`/`This` herdam de `Expr`.
-- [x] **P1-7** REPL: `;` final opcional (`1+1` imprime) — hoje o `;` é opcional no fim da
-      linha/EOF em qualquer script (ADR-0011).
-- [x] **Extra** `AstPrinter` implementa todos os nós (quebrava em `a and b`) e
-      `stringify` foi centralizado em `src/values.py`.
-
-Casos de regressão: `block_scope.lox`, `assignment.lox`, `unary.lox`, `variables.lox` e
-`errors/*.lox`. Qualquer reintrodução quebra `make test`.
-
-### 0.2 Livro — capítulos 10 a 13 (P0/P1, M)
-
-- [x] **Cap. 10 — Funções**
-  - [x] nós `Function`/`Call` (já existiam na AST) + parser
-  - [x] `return` via `ReturnSignal` (controle de fluxo interno, como o `Return` do livro)
-  - [x] `LoxCallable` (Protocol): `arity()`, `call(interpreter, args)`
-  - [x] `LoxFunction` com `environment` de fechamento (closure)
-  - [x] `call` na cadeia de precedência (entre `unary` e `primary`)
-  - [x] `clock()` nativa
-  - [ ] erro de runtime com `stack trace` de frames (o livro só faz no clox; aqui vale a pena)
-  - [x] testes: aridade, não-chamável, closure, recursão, ordem de avaliação, `return` no topo
-- [x] **Cap. 11 — Resolver**
-  - [x] escopo léxico estático, `depth` por variável (`Interpreter.locals`)
-  - [x] erros: `Can't read local variable in its own initializer.`,
-        `Already a variable with this name in this scope.`
-  - [x] `return` fora de função (agora erro de compilação, exit 65)
-  - [x] identidade dos nós de AST (`eq=False`) para servir de chave no `locals`
-  - [x] `this` fora de classe (cap. 12; resolver já rejeita)
-  - [ ] (bônus) resolver já guarda *slots* em vez de nomes → prepara VM/LLVM
-- [x] **Cap. 12 — Classes**
-  - [x] `LoxClass`, `LoxInstance`, `Get`/`Set`, `this`, `init`
-  - [x] chamada de método e `arity` do construtor (`init` define a aridade)
-  - [x] métodos ligados (`bind`) e `this` resolvido pelo resolver
-  - [x] erros: `this` fora de classe, `return` com valor em `init`, propriedade inexistente
-- [x] **Cap. 13 — Herança**
-  - [x] `<`, `super`, método herdado (`find_method` recursivo)
-  - [x] `super` ligado ao `this` atual; resolver com escopo próprio de `super`
-  - [x] decisão de sintaxe final: `class B(A)` (parens = superclasse), `init` com
-        `super.init(...)` explícito e `this` implícito — ver
-        [ADR-0008](docs/adr/0008-heranca-class-parens.md)
-
-### 0.3 Higiene (P1, S)
-
-- [x] `src/__init__.py` e imports previsíveis
-- [x] suíte pytest + runner golden (`tests/`)
-- [x] benchmarks com baseline (`bench/`)
-- [x] ruff + mypy strict + Makefile + CI + skills (`.dsh/skills`)
-- [x] [`TIPOS.md`](TIPOS.md): catálogo de tipos e modelo numérico (`Int` vs `Float`)
-- [x] `README.md` de verdade: o que é, como rodar, sintaxe atual, roadmap resumido
-- [x] documentação em `docs/` (`spec`, `tech`, `adr`) + glossário + teste de links
-- [x] `exemplos/` com 5 programas (`fib`, `fizzbuzz`, `closures`, `classes`, `primos`);
-      quicksort entra quando `List` existir
-- [x] `--version` e `--dump-ast` no CLI (AST em S-expression, sem executar)
-- [x] entrypoint `python -m lox` além de `main.py` (pacote `lox/`, `main.py` é shim)
-- [x] remover `disable_error_code = ["abstract"]` do mypy ao terminar o cap. 13 (já não
-      existe no `pyproject.toml`; `mypy strict` limpo)
+> **Aberto (P1):** pacote de diagnósticos (spans → caret → stack trace). **Próxima
+> feature:** T3 (parâmetros sem anotação, unificação nas chamadas). **Em paralelo:**
+> interpolação e narrowing.
+>
+> **Tooling:** pre-commit configurado (`make hooks`). **Milestones:** M3 (sintaxe) e M4
+> (tipos) em andamento; M0–M2 fechados.
 
 ---
 
 ## 1. Linguagem: a sintaxe que eu quero
 
-### 1.1 Princípios
+> Princípios de design e identidade: [`docs/spec/garantias.md`](docs/spec/garantias.md#princípios-de-design).
+> Esta seção é só o checklist do que falta e o registro do que já foi descartado.
 
-1. **Sem ruído** — `;` opcional, chaves opcionais para corpo de uma linha, `elif`.
-2. **Expressões primeiro** — quase tudo produz valor; `if`/`match`/bloco são expressões
-   (a ser confirmado, §11).
-3. **Imutável por padrão** (proposta) — `val` (imutável) e `var` (mutável); parâmetros
-   imutáveis. Ainda em aberto: argumentos em [`IDEIAS.md`](IDEIAS.md) I-1.
-4. **Tipos opcionais, não ceremony** — `fn soma(a, b) { a + b }` deve funcionar; anotar
-   só onde ajuda (`fn fib(n: Int) -> Int`).
-5. **Falhar cedo e claro** — erro com linha/coluna, sublinhado e dica.
-6. **Previsível** — nada de coerção implícita, nada de `nil` surpresa.
-7. **Identidade = invariantes, não features** — o que se promete é o contrato do
-   [ADR-0014](docs/adr/0014-identidade-e-invariantes.md): equivalência
-   interpretado↔compilado, nada implícito e determinismo. Toda feature nova passa pelo
-   portão de admissão (ver [`docs/spec/garantias.md`](docs/spec/garantias.md)).
-
-### 1.2 De/para (Lox atual → proposta)
-
-```lox
-# hoje
-for (var i = 0; i < 10; i = i + 1) { print i; }
-fn soma(a, b) { return a + b; }
-
-# proposta
-for i in 0..10 { println(i) }
-fn soma(a, b) -> a + b            # corpo de expressão, sem return
-```
-
-Programa-alvo (mistura tudo o que quero):
-
-```lox
-# fib.lox — como eu gostaria que a linguagem fosse em ~1 ano
-fn fib(n: Int) -> Int {
-  if n < 2 { n } else { fib(n - 1) + fib(n - 2) }
-}
-
-fn main() {
-  val n = 30
-  println("fib(${n}) = ${fib(n)}")          # interpolação
-
-  val pessoas = [Pessoa("Ana", 32), Pessoa("Bia", 28)]
-
-  for p in pessoas {
-    val rotulo = p.nome ?? "sem nome"       # fallback de nil
-    println("${rotulo} tem ${p.idade} anos")
-  }
-
-  val primeiro = pessoas[0]?.endereco?.cidade  # optional chaining
-}
-```
-
-### 1.3 Checklist de sintaxe
+### 1.1 Checklist de sintaxe
 
 **Estrutural**
 - [x] `P1` **`;` opcional** — statement/campo termina no fim da linha, no EOF ou num `}`
@@ -174,6 +60,7 @@ fn main() {
 - [ ] `P2` **bloco como expressão** (último valor do bloco é o valor).
 - [ ] `P3` **`match`** estrutural com `=>` e exaustividade quando o tipo for enum/union.
 - [ ] `P3` **`loop { }`** infinito e `break`/`continue` com rótulo (`break outer`).
+
 
 **Operadores e literais**
 - [x] `P0` **`%`** (resto truncado, sinal do dividendo; `Int` e `Float`) —
@@ -203,14 +90,17 @@ fn main() {
 **Dados e funções**
 - [x] `P2` **arrays/listas** `[1, 2, 3]`, acesso `a[i]`, atribuição `a[i] = v`,
       `push`/`pop`/`len`, homogêneo e invariante; `for-in` incluso. Ver
-      [ADR-0015](docs/adr/0015-listas-tipadas.md). `Map` fica para a próxima mudança.
-- [ ] `P2` **mapas** `{ "a": 1 }` — cuidado: `{` de mapa vs bloco. Opções: `#{...}`,
-      ou exigir `:`/`,` para desambiguar. Lox2 resolveu? estudar antes. Decisões de chave
-      ausente/hash em aberto no §11.
-- [x] `P2` **`for x in iterável`** — implementado para `Range`, `String` e `List`; `Map`
-      entra quando existir (chaves em ordem de inserção). Protocolo de usuário depois de
-      `Option`/traits. Ver [ADR-0007](docs/adr/0007-ranges-e-iteracao.md) e
       [ADR-0015](docs/adr/0015-listas-tipadas.md).
+- [x] `P2` **mapas** `{ "a": 1 }` — literal em posição de expressão (`{` no início do
+      statement continua bloco), chaves são expressões, `m[k]`/`m[k] = v`,
+      `get`/`has`/`remove`/`keys`/`values`, `len`, `for k in m` em ordem de inserção.
+      Chave ausente em `m[k]` é erro; `m.get(k)` devolve `V?`; sem `get(k, default)`
+      (use `??`). Ver [ADR-0017](docs/adr/0017-mapas-hash.md).
+- [x] `P2` **`for x in iterável`** — implementado para `Range`, `String`, `List` e `Map`
+      (chaves em ordem de inserção). Protocolo de usuário depois de `Option`/traits. Ver
+      [ADR-0007](docs/adr/0007-ranges-e-iteracao.md),
+      [ADR-0015](docs/adr/0015-listas-tipadas.md) e
+      [ADR-0017](docs/adr/0017-mapas-hash.md).
 - [ ] `P2` **variádicos** `fn log(nivel, ...args)` e `args` como lista. Viabilidade e
       comparação com `**kwargs` em [`IDEIAS.md`](IDEIAS.md) I-5 (complemento): `*args`
       talvez, `**kwargs` não (depende de named args e destrói tipagem).
@@ -238,7 +128,7 @@ fn main() {
 - [ ] `P2` **`assert`** e **`panic`** como funções nativas.
 - [ ] `P3` **erros como valores** (`Result`/`Option`) para código que compila puro.
 
-### 1.4 Decisões de sintaxe já descartadas (para não revisitar)
+### 1.2 Decisões de sintaxe já descartadas (para não revisitar)
 
 - `end` no estilo Ruby/Lua → **não**: chaves são melhores para erro de parser.
 - Off-side rule (indentação significativa) → **não**: caro no scanner e ruim no REPL.
@@ -450,7 +340,7 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
       ```
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
 - [ ] `P2` **`assert`/`panic`/`exit`** nativos.
-- [ ] `P2` **`try/catch/finally`** se a decisão for exceções (§1.3).
+- [ ] `P2` **`try/catch/finally`** se a decisão for exceções (§1.1).
 - [ ] `P2` **REPL multiline** (continua enquanto `(`/`{`/`[` abertos) + histórico
       (`readline`) + `:help`, `:ast`, `:type expr`, `:clear`.
 - [ ] `P3` **`import`/módulos** com cache de compilação.
@@ -642,15 +532,16 @@ imports para `print`).
 
 - [x] `P1` **pytest** + `tests/cases/*.lox` no formato do livro
       (`# expect:`, `# expect runtime error:`), com runner próprio
-      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 531 testes.
+      (`tests/runner.py`, roda também fora do pytest). Suíte atual: 569 testes.
 - [x] `P1` **ruff** (`check`) e **mypy strict** configurados no `pyproject.toml`
       (`make lint`, `make type`).
 - [x] `P1` **skills de projeto** em `.dsh/skills/` (`lox-feature`, `lox-testing`,
       `lox-bench`, `lox-debug`) — procedimentos carregáveis por tarefa.
-- [ ] `P1` **pre-commit** rodando ruff/mypy/pytest.
+- [x] `P1` **pre-commit** rodando ruff/mypy/pytest — hooks locais em
+      [`.pre-commit-config.yaml`](.pre-commit-config.yaml); `make hooks` instala.
 - [x] `P1` **CI** (GitHub Actions): `uv sync`, ruff, mypy, pytest.
-- [x] `P1` **`Makefile`**: `run`, `test`, `case`, `lint`, `type`, `fmt`, `check`, `bench`,
-      `baseline`.
+- [x] `P1` **`Makefile`**: `run`, `test`, `case`, `lint`, `type`, `fmt`, `check`, `hooks`,
+      `bench`, `baseline`.
 - [x] `P2` **importar a suíte oficial** do craftinginterpreters como casos extras
       (adaptando o formato de expectativa); ótimo para validar o cap. 10–13.
       Implementado em [`tests/official/`](tests/official/README.md) + runner
@@ -672,7 +563,7 @@ imports para `print`).
 
 ---
 
-## 8. Ideias do Lox2 que valem (e as que não valem)
+## 8. Ideias do Lox2 ainda não implementadas (e as que não valem)
 
 Contexto: o Lox2 é um **superset de Lox em C** com VM de bytecode, tipagem estática
 opcional, namespaces, exceções, async e JIT — caminho bem diferente do meu (Python +
@@ -680,24 +571,16 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 
 | Recurso do Lox2 | Vale? | Esforço | Nota |
 | --- | --- | --- | --- |
-| `;` inferido por newline | ✅ | M | melhora muito a fluidez; cuidado com `else`/operadores |
-| tipagem estática opcional + erase | ✅ | L | é exatamente o meu §2 |
-| arrays e dicionários literais | ✅ | M | básico de qualquer linguagem útil; listas prontas (ADR-0015), mapas depois |
-| `?.`, `??`, `?:` | ✅ | S | alto ganho, baixo custo |
-| `%` e ranges `..` | ✅ | S | ranges viabilizam `for i in 0..10` |
 | interpolação de string | ✅ | S | ergonomia enorme |
 | UTF-8 em strings e identificadores | ✅ | M | hoje o scanner é ASCII |
-| `for x in` + iterator protocol | ✅ | M | substitui o `for` C-style |
-| parâmetros imutáveis por padrão | ✅ | S | combina com `val` |
-| `let` (`val` no Lox2) imutável | ✅ | S | imutável por padrão |
-| herança com `class B(A)` (não `extends`/`<`) | ✅ | S | parens = superclasse; ADR-0008 |
+| `for-in` + protocolo de iterador de usuário | ⏳ | M | o `for-in` embutido já existe; falta iterável de usuário |
 | `print` como função (`println`) | ✅ | S | simplifica a stdlib |
 | variádicos `...args` | ✅ | S | fácil e útil |
 | lambdas anônimas | ✅ | M | precisa de closures (cap. 10) |
 | trailing closure | ✅ | M | ergonomia p/ `map`/`filter` |
 | `type` alias | ✅ | S | útil com generics |
 | generics + constraints | ⏳ | XL | só depois de T4 (§2) |
-| uniões `Int \| String` | ⏳ | L | depende do checker |
+| uniões + narrowing | ⏳ | L | o tipo `Int \| String` já existe; falta narrowing |
 | traits + `with` | ⏳ | L | ótimo para composição; depois de classes |
 | operator overloading | ⏳ | M | divertido e barato depois de classes |
 | namespaces/import | ⏳ | L | necessário quando houver stdlib |
@@ -705,8 +588,6 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | `match` estrutural | ⏳ | L | depois de uniões/enums |
 | `as` cast | ⏳ | S | junto com o checker |
 | extension methods | ⏳ | M | depois do LLVM MVP e de traits (ADR-0016) |
-| separar `Int` de `Float` | ✅ | M | feito no tree-walk (ADR-0006); falta refletir no LLVM |
-| campos declarados com `val`/`var` | ✅ | S | feito no ADR-0009; tipos entram no checker |
 | classes como valores / metaclasses | 🤔 | L | poderoso, mas confunde; só se precisar |
 | interceptors (`get`/`set` mágicos) | ❌ | L | mágica demais para o meu gosto |
 | `Object` raiz / tudo é objeto | ❌ | L | simplifica o Lox2, mas custa no codegen |
@@ -718,10 +599,10 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | FFI com C | ⏳ | L | legal, mas depois de linking estável |
 | biblioteca padrão (lang/util/io/net) | ⏳ | L | mínima primeiro (`math`, `io`, `string`) |
 
-**O que eu levo de mais valioso do Lox2:** a lista acima + o *design* de tipos opcionais
-com erasure + a ideia de `for-in` com iterator protocol + a disciplina de semicolon
-inference. **O que eu ignoro:** a VM, o GC geracional, o async e o JIT — porque o LLVM
-cobre a parte de geração de código e eu quero manter o escopo humano.
+**Resumo:** o que ainda vale do Lox2 é a lista acima — tipos opcionais com erasure,
+`for-in` com protocolo de iterador e as features de ergonomia ainda ausentes. Ficam fora a
+VM, o GC geracional, o async e o JIT: o LLVM cobre a geração de código e o escopo humano
+manda.
 
 ---
 
@@ -729,10 +610,10 @@ cobre a parte de geração de código e eu quero manter o escopo humano.
 
 | # | Marco | Critério de pronto |
 | --- | --- | --- |
-| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 531), benchmark com baseline, lint/tipos/CI |
+| **M0** ✅ | Base sã | bugs P0/P1 corrigidos, suíte pytest verde (hoje 569), benchmark com baseline, lint/tipos/CI |
 | **M1** ✅ | Livro, metade 2 | funções, closures, resolver, classes, herança (caps. 10–13) |
 | **M2** ✅ | Linguagem estável | suíte oficial do livro (112 pass + 8 `xfail` intencionais) + exemplos + README |
-| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, **listas**; ⬜ interpolação, `Map`, lambdas |
+| **M3** 🚧 | Sintaxe nova | ✅ `;`, `val`/`var`, `fn`, `for-in`, `?.`/`??`, ternário, **listas**, **mapas**; ⬜ interpolação, lambdas |
 | **M4** 🚧 | Tipos v1 | ✅ T1/T2 (anotações, inferência local, args, `--check`); ⬜ T3 (parâmetros sem anotação) |
 | **M5** | Tipos v2 | T4–T6: generics, uniões/opcionais, traits, narrowing, exaustividade |
 | **M6** | HIR + LLVM MVP | L0–L2: inteiros, controle de fluxo, funções, binário nativo; **I1** verde no corpus correspondente (mesmo stdout/exit do tree-walk) |
@@ -778,7 +659,7 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 1. **Nome e extensão** da linguagem (hoje "PyLox", arquivos `.lox`).
 2. **Blocos/`if` como expressão**: último valor implícito ou `return` obrigatório?
    (afeta legibilidade e o parser; independente do corpo de expressão em `fn`)
-3. **`print`**: statement (livro), função `println` (Lox2), ou ambos? Ver §1.4.
+3. **`print`**: statement (livro), função `println` (Lox2), ou ambos? Ver §1.2.
 4. **`match`**: antes ou depois do codegen? (antes facilita enums; depois é mais seguro)
 5. **Classes**: manter herança simples (direção curta em `D-16`) ou trocar por `struct` +
    traits/composição? A sintaxe `class B(A)` já está fechada no ADR-0008.
@@ -796,9 +677,6 @@ sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
     default? JSON schema v1 com `fixes[]`? Ver [`IDEIAS.md`](IDEIAS.md) I-4.
 13. **Mutação na unificação**: `var x = nil; x = 1` deve virar união, `Any` ou erro?
     (o checker atual infere local, mas ainda não fecha essa regra; ver §2.4)
-14. **`Map[K, V]`**: literal (`{...}` vs `#{...}` vs outra forma), chaves hasháveis
-    (`String`/`Int`/`Bool`), chave ausente (erro, `nil` ou `Option`) e ordem de inserção.
-    Entra depois de `List`, numa mudança própria (ADR-0015).
 
 ---
 

@@ -51,6 +51,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/checker.py`](../../src/checker.py) | checker estático gradual (`--check`) |
 | [`src/lox_range.py`](../../src/lox_range.py) | `Range` lazy (start, end, step) |
 | [`src/lox_list.py`](../../src/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
+| [`src/lox_map.py`](../../src/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
 | [`src/error_reporter.py`](../../src/error_reporter.py) | coleta/impressão de diagnósticos |
 | [`src/errors.py`](../../src/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
 | [`src/lox_callable.py`](../../src/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
@@ -59,7 +60,7 @@ no caminho normal; tipos são apagados antes da execução.
 | [`src/lox_class.py`](../../src/lox_class.py) | classe (métodos, herança, `init`) |
 | [`src/lox_instance.py`](../../src/lox_instance.py) | instância (campos + métodos ligados) |
 | [`src/natives/clock.py`](../../src/natives/clock.py) | `clock()` |
-| [`src/natives/len.py`](../../src/natives/len.py) | `len(xs)` / `len(s)` |
+| [`src/natives/len.py`](../../src/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
 | [`src/natives/repr.py`](../../src/natives/repr.py) | `repr(x)` |
 | [`src/natives/range.py`](../../src/natives/range.py) | `range(a, b, step)` |
 | [`src/natives/str.py`](../../src/natives/str.py) | `str(x)` |
@@ -140,6 +141,27 @@ chamada.
   usa um conjunto de pares `(id(a), id(b))`.
 - Tipos são apagados: o `LoxList` não conhece `T`; o `Checker` é quem aplica `ListTy`,
   invariância e as assinaturas de `push`/`pop`/`len`.
+
+## Mapas
+
+- `LoxMap` envolve um `dict[_MapKey, object]` (ordem de inserção) e um `version`
+  incremental. `_MapKey` é `(tag, valor)` para separar `Bool` de `Int` e restringir chaves a
+  `String`/`Int`/`Bool`; qualquer outra chave vira `LoxRuntimeError`.
+- `MapLiteral(entries, brace)` guarda pares `(chave, valor)` como expressões; o parser só
+  cria esse nó em posição de expressão (no início do statement, `{` é bloco). O
+  interpretador avalia chave→valor, da esquerda para a direita, e usa `set_new` para
+  recusar chave duplicada no literal.
+- `Index`/`IndexSet` já eram genéricos: o interpretador despacha para `LoxList` ou
+  `LoxMap`. `m.get(k)`/`m.has(k)`/`m.remove(k)`/`m.keys()`/`m.values()` vêm de
+  `get_method` (métodos nativos ligados), e `Get` aceita `LoxInstance`, `LoxList` e
+  `LoxMap`.
+- `for-in` usa `_iterate_map`: snapshot das chaves + conferência de `version` antes de cada
+  chave e ao final; mutação no laço vira `LoxRuntimeError`.
+- `stringify` de mapa é recursivo com a mesma pilha de identidades de `List` (ciclo →
+  `{...}`); igualdade estrutural é independente de ordem e usa `b.find(key)` com o mesmo
+  conjunto de pares `(id(a), id(b))`.
+- Tipos são apagados no runtime: o `LoxMap` não conhece `K`/`V`; o `Checker` aplica
+  `MapTy`, invariância, a restrição de chaves e as assinaturas dos métodos.
 
 ## Builtins e sombreamento
 

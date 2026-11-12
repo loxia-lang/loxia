@@ -81,7 +81,9 @@ arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | IDENTIFIER | "(" expression ")"
                | "super" "." IDENTIFIER
-               | "[" ( expression ( "," expression )* )? "]" ;
+               | "[" ( expression ( "," expression )* )? "]"
+               | "{" ( expression ":" expression
+                       ( "," expression ":" expression )* )? "}" ;
 ```
 
 Defaults de parâmetro e inicializadores de campo são **constantes na v1** (literal,
@@ -92,7 +94,16 @@ Anotações de tipo são opcionais para o interpretador (que as ignora); no modo
 as funções precisam de anotações em todos os parâmetros e no retorno. `T?` é açúcar para
 `T | Nil`; `Int` é non-null. `List[T]` e `Map[K, V]` são os únicos genéricos: o nome é
 capitalizado, `List`/`Map` sem argumentos é erro e `list[int]`/`map[...]` também (com
-sugestão de capitalização).
+sugestão de capitalização). Em `Map[K, V]`, `K` precisa ser `String`, `Int`, `Bool` (ou
+união desses); `Map[Float, V]`, `Map[List[T], V]` etc. são erro de tipo.
+
+O literal de mapa só existe em **posição de expressão** (`val m = {...}`, argumento,
+`return`, condição). No início de um statement, `{` abre um **bloco**:
+
+```lox
+val m = {"a": 1}    # mapa
+{ "a": 1 }          # bloco: o ':' não é um statement válido
+```
 
 ## Ponto e vírgula opcional
 
@@ -214,18 +225,19 @@ Por isso o `for` tem as mesmas regras de escopo de um bloco e uma condição omi
 
 O `for-in` é diferente: vira o nó `ForIn(name, iterable, body)` e **não** desaçucara para
 `while`, porque o interpretador precisa reportar "não iterável" e o codegen precisa do laço
-por iterável (Range/String/List/Map). Ver [`semantica.md`](semantica.md#ranges-e-for-in).
+por iterável (Range/String/List/Map — `Map` produz as chaves). Ver
+[`semantica.md`](semantica.md#ranges-e-for-in).
 
 ### Blocos
 
-`{ … }` é um statement; expressões não têm bloco. `if`/`while` recebem **um** statement
-(por isso as chaves quando há mais de uma instrução).
+`{ … }` é um statement; expressões não têm bloco (o `{` de expressão é literal de mapa).
+`if`/`while` recebem **um** statement (por isso as chaves quando há mais de uma instrução).
 
 ## Pontos finos
 
-- **Ponto e vírgula é obrigatório** em `var`, `print`, `return`, `for` e expressões, exceto
-  no REPL: no modo `repl=True`, o `;` final pode ser omitido quando a entrada termina
-  (`_end_statement`). Declarações continuam precisando de `;` no meio do arquivo.
+- **Ponto e vírgula é opcional** no fim da linha, no EOF ou antes de um `}` de fechamento
+  (ADR-0011); duas instruções na mesma linha ainda exigem `;`. No REPL, o `;` final pode ser
+  omitido quando a entrada termina (`_end_statement`).
 - `val` **exige inicializador** (`val x;` é erro). `var` pode omitir (`var x;` → `nil`).
 - Parâmetros são **`val` implícitos**; `var` antes do nome libera a reatribuição:
   `fn f(x, var y)`. `val` explícito em parâmetro não é aceito.
@@ -242,6 +254,7 @@ por iterável (Range/String/List/Map). Ver [`semantica.md`](semantica.md#ranges-
   descartados da AST).
 - `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
 - Não existem: `break`/`continue`, `switch`, `match`, operador ternário no estilo `?:`,
-  **mapas**, `+=`, `++`, `import`, `try/catch`, interpolação, funções anônimas
-  (challenge #2 pendente). Listas existem desde o [ADR-0015](../adr/0015-listas-tipadas.md).
+  `+=`, `++`, `import`, `try/catch`, interpolação, funções anônimas
+  (challenge #2 pendente). Listas e mapas existem desde os
+  [ADR-0015](../adr/0015-listas-tipadas.md) e [ADR-0017](../adr/0017-mapas-hash.md).
 - `fn` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.

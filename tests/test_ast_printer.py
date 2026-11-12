@@ -62,3 +62,19 @@ def test_dump_list_nodes() -> None:
         "(print (index xs 0))\n"
         "(expr (index-set xs 1 3))"
     )
+
+
+def test_dump_map_nodes() -> None:
+    source = """
+    val m = {"a": 1, "b": 2}
+    print m["a"]
+    m["b"] = 3
+    print {}
+    """
+
+    assert dump(source) == (
+        '(val m (map ("a" 1) ("b" 2)))\n'
+        '(print (index m "a"))\n'
+        '(expr (index-set m "b" 3))\n'
+        "(print (map))"
+    )

@@ -18,6 +18,7 @@ from src.expr import (
     ListLiteral,
     Literal,
     Logical,
+    MapLiteral,
     Range,
     Set,
     Super,
@@ -294,6 +295,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_list_expr(self, expr: ListLiteral) -> None:
         for element in expr.elements:
             self._resolve_expr(element)
+
+    def visit_map_expr(self, expr: MapLiteral) -> None:
+        for key, value in expr.entries:
+            self._resolve_expr(key)
+            self._resolve_expr(value)
 
     def visit_grouping_expr(self, expr: Grouping) -> None:
         self._resolve_expr(expr.expression)

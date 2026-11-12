@@ -3,7 +3,7 @@
 - **Status:** accepted
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) `D-10`, [`../decisoes.md`](../decisoes.md), [`../../TODO.md`](../../TODO.md)
-  §1.3/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
+  §1.1/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
 - **Implementação:** `src/scanner.py`, `src/token_type.py`, `src/keywords.py`,
   `src/expr.py`, `src/stmt.py`, `src/parser.py`, `src/resolver.py`,

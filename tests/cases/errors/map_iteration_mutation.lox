@@ -1,0 +1,3 @@
+val m = {"a": 1}
+for k in m { m["b"] = 2 }
+# expect runtime error: Can't modify a map while iterating over it.

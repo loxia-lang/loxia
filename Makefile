@@ -3,7 +3,7 @@
 
 FILE ?=
 
-.PHONY: help run test case lint type fmt check bench baseline
+.PHONY: help run test case lint type fmt check hooks bench baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lox   executa um script (sem FILE abre o REPL)"
@@ -13,6 +13,7 @@ help:
 	@echo "make type                      mypy strict"
 	@echo "make fmt                       ruff format (primeira vez reformata tudo)"
 	@echo "make check                     lint + type + test"
+	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
 	@echo "make baseline                  regrava o baseline de performance"
 
@@ -35,6 +36,9 @@ fmt:
 	uv run ruff format .
 
 check: lint type test
+
+hooks:
+	uv run pre-commit install
 
 bench:
 	uv run python bench/run.py

@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1.1/§1.4/§11,
+- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
   [`../../IDEIAS.md`](../../IDEIAS.md) I-5 (campos/defaults),
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/parser.py`; casos em `tests/cases/inheritance*.lox`,

@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [I-1](../../IDEIAS.md), [I-5](../../IDEIAS.md), [`../../TODO.md`](../../TODO.md) §1.3/§11,
+- **Relacionados:** [I-1](../../IDEIAS.md), [I-5](../../IDEIAS.md), [`../../TODO.md`](../../TODO.md) §1.1/§11,
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `src/parser.py`, `src/stmt.py`, `src/resolver.py`, `src/environment.py`,
   `src/interpreter.py`, `src/lox_function.py`, casos em `tests/cases/val_*.lox`

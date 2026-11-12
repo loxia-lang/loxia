@@ -19,14 +19,8 @@ jobs:
       - name: Sincronizar dependências (Python vem do .python-version)
         run: uv sync --all-groups
 
-      - name: Lint
-        run: uv run ruff check .
-
-      - name: Tipos
-        run: uv run mypy
-
-      - name: Testes
-        run: uv run pytest
+      - name: "Qualidade (pre-commit: ruff + mypy + pytest)"
+        run: uv run pre-commit run --all-files --show-diff-on-failure
 
 # Benchmarks ficam fora do CI: tempo de runner é ruidoso demais para gate.
 # Rode `make bench` localmente antes de abrir PR que mexe em performance.

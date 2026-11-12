@@ -62,6 +62,7 @@ Crie quando a decisão:
 | [0014](0014-identidade-e-invariantes.md) | Identidade: três invariantes e portão de admissão | accepted | 2026-11-11 |
 | [0015](0015-listas-tipadas.md) | Listas tipadas `List[T]`, mutáveis e invariantes | accepted | 2026-11-11 |
 | [0016](0016-api-stdlib-hibrida.md) | API da stdlib: modelo híbrido, prelúdio mínimo e builtins reservados | accepted | 2026-11-11 |
+| [0017](0017-mapas-hash.md) | Mapas `Map[K, V]`, literal `{ k: v }` e chave ausente explícita | accepted | 2026-11-11 |
 
 ## Próximas decisões que pedem ADR
 

@@ -1,0 +1,2 @@
+print {foo: 1}
+# expect runtime error: Undefined variable 'foo'.

@@ -1,0 +1,26 @@
+minimum_pre_commit_version: "4.0.0"
+fail_fast: true
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff check
+        entry: env UV_CACHE_DIR=.uv-cache uv run ruff check .
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: mypy
+        name: mypy strict
+        entry: env UV_CACHE_DIR=.uv-cache uv run mypy
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest
+        name: pytest
+        entry: env UV_CACHE_DIR=.uv-cache uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true

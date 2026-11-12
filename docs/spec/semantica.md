@@ -38,7 +38,7 @@ completas estão neste documento e no ADR; pendências em
 
 ### Truthiness
 
-Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (inclusive vazias) são
+Só `nil` e `false` são falsos. `0`, `0.0`, `""`, listas e mapas (inclusive vazios) são
 **verdadeiros**.
 
 ### Igualdade (`==`, `!=`)
@@ -51,6 +51,9 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (inclusive vazias) s�
 - `List` compara **estruturalmente**, elemento a elemento, inclusive aninhada e com
   igualdade numérica (`[1, 2] == [1, 2.0]` → `true`). Comprimentos diferentes são
   `false`; ciclos são tratados com um conjunto de pares visitados;
+- `Map` compara **estruturalmente, independentemente da ordem de inserção**:
+  `{"a": 1, "b": 2} == {"b": 2, "a": 1}` → `true`; o número de entradas e a igualdade de
+  cada valor contam, com guarda de ciclo. `Map` não é hashável;
 - `true == 1` → `false` (booleano nunca é número);
 - strings comparam por conteúdo;
 - funções, classes e instâncias comparam por **identidade** (o mesmo objeto);
@@ -67,8 +70,9 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""` e listas (inclusive vazias) s�
 - a formatação é contrato dos golden cases: `42` e `42.0` são saídas diferentes.
 
 Listas formatam como `[1, 2, 3]`; strings dentro de listas são citadas e escapadas
-(`["a\nb"]`); uma lista que contém a si mesma imprime `[[...]]`. Fora de lista, string
-continua sem aspas.
+(`["a\nb"]`); uma lista que contém a si mesma imprime `[[...]]`. Mapas formatam como
+`{"a": 1, "b": 2}` na ordem de inserção, com strings citadas/escapadas; um mapa que contém
+a si mesmo imprime `{"self": {...}}`. Fora de lista/mapa, string continua sem aspas.
 
 ## Variáveis, `val` e `var`
 
@@ -184,14 +188,15 @@ for x in xs { print x }
   (`List[Int | String]` ou `List[Any]`). Lista vazia sem tipo esperado é erro; com `Any`
   explícito, vira `List[Any]`.
 - **Acesso**: `xs[i]`, com `i` `Int` e base zero. Índice negativo ou fora do intervalo é
-  erro de runtime; `xs[i]` em não-lista é `Only lists can be indexed.`
+  erro de runtime; `xs[i]` em não-lista/não-mapa é `Only lists and maps can be indexed.`
 - **Atribuição**: `xs[i] = v` muta e devolve `v`; `v` precisa ser atribuível a `T` no
   `--check`; os mesmos limites de índice valem em runtime.
 - **Métodos**: `xs.push(v)` adiciona ao fim e devolve `nil`; `xs.pop()` remove e devolve o
   último, e lista vazia é erro (`Can't pop from an empty list.`). `xs.len()` não existe;
   use `len(xs)`.
 - **`len`**: `len(xs)` é O(1) e devolve `Int`; `len(s)` devolve o número de code points da
-  string. `len` de outro tipo é erro de runtime no tree-walk e erro de tipo no `--check`.
+  string, e `len(m)` o número de entradas do mapa. `len` de outro tipo é erro de runtime no
+  tree-walk e erro de tipo no `--check`.
 - **Iteração**: `for x in xs` percorre na ordem de inserção; mutar a lista durante o laço é
   erro (`Can't modify a list while iterating over it.`), não snapshot silencioso.
 - **Igualdade**: estrutural (ver acima). **Stringify**: `[1, 2, 3]`, com strings citadas e
@@ -209,6 +214,58 @@ for x in xs { print x }
   string na v1. Lista literal não é default de parâmetro nem inicializador de campo; em
   `init`, `this.xs = []` funciona.
 
+## Mapas
+
+`Map[K, V]` é a coleção associativa da linguagem: **homogênea**, **mutável in-place** e
+**invariante** em `K` e `V`. Ver [ADR-0017](../adr/0017-mapas-hash.md).
+
+```lox
+val idades: Map[String, Int] = {"Ana": 32}
+print idades["Ana"]          # 32
+print idades.get("Bia")      # nil
+print idades.get("Bia") ?? 0 # 0
+idades["Bia"] = 28
+print idades.has("Bia")      # true
+print len(idades)            # 2
+for nome in idades { print nome }   # Ana, Bia (ordem de inserção)
+```
+
+- **Literal**: `{ chave: valor, ... }`; `{}` é o mapa vazio em posição de expressão. As
+  chaves são **expressões**: `{ nome: 1 }` usa a variável `nome`; `{ "nome": 1 }` usa a
+  string. No início de um statement, `{` continua abrindo um bloco — para um mapa isolado,
+  use `val m = ...` ou parênteses. Chave repetida no literal é erro de runtime
+  (`Duplicate key in map literal.`); para atualizar use `m[k] = v`.
+- **Inferência**: sem anotação, as chaves e os valores precisam ter um tipo comum
+  (`{"a": 1, "b": 2.0}` → `Map[String, Float]`); mistura não numérica exige anotação
+  (`Map[String, Int | String]` ou `Map[String, Any]`). `{}` sem contexto é erro no
+  `--check`; com `Map[K, V]` esperado, é aceito.
+- **Chaves**: `String`, `Int`, `Bool` e uniões explícitas desses tipos. `Bool` é distinto de
+  `0`/`1` (`{true: "a", 1: "b"}` tem duas chaves). `Float` não é chave na v1 (a relação
+  `1 == 1.0` exigiria canonicalização); `nil`, `List`, `Map`, `Range`, classes e funções
+  também não. Sem `--check`, a restrição vale em runtime
+  (`Map keys must be strings, integers or booleans.`).
+- **Acesso**: `m[k]` devolve `V` e é **erro** se a chave não existe
+  (`Key not found in map.`). `m.get(k)` devolve `V?` (`nil` se ausente); `m.has(k)` devolve
+  `Bool` e distingue ausente de valor `nil`. `m[k]` em não-mapa/não-lista é
+  `Only lists and maps can be indexed.`
+- **Atribuição**: `m[k] = v` insere ou atualiza e devolve `v`; no `--check`, `k` precisa ser
+  atribuível a `K` e `v` a `V`.
+- **Métodos**: `m.remove(k)` remove e devolve `V` (chave ausente é erro);
+  `m.keys()`/`m.values()` devolvem `List[K]`/`List[V]` novas, em ordem de inserção (snapshot,
+  não view). `m.len()` não existe; use `len(m)`.
+- **Iteração**: `for k in m` percorre **chaves** na ordem de inserção; mutar o mapa durante o
+  laço é erro (`Can't modify a map while iterating over it.`), inclusive atualizar o valor de
+  uma chave existente. Pares `(k, v)` exigiriam tupla/destructuring (ainda não existem).
+- **Igualdade**: estrutural e independente da ordem (ver acima). **Stringify**:
+  `{"a": 1, "b": 2}` com strings citadas/escapadas e ciclos como `{"self": {...}}`.
+- **Aliasing**: mapas são referências. `val n = m` não copia; mutar `n` é visível em `m`.
+  `val` congela o binding, não o conteúdo. Mapas **não** são hasháveis e não podem ser chave.
+- **Opcional**: `Map[K, V]?` e `m?.get(...)`/`m?.has(...)` funcionam; `len(m)` e `for` sobre
+  `Map[K, V]?` exigem narrowing (ainda não implementado).
+- **Limites**: sem `clear`, `entries`, `map`/`filter`, `contains` nem `+` de mapas na v1.
+  Sem `--check`, os tipos são apagados: o runtime não valida `V` no `m[k] = v`, só o tipo da
+  chave; a homogeneidade é contrato estático.
+
 ## Ranges e `for-in`
 
 `a..b` cria um `Range` **half-open** (`a` incluso, `b` exclusivo), só com bounds `Int`;
@@ -221,18 +278,19 @@ for i in range(5, 0, -2) { ... }  // 5 3 1
 for i in 5..2 { ... }             // vazio
 ```
 
-- Fontes aceitas hoje: `Range` (produz `Int`), `String` (produz `String` de 1 code point)
-  e `List[T]` (produz `T`, na ordem de inserção). `Map` entra quando existir (produzirá
-  chaves em ordem de inserção).
+- Fontes aceitas hoje: `Range` (produz `Int`), `String` (produz `String` de 1 code point),
+  `List[T]` (produz `T`, na ordem de inserção) e `Map[K, V]` (produz `K`, as chaves, na
+  ordem de inserção).
 - O iterável é avaliado **uma vez**, antes do binding do laço; bounds são avaliados uma vez
   da esquerda para a direita.
 - A variável do laço é um **`val` novo por iteração**: reatribuí-la é erro de compilação e
   closures capturam o valor daquela iteração.
-- Mutar a coleção durante a iteração é **proibido**: em `List` é erro de runtime
-  (`Can't modify a list while iterating over it.`); `Range`/`String` são imutáveis.
+- Mutar a coleção durante a iteração é **proibido**: em `List`/`Map` é erro de runtime
+  (`Can't modify a list while iterating over it.` /
+  `Can't modify a map while iterating over it.`); `Range`/`String` são imutáveis.
 - `Range` é truthy, imprime como `<range a..b>` (ou `<range a..b step s>`) e compara
   estruturalmente.
-- Erros de runtime: `Can only iterate over a range, a list or a string.`,
+- Erros de runtime: `Can only iterate over a range, a list, a map or a string.`,
   `Range bounds must be integers.`, `range() arguments must be integers.`,
   `range() step can't be zero.`; aridade errada usa a mensagem padrão
   (`Expected 3 arguments but got N.`).
@@ -247,7 +305,7 @@ for i in 5..2 { ... }             // vazio
 | `if (c) s elif (c) s else s` | executa o ramo conforme truthiness; `elif` é `else if` |
 | `while (c) s` | repete enquanto truthy |
 | `for (init; cond; incr) s` | desaçucarado para bloco + `while` (ver sintaxe) |
-| `for x in e s` | itera `e` (Range/String/List hoje); `x` é `val` por iteração |
+| `for x in e s` | itera `e` (Range/String/List/Map hoje); `x` é `val` por iteração |
 | `return expr?;` | desempilha até a chamada da função |
 
 O `;` é opcional no fim da linha (ou EOF); duas instruções na mesma linha ainda precisam
@@ -276,8 +334,9 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
 - Parâmetros e locais do corpo compartilham o mesmo escopo: declarar `var a` quando existe
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` devolve segundos desde a época como `float`, aridade 0.
-- `len(x)` aceita `List` ou `String`; devolve `Int` (O(1) para lista, code points para
-  string). Outro tipo é erro: `len() expects a string or a list.`
+- `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
+  points para string). Outro tipo é erro:
+  `len() expects a string, a list or a map.`
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
@@ -305,12 +364,19 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   é erro; local sem inicializador também.
 - Locais e expressões são inferidos: `val x = f()` não precisa de tipo.
 - Tipos: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
-  `List[T]`, `Map[K, V]` (só anotação), uniões `A | B` e `T?` (= `T | Nil`). `Int` é
-  non-null. `List[T]` é invariante: `List[Int]` não é `List[Float]` nem `List[Any]`.
+  `List[T]`, `Map[K, V]`, uniões `A | B` e `T?` (= `T | Nil`). `Int` é
+  non-null. `List[T]` e `Map[K, V]` são invariantes: `List[Int]` não é `List[Float]` nem
+  `List[Any]`; `Map[String, Int]` não é `Map[String, Any]`.
 - Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
   esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
-  elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string. `xs.pop()` e
+  elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string/mapa. `xs.pop()` e
   `xs[i]` devolvem `T`.
+- Mapas: `{"a": 1}` infere `Map[String, Int]`; chaves e valores precisam de tipo comum;
+  `{}` exige tipo esperado; `m[k]` checa `k` contra `K` e devolve `V`; `m[k] = v` checa
+  `v`; `m.get(k)` devolve `V?`; `m.has(k)` devolve `Bool`; `m.remove(k)` devolve `V`;
+  `m.keys()`/`m.values()` devolvem `List[K]`/`List[V]`; `for k in m` liga `k: K`; `len(m)`
+  é `Int`. Só `String`, `Int`, `Bool` (e uniões desses) são chaves válidas; `Map[Float, V]`
+  é erro de tipo.
 - Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
   tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.

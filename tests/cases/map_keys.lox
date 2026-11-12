@@ -1,0 +1,16 @@
+# Bool, Int e String são chaves distintas.
+val m = {true: "bool", 1: "int", "1": "string"}
+print m[true]
+print m[1]
+print m["1"]
+print len(m)
+print m
+print {false: "f", 0: "z"}[false]
+print {false: "f", 0: "z"}[0]
+# expect: bool
+# expect: int
+# expect: string
+# expect: 3
+# expect: {true: "bool", 1: "int", "1": "string"}
+# expect: f
+# expect: z

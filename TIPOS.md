@@ -52,7 +52,7 @@ Complementa:
 | `Float` | `3.14` | ✅ | P0 | IEEE-754 binary64 (ver §3 e ADR-0006) |
 | `String` | `"oi"` | ✅ | P0 | UTF-8 imutável (ver §4) |
 | `List[T]` | `[1, 2]` | ✅ | P1 | homogênea, mutável e invariante; literais, indexação, `push`/`pop`, `len` e `for-in` (ADR-0015) |
-| `Map[K, V]` | `{ "a": 1 }` | 🟡 | P1 | anotação existe; literais/operações ainda não; sintaxe e chave ausente a decidir |
+| `Map[K, V]` | `{ "a": 1 }` | ✅ | P1 | homogêneo, mutável e invariante; literal, índice, `get`/`has`/`remove`/`keys`/`values`, `len` e `for-in` (ADR-0017) |
 | `Fn(P...) -> R` | `fn(a) -> a` | 🟡 | P1 | funções existem; o tipo é inferido, sem sintaxe de anotação `fn(...)` |
 | `Range` | `0..10` | ✅ | P2 | iterável; ver ADR-0007 |
 | `Tuple[A, B]` | `(1, "a")` | ⬜ | P2 | aridade fixa, destructuring |
@@ -188,7 +188,7 @@ velocidade.
   point (O(n)) — aceitável no início, otimizar depois com cache.
 - `s[i]` devolve `String` de 1 code point (não existe `Char`; evita um tipo novo).
 - Concatenação `+`, comparação léxica `<`, `==` por conteúdo.
-- Interpolação `"${expr}"` (TODO §1.3), escapes `\n \t \" \\ \u{...}`.
+- Interpolação `"${expr}"` (TODO §1.1), escapes `\n \t \" \\ \u{...}`.
 - `String.parse_int`/`to_int` devolvem `Option`/`Result`, nunca `NaN`/0 silencioso.
 - Hash consistente com `==` — obrigatório para `Map[String, V]`.
 
@@ -203,12 +203,16 @@ velocidade.
   (`List[Int | String]` ou `List[Any]`). Lista vazia exige contexto. Índice é `Int`,
   zero-based, sem negativo; fora do intervalo é erro. Igualdade estrutural, sem hash
   (não pode ser chave de `Map`). Ver [ADR-0015](docs/adr/0015-listas-tipadas.md).
-- `Map[K, V]`: anotação existe; literal, operações e runtime ainda não. Decisões em
-  aberto: literal vs bloco (`D-14`), chaves hasháveis, chave ausente (erro, `nil` ou
-  `Option`) e ordem de inserção. Entra depois de List, numa mudança própria.
+- **`Map[K, V]` (implementado)** — homogêneo, mutável in-place e invariante em `K`/`V`;
+  literal `{"a": 1}` (chaves são expressões), `m[k]`/`m[k] = v`, `m.get(k)` (devolve `V?`),
+  `m.has(k)`, `m.remove(k)`, `m.keys()`/`m.values()`, `len(m)` e `for k in m` (chaves em
+  ordem de inserção). Chave ausente em `m[k]` é erro; `m.get(k) ?? default` cobre o caso
+  opcional. Chaves são `String`, `Int` ou `Bool` (uniões explícitas permitidas); `Float`
+  fica de fora até resolver `1 == 1.0`. Igualdade estrutural independente de ordem; mapas
+  não são hasháveis. Ver [ADR-0017](docs/adr/0017-mapas-hash.md).
 - `Tuple`: aridade fixa, imutável, destructuring; útil para múltiplos retornos.
-- Variância: **invariante** por padrão (mutação); `List[Int]` não é `List[Float]`.
-  `List[Any]` é escape explícito, não supertipo.
+- Variância: **invariante** por padrão (mutação); `List[Int]` não é `List[Float]` e
+  `Map[String, Int]` não é `Map[String, Any]`. `Any` é escape explícito, não supertipo.
 
 ---
 
@@ -266,14 +270,14 @@ Já implementado e descrito na spec: `Nil`, `Bool`, `Int`/`Float` (numérica com
 
 Em aberto:
 
-- `Map`: igualdade estrutural é inviável em geral; provavelmente identidade; chave
-  ausente e hash ainda a decidir.
-- Hash consistente com `==` para `Map[K, V]`: `1` e `1.0` precisam do mesmo hash se
-  ambos puderem ser chave.
+- Hash de chave de `Map`: só `String`/`Int`/`Bool` na v1; `Float` fica de fora enquanto
+  `1 == 1.0` não tiver uma regra de canonicalização (ADR-0017).
 - Ordenação: `Int`/`Float`/`String`; `Bool` não ordenável.
 
 Implementado: `List` compara **estruturalmente** (elemento a elemento, com guarda de
-ciclo) e não é hashável; `nil`, `Bool`, `Int`/`Float`, `String` seguem as regras acima.
+ciclo) e não é hashável; `Map` compara **estruturalmente, sem ordem** (com guarda de
+ciclo), não é hashável e não pode ser chave; `nil`, `Bool`, `Int`/`Float`, `String` seguem
+as regras acima.
 
 ---
 
@@ -287,19 +291,20 @@ ciclo) e não é hashável; `nil`, `Bool`, `Int`/`Float`, `String` seguem as reg
 | `D-11` | LLVM | i64/double; guards | i64/double + guardas |
 | `D-12` | representação | boxeado / desboxado / NaN-box | boxeado → desboxado |
 | `D-13` | `len` de string | bytes / code points / graphemes | code points |
-| `D-14` | literal de map | `{}` / `Map{}` / outro | `#{}` descartado (comentário `#`) |
 | `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
 | `D-19` | `List[T]` | um tipo / `List`+`MutableList` / `Array` | um tipo mutável e invariante (ADR-0015) |
 
 Resolvidas: `D-1` (modelo `Int`+`Float`), `D-3` (promoção), `D-4` (divisão inteira),
-`D-6` (formatação), `D-9` (bits), `D-10` (ranges/iteração), `D-15` (non-null + `T?`),
-`D-18` (igualdade numérica) e `D-19` (List) — ver os checkboxes no topo e os ADRs
+`D-6` (formatação), `D-9` (bits), `D-10` (ranges/iteração), `D-14` (literal de mapa),
+`D-15` (non-null + `T?`), `D-18` (igualdade numérica), `D-19` (List) e `D-20` (chaves de
+`Map`) — ver os checkboxes no topo e os ADRs
 [0006](docs/adr/0006-int-float-separados.md) /
 [0007](docs/adr/0007-ranges-e-iteracao.md) /
 [0010](docs/adr/0010-tipagem-estatica.md) /
 [0012](docs/adr/0012-comentarios-divisao-potencia-bits.md) /
-[0015](docs/adr/0015-listas-tipadas.md). Cada decisão implementada ganha caso golden e
+[0015](docs/adr/0015-listas-tipadas.md) /
+[0017](docs/adr/0017-mapas-hash.md). Cada decisão implementada ganha caso golden e
 resumo em [`docs/decisoes.md`](docs/decisoes.md); o que ainda está aberto fica no
 `TODO.md` §11.
 
@@ -315,7 +320,7 @@ resumo em [`docs/decisoes.md`](docs/decisoes.md); o que ainda está aberto fica 
 | **N3** | unificação/checagem nas chamadas com promoção (T3) | N2 |
 | **N4** | `as`, `math`, `Int.parse`, erros de conversão | N3 |
 | **N5** | codegen LLVM de `Int`/`Float` com guards (L1/L6) | N4 + HIR |
-| **N6** | ✅ ranges e `for-in` (Range/String/List); `Map` quando existir | sintaxe §1.3 |
+| **N6** | ✅ ranges e `for-in` (Range/String/List/Map); `Map` implementado no ADR-0017 | sintaxe §1.1 |
 
 Ordem prática: N2+ só depois do resolver (cap. 11), porque o checker depende de escopo.
 

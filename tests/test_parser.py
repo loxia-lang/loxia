@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.ast_printer import AstPrinter
+from src.expr import MapLiteral
 from src.parser import Parser
 from src.scanner import Scanner
 from src.stmt import (
@@ -73,6 +74,15 @@ def test_parses_for_in_statement() -> None:
 
     assert isinstance(statements[0], ForIn)
     assert statements[0].name.lexeme == "i"
+
+
+def test_parses_map_literal_with_expression_keys() -> None:
+    statements = parse('val m = {"a": 1, nome: 2};')
+
+    var = statements[0]
+    assert isinstance(var, Var)
+    assert isinstance(var.initializer, MapLiteral)
+    assert len(var.initializer.entries) == 2
 
 
 def test_missing_semicolon_reports_error_and_recovers() -> None:

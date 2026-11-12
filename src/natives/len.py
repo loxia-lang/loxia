@@ -4,13 +4,14 @@ from typing import TYPE_CHECKING
 
 from src.errors import NativeError
 from src.lox_list import LoxList
+from src.lox_map import LoxMap
 
 if TYPE_CHECKING:
     from src.interpreter import Interpreter
 
 
 class Len:
-    """`len(valor)` — tamanho de uma lista ou de uma string (em code points)."""
+    """`len(valor)` — tamanho de uma lista, de um mapa ou de uma string (code points)."""
 
     def min_arity(self) -> int:
         return 1
@@ -22,10 +23,12 @@ class Len:
         value = arguments[0]
         if isinstance(value, LoxList):
             return len(value.elements)
+        if isinstance(value, LoxMap):
+            return value.size
         if isinstance(value, str):
             return len(value)
 
-        raise NativeError("len() expects a string or a list.")
+        raise NativeError("len() expects a string, a list or a map.")
 
     def __str__(self) -> str:
         return "<native fn>"

@@ -1,0 +1,22 @@
+# Literal de mapa, chaves como expressões e leitura por índice.
+val vazio: Map[String, Int] = {}
+print vazio
+print {"a": 1}
+val nome = "dinamica"
+val m = {nome: 1, "a" + "b": 2}
+print m["dinamica"]
+print m["ab"]
+print len(m)
+fn total(m) { return len(m) }
+print total({"x": 1, "y": 2})
+print total({})
+fn make() { return {"ok": true} }
+print make()
+# expect: {}
+# expect: {"a": 1}
+# expect: 1
+# expect: 2
+# expect: 2
+# expect: 2
+# expect: 0
+# expect: {"ok": true}

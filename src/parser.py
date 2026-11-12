@@ -13,6 +13,7 @@ from src.expr import (
     ListLiteral,
     Literal,
     Logical,
+    MapLiteral,
     Range,
     Set,
     Super,
@@ -722,6 +723,25 @@ class Parser:
         paren = self._consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
         return Call(callee, paren, arguments, optional)
 
+    def _map_literal(self, brace: Token) -> Expr:
+        entries: list[tuple[Expr, Expr]] = []
+
+        if not self._check(TokenType.RIGHT_BRACE):
+            while True:
+                key = self._expression()
+                self._consume(
+                    TokenType.COLON,
+                    "Expect ':' between key and value in map literal.",
+                )
+                value = self._expression()
+                entries.append((key, value))
+
+                if not self._match(TokenType.COMMA):
+                    break
+
+        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after map entries.")
+        return MapLiteral(entries, brace)
+
     def _primary(self) -> Expr:
 
         if self._match(TokenType.FALSE):
@@ -763,6 +783,9 @@ class Parser:
 
             self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.")
             return ListLiteral(elements, bracket)
+
+        if self._match(TokenType.LEFT_BRACE):
+            return self._map_literal(self._previous())
 
         if self._match(TokenType.LEFT_PAREN):
             expr: Expr = self._expression()

@@ -11,6 +11,7 @@ from src.expr import (
     ListLiteral,
     Literal,
     Logical,
+    MapLiteral,
     Range,
     Set,
     Super,
@@ -34,7 +35,7 @@ from src.stmt import (
 from src.token_type import TokenType
 from src.tokens import Token
 from src.ty import Ty, display
-from src.values import stringify
+from src.values import repr_value
 
 
 class AstPrinter:
@@ -53,7 +54,7 @@ class AstPrinter:
         return self._parenthesize("group", expr.expression)
 
     def visit_literal_expr(self, expr: Literal) -> str:
-        return stringify(expr.value)
+        return repr_value(expr.value)
 
     def visit_list_expr(self, expr: ListLiteral) -> str:
         if not expr.elements:
@@ -61,6 +62,16 @@ class AstPrinter:
 
         inner = " ".join(element.accept(self) for element in expr.elements)
         return f"(list {inner})"
+
+    def visit_map_expr(self, expr: MapLiteral) -> str:
+        if not expr.entries:
+            return "(map)"
+
+        inner = " ".join(
+            f"({key.accept(self)} {value.accept(self)})"
+            for key, value in expr.entries
+        )
+        return f"(map {inner})"
 
     def visit_index_expr(self, expr: Index) -> str:
         return self._parenthesize("index", expr.object, expr.index)

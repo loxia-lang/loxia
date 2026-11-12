@@ -63,6 +63,25 @@ A redação de uma mensagem de erro **pode mudar entre versões**; o exit code n
 (`65` compilação, `70` runtime). Quando existir o formato estruturado, os códigos
 (`E3xxx`…) também passam a ser estáveis.
 
+## Princípios de design
+
+Não são garantias testáveis como I1–I3: são os critérios que orientam as decisões de
+sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
+
+1. **Sem ruído** — `;` opcional, `elif`, corpo de uma linha; a sintaxe não deve exigir
+   cerimônia para o caso comum.
+2. **Expressões primeiro** — quase tudo produz valor; `if`/`match`/bloco como expressão
+   ainda está em aberto no [`TODO.md`](../../TODO.md) §11.
+3. **Imutável por padrão** — `val`/`var` implementados; parâmetros são imutáveis e `var x`
+   libera a mutação. Argumentos em [`IDEIAS.md`](../../IDEIAS.md) I-1.
+4. **Tipos opcionais, não cerimônia** — anotar só onde ajuda; no `--check` a inferência
+   local já existe, mas parâmetros ainda exigem anotação (T3).
+5. **Falhar cedo e claro** — spans, caret e stack trace são P1; hoje há linha e mensagem.
+6. **Previsível** — nada de coerção implícita, nada de `nil` surpresa; é o I2.
+7. **Identidade = invariantes, não features** — o contrato é o
+   [ADR-0014](../adr/0014-identidade-e-invariantes.md); toda feature passa pelo portão de
+   admissão.
+
 ## Como isso é verificado
 
 - [`tests/test_determinism.py`](../../tests/test_determinism.py) roda casos com

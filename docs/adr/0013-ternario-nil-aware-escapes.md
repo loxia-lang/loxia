@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1.3/§11,
+- **Relacionados:** [`../../TODO.md`](../../TODO.md) §1.1/§11,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/lexico.md`](../spec/lexico.md), [`../spec/erros.md`](../spec/erros.md)
 - **Implementação:** `src/expr.py`, `src/parser.py`, `src/scanner.py`,

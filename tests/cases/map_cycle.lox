@@ -1,0 +1,19 @@
+# Ciclos em mapas: stringify e igualdade não entram em loop.
+val a = {}
+a["self"] = a
+print a
+val b = {}
+b["self"] = b
+print a == b
+print a == a
+val xs = [a]
+print xs
+val l = []
+val m = {"l": l}
+l.push(m)
+print m
+# expect: {"self": {...}}
+# expect: true
+# expect: true
+# expect: [{"self": {...}}]
+# expect: {"l": [{...}]}

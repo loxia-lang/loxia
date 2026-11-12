@@ -1,0 +1,33 @@
+# get/has/remove/keys/values e atualização.
+val m = {"a": 1}
+print m.get("a")
+print m.get("z")
+print m.has("a")
+print m.has("z")
+m["b"] = 2
+print m
+print m.remove("a")
+print m
+print len(m)
+print m.keys()
+print m.values()
+m["b"] = 3
+print m
+print m.get("b")
+val n = {"x": nil}
+print n.get("x")
+print n.has("x")
+# expect: 1
+# expect: nil
+# expect: true
+# expect: false
+# expect: {"a": 1, "b": 2}
+# expect: 1
+# expect: {"b": 2}
+# expect: 1
+# expect: ["b"]
+# expect: [2]
+# expect: {"b": 3}
+# expect: 3
+# expect: nil
+# expect: true
