@@ -179,6 +179,14 @@ chamada.
   `_resolve_type`. `_assignable_fn` aplica contravariância nos parâmetros e covariância no
   retorno; um `ClassObjectTy` também é atribuível à assinatura do seu `init`, então uma
   classe pode ser passada como fábrica. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
+- `_body_always_returns` vale para funções, métodos e lambdas: retorno não-nil sem caminho
+  de retorno é erro. `visit_return_stmt` recusa `return;` em retorno não-nil.
+- `_check_field_initialization` roda um dataflow simples (`_init_flow`/`_init_stmt`) sobre o
+  `init`: interseção em `if`/`else`, `return` antecipado e laços conservadores; todo campo
+  sem inicializador precisa estar atribuído em todos os caminhos.
+- `_check_overrides` roda depois de todas as classes e compara cada método com o da
+  superclasse via `_assignable` (contravariante nos parâmetros, covariante no retorno).
+  Ver [ADR-0023](../adr/0023-soundness-do-checker.md).
 
 ## Lambdas
 

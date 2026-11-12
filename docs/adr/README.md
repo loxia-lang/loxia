@@ -68,6 +68,7 @@ Crie quando a decisão:
 | [0020](0020-assinaturas-explicitas.md) | Assinaturas explícitas e funções declaradas depois | accepted | 2026-11-12 |
 | [0021](0021-tipos-de-funcao.md) | Tipos de função nas anotações | accepted | 2026-11-12 |
 | [0022](0022-lambdas.md) | Lambdas com `fn(x) => ...` e tipagem contextual | accepted | 2026-11-12 |
+| [0023](0023-soundness-do-checker.md) | Soundness do checker: retorno, campos e override | accepted | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 

@@ -90,6 +90,7 @@ class ClassInfo:
     superclass: str | None
     fields: dict[str, FieldBinding] = field(default_factory=dict)
     methods: dict[str, FnTy] = field(default_factory=dict)
+    method_tokens: dict[str, Token] = field(default_factory=dict)
     init: FnTy | None = None
 
 
@@ -113,6 +114,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._predeclare_functions(statements)
         for statement in statements:
             self._check_stmt(statement)
+
+        self._check_overrides()
 
     # --- infraestrutura ---
 
@@ -522,6 +525,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 info.init = signature
             else:
                 info.methods[method.name.lexeme] = signature
+                info.method_tokens[method.name.lexeme] = method.name
 
         for method in stmt.methods:
             is_init = method.name.lexeme == "init"
@@ -531,7 +535,137 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             assert body_signature is not None
             self._check_function_body(method, body_signature, info, is_init=is_init)
 
+        self._check_field_initialization(stmt, info)
         self._current_class = enclosing
+
+    def _check_overrides(self) -> None:
+        for info in self._classes.values():
+            if info.superclass is None:
+                continue
+
+            for name, signature in info.methods.items():
+                superclass_signature = self._find_method(info.superclass, name)
+                if superclass_signature is None:
+                    continue
+                if not self._assignable(superclass_signature, signature):
+                    token = info.method_tokens[name]
+                    self._error(
+                        token,
+                        f"Method '{name}' is incompatible with the superclass "
+                        f"method: expected {display(superclass_signature)}, "
+                        f"found {display(signature)}.",
+                    )
+
+    def _check_field_initialization(self, stmt: Class, info: ClassInfo) -> None:
+        required = {
+            field.name.lexeme: field
+            for field in stmt.fields
+            if field.initializer is None
+        }
+        if not required:
+            return
+
+        initializer = next(
+            (method for method in stmt.methods if method.name.lexeme == "init"),
+            None,
+        )
+        if initializer is None:
+            for field in stmt.fields:
+                if field.name.lexeme in required:
+                    self._error(
+                        field.name,
+                        f"Field '{field.name.lexeme}' must be initialized.",
+                    )
+            return
+
+        assigned = {
+            field.name.lexeme for field in stmt.fields if field.initializer is not None
+        }
+        returns: list[set[str]] = []
+        normal = self._init_flow(initializer.body, set(assigned), returns)
+
+        states = list(returns)
+        if normal is not None:
+            states.append(normal)
+
+        missing: set[str] = set()
+        for state in states:
+            missing.update(name for name in required if name not in state)
+
+        for field in stmt.fields:
+            if field.name.lexeme in missing:
+                self._error(
+                    field.name, f"Field '{field.name.lexeme}' must be initialized."
+                )
+
+    def _init_flow(
+        self, statements: list[Stmt], assigned: set[str], returns: list[set[str]]
+    ) -> set[str] | None:
+        current: set[str] | None = set(assigned)
+        for statement in statements:
+            if current is None:
+                break
+            current = self._init_stmt(statement, current, returns)
+
+        return current
+
+    def _init_stmt(
+        self, stmt: Stmt, assigned: set[str], returns: list[set[str]]
+    ) -> set[str] | None:
+        if isinstance(stmt, Expression):
+            self._mark_field_assignments(stmt.expression, assigned)
+            return assigned
+        if isinstance(stmt, Block):
+            return self._init_flow(stmt.statements, set(assigned), returns)
+        if isinstance(stmt, If):
+            self._mark_field_assignments(stmt.condition, assigned)
+            then_state = self._init_flow(
+                [stmt.then_branch], set(assigned), returns
+            )
+            if stmt.else_branch is None:
+                else_state: set[str] | None = set(assigned)
+            else:
+                else_state = self._init_flow(
+                    [stmt.else_branch], set(assigned), returns
+                )
+
+            if then_state is None:
+                return else_state
+            if else_state is None:
+                return then_state
+            return then_state & else_state
+        if isinstance(stmt, While):
+            self._mark_field_assignments(stmt.condition, assigned)
+            self._init_flow([stmt.body], set(assigned), returns)
+            return assigned
+        if isinstance(stmt, ForIn):
+            self._mark_field_assignments(stmt.iterable, assigned)
+            self._init_flow([stmt.body], set(assigned), returns)
+            return assigned
+        if isinstance(stmt, Return):
+            if stmt.value is not None:
+                self._mark_field_assignments(stmt.value, assigned)
+            returns.append(set(assigned))
+            return None
+        if isinstance(stmt, Var):
+            if stmt.initializer is not None:
+                self._mark_field_assignments(stmt.initializer, assigned)
+            return assigned
+        if isinstance(stmt, Print):
+            self._mark_field_assignments(stmt.expression, assigned)
+            return assigned
+
+        return assigned
+
+    def _mark_field_assignments(self, expr: Expr | None, assigned: set[str]) -> None:
+        if expr is None:
+            return
+        if isinstance(expr, Grouping):
+            self._mark_field_assignments(expr.expression, assigned)
+            return
+        if isinstance(expr, Set) and isinstance(expr.object, This):
+            assigned.add(expr.name.lexeme)
+            self._mark_field_assignments(expr.value, assigned)
 
     def visit_expression_stmt(self, stmt: Expression) -> None:
         self._infer(stmt.expression)
@@ -618,6 +752,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         is_init: bool,
         preserve_class: bool = False,
         collect_returns: bool = False,
+        check_return_paths: bool = True,
     ) -> list[Ty]:
         enclosing_class = self._current_class
         enclosing_return = self._current_return
@@ -645,6 +780,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             for statement in stmt.body:
                 self._check_stmt(statement)
+
+            if (
+                check_return_paths
+                and isinstance(stmt, Function)
+                and not is_init
+                and signature.ret not in (ANY, NEVER, ERROR)
+                and not is_nilable(signature.ret)
+                and not self._body_always_returns(stmt.body)
+            ):
+                kind = "Method" if class_info is not None else "Function"
+                self._error(
+                    stmt.name,
+                    f"{kind} '{stmt.name.lexeme}' must return "
+                    f"{display(signature.ret)} on all paths.",
+                )
 
             self._end_scope()
         finally:
@@ -700,6 +850,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             is_init=False,
             preserve_class=True,
             collect_returns=True,
+            check_return_paths=False,
         )
 
         all_paths_return = self._body_always_returns(expr.body)
@@ -846,15 +997,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if stmt.value is None:
             if self._return_collector is not None:
                 self._return_collector.append(NIL)
-                if (
-                    self._current_return is not None
-                    and not is_nilable(self._current_return)
-                    and self._current_return not in (ANY, NEVER)
-                ):
-                    self._error(
-                        stmt.keyword,
-                        f"Expected {display(self._current_return)}, found Nil.",
-                    )
+
+            if (
+                self._current_return is not None
+                and not is_nilable(self._current_return)
+                and self._current_return not in (ANY, NEVER, ERROR)
+            ):
+                self._error(
+                    stmt.keyword,
+                    f"Expected {display(self._current_return)}, found Nil.",
+                )
             return
 
         if self._in_initializer:

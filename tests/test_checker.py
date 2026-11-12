@@ -349,6 +349,199 @@ def test_lambda_wrong_signature_is_rejected(
     assert "Expected fn(Int) -> Int, found fn(String) -> Int." in captured.err
 
 
+def test_function_must_return_on_all_paths(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f() -> Int {
+          print 1;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Function 'f' must return Int on all paths." in captured.err
+
+
+def test_bare_return_in_non_nil_function_is_an_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f() -> Int {
+          return;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected Int, found Nil." in captured.err
+
+
+def test_method_must_return_on_all_paths(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          f() -> Int {
+            print 1;
+          }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Method 'f' must return Int on all paths." in captured.err
+
+
+def test_init_must_initialize_every_field(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int;
+          init() {}
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Field 'x' must be initialized." in captured.err
+
+
+def test_class_without_init_must_have_field_initializers(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Field 'x' must be initialized." in captured.err
+
+
+def test_init_can_assign_a_field_in_both_branches() -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int;
+
+          init(flag: Bool) {
+            if (flag) {
+              this.x = 1;
+            } else {
+              this.x = 2;
+            }
+          }
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_init_assigned_in_only_one_branch_is_an_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int;
+
+          init(flag: Bool) {
+            if (flag) {
+              this.x = 1;
+            }
+          }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Field 'x' must be initialized." in captured.err
+
+
+def test_field_initializer_satisfies_initialization() -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int = 0;
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_override_must_be_compatible(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class A {
+          f(x: Int) -> Int { return x; }
+        }
+        class B(A) {
+          f(x: String) -> String { return x; }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Method 'f' is incompatible with the superclass method" in captured.err
+    assert "expected fn(Int) -> Int, found fn(String) -> String." in captured.err
+
+
+def test_override_can_covary_the_return() -> None:
+    lox = check(
+        """
+        class Animal { init() {} }
+        class Dog(Animal) { init() { super.init(); } }
+        class A {
+          f(a: Animal) -> Animal { return a; }
+        }
+        class B(A) {
+          f(a: Animal) -> Dog { return Dog(); }
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_override_is_checked_even_if_superclass_comes_later(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class B(A) {
+          f(x: String) -> String { return x; }
+        }
+        class A {
+          f(x: Int) -> Int { return x; }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Method 'f' is incompatible with the superclass method" in captured.err
+
+
 @pytest.mark.parametrize(
     ("source", "message"),
     [

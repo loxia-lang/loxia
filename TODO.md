@@ -273,6 +273,8 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
 
 ### 2.7 Extras que valem o esforço
 
+- [x] `P1` **soundness do checker**: retorno em todos os caminhos, inicialização de campos
+      no `init` e override compatível ([ADR-0023](docs/adr/0023-soundness-do-checker.md)).
 - [x] `P2` **narrowing** de `T?`: `if x != nil`, `if x == nil`, truthiness e early
       return; `val`/`var` com invalidação ([ADR-0018](docs/adr/0018-narrowing.md)).
 - [ ] `P2` **narrowing completo**: `is T`, `and`/`or` de curto-circuito, loops,

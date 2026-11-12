@@ -425,6 +425,10 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 - Interpolação: cada expressão é checada normalmente e o resultado é `String`; qualquer
   tipo é convertido por `stringify`.
 - Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
+- Funções e métodos com retorno **não-nil** precisam retornar em todos os caminhos no
+  `--check` (`Function 'f' must return Int on all paths.`); `return;` nesse caso é erro.
+  Tipos nilables, `Any`, `Never` e `<error>` ficam de fora. Ver
+  [ADR-0023](../adr/0023-soundness-do-checker.md).
 - Erro de chamada identifica o argumento: `Argument 2: Expected String, found Int.`
   Passar a classe onde se espera uma instância é reportado como
   `Expected an instance of Animal, found the class Animal.`
@@ -470,7 +474,10 @@ class ContaPoupanca(Conta) {
   `obj.x = 1` em campo não declarado é erro (`Undefined field 'x'.`).
 - Todo campo declarado precisa estar inicializado: por inicializador constante
   (`var idade = 0`) ou por atribuição no `init`. Ao fim do `init`, campo não inicializado é
-  erro de runtime (`Field 'x' must be initialized.`).
+  erro de runtime (`Field 'x' must be initialized.`). No `--check`, todo campo sem
+  inicializador precisa ser atribuído em **todos os caminhos** do `init`; `if`/`else` usa
+  interseção, `return` antecipado exige os campos prontos e laços não contam como
+  atribuição definitiva. Ver [ADR-0023](../adr/0023-soundness-do-checker.md).
 - `val` campo só pode ser atribuído **dentro do `init`** (e uma vez); fora dele o resolver
   reporta `Can't assign to immutable field 'x'.` e o runtime também recusa uma segunda
   atribuição. `var` campo é mutável em qualquer método.
@@ -496,7 +503,10 @@ class ContaPoupanca(Conta) {
 
 - Sintaxe: `class B(A)` (herança simples; sem `extends`, `:` ou `<`).
 - Métodos e `init` são herdados; o método da subclasse **sobrescreve** o da superclasse
-  silenciosamente (não há keyword `override`).
+  silenciosamente (não há keyword `override`). No `--check`, a assinatura do override é
+  comparada com a da superclasse: parâmetros contravariantes, retorno covariante e defaults
+  como intervalo de aridade; `init` fica de fora. Ver
+  [ADR-0023](../adr/0023-soundness-do-checker.md).
 - Subclasse **sem** `init` herda o `init` da superclasse. Se a subclasse define `init`, ela
   deve chamar `super.init(...)` explicitamente; não há chamada automática.
 - Campos são herdados; redeclarar um campo na subclasse é erro. `val` herdado não pode ser
