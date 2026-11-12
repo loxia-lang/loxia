@@ -175,9 +175,10 @@ variância: `List[Int]` não é `List[Float]` (mutação quebraria a segurança)
 
 Ordem de evolução (detalhada no `TODO.md` §6.3):
 
-1. **MVP**: valores boxeados `{ i8 tag, i64 payload }`; `Int` e `Float` com tags distintas.
-2. **Otimização**: `Int`/`Float`/`Bool` desboxados quando o type checker conhece o tipo
-   (monomorfização). `Any` permanece boxeado.
+1. **L0–L2**: `Int`/`Float` concretos (i64/f64), strings/listas/mapas como ponteiros;
+   `Any` é **rejeitado** no backend ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
+2. **Depois do MVP**: `Any` boxeado/tagged quando o backend ganhar representação dinâmica;
+   monomorfização evita box nos caminhos concretos.
 3. **Avançado**: NaN-boxing (payload em bits de `double`), reservando padrões para
    `nil`/`bool`/ponteiro; ~48 bits de ponteiro em x86-64.
 
@@ -287,9 +288,11 @@ velocidade.
 
 ## 9. Tipos especiais
 
-- `Any`: aceita tudo, desliga checagem (equivalente a `dynamic`); no LLVM, boxeado.
+- `Any`: aceita tudo, desliga checagem (equivalente a `dynamic`); no backend L0–L2 é
+  rejeitado, e boxeado só quando a representação dinâmica entrar.
 - `Never`: subtipo de todos; útil para `throw`/`return`/loop infinito.
-- União `A | B`: P2/P3; narrowing obrigatório para usar.
+- União `A | B`: implementada com narrowing de variáveis; `is T`, `and`/`or` e `while`
+  funcionam; campos/índices e merge completo faltam.
 - Aliases: `type UserId = Int` (P3).
 - Sem tipos literais (`"foo"` como tipo) nem tipos dependentes.
 

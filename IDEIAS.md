@@ -68,9 +68,9 @@ abaixo fica como histórico do raciocínio e das alternativas.
 
 Concretamente, o que foi decidido:
 
-1. Builtins globais **mínimos**: `len`, `str`, `repr`, `print`, `range`. Nada de
-   `int()`/`float()` sobrecarregados; `clock`/tempo fica para um módulo não determinístico
-   depois ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
+1. Builtins globais **mínimos**: `len`, `str`, `repr`, `range`; `print` é **statement**
+   (não função). Nada de `int()`/`float()` sobrecarregados; `clock`/tempo fica para um
+   módulo não determinístico depois ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
 2. `str` **e** `repr` existem desde já: `str` para exibição, `repr` para debug (string
    citada/escapada). A distinção em listas coincide hoje; hooks de classe ficam para
    depois.
@@ -92,7 +92,8 @@ combina dois → função livre; converte/constrói → construtor namespaced."*
 - conversões: quando módulos/`Option`/`Result` e a sintaxe de cast (`as` como alias de
   import vs cast) forem decididos;
 - módulos: quando `std.*` entrar, revisar o que sai do prelúdio;
-- quando o type checker começar a precisar de protocolo `Sized`/generics;
+- quando o type checker começar a precisar de protocolo `Sized`/traits/constraints (as
+  funções genéricas T3b já existem, mas sem constraints);
 - se o global começar a inchar (>30 builtins é sinal de alerta);
 - extensões/UFCS: depois do LLVM MVP, ou quando a stdlib precisar de operação em tipo
   existente.

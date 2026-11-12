@@ -23,9 +23,9 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   compatível.
 - 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
-- 🧊 **1.0 congelada** ([ADR-0026](docs/adr/0026-freeze-1.0.md)): erros de runtime fatais,
-  `clock` removido do prelúdio, strings UTF-8 com identificadores ASCII, `print` como
-  statement e escopo single-file.
+- 🧊 **Escopo da 1.0 congelado** ([ADR-0026](docs/adr/0026-freeze-1.0.md), com T3b como
+  exceção): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8 com
+  identificadores ASCII, `print` como statement e escopo single-file.
 - 📐 Próximo passo: backend LLVM (L0–L2) ou diagnóstico com spans/caret; classes/métodos
   genéricos, constraints e type application explícita ficam para depois. T3a
   (assinaturas explícitas + recursão mútua), tipos de função, lambdas e T3b (funções

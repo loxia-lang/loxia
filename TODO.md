@@ -87,9 +87,9 @@ pretendo tipar e como chegar no LLVM.
 - [x] `P2` **interpolação** `"${expr}"`, qualquer expressão e `stringify` —
       [ADR-0019](docs/adr/0019-interpolacao.md).
 - [ ] `P2` **strings multilinha** com `"""` e raw strings `r"..."`.
-- [x] `P2` **UTF-8**: strings UTF-8 com `len`/índice em code points; identificadores
-      ASCII (decisão do [ADR-0026](docs/adr/0026-freeze-1.0.md)). UTF-8 completo em
-      identificadores fica para depois.
+- [x] `P2` **UTF-8**: strings UTF-8 com `len` em code points; identificadores ASCII
+      (decisão do [ADR-0026](docs/adr/0026-freeze-1.0.md)). Indexação de string e UTF-8
+      completo em identificadores ficam para depois.
 - [ ] `P3` **spread** `...lista` em chamadas e literais.
 
 **Dados e funções**
@@ -112,7 +112,7 @@ pretendo tipar e como chegar no LLVM.
 - [x] `P2` **lambdas** `fn(x) => x * 2` e bloco `fn(x) { ... }`, com tipagem contextual
       e retorno inferido — [ADR-0022](docs/adr/0022-lambdas.md).
 - [ ] `P2` **trailing closure** `lista.map { |x| x * 2 }` (ideia do Lox2/Kotlin/Swift;
-      depois de generics e de decidir o conflito com literal de mapa).
+      depois de resolver o conflito com literal de mapa e com o corpo de bloco).
 - [x] `P2` **defaults** posicionais constantes (`fn ponto(x, y = 0)`) — aridade vira
       intervalo; ver [ADR-0009](docs/adr/0009-defaults-e-campos.md).
 - [ ] `P3` **argumentos nomeados** (`fn ponto(x = 0)` na chamada).
@@ -198,7 +198,7 @@ nas chamadas**, em camadas:
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
 | **T5** 🟡 | `T?`/uniões; narrowing de nil/truthiness/early return, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais, exaustividade no `match` | abstração |
-| **T7** ⬜ | erase e integração com o codegen | backend sabe layouts |
+| **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
 
 O modo `--check` está implementado em `src/checker.py` (ADR-0010): funções precisam de
 anotações, locais inferem, uniões/`T?`/promoção/booleanos são checados. Sem `--check` o
@@ -300,7 +300,8 @@ Scanner → Parser → Resolver (escopos/depth) → TypeChecker → Interpreter
       ([ADR-0021](docs/adr/0021-tipos-de-funcao.md)).
 - [x] `P3` **lambdas** `fn(x) => x * 2` e bloco com `return`, com tipagem contextual e
       retorno inferido ([ADR-0022](docs/adr/0022-lambdas.md)).
-- [ ] `P3` **trailing closures** (`lista.map { |x| x * 2 }`) — depois de generics.
+- [ ] `P3` **trailing closures** (`lista.map { |x| x * 2 }`) — depois do backend ou de
+      resolver o conflito com `{}`/bloco.
 - [ ] `P3` **generics com constraints** (`T with Show`).
 - [ ] `P3` **inferência de retorno** para funções declaradas com corpo de expressão.
 - [ ] `P3` **LSP**: `--check --json` com spans para o editor sublinhar.
@@ -609,7 +610,7 @@ tree-walk + LLVM). Mas várias **features de linguagem** são ótimas referênci
 | lambdas anônimas | ✅ | M | precisa de closures (cap. 10) |
 | trailing closure | ✅ | M | ergonomia p/ `map`/`filter` |
 | `type` alias | ✅ | S | útil com generics |
-| generics + constraints | ⏳ | XL | só depois de T4 (§2) |
+| generics + constraints/traits | ⏳ | XL | funções T3b prontas; constraints ficam depois de T4 (§2) |
 | uniões + narrowing | ⏳ | L | `T?`, `is T`, `and`/`or` e `while` prontos; falta campos/índices e merge completo |
 | traits + `with` | ⏳ | L | ótimo para composição; depois de classes |
 | operator overloading | ⏳ | M | divertido e barato depois de classes |
@@ -686,13 +687,15 @@ registro executivo em [`docs/decisoes.md`](docs/decisoes.md); a fonte de verdade
 sendo o ADR indicado lá. Decisões numéricas/de tipos continuam em
 [`TIPOS.md`](TIPOS.md) §11, com id `D-n`.
 
-### Fechadas para a 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md))
+### Fechadas para a 1.0 ([ADR-0026](docs/adr/0026-freeze-1.0.md), [ADR-0027](docs/adr/0027-generics-t3b.md))
 
 - **Erros:** runtime é fatal (exit 70); sem `try`/`Result` na 1.0.
 - **`clock`:** removido do prelúdio; tempo vira módulo não determinístico depois.
 - **UTF-8:** strings UTF-8 com `len` em code points; identificadores ASCII; indexação de
   string fica fora da 1.0.
 - **`print`:** continua statement; `println` função fica para depois.
+- **Generics T3b:** funções genéricas com inferência, sem constraints, monomorfização no
+  backend; classes/métodos genéricos e type application explícita ficam para depois.
 - **Escopo:** single-file; sem módulos, `if`-expr, `match`/enums, traits, exceções,
   named args, operator overloading, trailing closure; stdlib mínima; `Any` na linguagem
   mas fora do backend L0–L2.
