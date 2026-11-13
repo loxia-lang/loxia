@@ -21,9 +21,9 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **108 golden cases** (69 compilam, 37 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5 + spike L6 (`Any`)**, M5
-fechado e ADRs 0043–0049 (layout, identidade, narrowing, L4, optionais escalares e ABI de
+vale o que está aqui. Estado em 2026-11-13: **109 golden cases** (71 compilam, 36 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L5 + T7 + spike L6 (`Any`)**, M5
+fechado e ADRs 0043–0050 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
 
 ### 0.1 Definições que não podem faltar antes de cada nível
@@ -32,7 +32,7 @@ classes) fechados.
 | --- | --- | --- |
 | **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
 | **L5** | ADRs 0043/0044/0045/0048: classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`, `is`/`as`, `?.`, classes locais com campos/métodos/captura e `T?` de referência | ✅ |
-| **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
+| **L6** | T7 (monomorfização) ✅, `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
 `T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
 lacuna ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)). É exatamente o tipo de
@@ -73,11 +73,13 @@ lacuna que esta fila existe para não repetir.
          extração absorveu o custo; reavaliar depois de `Any` completo/`List`/`Map`.
        Critério de pronto: comportamento idêntico, `make check` verde, ABI do ADR-0048
        intacta e a decisão HIR registrada.
-6. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
-       `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
+6. [x] **ADR T7 — monomorfização** ([ADR-0050](docs/adr/0050-monomorfizacao-t7.md)):
+       funções e classes genéricas por instanciação (`id$Int`, `Box$String`), sem
+       re-inferência e sem boxing; `generic_functions.lox` e `generic_class.lox` no nível
+       `t7`. Containers, `Any` completo, tuplas, enums e exceções seguem no L6.
        - [x] spike de `Any` boxeado/união escalar e `nil_aware` promovido
          ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
-       - [x] classes locais com campos/métodos (sem captura).
+       - [x] classes locais com campos/métodos e captura.
        - [ ] completar `Any` (unbox, igualdade, `as`/`is`, classes/funções), `List`/`Map`,
          tuplas, `for-in`, enums/`match`, exceções e operações escalares restantes.
 7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
@@ -160,7 +162,7 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); follow-ups (métodos, herança de `Box[Int]`, reificação) **adiados** (ver §10) | bibliotecas |
 | **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
 | **T6c** ✅ | `match`/enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)) | expressividade |
-| **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
+| **T7** ✅ | monomorfização de funções/classes; identidade de fonte, layouts mangled e chamadas diretas; containers ficam no L6 | backend sabe layouts |
 
 Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.md)):
 - [x] parser/AST/tipos: `class C[T]`, `ClassTy.args`, printer, erro de superclasse genérica.
@@ -502,7 +504,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 108 `tests/cases`: 69 compilam; 37 ficam `PENDING` por nível
+- [x] anotar os 109 `tests/cases`: 71 compilam; 36 ficam `PENDING` por nível
       (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
       design);
 - [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;
@@ -576,7 +578,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | LLVM vertical (+ HIR se necessária) | L0–L4 + L2.5 + L5 + spike L6 (`Any`): inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração foi feita e o spike mostrou que HIR-lite não é necessária agora | 🟡 em andamento |
+| **M6** | LLVM vertical (+ HIR se necessária) | L0–L5 + T7 + spike L6 (`Any`): inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração foi feita e o spike mostrou que HIR-lite não é necessária agora | 🟡 em andamento |
 | **M7** | Runtime completo | L6: `Any` completo, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |

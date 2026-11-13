@@ -142,6 +142,14 @@ class FunctionSignature:
     fn: FnTy
 
 
+@dataclass(frozen=True)
+class GenericFnInstance:
+    """Uma chamada genérica já inferida: nome e argumentos de tipo concretos."""
+
+    name: str
+    type_args: tuple[Ty, ...]
+
+
 class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def __init__(self, reporter: ErrorReporter) -> None:
         self._reporter = reporter
@@ -164,9 +172,37 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         # representação (declarado, sem narrowing) — ADR-0045.
         self.types: dict[Expr, Ty] = {}
         self.storage_types: dict[Expr, Ty] = {}
+        self.generic_fn_instances: dict[Call, GenericFnInstance] = {}
+        self.generic_classes: set[ClassTy] = set()
+        self.generic_class_sites: dict[Call, ClassTy] = {}
         self._function_depth = 0
         self._return_collector: list[Ty] | None = None
         self._define_builtins()
+
+    def _contains_type_var(self, ty: Ty) -> bool:
+        if isinstance(ty, TyVar):
+            return True
+        if isinstance(ty, ClassTy):
+            return any(self._contains_type_var(arg) for arg in ty.args)
+        if isinstance(ty, FnTy):
+            return any(
+                self._contains_type_var(param) for param in ty.params
+            ) or self._contains_type_var(ty.ret)
+        return False
+
+    def concrete_class_types(self) -> set[ClassTy]:
+        """Todas as instanciações de classe concretas vistas pelo checker."""
+        result = {
+            ty for ty in self.generic_classes if not self._contains_type_var(ty)
+        }
+        for ty in self.storage_types.values():
+            if (
+                isinstance(ty, ClassTy)
+                and ty.args
+                and not self._contains_type_var(ty)
+            ):
+                result.add(ty)
+        return result
 
     def check(self, statements: list[Stmt]) -> None:
         self._predeclare_classes(statements)
@@ -2623,6 +2659,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             )
             return ERROR
 
+        if isinstance(result, ClassTy) and result.args:
+            self.generic_classes.add(result)
+            self.generic_class_sites[expr] = result
         return result
 
     def _infer_generic_call(
@@ -2675,6 +2714,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ERROR
 
         self._check_polymorphic_recursion(instance, bindings, token)
+        if all(variable in bindings for variable in instance.type_params):
+            self.generic_fn_instances[expr] = GenericFnInstance(
+                callee.name,
+                tuple(bindings[variable] for variable in instance.type_params),
+            )
         return result
 
     def _check_generic_argument(

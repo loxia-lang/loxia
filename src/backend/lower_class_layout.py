@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from typing import Any
+
 from src.backend import llvm_ir
 from src.backend.lower_base import LoweringBase
 from src.backend.lower_model import (
@@ -29,13 +32,13 @@ class ClassLayoutLowering(LoweringBase):
         self._class_names = {stmt.name.lexeme for stmt in classes}
 
         for index, stmt in enumerate(classes, start=1):
+            if stmt.type_params:
+                continue
             self._validate_class(stmt)
             super_name, super_layout = self._class_super(stmt)
             self._register_class(stmt, index, super_name, super_layout)
 
     def _validate_class(self, stmt: Class) -> None:
-        if stmt.type_params:
-            raise _unsupported("Generic class", stmt.name.line)
         if len(stmt.fields) > 64:
             raise BackendError(
                 "Classes with more than 64 fields are not supported by the "
@@ -82,6 +85,8 @@ class ClassLayoutLowering(LoweringBase):
         base_methods: int,
         *,
         ir_name: str | None = None,
+        allow_generic: bool = False,
+        type_subst: dict[str, Any] | None = None,
     ) -> tuple[
         list[MethodLayout], FunctionInfo | None, MethodLayout | None, int
     ]:
@@ -99,7 +104,10 @@ class ClassLayoutLowering(LoweringBase):
                 llvm_name=f"lox.{ir_name or name}.{method.name.lexeme}",
                 this_class=name,
                 is_init=is_init,
+                allow_generic=allow_generic,
             )
+            if type_subst is not None:
+                info = replace(info, type_subst=type_subst)
             if not is_init and any(
                 param.default is not None for param in method.params
             ):

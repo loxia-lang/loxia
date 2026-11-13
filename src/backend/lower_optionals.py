@@ -43,6 +43,7 @@ from src.frontend.ty import (
     FnTy,
     GenericFnTy,
     Ty,
+    TyVar,
     UnionTy,
 )
 
@@ -61,6 +62,11 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.NIL)
         if ty is TY_ANY:
             return TypeDesc(ValueType.ANY)
+        if isinstance(ty, TyVar):
+            mapped = self._type_subst.get(ty.name)
+            if mapped is None:
+                raise _unsupported(f"Unbound type parameter '{ty.name}'", line)
+            return self._type_desc(mapped, line)
         if isinstance(ty, UnionTy):
             members = ty.members
             non_nil = [member for member in members if member is not TY_NIL]
@@ -80,8 +86,14 @@ class OptionalLowering(LoweringBase):
             raise _unsupported("Union of non-scalar values", line)
 
         if isinstance(ty, ClassTy):
+            if ty.name in self._type_subst:
+                return self._type_desc(self._type_subst[ty.name], line)
             if ty.args:
-                raise _unsupported("Generic class instances", line)
+                return self._instantiate_class(
+                    ty.name,
+                    tuple(self._subst_ty(arg) for arg in ty.args),
+                    line,
+                )
             if ty.name not in self._class_names:
                 raise _unsupported(f"Class '{ty.name}'", line)
             return TypeDesc(ValueType.INSTANCE, class_name=ty.name)

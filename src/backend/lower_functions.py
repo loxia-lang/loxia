@@ -32,6 +32,8 @@ class FunctionLowering(LoweringBase):
         for statement in statements:
             if not isinstance(statement, Function):
                 continue
+            if statement.type_params:
+                continue
 
             info = self._function_info(
                 statement, llvm_name=f"lox.{statement.name.lexeme}"
@@ -55,8 +57,9 @@ class FunctionLowering(LoweringBase):
         llvm_name: str | None = None,
         this_class: str | None = None,
         is_init: bool = False,
+        allow_generic: bool = False,
     ) -> FunctionInfo:
-        if stmt.type_params:
+        if stmt.type_params and not allow_generic:
             raise _unsupported("Generic functions", stmt.name.line)
 
         params: list[TypeDesc] = []
@@ -263,8 +266,10 @@ class FunctionLowering(LoweringBase):
         saved_return = self._return_type_desc
         saved_in_init = self._in_init
         saved_method_class = self._method_class
+        saved_type_subst = self._type_subst
 
         self._function_ir = info.ir
+        self._type_subst = info.type_subst or {}
         self._return_type_desc = info.fn_sig.ret
         self._in_init = info.is_init
         self._method_class = info.this_class
@@ -355,6 +360,7 @@ class FunctionLowering(LoweringBase):
         self._return_type_desc = saved_return
         self._in_init = saved_in_init
         self._method_class = saved_method_class
+        self._type_subst = saved_type_subst
 
     def _seal_blocks(self, function: Any) -> None:
         """Todo bloco precisa de terminador; continuações de panic ficam `unreachable`."""

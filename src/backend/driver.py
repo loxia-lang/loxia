@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from src.backend import llvm_ir
 from src.backend.lower import BackendError, lower_program
@@ -33,9 +33,19 @@ def build(
     stem: str,
     types: dict[Expr, Ty],
     depths: dict[Expr, int],
+    generic_instances: Any = None,
+    generic_classes: Any = None,
+    generic_class_sites: Any = None,
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
-    module = lower_program(statements, types=types, depths=depths)
+    module = lower_program(
+        statements,
+        types=types,
+        depths=depths,
+        generic_instances=generic_instances,
+        generic_classes=generic_classes,
+        generic_class_sites=generic_class_sites,
+    )
 
     if emit == "ll":
         text = llvm_ir.emit_text(module)

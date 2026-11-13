@@ -7,10 +7,15 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
-- Backend **L5c — classes locais com campos/métodos**: construtor local recebe o
+- Backend **T7 — monomorfização de funções e classes genéricas**
+  ([ADR-0050](docs/adr/0050-monomorfizacao-t7.md)): o checker publica as instanciações
+  (`generic_fn_instances`, `generic_class_sites`) e o lowering gera `id$Int`, `id$String`,
+  `Box$Int` etc., sem re-inferência e sem boxing. `generic_functions.lox` e
+  `generic_class.lox` promovidos para o nível `t7`; containers e função genérica como valor
+  seguem `PENDING`/65.
+- Backend **L5c — classes locais com campos/métodos e captura**: construtor local recebe o
   descritor como argumento oculto, com layout/vtable/init próprios; classe local com
-  campos, `init`, métodos e `this` funciona, inclusive em chamadas repetidas. Captura de
-  variáveis externas em métodos de classe local segue 65 explícito.
+  campos, `init`, métodos, `this` e captura de variáveis externas funciona.
 - **Spike L6 — `Any` boxeado/união escalar** ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)):
   `{i64 tag, i64 payload}` para `Any` explícito e para uniões escalares/string;
   `??` boxeia o resultado, `print` dinâmico via `lox_print_any`; `any_box.lox` e

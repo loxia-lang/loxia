@@ -83,10 +83,11 @@ class StringLowering(LoweringBase):
                     ValueType.STRING, self.builder.call(function, [value.llvm])
                 )
             case ValueType.CLASS | ValueType.INSTANCE:
+                display = self._class_display(value.class_name or "?")
                 text = (
-                    value.class_name or "?"
+                    display
                     if value.ty is ValueType.CLASS
-                    else f"{value.class_name or '?'} instance"
+                    else f"{display} instance"
                 )
                 return self._string_literal(text)
             case ValueType.ANY:

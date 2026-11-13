@@ -24,6 +24,15 @@ from src.frontend.expr import Call, Variable
 class CallLowering(LoweringBase):
     def _call(self, expr: Call) -> Value:
         if isinstance(expr.callee, Variable):
+            generic = self._generic_fns.get(expr.callee.name.lexeme)
+            if generic is not None:
+                return self._call_generic(generic, expr)
+            if expr.callee.name.lexeme in self._generic_class_by_source:
+                return self._call_generic_class(
+                    expr.callee.name.lexeme, expr
+                )
+
+        if isinstance(expr.callee, Variable):
             name = expr.callee.name.lexeme
             if name == "len":
                 return self._len(expr)

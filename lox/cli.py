@@ -102,6 +102,9 @@ class Lox:
                 stem=stem,
                 types=checker.storage_types,
                 depths=self.interpreter.locals,
+                generic_instances=checker.generic_fn_instances,
+                generic_classes=checker.concrete_class_types(),
+                generic_class_sites=checker.generic_class_sites,
             )
         except BackendError as error:
             self.reporter.backend_error(error.line, error.message)

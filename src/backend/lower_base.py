@@ -22,6 +22,7 @@ from src.backend.lower_model import (
     ValueType,
 )
 from src.frontend.expr import Call, Expr
+from src.frontend.stmt import Function
 from src.frontend.token_type import TokenType
 from src.frontend.ty import Ty
 
@@ -52,9 +53,55 @@ class LoweringBase:
     _in_init: bool
     _method_class: str | None
     _analysis: CaptureAnalysis
+    _type_subst: dict[str, Ty]
+    generic_instances: Any
+    generic_classes: Any
+    generic_class_sites: Any
+    _generic_fns: dict[str, Any]
+    _generic_fn_cache: dict[tuple[str, tuple[str, ...]], FunctionInfo]
+    _generic_class_layouts: dict[str, ClassLayout]
+    _generic_class_by_source: Any
+    _generic_class_nodes: Any
+    _generic_descriptors: Any
 
     # Métodos compartilhados entre mixins. O MRO resolve para a implementação real.
     def _expr(self, expr: Expr) -> Value:
+        raise NotImplementedError
+
+    def _function_info(
+        self,
+        stmt: Function,
+        *,
+        llvm_name: str | None = None,
+        this_class: str | None = None,
+        is_init: bool = False,
+        allow_generic: bool = False,
+    ) -> FunctionInfo:
+        raise NotImplementedError
+
+    def _emit_function(
+        self, info: FunctionInfo, stmt: Function, captures: Any
+    ) -> None:
+        raise NotImplementedError
+
+    def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
+        raise NotImplementedError
+
+    def _call_generic(self, stmt: Function, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _call_generic_class(self, name: str, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _instantiate_class(
+        self, name: str, args: tuple[Ty, ...], line: int | None
+    ) -> TypeDesc:
+        raise NotImplementedError
+
+    def _subst_ty(self, ty: Ty) -> Ty:
+        raise NotImplementedError
+
+    def _class_display(self, class_name: str) -> str:
         raise NotImplementedError
 
     def _type_desc(self, ty: Ty, line: int | None) -> TypeDesc:

@@ -34,8 +34,15 @@ class ClassCodegenLowering(LoweringBase):
         if not (self._function_ir is self.main and len(self._scopes) == 1):
             self._local_class_declaration(stmt)
             return
+        if stmt.type_params:
+            for layout in self._generic_class_by_source.get(
+                stmt.name.lexeme, []
+            ):
+                self._emit_top_level_class(layout)
+            return
+        self._emit_top_level_class(self._classes[stmt.name.lexeme])
 
-        layout = self._classes[stmt.name.lexeme]
+    def _emit_top_level_class(self, layout: ClassLayout) -> None:
         raw, descriptor = self._new_class_descriptor()
         super_ptr = self._class_super_pointer(layout)
         vtable_raw = self._class_vtable(layout, super_ptr)
@@ -142,7 +149,7 @@ class ClassCodegenLowering(LoweringBase):
         init_closure: Any,
     ) -> None:
         effective = layout.effective_init()
-        name_value = self._string_literal(layout.name)
+        name_value = self._string_literal(layout.display)
         init_min = 0 if effective is None else effective.fn_sig.min_params
         init_max = 0 if effective is None else len(effective.fn_sig.params)
         values = [

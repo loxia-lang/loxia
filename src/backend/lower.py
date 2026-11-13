@@ -23,6 +23,7 @@ from src.backend.lower_calls import CallLowering
 from src.backend.lower_class_codegen import ClassCodegenLowering
 from src.backend.lower_class_layout import ClassLayoutLowering
 from src.backend.lower_functions import FunctionLowering
+from src.backend.lower_generics import GenericLowering
 from src.backend.lower_instances import InstanceLowering
 from src.backend.lower_model import (
     _BOOL,
@@ -84,6 +85,7 @@ from src.frontend.ty import (
 
 
 class Lowerer(
+    GenericLowering,
     FunctionLowering,
     VariableLowering,
     StringLowering,
@@ -99,10 +101,16 @@ class Lowerer(
         *,
         types: dict[Expr, Ty],
         depths: dict[Expr, int],
+        generic_instances: Any = None,
+        generic_classes: Any = None,
+        generic_class_sites: Any = None,
     ) -> None:
         self.module: Any = module
         self.types = types
         self.depths = depths
+        self.generic_instances = generic_instances or {}
+        self.generic_classes = generic_classes or set()
+        self.generic_class_sites = generic_class_sites or {}
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
@@ -123,12 +131,21 @@ class Lowerer(
         self._in_init = False
         self._method_class: str | None = None
         self._analysis = CaptureAnalysis({}, frozenset())
+        self._type_subst: dict[str, Ty] = {}
+        self._generic_fns: dict[str, Function] = {}
+        self._generic_fn_cache: dict[tuple[str, tuple[str, ...]], FunctionInfo] = {}
+        self._generic_class_layouts: dict[str, ClassLayout] = {}
+        self._generic_class_by_source: dict[str, list[ClassLayout]] = {}
+        self._generic_class_nodes: dict[str, Class] = {}
+        self._generic_descriptors: dict[str, Any] = {}
 
     # --- programa ---
 
     def lower(self, statements: list[Stmt]) -> None:
         self._analysis = analyze_captures(statements)
+        self._prepare_generics(statements)
         self._predeclare_classes(statements)
+        self._prepare_generic_classes(statements)
         self._predeclare_functions(statements)
 
         main = llvm_ir.define_main(self.module)
@@ -150,7 +167,7 @@ class Lowerer(
         self._seal_blocks(main)
 
         for statement in statements:
-            if not isinstance(statement, Function):
+            if not isinstance(statement, Function) or statement.type_params:
                 continue
             info = self._top_level[id(statement)]
             self._emit_function(info, statement, ())
@@ -191,6 +208,8 @@ class Lowerer(
         elif isinstance(stmt, Return):
             self._return(stmt)
         elif isinstance(stmt, Function):
+            if stmt.type_params:
+                return
             info = self._top_level.get(id(stmt))
             if info is not None:
                 self._define_top_level_function(stmt, info)
@@ -285,10 +304,11 @@ class Lowerer(
                     [value.llvm],
                 )
             case ValueType.CLASS | ValueType.INSTANCE:
+                display = self._class_display(value.class_name or "?")
                 text = (
-                    value.class_name or "?"
+                    display
                     if value.ty is ValueType.CLASS
-                    else f"{value.class_name or '?'} instance"
+                    else f"{display} instance"
                 )
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]),
@@ -1042,7 +1062,17 @@ def lower_program(
     *,
     types: dict[Expr, Ty],
     depths: dict[Expr, int],
+    generic_instances: Any = None,
+    generic_classes: Any = None,
+    generic_class_sites: Any = None,
 ) -> Any:
     module = llvm_ir.new_module()
-    Lowerer(module, types=types, depths=depths).lower(statements)
+    Lowerer(
+        module,
+        types=types,
+        depths=depths,
+        generic_instances=generic_instances,
+        generic_classes=generic_classes,
+        generic_class_sites=generic_class_sites,
+    ).lower(statements)
     return module

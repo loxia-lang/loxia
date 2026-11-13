@@ -44,6 +44,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/any_box.lox",
         "tests/cases/nil_aware.lox",
     ),
+    "t7": (
+        "tests/cases/generic_class.lox",
+        "tests/cases/generic_functions.lox",
+    ),
     "l5": (
         "tests/cases/class_bound_method.lox",
         "tests/cases/class_fields.lox",
@@ -110,7 +114,6 @@ PENDING: dict[str, str] = {
     "tests/cases/exponentiation.lox": "l6",
     "tests/cases/for_in.lox": "l6",
     "tests/cases/for_in_capture.lox": "l6",
-    "tests/cases/generic_class.lox": "l6",
     "tests/cases/generic_lambda_value.lox": "l6",
     "tests/cases/generics.lox": "l6",
     "tests/cases/interpolation.lox": "l6",

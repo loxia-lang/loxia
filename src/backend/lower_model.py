@@ -129,6 +129,7 @@ class FunctionInfo:
     fn_sig: FnSig
     this_class: str | None = None
     is_init: bool = False
+    type_subst: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -185,10 +186,16 @@ class ClassLayout:
     super_layout: ClassLayout | None = None
     local: bool = False
     ir_name: str | None = None
+    display_name: str | None = None
+    generic: bool = False
     init_method: MethodLayout | None = None
     vtable_size: int = 0
     ctor: Any = None
     instance_type: Any = None
+
+    @property
+    def display(self) -> str:
+        return self.display_name or self.name
 
     def field(self, name: str) -> FieldLayout | None:
         for field in self.fields:
