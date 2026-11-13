@@ -8,5 +8,17 @@ interpretador para não divergirem.
 from __future__ import annotations
 
 BUILTIN_NAMES = frozenset(
-    {"chars", "len", "range", "repr", "str", "Int", "Float", "math", "Result"}
+    {
+        "chars",
+        "len",
+        "range",
+        "repr",
+        "str",
+        "Int",
+        "Float",
+        "math",
+        "Result",
+        "Exception",
+        "LoxRuntimeError",
+    }
 )

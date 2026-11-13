@@ -37,8 +37,10 @@ from src.frontend.stmt import (
     Function,
     If,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -90,6 +92,9 @@ class AstPrinter:
         )
         return f"(match {expr.scrutinee.accept(self)} {arms})"
 
+    def _block(self, statements: list[Stmt]) -> str:
+        return "(block " + " ".join(s.accept(self) for s in statements) + ")"
+
     def _pattern(self, pattern: object) -> str:
         if isinstance(pattern, VariantPattern):
             bindings = " ".join(token.lexeme for token in pattern.bindings)
@@ -98,6 +103,24 @@ class AstPrinter:
                 f"({pattern.enum.lexeme}.{pattern.variant.lexeme}{suffix})"
             )
         return "_"
+
+    def visit_try_stmt(self, stmt: Try) -> str:
+        handlers = " ".join(
+            f"(except {clause.type_name.lexeme} as {clause.binding.lexeme} "
+            f"{self._block(clause.body)})"
+            for clause in stmt.handlers
+        )
+        finally_part = (
+            f" (finally {self._block(stmt.finally_body)})"
+            if stmt.finally_body is not None
+            else ""
+        )
+        return f"(try {self._block(stmt.body)} {handlers}{finally_part})"
+
+    def visit_raise_stmt(self, stmt: Raise) -> str:
+        if stmt.value is None:
+            return "(raise)"
+        return f"(raise {stmt.value.accept(self)})"
 
     def visit_enum_stmt(self, stmt: EnumDecl) -> str:
         params = ""

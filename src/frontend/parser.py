@@ -39,6 +39,7 @@ from src.frontend.stmt import (
     Destructure,
     EnumDecl,
     EnumVariant,
+    ExceptClause,
     Expression,
     Field,
     ForIn,
@@ -46,8 +47,10 @@ from src.frontend.stmt import (
     If,
     Param,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -296,10 +299,56 @@ class Parser:
         if self._match(TokenType.WHILE):
             return self._while_statement()
 
+        if self._match(TokenType.TRY):
+            return self._try_statement(self._previous())
+
+        if self._match(TokenType.RAISE):
+            return self._raise_statement(self._previous())
+
         if self._match(TokenType.LEFT_BRACE):
             return Block(self._block())
 
         return self._expression_statement()
+
+    def _try_statement(self, keyword: Token) -> Stmt:
+        self._consume(TokenType.LEFT_BRACE, "Expect '{' after 'try'.")
+        body = self._block()
+
+        handlers: list[ExceptClause] = []
+        while self._match(TokenType.EXCEPT):
+            type_name = self._consume(
+                TokenType.IDENTIFIER, "Expect exception type after 'except'."
+            )
+            self._consume(TokenType.AS, "Expect 'as' after exception type.")
+            binding = self._consume(
+                TokenType.IDENTIFIER, "Expect binding name after 'as'."
+            )
+            self._consume(
+                TokenType.LEFT_BRACE, "Expect '{' after except binding."
+            )
+            handlers.append(ExceptClause(type_name, binding, self._block()))
+
+        finally_body: list[Stmt] | None = None
+        if self._match(TokenType.FINALLY):
+            self._consume(TokenType.LEFT_BRACE, "Expect '{' after 'finally'.")
+            finally_body = self._block()
+
+        if not handlers and finally_body is None:
+            raise self._error(
+                keyword, "Try needs at least one 'except' or 'finally'."
+            )
+
+        return Try(keyword, body, handlers, finally_body)
+
+    def _raise_statement(self, keyword: Token) -> Stmt:
+        value: Expr | None = None
+        if not self._check(TokenType.SEMICOLON) and not self._check(
+            TokenType.RIGHT_BRACE
+        ):
+            value = self._expression()
+
+        self._end_statement("Expect ';' after raise.")
+        return Raise(keyword, value)
 
     def _block(self) -> list[Stmt]:
         statements: list[Stmt] = []

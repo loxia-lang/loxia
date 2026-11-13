@@ -50,8 +50,10 @@ from src.frontend.stmt import (
     Function,
     If,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -156,6 +158,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._next_type_var_id = 0
         self._generic_context: list[tuple[str, tuple[TyVar, ...]]] = []
         self._native_modules: dict[str, dict[str, Ty]] = {}
+        self._except_depth = 0
         # Tipos inferidos por nó, consumidos pelo backend (ADR-0031, decisão 7).
         self.types: dict[Expr, Ty] = {}
         self._function_depth = 0
@@ -192,6 +195,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             },
         )
         self._scopes[0]["Result"] = EnumObjectTy("Result")
+
+        message_token = Token(TokenType.IDENTIFIER, "message", None, 0)
+        self._classes["Exception"] = ClassInfo(
+            "Exception",
+            None,
+            fields={
+                "message": FieldBinding(STRING, False, message_token)
+            },
+            init=FnTy((STRING,), ClassTy("Exception"), 1),
+        )
+        self._classes["LoxRuntimeError"] = ClassInfo(
+            "LoxRuntimeError",
+            "Exception",
+            init=FnTy((STRING,), ClassTy("LoxRuntimeError"), 1),
+        )
+        self._scopes[0]["Exception"] = ClassObjectTy("Exception")
+        self._scopes[0]["LoxRuntimeError"] = ClassObjectTy("LoxRuntimeError")
 
         self._native_modules = {
             "Int": {
@@ -1850,6 +1870,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _always_returns(self, stmt: Stmt) -> bool:
         if isinstance(stmt, Return):
             return True
+        if isinstance(stmt, Raise):
+            return True
+        if isinstance(stmt, Try):
+            if stmt.finally_body is not None and self._body_always_returns(
+                stmt.finally_body
+            ):
+                return True
+            if not self._body_always_returns(stmt.body):
+                return False
+            return all(
+                self._body_always_returns(clause.body)
+                for clause in stmt.handlers
+            )
         if isinstance(stmt, Block):
             return any(self._always_returns(inner) for inner in stmt.statements)
         if isinstance(stmt, If):
@@ -1863,6 +1896,73 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _body_always_returns(self, body: list[Stmt]) -> bool:
         return any(self._always_returns(stmt) for stmt in body)
+
+    def _resolve_exception_type(self, token: Token) -> Ty:
+        info = self._classes.get(token.lexeme)
+        if info is None:
+            self._error(token, f"Unknown exception type '{token.lexeme}'.")
+            return ERROR
+        if not self._is_subclass(token.lexeme, "Exception"):
+            self._error(
+                token,
+                f"Type '{token.lexeme}' isn't an exception.",
+            )
+            return ERROR
+
+        return ClassTy(token.lexeme)
+
+    def visit_try_stmt(self, stmt: Try) -> None:
+        self._begin_scope()
+        for statement in stmt.body:
+            self._check_stmt(statement)
+        self._end_scope()
+
+        for index, clause in enumerate(stmt.handlers):
+            exception_ty = self._resolve_exception_type(clause.type_name)
+            if (
+                clause.type_name.lexeme == "Exception"
+                and index != len(stmt.handlers) - 1
+            ):
+                self._error(
+                    clause.type_name,
+                    "Catch-all 'Exception' must be the last handler.",
+                )
+
+            self._begin_scope()
+            self._define(clause.binding, exception_ty)
+            self._except_depth += 1
+            try:
+                for statement in clause.body:
+                    self._check_stmt(statement)
+            finally:
+                self._except_depth -= 1
+                self._end_scope()
+
+        if stmt.finally_body is not None:
+            self._begin_scope()
+            for statement in stmt.finally_body:
+                self._check_stmt(statement)
+            self._end_scope()
+
+    def visit_raise_stmt(self, stmt: Raise) -> None:
+        if stmt.value is None:
+            if self._except_depth == 0:
+                self._error(
+                    stmt.keyword,
+                    "Can't re-raise outside of an except block.",
+                )
+            return
+
+        raised = self._infer(stmt.value)
+        if raised is ERROR:
+            return
+        if raised is ANY or not self._assignable(
+            ClassTy("Exception"), raised
+        ):
+            self._error(
+                stmt.keyword,
+                f"Can only raise Exception instances, found {display(raised)}.",
+            )
 
     def visit_print_stmt(self, stmt: Print) -> None:
         ty = self._infer(stmt.expression)

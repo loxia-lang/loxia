@@ -20,6 +20,15 @@ class LoxRuntimeError(Exception):
         self.message = message
 
 
+class LoxRaise(Exception):
+    """`raise` da linguagem, separado dos erros fatais de runtime."""
+
+    def __init__(self, token: Token, value: object) -> None:
+        super().__init__("raise")
+        self.token = token
+        self.value = value
+
+
 class NativeError(Exception):
     """Erro de argumento de função nativa.
 

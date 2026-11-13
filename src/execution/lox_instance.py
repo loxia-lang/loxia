@@ -53,4 +53,7 @@ class LoxInstance:
                 )
 
     def __str__(self) -> str:
+        if self.is_instance_of("Exception") and "message" in self._fields:
+            return f"{self._klass.name}: {self._fields['message']}"
+
         return f"{self._klass.name} instance"

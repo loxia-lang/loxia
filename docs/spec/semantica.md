@@ -10,8 +10,9 @@ Comportamento observável do interpretador. Implementação: [`src/execution/int
 Um programa é uma lista de declarações executadas **em ordem**. Um erro de compilação
 (léxico, sintaxe ou resolver) impede a execução inteira. Um erro de runtime interrompe o
 programa no ponto em que ocorreu; o que já foi impresso permanece. Desde o
-[ADR-0026](../adr/0026-freeze-1.0.md), erro de runtime é **fatal** (exit 70): a 1.0 não tem
-`try`/`throw`/`Result`; erros de tipo/sintaxe saem 65.
+[ADR-0026](../adr/0026-freeze-1.0.md), erro de runtime **não capturado** é fatal (exit 70);
+`try`/`raise` ([ADR-0042](../adr/0042-excecoes.md)) capturam exceções explícitas e erros de
+runtime, e `Result` cobre erro esperado. Erros de tipo/sintaxe saem 65.
 
 O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
 Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declarações
@@ -728,6 +729,38 @@ val area = match s {
   não têm `len` e não são chave de `Map`.
 - Fora da v1: padrões literais/`nil`, guards, aninhamento, `|`, `match` sobre uniões e
   variantes nulas de enum genérico. O backend rejeita `enum`/`match` até o L6.
+
+## Exceções
+
+```lox
+class MyError(Exception) {
+  init(msg: String) { this.message = msg }
+}
+
+try {
+  raise MyError("falhou")
+} except MyError as e {
+  print "meu: ${e.message}"
+} except LoxRuntimeError as e {
+  print "runtime: ${e.message}"
+} finally {
+  print "sempre"
+}
+```
+
+- `Exception` é a base embutida; `LoxRuntimeError` é subclasse embutida e representa
+  qualquer erro de runtime (divisão por zero, índice etc.). O usuário pode declarar
+  `class MyError(Exception)` com `message`.
+- `raise Expr` exige instância de `Exception`; `raise;` dentro de `except` relança a
+  exceção corrente. Fora de `except`, `raise;` é erro.
+- `try` é statement; `except Tipo as e` é tipado, múltiplo e avaliado em ordem;
+  `except Exception as e` é catch-all e precisa ser o último. Pelo menos um `except` ou
+  `finally` é obrigatório.
+- Erros de runtime são convertidos para `LoxRuntimeError` no `try`; capturar tipos
+  específicos (`DivisionByZero`) fica para depois. `finally` sempre roda e seu
+  `return`/`raise` vence o fluxo anterior.
+- Exceção não capturada: `Unhandled exception: <tipo>: <msg>` + `[line N]`, exit 70.
+  Sem stack trace; o backend rejeita `try`/`raise` até o L6.
 
 ## Erros
 

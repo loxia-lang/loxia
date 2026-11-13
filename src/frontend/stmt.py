@@ -25,6 +25,8 @@ class Visitor[R](Protocol):
     def visit_var_stmt(self, stmt: Var) -> R: ...
     def visit_destructure_stmt(self, stmt: Destructure) -> R: ...
     def visit_enum_stmt(self, stmt: EnumDecl) -> R: ...
+    def visit_try_stmt(self, stmt: Try) -> R: ...
+    def visit_raise_stmt(self, stmt: Raise) -> R: ...
     def visit_while_stmt(self, stmt: While) -> R: ...
 
 
@@ -74,6 +76,33 @@ class EnumDecl(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_enum_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ExceptClause:
+    type_name: Token
+    binding: Token
+    body: list[Stmt]
+
+
+@dataclass(frozen=True, eq=False)
+class Try(Stmt):
+    keyword: Token
+    body: list[Stmt]
+    handlers: list[ExceptClause]
+    finally_body: list[Stmt] | None
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_try_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Raise(Stmt):
+    keyword: Token
+    value: Expr | None
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_raise_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)

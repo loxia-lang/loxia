@@ -957,3 +957,69 @@ def test_enum_match_runtime_error(
     )
 
     assert "No match arm matched." in stderr
+
+
+def test_exceptions_runtime_flow(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        """
+        class MyError(Exception) {
+          init(msg: String) { this.message = msg }
+        }
+
+        try {
+          raise MyError("falhou")
+        } except MyError as e {
+          print "meu: ${e.message}"
+        } finally {
+          print "fim"
+        }
+
+        try { print 1 / 0 }
+        except LoxRuntimeError as e { print "runtime" }
+
+        try { raise MyError("x") }
+        except LoxRuntimeError as e { print "errado" }
+        except Exception as e { print "generico" }
+
+        fn f() -> Int {
+          try { return 1 } finally { return 2 }
+        }
+        print f()
+        """,
+        capsys,
+    )
+
+    assert stdout == ["meu: falhou", "fim", "runtime", "generico", "2"]
+    assert stderr == ""
+
+
+def test_bare_raise_relanca(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = run(
+        """
+        class MyError(Exception) {
+          init(msg: String) { this.message = msg }
+        }
+
+        try {
+          try { raise MyError("x") }
+          except MyError as e { raise; }
+          finally { print "inner" }
+        } except MyError as e {
+          print "outer: ${e.message}"
+        }
+        """,
+        capsys,
+    )
+
+    assert stdout == ["inner", "outer: x"]
+    assert stderr == ""
+
+
+def test_uncaught_exception_e_fatal(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, stderr = run('raise LoxRuntimeError("boom");', capsys)
+
+    assert "Unhandled exception: LoxRuntimeError: boom" in stderr

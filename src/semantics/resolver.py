@@ -45,8 +45,10 @@ from src.frontend.stmt import (
     Function,
     If,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -254,6 +256,30 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                     stmt.keyword, "Can't return a value from an initializer."
                 )
 
+            self._resolve_expr(stmt.value)
+
+    def visit_try_stmt(self, stmt: Try) -> None:
+        self._begin_scope()
+        for statement in stmt.body:
+            self._resolve_stmt(statement)
+        self._end_scope()
+
+        for clause in stmt.handlers:
+            self._begin_scope()
+            self._declare(clause.binding, mutable=False)
+            self._define(clause.binding)
+            for statement in clause.body:
+                self._resolve_stmt(statement)
+            self._end_scope()
+
+        if stmt.finally_body is not None:
+            self._begin_scope()
+            for statement in stmt.finally_body:
+                self._resolve_stmt(statement)
+            self._end_scope()
+
+    def visit_raise_stmt(self, stmt: Raise) -> None:
+        if stmt.value is not None:
             self._resolve_expr(stmt.value)
 
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:

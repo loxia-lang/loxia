@@ -24,7 +24,7 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 `nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
 `or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
 compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
-casos por nível — **31 dos 89** golden cases compilam e **63** passam no `--check`.
+casos por nível — **31 dos 90** golden cases compilam e **64** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
 valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6a/T6c vêm
@@ -403,7 +403,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (63 de 89 passam no `--check`; 31 compilam hoje);
+- [x] anotar 15 `tests/cases` (64 de 90 passam no `--check`; 31 compilam hoje);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
@@ -433,7 +433,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 895 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 908 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -537,20 +537,14 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
    entraram ([ADR-0041](docs/adr/0041-enums-match.md)).
 7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
-8. **Exceções (`raise`/`try`/`except`/`finally`):** ainda **não decidido**. O caminho mais
-   barato é: `raise "msg";` (valor `String`), `try { } except e { } finally { }` como
-   **statement** (pelo menos um de `except`/`finally`), `e: String` imutável no escopo do
-   `except`, `finally` sempre roda (e seu `return`/`raise` vence), sem `else`, sem catch
-   tipado e sem re-raise nu na v1. Só `raise` **explícito** é capturável: erros de runtime
-   continuam fatais (exit 70), o que evita mexer em todos os caminhos de erro e mantém o I1
-   tratável. Uncaught vira `Unhandled exception: <msg>` (exit 70), determinístico. O backend
-   rejeita `try`/`raise` com 65 até o L6 (unwinding/landing pads são caros). Alternativa de
-   custo zero: **não ter exceções** e usar `Result` (já existe) para erro esperado, deixando
-   falha fatal para bugs. Custo do caminho barato: ~1 sessão no tree-walk, sem backend;
-   decidir em ADR curto **antes** de implementar e não bloquear o L4.
+8. **Exceções (`raise`/`try`/`except`/`finally`):** **decidido e implementado** no
+   tree-walk ([ADR-0042](docs/adr/0042-excecoes.md)): classes (`Exception`/
+   `LoxRuntimeError`), `except Tipo as e` múltiplo, `raise`/`raise;`, `finally`, erros de
+   runtime capturáveis como `LoxRuntimeError`; backend 65 até o L6.
 
 Fechadas nesta sessão: backend em `llvmlite` (ADR-0031), normalização de ternário/
-`and`/`or`/`??` e strings do L3 (ver [`docs/adr`](docs/adr/) e [`CHANGELOG.md`](CHANGELOG.md)).
+`and`/`or`/`??` e strings do L3, enums/match/`Result` (ADR-0041) e exceções
+([ADR-0042](docs/adr/0042-excecoes.md)) (ver [`docs/adr`](docs/adr/) e [`CHANGELOG.md`](CHANGELOG.md)).
 
 ---
 

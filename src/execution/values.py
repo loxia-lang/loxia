@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from src.execution.lox_enum import LoxEnumValue
+from src.execution.lox_exception import LoxExceptionValue
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
 from src.execution.lox_tuple import LoxTuple
@@ -40,6 +41,8 @@ def _stringify(value: object, stack: set[int]) -> str:
         return _stringify_tuple(value, stack)
     if isinstance(value, LoxEnumValue):
         return _stringify_enum(value, stack)
+    if isinstance(value, LoxExceptionValue):
+        return f"{value.type_name}: {value.message}"
 
     return str(value)
 

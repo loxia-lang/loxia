@@ -13,6 +13,10 @@
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)
 
+> **Atualização (ADR-0041/0042):** `enums`/`match`/`Result` e `try`/`except`/
+> `finally`/`raise` entraram **depois** do freeze, no tree-walk; o escopo da 1.0
+> continua o do freeze.
+>
 > **Atualização (ADR-0038, 2026-11-12):** traits foram decididos como nominais,
 > `implements` e com métodos default, mas continuam **pós-MVP**; `D-17` fechado.
 >

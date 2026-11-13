@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Exceções ([ADR-0042](docs/adr/0042-excecoes.md)): `Exception`/`LoxRuntimeError`
+  embutidos, `class MyError(Exception)`, `raise expr`/`raise;`, `try` com múltiplos
+  `except Tipo as e` e `finally`; erros de runtime capturáveis como `LoxRuntimeError`;
+  uncaught exit 70. Backend rejeita com 65 até o L6.
 - Enums e `match` ([ADR-0041](docs/adr/0041-enums-match.md)): `enum` com variantes e
   payload posicional, genéricos (`Result[T, E]` embutido com `Ok`/`Err`), construtores
   namespaced (`Cor.Verde`, `Shape.Circle(1.0)`), `match` expressão com bindings e `_`,

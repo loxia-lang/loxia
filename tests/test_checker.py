@@ -2082,3 +2082,67 @@ def test_enum_match_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_exceptions_typed_catch_and_finally() -> None:
+    lox = check(
+        """
+        class MyError(Exception) {
+          init(msg: String) { this.message = msg }
+        }
+
+        fn first() -> Int {
+          try {
+            raise MyError("x")
+          } except MyError as e {
+            return 1
+          } finally {
+            print "fim"
+          }
+        }
+
+        try { print 1 / 0 }
+        except LoxRuntimeError as e { print e.message }
+
+        try { raise MyError("x") }
+        except LoxRuntimeError as e { print "runtime" }
+        except Exception as e { print "generico" }
+
+        print first()
+        print Exception("base").message
+        print LoxRuntimeError("runtime").message
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("raise 1;", "Can only raise Exception instances, found Int."),
+        ("raise;", "Can't re-raise outside of an except block."),
+        (
+            "try { print 1 } except Foo as e { print e }",
+            "Unknown exception type 'Foo'.",
+        ),
+        (
+            "class X {}\nraise X();",
+            "Can only raise Exception instances, found X.",
+        ),
+        (
+            "try { print 1 } except Exception as e { print e } "
+            "except LoxRuntimeError as e { print e }",
+            "Catch-all 'Exception' must be the last handler.",
+        ),
+        ("try { print 1 }", "Try needs at least one 'except' or 'finally'."),
+    ],
+)
+def test_exception_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err

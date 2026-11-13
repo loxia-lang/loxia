@@ -413,3 +413,17 @@ def test_enum_sem_backend_e_rejeitado(tmp_path: Path) -> None:
     assert result.returncode == 65
     assert "EnumDecl is not supported by the backend yet." in result.stderr
     assert not binary.exists()
+
+
+@pytest.mark.backend
+def test_try_sem_backend_e_rejeitado(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "try { print 1; } finally { print 2; }\n",
+    )
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 65
+    assert "Try is not supported by the backend yet." in result.stderr
+    assert not binary.exists()

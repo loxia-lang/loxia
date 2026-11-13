@@ -15,8 +15,10 @@ from src.frontend.stmt import (
     Function,
     If,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -567,3 +569,20 @@ def test_enum_and_match_parse() -> None:
     assert isinstance(statements[1], Var)
     assert isinstance(statements[1].initializer, Match)
     assert len(statements[1].initializer.arms) == 2
+
+
+def test_try_and_raise_parse() -> None:
+    statements = parse(
+        'try { raise "x"; } except LoxRuntimeError as e { print e; } '
+        "finally { print 1; }"
+    )
+
+    first = statements[0]
+    assert isinstance(first, Try)
+    assert len(first.handlers) == 1
+    assert first.handlers[0].type_name.lexeme == "LoxRuntimeError"
+    assert first.handlers[0].binding.lexeme == "e"
+    assert first.finally_body is not None
+    assert isinstance(first.body[0], Raise)
+    assert first.body[0].value is not None
+    assert AstPrinter().print_program(statements).startswith("(try")

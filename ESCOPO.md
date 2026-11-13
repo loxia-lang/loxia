@@ -32,7 +32,7 @@ próximo marco é o **M5 (tipos v2)** e o codegen fica pausado no L4 até lá.
 | --- | --- |
 | Escopo/linguagem 1.0 | ✅ congelado e implementado |
 | Runtime tree-walk | ✅ |
-| Suíte e docs | ✅ `make check` verde; 895 pass + 8 `xfail` intencionais |
+| Suíte e docs | ✅ `make check` verde; 908 pass + 8 `xfail` intencionais |
 | Backend nativo | 🟡 pós-1.0: L0–L3 entregues (Int/Float/Bool/nil/String, funções, açúcar, arena); L4+ pausado até o M5 |
 | **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 
@@ -88,7 +88,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |
 | Async/await (`Task[T]`) | depois do M7 + I/O | direção no [ADR-0037](docs/adr/0037-async-direcao.md); colored, determinístico; não é paralelismo (IDEIAS I-7) |
 | Contratos (`requires`/`ensures`/`invariant`) e JSON | pós | ver I-4 no [`IDEIAS.md`](IDEIAS.md) |
-| `try`/`except`/`finally`/`raise` | pós | decisão pendente (TODO §11); caminho barato: `raise` de `String`, só explícito capturável, backend 65 até o L6; alternativa zero-custo: `Result` |
+| `try`/`except`/`finally`/`raise` | ✅ feito | classes de exceção, `except Tipo as e`, `raise;`, `finally`; backend 65 até o L6 ([ADR-0042](docs/adr/0042-excecoes.md)) |
 | Variádicos, trailing closure, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
 | `type` alias, derive, operator overloading, extension methods | pós | — |
 | `if`/bloco como expressão, `println` função, `loop`/`break` rotulado | pós | — |

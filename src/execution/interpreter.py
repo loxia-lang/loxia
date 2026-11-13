@@ -2,6 +2,7 @@ from collections.abc import Callable, Iterator
 
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.errors import (
+    LoxRaise,
     LoxRuntimeError,
     NativeError,
     ReturnSignal,
@@ -12,6 +13,7 @@ from src.execution.environment import Environment
 from src.execution.lox_callable import LoxCallable
 from src.execution.lox_class import FieldInfo, LoxClass
 from src.execution.lox_enum import LoxEnumObject, LoxEnumValue
+from src.execution.lox_exception import LoxExceptionClass, LoxExceptionValue
 from src.execution.lox_function import LoxFunction
 from src.execution.lox_instance import LoxInstance
 from src.execution.lox_list import LoxList
@@ -67,8 +69,10 @@ from src.frontend.stmt import (
     Function,
     If,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -99,6 +103,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals = Environment()
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
+        self._current_exception: object | None = None
         self.globals.define("chars", Chars(), mutable=False)
         self.globals.define("len", Len(), mutable=False)
         self.globals.define("range", RangeNative(), mutable=False)
@@ -112,11 +117,25 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             LoxEnumObject("Result", {"Ok": 1, "Err": 1}),
             mutable=False,
         )
+        exception_class = LoxExceptionClass("Exception", None)
+        self.globals.define("Exception", exception_class, mutable=False)
+        self.globals.define(
+            "LoxRuntimeError",
+            LoxExceptionClass("LoxRuntimeError", exception_class),
+            mutable=False,
+        )
 
     def interpret(self, statements: list[Stmt]) -> None:
         try:
             for statement in statements:
                 self._execute(statement)
+        except LoxRaise as raised:
+            self.reporter.runtime_error(
+                LoxRuntimeError(
+                    raised.token,
+                    f"Unhandled exception: {stringify(raised.value)}",
+                )
+            )
         except LoxRuntimeError as e:
             self.reporter.runtime_error(e)
 
@@ -636,6 +655,71 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 expr.paren, "Numeric conversion failed."
             ) from None
 
+    def visit_try_stmt(self, stmt: Try) -> None:
+        try:
+            try:
+                self.execute_block(stmt.body, Environment(self.environment))
+            except LoxRaise as raised:
+                if not self._run_handlers(stmt, raised.value):
+                    raise
+            except LoxRuntimeError as runtime:
+                value = LoxExceptionValue("LoxRuntimeError", runtime.message)
+                if not self._run_handlers(stmt, value):
+                    raise
+        finally:
+            if stmt.finally_body is not None:
+                self.execute_block(
+                    stmt.finally_body, Environment(self.environment)
+                )
+
+    def _run_handlers(self, stmt: Try, value: object) -> bool:
+        for clause in stmt.handlers:
+            exception_class = self.environment.get(clause.type_name)
+            if not isinstance(exception_class, LoxClass):
+                raise LoxRuntimeError(
+                    clause.type_name, "Exception type must be a class."
+                )
+            if not self._matches_exception(value, exception_class):
+                continue
+
+            environment = Environment(self.environment)
+            environment.define(clause.binding.lexeme, value, mutable=False)
+            previous = self._current_exception
+            self._current_exception = value
+            try:
+                self.execute_block(clause.body, environment)
+            finally:
+                self._current_exception = previous
+            return True
+
+        return False
+
+    def _matches_exception(self, value: object, klass: LoxClass) -> bool:
+        if isinstance(value, LoxInstance):
+            return value.is_instance_of(klass.name)
+        if isinstance(value, LoxExceptionValue):
+            return value.is_instance_of(klass.name)
+        return False
+
+    def visit_raise_stmt(self, stmt: Raise) -> None:
+        value = (
+            self._current_exception
+            if stmt.value is None
+            else self._evaluate(stmt.value)
+        )
+        if value is None:
+            raise LoxRuntimeError(
+                stmt.keyword, "No exception to re-raise."
+            )
+        if isinstance(value, LoxExceptionValue):
+            raise LoxRaise(stmt.keyword, value)
+        if isinstance(value, LoxInstance) and value.is_instance_of("Exception"):
+            raise LoxRaise(stmt.keyword, value)
+
+        raise LoxRuntimeError(
+            stmt.keyword, "Can only raise exceptions."
+        )
+
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:
         self._reject_immutable_redeclaration(stmt.name)
         variants = {
@@ -747,6 +831,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if isinstance(ob, LoxMap):
             return ob.get_method(expr.name)
+
+        if isinstance(ob, LoxExceptionValue):
+            if expr.name.lexeme == "message":
+                return ob.message
+            raise LoxRuntimeError(
+                expr.name, f"Undefined property '{expr.name.lexeme}'."
+            )
 
         if isinstance(ob, LoxEnumObject):
             value = ob.get(expr.name.lexeme)

@@ -48,6 +48,8 @@ statement      → exprStmt
                | printStmt
                | returnStmt
                | whileStmt
+               | tryStmt
+               | raiseStmt
                | block ;
 
 terminator     → ";"? ;   (* ver “Ponto e vírgula opcional” *)
@@ -63,6 +65,9 @@ ifStmt         → "if" "(" expression ")" statement
 printStmt      → "print" expression terminator ;
 returnStmt     → "return" expression? terminator ;
 whileStmt      → "while" "(" expression ")" statement ;
+tryStmt        → "try" block ( "except" IDENTIFIER "as" IDENTIFIER block )*
+                 ( "finally" block )? ;
+raiseStmt      → "raise" expression? terminator ;
 block          → "{" declaration* "}" ;
 
 expression     → assignment ;
@@ -101,6 +106,9 @@ pattern        → "_" | IDENTIFIER "." IDENTIFIER
                  ( "(" IDENTIFIER ( "," IDENTIFIER )* ")" )? ;
 lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | block ) ;
 ```
+
+`try` exige pelo menos um `except`/`finally`; `raise` sem expressão só dentro de
+`except` (relança). `except Exception as e` é o catch-all e deve ser o último.
 
 `enum` declara variantes namespaced (`Cor.Verde`, `Shape.Circle(1.0)`); `match` é
 expressão e exige enum exaustivo (ver [`semantica.md`](semantica.md)). `Result` é um enum
