@@ -49,9 +49,10 @@ promoção só `Int → Float`, `/` sempre `Float`, `%` truncado, `//` só `Int`
 
 ### 2.2 Inferência pendente (`T3`/`T5`)
 
-- **T3c** — parâmetro sem anotação; depende de generalização (T4) e de regra explícita
-  para não ficar monomórfico.
-- **T4** — let-polymorphism para funções genéricas implícitas.
+- **T3c** ✅ — parâmetro sem anotação em função de topo vira `TyVar` implícito,
+  instanciado por chamada; dois parâmetros sem anotação são independentes.
+- **T4** ✅ — let-polymorphism em `val f = fn(...)`: parâmetros/retorno inferidos e
+  variáveis livres generalizadas; `var` não generaliza.
 - **T5** — narrowing restante: campos/índices e merge completo de fluxo.
 - **T6** — traits/protocolos e exaustividade de `match`.
 - **T7** — monomorfização no codegen.
@@ -129,7 +130,9 @@ interpretador o objetivo é correção; ganho real vem do backend.
   No backend, hoje só existem funções de topo chamadas diretamente (L2); função como valor
   e closures chegam no L4, depois do M5.
 - Parâmetros/retorno assinados; generics de função T3b ([ADR-0027](docs/adr/0027-generics-t3b.md));
-  parâmetro sem anotação é T3c/T4.
+  parâmetro sem anotação em função de topo vira tipo implícito (T3c) e `val f = fn(x) => x`
+  generaliza (T4) ([ADR-0033](docs/adr/0033-inferencia-t3c-t4.md)); métodos ainda exigem
+  anotação e o corpo genérico só usa operações universais.
 - Sem overloading por tipo; usar nomes distintos ou traits.
 - Retorno inferido em lambda; funções declaradas exigem `-> T` no `--check`.
 - `throw` interage com `Never` no caminho que lança.

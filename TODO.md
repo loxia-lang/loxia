@@ -73,8 +73,8 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 
 | Etapa | O que falta | Ganho |
 | --- | --- | --- |
-| **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | inferência de parâmetro |
-| **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
+| **T3c** ✅ | parâmetro sem anotação vira `TyVar` implícito, instanciado por chamada (métodos ficam de fora) | inferência de parâmetro |
+| **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
 | **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais e exaustividade no `match` | abstração |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
@@ -452,7 +452,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M5** | Tipos v2 | T3c + T4–T6: generalização, classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade | ⬜ **próximo** |
+| **M5** | Tipos v2 | T3c + T4–T6: generalização, classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade — T3c/T4/T5 ✅; falta T6 | 🟡 **em andamento** |
 | **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
 | **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |

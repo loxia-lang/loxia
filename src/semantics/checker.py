@@ -226,7 +226,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if not isinstance(statement, Function):
                 continue
 
-            signature = self._signature(statement, is_init=False)
+            signature = self._signature(
+                statement, is_init=False, allow_implicit_type_params=True
+            )
             self._signatures[statement] = signature
             self._predeclared_by_name[statement.name.lexeme] = signature
 
@@ -822,7 +824,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_function_stmt(self, stmt: Function) -> None:
         signature = self._signatures.get(stmt)
         if signature is None:
-            signature = self._signature(stmt, is_init=False)
+            signature = self._signature(
+                stmt, is_init=False, allow_implicit_type_params=True
+            )
 
         self._define(
             stmt.name, self._function_value_type(stmt.name.lexeme, signature)
@@ -837,7 +841,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
 
     def _signature(
-        self, stmt: Function, *, is_init: bool, allow_type_params: bool = True
+        self,
+        stmt: Function,
+        *,
+        is_init: bool,
+        allow_type_params: bool = True,
+        allow_implicit_type_params: bool = False,
     ) -> FunctionSignature:
         names: list[str] = []
         variables: list[TyVar] = []
@@ -863,20 +872,27 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 names.append(token.lexeme)
                 variables.append(self._fresh_type_var(token.lexeme))
 
-        type_params = tuple(variables)
-        type_param_names = tuple(names)
-        self._push_type_params(type_param_names, type_params)
+        explicit_names = tuple(names)
+        explicit_variables = tuple(variables)
+        self._push_type_params(explicit_names, explicit_variables)
         try:
             param_types: list[Ty] = []
             minimum = 0
 
             for param in stmt.params:
                 if param.type_annotation is None:
-                    self._error(
-                        param.name,
-                        f"Parameter '{param.name.lexeme}' needs a type annotation.",
-                    )
-                    param_ty: Ty = ANY
+                    if allow_implicit_type_params:
+                        implicit = self._implicit_type_param_name(names)
+                        names.append(implicit)
+                        variable = self._fresh_type_var(implicit)
+                        variables.append(variable)
+                        param_ty: Ty = variable
+                    else:
+                        self._error(
+                            param.name,
+                            f"Parameter '{param.name.lexeme}' needs a type annotation.",
+                        )
+                        param_ty = ANY
                 else:
                     param_ty = self._resolve_type(param.type_annotation, param.name)
 
@@ -906,8 +922,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._pop_type_params()
 
         return FunctionSignature(
-            type_params, type_param_names, FnTy(tuple(param_types), return_ty, minimum)
+            tuple(variables),
+            tuple(names),
+            FnTy(tuple(param_types), return_ty, minimum),
         )
+
+    def _implicit_type_param_name(self, taken: list[str]) -> str:
+        """Nome determinístico para um parâmetro sem anotação (`T`, `T2`, ...)."""
+        index = 1
+        while True:
+            name = "T" if index == 1 else f"T{index}"
+            if name not in taken:
+                return name
+            index += 1
 
     def _check_function_body(
         self,
@@ -1078,6 +1105,79 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return
 
         self._error(token, "is doesn't support this type yet.")
+
+    def _polymorphic_lambda(self, expr: Lambda) -> Ty:
+        """Inferência + generalização de lambda em `val` (let-polymorphism, T4).
+
+        Parâmetros sem anotação viram `TyVar`; o retorno é inferido; as variáveis que
+        continuam livres no tipo final formam o esquema (`GenericFnTy`). Só vale para
+        `val`: com `var` a mutação quebraria o esquema.
+        """
+        names: list[str] = []
+        variables: list[TyVar] = []
+        param_types: list[Ty] = []
+        minimum = 0
+
+        for param in expr.params:
+            if param.type_annotation is not None:
+                param_ty = self._resolve_type(param.type_annotation, param.name)
+            else:
+                name = self._implicit_type_param_name(names)
+                variable = self._fresh_type_var(name)
+                names.append(name)
+                variables.append(variable)
+                param_ty = variable
+
+            if param.default is not None:
+                self._check(param.default, param_ty, param.name)
+            else:
+                minimum += 1
+
+            param_types.append(param_ty)
+
+        declared_return: Ty | None = None
+        if expr.return_type is not None:
+            declared_return = self._resolve_type(expr.return_type, expr.keyword)
+
+        signature = FnTy(
+            tuple(param_types),
+            declared_return if declared_return is not None else ANY,
+            minimum,
+        )
+        returns = self._check_function_body(
+            expr,
+            signature,
+            None,
+            is_init=False,
+            preserve_class=True,
+            collect_returns=True,
+            check_return_paths=False,
+        )
+        all_paths_return = self._body_always_returns(expr.body)
+        if declared_return is not None:
+            if (
+                not all_paths_return
+                and not is_nilable(declared_return)
+                and declared_return not in (ANY, NEVER)
+            ):
+                self._error(
+                    expr.keyword,
+                    f"Lambda body must return {display(declared_return)}.",
+                )
+            return_ty = declared_return
+        else:
+            return_ty = self._infer_lambda_return(expr, returns, all_paths_return)
+        fn = FnTy(tuple(param_types), return_ty, minimum)
+
+        free = [
+            variable
+            for variable in variables
+            if self._contains_any_type_var(fn, (variable,))
+        ]
+        if not free:
+            return fn
+
+        return GenericFnTy("lambda", tuple(free), fn)
 
     def _lambda_type(self, expr: Lambda, expected: FnTy | None) -> Ty:
         param_types: list[Ty] = []
@@ -1480,7 +1580,27 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return any(self._always_returns(stmt) for stmt in body)
 
     def visit_print_stmt(self, stmt: Print) -> None:
-        self._infer(stmt.expression)
+        ty = self._infer(stmt.expression)
+        if isinstance(ty, GenericFnTy):
+            token = self._expr_token(stmt.expression)
+            if token is not None:
+                self._generic_value_error(token, ty.name)
+
+    def _expr_token(self, expr: Expr) -> Token | None:
+        if isinstance(expr, Variable):
+            return expr.name
+        if isinstance(expr, Get):
+            return expr.name
+        if isinstance(expr, Index):
+            return expr.bracket
+        if isinstance(expr, Call):
+            return expr.paren
+        if isinstance(expr, Grouping):
+            return self._expr_token(expr.expression)
+        if isinstance(expr, Lambda):
+            return expr.keyword
+
+        return None
 
     def visit_return_stmt(self, stmt: Return) -> None:
         if stmt.value is None:
@@ -1511,6 +1631,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._return_collector.append(actual)
 
     def visit_var_stmt(self, stmt: Var) -> None:
+        if (
+            stmt.type_annotation is None
+            and not stmt.mutable
+            and isinstance(stmt.initializer, Lambda)
+        ):
+            # T4: `val f = fn(x) => x` generaliza para um esquema polimórfico.
+            scheme = self._polymorphic_lambda(stmt.initializer)
+            self.types[stmt.initializer] = scheme
+            self._define(stmt.name, scheme)
+            return
+
         if stmt.type_annotation is not None:
             annotated = self._resolve_type(stmt.type_annotation, stmt.name)
             if stmt.initializer is not None:

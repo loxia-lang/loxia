@@ -250,14 +250,15 @@ def test_lambda_parameters_are_typed_from_context() -> None:
     assert lox.reporter.had_error is False
 
 
-def test_lambda_without_context_needs_annotations(
+def test_lambda_without_context_generalizes(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # T4: `val f = fn(x) => x * 2` generaliza x, mas `*` exige número.
     lox = check("val f = fn(x) => x * 2;")
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
-    assert "Parameter 'x' needs a type annotation" in captured.err
+    assert "Operands must be numbers." in captured.err
 
 
 def test_lambda_mixed_returns_need_an_annotation(
@@ -659,7 +660,7 @@ def test_override_is_checked_even_if_superclass_comes_later(
         ("val x: Desconhecido = 1;", "Unknown type 'Desconhecido'."),
         (
             "fn f(a) -> Int { return a; }",
-            "Parameter 'a' needs a type annotation.",
+            "Expected Int, found T.",
         ),
         (
             "fn f(a: Int) { return a; }",
@@ -1112,6 +1113,93 @@ def test_narrowing_limitations(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_implicit_type_parameters() -> None:
+    lox = check(
+        """
+        fn igual(x, y) -> Bool { return x == y }
+        fn primeiro(x, y: Int) -> Int { return y }
+
+        print igual(1, 1)
+        print igual("a", "b")
+        print primeiro("ignorado", 7)
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_implicit_type_parameter_body_is_universal(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn dobro(x) -> Int { return x * 2 }
+        print dobro(2)
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Operands must be numbers." in captured.err
+
+
+def test_methods_still_require_parameter_annotations(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C { m(x) -> Int { return 1 } }
+        print C().m(1)
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Parameter 'x' needs a type annotation." in captured.err
+
+
+def test_let_polymorphic_lambda() -> None:
+    lox = check(
+        """
+        val id = fn(x) => x
+        val primeiro = fn(x, y) => x
+
+        print id(1)
+        print id("a")
+        print primeiro(10, 20)
+        print primeiro("z", "w")
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_generic_lambda_is_not_a_value(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(
+        """
+        val id = fn(x) => x
+        print id
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "can't be used as a value" in captured.err
+
+
+def test_var_lambda_nao_generaliza(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(
+        """
+        var f = fn(x) => x
+        print f(1)
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "needs a type annotation" in captured.err
 
 
 def test_narrowing_fields_and_indices() -> None:
