@@ -20,6 +20,7 @@ from src.backend.lower_model import (
     ANY_TAG_INSTANCE,
     ANY_TAG_INT,
     ANY_TAG_NIL,
+    ANY_TAG_RANGE,
     ANY_TAG_STRING,
     NUMERIC,
     BackendError,
@@ -36,8 +37,8 @@ from src.frontend.ty import BOOL as TY_BOOL
 from src.frontend.ty import FLOAT as TY_FLOAT
 from src.frontend.ty import INT as TY_INT
 from src.frontend.ty import NIL as TY_NIL
-from src.frontend.ty import STRING as TY_STRING
 from src.frontend.ty import (
+    RANGE,
     ClassObjectTy,
     ClassTy,
     FnTy,
@@ -46,6 +47,7 @@ from src.frontend.ty import (
     TyVar,
     UnionTy,
 )
+from src.frontend.ty import STRING as TY_STRING
 
 
 class OptionalLowering(LoweringBase):
@@ -62,6 +64,8 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.NIL)
         if ty is TY_ANY:
             return TypeDesc(ValueType.ANY)
+        if ty is RANGE:
+            return TypeDesc(ValueType.RANGE)
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
@@ -126,7 +130,7 @@ class OptionalLowering(LoweringBase):
                 return _I8_PTR
             case ValueType.FUNCTION:
                 return _I8_PTR
-            case ValueType.CLASS | ValueType.INSTANCE:
+            case ValueType.CLASS | ValueType.INSTANCE | ValueType.RANGE:
                 return _I8_PTR
             case ValueType.ANY:
                 return _ANY
@@ -167,7 +171,7 @@ class OptionalLowering(LoweringBase):
                 return Value(ValueType.STRING, llvm_ir.null_pointer())
             case ValueType.FUNCTION:
                 return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
-            case ValueType.CLASS | ValueType.INSTANCE:
+            case ValueType.CLASS | ValueType.INSTANCE | ValueType.RANGE:
                 return Value(ty, llvm_ir.null_pointer())
             case ValueType.ANY:
                 return Value(ValueType.ANY, llvm_ir.zero_value(_ANY))
@@ -238,6 +242,7 @@ class OptionalLowering(LoweringBase):
             ValueType.CLASS: ANY_TAG_CLASS,
             ValueType.INSTANCE: ANY_TAG_INSTANCE,
             ValueType.FUNCTION: ANY_TAG_FUNCTION,
+            ValueType.RANGE: ANY_TAG_RANGE,
         }.get(value.ty)
         if tag is None:
             raise _unsupported(f"Boxing {value.ty.name}", line)

@@ -21,7 +21,7 @@ from src.backend.lower_model import (
     Value,
     ValueType,
 )
-from src.frontend.expr import Call, Expr
+from src.frontend.expr import Call, Expr, Range
 from src.frontend.stmt import Function
 from src.frontend.token_type import TokenType
 from src.frontend.ty import Ty
@@ -88,6 +88,12 @@ class LoweringBase:
         raise NotImplementedError
 
     def _call_generic(self, stmt: Function, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _range_expr(self, expr: Range) -> Value:
+        raise NotImplementedError
+
+    def _range_call(self, expr: Call) -> Value:
         raise NotImplementedError
 
     def _call_generic_class(self, name: str, expr: Call) -> Value:

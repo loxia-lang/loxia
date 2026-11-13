@@ -44,6 +44,7 @@ from src.backend.lower_model import (
     _unsupported,
 )
 from src.backend.lower_optionals import OptionalLowering
+from src.backend.lower_range import RangeLowering
 from src.backend.lower_strings import StringLowering
 from src.backend.lower_variables import VariableLowering
 from src.frontend.expr import (
@@ -60,6 +61,7 @@ from src.frontend.expr import (
     Lambda,
     Literal,
     Logical,
+    Range,
     Set,
     Super,
     This,
@@ -70,6 +72,7 @@ from src.frontend.stmt import (
     Block,
     Class,
     Expression,
+    ForIn,
     Function,
     If,
     Print,
@@ -86,6 +89,7 @@ from src.frontend.ty import (
 
 class Lowerer(
     GenericLowering,
+    RangeLowering,
     FunctionLowering,
     VariableLowering,
     StringLowering,
@@ -223,6 +227,8 @@ class Lowerer(
             self._if(stmt)
         elif isinstance(stmt, While):
             self._while(stmt)
+        elif isinstance(stmt, ForIn):
+            self._for_in(stmt)
         elif isinstance(stmt, Print):
             self._print(stmt)
         elif isinstance(stmt, Expression):
@@ -297,6 +303,10 @@ class Lowerer(
             case ValueType.STRING:
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]), [value.llvm]
+                )
+            case ValueType.RANGE:
+                self.builder.call(
+                    self._function("lox_print_range", _VOID, [_I8_PTR]), [value.llvm]
                 )
             case ValueType.FUNCTION:
                 self.builder.call(
@@ -380,6 +390,8 @@ class Lowerer(
             return self._interpolated(expr)
         if isinstance(expr, Lambda):
             return self._lambda(expr)
+        if isinstance(expr, Range):
+            return self._range_expr(expr)
 
         raise _unsupported(type(expr).__name__, None)
 
@@ -480,6 +492,17 @@ class Lowerer(
             case TokenType.BANG:
                 truth = self._truthy(operand)
                 return Value(ValueType.BOOL, self.builder.not_(truth))
+            case TokenType.TILDE:
+                operand = self._unwrap_operand(
+                    operand, line, "Operand must be an integer."
+                )
+                if operand.ty is not ValueType.INT:
+                    self._poison(line, "Operand must be an integer.")
+                    return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+                return Value(
+                    ValueType.INT,
+                    self.builder.xor(operand.llvm, llvm_ir.constant(_INT, -1)),
+                )
 
         raise _unsupported(f"Unary operator '{expr.operator.lexeme}'", line)
 
@@ -512,9 +535,69 @@ class Lowerer(
             case TokenType.EQUAL_EQUAL | TokenType.BANG_EQUAL:
                 return self._equality(left, right, operator.type)
             case TokenType.STAR_STAR:
-                raise _unsupported("'**'", line)
+                return self._power(left, right, line)
+            case TokenType.AMPERSAND:
+                return self._bitwise(left, right, "and", line)
+            case TokenType.PIPE:
+                return self._bitwise(left, right, "or", line)
+            case TokenType.CARET:
+                return self._bitwise(left, right, "xor", line)
+            case TokenType.LESS_LESS:
+                return self._shift(left, right, 0, line)
+            case TokenType.GREATER_GREATER:
+                return self._shift(left, right, 1, line)
+            case TokenType.GREATER_GREATER_GREATER:
+                return self._shift(left, right, 2, line)
 
         raise _unsupported(f"Binary operator '{operator.lexeme}'", line)
+
+    def _power(self, left: Value, right: Value, line: int) -> Value:
+        left = self._unwrap_operand(left, line, "Operands must be numbers.")
+        right = self._unwrap_operand(right, line, "Operands must be numbers.")
+        if left.ty is ValueType.INT and right.ty is ValueType.INT:
+            call = self.builder.call(
+                self._function("lox_int_pow", _INT, [_INT, _INT, _I32]),
+                [left.llvm, right.llvm, llvm_ir.constant(_I32, line)],
+            )
+            return Value(ValueType.INT, call)
+        if left.ty in NUMERIC and right.ty in NUMERIC:
+            call = self.builder.call(
+                self._function("pow", _FLOAT, [_FLOAT, _FLOAT]),
+                [self._to_float(left), self._to_float(right)],
+            )
+            return Value(ValueType.FLOAT, call)
+        self._poison(line, "Operands must be numbers.")
+        return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+
+    def _bitwise(self, left: Value, right: Value, op: str, line: int) -> Value:
+        left = self._unwrap_operand(left, line, "Operands must be integers.")
+        right = self._unwrap_operand(right, line, "Operands must be integers.")
+        if left.ty is not ValueType.INT or right.ty is not ValueType.INT:
+            self._poison(line, "Operands must be integers.")
+            return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+        operation = {
+            "and": self.builder.and_,
+            "or": self.builder.or_,
+            "xor": self.builder.xor,
+        }[op]
+        return Value(ValueType.INT, operation(left.llvm, right.llvm))
+
+    def _shift(self, left: Value, right: Value, kind: int, line: int) -> Value:
+        left = self._unwrap_operand(left, line, "Operands must be integers.")
+        right = self._unwrap_operand(right, line, "Operands must be integers.")
+        if left.ty is not ValueType.INT or right.ty is not ValueType.INT:
+            self._poison(line, "Operands must be integers.")
+            return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+        call = self.builder.call(
+            self._function("lox_shift", _INT, [_INT, _INT, _I32, _I32]),
+            [
+                left.llvm,
+                right.llvm,
+                llvm_ir.constant(_I32, kind),
+                llvm_ir.constant(_I32, line),
+            ],
+        )
+        return Value(ValueType.INT, call)
 
     def _arithmetic(
         self,
@@ -659,11 +742,31 @@ class Lowerer(
     ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
+        if left.ty is ValueType.RANGE and right.ty is ValueType.RANGE:
+            comparison = self.builder.call(
+                self._function("lox_range_equal", _I32, [_I8_PTR, _I8_PTR]),
+                [left.llvm, right.llvm],
+            )
+            result = self.builder.icmp_signed(
+                "!=" if equal else "==", comparison, llvm_ir.constant(_I32, 0)
+            )
+            return Value(ValueType.BOOL, result)
+
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
             both_nil = left.ty is right.ty
             return Value(
                 ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
             )
+
+        if left.ty is ValueType.RANGE and right.ty is ValueType.RANGE:
+            comparison = self.builder.call(
+                self._function("lox_range_equal", _I32, [_I8_PTR, _I8_PTR]),
+                [left.llvm, right.llvm],
+            )
+            result = self.builder.icmp_signed(
+                "!=" if equal else "==", comparison, llvm_ir.constant(_I32, 0)
+            )
+            return Value(ValueType.BOOL, result)
 
         if left.ty is ValueType.STRING and right.ty is ValueType.STRING:
             function = self._function("lox_str_equal", _I32, [_I8_PTR, _I8_PTR])
@@ -1013,6 +1116,7 @@ class Lowerer(
                 | ValueType.FUNCTION
                 | ValueType.CLASS
                 | ValueType.INSTANCE
+                | ValueType.RANGE
             ):
                 # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
                 return llvm_ir.constant(_BOOL, 1)

@@ -92,6 +92,14 @@ class StringLowering(LoweringBase):
                 return self._string_literal(text)
             case ValueType.ANY:
                 raise _unsupported("Any in string conversion", None)
+            case ValueType.RANGE:
+                function = self._function(
+                    "lox_str_from_range", _I8_PTR, [_I8_PTR]
+                )
+                return Value(
+                    ValueType.STRING,
+                    self.builder.call(function, [value.llvm]),
+                )
             case ValueType.NIL:
                 function = self._function("lox_str_nil", _I8_PTR, [])
                 return Value(ValueType.STRING, self.builder.call(function, []))

@@ -96,6 +96,7 @@ Crie quando a decisão:
 | [0048](0048-abi-classes-l5.md) | L5: ABI de métodos, descritor de classe e instância | accepted (L5a/L5b/L5c implementados) | 2026-11-13 |
 | [0049](0049-any-boxeado-spike-l6.md) | L6: `Any` boxeado como spike de união | accepted (spike; não é `Any` completo) | 2026-11-13 |
 | [0050](0050-monomorfizacao-t7.md) | T7: monomorfização de funções e classes genéricas | accepted (T7a/b/c; containers no L6) | 2026-11-13 |
+| [0051](0051-l6-range-for-in-escalares.md) | L6a: Range, `for-in` e operações escalares | accepted (containers/tuplas/Any/enums/exceções pendentes) | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

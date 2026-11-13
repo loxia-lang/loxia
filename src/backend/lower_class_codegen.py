@@ -10,6 +10,7 @@ from src.backend.lower_model import (
     _BOOL,
     _CLASS_DESC,
     _CLOSURE,
+    _FLOAT,
     _I8_PTR,
     _I32,
     _INT,
@@ -446,6 +447,33 @@ class ClassCodegenLowering(LoweringBase):
         )
 
     def _as_expr(self, expr: As) -> Value:
+        target_desc = self._type_desc(expr.target_type, expr.operator.line)
+        if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
+            value = self._expr(expr.left)
+            if value.optional:
+                value = self._unwrap(
+                    value, expr.operator.line, "Can't cast value to Int."
+                )
+            if target_desc.ty is ValueType.FLOAT:
+                if value.ty is ValueType.FLOAT:
+                    return value
+                if value.ty is ValueType.INT:
+                    return Value(
+                        ValueType.FLOAT, self.builder.sitofp(value.llvm, _FLOAT)
+                    )
+                self._poison(expr.operator.line, "Can't cast value to Float.")
+                return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
+            if value.ty is ValueType.INT:
+                return value
+            if value.ty is ValueType.FLOAT:
+                call = self.builder.call(
+                    self._function("lox_float_to_int", _INT, [_FLOAT, _I32]),
+                    [value.llvm, llvm_ir.constant(_I32, expr.operator.line)],
+                )
+                return Value(ValueType.INT, call)
+            self._poison(expr.operator.line, "Can't cast value to Int.")
+            return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+
         target = self._target_class(expr.target_type, expr.operator.line)
         value = self._expr(expr.left)
         if value.optional:

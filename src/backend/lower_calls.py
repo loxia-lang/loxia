@@ -18,11 +18,18 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
-from src.frontend.expr import Call, Variable
+from src.frontend.expr import Call, Get, Variable
 
 
 class CallLowering(LoweringBase):
     def _call(self, expr: Call) -> Value:
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
+            and expr.callee.object.name.lexeme in {"Int", "Float", "math"}
+        ):
+            raise _unsupported("Native modules in the backend", expr.paren.line)
+
         if isinstance(expr.callee, Variable):
             generic = self._generic_fns.get(expr.callee.name.lexeme)
             if generic is not None:
@@ -40,6 +47,8 @@ class CallLowering(LoweringBase):
                 return self._str(expr)
             if name == "repr":
                 return self._repr(expr)
+            if name == "range":
+                return self._range_call(expr)
 
         if isinstance(expr.callee, Variable):
             depth = self.depths.get(expr.callee)

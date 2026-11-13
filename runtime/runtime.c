@@ -34,6 +34,9 @@ typedef struct {
     const char *data;
 } LoxStr;
 
+static LoxStr *string_from_ascii(const char *data, size_t length);
+void lox_panic(int32_t line, const char *message);
+
 /* Arena: um bloco, sem free, com teto determinístico (decisão 7). */
 #define LOX_HEAP_BYTES (64ull * 1024ull * 1024ull)
 
@@ -164,6 +167,138 @@ void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
     result->cp_len = left->cp_len + right->cp_len;
     result->data = data;
     return result;
+}
+
+
+/* Range do L6: valor imutável, ponteiro para `{start, end, step}`. */
+typedef struct {
+    int64_t start;
+    int64_t end;
+    int64_t step;
+} LoxRange;
+
+void *lox_range_new(int64_t start, int64_t end, int64_t step) {
+    if (step == 0) {
+        lox_panic(0, "range() step can't be zero.");
+    }
+    LoxRange *range = lox_alloc(sizeof(LoxRange));
+    range->start = start;
+    range->end = end;
+    range->step = step;
+    return range;
+}
+
+int64_t lox_range_start(const void *pointer) {
+    return ((const LoxRange *)pointer)->start;
+}
+
+int64_t lox_range_end(const void *pointer) {
+    return ((const LoxRange *)pointer)->end;
+}
+
+int64_t lox_range_step(const void *pointer) {
+    return ((const LoxRange *)pointer)->step;
+}
+
+int32_t lox_range_equal(const void *left_pointer, const void *right_pointer) {
+    const LoxRange *left = left_pointer;
+    const LoxRange *right = right_pointer;
+    return left->start == right->start && left->end == right->end &&
+           left->step == right->step;
+}
+
+void lox_print_range(const void *pointer) {
+    const LoxRange *range = pointer;
+    if (range->step == 1) {
+        printf("<range %" PRId64 "..%" PRId64 ">\n", range->start,
+               range->end);
+    } else {
+        printf("<range %" PRId64 "..%" PRId64 " step %" PRId64 ">\n",
+               range->start, range->end, range->step);
+    }
+}
+
+void *lox_str_from_range(const void *pointer) {
+    const LoxRange *range = pointer;
+    char buffer[128];
+    int length;
+    if (range->step == 1) {
+        length = snprintf(buffer, sizeof buffer, "<range %" PRId64 "..%" PRId64 ">",
+                          range->start, range->end);
+    } else {
+        length = snprintf(buffer, sizeof buffer,
+                          "<range %" PRId64 "..%" PRId64 " step %" PRId64 ">",
+                          range->start, range->end, range->step);
+    }
+    return string_from_ascii(buffer, (size_t)length);
+}
+
+/* `chars(s)[i]`: i é índice em code points, não em bytes. */
+void *lox_str_char_at(const void *pointer, int64_t index) {
+    const LoxStr *string = pointer;
+    if (index < 0 || index >= string->cp_len) {
+        lox_panic(0, "String index out of bounds.");
+    }
+    const unsigned char *data = (const unsigned char *)string->data;
+    size_t offset = 0;
+    for (int64_t position = 0; position < index; position++) {
+        unsigned char byte = data[offset];
+        if (byte < 0x80) {
+            offset += 1;
+        } else if ((byte & 0xE0) == 0xC0) {
+            offset += 2;
+        } else if ((byte & 0xF0) == 0xE0) {
+            offset += 3;
+        } else {
+            offset += 4;
+        }
+    }
+    unsigned char byte = data[offset];
+    size_t length = byte < 0x80 ? 1 : (byte & 0xE0) == 0xC0 ? 2
+                     : (byte & 0xF0) == 0xE0 ? 3
+                                             : 4;
+    return string_from_ascii((const char *)data + offset, length);
+}
+
+
+int64_t lox_int_pow(int64_t base, int64_t exponent, int32_t line) {
+    if (exponent < 0) {
+        lox_panic(line, "Negative exponent not allowed for integer power.");
+    }
+    uint64_t power = (uint64_t)exponent;
+    uint64_t result = 1;
+    uint64_t factor = (uint64_t)base;
+    while (power != 0) {
+        if (power & 1u) {
+            result *= factor;
+        }
+        power >>= 1u;
+        if (power != 0) {
+            factor *= factor;
+        }
+    }
+    return (int64_t)result;
+}
+
+int64_t lox_shift(int64_t value, int64_t count, int32_t kind, int32_t line) {
+    if (count < 0 || count > 63) {
+        lox_panic(line, "Shift count must be between 0 and 63.");
+    }
+    if (kind == 0) {
+        return (int64_t)((uint64_t)value << (uint64_t)count);
+    }
+    if (kind == 1) {
+        return value >> (uint64_t)count;
+    }
+    return (int64_t)((uint64_t)value >> (uint64_t)count);
+}
+
+int64_t lox_float_to_int(double value, int32_t line) {
+    if (isnan(value) || isinf(value) || value < -9223372036854775808.0 ||
+        value >= 9223372036854775808.0) {
+        lox_panic(line, "Can't cast value to Int.");
+    }
+    return (int64_t)value;
 }
 
 void lox_panic(int32_t line, const char *message) {
@@ -476,6 +611,9 @@ void lox_print_any(int64_t tag, int64_t payload) {
         }
         case 7:
             printf("%s\n", (const char *)payload);
+            break;
+        case 8:
+            lox_print_range((const void *)payload);
             break;
         default:
             lox_panic(0, "Unknown Any tag");

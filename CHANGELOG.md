@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L6a — Range, `for-in` e escalares**: `Range` como valor de runtime,
+  `for-in` sobre Range/String, `**`/bits/shifts e `as` numérico; casos `range_value`,
+  `for_in`, `bitwise*`, `exponentiation`, `one_line_block` e `optional_semicolons`
+  promovidos ([ADR-0051](docs/adr/0051-l6-range-for-in-escalares.md)).
 - Backend **T7 — monomorfização de funções e classes genéricas**
   ([ADR-0050](docs/adr/0050-monomorfizacao-t7.md)): o checker publica as instanciações
   (`generic_fn_instances`, `generic_class_sites`) e o lowering gera `id$Int`, `id$String`,
