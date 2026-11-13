@@ -746,3 +746,38 @@ def test_debug_mode_checks_integer_division_and_power(
     stdout, stderr = execute(Lox(debug=True), "print 2 ** 63;", capsys)
     assert stdout == []
     assert "Integer overflow." in stderr
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "same"),
+    [
+        ("0", "0", True),
+        ("0", "1", False),
+        ("-1", "-1", True),
+        ("true", "true", True),
+        ("false", "false", True),
+        ("true", "1", False),  # Bool tem tag própria: true != 1
+        ("false", "0", False),
+        ('"a"', '"a"', True),
+        ('"a"', '"b"', False),
+        ('""', '"a"', False),
+    ],
+)
+def test_map_hash_is_consistent_with_equality(
+    first: str, second: str, same: bool, capsys: pytest.CaptureFixture[str]
+) -> None:
+    stdout, stderr = run(
+        f"var m = {{ {first}: 1 }}; print m.has({second});", capsys
+    )
+
+    assert stdout == ["true" if same else "false"]
+    assert stderr == ""
+
+
+def test_float_is_rejected_as_map_key_at_runtime(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run('var m = {1: "a"}; print m[1.0];', capsys)
+
+    assert stdout == []
+    assert "Map keys must be strings, integers or booleans." in stderr

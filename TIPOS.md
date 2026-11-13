@@ -47,62 +47,25 @@ promoção só `Int → Float`, `/` sempre `Float`, `%` truncado, `//` só `Int`
 
 `1i64` e `1.0f32` continuam sem decisão; provavelmente nunca, enquanto `Int` for i64.
 
-### 2.2 Inferência pendente (`T3`/`T5`)
+### 2.2 Pendente (T6/T7)
 
-- **T3c** ❌ — parâmetro implícito foi implementado e revertido: a omissão virava
-  quantificação universal sem marcador, contra o contrato explícito
-  ([ADR-0034](docs/adr/0034-t3c-revertido.md)); a alternativa HM-lite está no TODO.
-- **T4** ✅ — let-polymorphism em `val f = fn(...)`: parâmetros/retorno inferidos e
-  variáveis livres generalizadas; `var` não generaliza.
-- **T5** — narrowing restante: campos/índices e merge completo de fluxo.
 - **T6** — traits/protocolos e exaustividade de `match`.
 - **T7** — monomorfização no codegen.
 
-T3c–T6 formam o **M5** (TODO §9); é o próximo marco e o codegen fica pausado no L4 até ele
-fechar — L5/L6 dependem de layouts e monomorfização que só existem com tipos v2.
+T6 fecha o **M5** (TODO §9); o codegen fica pausado no L4 até ele fechar — L5/L6 dependem
+de layouts e monomorfização que só existem com tipos v2.
 
-### 2.3 Mapeamento em LLVM (`D-11`)
-
-| Conceito | IR | Observações |
-| --- | --- | --- |
-| `Int` | `i64` | `add`/`sub`/`mul` wrapping; `sdiv`/`srem` exigem guarda |
-| `Float` | `double` | `fadd`/`fsub`/`fmul`/`fdiv`; `fcmp` ordenado |
-| `Bool` | `i1` ou tag i64 | decidir na representação de valor |
-| `Int → Float` | `sitofp` | pode perder precisão > 2^53 |
-| `Float → Int` | `fptosi` | UB fora do range; checar `NaN`/limites |
-| overflow checado | `llvm.sadd.with.overflow` | só `--debug` |
-| `min`/`max` | `llvm.smin`/`smax`/`fmin`/`fmax` | cuidado com `-0.0`/`NaN` |
-
-Nunca emitir `sdiv` sem guarda; nunca converter `Float` para `Int` sem checar finite/range.
-
-### 2.4 Representação em runtime (`D-12`)
-
-1. **L0–L3:** `Int`/`Float`/`String` concretos (i64/f64/`i8*`), listas/mapas como
-   ponteiros; `Any` rejeitado ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
-2. **Depois do MVP:** `Any` boxeado/tagged; monomorfização evita box nos caminhos concretos.
-3. **Avançado:** NaN-boxing, se houver necessidade real.
-
-### 2.5 Performance
+### 2.3 Performance
 
 `loop_sum` cobre laço com `Int`; falta um caso `Float` quando o modelo estabilizar. No
 interpretador o objetivo é correção; ganho real vem do backend.
 
 ## 3. Strings e texto
 
-**Fechado** ([ADR-0035](docs/adr/0035-strings-texto.md)):
-
-- UTF-8 imutável; `len(s)` em **code points** (`D-13`), não bytes nem grafemas.
-- Acesso a caractere é `chars(s) -> List[String]` (O(n) explícito); `s[i]` em string
-  **não existe** e não há tipo `Char`. `for-in` itera code points.
-- `+` concatena; `==`/`!=` por conteúdo; `< <= > >=` por code point (mistura com número é
-  erro); interpolação ([ADR-0019](docs/adr/0019-interpolacao.md)).
-- Sem normalização: `"é" != "e\u{301}"`; identidades são byte-exatas.
-- Parse é `Int.parse`/`Float.parse` → `T?`, estrito (sem trim/underscore); não existe
-  `String.to_int` ([ADR-0029](docs/adr/0029-conversoes-math.md)).
-- Identificadores são ASCII; Unicode só em strings/comentários
-  ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
-- Fora: grafemas, `"""`/raw strings (TODO §1) e builtins de string (`contains`, etc.).
-- Hash consistente com `==` para chave de `Map[String, V]`.
+Sem decisões de tipo em aberto: decisões e comportamento estão no
+[ADR-0035](docs/adr/0035-strings-texto.md) e em
+[`docs/spec/semantica.md`](docs/spec/semantica.md). Fora deste catálogo: strings
+multilinha/raw (TODO §1) e builtins de string (stdlib).
 
 ## 4. Listas, mapas e tuplas
 
@@ -156,7 +119,7 @@ interpretador o objetivo é correção; ganho real vem do backend.
 
 - `Any`: aceita tudo, desliga checagem; backend L0–L3 rejeita; boxeado só depois.
 - `Never`: subtipo de todos; útil para `throw`/`return`/loop.
-- União `A | B`: implementada com narrowing de variáveis; faltam campos/índices e merge.
+- União `A | B`: implementada; falta merge em CFG/aliasing (ver [ADR-0032](docs/adr/0032-narrowing-campos-indices.md)).
 - Aliases `type UserId = Int` (P3); sem tipos literais nem dependentes.
 
 ## 9. Igualdade, hash e ordenação
@@ -174,13 +137,9 @@ Em aberto:
 | Id | Decisão | Opções | Recomendação |
 | --- | --- | --- | --- |
 | `D-2` | sufixos de literal | `1i64` / `1.0f32` / não ter | não ter por enquanto |
-| `D-11` | LLVM | i64/double; guards | i64/double + guardas |
-| `D-12` | representação | boxeado / desboxado / NaN-box | desboxado; `Any` depois |
-| `D-13` | `len` de string | bytes / code points / graphemes | code points |
-| `D-16` | OO | herança / traits / ambos | herança simples primeiro |
 | `D-17` | traits | nominal / estrutural | nominal |
 
-Fechadas: `D-1`–`D-10`, `D-14`, `D-15`, `D-18`–`D-20` — ver ADRs e
+Fechadas: todas exceto `D-2` e `D-17` — ver ADRs e
 [`docs/decisoes.md`](docs/decisoes.md). `D-5`/`D-8` saíram daqui: implementados em
 [ADR-0028](docs/adr/0028-overflow-debug.md)/[ADR-0029](docs/adr/0029-conversoes-math.md).
 
@@ -188,11 +147,10 @@ Fechadas: `D-1`–`D-10`, `D-14`, `D-15`, `D-18`–`D-20` — ver ADRs e
 
 | Fase | Entrega |
 | --- | --- |
-| **N5** ✅ | codegen LLVM de `Int`/`Float` com guards (L1) e strings (L3); falta monomorfização (L6) |
 | **N6+** | tuplas, traits/enums, `Result`/`Option` explícito e stdlib |
 
-N0–N5 estão fechados no que toca ao codegen desboxado de `Int`/`Float`/`String`; o que
-falta é do M5 (tipos v2) em diante.
+N0–N5 (números, anotações, T3/T4/T5 e codegen desboxado de `Int`/`Float`/`String`) estão
+fechados.
 
 ## 12. Anti-metas
 

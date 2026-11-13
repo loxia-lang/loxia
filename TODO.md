@@ -420,7 +420,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 814 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 825 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---

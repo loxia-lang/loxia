@@ -285,7 +285,10 @@ for nome in idades { print nome }   # Ana, Bia (ordem de inserção)
   `0`/`1` (`{true: "a", 1: "b"}` tem duas chaves). `Float` não é chave na v1 (a relação
   `1 == 1.0` exigiria canonicalização); `nil`, `List`, `Map`, `Range`, classes e funções
   também não. Sem `--check`, a restrição vale em runtime
-  (`Map keys must be strings, integers or booleans.`).
+  (`Map keys must be strings, integers or booleans.`). **Hash consistente com `==`**: as
+  chaves aceitas comparam e fazem hash pela mesma noção — `Bool` tem tag própria (não
+  colide com `0`/`1`), `String` compara por conteúdo e `Int` por valor; como `Float` é
+  rejeitado na entrada, `1 == 1.0` nunca vira duas entradas nem quebra a busca.
 - **Acesso**: `m[k]` devolve `V` e é **erro** se a chave não existe
   (`Key not found in map.`). `m.get(k)` devolve `V?` (`nil` se ausente); `m.has(k)` devolve
   `Bool` e distingue ausente de valor `nil`. `m[k]` em não-mapa/não-lista é
