@@ -132,6 +132,12 @@ class LoweringBase:
     def _unbox_any(self, value: Value, desc: TypeDesc, line: int | None) -> Value:
         raise NotImplementedError
 
+    def _math_call(self, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _parse_call(self, expr: Call, desc: TypeDesc) -> Value:
+        raise NotImplementedError
+
     def _instantiate_class(
         self, name: str, args: tuple[Ty, ...], line: int | None
     ) -> TypeDesc:

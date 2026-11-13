@@ -26,6 +26,21 @@ class CallLowering(LoweringBase):
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
+            and expr.callee.object.name.lexeme in {"Int", "Float"}
+            and expr.callee.name.lexeme == "parse"
+        ):
+            return self._parse_call(
+                expr, self._expr_type_desc(expr, expr.paren.line)
+            )
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
+            and expr.callee.object.name.lexeme == "math"
+        ):
+            return self._math_call(expr)
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float", "math"}
         ):
             raise _unsupported("Native modules in the backend", expr.paren.line)

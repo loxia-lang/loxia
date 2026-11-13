@@ -26,6 +26,7 @@ from src.backend.lower_containers import ContainerLowering
 from src.backend.lower_functions import FunctionLowering
 from src.backend.lower_generics import GenericLowering
 from src.backend.lower_instances import InstanceLowering
+from src.backend.lower_math import MathLowering
 from src.backend.lower_model import (
     _BOOL,
     _FLOAT,
@@ -97,6 +98,7 @@ from src.frontend.ty import (
 
 class Lowerer(
     GenericLowering,
+    MathLowering,
     TupleLowering,
     ContainerLowering,
     RangeLowering,

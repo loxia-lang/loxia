@@ -630,6 +630,96 @@ int lox_tuple_is2(const void *pointer, int64_t tag0, int64_t tag1) {
     return tuple->items[0].tag == tag0 && tuple->items[1].tag == tag1;
 }
 
+
+int64_t lox_float_to_int(double value, int32_t line);
+
+int64_t lox_math_abs_int(int64_t value) {
+    return value < 0 ? (int64_t)(0u - (uint64_t)value) : value;
+}
+
+double lox_math_abs_float(double value) {
+    return fabs(value);
+}
+
+double lox_math_sqrt(double value) {
+    return sqrt(value);
+}
+
+int64_t lox_math_floor(double value, int32_t line) {
+    return lox_float_to_int(floor(value), line);
+}
+
+int64_t lox_math_ceil(double value, int32_t line) {
+    return lox_float_to_int(ceil(value), line);
+}
+
+int64_t lox_math_round(double value, int32_t line) {
+    return lox_float_to_int(round(value), line);
+}
+
+int64_t lox_math_trunc(double value, int32_t line) {
+    return lox_float_to_int(trunc(value), line);
+}
+
+LoxValue lox_parse_int(const void *pointer) {
+    const LoxStr *string = pointer;
+    const char *data = string->data;
+    size_t size = (size_t)string->byte_len;
+    LoxValue nil = {0, 0};
+    if (size == 0) {
+        return nil;
+    }
+    size_t index = 0;
+    int negative = 0;
+    if (data[index] == '+' || data[index] == '-') {
+        negative = data[index] == '-';
+        index += 1;
+    }
+    if (index == size) {
+        return nil;
+    }
+    uint64_t value = 0;
+    for (; index < size; index++) {
+        char byte = data[index];
+        if (byte < '0' || byte > '9') {
+            return nil;
+        }
+        unsigned digit = (unsigned)(byte - '0');
+        if (value > (UINT64_MAX - digit) / 10u) {
+            return nil;
+        }
+        value = value * 10u + digit;
+    }
+    if ((!negative && value > (uint64_t)INT64_MAX) ||
+        (negative && value > (uint64_t)INT64_MAX + 1u)) {
+        return nil;
+    }
+    int64_t result = negative ? (int64_t)(0u - value) : (int64_t)value;
+    LoxValue some = {1, result};
+    return some;
+}
+
+LoxValue lox_parse_float(const void *pointer) {
+    const LoxStr *string = pointer;
+    LoxValue nil = {0, 0};
+    size_t size = (size_t)string->byte_len;
+    if (size == 0) {
+        return nil;
+    }
+    char *copy = lox_alloc(size + 1);
+    memcpy(copy, string->data, size);
+    copy[size] = '\0';
+    char *end = NULL;
+    double value = strtod(copy, &end);
+    if (end != copy + size || !isfinite(value)) {
+        return nil;
+    }
+    LoxValue some;
+    some.tag = 2;
+    memcpy(&some.payload, &value, sizeof(value));
+    return some;
+}
+
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;

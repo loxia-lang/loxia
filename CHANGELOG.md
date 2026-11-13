@@ -7,6 +7,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L6f — math e parse**: `math.*`, `Int.parse` e `Float.parse` ([ADR-0056](docs/adr/0056-l6-math-parse.md)).
 - Backend **L6e — `Any`**: unbox, `is`/`as`, igualdade dinâmica e `for-in` de tupla; caso `any_casts.lox` promovido ([ADR-0055](docs/adr/0055-l6-any-casts.md)).
 - Backend **L6d — tuplas e `chars`**: tuplas boxeadas com destructuring e `chars(s)` sobre code points UTF-8.
 - Backend **L6d — tuplas**: runtime boxeado, literal, índice, `len`, igualdade, print e destructuring `val/var (a,b)` ([ADR-0054](docs/adr/0054-l6-tuplas.md)).
