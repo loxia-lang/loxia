@@ -375,8 +375,8 @@ O L5 usa uma ABI única de método `(i8* env, i8* this, params...)`, vtable de c
 descritor de classe `{super, id, name, vtable, n_fields, init, init_min, init_max}` e
 instância `{classe, bitmap, slots i64}`; bound methods são thunks. Herança copia a vtable,
 prefixa os campos e resolve `super` pela classe onde o método foi declarado
-([ADR-0048](../adr/0048-abi-classes-l5.md)). `String?`/instância `T?` usam ponteiro nulo;
-`?.` com receptor opcional e classes locais ainda estão no L5c.
+([ADR-0048](../adr/0048-abi-classes-l5.md)). `String?`/instância `T?` usam ponteiro nulo; `is`/`as` de classe e classes locais vazias
+funcionam. `?.` com receptor opcional e classes locais gerais ficam no L6.
 
 `String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
 header), concatenação aloca na arena de 64 MiB e `len` devolve `cp_len` (code points).

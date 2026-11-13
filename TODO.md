@@ -21,8 +21,8 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **104 golden cases** (62 compilam, 40 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b**, M5
+vale o que está aqui. Estado em 2026-11-13: **104 golden cases** (64 compilam, 38 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b/L5c parcial**, M5
 fechado e ADRs 0043–0048 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
 
@@ -54,9 +54,10 @@ lacuna que esta fila existe para não repetir.
          `print` de classe/instância e construção por nome;
        - [x] **L5b**: herança, cópia/override de vtable, `super`/`super.init`, `init`
          herdado e prefixo de campos;
-       - [ ] **L5c**: classes locais, `?.` com receptor opcional, `is`/`as` de classe e
-         métodos que capturam. `String?`/instância `T?` já funcionam em campos/parâmetros/
-         retornos; `nil_aware` completo depende de união/`Any` (L6).
+       - [ ] **L5c**: `is`/`as` de classe e classes locais **vazias** já funcionam
+         (`class_identity`); `String?`/instância `T?` funcionam em campos/parâmetros/
+         retornos. Faltam `?.` com receptor opcional, classes locais com campos/métodos/
+         captura e o `nil_aware` completo (união/`Any`, L6).
 5. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
 6. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
@@ -429,8 +430,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [x] **L5a/L5b — Objetos**: classes, campos/bitmap, métodos/`this`/`init`, bound
       methods, herança, vtable, `super`/`super.init`, `init` herdado e `print` de
       classe/instância ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
-- [ ] **L5c — Objetos dinâmicos**: classes locais, `?.` com receptor opcional,
-      `is`/`as` de classe e métodos que capturam. Layout/identidade em
+- [x] **L5c parcial — Identidade e classes locais vazias**: `is`/`as` de classe,
+      classes locais sem campos/métodos, `String?`/instância `T?` em campos/params/
+      retornos. `?.` opcional e classes locais gerais ficam no L6 (união/`Any`/captura). Layout/identidade em
       [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
       representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md).
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
@@ -466,7 +468,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 104 `tests/cases`: 62 compilam; 40 ficam `PENDING` por nível
+- [x] anotar os 104 `tests/cases`: 64 compilam; 38 ficam `PENDING` por nível
       (`l2`, `l5`, `l6` e `l?` para as operações ainda sem nível) e 2 são negativos
       (check falha por design);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;

@@ -84,6 +84,16 @@ void *lox_alloc_bytes(int64_t size) {
     return lox_alloc(size > 0 ? (size_t)size : 1u);
 }
 
+int lox_is_instance(void *descriptor, void *target) {
+    while (descriptor != NULL) {
+        if (descriptor == target) {
+            return 1;
+        }
+        descriptor = *(void **)descriptor;
+    }
+    return 0;
+}
+
 void lox_print_function(const void *pointer) {
     const LoxClosure *closure = pointer;
     fputs(closure->display, stdout);

@@ -22,6 +22,7 @@ from typing import Any
 from src.backend import llvm_ir
 from src.backend.captures import CaptureAnalysis, analyze_captures
 from src.frontend.expr import (
+    As,
     Assign,
     Binary,
     Call,
@@ -30,6 +31,7 @@ from src.frontend.expr import (
     Get,
     Grouping,
     InterpolatedString,
+    Is,
     Lambda,
     Literal,
     Logical,
@@ -156,6 +158,7 @@ class Binding:
     cell: bool = False
     function: FunctionInfo | None = None
     class_name: str | None = None
+    layout_key: str | None = None
 
     @property
     def desc(self) -> TypeDesc:
@@ -300,6 +303,7 @@ class Lowerer:
         self._top_level: dict[int, FunctionInfo] = {}
         self._class_names: set[str] = set()
         self._classes: dict[str, ClassLayout] = {}
+        self._local_class_counter = 0
         self._function_ir: Any = None
         self._return_type_desc = TypeDesc(ValueType.NIL)
         self._in_init = False
@@ -1008,6 +1012,10 @@ class Lowerer:
             return self._this(expr)
         if isinstance(expr, Super):
             return self._super_method(expr)
+        if isinstance(expr, Is):
+            return self._is_expr(expr)
+        if isinstance(expr, As):
+            return self._as_expr(expr)
         if isinstance(expr, Literal):
             return self._literal(expr)
         if isinstance(expr, Grouping):
@@ -1349,7 +1357,8 @@ class Lowerer:
 
     def _class_declaration(self, stmt: Class) -> None:
         if not (self._function_ir is self.main and len(self._scopes) == 1):
-            raise _unsupported("Local classes", stmt.name.line)
+            self._local_class_declaration(stmt)
+            return
 
         layout = self._classes[stmt.name.lexeme]
         raw = self.builder.call(
@@ -1463,6 +1472,60 @@ class Lowerer:
 
         self._emit_ctor(layout)
 
+    def _local_class_declaration(self, stmt: Class) -> None:
+        if stmt.fields or stmt.methods or stmt.superclass is not None:
+            raise _unsupported(
+                "Local classes with fields, methods or inheritance",
+                stmt.name.line,
+            )
+        if stmt.type_params:
+            raise _unsupported("Generic local classes", stmt.name.line)
+
+        self._local_class_counter += 1
+        key = f"{stmt.name.lexeme}@{self._local_class_counter}"
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT])
+        layout = ClassLayout(
+            stmt.name.lexeme,
+            len(self._classes) + 1,
+            [],
+            [],
+            None,
+            instance_type=instance_type,
+        )
+        self._classes[key] = layout
+
+        raw = self.builder.call(
+            self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
+            [llvm_ir.constant(_INT, 64)],
+        )
+        descriptor = self.builder.bitcast(raw, _CLASS_DESC.as_pointer())
+        name_value = self._string_literal(layout.name)
+        values = [
+            llvm_ir.null_pointer(),
+            llvm_ir.constant(_INT, layout.id),
+            name_value.llvm,
+            llvm_ir.null_pointer(),
+            llvm_ir.constant(_INT, 0),
+            llvm_ir.null_pointer(),
+            llvm_ir.constant(_INT, 0),
+            llvm_ir.constant(_INT, 0),
+        ]
+        for index, value in enumerate(values):
+            slot = self.builder.gep(
+                descriptor,
+                [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
+            )
+            self.builder.store(value, slot)
+
+        slot = self.builder.alloca(_I8_PTR, name=stmt.name.lexeme)
+        self.builder.store(raw, slot)
+        self._scopes[-1][stmt.name.lexeme] = Binding(
+            slot,
+            ValueType.CLASS,
+            class_name=stmt.name.lexeme,
+            layout_key=key,
+        )
+
     def _emit_ctor(self, layout: ClassLayout) -> None:
         ctor = layout.ctor
         assert ctor is not None
@@ -1555,6 +1618,75 @@ class Lowerer:
         self._method_class = saved_method_class
         self._scopes = saved_scopes
         self._captures = saved_captures
+
+    def _target_class(self, ty: Ty, line: int) -> str:
+        target = self._type_desc(ty, line)
+        if target.ty is not ValueType.INSTANCE or target.class_name is None:
+            raise _unsupported("'is'/'as' for non-class types", line)
+        return target.class_name
+
+    def _class_pointer(self, name: str, line: int) -> Any:
+        binding = self._globals.get(name)
+        if binding is None:
+            raise _unsupported(f"Class '{name}'", line)
+        return self._guard_closure(
+            self._load_binding(binding), name, line
+        )
+
+    def _is_instance(self, value: Value, class_name: str, line: int) -> Value:
+        if value.ty is ValueType.NIL:
+            return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
+        if value.ty is not ValueType.INSTANCE:
+            self._poison(line, f"Can't use 'is' on {value.ty.name}.")
+            return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
+        struct_ = self._instance_struct(value, line)
+        descriptor = self.builder.load(
+            self.builder.gep(
+                struct_,
+                [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
+            )
+        )
+        target = self._class_pointer(class_name, line)
+        result = self.builder.call(
+            self._function("lox_is_instance", _I32, [_I8_PTR, _I8_PTR]),
+            [descriptor, target.llvm],
+        )
+        return Value(
+            ValueType.BOOL,
+            self.builder.icmp_signed(
+                "!=", result, llvm_ir.constant(_I32, 0)
+            ),
+        )
+
+    def _is_expr(self, expr: Is) -> Value:
+        target = self._target_class(expr.test_type, expr.operator.line)
+        return self._is_instance(
+            self._expr(expr.left), target, expr.operator.line
+        )
+
+    def _as_expr(self, expr: As) -> Value:
+        target = self._target_class(expr.target_type, expr.operator.line)
+        value = self._expr(expr.left)
+        if value.optional:
+            value = self._unwrap(
+                value,
+                expr.operator.line,
+                f"Can't cast value to {target}.",
+            )
+        check = self._is_instance(value, target, expr.operator.line)
+        ok = llvm_ir.append_block(self._function_ir, "as.ok")
+        bad = llvm_ir.append_block(self._function_ir, "as.bad")
+        self.builder.cbranch(check.llvm, ok, bad)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(expr.operator.line, f"Can't cast value to {target}.")
+
+        self.builder = llvm_ir.builder(ok)
+        return Value(
+            ValueType.INSTANCE,
+            value.llvm,
+            class_name=value.class_name or target,
+        )
 
     def _this(self, expr: This) -> Value:
         binding = self._find_binding("this")
@@ -2719,12 +2851,44 @@ class Lowerer:
 
     def _call_class(self, binding: Binding, expr: Call) -> Value:
         name = binding.class_name or ""
-        layout = self._classes.get(name)
+        layout = self._classes.get(binding.layout_key or name)
         if layout is None:
             raise _unsupported("Class construction", expr.paren.line)
 
         class_ptr = self._load_binding(binding)
         class_ptr = self._guard_closure(class_ptr, name, expr.paren.line)
+
+        if binding.layout_key is not None:
+            if expr.arguments:
+                self._poison(
+                    expr.paren.line,
+                    self._arity_message(0, 0, len(expr.arguments)),
+                )
+                return self._zero(ValueType.INSTANCE)
+            raw = self.builder.call(
+                self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
+                [llvm_ir.constant(_INT, 16)],
+            )
+            struct_ = self.builder.bitcast(
+                raw, layout.instance_type.as_pointer()
+            )
+            self.builder.store(
+                class_ptr.llvm,
+                self.builder.gep(
+                    struct_,
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
+                ),
+            )
+            self.builder.store(
+                llvm_ir.constant(_INT, 0),
+                self.builder.gep(
+                    struct_,
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)],
+                ),
+            )
+            return Value(
+                ValueType.INSTANCE, raw, class_name=binding.class_name
+            )
 
         arguments = [self._expr(argument) for argument in expr.arguments]
         init = layout.effective_init()

@@ -1,6 +1,6 @@
 # ADR-0048 — L5: ABI de métodos, descritor de classe e instância
 
-- **Status:** accepted (L5a/L5b implementados; L5c pendente)
+- **Status:** accepted (L5a/L5b e L5c parcial implementados)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0008](0008-heranca-class-parens.md), [ADR-0009](0009-defaults-e-campos.md),
@@ -129,9 +129,10 @@ alternativa (descriptor de defaults em runtime) fica para um follow-up, como no 
   methods, `print` de classe/instância, construção por nome.
 - **L5b** (implementado): herança/vtable/`super`, `init` herdado, prefixo de campos,
   despacho virtual e `super.init`.
-- **L5c** (parcial): campos/parâmetros/retornos `String?`/instância `T?` e igualdade já
-  funcionam; `?.` com receptor opcional, classes locais e `is`/`as` de classe continuam
-  65. O `nil_aware` completo depende de união/`Any` e fica no L6.
+- **L5c** (parcial): campos/parâmetros/retornos `String?`/instância `T?`, igualdade,
+  `is`/`as` de classe e classes locais **vazias** já funcionam. `?.` com receptor
+  opcional, classes locais com campos/métodos/captura e o `nil_aware` completo dependem
+  de união/`Any` e ficam no L6.
 - **L6**: exceções/`except`, genéricos, `Any`, enums/match.
 
 ## Consequências

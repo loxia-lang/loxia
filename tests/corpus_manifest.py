@@ -43,6 +43,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
     "l5": (
         "tests/cases/class_bound_method.lox",
         "tests/cases/class_fields.lox",
+        "tests/cases/class_identity.lox",
+        "tests/cases/class_identity_as.lox",
         "tests/cases/class_initializer.lox",
         "tests/cases/class_str_print.lox",
         "tests/cases/class_this.lox",
@@ -95,8 +97,6 @@ PENDING: dict[str, str] = {
     "tests/cases/bitwise.lox": "l?",
     "tests/cases/bitwise_precedence.lox": "l?",
     "tests/cases/casts_math.lox": "l?",
-    "tests/cases/class_identity.lox": "l5",
-    "tests/cases/class_identity_as.lox": "l5",
     "tests/cases/defaults_as_value.lox": "l?",
     "tests/cases/enums.lox": "l6",
     "tests/cases/exceptions.lox": "l6",
