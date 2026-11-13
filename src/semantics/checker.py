@@ -2784,6 +2784,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Argument {index}: {self._mismatch_message(resolved, actual)}",
                 )
                 return ERROR
+            concrete = self._substitute(actual, bindings)
+            self.types[expr] = concrete
+            self.storage_types[expr] = concrete
             return actual
 
         if isinstance(expr, Call):
