@@ -376,7 +376,7 @@ descritor de classe `{super, id, name, vtable, n_fields, init, init_min, init_ma
 instância `{classe, bitmap, slots i64}`; bound methods são thunks. Herança copia a vtable,
 prefixa os campos e resolve `super` pela classe onde o método foi declarado
 ([ADR-0048](../adr/0048-abi-classes-l5.md)). `String?`/instância `T?` usam ponteiro nulo; `is`/`as` de classe e classes locais vazias
-funcionam. `?.` com receptor opcional e classes locais gerais ficam no L6.
+funcionam. `?.` com receptor opcional já funciona; classes locais gerais e `nil_aware` (união/`Any`) ficam no L6.
 
 `String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
 header), concatenação aloca na arena de 64 MiB e `len` devolve `cp_len` (code points).

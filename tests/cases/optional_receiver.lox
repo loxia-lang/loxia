@@ -1,0 +1,33 @@
+class C {
+  var n: Int;
+  init(n: Int) { this.n = n; }
+  get() -> Int { return this.n; }
+  id(x: Int) -> Int { return x; }
+}
+
+var efeitos = 0;
+fn efeito() -> Int {
+  efeitos = efeitos + 1;
+  return 1;
+}
+
+val vazio: C? = nil;
+val cheio: C? = C(7);
+
+print vazio?.get() ?? 0;          # expect: 0
+print cheio?.get() ?? 0;          # expect: 7
+print vazio?.n ?? 0;              # expect: 0
+print cheio?.n ?? 0;              # expect: 7
+print vazio?.id(efeito()) ?? 0;   # expect: 0
+print efeitos;                    # expect: 0
+print cheio?.id(efeito()) ?? 0;   # expect: 1
+print efeitos;                    # expect: 1
+
+class P {
+  var nome: String?;
+  init(nome: String?) { this.nome = nome; }
+}
+val semNome: P? = nil;
+val ana: P? = P("Ana");
+print semNome?.nome ?? "x";       # expect: x
+print ana?.nome ?? "y";           # expect: Ana

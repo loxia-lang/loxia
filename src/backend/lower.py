@@ -648,8 +648,6 @@ class Lowerer:
             non_nil = [member for member in members if member is not TY_NIL]
             if len(members) == 2 and len(non_nil) == 1:
                 inner = self._type_desc(non_nil[0], line)
-                if inner.ty is ValueType.FUNCTION:
-                    raise _unsupported("Optional function types", line)
                 if inner.ty is ValueType.NIL or inner.optional:
                     raise _unsupported("Nested optionals", line)
                 return TypeDesc(inner.ty, inner.fn, True, inner.class_name)
@@ -695,6 +693,12 @@ class Lowerer:
                 return _I8_PTR
             case ValueType.NIL:
                 return _VOID
+
+    def _expr_type_desc(self, expr: Expr, line: int | None) -> TypeDesc:
+        ty = self.types.get(expr)
+        if ty is None:
+            raise _unsupported("Type information for an expression", line)
+        return self._type_desc(ty, line)
 
     def _storage_llvm_type(self, desc: TypeDesc) -> Any:
         if not desc.optional:
@@ -2039,8 +2043,57 @@ class Lowerer:
 
     def _get(self, expr: Get) -> Value:
         obj = self._expr(expr.object)
-        if expr.optional and (obj.optional or obj.ty is ValueType.NIL):
-            raise _unsupported("Optional receiver access", expr.name.line)
+        if expr.optional:
+            if obj.ty is ValueType.NIL:
+                return self._zero_desc(
+                    self._expr_type_desc(expr, expr.name.line)
+                )
+            if obj.optional:
+                return self._get_optional(obj, expr)
+
+        return self._get_instance(obj, expr)
+
+    def _get_optional(self, obj: Value, expr: Get) -> Value:
+        result = self._expr_type_desc(expr, expr.name.line)
+        if not result.optional:
+            result = TypeDesc(
+                result.ty, result.fn, True, result.class_name
+            )
+
+        some = llvm_ir.append_block(self._function_ir, "get.some")
+        nothing = llvm_ir.append_block(self._function_ir, "get.nil")
+        end = llvm_ir.append_block(self._function_ir, "get.end")
+        tag = self._optional_tag(obj)
+        self.builder.cbranch(tag, some, nothing)
+
+        self.builder = llvm_ir.builder(some)
+        payload = self._optional_payload(obj)
+        value = self._coerce(
+            self._get_instance(payload, expr), result, expr.name.line
+        )
+        self.builder.branch(end)
+        some_end = self.builder.block
+
+        self.builder = llvm_ir.builder(nothing)
+        zero = self._zero_desc(result)
+        self.builder.branch(end)
+        nothing_end = self.builder.block
+
+        self.builder = llvm_ir.builder(end)
+        merged = self.builder.phi(
+            self._storage_llvm_type(result), "get.value"
+        )
+        merged.add_incoming(value.llvm, some_end)
+        merged.add_incoming(zero.llvm, nothing_end)
+        return Value(
+            result.ty,
+            merged,
+            result.fn,
+            True,
+            result.class_name,
+        )
+
+    def _get_instance(self, obj: Value, expr: Get) -> Value:
         if obj.ty is not ValueType.INSTANCE:
             self._poison(expr.name.line, "Only instances have properties.")
             return self._zero(ValueType.INT)
@@ -2147,7 +2200,9 @@ class Lowerer:
                     else:
                         # Como no L2, o tipo do slot é o do valor em runtime:
                         # `var b: Float? = 2` guarda `Int?` e imprime `2`.
-                        declared = TypeDesc(value.ty, value.sig, True)
+                        declared = TypeDesc(
+                            value.ty, value.sig, True, value.class_name
+                        )
                         value = self._some(declared, value)
                 elif value.optional or value.ty is ValueType.NIL:
                     declared = annotated
@@ -2806,6 +2861,9 @@ class Lowerer:
             self._poison(expr.paren.line, "Can only call functions and classes.")
             return self._zero(ValueType.INT)
 
+        if callee.optional:
+            return self._call_optional(callee, expr)
+
         arguments = [self._expr(argument) for argument in expr.arguments]
         sig = info.fn_sig if info is not None else callee.sig
         count = len(arguments)
@@ -2847,6 +2905,95 @@ class Lowerer:
             sig.ret.fn,
             sig.ret.optional,
             sig.ret.class_name,
+        )
+
+    def _call_optional(self, callee: Value, expr: Call) -> Value:
+        sig = callee.sig
+        assert sig is not None
+        count = len(expr.arguments)
+        if sig.min_params != len(sig.params):
+            raise _unsupported(
+                "Default parameters in optional function calls",
+                expr.paren.line,
+            )
+        if count != len(sig.params):
+            self._poison(
+                expr.paren.line,
+                self._arity_message(len(sig.params), len(sig.params), count),
+            )
+            return self._zero_desc(sig.ret)
+
+        result = self._expr_type_desc(expr, expr.paren.line)
+        if not result.optional and result.ty is not ValueType.NIL:
+            result = TypeDesc(
+                result.ty, result.fn, True, result.class_name
+            )
+
+        some = llvm_ir.append_block(self._function_ir, "call.some")
+        nothing = llvm_ir.append_block(self._function_ir, "call.nil")
+        end = llvm_ir.append_block(self._function_ir, "call.end")
+        tag = self._optional_tag(callee)
+        self.builder.cbranch(tag, some, nothing)
+
+        self.builder = llvm_ir.builder(some)
+        payload = self._optional_payload(callee)
+        arguments = [
+            self._coerce(
+                self._expr(argument), expected, expr.paren.line
+            )
+            for argument, expected in zip(
+                expr.arguments, sig.params, strict=True
+            )
+        ]
+        fnptr = self._closure_field(payload, 0)
+        env = self._closure_field(payload, 1)
+        function_type = llvm_ir.function_pointer(
+            _VOID
+            if sig.ret.ty is ValueType.NIL
+            else self._storage_llvm_type(sig.ret),
+            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+        )
+        call = self.builder.call(
+            self.builder.bitcast(fnptr, function_type),
+            [env, *[argument.llvm for argument in arguments]],
+        )
+        if sig.ret.ty is ValueType.NIL:
+            self.builder.branch(end)
+        else:
+            value = self._coerce(
+                Value(
+                    sig.ret.ty,
+                    call,
+                    sig.ret.fn,
+                    sig.ret.optional,
+                    sig.ret.class_name,
+                ),
+                result,
+                expr.paren.line,
+            )
+            self.builder.branch(end)
+        some_end = self.builder.block
+
+        self.builder = llvm_ir.builder(nothing)
+        zero = self._zero_desc(result)
+        self.builder.branch(end)
+        nothing_end = self.builder.block
+
+        self.builder = llvm_ir.builder(end)
+        if sig.ret.ty is ValueType.NIL:
+            return Value(ValueType.NIL)
+
+        merged = self.builder.phi(
+            self._storage_llvm_type(result), "call.value"
+        )
+        merged.add_incoming(value.llvm, some_end)
+        merged.add_incoming(zero.llvm, nothing_end)
+        return Value(
+            result.ty,
+            merged,
+            result.fn,
+            True,
+            result.class_name,
         )
 
     def _call_class(self, binding: Binding, expr: Call) -> Value:
@@ -3045,11 +3192,17 @@ class Lowerer:
 
             self.builder = llvm_ir.builder(nothing)
             inner = TypeDesc(left.ty, left.sig, False, left.class_name)
-            right = self._coerce(
-                self._expr(expr.right),
-                inner,
-                expr.operator.line,
-            )
+            try:
+                right = self._coerce(
+                    self._expr(expr.right),
+                    inner,
+                    expr.operator.line,
+                )
+            except BackendError:
+                raise _unsupported(
+                    "Coalesce with different types",
+                    expr.operator.line,
+                ) from None
             self.builder.branch(end)
             nothing_end = self.builder.block
 

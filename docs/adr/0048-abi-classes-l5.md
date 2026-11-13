@@ -130,8 +130,8 @@ alternativa (descriptor de defaults em runtime) fica para um follow-up, como no 
 - **L5b** (implementado): herança/vtable/`super`, `init` herdado, prefixo de campos,
   despacho virtual e `super.init`.
 - **L5c** (parcial): campos/parâmetros/retornos `String?`/instância `T?`, igualdade,
-  `is`/`as` de classe e classes locais **vazias** já funcionam. `?.` com receptor
-  opcional, classes locais com campos/métodos/captura e o `nil_aware` completo dependem
+  `is`/`as` de classe, classes locais **vazias** e `?.` com receptor opcional já
+  funcionam. Classes locais com campos/métodos/captura e o `nil_aware` completo dependem
   de união/`Any` e ficam no L6.
 - **L6**: exceções/`except`, genéricos, `Any`, enums/match.
 

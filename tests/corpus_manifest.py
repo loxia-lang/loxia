@@ -58,6 +58,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/inheritance_init.lox",
         "tests/cases/inheritance_override.lox",
         "tests/cases/inheritance_super_init.lox",
+        "tests/cases/optional_receiver.lox",
         "tests/cases/optional_refs.lox",
         "tests/cases/super.lox",
         "tests/cases/super_with_this.lox",

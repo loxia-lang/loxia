@@ -21,7 +21,7 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **104 golden cases** (64 compilam, 38 `PENDING`
+vale o que está aqui. Estado em 2026-11-13: **105 golden cases** (65 compilam, 38 `PENDING`
 por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b/L5c parcial**, M5
 fechado e ADRs 0043–0048 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
@@ -54,10 +54,10 @@ lacuna que esta fila existe para não repetir.
          `print` de classe/instância e construção por nome;
        - [x] **L5b**: herança, cópia/override de vtable, `super`/`super.init`, `init`
          herdado e prefixo de campos;
-       - [ ] **L5c**: `is`/`as` de classe e classes locais **vazias** já funcionam
-         (`class_identity`); `String?`/instância `T?` funcionam em campos/parâmetros/
-         retornos. Faltam `?.` com receptor opcional, classes locais com campos/métodos/
-         captura e o `nil_aware` completo (união/`Any`, L6).
+       - [ ] **L5c**: `is`/`as` de classe, classes locais **vazias** e `?.` com receptor
+         opcional já funcionam (`class_identity`, `optional_receiver`); `String?`/instância
+         `T?` funcionam em campos/parâmetros/retornos. Faltam classes locais com campos/
+         métodos/captura e o `nil_aware` completo (união/`Any`, L6).
 5. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
 6. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
@@ -468,7 +468,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 104 `tests/cases`: 64 compilam; 38 ficam `PENDING` por nível
+- [x] anotar os 105 `tests/cases`: 65 compilam; 38 ficam `PENDING` por nível
       (`l2`, `l5`, `l6` e `l?` para as operações ainda sem nível) e 2 são negativos
       (check falha por design);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;

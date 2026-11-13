@@ -13,8 +13,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   methods, `this`, `init` (defaults no call site), `print`/`str` de classe/instância,
   herança com cópia/override de vtable, `super`/`super.init`, `init` herdado e prefixo de
   campos. `String?`/instância `T?` em campos/parâmetros/retornos usam ponteiro nulo;
-  `is`/`as` de classe e classes locais **vazias** também funcionam. `?.` opcional,
-  classes locais gerais e o `nil_aware` completo ficam no L6 (união/`Any`).
+  `is`/`as` de classe, classes locais **vazias** e `?.` com receptor opcional também
+  funcionam (curto-circuito não avalia argumentos no nil). Classes locais gerais e o
+  `nil_aware` completo ficam no L6 (união/`Any`).
 - Backend **L2.5 — optionais escalares** ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)):
   `Int?`/`Float?`/`Bool?` como `{i1, T}`, `var x: T?;` nascendo `nil`, `nil` contextual,
   `T?` em parâmetros/retornos/closures, `??`/truthiness/igualdade/`print`/`str`/interpolação
