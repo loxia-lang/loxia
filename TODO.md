@@ -12,27 +12,75 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 **Legenda:** `P0` agora · `P1` próximo · `P2` depois · `P3` algum dia
 **Esforço:** `S` (horas) · `M` (dias) · `L` (semanas) · `XL` (meses)
 
-> Regra de ouro: a linguagem precisa **fechar semanticamente** antes do backend.
-> Cada feature nova entra com teste; cada mudança de sintaxe entra documentada no mesmo commit.
+> Regra de ouro: fechar as definições que cada nível consome **antes** de codá-lo
+> (checklist na §0.1). Cada feature nova entra com teste; cada mudança de sintaxe entra
+> documentada no mesmo commit.
 
 ---
 
-## 0. Agora
+## 0. Fila única
 
-O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/parse,
-`math.*`, tuplas, enums/`match`/`Result` e exceções estão feitos. O **M5** fechou
-(T4/T5/T6a/T6c); traits/constraints continuam pós-MVP
-([ADR-0038](docs/adr/0038-traits-nominais.md)). O backend LLVM está em **L0–L3**
-(ADR-0031): `Int`/`Float`/`Bool`/`nil`/`String`, `if`/`while`, variáveis, funções de topo
-com recursão, ternário/`and`/`or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e
-arena. O teste diferencial compara stdout, stderr e exit code; o manifesto
-(`tests/corpus_manifest.py`) declara os casos por nível — **33 dos 90** golden cases
-compilam; os 90 estão anotados (88 passam no `--check`, 2 são negativos por design).
+Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
+vale o que está aqui. Estado em 2026-11-13: **97 golden cases** (40 compilam, 55 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4**, M5 fechado e ADRs
+0043–0046 (layout, identidade, narrowing e L4) fechados.
 
-**Próximo — L4 (closures).** O M5 fechou, então o codegen pode retomar por L4 e L5
-(objetos), depois L6 (coleções/monomorfização). Antes de prometer I1 no nível, anotar o
-corpus correspondente (§6.11). O pacote de diagnósticos (spans → caret → stack trace) volta
-junto com o codegen.
+### 0.1 Definições que não podem faltar antes de cada nível
+
+| Antes de | O que precisa estar fechado | Estado |
+| --- | --- | --- |
+| **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
+| **L5** | ADRs 0043/0044/0045 (feitos) + `T?` escalar (L2.5) e referência nula representáveis, bitmap de init, layout de classe e `print` de instância/classe | 🟡 |
+| **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
+
+`T?` escalar aparece como L2 na §6.3, mas o L2 fechou **sem** ele (`variables.lox` está
+`PENDING` l2). Ele é tratado aqui como **L2.5**, antes do L5. É exatamente o tipo de lacuna
+que esta fila existe para não repetir.
+
+### 0.2 Ordem de execução
+
+1. [ ] **L2.5 — optionais escalares e variáveis não inicializadas**: `T?` escalar
+       (`{i1, T}`), `var x;`, com casos movidos de `PENDING` para `LEVELS`.
+2. [ ] **Atribuir nível às operações escalares restantes**: `**`, bits, `as`/`math.*`,
+       `chars`, `repr` de `List`/`Map`; decidir L4 × L6 e adicionar ao manifesto.
+3. [x] **ADR de L4 + implementação**: [ADR-0046](docs/adr/0046-closures-celulas-l4.md),
+       sem HIR, `env`/células, funções locais/lambdas, valores de função, defaults/aridade;
+       casos `l4` promovidos.
+4. [ ] **L5 — objetos**: layout do [ADR-0043](docs/adr/0043-layout-l5-classes.md),
+       identidade do [ADR-0044](docs/adr/0044-identidade-classe.md), representação do
+       [ADR-0045](docs/adr/0045-narrowing-representacao.md), `is`/`as`/`except`, classes
+       locais e bitmap de inicialização.
+5. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
+       `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
+6. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
+       entram em `LEVELS`; I1 só vale para o corpus anotado.
+7. [ ] **Diagnósticos** (spans → caret → stack trace): decisão do ADR-0046 é **fora do
+       L4**; ADR próprio antes do L5/L6, porque mexem em stderr/I1.
+8. [ ] **L7 — qualidade**: `mod.verify()`, `-O2`, benchmarks, JIT e mensagens de codegen.
+
+### 0.3 Fora do caminho crítico (não bloqueiam nenhum L)
+
+Traits/constraints (T6b, [ADR-0038](docs/adr/0038-traits-nominais.md), pós-MVP), métodos/
+herança genérica/reificação (parked na §10), type application explícita, função genérica
+como valor, módulos/imports, stdlib, contratos, async, tooling/LSP/formatter e performance.
+Esses itens voltam quando o backend estiver no nível em que passam a doer; nenhum deles
+impede L4, L5 ou L6.
+
+### 0.4 Onde está o detalhe
+
+| Assunto | Seção |
+| --- | --- |
+| sintaxe e açúcar | §1 |
+| tipos, checker e narrowing | §2 + [`TIPOS.md`](TIPOS.md) |
+| diagnósticos, exceções e runtime | §3 |
+| performance do tree-walk | §4 |
+| decisão sobre bytecode/VM | §5 |
+| backend LLVM, níveis, corpus | §6 |
+| tooling, CI e LSP | §7 |
+| o que copiar do Lox2 | §8 |
+| milestones M5–M9 | §9 |
+| ideias soltas e coisas adiadas | §10 |
+| decisões ainda em aberto | §11 |
 
 ---
 
@@ -105,14 +153,14 @@ Pendências pontuais:
       (unificação: `x * 2` liga a `Int`, `==` generaliza), em vez de universal por omissão;
       precisa de unificação no corpo e mensagens próprias ([ADR-0034](docs/adr/0034-t3c-revertido.md)).
 - [ ] `P3` flow-sensitive para `val` (uma atribuição só).
-- [ ] `P3` generics com constraints (`T with Show`), type application explícita
+- [ ] `P3` generics com constraints (`T: Trait`), type application explícita
       (`id[Int] (1)`) e função genérica como valor.
 - [ ] `P3` inferência de retorno para funções com corpo de expressão.
 - [ ] `P3` `--check --json` com spans para editor/LSP.
 
 Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
 `ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e `Never`.
-`Any` é escape no tree-walk, mas o backend L0–L3 o rejeita.
+`Any` é escape no tree-walk, mas o backend L0–L4 o rejeita.
 
 ---
 
@@ -158,16 +206,9 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
 
 ### 3.2 Runtime e linguagem
 
-- [ ] `P1` **stack traces**: frame com nome da função + linha, `Error: ... at foo (linha 12)`.
-- [ ] `P1` **spans** (linha + coluna + offset) em `Token`; hoje só tem `line`. Sem isso
-      não existe erro bonito nem LSP.
-- [ ] `P1` **diagnósticos com caret**:
-      ```
-      erro: operando precisa ser número
-        --> exemplos/x.lox:3:9
-        3 | print 1 + "a"
-          |         ^^^ encontrado String
-      ```
+- [ ] `P1` **spans/caret/stack trace**: recorte mínimo da §3.1; **fora do L4** por decisão
+      do [ADR-0046](docs/adr/0046-closures-celulas-l4.md), com ADR próprio antes do L5/L6;
+      pré-requisito para erros bonitos e stderr do nativo.
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
 - [ ] `P2` **`assert`/`panic`/`exit`** nativos.
 - [ ] `P2` **REPL multiline** (continua enquanto `(`/`{`/`[` abertos) + histórico
@@ -193,10 +234,10 @@ Sintaxe, opcionalidade e protocolo de reparo: [`IDEIAS.md`](IDEIAS.md) I-4.
 
 ---
 
-## 4. Performance do interpretador (antes do LLVM)
+## 4. Performance do interpretador (paralelo, não bloqueia o backend)
 
 Objetivo: não otimizar por otimizar, mas **não deixar o oráculo lento demais** para os
-testes diferenciais.
+testes diferenciais. O backend já começou; isto não é pré-requisito de L4–L6.
 
 - Benchmark harness e baseline já existem (`make bench`); casos: `loop_sum`,
   `nested_loop`, `branchy`, `string_concat`.
@@ -253,9 +294,9 @@ AST → Resolver → TypeChecker (tipos concretos/monomorfizados)
                               └→ MCJIT (modo `lox jit` / REPL) — L7
 ```
 
-Sem HIR completa no L0–L3: a normalização só desaçucara. Uma HIR tipada (slots, SSA leve,
-células) entra quando closures/classes exigirem — o gatilho é o `lower_expr` começar a
-duplicar o `interpreter.py`. É o que separa o M6 do L4.
+Sem HIR completa no L0–L4: a normalização só desaçucara e o L4 tem só um passe de captura
+(ADR-0046). Uma HIR tipada (slots, SSA leve, células) entra quando classes/L5 exigirem —
+o gatilho é o `lower_expr` começar a duplicar o `interpreter.py`.
 
 ### 6.3 Representação de valor (a decisão mais importante)
 
@@ -269,10 +310,10 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `Bool` | `i1` | L0 ✅ |
 | `nil` | ausência (`void` no print) | L0 ✅ |
 | `Float` | `double` | L1 ✅ |
-| `T?` escalar | `{i1, T}` | L2 |
-| `T?` referência | ponteiro nulo | L5 |
+| `T?` escalar | `{i1, T}` | L2.5 ⬜ (lacuna; ver §0.1) |
+| `T?` referência | ponteiro nulo | L5 ⬜ |
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
-| closure | `{fnptr, env*}` | L4 |
+| closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
 | instância | ponteiro para struct | L5 |
 | `Any` (quando entrar) | caixa `LoxValue` **só** no caminho dinâmico | L6 |
 
@@ -281,6 +322,8 @@ Regras:
 - `Any`, `List` cru e `Map` heterogêneo são erro de compilação até o L6.
 - `//` e `%` passam pelo runtime (guarda de zero e de `INT_MIN / -1`, que é UB em LLVM).
 - toda operação tem caminho desboxado; o runtime só entra onde há caso de borda ou I/O.
+- `T?` escalar e `var x;` ainda não têm representação no backend; é a lacuna L2.5 da §0.1
+  (`variables.lox` está `PENDING` l2). `T?` de referência entra no L5.
 
 ### 6.4 Runtime em C (`runtime/runtime.c`)
 
@@ -326,9 +369,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 
 ### 6.6 Closures e classes
 
-- **Closure:** no momento da criação, alocar `struct { fnptr, i8* env }`; `env` é uma
-  struct com os capturados. Para mutação compartilhada, capturar **células** (heap
-  `{ value }`) como o clox faz com upvalues.
+- **Closure (L4 ✅):** `struct { fnptr, env, display }` na arena; `env` é uma struct de
+  ponteiros para **células** (heap `{ value }`) das variáveis capturadas. Variáveis não
+  capturadas continuam em `alloca` ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)).
 - **Classe:** `struct { vtable*, fields... }`; vtable = array de fn pointers na ordem
   dos métodos (determinística). Herança = prefixo compatível de fields + vtable copiada.
 - **`super`:** slot fixo na vtable / chamada direta à implementação da base.
@@ -358,7 +401,8 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [x] **L2 — Variáveis e funções**: `val`/`var` com `alloca`/globais, atribuição, escopo,
       sombreamento; funções de topo com chamada direta, `return`, recursão, defaults no
       call site e **aridade/variável indefinida como panic site**; `for` C-style
-      (desaçucarado pelo parser) compila.
+      (desaçucarado pelo parser) compila. **Lacuna:** `T?` escalar e `var x;` não entraram;
+      ver L2.5 (`T?` de referência entra no L5).
 - [x] **L2b — Normalização**: ternário, `and`/`or` e `??` (blocos + `phi`, com
       curto-circuito e dobra de literais); `for-in` fica no L6 (depende de
       `Range`/`List`/`String`). Limitação conhecida: o slot é monomórfico, então
@@ -368,13 +412,17 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       (code points), **interpolação** (`"${expr}"` com `stringify` de escalares),
       `str`/`repr` (com citação/escapes) e arena de 64 MiB com panic determinístico.
       `repr` de listas/mapas entra no L6.
-- [ ] **L4 — Closures**: env struct, captura por valor e por célula — M5 fechado, liberado.
+- [ ] **L2.5 — Optionais escalares**: `T?` escalar (`{i1, T}`) e `var x;`; desbloqueia
+      `variables.lox`; os campos/valores `T?` de referência entram no L5.
+- [x] **L4 — Closures**: env struct, células só para capturados, funções locais/lambdas,
+      valores de função, chamada indireta e `print` (`<fn f>`/`<lambda>`) — [ADR-0046](docs/adr/0046-closures-celulas-l4.md).
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança e vtable. Layout em
       [ADR-0043](docs/adr/0043-layout-l5-classes.md); identidade/`is`/`as`/`except` em
       [ADR-0044](docs/adr/0044-identidade-classe.md); representação/narrowing em
       [ADR-0045](docs/adr/0045-narrowing-representacao.md).
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
-      tuplas, enums, exceções (unwinding), `Range` e `for-in`.
+      tuplas, enums, exceções (unwinding), `Range` e `for-in`, mais as operações escalares
+      restantes (`**`, bits, `as`/`math.*`, `chars`; nível fixado na §0.2).
 - [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, testes diferenciais
       interpretador × nativo, benchmarks, JIT no REPL, mensagens de erro de codegen.
 
@@ -402,16 +450,16 @@ imports para `print`).
 
 ### 6.11 Corpus diferencial (bloqueia o I1)
 
-O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
-(`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
+O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
+cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 90 `tests/cases`: 33 compilam; os demais viram `PENDING` por nível
-      (`l2`/`l4`/`l5`/`l6`) e 2 são negativos (check falha por design);
+- [x] anotar os 97 `tests/cases`: 40 compilam; 55 ficam `PENDING` por nível
+      (`l2`, `l5`, `l6` e `l?` para as operações ainda sem nível) e 2 são negativos
+      (check falha por design);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
-- [x] meta-teste de classificação: todo caso está em `LEVELS`, `PENDING`, `NEGATIVE` ou
-      `UNANNOTATED`; `PENDING` passa no `--check` e falha no backend com 65, nunca
-      traceback/exit 1;
+- [x] meta-teste de classificação: todo caso está em `LEVELS`, `PENDING` ou `NEGATIVE`;
+      `PENDING` passa no `--check` e falha no backend com 65, nunca traceback/exit 1;
 - [x] anotar `exemplos/classes.lox`;
 - [x] anotar `tests/official/cases`: os 59 positivos passam no `--check` via camada
       dinâmica (`Any`) em [`tests/official_annotations.py`](tests/official_annotations.py),
@@ -429,7 +477,7 @@ uv run pytest tests/test_backend.py -q
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0–L3,
+- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0–L4,
       comparando stdout, stderr e exit code).
 - [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
@@ -440,7 +488,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 908 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 1042 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -479,15 +527,15 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
-| **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
+| **M6** | HIR + LLVM vertical | L0–L4 + L2.5 (`T?`/`var x;`): inteiros, controle de fluxo, funções, closures, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
+| **M7** | Runtime completo | L5–L6: classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |
 
-**Regra:** com o M5 fechado (T4/T5/T6a/T6c), o L4 (closures) pode começar; L5 e L6 vêm
-depois. L6 depende da monomorfização e dos layouts de enum/classe/exceção; se algo mudar a
-semântica de um nível já compilado, o nível afetado volta para a fila com caso diferencial.
-Traits nominais continuam pós-MVP e não bloqueiam o L4.
+**Regra:** a ordem oficial é a §0. Em resumo: L2.5 antes do L5; ADR de L4 antes do L4;
+T7/layouts antes do L6. Se algo mudar a semântica de um nível já compilado, o nível afetado
+volta para a fila com caso diferencial. Traits nominais continuam pós-MVP e não bloqueiam
+nenhum nível.
 
 **Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
 suspensos) é preparada durante o L4/L6; a feature entra **depois do M7**, junto com a

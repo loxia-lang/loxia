@@ -548,6 +548,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         if isinstance(expr, Lambda):
             actual = self._lambda_type(expr, self._expected_fn(expected))
+            # O lowering precisa do tipo concreto da lambda contextual (ADR-0046);
+            # `_check` não passa por `_infer`, então publica aqui.
+            self.types[expr] = actual
+            self.storage_types[expr] = actual
             if not self._assignable(expected, actual):
                 self._error(token, self._mismatch_message(expected, actual))
                 return ERROR
@@ -2105,6 +2109,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # T4: `val f = fn(x) => x` generaliza para um esquema polimórfico.
             scheme = self._polymorphic_lambda(stmt.initializer)
             self.types[stmt.initializer] = scheme
+            self.storage_types[stmt.initializer] = scheme
             self._define(stmt.name, scheme)
             return
 

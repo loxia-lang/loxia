@@ -7,6 +7,13 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L4 — closures e valores de função** ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)):
+  funções locais e lambdas com tipo concreto, captura por **células** só para variáveis
+  capturadas (`env` de ponteiros), ABI uniforme `(i8* env, params...)`, closure
+  `{fnptr, env, display}`, chamada indireta, reatribuição de função e
+  `print`/`str`/`repr`/interpolação de `<fn f>`/`<lambda>`. Ordem de declaração de topo é
+  preservada (chamar antes vira panic 70, sem hoisting). Função com defaults como valor
+  continua rejeitada com 65 no L4; spans/stack trace ficam para um ADR próprio.
 - Exceções ([ADR-0042](docs/adr/0042-excecoes.md)): `Exception`/`LoxRuntimeError`
   embutidos, `class MyError(Exception)`, `raise expr`/`raise;`, `try` com múltiplos
   `except Tipo as e` e `finally`; erros de runtime capturáveis como `LoxRuntimeError`;

@@ -1,0 +1,20 @@
+# Lambda como closure: parâmetro capturado e mutação compartilhada (L4).
+fn makeAdder(n: Int) -> fn(Int) -> Int {
+  return fn(x: Int) -> Int { return x + n; };
+}
+
+val add = makeAdder(10);
+print add(5);  # expect: 15
+
+fn makeCounter() -> fn() -> Int {
+  var n = 0;
+  return fn() -> Int {
+    n = n + 1;
+    return n;
+  };
+}
+
+val counter = makeCounter();
+print counter();  # expect: 1
+print counter();  # expect: 2
+print counter;    # expect: <lambda>

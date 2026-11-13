@@ -1,6 +1,6 @@
 # ADR-0031 — Backend nativo: contrato de valor, runtime e corpus
 
-- **Status:** accepted (L0–L3 completos; L4–L7 pendentes)
+- **Status:** accepted (L0–L4 completos; L5–L7 pendentes)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md) (`Int`/`Float`),

@@ -76,7 +76,7 @@ Crie quando a decisão:
 | [0028](0028-overflow-debug.md) | Overflow checado no modo `--debug` | accepted | 2026-11-12 |
 | [0029](0029-conversoes-math.md) | Conversões (`as`, parse) e `math.*` determinístico | accepted | 2026-11-12 |
 | [0030](0030-tuplas.md) | Tuplas: sintaxe escolhida, implementação pós-1.0 | accepted (pós-1.0) | 2026-11-12 |
-| [0031](0031-backend-nativo.md) | Backend nativo: contrato de valor, runtime e corpus | accepted (L0–L3; L4–L7 pendentes) | 2026-11-12 |
+| [0031](0031-backend-nativo.md) | Backend nativo: contrato de valor, runtime e corpus | accepted (L0–L4; L5–L7 pendentes) | 2026-11-12 |
 | [0032](0032-narrowing-campos-indices.md) | Narrowing de campos e índices literais | accepted | 2026-11-12 |
 | [0033](0033-inferencia-t3c-t4.md) | Inferência T3c/T4 | accepted (T4; T3c revertido no ADR-0034) | 2026-11-12 |
 | [0034](0034-t3c-revertido.md) | T3c revertido: parâmetro implícito sai | accepted | 2026-11-12 |
@@ -91,6 +91,7 @@ Crie quando a decisão:
 | [0043](0043-layout-l5-classes.md) | Layout L5: classes, campos, vtable e `init` | accepted (desenho; backend L5 pendente) | 2026-11-13 |
 | [0044](0044-identidade-classe.md) | Identidade de classe em runtime (`is`/`as`/`except`) | accepted (tree-walk; backend L5 pendente) | 2026-11-13 |
 | [0045](0045-narrowing-representacao.md) | Narrowing e tipos de representação | accepted (checker/tree-walk; backend L5 pendente) | 2026-11-13 |
+| [0046](0046-closures-celulas-l4.md) | L4: closures, células e valores de função | accepted (backend L4 implementado) | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

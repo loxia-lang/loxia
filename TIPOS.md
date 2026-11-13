@@ -41,6 +41,8 @@ T6a/T6c foram implementados; restam no pós-MVP:
 
 ### 1.5 Backend
 
+- **L2.5** — `T?` escalar/referência e `var x;` (`variables.lox` está `PENDING` l2);
+  desbloqueia campos opcionais do L5.
 - **T7** — monomorfização.
 - **Layout de tupla** (L6) e **chamada via trait** (vtable/type-id, L6).
 - **`Any` boxeado** (pós-MVP).

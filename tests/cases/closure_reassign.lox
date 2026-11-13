@@ -1,0 +1,25 @@
+# Reatribuir um binding de função mantém a chamada indireta correta (L4).
+fn f() -> Int {
+  return 1;
+}
+
+fn g() -> Int {
+  return f();
+}
+
+f = fn() -> Int { return 2; };
+print f();  # expect: 2
+print g();  # expect: 2
+
+fn outer() -> Nil {
+  fn local() -> Int {
+    return 10;
+  }
+  fn le() -> Int {
+    return local();
+  }
+  local = fn() -> Int { return 20; };
+  print le();
+}
+
+outer();  # expect: 20

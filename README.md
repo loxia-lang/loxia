@@ -33,15 +33,13 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: **M5 (tipos v2)** — generalização, generics de classe/método,
-  enums/`match` exaustivo e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)); M5
-  fechado, então L4 está liberado. Traits e constraints ficam pós-MVP
-  ([ADR-0038](docs/adr/0038-traits-nominais.md)). O codegen está em
-  L0–L3 e fica pausado no L4 até o M5 fechar; tuplas foram implementadas no
+- 📐 Próximo passo: **L2.5 e L5** (optionais escalares e objetos); M5 fechou e o
+  backend está em **L0–L4**. Traits e constraints ficam pós-MVP
+  ([ADR-0038](docs/adr/0038-traits-nominais.md)); tuplas foram implementadas no
   interpretador/checker ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)) e ficam para o
-  L6 no backend. T3a (assinaturas + recursão
-  mútua), tipos de função, lambdas, T3b e D-8 já estão feitos
-  (ADR-0020/0021/0022/0027/0029).
+  L6 no backend. T3a (assinaturas + recursão mútua), tipos de função, lambdas, T3b e D-8
+  já estão feitos (ADR-0020/0021/0022/0027/0029), e closures/valores de função entraram no
+  L4 ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)).
 
 ## O que esta linguagem promete
 
@@ -49,8 +47,8 @@ A identidade não é o catálogo de features (todas são emprestadas, e isso é 
 que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invariantes.md)):
 
 - **I1 — o interpretador é a especificação.** O mesmo programa, interpretado e compilado,
-  dá o mesmo stdout e o mesmo exit code, byte a byte (hoje já vale para execuções
-  repetidas; passa a valer entre motores quando o backend LLVM existir).
+  dá o mesmo stdout, stderr e exit code, byte a byte, para o corpus declarado por nível
+  (hoje L0–L4 em `tests/test_backend.py`).
 - **I2 — nada acontece implicitamente.** Sem coerção entre `Int`/`Float`/`String`, sem
   truthiness exótica, sem `nil` surpresa.
 - **I3 — determinismo observável.** Mesma entrada ⇒ mesmos bytes de saída e de
@@ -84,11 +82,13 @@ Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo
 `2` uso inválido (ex.: `--dump-ast` sem script). O binário gerado por `--emit=exe` segue o
 mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
 
-O backend nativo cobre **L0–L3**: `Int`/`Float`/`Bool`/`nil`/`String`, `if`/`while`,
-variáveis, funções de topo com recursão, ternário/`and`/`or`/`??`, concatenação,
-interpolação, `len`/`str`/`repr` e arena. O que falta (listas, classes, closures) falha
-com erro explícito, nunca com lowering silencioso.
-Contrato completo em [`docs/adr/0031-backend-nativo.md`](docs/adr/0031-backend-nativo.md).
+O backend nativo cobre **L0–L4**: `Int`/`Float`/`Bool`/`nil`/`String`, `if`/`while`,
+variáveis, funções com recursão, ternário/`and`/`or`/`??`, concatenação, interpolação,
+`len`/`str`/`repr`, arena, funções locais/lambdas, closures (células e `env`) e valores de
+função (`<fn f>`/`<lambda>`). O que falta (classes, listas/mapas, `Any`) falha com erro
+explícito, nunca com lowering silencioso. Contratos em
+[`docs/adr/0031-backend-nativo.md`](docs/adr/0031-backend-nativo.md) e
+[`docs/adr/0046-closures-celulas-l4.md`](docs/adr/0046-closures-celulas-l4.md).
 
 ## Exemplo
 

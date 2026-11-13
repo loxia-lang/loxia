@@ -82,6 +82,15 @@ def function_type(result: Any, params: list[Any]) -> Any:
     return ir.FunctionType(result, params)
 
 
+def function_pointer(result: Any, params: list[Any]) -> Any:
+    """Ponteiro para função com esta assinatura (usado no `fnptr` da closure)."""
+    return ir.FunctionType(result, params).as_pointer()
+
+
+def literal_struct(fields: list[Any]) -> Any:
+    return ir.LiteralStructType(fields)
+
+
 def declare(module: Any, name: str, result: Any, params: list[Any]) -> Any:
     existing = module.globals.get(name)
     if existing is not None:

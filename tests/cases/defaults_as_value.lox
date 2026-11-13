@@ -1,0 +1,7 @@
+# Limitação explícita do L4: função com defaults ainda não é valor (ADR-0046).
+fn soma(a: Int, b: Int = 10) -> Int {
+  return a + b;
+}
+
+val f = soma;
+print f(1);  # expect: 11

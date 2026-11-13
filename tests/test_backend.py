@@ -1,4 +1,4 @@
-"""Testes diferenciais do backend nativo (L0).
+"""Testes diferenciais do backend nativo (L0-L4).
 
 O contrato (ADR-0031) é: o interpretador é o oráculo. Cada caso compila, executa o
 binário e compara **stdout, stderr e exit code** com a execução interpretada — não com
@@ -169,6 +169,38 @@ CASES = [
     ('print str(42) + "!";', "str de Int"),
     ('print repr("a\nb");', "repr escapa nova linha"),
     ('print repr(1.0);', "repr de Float"),
+    (
+        "fn dobro(x: Int) -> Int { return x * 2; } "
+        "fn aplica(f: fn(Int) -> Int, x: Int) -> Int { return f(x); } "
+        "val f: fn(Int) -> Int = dobro; "
+        "print aplica(f, 4); print f; print str(f);",
+        "função como valor, parâmetro e print",
+    ),
+    (
+        "fn make() -> fn() -> Int { var n = 0; "
+        "return fn() -> Int { n = n + 1; return n; }; } "
+        "val c = make(); print c(); print c();",
+        "closure com mutação compartilhada",
+    ),
+    (
+        "fn aplica(f: fn(Int) -> Int, x: Int) -> Int { return f(x); } "
+        "print aplica(fn(x: Int) => x * 2, 3);",
+        "lambda contextual como argumento",
+    ),
+    (
+        "fn outer() -> fn() -> Int { var x = 7; { { "
+        "return fn() -> Int { return x; }; } } } print outer()();",
+        "captura em profundidade através de blocos",
+    ),
+    (
+        "fn um() -> Int { return 1; } fn dois() -> Int { return 2; } "
+        "var f: fn() -> Int = um; print f(); f = dois; print f();",
+        "reatribuição de função como valor",
+    ),
+    (
+        "print f(); fn f() -> Int { return 1; }",
+        "chamada antes da declaração de topo vira panic",
+    ),
 
 ]
 

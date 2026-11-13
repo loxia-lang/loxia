@@ -1,14 +1,16 @@
-"""Lowering da AST para IR do LLVM (L2).
+"""Lowering da AST para IR do LLVM (L0-L4).
 
-Escopo (contrato em [ADR-0031](../../../docs/adr/0031-backend-nativo.md)):
+Escopo (contrato em [ADR-0031](../../../docs/adr/0031-backend-nativo.md) e
+[ADR-0046](../../../docs/adr/0046-closures-celulas-l4.md)):
 `print`, `Int`, `Float`, `Bool`, `nil`, aritmética com promoção, `/`, `%`, comparações,
-igualdade, unários, `if`/`while`/blocos, variáveis (`val`/`var`) e funções de topo com
-chamada direta, `return`, recursão e aridade como panic site.
+igualdade, unários, `if`/`while`/blocos, variáveis (`val`/`var`), funções de topo com
+chamada, `return`, recursão, aridade como panic site, strings e closures.
 
-O que ainda não tem representação — `String`, `Any`, closures, funções como valor,
-métodos, classes — falha com erro de compilação explícito (exit 65), nunca com lowering
-silencioso. Funções usam o tipo **anotado** na assinatura; `return` e argumentos precisam
-bater com ele (sem coerção implícita, como no resto do backend).
+Funções de usuário têm ABI `(i8* env, params...)`; uma closure é um ponteiro para
+`{ fnptr, env, display }` na arena. Variáveis capturadas viram células no heap; as não
+capturadas continuam em `alloca`. O que ainda não tem representação — `Any`, `List`/`Map`,
+classes, função com defaults como valor, função genérica como valor — falha com erro de
+compilação explícito (exit 65), nunca com lowering silencioso.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from enum import Enum, auto
 from typing import Any
 
 from src.backend import llvm_ir
+from src.backend.captures import CaptureAnalysis, analyze_captures
 from src.frontend.expr import (
     Assign,
     Binary,
@@ -26,6 +29,7 @@ from src.frontend.expr import (
     Expr,
     Grouping,
     InterpolatedString,
+    Lambda,
     Literal,
     Logical,
     Unary,
@@ -49,7 +53,7 @@ from src.frontend.ty import FLOAT as TY_FLOAT
 from src.frontend.ty import INT as TY_INT
 from src.frontend.ty import NIL as TY_NIL
 from src.frontend.ty import STRING as TY_STRING
-from src.frontend.ty import Ty
+from src.frontend.ty import FnTy, GenericFnTy, Ty
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -57,6 +61,7 @@ _I32 = llvm_ir.int_type(32)
 _FLOAT = llvm_ir.float_type()
 _VOID = llvm_ir.void_type()
 _I8_PTR = llvm_ir.pointer_type()
+_CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR])
 
 # Mensagens que o interpretador usa em runtime para operando de tipo errado.
 # O checker também reporta esses casos; o backend rebaixa para panic site (ADR-0031).
@@ -89,27 +94,54 @@ class ValueType(Enum):
     BOOL = auto()
     STRING = auto()
     NIL = auto()
+    FUNCTION = auto()
 
 
 NUMERIC = (ValueType.INT, ValueType.FLOAT)
 
 
 @dataclass(frozen=True)
+class FnSig:
+    """Assinatura de um valor de função, derivada do `FnTy` do checker."""
+
+    params: tuple[TypeDesc, ...]
+    ret: TypeDesc
+    min_params: int
+
+
+@dataclass(frozen=True)
+class TypeDesc:
+    """Tipo representável no backend; `fn` só existe para `ValueType.FUNCTION`."""
+
+    ty: ValueType
+    fn: FnSig | None = None
+
+    def same_as(self, other: TypeDesc) -> bool:
+        return self.ty is other.ty and self.fn == other.fn
+
+
+@dataclass(frozen=True)
 class Binding:
-    """Variável: slot de memória (`alloca` local ou global) e tipo do binding."""
+    """Variável: slot de memória (`alloca`/global) ou célula, e seu tipo."""
 
     storage: Any
     ty: ValueType
+    sig: FnSig | None = None
+    cell: bool = False
+    function: FunctionInfo | None = None
 
 
 @dataclass(frozen=True)
 class FunctionInfo:
-    """Assinatura já emitida: função LLVM, tipos dos parâmetros e do retorno."""
+    """Assinatura já emitida: função LLVM, tipos e parâmetros declarados."""
 
     ir: Any
     param_types: list[ValueType]
+    param_sigs: list[FnSig | None]
     return_type: ValueType
+    return_sig: FnSig | None
     params: list[Param]
+    fn_sig: FnSig
 
 
 @dataclass(frozen=True)
@@ -118,6 +150,15 @@ class Value:
 
     ty: ValueType
     llvm: Any = None
+    sig: FnSig | None = None
+
+
+@dataclass(frozen=True)
+class CaptureBinding:
+    """Uma captura já resolvida: nome e binding (célula) do escopo externo."""
+
+    name: str
+    binding: Binding
 
 
 def _unsupported(what: str, line: int | None) -> BackendError:
@@ -139,131 +180,151 @@ class Lowerer:
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
+        self._displays: dict[str, Any] = {}
         self._poison_count = 0
         self._string_count = 0
+        self._function_counter = 0
         self._scopes: list[dict[str, Binding]] = [{}]
+        self._captures: dict[str, Binding] = {}
         self._globals: dict[str, Binding] = {}
-        self._functions: dict[str, FunctionInfo] = {}
+        self._top_level: dict[int, FunctionInfo] = {}
         self._function_ir: Any = None
         self._return_type: ValueType = ValueType.NIL
+        self._return_sig: FnSig | None = None
+        self._analysis = CaptureAnalysis({}, frozenset())
 
     # --- programa ---
 
     def lower(self, statements: list[Stmt]) -> None:
+        self._analysis = analyze_captures(statements)
         self._predeclare_functions(statements)
 
         main = llvm_ir.define_main(self.module)
         self.main = main
         self._function_ir = main
         self._return_type = ValueType.NIL
+        self._return_sig = None
+        self._scopes = [{}]
+        self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
         self.builder.call(self._function("lox_init", _VOID, []), [])
 
         for statement in statements:
-            if isinstance(statement, Function):
-                continue
             if self.builder.block.is_terminated:
                 break
             self._stmt(statement)
 
         if not self.builder.block.is_terminated:
             self.builder.ret(llvm_ir.constant(_I32, 0))
+        self._seal_blocks(main)
 
         for statement in statements:
-            if isinstance(statement, Function):
-                self._lower_function(statement)
+            if not isinstance(statement, Function):
+                continue
+            info = self._top_level[id(statement)]
+            self._emit_function(info, statement, ())
 
     def _predeclare_functions(self, statements: list[Stmt]) -> None:
         for statement in statements:
             if not isinstance(statement, Function):
                 continue
 
-            param_types = [self._param_type(param, statement.name) for param in statement.params]
-            return_type = self._return_type_of(statement)
-            result = (
-                _VOID
-                if return_type is ValueType.NIL
-                else self._llvm_type(return_type)
+            info = self._function_info(
+                statement, llvm_name=f"lox.{statement.name.lexeme}"
             )
-            signature = llvm_ir.declare(
-                self.module,
-                f"lox.{statement.name.lexeme}",
-                result,
-                [self._llvm_type(param) for param in param_types],
+            self._top_level[id(statement)] = info
+
+            slot = llvm_ir.global_variable(
+                self.module, f"g.{statement.name.lexeme}", _I8_PTR
             )
-            self._functions[statement.name.lexeme] = FunctionInfo(
-                signature, param_types, return_type, statement.params
+            self._globals[statement.name.lexeme] = Binding(
+                slot,
+                ValueType.FUNCTION,
+                info.fn_sig,
+                function=info,
             )
 
-    def _lower_function(self, stmt: Function) -> None:
-        info = self._functions[stmt.name.lexeme]
+    def _function_info(
+        self, stmt: Function, *, llvm_name: str | None = None
+    ) -> FunctionInfo:
+        if stmt.type_params:
+            raise _unsupported("Generic functions", stmt.name.line)
 
-        saved_builder = self.builder
-        saved_scopes = self._scopes
-        saved_function = self._function_ir
-        saved_return = self._return_type
+        params: list[TypeDesc] = []
+        minimum = 0
+        for param in stmt.params:
+            desc = self._param_desc(param)
+            params.append(desc)
+            if param.default is None:
+                minimum += 1
 
-        self._function_ir = info.ir
-        self._return_type = info.return_type
-        self._scopes = [{}]
-        self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
+        return_desc = self._return_desc(
+            stmt.return_type, stmt.name.line, stmt.name.lexeme
+        )
+        sig = FnSig(tuple(params), return_desc, minimum)
 
-        self._scopes.append({})
-        for index, (param, param_type) in enumerate(
-            zip(stmt.params, info.param_types, strict=True)
-        ):
-            slot = self.builder.alloca(
-                self._llvm_type(param_type), name=param.name.lexeme
-            )
-            self.builder.store(info.ir.args[index], slot)
-            self._scopes[-1][param.name.lexeme] = Binding(slot, param_type)
+        if llvm_name is None:
+            self._function_counter += 1
+            llvm_name = f"lox.{stmt.name.lexeme}.{self._function_counter}"
 
-        for inner in stmt.body:
-            if self.builder.block.is_terminated:
-                break
-            self._stmt(inner)
+        result = (
+            _VOID
+            if return_desc.ty is ValueType.NIL
+            else self._llvm_type(return_desc.ty)
+        )
+        signature = llvm_ir.declare(
+            self.module,
+            llvm_name,
+            result,
+            [_I8_PTR, *[self._llvm_type(param.ty) for param in params]],
+        )
+        return FunctionInfo(
+            signature,
+            [param.ty for param in params],
+            [param.fn for param in params],
+            return_desc.ty,
+            return_desc.fn,
+            stmt.params,
+            sig,
+        )
 
-        if not self.builder.block.is_terminated:
-            if info.return_type is ValueType.NIL:
-                self.builder.ret_void()
-            else:
-                # O checker garante `return` em todos os caminhos.
-                self.builder.unreachable()
-
-        self.builder = saved_builder
-        self._scopes = saved_scopes
-        self._function_ir = saved_function
-        self._return_type = saved_return
-
-    def _param_type(self, param: Param, token: object) -> ValueType:
+    def _param_desc(self, param: Param) -> TypeDesc:
         if param.type_annotation is None:
             raise BackendError(
                 f"Parameter '{param.name.lexeme}' needs a type annotation "
                 "for the backend.",
                 param.name.line,
             )
-        return self._value_type(param.type_annotation, param.name.line)
+        return self._type_desc(param.type_annotation, param.name.line)
 
-    def _return_type_of(self, stmt: Function) -> ValueType:
-        if stmt.return_type is None:
+    def _return_desc(self, ty: Ty | None, line: int, name: str) -> TypeDesc:
+        if ty is None:
             raise BackendError(
-                f"Function '{stmt.name.lexeme}' needs a return type annotation "
-                "for the backend.",
-                stmt.name.line,
+                f"Function '{name}' needs a return type annotation for the backend.",
+                line,
             )
-        return self._value_type(stmt.return_type, stmt.name.line)
+        return self._type_desc(ty, line)
 
-    def _value_type(self, ty: Ty, line: int | None) -> ValueType:
+    def _type_desc(self, ty: Ty, line: int | None) -> TypeDesc:
         if ty is TY_INT:
-            return ValueType.INT
+            return TypeDesc(ValueType.INT)
         if ty is TY_FLOAT:
-            return ValueType.FLOAT
+            return TypeDesc(ValueType.FLOAT)
         if ty is TY_BOOL:
-            return ValueType.BOOL
+            return TypeDesc(ValueType.BOOL)
         if ty is TY_STRING:
-            return ValueType.STRING
+            return TypeDesc(ValueType.STRING)
         if ty is TY_NIL:
-            return ValueType.NIL
+            return TypeDesc(ValueType.NIL)
+        if isinstance(ty, FnTy):
+            params = tuple(self._type_desc(param, line) for param in ty.params)
+            for param in params:
+                if param.ty is ValueType.NIL:
+                    raise _unsupported("A Nil parameter", line)
+            ret = self._type_desc(ty.ret, line)
+            return TypeDesc(ValueType.FUNCTION, FnSig(params, ret, ty.min_params))
+        if isinstance(ty, GenericFnTy):
+            raise _unsupported("Generic function value", line)
 
         raise _unsupported(f"Type '{ty}'", line)
 
@@ -276,6 +337,8 @@ class Lowerer:
             case ValueType.BOOL:
                 return _BOOL
             case ValueType.STRING:
+                return _I8_PTR
+            case ValueType.FUNCTION:
                 return _I8_PTR
             case ValueType.NIL:
                 return _VOID
@@ -290,6 +353,8 @@ class Lowerer:
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
             case ValueType.STRING:
                 return Value(ValueType.STRING, llvm_ir.null_pointer())
+            case ValueType.FUNCTION:
+                return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
             case ValueType.NIL:
                 return Value(ValueType.NIL)
 
@@ -308,7 +373,11 @@ class Lowerer:
         elif isinstance(stmt, Return):
             self._return(stmt)
         elif isinstance(stmt, Function):
-            raise _unsupported("Local functions", stmt.name.line)
+            info = self._top_level.get(id(stmt))
+            if info is not None:
+                self._define_top_level_function(stmt, info)
+            else:
+                self._local_function(stmt)
         elif isinstance(stmt, Var):
             self._var(stmt)
         elif isinstance(stmt, If):
@@ -385,6 +454,11 @@ class Lowerer:
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]), [value.llvm]
                 )
+            case ValueType.FUNCTION:
+                self.builder.call(
+                    self._function("lox_print_function", _VOID, [_I8_PTR]),
+                    [value.llvm],
+                )
             case ValueType.NIL:
                 self.builder.call(self._function("lox_print_nil", _VOID, []), [])
 
@@ -411,8 +485,293 @@ class Lowerer:
             return self._logical(expr)
         if isinstance(expr, InterpolatedString):
             return self._interpolated(expr)
+        if isinstance(expr, Lambda):
+            return self._lambda(expr)
 
         raise _unsupported(type(expr).__name__, None)
+
+    # --- funções e closures ---
+
+    def _define_top_level_function(self, stmt: Function, info: FunctionInfo) -> None:
+        binding = self._globals.get(stmt.name.lexeme)
+        if binding is None or binding.ty is not ValueType.FUNCTION:
+            raise BackendError(
+                f"Global '{stmt.name.lexeme}' was redefined as a non-function.",
+                stmt.name.line,
+            )
+
+        closure = self._build_closure(info, (), f"<fn {stmt.name.lexeme}>")
+        self.builder.store(closure.llvm, binding.storage)
+
+    def _local_function(self, stmt: Function) -> None:
+        info = self._function_info(stmt)
+        captured = self._analysis.is_captured(stmt)
+
+        if captured:
+            cell = self._alloc_cell()
+            self._store_null_cell(cell)
+            binding = Binding(
+                cell,
+                ValueType.FUNCTION,
+                info.fn_sig,
+                cell=True,
+                function=info,
+            )
+        else:
+            slot = self.builder.alloca(_I8_PTR, name=stmt.name.lexeme)
+            binding = Binding(
+                slot,
+                ValueType.FUNCTION,
+                info.fn_sig,
+                function=info,
+            )
+
+        self._scopes[-1][stmt.name.lexeme] = binding
+
+        captures = self._make_captures(stmt)
+        closure = self._build_closure(info, captures, f"<fn {stmt.name.lexeme}>")
+        self._store_binding(binding, closure)
+
+        self._emit_function(info, stmt, captures)
+
+    def _lambda(self, expr: Lambda) -> Value:
+        info = self._lambda_info(expr)
+        captures = self._make_captures(expr)
+        closure = self._build_closure(info, captures, "<lambda>")
+        self._emit_function(info, expr, captures)
+        return closure
+
+    def _lambda_info(self, expr: Lambda) -> FunctionInfo:
+        ty = self.types.get(expr)
+        if isinstance(ty, GenericFnTy):
+            raise _unsupported("Generic function value", expr.keyword.line)
+        if not isinstance(ty, FnTy):
+            raise _unsupported(
+                "Lambda without a concrete function type", expr.keyword.line
+            )
+
+        desc = self._type_desc(ty, expr.keyword.line)
+        assert desc.fn is not None
+        sig = desc.fn
+
+        self._function_counter += 1
+        llvm_name = f"lox.lambda.{self._function_counter}"
+        result = _VOID if sig.ret.ty is ValueType.NIL else self._llvm_type(sig.ret.ty)
+        signature = llvm_ir.declare(
+            self.module,
+            llvm_name,
+            result,
+            [_I8_PTR, *[self._llvm_type(param.ty) for param in sig.params]],
+        )
+        return FunctionInfo(
+            signature,
+            [param.ty for param in sig.params],
+            [param.fn for param in sig.params],
+            sig.ret.ty,
+            sig.ret.fn,
+            expr.params,
+            sig,
+        )
+
+    def _make_captures(self, node: Function | Lambda) -> tuple[CaptureBinding, ...]:
+        result: list[CaptureBinding] = []
+        for capture in self._analysis.captures_of(node):
+            binding = self._find_binding(capture.name)
+            if binding is None:
+                raise BackendError(
+                    f"Internal capture error for '{capture.name}'.", None
+                )
+            if not binding.cell:
+                raise BackendError(
+                    f"Captured variable '{capture.name}' was not boxed.", None
+                )
+            result.append(CaptureBinding(capture.name, binding))
+
+        return tuple(result)
+
+    def _find_binding(self, name: str) -> Binding | None:
+        for scope in reversed(self._scopes):
+            binding = scope.get(name)
+            if binding is not None:
+                return binding
+
+        return self._captures.get(name)
+
+    def _build_closure(
+        self,
+        info: FunctionInfo,
+        captures: tuple[CaptureBinding, ...],
+        display: str,
+    ) -> Value:
+        env: Any = llvm_ir.null_pointer()
+        if captures:
+            raw_env = self.builder.call(
+                self._function("lox_alloc_env", _I8_PTR, [_INT]),
+                [llvm_ir.constant(_INT, len(captures))],
+            )
+            env_type = llvm_ir.literal_struct([_I8_PTR] * len(captures))
+            env_struct = self.builder.bitcast(raw_env, env_type.as_pointer())
+            for index, capture in enumerate(captures):
+                field = self.builder.gep(
+                    env_struct,
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
+                )
+                self.builder.store(capture.binding.storage, field)
+            env = raw_env
+
+        raw_closure = self.builder.call(
+            self._function("lox_alloc_closure", _I8_PTR, []), []
+        )
+        closure = self.builder.bitcast(raw_closure, _CLOSURE.as_pointer())
+        fn_slot = self.builder.gep(
+            closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)]
+        )
+        env_slot = self.builder.gep(
+            closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)]
+        )
+        name_slot = self.builder.gep(
+            closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 2)]
+        )
+        self.builder.store(self.builder.bitcast(info.ir, _I8_PTR), fn_slot)
+        self.builder.store(env, env_slot)
+        self.builder.store(self._display_pointer(display), name_slot)
+
+        return Value(ValueType.FUNCTION, raw_closure, info.fn_sig)
+
+    def _display_pointer(self, display: str) -> Any:
+        global_ = self._displays.get(display)
+        if global_ is None:
+            global_ = llvm_ir.cstring(
+                self.module, display, f"display.{len(self._displays)}"
+            )
+            self._displays[display] = global_
+
+        return llvm_ir.cstring_pointer(self.builder, global_)
+
+    def _emit_function(
+        self,
+        info: FunctionInfo,
+        stmt: Function | Lambda,
+        captures: tuple[CaptureBinding, ...],
+    ) -> None:
+        saved_builder = self.builder
+        saved_scopes = self._scopes
+        saved_captures = self._captures
+        saved_function = self._function_ir
+        saved_return = self._return_type
+        saved_return_sig = self._return_sig
+
+        self._function_ir = info.ir
+        self._return_type = info.return_type
+        self._return_sig = info.return_sig
+        self._scopes = [{}]
+        self._captures = {}
+        self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
+
+        env_arg = info.ir.args[0]
+        if captures:
+            env_type = llvm_ir.literal_struct([_I8_PTR] * len(captures))
+            env_struct = self.builder.bitcast(env_arg, env_type.as_pointer())
+            for index, capture in enumerate(captures):
+                field = self.builder.gep(
+                    env_struct,
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
+                )
+                cell = self.builder.load(field)
+                self._captures[capture.name] = Binding(
+                    cell,
+                    capture.binding.ty,
+                    capture.binding.sig,
+                    cell=True,
+                    function=capture.binding.function,
+                )
+
+        for index, param in enumerate(info.params):
+            desc = TypeDesc(info.param_types[index], info.param_sigs[index])
+            argument = info.ir.args[index + 1]
+            if self._analysis.is_captured(param):
+                cell = self._alloc_cell()
+                typed = self._cell_pointer(cell, desc.ty)
+                self.builder.store(argument, typed)
+                binding = Binding(cell, desc.ty, desc.fn, cell=True)
+            else:
+                slot = self.builder.alloca(
+                    self._llvm_type(desc.ty), name=param.name.lexeme
+                )
+                self.builder.store(argument, slot)
+                binding = Binding(slot, desc.ty, desc.fn)
+
+            self._scopes[-1][param.name.lexeme] = binding
+
+        for inner in stmt.body:
+            if self.builder.block.is_terminated:
+                break
+            self._stmt(inner)
+
+        if not self.builder.block.is_terminated:
+            if info.return_type is ValueType.NIL:
+                self.builder.ret_void()
+            else:
+                # O checker garante `return` em todos os caminhos.
+                self.builder.unreachable()
+        self._seal_blocks(info.ir)
+
+        self.builder = saved_builder
+        self._scopes = saved_scopes
+        self._captures = saved_captures
+        self._function_ir = saved_function
+        self._return_type = saved_return
+        self._return_sig = saved_return_sig
+
+    def _seal_blocks(self, function: Any) -> None:
+        """Todo bloco precisa de terminador; continuações de panic ficam `unreachable`."""
+        for block in function.blocks:
+            if not block.is_terminated:
+                llvm_ir.builder(block).unreachable()
+
+    # --- células ---
+
+    def _alloc_cell(self) -> Any:
+        return self.builder.call(self._function("lox_alloc_cell", _I8_PTR, []), [])
+
+    def _cell_pointer(self, cell: Any, ty: ValueType) -> Any:
+        return self.builder.bitcast(cell, self._llvm_type(ty).as_pointer())
+
+    def _store_null_cell(self, cell: Any) -> None:
+        pointer = self.builder.bitcast(cell, _I8_PTR.as_pointer())
+        self.builder.store(llvm_ir.null_pointer(), pointer)
+
+    def _load_binding(self, binding: Binding) -> Value:
+        if binding.cell:
+            pointer = self._cell_pointer(binding.storage, binding.ty)
+            loaded = self.builder.load(pointer)
+        else:
+            loaded = self.builder.load(binding.storage)
+
+        return Value(binding.ty, loaded, binding.sig)
+
+    def _store_binding(self, binding: Binding, value: Value) -> None:
+        if binding.cell:
+            pointer = self._cell_pointer(binding.storage, value.ty)
+            self.builder.store(value.llvm, pointer)
+        else:
+            self.builder.store(value.llvm, binding.storage)
+
+    def _guard_closure(self, value: Value, name: str, line: int) -> Value:
+        is_null = self.builder.icmp_signed(
+            "==", value.llvm, llvm_ir.null_pointer()
+        )
+        ok = llvm_ir.append_block(self._function_ir, "fn.ok")
+        bad = llvm_ir.append_block(self._function_ir, "fn.null")
+        self.builder.cbranch(is_null, bad, ok)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(line, f"Undefined variable '{name}'.")
+
+        self.builder = llvm_ir.builder(ok)
+        return value
+
+    # --- variáveis ---
 
     def _var(self, stmt: Var) -> None:
         if stmt.initializer is None:
@@ -422,16 +781,15 @@ class Lowerer:
             )
 
         value = self._expr(stmt.initializer)
-        # O tipo é o do valor em runtime, não o da anotação: tipos são apagados e
-        # `val f: Float = 2` guarda um `Int` (o interpretador imprime `3`, não `3.0`).
         declared = value.ty
+        sig = value.sig
         if declared is ValueType.NIL:
             raise BackendError(
                 "Variables of type Nil are not supported by the backend yet.",
                 stmt.name.line,
             )
 
-        if len(self._scopes) == 1:
+        if self._function_ir is self.main and len(self._scopes) == 1:
             existing = self._globals.get(stmt.name.lexeme)
             if existing is not None:
                 # Redeclaração de global (`var x = 1; var x = 2;`): o interpretador
@@ -444,32 +802,56 @@ class Lowerer:
                         "is not supported by the backend yet.",
                         stmt.name.line,
                     )
-                self.builder.store(value.llvm, existing.storage)
+                # `var f = ...` depois de `fn f` deixa de ser uma chamada direta.
+                binding = Binding(existing.storage, declared, sig)
+                self._globals[stmt.name.lexeme] = binding
+                self.builder.store(value.llvm, binding.storage)
                 return
 
             name = f"g.{stmt.name.lexeme}"
-            global_ = llvm_ir.global_variable(self.module, name, self._llvm_type(declared))
-            self._globals[stmt.name.lexeme] = Binding(global_, declared)
+            global_ = llvm_ir.global_variable(
+                self.module, name, self._llvm_type(declared)
+            )
+            binding = Binding(global_, declared, sig)
+            self._globals[stmt.name.lexeme] = binding
             self.builder.store(value.llvm, global_)
             return
 
-        slot = self.builder.alloca(
-            self._llvm_type(declared), name=stmt.name.lexeme
-        )
+        if self._analysis.is_captured(stmt):
+            cell = self._alloc_cell()
+            cell_pointer = self._cell_pointer(cell, declared)
+            self.builder.store(value.llvm, cell_pointer)
+            self._scopes[-1][stmt.name.lexeme] = Binding(
+                cell, declared, sig, cell=True
+            )
+            return
+
+        slot = self.builder.alloca(self._llvm_type(declared), name=stmt.name.lexeme)
         self.builder.store(value.llvm, slot)
-        self._scopes[-1][stmt.name.lexeme] = Binding(slot, declared)
+        self._scopes[-1][stmt.name.lexeme] = Binding(slot, declared, sig)
 
     def _variable(self, expr: Variable) -> Value:
-        if expr.name.lexeme in self._functions:
-            raise _unsupported("Function values", expr.name.line)
-
         depth = self.depths.get(expr)
         if depth is None and expr.name.lexeme not in self._globals:
             self._poison(expr.name.line, f"Undefined variable '{expr.name.lexeme}'.")
             return self._zero(ValueType.INT)
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
-        return Value(binding.ty, self.builder.load(binding.storage))
+        if (
+            binding.function is not None
+            and binding.function.fn_sig.min_params
+            < len(binding.function.fn_sig.params)
+        ):
+            raise BackendError(
+                "Functions with default parameters as values are not supported by the "
+                "backend yet.",
+                expr.name.line,
+            )
+
+        value = self._load_binding(binding)
+        if value.ty is ValueType.FUNCTION:
+            return self._guard_closure(value, expr.name.lexeme, expr.name.line)
+        return value
 
     def _assign(self, expr: Assign) -> Value:
         value = self._expr(expr.value)
@@ -477,15 +859,47 @@ class Lowerer:
         if depth is None and expr.name.lexeme not in self._globals:
             self._poison(expr.name.line, f"Undefined variable '{expr.name.lexeme}'.")
             return value
+
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
-        if value.ty is not binding.ty:
+        if not TypeDesc(binding.ty, binding.sig).same_as(
+            TypeDesc(value.ty, value.sig)
+        ):
             raise BackendError(
                 f"Can't assign {value.ty.name} to a {binding.ty.name} variable "
                 "for the backend yet.",
                 expr.name.line,
             )
-        self.builder.store(value.llvm, binding.storage)
+        if (
+            binding.function is not None
+            and binding.function.fn_sig.min_params
+            < len(binding.function.fn_sig.params)
+        ):
+            raise BackendError(
+                "Functions with default parameters as values are not supported by the "
+                "backend yet.",
+                expr.name.line,
+            )
+
+        self._store_binding(binding, value)
+
+        if binding.function is not None:
+            # O binding agora aponta para outra função: chamadas seguintes são
+            # indiretas (o corpo pode ter mudado).
+            replacement = Binding(
+                binding.storage, value.ty, value.sig, binding.cell
+            )
+            self._replace_binding(expr, expr.name.lexeme, replacement)
+
         return value
+
+    def _replace_binding(self, expr: Expr, name: str, binding: Binding) -> None:
+        depth = self.depths.get(expr)
+        if depth is None:
+            self._globals[name] = binding
+        elif depth < len(self._scopes):
+            self._scopes[-1 - depth][name] = binding
+        else:
+            self._captures[name] = binding
 
     def _lookup(self, expr: Expr, name: str, line: int) -> Binding:
         depth = self.depths.get(expr)
@@ -495,7 +909,13 @@ class Lowerer:
                 raise BackendError(f"Undefined variable '{name}'.", line)
             return binding
 
-        return self._scopes[-1 - depth][name]
+        if depth < len(self._scopes):
+            return self._scopes[-1 - depth][name]
+
+        binding = self._captures.get(name)
+        if binding is None:
+            raise BackendError(f"Undefined variable '{name}'.", line)
+        return binding
 
     def _literal(self, expr: Literal) -> Value:
         value = expr.value
@@ -555,6 +975,13 @@ class Lowerer:
                 widened = self.builder.zext(value.llvm, _I32)
                 return Value(
                     ValueType.STRING, self.builder.call(function, [widened])
+                )
+            case ValueType.FUNCTION:
+                function = self._function(
+                    "lox_str_from_function", _I8_PTR, [_I8_PTR]
+                )
+                return Value(
+                    ValueType.STRING, self.builder.call(function, [value.llvm])
                 )
             case ValueType.NIL:
                 function = self._function("lox_str_nil", _I8_PTR, [])
@@ -751,6 +1178,10 @@ class Lowerer:
             return Value(ValueType.BOOL, result)
 
         if left.ty is right.ty:
+            if left.ty is ValueType.FUNCTION and left.sig != right.sig:
+                return Value(
+                    ValueType.BOOL, llvm_ir.constant(_BOOL, int(not equal))
+                )
             result = self.builder.icmp_signed(
                 "==" if equal else "!=", left.llvm, right.llvm
             )
@@ -776,59 +1207,108 @@ class Lowerer:
             return
 
         value = self._expr(stmt.value)
-        if value.ty is not self._return_type:
+        if not TypeDesc(value.ty, value.sig).same_as(
+            TypeDesc(self._return_type, self._return_sig)
+        ):
             raise BackendError(
                 f"Expected {self._return_type.name}, found {value.ty.name} "
                 "in this return for the backend yet.",
                 stmt.keyword.line,
             )
 
+        if value.ty is ValueType.NIL:
+            self.builder.ret_void()
+            return
+
         self.builder.ret(value.llvm)
 
     def _call(self, expr: Call) -> Value:
-        if not isinstance(expr.callee, Variable):
-            raise _unsupported("Indirect calls", expr.paren.line)
+        if isinstance(expr.callee, Variable):
+            name = expr.callee.name.lexeme
+            if name == "len":
+                return self._len(expr)
+            if name == "str":
+                return self._str(expr)
+            if name == "repr":
+                return self._repr(expr)
 
-        name = expr.callee.name.lexeme
-        if name == "len":
-            return self._len(expr)
-        if name == "str":
-            return self._str(expr)
-        if name == "repr":
-            return self._repr(expr)
+        info: FunctionInfo | None = None
+        binding: Binding | None = None
+        if isinstance(expr.callee, Variable):
+            depth = self.depths.get(expr.callee)
+            if depth is not None or expr.callee.name.lexeme in self._globals:
+                binding = self._lookup(
+                    expr.callee, expr.callee.name.lexeme, expr.callee.name.line
+                )
+                if binding.function is not None:
+                    info = binding.function
 
-        info = self._functions.get(name)
-        if info is None:
-            raise _unsupported(f"Call to '{name}'", expr.paren.line)
+        if info is not None:
+            assert binding is not None
+            assert isinstance(expr.callee, Variable)
+            callee = self._load_binding(binding)
+            callee = self._guard_closure(
+                callee, expr.callee.name.lexeme, expr.callee.name.line
+            )
+        else:
+            callee = self._expr(expr.callee)
+
+        if callee.ty is not ValueType.FUNCTION or callee.sig is None:
+            self._poison(expr.paren.line, "Can only call functions and classes.")
+            return self._zero(ValueType.INT)
 
         arguments = [self._expr(argument) for argument in expr.arguments]
-        minimum = sum(1 for param in info.params if param.default is None)
-        maximum = len(info.params)
+        sig = info.fn_sig if info is not None else callee.sig
         count = len(arguments)
 
+        minimum = sig.min_params
+        maximum = len(sig.params)
         if not minimum <= count <= maximum:
             self._poison(expr.paren.line, self._arity_message(minimum, maximum, count))
-            return self._zero(info.return_type)
+            return self._zero(sig.ret.ty)
 
-        for index in range(count, maximum):
-            default = info.params[index].default
-            assert default is not None
-            arguments.append(self._expr(default))
+        if info is not None:
+            for index in range(count, maximum):
+                default = info.params[index].default
+                assert default is not None
+                arguments.append(self._expr(default))
 
-        for index, (argument, param_type) in enumerate(
-            zip(arguments, info.param_types, strict=True), start=1
+        for index, (argument, expected) in enumerate(
+            zip(arguments, sig.params, strict=True), start=1
         ):
-            if argument.ty is not param_type:
+            if not TypeDesc(argument.ty, argument.sig).same_as(expected):
+                name = (
+                    expr.callee.name.lexeme
+                    if isinstance(expr.callee, Variable)
+                    else "function"
+                )
                 raise BackendError(
                     f"Argument {index} of '{name}' is {argument.ty.name}, "
-                    f"expected {param_type.name}, for the backend yet.",
+                    f"expected {expected.ty.name}, for the backend yet.",
                     expr.paren.line,
                 )
 
-        call = self.builder.call(info.ir, [argument.llvm for argument in arguments])
-        if info.return_type is ValueType.NIL:
+        fnptr = self._closure_field(callee, 0)
+        env = self._closure_field(callee, 1)
+        function_type = llvm_ir.function_pointer(
+            _VOID if sig.ret.ty is ValueType.NIL else self._llvm_type(sig.ret.ty),
+            [_I8_PTR, *[self._llvm_type(param.ty) for param in sig.params]],
+        )
+        call = self.builder.call(
+            self.builder.bitcast(fnptr, function_type),
+            [env, *[argument.llvm for argument in arguments]],
+        )
+        if sig.ret.ty is ValueType.NIL:
             return Value(ValueType.NIL)
-        return Value(info.return_type, call)
+        return Value(sig.ret.ty, call, sig.ret.fn)
+
+    def _closure_field(self, closure: Value, index: int) -> Any:
+        struct_ = self.builder.bitcast(closure.llvm, _CLOSURE.as_pointer())
+        field = self.builder.gep(
+            struct_,
+            [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
+        )
+        return self.builder.load(field)
 
     def _conditional(self, expr: Conditional) -> Value:
         condition = self._truthy(self._expr(expr.condition))
@@ -855,7 +1335,9 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(end_block)
 
-        if then_value.ty is not else_value.ty:
+        if not TypeDesc(then_value.ty, then_value.sig).same_as(
+            TypeDesc(else_value.ty, else_value.sig)
+        ):
             raise BackendError(
                 f"Ternary branches are {then_value.ty.name} and "
                 f"{else_value.ty.name}; union types are not supported by the "
@@ -873,7 +1355,7 @@ class Lowerer:
             merged = self.builder.phi(self._llvm_type(then_value.ty), "cond.value")
             merged.add_incoming(then_value.llvm, then_end)
             merged.add_incoming(else_value.llvm, else_end)
-            return Value(then_value.ty, merged)
+            return Value(then_value.ty, merged, then_value.sig)
 
         if then_open:
             return then_value
@@ -888,7 +1370,7 @@ class Lowerer:
 
         if operator is TokenType.QUESTION_QUESTION:
             left = self._expr(expr.left)
-            # No L2 um valor não-nil é sempre não-nil: o lado direito é código morto.
+            # No L4 um valor não-nil é sempre não-nil: o lado direito é código morto.
             if left.ty is not ValueType.NIL:
                 return left
             return self._expr(expr.right)
@@ -929,7 +1411,7 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(end_block)
 
-        if left.ty is not right.ty:
+        if not TypeDesc(left.ty, left.sig).same_as(TypeDesc(right.ty, right.sig)):
             raise BackendError(
                 f"Operands of '{expr.operator.lexeme}' are {left.ty.name} and "
                 f"{right.ty.name}; union types are not supported by the backend "
@@ -943,7 +1425,7 @@ class Lowerer:
         merged = self.builder.phi(self._llvm_type(left.ty), "logical.value")
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
-        return Value(left.ty, merged)
+        return Value(left.ty, merged, left.sig)
 
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
         if minimum == maximum:
@@ -954,7 +1436,9 @@ class Lowerer:
 
     def _concat(self, left: Value, right: Value) -> Value:
         function = self._function("lox_str_concat", _I8_PTR, [_I8_PTR, _I8_PTR])
-        return Value(ValueType.STRING, self.builder.call(function, [left.llvm, right.llvm]))
+        return Value(
+            ValueType.STRING, self.builder.call(function, [left.llvm, right.llvm])
+        )
 
     def _repr(self, expr: Call) -> Value:
         arguments = [self._expr(argument) for argument in expr.arguments]
@@ -1003,8 +1487,13 @@ class Lowerer:
         match value.ty:
             case ValueType.BOOL:
                 return value.llvm
-            case ValueType.INT | ValueType.FLOAT | ValueType.STRING:
-                # Só nil e false são falsy: `0`, `0.0` e `""` são truthy (ADR-0006).
+            case (
+                ValueType.INT
+                | ValueType.FLOAT
+                | ValueType.STRING
+                | ValueType.FUNCTION
+            ):
+                # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
                 return llvm_ir.constant(_BOOL, 1)
             case ValueType.NIL:
                 return llvm_ir.constant(_BOOL, 0)

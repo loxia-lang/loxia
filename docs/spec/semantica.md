@@ -290,7 +290,7 @@ print len(par)               # 2
 - **`is`/`as`**: `x is (A, B)` testa aridade e cada posição; `x as (A, B)` é cast
   verificado (aceita `Any`; falha em runtime se a forma não bater).
 - **Fora da v1**: tuplas não são hasháveis nem chave de `Map`; sem destructuring aninhado;
-  o backend L0–L3 as rejeita (layout no L6).
+  o backend L0–L4 as rejeita (layout no L6).
 
 ## Mapas
 

@@ -12,7 +12,7 @@ A decisão por trás destas garantias (e o porquê de cada custo) está no
 
 | # | Garantia | Status |
 | --- | --- | --- |
-| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L3 (strings/arena); corpus parcialmente anotado |
+| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L4; corpus por nível anotado |
 | **I2** | Nada acontece implicitamente | ✅ vale hoje |
 | **I3** | Determinismo observável: mesma entrada ⇒ mesmos bytes | ✅ vale hoje e é testado em CI |
 
@@ -22,13 +22,16 @@ O tree-walk é a **definição normativa** da linguagem. Todo programa do corpus
 tem que produzir o **mesmo stdout (bytes)**, o **mesmo stderr** e o **mesmo exit code**
 nos dois motores; se divergirem, o bug é do backend.
 
-O backend nativo cobre **L0–L2** (ADR-0031): `Int`, `Float`, `Bool`, `nil`, aritmética com
-promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if`, `while`,
-`val`/`var` com escopo e sombreamento, funções de topo com `return`, recursão e defaults,
-ternário/`and`/`or`/`??` com curto-circuito, e `String` (concatenação, igualdade, `len`
-em code points, interpolação e `str`/`repr`) com arena. O teste diferencial (`tests/test_backend.py`) compila cada caso, executa o binário
-e compara os três canais com o interpretador — nunca com uma expectativa escrita à mão. O
-manifesto `tests/corpus_manifest.py` declara os casos por nível.
+O backend nativo cobre **L0–L4** ([ADR-0031](../adr/0031-backend-nativo.md),
+[ADR-0046](../adr/0046-closures-celulas-l4.md)): `Int`, `Float`, `Bool`, `nil`, aritmética
+com promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if`,
+`while`, `val`/`var` com escopo e sombreamento, funções com `return`, recursão e defaults,
+ternário/`and`/`or`/`??` com curto-circuito, `String` (concatenação, igualdade, `len` em
+code points, interpolação e `str`/`repr`) com arena, funções locais/lambdas, closures
+(células e `env`) e valores de função (`<fn f>`/`<lambda>`). O teste diferencial
+(`tests/test_backend.py`) compila cada caso, executa o binário e compara os três canais
+com o interpretador — nunca com uma expectativa escrita à mão. O manifesto
+`tests/corpus_manifest.py` declara os casos por nível.
 
 O **corpus** é o corpus de conformidade inteiro, anotado: `tests/cases`, `exemplos/` e
 `tests/official/cases`. A suíte do livro ainda é código cru do Crafting Interpreters
@@ -37,8 +40,9 @@ anotação é pré-requisito do L1, e o I1 só vale para os programas efetivamen
 Não se escolhe o corpus depois olhando o que o backend já acerta.
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito** (exit 65),
-nunca com lowering silencioso: variáveis e funções (L2), `String` (L3), closures (L4),
-classes (L5), `Any`/`List`/`Map` (L6).
+nunca com lowering silencioso: classes/`T?` de referência (L5), `Any`/`List`/`Map`/
+tuplas/enums (L6). No L4, função com defaults usada como valor também é rejeitada com 65
+(fora do corpus declarado); ver [ADR-0046](../adr/0046-closures-celulas-l4.md).
 
 A comparação é feita por canal: quando stdout e stderr vão para o **mesmo** descritor
 (`2>&1`), a ordem de intercalação das duas saídas não faz parte da garantia.

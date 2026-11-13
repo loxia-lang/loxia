@@ -1,0 +1,3 @@
+# T4 generaliza `val id = fn(x) => x`; o backend ainda não monomorfiza valor (L6).
+val id = fn(x) => x;
+print id(1);  # expect: 1

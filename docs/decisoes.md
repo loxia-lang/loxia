@@ -68,6 +68,11 @@ decisão.
 | Layout L5 | Instância `{ptr classe, campos base→derivada}`; vtable com prefixo e override no slot; `init` fora da vtable e `super.m` direto; bitmap de inicialização no MVP; classes locais suportadas. | [ADR-0043](adr/0043-layout-l5-classes.md) |
 | Identidade de classe | `is`/`as`/`except` comparam o **objeto de classe** e a cadeia de superclasses; ids inteiros só para vtable/mangling/tags; classes locais homônimas são distintas; rebinding segue o binding atual. | [ADR-0044](adr/0044-identidade-classe.md) |
 | Narrowing × backend | Lowering usa `storage_types` (declarado, sem narrowing); chamada/atribuição a campo/índice invalida refinos de campo/índice; `types` (fluxo) não define representação. | [ADR-0045](adr/0045-narrowing-representacao.md) |
+| L4 — closures e células | Sem HIR no L4: lowering direto + passe de captura; capturados viram células no heap e entram no `env`; não capturados continuam em `alloca`. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
+| L4 — ABI e valores de função | Todo `fn` de usuário leva `(i8* env, params...)`; closure é `{fnptr, env, display}` na arena; funções locais, lambdas com `FnTy` concreto, chamada indireta e `print`/`str`/interpolação `<fn f>`/`<lambda>`. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
+| L4 — defaults e aridade | Chamada direta preenche defaults no call site; função com defaults como valor é rejeitada com 65 no L4; chamada indireta exige aridade exata. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
+| L4 — ordem de declaração | Assinaturas de topo são pré-declaradas (recursão mútua), mas o binding só existe quando o statement executa; usar antes vira panic 70, sem hoisting. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
+| Diagnósticos no L4 | Spans/caret e stack trace ficam **fora** do L4; o contrato segue `lox_panic(linha, msg)`/`[line N]`; decisão própria antes do L5/L6. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
 
 ## Processo e escopo

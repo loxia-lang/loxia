@@ -100,7 +100,7 @@ class Lox:
                 emit=cast("Emit", emit),
                 output=output,
                 stem=stem,
-                types=checker.types,
+                types=checker.storage_types,
                 depths=self.interpreter.locals,
             )
         except BackendError as error:

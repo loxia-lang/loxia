@@ -4,7 +4,7 @@ Um caso só entra aqui quando o backend do nível o compila **e** reproduz stdou
 e exit code do interpretador. A promoção é monotônica: caso que passou não sai do
 manifesto sem quebrar o build.
 
-Níveis futuros (`l2`, `l3`, ...) entram como chaves novas; `l0` nunca encolhe.
+Níveis novos entram como chaves novas; uma chave de nível nunca encolhe.
 """
 
 from __future__ import annotations
@@ -34,6 +34,15 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/string_order.lox",
         "tests/cases/strings.lox",
         "tests/cases/val_shadowing.lox",
+    ),
+    "l4": (
+        "tests/cases/closure_reassign.lox",
+        "tests/cases/closure_static_scope.lox",
+        "tests/cases/closures.lox",
+        "tests/cases/function_values.lox",
+        "tests/cases/functions.lox",
+        "tests/cases/lambda_closures.lox",
+        "tests/cases/local_function.lox",
     ),
     "l2": (
         "tests/cases/assignment.lox",
@@ -67,9 +76,8 @@ PENDING: dict[str, str] = {
     "tests/cases/class_initializer.lox": "l5",
     "tests/cases/class_this.lox": "l5",
     "tests/cases/classes.lox": "l5",
-    "tests/cases/closure_static_scope.lox": "l4",
-    "tests/cases/closures.lox": "l4",
     "tests/cases/default_params.lox": "l5",
+    "tests/cases/defaults_as_value.lox": "l?",
     "tests/cases/enums.lox": "l6",
     "tests/cases/exceptions.lox": "l6",
     "tests/cases/exponentiation.lox": "l?",
@@ -77,8 +85,8 @@ PENDING: dict[str, str] = {
     "tests/cases/fields_val_var.lox": "l5",
     "tests/cases/for_in.lox": "l6",
     "tests/cases/for_in_capture.lox": "l6",
-    "tests/cases/functions.lox": "l4",
     "tests/cases/generic_class.lox": "l6",
+    "tests/cases/generic_lambda_value.lox": "l6",
     "tests/cases/generics.lox": "l6",
     "tests/cases/inheritance.lox": "l5",
     "tests/cases/inheritance_init.lox": "l5",
@@ -92,7 +100,6 @@ PENDING: dict[str, str] = {
     "tests/cases/list_literal.lox": "l6",
     "tests/cases/list_methods.lox": "l6",
     "tests/cases/list_stringify.lox": "l6",
-    "tests/cases/local_function.lox": "l4",
     "tests/cases/map_cycle.lox": "l6",
     "tests/cases/map_equality.lox": "l6",
     "tests/cases/map_iteration.lox": "l6",

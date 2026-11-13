@@ -56,6 +56,50 @@ static void *lox_alloc(size_t size) {
     return pointer;
 }
 
+/*
+ * Closure do L4 (ADR-0046): `{ fnptr, env, display }`. O IR aloca via estes wrappers;
+ * `display` é uma string C determinística (`<fn f>`/`<lambda>`), nunca um endereço.
+ */
+typedef struct {
+    void *fn;
+    void *env;
+    const char *display;
+} LoxClosure;
+
+void *lox_alloc_cell(void) {
+    return lox_alloc(sizeof(int64_t));
+}
+
+void *lox_alloc_env(int64_t count) {
+    size_t entries = count > 0 ? (size_t)count : 1u;
+    return lox_alloc(entries * sizeof(void *));
+}
+
+void *lox_alloc_closure(void) {
+    return lox_alloc(sizeof(LoxClosure));
+}
+
+void lox_print_function(const void *pointer) {
+    const LoxClosure *closure = pointer;
+    fputs(closure->display, stdout);
+    fputc('\n', stdout);
+}
+
+void *lox_str_from_function(const void *pointer) {
+    const LoxClosure *closure = pointer;
+    const char *display = closure->display;
+    size_t length = strlen(display);
+
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
+    char *data = (char *)(result + 1);
+    memcpy(data, display, length + 1);
+
+    result->byte_len = (int64_t)length;
+    result->cp_len = (int64_t)length;
+    result->data = data;
+    return result;
+}
+
 void lox_print_str(const void *pointer) {
     const LoxStr *string = pointer;
     fwrite(string->data, 1, (size_t)string->byte_len, stdout);

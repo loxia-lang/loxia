@@ -338,7 +338,7 @@ chamada.
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
 
-## Backend nativo (L0–L3)
+## Backend nativo (L0–L4)
 
 O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
 não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
@@ -354,11 +354,21 @@ convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` f
 
 Variáveis usam `alloca` (locais) e globais LLVM (topo); o `depth` do resolver decide o
 escopo (`depths`), e o tipo do slot é o tipo do **valor** em runtime, não o da anotação —
-como no interpretador, `val f: Float = 2` guarda `Int`.
+como no interpretador, `val f: Float = 2` guarda `Int`. Variáveis capturadas por closures
+viram **células** na arena (`{ value }`) e são referenciadas por ponteiro; as demais
+continuam em `alloca`.
 
-Funções de topo são pré-declaradas (recursão e chamada antes da definição), com o tipo
-**anotado** na assinatura; `return` e argumentos precisam casar (sem coerção implícita) e
-`Nil` vira `void`. Aridade errada vira `lox_panic` com a mensagem montada no compile time
+Funções de usuário têm ABI `(i8* env, params...)`; uma closure é `{ fnptr, env, display }`
+alocada na arena. Funções de topo têm a assinatura pré-declarada (recursão mútua), mas o
+binding global só é inicializado quando o statement executa — usar antes vira
+`lox_panic` com `Undefined variable`, como no interpretador. O passe
+[`src/backend/captures.py`](../../src/backend/captures.py) decide o que cada função
+captura e o que vira célula ([ADR-0046](../adr/0046-closures-celulas-l4.md)); funções
+locais, lambdas com tipo concreto e chamadas indiretas usam a mesma closure.
+
+Chamadas diretas ainda preenchem defaults no call site; função com defaults como **valor**
+é recusada com exit 65 no L4. `return` e argumentos precisam casar (sem coerção implícita)
+e `Nil` vira `void`. Aridade errada vira `lox_panic` com a mensagem montada no compile time
 (os números são estáticos), e o corpo roda em blocos próprios com `ret`/`unreachable`.
 
 `String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
