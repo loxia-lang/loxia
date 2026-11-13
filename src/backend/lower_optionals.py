@@ -24,6 +24,7 @@ from src.backend.lower_model import (
     ANY_TAG_NIL,
     ANY_TAG_RANGE,
     ANY_TAG_STRING,
+    ANY_TAG_TUPLE,
     NUMERIC,
     BackendError,
     FnSig,
@@ -47,6 +48,7 @@ from src.frontend.ty import (
     GenericFnTy,
     ListTy,
     MapTy,
+    TupleTy,
     Ty,
     TyVar,
     UnionTy,
@@ -74,6 +76,8 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.LIST)
         if isinstance(ty, MapTy):
             return TypeDesc(ValueType.MAP)
+        if isinstance(ty, TupleTy):
+            return TypeDesc(ValueType.TUPLE)
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
@@ -144,6 +148,7 @@ class OptionalLowering(LoweringBase):
                 | ValueType.RANGE
                 | ValueType.LIST
                 | ValueType.MAP
+                | ValueType.TUPLE
             ):
                 return _I8_PTR
             case ValueType.ANY:
@@ -191,6 +196,7 @@ class OptionalLowering(LoweringBase):
                 | ValueType.RANGE
                 | ValueType.LIST
                 | ValueType.MAP
+                | ValueType.TUPLE
             ):
                 return Value(ty, llvm_ir.null_pointer())
             case ValueType.ANY:
@@ -265,6 +271,7 @@ class OptionalLowering(LoweringBase):
             ValueType.RANGE: ANY_TAG_RANGE,
             ValueType.LIST: ANY_TAG_LIST,
             ValueType.MAP: ANY_TAG_MAP,
+            ValueType.TUPLE: ANY_TAG_TUPLE,
         }.get(value.ty)
         if tag is None:
             raise _unsupported(f"Boxing {value.ty.name}", line)

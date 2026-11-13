@@ -135,6 +135,8 @@ class ContainerLowering(LoweringBase):
 
     def _list_get(self, expr: Index) -> Value:
         obj = self._expr(expr.object)
+        if obj.ty is ValueType.TUPLE:
+            return self._tuple_get(expr, obj)
         if obj.ty is ValueType.MAP:
             _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
             key = self._box_value(self._expr(expr.index), None)
@@ -324,7 +326,12 @@ class ContainerLowering(LoweringBase):
                         ValueType.STRING,
                         self.builder.inttoptr(payload, _I8_PTR),
                     )
-                case ValueType.LIST | ValueType.MAP | ValueType.RANGE:
+                case (
+                    ValueType.LIST
+                    | ValueType.MAP
+                    | ValueType.RANGE
+                    | ValueType.TUPLE
+                ):
                     return Value(
                         inner.ty, self.builder.inttoptr(payload, _I8_PTR)
                     )

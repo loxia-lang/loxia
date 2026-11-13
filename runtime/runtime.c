@@ -312,6 +312,7 @@ LoxValue lox_list_pop(void *pointer, int32_t line) {
 
 static int lox_value_equal(LoxValue left, LoxValue right);
 int lox_map_equal(const void *left_pointer, const void *right_pointer);
+int lox_tuple_equal(const void *left_pointer, const void *right_pointer);
 
 int lox_list_equal(const void *left_pointer, const void *right_pointer) {
     if (left_pointer == right_pointer) {
@@ -373,6 +374,9 @@ static int lox_value_equal(LoxValue left, LoxValue right) {
         case 10:
             return lox_map_equal((const void *)left.payload,
                                  (const void *)right.payload);
+        case 11:
+            return lox_tuple_equal((const void *)left.payload,
+                                   (const void *)right.payload);
         default:
             return left.payload == right.payload;
     }
@@ -546,6 +550,55 @@ int lox_map_equal(const void *left_pointer, const void *right_pointer) {
         }
     }
     depth -= 1;
+    return 1;
+}
+
+
+/* Tupla do L6: elementos boxeados, aridade fixa e imutável. */
+typedef struct {
+    int64_t count;
+    LoxValue *items;
+} LoxTuple;
+
+void *lox_tuple_new(int64_t count) {
+    LoxTuple *tuple = lox_alloc(sizeof(LoxTuple));
+    tuple->count = count;
+    tuple->items = lox_alloc(sizeof(LoxValue) * (size_t)(count > 0 ? count : 1));
+    return tuple;
+}
+
+void lox_tuple_set(void *pointer, int64_t index, int64_t tag, int64_t payload) {
+    LoxTuple *tuple = pointer;
+    tuple->items[index].tag = tag;
+    tuple->items[index].payload = payload;
+}
+
+LoxValue lox_tuple_get(const void *pointer, int64_t index, int32_t line) {
+    const LoxTuple *tuple = pointer;
+    if (index < 0 || index >= tuple->count) {
+        lox_panic(line, "Tuple index out of bounds.");
+    }
+    return tuple->items[index];
+}
+
+int64_t lox_tuple_len(const void *pointer) {
+    return ((const LoxTuple *)pointer)->count;
+}
+
+int lox_tuple_equal(const void *left_pointer, const void *right_pointer) {
+    if (left_pointer == right_pointer) {
+        return 1;
+    }
+    const LoxTuple *left = left_pointer;
+    const LoxTuple *right = right_pointer;
+    if (left->count != right->count) {
+        return 0;
+    }
+    for (int64_t index = 0; index < left->count; index++) {
+        if (!lox_value_equal(left->items[index], right->items[index])) {
+            return 0;
+        }
+    }
     return 1;
 }
 
@@ -897,6 +950,17 @@ static void buffer_bytes(LoxBuffer *buffer, const char *data, size_t length) {
 
 static void format_value(LoxBuffer *buffer, LoxValue value);
 
+static void format_tuple(LoxBuffer *buffer, const LoxTuple *tuple) {
+    buffer_char(buffer, '(');
+    for (int64_t index = 0; index < tuple->count; index++) {
+        if (index > 0) {
+            buffer_text(buffer, ", ");
+        }
+        format_value(buffer, tuple->items[index]);
+    }
+    buffer_char(buffer, ')');
+}
+
 static void format_map(LoxBuffer *buffer, const LoxMap *map) {
     for (int index = 0; index < buffer->active_depth; index++) {
         if (buffer->active[index] == map) {
@@ -1013,6 +1077,9 @@ static void format_value(LoxBuffer *buffer, LoxValue value) {
         case 10:
             format_map(buffer, (const void *)value.payload);
             break;
+        case 11:
+            format_tuple(buffer, (const void *)value.payload);
+            break;
         default:
             buffer_text(buffer, "<value>");
             break;
@@ -1033,6 +1100,21 @@ void lox_print_map(const void *pointer) {
     format_map(&buffer, pointer);
     fwrite(buffer.data, 1, buffer.length, stdout);
     fputc('\n', stdout);
+}
+
+void lox_print_tuple(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_tuple(&buffer, pointer);
+    fwrite(buffer.data, 1, buffer.length, stdout);
+    fputc('\n', stdout);
+}
+
+void *lox_str_from_tuple(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_tuple(&buffer, pointer);
+    return string_from_ascii(buffer.data, buffer.length);
 }
 
 void *lox_str_from_map(const void *pointer) {
@@ -1138,6 +1220,9 @@ void lox_print_any(int64_t tag, int64_t payload) {
             break;
         case 10:
             lox_print_map((const void *)payload);
+            break;
+        case 11:
+            lox_print_tuple((const void *)payload);
             break;
         default:
             lox_panic(0, "Unknown Any tag");

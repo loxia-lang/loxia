@@ -99,6 +99,7 @@ Crie quando a decisão:
 | [0051](0051-l6-range-for-in-escalares.md) | L6a: Range, `for-in` e operações escalares | accepted (containers/tuplas/Any/enums/exceções pendentes) | 2026-11-13 |
 | [0052](0052-l6-listas.md) | L6b: listas boxeadas no runtime | accepted (Map/tuplas/Any/enums/exceções pendentes) | 2026-11-13 |
 | [0053](0053-l6-mapas.md) | L6c: mapas boxeados no runtime | accepted (tuplas/Any/enums/exceções pendentes) | 2026-11-13 |
+| [0054](0054-l6-tuplas.md) | L6d: tuplas boxeadas | accepted (Any/is/as/for-in de tupla pendentes) | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

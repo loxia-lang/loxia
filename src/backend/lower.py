@@ -47,6 +47,7 @@ from src.backend.lower_model import (
 from src.backend.lower_optionals import OptionalLowering
 from src.backend.lower_range import RangeLowering
 from src.backend.lower_strings import StringLowering
+from src.backend.lower_tuples import TupleLowering
 from src.backend.lower_variables import VariableLowering
 from src.frontend.expr import (
     As,
@@ -70,12 +71,14 @@ from src.frontend.expr import (
     Set,
     Super,
     This,
+    TupleLiteral,
     Unary,
     Variable,
 )
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -94,6 +97,7 @@ from src.frontend.ty import (
 
 class Lowerer(
     GenericLowering,
+    TupleLowering,
     ContainerLowering,
     RangeLowering,
     FunctionLowering,
@@ -238,6 +242,8 @@ class Lowerer(
             self._while(stmt)
         elif isinstance(stmt, ForIn):
             self._for_in(stmt)
+        elif isinstance(stmt, Destructure):
+            self._destructure(stmt)
         elif isinstance(stmt, Print):
             self._print(stmt)
         elif isinstance(stmt, Expression):
@@ -324,6 +330,10 @@ class Lowerer(
             case ValueType.MAP:
                 self.builder.call(
                     self._function("lox_print_map", _VOID, [_I8_PTR]), [value.llvm]
+                )
+            case ValueType.TUPLE:
+                self.builder.call(
+                    self._function("lox_print_tuple", _VOID, [_I8_PTR]), [value.llvm]
                 )
             case ValueType.FUNCTION:
                 self.builder.call(
@@ -413,6 +423,8 @@ class Lowerer(
             return self._list_literal(expr)
         if isinstance(expr, MapLiteral):
             return self._map_literal(expr)
+        if isinstance(expr, TupleLiteral):
+            return self._tuple_literal(expr)
         if isinstance(expr, Index):
             return self._list_get(expr)
         if isinstance(expr, IndexSet):
@@ -767,6 +779,12 @@ class Lowerer(
     ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
+        if left.ty is ValueType.TUPLE and right.ty is ValueType.TUPLE:
+            equal_value = self._tuple_equal(left, right).llvm
+            if not equal:
+                equal_value = self.builder.not_(equal_value)
+            return Value(ValueType.BOOL, equal_value)
+
         if left.ty is ValueType.MAP and right.ty is ValueType.MAP:
             equal_value = self._map_equal(left, right).llvm
             if not equal:
@@ -794,6 +812,12 @@ class Lowerer(
             return Value(
                 ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
             )
+
+        if left.ty is ValueType.TUPLE and right.ty is ValueType.TUPLE:
+            equal_value = self._tuple_equal(left, right).llvm
+            if not equal:
+                equal_value = self.builder.not_(equal_value)
+            return Value(ValueType.BOOL, equal_value)
 
         if left.ty is ValueType.MAP and right.ty is ValueType.MAP:
             equal_value = self._map_equal(left, right).llvm

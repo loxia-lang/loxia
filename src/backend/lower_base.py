@@ -117,6 +117,15 @@ class LoweringBase:
     def _map_equal(self, left: Value, right: Value) -> Value:
         raise NotImplementedError
 
+    def _unbox_value(self, raw: Any, desc: TypeDesc, line: int | None) -> Value:
+        raise NotImplementedError
+
+    def _tuple_get(self, expr: Any, obj: Value) -> Value:
+        raise NotImplementedError
+
+    def _tuple_len(self, value: Value) -> Value:
+        raise NotImplementedError
+
     def _instantiate_class(
         self, name: str, args: tuple[Ty, ...], line: int | None
     ) -> TypeDesc:

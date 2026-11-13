@@ -116,6 +116,14 @@ class StringLowering(LoweringBase):
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
+            case ValueType.TUPLE:
+                function = self._function(
+                    "lox_str_from_tuple", _I8_PTR, [_I8_PTR]
+                )
+                return Value(
+                    ValueType.STRING,
+                    self.builder.call(function, [value.llvm]),
+                )
             case ValueType.NIL:
                 function = self._function("lox_str_nil", _I8_PTR, [])
                 return Value(ValueType.STRING, self.builder.call(function, []))
@@ -196,6 +204,8 @@ class StringLowering(LoweringBase):
             return self._list_len(argument)
         if argument.ty is ValueType.MAP:
             return self._map_len(argument)
+        if argument.ty is ValueType.TUPLE:
+            return self._tuple_len(argument)
         if argument.ty is not ValueType.STRING:
             raise _unsupported("len of non-String", expr.paren.line)
 

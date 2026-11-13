@@ -249,7 +249,7 @@ def test_binario_concorda_com_interpretador(
 
 @pytest.mark.backend
 def test_recurso_sem_representacao_e_rejeitado_explicitamente(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print (1, 2);\n")
+    path = _write(tmp_path, "enum Cor { Vermelho }\nprint Cor.Vermelho;\n")
 
     result, binary = _build(path, tmp_path)
 
@@ -479,15 +479,15 @@ def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
 
 
 @pytest.mark.backend
-def test_tupla_sem_backend_e_rejeitada_explicitamente(tmp_path: Path) -> None:
+def test_tupla_e_compilada(tmp_path: Path) -> None:
     path = _write(tmp_path, "print (1, 2);\n")
 
     result, binary = _build(path, tmp_path)
 
-    assert result.returncode == 65
-    assert "not supported by the backend yet" in result.stderr
-    assert not binary.exists()
-    assert _interpret(path).returncode == 0
+    assert result.returncode == 0, result.stderr
+    assert binary.exists()
+    compiled = _run([str(binary)])
+    assert compiled.stdout == "(1, 2)\n"
 
 
 @pytest.mark.backend
