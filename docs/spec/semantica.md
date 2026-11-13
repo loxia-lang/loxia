@@ -284,8 +284,12 @@ print len(par)               # 2
 - **Stringify**: `(1, "a")`, com strings citadas/escapadas, recursivo; `(...)` se houver
   ciclo via lista/mapa.
 - **Imutabilidade**: `t[0] = x` é erro (`Only lists and maps can be indexed.`).
-- **Fora da v1**: `for x in t`, `is (A, B)` e `as (A, B)` dão erro explícito; tuplas não
-  são hasháveis nem chave de `Map`; o backend L0–L3 as rejeita (layout no L6).
+- **Iteração**: `for x in t` percorre os elementos; o tipo de `x` é a união dos itens
+  (`(Int, String)` → `Int | String`).
+- **`is`/`as`**: `x is (A, B)` testa aridade e cada posição; `x as (A, B)` é cast
+  verificado (aceita `Any`; falha em runtime se a forma não bater).
+- **Fora da v1**: tuplas não são hasháveis nem chave de `Map`; sem destructuring aninhado;
+  o backend L0–L3 as rejeita (layout no L6).
 
 ## Mapas
 
@@ -381,7 +385,7 @@ for i in 5..2 { ... }             // vazio
 | `if (c) s elif (c) s else s` | executa o ramo conforme truthiness; `elif` é `else if` |
 | `while (c) s` | repete enquanto truthy |
 | `for (init; cond; incr) s` | desaçucarado para bloco + `while` (ver sintaxe) |
-| `for x in e s` | itera `e` (Range/String/List/Map hoje); `x` é `val` por iteração |
+| `for x in e s` | itera `e` (Range/String/List/Map/Tuple hoje); `x` é `val` por iteração |
 | `return expr?;` | desempilha até a chamada da função |
 
 O `;` é opcional no fim da linha (ou EOF); duas instruções na mesma linha ainda precisam

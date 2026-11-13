@@ -92,6 +92,9 @@ interage com a promoção. Isso é uma decisão própria, não um detalhe de imp
 
 Sem `--check`, a restrição continua valendo em runtime:
 `Map keys must be strings, integers or booleans.` No `--check`, a anotação
+> **Atualização (ADR-0039):** `Float` como chave está **fechado como não** para a v1;
+> não há plano de canonicalização de `1 == 1.0`. Chaves seguem `String`/`Int`/`Bool`.
+
 `Map[Float, Int]` é erro de tipo (`Map keys must be String, Int or Bool.`); `Any` continua
 sendo o escape hatch e transfere a validação para o runtime.
 

@@ -1833,18 +1833,6 @@ def test_tuple_any_can_be_destructured_with_annotation() -> None:
             "Can't destructure Any; add a tuple annotation.",
         ),
         (
-            "for x in (1, 2) { print x }",
-            "Can't iterate over a tuple yet; index with t[i].",
-        ),
-        (
-            "print (1, 2) is (Int, Int)",
-            "is doesn't support tuple types yet.",
-        ),
-        (
-            "print (1, 2) as (Int, Int)",
-            "as doesn't support tuple types yet.",
-        ),
-        (
             "val (a, a) = (1, 2)",
             "Variable 'a' is declared twice in this destructuring.",
         ),
@@ -1882,3 +1870,31 @@ def test_tuple_dynamic_index_is_a_union(
 
     assert lox.reporter.had_error is True
     assert "Operands must be numbers." in captured.err
+
+
+def test_tuple_iteration_is_and_as() -> None:
+    lox = check(
+        """
+        val t = (1, "a")
+        for x in t { print x }
+        print (1, "a") is (Int, String)
+        val any: Any = (2, "b")
+        val (n, s) = any as (Int, String)
+        print n
+        print s
+        val x: Any = (3, "c")
+        if (x is (Int, String)) { print x[0] + 1 }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_tuple_as_incompatible_is_rejected(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check('print (1, "a") as (Int, Int)')
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Can't cast (Int, String) to (Int, Int)." in captured.err

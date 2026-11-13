@@ -70,7 +70,7 @@ from src.frontend.stmt import (
 from src.frontend.stmt import Visitor as StmtVisitor
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
-from src.frontend.ty import ANY, FLOAT, INT, TupleTy, UnionTy, display
+from src.frontend.ty import ANY, FLOAT, INT, UnionTy, display
 
 _RELATIONAL = frozenset(
     {
@@ -383,11 +383,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return self._evaluate(expr.expression)
 
     def visit_is_expr(self, expr: Is) -> object:
-        if isinstance(expr.test_type, TupleTy):
-            raise LoxRuntimeError(
-                expr.operator, "is doesn't support tuple types yet."
-            )
-
         value = self._evaluate(expr.left)
         return matches_type(value, expr.test_type)
 
@@ -722,9 +717,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if isinstance(iterable, LoxMap):
             return self._iterate_map(name, iterable)
         if isinstance(iterable, LoxTuple):
-            raise LoxRuntimeError(
-                name, "Can't iterate over a tuple yet; index with t[i]."
-            )
+            return iter(iterable.items)
 
         raise LoxRuntimeError(
             name, "Can only iterate over a range, a list, a map or a string."

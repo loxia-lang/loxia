@@ -12,6 +12,7 @@ from src.execution.lox_instance import LoxInstance
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
 from src.execution.lox_range import LoxRange
+from src.execution.lox_tuple import LoxTuple
 from src.frontend.ty import (
     ANY,
     BOOL,
@@ -28,6 +29,7 @@ from src.frontend.ty import (
     ListTy,
     MapTy,
     NativeFnTy,
+    TupleTy,
     Ty,
     UnionTy,
 )
@@ -64,6 +66,15 @@ def matches_type(value: object, ty: Ty) -> bool:
         return isinstance(value, LoxMap) and all(
             matches_type(key, ty.key) and matches_type(item, ty.value)
             for key, item in value.items
+        )
+    if isinstance(ty, TupleTy):
+        return (
+            isinstance(value, LoxTuple)
+            and len(value.items) == len(ty.items)
+            and all(
+                matches_type(item, item_ty)
+                for item, item_ty in zip(value.items, ty.items, strict=True)
+            )
         )
     if isinstance(ty, ClassTy):
         return isinstance(value, LoxInstance) and value.is_instance_of(ty.name)

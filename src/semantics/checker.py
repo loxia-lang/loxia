@@ -849,10 +849,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(iterable, MapTy):
             return iterable.key
         if isinstance(iterable, TupleTy):
-            self._error(
-                token, "Can't iterate over a tuple yet; index with t[i]."
-            )
-            return ERROR
+            return union(*iterable.items)
 
         self._error(
             token, "Can only iterate over a range, a list, a map or a string."
@@ -1061,9 +1058,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_as_expr(self, expr: As) -> Ty:
         target = self._resolve_type(expr.target_type, expr.operator)
         self._validate_as_target(target, expr.operator)
-        if isinstance(target, TupleTy):
-            return ERROR
-
         source = self._infer(expr.left)
 
         if target is ERROR or source is ERROR:
@@ -1072,6 +1066,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
         if source is ANY or source is target:
             return target
+        if isinstance(target, TupleTy):
+            if source == target:
+                return target
+            self._error(
+                expr.operator,
+                f"Can't cast {display(source)} to {display(target)}.",
+            )
+            return ERROR
         if target in (INT, FLOAT):
             if source in (INT, FLOAT):
                 return target
@@ -1105,7 +1107,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._validate_is_type(ty.value, token)
             return
         if isinstance(ty, TupleTy):
-            self._error(token, "as doesn't support tuple types yet.")
+            for item in ty.items:
+                self._validate_is_type(item, token)
             return
         if isinstance(ty, UnionTy):
             self._error(token, "as doesn't support union types yet; narrow first.")
@@ -1128,7 +1131,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._validate_is_type(ty.value, token)
             return
         if isinstance(ty, TupleTy):
-            self._error(token, "is doesn't support tuple types yet.")
+            for item in ty.items:
+                self._validate_is_type(item, token)
             return
         if isinstance(ty, UnionTy):
             for member in ty.members:
@@ -1536,6 +1540,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 actual.value, expected.value
             )
             return key_ok and value_ok
+        if isinstance(actual, TupleTy) and isinstance(expected, TupleTy):
+            return len(actual.items) == len(expected.items) and all(
+                self._is_test_subtype(actual_item, expected_item)
+                for actual_item, expected_item in zip(
+                    actual.items, expected.items, strict=True
+                )
+            )
 
         return False
 

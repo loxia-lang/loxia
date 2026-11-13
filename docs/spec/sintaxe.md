@@ -288,7 +288,7 @@ Por isso o `for` tem as mesmas regras de escopo de um bloco e uma condição omi
 
 O `for-in` é diferente: vira o nó `ForIn(name, iterable, body)` e **não** desaçucara para
 `while`, porque o interpretador precisa reportar "não iterável" e o codegen precisa do laço
-por iterável (Range/String/List/Map — `Map` produz as chaves). Ver
+por iterável (Range/String/List/Map/Tuple — `Map` produz as chaves). Ver
 [`semantica.md`](semantica.md#ranges-e-for-in).
 
 ### Blocos

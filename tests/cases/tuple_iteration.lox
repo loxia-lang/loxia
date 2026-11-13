@@ -1,0 +1,18 @@
+# Iteração, is e as sobre tuplas.
+val t = (1, "a")
+for x in t { print x }
+print (1, "a") is (Int, String)
+print (1, "a") is (Int, Int)
+val any: Any = (2, "b")
+val (n, s) = any as (Int, String)
+print n
+print s
+val x: Any = (3, "c")
+if (x is (Int, String)) { print x[0] + 1 }
+# expect: 1
+# expect: a
+# expect: true
+# expect: false
+# expect: 2
+# expect: b
+# expect: 4

@@ -1,6 +1,9 @@
 # ADR-0036 — Tuplas: implementação da v1
 
 - **Status:** accepted
+
+> **Atualização:** `for-in`, `is (A, B)` e `as (A, B)` foram implementados depois deste
+> ADR (eram adiados); o que resta é destructuring aninhado e backend (L6).
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0030](0030-tuplas.md), [ADR-0014](0014-identidade-e-invariantes.md),

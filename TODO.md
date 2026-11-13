@@ -24,7 +24,7 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 `nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
 `or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
 compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
-casos por nível — **31 dos 83** golden cases compilam e **59** passam no `--check`.
+casos por nível — **31 dos 86** golden cases compilam e **60** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
 valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6a/T6c vêm
@@ -53,12 +53,13 @@ antes (regra do §9); traits e constraints ficam pós-MVP ([ADR-0038](docs/adr/0
 **Dados e funções**
 - [ ] `P2` variádicos (`fn log(nivel, ...args)`); ver [`IDEIAS.md`](IDEIAS.md) I-5.
 - [ ] `P2` trailing closure (`lista.map { |x| x * 2 }`) — depois do conflito com `{}`.
-- [x] `P2` tuplas: `(a,b)`, `(A,B)`, `t[i]`, `val/var (a,b) = t`, igualdade, `len` e
-      formatação ([ADR-0030](docs/adr/0030-tuplas.md), [ADR-0036](docs/adr/0036-tuplas-implementacao.md)).
-- [ ] `P2` tuplas no backend (L6) e pendentes `for x in t` / `is (A, B)`.
+- [x] `P2` tuplas: `(a,b)`, `(A,B)`, `t[i]`, `val/var (a,b) = t`, igualdade, `len`,
+      formatação, `for-in`, `is`/`as` ([ADR-0030](docs/adr/0030-tuplas.md),
+      [ADR-0036](docs/adr/0036-tuplas-implementacao.md)).
+- [ ] `P2` tuplas no backend (L6) e destructuring aninhado (`val (a, (b,c)) = t`).
 - [ ] `P3` argumentos nomeados e destructuring de campos.
-- [ ] `P3` namespaces/imports, traits nominais ([ADR-0038](docs/adr/0038-traits-nominais.md)), extension methods, operator overloading,
-      `type` alias e `derive`.
+- [ ] `P3` namespaces/imports, traits nominais ([ADR-0038](docs/adr/0038-traits-nominais.md)), extension methods, operator overloading e `derive`.
+- [ ] `P3` `type` alias transparente (sem generics); decisão em [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
 
 **Erros**
 - [ ] `P2` `throw`/`try`/`catch`/`finally` e stack trace; alternativa: `Result<T, E>`.
@@ -82,6 +83,14 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
 | **T6c** ⬜ | `match`/enums e exaustividade | expressividade |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
+
+Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.md)):
+- [ ] parser/AST/tipos: `class C[T]`, `ClassTy.args`, printer, erro de superclasse genérica.
+- [ ] checker: `ClassInfo` com params, `this`/`init`, resolução/aridade de `Box[Int]`.
+- [ ] checker: inferência no construtor (`Box(1)`, `Pair(1, "a")`, esperado pré-binda).
+- [ ] checker: membros substituídos, `_assignable` invariante, `_unify` de `ClassTy`, interop com funções genéricas.
+- [ ] runtime erasure, guards de `is`/`as` e rejeição 65 no backend.
+- [ ] testes, golden `generic_class.lox` e docs; depois: métodos/herança genérica e reificado.
 
 Pendências pontuais:
 - [ ] `P2` merge completo em CFG e aliasing (chamada que muta campo não invalida); ver
@@ -393,7 +402,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (59 de 83 passam no `--check`; 31 compilam hoje);
+- [x] anotar 15 `tests/cases` (60 de 86 passam no `--check`; 31 compilam hoje);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
@@ -423,7 +432,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 857 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 861 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -517,7 +526,8 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
    transcendentais de `math` fora do I3.
 4. **Constraints de generics e traits genéricos:** decisão de traits nominais/defaults já
    registrada ([ADR-0038](docs/adr/0038-traits-nominais.md)); falta desenhar `T: Trait`,
-   coerência e o custo na monomorfização.
+   coerência e o custo na monomorfização. `Result`/`Option` e `type` alias estão em
+   [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
 5. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
 6. **`if`/bloco como expressão e `match`/enums:** fora da 1.0; reavaliar depois do M5.

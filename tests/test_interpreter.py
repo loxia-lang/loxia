@@ -833,7 +833,6 @@ def test_tuple_destructuring_bindings(
         ("val (a, b) = 1;", "Can only destructure a tuple."),
         ('print (1, 2)["a"];', "Tuple index must be an integer."),
         ("print (1, 2)[5];", "Tuple index 5 out of bounds for length 2."),
-        ("for x in (1, 2) { print x; }", "Can't iterate over a tuple yet"),
     ],
 )
 def test_tuple_runtime_errors(
@@ -844,9 +843,38 @@ def test_tuple_runtime_errors(
     assert message in stderr
 
 
-def test_tuple_is_unsupported_at_runtime(
+def test_tuple_iteration_and_is(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _, stderr = run("print (1, 2) is (Int, Int);", capsys)
+    stdout, stderr = run(
+        'for x in (1, "a") { print x; }'
+        'print (1, "a") is (Int, String);'
+        'print (1, "a") is (Int, Int);',
+        capsys,
+    )
 
-    assert "is doesn't support tuple types yet." in stderr
+    assert stdout == ["1", "a", "true", "false"]
+    assert stderr == ""
+
+
+def test_tuple_as_from_any(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, stderr = run(
+        'val x: Any = (2, "b");'
+        "val (n, s) = x as (Int, String);"
+        "print n;"
+        "print s;",
+        capsys,
+    )
+
+    assert stdout == ["2", "b"]
+    assert stderr == ""
+
+
+def test_tuple_as_failure_at_runtime(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, stderr = run(
+        'val x: Any = [1]; print x as (Int, String);', capsys
+    )
+
+    assert "Can't cast value to (Int, String)." in stderr
