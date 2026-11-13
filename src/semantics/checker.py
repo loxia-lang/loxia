@@ -160,7 +160,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._native_modules: dict[str, dict[str, Ty]] = {}
         self._except_depth = 0
         # Tipos inferidos por nó, consumidos pelo backend (ADR-0031, decisão 7).
+        # `types` é o tipo de fluxo (com narrowing); `storage_types` é o tipo de
+        # representação (declarado, sem narrowing) — ADR-0045.
         self.types: dict[Expr, Ty] = {}
+        self.storage_types: dict[Expr, Ty] = {}
         self._function_depth = 0
         self._return_collector: list[Ty] | None = None
         self._define_builtins()
@@ -406,6 +409,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 if candidate[0] == key[0] and candidate[1][:size] == key[1]:
                     del narrowing[candidate]
 
+    def _invalidate_members(self) -> None:
+        """Chamada/atribuição de campo/índice derruba todo refino de campo/índice.
+
+        Sem aliasing não dá para saber o que a chamada mutou; refinos de variáveis
+        continuam (ADR-0045)."""
+        for narrowing in self._narrowings:
+            for key in [key for key in narrowing if key[1]]:
+                del narrowing[key]
+
     def _apply_refinements(self, refinements: dict[RefinementKey, Ty]) -> None:
         for key, ty in refinements.items():
             found = self._find_decl(key[0])
@@ -444,13 +456,54 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _infer(self, expr: Expr) -> Ty:
         ty = expr.accept(self)
         self.types[expr] = ty
+        self.storage_types[expr] = self._storage_type(expr, ty)
         return ty
+
+    def _storage_type(self, expr: Expr, flow: Ty) -> Ty:
+        """Tipo declarado/representação, sem narrowing (ADR-0045)."""
+        if isinstance(expr, Variable):
+            found = self._find_decl(expr.name.lexeme)
+            return found[1] if found is not None else flow
+        if isinstance(expr, Get) and not expr.optional:
+            obj = self._storage_object_type(expr.object)
+            if isinstance(obj, ClassTy):
+                field = self._find_field(obj.name, expr.name.lexeme)
+                if field is not None:
+                    return self._substitute(
+                        field.ty, self._class_bindings(obj)
+                    )
+        if isinstance(expr, Index):
+            obj = self._storage_object_type(expr.object)
+            if isinstance(obj, ListTy):
+                return obj.element
+            if isinstance(obj, MapTy):
+                return obj.value
+        return flow
+
+    def _storage_object_type(self, expr: Expr) -> Ty | None:
+        """Tipo declarado da expressão-base, mesmo quando o nó foi estreitado.
+
+        `visit_get_expr`/`visit_index_expr` no caminho estreitado não inferem o
+        objeto; para a representação usamos a declaração da raiz."""
+        known = self.types.get(expr) or self.storage_types.get(expr)
+        if known is not None:
+            return non_nil(known)
+        if isinstance(expr, Variable):
+            found = self._find_decl(expr.name.lexeme)
+            if found is not None:
+                return non_nil(found[1])
+        if isinstance(expr, This) and self._current_class is not None:
+            return ClassTy(
+                self._current_class.name, self._current_class.type_params
+            )
+        return None
 
     def _check(
         self, expr: Expr, expected: Ty, token: Token
     ) -> Ty:
         if isinstance(expr, Call):
             actual = self._infer_call(expr, expected, token)
+            self._invalidate_members()
             if actual is ERROR:
                 return ERROR
             if not self._assignable(expected, actual):
@@ -893,6 +946,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._push_type_params(info.type_param_names, info.type_params)
         try:
             for field_decl in stmt.fields:
+                field_name = field_decl.name.lexeme
+                # Duplicata (mesma classe/herdada) é reportada pelo resolver.
+                if superclass is not None and self._find_method(
+                    superclass, field_name
+                ) is not None:
+                    self._error(
+                        field_decl.name,
+                        f"Field '{field_name}' conflicts with a method.",
+                    )
+
                 if field_decl.type_annotation is not None:
                     field_ty = self._resolve_type(
                         field_decl.type_annotation, field_decl.name
@@ -922,6 +985,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             for method in stmt.methods:
                 is_init = method.name.lexeme == "init"
+                if superclass is not None and self._find_field(
+                    superclass, method.name.lexeme
+                ) is not None:
+                    self._error(
+                        method.name,
+                        f"Method '{method.name.lexeme}' conflicts with a field.",
+                    )
                 signature = self._signature(
                     method, is_init=is_init, allow_type_params=False
                 ).fn
@@ -2172,7 +2242,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return BOOL
 
     def visit_call_expr(self, expr: Call) -> Ty:
-        return self._infer_call(expr, None, expr.paren)
+        result = self._infer_call(expr, None, expr.paren)
+        self._invalidate_members()
+        return result
 
     def _infer_call(
         self, expr: Call, expected: Ty | None, token: Token
@@ -3546,6 +3618,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return obj.element
 
     def visit_index_set_expr(self, expr: IndexSet) -> Ty:
+        result = self._index_set(expr)
+        self._invalidate_members()
+        return result
+
+    def _index_set(self, expr: IndexSet) -> Ty:
         obj = self._infer(expr.object)
         index = self._infer(expr.index)
         value = self._infer(expr.value)
@@ -3665,6 +3742,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         path = self._refinement_path(expr.object)
         if path is not None:
             self._invalidate_path((path[0], path[1] + (("field", expr.name.lexeme),)))
+        self._invalidate_members()
 
         is_initializer_this = self._in_initializer and isinstance(expr.object, This)
         if not field_info.mutable and not is_initializer_this:

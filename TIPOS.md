@@ -18,18 +18,28 @@ T6a/T6c foram implementados; restam no pós-MVP:
 
 ### 1.2 Checker
 
-- **Narrowing**: merge em CFG/aliasing; chamada que muta campo não invalida
-  ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)).
+- **Narrowing**: invalidação em chamada/atribuição a campo/índice implementada
+  ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); resta CFG/aliasing fino e `var`
+  capturado por closure ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)).
 - **Função genérica como valor** (T3b só permite chamada).
 
-### 1.3 Tipos
+### 1.3 L5 — desenho fechado, backend pendente
+
+- **Layout** de classe/campos/vtable/init em
+  [ADR-0043](docs/adr/0043-layout-l5-classes.md).
+- **Identidade** de classe por objeto em `is`/`as`/`except`
+  ([ADR-0044](docs/adr/0044-identidade-classe.md)).
+- **Representação** × narrowing: `storage_types` publicado, lowering usa o declarado
+  ([ADR-0045](docs/adr/0045-narrowing-representacao.md)).
+
+### 1.4 Tipos
 
 - **Aliases `type`**: transparentes, sem generics, P3
   ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)).
 - **Padrões avançados** de `match` (literais/nil, guards, aninhamento, `|`) e enum genérico
   com variante nula; backend L6 ([ADR-0041](docs/adr/0041-enums-match.md)).
 
-### 1.4 Backend
+### 1.5 Backend
 
 - **T7** — monomorfização.
 - **Layout de tupla** (L6) e **chamada via trait** (vtable/type-id, L6).

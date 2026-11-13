@@ -453,7 +453,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
 
         value = self._evaluate(expr.left)
-        return matches_type(value, expr.test_type)
+        return matches_type(value, expr.test_type, self._class_for_type)
 
     def visit_as_expr(self, expr: As) -> object:
         value = self._evaluate(expr.left)
@@ -491,7 +491,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             raise LoxRuntimeError(
                 expr.operator, "as doesn't support union types yet; narrow first."
             )
-        elif matches_type(value, target):
+        elif matches_type(value, target, self._class_for_type):
             return value
 
         raise LoxRuntimeError(
@@ -696,10 +696,21 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def _matches_exception(self, value: object, klass: LoxClass) -> bool:
         if isinstance(value, LoxInstance):
-            return value.is_instance_of(klass.name)
+            return value.is_instance_of_class(klass)
         if isinstance(value, LoxExceptionValue):
             return value.is_instance_of(klass.name)
         return False
+
+    def _class_for_type(self, name: str) -> LoxClass | None:
+        """Resolve o nome de um tipo-classe no ambiente léxico (ADR-0044)."""
+        environment: Environment | None = self.environment
+        while environment is not None:
+            if name in environment.values:
+                value = environment.values[name]
+                return value if isinstance(value, LoxClass) else None
+            environment = environment.enclosing
+
+        return None
 
     def visit_raise_stmt(self, stmt: Raise) -> None:
         value = (

@@ -6,6 +6,8 @@ valor concreto. Ele existe para `is` e não deve ser usado pelo checker para inf
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from src.execution import numeric
 from src.execution.lox_class import LoxClass
 from src.execution.lox_enum import LoxEnumValue
@@ -37,12 +39,17 @@ from src.frontend.ty import (
 )
 
 
-def matches_type(value: object, ty: Ty) -> bool:
+def matches_type(
+    value: object,
+    ty: Ty,
+    class_lookup: Callable[[str], LoxClass | None] | None = None,
+) -> bool:
     """Devolve se `value` satisfaz `ty` em runtime.
 
     `List[T]`/`Map[K, V]` checam os elementos/chaves/valores recursivamente; listas vazias
-    satisfazem qualquer elemento. Tipos de função ainda não são suportados pelo checker em
-    `is`, então aqui devolvem `False`.
+    satisfazem qualquer elemento. Para `ClassTy`, `class_lookup` resolve o nome para o
+    objeto de classe (identidade por objeto, ADR-0044); sem lookup, cai no nome. Tipos de
+    função ainda não são suportados pelo checker em `is`, então aqui devolvem `False`.
     """
     if ty is ANY:
         return True
@@ -62,11 +69,13 @@ def matches_type(value: object, ty: Ty) -> bool:
         return isinstance(value, LoxRange)
     if isinstance(ty, ListTy):
         return isinstance(value, LoxList) and all(
-            matches_type(element, ty.element) for element in value.elements
+            matches_type(element, ty.element, class_lookup)
+            for element in value.elements
         )
     if isinstance(ty, MapTy):
         return isinstance(value, LoxMap) and all(
-            matches_type(key, ty.key) and matches_type(item, ty.value)
+            matches_type(key, ty.key, class_lookup)
+            and matches_type(item, ty.value, class_lookup)
             for key, item in value.items
         )
     if isinstance(ty, TupleTy):
@@ -74,12 +83,16 @@ def matches_type(value: object, ty: Ty) -> bool:
             isinstance(value, LoxTuple)
             and len(value.items) == len(ty.items)
             and all(
-                matches_type(item, item_ty)
+                matches_type(item, item_ty, class_lookup)
                 for item, item_ty in zip(value.items, ty.items, strict=True)
             )
         )
     if isinstance(ty, ClassTy):
         if isinstance(value, LoxInstance):
+            if class_lookup is not None:
+                klass = class_lookup(ty.name)
+                if klass is not None:
+                    return value.is_instance_of_class(klass)
             return value.is_instance_of(ty.name)
         # `is Cor` chega aqui como ClassTy porque o parser não distingue enum de
         # classe; o valor desambigua no runtime.
@@ -89,7 +102,9 @@ def matches_type(value: object, ty: Ty) -> bool:
     if isinstance(ty, ClassObjectTy):
         return isinstance(value, LoxClass) and value.is_subclass_of(ty.name)
     if isinstance(ty, UnionTy):
-        return any(matches_type(value, member) for member in ty.members)
+        return any(
+            matches_type(value, member, class_lookup) for member in ty.members
+        )
     if isinstance(ty, (FnTy, NativeFnTy)):
         return False
 

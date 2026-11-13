@@ -1,0 +1,16 @@
+# Identidade de classe é o objeto, não o nome: classe local homônima é outra classe.
+class A {}
+
+class B(A) {}
+
+fn make_local() -> A {
+  class A {}
+  return A()
+}
+
+val local = make_local()
+
+print local is A;   # expect: false
+print B() is A;     # expect: true
+print A() is B;     # expect: false
+print (B() as A);   # expect: B instance

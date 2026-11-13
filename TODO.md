@@ -80,7 +80,7 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | --- | --- | --- |
 | **T3c** ❌ | parâmetro implícito foi implementado e **revertido**: omissão virava quantificação universal sem marcador, contra o [ADR-0020](docs/adr/0020-assinaturas-explicitas.md) ([ADR-0034](docs/adr/0034-t3c-revertido.md)) | — |
 | **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
-| **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
+| **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação/chamada e refino pós-`while` ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); resta CFG/aliasing completo | expressividade |
 | **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); follow-ups (métodos, herança de `Box[Int]`, reificação) **adiados** (ver §10) | bibliotecas |
 | **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
 | **T6c** ✅ | `match`/enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)) | expressividade |
@@ -97,7 +97,9 @@ Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.m
   **adiados**: ver §10.
 
 Pendências pontuais:
-- [ ] `P2` merge completo em CFG e aliasing (chamada que muta campo não invalida); ver
+- [ ] `P2` merge completo em CFG e aliasing fino (chamada/atribuição já invalidam refinos de
+      campo/índice; `var` capturado por closure ainda não); ver
+      [ADR-0045](docs/adr/0045-narrowing-representacao.md) e
       [ADR-0032](docs/adr/0032-narrowing-campos-indices.md) §Limitações.
 - [ ] `P2` **T3c-v2 (HM-lite)**: inferir o tipo do parâmetro pelo **uso no corpo**
       (unificação: `x * 2` liga a `Int`, `==` generaliza), em vez de universal por omissão;
@@ -367,7 +369,10 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       `str`/`repr` (com citação/escapes) e arena de 64 MiB com panic determinístico.
       `repr` de listas/mapas entra no L6.
 - [ ] **L4 — Closures**: env struct, captura por valor e por célula — M5 fechado, liberado.
-- [ ] **L5 — Objetos**: classes, métodos, `this`, herança e vtable.
+- [ ] **L5 — Objetos**: classes, métodos, `this`, herança e vtable. Layout em
+      [ADR-0043](docs/adr/0043-layout-l5-classes.md); identidade/`is`/`as`/`except` em
+      [ADR-0044](docs/adr/0044-identidade-classe.md); representação/narrowing em
+      [ADR-0045](docs/adr/0045-narrowing-representacao.md).
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
       tuplas, enums, exceções (unwinding), `Range` e `for-in`.
 - [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, testes diferenciais

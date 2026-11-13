@@ -62,6 +62,8 @@ PENDING: dict[str, str] = {
     "tests/cases/casts_math.lox": "l?",
     "tests/cases/class_bound_method.lox": "l5",
     "tests/cases/class_fields.lox": "l5",
+    "tests/cases/class_identity.lox": "l5",
+    "tests/cases/class_identity_as.lox": "l5",
     "tests/cases/class_initializer.lox": "l5",
     "tests/cases/class_this.lox": "l5",
     "tests/cases/classes.lox": "l5",

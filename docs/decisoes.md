@@ -65,6 +65,9 @@ decisão.
 | Memória | Arena (bump) com teto e panic determinístico; `lox_alloc` é o ponto de troca para Boehm; sem RC (ciclos são permitidos). | [ADR-0031](adr/0031-backend-nativo.md) |
 | Generics | Monomorfização lazy com `type_of`/substituição publicados pelo checker, mangling por tipo e limite de instâncias (exit 65). | [ADR-0031](adr/0031-backend-nativo.md) |
 | HIR | Normalização leve `AST → AST` (desugar), sem HIR completa no L0–L2; promove quando o lowering duplicar o interpretador. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Layout L5 | Instância `{ptr classe, campos base→derivada}`; vtable com prefixo e override no slot; `init` fora da vtable e `super.m` direto; bitmap de inicialização no MVP; classes locais suportadas. | [ADR-0043](adr/0043-layout-l5-classes.md) |
+| Identidade de classe | `is`/`as`/`except` comparam o **objeto de classe** e a cadeia de superclasses; ids inteiros só para vtable/mangling/tags; classes locais homônimas são distintas; rebinding segue o binding atual. | [ADR-0044](adr/0044-identidade-classe.md) |
+| Narrowing × backend | Lowering usa `storage_types` (declarado, sem narrowing); chamada/atribuição a campo/índice invalida refinos de campo/índice; `types` (fluxo) não define representação. | [ADR-0045](adr/0045-narrowing-representacao.md) |
 | Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
 
 ## Processo e escopo

@@ -1,0 +1,10 @@
+# `as` usa o objeto de classe: a classe local homônima não é a classe global.
+class A {}
+
+fn make_local() -> A {
+  class A {}
+  return A()
+}
+
+print (make_local() as A);
+# expect runtime error: Can't cast value to A.

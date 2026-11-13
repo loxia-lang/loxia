@@ -569,9 +569,11 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
   tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
 - `expr is T` devolve `Bool` e testa o valor em runtime: primitivos, classe/subclasse,
-  `List[T]`/`Map[K, V]` (elementos inclusos; O(n)) e uniões. `Any` sempre verdadeiro,
-  `Never` sempre falso; tipos de função são recusados no `--check`. Uma classe como valor
-  não é instância (`Animal is Animal` é `false`). Ver
+  `List[T]`/`Map[K, V]` (elementos inclusos; O(n)) e uniões. Para classe, a identidade é o
+  **objeto de classe** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
+  é verdadeiro, mas uma classe local homônima não é a classe global. `Any` sempre
+  verdadeiro, `Never` sempre falso; tipos de função são recusados no `--check`. Uma classe
+  como valor não é instância (`Animal is Animal` é `false`). Ver
   [ADR-0025](../adr/0025-is-e-narrowing.md).
 - Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` e `!` em volta disso
   refinam `x` no ramo; `if (x == nil) { return }` refina o resto do bloco. `and` no ramo
@@ -579,10 +581,11 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   verdadeiro ao corpo. `val` e `var` estreitam, mas uma atribuição invalida o refinamento.
   Chamadas/closure que mutam um `var` durante a execução não são rastreadas — prefira `val`
   quando precisar da garantia. **Campos e índices literais** também refinam
-  (`p.nome`, `xs[0]`, `m["k"]`); mutar o caminho (`p.nome = ...`) ou a raiz (`p = ...`)
-  invalida, e a saída normal de `while (x != nil)` refina o resto do bloco pelo falso.
-  Índice dinâmico (`xs[i]`) não refina e mutação via chamada/closure não é rastreada (sem
-  aliasing); merge completo em CFG fica fora; ver
+  (`p.nome`, `xs[0]`, `m["k"]`); mutar o caminho (`p.nome = ...`), a raiz (`p = ...`),
+  **qualquer chamada** ou atribuição a campo/índice invalida todos os refinos de
+  campo/índice (sem aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)), e a
+  saída normal de `while (x != nil)` refina o resto do bloco pelo falso.
+  Índice dinâmico (`xs[i]`) não refina; merge completo em CFG fica fora; ver
   [ADR-0018](../adr/0018-narrowing.md), [ADR-0025](../adr/0025-is-e-narrowing.md) e
   [ADR-0032](../adr/0032-narrowing-campos-indices.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
@@ -628,7 +631,9 @@ class ContaPoupanca(Conta) {
   reporta `Can't assign to immutable field 'x'.` e o runtime também recusa uma segunda
   atribuição. `var` campo é mutável em qualquer método.
 - Campo e método com o mesmo nome, ou campo redeclarado (inclusive na subclasse), é erro de
-  compilação (`Field 'x' already declared.`).
+  compilação (`Field 'x' already declared.` / `Field 'x' conflicts with a method.`).
+- Classes podem ser declaradas em bloco/função (classes locais); o nome do tipo resolve no
+  escopo léxico e `is`/`as` comparam o objeto de classe ([ADR-0044](../adr/0044-identidade-classe.md)).
 - Inicializadores de campo são constantes na v1 e rodam na criação da instância, antes do
   `init`.
 - Métodos **não** usam `fn`; são funções com `this` ligado.

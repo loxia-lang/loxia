@@ -83,6 +83,14 @@ Crie quando a decisão:
 | [0035](0035-strings-texto.md) | Strings como texto: code points e ordem | accepted | 2026-11-12 |
 | [0036](0036-tuplas-implementacao.md) | Tuplas: implementação no interpretador e checker | accepted | 2026-11-12 |
 | [0037](0037-async-direcao.md) | Async: colored, determinístico e pós-M7 | accepted (direção; keywords reservadas) | 2026-11-12 |
+| [0038](0038-traits-nominais.md) | Traits nominais e métodos default | accepted (pós-MVP) | 2026-11-12 |
+| [0039](0039-decisoes-tipos-pendentes.md) | Decisões de tipos pendentes | accepted | 2026-11-12 |
+| [0040](0040-generics-classes-desenho.md) | Classes genéricas (T6a): desenho | accepted (MVP; follow-ups adiados) | 2026-11-12 |
+| [0041](0041-enums-match.md) | Enums genéricos, `match` exaustivo e `Result` | accepted (MVP; backend L6) | 2026-11-13 |
+| [0042](0042-excecoes.md) | Exceções: `try`/`except`/`finally`/`raise` | accepted (tree-walk; backend L6) | 2026-11-13 |
+| [0043](0043-layout-l5-classes.md) | Layout L5: classes, campos, vtable e `init` | accepted (desenho; backend L5 pendente) | 2026-11-13 |
+| [0044](0044-identidade-classe.md) | Identidade de classe em runtime (`is`/`as`/`except`) | accepted (tree-walk; backend L5 pendente) | 2026-11-13 |
+| [0045](0045-narrowing-representacao.md) | Narrowing e tipos de representação | accepted (checker/tree-walk; backend L5 pendente) | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

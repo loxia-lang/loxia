@@ -67,6 +67,16 @@ class LoxClass:
 
         return False
 
+    def is_subclass_of_class(self, klass: LoxClass) -> bool:
+        """Identidade por objeto de classe (ADR-0044)."""
+        current: LoxClass | None = self
+        while current is not None:
+            if current is klass:
+                return True
+            current = current._superclass
+
+        return False
+
     def min_arity(self) -> int:
         initializer = self.find_method("init")
         if initializer is None:

@@ -3,6 +3,14 @@ from __future__ import annotations
 import pytest
 
 from lox.cli import Lox
+from src.diagnostics.error_reporter import ErrorReporter
+from src.execution.interpreter import Interpreter
+from src.frontend.expr import Get, Variable
+from src.frontend.parser import Parser
+from src.frontend.scanner import Scanner
+from src.frontend.ty import INT, STRING, is_nilable
+from src.semantics.checker import Checker
+from src.semantics.resolver import Resolver
 
 
 def check(source: str) -> Lox:
@@ -611,6 +619,88 @@ def test_immutable_field_initialized_with_nil_is_allowed() -> None:
     )
 
     assert lox.reporter.had_error is False
+
+
+def test_field_redeclare_same_class(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var x: Int;
+          var x: Int;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Field 'x' already declared." in captured.err
+
+
+def test_field_redeclare_superclass(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class A {
+          var x: Int;
+        }
+        class B(A) {
+          var x: Int;
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Field 'x' already declared." in captured.err
+
+
+@pytest.mark.parametrize(
+    "source,message",
+    [
+        (
+            """
+            class C {
+              var x: Int;
+              x() -> Nil {}
+            }
+            """,
+            "Field 'x' conflicts with a method.",
+        ),
+        (
+            """
+            class A {
+              f() -> Nil {}
+            }
+            class B(A) {
+              var f: Int;
+            }
+            """,
+            "Field 'f' conflicts with a method.",
+        ),
+        (
+            """
+            class A {
+              var f: Int;
+            }
+            class B(A) {
+              f() -> Nil {}
+            }
+            """,
+            "Method 'f' conflicts with a field.",
+        ),
+    ],
+)
+def test_field_method_collision(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
 
 
 def test_override_must_be_compatible(
@@ -1291,6 +1381,32 @@ def test_narrowing_fields_and_indices() -> None:
           print len(xs[i])
         }
         """,
+        # Chamada pode mutar o campo por referência.
+        """
+        class P {
+          var nome: String?;
+          init(n: String?) { this.nome = n; }
+          clear() -> Nil { this.nome = nil; }
+        }
+        val p = P("a")
+        if (p.nome != nil) {
+          p.clear()
+          print len(p.nome)
+        }
+        """,
+        # Alias: mutar q.nome invalida o refino de p.nome.
+        """
+        class P {
+          var nome: String?;
+          init(n: String?) { this.nome = n; }
+        }
+        val p = P("a")
+        val q = p
+        if (p.nome != nil) {
+          q.nome = nil
+          print len(p.nome)
+        }
+        """,
     ],
 )
 def test_narrowing_field_invalidations(
@@ -1301,6 +1417,68 @@ def test_narrowing_field_invalidations(
 
     assert lox.reporter.had_error is True
     assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_storage_type_ignores_narrowing() -> None:
+    source = """
+    val x: Int? = 1
+    if (x != nil) {
+      print x
+    }
+    """
+    reporter = ErrorReporter()
+    statements = Parser(
+        Scanner(source, reporter).scan_tokens(), reporter=reporter
+    ).parse()
+    assert statements is not None
+
+    Resolver(Interpreter(reporter), reporter).resolve(statements)
+    checker = Checker(reporter)
+    checker.check(statements)
+
+    assert reporter.had_error is False
+    variables = [
+        node
+        for node in checker.types
+        if isinstance(node, Variable) and node.name.lexeme == "x"
+    ]
+    narrowed = [node for node in variables if checker.types[node] is INT]
+    assert narrowed
+    for node in narrowed:
+        assert is_nilable(checker.storage_types[node])
+
+
+def test_storage_type_of_narrowed_field_is_declared() -> None:
+    source = """
+    class P {
+      var nome: String?;
+      init(n: String?) { this.nome = n; }
+    }
+    val p = P("a")
+    if (p.nome != nil) {
+      print len(p.nome)
+    }
+    """
+    reporter = ErrorReporter()
+    statements = Parser(
+        Scanner(source, reporter).scan_tokens(), reporter=reporter
+    ).parse()
+    assert statements is not None
+
+    Resolver(Interpreter(reporter), reporter).resolve(statements)
+    checker = Checker(reporter)
+    checker.check(statements)
+
+    assert reporter.had_error is False
+    fields = [
+        node
+        for node in checker.types
+        if isinstance(node, Get) and node.name.lexeme == "nome"
+    ]
+    narrowed = [node for node in fields if checker.types[node] is STRING]
+    assert narrowed
+    for node in narrowed:
+        assert is_nilable(checker.storage_types[node])
 
 
 def test_narrowing_after_while_uses_the_false_condition(
