@@ -97,9 +97,8 @@ Defaults de parâmetro e inicializadores de campo são **constantes na v1** (lit
 obrigatórios vêm antes dos opcionais; campos podem aparecer antes ou depois dos métodos.
 
 Anotações de tipo são opcionais para o interpretador (que as ignora); no modo `--check`
-o retorno de função é obrigatório, mas parâmetro de **função de topo** pode ficar sem
-anotação (vira parâmetro de tipo implícito); métodos exigem todos os parâmetros anotados.
-`T?` é açúcar para
+as funções precisam de anotações em todos os parâmetros e no retorno (lambdas em `val`
+podem inferir e generalizar; ver T4). `T?` é açúcar para
 `T | Nil`; `Int` é non-null. `List[T]` e `Map[K, V]` são os únicos genéricos: o nome é
 capitalizado, `List`/`Map` sem argumentos é erro e `list[int]`/`map[...]` também (com
 sugestão de capitalização). Em `Map[K, V]`, `K` precisa ser `String`, `Int`, `Bool` (ou

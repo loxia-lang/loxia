@@ -660,7 +660,7 @@ def test_override_is_checked_even_if_superclass_comes_later(
         ("val x: Desconhecido = 1;", "Unknown type 'Desconhecido'."),
         (
             "fn f(a) -> Int { return a; }",
-            "Expected Int, found T.",
+            "Parameter 'a' needs a type annotation.",
         ),
         (
             "fn f(a: Int) { return a; }",
@@ -1113,36 +1113,6 @@ def test_narrowing_limitations(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
-
-
-def test_implicit_type_parameters() -> None:
-    lox = check(
-        """
-        fn igual(x, y) -> Bool { return x == y }
-        fn primeiro(x, y: Int) -> Int { return y }
-
-        print igual(1, 1)
-        print igual("a", "b")
-        print primeiro("ignorado", 7)
-        """
-    )
-
-    assert lox.reporter.had_error is False
-
-
-def test_implicit_type_parameter_body_is_universal(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    lox = check(
-        """
-        fn dobro(x) -> Int { return x * 2 }
-        print dobro(2)
-        """
-    )
-    captured = capsys.readouterr()
-
-    assert lox.reporter.had_error is True
-    assert "Operands must be numbers." in captured.err
 
 
 def test_methods_still_require_parameter_annotations(

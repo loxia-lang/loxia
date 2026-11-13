@@ -1,6 +1,6 @@
 # ADR-0033 — Inferência de parâmetro (T3c) e generalização de lambda (T4)
 
-- **Status:** accepted
+- **Status:** accepted (T4); a parte **T3c** foi revertida pelo [ADR-0034](0034-t3c-revertido.md)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0020](0020-assinaturas-explicitas.md),
@@ -26,7 +26,10 @@ genéricas implícitas.
 
 ## Decisão
 
-### T3c — parâmetro sem anotação é um parâmetro de tipo implícito
+> **Revisão:** esta seção (T3c) foi **revertida** pelo [ADR-0034](0034-t3c-revertido.md);
+> o ADR vale pelo T4.
+
+### T3c — parâmetro sem anotação é um parâmetro de tipo implícito (revertido)
 
 Em **função de topo**, cada parâmetro sem anotação vira uma `TyVar` fresca; a assinatura
 passa a ser implicitamente genérica e a chamada usa a mesma unificação do T3b. Os nomes são

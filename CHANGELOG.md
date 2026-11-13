@@ -7,10 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
-- Checker (T3c/T4): função de topo pode omitir a anotação de parâmetro (vira tipo
-  implícito, instanciado por chamada) e `val f = fn(x) => x` é generalizado
-  ([ADR-0033](docs/adr/0033-inferencia-t3c-t4.md)). Métodos ainda exigem anotação e
-  `var` não generaliza.
+- Checker (T4): `val f = fn(x) => x` infere parâmetros/retorno e generaliza o esquema
+  ([ADR-0033](docs/adr/0033-inferencia-t3c-t4.md)); `var` não generaliza. O T3c
+  (parâmetro de `fn` sem anotação) foi implementado e **revertido** por conflitar com o
+  contrato explícito do ADR-0020 ([ADR-0034](docs/adr/0034-t3c-revertido.md)).
 - Checker (T5): narrowing de campos e índices literais (`p.nome`, `xs[0]`, `m["k"]`), com
   invalidação ao mutar o caminho ou a raiz e refino pelo falso na saída de `while`
   ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)). Continua sem CFG/aliasing.

@@ -226,9 +226,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if not isinstance(statement, Function):
                 continue
 
-            signature = self._signature(
-                statement, is_init=False, allow_implicit_type_params=True
-            )
+            signature = self._signature(statement, is_init=False)
             self._signatures[statement] = signature
             self._predeclared_by_name[statement.name.lexeme] = signature
 
@@ -824,9 +822,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_function_stmt(self, stmt: Function) -> None:
         signature = self._signatures.get(stmt)
         if signature is None:
-            signature = self._signature(
-                stmt, is_init=False, allow_implicit_type_params=True
-            )
+            signature = self._signature(stmt, is_init=False)
 
         self._define(
             stmt.name, self._function_value_type(stmt.name.lexeme, signature)
@@ -841,12 +837,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
 
     def _signature(
-        self,
-        stmt: Function,
-        *,
-        is_init: bool,
-        allow_type_params: bool = True,
-        allow_implicit_type_params: bool = False,
+        self, stmt: Function, *, is_init: bool, allow_type_params: bool = True
     ) -> FunctionSignature:
         names: list[str] = []
         variables: list[TyVar] = []
@@ -872,27 +863,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 names.append(token.lexeme)
                 variables.append(self._fresh_type_var(token.lexeme))
 
-        explicit_names = tuple(names)
-        explicit_variables = tuple(variables)
-        self._push_type_params(explicit_names, explicit_variables)
+        type_params = tuple(variables)
+        type_param_names = tuple(names)
+        self._push_type_params(type_param_names, type_params)
         try:
             param_types: list[Ty] = []
             minimum = 0
 
             for param in stmt.params:
                 if param.type_annotation is None:
-                    if allow_implicit_type_params:
-                        implicit = self._implicit_type_param_name(names)
-                        names.append(implicit)
-                        variable = self._fresh_type_var(implicit)
-                        variables.append(variable)
-                        param_ty: Ty = variable
-                    else:
-                        self._error(
-                            param.name,
-                            f"Parameter '{param.name.lexeme}' needs a type annotation.",
-                        )
-                        param_ty = ANY
+                    self._error(
+                        param.name,
+                        f"Parameter '{param.name.lexeme}' needs a type annotation.",
+                    )
+                    param_ty: Ty = ANY
                 else:
                     param_ty = self._resolve_type(param.type_annotation, param.name)
 
@@ -922,9 +906,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._pop_type_params()
 
         return FunctionSignature(
-            tuple(variables),
-            tuple(names),
-            FnTy(tuple(param_types), return_ty, minimum),
+            type_params, type_param_names, FnTy(tuple(param_types), return_ty, minimum)
         )
 
     def _implicit_type_param_name(self, taken: list[str]) -> str:

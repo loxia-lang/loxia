@@ -450,12 +450,11 @@ val nome: String? = nil;      // String | Nil
 val rotulo = nome or "sem nome";  // String (truthy remove Nil)
 ```
 
-- No `--check`, funções de topo podem **omitir a anotação de parâmetro**: cada um vira um
-  parâmetro de tipo implícito (`fn igual(x, y) -> Bool` ≡ `fn igual[T, U]` com `x: T` e `y: U`),
-  instanciado por chamada. O retorno continua obrigatório; **métodos** continuam exigindo
-  todos os parâmetros anotados e `init` não declara retorno. Parâmetro/campo sem anotação e
-  sem inicializador é erro; local sem inicializador também. Ver
-  [ADR-0033](../adr/0033-inferencia-t3c-t4.md).
+- No `--check`, funções e métodos precisam de anotação em **todos os parâmetros e no
+  retorno**; `init` não declara retorno. Parâmetro/campo sem anotação e sem inicializador
+  é erro; local sem inicializador também. Lambdas em `val` podem inferir parâmetros e
+  generalizar o esquema (T4); `fn` continua contrato explícito. Ver
+  [ADR-0033](../adr/0033-inferencia-t3c-t4.md) e [ADR-0034](../adr/0034-t3c-revertido.md).
 - Assinaturas de funções de topo são conhecidas **antes** dos corpos: uma função pode
   chamar outra declarada depois, inclusive recursão mútua. O código de topo continua na
   ordem dos statements: chamar uma função antes da declaração dela ainda é erro; métodos e
@@ -477,10 +476,10 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   esperado (retorno, `val` anotado, argumento de função) preenchem os `T`. Se sobrar algum
   sem inferência, é erro (`Can't infer type argument(s) 'T'.`). Não há constraints,
   variance declarada, type application explícita nem `T` em chave de `Map` sem constraint;
-  `Any` não infere `T`. Parâmetro sem anotação em função de topo vira parâmetro implícito
-  (T3c) e `val f = fn(x) => x` é generalizado (T4). No runtime os tipos são apagados; o
-  backend monomorfiza ([ADR-0027](../adr/0027-generics-t3b.md),
-  [ADR-0033](../adr/0033-inferencia-t3c-t4.md)).
+  `Any` não infere `T`. `val f = fn(x) => x` é generalizado (T4); parâmetro de `fn` continua
+  exigindo anotação (T3c rejeitado). No runtime os tipos são apagados; o backend monomorfiza
+  ([ADR-0027](../adr/0027-generics-t3b.md), [ADR-0033](../adr/0033-inferencia-t3c-t4.md),
+  [ADR-0034](../adr/0034-t3c-revertido.md)).
 - Lambdas: `fn(x) => expr` e `fn(x) { ... }`. O corpo de expressão vira retorno
   implícito; o bloco exige `return`. O tipo esperado preenche parâmetros sem anotação
   (`aplicar(fn(x) => x * 2, 3)`); sem contexto, em `val`, os parâmetros são inferidos como

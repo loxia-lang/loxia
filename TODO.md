@@ -73,7 +73,7 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 
 | Etapa | O que falta | Ganho |
 | --- | --- | --- |
-| **T3c** ✅ | parâmetro sem anotação vira `TyVar` implícito, instanciado por chamada (métodos ficam de fora) | inferência de parâmetro |
+| **T3c** ❌ | parâmetro implícito foi implementado e **revertido**: omissão virava quantificação universal sem marcador, contra o [ADR-0020](docs/adr/0020-assinaturas-explicitas.md) ([ADR-0034](docs/adr/0034-t3c-revertido.md)) | — |
 | **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
 | **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais e exaustividade no `match` | abstração |
@@ -82,6 +82,9 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 Pendências pontuais:
 - [ ] `P2` merge completo em CFG e aliasing (chamada que muta campo não invalida); ver
       [ADR-0032](docs/adr/0032-narrowing-campos-indices.md) §Limitações.
+- [ ] `P2` **T3c-v2 (HM-lite)**: inferir o tipo do parâmetro pelo **uso no corpo**
+      (unificação: `x * 2` liga a `Int`, `==` generaliza), em vez de universal por omissão;
+      precisa de unificação no corpo e mensagens próprias ([ADR-0034](docs/adr/0034-t3c-revertido.md)).
 - [ ] `P2` exaustividade em `match`/enum.
 - [ ] `P3` flow-sensitive para `val` (uma atribuição só).
 - [ ] `P3` generics com constraints (`T with Show`), classes/métodos genéricos, type
@@ -452,7 +455,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M5** | Tipos v2 | T3c + T4–T6: generalização, classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade — T3c/T4/T5 ✅; falta T6 | 🟡 **em andamento** |
+| **M5** | Tipos v2 | T4–T6: generalização, classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade — T4/T5 ✅, T3c rejeitado; falta T6 | 🟡 **em andamento** |
 | **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
 | **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
