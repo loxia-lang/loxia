@@ -18,8 +18,8 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
-from src.frontend.expr import Call, Expr, Get, Index, IndexSet, ListLiteral
-from src.frontend.ty import ListTy
+from src.frontend.expr import Call, Expr, Get, Index, IndexSet, ListLiteral, MapLiteral
+from src.frontend.ty import ListTy, MapTy
 
 
 class ContainerLowering(LoweringBase):
@@ -63,8 +63,91 @@ class ContainerLowering(LoweringBase):
             )
         return Value(ValueType.LIST, raw)
 
+    def _map_types(self, expr: Expr, line: int | None) -> tuple[TypeDesc, TypeDesc]:
+        ty = self.types.get(expr)
+        if isinstance(ty, MapTy):
+            return (
+                self._type_desc(self._subst_ty(ty.key), line),
+                self._type_desc(self._subst_ty(ty.value), line),
+            )
+        if self._map_expected_key is not None and self._map_expected_value is not None:
+            return (
+                self._type_desc(self._subst_ty(self._map_expected_key), line),
+                self._type_desc(self._subst_ty(self._map_expected_value), line),
+            )
+        if isinstance(expr, MapLiteral) and not expr.entries:
+            return TypeDesc(ValueType.ANY), TypeDesc(ValueType.ANY)
+        if isinstance(expr, MapLiteral) and expr.entries:
+            key_ty = self.types.get(expr.entries[0][0])
+            value_ty = self.types.get(expr.entries[0][1])
+            key_desc = (
+                self._type_desc(key_ty, line)
+                if key_ty is not None
+                else self._literal_desc(expr.entries[0][0])
+            )
+            value_desc = (
+                self._type_desc(value_ty, line)
+                if value_ty is not None
+                else self._literal_desc(expr.entries[0][1])
+            )
+            return key_desc, value_desc
+        raise _unsupported("Map key/value type", line)
+
+    def _literal_desc(self, expr: Expr) -> TypeDesc:
+        from src.frontend.expr import Literal
+
+        if isinstance(expr, Literal):
+            value = expr.value
+            if value is None:
+                return TypeDesc(ValueType.NIL)
+            if isinstance(value, bool):
+                return TypeDesc(ValueType.BOOL)
+            if isinstance(value, int):
+                return TypeDesc(ValueType.INT)
+            if isinstance(value, float):
+                return TypeDesc(ValueType.FLOAT)
+            if isinstance(value, str):
+                return TypeDesc(ValueType.STRING)
+        if isinstance(expr, ListLiteral):
+            return TypeDesc(ValueType.LIST)
+        if isinstance(expr, MapLiteral):
+            return TypeDesc(ValueType.MAP)
+        return TypeDesc(ValueType.ANY)
+
+    def _map_literal(self, expr: MapLiteral) -> Value:
+        key_desc, value_desc = self._map_types(expr, None)
+        _ = key_desc, value_desc
+        raw = self.builder.call(self._function("lox_map_new", _I8_PTR, []), [])
+        for key_expr, value_expr in expr.entries:
+            key = self._box_value(self._expr(key_expr), None)
+            value = self._box_value(self._expr(value_expr), None)
+            self.builder.call(
+                self._function("lox_map_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _INT]),
+                [
+                    raw,
+                    self.builder.extract_value(key.llvm, 0),
+                    self.builder.extract_value(key.llvm, 1),
+                    self.builder.extract_value(value.llvm, 0),
+                    self.builder.extract_value(value.llvm, 1),
+                ],
+            )
+        return Value(ValueType.MAP, raw)
+
     def _list_get(self, expr: Index) -> Value:
         obj = self._expr(expr.object)
+        if obj.ty is ValueType.MAP:
+            _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
+            key = self._box_value(self._expr(expr.index), None)
+            raw = self.builder.call(
+                self._function("lox_map_get_checked", _ANY, [_I8_PTR, _INT, _INT, _I32]),
+                [
+                    obj.llvm,
+                    self.builder.extract_value(key.llvm, 0),
+                    self.builder.extract_value(key.llvm, 1),
+                    llvm_ir.constant(_I32, expr.bracket.line),
+                ],
+            )
+            return self._unbox_value(raw, value_desc, expr.bracket.line)
         if obj.ty is not ValueType.LIST:
             raise _unsupported("Indexing this value", expr.bracket.line)
         index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
@@ -76,6 +159,22 @@ class ContainerLowering(LoweringBase):
 
     def _list_set(self, expr: IndexSet) -> Value:
         obj = self._expr(expr.object)
+        if obj.ty is ValueType.MAP:
+            _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
+            key = self._box_value(self._expr(expr.index), None)
+            value = self._coerce(self._expr(expr.value), value_desc, expr.bracket.line)
+            boxed = self._box_value(value, None)
+            self.builder.call(
+                self._function("lox_map_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _INT]),
+                [
+                    obj.llvm,
+                    self.builder.extract_value(key.llvm, 0),
+                    self.builder.extract_value(key.llvm, 1),
+                    self.builder.extract_value(boxed.llvm, 0),
+                    self.builder.extract_value(boxed.llvm, 1),
+                ],
+            )
+            return value
         if obj.ty is not ValueType.LIST:
             raise _unsupported("Indexed assignment", expr.bracket.line)
         index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
@@ -124,6 +223,67 @@ class ContainerLowering(LoweringBase):
             )
             return self._unbox_value(raw, element, line)
         raise _unsupported(f"List method '{name}'", line)
+
+    def _call_map_method(self, expr: Call, obj: Value) -> Value:
+        assert isinstance(expr.callee, Get)
+        name = expr.callee.name.lexeme
+        line = expr.callee.name.line
+        _key_desc, value_desc = self._map_types(expr.callee.object, line)
+        if name in {"get", "has", "remove"}:
+            if len(expr.arguments) != 1:
+                self._poison(expr.paren.line, "Expected 1 arguments but got 0.")
+                return Value(ValueType.NIL)
+            key = self._box_value(self._expr(expr.arguments[0]), None)
+            tag = self.builder.extract_value(key.llvm, 0)
+            payload = self.builder.extract_value(key.llvm, 1)
+            if name == "has":
+                call = self.builder.call(
+                    self._function("lox_map_has", _I32, [_I8_PTR, _INT, _INT]),
+                    [obj.llvm, tag, payload],
+                )
+                return Value(
+                    ValueType.BOOL,
+                    self.builder.icmp_signed("!=", call, llvm_ir.constant(_I32, 0)),
+                )
+            if name == "remove":
+                raw = self.builder.call(
+                    self._function("lox_map_remove", _ANY, [_I8_PTR, _INT, _INT, _I32]),
+                    [obj.llvm, tag, payload, llvm_ir.constant(_I32, line)],
+                )
+                return self._unbox_value(raw, value_desc, line)
+            optional = TypeDesc(
+                value_desc.ty, value_desc.fn, True, value_desc.class_name
+            )
+            raw = self.builder.call(
+                self._function("lox_map_get", _ANY, [_I8_PTR, _INT, _INT]),
+                [obj.llvm, tag, payload],
+            )
+            return self._unbox_value(raw, optional, line)
+        if name in {"keys", "values"}:
+            function = "lox_map_keys" if name == "keys" else "lox_map_values"
+            raw = self.builder.call(
+                self._function(function, _I8_PTR, [_I8_PTR]), [obj.llvm]
+            )
+            return Value(ValueType.LIST, raw)
+        raise _unsupported(f"Map method '{name}'", line)
+
+    def _map_len(self, value: Value) -> Value:
+        return Value(
+            ValueType.INT,
+            self.builder.call(
+                self._function("lox_map_len", _INT, [_I8_PTR]), [value.llvm]
+            ),
+        )
+
+    def _map_equal(self, left: Value, right: Value) -> Value:
+        call = self.builder.call(
+            self._function("lox_map_equal", _I32, [_I8_PTR, _I8_PTR]),
+            [left.llvm, right.llvm],
+        )
+        return Value(
+            ValueType.BOOL,
+            self.builder.icmp_signed("!=", call, llvm_ir.constant(_I32, 0)),
+        )
 
     def _list_len(self, value: Value) -> Value:
         call = self.builder.call(
@@ -180,10 +340,15 @@ class ContainerLowering(LoweringBase):
                         self.builder.inttoptr(payload, _I8_PTR),
                         inner.fn,
                     )
+                case ValueType.ANY:
+                    return Value(ValueType.ANY, raw)
                 case ValueType.NIL:
                     return Value(ValueType.NIL)
                 case _:
                     raise _unsupported(f"List element type '{inner.ty.name}'", line)
+
+        if desc.ty is ValueType.NIL:
+            return Value(ValueType.NIL)
 
         if desc.optional:
             some = llvm_ir.append_block(self._function_ir, "list.some")

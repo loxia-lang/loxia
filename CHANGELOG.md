@@ -7,6 +7,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L6c — mapas**: `Map` com chaves/valores boxeados, `get`/`has`/`remove`/`keys`/`values`, `for-in` de chaves, igualdade independente de ordem, stringify e ciclos ([ADR-0053](docs/adr/0053-l6-mapas.md)).
 - Backend **L6b — listas**: `List` com elementos boxeados no runtime, literais,
   índice/atribuição, `push`/`pop`, `len`, `for-in`, igualdade estrutural, `print`/`str`/
   `repr` e ciclos; casos `list_*` promovidos ([ADR-0052](docs/adr/0052-l6-listas.md)).

@@ -65,6 +65,7 @@ from src.frontend.expr import (
     ListLiteral,
     Literal,
     Logical,
+    MapLiteral,
     Range,
     Set,
     Super,
@@ -142,6 +143,8 @@ class Lowerer(
         self._analysis = CaptureAnalysis({}, frozenset())
         self._type_subst: dict[str, Ty] = {}
         self._list_expected_element: Ty | None = None
+        self._map_expected_key: Ty | None = None
+        self._map_expected_value: Ty | None = None
         self._generic_fns: dict[str, Function] = {}
         self._generic_fn_cache: dict[tuple[str, tuple[str, ...]], FunctionInfo] = {}
         self._generic_class_layouts: dict[str, ClassLayout] = {}
@@ -318,6 +321,10 @@ class Lowerer(
                 self.builder.call(
                     self._function("lox_print_list", _VOID, [_I8_PTR]), [value.llvm]
                 )
+            case ValueType.MAP:
+                self.builder.call(
+                    self._function("lox_print_map", _VOID, [_I8_PTR]), [value.llvm]
+                )
             case ValueType.FUNCTION:
                 self.builder.call(
                     self._function("lox_print_function", _VOID, [_I8_PTR]),
@@ -404,6 +411,8 @@ class Lowerer(
             return self._range_expr(expr)
         if isinstance(expr, ListLiteral):
             return self._list_literal(expr)
+        if isinstance(expr, MapLiteral):
+            return self._map_literal(expr)
         if isinstance(expr, Index):
             return self._list_get(expr)
         if isinstance(expr, IndexSet):
@@ -758,6 +767,12 @@ class Lowerer(
     ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
+        if left.ty is ValueType.MAP and right.ty is ValueType.MAP:
+            equal_value = self._map_equal(left, right).llvm
+            if not equal:
+                equal_value = self.builder.not_(equal_value)
+            return Value(ValueType.BOOL, equal_value)
+
         if left.ty is ValueType.LIST and right.ty is ValueType.LIST:
             equal_value = self._list_equal(left, right).llvm
             if not equal:
@@ -779,6 +794,12 @@ class Lowerer(
             return Value(
                 ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
             )
+
+        if left.ty is ValueType.MAP and right.ty is ValueType.MAP:
+            equal_value = self._map_equal(left, right).llvm
+            if not equal:
+                equal_value = self.builder.not_(equal_value)
+            return Value(ValueType.BOOL, equal_value)
 
         if left.ty is ValueType.LIST and right.ty is ValueType.LIST:
             equal_value = self._list_equal(left, right).llvm

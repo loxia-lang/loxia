@@ -311,6 +311,7 @@ LoxValue lox_list_pop(void *pointer, int32_t line) {
 }
 
 static int lox_value_equal(LoxValue left, LoxValue right);
+int lox_map_equal(const void *left_pointer, const void *right_pointer);
 
 int lox_list_equal(const void *left_pointer, const void *right_pointer) {
     if (left_pointer == right_pointer) {
@@ -369,9 +370,183 @@ static int lox_value_equal(LoxValue left, LoxValue right) {
         case 9:
             return lox_list_equal((const void *)left.payload,
                                   (const void *)right.payload);
+        case 10:
+            return lox_map_equal((const void *)left.payload,
+                                 (const void *)right.payload);
         default:
             return left.payload == right.payload;
     }
+}
+
+
+/* Map do L6: entradas boxeadas em ordem de inserção. */
+typedef struct {
+    LoxValue key;
+    LoxValue value;
+} LoxMapEntry;
+
+typedef struct {
+    int64_t count;
+    int64_t capacity;
+    LoxMapEntry *entries;
+    int64_t version;
+} LoxMap;
+
+void *lox_map_new(void) {
+    LoxMap *map = lox_alloc(sizeof(LoxMap));
+    map->count = 0;
+    map->capacity = 4;
+    map->entries = lox_alloc(sizeof(LoxMapEntry) * (size_t)map->capacity);
+    map->version = 0;
+    return map;
+}
+
+static int lox_map_key_equal(LoxValue left, LoxValue right) {
+    if (left.tag != right.tag) {
+        return 0;
+    }
+    if (left.tag == 4) {
+        return lox_str_equal((const void *)left.payload,
+                             (const void *)right.payload);
+    }
+    return left.payload == right.payload;
+}
+
+static int64_t lox_map_find(const LoxMap *map, LoxValue key) {
+    for (int64_t index = 0; index < map->count; index++) {
+        if (lox_map_key_equal(map->entries[index].key, key)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+static void lox_map_grow(LoxMap *map) {
+    int64_t capacity = map->capacity * 2;
+    LoxMapEntry *entries = lox_alloc(sizeof(LoxMapEntry) * (size_t)capacity);
+    for (int64_t index = 0; index < map->count; index++) {
+        entries[index] = map->entries[index];
+    }
+    map->entries = entries;
+    map->capacity = capacity;
+}
+
+void lox_map_set(void *pointer, int64_t key_tag, int64_t key_payload,
+                 int64_t value_tag, int64_t value_payload) {
+    LoxMap *map = pointer;
+    LoxValue key = {key_tag, key_payload};
+    int64_t found = lox_map_find(map, key);
+    if (found >= 0) {
+        map->entries[found].value.tag = value_tag;
+        map->entries[found].value.payload = value_payload;
+        map->version += 1;
+        return;
+    }
+    if (map->count == map->capacity) {
+        lox_map_grow(map);
+    }
+    map->entries[map->count].key = key;
+    map->entries[map->count].value.tag = value_tag;
+    map->entries[map->count].value.payload = value_payload;
+    map->count += 1;
+    map->version += 1;
+}
+
+int64_t lox_map_len(const void *pointer) {
+    return ((const LoxMap *)pointer)->count;
+}
+
+int32_t lox_map_has(const void *pointer, int64_t key_tag, int64_t key_payload) {
+    LoxValue key = {key_tag, key_payload};
+    return lox_map_find(pointer, key) >= 0;
+}
+
+LoxValue lox_map_get(const void *pointer, int64_t key_tag, int64_t key_payload) {
+    LoxValue key = {key_tag, key_payload};
+    int64_t found = lox_map_find(pointer, key);
+    if (found < 0) {
+        LoxValue nil = {0, 0};
+        return nil;
+    }
+    return ((const LoxMap *)pointer)->entries[found].value;
+}
+
+LoxValue lox_map_get_checked(const void *pointer, int64_t key_tag,
+                             int64_t key_payload, int32_t line) {
+    LoxValue key = {key_tag, key_payload};
+    int64_t found = lox_map_find(pointer, key);
+    if (found < 0) {
+        lox_panic(line, "Key not found in map.");
+    }
+    return ((const LoxMap *)pointer)->entries[found].value;
+}
+
+LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
+                        int32_t line) {
+    LoxMap *map = pointer;
+    LoxValue key = {key_tag, key_payload};
+    int64_t found = lox_map_find(map, key);
+    if (found < 0) {
+        lox_panic(line, "Key not found in map.");
+    }
+    LoxValue value = map->entries[found].value;
+    for (int64_t index = found; index + 1 < map->count; index++) {
+        map->entries[index] = map->entries[index + 1];
+    }
+    map->count -= 1;
+    map->version += 1;
+    return value;
+}
+
+LoxValue lox_map_key_at(const void *pointer, int64_t index) {
+    return ((const LoxMap *)pointer)->entries[index].key;
+}
+
+void *lox_map_keys(const void *pointer) {
+    const LoxMap *map = pointer;
+    void *list = lox_list_new();
+    for (int64_t index = 0; index < map->count; index++) {
+        lox_list_push(list, map->entries[index].key.tag,
+                      map->entries[index].key.payload);
+    }
+    return list;
+}
+
+void *lox_map_values(const void *pointer) {
+    const LoxMap *map = pointer;
+    void *list = lox_list_new();
+    for (int64_t index = 0; index < map->count; index++) {
+        lox_list_push(list, map->entries[index].value.tag,
+                      map->entries[index].value.payload);
+    }
+    return list;
+}
+
+int lox_map_equal(const void *left_pointer, const void *right_pointer) {
+    static int depth = 0;
+    if (left_pointer == right_pointer) {
+        return 1;
+    }
+    if (depth > 32) {
+        return 1;
+    }
+    depth += 1;
+    const LoxMap *left = left_pointer;
+    const LoxMap *right = right_pointer;
+    if (left->count != right->count) {
+        return 0;
+    }
+    for (int64_t index = 0; index < left->count; index++) {
+        LoxValue key = left->entries[index].key;
+        int64_t found = lox_map_find(right, key);
+        if (found < 0 || !lox_value_equal(left->entries[index].value,
+                                           right->entries[found].value)) {
+            depth -= 1;
+            return 0;
+        }
+    }
+    depth -= 1;
+    return 1;
 }
 
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
@@ -722,6 +897,31 @@ static void buffer_bytes(LoxBuffer *buffer, const char *data, size_t length) {
 
 static void format_value(LoxBuffer *buffer, LoxValue value);
 
+static void format_map(LoxBuffer *buffer, const LoxMap *map) {
+    for (int index = 0; index < buffer->active_depth; index++) {
+        if (buffer->active[index] == map) {
+            buffer_text(buffer, "{...}");
+            return;
+        }
+    }
+    if (buffer->active_depth >= 64) {
+        buffer_text(buffer, "{...}");
+        return;
+    }
+    buffer->active[buffer->active_depth++] = map;
+    buffer_char(buffer, '{');
+    for (int64_t index = 0; index < map->count; index++) {
+        if (index > 0) {
+            buffer_text(buffer, ", ");
+        }
+        format_value(buffer, map->entries[index].key);
+        buffer_text(buffer, ": ");
+        format_value(buffer, map->entries[index].value);
+    }
+    buffer_char(buffer, '}');
+    buffer->active_depth -= 1;
+}
+
 static void format_list(LoxBuffer *buffer, const LoxList *list) {
     for (int index = 0; index < buffer->active_depth; index++) {
         if (buffer->active[index] == list) {
@@ -810,6 +1010,9 @@ static void format_value(LoxBuffer *buffer, LoxValue value) {
         case 9:
             format_list(buffer, (const void *)value.payload);
             break;
+        case 10:
+            format_map(buffer, (const void *)value.payload);
+            break;
         default:
             buffer_text(buffer, "<value>");
             break;
@@ -822,6 +1025,21 @@ void lox_print_list(const void *pointer) {
     format_list(&buffer, pointer);
     fwrite(buffer.data, 1, buffer.length, stdout);
     fputc('\n', stdout);
+}
+
+void lox_print_map(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_map(&buffer, pointer);
+    fwrite(buffer.data, 1, buffer.length, stdout);
+    fputc('\n', stdout);
+}
+
+void *lox_str_from_map(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_map(&buffer, pointer);
+    return string_from_ascii(buffer.data, buffer.length);
 }
 
 void *lox_str_from_list(const void *pointer) {
@@ -917,6 +1135,9 @@ void lox_print_any(int64_t tag, int64_t payload) {
             break;
         case 9:
             lox_print_list((const void *)payload);
+            break;
+        case 10:
+            lox_print_map((const void *)payload);
             break;
         default:
             lox_panic(0, "Unknown Any tag");

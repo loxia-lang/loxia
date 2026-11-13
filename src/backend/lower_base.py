@@ -55,6 +55,8 @@ class LoweringBase:
     _analysis: CaptureAnalysis
     _type_subst: dict[str, Ty]
     _list_expected_element: Ty | None
+    _map_expected_key: Ty | None
+    _map_expected_value: Ty | None
     generic_instances: Any
     generic_classes: Any
     generic_class_sites: Any
@@ -104,6 +106,15 @@ class LoweringBase:
         raise NotImplementedError
 
     def _list_len(self, value: Value) -> Value:
+        raise NotImplementedError
+
+    def _call_map_method(self, expr: Call, obj: Value) -> Value:
+        raise NotImplementedError
+
+    def _map_len(self, value: Value) -> Value:
+        raise NotImplementedError
+
+    def _map_equal(self, left: Value, right: Value) -> Value:
         raise NotImplementedError
 
     def _instantiate_class(

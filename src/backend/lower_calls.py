@@ -43,6 +43,8 @@ class CallLowering(LoweringBase):
             receiver = self._expr(expr.callee.object)
             if receiver.ty is ValueType.LIST:
                 return self._call_list_method(expr, receiver)
+            if receiver.ty is ValueType.MAP:
+                return self._call_map_method(expr, receiver)
 
         if isinstance(expr.callee, Variable):
             name = expr.callee.name.lexeme

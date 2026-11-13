@@ -249,7 +249,7 @@ def test_binario_concorda_com_interpretador(
 
 @pytest.mark.backend
 def test_recurso_sem_representacao_e_rejeitado_explicitamente(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print {\"a\": 1};\n")
+    path = _write(tmp_path, "print (1, 2);\n")
 
     result, binary = _build(path, tmp_path)
 
