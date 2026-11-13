@@ -11,6 +11,7 @@ from src.execution import numeric
 from src.execution.environment import Environment
 from src.execution.lox_callable import LoxCallable
 from src.execution.lox_class import FieldInfo, LoxClass
+from src.execution.lox_enum import LoxEnumObject, LoxEnumValue
 from src.execution.lox_function import LoxFunction
 from src.execution.lox_instance import LoxInstance
 from src.execution.lox_list import LoxList
@@ -44,6 +45,7 @@ from src.frontend.expr import (
     Literal,
     Logical,
     MapLiteral,
+    Match,
     Range,
     Set,
     Super,
@@ -51,12 +53,15 @@ from src.frontend.expr import (
     TupleLiteral,
     Unary,
     Variable,
+    VariantPattern,
+    WildcardPattern,
 )
 from src.frontend.expr import Visitor as ExprVisitor
 from src.frontend.stmt import (
     Block,
     Class,
     Destructure,
+    EnumDecl,
     Expression,
     ForIn,
     Function,
@@ -70,7 +75,7 @@ from src.frontend.stmt import (
 from src.frontend.stmt import Visitor as StmtVisitor
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
-from src.frontend.ty import ANY, FLOAT, INT, ClassTy, UnionTy, display
+from src.frontend.ty import ANY, FLOAT, INT, ClassTy, EnumTy, UnionTy, display
 
 _RELATIONAL = frozenset(
     {
@@ -102,6 +107,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals.define("Int", int_module(), mutable=False)
         self.globals.define("Float", float_module(), mutable=False)
         self.globals.define("math", math_module(), mutable=False)
+        self.globals.define(
+            "Result",
+            LoxEnumObject("Result", {"Ok": 1, "Err": 1}),
+            mutable=False,
+        )
 
     def interpret(self, statements: list[Stmt]) -> None:
         try:
@@ -165,6 +175,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return False
             return self._tuples_equal(a, b, set() if seen is None else seen)
 
+        if isinstance(a, LoxEnumValue) or isinstance(b, LoxEnumValue):
+            if not isinstance(a, LoxEnumValue) or not isinstance(b, LoxEnumValue):
+                return False
+            return self._enum_values_equal(
+                a, b, set() if seen is None else seen
+            )
+
         if isinstance(a, bool) or isinstance(b, bool):
             return isinstance(a, bool) and isinstance(b, bool) and a == b
 
@@ -195,6 +212,28 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return False
 
         return True
+
+    def _enum_values_equal(
+        self,
+        a: LoxEnumValue,
+        b: LoxEnumValue,
+        seen: set[tuple[int, int]],
+    ) -> bool:
+        if a is b:
+            return True
+        if a.enum != b.enum or a.variant != b.variant:
+            return False
+        if len(a.payload) != len(b.payload):
+            return False
+
+        pair = (id(a), id(b))
+        if pair in seen:
+            return True
+        seen.add(pair)
+        return all(
+            self._is_equal(left, right, seen)
+            for left, right in zip(a.payload, b.payload, strict=True)
+        )
 
     def _tuples_equal(
         self,
@@ -388,6 +427,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 expr.operator,
                 "is doesn't support type arguments on classes yet.",
             )
+        if isinstance(expr.test_type, EnumTy) and expr.test_type.args:
+            raise LoxRuntimeError(
+                expr.operator,
+                "is doesn't support type arguments on enums yet.",
+            )
 
         value = self._evaluate(expr.left)
         return matches_type(value, expr.test_type)
@@ -400,6 +444,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             raise LoxRuntimeError(
                 expr.operator,
                 "as doesn't support type arguments on classes yet.",
+            )
+        if isinstance(target, EnumTy) and target.args:
+            raise LoxRuntimeError(
+                expr.operator,
+                "as doesn't support type arguments on enums yet.",
             )
 
         if target is INT:
@@ -587,6 +636,51 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 expr.paren, "Numeric conversion failed."
             ) from None
 
+    def visit_enum_stmt(self, stmt: EnumDecl) -> None:
+        self._reject_immutable_redeclaration(stmt.name)
+        variants = {
+            variant.name.lexeme: len(variant.payload)
+            for variant in stmt.variants
+        }
+        self.environment.define(
+            stmt.name.lexeme,
+            LoxEnumObject(stmt.name.lexeme, variants),
+            mutable=False,
+        )
+
+    def visit_match_expr(self, expr: Match) -> object:
+        value = self._evaluate(expr.scrutinee)
+        if not isinstance(value, LoxEnumValue):
+            raise LoxRuntimeError(
+                expr.keyword, "match requires an enum value."
+            )
+
+        for arm in expr.arms:
+            pattern = arm.pattern
+            if isinstance(pattern, WildcardPattern):
+                return self._evaluate(arm.body)
+            assert isinstance(pattern, VariantPattern)
+            if (
+                value.enum != pattern.enum.lexeme
+                or value.variant != pattern.variant.lexeme
+            ):
+                continue
+
+            previous = self.environment
+            self.environment = Environment(previous)
+            try:
+                for name, item in zip(
+                    pattern.bindings, value.payload, strict=False
+                ):
+                    self.environment.define(
+                        name.lexeme, item, mutable=False
+                    )
+                return self._evaluate(arm.body)
+            finally:
+                self.environment = previous
+
+        raise LoxRuntimeError(expr.keyword, "No match arm matched.")
+
     def visit_class_stmt(self, stmt: Class) -> None:
         self._reject_immutable_redeclaration(stmt.name)
 
@@ -653,6 +747,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if isinstance(ob, LoxMap):
             return ob.get_method(expr.name)
+
+        if isinstance(ob, LoxEnumObject):
+            value = ob.get(expr.name.lexeme)
+            if value is None:
+                raise LoxRuntimeError(
+                    expr.name,
+                    f"Undefined variant '{expr.name.lexeme}'.",
+                )
+            return value
 
         if isinstance(ob, NativeModule):
             value = ob.get(expr.name.lexeme)

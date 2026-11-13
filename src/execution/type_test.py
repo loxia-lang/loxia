@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from src.execution import numeric
 from src.execution.lox_class import LoxClass
+from src.execution.lox_enum import LoxEnumValue
 from src.execution.lox_instance import LoxInstance
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
@@ -25,6 +26,7 @@ from src.frontend.ty import (
     STRING,
     ClassObjectTy,
     ClassTy,
+    EnumTy,
     FnTy,
     ListTy,
     MapTy,
@@ -77,7 +79,13 @@ def matches_type(value: object, ty: Ty) -> bool:
             )
         )
     if isinstance(ty, ClassTy):
-        return isinstance(value, LoxInstance) and value.is_instance_of(ty.name)
+        if isinstance(value, LoxInstance):
+            return value.is_instance_of(ty.name)
+        # `is Cor` chega aqui como ClassTy porque o parser não distingue enum de
+        # classe; o valor desambigua no runtime.
+        return isinstance(value, LoxEnumValue) and value.enum == ty.name
+    if isinstance(ty, EnumTy):
+        return isinstance(value, LoxEnumValue) and value.enum == ty.name
     if isinstance(ty, ClassObjectTy):
         return isinstance(value, LoxClass) and value.is_subclass_of(ty.name)
     if isinstance(ty, UnionTy):

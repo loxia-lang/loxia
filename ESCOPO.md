@@ -32,7 +32,7 @@ próximo marco é o **M5 (tipos v2)** e o codegen fica pausado no L4 até lá.
 | --- | --- |
 | Escopo/linguagem 1.0 | ✅ congelado e implementado |
 | Runtime tree-walk | ✅ |
-| Suíte e docs | ✅ `make check` verde; 877 pass + 8 `xfail` intencionais |
+| Suíte e docs | ✅ `make check` verde; 895 pass + 8 `xfail` intencionais |
 | Backend nativo | 🟡 pós-1.0: L0–L3 entregues (Int/Float/Bool/nil/String, funções, açúcar, arena); L4+ pausado até o M5 |
 | **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 
@@ -77,10 +77,11 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Item | Ordem | Observação |
 | --- | --- | --- |
 | Backend LLVM L0–L3 | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
-| M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | **próximo** | T6a ✅ (classes genéricas MVP); falta T6c; bloqueia L4+ do codegen (TODO §9); traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | ✅ feito | T6a/T6c fechados; L4 liberado (TODO §9); traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
 | Tuplas | ✅ feito | implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)); `for-in`/`is` e backend L6 pendentes |
 | Classes genéricas | ✅ feito | MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos/herança genérica pós-MVP |
+| Enums, `match` e `Result` | ✅ feito | enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)); padrões avançados/backend L6 pendentes |
 | Traits nominais + constraints | pós-MVP | nominal, `implements`, métodos default ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | `match`/enums, exaustividade | M5 | depois de uniões |
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |

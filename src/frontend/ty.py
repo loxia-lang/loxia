@@ -85,6 +85,19 @@ class ClassTy(Ty):
 
 
 @dataclass(frozen=True)
+class EnumTy(Ty):
+    name: str
+    args: tuple[Ty, ...] = ()
+
+
+@dataclass(frozen=True)
+class EnumObjectTy(Ty):
+    """O enum como namespace de variantes (`Cor`, `Result`)."""
+
+    name: str
+
+
+@dataclass(frozen=True)
 class ClassObjectTy(Ty):
     """A classe como valor (chamável, base de `super`)."""
 
@@ -138,6 +151,10 @@ def display(ty: Ty) -> str:
     if isinstance(ty, (Prim, ClassObjectTy, NativeModuleTy, TyVar)):
         return ty.name
     if isinstance(ty, ClassTy):
+        if ty.args:
+            return f"{ty.name}[" + ", ".join(display(arg) for arg in ty.args) + "]"
+        return ty.name
+    if isinstance(ty, EnumTy):
         if ty.args:
             return f"{ty.name}[" + ", ".join(display(arg) for arg in ty.args) + "]"
         return ty.name

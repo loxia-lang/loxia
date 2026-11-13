@@ -24,6 +24,7 @@ class Visitor[R](Protocol):
     def visit_return_stmt(self, stmt: Return) -> R: ...
     def visit_var_stmt(self, stmt: Var) -> R: ...
     def visit_destructure_stmt(self, stmt: Destructure) -> R: ...
+    def visit_enum_stmt(self, stmt: EnumDecl) -> R: ...
     def visit_while_stmt(self, stmt: While) -> R: ...
 
 
@@ -57,6 +58,22 @@ class Class(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class EnumVariant:
+    name: Token
+    payload: list[Ty]
+
+
+@dataclass(frozen=True, eq=False)
+class EnumDecl(Stmt):
+    name: Token
+    type_params: list[Token]
+    variants: list[EnumVariant]
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_enum_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)

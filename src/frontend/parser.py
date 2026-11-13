@@ -20,6 +20,9 @@ from src.frontend.expr import (
     Literal,
     Logical,
     MapLiteral,
+    Match,
+    MatchArm,
+    Pattern,
     Range,
     Set,
     Super,
@@ -27,11 +30,15 @@ from src.frontend.expr import (
     TupleLiteral,
     Unary,
     Variable,
+    VariantPattern,
+    WildcardPattern,
 )
 from src.frontend.stmt import (
     Block,
     Class,
     Destructure,
+    EnumDecl,
+    EnumVariant,
     Expression,
     Field,
     ForIn,
@@ -130,6 +137,9 @@ class Parser:
             if self._match(TokenType.CLASS):
                 return self._class_declaration()
 
+            if self._match(TokenType.ENUM):
+                return self._enum_declaration()
+
             if self._match(TokenType.FN):
                 if self._check(TokenType.LEFT_PAREN):
                     expression = self._lambda(self._previous())
@@ -179,6 +189,35 @@ class Parser:
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
         return Class(name, superclass, fields, methods, type_params)
+
+    def _enum_declaration(self) -> Stmt:
+        name = self._consume(TokenType.IDENTIFIER, "Expect enum name.")
+        type_params = self._type_parameters()
+        self._consume(TokenType.LEFT_BRACE, "Expect '{' before enum variants.")
+
+        variants: list[EnumVariant] = []
+        if not self._check(TokenType.RIGHT_BRACE):
+            while True:
+                variant = self._consume(
+                    TokenType.IDENTIFIER, "Expect variant name."
+                )
+                payload: list[Ty] = []
+                if self._match(TokenType.LEFT_PAREN):
+                    if not self._check(TokenType.RIGHT_PAREN):
+                        payload.append(self._type())
+                        while self._match(TokenType.COMMA):
+                            payload.append(self._type())
+                    self._consume(
+                        TokenType.RIGHT_PAREN,
+                        "Expect ')' after variant payload.",
+                    )
+
+                variants.append(EnumVariant(variant, payload))
+                if not self._match(TokenType.COMMA):
+                    break
+
+        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after enum variants.")
+        return EnumDecl(name, type_params, variants)
 
     def _field_declaration(self, mutable: bool) -> Field:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
@@ -968,6 +1007,9 @@ class Parser:
         if self._match(TokenType.LEFT_BRACE):
             return self._map_literal(self._previous())
 
+        if self._match(TokenType.MATCH):
+            return self._match_expr(self._previous())
+
         if self._match(TokenType.LEFT_PAREN):
             paren = self._previous()
             first: Expr = self._expression()
@@ -988,6 +1030,47 @@ class Parser:
             return Grouping(first)
 
         raise self._error(self._peek(), "Expect expression.")
+
+    def _match_expr(self, keyword: Token) -> Expr:
+        scrutinee = self._expression()
+        self._consume(TokenType.LEFT_BRACE, "Expect '{' after match value.")
+
+        arms: list[MatchArm] = []
+        while not self._check(TokenType.RIGHT_BRACE):
+            pattern = self._pattern()
+            self._consume(TokenType.FAT_ARROW, "Expect '=>' after match pattern.")
+            body = self._expression()
+            arms.append(MatchArm(pattern, body))
+            self._match(TokenType.SEMICOLON)
+            self._match(TokenType.COMMA)
+
+        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
+        if not arms:
+            raise self._error(keyword, "Match needs at least one arm.")
+        return Match(keyword, scrutinee, arms)
+
+    def _pattern(self) -> Pattern:
+        token = self._consume(TokenType.IDENTIFIER, "Expect match pattern.")
+        if token.lexeme == "_":
+            return WildcardPattern(token)
+
+        self._consume(TokenType.DOT, "Expect '.' after enum name in pattern.")
+        variant = self._consume(TokenType.IDENTIFIER, "Expect variant name.")
+        bindings: list[Token] = []
+        if self._match(TokenType.LEFT_PAREN):
+            if not self._check(TokenType.RIGHT_PAREN):
+                bindings.append(
+                    self._consume(TokenType.IDENTIFIER, "Expect binding name.")
+                )
+                while self._match(TokenType.COMMA):
+                    bindings.append(
+                        self._consume(TokenType.IDENTIFIER, "Expect binding name.")
+                    )
+            self._consume(
+                TokenType.RIGHT_PAREN, "Expect ')' after pattern bindings."
+            )
+
+        return VariantPattern(token, variant, bindings)
 
     def _match(self, *types: TokenType) -> bool:
         for token_type in types:

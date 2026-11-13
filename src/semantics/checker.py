@@ -28,6 +28,7 @@ from src.frontend.expr import (
     Literal,
     Logical,
     MapLiteral,
+    Match,
     Range,
     Set,
     Super,
@@ -35,12 +36,15 @@ from src.frontend.expr import (
     TupleLiteral,
     Unary,
     Variable,
+    VariantPattern,
+    WildcardPattern,
 )
 from src.frontend.expr import Visitor as ExprVisitor
 from src.frontend.stmt import (
     Block,
     Class,
     Destructure,
+    EnumDecl,
     Expression,
     ForIn,
     Function,
@@ -66,6 +70,8 @@ from src.frontend.ty import (
     STRING,
     ClassObjectTy,
     ClassTy,
+    EnumObjectTy,
+    EnumTy,
     FnTy,
     GenericFnTy,
     ListTy,
@@ -108,6 +114,21 @@ class ClassInfo:
     type_param_names: tuple[str, ...] = ()
 
 
+@dataclass
+class EnumVariantInfo:
+    name: str
+    payload: tuple[Ty, ...]
+    token: Token | None = None
+
+
+@dataclass
+class EnumInfo:
+    name: str
+    type_params: tuple[TyVar, ...] = ()
+    type_param_names: tuple[str, ...] = ()
+    variants: dict[str, EnumVariantInfo] = field(default_factory=dict)
+
+
 RefinementKey = tuple[str, tuple[tuple[str, object], ...]]
 """Chave de refinamento: nome da raiz + caminho (campo ou índice literal)."""
 
@@ -125,6 +146,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes: list[dict[str, Ty]] = [{}]
         self._narrowings: list[dict[RefinementKey, tuple[int, Ty]]] = [{}]
         self._classes: dict[str, ClassInfo] = {}
+        self._enums: dict[str, EnumInfo] = {}
         self._current_class: ClassInfo | None = None
         self._current_return: Ty | None = None
         self._in_initializer = False
@@ -142,6 +164,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def check(self, statements: list[Stmt]) -> None:
         self._predeclare_classes(statements)
+        self._predeclare_enums(statements)
         self._predeclare_functions(statements)
         for statement in statements:
             self._check_stmt(statement)
@@ -156,6 +179,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")
         self._scopes[0]["str"] = NativeFnTy("str")
+
+        result_t = self._fresh_type_var("T")
+        result_e = self._fresh_type_var("E")
+        self._enums["Result"] = EnumInfo(
+            "Result",
+            (result_t, result_e),
+            ("T", "E"),
+            {
+                "Ok": EnumVariantInfo("Ok", (result_t,)),
+                "Err": EnumVariantInfo("Err", (result_e,)),
+            },
+        )
+        self._scopes[0]["Result"] = EnumObjectTy("Result")
 
         self._native_modules = {
             "Int": {
@@ -249,6 +285,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             )
             self._scopes[0].setdefault(
                 statement.name.lexeme, ClassObjectTy(statement.name.lexeme)
+            )
+
+    def _predeclare_enums(self, statements: list[Stmt]) -> None:
+        for statement in statements:
+            if not isinstance(statement, EnumDecl):
+                continue
+            if statement.name.lexeme in BUILTIN_NAMES:
+                continue
+
+            params, names = self._declare_type_params(statement.type_params)
+            self._enums.setdefault(
+                statement.name.lexeme,
+                EnumInfo(statement.name.lexeme, params, names),
+            )
+            self._scopes[0].setdefault(
+                statement.name.lexeme, EnumObjectTy(statement.name.lexeme)
             )
 
     def _predeclare_functions(self, statements: list[Stmt]) -> None:
@@ -542,6 +594,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expected.name == actual.name and expected.args == actual.args
                 )
             return self._is_subclass(actual.name, expected.name)
+        if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
+            return (
+                expected.name == actual.name and expected.args == actual.args
+            )
 
         return False
 
@@ -580,6 +636,35 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
                     return ERROR
                 return parameter
+
+            enum_info = self._enums.get(ty.name)
+            if enum_info is not None:
+                if enum_info.type_params:
+                    if not ty.args:
+                        self._error(
+                            token,
+                            f"Enum '{ty.name}' needs "
+                            f"{len(enum_info.type_params)} type argument(s).",
+                        )
+                        return ERROR
+                    if len(ty.args) != len(enum_info.type_params):
+                        self._error(
+                            token,
+                            f"{ty.name} expects "
+                            f"{len(enum_info.type_params)} type argument(s), "
+                            f"got {len(ty.args)}.",
+                        )
+                        return ERROR
+                    args = tuple(
+                        self._resolve_type(arg, token) for arg in ty.args
+                    )
+                    if any(arg is ERROR for arg in args):
+                        return ERROR
+                    return EnumTy(ty.name, args)
+                if ty.args:
+                    self._error(token, f"Enum '{ty.name}' isn't generic.")
+                    return ERROR
+                return EnumTy(ty.name)
 
             info = self._classes.get(ty.name)
             if info is None:
@@ -697,6 +782,45 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         for statement in stmt.statements:
             self._check_stmt(statement)
         self._end_scope()
+
+    def visit_enum_stmt(self, stmt: EnumDecl) -> None:
+        name = stmt.name.lexeme
+        if name in BUILTIN_NAMES:
+            self._error(stmt.name, f"Can't redefine builtin '{name}'.")
+
+        info = self._enums.get(name)
+        if info is None:
+            params, param_names = self._declare_type_params(stmt.type_params)
+            info = EnumInfo(name, params, param_names)
+            self._enums[name] = info
+
+        if len(self._scopes) > 1 or self._function_depth > 0:
+            self._error(stmt.name, "Enums must be declared at top level.")
+
+        info.variants.clear()
+        self._define(stmt.name, EnumObjectTy(name))
+        self._push_type_params(info.type_param_names, info.type_params)
+        try:
+            seen: set[str] = set()
+            for variant in stmt.variants:
+                variant_name = variant.name.lexeme
+                if variant_name in seen:
+                    self._error(
+                        variant.name,
+                        f"Variant '{variant_name}' is already declared.",
+                    )
+                    continue
+                seen.add(variant_name)
+
+                payload = tuple(
+                    self._resolve_type(item, variant.name)
+                    for item in variant.payload
+                )
+                info.variants[variant_name] = EnumVariantInfo(
+                    variant_name, payload, variant.name
+                )
+        finally:
+            self._pop_type_params()
 
     def visit_class_stmt(self, stmt: Class) -> None:
         name = stmt.name.lexeme
@@ -1190,6 +1314,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "as doesn't support type arguments on classes yet.",
                 )
             return
+        if isinstance(ty, EnumTy):
+            if ty.args:
+                self._error(
+                    token,
+                    "as doesn't support type arguments on enums yet.",
+                )
+            return
         if isinstance(ty, ListTy):
             self._validate_is_type(ty.element, token)
             return
@@ -1217,6 +1348,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     "is doesn't support type arguments on classes yet.",
+                )
+            return
+        if isinstance(ty, EnumTy):
+            if ty.args:
+                self._error(
+                    token,
+                    "is doesn't support type arguments on enums yet.",
                 )
             return
         if isinstance(ty, ListTy):
@@ -1628,6 +1766,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     actual.name == expected.name and actual.args == expected.args
                 )
             return self._is_subclass(actual.name, expected.name)
+        if isinstance(actual, EnumTy) and isinstance(expected, EnumTy):
+            return (
+                actual.name == expected.name
+                and (not expected.args or actual.args == expected.args)
+            )
         if isinstance(actual, ListTy) and isinstance(expected, ListTy):
             return expected.element is ANY or self._is_test_subtype(
                 actual.element, expected.element
@@ -2444,6 +2587,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 ty.name,
                 tuple(self._substitute(arg, bindings) for arg in ty.args),
             )
+        if isinstance(ty, EnumTy):
+            return EnumTy(
+                ty.name,
+                tuple(self._substitute(arg, bindings) for arg in ty.args),
+            )
         if isinstance(ty, ListTy):
             return ListTy(self._substitute(ty.element, bindings))
         if isinstance(ty, MapTy):
@@ -2473,6 +2621,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return True
         if isinstance(ty, ClassTy):
             return any(self._has_any_type_var(arg) for arg in ty.args)
+        if isinstance(ty, EnumTy):
+            return any(self._has_any_type_var(arg) for arg in ty.args)
         if isinstance(ty, ListTy):
             return self._has_any_type_var(ty.element)
         if isinstance(ty, MapTy):
@@ -2495,6 +2645,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, TyVar):
             return ty == variable
         if isinstance(ty, ClassTy):
+            return any(
+                self._occurs(variable, arg, bindings) for arg in ty.args
+            )
+        if isinstance(ty, EnumTy):
             return any(
                 self._occurs(variable, arg, bindings) for arg in ty.args
             )
@@ -2568,6 +2722,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expected.args, actual.args, strict=True
                 )
             )
+        if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
+            if expected.name != actual.name or len(expected.args) != len(
+                actual.args
+            ):
+                return False
+            return all(
+                self._unify(expected_arg, actual_arg, bindings, token)
+                for expected_arg, actual_arg in zip(
+                    expected.args, actual.args, strict=True
+                )
+            )
 
         if not self._has_any_type_var(expected) and not self._has_any_type_var(
             actual
@@ -2619,6 +2784,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             for arg in ty.args:
                 class_vars.extend(self._unbound_type_vars(arg, variables))
             return class_vars
+        if isinstance(ty, EnumTy):
+            enum_vars: list[TyVar] = []
+            for arg in ty.args:
+                enum_vars.extend(self._unbound_type_vars(arg, variables))
+            return enum_vars
         if isinstance(ty, ListTy):
             return self._unbound_type_vars(ty.element, variables)
         if isinstance(ty, MapTy):
@@ -2648,6 +2818,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, TyVar):
             return ty in variables
         if isinstance(ty, ClassTy):
+            return any(
+                self._contains_any_type_var(arg, variables) for arg in ty.args
+            )
+        if isinstance(ty, EnumTy):
             return any(
                 self._contains_any_type_var(arg, variables) for arg in ty.args
             )
@@ -2716,6 +2890,40 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _get_property_type(self, obj: Ty, name: Token, optional: bool) -> Ty:
         if obj is ANY:
             return ANY
+        if isinstance(obj, EnumObjectTy):
+            info = self._enums.get(obj.name)
+            if info is None:
+                self._error(name, f"Unknown enum '{obj.name}'.")
+                return ERROR
+            variant = info.variants.get(name.lexeme)
+            if variant is None:
+                self._error(name, f"Unknown variant '{name.lexeme}'.")
+                return ERROR
+            if info.type_params:
+                if not variant.payload:
+                    self._error(
+                        name,
+                        "Nullary variants of generic enums aren't supported "
+                        "yet; add a payload.",
+                    )
+                    return ERROR
+                return GenericFnTy(
+                    f"{obj.name}.{name.lexeme}",
+                    info.type_params,
+                    FnTy(
+                        variant.payload,
+                        EnumTy(obj.name, info.type_params),
+                        len(variant.payload),
+                    ),
+                )
+            if not variant.payload:
+                return EnumTy(obj.name)
+            return FnTy(
+                variant.payload,
+                EnumTy(obj.name),
+                len(variant.payload),
+            )
+
         if isinstance(obj, NativeModuleTy):
             member = self._native_modules.get(obj.name, {}).get(name.lexeme)
             if member is None:
@@ -3004,6 +3212,104 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return expr.value
 
         return None
+
+    def visit_match_expr(self, expr: Match) -> Ty:
+        scrutinee = self._infer(expr.scrutinee)
+        if scrutinee is ERROR:
+            return ERROR
+        if not isinstance(scrutinee, EnumTy):
+            self._error(
+                expr.keyword,
+                "match requires an enum value; narrow it first.",
+            )
+            return ERROR
+
+        info = self._enums.get(scrutinee.name)
+        if info is None:
+            self._error(expr.keyword, f"Unknown enum '{scrutinee.name}'.")
+            return ERROR
+
+        bindings: dict[TyVar, Ty] = {}
+        if scrutinee.args:
+            bindings = dict(
+                zip(info.type_params, scrutinee.args, strict=True)
+            )
+
+        covered: set[str] = set()
+        wildcard = False
+        arm_types: list[Ty] = []
+
+        for arm in expr.arms:
+            pattern = arm.pattern
+            if isinstance(pattern, WildcardPattern):
+                if wildcard:
+                    self._error(pattern.token, "Unreachable match arm.")
+                wildcard = True
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            assert isinstance(pattern, VariantPattern)
+            if wildcard:
+                self._error(pattern.variant, "Unreachable match arm.")
+            if pattern.enum.lexeme != scrutinee.name:
+                self._error(
+                    pattern.enum,
+                    f"Pattern '{pattern.enum.lexeme}.{pattern.variant.lexeme}' "
+                    f"doesn't match enum '{scrutinee.name}'.",
+                )
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            variant = info.variants.get(pattern.variant.lexeme)
+            if variant is None:
+                self._error(
+                    pattern.variant,
+                    f"Unknown variant '{pattern.variant.lexeme}'.",
+                )
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            if len(variant.payload) != len(pattern.bindings):
+                self._error(
+                    pattern.variant,
+                    f"Variant '{scrutinee.name}.{variant.name}' expects "
+                    f"{len(variant.payload)} binding(s), got "
+                    f"{len(pattern.bindings)}.",
+                )
+            if variant.name in covered:
+                self._error(pattern.variant, "Unreachable match arm.")
+            covered.add(variant.name)
+
+            self._begin_scope()
+            seen: set[str] = set()
+            for token, item_ty in zip(
+                pattern.bindings, variant.payload, strict=False
+            ):
+                if token.lexeme in seen:
+                    self._error(
+                        token,
+                        f"Binding '{token.lexeme}' is declared twice in this "
+                        "pattern.",
+                    )
+                seen.add(token.lexeme)
+                self._define(token, self._substitute(item_ty, bindings))
+
+            arm_types.append(self._infer(arm.body))
+            self._end_scope()
+
+        if not wildcard:
+            missing = [
+                f"{scrutinee.name}.{name}"
+                for name in info.variants
+                if name not in covered
+            ]
+            if missing:
+                self._error(
+                    expr.keyword,
+                    "Non-exhaustive match; missing " + ", ".join(missing) + ".",
+                )
+
+        return union(*arm_types)
 
     def visit_tuple_expr(self, expr: TupleLiteral) -> Ty:
         return TupleTy(tuple(self._infer(element) for element in expr.elements))

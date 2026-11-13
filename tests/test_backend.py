@@ -398,3 +398,18 @@ def test_classe_generica_sem_backend_e_rejeitada(tmp_path: Path) -> None:
     assert result.returncode == 65
     assert "Class is not supported by the backend yet." in result.stderr
     assert not binary.exists()
+
+
+@pytest.mark.backend
+def test_enum_sem_backend_e_rejeitado(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "enum Cor { Vermelho, Verde }\n"
+        "print match Cor.Vermelho { Cor.Vermelho => 1, Cor.Verde => 2 };\n",
+    )
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 65
+    assert "EnumDecl is not supported by the backend yet." in result.stderr
+    assert not binary.exists()

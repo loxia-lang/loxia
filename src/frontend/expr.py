@@ -22,6 +22,7 @@ class Visitor[R](Protocol):
     def visit_lambda_expr(self, expr: Lambda) -> R: ...
     def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_map_expr(self, expr: MapLiteral) -> R: ...
+    def visit_match_expr(self, expr: Match) -> R: ...
     def visit_tuple_expr(self, expr: TupleLiteral) -> R: ...
     def visit_interpolated_expr(self, expr: InterpolatedString) -> R: ...
     def visit_literal_expr(self, expr: Literal) -> R: ...
@@ -152,6 +153,37 @@ class IndexSet(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_index_set_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class VariantPattern:
+    enum: Token
+    variant: Token
+    bindings: list[Token]
+
+
+@dataclass(frozen=True, eq=False)
+class WildcardPattern:
+    token: Token
+
+
+Pattern = VariantPattern | WildcardPattern
+
+
+@dataclass(frozen=True, eq=False)
+class MatchArm:
+    pattern: Pattern
+    body: Expr
+
+
+@dataclass(frozen=True, eq=False)
+class Match(Expr):
+    keyword: Token
+    scrutinee: Expr
+    arms: list[MatchArm]
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_match_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

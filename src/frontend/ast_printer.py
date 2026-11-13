@@ -17,6 +17,7 @@ from src.frontend.expr import (
     Literal,
     Logical,
     MapLiteral,
+    Match,
     Range,
     Set,
     Super,
@@ -24,11 +25,13 @@ from src.frontend.expr import (
     TupleLiteral,
     Unary,
     Variable,
+    VariantPattern,
 )
 from src.frontend.stmt import (
     Block,
     Class,
     Destructure,
+    EnumDecl,
     Expression,
     ForIn,
     Function,
@@ -79,6 +82,37 @@ class AstPrinter:
                 parts.append(part.accept(self))
 
         return f"(interp {' '.join(parts)})"
+
+    def visit_match_expr(self, expr: Match) -> str:
+        arms = " ".join(
+            f"({self._pattern(arm.pattern)} {arm.body.accept(self)})"
+            for arm in expr.arms
+        )
+        return f"(match {expr.scrutinee.accept(self)} {arms})"
+
+    def _pattern(self, pattern: object) -> str:
+        if isinstance(pattern, VariantPattern):
+            bindings = " ".join(token.lexeme for token in pattern.bindings)
+            suffix = f" ({bindings})" if bindings else ""
+            return (
+                f"({pattern.enum.lexeme}.{pattern.variant.lexeme}{suffix})"
+            )
+        return "_"
+
+    def visit_enum_stmt(self, stmt: EnumDecl) -> str:
+        params = ""
+        if stmt.type_params:
+            names = ", ".join(token.lexeme for token in stmt.type_params)
+            params = f"[{names}]"
+        variants = []
+        for variant in stmt.variants:
+            payload = " ".join(display(ty) for ty in variant.payload)
+            if payload:
+                variants.append(f"({variant.name.lexeme} ({payload}))")
+            else:
+                variants.append(f"({variant.name.lexeme})")
+        body = " ".join(variants)
+        return f"(enum {stmt.name.lexeme}{params} {body})"
 
     def visit_tuple_expr(self, expr: TupleLiteral) -> str:
         inner = " ".join(element.accept(self) for element in expr.elements)

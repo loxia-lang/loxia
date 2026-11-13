@@ -24,7 +24,7 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 `nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
 `or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
 compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
-casos por nível — **31 dos 87** golden cases compilam e **61** passam no `--check`.
+casos por nível — **31 dos 89** golden cases compilam e **63** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
 valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6a/T6c vêm
@@ -81,7 +81,7 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
 | **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos genéricos e herança de `Box[Int]` pendentes | bibliotecas |
 | **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
-| **T6c** ⬜ | `match`/enums e exaustividade | expressividade |
+| **T6c** ✅ | `match`/enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)) | expressividade |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
 
 Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.md)):
@@ -403,7 +403,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (61 de 87 passam no `--check`; 31 compilam hoje);
+- [x] anotar 15 `tests/cases` (63 de 89 passam no `--check`; 31 compilam hoje);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
@@ -433,7 +433,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 877 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 895 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -463,6 +463,9 @@ Infra já pronta: pytest (golden `.lox`; 877 pass + 8 `xfail`), ruff, mypy stric
 Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e
 `Object` raiz — o LLVM cobre o codegen e o escopo humano manda.
 
+Análise de uma thread externa de wishlist (2026-10) com o que vale e o que foi recusado,
+mais números de latência do backend: [`IDEIAS-REDDIT.md`](IDEIAS-REDDIT.md).
+
 ---
 
 ## 9. Milestones pendentes
@@ -471,18 +474,16 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas (MVP), narrowing completo e exaustividade; traits/constraints ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) — T4/T5/T6a ✅; falta T6c | 🟡 **em andamento** |
+| **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
 | **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
 | **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |
 
-**Regra (revisada nesta sessão):** o codegen **pausa no L4** até o M5 fechar. L0–L3
-avançaram antes do M5 e foi seguro porque esse subconjunto já estava congelado (sem
-layout de classe ou generics de classe; traits nominais ficam pós-MVP e não bloqueiam o
-L4); de L4 em diante o modelo de valores e os
-layouts de tipo mudam, e L6 depende da monomorfização que só o M5 habilita. Se o M5 mudar
-a semântica de algo já compilado, o nível afetado volta para a fila com caso diferencial.
+**Regra:** o codegen pausou no L4 até o M5 fechar; o M5 fechou (T4/T5/T6a/T6c), então o
+L4 (closures) pode começar. L6 depende da monomorfização e dos layouts de enum/classe; se
+algo mudar a semântica de um nível já compilado, o nível afetado volta para a fila com caso
+diferencial. Traits nominais continuam pós-MVP e não bloqueiam o L4.
 
 **Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
 suspensos) é preparada durante o L4/L6; a feature entra **depois do M7**, junto com a
@@ -532,7 +533,8 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
    [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
 5. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
-6. **`if`/bloco como expressão e `match`/enums:** fora da 1.0; reavaliar depois do M5.
+6. **`if`/bloco como expressão:** fora da 1.0; reavaliar depois do M5. `match`/enums já
+   entraram ([ADR-0041](docs/adr/0041-enums-match.md)).
 7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
 

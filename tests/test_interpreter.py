@@ -906,3 +906,54 @@ def test_generic_class_erasure_and_members(
 
     assert stdout == ["1", "Box instance", "a"]
     assert stderr == ""
+
+
+def test_enum_values_match_and_result(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        """
+        enum Cor { Vermelho, Verde, Azul }
+        enum Shape { Circle(Float), Rect(Float, Float) }
+        print Cor.Verde
+        print Cor.Verde == Cor.Verde
+        print Cor.Verde == Cor.Azul
+        val s: Shape = Shape.Circle(2.0)
+        print match s {
+          Shape.Circle(r) => r * 2.0
+          Shape.Rect(w, h) => w * h
+        }
+        fn parse(n: Int) -> Result[Int, String] {
+          if (n > 0) { return Result.Ok(n) }
+          return Result.Err("negativo")
+        }
+        print parse(3)
+        print match parse(0) {
+          Result.Ok(v) => "ok ${v}"
+          Result.Err(e) => "erro ${e}"
+        }
+        """,
+        capsys,
+    )
+
+    assert stdout == [
+        "Cor.Verde",
+        "true",
+        "false",
+        "4.0",
+        "Result.Ok(3)",
+        "erro negativo",
+    ]
+    assert stderr == ""
+
+
+def test_enum_match_runtime_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, stderr = run(
+        "enum Cor { Vermelho, Verde } "
+        "print match Cor.Vermelho { Cor.Verde => 1 };",
+        capsys,
+    )
+
+    assert "No match arm matched." in stderr

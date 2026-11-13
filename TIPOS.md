@@ -6,15 +6,14 @@ arquivo não descreve o que já funciona.
 
 ## 1. Implementação pendente
 
-### 1.1 M5 — tipos v2
+### 1.1 M5 — fechado
 
-- **T6a (restante)** — métodos genéricos (`fn map[U]`) e herança de `Box[Int]`; o MVP de
-  classes genéricas está feito ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)).
-- **T6c** — `match`/enums e exaustividade.
-- **T6b** — traits nominais (`implements`, métodos default) e constraints: decididos,
-  **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+T6a/T6c foram implementados; restam no pós-MVP:
 
-T6a/T6c fecham o M5; traits não bloqueiam o L4.
+- **T6a (restante)** — métodos genéricos (`fn map[U]`) e herança de `Box[Int]`
+  ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)).
+- **T6b** — traits nominais (`implements`, métodos default) e constraints
+  ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 
 ### 1.2 Checker
 
@@ -24,10 +23,10 @@ T6a/T6c fecham o M5; traits não bloqueiam o L4.
 
 ### 1.3 Tipos
 
-- **`Result[T, E]`** como enum/ADT, junto de T6c; `Option` já é `T?`
-  ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)).
 - **Aliases `type`**: transparentes, sem generics, P3
   ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)).
+- **Padrões avançados** de `match` (literais/nil, guards, aninhamento, `|`) e enum genérico
+  com variante nula; backend L6 ([ADR-0041](docs/adr/0041-enums-match.md)).
 
 ### 1.4 Backend
 

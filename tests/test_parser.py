@@ -3,12 +3,13 @@ from __future__ import annotations
 import pytest
 
 from src.frontend.ast_printer import AstPrinter
-from src.frontend.expr import Is, Lambda, MapLiteral
+from src.frontend.expr import Is, Lambda, MapLiteral, Match
 from src.frontend.parser import Parser
 from src.frontend.scanner import Scanner
 from src.frontend.stmt import (
     Class,
     Destructure,
+    EnumDecl,
     Expression,
     ForIn,
     Function,
@@ -546,3 +547,23 @@ def test_generic_superclass_is_rejected() -> None:
     parser.parse()
 
     assert parser.reporter.had_error
+
+
+def test_enum_and_match_parse() -> None:
+    statements = parse(
+        "enum Result[T, E] { Ok(T), Err(E) } "
+        "val r = match Result.Ok(1) { Result.Ok(v) => v, Result.Err(e) => e };"
+    )
+
+    enum_decl = statements[0]
+    assert isinstance(enum_decl, EnumDecl)
+    assert [token.lexeme for token in enum_decl.type_params] == ["T", "E"]
+    assert [variant.name.lexeme for variant in enum_decl.variants] == [
+        "Ok",
+        "Err",
+    ]
+    assert AstPrinter().print_program(statements).startswith("(enum Result[T, E]")
+
+    assert isinstance(statements[1], Var)
+    assert isinstance(statements[1].initializer, Match)
+    assert len(statements[1].initializer.arms) == 2

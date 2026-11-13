@@ -24,6 +24,7 @@ from src.frontend.expr import (
     Literal,
     Logical,
     MapLiteral,
+    Match,
     Range,
     Set,
     Super,
@@ -31,12 +32,14 @@ from src.frontend.expr import (
     TupleLiteral,
     Unary,
     Variable,
+    VariantPattern,
 )
 from src.frontend.expr import Visitor as ExprVisitor
 from src.frontend.stmt import (
     Block,
     Class,
     Destructure,
+    EnumDecl,
     Expression,
     ForIn,
     Function,
@@ -252,6 +255,21 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 )
 
             self._resolve_expr(stmt.value)
+
+    def visit_enum_stmt(self, stmt: EnumDecl) -> None:
+        self._declare(stmt.name, mutable=False)
+        self._define(stmt.name)
+
+    def visit_match_expr(self, expr: Match) -> None:
+        self._resolve_expr(expr.scrutinee)
+        for arm in expr.arms:
+            self._begin_scope()
+            if isinstance(arm.pattern, VariantPattern):
+                for name in arm.pattern.bindings:
+                    self._declare(name, mutable=False)
+                    self._define(name)
+            self._resolve_expr(arm.body)
+            self._end_scope()
 
     def visit_destructure_stmt(self, stmt: Destructure) -> None:
         for name in stmt.names:

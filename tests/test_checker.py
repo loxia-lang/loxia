@@ -1990,3 +1990,95 @@ def test_generic_class_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_enum_match_and_result() -> None:
+    lox = check(
+        """
+        enum Cor { Vermelho, Verde, Azul }
+        enum Shape { Circle(Float), Rect(Float, Float) }
+
+        val c = Cor.Verde
+        val s: Shape = Shape.Circle(2.0)
+        val area = match s {
+          Shape.Circle(r) => 3.14 * r * r
+          Shape.Rect(w, h) => w * h
+        }
+        print area
+
+        fn parse(n: Int) -> Result[Int, String] {
+          if (n > 0) { return Result.Ok(n) }
+          return Result.Err("negativo")
+        }
+        val r = parse(3)
+        val msg = match r {
+          Result.Ok(v) => "ok ${v}"
+          Result.Err(e) => "erro ${e}"
+        }
+        print msg
+        print c == Cor.Verde
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            "enum Cor { Vermelho, Verde }\n"
+            "print match Cor.Vermelho { Cor.Vermelho => 1 }",
+            "Non-exhaustive match; missing Cor.Verde.",
+        ),
+        (
+            "enum Cor { Vermelho, Verde }\n"
+            "print match Cor.Vermelho { Cor.Vermelho => 1, Cor.Vermelho => 2 }",
+            "Unreachable match arm.",
+        ),
+        (
+            "enum Cor { Vermelho, Verde }\n"
+            "print match Cor.Vermelho { _ => 1, Cor.Verde => 2 }",
+            "Unreachable match arm.",
+        ),
+        ("print match 1 { _ => 1 }", "match requires an enum value"),
+        (
+            "enum Cor { Vermelho }\n"
+            "print match Cor.Vermelho { Cor.Verde => 1 }",
+            "Unknown variant 'Verde'.",
+        ),
+        (
+            "enum E { A }\nval x = E.A\nprint x is E[Int]",
+            "Enum 'E' isn't generic.",
+        ),
+        (
+            "enum E { A, A }",
+            "Variant 'A' is already declared.",
+        ),
+        (
+            "enum Result { A }",
+            "Can't redefine builtin 'Result'.",
+        ),
+        (
+            "val r = Result.Ok(1)",
+            "Can't infer type argument(s) 'E'.",
+        ),
+        (
+            "enum Shape { Circle(Float) }\nval s = Shape.Circle(\"x\")",
+            "Argument 1: Expected Float, found String.",
+        ),
+        (
+            "enum Cor { Vermelho }\n"
+            "print match Cor.Vermelho { Cor.Vermelho(x) => 1 }",
+            "expects 0 binding(s), got 1.",
+        ),
+    ],
+)
+def test_enum_match_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err

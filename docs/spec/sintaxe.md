@@ -13,12 +13,15 @@ uma função por nível de precedência.
 program        → declaration* EOF ;
 
 declaration    → classDecl
+               | enumDecl
                | funDecl
                | varDecl
                | valDecl
                | statement ;
 
 classDecl      → "class" IDENTIFIER typeParameters? ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
+enumDecl       → "enum" IDENTIFIER typeParameters? "{" variant ( "," variant )* "}" ;
+variant        → IDENTIFIER ( "(" type ( "," type )* ")" )? ;
 classMember    → fieldDecl | function ;
 fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
 funDecl        → "fn" function ;
@@ -90,9 +93,18 @@ primary        → "true" | "false" | "nil" | "this"
                | "[" ( expression ( "," expression )* )? "]"
                | "{" ( expression ":" expression
                        ( "," expression ":" expression )* )? "}"
+               | matchExpr
                | lambda ;
+matchExpr      → "match" expression "{" matchArm+ "}" ;
+matchArm       → pattern "=>" expression ;
+pattern        → "_" | IDENTIFIER "." IDENTIFIER
+                 ( "(" IDENTIFIER ( "," IDENTIFIER )* ")" )? ;
 lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | block ) ;
 ```
+
+`enum` declara variantes namespaced (`Cor.Verde`, `Shape.Circle(1.0)`); `match` é
+expressão e exige enum exaustivo (ver [`semantica.md`](semantica.md)). `Result` é um enum
+embutido com `Ok(T)`/`Err(E)`.
 
 `INTERPOLATED_STRING` é o literal `"texto ${expressão} mais texto"`; a expressão é qualquer
 `expression` e pode conter outra string interpolada. `\${` e `\$` escapam o cifrão.

@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Enums e `match` ([ADR-0041](docs/adr/0041-enums-match.md)): `enum` com variantes e
+  payload posicional, genéricos (`Result[T, E]` embutido com `Ok`/`Err`), construtores
+  namespaced (`Cor.Verde`, `Shape.Circle(1.0)`), `match` expressão com bindings e `_`,
+  exaustividade rígida e arms inalcançáveis; igualdade estrutural e stringify
+  `Enum.Variante(...)`. Backend rejeita com 65 (L6).
 - Classes genéricas ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)): `class Box[T]`
   com múltiplos parâmetros, `T` em campos/métodos/`init`/`this`, `Box[Int]` como tipo,
   inferência no construtor (`Box(1)` → `Box[Int]`), argumentos invariantes e erasure no

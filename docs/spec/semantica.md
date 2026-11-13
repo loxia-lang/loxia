@@ -694,6 +694,41 @@ print b.get()              # 1
 - Superclasse precisa ser classe em runtime: `Superclass must be a class.`
 - `super.metodo` inexistente → `Undefined property 'metodo'.`
 
+## Enums e match
+
+```lox
+enum Cor { Vermelho, Verde, Azul }
+enum Shape { Circle(Float), Rect(Float, Float) }
+
+val s: Shape = Shape.Circle(2.0)
+val area = match s {
+  Shape.Circle(r) => 3.14 * r * r
+  Shape.Rect(w, h) => w * h
+}
+```
+
+- `enum Nome { Variante, Variante(Tipo, ...) }` declara um tipo fechado; variantes têm
+  payload **posicional** e são acessadas com namespace (`Cor.Verde`,
+  `Shape.Circle(1.0)`). Enums são declarados no topo do programa.
+- Enums podem ser genéricos (`enum Pair[A, B]`); `Result[T, E]` é embutido, com
+  `Result.Ok(T)`/`Result.Err(E)`, e não pode ser redefinido. `Option` continua sendo `T?`.
+- Tipo: `Shape`, `Result[Int, String]`; argumentos são invariantes. `is`/`as` aceitam enum
+  sem argumentos (`x is Cor`); com argumentos são recusados (runtime apaga `T`).
+- `match` é **expressão**: `match e { Padrão => expr ... }`. Padrões da v1:
+  `Nome.Variante`, `Nome.Variante(a, b)` (bindings posicionais) e `_`. Arms são separados
+  por linha, `;` ou `,`; usar `match` como statement é descartar o resultado.
+- Exaustividade é **obrigatória**: todas as variantes cobertas ou `_`; faltante é erro
+  (`Non-exhaustive match; missing Shape.Rect.`); variante duplicada/arm depois de `_` é
+  `Unreachable match arm.` O scrutinée precisa ser um enum (não `Any`/união).
+- Os bindings do padrão têm o tipo do payload (`Result.Ok(v)` → `v: T`); o tipo do `match`
+  é a união dos arms. Sem `--check`, um `match` sem arm que case é erro de runtime
+  (`No match arm matched.`).
+- Igualdade é estrutural (enum, variante e payload); `print Cor.Verde` →
+  `Cor.Verde`, `print Shape.Circle(1.0)` → `Shape.Circle(1.0)`. Enums não são iteráveis,
+  não têm `len` e não são chave de `Map`.
+- Fora da v1: padrões literais/`nil`, guards, aninhamento, `|`, `match` sobre uniões e
+  variantes nulas de enum genérico. O backend rejeita `enum`/`match` até o L6.
+
 ## Erros
 
 | Fase | Quando | Exit code (arquivo) |
