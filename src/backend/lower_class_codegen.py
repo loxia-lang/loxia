@@ -76,11 +76,11 @@ class ClassCodegenLowering(LoweringBase):
         if layout.super_layout is not None:
             self._copy_base_vtable(layout.super_layout, super_ptr, vtable)
         for method in layout.methods:
-            closure = self._make_raw_closure(
-                method.info.ir,
-                llvm_ir.null_pointer(),
+            assert method.node is not None
+            closure = self._build_closure(
+                method.info,
+                self._make_captures(method.node),
                 f"<fn {method.name}>",
-                method.info.fn_sig,
             )
             slot = self.builder.gep(
                 vtable, [llvm_ir.constant(_I32, method.index)]
@@ -117,11 +117,11 @@ class ClassCodegenLowering(LoweringBase):
 
     def _class_init_closure(self, layout: ClassLayout, super_ptr: Any) -> Any:
         if layout.init is not None:
-            return self._make_raw_closure(
-                layout.init.ir,
-                llvm_ir.null_pointer(),
+            assert layout.init_node is not None
+            return self._build_closure(
+                layout.init,
+                self._make_captures(layout.init_node),
                 "<fn init>",
-                layout.init.fn_sig,
             ).llvm
         if layout.super_name is None:
             return llvm_ir.null_pointer()
@@ -165,9 +165,17 @@ class ClassCodegenLowering(LoweringBase):
     def _emit_class_methods(self, layout: ClassLayout) -> None:
         for method in layout.methods:
             assert method.node is not None
-            self._emit_function(method.info, method.node, ())
+            self._emit_function(
+                method.info,
+                method.node,
+                self._make_captures(method.node),
+            )
         if layout.init is not None and layout.init_node is not None:
-            self._emit_function(layout.init, layout.init_node, ())
+            self._emit_function(
+                layout.init,
+                layout.init_node,
+                self._make_captures(layout.init_node),
+            )
 
     def _local_class_declaration(self, stmt: Class) -> None:
         if stmt.type_params:
@@ -231,6 +239,26 @@ class ClassCodegenLowering(LoweringBase):
             self._classes[name] = layout
 
         raw, descriptor = self._new_class_descriptor()
+        if self._analysis.is_captured(stmt):
+            cell = self._alloc_cell()
+            self.builder.store(raw, self._cell_pointer(cell, TypeDesc(ValueType.CLASS)))
+            self._scopes[-1][name] = Binding(
+                cell,
+                ValueType.CLASS,
+                cell=True,
+                class_name=name,
+                layout_key=key,
+            )
+        else:
+            slot = self.builder.alloca(_I8_PTR, name=name)
+            self.builder.store(raw, slot)
+            self._scopes[-1][name] = Binding(
+                slot,
+                ValueType.CLASS,
+                class_name=name,
+                layout_key=key,
+            )
+
         vtable = self._class_vtable(layout, llvm_ir.null_pointer())
         init_closure = self._class_init_closure(
             layout, llvm_ir.null_pointer()
@@ -241,15 +269,6 @@ class ClassCodegenLowering(LoweringBase):
             llvm_ir.null_pointer(),
             vtable,
             init_closure,
-        )
-
-        slot = self.builder.alloca(_I8_PTR, name=name)
-        self.builder.store(raw, slot)
-        self._scopes[-1][name] = Binding(
-            slot,
-            ValueType.CLASS,
-            class_name=name,
-            layout_key=key,
         )
 
         self._emit_class_methods(layout)

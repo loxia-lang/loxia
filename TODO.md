@@ -21,8 +21,8 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **108 golden cases** (68 compilam, 38 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b/L5c parcial + spike L6 (`Any`)**, M5
+vale o que está aqui. Estado em 2026-11-13: **108 golden cases** (69 compilam, 37 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5 + spike L6 (`Any`)**, M5
 fechado e ADRs 0043–0049 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
 
@@ -31,7 +31,7 @@ classes) fechados.
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
 | **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
-| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c parcial: `is`/`as`, `?.` opcional, classes locais (vazias e com campos/métodos) e `nil_aware` feitos; falta captura em métodos de classe local | 🟡 |
+| **L5** | ADRs 0043/0044/0045/0048: classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`, `is`/`as`, `?.`, classes locais com campos/métodos/captura e `T?` de referência | ✅ |
 | **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
 `T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
@@ -51,17 +51,16 @@ lacuna que esta fila existe para não repetir.
 3. [x] **ADR de L4 + implementação**: [ADR-0046](docs/adr/0046-closures-celulas-l4.md),
        sem HIR, `env`/células, funções locais/lambdas, valores de função, defaults/aridade;
        casos `l4` promovidos.
-4. [ ] **L5 — objetos** ([ADR-0048](docs/adr/0048-abi-classes-l5.md)):
+4. [x] **L5 — objetos** ([ADR-0048](docs/adr/0048-abi-classes-l5.md)):
        - [x] **L5a**: classes de topo, campos/bitmap, métodos/`this`/`init`, bound methods,
          `print` de classe/instância e construção por nome;
        - [x] **L5b**: herança, cópia/override de vtable, `super`/`super.init`, `init`
          herdado e prefixo de campos;
-       - [ ] **L5c**: `is`/`as` de classe, classes locais **vazias** e `?.` com receptor
-         opcional já funcionam (`class_identity`, `optional_receiver`); `String?`/instância
-         `T?` funcionam em campos/parâmetros/retornos. Classes locais com campos/métodos
-         também funcionam; falta captura em métodos de classe local (**L5c**). `nil_aware`
-         foi promovido no spike L6 com `Any` boxeado
-         ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
+       - [x] **L5c**: `is`/`as` de classe, `?.` com receptor opcional, classes locais
+         (vazias, com campos/métodos e com captura) e `String?`/instância `T?` em
+         campos/parâmetros/retornos. `nil_aware` foi promovido no spike L6 com `Any`
+         boxeado ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)). Herança de classe
+         local não faz parte deste corte.
 5. [x] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
        (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5).
@@ -342,7 +341,7 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `nil` | ausência (`void` no print) | L0 ✅ |
 | `Float` | `double` | L1 ✅ |
 | `T?` escalar | `{i1, T}` | L2.5 ✅ ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)) |
-| `T?` referência | ponteiro nulo | L5c ✅ (`String?`/instância em campos/params/retornos; `?.` opcional; união/`nil_aware` L6) |
+| `T?` referência | ponteiro nulo | L5 ✅ (`String?`/instância em campos/params/retornos; `?.` opcional) |
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
 | instância | ponteiro para struct `{classe, bitmap, slots i64}` | L5a/L5b ✅ ([ADR-0048](docs/adr/0048-abi-classes-l5.md)) |
@@ -445,7 +444,7 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       call site e **aridade/variável indefinida como panic site**; `for` C-style
       (desaçucarado pelo parser) compila. A lacuna de `T?` escalar/`var x: T?;` foi
       fechada no L2.5 ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `T?` de
-      referência entrou no L5c (parcial).
+      referência entrou no L5.
 - [x] **L2b — Normalização**: ternário, `and`/`or` e `??` (blocos + `phi`, com
       curto-circuito e dobra de literais); `for-in` fica no L6 (depende de
       `Range`/`List`/`String`). Limitação conhecida: o slot é monomórfico, então
@@ -457,18 +456,16 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       `repr` de listas/mapas entra no L6.
 - [x] **L2.5 — Optionais escalares**: `T?` escalar (`{i1, T}`), `var x: T?;`, nil
       contextual e unwrap checado ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md));
-      `variables.lox` promovido. Os campos/valores `T?` de referência entraram no L5c
-      (parcial).
+      `variables.lox` promovido. Os campos/valores `T?` de referência entraram no L5.
 - [x] **L4 — Closures**: env struct, células só para capturados, funções locais/lambdas,
       valores de função, chamada indireta e `print` (`<fn f>`/`<lambda>`) — [ADR-0046](docs/adr/0046-closures-celulas-l4.md).
 - [x] **L5a/L5b — Objetos**: classes, campos/bitmap, métodos/`this`/`init`, bound
       methods, herança, vtable, `super`/`super.init`, `init` herdado e `print` de
       classe/instância ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
-- [x] **L5c parcial — Identidade, `?.` e classes locais vazias**: `is`/`as` de classe,
-      classes locais sem campos/métodos, `String?`/instância `T?` em campos/params/
-      retornos e `?.` com receptor opcional (curto-circuito). Falta classes locais
-      vazias e com campos/métodos; falta captura em métodos de classe local. `nil_aware`
-      foi promovido no spike L6. Layout/identidade em
+- [x] **L5c — Identidade, `?.` e classes locais**: `is`/`as` de classe, `?.` com
+      receptor opcional (curto-circuito), classes locais vazias/com campos/métodos e
+      captura em métodos de classe local, `String?`/instância `T?` em campos/params/
+      retornos. `nil_aware` foi promovido no spike L6. Layout/identidade em
       [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
       representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md);
       ABI em [ADR-0048](docs/adr/0048-abi-classes-l5.md).
@@ -505,7 +502,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 108 `tests/cases`: 68 compilam; 38 ficam `PENDING` por nível
+- [x] anotar os 108 `tests/cases`: 69 compilam; 37 ficam `PENDING` por nível
       (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
       design);
 - [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;
@@ -579,8 +576,8 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | LLVM vertical (+ HIR se necessária) | L0–L4 + L2.5 + L5a/L5b/L5c parcial + spike L6 (`Any`): inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração foi feita e o spike mostrou que HIR-lite não é necessária agora | 🟡 em andamento |
-| **M7** | Runtime completo | L5c/L6: classes locais gerais, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
+| **M6** | LLVM vertical (+ HIR se necessária) | L0–L4 + L2.5 + L5 + spike L6 (`Any`): inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração foi feita e o spike mostrou que HIR-lite não é necessária agora | 🟡 em andamento |
+| **M7** | Runtime completo | L6: `Any` completo, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |
 

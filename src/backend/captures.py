@@ -41,6 +41,7 @@ from src.frontend.expr import (
 )
 from src.frontend.stmt import (
     Block,
+    Class,
     Expression,
     ForIn,
     Function,
@@ -181,6 +182,15 @@ class _Analyzer:
             self._function(stmt, stmt.params, stmt.body)
             return
 
+        if isinstance(stmt, Class):
+            self._declare(stmt.name.lexeme, stmt)
+            for field in stmt.fields:
+                if field.initializer is not None:
+                    self._expr(field.initializer)
+            for method in stmt.methods:
+                self._function(method, method.params, method.body)
+            return
+
         if isinstance(stmt, Var):
             if stmt.initializer is not None:
                 self._expr(stmt.initializer)
@@ -222,7 +232,7 @@ class _Analyzer:
                 self._scopes.pop()
             return
 
-        # Classes, enums, try/raise e destructuring ainda não têm lowering no L4;
+        # Enums, try/raise e destructuring ainda não têm lowering no L4/L5;
         # ignorar aqui é seguro porque o lowering falha antes de precisar do passe.
 
     # --- expressões ---

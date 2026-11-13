@@ -1,6 +1,6 @@
 # ADR-0048 — L5: ABI de métodos, descritor de classe e instância
 
-- **Status:** accepted (L5a/L5b e L5c parcial implementados)
+- **Status:** accepted (L5a/L5b/L5c implementados)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0008](0008-heranca-class-parens.md), [ADR-0009](0009-defaults-e-campos.md),
