@@ -35,7 +35,7 @@ decisão.
 | Generalização de lambda | `val f = fn(x) => x` infere parâmetros/retorno e generaliza o esquema (T4); `var` não generaliza; função genérica não é valor (inclusive `print`). Parâmetro de `fn` **continua exigindo anotação**: o T3c (parâmetro implícito) foi implementado e revertido. | [ADR-0033](adr/0033-inferencia-t3c-t4.md), [ADR-0034](adr/0034-t3c-revertido.md) |
 | Overflow no debug | `--debug` checa `+ - * ** -`, `INT_MIN // -1` e `% -1`; overflow é erro fatal (exit 70); release continua wrapping; shifts não checam. | [ADR-0028](adr/0028-overflow-debug.md) |
 | Conversões e `math` | `as` explícito (`Int`/`Float`/`Any`/classe/lista/mapa); `Float as Int` trunca e falha em NaN/Inf/range; `Int.parse`/`Float.parse` devolvem `T?`; `math.*` determinístico com abs/min/max/clamp/floor/ceil/round/trunc/sqrt; transcendentais fora do I3. | [ADR-0029](adr/0029-conversoes-math.md) |
-| Tuplas | Sintaxe `(a, b)`/`(A, B)`, acesso `t[0]`, destructuring `val (a, b) = t`, 2+ elementos, imutáveis; implementação **pós-1.0/backend**. | [ADR-0030](adr/0030-tuplas.md) |
+| Tuplas | `(a, b)`/`(A, B)`, `t[i]` (literal com bounds no `--check`; dinâmico vira união), `val`/`var (a, b) = t` com anotação opcional, 2+ elementos, imutáveis e **covariantes**; igualdade/`len`/formatação; `for-in`/`is`/`as` e backend (L6) pendentes; não hasháveis. | [ADR-0030](adr/0030-tuplas.md), [ADR-0036](adr/0036-tuplas-implementacao.md) |
 | `fn`/`elif`/`;` | `fn` substitui `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha, EOF ou antes de `}`; operador só continua na mesma linha; `return` sozinho devolve `nil`. | [ADR-0011](adr/0011-fn-elif-ponto-e-virgula.md) |
 | Comentários, `//`, `**` e bits | `#` e `/* */` aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`; `& \| ^ ~ << >> >>>` em i64; shift inválido é erro. | [ADR-0012](adr/0012-comentarios-divisao-potencia-bits.md) |
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
@@ -69,4 +69,4 @@ decisão.
 Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`,
 futuro de classes/traits, exceções vs `Result`, **generics de classes/métodos e
 constraints**, módulos, contratos e unificação mutável continuam **em aberto** no
-[`../TODO.md`](../TODO.md) §11. Tuplas têm sintaxe decidida, mas implementação pós-1.0.
+[`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6.

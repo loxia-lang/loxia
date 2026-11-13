@@ -24,12 +24,14 @@ from src.frontend.expr import (
     Set,
     Super,
     This,
+    TupleLiteral,
     Unary,
     Variable,
 )
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     Field,
     ForIn,
@@ -52,6 +54,7 @@ from src.frontend.ty import (
     FnTy,
     ListTy,
     MapTy,
+    TupleTy,
     Ty,
     union,
 )
@@ -188,7 +191,34 @@ class Parser:
 
         return Field(name, initializer, mutable, type_annotation)
 
+    def _destructure(self, mutable: bool) -> Stmt:
+        self._consume(TokenType.LEFT_PAREN, "Expect '(' after val/var.")
+        names = [self._consume(TokenType.IDENTIFIER, "Expect variable name.")]
+        while self._match(TokenType.COMMA):
+            names.append(
+                self._consume(TokenType.IDENTIFIER, "Expect variable name.")
+            )
+
+        self._consume(
+            TokenType.RIGHT_PAREN, "Expect ')' after destructuring names."
+        )
+        if len(names) < 2:
+            raise self._error(names[0], "Destructuring needs at least two names.")
+
+        type_annotation: Ty | None = None
+        if self._match(TokenType.COLON):
+            type_annotation = self._type()
+
+        self._consume(TokenType.EQUAL, "Expect '=' after destructuring pattern.")
+        initializer = self._expression()
+        self._end_statement("Expect ';' after destructuring.")
+
+        return Destructure(names, initializer, mutable, type_annotation)
+
     def _var_declaration(self, mutable: bool) -> Stmt:
+        if self._check(TokenType.LEFT_PAREN):
+            return self._destructure(mutable)
+
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
 
         type_annotation: Ty | None = None
@@ -475,9 +505,22 @@ class Parser:
             return self._function_type()
 
         if self._match(TokenType.LEFT_PAREN):
-            ty = self._type()
+            first = self._type()
+
+            if self._match(TokenType.COMMA):
+                items = [first]
+                while True:
+                    items.append(self._type())
+                    if not self._match(TokenType.COMMA):
+                        break
+
+                self._consume(
+                    TokenType.RIGHT_PAREN, "Expect ')' after tuple type."
+                )
+                return TupleTy(tuple(items))
+
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after type.")
-            return ty
+            return first
 
         token = self._consume(TokenType.IDENTIFIER, "Expect type name.")
         name = token.lexeme
@@ -920,9 +963,23 @@ class Parser:
             return self._map_literal(self._previous())
 
         if self._match(TokenType.LEFT_PAREN):
-            expr: Expr = self._expression()
+            paren = self._previous()
+            first: Expr = self._expression()
+
+            if self._match(TokenType.COMMA):
+                elements = [first]
+                while True:
+                    elements.append(self._expression())
+                    if not self._match(TokenType.COMMA):
+                        break
+
+                self._consume(
+                    TokenType.RIGHT_PAREN, "Expect ')' after tuple elements."
+                )
+                return TupleLiteral(elements, paren)
+
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
-            return Grouping(expr)
+            return Grouping(first)
 
         raise self._error(self._peek(), "Expect expression.")
 

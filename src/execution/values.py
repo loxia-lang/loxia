@@ -6,6 +6,7 @@ import math
 
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
+from src.execution.lox_tuple import LoxTuple
 from src.execution.numeric import is_float, is_int
 
 
@@ -34,6 +35,8 @@ def _stringify(value: object, stack: set[int]) -> str:
         return _stringify_list(value, stack)
     if isinstance(value, LoxMap):
         return _stringify_map(value, stack)
+    if isinstance(value, LoxTuple):
+        return _stringify_tuple(value, stack)
 
     return str(value)
 
@@ -50,6 +53,20 @@ def _stringify_list(value: LoxList, stack: set[int]) -> str:
         stack.remove(identity)
 
     return "[" + ", ".join(parts) + "]"
+
+
+def _stringify_tuple(value: LoxTuple, stack: set[int]) -> str:
+    identity = id(value)
+    if identity in stack:
+        return "(...)"
+
+    stack.add(identity)
+    try:
+        parts = [_stringify_element(item, stack) for item in value.items]
+    finally:
+        stack.remove(identity)
+
+    return "(" + ", ".join(parts) + ")"
 
 
 def _stringify_map(value: LoxMap, stack: set[int]) -> str:

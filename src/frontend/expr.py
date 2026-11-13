@@ -22,6 +22,7 @@ class Visitor[R](Protocol):
     def visit_lambda_expr(self, expr: Lambda) -> R: ...
     def visit_list_expr(self, expr: ListLiteral) -> R: ...
     def visit_map_expr(self, expr: MapLiteral) -> R: ...
+    def visit_tuple_expr(self, expr: TupleLiteral) -> R: ...
     def visit_interpolated_expr(self, expr: InterpolatedString) -> R: ...
     def visit_literal_expr(self, expr: Literal) -> R: ...
     def visit_range_expr(self, expr: Range) -> R: ...
@@ -151,6 +152,15 @@ class IndexSet(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_index_set_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class TupleLiteral(Expr):
+    elements: list[Expr]
+    paren: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_tuple_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Tuplas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)): literal `(a, b)`, tipo
+  `(A, B)`, índice `t[i]` (bounds de literal no `--check`; dinâmico vira união), `len`,
+  igualdade estrutural, formatação `(1, "a")` e destructuring `val`/`var (a, b) = t` com
+  anotação opcional. Covariantes por elemento; `for-in`/`is` seguem adiados e o backend
+  rejeita com 65 (L6).
 - Strings: `chars(s)` devolve os code points como `List[String]` (acesso a caractere sem
   `s[i]`, que continua erro) e `< <= > >=` ordenam `String` por code point, no
   interpretador e no backend (`lox_str_compare`). Identificadores continuam ASCII e não há

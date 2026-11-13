@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from src.diagnostics.errors import NativeError
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
+from src.execution.lox_tuple import LoxTuple
 
 if TYPE_CHECKING:
     from src.execution.interpreter import Interpreter
@@ -25,6 +26,8 @@ class Len:
             return len(value.elements)
         if isinstance(value, LoxMap):
             return value.size
+        if isinstance(value, LoxTuple):
+            return len(value.items)
         if isinstance(value, str):
             return len(value)
 

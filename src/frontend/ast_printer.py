@@ -21,12 +21,14 @@ from src.frontend.expr import (
     Set,
     Super,
     This,
+    TupleLiteral,
     Unary,
     Variable,
 )
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -77,6 +79,10 @@ class AstPrinter:
                 parts.append(part.accept(self))
 
         return f"(interp {' '.join(parts)})"
+
+    def visit_tuple_expr(self, expr: TupleLiteral) -> str:
+        inner = " ".join(element.accept(self) for element in expr.elements)
+        return f"(tuple {inner})"
 
     def visit_map_expr(self, expr: MapLiteral) -> str:
         if not expr.entries:
@@ -236,6 +242,13 @@ class AstPrinter:
             return "(return)"
 
         return f"(return {stmt.value.accept(self)})"
+
+    def visit_destructure_stmt(self, stmt: Destructure) -> str:
+        keyword = "var" if stmt.mutable else "val"
+        names = " ".join(name.lexeme for name in stmt.names)
+        suffix = self._type_suffix(stmt.type_annotation)
+        value = stmt.initializer.accept(self)
+        return f"({keyword}-destructure ({names}){suffix} {value})"
 
     def visit_var_stmt(self, stmt: Var) -> str:
         keyword = "var" if stmt.mutable else "val"

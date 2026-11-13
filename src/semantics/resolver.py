@@ -28,6 +28,7 @@ from src.frontend.expr import (
     Set,
     Super,
     This,
+    TupleLiteral,
     Unary,
     Variable,
 )
@@ -35,6 +36,7 @@ from src.frontend.expr import Visitor as ExprVisitor
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -250,6 +252,17 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 )
 
             self._resolve_expr(stmt.value)
+
+    def visit_destructure_stmt(self, stmt: Destructure) -> None:
+        for name in stmt.names:
+            self._declare(name, stmt.mutable)
+        self._resolve_expr(stmt.initializer)
+        for name in stmt.names:
+            self._define(name)
+
+    def visit_tuple_expr(self, expr: TupleLiteral) -> None:
+        for element in expr.elements:
+            self._resolve_expr(element)
 
     def visit_var_stmt(self, stmt: Var) -> None:
         self._declare(stmt.name, stmt.mutable)

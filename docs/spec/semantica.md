@@ -256,6 +256,37 @@ for x in xs { print x }
   string na v1. Lista literal não é default de parâmetro nem inicializador de campo; em
   `init`, `this.xs = []` funciona.
 
+## Tuplas
+
+`(1, "a")` é uma tupla de aridade 2; o tipo é `(Int, String)`. Tuplas têm **2+ elementos**
+(sem `()` e sem `(x,)`), são **imutáveis** e **covariantes por elemento**: `(Dog, Int)` é
+atribuível a `(Animal, Int)` e `(Int, String)` a `(Any, Any)`. Ver
+[ADR-0030](../adr/0030-tuplas.md) e [ADR-0036](../adr/0036-tuplas-implementacao.md).
+
+```lox
+val par: (Int, String) = (1, "a")
+print par[0]                 # 1
+val (n, s) = par            # destructuring
+print s                      # a
+print len(par)               # 2
+```
+
+- **Literal e tipo**: `(a, b)`; parênteses sem vírgula continuam agrupamento. O tipo
+  `(Int, String)` pode aninhar (`(Int, (String, Bool))`) e voltar de funções.
+- **Acesso**: `t[0]`, `t[1]`; índice precisa ser `Int`. Índice **literal** fora do range é
+  erro de `--check` (`Tuple index 2 out of bounds for length 2.`); índice **dinâmico**
+  tem tipo `Int | String` (união dos elementos) e bounds em runtime
+  (`Tuple index 5 out of bounds for length 2.`). Sem índice negativo.
+- **Destructuring**: `val (a, b) = t`, `var (c, d) = t` e anotação opcional
+  (`val (a, b): (Int, String) = t`). Exige tupla (ou união de tuplas de mesma aridade);
+  `Any` só com anotação; aridade errada e nome duplicado são erro.
+- **Igualdade**: estrutural, elemento a elemento (`(1, "a") == (1.0, "a")` → `true`).
+- **Stringify**: `(1, "a")`, com strings citadas/escapadas, recursivo; `(...)` se houver
+  ciclo via lista/mapa.
+- **Imutabilidade**: `t[0] = x` é erro (`Only lists and maps can be indexed.`).
+- **Fora da v1**: `for x in t`, `is (A, B)` e `as (A, B)` dão erro explícito; tuplas não
+  são hasháveis nem chave de `Map`; o backend L0–L3 as rejeita (layout no L6).
+
 ## Mapas
 
 `Map[K, V]` é a coleção associativa da linguagem: **homogênea**, **mutável in-place** e

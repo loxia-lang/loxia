@@ -368,3 +368,15 @@ def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert output.exists()
     assert output.stat().st_size > 0
+
+
+@pytest.mark.backend
+def test_tupla_sem_backend_e_rejeitada_explicitamente(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print (1, 2);\n")
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 65
+    assert "not supported by the backend yet" in result.stderr
+    assert not binary.exists()
+    assert _interpret(path).returncode == 0

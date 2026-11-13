@@ -8,6 +8,7 @@ from src.frontend.parser import Parser
 from src.frontend.scanner import Scanner
 from src.frontend.stmt import (
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -474,3 +475,45 @@ def test_parse_as_binds_tighter_than_addition() -> None:
     statements = parse("print 3.9 as Int + 1;")
     printed = statements[0]
     assert isinstance(printed, Print)
+
+
+def test_tuple_literal_and_grouping() -> None:
+    assert ast("(1)") == "(group 1)"
+    assert ast("(1, 2)") == "(tuple 1 2)"
+    assert ast("(1, (2, 3))") == "(tuple 1 (tuple 2 3))"
+    assert ast('("a", 1 + 2)') == '(tuple "a" (+ 1 2))'
+
+
+def test_destructuring_shape() -> None:
+    statements = parse(
+        'val (a, b) = (1, 2); var (c, d): (Int, String) = (3, "x");'
+    )
+
+    first = statements[0]
+    assert isinstance(first, Destructure)
+    assert [name.lexeme for name in first.names] == ["a", "b"]
+    assert first.mutable is False
+    assert first.type_annotation is None
+
+    second = statements[1]
+    assert isinstance(second, Destructure)
+    assert second.mutable is True
+    annotation = second.type_annotation
+    assert annotation is not None
+    assert display(annotation) == "(Int, String)"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "(1,)",
+        "()",
+        "val (a) = (1, 2);",
+        "val (a, b) = (1, 2,);",
+    ],
+)
+def test_tuple_parse_errors(source: str) -> None:
+    parser = parser_for(source)
+    parser.parse()
+
+    assert parser.reporter.had_error

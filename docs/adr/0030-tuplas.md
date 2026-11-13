@@ -1,6 +1,7 @@
 # ADR-0030 — Tuplas: sintaxe escolhida, implementação pós-1.0
 
-- **Status:** accepted para o pós-1.0 (não implementado no freeze)
+- **Status:** accepted (pós-1.0); sintaxe e semântica **implementadas** na v1 pelo
+  [ADR-0036](0036-tuplas-implementacao.md). `for-in`/`is` seguem adiados.
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0007](0007-ranges-e-iteracao.md),

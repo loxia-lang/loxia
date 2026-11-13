@@ -16,6 +16,7 @@ from src.execution.lox_instance import LoxInstance
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
 from src.execution.lox_range import LoxRange
+from src.execution.lox_tuple import LoxTuple
 from src.execution.native_module import NativeModule
 from src.execution.natives.chars import Chars
 from src.execution.natives.len import Len
@@ -47,6 +48,7 @@ from src.frontend.expr import (
     Set,
     Super,
     This,
+    TupleLiteral,
     Unary,
     Variable,
 )
@@ -54,6 +56,7 @@ from src.frontend.expr import Visitor as ExprVisitor
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -67,7 +70,7 @@ from src.frontend.stmt import (
 from src.frontend.stmt import Visitor as StmtVisitor
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
-from src.frontend.ty import ANY, FLOAT, INT, UnionTy, display
+from src.frontend.ty import ANY, FLOAT, INT, TupleTy, UnionTy, display
 
 _RELATIONAL = frozenset(
     {
@@ -157,6 +160,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return False
             return self._maps_equal(a, b, set() if seen is None else seen)
 
+        if isinstance(a, LoxTuple) or isinstance(b, LoxTuple):
+            if not isinstance(a, LoxTuple) or not isinstance(b, LoxTuple):
+                return False
+            return self._tuples_equal(a, b, set() if seen is None else seen)
+
         if isinstance(a, bool) or isinstance(b, bool):
             return isinstance(a, bool) and isinstance(b, bool) and a == b
 
@@ -183,6 +191,29 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return False
 
         for left, right in zip(a.elements, b.elements, strict=True):
+            if not self._is_equal(left, right, seen):
+                return False
+
+        return True
+
+    def _tuples_equal(
+        self,
+        a: LoxTuple,
+        b: LoxTuple,
+        seen: set[tuple[int, int]],
+    ) -> bool:
+        if a is b:
+            return True
+
+        pair = (id(a), id(b))
+        if pair in seen:
+            return True
+
+        seen.add(pair)
+        if len(a.items) != len(b.items):
+            return False
+
+        for left, right in zip(a.items, b.items, strict=True):
             if not self._is_equal(left, right, seen):
                 return False
 
@@ -317,6 +348,20 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             key = self._evaluate(expr.index)
             return ob.get(key, expr.bracket)
 
+        if isinstance(ob, LoxTuple):
+            index = self._evaluate(expr.index)
+            if not numeric.is_int(index):
+                raise LoxRuntimeError(
+                    expr.bracket, "Tuple index must be an integer."
+                )
+            if not 0 <= index < len(ob.items):
+                raise LoxRuntimeError(
+                    expr.bracket,
+                    f"Tuple index {index} out of bounds for length "
+                    f"{len(ob.items)}.",
+                )
+            return ob.items[index]
+
         raise LoxRuntimeError(expr.bracket, "Only lists and maps can be indexed.")
 
     def visit_index_set_expr(self, expr: IndexSet) -> object:
@@ -338,6 +383,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return self._evaluate(expr.expression)
 
     def visit_is_expr(self, expr: Is) -> object:
+        if isinstance(expr.test_type, TupleTy):
+            raise LoxRuntimeError(
+                expr.operator, "is doesn't support tuple types yet."
+            )
+
         value = self._evaluate(expr.left)
         return matches_type(value, expr.test_type)
 
@@ -671,6 +721,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return self._iterate_list(name, iterable)
         if isinstance(iterable, LoxMap):
             return self._iterate_map(name, iterable)
+        if isinstance(iterable, LoxTuple):
+            raise LoxRuntimeError(
+                name, "Can't iterate over a tuple yet; index with t[i]."
+            )
 
         raise LoxRuntimeError(
             name, "Can only iterate over a range, a list, a map or a string."
@@ -723,6 +777,26 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             value = self._evaluate(stmt.value)
 
         raise ReturnSignal(stmt.keyword, value)
+
+    def visit_destructure_stmt(self, stmt: Destructure) -> None:
+        value = self._evaluate(stmt.initializer)
+        if not isinstance(value, LoxTuple):
+            raise LoxRuntimeError(
+                stmt.names[0], "Can only destructure a tuple."
+            )
+        if len(value.items) != len(stmt.names):
+            raise LoxRuntimeError(
+                stmt.names[0],
+                f"Destructuring expects {len(stmt.names)} values, found "
+                f"{len(value.items)}.",
+            )
+
+        for name, item in zip(stmt.names, value.items, strict=True):
+            self._reject_immutable_redeclaration(name)
+            self.environment.define(name.lexeme, item, stmt.mutable)
+
+    def visit_tuple_expr(self, expr: TupleLiteral) -> object:
+        return LoxTuple(tuple(self._evaluate(element) for element in expr.elements))
 
     def visit_var_stmt(self, stmt: Var) -> None:
         self._reject_immutable_redeclaration(stmt.name)

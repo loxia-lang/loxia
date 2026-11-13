@@ -1768,3 +1768,117 @@ def test_cast_parse_and_math_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_tuple_inference_variance_and_operations() -> None:
+    lox = check(
+        """
+        class Animal {}
+        class Dog(Animal) {}
+
+        val dog: (Dog, Int) = (Dog(), 1)
+        val animal: (Animal, Int) = dog
+        print animal[1]
+        print len((1, "a", true))
+        print (1, "a") == (1.0, "a")
+        print (1, (2, "x"))[1][1]
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_tuple_destructuring_with_annotation_and_var() -> None:
+    lox = check(
+        """
+        val (a, b) = (1, "x")
+        print a + 1
+        print len(b)
+        var (c, d): (Int, String) = (2, "y")
+        c = c + 1
+        print d
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_tuple_any_can_be_destructured_with_annotation() -> None:
+    lox = check(
+        """
+        val x: Any = (1, "a")
+        val (a, b): (Int, String) = x
+        print a + 1
+        print len(b)
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("print (1, 2)[2]", "Tuple index 2 out of bounds for length 2."),
+        (
+            "val (a, b) = (1, 2, 3)",
+            "Destructuring expects 3 values, found 2.",
+        ),
+        (
+            "val (a, b) = [1, 2]",
+            "Can only destructure tuples, found List[Int].",
+        ),
+        (
+            "val x: Any = (1, 2)\nval (a, b) = x",
+            "Can't destructure Any; add a tuple annotation.",
+        ),
+        (
+            "for x in (1, 2) { print x }",
+            "Can't iterate over a tuple yet; index with t[i].",
+        ),
+        (
+            "print (1, 2) is (Int, Int)",
+            "is doesn't support tuple types yet.",
+        ),
+        (
+            "print (1, 2) as (Int, Int)",
+            "as doesn't support tuple types yet.",
+        ),
+        (
+            "val (a, a) = (1, 2)",
+            "Variable 'a' is declared twice in this destructuring.",
+        ),
+        (
+            'print (1, 2)["a"]',
+            "Tuple index must be an integer, found String.",
+        ),
+        (
+            'val (a, b): (Int, String) = (1, 2)',
+            "Expected String, found Int.",
+        ),
+    ],
+)
+def test_tuple_checker_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
+def test_tuple_dynamic_index_is_a_union(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        val t: (Int, String) = (1, "a")
+        var i = 0
+        print t[i] + 1
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Operands must be numbers." in captured.err

@@ -70,6 +70,13 @@ class MapTy(Ty):
 
 
 @dataclass(frozen=True)
+class TupleTy(Ty):
+    """Tupla imutável de aridade fixa; covariante por elemento."""
+
+    items: tuple[Ty, ...]
+
+
+@dataclass(frozen=True)
 class ClassTy(Ty):
     """Instância de uma classe."""
 
@@ -133,6 +140,8 @@ def display(ty: Ty) -> str:
         return f"List[{display(ty.element)}]"
     if isinstance(ty, MapTy):
         return f"Map[{display(ty.key)}, {display(ty.value)}]"
+    if isinstance(ty, TupleTy):
+        return "(" + ", ".join(display(item) for item in ty.items) + ")"
     if isinstance(ty, GenericFnTy):
         params = ", ".join(var.name for var in ty.type_params)
         args = ", ".join(display(param) for param in ty.fn.params)

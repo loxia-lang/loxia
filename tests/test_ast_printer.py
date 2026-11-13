@@ -116,3 +116,17 @@ def test_dump_interpolated_string() -> None:
 
 def test_dump_as_expression() -> None:
     assert dump("print 3.9 as Int + 1") == "(print (+ (as 3.9 Int) 1))"
+
+
+def test_dump_tuples_and_destructuring() -> None:
+    source = """
+    val (a, b) = (1, "x");
+    var (c, d): (Int, String) = (2, "y");
+    print (a, (b, c))[1];
+    """
+
+    assert dump(source) == (
+        '(val-destructure (a b) (tuple 1 "x"))\n'
+        '(var-destructure (c d): (Int, String) (tuple 2 "y"))\n'
+        "(print (index (tuple a (tuple b c)) 1))"
+    )

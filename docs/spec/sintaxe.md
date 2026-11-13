@@ -27,13 +27,16 @@ typeParameters → "[" IDENTIFIER ( "," IDENTIFIER )* "]" ;
 parameters     → parameter ( "," parameter )* ;
 parameter      → "var"? IDENTIFIER ( ":" type )? ( "=" expression )? ;
 
-varDecl        → "var" IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
-valDecl        → "val" IDENTIFIER ( ":" type )? "=" expression terminator ;
+varDecl        → "var" ( IDENTIFIER ( ":" type )? ( "=" expression )?
+               | "(" IDENTIFIER ( "," IDENTIFIER )+ ")" ( ":" type )? "=" expression ) terminator ;
+valDecl        → "val" ( IDENTIFIER ( ":" type )? "=" expression
+               | "(" IDENTIFIER ( "," IDENTIFIER )+ ")" ( ":" type )? "=" expression ) terminator ;
 
 type           → unionType ;
 unionType      → postfixType ( "|" postfixType )* ;
 postfixType    → primaryType ( "?" )* ;
 primaryType    → IDENTIFIER ( "[" type ( "," type )* "]" )?
+               | "(" type "," type ( "," type )* ")"   (* tupla *)
                | "(" type ")" ;
 
 statement      → exprStmt
@@ -80,7 +83,9 @@ call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFI
                  | "[" expression "]" )* ;
 arguments      → expression ( "," expression )* ;
 primary        → "true" | "false" | "nil" | "this"
-               | NUMBER | STRING | INTERPOLATED_STRING | IDENTIFIER | "(" expression ")"
+               | NUMBER | STRING | INTERPOLATED_STRING | IDENTIFIER
+               | "(" expression ( "," expression )+ ")"   (* tupla *)
+               | "(" expression ")"
                | "super" "." IDENTIFIER
                | "[" ( expression ( "," expression )* )? "]"
                | "{" ( expression ":" expression
@@ -247,6 +252,9 @@ Consequências:
 - `a?.b = c` é erro (não há assignment opcional);
 - `xs[0]` indexa e `xs[0] = v` atribui; o `[` precisa estar na **mesma linha** da
   expressão anterior, como o `(` de chamada;
+- `(1, 2)` é literal de tupla (2+ elementos, sem `()` nem `(x,)` e sem vírgula final);
+  `(1)` continua agrupamento. `f(1, 2)` são dois argumentos; para uma tupla como argumento,
+  `f((1, 2))`. `val (a, b) = t` e `var (c, d) = t` desestruturam (anotação opcional).
 - `[1, 2]` é literal de lista e `[]` é a lista vazia; não há vírgula final
   (`[1,]` é erro).
 

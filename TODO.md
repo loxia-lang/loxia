@@ -24,7 +24,7 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 `nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
 `or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
 compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
-casos por nível — **31 dos 81** golden cases compilam e **57** passam no `--check`.
+casos por nível — **31 dos 83** golden cases compilam e **59** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
 valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6 vêm
@@ -53,9 +53,9 @@ antes (regra do §9). Fora do M5, só correções do que já existe. **Depois do
 **Dados e funções**
 - [ ] `P2` variádicos (`fn log(nivel, ...args)`); ver [`IDEIAS.md`](IDEIAS.md) I-5.
 - [ ] `P2` trailing closure (`lista.map { |x| x * 2 }`) — depois do conflito com `{}`.
-- [ ] `P2` tuplas: implementar a sintaxe do [ADR-0030](docs/adr/0030-tuplas.md)
-      (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), pós-1.0/backend; ficaram adiados
-      `for x in t`, `is (A, B)` e `var (a,b) = t`.
+- [x] `P2` tuplas: `(a,b)`, `(A,B)`, `t[i]`, `val/var (a,b) = t`, igualdade, `len` e
+      formatação ([ADR-0030](docs/adr/0030-tuplas.md), [ADR-0036](docs/adr/0036-tuplas-implementacao.md)).
+- [ ] `P2` tuplas no backend (L6) e pendentes `for x in t` / `is (A, B)`.
 - [ ] `P3` argumentos nomeados e destructuring de campos.
 - [ ] `P3` namespaces/imports, traits, extension methods, operator overloading,
       `type` alias e `derive`.
@@ -360,7 +360,7 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança, vtable — depois do M5 (layouts
       dependem dos tipos v2).
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
-      `Range` e `for-in`.
+      tuplas, `Range` e `for-in`.
 - [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, testes diferenciais
       interpretador × nativo, benchmarks, JIT no REPL, mensagens de erro de codegen.
 
@@ -391,7 +391,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (57 de 81 passam no `--check`; 31 compilam hoje);
+- [x] anotar 15 `tests/cases` (59 de 83 passam no `--check`; 31 compilam hoje);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
@@ -421,7 +421,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 825 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 857 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---

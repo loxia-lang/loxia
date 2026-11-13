@@ -9,8 +9,6 @@ viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado s
 
 ## Pendências com direção já decidida
 
-- **Tuplas:** sintaxe escolhida (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), implementação
-  pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
 - **Generics além do T3b:** classes/métodos genéricos, constraints/traits, type application
   explícita, função genérica como valor, recursão polimórfica e variance declarada.
 - **Math:** `log`, `exp`, `sin`, `cos`, `tan`, `pow` e constantes (`math.pi`) dependem da
@@ -420,7 +418,7 @@ fn log(nivel: String, ...partes) { /* ... */ }
 - `..=` e ranges inclusivos.
 - `Iterable` de usuário (depende de traits/`Option` para o fim do iterator).
 - `contains`, `sum`, `enumerate`, `zip` (stdlib + tuplas).
-- Iterar tuplas (depois do ADR-0030).
+- Iterar tuplas (adiado no ADR-0030; `for-in` em tupla dá erro explícito hoje).
 
 **No backend:** `for-in` ainda não existe (depende de `Range`, L6); o `for` C-style
 desaçucara para blocos + `while` e compila desde o L2. Ver TODO §6.8.

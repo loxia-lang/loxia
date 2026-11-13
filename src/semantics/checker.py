@@ -32,6 +32,7 @@ from src.frontend.expr import (
     Set,
     Super,
     This,
+    TupleLiteral,
     Unary,
     Variable,
 )
@@ -39,6 +40,7 @@ from src.frontend.expr import Visitor as ExprVisitor
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -70,6 +72,7 @@ from src.frontend.ty import (
     MapTy,
     NativeFnTy,
     NativeModuleTy,
+    TupleTy,
     Ty,
     TyVar,
     UnionTy,
@@ -368,6 +371,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
                 return MapTy(key_ty, value_ty)
 
+        if isinstance(expr, TupleLiteral):
+            items = self._expected_tuple(expected)
+            if items is not None:
+                if len(items) != len(expr.elements):
+                    self._error(
+                        token,
+                        f"Expected a tuple of {len(items)} elements, "
+                        f"found {len(expr.elements)}.",
+                    )
+                    return ERROR
+
+                for tuple_element, item_ty in zip(
+                    expr.elements, items, strict=True
+                ):
+                    self._check(tuple_element, item_ty, expr.paren)
+
+                return TupleTy(items)
+
         if isinstance(expr, Lambda):
             actual = self._lambda_type(expr, self._expected_fn(expected))
             if not self._assignable(expected, actual):
@@ -401,6 +422,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             ]
             if len(lists) == 1:
                 return lists[0].element
+
+        return None
+
+    def _expected_tuple(self, expected: Ty) -> tuple[Ty, ...] | None:
+        if isinstance(expected, TupleTy):
+            return expected.items
 
         return None
 
@@ -456,6 +483,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if expected.value is ERROR or actual.value is ERROR:
                 return True
             return expected.key == actual.key and expected.value == actual.value
+        if isinstance(expected, TupleTy) and isinstance(actual, TupleTy):
+            return len(expected.items) == len(actual.items) and all(
+                self._assignable(expected_item, actual_item)
+                for expected_item, actual_item in zip(
+                    expected.items, actual.items, strict=True
+                )
+            )
         if isinstance(expected, FnTy):
             if isinstance(actual, FnTy):
                 return self._assignable_fn(expected, actual)
@@ -814,6 +848,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return iterable.element
         if isinstance(iterable, MapTy):
             return iterable.key
+        if isinstance(iterable, TupleTy):
+            self._error(
+                token, "Can't iterate over a tuple yet; index with t[i]."
+            )
+            return ERROR
 
         self._error(
             token, "Can only iterate over a range, a list, a map or a string."
@@ -1022,6 +1061,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_as_expr(self, expr: As) -> Ty:
         target = self._resolve_type(expr.target_type, expr.operator)
         self._validate_as_target(target, expr.operator)
+        if isinstance(target, TupleTy):
+            return ERROR
+
         source = self._infer(expr.left)
 
         if target is ERROR or source is ERROR:
@@ -1062,6 +1104,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._validate_is_type(ty.key, token)
             self._validate_is_type(ty.value, token)
             return
+        if isinstance(ty, TupleTy):
+            self._error(token, "as doesn't support tuple types yet.")
+            return
         if isinstance(ty, UnionTy):
             self._error(token, "as doesn't support union types yet; narrow first.")
             return
@@ -1081,6 +1126,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, MapTy):
             self._validate_is_type(ty.key, token)
             self._validate_is_type(ty.value, token)
+            return
+        if isinstance(ty, TupleTy):
+            self._error(token, "is doesn't support tuple types yet.")
             return
         if isinstance(ty, UnionTy):
             for member in ty.members:
@@ -1794,6 +1842,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 and signature is not None
                 and index < len(signature.params)
                 and self._expected_map(signature.params[index]) is not None
+            ) or (
+                isinstance(argument, TupleLiteral)
+                and signature is not None
+                and index < len(signature.params)
+                and isinstance(signature.params[index], TupleTy)
             ):
                 arguments.append(
                     self._check(argument, signature.params[index], expr.paren)
@@ -1991,6 +2044,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if ty is ANY or ty is STRING or ty is ERROR or isinstance(ty, ListTy):
             return True
         if isinstance(ty, MapTy):
+            return True
+        if isinstance(ty, TupleTy):
             return True
         if isinstance(ty, UnionTy):
             return all(self._is_len_able(member) for member in ty.members)
@@ -2197,6 +2252,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._substitute(ty.key, bindings),
                 self._substitute(ty.value, bindings),
             )
+        if isinstance(ty, TupleTy):
+            return TupleTy(
+                tuple(self._substitute(item, bindings) for item in ty.items)
+            )
         if isinstance(ty, FnTy):
             return FnTy(
                 tuple(self._substitute(param, bindings) for param in ty.params),
@@ -2217,6 +2276,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._has_any_type_var(ty.element)
         if isinstance(ty, MapTy):
             return self._has_any_type_var(ty.key) or self._has_any_type_var(ty.value)
+        if isinstance(ty, TupleTy):
+            return any(self._has_any_type_var(item) for item in ty.items)
         if isinstance(ty, FnTy):
             return any(self._has_any_type_var(param) for param in ty.params) or (
                 self._has_any_type_var(ty.ret)
@@ -2237,6 +2298,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, MapTy):
             return self._occurs(variable, ty.key, bindings) or self._occurs(
                 variable, ty.value, bindings
+            )
+        if isinstance(ty, TupleTy):
+            return any(
+                self._occurs(variable, item, bindings) for item in ty.items
             )
         if isinstance(ty, FnTy):
             return any(
@@ -2296,6 +2361,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._unify(
                 expected.key, actual.key, bindings, token
             ) and self._unify(expected.value, actual.value, bindings, token)
+        if isinstance(expected, TupleTy) and isinstance(actual, TupleTy):
+            return len(expected.items) == len(actual.items) and all(
+                self._unify(expected_item, actual_item, bindings, token)
+                for expected_item, actual_item in zip(
+                    expected.items, actual.items, strict=True
+                )
+            )
         if isinstance(expected, FnTy) and isinstance(actual, FnTy):
             if not actual.min_params <= len(expected.params) <= len(actual.params):
                 return False
@@ -2329,6 +2401,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._unbound_type_vars(
                 ty.key, variables
             ) + self._unbound_type_vars(ty.value, variables)
+        if isinstance(ty, TupleTy):
+            tuple_vars: list[TyVar] = []
+            for item in ty.items:
+                tuple_vars.extend(self._unbound_type_vars(item, variables))
+            return tuple_vars
         if isinstance(ty, FnTy):
             found: list[TyVar] = []
             for param in ty.params:
@@ -2352,6 +2429,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._contains_any_type_var(
                 ty.key, variables
             ) or self._contains_any_type_var(ty.value, variables)
+        if isinstance(ty, TupleTy):
+            return any(
+                self._contains_any_type_var(item, variables)
+                for item in ty.items
+            )
         if isinstance(ty, FnTy):
             return any(
                 self._contains_any_type_var(param, variables)
@@ -2653,6 +2735,100 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
         return ERROR
 
+    def _tuple_index(self, tuple_ty: TupleTy, index: Ty, expr: Index) -> Ty:
+        if index not in (INT, ANY, ERROR):
+            self._error(
+                expr.bracket,
+                f"Tuple index must be an integer, found {display(index)}.",
+            )
+            return ERROR
+
+        literal = self._literal_int(expr.index)
+        if literal is None:
+            return union(*tuple_ty.items)
+        if not 0 <= literal < len(tuple_ty.items):
+            self._error(
+                expr.bracket,
+                f"Tuple index {literal} out of bounds for length "
+                f"{len(tuple_ty.items)}.",
+            )
+            return ERROR
+
+        return tuple_ty.items[literal]
+
+    def _literal_int(self, expr: Expr) -> int | None:
+        if isinstance(expr, Grouping):
+            return self._literal_int(expr.expression)
+        if isinstance(expr, Literal) and type(expr.value) is int:
+            return expr.value
+
+        return None
+
+    def visit_tuple_expr(self, expr: TupleLiteral) -> Ty:
+        return TupleTy(tuple(self._infer(element) for element in expr.elements))
+
+    def visit_destructure_stmt(self, stmt: Destructure) -> None:
+        seen: set[str] = set()
+        for name in stmt.names:
+            if name.lexeme in seen:
+                self._error(
+                    name,
+                    f"Variable '{name.lexeme}' is declared twice in this "
+                    "destructuring.",
+                )
+            seen.add(name.lexeme)
+
+        if stmt.type_annotation is not None:
+            declared = self._resolve_type(stmt.type_annotation, stmt.names[0])
+            self._check(stmt.initializer, declared, stmt.names[0])
+            items = self._destructure_items(declared, stmt.names[0])
+        else:
+            items = self._destructure_items(
+                self._infer(stmt.initializer), stmt.names[0]
+            )
+
+        if items is None or len(items) != len(stmt.names):
+            if items is not None:
+                self._error(
+                    stmt.names[0],
+                    f"Destructuring expects {len(items)} values, "
+                    f"found {len(stmt.names)}.",
+                )
+            for name in stmt.names:
+                self._define(name, ERROR)
+            return
+
+        for name, item in zip(stmt.names, items, strict=True):
+            self._define(name, item)
+
+    def _destructure_items(self, ty: Ty, token: Token) -> tuple[Ty, ...] | None:
+        if ty is ANY:
+            self._error(
+                token, "Can't destructure Any; add a tuple annotation."
+            )
+            return None
+        if isinstance(ty, TupleTy):
+            return ty.items
+        if isinstance(ty, UnionTy) and all(
+            isinstance(member, TupleTy) for member in ty.members
+        ):
+            members = [member for member in ty.members if isinstance(member, TupleTy)]
+            arity = len(members[0].items)
+            if any(len(member.items) != arity for member in members):
+                self._error(
+                    token, "Tuple members of the union have different arity."
+                )
+                return None
+            return tuple(
+                union(*(member.items[position] for member in members))
+                for position in range(arity)
+            )
+
+        self._error(
+            token, f"Can only destructure tuples, found {display(ty)}."
+        )
+        return None
+
     def visit_index_expr(self, expr: Index) -> Ty:
         key = self._refinement_path(expr)
         narrowed = self._narrowed_at(key) if key is not None else None
@@ -2675,6 +2851,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
         if obj is ERROR:
             return ERROR
+        if isinstance(obj, TupleTy):
+            return self._tuple_index(obj, index, expr)
+        if isinstance(obj, UnionTy) and all(
+            isinstance(member, TupleTy) for member in obj.members
+        ):
+            return union(
+                *(
+                    self._tuple_index(member, index, expr)
+                    for member in obj.members
+                    if isinstance(member, TupleTy)
+                )
+            )
         if isinstance(obj, MapTy):
             if not self._assignable(obj.key, index):
                 self._error(

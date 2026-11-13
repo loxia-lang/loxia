@@ -1,0 +1,21 @@
+# Tuplas: literal, índice, len, igualdade, aninhamento e destructuring.
+val par = (1, "a")
+print par
+print par[0]
+print par[1]
+print len(par)
+print (1, "a") == (1.0, "a")
+print (1, "a") != (2, "a")
+val (n, s) = par
+print n
+print s
+print (1, (2, "x"))[1][1]
+# expect: (1, "a")
+# expect: 1
+# expect: a
+# expect: 2
+# expect: true
+# expect: true
+# expect: 1
+# expect: a
+# expect: x

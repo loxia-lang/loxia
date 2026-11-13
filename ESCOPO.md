@@ -79,7 +79,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Backend LLVM L0–L3 | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
 | M5 — Tipos v2 (T3c/T4–T6) | **próximo** | bloqueia L4+ do codegen (TODO §9) |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
-| Tuplas | depois | sintaxe no [ADR-0030](docs/adr/0030-tuplas.md) |
+| Tuplas | ✅ feito | implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)); `for-in`/`is` e backend L6 pendentes |
 | Classes/métodos genéricos, constraints/traits | M5 | extensão do T3b |
 | `match`/enums, exaustividade | M5 | depois de uniões |
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |

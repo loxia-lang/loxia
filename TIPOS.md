@@ -29,7 +29,7 @@ Comportamento observável fica em [`docs/spec/`](docs/spec/); decisões fechadas
 | `Class` | `class P {}` | ✅ | nominal, herança simples ([ADR-0008](docs/adr/0008-heranca-class-parens.md)) |
 | `Any` | `Any` | ✅ | escape hatch; o backend L0–L3 o rejeita |
 | `Never` | — | 🟡 | interno de fluxo (`return`/loop); sem `throw` público |
-| `Tuple` | `(1, "a")` / `(A, B)` | ⬜ | sintaxe no [ADR-0030](docs/adr/0030-tuplas.md), implementação pós-1.0 |
+| `Tuple` | `(1, "a")` / `(A, B)` | ✅ | 2+, imutável e covariante; `for-in`/`is` e backend L6 pendentes ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)) |
 | `Trait` | `trait Show` | ⬜ | nominal ou estrutural a decidir (`D-17`) |
 | `Enum`/ADT | `enum Cor { ... }` | ⬜ | com `match` exaustivo (P3) |
 | `Result[T, E]` | `Result` | ⬜ | erros como valor (P3) |
@@ -69,11 +69,11 @@ multilinha/raw (TODO §1) e builtins de string (stdlib).
 
 ## 4. Tuplas
 
-Sintaxe e semântica decididas ([ADR-0030](docs/adr/0030-tuplas.md)); implementação
-pós-1.0/backend. **Em aberto**, para decidir junto da implementação:
+Implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)). **Em aberto**:
 
 - `for x in t` — elementos heterogêneos; iterar exige a união dos tipos ou recusa.
 - `is (A, B)` — checagem por posição em tempo de execução.
+- Backend (layout no L6).
 
 ## 5. `nil`, `Option` e `Result`
 

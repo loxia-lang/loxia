@@ -781,3 +781,72 @@ def test_float_is_rejected_as_map_key_at_runtime(
 
     assert stdout == []
     assert "Map keys must be strings, integers or booleans." in stderr
+
+
+def test_tuples_values_formatting_and_equality(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        'print (1, "a");'
+        'print (1, (2, "x"));'
+        "print len((1, 2, 3));"
+        'print (1, "a") == (1.0, "a");'
+        'print (1, "a") != (2, "a");',
+        capsys,
+    )
+
+    assert stdout == [
+        '(1, "a")',
+        '(1, (2, "x"))',
+        "3",
+        "true",
+        "true",
+    ]
+    assert stderr == ""
+
+
+def test_tuple_destructuring_bindings(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        'val (a, b) = (1, "x");'
+        "print a;"
+        "print b;"
+        "var (c, d) = (2, 3);"
+        "c = 9;"
+        "print c;"
+        "print d;",
+        capsys,
+    )
+
+    assert stdout == ["1", "x", "9", "3"]
+    assert stderr == ""
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            "val (a, b) = (1, 2, 3);",
+            "Destructuring expects 2 values, found 3.",
+        ),
+        ("val (a, b) = 1;", "Can only destructure a tuple."),
+        ('print (1, 2)["a"];', "Tuple index must be an integer."),
+        ("print (1, 2)[5];", "Tuple index 5 out of bounds for length 2."),
+        ("for x in (1, 2) { print x; }", "Can't iterate over a tuple yet"),
+    ],
+)
+def test_tuple_runtime_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, stderr = run(source, capsys)
+
+    assert message in stderr
+
+
+def test_tuple_is_unsupported_at_runtime(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, stderr = run("print (1, 2) is (Int, Int);", capsys)
+
+    assert "is doesn't support tuple types yet." in stderr

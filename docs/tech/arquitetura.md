@@ -73,6 +73,7 @@ Pacotes por fase (dependência só para baixo):
 | [`src/semantics/checker.py`](../../src/semantics/checker.py) | checker estático gradual (`--check`) |
 | [`src/execution/type_test.py`](../../src/execution/type_test.py) | teste dinâmico de tipo para `x is T` |
 | [`src/execution/lox_range.py`](../../src/execution/lox_range.py) | `Range` lazy (start, end, step) |
+| [`src/execution/lox_tuple.py`](../../src/execution/lox_tuple.py) | `LoxTuple` imutável (tuplas) |
 | [`src/execution/lox_list.py`](../../src/execution/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
 | [`src/execution/lox_map.py`](../../src/execution/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
 | [`src/diagnostics/error_reporter.py`](../../src/diagnostics/error_reporter.py) | coleta/impressão de diagnósticos |

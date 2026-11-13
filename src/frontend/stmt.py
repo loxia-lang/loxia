@@ -23,6 +23,7 @@ class Visitor[R](Protocol):
     def visit_print_stmt(self, stmt: Print) -> R: ...
     def visit_return_stmt(self, stmt: Return) -> R: ...
     def visit_var_stmt(self, stmt: Var) -> R: ...
+    def visit_destructure_stmt(self, stmt: Destructure) -> R: ...
     def visit_while_stmt(self, stmt: While) -> R: ...
 
 
@@ -131,6 +132,17 @@ class Var(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Destructure(Stmt):
+    names: list[Token]
+    initializer: Expr
+    mutable: bool
+    type_annotation: Ty | None = None
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_destructure_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)
