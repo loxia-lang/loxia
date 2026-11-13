@@ -56,6 +56,8 @@ class CallLowering(LoweringBase):
                 return self._repr(expr)
             if name == "range":
                 return self._range_call(expr)
+            if name == "chars":
+                return self._chars(expr)
 
         if isinstance(expr.callee, Variable):
             depth = self.depths.get(expr.callee)

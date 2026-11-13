@@ -7,6 +7,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L6d — tuplas e `chars`**: tuplas boxeadas com destructuring e `chars(s)` sobre code points UTF-8.
 - Backend **L6d — tuplas**: runtime boxeado, literal, índice, `len`, igualdade, print e destructuring `val/var (a,b)` ([ADR-0054](docs/adr/0054-l6-tuplas.md)).
 - Backend **L6c — mapas**: `Map` com chaves/valores boxeados, `get`/`has`/`remove`/`keys`/`values`, `for-in` de chaves, igualdade independente de ordem, stringify e ciclos ([ADR-0053](docs/adr/0053-l6-mapas.md)).
 - Backend **L6b — listas**: `List` com elementos boxeados no runtime, literais,

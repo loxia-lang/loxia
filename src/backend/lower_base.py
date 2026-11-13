@@ -126,6 +126,9 @@ class LoweringBase:
     def _tuple_len(self, value: Value) -> Value:
         raise NotImplementedError
 
+    def _chars(self, expr: Call) -> Value:
+        raise NotImplementedError
+
     def _instantiate_class(
         self, name: str, args: tuple[Ty, ...], line: int | None
     ) -> TypeDesc:

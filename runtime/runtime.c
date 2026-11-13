@@ -602,6 +602,18 @@ int lox_tuple_equal(const void *left_pointer, const void *right_pointer) {
     return 1;
 }
 
+void *lox_str_char_at(const void *pointer, int64_t index);
+
+void *lox_chars(const void *pointer) {
+    const LoxStr *string = pointer;
+    void *list = lox_list_new();
+    for (int64_t index = 0; index < string->cp_len; index++) {
+        void *character = lox_str_char_at(string, index);
+        lox_list_push(list, 4, (int64_t)character);
+    }
+    return list;
+}
+
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;

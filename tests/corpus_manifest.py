@@ -62,6 +62,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/map_stringify.lox",
         "tests/cases/interpolation.lox",
         "tests/cases/str_repr.lox",
+        "tests/cases/string_chars.lox",
         "tests/cases/tuple_destructure.lox",
         "tests/cases/tuples.lox",
         "tests/cases/nil_aware.lox",
@@ -138,7 +139,6 @@ PENDING: dict[str, str] = {
     "tests/cases/generic_lambda_value.lox": "l6",
     "tests/cases/generics.lox": "l6",
     "tests/cases/result.lox": "l6",
-    "tests/cases/string_chars.lox": "l6",
     "tests/cases/tuple_iteration.lox": "l6",
     "tests/cases/var_uninitialized_int.lox": "l6",
 }

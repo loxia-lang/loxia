@@ -287,6 +287,19 @@ class ContainerLowering(LoweringBase):
             self.builder.icmp_signed("!=", call, llvm_ir.constant(_I32, 0)),
         )
 
+    def _chars(self, expr: Call) -> Value:
+        arguments = [self._expr(argument) for argument in expr.arguments]
+        if len(arguments) != 1 or arguments[0].ty is not ValueType.STRING:
+            self._poison(expr.paren.line, "chars() expects a string.")
+            return Value(ValueType.LIST, llvm_ir.null_pointer())
+        return Value(
+            ValueType.LIST,
+            self.builder.call(
+                self._function("lox_chars", _I8_PTR, [_I8_PTR]),
+                [arguments[0].llvm],
+            ),
+        )
+
     def _list_len(self, value: Value) -> Value:
         call = self.builder.call(
             self._function("lox_list_len", _INT, [_I8_PTR]), [value.llvm]
