@@ -82,12 +82,13 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Tuplas | ✅ feito | implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)); `for-in`/`is` e backend L6 pendentes |
 | Classes genéricas | ✅ feito | MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos/herança genérica pós-MVP |
 | Enums, `match` e `Result` | ✅ feito | enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)); padrões avançados/backend L6 pendentes |
+| `Option` | ✅ feito | alias de `T?` ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)) |
 | Traits nominais + constraints | pós-MVP | nominal, `implements`, métodos default ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | `match`/enums, exaustividade | M5 | depois de uniões |
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |
 | Async/await (`Task[T]`) | depois do M7 + I/O | direção no [ADR-0037](docs/adr/0037-async-direcao.md); colored, determinístico; não é paralelismo (IDEIAS I-7) |
 | Contratos (`requires`/`ensures`/`invariant`) e JSON | pós | ver I-4 no [`IDEIAS.md`](IDEIAS.md) |
-| `Result`/`Option`, `try`/`throw` | pós | 1.0 é erro fatal |
+| `try`/`except`/`finally`/`raise` | pós | decisão pendente (TODO §11); caminho barato: `raise` de `String`, só explícito capturável, backend 65 até o L6; alternativa zero-custo: `Result` |
 | Variádicos, trailing closure, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
 | `type` alias, derive, operator overloading, extension methods | pós | — |
 | `if`/bloco como expressão, `println` função, `loop`/`break` rotulado | pós | — |

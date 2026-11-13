@@ -537,6 +537,17 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
    entraram ([ADR-0041](docs/adr/0041-enums-match.md)).
 7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
+8. **Exceções (`raise`/`try`/`except`/`finally`):** ainda **não decidido**. O caminho mais
+   barato é: `raise "msg";` (valor `String`), `try { } except e { } finally { }` como
+   **statement** (pelo menos um de `except`/`finally`), `e: String` imutável no escopo do
+   `except`, `finally` sempre roda (e seu `return`/`raise` vence), sem `else`, sem catch
+   tipado e sem re-raise nu na v1. Só `raise` **explícito** é capturável: erros de runtime
+   continuam fatais (exit 70), o que evita mexer em todos os caminhos de erro e mantém o I1
+   tratável. Uncaught vira `Unhandled exception: <msg>` (exit 70), determinístico. O backend
+   rejeita `try`/`raise` com 65 até o L6 (unwinding/landing pads são caros). Alternativa de
+   custo zero: **não ter exceções** e usar `Result` (já existe) para erro esperado, deixando
+   falha fatal para bugs. Custo do caminho barato: ~1 sessão no tree-walk, sem backend;
+   decidir em ADR curto **antes** de implementar e não bloquear o L4.
 
 Fechadas nesta sessão: backend em `llvmlite` (ADR-0031), normalização de ternário/
 `and`/`or`/`??` e strings do L3 (ver [`docs/adr`](docs/adr/) e [`CHANGELOG.md`](CHANGELOG.md)).
