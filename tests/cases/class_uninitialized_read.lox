@@ -1,0 +1,12 @@
+# Ler campo declarado antes da primeira atribuição falha em runtime.
+class C {
+  var x: Int;
+
+  init() {
+    print this.x;
+    this.x = 1;
+  }
+}
+
+C();
+# expect runtime error: Undefined property 'x'.

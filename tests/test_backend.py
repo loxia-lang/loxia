@@ -504,7 +504,7 @@ def test_classe_generica_sem_backend_e_rejeitada(tmp_path: Path) -> None:
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 65
-    assert "Class is not supported by the backend yet." in result.stderr
+    assert "Generic class is not supported by the backend yet." in result.stderr
     assert not binary.exists()
 
 

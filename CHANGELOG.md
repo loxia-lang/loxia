@@ -7,6 +7,13 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L5a/L5b — classes e herança** ([ADR-0048](docs/adr/0048-abi-classes-l5.md)):
+  métodos `(env, this, params...)`, vtable de closures, descritor de classe, instância
+  `{classe, bitmap, slots i64}`, campos `val`/`var` com bitmap de inicialização, bound
+  methods, `this`, `init` (defaults no call site), `print`/`str` de classe/instância,
+  herança com cópia/override de vtable, `super`/`super.init`, `init` herdado e prefixo de
+  campos. `String?`/instância `T?` em campos/parâmetros/retornos usam ponteiro nulo;
+  `?.` opcional, classes locais e `is`/`as` de classe ficam no L5c.
 - Backend **L2.5 — optionais escalares** ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)):
   `Int?`/`Float?`/`Bool?` como `{i1, T}`, `var x: T?;` nascendo `nil`, `nil` contextual,
   `T?` em parâmetros/retornos/closures, `??`/truthiness/igualdade/`print`/`str`/interpolação

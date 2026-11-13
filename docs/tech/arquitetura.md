@@ -338,7 +338,7 @@ chamada.
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
 
-## Backend nativo (L0–L4 + L2.5)
+## Backend nativo (L0–L4 + L2.5 + L5a/L5b)
 
 O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
 não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
@@ -370,6 +370,13 @@ Chamadas diretas ainda preenchem defaults no call site; função com defaults co
 é recusada com exit 65 no L4. `return` e argumentos precisam casar (sem coerção implícita)
 e `Nil` vira `void`. Aridade errada vira `lox_panic` com a mensagem montada no compile time
 (os números são estáticos), e o corpo roda em blocos próprios com `ret`/`unreachable`.
+
+O L5 usa uma ABI única de método `(i8* env, i8* this, params...)`, vtable de closures,
+descritor de classe `{super, id, name, vtable, n_fields, init, init_min, init_max}` e
+instância `{classe, bitmap, slots i64}`; bound methods são thunks. Herança copia a vtable,
+prefixa os campos e resolve `super` pela classe onde o método foi declarado
+([ADR-0048](../adr/0048-abi-classes-l5.md)). `String?`/instância `T?` usam ponteiro nulo;
+`?.` com receptor opcional e classes locais ainda estão no L5c.
 
 `String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
 header), concatenação aloca na arena de 64 MiB e `len` devolve `cp_len` (code points).

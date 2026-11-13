@@ -21,16 +21,17 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **100 golden cases** (43 compilam, 55 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5**, M5 fechado e
-ADRs 0043–0047 (layout, identidade, narrowing, L4 e optionais escalares) fechados.
+vale o que está aqui. Estado em 2026-11-13: **104 golden cases** (62 compilam, 40 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b**, M5
+fechado e ADRs 0043–0048 (layout, identidade, narrowing, L4, optionais escalares e ABI de
+classes) fechados.
 
 ### 0.1 Definições que não podem faltar antes de cada nível
 
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
 | **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
-| **L5** | ADRs 0043/0044/0045 (feitos) + `T?` escalar (L2.5) e referência nula representáveis, bitmap de init, layout de classe e `print` de instância/classe | 🟡 |
+| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c (`?.` opcional, classes locais, `is`/`as`) pendente | 🟡 |
 | **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
 `T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
@@ -48,10 +49,14 @@ lacuna que esta fila existe para não repetir.
 3. [x] **ADR de L4 + implementação**: [ADR-0046](docs/adr/0046-closures-celulas-l4.md),
        sem HIR, `env`/células, funções locais/lambdas, valores de função, defaults/aridade;
        casos `l4` promovidos.
-4. [ ] **L5 — objetos**: layout do [ADR-0043](docs/adr/0043-layout-l5-classes.md),
-       identidade do [ADR-0044](docs/adr/0044-identidade-classe.md), representação do
-       [ADR-0045](docs/adr/0045-narrowing-representacao.md), `is`/`as`/`except`, classes
-       locais e bitmap de inicialização.
+4. [ ] **L5 — objetos** ([ADR-0048](docs/adr/0048-abi-classes-l5.md)):
+       - [x] **L5a**: classes de topo, campos/bitmap, métodos/`this`/`init`, bound methods,
+         `print` de classe/instância e construção por nome;
+       - [x] **L5b**: herança, cópia/override de vtable, `super`/`super.init`, `init`
+         herdado e prefixo de campos;
+       - [ ] **L5c**: classes locais, `?.` com receptor opcional, `is`/`as` de classe e
+         métodos que capturam. `String?`/instância `T?` já funcionam em campos/parâmetros/
+         retornos; `nil_aware` completo depende de união/`Any` (L6).
 5. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
 6. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
@@ -313,10 +318,10 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `nil` | ausência (`void` no print) | L0 ✅ |
 | `Float` | `double` | L1 ✅ |
 | `T?` escalar | `{i1, T}` | L2.5 ✅ ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)) |
-| `T?` referência | ponteiro nulo | L5 ⬜ |
+| `T?` referência | ponteiro nulo | L5c 🟡 (`String?`/instância em campos/params/retornos; `?.` opcional pendente) |
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
-| instância | ponteiro para struct | L5 |
+| instância | ponteiro para struct `{classe, bitmap, slots i64}` | L5a/L5b ✅ ([ADR-0048](docs/adr/0048-abi-classes-l5.md)) |
 | `Any` (quando entrar) | caixa `LoxValue` **só** no caminho dinâmico | L6 |
 
 Regras:
@@ -325,7 +330,8 @@ Regras:
 - `//` e `%` passam pelo runtime (guarda de zero e de `INT_MIN / -1`, que é UB em LLVM).
 - toda operação tem caminho desboxado; o runtime só entra onde há caso de borda ou I/O.
 - `T?` escalar já tem representação `{i1, T}` e `var x: T?;` nasce nil; `var x: Int;`
-  sem inicializador segue 65 até o L6. `T?` de referência entra no L5.
+  sem inicializador segue 65 até o L6. `T?` de referência é ponteiro nulo e já cobre
+  `String?`/instância em campos/params/retornos; `?.` com receptor opcional fica no L5c.
 
 ### 6.4 Runtime em C (`runtime/runtime.c`)
 
@@ -420,10 +426,13 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       `variables.lox` promovido. Os campos/valores `T?` de referência entram no L5.
 - [x] **L4 — Closures**: env struct, células só para capturados, funções locais/lambdas,
       valores de função, chamada indireta e `print` (`<fn f>`/`<lambda>`) — [ADR-0046](docs/adr/0046-closures-celulas-l4.md).
-- [ ] **L5 — Objetos**: classes, métodos, `this`, herança e vtable. Layout em
-      [ADR-0043](docs/adr/0043-layout-l5-classes.md); identidade/`is`/`as`/`except` em
-      [ADR-0044](docs/adr/0044-identidade-classe.md); representação/narrowing em
-      [ADR-0045](docs/adr/0045-narrowing-representacao.md).
+- [x] **L5a/L5b — Objetos**: classes, campos/bitmap, métodos/`this`/`init`, bound
+      methods, herança, vtable, `super`/`super.init`, `init` herdado e `print` de
+      classe/instância ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
+- [ ] **L5c — Objetos dinâmicos**: classes locais, `?.` com receptor opcional,
+      `is`/`as` de classe e métodos que capturam. Layout/identidade em
+      [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
+      representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md).
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
       tuplas, enums, exceções (unwinding), `Range` e `for-in`, mais as operações escalares
       restantes (`**`, bits, `as`/`math.*`, `chars`; nível fixado na §0.2).
@@ -457,7 +466,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 100 `tests/cases`: 43 compilam; 55 ficam `PENDING` por nível
+- [x] anotar os 104 `tests/cases`: 62 compilam; 40 ficam `PENDING` por nível
       (`l2`, `l5`, `l6` e `l?` para as operações ainda sem nível) e 2 são negativos
       (check falha por design);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
@@ -531,7 +540,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | HIR + LLVM vertical | L0–L4 + L2.5 (`T?`/`var x;`): inteiros, controle de fluxo, funções, closures, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
+| **M6** | HIR + LLVM vertical | L0–L4 + L2.5 + L5a/L5b: inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado | 🟡 em andamento |
 | **M7** | Runtime completo | L5–L6: classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |

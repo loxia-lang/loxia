@@ -1,0 +1,12 @@
+# `val` só aceita a primeira atribuição, dentro do `init`.
+class C {
+  val x: Int;
+
+  init() {
+    this.x = 1;
+    this.x = 2;
+  }
+}
+
+C();
+# expect runtime error: Can't assign to immutable field 'x'.
