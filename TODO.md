@@ -62,14 +62,14 @@ lacuna que esta fila existe para não repetir.
          métodos/captura (**L5c**) e o `nil_aware` completo (união/`Any`, **L6**).
 5. [ ] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
-       (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5). Extração inicial feita:
-       `lower.py` coordena e os módulos `lower_model`/`lower_functions`/
-       `lower_variables`/`lower_optionals`/`lower_strings`/`lower_class_layout`/
-       `lower_class_codegen`/`lower_instances`/`lower_calls` cuidam das fases. Ainda falta reduzir os métodos grandes
-       (`_predeclare_classes`, `_class_declaration`, `_logical`) e então decidir se
-       uma HIR-lite (ADR-0049) é necessária. Critério de pronto: comportamento
-       idêntico, `make check` verde, nenhum método acima de ~80 linhas/15 nós de
-       decisão. Não iniciar L6 antes disso.
+       (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5).
+       - [x] extrair `model`, `functions`, `variables`, `optionals`, `strings`,
+         `class_layout`, `class_codegen`, `instances` e `calls`;
+       - [x] reduzir os métodos grandes; nenhum passa de ~65 linhas, e os piores
+         (`_type_desc`, `_plain_equality`) ficaram perto do limite de 15 nós;
+       - [ ] decidir, com o código já separado, se uma HIR-lite (ADR-0049) é necessária.
+       Critério de pronto: comportamento idêntico, `make check` verde, ABI do ADR-0048
+       intacta e a decisão HIR registrada. Não iniciar L6 antes disso.
 6. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
 7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e

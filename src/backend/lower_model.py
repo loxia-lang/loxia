@@ -175,8 +175,6 @@ class ClassLayout:
     super_layout: ClassLayout | None = None
     init_method: MethodLayout | None = None
     vtable_size: int = 0
-    descriptor: Any = None
-    vtable: Any = None
     ctor: Any = None
     instance_type: Any = None
 
@@ -201,13 +199,6 @@ class ClassLayout:
             return self.init
         if self.super_layout is not None:
             return self.super_layout.effective_init()
-        return None
-
-    def init_node_for_emit(self) -> Function | None:
-        if self.init_node is not None:
-            return self.init_node
-        if self.super_layout is not None:
-            return self.super_layout.init_node_for_emit()
         return None
 
     def field_count(self) -> int:
