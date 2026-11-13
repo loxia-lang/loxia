@@ -44,6 +44,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/any_box.lox",
         "tests/cases/any_casts.lox",
         "tests/cases/bitwise.lox",
+        "tests/cases/defaults_as_value.lox",
         "tests/cases/casts_math.lox",
         "tests/cases/bitwise_precedence.lox",
         "tests/cases/exponentiation.lox",
@@ -133,7 +134,6 @@ LEVELS: dict[str, tuple[str, ...]] = {
 PENDING: dict[str, str] = {
     # Check-clean, mas o backend ainda recusa (exit 65). O nível é a expectativa,
     # não uma promessa: o teste diferencial só roda o que está em LEVELS.
-    "tests/cases/defaults_as_value.lox": "l?",
     "tests/cases/enums.lox": "l6",
     "tests/cases/exceptions.lox": "l6",
     "tests/cases/for_in_capture.lox": "l6",

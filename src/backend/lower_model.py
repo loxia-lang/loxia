@@ -149,6 +149,7 @@ class Value:
     sig: FnSig | None = None
     optional: bool = False
     class_name: str | None = None
+    function: FunctionInfo | None = None
 
     @property
     def desc(self) -> TypeDesc:

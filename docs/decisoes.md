@@ -68,6 +68,7 @@ decisão.
 | Layout L5 | Instância `{ptr classe, campos base→derivada}`; vtable com prefixo e override no slot; `init` fora da vtable e `super.m` direto; bitmap de inicialização no MVP; classes locais suportadas. | [ADR-0043](adr/0043-layout-l5-classes.md) |
 | Identidade de classe | `is`/`as`/`except` comparam o **objeto de classe** e a cadeia de superclasses; ids inteiros só para vtable/mangling/tags; classes locais homônimas são distintas; rebinding segue o binding atual. | [ADR-0044](adr/0044-identidade-classe.md) |
 | Narrowing × backend | Lowering usa `storage_types` (declarado, sem narrowing); chamada/atribuição a campo/índice invalida refinos de campo/índice; `types` (fluxo) não define representação. | [ADR-0045](adr/0045-narrowing-representacao.md) |
+| L6g — defaults como valor | `Value`/`Binding` preservam `FunctionInfo`; chamada indireta preenche defaults no call site. | [ADR-0057](adr/0057-l6-defaults-as-value.md) |
 | L6f — math/parse | `math.*` em IR/helpers, `floor` etc. com validação de Float em Int, e parse estrito de `Int`/`Float` devolvendo `T?`. | [ADR-0056](adr/0056-l6-math-parse.md) |
 | L6e — `Any` | Unbox checado, `is`/`as` por tag/classe, igualdade dinâmica e `for-in` de tupla materializando `Any`; enums/exceções seguem. | [ADR-0055](adr/0055-l6-any-casts.md) |
 | L6d — tuplas | `LoxTuple` boxeada, literal/índice/`len`/igualdade/print e destructuring; `is/as`/`Any`/`for-in` de tupla seguem. | [ADR-0054](adr/0054-l6-tuplas.md) |

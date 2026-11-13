@@ -116,7 +116,9 @@ class CallLowering(LoweringBase):
             return self._call_optional(callee, expr)
 
         arguments = [self._expr(argument) for argument in expr.arguments]
-        sig = info.fn_sig if info is not None else callee.sig
+        effective = info if info is not None else callee.function
+        sig = effective.fn_sig if effective is not None else callee.sig
+        assert sig is not None
         count = len(arguments)
 
         minimum = sig.min_params
@@ -125,9 +127,9 @@ class CallLowering(LoweringBase):
             self._poison(expr.paren.line, self._arity_message(minimum, maximum, count))
             return self._zero_desc(sig.ret)
 
-        if info is not None:
+        if effective is not None:
             for index in range(count, maximum):
-                default = info.params[index].default
+                default = effective.params[index].default
                 assert default is not None
                 arguments.append(self._expr(default))
 

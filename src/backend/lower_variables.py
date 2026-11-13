@@ -39,6 +39,7 @@ class VariableLowering(LoweringBase):
             binding.sig,
             binding.optional,
             binding.class_name,
+            binding.function,
         )
 
     def _store_binding(self, binding: Binding, value: Value) -> None:
@@ -155,6 +156,7 @@ class VariableLowering(LoweringBase):
                     declared.fn,
                     declared.optional,
                     class_name=declared.class_name,
+                    function=value.function,
                 )
                 self._globals[stmt.name.lexeme] = binding
                 self.builder.store(value.llvm, binding.storage)
@@ -170,6 +172,7 @@ class VariableLowering(LoweringBase):
                 declared.fn,
                 declared.optional,
                 class_name=declared.class_name,
+                function=value.function,
             )
             self._globals[stmt.name.lexeme] = binding
             self.builder.store(value.llvm, global_)
@@ -186,6 +189,7 @@ class VariableLowering(LoweringBase):
                 declared.optional,
                 cell=True,
                 class_name=declared.class_name,
+                function=value.function,
             )
             return
 
@@ -199,6 +203,7 @@ class VariableLowering(LoweringBase):
             declared.fn,
             declared.optional,
             class_name=declared.class_name,
+            function=value.function,
         )
 
     def _variable(self, expr: Variable) -> Value:
@@ -208,17 +213,6 @@ class VariableLowering(LoweringBase):
             return self._zero(ValueType.INT)
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
-        if (
-            binding.function is not None
-            and binding.function.fn_sig.min_params
-            < len(binding.function.fn_sig.params)
-        ):
-            raise BackendError(
-                "Functions with default parameters as values are not supported by the "
-                "backend yet.",
-                expr.name.line,
-            )
-
         value = self._load_binding(binding)
         if value.ty in (ValueType.FUNCTION, ValueType.CLASS):
             return self._guard_closure(value, expr.name.lexeme, expr.name.line)
@@ -232,17 +226,6 @@ class VariableLowering(LoweringBase):
             return value
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
-        if (
-            binding.function is not None
-            and binding.function.fn_sig.min_params
-            < len(binding.function.fn_sig.params)
-        ):
-            raise BackendError(
-                "Functions with default parameters as values are not supported by the "
-                "backend yet.",
-                expr.name.line,
-            )
-
         value = self._coerce(value, binding.desc, expr.name.line)
         self._store_binding(binding, value)
 
