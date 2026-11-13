@@ -9,7 +9,8 @@ viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado s
 
 ## Pendências com direção já decidida
 
-- **Generics além do T3b:** classes/métodos genéricos, constraints/traits, type application
+- **Generics além do T3b:** classes/métodos genéricos, constraints (traits nominais
+  decididos, pós-MVP: [ADR-0038](docs/adr/0038-traits-nominais.md)), type application
   explícita, função genérica como valor, recursão polimórfica e variance declarada.
 - **Math:** `log`, `exp`, `sin`, `cos`, `tan`, `pow` e constantes (`math.pi`) dependem da
   libm; ficam fora do I3 até existir uma biblioteca determinística.
@@ -18,7 +19,7 @@ viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado s
 - **Diagnósticos:** spans/caret/stack trace e JSON determinístico (ver I-4).
 - **Variádicos:** `...args`/`*args` continua em avaliação (I-5).
 - **Iteráveis:** `..=`, `Iterable` de usuário e utilitários (`contains`, `sum`,
-  `enumerate`, `zip`) dependem de traits/tuplas (I-6).
+  `enumerate`, `zip`) dependem de traits (pós-MVP) e tuplas (prontas) (I-6).
 
 ## I-4 — Linguagem "agent-friendly": contratos + erros estruturados determinísticos
 
@@ -416,7 +417,7 @@ fn log(nivel: String, ...partes) { /* ... */ }
 ([ADR-0007](docs/adr/0007-ranges-e-iteracao.md)); resta:
 
 - `..=` e ranges inclusivos.
-- `Iterable` de usuário (depende de traits/`Option` para o fim do iterator).
+- `Iterable` de usuário (depende de traits nominais, pós-MVP, e `Option` para o fim do iterator).
 - `contains`, `sum`, `enumerate`, `zip` (stdlib + tuplas).
 - Iterar tuplas (adiado no ADR-0030; `for-in` em tupla dá erro explícito hoje).
 
@@ -464,7 +465,7 @@ I1/I3?
 
 - [ ] Qual caso de uso justifica? Sem `io`, sem perfil de CPU e sem cliente, é otimização
       sem demanda.
-- [ ] Data-parallel só sobre funções puras? Como o checker sabe? (traits/efeitos, T6+)
+- [ ] Data-parallel só sobre funções puras? Como o checker sabe? (efeitos; traits pós-MVP)
 - [ ] Workers com heap separado: como serializar `List`/`Map`/classes sem violar o I2?
 - [ ] `Task.all` vira o ponto de paralelismo implícito? (recomendo não: explícito, tipo
       `parallel map`)

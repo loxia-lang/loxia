@@ -34,7 +34,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
 - 📐 Próximo passo: **M5 (tipos v2)** — generalização, generics de classe/método,
-  constraints/traits, narrowing completo e exaustividade (TODO §9). O codegen está em
+  narrowing completo e exaustividade (TODO §9); traits e constraints ficam pós-MVP
+  ([ADR-0038](docs/adr/0038-traits-nominais.md)). O codegen está em
   L0–L3 e fica pausado no L4 até o M5 fechar; tuplas foram implementadas no
   interpretador/checker ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)) e ficam para o
   L6 no backend. T3a (assinaturas + recursão

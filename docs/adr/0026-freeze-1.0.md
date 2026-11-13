@@ -13,6 +13,9 @@
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)
 
+> **Atualização (ADR-0038, 2026-11-12):** traits foram decididos como nominais,
+> `implements` e com métodos default, mas continuam **pós-MVP**; `D-17` fechado.
+>
 > **Atualização (ADR-0027, 2026-11-12):** T3b entra como exceção explícita ao freeze:
 > funções genéricas com inferência, sem constraints, monomorfização no backend. Classes/
 > métodos genéricos, type application explícita, traits e funções genéricas como valor

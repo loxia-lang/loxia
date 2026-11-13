@@ -27,8 +27,8 @@ compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) dec
 casos por nível — **31 dos 83** golden cases compilam e **59** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
-valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6 vêm
-antes (regra do §9). Fora do M5, só correções do que já existe. **Depois do M5:** L4
+valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6a/T6c vêm
+antes (regra do §9); traits e constraints ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)). Fora do M5, só correções do que já existe. **Depois do M5:** L4
 (closures), L5 (objetos) e L6 (coleções/monomorfização); o pacote de diagnósticos
 (spans → caret → stack trace) volta junto com o codegen.
 
@@ -57,7 +57,7 @@ antes (regra do §9). Fora do M5, só correções do que já existe. **Depois do
       formatação ([ADR-0030](docs/adr/0030-tuplas.md), [ADR-0036](docs/adr/0036-tuplas-implementacao.md)).
 - [ ] `P2` tuplas no backend (L6) e pendentes `for x in t` / `is (A, B)`.
 - [ ] `P3` argumentos nomeados e destructuring de campos.
-- [ ] `P3` namespaces/imports, traits, extension methods, operator overloading,
+- [ ] `P3` namespaces/imports, traits nominais ([ADR-0038](docs/adr/0038-traits-nominais.md)), extension methods, operator overloading,
       `type` alias e `derive`.
 
 **Erros**
@@ -78,7 +78,9 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | **T3c** ❌ | parâmetro implícito foi implementado e **revertido**: omissão virava quantificação universal sem marcador, contra o [ADR-0020](docs/adr/0020-assinaturas-explicitas.md) ([ADR-0034](docs/adr/0034-t3c-revertido.md)) | — |
 | **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
 | **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
-| **T6** ⬜ | traits/protocolos estruturais e exaustividade no `match` | abstração |
+| **T6a** ⬜ | classes/métodos genéricos | bibliotecas |
+| **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
+| **T6c** ⬜ | `match`/enums e exaustividade | expressividade |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
 
 Pendências pontuais:
@@ -435,9 +437,9 @@ Infra já pronta: pytest (golden `.lox`; 857 pass + 8 `xfail`), ruff, mypy stric
 | variádicos `...args` | ⏳ | falta implementar |
 | trailing closure | ⏳ | falta implementar |
 | `type` alias | ⏳ | falta implementar |
-| generics + constraints/traits | ⏳ | funções T3b prontas; constraints depois de T4 |
+| generics + constraints | ⏳ | funções T3b prontas; constraints pós-MVP, junto de traits ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | uniões + narrowing | 🟡 | `T?`/`is`/`while` prontos; falta campos/índices e merge |
-| traits + `with` | ⏳ | depois de classes |
+| traits nominais + `implements` | ⏸ | decididos com métodos default; pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | operator overloading | ⏳ | depois de classes |
 | namespaces/import | ⏳ | necessário com stdlib |
 | `throw`/`try` | ⏳ | caro no LLVM |
@@ -459,7 +461,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M5** | Tipos v2 | T4–T6: generalização, classes/métodos genéricos, constraints/traits, narrowing completo e exaustividade — T4/T5 ✅, T3c rejeitado; falta T6 | 🟡 **em andamento** |
+| **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes/métodos genéricos, narrowing completo e exaustividade; traits/constraints ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) — T4/T5 ✅; faltam T6a/T6c | 🟡 **em andamento** |
 | **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
 | **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
@@ -467,7 +469,8 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 **Regra (revisada nesta sessão):** o codegen **pausa no L4** até o M5 fechar. L0–L3
 avançaram antes do M5 e foi seguro porque esse subconjunto já estava congelado (sem
-layout de classe, generics de classe ou traits); de L4 em diante o modelo de valores e os
+layout de classe ou generics de classe; traits nominais ficam pós-MVP e não bloqueiam o
+L4); de L4 em diante o modelo de valores e os
 layouts de tipo mudam, e L6 depende da monomorfização que só o M5 habilita. Se o M5 mudar
 a semântica de algo já compilado, o nível afetado volta para a fila com caso diferencial.
 
@@ -506,17 +509,18 @@ portão do ADR-0014. Paralelismo/multithread fica em avaliação no
 Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md); tipos:
 [`TIPOS.md`](TIPOS.md) §10.
 
-1. **Generics além de funções:** classes/métodos genéricos, constraints/traits, type
-   application explícita e função genérica como valor; monomorfização já decidida
-   ([ADR-0027](docs/adr/0027-generics-t3b.md)). É o núcleo do M5.
+1. **Generics além de funções:** classes/métodos genéricos, type application explícita e
+   função genérica como valor; monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).
+   É o núcleo do M5; constraints e traits nominais ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 2. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
 3. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
    transcendentais de `math` fora do I3.
-4. **Tuplas:** implementação pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
+4. **Constraints de generics e traits genéricos:** decisão de traits nominais/defaults já
+   registrada ([ADR-0038](docs/adr/0038-traits-nominais.md)); falta desenhar `T: Trait`,
+   coerência e o custo na monomorfização.
 5. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
-6. **`if`/bloco como expressão, `match`/enums e traits:** fora da 1.0; reavaliar depois
-   do M5.
+6. **`if`/bloco como expressão e `match`/enums:** fora da 1.0; reavaliar depois do M5.
 7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
 

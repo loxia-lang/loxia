@@ -30,7 +30,7 @@ Comportamento observável fica em [`docs/spec/`](docs/spec/); decisões fechadas
 | `Any` | `Any` | ✅ | escape hatch; o backend L0–L3 o rejeita |
 | `Never` | — | 🟡 | interno de fluxo (`return`/loop); sem `throw` público |
 | `Tuple` | `(1, "a")` / `(A, B)` | ✅ | 2+, imutável e covariante; `for-in`/`is` e backend L6 pendentes ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)) |
-| `Trait` | `trait Show` | ⬜ | nominal ou estrutural a decidir (`D-17`) |
+| `Trait` | `trait Show` | ⬜ | nominal, `implements`, métodos default; pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | `Enum`/ADT | `enum Cor { ... }` | ⬜ | com `match` exaustivo (P3) |
 | `Result[T, E]` | `Result` | ⬜ | erros como valor (P3) |
 
@@ -49,11 +49,14 @@ promoção só `Int → Float`, `/` sempre `Float`, `%` truncado, `//` só `Int`
 
 ### 2.2 Pendente (T6/T7)
 
-- **T6** — traits/protocolos e exaustividade de `match`.
+- **T6a** — classes/métodos genéricos.
+- **T6c** — `match`/enums e exaustividade.
+- **T6b** (pós-MVP) — traits nominais com `implements` e métodos default, e constraints
+  ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 - **T7** — monomorfização no codegen.
 
-T6 fecha o **M5** (TODO §9); o codegen fica pausado no L4 até ele fechar — L5/L6 dependem
-de layouts e monomorfização que só existem com tipos v2.
+T6a/T6c fecham o **M5** (TODO §9); traits não bloqueiam o L4 — são pós-MVP. O codegen
+segue pausado no L4 até o M5 fechar, porque L5/L6 dependem de layouts e monomorfização.
 
 ### 2.3 Performance
 
@@ -106,7 +109,7 @@ Implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)). **Em aberto**
 - Classes nominais, herança simples, `this` ([ADR-0008](docs/adr/0008-heranca-class-parens.md)).
 - Campos tipados com default opcional.
 - `enum` como ADT + `match` exaustivo (P3).
-- Traits: nominal ou estrutural? (`D-17`); começar nominal.
+- Traits: nominais, `implements` e métodos default; pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 - Conversões são `as`/`Int.parse` ([ADR-0029](docs/adr/0029-conversoes-math.md)); não há
   `to_int`/`to_float`.
 
@@ -132,9 +135,8 @@ Em aberto:
 | Id | Decisão | Opções | Recomendação |
 | --- | --- | --- | --- |
 | `D-2` | sufixos de literal | `1i64` / `1.0f32` / não ter | não ter por enquanto |
-| `D-17` | traits | nominal / estrutural | nominal |
 
-Fechadas: todas exceto `D-2` e `D-17` — ver ADRs e
+Fechadas: todas exceto `D-2` — ver ADRs e
 [`docs/decisoes.md`](docs/decisoes.md). `D-5`/`D-8` saíram daqui: implementados em
 [ADR-0028](docs/adr/0028-overflow-debug.md)/[ADR-0029](docs/adr/0029-conversoes-math.md).
 
@@ -142,7 +144,7 @@ Fechadas: todas exceto `D-2` e `D-17` — ver ADRs e
 
 | Fase | Entrega |
 | --- | --- |
-| **N6+** | tuplas, traits/enums, `Result`/`Option` explícito e stdlib |
+| **N6+** | traits nominais, enums, `Result`/`Option` explícito e stdlib |
 
 N0–N5 (números, anotações, T3/T4/T5 e codegen desboxado de `Int`/`Float`/`String`) estão
 fechados.

@@ -29,6 +29,7 @@ decisão.
 | Soundness do checker | Retorno em todos os caminhos para funções/métodos; `return;` não-nil é erro; todo campo sem inicializador precisa ser atribuído em todos os caminhos do `init`; override compatível (contravariante/covariante), checado depois de todas as classes. | [ADR-0023](adr/0023-soundness-do-checker.md) |
 | Mutação monomórfica | Variável tem um tipo só; `var x = nil` sem anotação é erro; use `T?`/`Any`; campo mutável com `nil` idem; `val x = nil` é permitido; sem união/flow-sensitive implícita. | [ADR-0024](adr/0024-mutacao-monomorfica.md) |
 | `is T` e narrowing | `x is T` devolve Bool; testa primitivos, classes/subclasses, `List[T]`/`Map[K,V]` e uniões; estreita variáveis e caminhos de campo/índice literal em `if`/`else`, `while`, `and`/`or`; tipos de função recusados. | [ADR-0025](adr/0025-is-e-narrowing.md), [ADR-0032](adr/0032-narrowing-campos-indices.md) |
+| Traits | **Nominais**: a classe declara `implements`; checker verifica assinaturas; métodos default fazem parte da v1 futura; sem constraints na v1. Implementação **pós-MVP**, fora do M5 (D-17 fechado). | [ADR-0038](adr/0038-traits-nominais.md) |
 | Freeze da 1.0 | Erro de runtime é fatal (exit 70), sem `try`/`Result`; `clock` sai do prelúdio; strings UTF-8 com `len` em code points (indexação de string fora da 1.0) e identificadores ASCII; `print` continua statement; escopo congelado (single-file, sem módulos/`if`-expr/`match`/traits/`Any` no backend); generics é a exceção do ADR-0027. | [ADR-0026](adr/0026-freeze-1.0.md) |
 | Generics T3b | Funções genéricas `fn id[T] (...)`, corpo checado uma vez sem constraints; inferência na chamada (sem `id[Int]`); só funções; monomorfização no backend; recursão polimórfica recusada; função genérica não é valor. | [ADR-0027](adr/0027-generics-t3b.md) |
 | Strings (texto) | Acesso a caractere por `chars(s) -> List[String]` (sem `s[i]`); `< <= > >=` por code point e `==`/`!=` por conteúdo; `len` em code points; sem normalização (`"é" != "e\\u{301}"`); identificadores ASCII; parse estrito sem `String.to_int`; builtins de string fora por ora. | [ADR-0035](adr/0035-strings-texto.md) |
@@ -68,6 +69,5 @@ decisão.
 ## O que ainda não está aqui
 
 Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`,
-futuro de classes/traits, exceções vs `Result`, **generics de classes/métodos e
-constraints**, módulos, contratos e unificação mutável continuam **em aberto** no
+exceções vs `Result`, **generics de classes/métodos e constraints**, módulos, contratos e unificação mutável continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).

@@ -77,17 +77,18 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Item | Ordem | Observação |
 | --- | --- | --- |
 | Backend LLVM L0–L3 | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
-| M5 — Tipos v2 (T3c/T4–T6) | **próximo** | bloqueia L4+ do codegen (TODO §9) |
+| M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | **próximo** | bloqueia L4+ do codegen (TODO §9); traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
 | Tuplas | ✅ feito | implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)); `for-in`/`is` e backend L6 pendentes |
-| Classes/métodos genéricos, constraints/traits | M5 | extensão do T3b |
+| Classes/métodos genéricos | M5 | extensão do T3b |
+| Traits nominais + constraints | pós-MVP | nominal, `implements`, métodos default ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | `match`/enums, exaustividade | M5 | depois de uniões |
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |
 | Async/await (`Task[T]`) | depois do M7 + I/O | direção no [ADR-0037](docs/adr/0037-async-direcao.md); colored, determinístico; não é paralelismo (IDEIAS I-7) |
 | Contratos (`requires`/`ensures`/`invariant`) e JSON | pós | ver I-4 no [`IDEIAS.md`](IDEIAS.md) |
 | `Result`/`Option`, `try`/`throw` | pós | 1.0 é erro fatal |
 | Variádicos, trailing closure, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
-| `type` alias, derive, operator overloading, extension methods, traits | pós | — |
+| `type` alias, derive, operator overloading, extension methods | pós | — |
 | `if`/bloco como expressão, `println` função, `loop`/`break` rotulado | pós | — |
 | Strings multilinha/raw, indexação de string, UTF-8 em identificadores | pós | — |
 | `log`/`exp`/`sin`/`cos`/`tan`/`pow`/`math.pi` | pós | libm não garante I3 |
