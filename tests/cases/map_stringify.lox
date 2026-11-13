@@ -1,10 +1,12 @@
 # Stringify: ordem de inserção, strings citadas e aninhamento.
-print {}
+val vazio: Map[String, Int] = {}
+val comLista: Map[String, List[Any]] = {"list": [1, "a"]}
+print vazio
 print {"a": "x", "b": "y"}
 print {1: true, 2: false}
 print {"quote": "a\"b", "newline": "a\nb"}
 print {"nested": {"x": 1}}
-print {"list": [1, "a"]}
+print comLista
 # expect: {}
 # expect: {"a": "x", "b": "y"}
 # expect: {1: true, 2: false}

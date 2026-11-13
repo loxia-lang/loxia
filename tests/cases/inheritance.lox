@@ -1,5 +1,5 @@
 class Doughnut {
-  cook() {
+  cook() -> Nil {
     print "Fry until golden brown.";
   }
 }

@@ -601,7 +601,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 info = self._classes.get(actual.name)
                 if info is None:
                     return False
-                signature = info.init or FnTy((), ClassTy(actual.name), 0)
+                signature = self._initializer(info) or FnTy(
+                    (), ClassTy(actual.name), 0
+                )
                 return self._assignable_fn(expected, signature)
             if isinstance(actual, NativeFnTy):
                 native_signature = self._native_signature(actual.name)
@@ -777,6 +779,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             name = info.superclass
 
         return None
+
+    def _initializer(self, info: ClassInfo) -> FnTy | None:
+        """`init` da classe ou o primeiro `init` herdado (o runtime herda)."""
+        if info.init is not None:
+            return info.init
+        if info.superclass is None:
+            return None
+        return self._find_method(info.superclass, "init")
 
     def _numeric(self, ty: Ty, token: Token) -> Ty:
         if ty is ANY:
@@ -1107,8 +1117,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._check_function_body(
             stmt,
             signature.fn,
-            None,
+            self._current_class,
             is_init=False,
+            preserve_class=True,
             type_params=signature.type_params,
             type_param_names=signature.type_param_names,
         )
@@ -2235,7 +2246,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             info = self._classes.get(callee.name)
             if info is None:
                 return None
-            return info.init or FnTy((), ClassTy(callee.name), 0)
+            return self._initializer(info) or FnTy((), ClassTy(callee.name), 0)
         if isinstance(callee, UnionTy):
             members = list(callee.members)
             if expr.optional:
@@ -2250,7 +2261,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 info = self._classes.get(member.name)
                 if info is None:
                     return None
-                return info.init or FnTy((), ClassTy(member.name), 0)
+                return self._initializer(info) or FnTy(
+                    (), ClassTy(member.name), 0
+                )
 
         return None
 
@@ -2288,7 +2301,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(expr.paren, f"Unknown class '{callable_ty.name}'.")
                 return ERROR
 
-            signature = info.init or FnTy((), ClassTy(callable_ty.name), 0)
+            signature = self._initializer(info) or FnTy(
+                (), ClassTy(callable_ty.name), 0
+            )
             self._check_call(expr.paren, signature, arguments)
             result = ClassTy(callable_ty.name)
         elif isinstance(callable_ty, FnTy):
@@ -2469,7 +2484,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         mapping: dict[TyVar, Ty] = dict(
             zip(info.type_params, fresh, strict=True)
         )
-        base = info.init or FnTy((), ClassTy(info.name, info.type_params), 0)
+        # `init` herdado: `B(A)` sem `init` chama o `init` de `A`, mas o resultado é
+        # uma instância de `B`. O template é sempre a própria classe.
+        initializer = self._initializer(info)
+        result_template = self._substitute(
+            ClassTy(info.name, info.type_params), mapping
+        )
+        base = initializer or FnTy((), result_template, 0)
         signature_ty = self._substitute(base, mapping)
         assert isinstance(signature_ty, FnTy)
         signature = signature_ty
@@ -2485,7 +2506,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             ):
                 bindings[variable] = expected_arg
         elif expected is not None and expected not in (ANY, ERROR):
-            self._unify(signature.ret, expected, bindings, token)
+            self._unify(result_template, expected, bindings, token)
 
         maximum = len(signature.params)
         minimum = signature.min_params
@@ -2514,7 +2535,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if actual is ERROR:
                 return ERROR
 
-        result = self._substitute(signature.ret, bindings)
+        result = self._substitute(result_template, bindings)
         unbound = self._unbound_type_vars(result, fresh)
         if unbound:
             names = ", ".join(f"'{member.name}'" for member in unbound)

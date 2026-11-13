@@ -26,8 +26,8 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 (ADR-0031): `Int`/`Float`/`Bool`/`nil`/`String`, `if`/`while`, variáveis, funções de topo
 com recursão, ternário/`and`/`or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e
 arena. O teste diferencial compara stdout, stderr e exit code; o manifesto
-(`tests/corpus_manifest.py`) declara os casos por nível — **31 dos 90** golden cases
-compilam e **64** passam no `--check`.
+(`tests/corpus_manifest.py`) declara os casos por nível — **33 dos 90** golden cases
+compilam; os 90 estão anotados (88 passam no `--check`, 2 são negativos por design).
 
 **Próximo — L4 (closures).** O M5 fechou, então o codegen pode retomar por L4 e L5
 (objetos), depois L6 (coleções/monomorfização). Antes de prometer I1 no nível, anotar o
@@ -81,7 +81,7 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | **T3c** ❌ | parâmetro implícito foi implementado e **revertido**: omissão virava quantificação universal sem marcador, contra o [ADR-0020](docs/adr/0020-assinaturas-explicitas.md) ([ADR-0034](docs/adr/0034-t3c-revertido.md)) | — |
 | **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
 | **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
-| **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos genéricos e herança de `Box[Int]` pendentes | bibliotecas |
+| **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); follow-ups (métodos, herança de `Box[Int]`, reificação) **adiados** (ver §10) | bibliotecas |
 | **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
 | **T6c** ✅ | `match`/enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)) | expressividade |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
@@ -93,7 +93,8 @@ Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.m
 - [x] checker: membros substituídos, `_assignable` invariante, `_unify` de `ClassTy`, interop com funções genéricas.
 - [x] runtime erasure, guards de `is`/`as` e rejeição 65 no backend.
 - [x] testes, golden `generic_class.lox` e docs.
-- [ ] depois do MVP: métodos genéricos (`fn map[U]`), herança de `Box[Int]` e `is/as` reificado.
+- Follow-ups do MVP (métodos genéricos, herança de `Box[Int]` e `is/as` reificado)
+  **adiados**: ver §10.
 
 Pendências pontuais:
 - [ ] `P2` merge completo em CFG e aliasing (chamada que muta campo não invalida); ver
@@ -102,8 +103,8 @@ Pendências pontuais:
       (unificação: `x * 2` liga a `Int`, `==` generaliza), em vez de universal por omissão;
       precisa de unificação no corpo e mensagens próprias ([ADR-0034](docs/adr/0034-t3c-revertido.md)).
 - [ ] `P3` flow-sensitive para `val` (uma atribuição só).
-- [ ] `P3` generics com constraints (`T with Show`), classes/métodos genéricos, type
-      application explícita (`id[Int] (1)`) e função genérica como valor.
+- [ ] `P3` generics com constraints (`T with Show`), type application explícita
+      (`id[Int] (1)`) e função genérica como valor.
 - [ ] `P3` inferência de retorno para funções com corpo de expressão.
 - [ ] `P3` `--check --json` com spans para editor/LSP.
 
@@ -399,14 +400,18 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar o primeiro lote de `tests/cases` (hoje 64 de 90 passam no `--check`;
-      31 compilam);
+- [x] anotar os 90 `tests/cases`: 33 compilam; os demais viram `PENDING` por nível
+      (`l2`/`l4`/`l5`/`l6`) e 2 são negativos (check falha por design);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
-- [ ] anotar os casos restantes (hoje 64 de 90 passam no `--check`; campos, listas/mapas
-      vazios e uniões) — nos níveis em que compilam (L5/L6), para não tipar sem testar;
-- [ ] anotar `exemplos/classes.lox` (o único dos 5 que falta);
-- [ ] anotar `tests/official/cases` (120 arquivos, um diretório por PR).
+- [x] meta-teste de classificação: todo caso está em `LEVELS`, `PENDING`, `NEGATIVE` ou
+      `UNANNOTATED`; `PENDING` passa no `--check` e falha no backend com 65, nunca
+      traceback/exit 1;
+- [x] anotar `exemplos/classes.lox`;
+- [x] anotar `tests/official/cases`: os 59 positivos passam no `--check` via camada
+      dinâmica (`Any`) em [`tests/official_annotations.py`](tests/official_annotations.py),
+      aplicada sobre a fonte adaptada (originais intactos); os 56 negativos esperam erro
+      e os `xfail` de campos dinâmicos ficam fora ([README](tests/official/README.md)).
 
 ```bash
 uv sync --extra llvm
@@ -506,6 +511,21 @@ portão do ADR-0014. Paralelismo/multithread fica em avaliação no
 - [ ] **`lox doc`** — gera docs a partir de comentários de documentação (ex.: `##`).
 - [ ] **Modo "strict"** vs "loose" para compatibilidade com Lox puro durante a transição.
 
+### Generics pós-MVP — adiados (2026-11-13)
+
+Nada aqui será feito por enquanto. Retomar só com dor demonstrada (um caso de uso real) ou
+quando T6b/constraints existirem; o desenho está no
+[ADR-0040](docs/adr/0040-generics-classes-desenho.md) §"Em aberto".
+
+- [ ] `fn map[U]` — métodos genéricos: a função livre cobre; sem constraints o corpo só usa
+      operações universais.
+- [ ] `class IntBox(Box[Int])` — herança de instanciação: composição cobre; exige
+      substituição em cadeia no checker e aumenta a superfície que o L5/L6 tem que
+      reproduzir (I1).
+- [ ] `is`/`as Box[Int]` — reificação: exige tipos em runtime (*witnesses*), conflita com o
+      erasure e com o tree-walk rodar sem `--check`; o erro explícito atual é o
+      comportamento correto.
+
 ---
 
 
@@ -515,8 +535,9 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
 [`TIPOS.md`](TIPOS.md).
 
 1. **Generics além de funções:** classes genéricas MVP feitas ([ADR-0040](docs/adr/0040-generics-classes-desenho.md));
-   faltam métodos genéricos, herança de `Box[Int]`, type application explícita e função
-   genérica como valor. Monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).
+   métodos genéricos, herança de `Box[Int]` e `is/as` reificado foram **adiados** (sem dor
+   demonstrada; ver §10). Continuam em aberto type application explícita e função genérica
+   como valor. Monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).
    Constraints e traits nominais ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 2. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
 3. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;

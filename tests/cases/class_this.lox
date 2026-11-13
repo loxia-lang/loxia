@@ -1,10 +1,10 @@
 class Pessoa {
-  var nome;
-  init(nome) {
+  var nome: String;
+  init(nome: String) {
     this.nome = nome;
   }
 
-  falar() {
+  falar() -> Nil {
     print this.nome;
   }
 }

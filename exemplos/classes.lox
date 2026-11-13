@@ -1,26 +1,26 @@
 # Classes, herança `class B(A)`, `super.init(...)`, `this` implícito e campo
 # que não vem de parâmetro.
 class Animal {
-  var nome;
-  var sexo;
-  init(nome) {
+  var nome: String;
+  var sexo: String;
+  init(nome: String) {
     this.nome = nome;
     this.sexo = "M";
   }
 
-  falar() {
+  falar() -> Nil {
     print this.nome + " faz um som.";
   }
 }
 
 class Cachorro(Animal) {
-  var raca;
-  init(nome, raca) {
+  var raca: String;
+  init(nome: String, raca: String) {
     super.init(nome);
     this.raca = raca;
   }
 
-  falar() {
+  falar() -> Nil {
     print this.nome + " late.";
   }
 }

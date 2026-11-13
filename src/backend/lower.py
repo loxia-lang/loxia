@@ -432,6 +432,21 @@ class Lowerer:
             )
 
         if len(self._scopes) == 1:
+            existing = self._globals.get(stmt.name.lexeme)
+            if existing is not None:
+                # Redeclaração de global (`var x = 1; var x = 2;`): o interpretador
+                # mantém um único binding e sobrescreve o valor; reusar o slot é o
+                # que preserva a leitura dinâmica em funções já compiladas.
+                if existing.ty is not declared:
+                    raise BackendError(
+                        f"Global '{stmt.name.lexeme}' was already declared as "
+                        f"{existing.ty.name}; redeclaring it as {declared.name} "
+                        "is not supported by the backend yet.",
+                        stmt.name.line,
+                    )
+                self.builder.store(value.llvm, existing.storage)
+                return
+
             name = f"g.{stmt.name.lexeme}"
             global_ = llvm_ir.global_variable(self.module, name, self._llvm_type(declared))
             self._globals[stmt.name.lexeme] = Binding(global_, declared)
@@ -824,13 +839,17 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(then_block)
         then_value = self._expr(expr.then_branch)
-        then_open = not self.builder.block.is_terminated
+        # O predecessor do merge é o bloco em que o branch para `end_block` é emitido,
+        # não o bloco inicial do ramo: um ternário aninhado termina em outro bloco.
+        then_end = self.builder.block
+        then_open = not then_end.is_terminated
         if then_open:
             self.builder.branch(end_block)
 
         self.builder = llvm_ir.builder(else_block)
         else_value = self._expr(expr.else_branch)
-        else_open = not self.builder.block.is_terminated
+        else_end = self.builder.block
+        else_open = not else_end.is_terminated
         if else_open:
             self.builder.branch(end_block)
 
@@ -852,8 +871,8 @@ class Lowerer:
 
         if then_open and else_open:
             merged = self.builder.phi(self._llvm_type(then_value.ty), "cond.value")
-            merged.add_incoming(then_value.llvm, then_block)
-            merged.add_incoming(else_value.llvm, else_block)
+            merged.add_incoming(then_value.llvm, then_end)
+            merged.add_incoming(else_value.llvm, else_end)
             return Value(then_value.ty, merged)
 
         if then_open:
@@ -903,7 +922,8 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(right_block)
         right = self._expr(expr.right)
-        right_open = not self.builder.block.is_terminated
+        right_end = self.builder.block
+        right_open = not right_end.is_terminated
         if right_open:
             self.builder.branch(end_block)
 
@@ -922,7 +942,7 @@ class Lowerer:
 
         merged = self.builder.phi(self._llvm_type(left.ty), "logical.value")
         merged.add_incoming(left.llvm, short_block)
-        merged.add_incoming(right.llvm, right_block)
+        merged.add_incoming(right.llvm, right_end)
         return Value(left.ty, merged)
 
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:

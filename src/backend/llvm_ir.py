@@ -40,8 +40,11 @@ def new_module(name: str = "lox") -> Any:
 
 
 def emit_text(module: Any) -> str:
-    """IR textual (`.ll`) do módulo, sem passar pelo parser do LLVM."""
-    return str(module)
+    """IR textual (`.ll`) do módulo, verificado antes de sair."""
+    text = str(module)
+    parsed = binding.parse_assembly(text)
+    parsed.verify()
+    return text
 
 
 def emit_object(module: Any) -> bytes:

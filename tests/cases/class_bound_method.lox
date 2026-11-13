@@ -1,10 +1,10 @@
 class Foo {
-  var x;
+  var x: Int;
   init() {
     this.x = 7;
   }
 
-  getX() {
+  getX() -> Int {
     return this.x;
   }
 }

@@ -1,16 +1,16 @@
 # Campos declarados são herdados; `var` continua mutável na subclasse.
 class A {
-  var x;
+  var x: Int;
 
-  init(x) {
+  init(x: Int) {
     this.x = x;
   }
 }
 
 class B(A) {
-  var y;
+  var y: Int;
 
-  init(x, y) {
+  init(x: Int, y: Int) {
     super.init(x);
     this.y = y;
   }

@@ -45,11 +45,82 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/return_in_loop.lox",
         "tests/cases/return_newline.lox",
         "tests/cases/same_line_semicolon.lox",
+        "tests/cases/ternary.lox",
         "tests/cases/val_params.lox",
         "tests/cases/val_var.lox",
+        "tests/cases/var_redeclare.lox",
         "tests/cases/while.lox",
     ),
 }
+
+
+PENDING: dict[str, str] = {
+    # Check-clean, mas o backend ainda recusa (exit 65). O nível é a expectativa,
+    # não uma promessa: o teste diferencial só roda o que está em LEVELS.
+    "tests/cases/bitwise.lox": "l?",
+    "tests/cases/bitwise_precedence.lox": "l?",
+    "tests/cases/casts_math.lox": "l?",
+    "tests/cases/class_bound_method.lox": "l5",
+    "tests/cases/class_fields.lox": "l5",
+    "tests/cases/class_initializer.lox": "l5",
+    "tests/cases/class_this.lox": "l5",
+    "tests/cases/classes.lox": "l5",
+    "tests/cases/closure_static_scope.lox": "l4",
+    "tests/cases/closures.lox": "l4",
+    "tests/cases/default_params.lox": "l5",
+    "tests/cases/enums.lox": "l6",
+    "tests/cases/exceptions.lox": "l6",
+    "tests/cases/exponentiation.lox": "l?",
+    "tests/cases/fields_inheritance.lox": "l5",
+    "tests/cases/fields_val_var.lox": "l5",
+    "tests/cases/for_in.lox": "l6",
+    "tests/cases/for_in_capture.lox": "l6",
+    "tests/cases/functions.lox": "l4",
+    "tests/cases/generic_class.lox": "l6",
+    "tests/cases/generics.lox": "l6",
+    "tests/cases/inheritance.lox": "l5",
+    "tests/cases/inheritance_init.lox": "l5",
+    "tests/cases/inheritance_override.lox": "l5",
+    "tests/cases/inheritance_super_init.lox": "l5",
+    "tests/cases/interpolation.lox": "l6",
+    "tests/cases/list_cycle.lox": "l6",
+    "tests/cases/list_equality.lox": "l6",
+    "tests/cases/list_index.lox": "l6",
+    "tests/cases/list_iteration.lox": "l6",
+    "tests/cases/list_literal.lox": "l6",
+    "tests/cases/list_methods.lox": "l6",
+    "tests/cases/list_stringify.lox": "l6",
+    "tests/cases/local_function.lox": "l4",
+    "tests/cases/map_cycle.lox": "l6",
+    "tests/cases/map_equality.lox": "l6",
+    "tests/cases/map_iteration.lox": "l6",
+    "tests/cases/map_keys.lox": "l6",
+    "tests/cases/map_literal.lox": "l6",
+    "tests/cases/map_methods.lox": "l6",
+    "tests/cases/map_stringify.lox": "l6",
+    "tests/cases/nil_aware.lox": "l5",
+    "tests/cases/one_line_block.lox": "l5",
+    "tests/cases/optional_semicolons.lox": "l5",
+    "tests/cases/range_value.lox": "l6",
+    "tests/cases/result.lox": "l6",
+    "tests/cases/str_repr.lox": "l6",
+    "tests/cases/string_chars.lox": "l?",
+    "tests/cases/super.lox": "l5",
+    "tests/cases/super_with_this.lox": "l5",
+    "tests/cases/tuple_destructure.lox": "l6",
+    "tests/cases/tuple_iteration.lox": "l6",
+    "tests/cases/tuples.lox": "l6",
+    "tests/cases/typed_functions.lox": "l5",
+    "tests/cases/variables.lox": "l2",
+}
+
+NEGATIVE: frozenset[str] = frozenset(
+    {
+        # Casos que existem para provar erro de sintaxe: `--check` deve falhar.
+        "tests/cases/reserved_async.lox",
+        "tests/cases/reserved_await.lox",
+    }
+)
 
 
 def all_cases() -> list[tuple[str, str]]:

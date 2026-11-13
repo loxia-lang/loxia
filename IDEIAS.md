@@ -9,9 +9,11 @@ viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado s
 
 ## Pendências com direção já decidida
 
-- **Generics além do T3b:** classes/métodos genéricos, constraints (traits nominais
-  decididos, pós-MVP: [ADR-0038](docs/adr/0038-traits-nominais.md)), type application
-  explícita, função genérica como valor, recursão polimórfica e variance declarada.
+- **Generics além do T3b:** classes genéricas MVP feitas; **métodos genéricos, herança de
+  `Box[Int]` e `is/as` reificado adiados** ([TODO.md](TODO.md) §10). Continuam em avaliação
+  constraints (traits nominais decididos, pós-MVP:
+  [ADR-0038](docs/adr/0038-traits-nominais.md)), type application explícita, função
+  genérica como valor, recursão polimórfica e variance declarada.
 - **Math:** `log`, `exp`, `sin`, `cos`, `tan`, `pow` e constantes (`math.pi`) dependem da
   libm; ficam fora do I3 até existir uma biblioteca determinística.
 - **Módulos/stdlib:** `std.*`, `io`, `string`, `collections` e `time` explicitamente não

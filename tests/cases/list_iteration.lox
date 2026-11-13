@@ -6,7 +6,8 @@ for x in xs {
 }
 print total
 
-for x in [] {
+val vazia: List[Int] = []
+for x in vazia {
   print x
 }
 print "done"

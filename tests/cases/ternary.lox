@@ -13,3 +13,6 @@ print (1 if true else efeito(2))       # expect: 1
 print (efeito(2) if false else 3)      # expect: 3
 val x = 10 if n > 3 else 20
 print x                               # expect: 10
+print (1 if true else (2 if false else 3))            # expect: 1
+print ((1 if false else 2) if true else 3)            # expect: 2
+print ((1 if true else 0) and (10 if false else 20))  # expect: 20

@@ -10,8 +10,9 @@ arquivo não descreve o que já funciona.
 
 T6a/T6c foram implementados; restam no pós-MVP:
 
-- **T6a (restante)** — métodos genéricos (`fn map[U]`) e herança de `Box[Int]`
-  ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)).
+- **T6a (restante)** — métodos genéricos (`fn map[U]`), herança de `Box[Int]` e `is/as`
+  reificado: **adiados** por decisão ([TODO.md](TODO.md) §10;
+  [ADR-0040](docs/adr/0040-generics-classes-desenho.md)).
 - **T6b** — traits nominais (`implements`, métodos default) e constraints
   ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 

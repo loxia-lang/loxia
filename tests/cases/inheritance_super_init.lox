@@ -1,14 +1,14 @@
 # Subclasse com `init` chama `super.init(...)` explicitamente.
 class Animal {
-  var nome;
-  init(nome) {
+  var nome: String;
+  init(nome: String) {
     this.nome = nome;
   }
 }
 
 class Cachorro(Animal) {
-  var raca;
-  init(nome, raca) {
+  var raca: String;
+  init(nome: String, raca: String) {
     super.init(nome);
     this.raca = raca;
   }

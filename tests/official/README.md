@@ -30,11 +30,16 @@ hora:
    stderr/exit 70, `// [line N] Error...` → erro de compilação/exit 65;
 8. `clock` foi removido da 1.0 ([ADR-0026](../../docs/adr/0026-freeze-1.0.md)); em
    `function/print.lox`, ele é trocado por `len`, que também imprime `<native fn>`.
+9. para o `--check`, [`../official_annotations.py`](../official_annotations.py) aplica uma
+   camada dinâmica (`Any`) sobre a fonte adaptada — os `.lox` originais continuam
+   intactos. [`../test_official_check.py`](../test_official_check.py) cobre os **59
+   positivos**; os 56 negativos esperam erro (e não são anotáveis) e os 7 `xfail` de campo
+   dinâmico + `parenthesized_superclass` ficam fora.
 
-Resultado atual: **120 casos, 112 passando e 8 `xfail`**. Não é uma suíte de conformidade:
-é uma rede extra para o interpretador, especialmente para funções, closures, classes,
-herança, `super` e `this`. As diferenças estão no
-[ADR-0009](../../docs/adr/0009-defaults-e-campos.md) e no
+Resultado atual: **120 casos, 112 passando e 8 `xfail`**; **59 positivos passam no
+`--check`**. Não é uma suíte de conformidade: é uma rede extra para o interpretador,
+especialmente para funções, closures, classes, herança, `super` e `this`. As diferenças
+estão no [ADR-0009](../../docs/adr/0009-defaults-e-campos.md) e no
 [ADR-0011](../../docs/adr/0011-fn-elif-ponto-e-virgula.md).
 
 Rodar:

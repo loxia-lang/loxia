@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.corpus_manifest import LEVELS
+from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
 
 MANIFEST_CASES = [
     (level, case) for level, cases in LEVELS.items() for case in cases
@@ -230,6 +230,60 @@ def test_manifesto_referencia_casos_existentes() -> None:
     for cases in LEVELS.values():
         for case in cases:
             assert (ROOT / case).exists(), case
+
+
+CASES_DIR = ROOT / "tests" / "cases"
+
+
+def _corpus_paths() -> set[str]:
+    return {
+        path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lox")
+    }
+
+
+def test_corpus_classificado() -> None:
+    """Todo caso está em LEVELS, PENDING ou NEGATIVE (sem sobra)."""
+    paths = _corpus_paths()
+    levels = {case for cases in LEVELS.values() for case in cases}
+    pending = set(PENDING)
+    negative = set(NEGATIVE)
+
+    assert levels | pending | negative == paths
+    assert len(levels) + len(pending) + len(negative) == len(paths)
+    for case, level in PENDING.items():
+        assert level in {"l2", "l4", "l5", "l6", "l?"}, case
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(
+    ("case", "level"),
+    sorted(PENDING.items()),
+    ids=[f"{level}-{Path(case).stem}" for case, level in sorted(PENDING.items())],
+)
+def test_pendente_check_limpo_e_recusado_pelo_backend(
+    case: str, level: str, tmp_path: Path
+) -> None:
+    """PENDING: `--check` passa, o backend recusa com 65 e nunca vaza traceback."""
+    path = ROOT / case
+    assert path.exists(), case
+
+    checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+    assert checked.returncode == 0, checked.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 65, result.stderr
+    assert "not supported by the backend yet" in result.stderr, result.stderr
+    assert "Traceback" not in result.stderr, result.stderr
+    assert not binary.exists()
+
+
+@pytest.mark.parametrize(
+    "case", sorted(NEGATIVE), ids=[Path(case).stem for case in sorted(NEGATIVE)]
+)
+def test_caso_negativo_continua_falhando_no_check(case: str) -> None:
+    result = _run([sys.executable, str(ENTRYPOINT), "--check", str(ROOT / case)])
+    assert result.returncode == 65, result.stdout
+    assert "Traceback" not in result.stderr, result.stderr
 
 
 @pytest.mark.backend

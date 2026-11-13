@@ -1,9 +1,10 @@
 # Interpolação: qualquer expressão, convertida com stringify.
 val nome = "Ana"
+val misto: List[Any] = [1, "a"]
 print "Oi, ${nome}!"
 print "1 + 2 = ${1 + 2}"
 print "mapa: ${{"a": 1}}"
-print "lista: ${[1, "a"]}"
+print "lista: ${misto}"
 print "nil: ${nil}"
 print "bool: ${true}"
 print "escape: \${nome}"

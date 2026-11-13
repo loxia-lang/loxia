@@ -11,6 +11,30 @@ def check(source: str) -> Lox:
     return lox
 
 
+def test_this_inside_local_function_is_lexical() -> None:
+    lox = check(
+        """
+        class Foo {
+          getClosure() -> fn() -> String {
+            fn closure() -> String {
+              return this.toString();
+            }
+            return closure;
+          }
+
+          toString() -> String {
+            return "Foo";
+          }
+        }
+
+        val f = Foo().getClosure();
+        print f();
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
 def test_annotated_program_is_clean() -> None:
     source = """
     fn soma(a: Int, b: Int = 10) -> Int {

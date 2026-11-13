@@ -1,11 +1,11 @@
 class A {
-  method() {
+  method() -> Nil {
     print "A";
   }
 }
 
 class B(A) {
-  method() {
+  method() -> Nil {
     print "B";
   }
 }

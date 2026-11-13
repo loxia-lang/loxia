@@ -543,7 +543,7 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   direita: uma lambda antes do argumento que fixa `T` precisa de anotação. Não há
   `id[Int] (1)` nem função genérica como valor (`val f = id` é erro); zero-arg exige
   contexto (`val xs: List[Int] = empty();`). Recursão com os mesmos argumentos de tipo é
-  permitida; recursão polimórfica é recusada. Classes/métodos genéricos ainda não existem.
+  permitida; recursão polimórfica é recusada. Métodos genéricos ainda não existem.
   O runtime apaga `T`; o backend monomorfiza (ADR-0027). Ver
   [ADR-0027](../adr/0027-generics-t3b.md).
 - Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo

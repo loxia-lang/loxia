@@ -1,16 +1,16 @@
 class Pessoa {
-  var nome
-  init(nome) {
+  var nome: String?
+  init(nome: String?) {
     this.nome = nome
   }
 
-  tamanho() {
+  tamanho() -> Int {
     return 10
   }
 }
 
 var efeitos = 0
-fn efeito() {
+fn efeito() -> Int {
   efeitos = efeitos + 1
   return 1
 }
@@ -29,10 +29,10 @@ print 1 ?? efeito()                # expect: 1
 print efeitos                      # expect: 0
 
 class C {
-  m(x) {
+  m(x: Int) -> Int {
     return x
   }
 }
-val c = nil
+val c: C? = nil
 print c?.m(efeito()) ?? "nada"     # expect: nada
 print efeitos                      # expect: 0

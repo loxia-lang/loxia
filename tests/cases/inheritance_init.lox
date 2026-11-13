@@ -1,6 +1,6 @@
 class A {
-  var x;
-  init(x) {
+  var x: Int;
+  init(x: Int) {
     this.x = x;
   }
 }
