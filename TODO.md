@@ -21,7 +21,7 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **109 golden cases** (97 compilam, 10 `PENDING`
+vale o que está aqui. Estado em 2026-11-13: **110 golden cases** (98 compilam, 10 `PENDING`
 por nível, 2 negativos), corpus oficial anotado, backend em **L0–L5 + T7 + L6a (Range/for-in/escalares)**, M5
 fechado e ADRs 0043–0050 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
@@ -504,7 +504,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 109 `tests/cases`: 97 compilam; 10 ficam `PENDING` por nível
+- [x] anotar os 109 `tests/cases`: 98 compilam; 10 ficam `PENDING` por nível
       (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
       design);
 - [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;

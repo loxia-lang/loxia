@@ -67,10 +67,41 @@ class RangeLowering(LoweringBase):
         if iterable.ty is ValueType.MAP:
             self._for_map(stmt, iterable)
             return
+        if iterable.ty is ValueType.TUPLE:
+            self._for_tuple(stmt, iterable)
+            return
         raise _unsupported(
             "for-in over this value (List/Map/tuple are later in L6)",
             stmt.name.line,
         )
+
+    def _for_tuple(self, stmt: ForIn, iterable: Value) -> None:
+        index = self.builder.alloca(_INT, name="for.tuple")
+        self.builder.store(llvm_ir.constant(_INT, 0), index)
+        length = self.builder.call(
+            self._function("lox_tuple_len", _INT, [_I8_PTR]), [iterable.llvm]
+        )
+
+        def condition() -> Any:
+            return self.builder.icmp_signed("<", self.builder.load(index), length)
+
+        def load() -> Any:
+            return self.builder.call(
+                self._function("lox_tuple_get", self._any_type(), [_I8_PTR, _INT, _I32]),
+                [
+                    iterable.llvm,
+                    self.builder.load(index),
+                    llvm_ir.constant(_I32, stmt.name.line),
+                ],
+            )
+
+        def advance() -> None:
+            self.builder.store(
+                self.builder.add(self.builder.load(index), llvm_ir.constant(_INT, 1)),
+                index,
+            )
+
+        self._for_loop(stmt, TypeDesc(ValueType.ANY), condition, load, advance)
 
     def _for_map(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.map")

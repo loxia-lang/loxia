@@ -614,6 +614,22 @@ void *lox_chars(const void *pointer) {
     return list;
 }
 
+
+int lox_any_equal(int64_t left_tag, int64_t left_payload, int64_t right_tag,
+                  int64_t right_payload) {
+    LoxValue left = {left_tag, left_payload};
+    LoxValue right = {right_tag, right_payload};
+    return lox_value_equal(left, right);
+}
+
+int lox_tuple_is2(const void *pointer, int64_t tag0, int64_t tag1) {
+    const LoxTuple *tuple = pointer;
+    if (tuple->count != 2) {
+        return 0;
+    }
+    return tuple->items[0].tag == tag0 && tuple->items[1].tag == tag1;
+}
+
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;

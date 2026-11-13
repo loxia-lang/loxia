@@ -129,6 +129,9 @@ class LoweringBase:
     def _chars(self, expr: Call) -> Value:
         raise NotImplementedError
 
+    def _unbox_any(self, value: Value, desc: TypeDesc, line: int | None) -> Value:
+        raise NotImplementedError
+
     def _instantiate_class(
         self, name: str, args: tuple[Ty, ...], line: int | None
     ) -> TypeDesc:

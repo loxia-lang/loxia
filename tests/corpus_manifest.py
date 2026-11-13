@@ -42,6 +42,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
     ),
     "l6": (
         "tests/cases/any_box.lox",
+        "tests/cases/any_casts.lox",
         "tests/cases/bitwise.lox",
         "tests/cases/bitwise_precedence.lox",
         "tests/cases/exponentiation.lox",

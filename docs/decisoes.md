@@ -68,6 +68,7 @@ decisão.
 | Layout L5 | Instância `{ptr classe, campos base→derivada}`; vtable com prefixo e override no slot; `init` fora da vtable e `super.m` direto; bitmap de inicialização no MVP; classes locais suportadas. | [ADR-0043](adr/0043-layout-l5-classes.md) |
 | Identidade de classe | `is`/`as`/`except` comparam o **objeto de classe** e a cadeia de superclasses; ids inteiros só para vtable/mangling/tags; classes locais homônimas são distintas; rebinding segue o binding atual. | [ADR-0044](adr/0044-identidade-classe.md) |
 | Narrowing × backend | Lowering usa `storage_types` (declarado, sem narrowing); chamada/atribuição a campo/índice invalida refinos de campo/índice; `types` (fluxo) não define representação. | [ADR-0045](adr/0045-narrowing-representacao.md) |
+| L6e — `Any` | Unbox checado, `is`/`as` por tag/classe, igualdade dinâmica e `for-in` de tupla materializando `Any`; enums/exceções seguem. | [ADR-0055](adr/0055-l6-any-casts.md) |
 | L6d — tuplas | `LoxTuple` boxeada, literal/índice/`len`/igualdade/print e destructuring; `is/as`/`Any`/`for-in` de tupla seguem. | [ADR-0054](adr/0054-l6-tuplas.md) |
 | L6c — mapas | `Map` com entradas boxeadas, ordem de inserção, chaves Bool/Int/String distintas, `get`/`has`/`remove`/`keys`/`values`, igualdade independente de ordem e ciclos. | [ADR-0053](adr/0053-l6-mapas.md) |
 | L6b — listas | `List` como ponteiro para `LoxList` com elementos boxeados; literais, índice, `push`/`pop`, `len`, `for-in`, igualdade e stringify; igualdade promove números e ciclos usam identidade. | [ADR-0052](adr/0052-l6-listas.md) |

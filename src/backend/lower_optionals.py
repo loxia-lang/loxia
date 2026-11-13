@@ -331,7 +331,7 @@ class OptionalLowering(LoweringBase):
             return self._box_value(value, line)
 
         if value.ty is ValueType.ANY:
-            raise _unsupported("Unboxing Any implicitly", line)
+            return self._unbox_any(value, expected, line)
 
         if expected.optional:
             if value.ty is ValueType.NIL:

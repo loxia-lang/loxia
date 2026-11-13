@@ -135,6 +135,12 @@ class ContainerLowering(LoweringBase):
 
     def _list_get(self, expr: Index) -> Value:
         obj = self._expr(expr.object)
+        if obj.ty is ValueType.ANY:
+            narrowed = self.types.get(expr.object)
+            if narrowed is not None:
+                obj = self._unbox_any(
+                    obj, self._type_desc(narrowed, expr.bracket.line), expr.bracket.line
+                )
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
         if obj.ty is ValueType.MAP:
@@ -315,6 +321,9 @@ class ContainerLowering(LoweringBase):
             "!=", call, llvm_ir.constant(_I32, 0)
         )
         return Value(ValueType.BOOL, result)
+
+    def _unbox_any(self, value: Value, desc: TypeDesc, line: int | None) -> Value:
+        return self._unbox_value(value.llvm, desc, line)
 
     def _unbox_value(self, raw: Any, desc: TypeDesc, line: int | None) -> Value:
         tag = self.builder.extract_value(raw, 0)

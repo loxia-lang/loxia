@@ -779,6 +779,24 @@ class Lowerer(
     ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
+        if left.ty is ValueType.ANY or right.ty is ValueType.ANY:
+            left_boxed = self._box_value(left, None)
+            right_boxed = self._box_value(right, None)
+            left_tag = self.builder.extract_value(left_boxed.llvm, 0)
+            left_payload = self.builder.extract_value(left_boxed.llvm, 1)
+            right_tag = self.builder.extract_value(right_boxed.llvm, 0)
+            right_payload = self.builder.extract_value(right_boxed.llvm, 1)
+            result = self.builder.call(
+                self._function("lox_any_equal", _I32, [_INT, _INT, _INT, _INT]),
+                [left_tag, left_payload, right_tag, right_payload],
+            )
+            compared = self.builder.icmp_signed(
+                "!=", result, llvm_ir.constant(_I32, 0)
+            )
+            if not equal:
+                compared = self.builder.not_(compared)
+            return Value(ValueType.BOOL, compared)
+
         if left.ty is ValueType.TUPLE and right.ty is ValueType.TUPLE:
             equal_value = self._tuple_equal(left, right).llvm
             if not equal:

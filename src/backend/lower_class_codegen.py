@@ -27,7 +27,7 @@ from src.backend.lower_model import (
 )
 from src.frontend.expr import As, Is, Super, This
 from src.frontend.stmt import Class
-from src.frontend.ty import Ty
+from src.frontend.ty import TupleTy, Ty
 
 
 class ClassCodegenLowering(LoweringBase):
@@ -441,13 +441,77 @@ class ClassCodegenLowering(LoweringBase):
         )
 
     def _is_expr(self, expr: Is) -> Value:
+        target_desc = self._type_desc(expr.test_type, expr.operator.line)
+        value = self._expr(expr.left)
+        if value.ty is ValueType.ANY:
+            return self._is_any(value, expr.test_type, target_desc, expr.operator.line)
+        if isinstance(expr.test_type, TupleTy):
+            actual = self.types.get(expr.left)
+            if isinstance(actual, TupleTy) and len(actual.items) == len(expr.test_type.items):
+                matches = all(
+                    self._type_desc(left, None).same_as(self._type_desc(right, None))
+                    for left, right in zip(
+                        actual.items, expr.test_type.items, strict=True
+                    )
+                )
+                return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(matches)))
+            return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
         target = self._target_class(expr.test_type, expr.operator.line)
-        return self._is_instance(
-            self._expr(expr.left), target, expr.operator.line
+        return self._is_instance(value, target, expr.operator.line)
+
+    def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
+        tag = self.builder.extract_value(value.llvm, 0)
+        payload = self.builder.extract_value(value.llvm, 1)
+        if isinstance(target, TypeDesc) and target.ty is ValueType.INSTANCE:
+            instance = Value(
+                ValueType.INSTANCE,
+                self.builder.inttoptr(payload, _I8_PTR),
+                class_name=target.class_name,
+            )
+            return self._is_instance(instance, target.class_name or "", line)
+        return Value(
+            ValueType.BOOL,
+            self.builder.icmp_signed(
+                "==", tag, llvm_ir.constant(_INT, self._tag_of(target))
+            ),
         )
+
+    def _tag_of(self, desc: TypeDesc) -> int:
+        from src.backend.lower_model import (
+            ANY_TAG_BOOL,
+            ANY_TAG_CLASS,
+            ANY_TAG_FLOAT,
+            ANY_TAG_FUNCTION,
+            ANY_TAG_INSTANCE,
+            ANY_TAG_INT,
+            ANY_TAG_LIST,
+            ANY_TAG_MAP,
+            ANY_TAG_NIL,
+            ANY_TAG_RANGE,
+            ANY_TAG_STRING,
+            ANY_TAG_TUPLE,
+        )
+
+        return {
+            ValueType.INT: ANY_TAG_INT,
+            ValueType.FLOAT: ANY_TAG_FLOAT,
+            ValueType.BOOL: ANY_TAG_BOOL,
+            ValueType.STRING: ANY_TAG_STRING,
+            ValueType.NIL: ANY_TAG_NIL,
+            ValueType.CLASS: ANY_TAG_CLASS,
+            ValueType.INSTANCE: ANY_TAG_INSTANCE,
+            ValueType.FUNCTION: ANY_TAG_FUNCTION,
+            ValueType.RANGE: ANY_TAG_RANGE,
+            ValueType.LIST: ANY_TAG_LIST,
+            ValueType.MAP: ANY_TAG_MAP,
+            ValueType.TUPLE: ANY_TAG_TUPLE,
+        }[desc.ty]
 
     def _as_expr(self, expr: As) -> Value:
         target_desc = self._type_desc(expr.target_type, expr.operator.line)
+        value = self._expr(expr.left)
+        if value.ty is ValueType.ANY:
+            return self._unbox_any(value, target_desc, expr.operator.line)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
             if value.optional:
@@ -475,7 +539,6 @@ class ClassCodegenLowering(LoweringBase):
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
         target = self._target_class(expr.target_type, expr.operator.line)
-        value = self._expr(expr.left)
         if value.optional:
             value = self._unwrap(
                 value,
