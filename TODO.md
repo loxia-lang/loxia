@@ -54,7 +54,8 @@ antes (regra do §9). Fora do M5, só correções do que já existe. **Depois do
 - [ ] `P2` variádicos (`fn log(nivel, ...args)`); ver [`IDEIAS.md`](IDEIAS.md) I-5.
 - [ ] `P2` trailing closure (`lista.map { |x| x * 2 }`) — depois do conflito com `{}`.
 - [ ] `P2` tuplas: implementar a sintaxe do [ADR-0030](docs/adr/0030-tuplas.md)
-      (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), pós-1.0/backend.
+      (`(a,b)`, `(A,B)`, `t[0]`, `val (a,b) = t`), pós-1.0/backend; ficaram adiados
+      `for x in t`, `is (A, B)` e `var (a,b) = t`.
 - [ ] `P3` argumentos nomeados e destructuring de campos.
 - [ ] `P3` namespaces/imports, traits, extension methods, operator overloading,
       `type` alias e `derive`.

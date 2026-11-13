@@ -67,18 +67,13 @@ Sem decisões de tipo em aberto: decisões e comportamento estão no
 [`docs/spec/semantica.md`](docs/spec/semantica.md). Fora deste catálogo: strings
 multilinha/raw (TODO §1) e builtins de string (stdlib).
 
-## 4. Listas, mapas e tuplas
+## 4. Tuplas
 
-- **`List[T]`** — homogênea, mutável in-place e invariante; literal, índice/atribuição,
-  `push`/`pop`, `len`, `for-in`, igualdade estrutural; lista vazia exige contexto
-  ([ADR-0015](docs/adr/0015-listas-tipadas.md)).
-- **`Map[K, V]`** — homogêneo, mutável e invariante; `m[k]` erra se ausente, `m.get(k)`
-  devolve `V?`; `has`/`remove`/`keys`/`values`; iteração de chaves em ordem de inserção;
-  igualdade estrutural sem ordem; não é hashável ([ADR-0017](docs/adr/0017-mapas-hash.md)).
-- **`Tuple`** — aridade 2+, imutável, `t[0]` e destructuring `val (a,b) = t`; implementação
-  pós-1.0/backend ([ADR-0030](docs/adr/0030-tuplas.md)).
-- Variância: invariante (`List[Int]` não é `List[Float]`); `Any` é escape explícito, não
-  supertipo.
+Sintaxe e semântica decididas ([ADR-0030](docs/adr/0030-tuplas.md)); implementação
+pós-1.0/backend. **Em aberto**, para decidir junto da implementação:
+
+- `for x in t` — elementos heterogêneos; iterar exige a união dos tipos ou recusa.
+- `is (A, B)` — checagem por posição em tempo de execução.
 
 ## 5. `nil`, `Option` e `Result`
 
