@@ -44,8 +44,10 @@ lacuna que esta fila existe para não repetir.
        (`{i1, T}`), `var x: T?;`, `nil` contextual e unwrap checado
        ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `variables.lox`
        promovido. `var x: Int;` sem init segue `PENDING` no L6.
-2. [ ] **Atribuir nível às operações escalares restantes**: `**`, bits, `as`/`math.*`,
-       `chars`, `repr` de `List`/`Map`; decidir L4 × L6 e adicionar ao manifesto.
+2. [x] **Atribuir nível às operações escalares restantes**: decisão **L6** para
+       `**`, bits, `as`/`math.*` e `chars`; `repr` de `List`/`Map` também é L6. O L4 já
+       fechou sem elas e elas não mudam representação de valor; o L6 já era o dono
+       declarado dessas operações (TODO §6.8). Níveis atualizados no manifesto.
 3. [x] **ADR de L4 + implementação**: [ADR-0046](docs/adr/0046-closures-celulas-l4.md),
        sem HIR, `env`/células, funções locais/lambdas, valores de função, defaults/aridade;
        casos `l4` promovidos.
@@ -58,13 +60,24 @@ lacuna que esta fila existe para não repetir.
          opcional já funcionam (`class_identity`, `optional_receiver`); `String?`/instância
          `T?` funcionam em campos/parâmetros/retornos. Faltam classes locais com campos/
          métodos/captura e o `nil_aware` completo (união/`Any`, L6).
-5. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
+5. [ ] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
+       o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
+       (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5). Extrair primeiro:
+       - `model` (`TypeDesc`, `Value`, `Binding`, `FieldLayout`, `ClassLayout`);
+       - `classes` (layout, descritor, vtable, ctor, bound methods, `super`);
+       - `optionals` (`some`/`unwrap`/`coerce`/print/igualdade);
+       - `strings` e `calls`/despacho.
+       Critério de pronto: comportamento idêntico, `make check` verde, nenhum método
+       acima de ~80 linhas/15 nós de decisão e `lower.py` deixa de ser o depósito de
+       todas as fases. **Só depois** decidir HIR-lite completa (ADR-0049) se a extração
+       não bastar. Não iniciar L6 antes disso.
+6. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
-6. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
+7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
        entram em `LEVELS`; I1 só vale para o corpus anotado.
-7. [ ] **Diagnósticos** (spans → caret → stack trace): decisão do ADR-0046 é **fora do
+8. [ ] **Diagnósticos** (spans → caret → stack trace): decisão do ADR-0046 é **fora do
        L4**; ADR próprio antes do L5/L6, porque mexem em stderr/I1.
-8. [ ] **L7 — qualidade**: `mod.verify()`, `-O2`, benchmarks, JIT e mensagens de codegen.
+9. [ ] **L7 — qualidade**: `mod.verify()`, `-O2`, benchmarks, JIT e mensagens de codegen.
 
 ### 0.3 Fora do caminho crítico (não bloqueiam nenhum L)
 
@@ -303,8 +316,10 @@ AST → Resolver → TypeChecker (tipos concretos/monomorfizados)
 ```
 
 Sem HIR completa no L0–L4: a normalização só desaçucara e o L4 tem só um passe de captura
-(ADR-0046). Uma HIR tipada (slots, SSA leve, células) entra quando classes/L5 exigirem —
-o gatilho é o `lower_expr` começar a duplicar o `interpreter.py`.
+(ADR-0046). O gatilho previsto — o `lower_expr` começar a duplicar o `interpreter.py` —
+**foi atingido no L5**. Antes do L6, a prioridade é extrair o lowering em módulos
+(`model`, `classes`, `optionals`, `strings`, `calls`) e então decidir, com dados, se uma
+HIR tipada (slots + tipos concretos + blocos/phi) paga o custo. Ver §0.2 item 5.
 
 ### 6.3 Representação de valor (a decisão mais importante)
 
@@ -621,6 +636,9 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
    entraram ([ADR-0041](docs/adr/0041-enums-match.md)).
 7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
+8. **HIR tipada × extração:** o L5 mostrou o custo de um lowering monolítico; a decisão
+   é primeiro extrair (`model`/`classes`/`optionals`/`strings`/`calls`) e só depois avaliar
+   HIR-lite com tipos concretos, slots e blocos. Critérios e ordem no §0.2 item 5.
 
 Fechadas recentemente: backend em `llvmlite` (ADR-0031), normalização de ternário/
 `and`/`or`/`??` e strings do L3, enums/match/`Result` (ADR-0041) e exceções
