@@ -40,6 +40,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/optional_scalars.lox",
         "tests/cases/variables.lox",
     ),
+    "l6": (
+        "tests/cases/any_box.lox",
+        "tests/cases/nil_aware.lox",
+    ),
     "l5": (
         "tests/cases/class_bound_method.lox",
         "tests/cases/class_fields.lox",
@@ -122,7 +126,6 @@ PENDING: dict[str, str] = {
     "tests/cases/map_literal.lox": "l6",
     "tests/cases/map_methods.lox": "l6",
     "tests/cases/map_stringify.lox": "l6",
-    "tests/cases/nil_aware.lox": "l6",
     "tests/cases/one_line_block.lox": "l6",
     "tests/cases/optional_semicolons.lox": "l6",
     "tests/cases/range_value.lox": "l6",

@@ -97,6 +97,9 @@ class LoweringBase:
     def _some(self, desc: TypeDesc, value: Value) -> Value:
         raise NotImplementedError
 
+    def _box_value(self, value: Value, line: int | None) -> Value:
+        raise NotImplementedError
+
     def _unwrap(self, value: Value, line: int, message: str) -> Value:
         raise NotImplementedError
 

@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Spike L6 — `Any` boxeado/união escalar** ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)):
+  `{i64 tag, i64 payload}` para `Any` explícito e para uniões escalares/string;
+  `??` boxeia o resultado, `print` dinâmico via `lox_print_any`; `any_box.lox` e
+  `nil_aware.lox` promovidos ao nível `l6`. Sem unbox/igualdade/casts gerais ainda.
 - **Refactor do lowering**: `lower.py` foi dividido em `lower_model`, `lower_base`,
   `lower_functions`, `lower_variables`, `lower_optionals`, `lower_strings`,
   `lower_class_layout`, `lower_class_codegen`, `lower_instances` e `lower_calls`, sem mudança de ABI ou comportamento. A separação

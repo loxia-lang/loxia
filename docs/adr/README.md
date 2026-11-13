@@ -94,6 +94,7 @@ Crie quando a decisão:
 | [0046](0046-closures-celulas-l4.md) | L4: closures, células e valores de função | accepted (backend L4 implementado) | 2026-11-13 |
 | [0047](0047-optionais-escalares-l2-5.md) | L2.5: optionais escalares, `nil` contextual e unwrap seguro | accepted (backend L2.5 implementado) | 2026-11-13 |
 | [0048](0048-abi-classes-l5.md) | L5: ABI de métodos, descritor de classe e instância | accepted (L5a/L5b implementados; L5c pendente) | 2026-11-13 |
+| [0049](0049-any-boxeado-spike-l6.md) | L6: `Any` boxeado como spike de união | accepted (spike; não é `Any` completo) | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

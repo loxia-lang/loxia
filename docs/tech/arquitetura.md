@@ -381,6 +381,9 @@ Chamadas diretas ainda preenchem defaults no call site; função com defaults co
 e `Nil` vira `void`. Aridade errada vira `lox_panic` com a mensagem montada no compile time
 (os números são estáticos), e o corpo roda em blocos próprios com `ret`/`unreachable`.
 
+O spike L6 representa `Any` e uniões escalares como `{i64 tag, i64 payload}`, com
+`lox_print_any`; é uma caixa de 16 bytes só no caminho dinâmico (ADR-0049).
+
 O L5 usa uma ABI única de método `(i8* env, i8* this, params...)`, vtable de closures,
 descritor de classe `{super, id, name, vtable, n_fields, init, init_min, init_max}` e
 instância `{classe, bitmap, slots i64}`; bound methods são thunks. Herança copia a vtable,

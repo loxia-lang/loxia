@@ -89,6 +89,8 @@ class StringLowering(LoweringBase):
                     else f"{value.class_name or '?'} instance"
                 )
                 return self._string_literal(text)
+            case ValueType.ANY:
+                raise _unsupported("Any in string conversion", None)
             case ValueType.NIL:
                 function = self._function("lox_str_nil", _I8_PTR, [])
                 return Value(ValueType.STRING, self.builder.call(function, []))

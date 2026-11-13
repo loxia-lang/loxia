@@ -63,6 +63,10 @@ class CallLowering(LoweringBase):
         else:
             callee = self._expr(expr.callee)
 
+        if callee.ty is ValueType.NIL:
+            # `nil?.m(args)` é nil e não avalia os argumentos.
+            return Value(ValueType.NIL)
+
         if callee.ty is not ValueType.FUNCTION or callee.sig is None:
             self._poison(expr.paren.line, "Can only call functions and classes.")
             return self._zero(ValueType.INT)

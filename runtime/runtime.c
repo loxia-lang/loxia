@@ -437,3 +437,47 @@ int64_t lox_int_mod(int64_t left, int64_t right, int32_t line) {
     }
     return left % right;
 }
+
+/* Impressão de valor boxeado `Any` (spike L6): tag + payload de 64 bits. */
+void lox_print_any(int64_t tag, int64_t payload) {
+    switch (tag) {
+        case 0:
+            lox_print_nil();
+            break;
+        case 1:
+            lox_print_int(payload);
+            break;
+        case 2: {
+            double value;
+            memcpy(&value, &payload, sizeof(value));
+            lox_print_float(value);
+            break;
+        }
+        case 3:
+            lox_print_bool(payload != 0);
+            break;
+        case 4:
+            lox_print_str((const void *)payload);
+            break;
+        case 5: {
+            void *descriptor = (void *)payload;
+            void *name = ((void **)descriptor)[2];
+            lox_print_str(name);
+            fputc('\n', stdout);
+            break;
+        }
+        case 6: {
+            void *instance = (void *)payload;
+            void *descriptor = ((void **)instance)[0];
+            void *name = ((void **)descriptor)[2];
+            lox_print_str(name);
+            fputs(" instance\n", stdout);
+            break;
+        }
+        case 7:
+            printf("%s\n", (const char *)payload);
+            break;
+        default:
+            lox_panic(0, "Unknown Any tag");
+    }
+}

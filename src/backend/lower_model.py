@@ -25,6 +25,15 @@ _CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR])
 _CLASS_DESC = llvm_ir.literal_struct(
     [_I8_PTR, _INT, _I8_PTR, _I8_PTR, _INT, _I8_PTR, _INT, _INT]
 )
+_ANY = llvm_ir.literal_struct([_INT, _INT])
+ANY_TAG_NIL = 0
+ANY_TAG_INT = 1
+ANY_TAG_FLOAT = 2
+ANY_TAG_BOOL = 3
+ANY_TAG_STRING = 4
+ANY_TAG_CLASS = 5
+ANY_TAG_INSTANCE = 6
+ANY_TAG_FUNCTION = 7
 
 # Mensagens que o interpretador usa em runtime para operando de tipo errado.
 # O checker também reporta esses casos; o backend rebaixa para panic site (ADR-0031).
@@ -60,6 +69,7 @@ class ValueType(Enum):
     FUNCTION = auto()
     CLASS = auto()
     INSTANCE = auto()
+    ANY = auto()
 
 
 NUMERIC = (ValueType.INT, ValueType.FLOAT)

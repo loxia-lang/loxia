@@ -7,11 +7,20 @@ from typing import Any
 from src.backend import llvm_ir
 from src.backend.lower_base import LoweringBase
 from src.backend.lower_model import (
+    _ANY,
     _BOOL,
     _FLOAT,
     _I8_PTR,
     _INT,
     _VOID,
+    ANY_TAG_BOOL,
+    ANY_TAG_CLASS,
+    ANY_TAG_FLOAT,
+    ANY_TAG_FUNCTION,
+    ANY_TAG_INSTANCE,
+    ANY_TAG_INT,
+    ANY_TAG_NIL,
+    ANY_TAG_STRING,
     NUMERIC,
     BackendError,
     FnSig,
@@ -22,6 +31,7 @@ from src.backend.lower_model import (
 )
 from src.frontend.expr import Expr
 from src.frontend.token_type import TokenType
+from src.frontend.ty import ANY as TY_ANY
 from src.frontend.ty import BOOL as TY_BOOL
 from src.frontend.ty import FLOAT as TY_FLOAT
 from src.frontend.ty import INT as TY_INT
@@ -49,6 +59,8 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.STRING)
         if ty is TY_NIL:
             return TypeDesc(ValueType.NIL)
+        if ty is TY_ANY:
+            return TypeDesc(ValueType.ANY)
         if isinstance(ty, UnionTy):
             members = ty.members
             non_nil = [member for member in members if member is not TY_NIL]
@@ -58,7 +70,14 @@ class OptionalLowering(LoweringBase):
                     raise _unsupported("Nested optionals", line)
                 return TypeDesc(inner.ty, inner.fn, True, inner.class_name)
 
-            raise _unsupported("Union types with more than one non-Nil member", line)
+            descs = [self._type_desc(member, line) for member in non_nil]
+            if all(
+                desc.ty
+                in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL, ValueType.STRING)
+                for desc in descs
+            ):
+                return TypeDesc(ValueType.ANY)
+            raise _unsupported("Union of non-scalar values", line)
 
         if isinstance(ty, ClassTy):
             if ty.args:
@@ -97,6 +116,8 @@ class OptionalLowering(LoweringBase):
                 return _I8_PTR
             case ValueType.CLASS | ValueType.INSTANCE:
                 return _I8_PTR
+            case ValueType.ANY:
+                return _ANY
             case ValueType.NIL:
                 return _VOID
 
@@ -136,6 +157,8 @@ class OptionalLowering(LoweringBase):
                 return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
             case ValueType.CLASS | ValueType.INSTANCE:
                 return Value(ty, llvm_ir.null_pointer())
+            case ValueType.ANY:
+                return Value(ValueType.ANY, llvm_ir.zero_value(_ANY))
             case ValueType.NIL:
                 return Value(ValueType.NIL)
 
@@ -188,6 +211,43 @@ class OptionalLowering(LoweringBase):
             value.class_name,
         )
 
+    def _box_value(self, value: Value, line: int | None) -> Value:
+        if value.ty is ValueType.ANY:
+            return value
+        if value.optional:
+            raise _unsupported("Boxing an optional value", line)
+
+        tag = {
+            ValueType.NIL: ANY_TAG_NIL,
+            ValueType.INT: ANY_TAG_INT,
+            ValueType.FLOAT: ANY_TAG_FLOAT,
+            ValueType.BOOL: ANY_TAG_BOOL,
+            ValueType.STRING: ANY_TAG_STRING,
+            ValueType.CLASS: ANY_TAG_CLASS,
+            ValueType.INSTANCE: ANY_TAG_INSTANCE,
+            ValueType.FUNCTION: ANY_TAG_FUNCTION,
+        }.get(value.ty)
+        if tag is None:
+            raise _unsupported(f"Boxing {value.ty.name}", line)
+
+        if value.ty is ValueType.NIL:
+            payload = llvm_ir.constant(_INT, 0)
+        elif value.ty is ValueType.FLOAT:
+            payload = self.builder.bitcast(value.llvm, _INT)
+        elif value.ty is ValueType.BOOL:
+            payload = self.builder.zext(value.llvm, _INT)
+        elif value.ty is ValueType.INT:
+            payload = value.llvm
+        else:
+            payload = self.builder.ptrtoint(value.llvm, _INT)
+
+        aggregate = llvm_ir.zero_value(_ANY)
+        aggregate = self.builder.insert_value(
+            aggregate, llvm_ir.constant(_INT, tag), 0
+        )
+        aggregate = self.builder.insert_value(aggregate, payload, 1)
+        return Value(ValueType.ANY, aggregate)
+
     def _unwrap(self, value: Value, line: int, message: str) -> Value:
         """Extrai o payload de um `T?`; tag 0 vira `lox_panic` no ponto."""
         if not value.optional:
@@ -220,6 +280,12 @@ class OptionalLowering(LoweringBase):
             raise BackendError(
                 f"Can't use {value.ty.name} where Nil is expected.", line
             )
+
+        if expected.ty is ValueType.ANY:
+            return self._box_value(value, line)
+
+        if value.ty is ValueType.ANY:
+            raise _unsupported("Unboxing Any implicitly", line)
 
         if expected.optional:
             if value.ty is ValueType.NIL:

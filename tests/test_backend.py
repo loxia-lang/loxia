@@ -540,8 +540,31 @@ def test_try_sem_backend_e_rejeitado(tmp_path: Path) -> None:
 @pytest.mark.backend
 def test_abi_das_estruturas_publicas_e_estavel() -> None:
     """Contrato mínimo para a futura FFI com C (ADR-0048)."""
-    from src.backend.lower_model import _CLASS_DESC, _CLOSURE
+    from src.backend.lower_model import (
+        _ANY,
+        _CLASS_DESC,
+        _CLOSURE,
+        ANY_TAG_BOOL,
+        ANY_TAG_CLASS,
+        ANY_TAG_FLOAT,
+        ANY_TAG_FUNCTION,
+        ANY_TAG_INSTANCE,
+        ANY_TAG_INT,
+        ANY_TAG_NIL,
+        ANY_TAG_STRING,
+    )
 
+    assert [str(element) for element in _ANY.elements] == ["i64", "i64"]
+    assert [
+        ANY_TAG_NIL,
+        ANY_TAG_INT,
+        ANY_TAG_FLOAT,
+        ANY_TAG_BOOL,
+        ANY_TAG_STRING,
+        ANY_TAG_CLASS,
+        ANY_TAG_INSTANCE,
+        ANY_TAG_FUNCTION,
+    ] == [0, 1, 2, 3, 4, 5, 6, 7]
     assert [str(element) for element in _CLOSURE.elements] == [
         "i8*",
         "i8*",

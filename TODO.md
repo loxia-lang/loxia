@@ -21,9 +21,9 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **105 golden cases** (65 compilam, 38 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b/L5c parcial**, M5
-fechado e ADRs 0043–0048 (layout, identidade, narrowing, L4, optionais escalares e ABI de
+vale o que está aqui. Estado em 2026-11-13: **106 golden cases** (67 compilam, 37 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b/L5c parcial + spike L6 (`Any`)**, M5
+fechado e ADRs 0043–0049 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
 
 ### 0.1 Definições que não podem faltar antes de cada nível
@@ -31,7 +31,7 @@ classes) fechados.
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
 | **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
-| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c parcial: `is`/`as`, `?.` opcional e classes locais vazias feitos; faltam classes locais gerais/captura (L5c) e `nil_aware` (L6) | 🟡 |
+| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c parcial: `is`/`as`, `?.` opcional, classes locais vazias e `nil_aware` feitos; falta classes locais gerais/captura (L5c) | 🟡 |
 | **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
 `T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
@@ -58,20 +58,27 @@ lacuna que esta fila existe para não repetir.
          herdado e prefixo de campos;
        - [ ] **L5c**: `is`/`as` de classe, classes locais **vazias** e `?.` com receptor
          opcional já funcionam (`class_identity`, `optional_receiver`); `String?`/instância
-         `T?` funcionam em campos/parâmetros/retornos. Faltam classes locais com campos/
-         métodos/captura (**L5c**) e o `nil_aware` completo (união/`Any`, **L6**).
-5. [ ] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
+         `T?` funcionam em campos/parâmetros/retornos. Falta classes locais com campos/
+         métodos/captura (**L5c**); `nil_aware` foi promovido no spike L6 com `Any`
+         boxeado ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
+5. [x] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
        (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5).
        - [x] extrair `model`, `functions`, `variables`, `optionals`, `strings`,
          `class_layout`, `class_codegen`, `instances` e `calls`;
        - [x] reduzir os métodos grandes; nenhum passa de ~65 linhas, e os piores
          (`_type_desc`, `_plain_equality`) ficaram perto do limite de 15 nós;
-       - [ ] decidir, com o código já separado, se uma HIR-lite (ADR-0049) é necessária.
+       - [x] decidir com o spike L6: **não fazer HIR-lite agora**. O `Any` boxeado
+         ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)) passou sem HIR e a
+         extração absorveu o custo; reavaliar depois de `Any` completo/`List`/`Map`.
        Critério de pronto: comportamento idêntico, `make check` verde, ABI do ADR-0048
-       intacta e a decisão HIR registrada. Não iniciar L6 antes disso.
+       intacta e a decisão HIR registrada.
 6. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
+       - [x] spike de `Any` boxeado/união escalar e `nil_aware` promovido
+         ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
+       - [ ] completar `Any` (unbox, igualdade, `as`/`is`, classes/funções), `List`/`Map`,
+         tuplas, `for-in`, enums/`match`, exceções e operações escalares restantes.
 7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
        entram em `LEVELS`; I1 só vale para o corpus anotado.
 8. [ ] **Diagnósticos** (spans → caret → stack trace): decisão do ADR-0046 é **fora do
@@ -337,7 +344,7 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
 | instância | ponteiro para struct `{classe, bitmap, slots i64}` | L5a/L5b ✅ ([ADR-0048](docs/adr/0048-abi-classes-l5.md)) |
-| `Any` (quando entrar) | caixa `LoxValue` **só** no caminho dinâmico | L6 |
+| `Any` / união escalar | caixa `{i64 tag, i64 payload}` (ADR-0049) | L6 🟡 (spike; sem unbox geral) |
 
 Regras:
 - `Int` e `Float` separados (ADR-0006), sem boxing no caminho quente.
@@ -378,6 +385,7 @@ void    *lox_alloc_cell(void);                       // L4 ✅ (célula de captu
 void    *lox_alloc_closure(void);                    // L4 ✅ (closure)
 void    *lox_alloc_bytes(int64_t n);                 // L5 ✅ (descritor/vtable/instância)
 int32_t  lox_is_instance(void *desc, void *target);  // L5 ✅ (`is`/`as`)
+void     lox_print_any(int64_t tag, int64_t payload); // L6 spike ✅ (`Any`)
 ```
 
 O runtime é compilado por build com o mesmo `cc` do link (`.o` em diretório temporário).
@@ -456,8 +464,8 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       classe/instância ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
 - [x] **L5c parcial — Identidade, `?.` e classes locais vazias**: `is`/`as` de classe,
       classes locais sem campos/métodos, `String?`/instância `T?` em campos/params/
-      retornos e `?.` com receptor opcional (curto-circuito). Faltam classes locais
-      gerais/captura (**L5c**) e `nil_aware` (união/`Any`, **L6**). Layout/identidade em
+      retornos e `?.` com receptor opcional (curto-circuito). Falta classes locais
+      gerais/captura (**L5c**); `nil_aware` foi promovido no spike L6. Layout/identidade em
       [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
       representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md);
       ABI em [ADR-0048](docs/adr/0048-abi-classes-l5.md).
@@ -494,7 +502,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 105 `tests/cases`: 65 compilam; 38 ficam `PENDING` por nível
+- [x] anotar os 106 `tests/cases`: 67 compilam; 37 ficam `PENDING` por nível
       (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
       design);
 - [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;
@@ -568,7 +576,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | LLVM vertical (+ HIR se necessária) | L0–L4 + L2.5 + L5a/L5b/L5c parcial: inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração/HIR-lite é P0 antes do L6 | 🟡 em andamento |
+| **M6** | LLVM vertical (+ HIR se necessária) | L0–L4 + L2.5 + L5a/L5b/L5c parcial + spike L6 (`Any`): inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração foi feita e o spike mostrou que HIR-lite não é necessária agora | 🟡 em andamento |
 | **M7** | Runtime completo | L5c/L6: classes locais gerais, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |

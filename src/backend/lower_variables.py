@@ -105,6 +105,9 @@ class VariableLowering(LoweringBase):
                 elif value.optional or value.ty is ValueType.NIL:
                     declared = annotated
                     value = self._coerce(value, annotated, stmt.name.line)
+                elif annotated.ty is ValueType.ANY:
+                    declared = annotated
+                    value = self._box_value(value, stmt.name.line)
                 else:
                     # Anotação não converte em runtime (L2): `val f: Float = 2`
                     # guarda `Int` e imprime `2`.

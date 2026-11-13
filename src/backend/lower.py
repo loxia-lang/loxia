@@ -294,6 +294,15 @@ class Lowerer(
                     self._function("lox_print_str", _VOID, [_I8_PTR]),
                     [self._string_literal(text).llvm],
                 )
+            case ValueType.ANY:
+                tag = self.builder.extract_value(value.llvm, 0)
+                payload = self.builder.extract_value(value.llvm, 1)
+                self.builder.call(
+                    self._function(
+                        "lox_print_any", _VOID, [_INT, _INT]
+                    ),
+                    [tag, payload],
+                )
             case ValueType.NIL:
                 self.builder.call(self._function("lox_print_nil", _VOID, []), [])
 
@@ -810,6 +819,10 @@ class Lowerer(
                 return left
             return self._expr(expr.right)
 
+        coalesced = self.types.get(expr)
+        if coalesced is not None and self._type_desc(coalesced, expr.operator.line).ty is ValueType.ANY:
+            return self._coalesce_any(left, expr)
+
         some = llvm_ir.append_block(self._function_ir, "coalesce.some")
         nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
         end = llvm_ir.append_block(self._function_ir, "coalesce.end")
@@ -849,6 +862,35 @@ class Lowerer(
             left.sig,
             class_name=left.class_name,
         )
+
+    def _coalesce_any(self, left: Value, expr: Logical) -> Value:
+        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
+        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
+        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+        self.builder.cbranch(self._optional_tag(left), some, nothing)
+
+        self.builder = llvm_ir.builder(some)
+        some_value = self._box_value(
+            self._optional_payload(left), expr.operator.line
+        )
+        self.builder.branch(end)
+        some_end = self.builder.block
+
+        self.builder = llvm_ir.builder(nothing)
+        right = self._box_value(
+            self._expr(expr.right), expr.operator.line
+        )
+        self.builder.branch(end)
+        nothing_end = self.builder.block
+
+        self.builder = llvm_ir.builder(end)
+        merged = self.builder.phi(
+            self._storage_llvm_type(TypeDesc(ValueType.ANY)),
+            "coalesce.any",
+        )
+        merged.add_incoming(some_value.llvm, some_end)
+        merged.add_incoming(right.llvm, nothing_end)
+        return Value(ValueType.ANY, merged)
 
     def _short_circuit(self, expr: Logical) -> Value:
         operator = expr.operator.type
@@ -927,6 +969,23 @@ class Lowerer(
         match value.ty:
             case ValueType.BOOL:
                 return value.llvm
+            case ValueType.ANY:
+                tag = self.builder.extract_value(value.llvm, 0)
+                payload = self.builder.extract_value(value.llvm, 1)
+                is_nil = self.builder.icmp_signed(
+                    "==", tag, llvm_ir.constant(_INT, 0)
+                )
+                is_false = self.builder.and_(
+                    self.builder.icmp_signed(
+                        "==", tag, llvm_ir.constant(_INT, 3)
+                    ),
+                    self.builder.icmp_signed(
+                        "==", payload, llvm_ir.constant(_INT, 0)
+                    ),
+                )
+                return self.builder.not_(
+                    self.builder.or_(is_nil, is_false)
+                )
             case (
                 ValueType.INT
                 | ValueType.FLOAT
