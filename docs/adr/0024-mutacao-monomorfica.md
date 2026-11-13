@@ -5,7 +5,7 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0018](0018-narrowing.md), [ADR-0023](0023-soundness-do-checker.md),
-  [`../../TODO.md`](../../TODO.md) §11, [`../../TIPOS.md`](../../TIPOS.md) §5,
+  [`../../TODO.md`](../../TODO.md) §11, [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)

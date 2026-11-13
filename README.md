@@ -177,7 +177,7 @@ tests/official/  suíte oficial do livro (caps. 10–13), adaptada
 bench/           harness de performance e baseline
 docs/            especificação, arquitetura e ADRs
 TODO.md          roadmap e decisões em aberto
-TIPOS.md         catálogo de tipos e modelo numérico
+TIPOS.md         pendências de tipos
 IDEIAS.md        discussões de design (parking lot)
 ```
 

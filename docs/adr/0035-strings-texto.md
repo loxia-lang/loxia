@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0007](0007-ranges-e-iteracao.md), [ADR-0016](0016-api-stdlib-hibrida.md),
   [ADR-0019](0019-interpolacao.md), [ADR-0026](0026-freeze-1.0.md),
   [ADR-0029](0029-conversoes-math.md), [ADR-0031](0031-backend-nativo.md),
-  [`../../TIPOS.md`](../../TIPOS.md) §3, [`../spec/semantica.md`](../spec/semantica.md),
+  [`../spec/semantica.md`](../spec/semantica.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/lexico.md`](../spec/lexico.md)
 - **Implementação:** [`src/execution/natives/chars.py`](../../src/execution/natives/chars.py),
   [`src/execution/interpreter.py`](../../src/execution/interpreter.py),

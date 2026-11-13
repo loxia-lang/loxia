@@ -19,7 +19,7 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 | [`docs/adr/`](docs/adr/) | por que uma decisão foi tomada |
 | [`docs/decisoes.md`](docs/decisoes.md) | resumo das decisões fechadas |
 | [`TODO.md`](TODO.md) | o que fazer depois da 1.0 |
-| [`TIPOS.md`](TIPOS.md) | catálogo atual + decisões de tipo pós-1.0 |
+| [`TIPOS.md`](TIPOS.md) | pendências e decisões de tipo pós-1.0 |
 | [`IDEIAS.md`](IDEIAS.md) | ideias ainda em avaliação (pós-1.0) |
 
 **Hoje:** a linguagem 1.0 está implementada no tree-walk e o backend nativo existe em

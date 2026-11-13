@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0018](0018-narrowing.md), [ADR-0023](0023-soundness-do-checker.md),
   [ADR-0024](0024-mutacao-monomorfica.md),
-  [`../../TODO.md`](../../TODO.md) §2, [`../../TIPOS.md`](../../TIPOS.md) §5,
+  [`../../TODO.md`](../../TODO.md) §2, [`../../TIPOS.md`](../../TIPOS.md) §2.2,
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/frontend/expr.py`](../../src/frontend/expr.py), [`src/frontend/parser.py`](../../src/frontend/parser.py),
   [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/execution/type_test.py`](../../src/execution/type_test.py),

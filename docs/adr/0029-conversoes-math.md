@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [ADR-0016](0016-api-stdlib-hibrida.md),
   [ADR-0026](0026-freeze-1.0.md), [ADR-0028](0028-overflow-debug.md),
-  [`../../TIPOS.md`](../../TIPOS.md) §1 e §3, [`../spec/sintaxe.md`](../spec/sintaxe.md),
+  [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/erros.md`](../spec/erros.md)
 - **Implementação:** [`src/frontend/expr.py`](../../src/frontend/expr.py), [`src/frontend/parser.py`](../../src/frontend/parser.py),
   [`src/semantics/checker.py`](../../src/semantics/checker.py), [`src/execution/interpreter.py`](../../src/execution/interpreter.py),

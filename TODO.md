@@ -506,8 +506,8 @@ portão do ADR-0014. Paralelismo/multithread fica em avaliação no
 
 ## 11. Decisões em aberto
 
-Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md); tipos:
-[`TIPOS.md`](TIPOS.md) §10.
+Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md); pendências de tipo:
+[`TIPOS.md`](TIPOS.md).
 
 1. **Generics além de funções:** classes/métodos genéricos, type application explícita e
    função genérica como valor; monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).

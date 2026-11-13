@@ -20,7 +20,7 @@ Portal da documentação técnica, sintática e das decisões de design.
 | O que é 1.0 e o que é depois? | [`../ESCOPO.md`](../ESCOPO.md) |
 | O que ainda está em aberto? | [`../TODO.md`](../TODO.md) §11 |
 | O que queremos fazer depois? | [`../TODO.md`](../TODO.md), [`../IDEIAS.md`](../IDEIAS.md) |
-| Tipos e modelo numérico | [`../TIPOS.md`](../TIPOS.md) |
+| Pendências de tipos | [`../TIPOS.md`](../TIPOS.md) |
 | Regras para agentes/devs | `AGENTS.md` (local, não versionado) e `.dsh/skills/` |
 
 Regra de manutenção: **mudou comportamento → muda `spec/` no mesmo commit**. Decisão difícil

@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0020](0020-assinaturas-explicitas.md), [ADR-0021](0021-tipos-de-funcao.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §1,
-  [`../../TIPOS.md`](../../TIPOS.md) §6,
+  [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
   [`src/frontend/token_type.py`](../../src/frontend/token_type.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),

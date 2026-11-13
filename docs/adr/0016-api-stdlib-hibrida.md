@@ -5,7 +5,7 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md),
   [ADR-0015](0015-listas-tipadas.md), a discussão histórica de I-3 (git),
-  [`TODO.md`](../../TODO.md) §11, [`TIPOS.md`](../../TIPOS.md) §1
+  [`TODO.md`](../../TODO.md) §11, [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/execution/prelude.py`](../../src/execution/prelude.py),
   [`src/execution/natives/str.py`](../../src/execution/natives/str.py),
   [`src/execution/natives/repr.py`](../../src/execution/natives/repr.py),
@@ -141,7 +141,7 @@ concreta** não foi decidida:
 
 Nada disso entra neste ADR. Fica no [`TODO.md`](../../TODO.md) §11; a decisão será
 tomada junto com módulos/`Option`/`Result` e a sintaxe de cast (`D-8` no
-[`TIPOS.md`](../../TIPOS.md) §1).
+[`../spec/semantica.md`](../spec/semantica.md)).
 
 ## Consequências
 

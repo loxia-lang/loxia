@@ -5,7 +5,7 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0020](0020-assinaturas-explicitas.md),
   [ADR-0022](0022-lambdas.md), [ADR-0027](0027-generics-t3b.md),
-  [`../../TODO.md`](../../TODO.md) §2, [`../../TIPOS.md`](../../TIPOS.md) §2.2/§6,
+  [`../../TODO.md`](../../TODO.md) §2, [`../../TIPOS.md`](../../TIPOS.md) §2.1/§2.2,
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)

@@ -5,7 +5,7 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0030](0030-tuplas.md), [ADR-0014](0014-identidade-e-invariantes.md),
   [ADR-0015](0015-listas-tipadas.md), [ADR-0017](0017-mapas-hash.md),
-  [ADR-0031](0031-backend-nativo.md), [`../../TIPOS.md`](../../TIPOS.md) §1/§4,
+  [ADR-0031](0031-backend-nativo.md), [`../../TIPOS.md`](../../TIPOS.md) §2.3,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/frontend/expr.py`](../../src/frontend/expr.py),
   [`src/frontend/stmt.py`](../../src/frontend/stmt.py),

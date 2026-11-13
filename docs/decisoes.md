@@ -13,8 +13,8 @@ decisão.
 | Decisão | Resumo | Fonte |
 | --- | --- | --- |
 | `val`/`var` | `val` imutável e com inicializador; `var` mutável e pode ficar sem valor (`nil`); parâmetros são `val` por padrão e `var x` libera a mutação. | [ADR-0005](adr/0005-val-var-imutabilidade.md) |
-| `Int` vs `Float` | Tipos separados: `Int` é i64 e `Float` é f64; promoção só `Int → Float`; `/` sempre `Float`; wrapping de i64. | [ADR-0006](adr/0006-int-float-separados.md), [`../TIPOS.md`](../TIPOS.md) §2 |
-| Nullability | Non-null por padrão; `T?` é açúcar para `T \| Nil` e aceita `nil` (`D-15`). | [`../TIPOS.md`](../TIPOS.md) §5, [ADR-0010](adr/0010-tipagem-estatica.md) |
+| `Int` vs `Float` | Tipos separados: `Int` é i64 e `Float` é f64; promoção só `Int → Float`; `/` sempre `Float`; wrapping de i64. | [ADR-0006](adr/0006-int-float-separados.md), [ADR-0006](adr/0006-int-float-separados.md) |
+| Nullability | Non-null por padrão; `T?` é açúcar para `T \| Nil` e aceita `nil` (`D-15`). | [ADR-0010](adr/0010-tipagem-estatica.md) |
 | Ranges e `for-in` | `a..b` half-open, só `Int`, lazy e reutilizável; `range(a, b, step)` com passo; `for x in` sobre `Range`/`String`/`List`; variável `val` por iteração. | [ADR-0007](adr/0007-ranges-e-iteracao.md) |
 | Listas | Um tipo `List[T]`, homogêneo e **invariante**; mutável in-place (`val` congela o binding); literal `[1, 2]`, `xs[i]`/`xs[i] = v`, `push`/`pop` e `len(xs)`; igualdade estrutural; mutar durante iteração é erro. | [ADR-0015](adr/0015-listas-tipadas.md) |
 | Mapas | `Map[K, V]`, homogêneo e invariante; literal `{chave: valor}` (chaves são expressões; `{` no início do statement é bloco); `m[k]` erra se ausente e `m.get(k)` devolve `V?`; chaves `String`/`Int`/`Bool`; `get`/`has`/`remove`/`keys`/`values`; iteração de chaves em ordem de inserção; igualdade estrutural sem ordem. Sem `get(k, default)` — use `??`. | [ADR-0017](adr/0017-mapas-hash.md) |

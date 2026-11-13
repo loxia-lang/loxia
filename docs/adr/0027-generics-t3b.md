@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
   [ADR-0020](0020-assinaturas-explicitas.md), [ADR-0021](0021-tipos-de-funcao.md),
   [ADR-0026](0026-freeze-1.0.md), [`../../TODO.md`](../../TODO.md) §2,
-  [`../../TIPOS.md`](../../TIPOS.md) §2.2, [`../spec/sintaxe.md`](../spec/sintaxe.md),
+  [`../../TIPOS.md`](../../TIPOS.md) §2.1, [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/frontend/ty.py`](../../src/frontend/ty.py), [`src/frontend/stmt.py`](../../src/frontend/stmt.py),
   [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),

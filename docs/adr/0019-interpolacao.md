@@ -4,7 +4,7 @@
 - **Data:** 2026-11-11
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0013](0013-ternario-nil-aware-escapes.md),
-  [ADR-0014](0014-identidade-e-invariantes.md), [`TIPOS.md`](../../TIPOS.md) §3
+  [ADR-0014](0014-identidade-e-invariantes.md), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
   [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),
   [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),

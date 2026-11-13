@@ -7,7 +7,7 @@
   [ADR-0014](0014-identidade-e-invariantes.md) (I1–I3 e portão),
   [ADR-0026](0026-freeze-1.0.md) (freeze), [ADR-0027](0027-generics-t3b.md) (generics),
   [ADR-0031](0031-backend-nativo.md) (backend),
-  [`../../TIPOS.md`](../../TIPOS.md) §1/§7/§10, [`../../TODO.md`](../../TODO.md) §9/§11
+  [`../../TIPOS.md`](../../TIPOS.md) §1/§2.1, [`../../TODO.md`](../../TODO.md) §9/§11
 
 ## Contexto
 

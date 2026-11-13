@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0005](0005-val-var-imutabilidade.md),
   [ADR-0006](0006-int-float-separados.md), [ADR-0007](0007-ranges-e-iteracao.md),
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md),
-  [ADR-0015](0015-listas-tipadas.md), [`TIPOS.md`](../../TIPOS.md) §1 e §9,
+  [ADR-0015](0015-listas-tipadas.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`TODO.md`](../../TODO.md) §1 e §11
 - **Implementação:** [`src/execution/lox_map.py`](../../src/execution/lox_map.py),
   [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
@@ -244,7 +244,7 @@ O tree-walk é a spec; o codegen futuro precisa reproduzir:
   separar `Map`.
 - [ADR-0014](0014-identidade-e-invariantes.md) — portão de admissão e I1–I3.
 - [ADR-0016](0016-api-stdlib-hibrida.md) — `len` global; métodos para ações específicas.
-- [`TIPOS.md`](../../TIPOS.md) §1 e §9 — catálogo de tipos, igualdade e hash.
+- [`../spec/semantica.md`](../spec/semantica.md) — mapas, igualdade e hash.
 - Lox2 Collections (`Dictionary`, literal `["k": v]`, chave ausente `nil`):
   <https://mysidia-inc.gitbook.io/lox2/basics/collections>.
 - Python `dict` (`d[k]` erro, `get` opcional), Rust `HashMap`/`BTreeMap`, Kotlin `Map` e

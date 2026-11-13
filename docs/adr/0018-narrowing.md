@@ -108,5 +108,5 @@ len(nome)                             # depois do if: String
 ## Referências
 
 - [ADR-0010](0010-tipagem-estatica.md) — checker gradual.
-- [TIPOS.md](../../TIPOS.md) §5 — `T?` e non-null.
+- [`../spec/semantica.md`](../spec/semantica.md) — `T?` e non-null.
 - Kotlin smart casts, TypeScript control-flow analysis e mypy narrowing — modelos mentais.
