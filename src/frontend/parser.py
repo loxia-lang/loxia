@@ -151,11 +151,17 @@ class Parser:
 
     def _class_declaration(self) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")
+        type_params = self._type_parameters()
 
         superclass: Variable | None = None
         if self._match(TokenType.LEFT_PAREN):
             self._consume(TokenType.IDENTIFIER, "Expect superclass name.")
             superclass = Variable(self._previous())
+            if self._check(TokenType.LEFT_BRACKET):
+                raise self._error(
+                    self._peek(),
+                    "Generic superclasses aren't supported yet.",
+                )
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after superclass.")
 
         self._consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
@@ -172,7 +178,7 @@ class Parser:
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
-        return Class(name, superclass, fields, methods)
+        return Class(name, superclass, fields, methods, type_params)
 
     def _field_declaration(self, mutable: bool) -> Field:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
@@ -583,7 +589,7 @@ class Parser:
                 f"Unknown generic type '{name}'. Did you mean '{name.capitalize()}'?",
             )
         else:
-            self._error(token, f"Unknown generic type '{name}'.")
+            return ClassTy(name, tuple(arguments))
 
         return ERROR
 

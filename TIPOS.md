@@ -8,8 +8,8 @@ arquivo não descreve o que já funciona.
 
 ### 1.1 M5 — tipos v2
 
-- **T6a** — classes/métodos genéricos; desenho em
-  [ADR-0040](docs/adr/0040-generics-classes-desenho.md).
+- **T6a (restante)** — métodos genéricos (`fn map[U]`) e herança de `Box[Int]`; o MVP de
+  classes genéricas está feito ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)).
 - **T6c** — `match`/enums e exaustividade.
 - **T6b** — traits nominais (`implements`, métodos default) e constraints: decididos,
   **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)).

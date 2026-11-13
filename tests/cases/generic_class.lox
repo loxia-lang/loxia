@@ -1,0 +1,26 @@
+# Classes genéricas: inferência no construtor, campos/métodos com T e erasure.
+class Box[T] {
+  var value: T
+  init(value: T) { this.value = value }
+  get() -> T { return this.value }
+}
+class Pair[A, B] {
+  val first: A
+  val second: B
+  init(first: A, second: B) { this.first = first; this.second = second }
+  swap() -> Pair[B, A] { return Pair(this.second, this.first) }
+}
+fn first[T](b: Box[T]) -> T { return b.get() }
+fn make[T](x: T) -> Box[T] { return Box(x) }
+print first(Box(7))
+print make("x").get()
+val p = Pair(1, "a")
+val q = p.swap()
+print q.first
+print q.second
+print Box(1)
+# expect: 7
+# expect: x
+# expect: a
+# expect: 1
+# expect: Box instance

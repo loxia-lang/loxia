@@ -18,7 +18,7 @@ declaration    → classDecl
                | valDecl
                | statement ;
 
-classDecl      → "class" IDENTIFIER ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
+classDecl      → "class" IDENTIFIER typeParameters? ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
 classMember    → fieldDecl | function ;
 fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
 funDecl        → "fn" function ;
@@ -141,9 +141,10 @@ fn map[T, U] (xs: List[T], f: fn(T) -> U) -> List[U] { ... }
 `T`/`U` são nomes comuns (ASCII), válidos em `: T`, `-> T`, `List[T]`, `Map[String, T]`,
 `fn(T) -> U` e no corpo. Não há constraints, `T: Add` nem type application explícita:
 `id(1)` infere `T = Int`; `id[Int] (1)` **não** existe. Chamadas sem argumento/contexto que
-permitam inferir todos os `T` são erro. Classes e métodos genéricos (`class Box[T]`,
-`get[T] (...)`) ainda não existem; métodos com `[T]` são recusados no `--check`. Ver
-[ADR-0027](../adr/0027-generics-t3b.md).
+permitam inferir todos os `T` são erro. Classes genéricas (`class Box[T]`) existem e
+inferem os argumentos no construtor; métodos com `[T]` continuam recusados no `--check`.
+Herança de classe genérica (`class C(Box[Int])`) ainda não existe. Ver
+[ADR-0027](../adr/0027-generics-t3b.md) e [ADR-0040](../adr/0040-generics-classes-desenho.md).
 
 `expr is Tipo` é uma expressão booleana; o lado direito usa a gramática de tipos e o
 operador fica no nível de comparação. `is` testa primitivos, classes/subclasses,
@@ -259,7 +260,9 @@ Consequências:
   (`[1,]` é erro).
 
 `<` é **só** comparação. Herança usa parênteses após o nome da classe
-(`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe.
+(`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe. A superclasse
+não pode ser genérica (`class C(Box[Int])` é erro); classe genérica pode herdar de classe
+não genérica.
 
 ## Açúcar sintático
 

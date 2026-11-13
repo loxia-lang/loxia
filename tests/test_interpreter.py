@@ -878,3 +878,31 @@ def test_tuple_as_failure_at_runtime(
     )
 
     assert "Can't cast value to (Int, String)." in stderr
+
+
+def test_generic_class_erasure_and_members(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        """
+        class Box[T] {
+          var value: T
+          init(value: T) { this.value = value }
+          get() -> T { return this.value }
+        }
+        class Pair[A, B] {
+          val first: A
+          val second: B
+          init(first: A, second: B) { this.first = first; this.second = second }
+          swap() -> Pair[B, A] { return Pair(this.second, this.first) }
+        }
+        val b = Box(1)
+        print b.get()
+        print b
+        print Pair(1, "a").swap().first
+        """,
+        capsys,
+    )
+
+    assert stdout == ["1", "Box instance", "a"]
+    assert stderr == ""

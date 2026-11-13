@@ -159,7 +159,11 @@ class AstPrinter:
         return f"(block {inner})" if inner else "(block)"
 
     def visit_class_stmt(self, stmt: Class) -> str:
-        parts = [f"class {stmt.name.lexeme}"]
+        params = ""
+        if stmt.type_params:
+            names = ", ".join(token.lexeme for token in stmt.type_params)
+            params = f"[{names}]"
+        parts = [f"class {stmt.name.lexeme}{params}"]
         if stmt.superclass is not None:
             parts.append(f"(super {stmt.superclass.name.lexeme})")
 

@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Classes genéricas ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)): `class Box[T]`
+  com múltiplos parâmetros, `T` em campos/métodos/`init`/`this`, `Box[Int]` como tipo,
+  inferência no construtor (`Box(1)` → `Box[Int]`), argumentos invariantes e erasure no
+  runtime. Métodos genéricos, herança de `Box[Int]` e `is/as` com argumentos ficam para
+  depois; o backend rejeita classes com 65 (L6).
 - Decisões de tipos ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)): sem sufixos
   de literal (`D-2` fechado); `Float` fora das chaves de `Map`; `Option[T]` = `T?`;
   `Result` será enum/ADT com T6c; `type` alias transparente (P3); `throw` segue fatal.

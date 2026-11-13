@@ -24,7 +24,7 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 `nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
 `or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
 compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
-casos por nível — **31 dos 86** golden cases compilam e **60** passam no `--check`.
+casos por nível — **31 dos 87** golden cases compilam e **61** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
 valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6a/T6c vêm
@@ -79,18 +79,19 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | **T3c** ❌ | parâmetro implícito foi implementado e **revertido**: omissão virava quantificação universal sem marcador, contra o [ADR-0020](docs/adr/0020-assinaturas-explicitas.md) ([ADR-0034](docs/adr/0034-t3c-revertido.md)) | — |
 | **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
 | **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
-| **T6a** ⬜ | classes/métodos genéricos | bibliotecas |
+| **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos genéricos e herança de `Box[Int]` pendentes | bibliotecas |
 | **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
 | **T6c** ⬜ | `match`/enums e exaustividade | expressividade |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
 
 Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.md)):
-- [ ] parser/AST/tipos: `class C[T]`, `ClassTy.args`, printer, erro de superclasse genérica.
-- [ ] checker: `ClassInfo` com params, `this`/`init`, resolução/aridade de `Box[Int]`.
-- [ ] checker: inferência no construtor (`Box(1)`, `Pair(1, "a")`, esperado pré-binda).
-- [ ] checker: membros substituídos, `_assignable` invariante, `_unify` de `ClassTy`, interop com funções genéricas.
-- [ ] runtime erasure, guards de `is`/`as` e rejeição 65 no backend.
-- [ ] testes, golden `generic_class.lox` e docs; depois: métodos/herança genérica e reificado.
+- [x] parser/AST/tipos: `class C[T]`, `ClassTy.args`, printer, erro de superclasse genérica.
+- [x] checker: `ClassInfo` com params, `this`/`init`, resolução/aridade de `Box[Int]`.
+- [x] checker: inferência no construtor (`Box(1)`, `Pair(1, "a")`, esperado pré-binda).
+- [x] checker: membros substituídos, `_assignable` invariante, `_unify` de `ClassTy`, interop com funções genéricas.
+- [x] runtime erasure, guards de `is`/`as` e rejeição 65 no backend.
+- [x] testes, golden `generic_class.lox` e docs.
+- [ ] depois do MVP: métodos genéricos (`fn map[U]`), herança de `Box[Int]` e `is/as` reificado.
 
 Pendências pontuais:
 - [ ] `P2` merge completo em CFG e aliasing (chamada que muta campo não invalida); ver
@@ -402,7 +403,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (60 de 86 passam no `--check`; 31 compilam hoje);
+- [x] anotar 15 `tests/cases` (61 de 87 passam no `--check`; 31 compilam hoje);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
@@ -432,7 +433,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 861 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 877 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -470,7 +471,7 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes/métodos genéricos, narrowing completo e exaustividade; traits/constraints ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) — T4/T5 ✅; faltam T6a/T6c | 🟡 **em andamento** |
+| **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas (MVP), narrowing completo e exaustividade; traits/constraints ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) — T4/T5/T6a ✅; falta T6c | 🟡 **em andamento** |
 | **M6** | HIR + LLVM vertical | L0–L3: inteiros, controle de fluxo, funções, strings e binário nativo; I1 verde no corpus anotado | 🟡 em andamento |
 | **M7** | Runtime completo | L4–L6: closures, classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
@@ -518,9 +519,10 @@ portão do ADR-0014. Paralelismo/multithread fica em avaliação no
 Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md); pendências de tipo:
 [`TIPOS.md`](TIPOS.md).
 
-1. **Generics além de funções:** classes/métodos genéricos, type application explícita e
-   função genérica como valor; monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).
-   É o núcleo do M5; constraints e traits nominais ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+1. **Generics além de funções:** classes genéricas MVP feitas ([ADR-0040](docs/adr/0040-generics-classes-desenho.md));
+   faltam métodos genéricos, herança de `Box[Int]`, type application explícita e função
+   genérica como valor. Monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).
+   Constraints e traits nominais ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 2. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
 3. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
    transcendentais de `math` fora do I3.

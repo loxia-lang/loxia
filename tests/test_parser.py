@@ -517,3 +517,32 @@ def test_tuple_parse_errors(source: str) -> None:
     parser.parse()
 
     assert parser.reporter.had_error
+
+
+def test_generic_class_and_type_arguments() -> None:
+    statements = parse(
+        "class Box[T] { var value: T; init(value: T) { this.value = value; } "
+        "get() -> T { return this.value; } }"
+    )
+
+    first = statements[0]
+    assert isinstance(first, Class)
+    assert [token.lexeme for token in first.type_params] == ["T"]
+    assert AstPrinter().print_program([first]).startswith("(class Box[T]")
+
+
+def test_class_type_argument_annotation_parses() -> None:
+    statements = parse("val b: Box[Int] = Box(1);")
+    statement = statements[0]
+    assert isinstance(statement, Var)
+    annotation = statement.type_annotation
+
+    assert annotation is not None
+    assert display(annotation) == "Box[Int]"
+
+
+def test_generic_superclass_is_rejected() -> None:
+    parser = parser_for("class C(Box[Int]) {}")
+    parser.parse()
+
+    assert parser.reporter.had_error

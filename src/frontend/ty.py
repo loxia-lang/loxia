@@ -78,9 +78,10 @@ class TupleTy(Ty):
 
 @dataclass(frozen=True)
 class ClassTy(Ty):
-    """Instância de uma classe."""
+    """Instância de uma classe; `args` vazio para classe não genérica."""
 
     name: str
+    args: tuple[Ty, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -134,7 +135,11 @@ class NativeFnTy(Ty):
 
 
 def display(ty: Ty) -> str:
-    if isinstance(ty, (Prim, ClassTy, ClassObjectTy, NativeModuleTy, TyVar)):
+    if isinstance(ty, (Prim, ClassObjectTy, NativeModuleTy, TyVar)):
+        return ty.name
+    if isinstance(ty, ClassTy):
+        if ty.args:
+            return f"{ty.name}[" + ", ".join(display(arg) for arg in ty.args) + "]"
         return ty.name
     if isinstance(ty, ListTy):
         return f"List[{display(ty.element)}]"

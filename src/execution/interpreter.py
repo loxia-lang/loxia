@@ -70,7 +70,7 @@ from src.frontend.stmt import (
 from src.frontend.stmt import Visitor as StmtVisitor
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
-from src.frontend.ty import ANY, FLOAT, INT, UnionTy, display
+from src.frontend.ty import ANY, FLOAT, INT, ClassTy, UnionTy, display
 
 _RELATIONAL = frozenset(
     {
@@ -383,12 +383,24 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return self._evaluate(expr.expression)
 
     def visit_is_expr(self, expr: Is) -> object:
+        if isinstance(expr.test_type, ClassTy) and expr.test_type.args:
+            raise LoxRuntimeError(
+                expr.operator,
+                "is doesn't support type arguments on classes yet.",
+            )
+
         value = self._evaluate(expr.left)
         return matches_type(value, expr.test_type)
 
     def visit_as_expr(self, expr: As) -> object:
         value = self._evaluate(expr.left)
         target = expr.target_type
+
+        if isinstance(target, ClassTy) and target.args:
+            raise LoxRuntimeError(
+                expr.operator,
+                "as doesn't support type arguments on classes yet.",
+            )
 
         if target is INT:
             if numeric.is_int(value):

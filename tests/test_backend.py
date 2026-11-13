@@ -380,3 +380,21 @@ def test_tupla_sem_backend_e_rejeitada_explicitamente(tmp_path: Path) -> None:
     assert "not supported by the backend yet" in result.stderr
     assert not binary.exists()
     assert _interpret(path).returncode == 0
+
+
+@pytest.mark.backend
+def test_classe_generica_sem_backend_e_rejeitada(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "class Box[T] { var value: T\n"
+        "  init(value: T) { this.value = value }\n"
+        "  get() -> T { return this.value }\n"
+        "}\n"
+        "print Box(1).get();\n",
+    )
+
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 65
+    assert "Class is not supported by the backend yet." in result.stderr
+    assert not binary.exists()

@@ -104,6 +104,8 @@ class ClassInfo:
     methods: dict[str, FnTy] = field(default_factory=dict)
     method_tokens: dict[str, Token] = field(default_factory=dict)
     init: FnTy | None = None
+    type_params: tuple[TyVar, ...] = ()
+    type_param_names: tuple[str, ...] = ()
 
 
 RefinementKey = tuple[str, tuple[tuple[str, object], ...]]
@@ -186,6 +188,29 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._next_type_var_id += 1
         return TyVar(name, self._next_type_var_id)
 
+    def _declare_type_params(
+        self, tokens: list[Token]
+    ) -> tuple[tuple[TyVar, ...], tuple[str, ...]]:
+        names: list[str] = []
+        variables: list[TyVar] = []
+        for token in tokens:
+            if token.lexeme in RESERVED_TYPE_PARAM_NAMES:
+                self._error(
+                    token,
+                    f"Type parameter can't be named '{token.lexeme}'.",
+                )
+                continue
+            if token.lexeme in names:
+                self._error(
+                    token,
+                    f"Type parameter '{token.lexeme}' is already declared.",
+                )
+                continue
+            names.append(token.lexeme)
+            variables.append(self._fresh_type_var(token.lexeme))
+
+        return tuple(variables), tuple(names)
+
     def _push_type_params(
         self, names: tuple[str, ...], variables: tuple[TyVar, ...]
     ) -> None:
@@ -212,8 +237,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 if statement.superclass is not None
                 else None
             )
+            params, names = self._declare_type_params(statement.type_params)
             self._classes.setdefault(
-                statement.name.lexeme, ClassInfo(statement.name.lexeme, superclass)
+                statement.name.lexeme,
+                ClassInfo(
+                    statement.name.lexeme,
+                    superclass,
+                    type_params=params,
+                    type_param_names=names,
+                ),
             )
             self._scopes[0].setdefault(
                 statement.name.lexeme, ClassObjectTy(statement.name.lexeme)
@@ -505,6 +537,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expected, native_signature
                 )
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
+            if expected.args or actual.args:
+                return (
+                    expected.name == actual.name and expected.args == actual.args
+                )
             return self._is_subclass(actual.name, expected.name)
 
         return False
@@ -537,10 +573,45 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, ClassTy):
             parameter = self._lookup_type_param(ty.name)
             if parameter is not None:
+                if ty.args:
+                    self._error(
+                        token,
+                        f"Type parameter '{ty.name}' can't take type arguments.",
+                    )
+                    return ERROR
                 return parameter
-            if ty.name not in self._classes:
+
+            info = self._classes.get(ty.name)
+            if info is None:
                 self._error(token, f"Unknown type '{ty.name}'.")
                 return ERROR
+
+            if info.type_params:
+                if not ty.args:
+                    self._error(
+                        token,
+                        f"Class '{ty.name}' needs {len(info.type_params)} type "
+                        "argument(s); annotate it as "
+                        f"{ty.name}[...].",
+                    )
+                    return ERROR
+                if len(ty.args) != len(info.type_params):
+                    self._error(
+                        token,
+                        f"{ty.name} expects {len(info.type_params)} type "
+                        f"argument(s), got {len(ty.args)}.",
+                    )
+                    return ERROR
+
+                args = tuple(self._resolve_type(arg, token) for arg in ty.args)
+                if any(arg is ERROR for arg in args):
+                    return ERROR
+                return ClassTy(ty.name, args)
+
+            if ty.args:
+                self._error(token, f"Class '{ty.name}' isn't generic.")
+                return ERROR
+
             return ty
         if isinstance(ty, ListTy):
             return ListTy(self._resolve_type(ty.element, token))
@@ -551,6 +622,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(token, "Map keys must be String, Int or Bool.")
                 key = ERROR
             return MapTy(key, value)
+        if isinstance(ty, TupleTy):
+            return TupleTy(
+                tuple(self._resolve_type(item, token) for item in ty.items)
+            )
         if isinstance(ty, FnTy):
             return FnTy(
                 tuple(self._resolve_type(param, token) for param in ty.params),
@@ -638,63 +713,84 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         info = self._classes.get(name)
         if info is None:
-            info = ClassInfo(name, superclass)
+            params, param_names = self._declare_type_params(stmt.type_params)
+            info = ClassInfo(
+                name,
+                superclass,
+                type_params=params,
+                type_param_names=param_names,
+            )
             self._classes[name] = info
             self._define(stmt.name, ClassObjectTy(name))
 
         info.superclass = superclass
+        if superclass is not None:
+            super_info = self._classes.get(superclass)
+            if super_info is not None and super_info.type_params:
+                assert superclass_token is not None
+                self._error(
+                    superclass_token,
+                    "Generic superclasses aren't supported yet; inherit from a "
+                    "non-generic class.",
+                )
+
         enclosing = self._current_class
         self._current_class = info
-
-        for field_decl in stmt.fields:
-            if field_decl.type_annotation is not None:
-                field_ty = self._resolve_type(
-                    field_decl.type_annotation, field_decl.name
-                )
-            elif field_decl.initializer is not None:
-                field_ty = self._infer(field_decl.initializer)
-                if field_decl.mutable and field_ty is NIL:
+        self._push_type_params(info.type_param_names, info.type_params)
+        try:
+            for field_decl in stmt.fields:
+                if field_decl.type_annotation is not None:
+                    field_ty = self._resolve_type(
+                        field_decl.type_annotation, field_decl.name
+                    )
+                elif field_decl.initializer is not None:
+                    field_ty = self._infer(field_decl.initializer)
+                    if field_decl.mutable and field_ty is NIL:
+                        self._error(
+                            field_decl.name,
+                            f"Field '{field_decl.name.lexeme}' initialized with nil "
+                            "needs a type annotation.",
+                        )
+                        field_ty = ANY
+                else:
                     self._error(
                         field_decl.name,
-                        f"Field '{field_decl.name.lexeme}' initialized with nil "
-                        "needs a type annotation.",
+                        f"Field '{field_decl.name.lexeme}' needs a type annotation.",
                     )
                     field_ty = ANY
-            else:
-                self._error(
-                    field_decl.name,
-                    f"Field '{field_decl.name.lexeme}' needs a type annotation.",
+
+                if field_decl.initializer is not None:
+                    self._check(field_decl.initializer, field_ty, field_decl.name)
+
+                info.fields[field_decl.name.lexeme] = FieldBinding(
+                    field_ty, field_decl.mutable, field_decl.name
                 )
-                field_ty = ANY
 
-            if field_decl.initializer is not None:
-                self._check(field_decl.initializer, field_ty, field_decl.name)
+            for method in stmt.methods:
+                is_init = method.name.lexeme == "init"
+                signature = self._signature(
+                    method, is_init=is_init, allow_type_params=False
+                ).fn
+                if is_init:
+                    info.init = signature
+                else:
+                    info.methods[method.name.lexeme] = signature
+                    info.method_tokens[method.name.lexeme] = method.name
 
-            info.fields[field_decl.name.lexeme] = FieldBinding(
-                field_ty, field_decl.mutable, field_decl.name
-            )
+            for method in stmt.methods:
+                is_init = method.name.lexeme == "init"
+                body_signature = (
+                    info.init if is_init else info.methods.get(method.name.lexeme)
+                )
+                assert body_signature is not None
+                self._check_function_body(
+                    method, body_signature, info, is_init=is_init
+                )
 
-        for method in stmt.methods:
-            is_init = method.name.lexeme == "init"
-            signature = self._signature(
-                method, is_init=is_init, allow_type_params=False
-            ).fn
-            if is_init:
-                info.init = signature
-            else:
-                info.methods[method.name.lexeme] = signature
-                info.method_tokens[method.name.lexeme] = method.name
-
-        for method in stmt.methods:
-            is_init = method.name.lexeme == "init"
-            body_signature = (
-                info.init if is_init else info.methods.get(method.name.lexeme)
-            )
-            assert body_signature is not None
-            self._check_function_body(method, body_signature, info, is_init=is_init)
-
-        self._check_field_initialization(stmt, info)
-        self._current_class = enclosing
+            self._check_field_initialization(stmt, info)
+        finally:
+            self._pop_type_params()
+            self._current_class = enclosing
 
     def _check_overrides(self) -> None:
         for info in self._classes.values():
@@ -876,32 +972,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _signature(
         self, stmt: Function, *, is_init: bool, allow_type_params: bool = True
     ) -> FunctionSignature:
-        names: list[str] = []
-        variables: list[TyVar] = []
+        names: tuple[str, ...] = ()
+        variables: tuple[TyVar, ...] = ()
 
         if stmt.type_params and not allow_type_params:
             self._error(
                 stmt.type_params[0], "Generic methods aren't supported yet."
             )
         elif stmt.type_params:
-            for token in stmt.type_params:
-                if token.lexeme in RESERVED_TYPE_PARAM_NAMES:
-                    self._error(
-                        token,
-                        f"Type parameter can't be named '{token.lexeme}'.",
-                    )
-                    continue
-                if token.lexeme in names:
-                    self._error(
-                        token,
-                        f"Type parameter '{token.lexeme}' is already declared.",
-                    )
-                    continue
-                names.append(token.lexeme)
-                variables.append(self._fresh_type_var(token.lexeme))
+            variables, names = self._declare_type_params(stmt.type_params)
 
-        type_params = tuple(variables)
-        type_param_names = tuple(names)
+        type_params = variables
+        type_param_names = names
         self._push_type_params(type_param_names, type_params)
         try:
             param_types: list[Ty] = []
@@ -930,7 +1012,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         stmt.name, "Initializer can't declare a return type."
                     )
                 assert self._current_class is not None
-                return_ty: Ty = ClassTy(self._current_class.name)
+                return_ty: Ty = ClassTy(
+                    self._current_class.name, self._current_class.type_params
+                )
             elif stmt.return_type is None:
                 self._error(
                     stmt.name,
@@ -989,7 +1073,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         try:
             self._begin_scope()
             if not preserve_class and class_info is not None:
-                self._scopes[-1]["this"] = ClassTy(class_info.name)
+                self._scopes[-1]["this"] = ClassTy(
+                    class_info.name, class_info.type_params
+                )
                 if class_info.superclass is not None:
                     self._scopes[-1]["super"] = ClassObjectTy(
                         class_info.superclass
@@ -1098,6 +1184,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
             return
         if isinstance(ty, ClassTy):
+            if ty.args:
+                self._error(
+                    token,
+                    "as doesn't support type arguments on classes yet.",
+                )
             return
         if isinstance(ty, ListTy):
             self._validate_is_type(ty.element, token)
@@ -1122,6 +1213,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
             return
         if isinstance(ty, ClassTy):
+            if ty.args:
+                self._error(
+                    token,
+                    "is doesn't support type arguments on classes yet.",
+                )
             return
         if isinstance(ty, ListTy):
             self._validate_is_type(ty.element, token)
@@ -1527,6 +1623,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 for member in actual.members
             )
         if isinstance(actual, ClassTy) and isinstance(expected, ClassTy):
+            if expected.args or actual.args:
+                return (
+                    actual.name == expected.name and actual.args == expected.args
+                )
             return self._is_subclass(actual.name, expected.name)
         if isinstance(actual, ListTy) and isinstance(expected, ListTy):
             return expected.element is ANY or self._is_test_subtype(
@@ -1826,6 +1926,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         callee = self._infer(expr.callee)
         if isinstance(callee, GenericFnTy):
             return self._infer_generic_call(expr, callee, expected, token)
+        if isinstance(callee, ClassObjectTy):
+            info = self._classes.get(callee.name)
+            if info is not None and info.type_params:
+                return self._infer_class_construction(
+                    expr, callee, expected, token
+                )
 
         signature = self._call_signature(callee, expr)
         arguments: list[Ty] = []
@@ -2105,6 +2211,79 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         assert isinstance(fn, FnTy)
         return GenericFnTy(callee.name, tuple(fresh), fn)
 
+    def _infer_class_construction(
+        self,
+        expr: Call,
+        callee: ClassObjectTy,
+        expected: Ty | None,
+        token: Token,
+    ) -> Ty:
+        info = self._classes[callee.name]
+        fresh = tuple(
+            self._fresh_type_var(type_param.name)
+            for type_param in info.type_params
+        )
+        mapping: dict[TyVar, Ty] = dict(
+            zip(info.type_params, fresh, strict=True)
+        )
+        base = info.init or FnTy((), ClassTy(info.name, info.type_params), 0)
+        signature_ty = self._substitute(base, mapping)
+        assert isinstance(signature_ty, FnTy)
+        signature = signature_ty
+        bindings: dict[TyVar, Ty] = {}
+
+        if (
+            isinstance(expected, ClassTy)
+            and expected.name == info.name
+            and len(expected.args) == len(fresh)
+        ):
+            for variable, expected_arg in zip(
+                fresh, expected.args, strict=True
+            ):
+                bindings[variable] = expected_arg
+        elif expected is not None and expected not in (ANY, ERROR):
+            self._unify(signature.ret, expected, bindings, token)
+
+        maximum = len(signature.params)
+        minimum = signature.min_params
+        count = len(expr.arguments)
+        if not minimum <= count <= maximum:
+            if minimum == maximum:
+                message = f"Expected {minimum} arguments but got {count}."
+            elif count < minimum:
+                message = f"Expected at least {minimum} arguments but got {count}."
+            else:
+                message = (
+                    f"Expected {minimum} to {maximum} arguments but got {count}."
+                )
+            self._error(token, message)
+            return ERROR
+
+        for index, argument in enumerate(expr.arguments):
+            if index >= len(signature.params):
+                break
+            parameter_type = self._substitute(
+                signature.params[index], bindings
+            )
+            actual = self._check_generic_argument(
+                argument, parameter_type, bindings, token, index + 1
+            )
+            if actual is ERROR:
+                return ERROR
+
+        result = self._substitute(signature.ret, bindings)
+        unbound = self._unbound_type_vars(result, fresh)
+        if unbound:
+            names = ", ".join(f"'{member.name}'" for member in unbound)
+            self._error(
+                token,
+                f"Can't infer type argument(s) {names} for '{info.name}'; "
+                "annotate the value.",
+            )
+            return ERROR
+
+        return result
+
     def _infer_generic_call(
         self,
         expr: Call,
@@ -2138,9 +2317,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if index >= len(signature.params):
                 break
 
-            param = self._substitute(signature.params[index], bindings)
+            parameter_type = self._substitute(
+                signature.params[index], bindings
+            )
             actual = self._check_generic_argument(
-                argument, param, bindings, token, index + 1
+                argument, parameter_type, bindings, token, index + 1
             )
             if actual is ERROR:
                 return ERROR
@@ -2255,7 +2436,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _substitute(self, ty: Ty, bindings: dict[TyVar, Ty]) -> Ty:
         if isinstance(ty, TyVar):
             replacement = bindings.get(ty)
-            return self._substitute(replacement, bindings) if replacement else ty
+            if replacement is None or replacement == ty:
+                return ty
+            return self._substitute(replacement, bindings)
+        if isinstance(ty, ClassTy):
+            return ClassTy(
+                ty.name,
+                tuple(self._substitute(arg, bindings) for arg in ty.args),
+            )
         if isinstance(ty, ListTy):
             return ListTy(self._substitute(ty.element, bindings))
         if isinstance(ty, MapTy):
@@ -2283,6 +2471,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _has_any_type_var(self, ty: Ty) -> bool:
         if isinstance(ty, TyVar):
             return True
+        if isinstance(ty, ClassTy):
+            return any(self._has_any_type_var(arg) for arg in ty.args)
         if isinstance(ty, ListTy):
             return self._has_any_type_var(ty.element)
         if isinstance(ty, MapTy):
@@ -2304,6 +2494,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         ty = self._substitute(ty, bindings)
         if isinstance(ty, TyVar):
             return ty == variable
+        if isinstance(ty, ClassTy):
+            return any(
+                self._occurs(variable, arg, bindings) for arg in ty.args
+            )
         if isinstance(ty, ListTy):
             return self._occurs(variable, ty.element, bindings)
         if isinstance(ty, MapTy):
@@ -2361,6 +2555,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if expected == actual:
             return True
 
+        if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
+            if expected.name != actual.name or len(expected.args) != len(
+                actual.args
+            ):
+                return False
+            if not expected.args:
+                return self._assignable(expected, actual)
+            return all(
+                self._unify(expected_arg, actual_arg, bindings, token)
+                for expected_arg, actual_arg in zip(
+                    expected.args, actual.args, strict=True
+                )
+            )
+
         if not self._has_any_type_var(expected) and not self._has_any_type_var(
             actual
         ):
@@ -2406,6 +2614,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     ) -> list[TyVar]:
         if isinstance(ty, TyVar):
             return [ty] if ty in variables else []
+        if isinstance(ty, ClassTy):
+            class_vars: list[TyVar] = []
+            for arg in ty.args:
+                class_vars.extend(self._unbound_type_vars(arg, variables))
+            return class_vars
         if isinstance(ty, ListTy):
             return self._unbound_type_vars(ty.element, variables)
         if isinstance(ty, MapTy):
@@ -2434,6 +2647,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _contains_any_type_var(self, ty: Ty, variables: tuple[TyVar, ...]) -> bool:
         if isinstance(ty, TyVar):
             return ty in variables
+        if isinstance(ty, ClassTy):
+            return any(
+                self._contains_any_type_var(arg, variables) for arg in ty.args
+            )
         if isinstance(ty, ListTy):
             return self._contains_any_type_var(ty.element, variables)
         if isinstance(ty, MapTy):
@@ -2584,16 +2801,29 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._error(name, f"Undefined property '{name.lexeme}'.")
         return ERROR
 
+    def _class_bindings(self, obj: ClassTy) -> dict[TyVar, Ty]:
+        info = self._classes.get(obj.name)
+        if info is None or not info.type_params:
+            return {}
+        if len(info.type_params) != len(obj.args):
+            return {}
+        return {
+            param: arg
+            for param, arg in zip(info.type_params, obj.args, strict=True)
+            if param != arg
+        }
+
     def _instance_property(
         self, obj: ClassTy, name: Token, *, report: bool = True
     ) -> Ty:
+        bindings = self._class_bindings(obj)
         field_info = self._find_field(obj.name, name.lexeme)
         if field_info is not None:
-            return field_info.ty
+            return self._substitute(field_info.ty, bindings)
 
         method = self._find_method(obj.name, name.lexeme)
         if method is not None:
-            return method
+            return self._substitute(method, bindings)
 
         if report:
             self._error(name, f"Undefined property '{name.lexeme}'.")
@@ -2999,7 +3229,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(expr.name, f"Undefined field '{expr.name.lexeme}'.")
             return ANY
 
-        value = self._check(expr.value, field_info.ty, expr.name)
+        value = self._check(
+            expr.value,
+            self._substitute(field_info.ty, self._class_bindings(obj)),
+            expr.name,
+        )
 
         path = self._refinement_path(expr.object)
         if path is not None:
@@ -3031,7 +3265,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if self._current_class is None:
             return ERROR
 
-        return ClassTy(self._current_class.name)
+        return ClassTy(
+            self._current_class.name, self._current_class.type_params
+        )
 
     def visit_unary_expr(self, expr: Unary) -> Ty:
         right = self._infer(expr.right)

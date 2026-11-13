@@ -1,6 +1,6 @@
 # ADR-0040 — Classes genéricas (T6a): desenho
 
-- **Status:** accepted (desenho; implementação pendente)
+- **Status:** accepted (MVP implementado; métodos/herança genérica pendentes)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0020](0020-assinaturas-explicitas.md),
@@ -74,6 +74,12 @@ a implementação é a próxima fatia e não muda o backend agora.
    recebendo `Box[T]`).
 5. **Runtime/backend**: erasure e guards; teste de rejeição 65.
 6. **Testes/golden/docs** e fechamento do T6a no TODO.
+
+## Implementação (MVP)
+
+O MVP foi implementado: `class C[T]`, `ClassTy(name, args)`, inferência no construtor,
+`this`/`init` parametrizados, substituição em campos/métodos e guards de `is`/`as`.
+Continuam pendentes os itens abaixo.
 
 ## Em aberto (depois do MVP)
 

@@ -644,6 +644,34 @@ class ContaPoupanca(Conta) {
 - Ler propriedade de não-instância: `Only instances have properties.`
 - Método lido como valor continua ligado à instância (`var f = obj.m; f();`).
 
+### Classes genéricas
+
+```lox
+class Box[T] {
+  var value: T
+  init(value: T) { this.value = value }
+  get() -> T { return this.value }
+}
+
+val b: Box[Int] = Box(1)   # Box(1) infere Box[Int]
+print b.get()              # 1
+```
+
+- `class Box[T]` e `class Pair[A, B]`: `T` vale em campos, métodos, `init` e `this`; o tipo
+  é `Box[Int]`, `Pair[Int, String]` etc. (`T?`, `List[T]` e aninhamento funcionam).
+- `Box(1)` infere os argumentos pelo `init`; com tipo esperado (`val b: Box[Int] = Box()`),
+  o esperado fixa os argumentos. Sem `init` e sem esperado, é erro pedindo anotação.
+  `Box` sem argumentos em posição de tipo é erro de aridade.
+- Os argumentos são **invariantes**: `Box[Int]` não é `Box[Any]` nem `Box[Float]`
+  (campos mutáveis tornariam a covariância unsound). `Any` como argumento de inferência
+  também é recusado: `Box(x)` com `x: Any` pede anotação.
+- `this` é `Box[T]` e `init` devolve `Box[T]`; o runtime apaga `T` (`print Box(1)` →
+  `Box instance`).
+- Fora do MVP: métodos genéricos (`fn map[U]`), herança de `Box[Int]`, constraints,
+  type application explícita (aplicar argumentos à chamada) e `is`/`as Box[Int]`
+  (recusados com mensagem
+  explícita). Ver [ADR-0040](../adr/0040-generics-classes-desenho.md).
+
 ### Herança
 
 - Sintaxe: `class B(A)` (herança simples; sem `extends`, `:` ou `<`).

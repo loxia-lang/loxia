@@ -53,6 +53,7 @@ class Class(Stmt):
     superclass: Variable | None
     fields: list[Field]
     methods: list[Function]
+    type_params: list[Token] = field(default_factory=list)
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)

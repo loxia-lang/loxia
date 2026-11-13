@@ -1898,3 +1898,95 @@ def test_tuple_as_incompatible_is_rejected(
 
     assert lox.reporter.had_error is True
     assert "Can't cast (Int, String) to (Int, Int)." in captured.err
+
+
+def test_generic_class_inference_members_and_interop() -> None:
+    lox = check(
+        """
+        class Box[T] {
+          var value: T
+          init(value: T) { this.value = value }
+          get() -> T { return this.value }
+          set(v: T) -> Nil { this.value = v }
+        }
+        class Pair[A, B] {
+          val first: A
+          val second: B
+          init(first: A, second: B) { this.first = first; this.second = second }
+          swap() -> Pair[B, A] { return Pair(this.second, this.first) }
+        }
+        fn first[T](b: Box[T]) -> T { return b.get() }
+        fn make[T](x: T) -> Box[T] { return Box(x) }
+
+        val b: Box[Int] = Box(1)
+        b.set(2)
+        print b.get()
+        print first(Box(7))
+        print make("x").get()
+        val p = Pair(1, "a")
+        val q: Pair[String, Int] = p.swap()
+        print q.first
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_generic_class_without_init_needs_annotation() -> None:
+    lox = check(
+        """
+        class Empty[T] {}
+        val e: Empty[Int] = Empty()
+        print e
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (
+            "class Box[T] { var v: T\n  init(v: T) { this.v = v } }\nval a: Box[Int] = Box(1)\n"
+            "val b: Box[Any] = a",
+            "Expected Box[Any], found Box[Int].",
+        ),
+        (
+            "class Box[T] { var v: T\n  init(v: T) { this.v = v } }\nval b: Box = Box(1)",
+            "Class 'Box' needs 1 type argument(s)",
+        ),
+        (
+            "class Box[T] { var v: T\n  init(v: T) { this.v = v } }\nval b: Box[Int, String] = Box(1)",
+            "Box expects 1 type argument(s), got 2.",
+        ),
+        (
+            "class Empty[T] {}\nval e = Empty()",
+            "Can't infer type argument(s) 'T' for 'Empty'",
+        ),
+        (
+            "class Box[T] { var v: T\n  init(v: T) { this.v = v } }\nval a: Any = 1\nval b = Box(a)",
+            "Can't infer type argument 'T' from Any.",
+        ),
+        (
+            "class Box[T] { var v: T\n  init(v: T) { this.v = v } }\nprint Box(1) is Box[Int]",
+            "is doesn't support type arguments on classes yet.",
+        ),
+        (
+            "class Box[T] { var v: T\n  init(v: T) { this.v = v } }\nprint Box(1) as Box[Int]",
+            "as doesn't support type arguments on classes yet.",
+        ),
+        (
+            "class Box[T] {}\nclass C(Box[Int]) {}",
+            "Generic superclasses aren't supported yet.",
+        ),
+    ],
+)
+def test_generic_class_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
