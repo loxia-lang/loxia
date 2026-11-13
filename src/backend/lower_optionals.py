@@ -271,75 +271,90 @@ class OptionalLowering(LoweringBase):
         self, left: Value, right: Value, operator: TokenType
     ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
+        if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
+            return self._equality_with_nil(left, right, equal)
+        if left.optional and right.optional:
+            return self._equality_both_optional(left, right, equal)
+        if left.optional or right.optional:
+            return self._equality_one_optional(left, right, equal)
+        return self._plain_equality(left, right, operator)
+
+    def _equality_with_nil(
+        self, left: Value, right: Value, equal: bool
+    ) -> Value:
         true = llvm_ir.constant(_BOOL, 1)
         false = llvm_ir.constant(_BOOL, 0)
-
-        if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
-            if left.ty is ValueType.NIL and right.ty is ValueType.NIL:
-                return Value(ValueType.BOOL, true if equal else false)
-            optional = right if left.ty is ValueType.NIL else left
-            if optional.optional:
-                tag = self._optional_tag(optional)
-                is_nil = self.builder.icmp_signed(
-                    "==", tag, llvm_ir.constant(_BOOL, 0)
-                )
-                return Value(
-                    ValueType.BOOL,
-                    is_nil if equal else self.builder.not_(is_nil),
-                )
+        if left.ty is ValueType.NIL and right.ty is ValueType.NIL:
+            return Value(ValueType.BOOL, true if equal else false)
+        optional = right if left.ty is ValueType.NIL else left
+        if not optional.optional:
             return Value(ValueType.BOOL, false if equal else true)
+        tag = self._optional_tag(optional)
+        is_nil = self.builder.icmp_signed(
+            "==", tag, llvm_ir.constant(_BOOL, 0)
+        )
+        return Value(
+            ValueType.BOOL,
+            is_nil if equal else self.builder.not_(is_nil),
+        )
 
-        if left.optional and right.optional:
-            if not left.desc.same_as(right.desc) and not (
-                left.ty in NUMERIC and right.ty in NUMERIC
-            ):
-                return Value(ValueType.BOOL, false if equal else true)
-
-            left_tag = self._optional_tag(left)
-            right_tag = self._optional_tag(right)
-            both_nil = self.builder.and_(
-                self.builder.not_(left_tag), self.builder.not_(right_tag)
+    def _equality_both_optional(
+        self, left: Value, right: Value, equal: bool
+    ) -> Value:
+        if not left.desc.same_as(right.desc) and not (
+            left.ty in NUMERIC and right.ty in NUMERIC
+        ):
+            return Value(
+                ValueType.BOOL,
+                llvm_ir.constant(_BOOL, 0 if equal else 1),
             )
-            both_some = self.builder.and_(left_tag, right_tag)
+
+        left_tag = self._optional_tag(left)
+        right_tag = self._optional_tag(right)
+        both_nil = self.builder.and_(
+            self.builder.not_(left_tag), self.builder.not_(right_tag)
+        )
+        both_some = self.builder.and_(left_tag, right_tag)
+        payload_equal = self._plain_equality(
+            self._optional_payload(left),
+            self._optional_payload(right),
+            TokenType.EQUAL_EQUAL,
+        ).llvm
+        result = self.builder.or_(
+            both_nil, self.builder.and_(both_some, payload_equal)
+        )
+        return Value(
+            ValueType.BOOL,
+            result if equal else self.builder.not_(result),
+        )
+
+    def _equality_one_optional(
+        self, left: Value, right: Value, equal: bool
+    ) -> Value:
+        optional = left if left.optional else right
+        other = right if left.optional else left
+        inner = TypeDesc(optional.ty, optional.sig, False, optional.class_name)
+        if not inner.same_as(other.desc) and not (
+            optional.ty in NUMERIC and other.ty in NUMERIC
+        ):
+            return Value(
+                ValueType.BOOL,
+                llvm_ir.constant(_BOOL, 0 if equal else 1),
+            )
+
+        tag = self._optional_tag(optional)
+        payload = self._optional_payload(optional)
+        if left.optional:
             payload_equal = self._plain_equality(
-                self._optional_payload(left),
-                self._optional_payload(right),
-                TokenType.EQUAL_EQUAL,
+                payload, other, TokenType.EQUAL_EQUAL
             ).llvm
-            result = self.builder.or_(
-                both_nil, self.builder.and_(both_some, payload_equal)
-            )
-            return Value(
-                ValueType.BOOL,
-                result if equal else self.builder.not_(result),
-            )
+        else:
+            payload_equal = self._plain_equality(
+                other, payload, TokenType.EQUAL_EQUAL
+            ).llvm
 
-        if left.optional or right.optional:
-            optional = left if left.optional else right
-            other = right if left.optional else left
-            inner = TypeDesc(
-                optional.ty, optional.sig, False, optional.class_name
-            )
-            if not inner.same_as(other.desc) and not (
-                optional.ty in NUMERIC and other.ty in NUMERIC
-            ):
-                return Value(ValueType.BOOL, false if equal else true)
-
-            tag = self._optional_tag(optional)
-            payload = self._optional_payload(optional)
-            if left.optional:
-                payload_equal = self._plain_equality(
-                    payload, other, TokenType.EQUAL_EQUAL
-                ).llvm
-            else:
-                payload_equal = self._plain_equality(
-                    other, payload, TokenType.EQUAL_EQUAL
-                ).llvm
-
-            result = self.builder.and_(tag, payload_equal)
-            return Value(
-                ValueType.BOOL,
-                result if equal else self.builder.not_(result),
-            )
-
-        return self._plain_equality(left, right, operator)
+        result = self.builder.and_(tag, payload_equal)
+        return Value(
+            ValueType.BOOL,
+            result if equal else self.builder.not_(result),
+        )

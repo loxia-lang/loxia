@@ -68,7 +68,9 @@ Pacotes por fase (dependência só para baixo):
 | [`src/backend/lower_variables.py`](../../src/backend/lower_variables.py) | slots, células, atribuição e escopo |
 | [`src/backend/lower_optionals.py`](../../src/backend/lower_optionals.py) | `T?`, coerções, unwrap e igualdade opcional |
 | [`src/backend/lower_strings.py`](../../src/backend/lower_strings.py) | strings, interpolação, `str`/`repr`/`len` e display |
-| [`src/backend/lower_classes.py`](../../src/backend/lower_classes.py) | classes, campos/bitmap, métodos, vtable, herança, `super`, `is`/`as` |
+| [`src/backend/lower_class_layout.py`](../../src/backend/lower_class_layout.py) | planejamento de layout, campos e inicializadores constantes |
+| [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py) | descritor, vtable, construtor, bound methods, `super`, `is`/`as` |
+| [`src/backend/lower_instances.py`](../../src/backend/lower_instances.py) | leitura/escrita de campos, bitmap e `get`/`set` |
 | [`src/backend/lower_calls.py`](../../src/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
 | [`src/backend/driver.py`](../../src/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
 | [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%` |

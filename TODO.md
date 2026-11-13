@@ -64,8 +64,8 @@ lacuna que esta fila existe para não repetir.
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
        (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5). Extração inicial feita:
        `lower.py` coordena e os módulos `lower_model`/`lower_functions`/
-       `lower_variables`/`lower_optionals`/`lower_strings`/`lower_classes`/
-       `lower_calls` cuidam das fases. Ainda falta reduzir os métodos grandes
+       `lower_variables`/`lower_optionals`/`lower_strings`/`lower_class_layout`/
+       `lower_class_codegen`/`lower_instances`/`lower_calls` cuidam das fases. Ainda falta reduzir os métodos grandes
        (`_predeclare_classes`, `_class_declaration`, `_logical`) e então decidir se
        uma HIR-lite (ADR-0049) é necessária. Critério de pronto: comportamento
        idêntico, `make check` verde, nenhum método acima de ~80 linhas/15 nós de

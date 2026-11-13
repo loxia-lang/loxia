@@ -16,6 +16,7 @@ from src.backend.lower_model import (
     Binding,
     ClassLayout,
     FunctionInfo,
+    MethodLayout,
     TypeDesc,
     Value,
     ValueType,
@@ -74,6 +75,11 @@ class LoweringBase:
         raise NotImplementedError
 
     def _find_binding(self, name: str) -> Binding | None:
+        raise NotImplementedError
+
+    def _bound_method(
+        self, instance: Value, layout: ClassLayout, method: MethodLayout
+    ) -> Value:
         raise NotImplementedError
 
     def _len(self, expr: Call) -> Value:

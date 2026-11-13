@@ -9,7 +9,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 - **Refactor do lowering**: `lower.py` foi dividido em `lower_model`, `lower_base`,
   `lower_functions`, `lower_variables`, `lower_optionals`, `lower_strings`,
-  `lower_classes` e `lower_calls`, sem mudança de ABI ou comportamento. A separação
+  `lower_class_layout`, `lower_class_codegen`, `lower_instances` e `lower_calls`, sem mudança de ABI ou comportamento. A separação
   preserva as representações do ADR-0048 para a futura FFI com C.
 - Backend **L5a/L5b — classes e herança** ([ADR-0048](docs/adr/0048-abi-classes-l5.md)):
   métodos `(env, this, params...)`, vtable de closures, descritor de classe, instância

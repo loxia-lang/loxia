@@ -20,8 +20,10 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 from src.backend import llvm_ir
 from src.backend.captures import CaptureAnalysis, analyze_captures
 from src.backend.lower_calls import CallLowering
-from src.backend.lower_classes import ClassLowering
+from src.backend.lower_class_codegen import ClassCodegenLowering
+from src.backend.lower_class_layout import ClassLayoutLowering
 from src.backend.lower_functions import FunctionLowering
+from src.backend.lower_instances import InstanceLowering
 from src.backend.lower_model import (
     _BOOL,
     _FLOAT,
@@ -85,7 +87,9 @@ class Lowerer(
     FunctionLowering,
     VariableLowering,
     StringLowering,
-    ClassLowering,
+    ClassLayoutLowering,
+    ClassCodegenLowering,
+    InstanceLowering,
     OptionalLowering,
     CallLowering,
 ):
@@ -794,57 +798,60 @@ class Lowerer(
         )
 
     def _logical(self, expr: Logical) -> Value:
+        if expr.operator.type is TokenType.QUESTION_QUESTION:
+            return self._coalesce(expr)
+        return self._short_circuit(expr)
+
+    def _coalesce(self, expr: Logical) -> Value:
+        left = self._expr(expr.left)
+        if not left.optional:
+            # Um valor não-nil é sempre não-nil: o lado direito é morto.
+            if left.ty is not ValueType.NIL:
+                return left
+            return self._expr(expr.right)
+
+        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
+        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
+        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+        self.builder.cbranch(self._optional_tag(left), some, nothing)
+
+        self.builder = llvm_ir.builder(some)
+        payload = self._optional_payload(left)
+        self.builder.branch(end)
+        some_end = self.builder.block
+
+        self.builder = llvm_ir.builder(nothing)
+        inner = TypeDesc(left.ty, left.sig, False, left.class_name)
+        try:
+            right = self._coerce(
+                self._expr(expr.right),
+                inner,
+                expr.operator.line,
+            )
+        except BackendError:
+            raise _unsupported(
+                "Coalesce with different types",
+                expr.operator.line,
+            ) from None
+        self.builder.branch(end)
+        nothing_end = self.builder.block
+
+        self.builder = llvm_ir.builder(end)
+        merged = self.builder.phi(
+            self._storage_llvm_type(inner),
+            "coalesce.value",
+        )
+        merged.add_incoming(payload.llvm, some_end)
+        merged.add_incoming(right.llvm, nothing_end)
+        return Value(
+            left.ty,
+            merged,
+            left.sig,
+            class_name=left.class_name,
+        )
+
+    def _short_circuit(self, expr: Logical) -> Value:
         operator = expr.operator.type
-
-        if operator is TokenType.QUESTION_QUESTION:
-            left = self._expr(expr.left)
-            if not left.optional:
-                # No L4 um valor não-nil é sempre não-nil: o lado direito é morto.
-                if left.ty is not ValueType.NIL:
-                    return left
-                return self._expr(expr.right)
-
-            some = llvm_ir.append_block(self._function_ir, "coalesce.some")
-            nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
-            end = llvm_ir.append_block(self._function_ir, "coalesce.end")
-            tag = self._optional_tag(left)
-            self.builder.cbranch(tag, some, nothing)
-
-            self.builder = llvm_ir.builder(some)
-            payload = self._optional_payload(left)
-            self.builder.branch(end)
-            some_end = self.builder.block
-
-            self.builder = llvm_ir.builder(nothing)
-            inner = TypeDesc(left.ty, left.sig, False, left.class_name)
-            try:
-                right = self._coerce(
-                    self._expr(expr.right),
-                    inner,
-                    expr.operator.line,
-                )
-            except BackendError:
-                raise _unsupported(
-                    "Coalesce with different types",
-                    expr.operator.line,
-                ) from None
-            self.builder.branch(end)
-            nothing_end = self.builder.block
-
-            self.builder = llvm_ir.builder(end)
-            merged = self.builder.phi(
-                self._storage_llvm_type(inner),
-                "coalesce.value",
-            )
-            merged.add_incoming(payload.llvm, some_end)
-            merged.add_incoming(right.llvm, nothing_end)
-            return Value(
-                left.ty,
-                merged,
-                left.sig,
-                class_name=left.class_name,
-            )
-
         left = self._expr(expr.left)
         if left.ty is ValueType.NIL:
             # Só `nil` é falsy: `nil and x` é nil; `nil or x` é x.
@@ -908,11 +915,6 @@ class Lowerer(
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
         return Value(common.ty, merged, common.fn, common.optional)
-
-
-
-
-
 
     def _truthy(self, value: Value) -> Any:
         if value.optional:
