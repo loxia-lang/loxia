@@ -103,6 +103,7 @@ Crie quando a decisão:
 | [0055](0055-l6-any-casts.md) | L6e: `Any` com unbox, `is`/`as`, igualdade e tuple `for-in` | accepted (primeira fatia) | 2026-11-13 |
 | [0056](0056-l6-math-parse.md) | L6f: `math.*` e `Int.parse`/`Float.parse` | accepted | 2026-11-13 |
 | [0057](0057-l6-defaults-as-value.md) | L6g: função com defaults como valor | accepted | 2026-11-13 |
+| [0058](0058-l6-loop-capture-uninit.md) | L6h: captura por iteração, variável nil e índice de tupla `Any` | accepted | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

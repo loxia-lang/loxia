@@ -250,16 +250,29 @@ class RangeLowering(LoweringBase):
         self._scopes.append({})
         try:
             desc = value_type if isinstance(value_type, TypeDesc) else TypeDesc(value_type)
-            slot = self.builder.alloca(
-                self._storage_llvm_type(desc), name=stmt.name.lexeme
-            )
-            self.builder.store(load(), slot)
-            self._scopes[-1][stmt.name.lexeme] = Binding(
-                slot,
-                desc.ty,
-                optional=desc.optional,
-                class_name=desc.class_name,
-            )
+            captured = self._analysis.is_captured(stmt.name)
+            if captured:
+                cell = self._alloc_cell()
+                self.builder.store(load(), self._cell_pointer(cell, desc))
+                binding = Binding(
+                    cell,
+                    desc.ty,
+                    optional=desc.optional,
+                    cell=True,
+                    class_name=desc.class_name,
+                )
+            else:
+                slot = self.builder.alloca(
+                    self._storage_llvm_type(desc), name=stmt.name.lexeme
+                )
+                self.builder.store(load(), slot)
+                binding = Binding(
+                    slot,
+                    desc.ty,
+                    optional=desc.optional,
+                    class_name=desc.class_name,
+                )
+            self._scopes[-1][stmt.name.lexeme] = binding
             self._stmt(stmt.body)
             if not self.builder.block.is_terminated:
                 advance()

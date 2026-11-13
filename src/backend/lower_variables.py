@@ -73,12 +73,10 @@ class VariableLowering(LoweringBase):
                     stmt.name.line,
                 )
             declared = self._type_desc(stmt.type_annotation, stmt.name.line)
-            if not declared.optional:
-                raise BackendError(
-                    "Uninitialized variables of non-optional type are not "
-                    "supported by the backend yet.",
-                    stmt.name.line,
-                )
+            if not declared.optional and declared.ty is not ValueType.FUNCTION:
+                # A variável anotada começa nil; até a representação unificada,
+                # usa-se `Any` para preservar o comportamento do interpretador.
+                declared = TypeDesc(ValueType.ANY)
             value = self._zero_desc(declared)
         else:
             saved_element = self._list_expected_element

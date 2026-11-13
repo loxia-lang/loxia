@@ -136,11 +136,38 @@ class ContainerLowering(LoweringBase):
     def _list_get(self, expr: Index) -> Value:
         obj = self._expr(expr.object)
         if obj.ty is ValueType.ANY:
-            narrowed = self.types.get(expr.object)
-            if narrowed is not None:
-                obj = self._unbox_any(
-                    obj, self._type_desc(narrowed, expr.bracket.line), expr.bracket.line
-                )
+            tag = self.builder.extract_value(obj.llvm, 0)
+            payload = self.builder.extract_value(obj.llvm, 1)
+            tuple_block = llvm_ir.append_block(self._function_ir, "idx.tuple")
+            bad_block = llvm_ir.append_block(self._function_ir, "idx.bad")
+            end_block = llvm_ir.append_block(self._function_ir, "idx.end")
+            is_tuple = self.builder.icmp_signed(
+                "==", tag, llvm_ir.constant(_INT, 11)
+            )
+            self.builder.cbranch(is_tuple, tuple_block, bad_block)
+            self.builder = llvm_ir.builder(tuple_block)
+            tuple_value = Value(
+                ValueType.TUPLE,
+                self.builder.inttoptr(payload, _I8_PTR),
+            )
+            result = self._tuple_get(expr, tuple_value)
+            self.builder.branch(end_block)
+            tuple_end = self.builder.block
+            self.builder = llvm_ir.builder(bad_block)
+            self._poison(expr.bracket.line, "Indexing this value is not supported.")
+            zero = self._zero_desc(self._type_desc(self.types[expr], expr.bracket.line))
+            self.builder.branch(end_block)
+            bad_end = self.builder.block
+            self.builder = llvm_ir.builder(end_block)
+            merged = self.builder.phi(
+                self._storage_llvm_type(self._type_desc(self.types[expr], expr.bracket.line)),
+                "idx.value",
+            )
+            merged.add_incoming(result.llvm, tuple_end)
+            merged.add_incoming(zero.llvm, bad_end)
+            return Value(
+                result.ty, merged, result.sig, result.optional, result.class_name
+            )
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
         if obj.ty is ValueType.MAP:
