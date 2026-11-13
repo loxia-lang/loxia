@@ -89,15 +89,19 @@ interpretador o objetivo é correção; ganho real vem do backend.
 
 ## 3. Strings e texto
 
-- UTF-8 imutável, bytes + length; identificadores ASCII na 1.0, strings Unicode
+**Fechado** ([ADR-0035](docs/adr/0035-strings-texto.md)):
+
+- UTF-8 imutável; `len(s)` em **code points** (`D-13`), não bytes nem grafemas.
+- Acesso a caractere é `chars(s) -> List[String]` (O(n) explícito); `s[i]` em string
+  **não existe** e não há tipo `Char`. `for-in` itera code points.
+- `+` concatena; `==`/`!=` por conteúdo; `< <= > >=` por code point (mistura com número é
+  erro); interpolação ([ADR-0019](docs/adr/0019-interpolacao.md)).
+- Sem normalização: `"é" != "e\u{301}"`; identidades são byte-exatas.
+- Parse é `Int.parse`/`Float.parse` → `T?`, estrito (sem trim/underscore); não existe
+  `String.to_int` ([ADR-0029](docs/adr/0029-conversoes-math.md)).
+- Identificadores são ASCII; Unicode só em strings/comentários
   ([ADR-0026](docs/adr/0026-freeze-1.0.md)).
-- `len(s)` em **code points** (`D-13`); indexação `s[i]` por code point fica para depois
-  da 1.0 — hoje string não é indexável.
-- `s[i]` devolveria `String` de 1 code point (sem tipo `Char`), quando entrar.
-- Concatenação `+`, comparação léxica `<`, `==` por conteúdo; interpolação
-  ([ADR-0019](docs/adr/0019-interpolacao.md)).
-- Parse é `Int.parse`/`Float.parse` → `T?` ([ADR-0029](docs/adr/0029-conversoes-math.md));
-  não existe `String.to_int`.
+- Fora: grafemas, `"""`/raw strings (TODO §1) e builtins de string (`contains`, etc.).
 - Hash consistente com `==` para chave de `Map[String, V]`.
 
 ## 4. Listas, mapas e tuplas

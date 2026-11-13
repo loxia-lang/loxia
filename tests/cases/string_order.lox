@@ -1,0 +1,13 @@
+# Comparação lexicográfica por code point (UTF-8 = mesma ordem).
+print "a" < "b"
+print "b" <= "a"
+print "" < "a"
+print "ab" < "abc"
+print "é" > "z"
+print "a" == "a"
+# expect: true
+# expect: false
+# expect: true
+# expect: true
+# expect: true
+# expect: true

@@ -694,6 +694,14 @@ class Lowerer:
             )
             return Value(ValueType.BOOL, result)
 
+        if left.ty is ValueType.STRING and right.ty is ValueType.STRING:
+            function = self._function("lox_str_compare", _I32, [_I8_PTR, _I8_PTR])
+            comparison = self.builder.call(function, [left.llvm, right.llvm])
+            result = self.builder.icmp_signed(
+                predicates[operator], comparison, llvm_ir.constant(_I32, 0)
+            )
+            return Value(ValueType.BOOL, result)
+
         self._poison(line, _OPERAND_MESSAGES[operator])
         return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
 

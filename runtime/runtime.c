@@ -66,6 +66,21 @@ int64_t lox_str_len(const void *pointer) {
     return ((const LoxStr *)pointer)->cp_len;
 }
 
+int32_t lox_str_compare(const void *left_pointer, const void *right_pointer) {
+    const LoxStr *left = left_pointer;
+    const LoxStr *right = right_pointer;
+    size_t shared = (size_t)(left->byte_len < right->byte_len ? left->byte_len
+                                                               : right->byte_len);
+    int result = memcmp(left->data, right->data, shared);
+    if (result != 0) {
+        return result < 0 ? -1 : 1;
+    }
+    if (left->byte_len == right->byte_len) {
+        return 0;
+    }
+    return left->byte_len < right->byte_len ? -1 : 1;
+}
+
 int32_t lox_str_equal(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
     const LoxStr *right = right_pointer;

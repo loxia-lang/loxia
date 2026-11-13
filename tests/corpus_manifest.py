@@ -31,6 +31,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/literals.lox",
         "tests/cases/scope_identity.lox",
         "tests/cases/string_escapes.lox",
+        "tests/cases/string_order.lox",
         "tests/cases/strings.lox",
         "tests/cases/val_shadowing.lox",
     ),

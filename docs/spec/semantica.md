@@ -179,9 +179,13 @@ var a = "global";
 - Strings processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}`; escape
   desconhecido é erro. `"${expressão}"` interpola (ver abaixo). Ainda não há `"""` nem raw
   strings.
-- Fonte e strings são UTF-8; `len(s)` conta **code points**, não bytes. Indexação de string
-  não existe na 1.0. Identificadores são ASCII (sem normalização Unicode); ver
-  [ADR-0026](../adr/0026-freeze-1.0.md).
+- Fonte e strings são UTF-8; `len(s)` conta **code points**, não bytes. `s[i]` em string
+  **não existe**: para acesso aleatório use `chars(s)` (`List[String]`, O(n) explícito);
+  `for c in s` itera code points sem alocar. Strings comparam por conteúdo (`==`/`!=`) e
+  ordenam por `< <= > >=` na ordem de code point (= ordem de bytes UTF-8); mistura com
+  número é erro. Não há normalização (`"é" != "e\u{301}"`). Identificadores são ASCII (sem
+  normalização Unicode); ver [ADR-0026](../adr/0026-freeze-1.0.md) e
+  [ADR-0035](../adr/0035-strings-texto.md).
 - Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
   não comentário.
 
@@ -373,14 +377,16 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` **não existe na 1.0**: tempo é entrada ambiente e violaria o I3. Um módulo
   `time` explicitamente não determinístico fica para depois. O prelúdio determinístico é
-  `len`, `str`, `repr`, `range`, `Int`, `Float` e `math`.
+  `chars`, `len`, `str`, `repr`, `range`, `Int`, `Float` e `math`.
 - `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
   points para string). Outro tipo é erro:
   `len() expects a string, a list or a map.`
+- `chars(s)` exige `String` e devolve `List[String]` com os code points (cada um é uma
+  string de 1 cp); O(n) explícito. `chars("aço")` → `["a", "ç", "o"]`; outro tipo é erro.
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
-  imutáveis: redefinir `len`/`str`/`repr`/`range`/`Int`/`Float`/`math` no escopo global é
+  imutáveis: redefinir `chars`/`len`/`str`/`repr`/`range`/`Int`/`Float`/`math` no escopo global é
   erro; local e parâmetro podem sombrear. `clock` deixou de ser builtin; pode ser usado
   como nome comum.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.

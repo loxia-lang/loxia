@@ -32,7 +32,7 @@ próximo marco é o **M5 (tipos v2)** e o codegen fica pausado no L4 até lá.
 | --- | --- |
 | Escopo/linguagem 1.0 | ✅ congelado e implementado |
 | Runtime tree-walk | ✅ |
-| Suíte e docs | ✅ `make check` verde; 795 pass + 8 `xfail` intencionais |
+| Suíte e docs | ✅ `make check` verde; 814 pass + 8 `xfail` intencionais |
 | Backend nativo | 🟡 pós-1.0: L0–L3 entregues (Int/Float/Bool/nil/String, funções, açúcar, arena); L4+ pausado até o M5 |
 | **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 

@@ -146,6 +146,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     # --- infraestrutura ---
 
     def _define_builtins(self) -> None:
+        self._scopes[0]["chars"] = NativeFnTy("chars")
         self._scopes[0]["len"] = NativeFnTy("len")
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")
@@ -1751,6 +1752,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _comparison(self, left: Ty, right: Ty, operator: Token) -> Ty:
         if left is ANY or right is ANY:
             return BOOL
+        if self._is_string(left) and self._is_string(right):
+            return BOOL
         self._numeric(left, operator)
         self._numeric(right, operator)
         return BOOL
@@ -1801,6 +1804,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return self._call_type(callee, expr, arguments)
 
     def _native_signature(self, name: str) -> FnTy | None:
+        if name == "chars":
+            return FnTy((STRING,), ListTy(STRING), 1)
         if name == "len":
             return FnTy((ANY,), INT, 1)
         if name in {"str", "repr"}:
@@ -1903,6 +1908,25 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return ERROR
 
             return INT
+
+        if callee.name == "chars":
+            if len(arguments) != 1:
+                self._error(
+                    expr.paren, f"Expected 1 arguments but got {len(arguments)}."
+                )
+                return ERROR
+
+            argument = arguments[0]
+            if argument is ERROR:
+                return ERROR
+            if argument is not ANY and not self._is_string(argument):
+                self._error(
+                    expr.paren,
+                    f"chars() expects a string, found {display(argument)}.",
+                )
+                return ERROR
+
+            return ListTy(STRING)
 
         if callee.name in {"str", "repr"}:
             if len(arguments) != 1:

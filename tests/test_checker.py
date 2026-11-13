@@ -1172,6 +1172,38 @@ def test_var_lambda_nao_generaliza(capsys: pytest.CaptureFixture[str]) -> None:
     assert "needs a type annotation" in captured.err
 
 
+def test_string_ordering_and_chars() -> None:
+    lox = check(
+        """
+        print "a" < "b"
+        print "é" >= "z"
+        print len(chars("ação"))
+        val letras: List[String] = chars("ab")
+        print letras[0]
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_string_ordering_rejects_mixed(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check("print 1 < \"a\"")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Operands must be numbers." in captured.err
+
+
+def test_chars_rejects_non_string(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check("print chars(1)")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "chars() expects a string, found Int." in captured.err
+
+
 def test_narrowing_fields_and_indices() -> None:
     lox = check(
         """

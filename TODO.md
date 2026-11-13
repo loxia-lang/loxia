@@ -24,7 +24,7 @@ O Lox do livro (caps. 4–13), o freeze da 1.0, generics T3b, `--debug`, casts/p
 `nil`/`String`, `if`/`while`, variáveis, funções de topo com recursão, ternário/`and`/
 `or`/`??`, concatenação, interpolação, `len`/`str`/`repr` e arena. O teste diferencial
 compara stdout, stderr e exit code; o manifesto (`tests/corpus_manifest.py`) declara os
-casos por nível — **30 dos 79** golden cases compilam e **55** passam no `--check`.
+casos por nível — **31 dos 81** golden cases compilam e **57** passam no `--check`.
 
 **Próximo — M5 (tipos v2), não L4.** O codegen pausa: L4 em diante mexe no modelo de
 valores (closures, classes, layouts) e L6 exige monomorfização, então T3c/T4/T5/T6 vêm
@@ -46,7 +46,8 @@ antes (regra do §9). Fora do M5, só correções do que já existe. **Depois do
 
 **Operadores e literais**
 - [ ] `P2` strings multilinha (`"""`) e raw strings (`r"..."`).
-- [ ] `P2` indexação de string e UTF-8 completo em identificadores (hoje só `len`).
+- [x] `P2` acesso a caractere: `chars(s)` decidido; `s[i]` rejeitado ([ADR-0035](docs/adr/0035-strings-texto.md)).
+- [x] `P2` identificadores Unicode: mantidos ASCII por decisão ([ADR-0035](docs/adr/0035-strings-texto.md)).
 - [ ] `P3` spread `...lista` em chamadas e literais.
 
 **Dados e funções**
@@ -289,6 +290,7 @@ int32_t  lox_str_equal(const void *a, const void *b);   // L3 ✅
 void    *lox_str_from_int/double/bool;              // L3 ✅ (interpolação)
 void    *lox_str_nil(void);                         // L3 ✅
 void    *lox_str_quote(const void *s);              // L3 ✅ (`repr`)
+int32_t  lox_str_compare(const void *a, const void *b); // L3 ✅ (`< <= > >=`)
 void    *lox_alloc(size_t n);                       // L3 ✅ (arena com teto)
 ```
 
@@ -388,7 +390,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte do livro ainda é código cru
 (`fun`, `//`, sem anotações) e não compila. Tarefas, uma por diretório:
 
-- [x] anotar 15 `tests/cases` (55 de 79 passam no `--check`; 30 compilam hoje);
+- [x] anotar 15 `tests/cases` (57 de 81 passam no `--check`; 31 compilam hoje);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [ ] anotar os 24 restantes (campos, listas/mapas vazios, uniões) — nos níveis em que
@@ -418,7 +420,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 795 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 814 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---

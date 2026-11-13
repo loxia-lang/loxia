@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Strings: `chars(s)` devolve os code points como `List[String]` (acesso a caractere sem
+  `s[i]`, que continua erro) e `< <= > >=` ordenam `String` por code point, no
+  interpretador e no backend (`lox_str_compare`). Identificadores continuam ASCII e não há
+  normalização ([ADR-0035](docs/adr/0035-strings-texto.md)).
 - Checker (T4): `val f = fn(x) => x` infere parâmetros/retorno e generaliza o esquema
   ([ADR-0033](docs/adr/0033-inferencia-t3c-t4.md)); `var` não generaliza. O T3c
   (parâmetro de `fn` sem anotação) foi implementado e **revertido** por conflitar com o

@@ -8,6 +8,8 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/frontend/scan
 - Codificação: UTF-8 (é o que o `main.py` lê). Strings aceitam Unicode; `len`/índice
   contam code points ([ADR-0026](../adr/0026-freeze-1.0.md)).
 - Identificadores são **ASCII** (`[A-Za-z_][A-Za-z0-9_]*`), sem normalização Unicode;
+  Unicode é permitido em strings e comentários, não em identificadores
+  ([ADR-0035](../adr/0035-strings-texto.md));
   `ação` ainda não é um nome válido. O scanner percorre a string Python.
 - Não há BOM especial, diretivas nem módulos: um arquivo `.lox` é um programa. Uma
   primeira linha `#!` é só um comentário `#` normal.

@@ -17,6 +17,7 @@ from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
 from src.execution.lox_range import LoxRange
 from src.execution.native_module import NativeModule
+from src.execution.natives.chars import Chars
 from src.execution.natives.len import Len
 from src.execution.natives.modules import float_module, int_module, math_module
 from src.execution.natives.range import RangeNative
@@ -68,6 +69,15 @@ from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
 from src.frontend.ty import ANY, FLOAT, INT, UnionTy, display
 
+_RELATIONAL = frozenset(
+    {
+        TokenType.GREATER,
+        TokenType.GREATER_EQUAL,
+        TokenType.LESS,
+        TokenType.LESS_EQUAL,
+    }
+)
+
 
 class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def __init__(
@@ -81,6 +91,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals = Environment()
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
+        self.globals.define("chars", Chars(), mutable=False)
         self.globals.define("len", Len(), mutable=False)
         self.globals.define("range", RangeNative(), mutable=False)
         self.globals.define("repr", Repr(), mutable=False)
@@ -204,6 +215,27 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def _check_number_operand(self, operator: Token, operand: object) -> None:
         if not numeric.is_number(operand):
             raise LoxRuntimeError(operator, "Operand must be a number.")
+
+    def _relational(self, operator: Token, left: object, right: object) -> bool:
+        """Ordem numérica ou lexicográfica (code points), nunca misturada."""
+        if isinstance(left, str) and isinstance(right, str):
+            comparison = (left > right) - (left < right)
+        else:
+            self._check_number_operands(operator, left, right)
+            numeric_comparison = numeric.compare(left, right)
+            if numeric_comparison is None:  # NaN: toda comparação é falsa
+                return False
+            comparison = numeric_comparison
+
+        match operator.type:
+            case TokenType.GREATER:
+                return comparison > 0
+            case TokenType.GREATER_EQUAL:
+                return comparison >= 0
+            case TokenType.LESS:
+                return comparison < 0
+            case _:  # TokenType.LESS_EQUAL
+                return comparison <= 0
 
     def _check_number_operands(self, operator: Token, *operands: object) -> None:
         for operand in operands:
@@ -372,27 +404,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         left = self._evaluate(expr.left)
         right = self._evaluate(expr.right)
 
-        # TODO(desafio-cap-7): Suportar comparadores relacionais (>, >=, <, <=) para strings.
-        # Regra: permitir apenas entre dois números (float) OU duas strings (ordem lexicográfica).
-        # Jamais misturar tipos diferentes (ex: 3 < "pancake") para evitar coerções confusas à la JS/Python 2.
+        if expr.operator.type in _RELATIONAL:
+            return self._relational(expr.operator, left, right)
 
         match expr.operator.type:
-            case TokenType.GREATER:
-                self._check_number_operands(expr.operator, left, right)
-                comparison = numeric.compare(left, right)
-                return comparison is not None and comparison > 0
-            case TokenType.GREATER_EQUAL:
-                self._check_number_operands(expr.operator, left, right)
-                comparison = numeric.compare(left, right)
-                return comparison is not None and comparison >= 0
-            case TokenType.LESS:
-                self._check_number_operands(expr.operator, left, right)
-                comparison = numeric.compare(left, right)
-                return comparison is not None and comparison < 0
-            case TokenType.LESS_EQUAL:
-                self._check_number_operands(expr.operator, left, right)
-                comparison = numeric.compare(left, right)
-                return comparison is not None and comparison <= 0
             case TokenType.MINUS:
                 self._check_number_operands(expr.operator, left, right)
                 return self._numeric_op(numeric.subtract, expr.operator, left, right)
