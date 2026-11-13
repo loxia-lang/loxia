@@ -35,6 +35,11 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/strings.lox",
         "tests/cases/val_shadowing.lox",
     ),
+    "l2.5": (
+        "tests/cases/optional_functions.lox",
+        "tests/cases/optional_scalars.lox",
+        "tests/cases/variables.lox",
+    ),
     "l4": (
         "tests/cases/closure_reassign.lox",
         "tests/cases/closure_static_scope.lox",
@@ -118,9 +123,9 @@ PENDING: dict[str, str] = {
     "tests/cases/super_with_this.lox": "l5",
     "tests/cases/tuple_destructure.lox": "l6",
     "tests/cases/tuple_iteration.lox": "l6",
+    "tests/cases/var_uninitialized_int.lox": "l6",
     "tests/cases/tuples.lox": "l6",
     "tests/cases/typed_functions.lox": "l5",
-    "tests/cases/variables.lox": "l2",
 }
 
 NEGATIVE: frozenset[str] = frozenset(

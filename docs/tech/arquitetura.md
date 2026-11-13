@@ -338,7 +338,7 @@ chamada.
 O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
 obrigatório quando há outra instrução na mesma linha.
 
-## Backend nativo (L0–L4)
+## Backend nativo (L0–L4 + L2.5)
 
 O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
 não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção

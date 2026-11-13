@@ -1,0 +1,34 @@
+# L2.5: optionais escalares, nil contextual e unwrap narrowed.
+var i: Int?;
+var f: Float? = 1.5;
+var b: Bool?;
+
+print i;            # expect: nil
+print f;            # expect: 1.5
+print b;            # expect: nil
+
+i = 7;
+print i;            # expect: 7
+if (i != nil) print i + 2;  # expect: 9
+print i == nil;     # expect: false
+print i != nil;     # expect: true
+print i == 7;       # expect: true
+print i ?? 9;       # expect: 7
+print (nil ?? 9);   # expect: 9
+print (b ?? true);  # expect: true
+
+b = false;
+if (b) print "truthy"; else print "falsy";  # expect: falsy
+b = true;
+if (b) print "truthy"; else print "falsy";  # expect: truthy
+
+var s: Int? = nil;
+print s;            # expect: nil
+s = 3;
+print s;            # expect: 3
+print str(i);       # expect: 7
+print "i=${i}";     # expect: i=7
+print (nil if true else 1);   # expect: nil
+print (1 if false else nil);  # expect: nil
+print (i and 3);    # expect: 3
+print (i or 3);     # expect: 7

@@ -12,7 +12,7 @@ A decisão por trás destas garantias (e o porquê de cada custo) está no
 
 | # | Garantia | Status |
 | --- | --- | --- |
-| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L4; corpus por nível anotado |
+| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L4 + L2.5; corpus por nível anotado |
 | **I2** | Nada acontece implicitamente | ✅ vale hoje |
 | **I3** | Determinismo observável: mesma entrada ⇒ mesmos bytes | ✅ vale hoje e é testado em CI |
 
@@ -22,10 +22,11 @@ O tree-walk é a **definição normativa** da linguagem. Todo programa do corpus
 tem que produzir o **mesmo stdout (bytes)**, o **mesmo stderr** e o **mesmo exit code**
 nos dois motores; se divergirem, o bug é do backend.
 
-O backend nativo cobre **L0–L4** ([ADR-0031](../adr/0031-backend-nativo.md),
-[ADR-0046](../adr/0046-closures-celulas-l4.md)): `Int`, `Float`, `Bool`, `nil`, aritmética
+O backend nativo cobre **L0–L4 + L2.5** ([ADR-0031](../adr/0031-backend-nativo.md),
+[ADR-0046](../adr/0046-closures-celulas-l4.md), [ADR-0047](../adr/0047-optionais-escalares-l2-5.md)): `Int`, `Float`, `Bool`, `nil`, aritmética
 com promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if`,
-`while`, `val`/`var` com escopo e sombreamento, funções com `return`, recursão e defaults,
+`while`, `val`/`var` com escopo e sombreamento, optionais escalares (`{i1, T}` e `nil`
+contextual), funções com `return`, recursão e defaults,
 ternário/`and`/`or`/`??` com curto-circuito, `String` (concatenação, igualdade, `len` em
 code points, interpolação e `str`/`repr`) com arena, funções locais/lambdas, closures
 (células e `env`) e valores de função (`<fn f>`/`<lambda>`). O teste diferencial

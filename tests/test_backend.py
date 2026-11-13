@@ -201,6 +201,28 @@ CASES = [
         "print f(); fn f() -> Int { return 1; }",
         "chamada antes da declaração de topo vira panic",
     ),
+    (
+        "var b: Int?; print b; b = 7; print b; "
+        "if (b != nil) print b + 1;",
+        "opcional escalar: nil, atribuição e narrow",
+    ),
+    (
+        "var b: Int?; print (b ?? 4); b = 2; print (b ?? 4);",
+        "coalesce de opcional escalar",
+    ),
+    (
+        "fn f(x: Int?) -> Int? { return x; } print f(nil); print f(3);",
+        "T? em parâmetro e retorno",
+    ),
+    (
+        "var b: Bool?; b = false; if (b) print 1; else print 2;",
+        "truthiness de Bool? com payload false",
+    ),
+    (
+        "fn make() -> fn() -> Int? { var x: Int?; "
+        "return fn() -> Int? { x = 5; return x; }; } print make()();",
+        "closure captura T? e retorna T?",
+    ),
 
 ]
 

@@ -67,7 +67,8 @@ typedef struct {
 } LoxClosure;
 
 void *lox_alloc_cell(void) {
-    return lox_alloc(sizeof(int64_t));
+    /* Cabe o maior valor escalar: `{i1, i64}`/`{i1, double}` (16 bytes). */
+    return lox_alloc(2 * sizeof(int64_t));
 }
 
 void *lox_alloc_env(int64_t count) {

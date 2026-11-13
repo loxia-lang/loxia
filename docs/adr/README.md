@@ -92,6 +92,7 @@ Crie quando a decisão:
 | [0044](0044-identidade-classe.md) | Identidade de classe em runtime (`is`/`as`/`except`) | accepted (tree-walk; backend L5 pendente) | 2026-11-13 |
 | [0045](0045-narrowing-representacao.md) | Narrowing e tipos de representação | accepted (checker/tree-walk; backend L5 pendente) | 2026-11-13 |
 | [0046](0046-closures-celulas-l4.md) | L4: closures, células e valores de função | accepted (backend L4 implementado) | 2026-11-13 |
+| [0047](0047-optionais-escalares-l2-5.md) | L2.5: optionais escalares, `nil` contextual e unwrap seguro | accepted (backend L2.5 implementado) | 2026-11-13 |
 
 ## Próximas decisões que pedem ADR
 

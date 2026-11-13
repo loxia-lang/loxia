@@ -21,9 +21,9 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **97 golden cases** (40 compilam, 55 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4**, M5 fechado e ADRs
-0043–0046 (layout, identidade, narrowing e L4) fechados.
+vale o que está aqui. Estado em 2026-11-13: **100 golden cases** (43 compilam, 55 `PENDING`
+por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5**, M5 fechado e
+ADRs 0043–0047 (layout, identidade, narrowing, L4 e optionais escalares) fechados.
 
 ### 0.1 Definições que não podem faltar antes de cada nível
 
@@ -33,14 +33,16 @@ por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4**, M5 fec
 | **L5** | ADRs 0043/0044/0045 (feitos) + `T?` escalar (L2.5) e referência nula representáveis, bitmap de init, layout de classe e `print` de instância/classe | 🟡 |
 | **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
-`T?` escalar aparece como L2 na §6.3, mas o L2 fechou **sem** ele (`variables.lox` está
-`PENDING` l2). Ele é tratado aqui como **L2.5**, antes do L5. É exatamente o tipo de lacuna
-que esta fila existe para não repetir.
+`T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
+lacuna ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)). É exatamente o tipo de
+lacuna que esta fila existe para não repetir.
 
 ### 0.2 Ordem de execução
 
-1. [ ] **L2.5 — optionais escalares e variáveis não inicializadas**: `T?` escalar
-       (`{i1, T}`), `var x;`, com casos movidos de `PENDING` para `LEVELS`.
+1. [x] **L2.5 — optionais escalares e variáveis não inicializadas**: `T?` escalar
+       (`{i1, T}`), `var x: T?;`, `nil` contextual e unwrap checado
+       ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `variables.lox`
+       promovido. `var x: Int;` sem init segue `PENDING` no L6.
 2. [ ] **Atribuir nível às operações escalares restantes**: `**`, bits, `as`/`math.*`,
        `chars`, `repr` de `List`/`Map`; decidir L4 × L6 e adicionar ao manifesto.
 3. [x] **ADR de L4 + implementação**: [ADR-0046](docs/adr/0046-closures-celulas-l4.md),
@@ -310,7 +312,7 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `Bool` | `i1` | L0 ✅ |
 | `nil` | ausência (`void` no print) | L0 ✅ |
 | `Float` | `double` | L1 ✅ |
-| `T?` escalar | `{i1, T}` | L2.5 ⬜ (lacuna; ver §0.1) |
+| `T?` escalar | `{i1, T}` | L2.5 ✅ ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)) |
 | `T?` referência | ponteiro nulo | L5 ⬜ |
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
@@ -322,8 +324,8 @@ Regras:
 - `Any`, `List` cru e `Map` heterogêneo são erro de compilação até o L6.
 - `//` e `%` passam pelo runtime (guarda de zero e de `INT_MIN / -1`, que é UB em LLVM).
 - toda operação tem caminho desboxado; o runtime só entra onde há caso de borda ou I/O.
-- `T?` escalar e `var x;` ainda não têm representação no backend; é a lacuna L2.5 da §0.1
-  (`variables.lox` está `PENDING` l2). `T?` de referência entra no L5.
+- `T?` escalar já tem representação `{i1, T}` e `var x: T?;` nasce nil; `var x: Int;`
+  sem inicializador segue 65 até o L6. `T?` de referência entra no L5.
 
 ### 6.4 Runtime em C (`runtime/runtime.c`)
 
@@ -401,8 +403,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [x] **L2 — Variáveis e funções**: `val`/`var` com `alloca`/globais, atribuição, escopo,
       sombreamento; funções de topo com chamada direta, `return`, recursão, defaults no
       call site e **aridade/variável indefinida como panic site**; `for` C-style
-      (desaçucarado pelo parser) compila. **Lacuna:** `T?` escalar e `var x;` não entraram;
-      ver L2.5 (`T?` de referência entra no L5).
+      (desaçucarado pelo parser) compila. A lacuna de `T?` escalar/`var x: T?;` foi
+      fechada no L2.5 ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `T?` de
+      referência entra no L5.
 - [x] **L2b — Normalização**: ternário, `and`/`or` e `??` (blocos + `phi`, com
       curto-circuito e dobra de literais); `for-in` fica no L6 (depende de
       `Range`/`List`/`String`). Limitação conhecida: o slot é monomórfico, então
@@ -412,8 +415,9 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       (code points), **interpolação** (`"${expr}"` com `stringify` de escalares),
       `str`/`repr` (com citação/escapes) e arena de 64 MiB com panic determinístico.
       `repr` de listas/mapas entra no L6.
-- [ ] **L2.5 — Optionais escalares**: `T?` escalar (`{i1, T}`) e `var x;`; desbloqueia
-      `variables.lox`; os campos/valores `T?` de referência entram no L5.
+- [x] **L2.5 — Optionais escalares**: `T?` escalar (`{i1, T}`), `var x: T?;`, nil
+      contextual e unwrap checado ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md));
+      `variables.lox` promovido. Os campos/valores `T?` de referência entram no L5.
 - [x] **L4 — Closures**: env struct, células só para capturados, funções locais/lambdas,
       valores de função, chamada indireta e `print` (`<fn f>`/`<lambda>`) — [ADR-0046](docs/adr/0046-closures-celulas-l4.md).
 - [ ] **L5 — Objetos**: classes, métodos, `this`, herança e vtable. Layout em
@@ -453,7 +457,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 97 `tests/cases`: 40 compilam; 55 ficam `PENDING` por nível
+- [x] anotar os 100 `tests/cases`: 43 compilam; 55 ficam `PENDING` por nível
       (`l2`, `l5`, `l6` e `l?` para as operações ainda sem nível) e 2 são negativos
       (check falha por design);
 - [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;

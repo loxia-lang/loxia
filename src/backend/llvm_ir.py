@@ -78,6 +78,11 @@ def constant(ty: Any, value: int) -> Any:
     return ir.Constant(ty, value)
 
 
+def zero_value(ty: Any) -> Any:
+    """`zeroinitializer` para structs/agregados (usado por `T?` escalar)."""
+    return ir.Constant(ty, None)
+
+
 def function_type(result: Any, params: list[Any]) -> Any:
     return ir.FunctionType(result, params)
 

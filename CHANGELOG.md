@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L2.5 — optionais escalares** ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)):
+  `Int?`/`Float?`/`Bool?` como `{i1, T}`, `var x: T?;` nascendo `nil`, `nil` contextual,
+  `T?` em parâmetros/retornos/closures, `??`/truthiness/igualdade/`print`/`str`/interpolação
+  e **unwrap checado** no uso (sem confiar no narrowing do checker). `var x: Int;` sem
+  inicializador continua 65 até o L6.
 - Backend **L4 — closures e valores de função** ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)):
   funções locais e lambdas com tipo concreto, captura por **células** só para variáveis
   capturadas (`env` de ponteiros), ABI uniforme `(i8* env, params...)`, closure

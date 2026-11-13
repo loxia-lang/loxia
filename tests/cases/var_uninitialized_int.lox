@@ -1,0 +1,6 @@
+# Limitação do L2.5: `var x: Int;` é check-clean mas o backend ainda não
+# representa um `Int` que começa nil.
+var a: Int;
+print a;  # expect: nil
+a = 1;
+print a;  # expect: 1

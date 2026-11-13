@@ -53,7 +53,7 @@ from src.frontend.ty import FLOAT as TY_FLOAT
 from src.frontend.ty import INT as TY_INT
 from src.frontend.ty import NIL as TY_NIL
 from src.frontend.ty import STRING as TY_STRING
-from src.frontend.ty import FnTy, GenericFnTy, Ty
+from src.frontend.ty import FnTy, GenericFnTy, Ty, UnionTy
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -115,9 +115,14 @@ class TypeDesc:
 
     ty: ValueType
     fn: FnSig | None = None
+    optional: bool = False
 
     def same_as(self, other: TypeDesc) -> bool:
-        return self.ty is other.ty and self.fn == other.fn
+        return (
+            self.ty is other.ty
+            and self.fn == other.fn
+            and self.optional == other.optional
+        )
 
 
 @dataclass(frozen=True)
@@ -127,19 +132,20 @@ class Binding:
     storage: Any
     ty: ValueType
     sig: FnSig | None = None
+    optional: bool = False
     cell: bool = False
     function: FunctionInfo | None = None
+
+    @property
+    def desc(self) -> TypeDesc:
+        return TypeDesc(self.ty, self.sig, self.optional)
 
 
 @dataclass(frozen=True)
 class FunctionInfo:
-    """Assinatura já emitida: função LLVM, tipos e parâmetros declarados."""
+    """Assinatura já emitida: função LLVM e assinatura do checker."""
 
     ir: Any
-    param_types: list[ValueType]
-    param_sigs: list[FnSig | None]
-    return_type: ValueType
-    return_sig: FnSig | None
     params: list[Param]
     fn_sig: FnSig
 
@@ -151,6 +157,11 @@ class Value:
     ty: ValueType
     llvm: Any = None
     sig: FnSig | None = None
+    optional: bool = False
+
+    @property
+    def desc(self) -> TypeDesc:
+        return TypeDesc(self.ty, self.sig, self.optional)
 
 
 @dataclass(frozen=True)
@@ -189,8 +200,7 @@ class Lowerer:
         self._globals: dict[str, Binding] = {}
         self._top_level: dict[int, FunctionInfo] = {}
         self._function_ir: Any = None
-        self._return_type: ValueType = ValueType.NIL
-        self._return_sig: FnSig | None = None
+        self._return_type_desc = TypeDesc(ValueType.NIL)
         self._analysis = CaptureAnalysis({}, frozenset())
 
     # --- programa ---
@@ -202,8 +212,7 @@ class Lowerer:
         main = llvm_ir.define_main(self.module)
         self.main = main
         self._function_ir = main
-        self._return_type = ValueType.NIL
-        self._return_sig = None
+        self._return_type_desc = TypeDesc(ValueType.NIL)
         self._scopes = [{}]
         self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
@@ -270,23 +279,15 @@ class Lowerer:
         result = (
             _VOID
             if return_desc.ty is ValueType.NIL
-            else self._llvm_type(return_desc.ty)
+            else self._storage_llvm_type(return_desc)
         )
         signature = llvm_ir.declare(
             self.module,
             llvm_name,
             result,
-            [_I8_PTR, *[self._llvm_type(param.ty) for param in params]],
+            [_I8_PTR, *[self._storage_llvm_type(param) for param in params]],
         )
-        return FunctionInfo(
-            signature,
-            [param.ty for param in params],
-            [param.fn for param in params],
-            return_desc.ty,
-            return_desc.fn,
-            stmt.params,
-            sig,
-        )
+        return FunctionInfo(signature, stmt.params, sig)
 
     def _param_desc(self, param: Param) -> TypeDesc:
         if param.type_annotation is None:
@@ -316,6 +317,19 @@ class Lowerer:
             return TypeDesc(ValueType.STRING)
         if ty is TY_NIL:
             return TypeDesc(ValueType.NIL)
+        if isinstance(ty, UnionTy):
+            members = ty.members
+            non_nil = [member for member in members if member is not TY_NIL]
+            if len(members) == 2 and len(non_nil) == 1:
+                inner = self._type_desc(non_nil[0], line)
+                if inner.ty in (ValueType.STRING, ValueType.FUNCTION):
+                    raise _unsupported("Optional reference types", line)
+                if inner.ty is ValueType.NIL or inner.optional:
+                    raise _unsupported("Nested optionals", line)
+                return TypeDesc(inner.ty, inner.fn, True)
+
+            raise _unsupported("Union types with more than one non-Nil member", line)
+
         if isinstance(ty, FnTy):
             params = tuple(self._type_desc(param, line) for param in ty.params)
             for param in params:
@@ -343,6 +357,22 @@ class Lowerer:
             case ValueType.NIL:
                 return _VOID
 
+    def _storage_llvm_type(self, desc: TypeDesc) -> Any:
+        if not desc.optional:
+            return self._llvm_type(desc.ty)
+        if desc.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
+            return llvm_ir.literal_struct([_BOOL, self._llvm_type(desc.ty)])
+        # Referências opcionais são ponteiro nulo; o L2.5 só habilita escalares.
+        return self._llvm_type(desc.ty)
+
+    def _zero_desc(self, desc: TypeDesc) -> Value:
+        if not desc.optional:
+            return self._zero(desc.ty)
+        if desc.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
+            ty = self._storage_llvm_type(desc)
+            return Value(desc.ty, llvm_ir.zero_value(ty), desc.fn, True)
+        return Value(desc.ty, llvm_ir.null_pointer(), desc.fn, True)
+
     def _zero(self, ty: ValueType) -> Value:
         match ty:
             case ValueType.INT:
@@ -357,6 +387,110 @@ class Lowerer:
                 return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
             case ValueType.NIL:
                 return Value(ValueType.NIL)
+
+    # --- opcionais (L2.5) ---
+
+    def _some(self, desc: TypeDesc, value: Value) -> Value:
+        """Constrói `{1, payload}` para um `T?` escalar."""
+        if not desc.optional or desc.ty not in (
+            ValueType.INT,
+            ValueType.FLOAT,
+            ValueType.BOOL,
+        ):
+            raise BackendError("Invalid optional construction.", None)
+
+        aggregate = llvm_ir.zero_value(self._storage_llvm_type(desc))
+        tagged = self.builder.insert_value(
+            aggregate, llvm_ir.constant(_BOOL, 1), 0
+        )
+        return Value(
+            desc.ty,
+            self.builder.insert_value(tagged, value.llvm, 1),
+            desc.fn,
+            True,
+        )
+
+    def _unwrap(self, value: Value, line: int, message: str) -> Value:
+        """Extrai o payload de um `T?`; tag 0 vira `lox_panic` no ponto."""
+        if not value.optional:
+            return value
+
+        tag = self.builder.extract_value(value.llvm, 0)
+        ok = llvm_ir.append_block(self._function_ir, "opt.ok")
+        bad = llvm_ir.append_block(self._function_ir, "opt.nil")
+        self.builder.cbranch(tag, ok, bad)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(line, message)
+
+        self.builder = llvm_ir.builder(ok)
+        return Value(
+            value.ty,
+            self.builder.extract_value(value.llvm, 1),
+            value.sig,
+            False,
+        )
+
+    def _unwrap_operand(self, value: Value, line: int, message: str) -> Value:
+        if value.optional:
+            return self._unwrap(value, line, message)
+        if value.ty is ValueType.NIL:
+            self._poison(line, message)
+            return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+        return value
+
+    def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
+        """Converte `nil`/`T` para `T?` e faz unwrap checado de `T?` para `T`."""
+        if expected.ty is ValueType.NIL:
+            if value.ty is ValueType.NIL:
+                return value
+            raise BackendError(
+                f"Can't use {value.ty.name} where Nil is expected.", line
+            )
+
+        if expected.optional:
+            if value.ty is ValueType.NIL:
+                return self._zero_desc(expected)
+            if value.optional:
+                inner = TypeDesc(value.ty, value.sig)
+                if not inner.same_as(TypeDesc(expected.ty, expected.fn)):
+                    raise BackendError(
+                        f"Can't use {value.ty.name}? where "
+                        f"{expected.ty.name}? is expected.",
+                        line,
+                    )
+                return value
+
+            actual = TypeDesc(value.ty, value.sig)
+            if not actual.same_as(TypeDesc(expected.ty, expected.fn)):
+                raise BackendError(
+                    f"Can't use {value.ty.name} where {expected.ty.name}? "
+                    "is expected.",
+                    line,
+                )
+            return self._some(expected, value)
+
+        if value.ty is ValueType.NIL:
+            raise BackendError(
+                f"Can't use nil where {expected.ty.name} is expected.", line
+            )
+
+        if value.optional:
+            inner = TypeDesc(value.ty, value.sig)
+            if not inner.same_as(expected):
+                raise BackendError(
+                    f"Can't use {value.ty.name}? where {expected.ty.name} "
+                    "is expected.",
+                    line,
+                )
+            return self._unwrap(value, line or 0, "Can't use nil value.")
+
+        if not TypeDesc(value.ty, value.sig).same_as(expected):
+            raise BackendError(
+                f"Can't use {value.ty.name} where {expected.ty.name} is expected.",
+                line,
+            )
+        return value
 
     # --- statements ---
 
@@ -435,7 +569,12 @@ class Lowerer:
 
     def _print(self, stmt: Print) -> None:
         value = self._expr(stmt.expression)
+        if value.optional:
+            self._print_optional(value)
+        else:
+            self._print_value(value)
 
+    def _print_value(self, value: Value) -> None:
         match value.ty:
             case ValueType.INT:
                 self.builder.call(
@@ -461,6 +600,28 @@ class Lowerer:
                 )
             case ValueType.NIL:
                 self.builder.call(self._function("lox_print_nil", _VOID, []), [])
+
+    def _print_optional(self, value: Value) -> None:
+        tag = self.builder.extract_value(value.llvm, 0)
+        some = llvm_ir.append_block(self._function_ir, "opt.print.some")
+        nothing = llvm_ir.append_block(self._function_ir, "opt.print.nil")
+        end = llvm_ir.append_block(self._function_ir, "opt.print.end")
+        self.builder.cbranch(tag, some, nothing)
+
+        self.builder = llvm_ir.builder(nothing)
+        self.builder.call(self._function("lox_print_nil", _VOID, []), [])
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(some)
+        payload = Value(
+            value.ty,
+            self.builder.extract_value(value.llvm, 1),
+            value.sig,
+        )
+        self._print_value(payload)
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(end)
 
     # --- expressões ---
 
@@ -556,22 +717,18 @@ class Lowerer:
 
         self._function_counter += 1
         llvm_name = f"lox.lambda.{self._function_counter}"
-        result = _VOID if sig.ret.ty is ValueType.NIL else self._llvm_type(sig.ret.ty)
+        result = (
+            _VOID
+            if sig.ret.ty is ValueType.NIL
+            else self._storage_llvm_type(sig.ret)
+        )
         signature = llvm_ir.declare(
             self.module,
             llvm_name,
             result,
-            [_I8_PTR, *[self._llvm_type(param.ty) for param in sig.params]],
+            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
-        return FunctionInfo(
-            signature,
-            [param.ty for param in sig.params],
-            [param.fn for param in sig.params],
-            sig.ret.ty,
-            sig.ret.fn,
-            expr.params,
-            sig,
-        )
+        return FunctionInfo(signature, expr.params, sig)
 
     def _make_captures(self, node: Function | Lambda) -> tuple[CaptureBinding, ...]:
         result: list[CaptureBinding] = []
@@ -658,12 +815,10 @@ class Lowerer:
         saved_scopes = self._scopes
         saved_captures = self._captures
         saved_function = self._function_ir
-        saved_return = self._return_type
-        saved_return_sig = self._return_sig
+        saved_return = self._return_type_desc
 
         self._function_ir = info.ir
-        self._return_type = info.return_type
-        self._return_sig = info.return_sig
+        self._return_type_desc = info.fn_sig.ret
         self._scopes = [{}]
         self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
@@ -682,24 +837,27 @@ class Lowerer:
                     cell,
                     capture.binding.ty,
                     capture.binding.sig,
+                    capture.binding.optional,
                     cell=True,
                     function=capture.binding.function,
                 )
 
         for index, param in enumerate(info.params):
-            desc = TypeDesc(info.param_types[index], info.param_sigs[index])
+            desc = info.fn_sig.params[index]
             argument = info.ir.args[index + 1]
             if self._analysis.is_captured(param):
                 cell = self._alloc_cell()
-                typed = self._cell_pointer(cell, desc.ty)
+                typed = self._cell_pointer(cell, desc)
                 self.builder.store(argument, typed)
-                binding = Binding(cell, desc.ty, desc.fn, cell=True)
+                binding = Binding(
+                    cell, desc.ty, desc.fn, desc.optional, cell=True
+                )
             else:
                 slot = self.builder.alloca(
-                    self._llvm_type(desc.ty), name=param.name.lexeme
+                    self._storage_llvm_type(desc), name=param.name.lexeme
                 )
                 self.builder.store(argument, slot)
-                binding = Binding(slot, desc.ty, desc.fn)
+                binding = Binding(slot, desc.ty, desc.fn, desc.optional)
 
             self._scopes[-1][param.name.lexeme] = binding
 
@@ -709,8 +867,10 @@ class Lowerer:
             self._stmt(inner)
 
         if not self.builder.block.is_terminated:
-            if info.return_type is ValueType.NIL:
+            if info.fn_sig.ret.ty is ValueType.NIL:
                 self.builder.ret_void()
+            elif info.fn_sig.ret.optional:
+                self.builder.ret(self._zero_desc(info.fn_sig.ret).llvm)
             else:
                 # O checker garante `return` em todos os caminhos.
                 self.builder.unreachable()
@@ -720,8 +880,7 @@ class Lowerer:
         self._scopes = saved_scopes
         self._captures = saved_captures
         self._function_ir = saved_function
-        self._return_type = saved_return
-        self._return_sig = saved_return_sig
+        self._return_type_desc = saved_return
 
     def _seal_blocks(self, function: Any) -> None:
         """Todo bloco precisa de terminador; continuações de panic ficam `unreachable`."""
@@ -734,8 +893,10 @@ class Lowerer:
     def _alloc_cell(self) -> Any:
         return self.builder.call(self._function("lox_alloc_cell", _I8_PTR, []), [])
 
-    def _cell_pointer(self, cell: Any, ty: ValueType) -> Any:
-        return self.builder.bitcast(cell, self._llvm_type(ty).as_pointer())
+    def _cell_pointer(self, cell: Any, desc: TypeDesc) -> Any:
+        return self.builder.bitcast(
+            cell, self._storage_llvm_type(desc).as_pointer()
+        )
 
     def _store_null_cell(self, cell: Any) -> None:
         pointer = self.builder.bitcast(cell, _I8_PTR.as_pointer())
@@ -743,16 +904,16 @@ class Lowerer:
 
     def _load_binding(self, binding: Binding) -> Value:
         if binding.cell:
-            pointer = self._cell_pointer(binding.storage, binding.ty)
+            pointer = self._cell_pointer(binding.storage, binding.desc)
             loaded = self.builder.load(pointer)
         else:
             loaded = self.builder.load(binding.storage)
 
-        return Value(binding.ty, loaded, binding.sig)
+        return Value(binding.ty, loaded, binding.sig, binding.optional)
 
     def _store_binding(self, binding: Binding, value: Value) -> None:
         if binding.cell:
-            pointer = self._cell_pointer(binding.storage, value.ty)
+            pointer = self._cell_pointer(binding.storage, binding.desc)
             self.builder.store(value.llvm, pointer)
         else:
             self.builder.store(value.llvm, binding.storage)
@@ -774,20 +935,59 @@ class Lowerer:
     # --- variáveis ---
 
     def _var(self, stmt: Var) -> None:
+        value: Value
         if stmt.initializer is None:
-            raise BackendError(
-                "Uninitialized variables are not supported by the backend yet.",
-                stmt.name.line,
-            )
-
-        value = self._expr(stmt.initializer)
-        declared = value.ty
-        sig = value.sig
-        if declared is ValueType.NIL:
-            raise BackendError(
-                "Variables of type Nil are not supported by the backend yet.",
-                stmt.name.line,
-            )
+            if stmt.type_annotation is None:
+                raise BackendError(
+                    "Uninitialized variables need a type annotation "
+                    "for the backend.",
+                    stmt.name.line,
+                )
+            declared = self._type_desc(stmt.type_annotation, stmt.name.line)
+            if not declared.optional:
+                raise BackendError(
+                    "Uninitialized variables of non-optional type are not "
+                    "supported by the backend yet.",
+                    stmt.name.line,
+                )
+            value = self._zero_desc(declared)
+        else:
+            value = self._expr(stmt.initializer)
+            if stmt.type_annotation is not None:
+                annotated = self._type_desc(stmt.type_annotation, stmt.name.line)
+                if annotated.optional:
+                    if value.ty is ValueType.NIL:
+                        declared = annotated
+                        value = self._zero_desc(annotated)
+                    elif value.optional:
+                        if not TypeDesc(value.ty, value.sig).same_as(
+                            TypeDesc(annotated.ty, annotated.fn)
+                        ):
+                            raise BackendError(
+                                f"Can't initialize {annotated.ty.name}? with "
+                                f"{value.ty.name}?.",
+                                stmt.name.line,
+                            )
+                        declared = value.desc
+                    else:
+                        # Como no L2, o tipo do slot é o do valor em runtime:
+                        # `var b: Float? = 2` guarda `Int?` e imprime `2`.
+                        declared = TypeDesc(value.ty, value.sig, True)
+                        value = self._some(declared, value)
+                elif value.optional or value.ty is ValueType.NIL:
+                    declared = annotated
+                    value = self._coerce(value, annotated, stmt.name.line)
+                else:
+                    # Anotação não converte em runtime (L2): `val f: Float = 2`
+                    # guarda `Int` e imprime `2`.
+                    declared = value.desc
+            else:
+                if value.ty is ValueType.NIL:
+                    raise BackendError(
+                        "Variables of type Nil are not supported by the backend yet.",
+                        stmt.name.line,
+                    )
+                declared = value.desc
 
         if self._function_ir is self.main and len(self._scopes) == 1:
             existing = self._globals.get(stmt.name.lexeme)
@@ -795,24 +995,29 @@ class Lowerer:
                 # Redeclaração de global (`var x = 1; var x = 2;`): o interpretador
                 # mantém um único binding e sobrescreve o valor; reusar o slot é o
                 # que preserva a leitura dinâmica em funções já compiladas.
-                if existing.ty is not declared:
+                if not existing.desc.same_as(declared):
                     raise BackendError(
                         f"Global '{stmt.name.lexeme}' was already declared as "
-                        f"{existing.ty.name}; redeclaring it as {declared.name} "
-                        "is not supported by the backend yet.",
+                        f"{existing.desc.ty.name}; redeclaring it as "
+                        f"{declared.ty.name} is not supported by the backend yet.",
                         stmt.name.line,
                     )
                 # `var f = ...` depois de `fn f` deixa de ser uma chamada direta.
-                binding = Binding(existing.storage, declared, sig)
+                binding = Binding(
+                    existing.storage,
+                    declared.ty,
+                    declared.fn,
+                    declared.optional,
+                )
                 self._globals[stmt.name.lexeme] = binding
                 self.builder.store(value.llvm, binding.storage)
                 return
 
             name = f"g.{stmt.name.lexeme}"
             global_ = llvm_ir.global_variable(
-                self.module, name, self._llvm_type(declared)
+                self.module, name, self._storage_llvm_type(declared)
             )
-            binding = Binding(global_, declared, sig)
+            binding = Binding(global_, declared.ty, declared.fn, declared.optional)
             self._globals[stmt.name.lexeme] = binding
             self.builder.store(value.llvm, global_)
             return
@@ -822,13 +1027,21 @@ class Lowerer:
             cell_pointer = self._cell_pointer(cell, declared)
             self.builder.store(value.llvm, cell_pointer)
             self._scopes[-1][stmt.name.lexeme] = Binding(
-                cell, declared, sig, cell=True
+                cell,
+                declared.ty,
+                declared.fn,
+                declared.optional,
+                cell=True,
             )
             return
 
-        slot = self.builder.alloca(self._llvm_type(declared), name=stmt.name.lexeme)
+        slot = self.builder.alloca(
+            self._storage_llvm_type(declared), name=stmt.name.lexeme
+        )
         self.builder.store(value.llvm, slot)
-        self._scopes[-1][stmt.name.lexeme] = Binding(slot, declared, sig)
+        self._scopes[-1][stmt.name.lexeme] = Binding(
+            slot, declared.ty, declared.fn, declared.optional
+        )
 
     def _variable(self, expr: Variable) -> Value:
         depth = self.depths.get(expr)
@@ -861,14 +1074,6 @@ class Lowerer:
             return value
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
-        if not TypeDesc(binding.ty, binding.sig).same_as(
-            TypeDesc(value.ty, value.sig)
-        ):
-            raise BackendError(
-                f"Can't assign {value.ty.name} to a {binding.ty.name} variable "
-                "for the backend yet.",
-                expr.name.line,
-            )
         if (
             binding.function is not None
             and binding.function.fn_sig.min_params
@@ -880,13 +1085,18 @@ class Lowerer:
                 expr.name.line,
             )
 
+        value = self._coerce(value, binding.desc, expr.name.line)
         self._store_binding(binding, value)
 
         if binding.function is not None:
             # O binding agora aponta para outra função: chamadas seguintes são
             # indiretas (o corpo pode ter mudado).
             replacement = Binding(
-                binding.storage, value.ty, value.sig, binding.cell
+                binding.storage,
+                value.ty,
+                value.sig,
+                value.optional,
+                binding.cell,
             )
             self._replace_binding(expr, expr.name.lexeme, replacement)
 
@@ -957,6 +1167,9 @@ class Lowerer:
         return result
 
     def _to_string(self, value: Value) -> Value:
+        if value.optional:
+            return self._to_string_optional(value)
+
         match value.ty:
             case ValueType.STRING:
                 return value
@@ -987,12 +1200,45 @@ class Lowerer:
                 function = self._function("lox_str_nil", _I8_PTR, [])
                 return Value(ValueType.STRING, self.builder.call(function, []))
 
+    def _to_string_optional(self, value: Value) -> Value:
+        tag = self.builder.extract_value(value.llvm, 0)
+        some = llvm_ir.append_block(self._function_ir, "opt.str.some")
+        nothing = llvm_ir.append_block(self._function_ir, "opt.str.nil")
+        end = llvm_ir.append_block(self._function_ir, "opt.str.end")
+        self.builder.cbranch(tag, some, nothing)
+
+        self.builder = llvm_ir.builder(nothing)
+        nothing_value = self.builder.call(
+            self._function("lox_str_nil", _I8_PTR, []), []
+        )
+        nothing_end = self.builder.block
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(some)
+        payload = Value(
+            value.ty,
+            self.builder.extract_value(value.llvm, 1),
+            value.sig,
+        )
+        some_value = self._to_string(payload).llvm
+        some_end = self.builder.block
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(end)
+        merged = self.builder.phi(_I8_PTR, "opt.str")
+        merged.add_incoming(nothing_value, nothing_end)
+        merged.add_incoming(some_value, some_end)
+        return Value(ValueType.STRING, merged)
+
     def _unary(self, expr: Unary) -> Value:
         operand = self._expr(expr.right)
         line = expr.operator.line
 
         match expr.operator.type:
             case TokenType.MINUS:
+                operand = self._unwrap_operand(
+                    operand, line, "Operand must be a number."
+                )
                 if operand.ty is ValueType.INT:
                     zero = llvm_ir.constant(_INT, 0)
                     return Value(ValueType.INT, self.builder.sub(zero, operand.llvm))
@@ -1048,6 +1294,10 @@ class Lowerer:
         operator: TokenType,
         line: int,
     ) -> Value:
+        message = _OPERAND_MESSAGES[operator]
+        left = self._unwrap_operand(left, line, message)
+        right = self._unwrap_operand(right, line, message)
+
         if operator is TokenType.PLUS and (
             left.ty is ValueType.STRING and right.ty is ValueType.STRING
         ):
@@ -1068,6 +1318,12 @@ class Lowerer:
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
     def _float_division(self, left: Value, right: Value, line: int) -> Value:
+        left = self._unwrap_operand(
+            left, line, _OPERAND_MESSAGES[TokenType.SLASH]
+        )
+        right = self._unwrap_operand(
+            right, line, _OPERAND_MESSAGES[TokenType.SLASH]
+        )
         if left.ty not in NUMERIC or right.ty not in NUMERIC:
             self._poison(line, _OPERAND_MESSAGES[TokenType.SLASH])
             return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
@@ -1080,6 +1336,12 @@ class Lowerer:
         return Value(ValueType.FLOAT, call)
 
     def _integer_division(self, left: Value, right: Value, line: int) -> Value:
+        left = self._unwrap_operand(
+            left, line, _OPERAND_MESSAGES[TokenType.SLASH_SLASH]
+        )
+        right = self._unwrap_operand(
+            right, line, _OPERAND_MESSAGES[TokenType.SLASH_SLASH]
+        )
         if not (left.ty is ValueType.INT and right.ty is ValueType.INT):
             self._poison(line, _OPERAND_MESSAGES[TokenType.SLASH_SLASH])
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
@@ -1091,6 +1353,12 @@ class Lowerer:
         return Value(ValueType.INT, call)
 
     def _modulo(self, left: Value, right: Value, line: int) -> Value:
+        left = self._unwrap_operand(
+            left, line, _OPERAND_MESSAGES[TokenType.PERCENT]
+        )
+        right = self._unwrap_operand(
+            right, line, _OPERAND_MESSAGES[TokenType.PERCENT]
+        )
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
             function = self._function("lox_int_mod", _INT, [_INT, _INT, _I32])
             call = self.builder.call(
@@ -1122,6 +1390,8 @@ class Lowerer:
             TokenType.GREATER: ">",
             TokenType.GREATER_EQUAL: ">=",
         }
+        left = self._unwrap_operand(left, line, _OPERAND_MESSAGES[operator])
+        right = self._unwrap_operand(right, line, _OPERAND_MESSAGES[operator])
 
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
             result = self.builder.icmp_signed(
@@ -1148,6 +1418,97 @@ class Lowerer:
         return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
 
     def _equality(self, left: Value, right: Value, operator: TokenType) -> Value:
+        if left.optional or right.optional:
+            return self._optional_equality(left, right, operator)
+        return self._plain_equality(left, right, operator)
+
+    def _optional_payload(self, value: Value) -> Value:
+        return Value(
+            value.ty,
+            self.builder.extract_value(value.llvm, 1),
+            value.sig,
+            False,
+        )
+
+    def _optional_equality(
+        self, left: Value, right: Value, operator: TokenType
+    ) -> Value:
+        equal = operator is TokenType.EQUAL_EQUAL
+        true = llvm_ir.constant(_BOOL, 1)
+        false = llvm_ir.constant(_BOOL, 0)
+
+        if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
+            if left.ty is ValueType.NIL and right.ty is ValueType.NIL:
+                return Value(ValueType.BOOL, true if equal else false)
+            optional = right if left.ty is ValueType.NIL else left
+            if optional.optional:
+                tag = self.builder.extract_value(optional.llvm, 0)
+                is_nil = self.builder.icmp_signed(
+                    "==", tag, llvm_ir.constant(_BOOL, 0)
+                )
+                return Value(
+                    ValueType.BOOL,
+                    is_nil if equal else self.builder.not_(is_nil),
+                )
+            return Value(ValueType.BOOL, false if equal else true)
+
+        if left.optional and right.optional:
+            if not TypeDesc(left.ty, left.sig).same_as(
+                TypeDesc(right.ty, right.sig)
+            ) and not (left.ty in NUMERIC and right.ty in NUMERIC):
+                return Value(ValueType.BOOL, false if equal else true)
+
+            left_tag = self.builder.extract_value(left.llvm, 0)
+            right_tag = self.builder.extract_value(right.llvm, 0)
+            both_nil = self.builder.and_(
+                self.builder.not_(left_tag), self.builder.not_(right_tag)
+            )
+            both_some = self.builder.and_(left_tag, right_tag)
+            payload_equal = self._plain_equality(
+                self._optional_payload(left),
+                self._optional_payload(right),
+                TokenType.EQUAL_EQUAL,
+            ).llvm
+            result = self.builder.or_(
+                both_nil, self.builder.and_(both_some, payload_equal)
+            )
+            return Value(
+                ValueType.BOOL,
+                result if equal else self.builder.not_(result),
+            )
+
+        if left.optional or right.optional:
+            optional = left if left.optional else right
+            other = right if left.optional else left
+            if not TypeDesc(optional.ty, optional.sig).same_as(
+                TypeDesc(other.ty, other.sig)
+            ) and not (
+                optional.ty in NUMERIC and other.ty in NUMERIC
+            ):
+                return Value(ValueType.BOOL, false if equal else true)
+
+            tag = self.builder.extract_value(optional.llvm, 0)
+            payload = self._optional_payload(optional)
+            if left.optional:
+                payload_equal = self._plain_equality(
+                    payload, other, TokenType.EQUAL_EQUAL
+                ).llvm
+            else:
+                payload_equal = self._plain_equality(
+                    other, payload, TokenType.EQUAL_EQUAL
+                ).llvm
+
+            result = self.builder.and_(tag, payload_equal)
+            return Value(
+                ValueType.BOOL,
+                result if equal else self.builder.not_(result),
+            )
+
+        return self._plain_equality(left, right, operator)
+
+    def _plain_equality(
+        self, left: Value, right: Value, operator: TokenType
+    ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
@@ -1197,26 +1558,22 @@ class Lowerer:
 
     def _return(self, stmt: Return) -> None:
         if stmt.value is None:
-            if self._return_type is not ValueType.NIL:
-                raise BackendError(
-                    "Returning nil from a non-Nil function is not supported "
-                    "by the backend yet.",
-                    stmt.keyword.line,
-                )
-            self.builder.ret_void()
-            return
-
-        value = self._expr(stmt.value)
-        if not TypeDesc(value.ty, value.sig).same_as(
-            TypeDesc(self._return_type, self._return_sig)
-        ):
+            if self._return_type_desc.ty is ValueType.NIL:
+                self.builder.ret_void()
+                return
+            if self._return_type_desc.optional:
+                self.builder.ret(self._zero_desc(self._return_type_desc).llvm)
+                return
             raise BackendError(
-                f"Expected {self._return_type.name}, found {value.ty.name} "
-                "in this return for the backend yet.",
+                "Returning nil from a non-Nil function is not supported "
+                "by the backend yet.",
                 stmt.keyword.line,
             )
 
-        if value.ty is ValueType.NIL:
+        value = self._coerce(
+            self._expr(stmt.value), self._return_type_desc, stmt.keyword.line
+        )
+        if self._return_type_desc.ty is ValueType.NIL:
             self.builder.ret_void()
             return
 
@@ -1265,7 +1622,7 @@ class Lowerer:
         maximum = len(sig.params)
         if not minimum <= count <= maximum:
             self._poison(expr.paren.line, self._arity_message(minimum, maximum, count))
-            return self._zero(sig.ret.ty)
+            return self._zero_desc(sig.ret)
 
         if info is not None:
             for index in range(count, maximum):
@@ -1273,26 +1630,18 @@ class Lowerer:
                 assert default is not None
                 arguments.append(self._expr(default))
 
-        for index, (argument, expected) in enumerate(
-            zip(arguments, sig.params, strict=True), start=1
-        ):
-            if not TypeDesc(argument.ty, argument.sig).same_as(expected):
-                name = (
-                    expr.callee.name.lexeme
-                    if isinstance(expr.callee, Variable)
-                    else "function"
-                )
-                raise BackendError(
-                    f"Argument {index} of '{name}' is {argument.ty.name}, "
-                    f"expected {expected.ty.name}, for the backend yet.",
-                    expr.paren.line,
-                )
+        arguments = [
+            self._coerce(argument, expected, expr.paren.line)
+            for argument, expected in zip(arguments, sig.params, strict=True)
+        ]
 
         fnptr = self._closure_field(callee, 0)
         env = self._closure_field(callee, 1)
         function_type = llvm_ir.function_pointer(
-            _VOID if sig.ret.ty is ValueType.NIL else self._llvm_type(sig.ret.ty),
-            [_I8_PTR, *[self._llvm_type(param.ty) for param in sig.params]],
+            _VOID
+            if sig.ret.ty is ValueType.NIL
+            else self._storage_llvm_type(sig.ret),
+            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
         call = self.builder.call(
             self.builder.bitcast(fnptr, function_type),
@@ -1300,7 +1649,7 @@ class Lowerer:
         )
         if sig.ret.ty is ValueType.NIL:
             return Value(ValueType.NIL)
-        return Value(sig.ret.ty, call, sig.ret.fn)
+        return Value(sig.ret.ty, call, sig.ret.fn, sig.ret.optional)
 
     def _closure_field(self, closure: Value, index: int) -> Any:
         struct_ = self.builder.bitcast(closure.llvm, _CLOSURE.as_pointer())
@@ -1319,43 +1668,43 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(then_block)
         then_value = self._expr(expr.then_branch)
-        # O predecessor do merge é o bloco em que o branch para `end_block` é emitido,
-        # não o bloco inicial do ramo: um ternário aninhado termina em outro bloco.
         then_end = self.builder.block
         then_open = not then_end.is_terminated
-        if then_open:
-            self.builder.branch(end_block)
 
         self.builder = llvm_ir.builder(else_block)
         else_value = self._expr(expr.else_branch)
         else_end = self.builder.block
         else_open = not else_end.is_terminated
+
+        common = self._merge_branches(then_value, else_value, None)
+
+        if then_open:
+            self.builder = llvm_ir.builder(then_end)
+            then_value = self._coerce(then_value, common, None)
+            then_end = self.builder.block
+            self.builder.branch(end_block)
+
         if else_open:
+            self.builder = llvm_ir.builder(else_end)
+            else_value = self._coerce(else_value, common, None)
+            else_end = self.builder.block
             self.builder.branch(end_block)
 
         self.builder = llvm_ir.builder(end_block)
 
-        if not TypeDesc(then_value.ty, then_value.sig).same_as(
-            TypeDesc(else_value.ty, else_value.sig)
-        ):
-            raise BackendError(
-                f"Ternary branches are {then_value.ty.name} and "
-                f"{else_value.ty.name}; union types are not supported by the "
-                "backend yet.",
-                None,
-            )
-
-        if then_value.ty is ValueType.NIL:
+        if common.ty is ValueType.NIL:
             if not (then_open or else_open):
                 self.builder.unreachable()
                 return self._zero(ValueType.INT)
             return Value(ValueType.NIL)
 
         if then_open and else_open:
-            merged = self.builder.phi(self._llvm_type(then_value.ty), "cond.value")
+            merged = self.builder.phi(
+                self._storage_llvm_type(common), "cond.value"
+            )
             merged.add_incoming(then_value.llvm, then_end)
             merged.add_incoming(else_value.llvm, else_end)
-            return Value(then_value.ty, merged, then_value.sig)
+            return Value(common.ty, merged, common.fn, common.optional)
 
         if then_open:
             return then_value
@@ -1363,17 +1712,87 @@ class Lowerer:
             return else_value
 
         self.builder.unreachable()
-        return self._zero(then_value.ty)
+        return self._zero_desc(common)
+
+    def _merge_branches(
+        self, left: Value, right: Value, line: int | None
+    ) -> TypeDesc:
+        left_desc = left.desc
+        right_desc = right.desc
+        if left_desc.same_as(right_desc):
+            return left_desc
+
+        left_nil = left.ty is ValueType.NIL
+        right_nil = right.ty is ValueType.NIL
+        if left_nil and right_nil:
+            return left_desc
+        if left_nil:
+            if right.optional:
+                return right_desc
+            return TypeDesc(right.ty, right.sig, True)
+        if right_nil:
+            if left.optional:
+                return left_desc
+            return TypeDesc(left.ty, left.sig, True)
+
+        if (
+            left.optional
+            and not right.optional
+            and TypeDesc(left.ty, left.sig).same_as(right_desc)
+        ):
+            return left_desc
+        if (
+            right.optional
+            and not left.optional
+            and TypeDesc(right.ty, right.sig).same_as(left_desc)
+        ):
+            return right_desc
+
+        raise BackendError(
+            f"Ternary branches are {left.ty.name} and {right.ty.name}; "
+            "union types are not supported by the backend yet.",
+            line,
+        )
 
     def _logical(self, expr: Logical) -> Value:
         operator = expr.operator.type
 
         if operator is TokenType.QUESTION_QUESTION:
             left = self._expr(expr.left)
-            # No L4 um valor não-nil é sempre não-nil: o lado direito é código morto.
-            if left.ty is not ValueType.NIL:
-                return left
-            return self._expr(expr.right)
+            if not left.optional:
+                # No L4 um valor não-nil é sempre não-nil: o lado direito é morto.
+                if left.ty is not ValueType.NIL:
+                    return left
+                return self._expr(expr.right)
+
+            some = llvm_ir.append_block(self._function_ir, "coalesce.some")
+            nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
+            end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+            tag = self.builder.extract_value(left.llvm, 0)
+            self.builder.cbranch(tag, some, nothing)
+
+            self.builder = llvm_ir.builder(some)
+            payload = self._optional_payload(left)
+            self.builder.branch(end)
+            some_end = self.builder.block
+
+            self.builder = llvm_ir.builder(nothing)
+            right = self._coerce(
+                self._expr(expr.right),
+                TypeDesc(left.ty, left.sig),
+                expr.operator.line,
+            )
+            self.builder.branch(end)
+            nothing_end = self.builder.block
+
+            self.builder = llvm_ir.builder(end)
+            merged = self.builder.phi(
+                self._storage_llvm_type(TypeDesc(left.ty, left.sig)),
+                "coalesce.value",
+            )
+            merged.add_incoming(payload.llvm, some_end)
+            merged.add_incoming(right.llvm, nothing_end)
+            return Value(left.ty, merged, left.sig)
 
         left = self._expr(expr.left)
         if left.ty is ValueType.NIL:
@@ -1404,6 +1823,16 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(right_block)
         right = self._expr(expr.right)
+
+        common: TypeDesc | None
+        if left.optional:
+            common = left.desc
+            right = self._coerce(right, common, expr.operator.line)
+        elif left.desc.same_as(right.desc):
+            common = left.desc
+        else:
+            common = None
+
         right_end = self.builder.block
         right_open = not right_end.is_terminated
         if right_open:
@@ -1411,7 +1840,7 @@ class Lowerer:
 
         self.builder = llvm_ir.builder(end_block)
 
-        if not TypeDesc(left.ty, left.sig).same_as(TypeDesc(right.ty, right.sig)):
+        if common is None:
             raise BackendError(
                 f"Operands of '{expr.operator.lexeme}' are {left.ty.name} and "
                 f"{right.ty.name}; union types are not supported by the backend "
@@ -1422,10 +1851,12 @@ class Lowerer:
         if not right_open:
             return left
 
-        merged = self.builder.phi(self._llvm_type(left.ty), "logical.value")
+        merged = self.builder.phi(
+            self._storage_llvm_type(common), "logical.value"
+        )
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
-        return Value(left.ty, merged, left.sig)
+        return Value(common.ty, merged, common.fn, common.optional)
 
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
         if minimum == maximum:
@@ -1484,6 +1915,13 @@ class Lowerer:
         return Value(ValueType.INT, self.builder.call(function, [argument.llvm]))
 
     def _truthy(self, value: Value) -> Any:
+        if value.optional:
+            tag = self.builder.extract_value(value.llvm, 0)
+            if value.ty is ValueType.BOOL:
+                payload = self.builder.extract_value(value.llvm, 1)
+                return self.builder.and_(tag, payload)
+            return tag
+
         match value.ty:
             case ValueType.BOOL:
                 return value.llvm
