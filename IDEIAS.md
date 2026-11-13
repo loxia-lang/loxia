@@ -422,3 +422,56 @@ fn log(nivel: String, ...partes) { /* ... */ }
 
 **No backend:** `for-in` ainda não existe (depende de `Range`, L6); o `for` C-style
 desaçucara para blocos + `while` e compila desde o L2. Ver TODO §6.8.
+
+## I-7 — Paralelismo (multithread) — em avaliação
+
+**Status:** `a pensar` — sem data; depende de async ([ADR-0037](docs/adr/0037-async-direcao.md)),
+de I/O e do M7.
+**Decidir até:** depois que async e a stdlib de I/O existirem, e antes de prometer
+performance multinúcleo.
+
+### A pergunta
+
+Async (ADR-0037) é **concorrência single-thread**: uma tarefa por vez, determinística.
+Paralelismo é usar N núcleos. Vale a pena? Em que forma? O que dá para prometer sem quebrar
+I1/I3?
+
+### Restrições
+
+- **I1**: mesmo stdout/stderr/exit code no interpretado e no compilado.
+- **I3**: mesma entrada ⇒ mesmos bytes; a ordem de execução não pode depender do SO.
+- Boehm é thread-safe, mas GC + heaps compartilhados + threads exigem um modelo de memória
+  escrito (atomics, o que é corrida, o que é UB).
+- O runtime C do backend é single-thread hoje; pool de threads é runtime novo.
+- A 1.0 não tem `try`; falha em worker precisa de regra (fatal global? `Result` por
+  tarefa?) e isso depende de `Result`/`try`.
+
+### Opções
+
+| Opção | Como | Determinismo | Custo |
+| --- | --- | --- | --- |
+| Threads + heap compartilhado (Go/Java) | `spawn` + locks/atomics/channels | não, salvo disciplina | modelo de memória, GC, runtime, data races |
+| Workers/isolates (JS Workers, Erlang) | heaps separados + mensagens | se a ordem for por join/ordem de mensagens | serialização, duplicar heap/GC |
+| Data-parallel determinístico | `parallel map`/`Task.all` sobre funções puras, resultados ordenados | sim, por construção | provar pureza/efeitos, pool, merge ordenado |
+
+### O que eu não faria
+
+- Expor `thread`/`lock` na linguagem: vira C com sintaxe pior e mata o I3.
+- Prometer "async usa todos os núcleos": não usa ([ADR-0037](docs/adr/0037-async-direcao.md)).
+- Copiar o scheduler do Go: é um projeto de runtime inteiro.
+
+### Perguntas abertas
+
+- [ ] Qual caso de uso justifica? Sem `io`, sem perfil de CPU e sem cliente, é otimização
+      sem demanda.
+- [ ] Data-parallel só sobre funções puras? Como o checker sabe? (traits/efeitos, T6+)
+- [ ] Workers com heap separado: como serializar `List`/`Map`/classes sem violar o I2?
+- [ ] `Task.all` vira o ponto de paralelismo implícito? (recomendo não: explícito, tipo
+      `parallel map`)
+- [ ] Falha em worker: fatal global ou `Result` por tarefa? (depende de `try`/`Result`)
+
+### Critério para decidir
+
+Só depois que (a) async existir, (b) houver I/O, (c) houver caso de uso concreto e um
+benchmark mostrando ganho. A primeira forma a tentar é **data-parallel determinístico**;
+threads compartilhadas só com modelo de memória escrito e um ADR próprio.

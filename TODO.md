@@ -446,8 +446,9 @@ Infra já pronta: pytest (golden `.lox`; 857 pass + 8 `xfail`), ruff, mypy stric
 | classes como valores / metaclasses | 🤔 | só se precisar |
 | FFI com C | ⏳ | depois de linking estável |
 | stdlib (`io`, `string`, `collections`) | ⏳ | mínima primeiro |
+| `async`/`await` | ⏳ | direção no [ADR-0037](docs/adr/0037-async-direcao.md): colored, `Task[T]`, determinístico; só com I/O, pós-M7 |
 
-Fora: VM própria, GC geracional, async/await, JIT tracing, cache de bytecode e
+Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e
 `Object` raiz — o LLVM cobre o codegen e o escopo humano manda.
 
 ---
@@ -469,6 +470,12 @@ avançaram antes do M5 e foi seguro porque esse subconjunto já estava congelado
 layout de classe, generics de classe ou traits); de L4 em diante o modelo de valores e os
 layouts de tipo mudam, e L6 depende da monomorfização que só o M5 habilita. Se o M5 mudar
 a semântica de algo já compilado, o nível afetado volta para a fila com caso diferencial.
+
+**Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
+suspensos) é preparada durante o L4/L6; a feature entra **depois do M7**, junto com a
+stdlib de I/O, e **antes do M8**. Sem I/O não há o que esperar e a feature não passa no
+portão do ADR-0014. Paralelismo/multithread fica em avaliação no
+[`IDEIAS.md`](IDEIAS.md) I-7 — não é async.
 
 ---
 
@@ -510,6 +517,8 @@ Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
 6. **`if`/bloco como expressão, `match`/enums e traits:** fora da 1.0; reavaliar depois
    do M5.
+7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
+   concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
 
 Fechadas nesta sessão: backend em `llvmlite` (ADR-0031), normalização de ternário/
 `and`/`or`/`??` e strings do L3 (ver [`docs/adr`](docs/adr/) e [`CHANGELOG.md`](CHANGELOG.md)).

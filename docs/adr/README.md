@@ -76,6 +76,13 @@ Crie quando a decisão:
 | [0028](0028-overflow-debug.md) | Overflow checado no modo `--debug` | accepted | 2026-11-12 |
 | [0029](0029-conversoes-math.md) | Conversões (`as`, parse) e `math.*` determinístico | accepted | 2026-11-12 |
 | [0030](0030-tuplas.md) | Tuplas: sintaxe escolhida, implementação pós-1.0 | accepted (pós-1.0) | 2026-11-12 |
+| [0031](0031-backend-nativo.md) | Backend nativo: contrato de valor, runtime e corpus | accepted (L0–L3; L4–L7 pendentes) | 2026-11-12 |
+| [0032](0032-narrowing-campos-indices.md) | Narrowing de campos e índices literais | accepted | 2026-11-12 |
+| [0033](0033-inferencia-t3c-t4.md) | Inferência T3c/T4 | accepted (T4; T3c revertido no ADR-0034) | 2026-11-12 |
+| [0034](0034-t3c-revertido.md) | T3c revertido: parâmetro implícito sai | accepted | 2026-11-12 |
+| [0035](0035-strings-texto.md) | Strings como texto: code points e ordem | accepted | 2026-11-12 |
+| [0036](0036-tuplas-implementacao.md) | Tuplas: implementação no interpretador e checker | accepted | 2026-11-12 |
+| [0037](0037-async-direcao.md) | Async: colored, determinístico e pós-M7 | accepted (direção; keywords reservadas) | 2026-11-12 |
 
 ## Próximas decisões que pedem ADR
 
@@ -84,8 +91,9 @@ Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`/`TODO.md
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md);
 - decisões de linguagem ainda abertas (nome, `if` expressão, `match`, exceções, generics
   de classes/métodos e constraints, módulos, backend, unificação mutável) —
-  [`../../TODO.md`](../../TODO.md) §11. Tuplas já têm sintaxe decidida no
-  [ADR-0030](0030-tuplas.md), mas implementação pós-1.0.
+  [`../../TODO.md`](../../TODO.md) §11. Tuplas foram implementadas no interpretador/checker
+  ([ADR-0036](0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem
+  direção decidida, mas implementação pendente ([ADR-0037](0037-async-direcao.md)).
 
 O resumo das decisões **já fechadas** fica em [`../decisoes.md`](../decisoes.md); este
 índice continua sendo o histórico completo.

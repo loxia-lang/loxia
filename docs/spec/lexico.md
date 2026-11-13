@@ -93,15 +93,18 @@ Strings:
 ### Palavras-chave
 
 ```
-and    as     class  elif   else   false  for
-fn     if     in     is     nil    or
-print  return super  this   true   val
-var    while
+and    as     async  await  class  elif   else   false  for
+fn     if     in     is     nil    or     print  return
+super  this   true   val    var    while
 ```
 
 `fn` substituiu `fun`; `fun` agora é identificador comum (não é palavra-chave).
 
 São sensíveis a maiúsculas (`Class` é identificador).
+
+`async` e `await` estão **reservadas** como preparação do assincronismo
+([ADR-0037](../adr/0037-async-direcao.md)); ainda não têm sintaxe, então usá-las como
+identificador é erro de compilação.
 
 ### Fim de arquivo
 

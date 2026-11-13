@@ -53,6 +53,8 @@ class TokenType(Enum):
     #Keywords.
     AND = auto()
     AS = auto()
+    ASYNC = auto()
+    AWAIT = auto()
     CLASS = auto()
     ELIF = auto()
     ELSE = auto()

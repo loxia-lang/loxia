@@ -3,6 +3,8 @@ from src.frontend.token_type import TokenType
 KEYWORDS: dict[str, TokenType] = {
     "and": TokenType.AND,
     "as": TokenType.AS,
+    "async": TokenType.ASYNC,
+    "await": TokenType.AWAIT,
     "class": TokenType.CLASS,
     "elif": TokenType.ELIF,
     "else": TokenType.ELSE,

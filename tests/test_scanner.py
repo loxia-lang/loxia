@@ -91,6 +91,15 @@ def test_keywords_fn_elif_and_fun_as_identifier() -> None:
     ]
 
 
+def test_keywords_async_and_await_are_reserved() -> None:
+    assert scan_types("async await async2") == [
+        TokenType.ASYNC,
+        TokenType.AWAIT,
+        TokenType.IDENTIFIER,
+        TokenType.EOF,
+    ]
+
+
 def test_integer_literal_overflow_reports_error() -> None:
     scanner = scan_with_reporter("9223372036854775808")
 

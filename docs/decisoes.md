@@ -36,6 +36,7 @@ decisão.
 | Overflow no debug | `--debug` checa `+ - * ** -`, `INT_MIN // -1` e `% -1`; overflow é erro fatal (exit 70); release continua wrapping; shifts não checam. | [ADR-0028](adr/0028-overflow-debug.md) |
 | Conversões e `math` | `as` explícito (`Int`/`Float`/`Any`/classe/lista/mapa); `Float as Int` trunca e falha em NaN/Inf/range; `Int.parse`/`Float.parse` devolvem `T?`; `math.*` determinístico com abs/min/max/clamp/floor/ceil/round/trunc/sqrt; transcendentais fora do I3. | [ADR-0029](adr/0029-conversoes-math.md) |
 | Tuplas | `(a, b)`/`(A, B)`, `t[i]` (literal com bounds no `--check`; dinâmico vira união), `val`/`var (a, b) = t` com anotação opcional, 2+ elementos, imutáveis e **covariantes**; igualdade/`len`/formatação; `for-in`/`is`/`as` e backend (L6) pendentes; não hasháveis. | [ADR-0030](adr/0030-tuplas.md), [ADR-0036](adr/0036-tuplas-implementacao.md) |
+| Async | **Direção decidida; só as palavras-chave reservadas (sem sintaxe):** `async`/`await` *colored*, stackless, single-thread e determinístico; `Task[T]` embutido e covariante; top-level `await` (sem `async main`); `Task.all` com ordem preservada; sem `.then`/thenables/`race`; falha de tarefa é fatal; sem paralelismo. Entra depois do M7 e só com I/O, antes do M8. | [ADR-0037](adr/0037-async-direcao.md), [IDEIAS I-7](../IDEIAS.md) |
 | `fn`/`elif`/`;` | `fn` substitui `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha, EOF ou antes de `}`; operador só continua na mesma linha; `return` sozinho devolve `nil`. | [ADR-0011](adr/0011-fn-elif-ponto-e-virgula.md) |
 | Comentários, `//`, `**` e bits | `#` e `/* */` aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`; `& \| ^ ~ << >> >>>` em i64; shift inválido é erro. | [ADR-0012](adr/0012-comentarios-divisao-potencia-bits.md) |
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
@@ -69,4 +70,4 @@ decisão.
 Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`,
 futuro de classes/traits, exceções vs `Result`, **generics de classes/métodos e
 constraints**, módulos, contratos e unificação mutável continuam **em aberto** no
-[`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6.
+[`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).

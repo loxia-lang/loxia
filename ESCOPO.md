@@ -83,6 +83,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Classes/métodos genéricos, constraints/traits | M5 | extensão do T3b |
 | `match`/enums, exaustividade | M5 | depois de uniões |
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |
+| Async/await (`Task[T]`) | depois do M7 + I/O | direção no [ADR-0037](docs/adr/0037-async-direcao.md); colored, determinístico; não é paralelismo (IDEIAS I-7) |
 | Contratos (`requires`/`ensures`/`invariant`) e JSON | pós | ver I-4 no [`IDEIAS.md`](IDEIAS.md) |
 | `Result`/`Option`, `try`/`throw` | pós | 1.0 é erro fatal |
 | Variádicos, trailing closure, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
@@ -92,7 +93,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | `log`/`exp`/`sin`/`cos`/`tan`/`pow`/`math.pi` | pós | libm não garante I3 |
 | Formatter, LSP, fuzz, site, REPL multiline | pós | tooling |
 
-**Fora por enquanto:** VM própria/bytecode, async/await, `Object` raiz, GC geracional,
+**Fora por enquanto:** VM própria/bytecode, `Object` raiz, GC geracional,
 JIT tracing, metaclasses, `UInt`/`f32`/`Decimal`/`BigInt`, coerção implícita.
 
 ## Como decidir um item novo
