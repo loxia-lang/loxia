@@ -62,15 +62,14 @@ lacuna que esta fila existe para não repetir.
          métodos/captura (**L5c**) e o `nil_aware` completo (união/`Any`, **L6**).
 5. [ ] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
-       (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5). Extrair primeiro:
-       - `model` (`TypeDesc`, `Value`, `Binding`, `FieldLayout`, `ClassLayout`);
-       - `classes` (layout, descritor, vtable, ctor, bound methods, `super`);
-       - `optionals` (`some`/`unwrap`/`coerce`/print/igualdade);
-       - `strings` e `calls`/despacho.
-       Critério de pronto: comportamento idêntico, `make check` verde, nenhum método
-       acima de ~80 linhas/15 nós de decisão e `lower.py` deixa de ser o depósito de
-       todas as fases. **Só depois** decidir se uma HIR-lite (ADR-0049) é necessária.
-       Não iniciar L6 antes disso.
+       (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5). Extração inicial feita:
+       `lower.py` coordena e os módulos `lower_model`/`lower_functions`/
+       `lower_variables`/`lower_optionals`/`lower_strings`/`lower_classes`/
+       `lower_calls` cuidam das fases. Ainda falta reduzir os métodos grandes
+       (`_predeclare_classes`, `_class_declaration`, `_logical`) e então decidir se
+       uma HIR-lite (ADR-0049) é necessária. Critério de pronto: comportamento
+       idêntico, `make check` verde, nenhum método acima de ~80 linhas/15 nós de
+       decisão. Não iniciar L6 antes disso.
 6. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
 7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
@@ -530,7 +529,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 1086 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; mais de 1.000 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---

@@ -535,3 +535,25 @@ def test_try_sem_backend_e_rejeitado(tmp_path: Path) -> None:
     assert result.returncode == 65
     assert "Try is not supported by the backend yet." in result.stderr
     assert not binary.exists()
+
+
+@pytest.mark.backend
+def test_abi_das_estruturas_publicas_e_estavel() -> None:
+    """Contrato mínimo para a futura FFI com C (ADR-0048)."""
+    from src.backend.lower_model import _CLASS_DESC, _CLOSURE
+
+    assert [str(element) for element in _CLOSURE.elements] == [
+        "i8*",
+        "i8*",
+        "i8*",
+    ]
+    assert [str(element) for element in _CLASS_DESC.elements] == [
+        "i8*",
+        "i64",
+        "i8*",
+        "i8*",
+        "i64",
+        "i8*",
+        "i64",
+        "i64",
+    ]

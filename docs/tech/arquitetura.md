@@ -61,7 +61,15 @@ Pacotes por fase (dependência só para baixo):
 | [`src/frontend/stmt.py`](../../src/frontend/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
 | [`src/frontend/parser.py`](../../src/frontend/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
 | [`src/backend/llvm_ir.py`](../../src/backend/llvm_ir.py) | única fronteira com o `llvmlite` (módulo, target machine, object file) |
-| [`src/backend/lower.py`](../../src/backend/lower.py) | AST → IR; L1 cobre `Int`/`Float`/`Bool`/`nil`, `if`/`while` e panic sites |
+| [`src/backend/lower.py`](../../src/backend/lower.py) | coordenação do lowering: programa, statements, expressões, aritmética e controle de fluxo |
+| [`src/backend/lower_model.py`](../../src/backend/lower_model.py) | tipos, valores, bindings e layouts de campo/classe (ABI do ADR-0048) |
+| [`src/backend/lower_base.py`](../../src/backend/lower_base.py) | contexto compartilhado pelos mixins do lowering |
+| [`src/backend/lower_functions.py`](../../src/backend/lower_functions.py) | funções, lambdas, captura e ABI de closure |
+| [`src/backend/lower_variables.py`](../../src/backend/lower_variables.py) | slots, células, atribuição e escopo |
+| [`src/backend/lower_optionals.py`](../../src/backend/lower_optionals.py) | `T?`, coerções, unwrap e igualdade opcional |
+| [`src/backend/lower_strings.py`](../../src/backend/lower_strings.py) | strings, interpolação, `str`/`repr`/`len` e display |
+| [`src/backend/lower_classes.py`](../../src/backend/lower_classes.py) | classes, campos/bitmap, métodos, vtable, herança, `super`, `is`/`as` |
+| [`src/backend/lower_calls.py`](../../src/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
 | [`src/backend/driver.py`](../../src/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
 | [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%` |
 | [`src/semantics/resolver.py`](../../src/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
