@@ -31,7 +31,7 @@ classes) fechados.
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
 | **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
-| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c (`?.` opcional, classes locais, `is`/`as`) pendente | 🟡 |
+| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c parcial: `is`/`as`, `?.` opcional e classes locais vazias feitos; faltam classes locais gerais/captura (L5c) e `nil_aware` (L6) | 🟡 |
 | **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
 `T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
@@ -59,7 +59,7 @@ lacuna que esta fila existe para não repetir.
        - [ ] **L5c**: `is`/`as` de classe, classes locais **vazias** e `?.` com receptor
          opcional já funcionam (`class_identity`, `optional_receiver`); `String?`/instância
          `T?` funcionam em campos/parâmetros/retornos. Faltam classes locais com campos/
-         métodos/captura e o `nil_aware` completo (união/`Any`, L6).
+         métodos/captura (**L5c**) e o `nil_aware` completo (união/`Any`, **L6**).
 5. [ ] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
        (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5). Extrair primeiro:
@@ -69,14 +69,14 @@ lacuna que esta fila existe para não repetir.
        - `strings` e `calls`/despacho.
        Critério de pronto: comportamento idêntico, `make check` verde, nenhum método
        acima de ~80 linhas/15 nós de decisão e `lower.py` deixa de ser o depósito de
-       todas as fases. **Só depois** decidir HIR-lite completa (ADR-0049) se a extração
-       não bastar. Não iniciar L6 antes disso.
+       todas as fases. **Só depois** decidir se uma HIR-lite (ADR-0049) é necessária.
+       Não iniciar L6 antes disso.
 6. [ ] **ADR T7 + L6 — tipos**: monomorfização, `Any`, representação numérica unificada,
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
 7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
        entram em `LEVELS`; I1 só vale para o corpus anotado.
 8. [ ] **Diagnósticos** (spans → caret → stack trace): decisão do ADR-0046 é **fora do
-       L4**; ADR próprio antes do L5/L6, porque mexem em stderr/I1.
+       L4**; ADR próprio antes do L6, porque mexem em stderr/I1.
 9. [ ] **L7 — qualidade**: `mod.verify()`, `-O2`, benchmarks, JIT e mensagens de codegen.
 
 ### 0.3 Fora do caminho crítico (não bloqueiam nenhum L)
@@ -181,7 +181,7 @@ Pendências pontuais:
 
 Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
 `ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e `Never`.
-`Any` é escape no tree-walk, mas o backend L0–L4 o rejeita.
+`Any` é escape no tree-walk, mas o backend L0–L5 o rejeita (com 65).
 
 ---
 
@@ -228,7 +228,7 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
 ### 3.2 Runtime e linguagem
 
 - [ ] `P1` **spans/caret/stack trace**: recorte mínimo da §3.1; **fora do L4** por decisão
-      do [ADR-0046](docs/adr/0046-closures-celulas-l4.md), com ADR próprio antes do L5/L6;
+      do [ADR-0046](docs/adr/0046-closures-celulas-l4.md), com ADR próprio antes do L6;
       pré-requisito para erros bonitos e stderr do nativo.
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
 - [ ] `P2` **`assert`/`panic`/`exit`** nativos.
@@ -334,7 +334,7 @@ conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
 | `nil` | ausência (`void` no print) | L0 ✅ |
 | `Float` | `double` | L1 ✅ |
 | `T?` escalar | `{i1, T}` | L2.5 ✅ ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)) |
-| `T?` referência | ponteiro nulo | L5c 🟡 (`String?`/instância em campos/params/retornos; `?.` opcional pendente) |
+| `T?` referência | ponteiro nulo | L5c ✅ (`String?`/instância em campos/params/retornos; `?.` opcional; união/`nil_aware` L6) |
 | `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
 | closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
 | instância | ponteiro para struct `{classe, bitmap, slots i64}` | L5a/L5b ✅ ([ADR-0048](docs/adr/0048-abi-classes-l5.md)) |
@@ -347,7 +347,8 @@ Regras:
 - toda operação tem caminho desboxado; o runtime só entra onde há caso de borda ou I/O.
 - `T?` escalar já tem representação `{i1, T}` e `var x: T?;` nasce nil; `var x: Int;`
   sem inicializador segue 65 até o L6. `T?` de referência é ponteiro nulo e já cobre
-  `String?`/instância em campos/params/retornos; `?.` com receptor opcional fica no L5c.
+  `String?`/instância em campos/params/retornos e `?.` com receptor opcional; `nil_aware`
+  completo (união/`Any`) fica no L6.
 
 ### 6.4 Runtime em C (`runtime/runtime.c`)
 
@@ -373,6 +374,11 @@ void    *lox_str_nil(void);                         // L3 ✅
 void    *lox_str_quote(const void *s);              // L3 ✅ (`repr`)
 int32_t  lox_str_compare(const void *a, const void *b); // L3 ✅ (`< <= > >=`)
 void    *lox_alloc(size_t n);                       // L3 ✅ (arena com teto)
+void    *lox_alloc_env(int64_t n);                   // L4 ✅ (env de closure)
+void    *lox_alloc_cell(void);                       // L4 ✅ (célula de captura)
+void    *lox_alloc_closure(void);                    // L4 ✅ (closure)
+void    *lox_alloc_bytes(int64_t n);                 // L5 ✅ (descritor/vtable/instância)
+int32_t  lox_is_instance(void *desc, void *target);  // L5 ✅ (`is`/`as`)
 ```
 
 O runtime é compilado por build com o mesmo `cc` do link (`.o` em diretório temporário).
@@ -396,9 +402,12 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - **Closure (L4 ✅):** `struct { fnptr, env, display }` na arena; `env` é uma struct de
   ponteiros para **células** (heap `{ value }`) das variáveis capturadas. Variáveis não
   capturadas continuam em `alloca` ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)).
-- **Classe:** `struct { vtable*, fields... }`; vtable = array de fn pointers na ordem
-  dos métodos (determinística). Herança = prefixo compatível de fields + vtable copiada.
-- **`super`:** slot fixo na vtable / chamada direta à implementação da base.
+- **Classe (L5a/L5b ✅):** descritor `{super, id, name, vtable, n_fields, init,
+  init_min, init_max}`; instância `{classe, bitmap, slots i64}`; vtable = array de
+  **closures** na ordem determinística, copiada/sobrescrita na herança. Herança = prefixo
+  compatível de slots + vtable copiada ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
+- **`super`:** bound method usa a closure da vtable da classe-base; `super.init` usa a
+  closure de `init` da base, sem despacho virtual no receptor.
 - **Generics:** monomorfizar em compile-time (precisa do type checker!) — é o que
   permite `List[Int]` virar `[N x i64]` sem boxing.
 
@@ -427,7 +436,7 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       call site e **aridade/variável indefinida como panic site**; `for` C-style
       (desaçucarado pelo parser) compila. A lacuna de `T?` escalar/`var x: T?;` foi
       fechada no L2.5 ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `T?` de
-      referência entra no L5.
+      referência entrou no L5c (parcial).
 - [x] **L2b — Normalização**: ternário, `and`/`or` e `??` (blocos + `phi`, com
       curto-circuito e dobra de literais); `for-in` fica no L6 (depende de
       `Range`/`List`/`String`). Limitação conhecida: o slot é monomórfico, então
@@ -439,17 +448,20 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
       `repr` de listas/mapas entra no L6.
 - [x] **L2.5 — Optionais escalares**: `T?` escalar (`{i1, T}`), `var x: T?;`, nil
       contextual e unwrap checado ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md));
-      `variables.lox` promovido. Os campos/valores `T?` de referência entram no L5.
+      `variables.lox` promovido. Os campos/valores `T?` de referência entraram no L5c
+      (parcial).
 - [x] **L4 — Closures**: env struct, células só para capturados, funções locais/lambdas,
       valores de função, chamada indireta e `print` (`<fn f>`/`<lambda>`) — [ADR-0046](docs/adr/0046-closures-celulas-l4.md).
 - [x] **L5a/L5b — Objetos**: classes, campos/bitmap, métodos/`this`/`init`, bound
       methods, herança, vtable, `super`/`super.init`, `init` herdado e `print` de
       classe/instância ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
-- [x] **L5c parcial — Identidade e classes locais vazias**: `is`/`as` de classe,
+- [x] **L5c parcial — Identidade, `?.` e classes locais vazias**: `is`/`as` de classe,
       classes locais sem campos/métodos, `String?`/instância `T?` em campos/params/
-      retornos. `?.` opcional e classes locais gerais ficam no L6 (união/`Any`/captura). Layout/identidade em
+      retornos e `?.` com receptor opcional (curto-circuito). Faltam classes locais
+      gerais/captura (**L5c**) e `nil_aware` (união/`Any`, **L6**). Layout/identidade em
       [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
-      representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md).
+      representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md);
+      ABI em [ADR-0048](docs/adr/0048-abi-classes-l5.md).
 - [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
       tuplas, enums, exceções (unwinding), `Range` e `for-in`, mais as operações escalares
       restantes (`**`, bits, `as`/`math.*`, `chars`; nível fixado na §0.2).
@@ -484,9 +496,9 @@ O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada 
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
 - [x] anotar os 105 `tests/cases`: 65 compilam; 38 ficam `PENDING` por nível
-      (`l2`, `l5`, `l6` e `l?` para as operações ainda sem nível) e 2 são negativos
-      (check falha por design);
-- [x] manifesto de casos por nível (`l0`–`l3`) e promoção monotônica;
+      (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
+      design);
+- [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;
 - [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
 - [x] meta-teste de classificação: todo caso está em `LEVELS`, `PENDING` ou `NEGATIVE`;
       `PENDING` passa no `--check` e falha no backend com 65, nunca traceback/exit 1;
@@ -507,7 +519,7 @@ uv run pytest tests/test_backend.py -q
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0–L4,
+- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0–L5,
       comparando stdout, stderr e exit code).
 - [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
@@ -518,7 +530,7 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; 1042 pass + 8 `xfail`), ruff, mypy strict,
+Infra já pronta: pytest (golden `.lox`; 1086 pass + 8 `xfail`), ruff, mypy strict,
 `make check`, pre-commit, CI, skills e docs com teste de links.
 
 ---
@@ -557,15 +569,15 @@ M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | HIR + LLVM vertical | L0–L4 + L2.5 + L5a/L5b: inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado | 🟡 em andamento |
-| **M7** | Runtime completo | L5–L6: classes, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
+| **M6** | LLVM vertical (+ HIR se necessária) | L0–L4 + L2.5 + L5a/L5b/L5c parcial: inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração/HIR-lite é P0 antes do L6 | 🟡 em andamento |
+| **M7** | Runtime completo | L5c/L6: classes locais gerais, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
 | **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |
 
 **Regra:** a ordem oficial é a §0. Em resumo: L2.5 antes do L5; ADR de L4 antes do L4;
-T7/layouts antes do L6. Se algo mudar a semântica de um nível já compilado, o nível afetado
-volta para a fila com caso diferencial. Traits nominais continuam pós-MVP e não bloqueiam
-nenhum nível.
+extração do lowering/HIR-lite antes do L6; T7/layouts antes do L6. Se algo mudar a semântica
+de um nível já compilado, o nível afetado volta para a fila com caso diferencial. Traits
+nominais continuam pós-MVP e não bloqueiam nenhum nível.
 
 **Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
 suspensos) é preparada durante o L4/L6; a feature entra **depois do M7**, junto com a
