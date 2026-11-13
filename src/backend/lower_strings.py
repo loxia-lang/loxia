@@ -100,9 +100,21 @@ class StringLowering(LoweringBase):
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
+            case ValueType.LIST:
+                function = self._function(
+                    "lox_str_from_list", _I8_PTR, [_I8_PTR]
+                )
+                return Value(
+                    ValueType.STRING,
+                    self.builder.call(function, [value.llvm]),
+                )
             case ValueType.NIL:
                 function = self._function("lox_str_nil", _I8_PTR, [])
                 return Value(ValueType.STRING, self.builder.call(function, []))
+            case ValueType.MAP:
+                raise _unsupported("Map in string conversion", None)
+            case _:
+                raise _unsupported(f"String conversion for {value.ty.name}", None)
 
     def _to_string_optional(self, value: Value) -> Value:
         tag = self._optional_tag(value)
@@ -172,6 +184,8 @@ class StringLowering(LoweringBase):
             return self._zero(ValueType.INT)
 
         argument = arguments[0]
+        if argument.ty is ValueType.LIST:
+            return self._list_len(argument)
         if argument.ty is not ValueType.STRING:
             raise _unsupported("len of non-String", expr.paren.line)
 

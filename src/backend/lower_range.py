@@ -8,8 +8,10 @@ from src.backend import llvm_ir
 from src.backend.lower_base import LoweringBase
 from src.backend.lower_model import (
     _I8_PTR,
+    _I32,
     _INT,
     Binding,
+    TypeDesc,
     Value,
     ValueType,
     _unsupported,
@@ -59,10 +61,52 @@ class RangeLowering(LoweringBase):
         if iterable.ty is ValueType.STRING:
             self._for_string(stmt, iterable)
             return
+        if iterable.ty is ValueType.LIST:
+            self._for_list(stmt, iterable)
+            return
         raise _unsupported(
             "for-in over this value (List/Map/tuple are later in L6)",
             stmt.name.line,
         )
+
+    def _for_list(self, stmt: ForIn, iterable: Value) -> None:
+        index = self.builder.alloca(_INT, name="for.list")
+        self.builder.store(llvm_ir.constant(_INT, 0), index)
+        length = self.builder.call(
+            self._function("lox_list_len", _INT, [_I8_PTR]), [iterable.llvm]
+        )
+        element = self._element_desc(stmt.iterable, stmt.name.line)
+
+        def condition() -> Any:
+            return self.builder.icmp_signed(
+                "<", self.builder.load(index), length
+            )
+
+        def load() -> Any:
+            raw = self.builder.call(
+                self._function("lox_list_get", self._any_type(), [_I8_PTR, _INT, _I32]),
+                [
+                    iterable.llvm,
+                    self.builder.load(index),
+                    llvm_ir.constant(_I32, stmt.name.line),
+                ],
+            )
+            return self._unbox_value(raw, element, stmt.name.line).llvm
+
+        def advance() -> None:
+            self.builder.store(
+                self.builder.add(
+                    self.builder.load(index), llvm_ir.constant(_INT, 1)
+                ),
+                index,
+            )
+
+        self._for_loop(stmt, element, condition, load, advance)
+
+    def _any_type(self) -> Any:
+        from src.backend.lower_model import _ANY
+
+        return _ANY
 
     def _for_range(self, stmt: ForIn, iterable: Value) -> None:
         start = self.builder.call(
@@ -81,7 +125,7 @@ class RangeLowering(LoweringBase):
         )
         self._for_loop(
             stmt,
-            ValueType.INT,
+            TypeDesc(ValueType.INT),
             condition=lambda: self._range_condition(index, end, step, negative),
             load=lambda: self.builder.load(index),
             advance=lambda: self.builder.store(
@@ -120,12 +164,12 @@ class RangeLowering(LoweringBase):
                 index,
             )
 
-        self._for_loop(stmt, ValueType.STRING, condition, load, advance)
+        self._for_loop(stmt, TypeDesc(ValueType.STRING), condition, load, advance)
 
     def _for_loop(
         self,
         stmt: ForIn,
-        value_type: ValueType,
+        value_type: Any,
         condition: Any,
         load: Any,
         advance: Any,
@@ -141,11 +185,17 @@ class RangeLowering(LoweringBase):
         self.builder = llvm_ir.builder(body)
         self._scopes.append({})
         try:
+            desc = value_type if isinstance(value_type, TypeDesc) else TypeDesc(value_type)
             slot = self.builder.alloca(
-                self._llvm_type(value_type), name=stmt.name.lexeme
+                self._storage_llvm_type(desc), name=stmt.name.lexeme
             )
             self.builder.store(load(), slot)
-            self._scopes[-1][stmt.name.lexeme] = Binding(slot, value_type)
+            self._scopes[-1][stmt.name.lexeme] = Binding(
+                slot,
+                desc.ty,
+                optional=desc.optional,
+                class_name=desc.class_name,
+            )
             self._stmt(stmt.body)
             if not self.builder.block.is_terminated:
                 advance()

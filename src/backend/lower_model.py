@@ -35,6 +35,8 @@ ANY_TAG_CLASS = 5
 ANY_TAG_INSTANCE = 6
 ANY_TAG_FUNCTION = 7
 ANY_TAG_RANGE = 8
+ANY_TAG_LIST = 9
+ANY_TAG_MAP = 10
 
 # Mensagens que o interpretador usa em runtime para operando de tipo errado.
 # O checker também reporta esses casos; o backend rebaixa para panic site (ADR-0031).
@@ -71,6 +73,8 @@ class ValueType(Enum):
     CLASS = auto()
     INSTANCE = auto()
     RANGE = auto()
+    LIST = auto()
+    MAP = auto()
     ANY = auto()
 
 

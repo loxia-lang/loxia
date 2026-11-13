@@ -7,6 +7,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L6b — listas**: `List` com elementos boxeados no runtime, literais,
+  índice/atribuição, `push`/`pop`, `len`, `for-in`, igualdade estrutural, `print`/`str`/
+  `repr` e ciclos; casos `list_*` promovidos ([ADR-0052](docs/adr/0052-l6-listas.md)).
 - Backend **L6a — Range, `for-in` e escalares**: `Range` como valor de runtime,
   `for-in` sobre Range/String, `**`/bits/shifts e `as` numérico; casos `range_value`,
   `for_in`, `bitwise*`, `exponentiation`, `one_line_block` e `optional_semicolons`

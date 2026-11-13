@@ -19,6 +19,8 @@ from src.backend.lower_model import (
     ANY_TAG_FUNCTION,
     ANY_TAG_INSTANCE,
     ANY_TAG_INT,
+    ANY_TAG_LIST,
+    ANY_TAG_MAP,
     ANY_TAG_NIL,
     ANY_TAG_RANGE,
     ANY_TAG_STRING,
@@ -43,6 +45,8 @@ from src.frontend.ty import (
     ClassTy,
     FnTy,
     GenericFnTy,
+    ListTy,
+    MapTy,
     Ty,
     TyVar,
     UnionTy,
@@ -66,6 +70,10 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.ANY)
         if ty is RANGE:
             return TypeDesc(ValueType.RANGE)
+        if isinstance(ty, ListTy):
+            return TypeDesc(ValueType.LIST)
+        if isinstance(ty, MapTy):
+            return TypeDesc(ValueType.MAP)
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
@@ -130,7 +138,13 @@ class OptionalLowering(LoweringBase):
                 return _I8_PTR
             case ValueType.FUNCTION:
                 return _I8_PTR
-            case ValueType.CLASS | ValueType.INSTANCE | ValueType.RANGE:
+            case (
+                ValueType.CLASS
+                | ValueType.INSTANCE
+                | ValueType.RANGE
+                | ValueType.LIST
+                | ValueType.MAP
+            ):
                 return _I8_PTR
             case ValueType.ANY:
                 return _ANY
@@ -171,7 +185,13 @@ class OptionalLowering(LoweringBase):
                 return Value(ValueType.STRING, llvm_ir.null_pointer())
             case ValueType.FUNCTION:
                 return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
-            case ValueType.CLASS | ValueType.INSTANCE | ValueType.RANGE:
+            case (
+                ValueType.CLASS
+                | ValueType.INSTANCE
+                | ValueType.RANGE
+                | ValueType.LIST
+                | ValueType.MAP
+            ):
                 return Value(ty, llvm_ir.null_pointer())
             case ValueType.ANY:
                 return Value(ValueType.ANY, llvm_ir.zero_value(_ANY))
@@ -243,6 +263,8 @@ class OptionalLowering(LoweringBase):
             ValueType.INSTANCE: ANY_TAG_INSTANCE,
             ValueType.FUNCTION: ANY_TAG_FUNCTION,
             ValueType.RANGE: ANY_TAG_RANGE,
+            ValueType.LIST: ANY_TAG_LIST,
+            ValueType.MAP: ANY_TAG_MAP,
         }.get(value.ty)
         if tag is None:
             raise _unsupported(f"Boxing {value.ty.name}", line)

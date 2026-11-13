@@ -54,6 +54,7 @@ class LoweringBase:
     _method_class: str | None
     _analysis: CaptureAnalysis
     _type_subst: dict[str, Ty]
+    _list_expected_element: Ty | None
     generic_instances: Any
     generic_classes: Any
     generic_class_sites: Any
@@ -97,6 +98,12 @@ class LoweringBase:
         raise NotImplementedError
 
     def _call_generic_class(self, name: str, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _call_list_method(self, expr: Call, obj: Value) -> Value:
+        raise NotImplementedError
+
+    def _list_len(self, value: Value) -> Value:
         raise NotImplementedError
 
     def _instantiate_class(

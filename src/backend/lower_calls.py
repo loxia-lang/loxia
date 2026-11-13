@@ -39,6 +39,11 @@ class CallLowering(LoweringBase):
                     expr.callee.name.lexeme, expr
                 )
 
+        if isinstance(expr.callee, Get):
+            receiver = self._expr(expr.callee.object)
+            if receiver.ty is ValueType.LIST:
+                return self._call_list_method(expr, receiver)
+
         if isinstance(expr.callee, Variable):
             name = expr.callee.name.lexeme
             if name == "len":

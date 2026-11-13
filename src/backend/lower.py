@@ -22,6 +22,7 @@ from src.backend.captures import CaptureAnalysis, analyze_captures
 from src.backend.lower_calls import CallLowering
 from src.backend.lower_class_codegen import ClassCodegenLowering
 from src.backend.lower_class_layout import ClassLayoutLowering
+from src.backend.lower_containers import ContainerLowering
 from src.backend.lower_functions import FunctionLowering
 from src.backend.lower_generics import GenericLowering
 from src.backend.lower_instances import InstanceLowering
@@ -56,9 +57,12 @@ from src.frontend.expr import (
     Expr,
     Get,
     Grouping,
+    Index,
+    IndexSet,
     InterpolatedString,
     Is,
     Lambda,
+    ListLiteral,
     Literal,
     Logical,
     Range,
@@ -89,6 +93,7 @@ from src.frontend.ty import (
 
 class Lowerer(
     GenericLowering,
+    ContainerLowering,
     RangeLowering,
     FunctionLowering,
     VariableLowering,
@@ -136,6 +141,7 @@ class Lowerer(
         self._method_class: str | None = None
         self._analysis = CaptureAnalysis({}, frozenset())
         self._type_subst: dict[str, Ty] = {}
+        self._list_expected_element: Ty | None = None
         self._generic_fns: dict[str, Function] = {}
         self._generic_fn_cache: dict[tuple[str, tuple[str, ...]], FunctionInfo] = {}
         self._generic_class_layouts: dict[str, ClassLayout] = {}
@@ -308,6 +314,10 @@ class Lowerer(
                 self.builder.call(
                     self._function("lox_print_range", _VOID, [_I8_PTR]), [value.llvm]
                 )
+            case ValueType.LIST:
+                self.builder.call(
+                    self._function("lox_print_list", _VOID, [_I8_PTR]), [value.llvm]
+                )
             case ValueType.FUNCTION:
                 self.builder.call(
                     self._function("lox_print_function", _VOID, [_I8_PTR]),
@@ -392,6 +402,12 @@ class Lowerer(
             return self._lambda(expr)
         if isinstance(expr, Range):
             return self._range_expr(expr)
+        if isinstance(expr, ListLiteral):
+            return self._list_literal(expr)
+        if isinstance(expr, Index):
+            return self._list_get(expr)
+        if isinstance(expr, IndexSet):
+            return self._list_set(expr)
 
         raise _unsupported(type(expr).__name__, None)
 
@@ -742,6 +758,12 @@ class Lowerer(
     ) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
+        if left.ty is ValueType.LIST and right.ty is ValueType.LIST:
+            equal_value = self._list_equal(left, right).llvm
+            if not equal:
+                equal_value = self.builder.not_(equal_value)
+            return Value(ValueType.BOOL, equal_value)
+
         if left.ty is ValueType.RANGE and right.ty is ValueType.RANGE:
             comparison = self.builder.call(
                 self._function("lox_range_equal", _I32, [_I8_PTR, _I8_PTR]),
@@ -757,6 +779,12 @@ class Lowerer(
             return Value(
                 ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
             )
+
+        if left.ty is ValueType.LIST and right.ty is ValueType.LIST:
+            equal_value = self._list_equal(left, right).llvm
+            if not equal:
+                equal_value = self.builder.not_(equal_value)
+            return Value(ValueType.BOOL, equal_value)
 
         if left.ty is ValueType.RANGE and right.ty is ValueType.RANGE:
             comparison = self.builder.call(

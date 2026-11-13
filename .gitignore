@@ -13,3 +13,5 @@ __pycache__/
 # Contexto local para agentes de IA (não versionado de propósito)
 AGENTS.md
 IDEIAS-REDDIT.md
+
+.tmp-*

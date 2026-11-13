@@ -14,6 +14,7 @@ from src.backend.lower_model import (
 )
 from src.frontend.expr import Assign, Expr, Variable
 from src.frontend.stmt import Var
+from src.frontend.ty import ListTy
 
 
 class VariableLowering(LoweringBase):
@@ -79,7 +80,13 @@ class VariableLowering(LoweringBase):
                 )
             value = self._zero_desc(declared)
         else:
-            value = self._expr(stmt.initializer)
+            saved_element = self._list_expected_element
+            if isinstance(stmt.type_annotation, ListTy):
+                self._list_expected_element = stmt.type_annotation.element
+            try:
+                value = self._expr(stmt.initializer)
+            finally:
+                self._list_expected_element = saved_element
             if stmt.type_annotation is not None:
                 annotated = self._type_desc(stmt.type_annotation, stmt.name.line)
                 if annotated.optional:

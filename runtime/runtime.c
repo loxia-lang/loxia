@@ -233,6 +233,147 @@ void *lox_str_from_range(const void *pointer) {
     return string_from_ascii(buffer, (size_t)length);
 }
 
+
+/* List do L6: elementos boxeados `LoxValue{tag,payload}`, ordem de inserção. */
+typedef struct {
+    int64_t tag;
+    int64_t payload;
+} LoxValue;
+
+typedef struct {
+    int64_t count;
+    int64_t capacity;
+    LoxValue *items;
+    int64_t version;
+} LoxList;
+
+void *lox_list_new(void) {
+    LoxList *list = lox_alloc(sizeof(LoxList));
+    list->count = 0;
+    list->capacity = 4;
+    list->items = lox_alloc(sizeof(LoxValue) * (size_t)list->capacity);
+    list->version = 0;
+    return list;
+}
+
+static void lox_list_grow(LoxList *list) {
+    int64_t capacity = list->capacity * 2;
+    LoxValue *items = lox_alloc(sizeof(LoxValue) * (size_t)capacity);
+    for (int64_t index = 0; index < list->count; index++) {
+        items[index] = list->items[index];
+    }
+    list->items = items;
+    list->capacity = capacity;
+}
+
+void lox_list_push(void *pointer, int64_t tag, int64_t payload) {
+    LoxList *list = pointer;
+    if (list->count == list->capacity) {
+        lox_list_grow(list);
+    }
+    list->items[list->count].tag = tag;
+    list->items[list->count].payload = payload;
+    list->count += 1;
+    list->version += 1;
+}
+
+int64_t lox_list_len(const void *pointer) {
+    return ((const LoxList *)pointer)->count;
+}
+
+LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line) {
+    const LoxList *list = pointer;
+    if (index < 0 || index >= list->count) {
+        lox_panic(line, "List index out of bounds.");
+    }
+    return list->items[index];
+}
+
+void lox_list_set(void *pointer, int64_t index, int64_t tag, int64_t payload,
+                  int32_t line) {
+    LoxList *list = pointer;
+    if (index < 0 || index >= list->count) {
+        lox_panic(line, "List index out of bounds.");
+    }
+    list->items[index].tag = tag;
+    list->items[index].payload = payload;
+    list->version += 1;
+}
+
+LoxValue lox_list_pop(void *pointer, int32_t line) {
+    LoxList *list = pointer;
+    if (list->count == 0) {
+        lox_panic(line, "Can't pop from an empty list.");
+    }
+    list->count -= 1;
+    list->version += 1;
+    return list->items[list->count];
+}
+
+static int lox_value_equal(LoxValue left, LoxValue right);
+
+int lox_list_equal(const void *left_pointer, const void *right_pointer) {
+    if (left_pointer == right_pointer) {
+        return 1;
+    }
+    const LoxList *left = left_pointer;
+    const LoxList *right = right_pointer;
+    if (left->count != right->count) {
+        return 0;
+    }
+    for (int64_t index = 0; index < left->count; index++) {
+        if (!lox_value_equal(left->items[index], right->items[index])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int lox_value_equal(LoxValue left, LoxValue right) {
+    if ((left.tag == 1 || left.tag == 2) &&
+        (right.tag == 1 || right.tag == 2)) {
+        double a = left.tag == 1 ? (double)left.payload : 0.0;
+        double b = right.tag == 1 ? (double)right.payload : 0.0;
+        if (left.tag == 2) {
+            memcpy(&a, &left.payload, sizeof(a));
+        }
+        if (right.tag == 2) {
+            memcpy(&b, &right.payload, sizeof(b));
+        }
+        return a == b;
+    }
+    if (left.tag != right.tag) {
+        return 0;
+    }
+    switch (left.tag) {
+        case 0:
+            return 1;
+        case 1:
+        case 3:
+            return left.payload == right.payload;
+        case 2: {
+            double a, b;
+            memcpy(&a, &left.payload, sizeof(a));
+            memcpy(&b, &right.payload, sizeof(b));
+            return a == b;
+        }
+        case 4:
+            return lox_str_equal((const void *)left.payload,
+                                 (const void *)right.payload);
+        case 8: {
+            const LoxRange *a = (const void *)left.payload;
+            const LoxRange *b = (const void *)right.payload;
+            return a->start == b->start && a->end == b->end &&
+                   a->step == b->step;
+        }
+        case 9:
+            return lox_list_equal((const void *)left.payload,
+                                  (const void *)right.payload);
+        default:
+            return left.payload == right.payload;
+    }
+}
+
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;
@@ -531,6 +672,165 @@ void *lox_str_quote(const void *pointer) {
     return result;
 }
 
+
+typedef struct {
+    char *data;
+    size_t length;
+    size_t capacity;
+    const void *active[64];
+    int active_depth;
+} LoxBuffer;
+
+static void buffer_init(LoxBuffer *buffer) {
+    buffer->capacity = 64;
+    buffer->data = lox_alloc(buffer->capacity);
+    buffer->length = 0;
+    buffer->active_depth = 0;
+}
+
+static void buffer_need(LoxBuffer *buffer, size_t extra) {
+    if (buffer->length + extra <= buffer->capacity) {
+        return;
+    }
+    size_t capacity = buffer->capacity;
+    while (capacity < buffer->length + extra) {
+        capacity *= 2;
+    }
+    char *data = lox_alloc(capacity);
+    memcpy(data, buffer->data, buffer->length);
+    buffer->data = data;
+    buffer->capacity = capacity;
+}
+
+static void buffer_char(LoxBuffer *buffer, char byte) {
+    buffer_need(buffer, 1);
+    buffer->data[buffer->length++] = byte;
+}
+
+static void buffer_text(LoxBuffer *buffer, const char *text) {
+    size_t length = strlen(text);
+    buffer_need(buffer, length);
+    memcpy(buffer->data + buffer->length, text, length);
+    buffer->length += length;
+}
+
+static void buffer_bytes(LoxBuffer *buffer, const char *data, size_t length) {
+    buffer_need(buffer, length);
+    memcpy(buffer->data + buffer->length, data, length);
+    buffer->length += length;
+}
+
+static void format_value(LoxBuffer *buffer, LoxValue value);
+
+static void format_list(LoxBuffer *buffer, const LoxList *list) {
+    for (int index = 0; index < buffer->active_depth; index++) {
+        if (buffer->active[index] == list) {
+            buffer_text(buffer, "[...]");
+            return;
+        }
+    }
+    if (buffer->active_depth >= 64) {
+        buffer_text(buffer, "[...]");
+        return;
+    }
+    buffer->active[buffer->active_depth++] = list;
+    buffer_char(buffer, '[');
+    for (int64_t index = 0; index < list->count; index++) {
+        if (index > 0) {
+            buffer_text(buffer, ", ");
+        }
+        format_value(buffer, list->items[index]);
+    }
+    buffer_char(buffer, ']');
+    buffer->active_depth -= 1;
+}
+
+static void format_value(LoxBuffer *buffer, LoxValue value) {
+    switch (value.tag) {
+        case 0:
+            buffer_text(buffer, "nil");
+            break;
+        case 1: {
+            char text[32];
+            int length = snprintf(text, sizeof text, "%" PRId64, value.payload);
+            buffer_bytes(buffer, text, (size_t)length);
+            break;
+        }
+        case 2: {
+            double number;
+            memcpy(&number, &value.payload, sizeof(number));
+            char text[64];
+            format_float_value(number, text, sizeof text);
+            buffer_text(buffer, text);
+            break;
+        }
+        case 3:
+            buffer_text(buffer, value.payload ? "true" : "false");
+            break;
+        case 4: {
+            void *quoted = lox_str_quote((const void *)value.payload);
+            const LoxStr *string = quoted;
+            buffer_bytes(buffer, string->data, (size_t)string->byte_len);
+            break;
+        }
+        case 5: {
+            void *descriptor = (void *)value.payload;
+            const LoxStr *name = ((void **)descriptor)[2];
+            buffer_bytes(buffer, name->data, (size_t)name->byte_len);
+            break;
+        }
+        case 6: {
+            void *instance = (void *)value.payload;
+            void *descriptor = ((void **)instance)[0];
+            const LoxStr *name = ((void **)descriptor)[2];
+            buffer_bytes(buffer, name->data, (size_t)name->byte_len);
+            buffer_text(buffer, " instance");
+            break;
+        }
+        case 7:
+            buffer_text(buffer, "<fn>");
+            break;
+        case 8: {
+            const LoxRange *range = (const void *)value.payload;
+            char text[128];
+            int length;
+            if (range->step == 1) {
+                length = snprintf(text, sizeof text,
+                                  "<range %" PRId64 "..%" PRId64 ">",
+                                  range->start, range->end);
+            } else {
+                length = snprintf(
+                    text, sizeof text,
+                    "<range %" PRId64 "..%" PRId64 " step %" PRId64 ">",
+                    range->start, range->end, range->step);
+            }
+            buffer_bytes(buffer, text, (size_t)length);
+            break;
+        }
+        case 9:
+            format_list(buffer, (const void *)value.payload);
+            break;
+        default:
+            buffer_text(buffer, "<value>");
+            break;
+    }
+}
+
+void lox_print_list(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_list(&buffer, pointer);
+    fwrite(buffer.data, 1, buffer.length, stdout);
+    fputc('\n', stdout);
+}
+
+void *lox_str_from_list(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_list(&buffer, pointer);
+    return string_from_ascii(buffer.data, buffer.length);
+}
+
 /*
  * `//`: divisão inteira truncada em direção a zero, com wrapping de i64 em release
  * (ADR-0028). O interpretador devolve INT_MIN para INT_MIN // -1; em C e em LLVM isso
@@ -614,6 +914,9 @@ void lox_print_any(int64_t tag, int64_t payload) {
             break;
         case 8:
             lox_print_range((const void *)payload);
+            break;
+        case 9:
+            lox_print_list((const void *)payload);
             break;
         default:
             lox_panic(0, "Unknown Any tag");
