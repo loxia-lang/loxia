@@ -21,7 +21,7 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **106 golden cases** (67 compilam, 37 `PENDING`
+vale o que está aqui. Estado em 2026-11-13: **108 golden cases** (68 compilam, 38 `PENDING`
 por nível, 2 negativos), corpus oficial anotado, backend em **L0–L4 + L2.5 + L5a/L5b/L5c parcial + spike L6 (`Any`)**, M5
 fechado e ADRs 0043–0049 (layout, identidade, narrowing, L4, optionais escalares e ABI de
 classes) fechados.
@@ -31,7 +31,7 @@ classes) fechados.
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
 | **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
-| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c parcial: `is`/`as`, `?.` opcional, classes locais vazias e `nil_aware` feitos; falta classes locais gerais/captura (L5c) | 🟡 |
+| **L5** | ADRs 0043/0044/0045/0048 + L5a/L5b implementados (classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`); L5c parcial: `is`/`as`, `?.` opcional, classes locais (vazias e com campos/métodos) e `nil_aware` feitos; falta captura em métodos de classe local | 🟡 |
 | **L6** | T7 (monomorfização), `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
 
 `T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
@@ -58,9 +58,10 @@ lacuna que esta fila existe para não repetir.
          herdado e prefixo de campos;
        - [ ] **L5c**: `is`/`as` de classe, classes locais **vazias** e `?.` com receptor
          opcional já funcionam (`class_identity`, `optional_receiver`); `String?`/instância
-         `T?` funcionam em campos/parâmetros/retornos. Falta classes locais com campos/
-         métodos/captura (**L5c**); `nil_aware` foi promovido no spike L6 com `Any`
-         boxeado ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
+         `T?` funcionam em campos/parâmetros/retornos. Classes locais com campos/métodos
+         também funcionam; falta captura em métodos de classe local (**L5c**). `nil_aware`
+         foi promovido no spike L6 com `Any` boxeado
+         ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
 5. [x] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
        o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
        (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5).
@@ -77,6 +78,7 @@ lacuna que esta fila existe para não repetir.
        `List`/`Map`, tuplas, enums/`match`, exceções (unwinding), `Range`/`for-in`.
        - [x] spike de `Any` boxeado/união escalar e `nil_aware` promovido
          ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
+       - [x] classes locais com campos/métodos (sem captura).
        - [ ] completar `Any` (unbox, igualdade, `as`/`is`, classes/funções), `List`/`Map`,
          tuplas, `for-in`, enums/`match`, exceções e operações escalares restantes.
 7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
@@ -465,7 +467,8 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 - [x] **L5c parcial — Identidade, `?.` e classes locais vazias**: `is`/`as` de classe,
       classes locais sem campos/métodos, `String?`/instância `T?` em campos/params/
       retornos e `?.` com receptor opcional (curto-circuito). Falta classes locais
-      gerais/captura (**L5c**); `nil_aware` foi promovido no spike L6. Layout/identidade em
+      vazias e com campos/métodos; falta captura em métodos de classe local. `nil_aware`
+      foi promovido no spike L6. Layout/identidade em
       [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
       representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md);
       ABI em [ADR-0048](docs/adr/0048-abi-classes-l5.md).
@@ -502,7 +505,7 @@ imports para `print`).
 O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
 cada nível promove os seus casos de `PENDING` para `LEVELS`:
 
-- [x] anotar os 106 `tests/cases`: 67 compilam; 37 ficam `PENDING` por nível
+- [x] anotar os 108 `tests/cases`: 68 compilam; 38 ficam `PENDING` por nível
       (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
       design);
 - [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;

@@ -170,58 +170,90 @@ class ClassCodegenLowering(LoweringBase):
             self._emit_function(layout.init, layout.init_node, ())
 
     def _local_class_declaration(self, stmt: Class) -> None:
-        if stmt.fields or stmt.methods or stmt.superclass is not None:
-            raise _unsupported(
-                "Local classes with fields, methods or inheritance",
-                stmt.name.line,
-            )
         if stmt.type_params:
             raise _unsupported("Generic local classes", stmt.name.line)
+        if stmt.superclass is not None:
+            raise _unsupported("Local class inheritance", stmt.name.line)
+
+        name = stmt.name.lexeme
+        if (stmt.fields or stmt.methods) and name in self._classes:
+            raise _unsupported(
+                "A local class shadowing another class with fields or methods",
+                stmt.name.line,
+            )
 
         self._local_class_counter += 1
-        key = f"{stmt.name.lexeme}@{self._local_class_counter}"
-        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT])
+        key = f"{name}@{self._local_class_counter}"
+        fields = self._class_fields(stmt, 0)
+        methods, init, init_method, new_methods = self._class_methods(
+            stmt, name, None, 0, ir_name=key
+        )
+        instance_type = llvm_ir.literal_struct(
+            [_I8_PTR, _INT, *([_INT] * len(fields))]
+        )
         layout = ClassLayout(
-            stmt.name.lexeme,
+            name,
             len(self._classes) + 1,
-            [],
-            [],
-            None,
+            fields,
+            methods,
+            init,
+            init_node=next(
+                (
+                    method
+                    for method in stmt.methods
+                    if method.name.lexeme == "init"
+                ),
+                None,
+            ),
+            local=True,
+            ir_name=key,
+            init_method=init_method,
+            vtable_size=new_methods,
             instance_type=instance_type,
         )
-        self._classes[key] = layout
-
-        raw = self.builder.call(
-            self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
-            [llvm_ir.constant(_INT, 64)],
+        effective = init
+        ctor_params = (
+            []
+            if effective is None
+            else [
+                self._storage_llvm_type(param)
+                for param in effective.fn_sig.params
+            ]
         )
-        descriptor = self.builder.bitcast(raw, _CLASS_DESC.as_pointer())
-        name_value = self._string_literal(layout.name)
-        values = [
-            llvm_ir.null_pointer(),
-            llvm_ir.constant(_INT, layout.id),
-            name_value.llvm,
-            llvm_ir.null_pointer(),
-            llvm_ir.constant(_INT, 0),
-            llvm_ir.null_pointer(),
-            llvm_ir.constant(_INT, 0),
-            llvm_ir.constant(_INT, 0),
-        ]
-        for index, value in enumerate(values):
-            slot = self.builder.gep(
-                descriptor,
-                [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
-            )
-            self.builder.store(value, slot)
+        layout.ctor = llvm_ir.declare(
+            self.module,
+            f"lox.ctor.{key}",
+            _I8_PTR,
+            [_I8_PTR, *ctor_params],
+        )
+        self._classes[key] = layout
+        if name not in self._classes:
+            self._classes[name] = layout
 
-        slot = self.builder.alloca(_I8_PTR, name=stmt.name.lexeme)
+        raw, descriptor = self._new_class_descriptor()
+        vtable = self._class_vtable(layout, llvm_ir.null_pointer())
+        init_closure = self._class_init_closure(
+            layout, llvm_ir.null_pointer()
+        )
+        self._store_class_descriptor(
+            layout,
+            descriptor,
+            llvm_ir.null_pointer(),
+            vtable,
+            init_closure,
+        )
+
+        slot = self.builder.alloca(_I8_PTR, name=name)
         self.builder.store(raw, slot)
-        self._scopes[-1][stmt.name.lexeme] = Binding(
+        self._scopes[-1][name] = Binding(
             slot,
             ValueType.CLASS,
-            class_name=stmt.name.lexeme,
+            class_name=name,
             layout_key=key,
         )
+
+        self._emit_class_methods(layout)
+        self._emit_ctor(layout)
 
     def _emit_ctor(self, layout: ClassLayout) -> None:
         ctor = layout.ctor
@@ -259,22 +291,29 @@ class ClassCodegenLowering(LoweringBase):
         ) = saved
 
     def _ctor_body(self, layout: ClassLayout, ctor: Any) -> None:
-        instance = self._ctor_allocate(layout)
+        descriptor = ctor.args[0] if layout.local else None
+        instance = self._ctor_allocate(layout, descriptor)
         self._ctor_run_initializers(layout, instance)
         effective = layout.effective_init()
         if effective is not None:
+            offset = 1 if layout.local else 0
             self.builder.call(
                 effective.ir,
                 [
                     llvm_ir.null_pointer(),
                     instance.llvm,
-                    *[ctor.args[index] for index in range(len(ctor.args))],
+                    *[
+                        ctor.args[index]
+                        for index in range(offset, len(ctor.args))
+                    ],
                 ],
             )
         self._ctor_require_fields(layout, instance)
         self.builder.ret(instance.llvm)
 
-    def _ctor_allocate(self, layout: ClassLayout) -> Value:
+    def _ctor_allocate(
+        self, layout: ClassLayout, descriptor: Any = None
+    ) -> Value:
         assert layout.instance_type is not None
         size = 16 + 8 * layout.field_count()
         raw = self.builder.call(
@@ -283,8 +322,12 @@ class ClassCodegenLowering(LoweringBase):
         )
         instance = Value(ValueType.INSTANCE, raw, class_name=layout.name)
         struct_ = self.builder.bitcast(raw, layout.instance_type.as_pointer())
+        if descriptor is None:
+            descriptor = self.builder.load(
+                self._globals[layout.name].storage
+            )
         self.builder.store(
-            self.builder.load(self._globals[layout.name].storage),
+            descriptor,
             self.builder.gep(
                 struct_,
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
@@ -452,7 +495,7 @@ class ClassCodegenLowering(LoweringBase):
         )
         thunk = llvm_ir.declare(
             self.module,
-            f"lox.bound.{layout.name}.{method.name}",
+            f"lox.bound.{layout.ir_name or layout.name}.{method.name}",
             result,
             [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )

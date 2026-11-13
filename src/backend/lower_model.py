@@ -183,6 +183,8 @@ class ClassLayout:
     init_node: Function | None = None
     super_name: str | None = None
     super_layout: ClassLayout | None = None
+    local: bool = False
+    ir_name: str | None = None
     init_method: MethodLayout | None = None
     vtable_size: int = 0
     ctor: Any = None

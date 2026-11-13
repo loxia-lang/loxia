@@ -10,6 +10,7 @@ from src.backend.lower_model import (
     TypeDesc,
     Value,
     ValueType,
+    _unsupported,
 )
 from src.frontend.expr import Assign, Expr, Variable
 from src.frontend.stmt import Var
@@ -268,5 +269,8 @@ class VariableLowering(LoweringBase):
 
         binding = self._captures.get(name)
         if binding is None:
+            layout = self._classes.get(self._method_class or "")
+            if layout is not None and layout.local:
+                raise _unsupported("Captures in local class methods", line)
             raise BackendError(f"Undefined variable '{name}'.", line)
         return binding

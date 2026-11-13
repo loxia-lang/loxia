@@ -10,7 +10,6 @@ from src.backend.lower_model import (
     _CLOSURE,
     _I8_PTR,
     _I32,
-    _INT,
     _VOID,
     Binding,
     FunctionInfo,
@@ -215,38 +214,6 @@ class CallLowering(LoweringBase):
         class_ptr = self._load_binding(binding)
         class_ptr = self._guard_closure(class_ptr, name, expr.paren.line)
 
-        if binding.layout_key is not None:
-            if expr.arguments:
-                self._poison(
-                    expr.paren.line,
-                    self._arity_message(0, 0, len(expr.arguments)),
-                )
-                return self._zero(ValueType.INSTANCE)
-            raw = self.builder.call(
-                self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
-                [llvm_ir.constant(_INT, 16)],
-            )
-            struct_ = self.builder.bitcast(
-                raw, layout.instance_type.as_pointer()
-            )
-            self.builder.store(
-                class_ptr.llvm,
-                self.builder.gep(
-                    struct_,
-                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
-                ),
-            )
-            self.builder.store(
-                llvm_ir.constant(_INT, 0),
-                self.builder.gep(
-                    struct_,
-                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)],
-                ),
-            )
-            return Value(
-                ValueType.INSTANCE, raw, class_name=binding.class_name
-            )
-
         arguments = [self._expr(argument) for argument in expr.arguments]
         init = layout.effective_init()
         minimum = 0 if init is None else init.fn_sig.min_params
@@ -270,9 +237,10 @@ class CallLowering(LoweringBase):
                 )
             ]
 
-        call = self.builder.call(
-            layout.ctor, [argument.llvm for argument in arguments]
-        )
+        call_args = [argument.llvm for argument in arguments]
+        if binding.layout_key is not None:
+            call_args.insert(0, class_ptr.llvm)
+        call = self.builder.call(layout.ctor, call_args)
         return Value(ValueType.INSTANCE, call, class_name=name)
 
     def _closure_field(self, closure: Value, index: int) -> Any:

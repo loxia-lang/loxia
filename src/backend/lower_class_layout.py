@@ -80,6 +80,8 @@ class ClassLayoutLowering(LoweringBase):
         name: str,
         super_layout: ClassLayout | None,
         base_methods: int,
+        *,
+        ir_name: str | None = None,
     ) -> tuple[
         list[MethodLayout], FunctionInfo | None, MethodLayout | None, int
     ]:
@@ -94,7 +96,7 @@ class ClassLayoutLowering(LoweringBase):
             is_init = method.name.lexeme == "init"
             info = self._function_info(
                 method,
-                llvm_name=f"lox.{name}.{method.name.lexeme}",
+                llvm_name=f"lox.{ir_name or name}.{method.name.lexeme}",
                 this_class=name,
                 is_init=is_init,
             )

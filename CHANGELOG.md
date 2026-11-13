@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Backend **L5c — classes locais com campos/métodos**: construtor local recebe o
+  descritor como argumento oculto, com layout/vtable/init próprios; classe local com
+  campos, `init`, métodos e `this` funciona, inclusive em chamadas repetidas. Captura de
+  variáveis externas em métodos de classe local segue 65 explícito.
 - **Spike L6 — `Any` boxeado/união escalar** ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)):
   `{i64 tag, i64 payload}` para `Any` explícito e para uniões escalares/string;
   `??` boxeia o resultado, `print` dinâmico via `lox_print_any`; `any_box.lox` e

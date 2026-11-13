@@ -1,0 +1,11 @@
+fn make(n: Int) -> Int {
+  class P {
+    var x: Int;
+    init(x: Int) { this.x = x; }
+    get() -> Int { return this.x; }
+  }
+  val p = P(n);
+  return p.get();
+}
+print make(7); # expect: 7
+print make(9); # expect: 9
