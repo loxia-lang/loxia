@@ -115,8 +115,10 @@ interpretador o objetivo é correção; ganho real vem do backend.
 
 - `T?` é açúcar para `T | Nil`; non-null por padrão (`D-15`); mutação monomórfica
   ([ADR-0024](docs/adr/0024-mutacao-monomorfica.md)).
-- Narrowing de `T?`, `is T`, `and`/`or` e `while` funcionam ([ADR-0018](docs/adr/0018-narrowing.md),
-  [ADR-0025](docs/adr/0025-is-e-narrowing.md)); faltam campos/índices e merge completo.
+- Narrowing de `T?`, `is T`, `and`/`or` e `while` funcionam, inclusive **campos e índices
+  literais** (`p.nome`, `xs[0]`, `m["k"]`), com invalidação ao mutar o caminho/raiz e refino
+  pós-laço ([ADR-0018](docs/adr/0018-narrowing.md), [ADR-0025](docs/adr/0025-is-e-narrowing.md),
+  [ADR-0032](docs/adr/0032-narrowing-campos-indices.md)); faltam CFG/aliasing.
 - `Option[T]` explícito, se existir, é alias de `T?`; não duplicar.
 - `Result[T, E]` para erro recuperável; `throw` excepcional; não os dois para a mesma coisa.
 - `Never` no fluxo evita falsos erros.

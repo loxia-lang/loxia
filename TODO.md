@@ -75,12 +75,13 @@ O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
 | --- | --- | --- |
 | **T3c** ⬜ | parâmetro sem anotação vira `TyVar`; unificar a cada chamada | inferência de parâmetro |
 | **T4** ⬜ | generalização (let-polymorphism) → funções genéricas implícitas | bibliotecas |
-| **T5** 🟡 | narrowing restante: merge de fluxo, campos/índices e invalidação por mutação | expressividade |
+| **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação e refino pós-`while`; resta CFG/aliasing | expressividade |
 | **T6** ⬜ | traits/protocolos estruturais e exaustividade no `match` | abstração |
 | **T7** ⬜ | monomorfização e integração com o codegen | backend sabe layouts |
 
 Pendências pontuais:
-- [ ] `P2` narrowing de campos/índices e merge completo de fluxo.
+- [ ] `P2` merge completo em CFG e aliasing (chamada que muta campo não invalida); ver
+      [ADR-0032](docs/adr/0032-narrowing-campos-indices.md) §Limitações.
 - [ ] `P2` exaustividade em `match`/enum.
 - [ ] `P3` flow-sensitive para `val` (uma atribuição só).
 - [ ] `P3` generics com constraints (`T with Show`), classes/métodos genéricos, type

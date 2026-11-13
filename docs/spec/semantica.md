@@ -527,11 +527,15 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   verdadeiro e `or` no ramo falso combinam refinamentos; `while` aplica o refinamento
   verdadeiro ao corpo. `val` e `var` estreitam, mas uma atribuição invalida o refinamento.
   Chamadas/closure que mutam um `var` durante a execução não são rastreadas — prefira `val`
-  quando precisar da garantia. Campos/índices, merge completo de fluxo e mutação de
-  coleção após o teste ainda **não** refinam; ver
-  [ADR-0018](../adr/0018-narrowing.md) e [ADR-0025](../adr/0025-is-e-narrowing.md).
+  quando precisar da garantia. **Campos e índices literais** também refinam
+  (`p.nome`, `xs[0]`, `m["k"]`); mutar o caminho (`p.nome = ...`) ou a raiz (`p = ...`)
+  invalida, e a saída normal de `while (x != nil)` refina o resto do bloco pelo falso.
+  Índice dinâmico (`xs[i]`) não refina e mutação via chamada/closure não é rastreada (sem
+  aliasing); merge completo em CFG fica fora; ver
+  [ADR-0018](../adr/0018-narrowing.md), [ADR-0025](../adr/0025-is-e-narrowing.md) e
+  [ADR-0032](../adr/0032-narrowing-campos-indices.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
-- Limitações atuais: narrowing de campos/índices e merge completo, classes/métodos
+- Limitações atuais: merge completo de fluxo em CFG, classes/métodos
   genéricos, inferência de parâmetro sem anotação, tipos de função/casts de união em `is`,
   e cast de união em `as`; lambdas existem, mas sem trailing closure, parâmetro único sem
   parênteses ou retorno implícito de bloco. Anotar `Float` não converte o valor em runtime

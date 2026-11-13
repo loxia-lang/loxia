@@ -1114,6 +1114,99 @@ def test_narrowing_limitations(
     assert message in captured.err
 
 
+def test_narrowing_fields_and_indices() -> None:
+    lox = check(
+        """
+        class Pessoa {
+          var nome: String?;
+          init(nome: String?) { this.nome = nome; }
+        }
+
+        val p = Pessoa("Ana")
+        if (p.nome != nil) {
+          print len(p.nome)
+        }
+
+        val xs: List[Int?] = [1, nil]
+        if (xs[0] != nil) {
+          print xs[0] + 1
+        }
+
+        val m: Map[String, String?] = {"k": "v"}
+        if (m["k"] != nil) {
+          print len(m["k"])
+        }
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # Atribuir ao campo invalida o refino.
+        """
+        class P {
+          var nome: String?;
+          init(n: String?) { this.nome = n; }
+        }
+        val p = P("a")
+        if (p.nome != nil) {
+          p.nome = nil
+          print len(p.nome)
+        }
+        """,
+        # Atribuir à raiz invalida o caminho inteiro.
+        """
+        class P {
+          var nome: String?;
+          init(n: String?) { this.nome = n; }
+        }
+        var p = P("a")
+        if (p.nome != nil) {
+          p = P(nil)
+          print len(p.nome)
+        }
+        """,
+        # Índice dinâmico não refina (sem aliasing).
+        """
+        val xs: List[Int?] = [1, nil]
+        var i = 0
+        if (xs[i] != nil) {
+          print len(xs[i])
+        }
+        """,
+    ],
+)
+def test_narrowing_field_invalidations(
+    source: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+
+
+def test_narrowing_after_while_uses_the_false_condition(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: Int? = 1
+        while (x != nil) {
+          x = nil
+        }
+        print x + 1
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Operands must be numbers." in captured.err
+
+
 def test_narrowing_in_and_and_while() -> None:
     lox = check(
         """

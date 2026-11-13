@@ -103,6 +103,10 @@ class ClassInfo:
     init: FnTy | None = None
 
 
+RefinementKey = tuple[str, tuple[tuple[str, object], ...]]
+"""Chave de refinamento: nome da raiz + caminho (campo ou índice literal)."""
+
+
 @dataclass(frozen=True)
 class FunctionSignature:
     type_params: tuple[TyVar, ...]
@@ -114,7 +118,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def __init__(self, reporter: ErrorReporter) -> None:
         self._reporter = reporter
         self._scopes: list[dict[str, Ty]] = [{}]
-        self._narrowings: list[dict[str, tuple[int, Ty]]] = [{}]
+        self._narrowings: list[dict[RefinementKey, tuple[int, Ty]]] = [{}]
         self._classes: dict[str, ClassInfo] = {}
         self._current_class: ClassInfo | None = None
         self._current_return: Ty | None = None
@@ -239,7 +243,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(name, f"Can't redefine builtin '{name.lexeme}'.")
 
         self._scopes[-1][name.lexeme] = ty
-        self._narrowings[-1].pop(name.lexeme, None)
+        for key in [key for key in self._narrowings[-1] if key[0] == name.lexeme]:
+            del self._narrowings[-1][key]
 
     def _find_decl(self, name: str) -> tuple[int, Ty] | None:
         for index in range(len(self._scopes) - 1, -1, -1):
@@ -263,7 +268,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         index, declared = found
         for narrowing in reversed(self._narrowings):
-            entry = narrowing.get(name.lexeme)
+            entry = narrowing.get((name.lexeme, ()))
             if entry is not None and entry[0] == index:
                 return entry[1]
 
@@ -280,14 +285,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return found[1]
 
     def _invalidate(self, name: str) -> None:
+        """Atribuir à raiz invalida o caminho inteiro (`p`, `p.nome`, `p[0]`)."""
         for narrowing in self._narrowings:
-            narrowing.pop(name, None)
+            for key in [key for key in narrowing if key[0] == name]:
+                del narrowing[key]
 
-    def _apply_refinements(self, refinements: dict[str, Ty]) -> None:
-        for name, ty in refinements.items():
-            found = self._find_decl(name)
+    def _invalidate_path(self, key: RefinementKey) -> None:
+        """Mutar um caminho invalida ele e os caminhos mais fundos com o mesmo prefixo."""
+        size = len(key[1])
+        for narrowing in self._narrowings:
+            for candidate in list(narrowing):
+                if candidate[0] == key[0] and candidate[1][:size] == key[1]:
+                    del narrowing[candidate]
+
+    def _apply_refinements(self, refinements: dict[RefinementKey, Ty]) -> None:
+        for key, ty in refinements.items():
+            found = self._find_decl(key[0])
             if found is not None:
-                self._narrowings[-1][name] = (found[0], ty)
+                self._narrowings[-1][key] = (found[0], ty)
 
     def _error(self, token: Token, message: str, *, lowerable: bool = False) -> None:
         """Reporta erro de tipo.
@@ -1161,7 +1176,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif else_returns and not then_returns:
             self._apply_refinements(then_refinements)
 
-    def _check_branch(self, stmt: Stmt, refinements: dict[str, Ty]) -> bool:
+    def _check_branch(
+        self, stmt: Stmt, refinements: dict[RefinementKey, Ty]
+    ) -> bool:
         self._narrowings.append({})
         try:
             self._apply_refinements(refinements)
@@ -1170,7 +1187,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         finally:
             self._narrowings.pop()
 
-    def _refinements(self, expr: Expr, truth: bool) -> dict[str, Ty]:
+    def _refinements(self, expr: Expr, truth: bool) -> dict[RefinementKey, Ty]:
         if isinstance(expr, Grouping):
             return self._refinements(expr.expression, truth)
 
@@ -1183,20 +1200,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         ):
             left, right = expr.left, expr.right
             equal = expr.operator.type is TokenType.EQUAL_EQUAL
-            variable = self._as_variable(left)
-            if self._is_nil_literal(right) and variable is not None:
-                return self._nil_refinement(variable.name.lexeme, truth, equal=equal)
+            if self._is_nil_literal(right):
+                target = self._narrowable(left)
+                if target is not None:
+                    return self._nil_refinement(*target, truth, equal=equal)
 
-            variable = self._as_variable(right)
-            if self._is_nil_literal(left) and variable is not None:
-                return self._nil_refinement(variable.name.lexeme, truth, equal=equal)
+            if self._is_nil_literal(left):
+                target = self._narrowable(right)
+                if target is not None:
+                    return self._nil_refinement(*target, truth, equal=equal)
 
         if isinstance(expr, Is):
-            variable = self._as_variable(expr.left)
-            if variable is None or self._find_decl(variable.name.lexeme) is None:
+            target = self._narrowable(expr.left)
+            if target is None:
                 return {}
 
-            current = self._lookup(variable.name)
+            key, current = target
             narrowed = (
                 self._narrow_to(current, expr.test_type)
                 if truth
@@ -1205,7 +1224,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if narrowed is None or narrowed == current:
                 return {}
 
-            return {variable.name.lexeme: narrowed}
+            return {key: narrowed}
 
         if isinstance(expr, Logical) and (
             (expr.operator.type is TokenType.AND and truth)
@@ -1216,22 +1235,106 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._refinements(expr.right, truth),
             )
 
-        if isinstance(expr, Variable):
-            found = self._find_decl(expr.name.lexeme)
-            if found is None:
-                return {}
-
-            ty = truthy(found[1]) if truth else falsy(found[1])
-            return {expr.name.lexeme: ty} if ty != found[1] else {}
+        target = self._narrowable(expr)
+        if target is not None:
+            key, current = target
+            ty = truthy(current) if truth else falsy(current)
+            return {key: ty} if ty != current else {}
 
         return {}
 
-    def _nil_refinement(self, name: str, truth: bool, *, equal: bool) -> dict[str, Ty]:
-        found = self._find_decl(name)
-        if found is None:
-            return {}
+    def _narrowable(self, expr: Expr) -> tuple[RefinementKey, Ty] | None:
+        key = self._refinement_path(expr)
+        if key is None:
+            return None
+        current = self._peek_type(expr)
+        if current is None or current is ERROR:
+            return None
+        return key, current
 
-        declared = found[1]
+    def _refinement_path(self, expr: Expr) -> RefinementKey | None:
+        """Caminho refinável: variável, ou campos/índices literais encadeados."""
+        if isinstance(expr, Variable):
+            return expr.name.lexeme, ()
+
+        if isinstance(expr, Get):
+            base = self._refinement_path(expr.object)
+            if base is None:
+                return None
+            return base[0], base[1] + (("field", expr.name.lexeme),)
+
+        if isinstance(expr, Index):
+            base = self._refinement_path(expr.object)
+            segment = self._literal_segment(expr.index)
+            if base is None or segment is None:
+                return None
+            return base[0], base[1] + (segment,)
+
+        return None
+
+    def _literal_segment(self, expr: Expr) -> tuple[str, object] | None:
+        if isinstance(expr, Grouping):
+            return self._literal_segment(expr.expression)
+        if not isinstance(expr, Literal):
+            return None
+        value = expr.value
+        if value is None:
+            return None
+        return "index", (type(value).__name__, value)
+
+    def _peek_type(self, expr: Expr) -> Ty | None:
+        """Tipo atual sem reportar erro: usado só para calcular refinamentos."""
+        if isinstance(expr, Variable):
+            if self._find_decl(expr.name.lexeme) is None:
+                return None
+            return self._lookup(expr.name)
+
+        if isinstance(expr, Get):
+            return self._peek_member(self._peek_type(expr.object), expr.name.lexeme)
+
+        if isinstance(expr, Index):
+            base = self._peek_type(expr.object)
+            if base is None or base is ANY or base is ERROR:
+                return None
+            if isinstance(base, UnionTy):
+                members = [member for member in base.members if member is not NIL]
+                if len(members) != 1:
+                    return None
+                base = members[0]
+            if isinstance(base, ListTy):
+                return base.element
+            if isinstance(base, MapTy):
+                return base.value
+            return None
+
+        return None
+
+    def _peek_member(self, base: Ty | None, name: str) -> Ty | None:
+        if base is None or base is ANY or base is ERROR:
+            return None
+        if isinstance(base, UnionTy):
+            members = [member for member in base.members if member is not NIL]
+            if len(members) != 1:
+                return None
+            base = members[0]
+        if not isinstance(base, ClassTy):
+            return None
+        field = self._find_field(base.name, name)
+        return field.ty if field is not None else None
+
+    def _narrowed_at(self, key: RefinementKey) -> Ty | None:
+        found = self._find_decl(key[0])
+        if found is None:
+            return None
+        for narrowing in reversed(self._narrowings):
+            entry = narrowing.get(key)
+            if entry is not None and entry[0] == found[0]:
+                return entry[1]
+        return None
+
+    def _nil_refinement(
+        self, key: RefinementKey, declared: Ty, truth: bool, *, equal: bool
+    ) -> dict[RefinementKey, Ty]:
         if equal:
             # x == nil
             narrowed = NIL if truth else non_nil(declared)
@@ -1239,7 +1342,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # x != nil
             narrowed = non_nil(declared) if truth else NIL
 
-        return {name: narrowed} if narrowed != declared else {}
+        return {key: narrowed} if narrowed != declared else {}
 
     def _narrow_to(self, current: Ty, test: Ty) -> Ty | None:
         narrowed = self._intersect_types(current, test)
@@ -1332,8 +1435,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return NEVER
 
     def _merge_refinements(
-        self, left: dict[str, Ty], right: dict[str, Ty]
-    ) -> dict[str, Ty]:
+        self, left: dict[RefinementKey, Ty], right: dict[RefinementKey, Ty]
+    ) -> dict[RefinementKey, Ty]:
         result = dict(left)
         for name, ty in right.items():
             if name not in result:
@@ -1442,6 +1545,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)
         self._check_branch(stmt.body, self._refinements(stmt.condition, True))
+        # Na saída normal a condição é falsa: o resto do bloco vê o refino oposto.
+        self._apply_refinements(self._refinements(stmt.condition, False))
 
     # --- expressões ---
 
@@ -2152,6 +2257,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
 
     def visit_get_expr(self, expr: Get) -> Ty:
+        key = self._refinement_path(expr)
+        narrowed = self._narrowed_at(key) if key is not None else None
+        if narrowed is not None:
+            self.types[expr] = narrowed
+            return narrowed
+
         obj = self._infer(expr.object)
         return self._get_property_type(obj, expr.name, expr.optional)
 
@@ -2406,6 +2517,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return ERROR
 
     def visit_index_expr(self, expr: Index) -> Ty:
+        key = self._refinement_path(expr)
+        narrowed = self._narrowed_at(key) if key is not None else None
+        if narrowed is not None:
+            self.types[expr] = narrowed
+            return narrowed
+
         obj = self._infer(expr.object)
         if isinstance(obj, GenericFnTy):
             self._error(
@@ -2547,6 +2664,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
 
         value = self._check(expr.value, field_info.ty, expr.name)
+
+        path = self._refinement_path(expr.object)
+        if path is not None:
+            self._invalidate_path((path[0], path[1] + (("field", expr.name.lexeme),)))
 
         is_initializer_this = self._in_initializer and isinstance(expr.object, This)
         if not field_info.mutable and not is_initializer_this:

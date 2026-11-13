@@ -53,6 +53,8 @@ len(nome)                             # depois do if: String
   `else` e com blocos que sempre retornam.
 - **Fora da v1:** `is T`, `while`, `and`/`or` de curto-circuito, refinamento de campos,
   merge completo de fluxo em CFG e aliasing. Ficam registrados no `TODO.md` §2.
+  *Atualização:* campos e índices literais entraram no [ADR-0032](0032-narrowing-campos-indices.md)
+  (T5); aliasing e CFG seguem fora.
 
 ### Mecânica
 

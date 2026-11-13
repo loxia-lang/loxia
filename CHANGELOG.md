@@ -7,6 +7,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- Checker (T5): narrowing de campos e índices literais (`p.nome`, `xs[0]`, `m["k"]`), com
+  invalidação ao mutar o caminho ou a raiz e refino pelo falso na saída de `while`
+  ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)). Continua sem CFG/aliasing.
 - Backend nativo **L0** ([ADR-0031](docs/adr/0031-backend-nativo.md)): `--emit=ll|obj|exe`
   compila `print` de `Int`/`Bool`/`nil` com `+ - * // %`, comparações, igualdade e unário
   para binário nativo, usando `llvmlite` como extra opcional (`uv sync --extra llvm`).

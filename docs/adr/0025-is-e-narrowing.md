@@ -95,7 +95,8 @@ como já acontecia.
 - `is List[T]`/`Map[K, V]` percorre a coleção; em listas grandes, é O(n).
 - Testar uma coleção mutável e depois mutá-la pode invalidar o refinamento; o checker não
   rastreia aliasing/mutação de coleção.
-- Refinamento não cobre campos/índices nem merge completo de fluxo; `is` em expressão
+- Refinamento não cobre merge completo de fluxo; campos/índices literais entraram no
+  [ADR-0032](0032-narrowing-campos-indices.md); `is` em expressão
   que não é variável devolve `Bool`, mas não estreita.
 - Classes como valor não são instâncias; não há `is Class` na v1.
 - Tipos de função não são suportados em `is` (nem assinatura nem aridade).
