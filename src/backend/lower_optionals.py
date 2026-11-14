@@ -34,6 +34,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Expr
 from src.frontend.token_type import TokenType
 from src.frontend.ty import ANY as TY_ANY
@@ -303,7 +304,15 @@ class OptionalLowering(LoweringBase):
         aggregate = self.builder.insert_value(aggregate, payload, 1)
         return Value(ValueType.ANY, aggregate)
 
-    def _unwrap(self, value: Value, line: int, message: str) -> Value:
+    def _unwrap(
+        self,
+        value: Value,
+        line: int,
+        message: str,
+        *,
+        column: int = 0,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> Value:
         """Extrai o payload de um `T?`; tag 0 vira `lox_panic` no ponto."""
         if not value.optional:
             return value
@@ -314,16 +323,24 @@ class OptionalLowering(LoweringBase):
         self.builder.cbranch(tag, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(line, message)
+        self._poison(line, message, column=column, code=code)
 
         self.builder = llvm_ir.builder(ok)
         return self._optional_payload(value)
 
-    def _unwrap_operand(self, value: Value, line: int, message: str) -> Value:
+    def _unwrap_operand(
+        self,
+        value: Value,
+        line: int,
+        message: str,
+        *,
+        column: int = 0,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> Value:
         if value.optional:
-            return self._unwrap(value, line, message)
+            return self._unwrap(value, line, message, column=column, code=code)
         if value.ty is ValueType.NIL:
-            self._poison(line, message)
+            self._poison(line, message, column=column, code=code)
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
         return value
 

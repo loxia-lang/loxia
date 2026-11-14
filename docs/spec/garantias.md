@@ -18,7 +18,8 @@ dela). Não descreve sintaxe nem semântica — isso está em
 As decisões por trás destas garantias estão nos
 [ADR-0014](../adr/0014-identidade-e-invariantes.md) (I1–I3),
 [ADR-0059](../adr/0059-i4-check-limpo-compila.md) (I4) e
-[ADR-0060](../adr/0060-orcamento-de-memoria.md) (memória).
+[ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md) (memória; substitui o
+[ADR-0060](../adr/0060-orcamento-de-memoria.md)).
 
 ## As quatro garantias
 
@@ -69,16 +70,22 @@ Não existe promessa de que código interpretado e compilado tenham a mesma **ve
 o mesmo consumo de memória ou o mesmo stack trace — só o mesmo resultado observável.
 Recursão profunda fica fora do corpus até existir contador de pilha no runtime.
 
-#### Orçamento de memória ([ADR-0060](../adr/0060-orcamento-de-memoria.md))
+#### Orçamento de memória ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md))
 
-O binário aloca em uma **arena de 64 MiB, sem `free`**. Exceder é falha determinística:
-`exit 70` e `Out of memory.` no stderr, o mesmo em toda execução. O interpretador **não**
-tem esse teto (GC do Python) e pode rodar programas que o binário recusa — a assimetria é
-declarada, e o I1 vale para programas cujo pico de alocação caiba no orçamento. Programas
-acima dele estão fora do corpus por definição. O teto **não** depende do ambiente.
+O binário usa **GC Boehm** conservador, com **hard cap de 128 MiB** de heap coletado
+(substitui a arena de 64 MiB do [ADR-0060](../adr/0060-orcamento-de-memoria.md)). Exceder
+o cap é `exit 70` + `Out of memory.` no stderr, sem traceback, e o teto **não** depende do
+ambiente.
 
-O GC (Boehm, M7) substituirá a arena por um ADR novo; naquele momento a pergunta "qual é
-a falha determinística de esgotamento?" volta a ser decidida explicitamente.
+- O **I1 cobre programas cujo pico de memória viva caiba em 64 MiB**. Acima disso, o
+  programa está fora do corpus: pode rodar, mas não há garantia de resultado nem de ponto
+  de falha.
+- O interpretador **não** tem teto (GC do Python) e pode rodar programas que o binário
+  recusa — a assimetria é declarada.
+- Como o Boehm é conservador, o **ponto exato** em que um programa acima do cap estoura
+  não é determinístico: roots falsos dependem da pilha e do ASLR. O que é estável é o
+  canal, a mensagem e o exit code. Programas que imprimem antes de estourar não têm o
+  prefixo de stdout coberto pelo I1.
 
 ### I2 — Nada acontece implicitamente
 
@@ -125,8 +132,10 @@ cmp a.txt b.txt                   # idênticos
 ```
 
 A redação de uma mensagem de erro **pode mudar entre versões**; o exit code não
-(`65` compilação, `70` runtime). Quando existir o formato estruturado, os códigos
-(`E3xxx`…) também passam a ser estáveis.
+(`65` compilação, `70` runtime). Os **códigos** de diagnóstico são estáveis e nunca
+reaproveitados ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)); a saída é ordenada
+por `(arquivo, offset, código)`, deduplicada, limitada por `--max-errors` e o caminho
+exibido é sempre relativo. O JSON carrega `schema_version`.
 
 ### I4 — `--check` limpo ⇒ compila
 
@@ -195,8 +204,8 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
   existirem não serão contrato público na primeira versão.
 - **Timing.** Nada promete quando um `nil`/objeto é liberado, nem ordem de finalização —
   justamente para não quebrar I1.
-- **Programas acima do orçamento de memória** no binário (64 MiB até o GC), e **recursão
-  profunda** sem contador de pilha.
+- **Programas acima do orçamento de memória** no binário (hard cap de 128 MiB e I1 até
+  64 MiB de memória viva) e **recursão profunda** sem contador de pilha.
 
 ## Revisitar
 

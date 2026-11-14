@@ -12,6 +12,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Assign, Expr, Variable
 from src.frontend.stmt import Var
 from src.frontend.ty import ListTy, MapTy
@@ -51,7 +52,9 @@ class VariableLowering(LoweringBase):
         else:
             self.builder.store(value.llvm, binding.storage)
 
-    def _guard_closure(self, value: Value, name: str, line: int) -> Value:
+    def _guard_closure(
+        self, value: Value, name: str, line: int, column: int = 0
+    ) -> Value:
         is_null = self.builder.icmp_signed(
             "==", value.llvm, llvm_ir.null_pointer()
         )
@@ -60,7 +63,9 @@ class VariableLowering(LoweringBase):
         self.builder.cbranch(is_null, bad, ok)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(line, f"Undefined variable '{name}'.")
+        self._poison(
+            line, f"Undefined variable '{name}'.", column=column, code=Code.UNDEFINED_VARIABLE
+        )
 
         self.builder = llvm_ir.builder(ok)
         return value
@@ -133,6 +138,7 @@ class VariableLowering(LoweringBase):
                     raise BackendError(
                         "Variables of type Nil are not supported by the backend yet.",
                         stmt.name.line,
+                        code=Code.BACKEND_UNSUPPORTED,
                     )
                 declared = value.desc
 
@@ -148,6 +154,7 @@ class VariableLowering(LoweringBase):
                         f"{existing.desc.ty.name}; redeclaring it as "
                         f"{declared.ty.name} is not supported by the backend yet.",
                         stmt.name.line,
+                        code=Code.BACKEND_UNSUPPORTED,
                     )
                 # `var f = ...` depois de `fn f` deixa de ser uma chamada direta.
                 binding = Binding(
@@ -217,7 +224,11 @@ class VariableLowering(LoweringBase):
     def _variable(self, expr: Variable) -> Value:
         depth = self.depths.get(expr)
         if depth is None and expr.name.lexeme not in self._globals:
-            self._poison(expr.name.line, f"Undefined variable '{expr.name.lexeme}'.")
+            self._poison(
+                expr.name,
+                f"Undefined variable '{expr.name.lexeme}'.",
+                code=Code.UNDEFINED_VARIABLE,
+            )
             return self._zero(ValueType.INT)
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
@@ -225,14 +236,20 @@ class VariableLowering(LoweringBase):
         if value.generic is not None:
             return value
         if value.ty in (ValueType.FUNCTION, ValueType.CLASS):
-            return self._guard_closure(value, expr.name.lexeme, expr.name.line)
+            return self._guard_closure(
+                value, expr.name.lexeme, expr.name.line, expr.name.column
+            )
         return value
 
     def _assign(self, expr: Assign) -> Value:
         value = self._expr(expr.value)
         depth = self.depths.get(expr)
         if depth is None and expr.name.lexeme not in self._globals:
-            self._poison(expr.name.line, f"Undefined variable '{expr.name.lexeme}'.")
+            self._poison(
+                expr.name,
+                f"Undefined variable '{expr.name.lexeme}'.",
+                code=Code.UNDEFINED_VARIABLE,
+            )
             return value
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)

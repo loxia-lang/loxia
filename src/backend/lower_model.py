@@ -11,6 +11,7 @@ from enum import Enum, auto
 from typing import Any
 
 from src.backend import llvm_ir
+from src.diagnostics.codes import Code
 from src.frontend.expr import Expr
 from src.frontend.stmt import Function, Param
 from src.frontend.token_type import TokenType
@@ -59,10 +60,17 @@ _OPERAND_MESSAGES: dict[TokenType, str] = {
 class BackendError(Exception):
     """Erro de compilação do backend (exit 65). `line` é `None` quando o nó não tem."""
 
-    def __init__(self, message: str, line: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        line: int | None = None,
+        *,
+        code: Code = Code.BACKEND_INTERNAL,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.line = line
+        self.code = code
 
 
 class ValueType(Enum):
@@ -178,6 +186,7 @@ class FieldLayout:
     initializer: Expr | None
     index: int
     line: int
+    column: int = 0
 
 
 @dataclass
@@ -245,5 +254,9 @@ class ClassLayout:
 
 
 def _unsupported(what: str, line: int | None) -> BackendError:
-    return BackendError(f"{what} is not supported by the backend yet.", line)
+    return BackendError(
+        f"{what} is not supported by the backend yet.",
+        line,
+        code=Code.BACKEND_UNSUPPORTED,
+    )
 

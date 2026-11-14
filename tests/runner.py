@@ -13,6 +13,7 @@ O runner executa `main.py` como subprocesso para testar o CLI de verdade
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -25,6 +26,11 @@ TIMEOUT_SECONDS = 20
 
 EXIT_SYNTAX_ERROR = 65
 EXIT_RUNTIME_ERROR = 70
+
+# Linhas do trecho de código do renderizador human (ex.: `3 |   var a = 2;`).
+# Elas não participam da checagem de mensagem: o comentário `# expect ...` pode
+# estar na mesma linha do código e criaria um falso positivo.
+SNIPPET_LINE = re.compile(r"^\s*\d+ \|")
 
 
 @dataclass(frozen=True)
@@ -67,6 +73,12 @@ def parse_expectations(source: str) -> Expectations:
     return Expectations(stdout=stdout, error=error, exit_code=exit_code)
 
 
+def _without_snippet(stderr: str) -> str:
+    return "\n".join(
+        line for line in stderr.splitlines() if not SNIPPET_LINE.match(line)
+    )
+
+
 def execute(path: Path) -> Executed:
     process = subprocess.run(
         [sys.executable, str(ENTRYPOINT), str(path)],
@@ -94,12 +106,14 @@ def check_case(path: Path) -> list[str]:
             f"stdout: esperado {expectations.stdout!r}, obtido {executed.stdout!r}"
         )
 
+    diagnostics_only = _without_snippet(executed.stderr)
+
     if expectations.error is not None:
-        if expectations.error not in executed.stderr:
+        if expectations.error not in diagnostics_only:
             problems.append(
                 f"stderr: esperado conter {expectations.error!r}, obtido {executed.stderr!r}"
             )
-    elif executed.stderr.strip():
+    elif diagnostics_only.strip():
         problems.append(f"stderr deveria estar vazio, obtido {executed.stderr!r}")
 
     if executed.exit_code != expectations.exit_code:

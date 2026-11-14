@@ -16,6 +16,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Range
 from src.frontend.stmt import ForIn
 
@@ -34,8 +35,9 @@ class RangeLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 3:
             self._poison(
-                expr.paren.line,
+                expr.paren,
                 f"Expected 3 arguments but got {len(arguments)}.",
+                code=Code.RUNTIME_ARITY,
             )
             return Value(ValueType.RANGE, llvm_ir.null_pointer())
         coerced = [
@@ -87,11 +89,16 @@ class RangeLowering(LoweringBase):
 
         def load() -> Any:
             return self.builder.call(
-                self._function("lox_tuple_get", self._any_type(), [_I8_PTR, _INT, _I32]),
+                self._function(
+                    "lox_tuple_get",
+                    self._any_type(),
+                    [_I8_PTR, _INT, _I32, _I32],
+                ),
                 [
                     iterable.llvm,
                     self.builder.load(index),
                     llvm_ir.constant(_I32, stmt.name.line),
+                    llvm_ir.constant(_I32, stmt.name.column),
                 ],
             )
 
@@ -148,11 +155,14 @@ class RangeLowering(LoweringBase):
 
         def load() -> Any:
             raw = self.builder.call(
-                self._function("lox_list_get", self._any_type(), [_I8_PTR, _INT, _I32]),
+                self._function(
+                    "lox_list_get", self._any_type(), [_I8_PTR, _INT, _I32, _I32]
+                ),
                 [
                     iterable.llvm,
                     self.builder.load(index),
                     llvm_ir.constant(_I32, stmt.name.line),
+                    llvm_ir.constant(_I32, stmt.name.column),
                 ],
             )
             return self._unbox_value(raw, element, stmt.name.line).llvm

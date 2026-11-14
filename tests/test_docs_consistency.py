@@ -220,3 +220,32 @@ def test_pending_do_corpus_tem_teto() -> None:
         f"{len(PENDING)} casos em PENDING: feche o nível ou revise o contrato "
         "(docs/spec/garantias.md) antes de seguir"
     )
+
+
+def test_todos_os_codigos_de_diagnostico_estao_documentados() -> None:
+    """ADR-0075: o catálogo de erros é fechado e toda família aparece na spec."""
+    from src.diagnostics.codes import CODE_PHASE, Code
+
+    text = (SPEC_DIR / "erros.md").read_text(encoding="utf-8")
+
+    assert set(CODE_PHASE) == set(Code), "todo código precisa de uma fase"
+    missing = [code.value for code in Code if code.value not in text]
+    assert missing == [], f"códigos sem documentação em docs/spec/erros.md: {missing}"
+
+
+def test_faixa_do_codigo_bate_com_a_fase() -> None:
+    from src.diagnostics.codes import CODE_PHASE
+    from src.diagnostics.diagnostic import Phase
+
+    expected_prefix = {
+        Phase.LEXER: "E0",
+        Phase.PARSER: "E1",
+        Phase.RESOLVER: "E2",
+        Phase.CHECKER: "E3",
+        Phase.BACKEND: "E4",
+        Phase.RUNTIME: "R1",
+    }
+
+    for code, phase in CODE_PHASE.items():
+        assert code.value.startswith(expected_prefix[phase]), (code, phase)
+        assert 0 <= len(code.value) <= 5

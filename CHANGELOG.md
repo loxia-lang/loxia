@@ -7,6 +7,21 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Diagnósticos estruturados** ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md)):
+  modelo único de `Diagnostic` (código de família, fase, severidade e span com
+  linha/coluna/offset em bytes), renderizadores `human` (cabeçalho + caret), `short` e
+  JSON v1, ordenação/dedup/limite determinísticos e caminho de exibição relativo. Flags
+  novas: `--error-format`, `--color` e `--max-errors`. Catálogo em
+  [`docs/spec/erros.md`](docs/spec/erros.md). O runtime humano continua no formato do livro
+  até a paridade nativa.
+- **GC Boehm (M7)** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)): a arena
+  de 64 MiB foi substituída por heap coletado (`libgc`), com hard cap de 128 MiB e I1 até
+  64 MiB de memória viva; programas que alocam em laço deixam de morrer no teto. O ponto
+  exato do `Out of memory.` não é determinístico (coletor conservador), mas canal,
+  mensagem e exit code são.
+- **Verificação de IR (`mod.verify`)** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)):
+  o driver verifica o módulo LLVM antes de emitir `.ll`, `.o` ou executável; IR inválido
+  vira `BackendError` (exit 65) com mensagem determinística, nunca binário quebrado.
 - **`not` substitui `!`** ([ADR-0068](docs/adr/0068-not-substitui-bang.md)): negação no
   nível unário com a mesma precedência; `!` sozinho agora é diagnóstico dirigido
   (`use 'not' for negation`) e `!=` continua. Quebra deliberada de quem usava `!`.
@@ -166,6 +181,15 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Mudado
 
+- **Erros de compilação e de runtime mudaram de formato**
+  ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md)): `[line N] Error at 'x': …`
+  virou `arquivo:linha:col: error[CODIGO]: …` (+ trecho com caret na compilação). O
+  binário nativo reproduz o mesmo cabeçalho no erro de runtime, com linha, coluna e
+  código. Exit codes não mudaram (`65`/`70`/`66`/`2`). Quem parseava a linha antiga deve
+  migrar para `--error-format=json` (`schema_version: 1`) ou `short`.
+- **Contrato de memória** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)):
+  GC Boehm, hard cap de 128 MiB e I1 até 64 MiB de memória viva; o ponto exato do
+  `Out of memory.` deixa de ser determinístico, mas a mensagem e o exit code continuam.
 - **`"..."` não aceita mais quebra de linha**: quem escrevia multilinha com `"` usa
   `"""..."""` (erro dirigido aponta a forma canônica). Ver
   [ADR-0070](docs/adr/0070-strings-multilinha-e-raw.md).

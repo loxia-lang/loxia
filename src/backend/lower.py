@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.diagnostics.codes import Code
+
 __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from src.backend import llvm_ir
@@ -97,6 +99,7 @@ from src.frontend.stmt import (
     While,
 )
 from src.frontend.token_type import TokenType
+from src.frontend.tokens import Token
 from src.frontend.ty import (
     Ty,
 )
@@ -128,8 +131,10 @@ class Lowerer(
         generic_instances: Any = None,
         generic_classes: Any = None,
         generic_class_sites: Any = None,
+        source_path: str = "<lox>",
     ) -> None:
         self.module: Any = module
+        self.source_path: str = source_path
         self.types = types
         self.depths = depths
         self.generic_instances = generic_instances or {}
@@ -187,7 +192,12 @@ class Lowerer(
         self._scopes = [{}]
         self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
-        self.builder.call(self._function("lox_init", _VOID, []), [])
+        init_path = llvm_ir.cstring_pointer(
+            self.builder, self._cstring(self.source_path)
+        )
+        self.builder.call(
+            self._function("lox_init", _VOID, [_I8_PTR]), [init_path]
+        )
         self._emit_exception_classes()
 
         for statement in statements:
@@ -541,28 +551,47 @@ class Lowerer(
     def _unary(self, expr: Unary) -> Value:
         operand = self._expr(expr.right)
         line = expr.operator.line
+        column = expr.operator.column
 
         match expr.operator.type:
             case TokenType.MINUS:
                 operand = self._unwrap_operand(
-                    operand, line, "Operand must be a number."
+                    operand,
+                    line,
+                    "Operand must be a number.",
+                    column=column,
+                    code=Code.RUNTIME_OPERANDS,
                 )
                 if operand.ty is ValueType.INT:
                     zero = llvm_ir.constant(_INT, 0)
                     return Value(ValueType.INT, self.builder.sub(zero, operand.llvm))
                 if operand.ty is ValueType.FLOAT:
                     return Value(ValueType.FLOAT, self.builder.fneg(operand.llvm))
-                self._poison(line, "Operand must be a number.")
+                self._poison(
+                    line,
+                    "Operand must be a number.",
+                    column=column,
+                    code=Code.RUNTIME_OPERANDS,
+                )
                 return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
             case TokenType.NOT:
                 truth = self._truthy(operand)
                 return Value(ValueType.BOOL, self.builder.not_(truth))
             case TokenType.TILDE:
                 operand = self._unwrap_operand(
-                    operand, line, "Operand must be an integer."
+                    operand,
+                    line,
+                    "Operand must be an integer.",
+                    column=column,
+                    code=Code.RUNTIME_OPERANDS,
                 )
                 if operand.ty is not ValueType.INT:
-                    self._poison(line, "Operand must be an integer.")
+                    self._poison(
+                        line,
+                        "Operand must be an integer.",
+                        column=column,
+                        code=Code.RUNTIME_OPERANDS,
+                    )
                     return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
                 return Value(
                     ValueType.INT,
@@ -579,50 +608,75 @@ class Lowerer(
 
         match operator.type:
             case TokenType.PLUS:
-                return self._arithmetic(left, right, "add", "fadd", operator.type, line)
+                return self._arithmetic(
+                    left, right, "add", "fadd", operator.type, operator
+                )
             case TokenType.MINUS:
-                return self._arithmetic(left, right, "sub", "fsub", operator.type, line)
+                return self._arithmetic(
+                    left, right, "sub", "fsub", operator.type, operator
+                )
             case TokenType.STAR:
-                return self._arithmetic(left, right, "mul", "fmul", operator.type, line)
+                return self._arithmetic(
+                    left, right, "mul", "fmul", operator.type, operator
+                )
             case TokenType.SLASH:
-                return self._float_division(left, right, line)
+                return self._float_division(left, right, operator)
             case TokenType.SLASH_SLASH:
-                return self._integer_division(left, right, line)
+                return self._integer_division(left, right, operator)
             case TokenType.PERCENT:
-                return self._modulo(left, right, line)
+                return self._modulo(left, right, operator)
             case (
                 TokenType.LESS
                 | TokenType.LESS_EQUAL
                 | TokenType.GREATER
                 | TokenType.GREATER_EQUAL
             ):
-                return self._comparison(left, right, operator.type, line)
+                return self._comparison(left, right, operator.type, operator)
             case TokenType.EQUAL_EQUAL | TokenType.NOT_EQUAL:
                 return self._equality(left, right, operator.type)
             case TokenType.STAR_STAR:
-                return self._power(left, right, line)
+                return self._power(left, right, operator)
             case TokenType.AMPERSAND:
-                return self._bitwise(left, right, "and", line)
+                return self._bitwise(left, right, "and", operator)
             case TokenType.PIPE:
-                return self._bitwise(left, right, "or", line)
+                return self._bitwise(left, right, "or", operator)
             case TokenType.CARET:
-                return self._bitwise(left, right, "xor", line)
+                return self._bitwise(left, right, "xor", operator)
             case TokenType.LESS_LESS:
-                return self._shift(left, right, 0, line)
+                return self._shift(left, right, 0, operator)
             case TokenType.GREATER_GREATER:
-                return self._shift(left, right, 1, line)
+                return self._shift(left, right, 1, operator)
             case TokenType.GREATER_GREATER_GREATER:
-                return self._shift(left, right, 2, line)
+                return self._shift(left, right, 2, operator)
 
         raise _unsupported(f"Binary operator '{operator.lexeme}'", line)
 
-    def _power(self, left: Value, right: Value, line: int) -> Value:
-        left = self._unwrap_operand(left, line, "Operands must be numbers.")
-        right = self._unwrap_operand(right, line, "Operands must be numbers.")
+    def _power(self, left: Value, right: Value, token: Token) -> Value:
+        line = token.line
+        column = token.column
+        left = self._unwrap_operand(
+            left,
+            line,
+            "Operands must be numbers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
+        right = self._unwrap_operand(
+            right,
+            line,
+            "Operands must be numbers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
             call = self.builder.call(
-                self._function("lox_int_pow", _INT, [_INT, _INT, _I32]),
-                [left.llvm, right.llvm, llvm_ir.constant(_I32, line)],
+                self._function("lox_int_pow", _INT, [_INT, _INT, _I32, _I32]),
+                [
+                    left.llvm,
+                    right.llvm,
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
             )
             return Value(ValueType.INT, call)
         if left.ty in NUMERIC and right.ty in NUMERIC:
@@ -631,14 +685,38 @@ class Lowerer(
                 [self._to_float(left), self._to_float(right)],
             )
             return Value(ValueType.FLOAT, call)
-        self._poison(line, "Operands must be numbers.")
+        self._poison(
+            line,
+            "Operands must be numbers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-    def _bitwise(self, left: Value, right: Value, op: str, line: int) -> Value:
-        left = self._unwrap_operand(left, line, "Operands must be integers.")
-        right = self._unwrap_operand(right, line, "Operands must be integers.")
+    def _bitwise(self, left: Value, right: Value, op: str, token: Token) -> Value:
+        line = token.line
+        column = token.column
+        left = self._unwrap_operand(
+            left,
+            line,
+            "Operands must be integers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
+        right = self._unwrap_operand(
+            right,
+            line,
+            "Operands must be integers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         if left.ty is not ValueType.INT or right.ty is not ValueType.INT:
-            self._poison(line, "Operands must be integers.")
+            self._poison(
+                line,
+                "Operands must be integers.",
+                column=column,
+                code=Code.RUNTIME_OPERANDS,
+            )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
         operation = {
             "and": self.builder.and_,
@@ -647,19 +725,39 @@ class Lowerer(
         }[op]
         return Value(ValueType.INT, operation(left.llvm, right.llvm))
 
-    def _shift(self, left: Value, right: Value, kind: int, line: int) -> Value:
-        left = self._unwrap_operand(left, line, "Operands must be integers.")
-        right = self._unwrap_operand(right, line, "Operands must be integers.")
+    def _shift(self, left: Value, right: Value, kind: int, token: Token) -> Value:
+        line = token.line
+        column = token.column
+        left = self._unwrap_operand(
+            left,
+            line,
+            "Operands must be integers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
+        right = self._unwrap_operand(
+            right,
+            line,
+            "Operands must be integers.",
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         if left.ty is not ValueType.INT or right.ty is not ValueType.INT:
-            self._poison(line, "Operands must be integers.")
+            self._poison(
+                line,
+                "Operands must be integers.",
+                column=column,
+                code=Code.RUNTIME_OPERANDS,
+            )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
         call = self.builder.call(
-            self._function("lox_shift", _INT, [_INT, _INT, _I32, _I32]),
+            self._function("lox_shift", _INT, [_INT, _INT, _I32, _I32, _I32]),
             [
                 left.llvm,
                 right.llvm,
                 llvm_ir.constant(_I32, kind),
                 llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
             ],
         )
         return Value(ValueType.INT, call)
@@ -671,11 +769,17 @@ class Lowerer(
         integer_op: str,
         float_op: str,
         operator: TokenType,
-        line: int,
+        token: Token,
     ) -> Value:
+        line = token.line
+        column = token.column
         message = _OPERAND_MESSAGES[operator]
-        left = self._unwrap_operand(left, line, message)
-        right = self._unwrap_operand(right, line, message)
+        left = self._unwrap_operand(
+            left, line, message, column=column, code=Code.RUNTIME_OPERANDS
+        )
+        right = self._unwrap_operand(
+            right, line, message, column=column, code=Code.RUNTIME_OPERANDS
+        )
 
         if operator is TokenType.PLUS and (
             left.ty is ValueType.STRING and right.ty is ValueType.STRING
@@ -693,84 +797,170 @@ class Lowerer(
                 operation(self._to_float(left), self._to_float(right)),
             )
 
-        self._poison(line, _OPERAND_MESSAGES[operator])
+        self._poison(
+            line,
+            _OPERAND_MESSAGES[operator],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-    def _float_division(self, left: Value, right: Value, line: int) -> Value:
+    def _float_division(self, left: Value, right: Value, token: Token) -> Value:
+        line = token.line
+        column = token.column
         left = self._unwrap_operand(
-            left, line, _OPERAND_MESSAGES[TokenType.SLASH]
+            left,
+            line,
+            _OPERAND_MESSAGES[TokenType.SLASH],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
         )
         right = self._unwrap_operand(
-            right, line, _OPERAND_MESSAGES[TokenType.SLASH]
+            right,
+            line,
+            _OPERAND_MESSAGES[TokenType.SLASH],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
         )
         if left.ty not in NUMERIC or right.ty not in NUMERIC:
-            self._poison(line, _OPERAND_MESSAGES[TokenType.SLASH])
+            self._poison(
+                line,
+                _OPERAND_MESSAGES[TokenType.SLASH],
+                column=column,
+                code=Code.RUNTIME_OPERANDS,
+            )
             return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
 
-        function = self._function("lox_float_div", _FLOAT, [_FLOAT, _FLOAT, _I32])
+        function = self._function(
+            "lox_float_div", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32]
+        )
         call = self.builder.call(
             function,
-            [self._to_float(left), self._to_float(right), llvm_ir.constant(_I32, line)],
+            [
+                self._to_float(left),
+                self._to_float(right),
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
+            ],
         )
         return Value(ValueType.FLOAT, call)
 
-    def _integer_division(self, left: Value, right: Value, line: int) -> Value:
+    def _integer_division(self, left: Value, right: Value, token: Token) -> Value:
+        line = token.line
+        column = token.column
         left = self._unwrap_operand(
-            left, line, _OPERAND_MESSAGES[TokenType.SLASH_SLASH]
+            left,
+            line,
+            _OPERAND_MESSAGES[TokenType.SLASH_SLASH],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
         )
         right = self._unwrap_operand(
-            right, line, _OPERAND_MESSAGES[TokenType.SLASH_SLASH]
+            right,
+            line,
+            _OPERAND_MESSAGES[TokenType.SLASH_SLASH],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
         )
         if not (left.ty is ValueType.INT and right.ty is ValueType.INT):
-            self._poison(line, _OPERAND_MESSAGES[TokenType.SLASH_SLASH])
+            self._poison(
+                line,
+                _OPERAND_MESSAGES[TokenType.SLASH_SLASH],
+                column=column,
+                code=Code.RUNTIME_OPERANDS,
+            )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-        function = self._function("lox_int_div", _INT, [_INT, _INT, _I32])
+        function = self._function("lox_int_div", _INT, [_INT, _INT, _I32, _I32])
         call = self.builder.call(
-            function, [left.llvm, right.llvm, llvm_ir.constant(_I32, line)]
+            function,
+            [
+                left.llvm,
+                right.llvm,
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
+            ],
         )
         return Value(ValueType.INT, call)
 
-    def _modulo(self, left: Value, right: Value, line: int) -> Value:
+    def _modulo(self, left: Value, right: Value, token: Token) -> Value:
+        line = token.line
+        column = token.column
         left = self._unwrap_operand(
-            left, line, _OPERAND_MESSAGES[TokenType.PERCENT]
+            left,
+            line,
+            _OPERAND_MESSAGES[TokenType.PERCENT],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
         )
         right = self._unwrap_operand(
-            right, line, _OPERAND_MESSAGES[TokenType.PERCENT]
+            right,
+            line,
+            _OPERAND_MESSAGES[TokenType.PERCENT],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
         )
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
-            function = self._function("lox_int_mod", _INT, [_INT, _INT, _I32])
+            function = self._function("lox_int_mod", _INT, [_INT, _INT, _I32, _I32])
             call = self.builder.call(
-                function, [left.llvm, right.llvm, llvm_ir.constant(_I32, line)]
+                function,
+                [
+                    left.llvm,
+                    right.llvm,
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
             )
             return Value(ValueType.INT, call)
 
         if left.ty in NUMERIC and right.ty in NUMERIC:
-            function = self._function("lox_float_mod", _FLOAT, [_FLOAT, _FLOAT, _I32])
+            function = self._function(
+                "lox_float_mod", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32]
+            )
             call = self.builder.call(
                 function,
                 [
                     self._to_float(left),
                     self._to_float(right),
                     llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
                 ],
             )
             return Value(ValueType.FLOAT, call)
 
-        self._poison(line, _OPERAND_MESSAGES[TokenType.PERCENT])
+        self._poison(
+            line,
+            _OPERAND_MESSAGES[TokenType.PERCENT],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
     def _comparison(
-        self, left: Value, right: Value, operator: TokenType, line: int
+        self, left: Value, right: Value, operator: TokenType, token: Token
     ) -> Value:
+        line = token.line
+        column = token.column
         predicates = {
             TokenType.LESS: "<",
             TokenType.LESS_EQUAL: "<=",
             TokenType.GREATER: ">",
             TokenType.GREATER_EQUAL: ">=",
         }
-        left = self._unwrap_operand(left, line, _OPERAND_MESSAGES[operator])
-        right = self._unwrap_operand(right, line, _OPERAND_MESSAGES[operator])
+        left = self._unwrap_operand(
+            left,
+            line,
+            _OPERAND_MESSAGES[operator],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
+        right = self._unwrap_operand(
+            right,
+            line,
+            _OPERAND_MESSAGES[operator],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
 
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
             result = self.builder.icmp_signed(
@@ -793,7 +983,12 @@ class Lowerer(
             )
             return Value(ValueType.BOOL, result)
 
-        self._poison(line, _OPERAND_MESSAGES[operator])
+        self._poison(
+            line,
+            _OPERAND_MESSAGES[operator],
+            column=column,
+            code=Code.RUNTIME_OPERANDS,
+        )
         return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
 
     def _equality(self, left: Value, right: Value, operator: TokenType) -> Value:
@@ -1086,6 +1281,7 @@ class Lowerer(
             f"Ternary branches are {left.ty.name} and {right.ty.name}; "
             "union types are not supported by the backend yet.",
             line,
+            code=Code.BACKEND_UNSUPPORTED,
         )
 
     def _logical(self, expr: Logical) -> Value:
@@ -1282,12 +1478,40 @@ class Lowerer(
             case ValueType.NIL:
                 return llvm_ir.constant(_BOOL, 0)
 
-    def _poison(self, line: int, message: str) -> None:
-        """Rebaixa erro estático a `lox_panic` e continua num bloco inalcançável."""
+    def _poison(
+        self,
+        target: Token | int,
+        message: str,
+        *,
+        column: int = 0,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> None:
+        """Rebaixa erro estático a `lox_panic` e continua num bloco inalcançável.
+
+        `target` é o token do erro (leva linha e coluna) ou só a linha. `code` deve
+        espelhar o erro que o tree-walk levantaria em runtime (mesmo ponto, mesma
+        família), senão o stderr do binário diverge do interpretado e o I1 quebra.
+        """
+        if isinstance(target, Token):
+            line = target.line
+            column = target.column
+        else:
+            line = target
         function = self._panic_function()
         text = self._cstring(message)
         pointer = llvm_ir.cstring_pointer(self.builder, text)
-        self.builder.call(function, [llvm_ir.constant(_I32, line), pointer])
+        code_pointer = llvm_ir.cstring_pointer(
+            self.builder, self._cstring(code.value)
+        )
+        self.builder.call(
+            function,
+            [
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
+                code_pointer,
+                pointer,
+            ],
+        )
         self.builder.unreachable()
 
         block = llvm_ir.append_block(self._function_ir, f"poison{self._poison_count}")
@@ -1298,7 +1522,7 @@ class Lowerer(
         function = self._runtime.get("lox_panic")
         if function is None:
             function = llvm_ir.declare_noreturn(
-                self.module, "lox_panic", [_I32, _I8_PTR]
+                self.module, "lox_panic", [_I32, _I32, _I8_PTR, _I8_PTR]
             )
             self._runtime["lox_panic"] = function
         return function
@@ -1328,6 +1552,7 @@ def lower_program(
     generic_instances: Any = None,
     generic_classes: Any = None,
     generic_class_sites: Any = None,
+    source_path: str = "<lox>",
 ) -> Any:
     module = llvm_ir.new_module()
     Lowerer(
@@ -1337,5 +1562,6 @@ def lower_program(
         generic_instances=generic_instances,
         generic_classes=generic_classes,
         generic_class_sites=generic_class_sites,
+        source_path=source_path,
     ).lower(statements)
     return module

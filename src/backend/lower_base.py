@@ -21,9 +21,11 @@ from src.backend.lower_model import (
     Value,
     ValueType,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Call, Expr, Get, Range
 from src.frontend.stmt import Function
 from src.frontend.token_type import TokenType
+from src.frontend.tokens import Token
 from src.frontend.ty import Ty
 
 
@@ -213,7 +215,14 @@ class LoweringBase:
     def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
         raise NotImplementedError
 
-    def _poison(self, line: int, message: str) -> None:
+    def _poison(
+        self,
+        target: Token | int,
+        message: str,
+        *,
+        column: int = 0,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> None:
         raise NotImplementedError
 
     def __getattr__(self, name: str) -> Any:

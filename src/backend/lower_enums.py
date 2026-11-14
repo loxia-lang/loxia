@@ -19,6 +19,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import (
     Call,
     Get,
@@ -192,9 +193,10 @@ class EnumLowering(LoweringBase):
             )
         if len(expr.arguments) != len(variant.payload):
             self._poison(
-                expr.paren.line,
+                expr.paren,
                 f"Expected {len(variant.payload)} arguments but got "
                 f"{len(expr.arguments)}.",
+                code=Code.RUNTIME_ARITY,
             )
             return Value(ValueType.ENUM, llvm_ir.null_pointer())
         return self._enum_value(layout, variant, expr)
@@ -272,12 +274,13 @@ class EnumLowering(LoweringBase):
                             self._function(
                                 "lox_enum_payload",
                                 _ANY,
-                                [_I8_PTR, _INT, _I32],
+                                [_I8_PTR, _INT, _I32, _I32],
                             ),
                             [
                                 scrutinee.llvm,
                                 llvm_ir.constant(_INT, index),
                                 llvm_ir.constant(_I32, binding.line),
+                                llvm_ir.constant(_I32, binding.column),
                             ],
                         )
                         value = self._unbox_value(raw, desc, binding.line)

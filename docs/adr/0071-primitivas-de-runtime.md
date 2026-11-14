@@ -72,8 +72,14 @@ LoxStr { i64 byte_len; i64 cp_len; const char *data; i32 *cp_offsets; }
 - `cp_offsets` tem `cp_len + 1` entradas e é `NULL` até o primeiro acesso aleatório;
 - só é construído para strings com `cp_len >= 64` (abaixo disso, varrer é mais barato
   que alocar o cache);
-- é alocado na arena como todo o resto, então conta no orçamento de 64 MiB
-  ([ADR-0060](0060-orcamento-de-memoria.md)) e continua sem `free`.
+- é alocado no **heap coletado** ([ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md)),
+  não mais na arena; o hard cap é 128 MiB e o I1 cobre até 64 MiB de memória viva. Para
+  literais estáticos, o cache precisa ser root (ou alocado como não coletável), porque o
+  header do literal vive em `.data` e não é um objeto do heap.
+
+> **Atualização (2026-11-14):** o GC Boehm do ADR-0074 substituiu a arena. Onde este ADR
+> fala em “teto de 64 MiB” ou em testes de OOM da arena, vale o contrato novo: hard cap de
+> 128 MiB, I1 até 64 MiB live e ponto de falha não determinístico.
 
 Garantias depois da mudança:
 

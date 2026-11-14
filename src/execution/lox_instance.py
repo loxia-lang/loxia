@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.diagnostics.codes import Code
 from src.diagnostics.errors import LoxRuntimeError
 from src.frontend.tokens import Token
 
@@ -23,16 +24,26 @@ class LoxInstance:
         if method is not None:
             return method.bind(self)
 
-        raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
+        raise LoxRuntimeError(
+                name,
+                f"Undefined property '{name.lexeme}'.",
+                code=Code.UNDEFINED_PROPERTY,
+            )
 
     def set(self, name: Token, value: object) -> None:
         field = self._klass.find_field(name.lexeme)
         if field is None:
-            raise LoxRuntimeError(name, f"Undefined field '{name.lexeme}'.")
+            raise LoxRuntimeError(
+                name,
+                f"Undefined field '{name.lexeme}'.",
+                code=Code.UNDEFINED_PROPERTY,
+            )
 
         if not field.mutable and name.lexeme in self._initialized:
             raise LoxRuntimeError(
-                name, f"Can't assign to immutable field '{name.lexeme}'."
+                name,
+                f"Can't assign to immutable field '{name.lexeme}'.",
+                code=Code.RUNTIME_IMMUTABLE,
             )
 
         self._fields[name.lexeme] = value
@@ -52,7 +63,9 @@ class LoxInstance:
         for field in self._klass.fields.values():
             if field.name.lexeme not in self._initialized:
                 raise LoxRuntimeError(
-                    field.name, f"Field '{field.name.lexeme}' must be initialized."
+                    field.name,
+                    f"Field '{field.name.lexeme}' must be initialized.",
+                    code=Code.FIELD_NOT_INITIALIZED,
                 )
 
     def __str__(self) -> str:

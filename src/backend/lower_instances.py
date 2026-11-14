@@ -19,6 +19,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Get, Set, Variable
 
 
@@ -49,7 +50,12 @@ class InstanceLowering(LoweringBase):
         )
 
     def _check_bitmap(
-        self, value: Value, field: FieldLayout, line: int, message: str
+        self,
+        value: Value,
+        field: FieldLayout,
+        line: int,
+        message: str,
+        column: int = 0,
     ) -> None:
         bitmap = self.builder.load(self._bitmap_slot(value, line))
         mask = llvm_ir.constant(_INT, 1 << field.index)
@@ -61,7 +67,9 @@ class InstanceLowering(LoweringBase):
         self.builder.cbranch(present, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(line, message)
+        self._poison(
+            line, message, column=column, code=Code.UNDEFINED_PROPERTY
+        )
 
         self.builder = llvm_ir.builder(ok)
 
@@ -121,13 +129,18 @@ class InstanceLowering(LoweringBase):
         raise _unsupported(f"Field value '{value.ty.name}'", None)
 
     def _load_field(
-        self, instance: Value, field: FieldLayout, line: int
+        self,
+        instance: Value,
+        field: FieldLayout,
+        line: int,
+        column: int = 0,
     ) -> Value:
         self._check_bitmap(
             instance,
             field,
             line,
             f"Undefined property '{field.name}'.",
+            column,
         )
         return self._slot_to_value(self._field_slot(instance, field), field.ty)
 
@@ -193,19 +206,23 @@ class InstanceLowering(LoweringBase):
 
     def _get_instance(self, obj: Value, expr: Get) -> Value:
         if obj.ty is not ValueType.INSTANCE:
-            self._poison(expr.name.line, "Only instances have properties.")
+            self._poison(
+                expr.name, "Only instances have properties.", code=Code.INVALID_VALUE
+            )
             return self._zero(ValueType.INT)
 
         layout = self._layout_for(obj, expr.name.line)
         field = layout.field(expr.name.lexeme)
         if field is not None:
-            return self._load_field(obj, field, expr.name.line)
+            return self._load_field(
+                obj, field, expr.name.line, expr.name.column
+            )
         method = layout.method(expr.name.lexeme)
         if method is not None:
             return self._bound_method(obj, layout, method)
 
         self._poison(
-            expr.name.line, f"Undefined property '{expr.name.lexeme}'."
+            expr.name, f"Undefined property '{expr.name.lexeme}'."
         )
         return self._zero(ValueType.INT)
 
@@ -213,13 +230,17 @@ class InstanceLowering(LoweringBase):
         obj = self._expr(expr.object)
         value = self._expr(expr.value)
         if obj.ty is not ValueType.INSTANCE:
-            self._poison(expr.name.line, "Only instances have fields.")
+            self._poison(
+                expr.name, "Only instances have fields.", code=Code.INVALID_VALUE
+            )
             return value
 
         layout = self._layout_for(obj, expr.name.line)
         field = layout.field(expr.name.lexeme)
         if field is None:
-            self._poison(expr.name.line, f"Undefined field '{expr.name.lexeme}'.")
+            self._poison(
+                expr.name, f"Undefined field '{expr.name.lexeme}'.", code=Code.UNDEFINED_PROPERTY
+            )
             return value
 
         value = self._coerce(value, field.ty, expr.name.line)
@@ -227,8 +248,9 @@ class InstanceLowering(LoweringBase):
         if not field.mutable:
             if not self._in_init:
                 self._poison(
-                    expr.name.line,
+                    expr.name,
                     f"Can't assign to immutable field '{field.name}'.",
+                    code=Code.RUNTIME_IMMUTABLE,
                 )
                 return value
             bitmap = self.builder.load(self._bitmap_slot(obj, field.line))
@@ -245,8 +267,9 @@ class InstanceLowering(LoweringBase):
 
             self.builder = llvm_ir.builder(used)
             self._poison(
-                expr.name.line,
+                expr.name,
                 f"Can't assign to immutable field '{field.name}'.",
+                code=Code.RUNTIME_IMMUTABLE,
             )
             self.builder = llvm_ir.builder(fresh)
             self._store_field(obj, field, value)

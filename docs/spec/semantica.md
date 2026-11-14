@@ -787,13 +787,16 @@ try {
 | runtime | durante a execução | **70** |
 | arquivo não encontrado | antes de tudo | **66** |
 
-- Formato de compilação: `[line N] Error at 'token': mensagem` (ou `at end`).
-- Formato de runtime: `mensagem` + `[line N]`.
+- Formato de compilação: `arquivo:linha:col: error[CODIGO]: mensagem` + trecho com caret
+  (`human`) ou só o cabeçalho (`short`); catálogo e envelope JSON em
+  [`erros.md`](erros.md) ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
+- Formato de runtime: `arquivo:linha:col: error[CODIGO]: mensagem` (sem caret, igual ao binário).
 - Mensagens são em inglês (compatibilidade com o livro e testes).
-- Erros de compilação são **acumulados** (parser tenta se recuperar; resolver reporta todos);
-  erros de runtime param no primeiro.
-- Ainda **não há** colunas, spans, stack trace, códigos de erro nem JSON — plano em
-  [`../../TODO.md`](../../TODO.md) §3.1.
+- Erros de compilação são **acumulados** (parser tenta se recuperar; resolver reporta
+  todos), ordenados por `(arquivo, offset, código)`, sem duplicatas e limitados por
+  `--max-errors`; erros de runtime param no primeiro.
+- Códigos de erro são estáveis; colunas, spans e JSON existem desde o ADR-0075. Stack
+  trace, `fixes[]`, `notes` de proveniência e LSP continuam pendentes.
 - No REPL, cada linha começa com estado de erro limpo e o ambiente permanece.
 
 ## Diferenças conscientes em relação ao livro

@@ -9,8 +9,12 @@ class Token:
     lexeme: str
     literal: object
     line: int
+    # 1-based em code points; `offset` é 0-based em bytes UTF-8 (ADR-0075).
+    # Os defaults mantêm compatível quem constrói Token à mão (testes, tokens sintéticos).
+    column: int = 1
+    offset: int = 0
 
-    def __str__(self)-> str:
+    def __str__(self) -> str:
         return f"{self.type.name} {self.lexeme} {self.literal}"
 
     def __repr__(self) -> str:

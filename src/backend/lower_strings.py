@@ -15,6 +15,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Call, InterpolatedString
 
 
@@ -175,8 +176,9 @@ class StringLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1:
             self._poison(
-                expr.paren.line,
+                expr.paren,
                 f"Expected 1 arguments but got {len(arguments)}.",
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero(ValueType.STRING)
 
@@ -191,8 +193,9 @@ class StringLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1:
             self._poison(
-                expr.paren.line,
+                expr.paren,
                 f"Expected 1 arguments but got {len(arguments)}.",
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero(ValueType.STRING)
 
@@ -202,8 +205,9 @@ class StringLowering(LoweringBase):
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1:
             self._poison(
-                expr.paren.line,
+                expr.paren,
                 f"Expected 1 arguments but got {len(arguments)}.",
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero(ValueType.INT)
 

@@ -55,15 +55,18 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
 - **I4 — `--check` limpo compila.** Se o checker aceita, o binário compila; a única recusa
   aceitável é a lacuna declarada (`... is not supported by the backend yet.`). O checker é
   a fonte única dos tipos.
-- **Memória é contrato.** O binário aloca em arena de 64 MiB sem `free`; estourar é
-  `exit 70` + `Out of memory.` determinístico. O interpretador não tem teto — o I1 vale
-  dentro do orçamento.
+- **Memória é contrato.** O binário usa GC Boehm ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)):
+  hard cap de 128 MiB e I1 até 64 MiB de memória viva; estourar é `exit 70` +
+  `Out of memory.`. O interpretador não tem teto — o I1 vale dentro do orçamento.
 
 Detalhes e o que **não** é prometido: [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Rodar
 
-Requisitos: Python 3.13 e [`uv`](https://docs.astral.sh/uv/).
+Requisitos: Python 3.13 e [`uv`](https://docs.astral.sh/uv/). O backend nativo (`--emit`)
+pede `llvmlite` (`uv sync --extra llvm`), um compilador C e, para `--emit=exe`, a `libgc`
+(Boehm; `libgc-dev` no Debian/Ubuntu, `bdw-gc` no Homebrew). O interpretador não precisa de
+nada disso.
 
 ```bash
 uv run main.py                 # REPL (Ctrl+C/Ctrl+D para sair)
@@ -88,14 +91,38 @@ Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo
 `2` uso inválido (ex.: `--dump-ast` sem script). O binário gerado por `--emit=exe` segue o
 mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
 
+### Diagnósticos
+
+Diagnósticos de compilação vão para stderr no formato
+`arquivo:linha:col: error[CODIGO]: mensagem` + trecho com caret; erros de runtime usam o
+mesmo cabeçalho, sem caret. O formato é determinístico (caminho relativo ao CWD, ordem
+fixa, sem timestamp/endereço) e os códigos são estáveis — catálogo em
+[`docs/spec/erros.md`](docs/spec/erros.md).
+
+```bash
+uv run main.py --check --error-format=short prog.lox  # uma linha por diagnóstico
+uv run main.py --check --error-format=json prog.lox   # envelope JSON v1 (stdout)
+uv run main.py --error-format=json prog.lox           # diagnósticos JSON (stderr)
+uv run main.py --color=never prog.lox                 # sem ANSI (também respeita NO_COLOR)
+uv run main.py --max-errors=5 prog.lox                # limita (0 = sem limite)
+```
+
+`--error-format=human` (padrão) mostra o trecho; `short` é o cabeçalho; `json` traz
+`schema_version`, `code`, `phase`, `span` (linha/coluna em code points e `offset` em bytes)
+e `summary`. Em `--check` o JSON vai para **stdout**; em `run`/`build` vai para **stderr**
+(o programa/IR já usam stdout). `--color` aceita `auto|always|never` e `NO_COLOR` desliga
+a cor no modo `auto`.
+
 O backend nativo cobre **L0–L6**: `Int`/`Float`/`Bool`/`nil`/`String`, optionais escalares (`Int?`/`Float?`/`Bool?`), `if`/`while`,
 variáveis, funções com recursão, ternário/`and`/`or`/`??`, concatenação, interpolação,
-`len`/`str`/`repr`, arena, funções locais/lambdas, closures (células e `env`), valores de
-função (`<fn f>`/`<lambda>`), classes/campos/métodos/herança e monomorfização de funções e
-classes genéricas. O que falta (containers, `Any` completo, tuplas, enums e exceções) falha
-com erro explícito, nunca com lowering silencioso. Contratos em
-[`docs/adr/0031-backend-nativo.md`](docs/adr/0031-backend-nativo.md) e
-[`docs/adr/0046-closures-celulas-l4.md`](docs/adr/0046-closures-celulas-l4.md).
+`len`/`str`/`repr`, funções locais/lambdas, closures (células e `env`), valores de
+função (`<fn f>`/`<lambda>`), classes/campos/métodos/herança, monomorfização de funções e
+classes genéricas, containers, `Any`, tuplas, enums e exceções. O que resta é qualidade de
+L7 (passes/benchmarks); o backend sem representação falha com erro explícito, nunca com
+lowering silencioso. Contratos em
+[`docs/adr/0031-backend-nativo.md`](docs/adr/0031-backend-nativo.md),
+[`docs/adr/0046-closures-celulas-l4.md`](docs/adr/0046-closures-celulas-l4.md) e
+[`docs/adr/0074-gc-boehm-e-contrato-de-memoria.md`](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md).
 
 ## Exemplo
 

@@ -2,7 +2,7 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
-- **Relacionados:** [`../../IDEIAS.md`](../../IDEIAS.md) I-4, [`../../TODO.md`](../../TODO.md) §3.1
+- **Relacionados:** [`../../IDEIAS.md`](../../IDEIAS.md) I-4, [ADR-0075](0075-diagnosticos-estruturados.md)
 
 ## Contexto
 

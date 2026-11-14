@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.diagnostics.codes import Code
 from src.diagnostics.errors import LoxRuntimeError
 from src.execution import numeric
 from src.execution.lox_callable import LoxCallable
@@ -38,7 +39,9 @@ class LoxList:
 
     def pop(self, token: Token) -> object:
         if not self._elements:
-            raise LoxRuntimeError(token, "Can't pop from an empty list.")
+            raise LoxRuntimeError(
+                token, "Can't pop from an empty list.", code=Code.INDEX_OUT_OF_BOUNDS
+            )
 
         self._version += 1
         return self._elements.pop()
@@ -59,16 +62,24 @@ class LoxList:
         if name.lexeme == "pop":
             return ListPopMethod(self, name)
 
-        raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
+        raise LoxRuntimeError(
+                name,
+                f"Undefined property '{name.lexeme}'.",
+                code=Code.UNDEFINED_PROPERTY,
+            )
 
     def _check_index(self, index: object, token: Token) -> int:
         if not numeric.is_int(index):
-            raise LoxRuntimeError(token, "List index must be an integer.")
+            raise LoxRuntimeError(
+                token, "List index must be an integer.", code=Code.RUNTIME_OPERANDS
+            )
 
         length = len(self._elements)
         if index < 0 or index >= length:
             raise LoxRuntimeError(
-                token, f"List index {index} out of bounds for length {length}."
+                token,
+                f"List index {index} out of bounds for length {length}.",
+                code=Code.INDEX_OUT_OF_BOUNDS,
             )
 
         return index

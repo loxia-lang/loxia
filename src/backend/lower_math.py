@@ -51,10 +51,13 @@ class MathLowering(LoweringBase):
             return Value(
                 ValueType.INT,
                 self.builder.call(
-                    self._function(f"lox_math_{name}", _INT, [_FLOAT, _I32]),
+                    self._function(
+                        f"lox_math_{name}", _INT, [_FLOAT, _I32, _I32]
+                    ),
                     [
                         self._to_float(argument),
                         llvm_ir.constant(_I32, expr.paren.line),
+                        llvm_ir.constant(_I32, expr.paren.column),
                     ],
                 ),
             )
@@ -90,7 +93,7 @@ class MathLowering(LoweringBase):
         bad = llvm_ir.append_block(self._function_ir, "clamp.bad")
         self.builder.cbranch(low_high, bad, ok)
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.paren.line, "math.clamp() requires low <= high.")
+        self._poison(expr.paren, "math.clamp() requires low <= high.")
         self.builder = llvm_ir.builder(ok)
         lower = self.builder.select(
             self.builder.fcmp_ordered("<", values[0], values[1]) if use_float else self.builder.icmp_signed("<", values[0], values[1]),
@@ -107,7 +110,7 @@ class MathLowering(LoweringBase):
     def _parse_call(self, expr: Call, desc: TypeDesc) -> Value:
         args = [self._expr(argument) for argument in expr.arguments]
         if len(args) != 1 or args[0].ty is not ValueType.STRING:
-            self._poison(expr.paren.line, "parse() expects a string.")
+            self._poison(expr.paren, "parse() expects a string.")
             return self._zero_desc(desc)
         function = "lox_parse_int" if desc.ty is ValueType.INT else "lox_parse_float"
         raw = self.builder.call(

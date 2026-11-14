@@ -18,6 +18,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Call, Expr, Get, Index, IndexSet, ListLiteral, MapLiteral
 from src.frontend.ty import ListTy, MapTy
 
@@ -154,7 +155,7 @@ class ContainerLowering(LoweringBase):
             self.builder.branch(end_block)
             tuple_end = self.builder.block
             self.builder = llvm_ir.builder(bad_block)
-            self._poison(expr.bracket.line, "Indexing this value is not supported.")
+            self._poison(expr.bracket, "Indexing this value is not supported.")
             zero = self._zero_desc(self._type_desc(self.types[expr], expr.bracket.line))
             self.builder.branch(end_block)
             bad_end = self.builder.block
@@ -174,12 +175,17 @@ class ContainerLowering(LoweringBase):
             _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
             key = self._box_value(self._expr(expr.index), None)
             raw = self.builder.call(
-                self._function("lox_map_get_checked", _ANY, [_I8_PTR, _INT, _INT, _I32]),
+                self._function(
+                    "lox_map_get_checked",
+                    _ANY,
+                    [_I8_PTR, _INT, _INT, _I32, _I32],
+                ),
                 [
                     obj.llvm,
                     self.builder.extract_value(key.llvm, 0),
                     self.builder.extract_value(key.llvm, 1),
                     llvm_ir.constant(_I32, expr.bracket.line),
+                    llvm_ir.constant(_I32, expr.bracket.column),
                 ],
             )
             return self._unbox_value(raw, value_desc, expr.bracket.line)
@@ -187,8 +193,13 @@ class ContainerLowering(LoweringBase):
             raise _unsupported("Indexing this value", expr.bracket.line)
         index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
         raw = self.builder.call(
-            self._function("lox_list_get", _ANY, [_I8_PTR, _INT, _I32]),
-            [obj.llvm, index.llvm, llvm_ir.constant(_I32, expr.bracket.line)],
+            self._function("lox_list_get", _ANY, [_I8_PTR, _INT, _I32, _I32]),
+            [
+                obj.llvm,
+                index.llvm,
+                llvm_ir.constant(_I32, expr.bracket.line),
+                llvm_ir.constant(_I32, expr.bracket.column),
+            ],
         )
         return self._unbox_value(raw, self._element_desc(expr.object, expr.bracket.line), expr.bracket.line)
 
@@ -217,13 +228,16 @@ class ContainerLowering(LoweringBase):
         value = self._coerce(self._expr(expr.value), element, expr.bracket.line)
         boxed = self._box_value(value, None)
         self.builder.call(
-            self._function("lox_list_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _I32]),
+            self._function(
+                "lox_list_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _I32, _I32]
+            ),
             [
                 obj.llvm,
                 index.llvm,
                 self.builder.extract_value(boxed.llvm, 0),
                 self.builder.extract_value(boxed.llvm, 1),
                 llvm_ir.constant(_I32, expr.bracket.line),
+                llvm_ir.constant(_I32, expr.bracket.column),
             ],
         )
         return value
@@ -232,13 +246,18 @@ class ContainerLowering(LoweringBase):
         assert isinstance(expr.callee, Get)
         name = expr.callee.name.lexeme
         line = expr.callee.name.line
+        column = expr.callee.name.column
         list_ty = self.types.get(expr.callee.object)
         if not isinstance(list_ty, ListTy):
             raise _unsupported("List method receiver", line)
         element = self._type_desc(self._subst_ty(list_ty.element), line)
         if name == "push":
             if len(expr.arguments) != 1:
-                self._poison(expr.paren.line, "Expected 1 arguments but got 0.")
+                self._poison(
+                    expr.paren,
+                    "Expected 1 arguments but got 0.",
+                    code=Code.RUNTIME_ARITY,
+                )
                 return Value(ValueType.NIL)
             value = self._expr(expr.arguments[0])
             boxed = self._box_value(value, None)
@@ -253,8 +272,12 @@ class ContainerLowering(LoweringBase):
             return Value(ValueType.NIL)
         if name == "pop":
             raw = self.builder.call(
-                self._function("lox_list_pop", _ANY, [_I8_PTR, _I32]),
-                [obj.llvm, llvm_ir.constant(_I32, line)],
+                self._function("lox_list_pop", _ANY, [_I8_PTR, _I32, _I32]),
+                [
+                    obj.llvm,
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
             )
             return self._unbox_value(raw, element, line)
         raise _unsupported(f"List method '{name}'", line)
@@ -263,10 +286,15 @@ class ContainerLowering(LoweringBase):
         assert isinstance(expr.callee, Get)
         name = expr.callee.name.lexeme
         line = expr.callee.name.line
+        column = expr.callee.name.column
         _key_desc, value_desc = self._map_types(expr.callee.object, line)
         if name in {"get", "has", "remove"}:
             if len(expr.arguments) != 1:
-                self._poison(expr.paren.line, "Expected 1 arguments but got 0.")
+                self._poison(
+                    expr.paren,
+                    "Expected 1 arguments but got 0.",
+                    code=Code.RUNTIME_ARITY,
+                )
                 return Value(ValueType.NIL)
             key = self._box_value(self._expr(expr.arguments[0]), None)
             tag = self.builder.extract_value(key.llvm, 0)
@@ -282,8 +310,16 @@ class ContainerLowering(LoweringBase):
                 )
             if name == "remove":
                 raw = self.builder.call(
-                    self._function("lox_map_remove", _ANY, [_I8_PTR, _INT, _INT, _I32]),
-                    [obj.llvm, tag, payload, llvm_ir.constant(_I32, line)],
+                    self._function(
+                        "lox_map_remove", _ANY, [_I8_PTR, _INT, _INT, _I32, _I32]
+                    ),
+                    [
+                        obj.llvm,
+                        tag,
+                        payload,
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
                 )
                 return self._unbox_value(raw, value_desc, line)
             optional = TypeDesc(
@@ -323,7 +359,7 @@ class ContainerLowering(LoweringBase):
     def _chars(self, expr: Call) -> Value:
         arguments = [self._expr(argument) for argument in expr.arguments]
         if len(arguments) != 1 or arguments[0].ty is not ValueType.STRING:
-            self._poison(expr.paren.line, "chars() expects a string.")
+            self._poison(expr.paren, "chars() expects a string.")
             return Value(ValueType.LIST, llvm_ir.null_pointer())
         return Value(
             ValueType.LIST,

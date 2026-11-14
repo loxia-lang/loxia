@@ -2,33 +2,199 @@
 sources:
   - src/diagnostics/**
   - src/execution/interpreter.py
+  - src/frontend/scanner.py
+  - src/frontend/parser.py
+  - src/semantics/resolver.py
   - src/semantics/checker.py
+  - lox/cli.py
+  - tests/test_diagnostics.py
 ---
 
 # Erros
 
 Catálogo do que o interpretador reporta hoje, com fase e consequência. Mensagens são em
-inglês; o texto de CLI e a documentação em português.
+inglês; o texto de CLI e a documentação em português. A decisão por trás do formato está no
+[ADR-0075](../adr/0075-diagnosticos-estruturados.md).
 
 ## Formato e exit codes
 
-| Fase | Formato | Exit code |
+Todo diagnóstico de compilação tem um **código estável** (`error[E3001]`), posição e, no
+formato `human`, um trecho da fonte com caret:
+
+```
+exemplo.lox:3:7: error[E2001]: Already a variable with this name in this scope.
+  |
+3 |   var a = 2;
+  |       ^
+```
+
+| Fase | Formato `human` | Exit code |
 | --- | --- | --- |
-| léxico | `[line N] Error: mensagem` | 65 |
-| sintaxe | `[line N] Error at 'token': mensagem` (ou `at end`) | 65 |
-| resolver | `[line N] Error at 'token': mensagem` | 65 |
-| type checker (`--check`) | `[line N] Error at 'token': mensagem` | 65 |
-| runtime | `mensagem` + `\n[line N]` | 70 |
+| léxico | `arquivo:linha:col: error[E0xxx]: mensagem` + caret | 65 |
+| sintaxe | `arquivo:linha:col: error[E1xxx]: mensagem` + caret | 65 |
+| resolver | `arquivo:linha:col: error[E2xxx]: mensagem` + caret | 65 |
+| checker (`--check`) | `arquivo:linha:col: error[E3xxx]: mensagem` + caret | 65 |
+| backend | `arquivo:linha: error[E4xxx]: mensagem` (sem coluna/caret) | 65 |
+| runtime | `arquivo:linha:col: error[R1xxx]: mensagem` (sem caret) | 70 |
 | arquivo ausente | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |
 
-- Erros vão para **stderr**; a saída do programa, para stdout.
+- `human` (padrão) mostra cabeçalho + trecho; `short` mostra só o cabeçalho; `json` mostra
+  o envelope v1. Flags: `--error-format=human|short|json`, `--color=auto|always|never`
+  (respeita `NO_COLOR`) e `--max-errors N` (default 20; `0` = ilimitado).
+- Erros de compilação vão para **stderr** (JSON de `check` vai para stdout). Em `run`, o
+  stdout é do programa; em `build --emit=ll`, o stdout é do IR — por isso o JSON desses
+  comandos fica em stderr.
 - Compilação (léxico, parser, resolver e checker): o programa **não executa**. O parser se
   recupera (`synchronize`) e o resolver percorre a AST inteira, então uma execução pode
-  listar vários erros.
+  listar vários erros; eles saem ordenados por `(arquivo, offset, código)` e sem duplicatas.
 - Runtime: para no **primeiro** erro. Na 1.0 o erro de runtime é **fatal** (exit 70):
   não há `try`/`catch`/`Result`; o que já foi impresso permanece
-  ([ADR-0026](../adr/0026-freeze-1.0.md)).
-- No REPL não há exit code; a linha com erro é descartada e a sessão continua.
+  ([ADR-0026](../adr/0026-freeze-1.0.md)). O runtime usa o **mesmo cabeçalho** da
+  compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret — o binário pode rodar sem a
+  fonte. Quando a posição é sintética (campo interno), o cabeçalho degrada para
+  `error[CODIGO]: mensagem`.
+- No REPL não há exit code; a linha com erro é descartada e a sessão continua. O arquivo é
+  `<repl>`.
+- O caminho exibido é relativo ao CWD; se o arquivo estiver fora do CWD, só o basename.
+  Caminho absoluto nunca aparece (I3).
+
+### Envelope JSON (v1)
+
+`schema_version` é inteiro e muda só em ruptura. `span.start`/`end` são half-open; `column`
+é 1-based em code points e `offset` é 0-based em bytes UTF-8. `summary.suppressed` conta os
+diagnósticos cortados por `--max-errors`.
+
+```json
+{
+  "schema_version": 1,
+  "command": "check",
+  "success": false,
+  "exit_code": 65,
+  "diagnostics": [
+    {
+      "code": "E2001",
+      "phase": "resolver",
+      "severity": "error",
+      "message": "Already a variable with this name in this scope.",
+      "span": {
+        "file": "exemplo.lox",
+        "start": { "line": 3, "column": 7, "offset": 24 },
+        "end": { "line": 3, "column": 8, "offset": 25 }
+      },
+      "labels": [],
+      "notes": [],
+      "help": null
+    }
+  ],
+  "summary": { "errors": 1, "warnings": 0, "suppressed": 0 }
+}
+```
+
+## Códigos
+
+Códigos identificam **famílias**, não mensagens; nunca são reaproveitados e o catálogo é
+fechado (emitir um código fora daqui não compila). A cauda longa do checker usa `E3000`
+até ser refinada em códigos mais específicos.
+
+| Faixa | Fase | Significado |
+| --- | --- | --- |
+| `E0xxx` | léxico | scanner |
+| `E1xxx` | sintaxe | parser |
+| `E2xxx` | resolver | escopos e declarações |
+| `E3xxx` | checker | tipos e semântica |
+| `E4xxx` | backend | lowering/emissão |
+| `R1xxx` | runtime | interpretação e binário |
+
+### Léxico
+
+| Código | Família |
+| --- | --- |
+| `E0001` | caractere inesperado |
+| `E0002` | string não terminada |
+| `E0003` | escape de string inválido |
+| `E0004` | literal numérico inválido (separador ou overflow de literal) |
+| `E0005` | comentário de bloco não terminado |
+| `E0006` | interpolação não terminada |
+| `E0007` | escape Unicode inválido |
+
+### Sintaxe
+
+| Código | Família |
+| --- | --- |
+| `E1001` | token inesperado (a família `Expect …`) |
+| `E1002` | alvo de atribuição inválido (inclui `?.` em atribuição) |
+| `E1003` | limite de 255 parâmetros/argumentos |
+| `E1004` | declaração inválida (`val` sem inicializador, default não constante, …) |
+| `E1005` | anotação de tipo inválida (arity de `List`/`Map`, união em `is`, genérico) |
+| `E1006` | literal inválido (mapa no início de um statement) |
+| `E1007` | `match` inválido |
+
+### Resolver
+
+| Código | Família |
+| --- | --- |
+| `E2001` | variável duplicada no escopo |
+| `E2002` | atribuição a `val`/parâmetro imutável |
+| `E2003` | `return` inválido (topo do programa ou valor em `init`) |
+| `E2004` | `this` fora de classe |
+| `E2005` | `super` fora de classe ou sem superclasse |
+| `E2006` | herança inválida (classe herda de si) |
+| `E2007` | conflito de campo (duplicado ou com método) |
+| `E2008` | leitura de local no próprio inicializador |
+| `E2009` | atribuição a campo `val` |
+
+### Checker
+
+| Código | Família |
+| --- | --- |
+| `E3000` | erro semântico genérico (fallback do checker) |
+| `E3001` | tipo incompatível |
+| `E3002` | aridade de chamada |
+| `E3003` | nome indefinido (variável, propriedade ou campo) |
+| `E3004` | anotação ausente |
+| `E3005` | tipo, classe ou superclasse desconhecida |
+| `E3006` | valor não chamável |
+| `E3007` | operandos inválidos |
+| `E3008` | lista inválida (tipo comum, elemento vazio, índice) |
+| `E3009` | mapa inválido (chave, tipo comum) |
+| `E3010` | iteração inválida |
+| `E3011` | inferência de tipo genérico |
+| `E3012` | recurso genérico ainda não suportado |
+| `E3013` | cast inválido |
+| `E3014` | builtin/nome reservado redefinido |
+| `E3015` | override/conflito de método |
+| `E3016` | campo não inicializado |
+| `E3017` | declaração inválida (type param, enum, `init`) |
+| `E3018` | retorno ausente em algum caminho |
+| `E3019` | argumento de `math.*` |
+| `E3020` | argumentos de tipo (arity de genérico/enum/classe) |
+
+### Backend
+
+| Código | Família |
+| --- | --- |
+| `E4001` | não suportado pelo backend ainda |
+| `E4002` | erro interno/verificação/link do backend |
+
+### Runtime
+
+| Código | Família |
+| --- | --- |
+| `R1000` | erro de runtime genérico |
+| `R1001` | valor não chamável |
+| `R1002` | divisão ou módulo por zero |
+| `R1003` | variável indefinida |
+| `R1004` | propriedade, campo ou variante indefinido |
+| `R1005` | aridade em runtime |
+| `R1006` | operandos ou índice de tipo inválido |
+| `R1007` | índice fora dos limites |
+| `R1008` | chave ausente no mapa |
+| `R1009` | atribuição a binding imutável |
+| `R1010` | exceção não capturada |
+| `R1011` | cast inválido |
+| `R1012` | iteração inválida ou mutação durante a iteração |
+| `R1013` | campo não inicializado |
+| `R1014` | valor inválido (chave de mapa, superclasse, …) |
 
 ## Léxico
 
@@ -206,11 +372,23 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 ## Como testar
 
 - Casos golden em [`tests/cases/errors/`](../../tests/cases/errors) usam marcadores
-  `# expect error:` (65) e `# expect runtime error:` (70). Ver
-  [skill `lox-testing`](../../.dsh/skills/lox-testing/SKILL.md).
+  `# expect error:` (65) e `# expect runtime error:` (70). O runner ignora as linhas do
+  trecho de código ao casar a mensagem, para um `# expect` na mesma linha do código não
+  virar falso positivo. Ver [skill `lox-testing`](../../.dsh/skills/lox-testing/SKILL.md).
+- `tests/test_diagnostics.py` cobre o modelo e os três renderizadores sem capturar stderr;
+  `tests/test_determinism.py` exige bytes idênticos entre seeds.
 
-## Próximo passo (não implementado)
+## O que ainda falta
 
-Códigos estáveis (`E0xxx`…`E4xxx`), spans com coluna, dedup/cascata, `--error-format=json`,
-`fixes[]` e renderizador humano compartilhado — desenho em
-[`../../IDEIAS.md`](../../IDEIAS.md) I-4 e [`../../TODO.md`](../../TODO.md) §3.1.
+Já implementado: modelo `Diagnostic`, códigos estáveis, spans (linha/coluna/offset),
+`human`/`short`/`json`, dedup/ordenação/cap, caminho relativo determinístico e o mesmo
+cabeçalho de runtime no interpretador e no binário
+([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
+
+Pendências registradas no [`../../TODO.md`](../../TODO.md) §3 e no
+[`../../IDEIAS.md`](../../IDEIAS.md) I-4:
+
+- stack trace de runtime com frames;
+- `notes` de proveniência (ex.: "o valor vem de `pessoa.nome`");
+- `fixes[]` com `applicability` e edições, `lox explain`, `lox capabilities`;
+- `--json-lines`, warnings/`-Werror` e LSP.

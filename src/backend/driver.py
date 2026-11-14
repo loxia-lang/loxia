@@ -36,6 +36,7 @@ def build(
     generic_instances: Any = None,
     generic_classes: Any = None,
     generic_class_sites: Any = None,
+    source_path: str = "<lox>",
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
     module = lower_program(
@@ -45,7 +46,9 @@ def build(
         generic_instances=generic_instances,
         generic_classes=generic_classes,
         generic_class_sites=generic_class_sites,
+        source_path=source_path,
     )
+    _verify(module)
 
     if emit == "ll":
         text = llvm_ir.emit_text(module)
@@ -67,6 +70,16 @@ def build(
     return target
 
 
+def _verify(module: Any) -> None:
+    """Rede de segurança: IR inválido é erro interno, não binário quebrado."""
+    try:
+        llvm_ir.verify(module)
+    except llvm_ir.LLVMVerificationError as error:
+        raise BackendError(
+            f"internal error: generated invalid LLVM IR: {error}"
+        ) from error
+
+
 def _link(object_bytes: bytes, target: Path) -> None:
     compiler = _compiler()
 
@@ -76,20 +89,46 @@ def _link(object_bytes: bytes, target: Path) -> None:
         runtime_object = build_dir / "runtime.o"
         program_object.write_bytes(object_bytes)
 
-        _run(
-            [
-                compiler,
-                "-O2",
-                "-std=c11",
-                "-c",
-                str(RUNTIME_SOURCE),
-                "-o",
-                str(runtime_object),
-            ]
+        try:
+            _run(
+                [
+                    compiler,
+                    "-O2",
+                    "-std=c11",
+                    "-c",
+                    str(RUNTIME_SOURCE),
+                    "-o",
+                    str(runtime_object),
+                ]
+            )
+        except BackendError as error:
+            raise _with_gc_hint(error) from error
+        try:
+            _run(
+                [
+                    compiler,
+                    str(program_object),
+                    str(runtime_object),
+                    "-o",
+                    str(target),
+                    "-lm",
+                    "-lgc",
+                ]
+            )
+        except BackendError as error:
+            raise _with_gc_hint(error) from error
+
+
+def _with_gc_hint(error: BackendError) -> BackendError:
+    """Explica a dependência de build quando o erro é falta de `libgc`."""
+    message = error.message
+    if "gc.h" in message or "lgc" in message or "libgc" in message:
+        message = (
+            f"{message}\n"
+            "The native backend requires libgc (bdw-gc). Install libgc-dev "
+            "(Debian/Ubuntu), gc-devel (Fedora) or bdw-gc (macOS/Homebrew)."
         )
-        _run(
-            [compiler, str(program_object), str(runtime_object), "-o", str(target), "-lm"]
-        )
+    return BackendError(message, error.line)
 
 
 def _compiler() -> str:

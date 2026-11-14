@@ -18,6 +18,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Call, Get, Variable
 
 
@@ -105,7 +106,10 @@ class CallLowering(LoweringBase):
             assert isinstance(expr.callee, Variable)
             callee = self._load_binding(binding)
             callee = self._guard_closure(
-                callee, expr.callee.name.lexeme, expr.callee.name.line
+                callee,
+                expr.callee.name.lexeme,
+                expr.callee.name.line,
+                expr.callee.name.column,
             )
         else:
             callee = self._expr(expr.callee)
@@ -118,7 +122,11 @@ class CallLowering(LoweringBase):
             return Value(ValueType.NIL)
 
         if callee.ty is not ValueType.FUNCTION or callee.sig is None:
-            self._poison(expr.paren.line, "Can only call functions and classes.")
+            self._poison(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.RUNTIME_NOT_CALLABLE,
+            )
             return self._zero(ValueType.INT)
 
         if callee.optional:
@@ -133,7 +141,11 @@ class CallLowering(LoweringBase):
         minimum = sig.min_params
         maximum = len(sig.params)
         if not minimum <= count <= maximum:
-            self._poison(expr.paren.line, self._arity_message(minimum, maximum, count))
+            self._poison(
+                expr.paren,
+                self._arity_message(minimum, maximum, count),
+                code=Code.RUNTIME_ARITY,
+            )
             return self._zero_desc(sig.ret)
 
         if effective is not None:
@@ -180,8 +192,9 @@ class CallLowering(LoweringBase):
             )
         if count != len(sig.params):
             self._poison(
-                expr.paren.line,
+                expr.paren,
                 self._arity_message(len(sig.params), len(sig.params), count),
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero_desc(sig.ret)
 
@@ -265,7 +278,9 @@ class CallLowering(LoweringBase):
             raise _unsupported("Class construction", expr.paren.line)
 
         class_ptr = self._load_binding(binding)
-        class_ptr = self._guard_closure(class_ptr, name, expr.paren.line)
+        class_ptr = self._guard_closure(
+            class_ptr, name, expr.paren.line, expr.paren.column
+        )
 
         arguments = [self._expr(argument) for argument in expr.arguments]
         init = layout.effective_init()
@@ -274,7 +289,9 @@ class CallLowering(LoweringBase):
         count = len(arguments)
         if not minimum <= count <= maximum:
             self._poison(
-                expr.paren.line, self._arity_message(minimum, maximum, count)
+                expr.paren,
+                self._arity_message(minimum, maximum, count),
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero(ValueType.INSTANCE)
 

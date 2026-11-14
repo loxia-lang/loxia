@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from src.frontend.scanner import Scanner
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
@@ -15,6 +13,11 @@ def scan_with_reporter(source: str) -> Scanner:
     scanner = Scanner(source)
     scanner.scan_tokens()
     return scanner
+
+
+def messages(source: str) -> list[str]:
+    scanner = scan_with_reporter(source)
+    return [item.message for item in scanner.reporter.batch().diagnostics]
 
 
 def scan_types(source: str) -> list[TokenType]:
@@ -92,11 +95,11 @@ def test_keywords_fn_elif_and_fun_as_identifier() -> None:
     ]
 
 
-def test_bang_is_a_directed_error(capsys: pytest.CaptureFixture[str]) -> None:
+def test_bang_is_a_directed_error() -> None:
     scanner = scan_with_reporter("print !true;")
 
     assert scanner.reporter.had_error
-    assert "use 'not' for negation" in capsys.readouterr().err
+    assert any("use 'not' for negation" in item for item in messages("print !true;"))
 
 
 def test_keywords_async_and_await_are_reserved() -> None:
@@ -151,13 +154,11 @@ def test_nested_block_comments() -> None:
     ]
 
 
-def test_unterminated_block_comment_reports_error(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_unterminated_block_comment_reports_error() -> None:
     scanner = scan_with_reporter("/* aberto")
 
     assert scanner.reporter.had_error
-    assert "Unterminated block comment." in capsys.readouterr().err
+    assert "Unterminated block comment." in messages("/* aberto")
 
 
 def test_scans_arithmetic_and_bitwise_tokens() -> None:
@@ -193,22 +194,18 @@ def test_unicode_escape() -> None:
     assert scan(r'"\u{1F600}"')[0].literal == "😀"
 
 
-def test_unknown_escape_reports_error(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_unknown_escape_reports_error() -> None:
     scanner = scan_with_reporter(r'"\q"')
 
     assert scanner.reporter.had_error
-    assert "Unknown escape sequence '\\q'." in capsys.readouterr().err
+    assert "Unknown escape sequence '\\q'." in messages(r'"\q"')
 
 
-def test_invalid_unicode_escape_reports_error(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_invalid_unicode_escape_reports_error() -> None:
     scanner = scan_with_reporter(r'"\u{110000}"')
 
     assert scanner.reporter.had_error
-    assert "Invalid Unicode escape." in capsys.readouterr().err
+    assert "Invalid Unicode escape." in messages(r'"\u{110000}"')
 
 
 def test_scans_two_character_operators() -> None:
@@ -274,22 +271,20 @@ def test_r_alone_is_an_identifier() -> None:
     assert scan_types("r") == [TokenType.IDENTIFIER, TokenType.EOF]
 
 
-def test_newline_in_single_line_string_is_a_directed_error(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_newline_in_single_line_string_is_a_directed_error() -> None:
     scanner = scan_with_reporter('"a\nb"')
 
     assert scanner.reporter.had_error
-    assert 'multiline strings use \'"""\'' in capsys.readouterr().err
+    assert any(
+        'multiline strings use \'"""\'' in item for item in messages('"a\nb"')
+    )
 
 
-def test_unterminated_triple_string_reports_error(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_unterminated_triple_string_reports_error() -> None:
     scanner = scan_with_reporter('"""sem fim')
 
     assert scanner.reporter.had_error
-    assert "Unterminated string." in capsys.readouterr().err
+    assert "Unterminated string." in messages('"""sem fim')
 
 
 def test_unterminated_string_reports_error() -> None:

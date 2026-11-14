@@ -69,8 +69,13 @@ class TupleLowering(LoweringBase):
             self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line
         )
         raw = self.builder.call(
-            self._function("lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32]),
-            [obj.llvm, index.llvm, llvm_ir.constant(_I32, expr.bracket.line)],
+            self._function("lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32, _I32]),
+            [
+                obj.llvm,
+                index.llvm,
+                llvm_ir.constant(_I32, expr.bracket.line),
+                llvm_ir.constant(_I32, expr.bracket.column),
+            ],
         )
         desc = self._type_desc(self.types[expr], expr.bracket.line)
         return self._unbox_value(raw, desc, expr.bracket.line)
@@ -122,11 +127,14 @@ class TupleLowering(LoweringBase):
             zip(pattern.elements, ty.items, strict=True)
         ):
             raw = self.builder.call(
-                self._function("lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32]),
+                self._function(
+                    "lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32, _I32]
+                ),
                 [
                     value.llvm,
                     llvm_ir.constant(_INT, index),
                     llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, 0),
                 ],
             )
             item = self._unbox_value(

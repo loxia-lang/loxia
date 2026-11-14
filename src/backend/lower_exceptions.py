@@ -17,6 +17,7 @@ from src.backend.lower_model import (
     TypeDesc,
     ValueType,
 )
+from src.diagnostics.codes import Code
 from src.frontend.stmt import Raise, Try
 
 
@@ -73,29 +74,36 @@ class ExceptionLowering(LoweringBase):
 
     def _raise(self, stmt: Raise) -> None:
         line = stmt.keyword.line
+        column = stmt.keyword.column
         if stmt.value is None:
             self.builder.call(
-                self._function("lox_raise_current", _VOID, [_I32]),
-                [llvm_ir.constant(_I32, line)],
+                self._function("lox_raise_current", _VOID, [_I32, _I32]),
+                [
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
             )
             self.builder.unreachable()
             self._new_block("raise.next")
             return
         value = self._expr(stmt.value)
         if value.ty is not ValueType.INSTANCE:
-            self._poison(line, "Can only raise exceptions.")
+            self._poison(
+                line, "Can only raise exceptions.", column=column, code=Code.INVALID_VALUE
+            )
             return
         layout = self._classes.get(value.class_name or "")
         type_name = layout.display if layout is not None else "Exception"
         self.builder.call(
             self._function(
-                "lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32]
+                "lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32, _I32]
             ),
             [
                 value.llvm,
                 self._cstring_pointer(type_name),
                 llvm_ir.null_pointer(),
                 llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
             ],
         )
         self.builder.unreachable()
@@ -203,8 +211,12 @@ class ExceptionLowering(LoweringBase):
             self._emit_finally(stmt, end, exception)
         else:
             self.builder.call(
-                self._function("lox_rethrow", _VOID, [_I8_PTR, _I32]),
-                [exception, llvm_ir.constant(_I32, stmt.keyword.line)],
+                self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
+                [
+                    exception,
+                    llvm_ir.constant(_I32, stmt.keyword.line),
+                    llvm_ir.constant(_I32, stmt.keyword.column),
+                ],
             )
             self.builder.unreachable()
         self.builder = llvm_ir.builder(end)
@@ -215,8 +227,12 @@ class ExceptionLowering(LoweringBase):
         if stmt.finally_body is None:
             if pending is not None:
                 self.builder.call(
-                    self._function("lox_rethrow", _VOID, [_I8_PTR, _I32]),
-                    [pending, llvm_ir.constant(_I32, stmt.keyword.line)],
+                    self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
+                    [
+                        pending,
+                        llvm_ir.constant(_I32, stmt.keyword.line),
+                        llvm_ir.constant(_I32, stmt.keyword.column),
+                    ],
                 )
                 self.builder.unreachable()
             else:
@@ -239,8 +255,12 @@ class ExceptionLowering(LoweringBase):
             return
         if pending is not None:
             self.builder.call(
-                self._function("lox_rethrow", _VOID, [_I8_PTR, _I32]),
-                [pending, llvm_ir.constant(_I32, stmt.keyword.line)],
+                self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
+                [
+                    pending,
+                    llvm_ir.constant(_I32, stmt.keyword.line),
+                    llvm_ir.constant(_I32, stmt.keyword.column),
+                ],
             )
             self.builder.unreachable()
         else:

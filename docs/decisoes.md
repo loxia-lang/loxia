@@ -72,7 +72,8 @@ decisão.
 | Erro estático | Diagnóstico que o interpretador levantaria em runtime é **rebaixado a panic site** (ordem de avaliação preservada); o que só existe em compile-time (anotação) continua exit 65. | [ADR-0031](adr/0031-backend-nativo.md) |
 | `Float` impresso | Menor representação testando `%.{p}e` + `strtod` (p = 1..17) e aplicando as convenções do `repr` do Python; fuzz contra `repr()`; `printf("%g")` proibido (locale) e `lox_init` fixa `LC_NUMERIC=C`. | [ADR-0031](adr/0031-backend-nativo.md) |
 | `String` | Bytes UTF-8 com `byte_len`, `cp_len` e ponteiro; `len` O(1); ASCII detectado por `byte_len == cp_len`; semântica de `s[i]` em code points. | [ADR-0031](adr/0031-backend-nativo.md) |
-| Memória | Arena (bump) com teto e panic determinístico; `lox_alloc` é o ponto de troca para Boehm; sem RC (ciclos são permitidos). | [ADR-0031](adr/0031-backend-nativo.md) |
+| Memória | GC Boehm (`libgc`), coletor conservador; `lox_alloc`/`lox_alloc_*` continuam a fronteira; hard cap de 128 MiB e I1 até 64 MiB de memória viva; sem RC. | [ADR-0074](adr/0074-gc-boehm-e-contrato-de-memoria.md) |
+| Verificação de IR | O driver roda o verificador do LLVM antes de emitir `.ll`/`.o`/executável; IR inválido vira `BackendError` (exit 65), nunca binário. | [ADR-0074](adr/0074-gc-boehm-e-contrato-de-memoria.md) |
 | Generics | Monomorfização lazy com `type_of`/substituição publicados pelo checker, mangling por tipo e limite de instâncias (exit 65). | [ADR-0031](adr/0031-backend-nativo.md) |
 | HIR | Normalização leve `AST → AST` (desugar), sem HIR completa no L0–L2; promove quando o lowering duplicar o interpretador. | [ADR-0031](adr/0031-backend-nativo.md) |
 | Layout L5 | Instância `{ptr classe, campos base→derivada}`; vtable com prefixo e override no slot; `init` fora da vtable e `super.m` direto; bitmap de inicialização no MVP; classes locais suportadas. | [ADR-0043](adr/0043-layout-l5-classes.md) |
@@ -100,6 +101,7 @@ decisão.
 | L4 — defaults e aridade | Chamada direta preenche defaults no call site; função com defaults como valor é rejeitada com 65 no L4; chamada indireta exige aridade exata. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | L4 — ordem de declaração | Assinaturas de topo são pré-declaradas (recursão mútua), mas o binding só existe quando o statement executa; usar antes vira panic 70, sem hoisting. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | Diagnósticos no L4 | Spans/caret e stack trace ficam **fora** do L4; o contrato segue `lox_panic(linha, msg)`/`[line N]`; decisão própria antes do L5/L6. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
+| Diagnósticos estruturados | Um `Diagnostic` por execução (código de família, fase, span com linha/coluna/offset), renderizadores `human`/`short`/`json`, ordem/dedup/cap determinísticos e caminho relativo; runtime humano com o mesmo cabeçalho, sem caret, nos dois motores. | [ADR-0075](adr/0075-diagnosticos-estruturados.md) |
 | Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
 | Primitivas e kernel | Kernel = SO ou representação (≤ 15 funções); o resto é Lox. Tabela única (`lox`, símbolo C, tipos, corpo Python, `ambient`) alimenta checker/interpreter/backend/testes. `LoxStr` ganha cache de offsets: `charAt`/`chars`/`for-in` **O(n)**, `substr` O(1)+cópia e `join` O(total). Sem FFI genérica e sem `ctypes` no oráculo; gatilho: kernel > 15 ou divergência observada. | [ADR-0071](adr/0071-primitivas-de-runtime.md) |
 
@@ -111,7 +113,7 @@ decisão.
 | Identidade e invariantes | A linguagem se define por **I1** equivalência executável, **I2** nada implícito e **I3** determinismo observável; features passam pelo portão de admissão. | [ADR-0014](adr/0014-identidade-e-invariantes.md), [`spec/garantias.md`](spec/garantias.md) |
 | `--check` limpo compila (I4) | Programa com check limpo compila; a única recusa aceitável no lowering é `not supported by the backend yet`. O checker é a fonte única dos tipos. | [ADR-0059](adr/0059-i4-check-limpo-compila.md) |
 | Sem promoção em armazenamento | `Int → Float` só vale em aritmética; `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` exigem `2.0`/`as Float` (Kotlin-like). | [ADR-0059](adr/0059-i4-check-limpo-compila.md), [ADR-0006](adr/0006-int-float-separados.md) |
-| Orçamento de memória | Arena de 64 MiB sem `free` é contrato: estourar é `exit 70` + `Out of memory.` determinístico; I1 vale dentro do orçamento. GC (Boehm) no M7 substitui; ownership estilo Rust rejeitado. | [ADR-0060](adr/0060-orcamento-de-memoria.md) |
+| Orçamento de memória | GC Boehm com hard cap de 128 MiB; I1 cobre até 64 MiB de memória viva; acima disso, fora do corpus. `Out of memory.` é `exit 70`, mas o ponto exato da falha não é determinístico (coletor conservador). Ownership estilo Rust rejeitado. | [ADR-0074](adr/0074-gc-boehm-e-contrato-de-memoria.md) |
 | Gate e orçamento sintático | Sintaxe nova passa por quatro perguntas (substituição, decidibilidade local, precedência, forma canônica), tetos de superfície e lista de não-objetivos; o agente pergunta antes de adicionar sintaxe. | [ADR-0066](adr/0066-orcamento-e-gate-sintatico.md) |
 
 ## O que ainda não está aqui

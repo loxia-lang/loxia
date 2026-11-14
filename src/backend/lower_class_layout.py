@@ -21,6 +21,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Expr, Grouping, Literal, Unary
 from src.frontend.stmt import Class, Field, Stmt
 from src.frontend.token_type import TokenType
@@ -73,6 +74,7 @@ class ClassLayoutLowering(LoweringBase):
                     field.initializer,
                     base_fields + local_index,
                     field.name.line,
+                    field.name.column,
                 )
             )
         return fields
@@ -233,6 +235,7 @@ class ClassLayoutLowering(LoweringBase):
             raise BackendError(
                 "Fields of type Nil are not supported by the backend yet.",
                 field.name.line,
+                code=Code.BACKEND_UNSUPPORTED,
             )
         if desc.optional and desc.ty not in (
             ValueType.STRING,

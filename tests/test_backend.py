@@ -1,4 +1,4 @@
-"""Testes diferenciais do backend nativo (L0-L4).
+"""Testes diferenciais do backend nativo (L0-L6 + T7).
 
 O contrato (ADR-0031) é: o interpretador é o oráculo. Cada caso compila, executa o
 binário e compara **stdout, stderr e exit code** com a execução interpretada — não com
@@ -329,23 +329,142 @@ def test_pendente_check_limpo_e_recusado_pelo_backend(
 
 
 @pytest.mark.backend
-def test_orcamento_de_memoria_e_deterministico_no_backend(tmp_path: Path) -> None:
-    """ADR-0060: a arena de 64 MiB é contrato; estourar falha sempre igual (exit 70).
+def test_gc_recicla_memoria_no_backend(tmp_path: Path) -> None:
+    """ADR-0074: alocar em laço deixou de ser sentença de morte.
 
-    O interpretador não tem teto (GC do Python) e roda o mesmo programa: a assimetria é
-    declarada, não um bug. Backend com `Out of memory.` determinístico em duas execuções.
+    O programa aloca ~80 MiB de strings temporárias e mantém só uma string viva por
+    iteração. A arena antiga de 64 MiB morria; o Boehm coleta e o programa termina.
+    O tree-walk roda o mesmo programa, então o teste também é diferencial.
     """
     path = _write(
         tmp_path,
-        'var s = "0123456789abcdef"\n'
-        "var i = 0\n"
-        "while (i < 22) { s = s + s; i = i + 1 }\n"
-        "print len(s)\n",
+        'var i = 0\n'
+        "while (i < 80) {\n"
+        '  var s = "0123456789abcdef"\n'
+        "  var j = 0\n"
+        "  while (j < 16) { s = s + s; j = j + 1 }\n"
+        "  i = i + 1\n"
+        "}\n"
+        "print i\n",
     )
 
     interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
     assert interpreted.returncode == 0, interpreted.stderr
-    assert interpreted.stdout.strip() == str(16 * 2**22)
+    assert interpreted.stdout == "80\n"
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == interpreted.stdout
+    assert native.stderr == ""
+
+
+@pytest.mark.backend
+def test_gc_preserva_roots_estaticos_e_objetos(tmp_path: Path) -> None:
+    """Coleta no meio de um frame não pode levar classes, globais, closures nem containers."""
+    path = _write(
+        tmp_path,
+        'val prefix = "global:" + "x"\n'
+        "class Node {\n"
+        "  val name: String\n"
+        "  init(name: String) { this.name = name }\n"
+        "}\n"
+        "fn check() -> String {\n"
+        '  val n = Node("ok")\n'
+        '  val xs = ["a", "b"]\n'
+        '  val m = {"k": 1}\n'
+        '  val t = (1, "x")\n'
+        "  val cyc: List[Any] = []\n"
+        "  cyc.push(cyc)\n"
+        "  val f = fn() => n.name\n"
+        "  var i = 0\n"
+        "  while (i < 80) {\n"
+        '    var s = "0123456789abcdef"\n'
+        "    var j = 0\n"
+        "    while (j < 16) { s = s + s; j = j + 1 }\n"
+        "    i = i + 1\n"
+        "  }\n"
+        '  return f() + xs[0] + str(m["k"]) + t[1] + str(len(cyc))\n'
+        "}\n"
+        "print prefix + check()\n",
+    )
+
+    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
+    assert interpreted.returncode == 0, interpreted.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == interpreted.stdout
+    assert native.stdout == "global:xoka1x1\n"
+    assert native.stderr == ""
+
+
+@pytest.mark.backend
+def test_gc_preserva_try_frame_e_excecao(tmp_path: Path) -> None:
+    """Coleta dentro de um `try` não pode perder o frame nem a exceção em voo."""
+    path = _write(
+        tmp_path,
+        "class MyError(Exception) {\n"
+        "  init(msg: String) { this.message = msg }\n"
+        "}\n"
+        "fn burn() -> Int {\n"
+        "  var i = 0\n"
+        "  while (i < 80) {\n"
+        '    var s = "0123456789abcdef"\n'
+        "    var j = 0\n"
+        "    while (j < 16) { s = s + s; j = j + 1 }\n"
+        "    i = i + 1\n"
+        "  }\n"
+        "  return 0\n"
+        "}\n"
+        "try {\n"
+        "  burn()\n"
+        '  raise MyError("boom")\n'
+        "} except MyError as e {\n"
+        "  print e.message\n"
+        "}\n"
+        "burn()\n"
+        'print "done"\n',
+    )
+
+    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
+    assert interpreted.returncode == 0, interpreted.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == interpreted.stdout
+    assert native.stdout == "boom\ndone\n"
+    assert native.stderr == ""
+
+
+@pytest.mark.backend
+def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
+    """ADR-0074: acima do hard cap de 128 MiB, o binário morre com a mensagem do contrato.
+
+    O coletor conservador não promete o ponto exato da falha, mas promete canal, mensagem
+    e exit code. O teste não imprime nada antes do estouro e roda duas vezes.
+    """
+    path = _write(
+        tmp_path,
+        "var xs: List[String] = []\n"
+        "var i = 0\n"
+        "while (i < 200) {\n"
+        '  var s = "0123456789abcdef"\n'
+        "  var j = 0\n"
+        "  while (j < 16) { s = s + s; j = j + 1 }\n"
+        "  xs.push(s)\n"
+        "  i = i + 1\n"
+        "}\n"
+        "print len(xs)\n",
+    )
 
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr
@@ -354,7 +473,9 @@ def test_orcamento_de_memoria_e_deterministico_no_backend(tmp_path: Path) -> Non
     second = _run([str(binary)])
 
     assert first.returncode == 70
+    assert first.stdout == ""
     assert "Out of memory." in first.stderr
+    assert "GC Warning" not in first.stderr
     assert "Traceback" not in first.stderr
     assert (first.returncode, first.stdout, first.stderr) == (
         second.returncode,
@@ -500,6 +621,7 @@ int main(void) {
             "-o",
             str(helper),
             "-lm",
+            "-lgc",
         ],
         capture_output=True,
         text=True,
@@ -536,7 +658,7 @@ def test_erro_nao_rebaixavel_bloqueia_o_build(tmp_path: Path) -> None:
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 65
-    assert "Error" in result.stderr
+    assert "error[E3001]: Expected Int, found Bool." in result.stderr
     assert not binary.exists()
 
 

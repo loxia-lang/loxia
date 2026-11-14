@@ -25,6 +25,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import As, Is, Super, This
 from src.frontend.stmt import Class
 from src.frontend.ty import ANY as TY_ANY
@@ -398,7 +399,10 @@ class ClassCodegenLowering(LoweringBase):
 
             self.builder = llvm_ir.builder(bad)
             self._poison(
-                field.line, f"Field '{field.name}' must be initialized."
+                field.line,
+                f"Field '{field.name}' must be initialized.",
+                column=field.column,
+                code=Code.FIELD_NOT_INITIALIZED,
             )
             self.builder = llvm_ir.builder(ok)
 
@@ -408,19 +412,25 @@ class ClassCodegenLowering(LoweringBase):
             raise _unsupported("'is'/'as' for non-class types", line)
         return target.class_name
 
-    def _class_pointer(self, name: str, line: int) -> Any:
+    def _class_pointer(self, name: str, line: int, column: int = 0) -> Any:
         binding = self._globals.get(name)
         if binding is None:
             raise _unsupported(f"Class '{name}'", line)
         return self._guard_closure(
-            self._load_binding(binding), name, line
+            self._load_binding(binding), name, line, column
         )
 
-    def _is_instance(self, value: Value, class_name: str, line: int) -> Value:
+    def _is_instance(
+        self, value: Value, class_name: str, line: int, column: int = 0
+    ) -> Value:
         if value.ty is ValueType.NIL:
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
         if value.ty is not ValueType.INSTANCE:
-            self._poison(line, f"Can't use 'is' on {value.ty.name}.")
+            self._poison(
+                line,
+                f"Can't use 'is' on {value.ty.name}.",
+                column=column,
+            )
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
         struct_ = self._instance_struct(value, line)
         descriptor = self.builder.load(
@@ -468,7 +478,9 @@ class ClassCodegenLowering(LoweringBase):
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(matches)))
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
         target = self._target_class(expr.test_type, expr.operator.line)
-        return self._is_instance(value, target, expr.operator.line)
+        return self._is_instance(
+            value, target, expr.operator.line, expr.operator.column
+        )
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
         tag = self.builder.extract_value(value.llvm, 0)
@@ -536,17 +548,27 @@ class ClassCodegenLowering(LoweringBase):
                     return Value(
                         ValueType.FLOAT, self.builder.sitofp(value.llvm, _FLOAT)
                     )
-                self._poison(expr.operator.line, "Can't cast value to Float.")
+                self._poison(
+                    expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST
+                )
                 return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
             if value.ty is ValueType.INT:
                 return value
             if value.ty is ValueType.FLOAT:
                 call = self.builder.call(
-                    self._function("lox_float_to_int", _INT, [_FLOAT, _I32]),
-                    [value.llvm, llvm_ir.constant(_I32, expr.operator.line)],
+                    self._function(
+                        "lox_float_to_int", _INT, [_FLOAT, _I32, _I32]
+                    ),
+                    [
+                        value.llvm,
+                        llvm_ir.constant(_I32, expr.operator.line),
+                        llvm_ir.constant(_I32, expr.operator.column),
+                    ],
                 )
                 return Value(ValueType.INT, call)
-            self._poison(expr.operator.line, "Can't cast value to Int.")
+            self._poison(
+                    expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST
+                )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
         target = self._target_class(expr.target_type, expr.operator.line)
@@ -556,13 +578,17 @@ class ClassCodegenLowering(LoweringBase):
                 expr.operator.line,
                 f"Can't cast value to {target}.",
             )
-        check = self._is_instance(value, target, expr.operator.line)
+        check = self._is_instance(
+            value, target, expr.operator.line, expr.operator.column
+        )
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
         bad = llvm_ir.append_block(self._function_ir, "as.bad")
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.operator.line, f"Can't cast value to {target}.")
+        self._poison(
+            expr.operator, f"Can't cast value to {target}.", code=Code.RUNTIME_CAST
+        )
 
         self.builder = llvm_ir.builder(ok)
         return Value(

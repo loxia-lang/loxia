@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import cast
 
+from src.diagnostics.codes import Code
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.errors import ParseError
 from src.frontend.destructuring import (
@@ -116,10 +117,7 @@ class Parser:
         """
         # Salva a posição atual para poder dar rollback caso não seja uma expressão
         saved_current = self._current
-
-        # Silencia temporariamente o reporter durante o teste
-        self.reporter.silent = True
-        had_error_before = self.reporter.had_error
+        state = self.reporter.mark()
 
         try:
             expr = self._expression()
@@ -128,18 +126,15 @@ class Parser:
 
             # Se consumiu a expressão e chegou exatamente ao fim da linha:
             if not self.reporter.had_error and self._is_at_end():
-                self.reporter.silent = False
-                self.reporter.had_error = had_error_before
+                self.reporter.restore(state)
                 # Envelopa como um nó Print para ser avaliado e exibido!
                 return [Print(expr)]
         except ParseError:
             pass
-        finally:
-            self.reporter.silent = False
 
-        # Rollback: restaura a posição dos tokens e reseta flags de erro
+        # Rollback: restaura a posição dos tokens e descarta os diagnósticos do teste
         self._current = saved_current
-        self.reporter.had_error = had_error_before
+        self.reporter.restore(state)
 
         # Faz o parse padrão de statements
         return self.parse()
@@ -183,6 +178,7 @@ class Parser:
                 raise self._error(
                     self._peek(),
                     "Generic superclasses aren't supported yet.",
+                    Code.INVALID_TYPE_ANNOTATION,
                 )
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after superclass.")
 
@@ -244,7 +240,11 @@ class Parser:
         if self._match(TokenType.EQUAL):
             initializer = self._expression()
             if not self._is_constant_default(initializer):
-                self._error(name, "Field initializer must be a constant.")
+                self._error(
+                    name,
+                    "Field initializer must be a constant.",
+                    Code.INVALID_DECLARATION,
+                )
 
         self._end_statement("Expect ';' after field declaration.")
 
@@ -276,6 +276,7 @@ class Parser:
                 raise self._error(
                     first_token(elements[0]),
                     "Destructuring needs at least two elements.",
+                    Code.INVALID_DECLARATION,
                 )
             return TuplePattern(elements)
 
@@ -297,7 +298,11 @@ class Parser:
         if self._match(TokenType.EQUAL):
             initializer = self._expression()
         elif not mutable:
-            raise self._error(self._peek(), "Expect initializer for 'val' declaration.")
+            raise self._error(
+                self._peek(),
+                "Expect initializer for 'val' declaration.",
+                Code.INVALID_DECLARATION,
+            )
 
         self._end_statement("Expect ';' after variable declaration.")
 
@@ -354,7 +359,9 @@ class Parser:
 
         if not handlers and finally_body is None:
             raise self._error(
-                keyword, "Try needs at least one 'except' or 'finally'."
+                keyword,
+                "Try needs at least one 'except' or 'finally'.",
+                Code.INVALID_DECLARATION,
             )
 
         return Try(keyword, body, handlers, finally_body)
@@ -493,6 +500,7 @@ class Parser:
                 self._peek(),
                 "Unexpected ':'. Map literals can't start a statement; "
                 "use 'val m = { ... }' or parentheses.",
+                Code.INVALID_LITERAL,
             )
         self._end_statement("Expect ';' after expression.")
         return Expression(expr)
@@ -554,7 +562,11 @@ class Parser:
         if not self._check(TokenType.RIGHT_PAREN):
             while True:
                 if len(parameters) >= 255:
-                    self._error(self._peek(), "Can't have more than 255 parameters.")
+                    self._error(
+                        self._peek(),
+                        "Can't have more than 255 parameters.",
+                        Code.LIMIT_EXCEEDED,
+                    )
 
                 mutable = self._match(TokenType.VAR)
                 name_token = self._consume(
@@ -569,12 +581,17 @@ class Parser:
                 if self._match(TokenType.EQUAL):
                     default = self._expression()
                     if not self._is_constant_default(default):
-                        self._error(name_token, "Default value must be a constant.")
+                        self._error(
+                            name_token,
+                            "Default value must be a constant.",
+                            Code.INVALID_DECLARATION,
+                        )
                     seen_default = True
                 elif seen_default:
                     self._error(
                         name_token,
                         "Required parameter can't follow an optional parameter.",
+                        Code.INVALID_DECLARATION,
                     )
 
                 parameters.append(Param(name_token, mutable, default, type_annotation))
@@ -590,7 +607,11 @@ class Parser:
         parameters = self._parameters()
         for param in parameters:
             if param.default is not None:
-                self._error(param.name, "Lambda parameters can't have defaults.")
+                self._error(
+                    param.name,
+                    "Lambda parameters can't have defaults.",
+                    Code.INVALID_DECLARATION,
+                )
 
         return_type: Ty | None = None
         if self._match(TokenType.ARROW):
@@ -665,7 +686,9 @@ class Parser:
         if name in {"List", "Map"}:
             expected = 1 if name == "List" else 2
             self._error(
-                token, f"{name} expects {expected} type argument(s), got 0."
+                token,
+                f"{name} expects {expected} type argument(s), got 0.",
+                Code.INVALID_TYPE_ANNOTATION,
             )
             return ERROR
 
@@ -705,11 +728,13 @@ class Parser:
             self._error(
                 token,
                 f"{name} expects {expected} type argument(s), got {len(arguments)}.",
+                Code.INVALID_TYPE_ANNOTATION,
             )
         elif name in {"list", "map"}:
             self._error(
                 token,
                 f"Unknown generic type '{name}'. Did you mean '{name.capitalize()}'?",
+                Code.INVALID_TYPE_ANNOTATION,
             )
         else:
             return ClassTy(name, tuple(arguments))
@@ -744,17 +769,27 @@ class Parser:
 
             if isinstance(expr, Get):
                 if self._has_optional_chain(expr):
-                    self._error(equals, "Can't assign through optional chaining.")
+                    self._error(
+                        equals,
+                        "Can't assign through optional chaining.",
+                        Code.INVALID_ASSIGNMENT_TARGET,
+                    )
                     return expr
                 return Set(expr.object, expr.name, value)
 
             if isinstance(expr, Index):
                 if self._has_optional_chain(expr):
-                    self._error(equals, "Can't assign through optional chaining.")
+                    self._error(
+                        equals,
+                        "Can't assign through optional chaining.",
+                        Code.INVALID_ASSIGNMENT_TARGET,
+                    )
                     return expr
                 return IndexSet(expr.object, expr.index, value, expr.bracket)
 
-            self._error(equals, "Invalid assignment target.")
+            self._error(
+                equals, "Invalid assignment target.", Code.INVALID_ASSIGNMENT_TARGET
+            )
 
         return expr
 
@@ -843,6 +878,7 @@ class Parser:
                     raise self._error(
                         self._peek(),
                         "Type unions in 'is' need parentheses: 'is (A | B)'.",
+                        Code.INVALID_TYPE_ANNOTATION,
                     )
                 expr = Is(expr, test_type, operator)
             else:
@@ -1009,7 +1045,11 @@ class Parser:
             if not self._check(TokenType.RIGHT_PAREN):
                 while True:
                     if len(arguments) >= 255:
-                        self._error(self._peek(), "Can't have more than 255 arguments.")
+                        self._error(
+                            self._peek(),
+                            "Can't have more than 255 arguments.",
+                            Code.LIMIT_EXCEEDED,
+                        )
 
                     arguments.append(self._expression())
 
@@ -1156,7 +1196,9 @@ class Parser:
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
         if not arms:
-            raise self._error(keyword, "Match needs at least one arm.")
+            raise self._error(
+                keyword, "Match needs at least one arm.", Code.INVALID_MATCH
+            )
         return Match(keyword, scrutinee, arms)
 
     def _pattern(self) -> Pattern:
@@ -1241,8 +1283,13 @@ class Parser:
 
         raise self._error(self._peek(), message)
 
-    def _error(self, token: Token, message: str) -> ParseError:
-        self.reporter.error(token, message)
+    def _error(
+        self,
+        token: Token,
+        message: str,
+        code: Code = Code.SYNTAX_UNEXPECTED,
+    ) -> ParseError:
+        self.reporter.error(token, message, code=code)
         return ParseError()
 
     def _synchronize(self) -> None:

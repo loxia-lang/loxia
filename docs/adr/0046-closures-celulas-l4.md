@@ -166,6 +166,11 @@ I1 continua comparando stdout, stderr e exit code no formato atual.
 
 ### 9. Memória
 
+> **Atualização (2026-11-14):** a arena foi substituída pelo GC Boehm no
+> [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md). `lox_alloc_cell`/`lox_alloc_env`/
+> `lox_alloc_closure` continuam sendo a fronteira; o teto e a promessa do I1 estão no
+> ADR-0074.
+
 Envs, células e closures usam a arena existente (`lox_alloc`), sem `free`, com teto e
 `lox_panic` determinístico. Novos pontos de alocação são isolados em
 `lox_alloc_cell`/`lox_alloc_env`/`lox_alloc_closure`, então trocar a arena por Boehm segue

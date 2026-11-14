@@ -18,6 +18,10 @@ import llvmlite.ir as ir
 _machine: Any = None
 
 
+class LLVMVerificationError(Exception):
+    """O módulo gerado pelo backend não passou no verificador do LLVM."""
+
+
 def _target_machine() -> Any:
     global _machine
 
@@ -28,6 +32,30 @@ def _target_machine() -> Any:
         _machine = binding.Target.from_triple(triple).create_target_machine()
 
     return _machine
+
+
+def _parse(text: str) -> Any:
+    try:
+        return binding.parse_assembly(text)
+    except RuntimeError as error:
+        raise LLVMVerificationError(str(error)) from error
+
+
+def _verify_parsed(parsed: Any) -> None:
+    try:
+        parsed.verify()
+    except RuntimeError as error:
+        raise LLVMVerificationError(str(error)) from error
+
+
+def verify_text(text: str) -> None:
+    """Verifica IR textual; levanta `LLVMVerificationError` se for inválido."""
+    _verify_parsed(_parse(text))
+
+
+def verify(module: Any) -> None:
+    """Verifica o módulo antes de qualquer emissão (`mod.verify()`)."""
+    verify_text(str(module))
 
 
 def new_module(name: str = "lox") -> Any:
@@ -42,15 +70,14 @@ def new_module(name: str = "lox") -> Any:
 def emit_text(module: Any) -> str:
     """IR textual (`.ll`) do módulo, verificado antes de sair."""
     text = str(module)
-    parsed = binding.parse_assembly(text)
-    parsed.verify()
+    verify_text(text)
     return text
 
 
 def emit_object(module: Any) -> bytes:
     """Verifica o módulo e devolve o object file do alvo atual."""
-    parsed = binding.parse_assembly(str(module))
-    parsed.verify()
+    parsed = _parse(str(module))
+    _verify_parsed(parsed)
     return bytes(_target_machine().emit_object(parsed))
 
 

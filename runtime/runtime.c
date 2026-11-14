@@ -8,6 +8,7 @@
  * `lox_print_*` reproduzem `stringify` + `print` (valor e '\n').
  */
 
+#include <gc.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <setjmp.h>
@@ -17,12 +18,29 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Hard cap do heap coletado (ADR-0074); não é configurável por ambiente. */
+#define LOX_GC_MAX_HEAP_BYTES (128ull * 1024ull * 1024ull)
+
+static void *lox_oom(size_t size);
+
 /*
  * I3: a conversão de/para texto de `double` não pode depender do locale do processo.
  * `snprintf`/`strtod` usam LC_NUMERIC; o binário fixa em "C" no início.
+ *
+ * O bootstrap do GC fica aqui porque o `main` gerado chama `lox_init` antes de
+ * qualquer código Lox. O Boehm descobre o topo da pilha do SO; os testes de roots
+ * cobrem temporários de topo.
  */
-void lox_init(void) {
+static const char *lox_source_path = "<lox>";
+
+void lox_init(const char *source_path) {
+    lox_source_path = source_path;
     setlocale(LC_NUMERIC, "C");
+    GC_set_all_interior_pointers(1);
+    GC_INIT();
+    GC_set_warn_proc(GC_ignore_warn_proc);
+    GC_set_max_heap_size((GC_word)LOX_GC_MAX_HEAP_BYTES);
+    GC_set_oom_fn(lox_oom);
 }
 
 /*
@@ -36,27 +54,30 @@ typedef struct {
 } LoxStr;
 
 static LoxStr *string_from_ascii(const char *data, size_t length);
-void lox_panic(int32_t line, const char *message);
+void lox_panic(int32_t line, int32_t column, const char *code,
+               const char *message);
 
-/* Arena: um bloco, sem free, com teto determinístico (decisão 7). */
-#define LOX_HEAP_BYTES (64ull * 1024ull * 1024ull)
-
-static unsigned char *lox_heap = NULL;
-static size_t lox_heap_used = 0;
+/* Heap coletado (ADR-0074): o Boehm é o único alocador; sem free manual. */
+static void *lox_oom(size_t size) {
+    (void)size;
+    lox_panic(0, 0, "R1000", "Out of memory.");
+    return NULL;
+}
 
 static void *lox_alloc(size_t size) {
-    if (lox_heap == NULL) {
-        lox_heap = malloc(LOX_HEAP_BYTES);
-        if (lox_heap == NULL) {
-            lox_panic(0, "Out of memory.");
-        }
+    void *pointer = GC_MALLOC(size > 0 ? size : 1u);
+    if (pointer == NULL) {
+        lox_panic(0, 0, "R1000", "Out of memory.");
     }
-    size = (size + 7u) & ~(size_t)7u;
-    if (lox_heap_used + size > LOX_HEAP_BYTES) {
-        lox_panic(0, "Out of memory.");
+    return pointer;
+}
+
+/* Bloco sem ponteiros (bytes de string, buffers de formatação). */
+static void *lox_alloc_atomic(size_t size) {
+    void *pointer = GC_MALLOC_ATOMIC(size > 0 ? size : 1u);
+    if (pointer == NULL) {
+        lox_panic(0, 0, "R1000", "Out of memory.");
     }
-    void *pointer = lox_heap + lox_heap_used;
-    lox_heap_used += size;
     return pointer;
 }
 
@@ -180,7 +201,7 @@ typedef struct {
 
 void *lox_range_new(int64_t start, int64_t end, int64_t step) {
     if (step == 0) {
-        lox_panic(0, "range() step can't be zero.");
+        lox_panic(0, 0, "R1014", "range() step can't be zero.");
     }
     LoxRange *range = lox_alloc(sizeof(LoxRange));
     range->start = start;
@@ -282,29 +303,30 @@ int64_t lox_list_len(const void *pointer) {
     return ((const LoxList *)pointer)->count;
 }
 
-LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line) {
+LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line,
+                      int32_t column) {
     const LoxList *list = pointer;
     if (index < 0 || index >= list->count) {
-        lox_panic(line, "List index out of bounds.");
+        lox_panic(line, column, "R1007", "List index out of bounds.");
     }
     return list->items[index];
 }
 
 void lox_list_set(void *pointer, int64_t index, int64_t tag, int64_t payload,
-                  int32_t line) {
+                  int32_t line, int32_t column) {
     LoxList *list = pointer;
     if (index < 0 || index >= list->count) {
-        lox_panic(line, "List index out of bounds.");
+        lox_panic(line, column, "R1007", "List index out of bounds.");
     }
     list->items[index].tag = tag;
     list->items[index].payload = payload;
     list->version += 1;
 }
 
-LoxValue lox_list_pop(void *pointer, int32_t line) {
+LoxValue lox_list_pop(void *pointer, int32_t line, int32_t column) {
     LoxList *list = pointer;
     if (list->count == 0) {
-        lox_panic(line, "Can't pop from an empty list.");
+        lox_panic(line, column, "R1007", "Can't pop from an empty list.");
     }
     list->count -= 1;
     list->version += 1;
@@ -481,22 +503,23 @@ LoxValue lox_map_get(const void *pointer, int64_t key_tag, int64_t key_payload) 
 }
 
 LoxValue lox_map_get_checked(const void *pointer, int64_t key_tag,
-                             int64_t key_payload, int32_t line) {
+                             int64_t key_payload, int32_t line,
+                             int32_t column) {
     LoxValue key = {key_tag, key_payload};
     int64_t found = lox_map_find(pointer, key);
     if (found < 0) {
-        lox_panic(line, "Key not found in map.");
+        lox_panic(line, column, "R1008", "Key not found in map.");
     }
     return ((const LoxMap *)pointer)->entries[found].value;
 }
 
 LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
-                        int32_t line) {
+                        int32_t line, int32_t column) {
     LoxMap *map = pointer;
     LoxValue key = {key_tag, key_payload};
     int64_t found = lox_map_find(map, key);
     if (found < 0) {
-        lox_panic(line, "Key not found in map.");
+        lox_panic(line, column, "R1008", "Key not found in map.");
     }
     LoxValue value = map->entries[found].value;
     for (int64_t index = found; index + 1 < map->count; index++) {
@@ -578,10 +601,11 @@ void lox_tuple_set(void *pointer, int64_t index, int64_t tag, int64_t payload) {
     tuple->items[index].payload = payload;
 }
 
-LoxValue lox_tuple_get(const void *pointer, int64_t index, int32_t line) {
+LoxValue lox_tuple_get(const void *pointer, int64_t index, int32_t line,
+                       int32_t column) {
     const LoxTuple *tuple = pointer;
     if (index < 0 || index >= tuple->count) {
-        lox_panic(line, "Tuple index out of bounds.");
+        lox_panic(line, column, "R1007", "Tuple index out of bounds.");
     }
     return tuple->items[index];
 }
@@ -636,7 +660,7 @@ int lox_tuple_is2(const void *pointer, int64_t tag0, int64_t tag1) {
 }
 
 
-int64_t lox_float_to_int(double value, int32_t line);
+int64_t lox_float_to_int(double value, int32_t line, int32_t column);
 
 int64_t lox_math_abs_int(int64_t value) {
     return value < 0 ? (int64_t)(0u - (uint64_t)value) : value;
@@ -650,20 +674,20 @@ double lox_math_sqrt(double value) {
     return sqrt(value);
 }
 
-int64_t lox_math_floor(double value, int32_t line) {
-    return lox_float_to_int(floor(value), line);
+int64_t lox_math_floor(double value, int32_t line, int32_t column) {
+    return lox_float_to_int(floor(value), line, column);
 }
 
-int64_t lox_math_ceil(double value, int32_t line) {
-    return lox_float_to_int(ceil(value), line);
+int64_t lox_math_ceil(double value, int32_t line, int32_t column) {
+    return lox_float_to_int(ceil(value), line, column);
 }
 
-int64_t lox_math_round(double value, int32_t line) {
-    return lox_float_to_int(round(value), line);
+int64_t lox_math_round(double value, int32_t line, int32_t column) {
+    return lox_float_to_int(round(value), line, column);
 }
 
-int64_t lox_math_trunc(double value, int32_t line) {
-    return lox_float_to_int(trunc(value), line);
+int64_t lox_math_trunc(double value, int32_t line, int32_t column) {
+    return lox_float_to_int(trunc(value), line, column);
 }
 
 LoxValue lox_parse_int(const void *pointer) {
@@ -711,7 +735,7 @@ LoxValue lox_parse_float(const void *pointer) {
     if (size == 0) {
         return nil;
     }
-    char *copy = lox_alloc(size + 1);
+    char *copy = lox_alloc_atomic(size + 1);
     memcpy(copy, string->data, size);
     copy[size] = '\0';
     char *end = NULL;
@@ -752,10 +776,11 @@ void lox_enum_set(void *pointer, int64_t index, int64_t tag, int64_t payload) {
     value->payload[index].payload = payload;
 }
 
-LoxValue lox_enum_payload(const void *pointer, int64_t index, int32_t line) {
+LoxValue lox_enum_payload(const void *pointer, int64_t index, int32_t line,
+                          int32_t column) {
     const LoxEnumValue *value = pointer;
     if (index < 0 || index >= value->count) {
-        lox_panic(line, "Enum payload index out of bounds.");
+        lox_panic(line, column, "R1007", "Enum payload index out of bounds.");
     }
     return value->payload[index];
 }
@@ -794,7 +819,7 @@ int lox_enum_equal(const void *left_pointer, const void *right_pointer) {
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;
     if (index < 0 || index >= string->cp_len) {
-        lox_panic(0, "String index out of bounds.");
+        lox_panic(0, 0, "R1007", "String index out of bounds.");
     }
     const unsigned char *data = (const unsigned char *)string->data;
     size_t offset = 0;
@@ -818,9 +843,11 @@ void *lox_str_char_at(const void *pointer, int64_t index) {
 }
 
 
-int64_t lox_int_pow(int64_t base, int64_t exponent, int32_t line) {
+int64_t lox_int_pow(int64_t base, int64_t exponent, int32_t line,
+                    int32_t column) {
     if (exponent < 0) {
-        lox_panic(line, "Negative exponent not allowed for integer power.");
+        lox_panic(line, column, "R1006",
+                  "Negative exponent not allowed for integer power.");
     }
     uint64_t power = (uint64_t)exponent;
     uint64_t result = 1;
@@ -837,9 +864,11 @@ int64_t lox_int_pow(int64_t base, int64_t exponent, int32_t line) {
     return (int64_t)result;
 }
 
-int64_t lox_shift(int64_t value, int64_t count, int32_t kind, int32_t line) {
+int64_t lox_shift(int64_t value, int64_t count, int32_t kind, int32_t line,
+                  int32_t column) {
     if (count < 0 || count > 63) {
-        lox_panic(line, "Shift count must be between 0 and 63.");
+        lox_panic(line, column, "R1006",
+                  "Shift count must be between 0 and 63.");
     }
     if (kind == 0) {
         return (int64_t)((uint64_t)value << (uint64_t)count);
@@ -850,10 +879,10 @@ int64_t lox_shift(int64_t value, int64_t count, int32_t kind, int32_t line) {
     return (int64_t)((uint64_t)value >> (uint64_t)count);
 }
 
-int64_t lox_float_to_int(double value, int32_t line) {
+int64_t lox_float_to_int(double value, int32_t line, int32_t column) {
     if (isnan(value) || isinf(value) || value < -9223372036854775808.0 ||
         value >= 9223372036854775808.0) {
-        lox_panic(line, "Can't cast value to Int.");
+        lox_panic(line, column, "R1011", "Can't cast value to Int.");
     }
     return (int64_t)value;
 }
@@ -865,6 +894,7 @@ typedef struct {
     void *instance;
     const char *message;
     int32_t line;
+    int32_t column;
 } LoxException;
 
 typedef struct LoxTryFrame {
@@ -884,6 +914,7 @@ void *lox_try_push(void) {
     frame->exception.instance = NULL;
     frame->exception.message = NULL;
     frame->exception.line = 0;
+    frame->exception.column = 0;
     lox_current_try = frame;
     return frame;
 }
@@ -936,13 +967,25 @@ int32_t lox_exception_matches(const void *pointer, const char *type_name) {
     return strcmp(type_name, "Exception") == 0;
 }
 
+static void lox_print_prefix(int32_t line, int32_t column, const char *code) {
+    if (line > 0 && column > 0) {
+        fprintf(stderr, "%s:%" PRId32 ":%" PRId32 ": error[%s]: ",
+                lox_source_path, line, column, code);
+    } else if (line > 0) {
+        fprintf(stderr, "%s:%" PRId32 ": error[%s]: ", lox_source_path, line, code);
+    } else {
+        fprintf(stderr, "error[%s]: ", code);
+    }
+}
+
 void lox_throw(void *instance, const char *type_name, const char *message,
-               int32_t line) {
+               int32_t line, int32_t column) {
     LoxTryFrame *frame = lox_current_try;
     if (frame == NULL) {
         fflush(stdout);
-        fprintf(stderr, "Unhandled exception: %s\n[line %" PRId32 "]\n",
-                message != NULL ? message : type_name, line);
+        lox_print_prefix(line, column, "R1010");
+        fprintf(stderr, "Unhandled exception: %s\n",
+                message != NULL ? message : type_name);
         fflush(stderr);
         exit(70);
     }
@@ -950,29 +993,33 @@ void lox_throw(void *instance, const char *type_name, const char *message,
     frame->exception.instance = instance;
     frame->exception.message = message;
     frame->exception.line = line;
+    frame->exception.column = column;
     longjmp(frame->env, 1);
 }
 
-void lox_rethrow(void *exception_pointer, int32_t line) {
+void lox_rethrow(void *exception_pointer, int32_t line, int32_t column) {
     LoxException *exception = exception_pointer;
-    lox_throw(exception->instance, exception->type_name, exception->message, line);
+    lox_throw(exception->instance, exception->type_name, exception->message, line,
+              column);
 }
 
-void lox_raise_current(int32_t line) {
+void lox_raise_current(int32_t line, int32_t column) {
     LoxTryFrame *frame = lox_current_try;
     if (frame == NULL) {
-        lox_panic(line, "No exception to re-raise.");
+        lox_panic(line, column, "R1014", "No exception to re-raise.");
     }
     lox_throw(frame->exception.instance, frame->exception.type_name,
-              frame->exception.message, line);
+              frame->exception.message, line, column);
 }
 
-void lox_panic(int32_t line, const char *message) {
+void lox_panic(int32_t line, int32_t column, const char *code,
+               const char *message) {
     if (lox_current_try != NULL) {
-        lox_throw(NULL, "LoxRuntimeError", message, line);
+        lox_throw(NULL, "LoxRuntimeError", message, line, column);
     }
     fflush(stdout);
-    fprintf(stderr, "%s\n[line %" PRId32 "]\n", message, line);
+    lox_print_prefix(line, column, code);
+    fprintf(stderr, "%s\n", message);
     fflush(stderr);
     exit(70);
 }
@@ -1211,7 +1258,7 @@ typedef struct {
 
 static void buffer_init(LoxBuffer *buffer) {
     buffer->capacity = 64;
-    buffer->data = lox_alloc(buffer->capacity);
+    buffer->data = lox_alloc_atomic(buffer->capacity);
     buffer->length = 0;
     buffer->active_depth = 0;
 }
@@ -1224,7 +1271,7 @@ static void buffer_need(LoxBuffer *buffer, size_t extra) {
     while (capacity < buffer->length + extra) {
         capacity *= 2;
     }
-    char *data = lox_alloc(capacity);
+    char *data = lox_alloc_atomic(capacity);
     memcpy(data, buffer->data, buffer->length);
     buffer->data = data;
     buffer->capacity = capacity;
@@ -1470,9 +1517,10 @@ void *lox_str_from_list(const void *pointer) {
  * (ADR-0028). O interpretador devolve INT_MIN para INT_MIN // -1; em C e em LLVM isso
  * é UB, então o caso é resolvido explicitamente.
  */
-int64_t lox_int_div(int64_t left, int64_t right, int32_t line) {
+int64_t lox_int_div(int64_t left, int64_t right, int32_t line,
+                    int32_t column) {
     if (right == 0) {
-        lox_panic(line, "Division by zero not allowed");
+        lox_panic(line, column, "R1002", "Division by zero not allowed");
     }
     if (left == INT64_MIN && right == -1) {
         return INT64_MIN;
@@ -1481,25 +1529,28 @@ int64_t lox_int_div(int64_t left, int64_t right, int32_t line) {
 }
 
 /* `/`: sempre Float. Divisão por zero é erro fatal, como no interpretador. */
-double lox_float_div(double left, double right, int32_t line) {
+double lox_float_div(double left, double right, int32_t line,
+                     int32_t column) {
     if (right == 0.0) {
-        lox_panic(line, "Division by zero not allowed");
+        lox_panic(line, column, "R1002", "Division by zero not allowed");
     }
     return left / right;
 }
 
 /* `%` com Float: `fmod`, sinal do dividendo, e zero é erro (como no interpretador). */
-double lox_float_mod(double left, double right, int32_t line) {
+double lox_float_mod(double left, double right, int32_t line,
+                     int32_t column) {
     if (right == 0.0) {
-        lox_panic(line, "Modulo by zero not allowed");
+        lox_panic(line, column, "R1002", "Modulo by zero not allowed");
     }
     return fmod(left, right);
 }
 
 /* `%`: resto truncado (sinal do dividendo), como `srem`. INT_MIN % -1 é 0. */
-int64_t lox_int_mod(int64_t left, int64_t right, int32_t line) {
+int64_t lox_int_mod(int64_t left, int64_t right, int32_t line,
+                    int32_t column) {
     if (right == 0) {
-        lox_panic(line, "Modulo by zero not allowed");
+        lox_panic(line, column, "R1002", "Modulo by zero not allowed");
     }
     if (left == INT64_MIN && right == -1) {
         return 0;
@@ -1562,6 +1613,6 @@ void lox_print_any(int64_t tag, int64_t payload) {
             lox_print_enum((const void *)payload);
             break;
         default:
-            lox_panic(0, "Unknown Any tag");
+            lox_panic(0, 0, "R1000", "Unknown Any tag");
     }
 }

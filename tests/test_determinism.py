@@ -134,3 +134,33 @@ def test_same_script_twice_is_byte_identical_even_with_different_cwd() -> None:
 
     assert (process.returncode, process.stdout) == (from_root.returncode, from_root.stdout)
     assert str(ROOT) not in (process.stdout + process.stderr).decode("utf-8", errors="replace")
+
+
+DIAGNOSTIC_CASES = [
+    "tests/cases/errors/redeclaration.lox",
+    "tests/cases/errors/undefined_variable.lox",
+]
+
+
+@pytest.mark.parametrize("path", DIAGNOSTIC_CASES)
+def test_short_diagnostics_are_deterministic(path: str) -> None:
+    result = assert_deterministic(path, "--error-format=short")
+    assert_no_volatile_output(path, result)
+
+
+@pytest.mark.parametrize("path", DIAGNOSTIC_CASES)
+def test_json_diagnostics_are_deterministic_on_check(path: str) -> None:
+    result = assert_deterministic(path, "--check", "--error-format=json")
+    assert_no_volatile_output(path, result)
+
+
+@pytest.mark.parametrize("path", ["tests/cases/errors/undefined_variable.lox"])
+def test_json_runtime_diagnostics_are_deterministic(path: str) -> None:
+    result = assert_deterministic(path, "--error-format=json")
+    assert_no_volatile_output(path, result)
+
+
+def test_color_always_is_byte_identical() -> None:
+    path = "tests/cases/errors/redeclaration.lox"
+    result = assert_deterministic(path, "--color=always")
+    assert "\x1b[" in result.stderr.decode("utf-8")

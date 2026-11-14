@@ -28,6 +28,7 @@ RUNTIME_RE = re.compile(r"//\s*expect runtime error:\s*(.+)")
 ERROR_LINE_RE = re.compile(r"//\s*\[(?:(java|c)\s+)?line\s+\d+\]\s*(Error.*)")
 ERROR_DIRECT_RE = re.compile(r"//\s*(Error.*)")
 NONTEST_RE = re.compile(r"//\s*nontest")
+SNIPPET_LINE = re.compile(r"^\s*\d+ \|")
 
 CLASS_RE = re.compile(r"\bclass\s+(\w+)(?:\s*\(\s*(\w+)\s*\))?\s*\{")
 THIS_FIELD_RE = re.compile(r"\bthis\.(\w+)\s*=")
@@ -60,6 +61,21 @@ class ClassInfo:
     declared: set[str]
 
 
+def _message_only(expected: str) -> str:
+    """Mensagem do livro, sem o prefixo antigo `Error [at 'x']:`.
+
+    O renderizador do ADR-0075 troca `[line N] Error at 'x':` por
+    `arquivo:linha:col: error[CODE]:`; o texto que o harness do livro compara é só a
+    mensagem. Isto mantém a adaptação fiel ao critério do livro (mensagem contida).
+    """
+    if expected.startswith("Error at "):
+        _, separator, rest = expected.partition(": ")
+        return rest if separator else expected
+    if expected.startswith("Error: "):
+        return expected[len("Error: ") :]
+    return expected
+
+
 def parse_expectations(source: str) -> Expectations:
     stdout: list[str] = []
     compile_errors: list[str] = []
@@ -79,12 +95,12 @@ def parse_expectations(source: str) -> Expectations:
         match = ERROR_LINE_RE.search(line)
         if match is not None:
             if match.group(1) != "c":
-                compile_errors.append(match.group(2).rstrip())
+                compile_errors.append(_message_only(match.group(2).rstrip()))
             continue
 
         match = ERROR_DIRECT_RE.search(line)
         if match is not None:
-            compile_errors.append(match.group(1).rstrip())
+            compile_errors.append(_message_only(match.group(1).rstrip()))
 
     return Expectations(stdout, compile_errors, runtime_error)
 
@@ -254,6 +270,17 @@ def _execute(path: Path) -> subprocess.CompletedProcess[str]:
         temporary.unlink(missing_ok=True)
 
 
+def _without_snippet(stderr: str) -> str:
+    """Remove as linhas do trecho de código antes de casar mensagens.
+
+    O `# expect`/`// expect` pode estar na mesma linha do código; o trecho do
+    renderizador human não pode virar falso positivo (ADR-0075).
+    """
+    return "\n".join(
+        line for line in stderr.splitlines() if not SNIPPET_LINE.match(line)
+    )
+
+
 @pytest.mark.parametrize("path", CASES_PARAMS)
 def test_official_case(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
@@ -265,17 +292,19 @@ def test_official_case(path: Path) -> None:
         assert result.returncode == 70, (
             f"esperado exit 70, obtido {result.returncode}\nstderr:\n{result.stderr}"
         )
-        first_line = result.stderr.splitlines()[0] if result.stderr else ""
-        assert first_line == expectations.runtime_error, (
+        # O cabeçalho `arquivo:linha:col: error[CODIGO]:` antecede a mensagem; o
+        # critério do livro é a mensagem contida no stderr (ADR-0075, fase 2).
+        assert expectations.runtime_error in result.stderr, (
             f"runtime error esperado: {expectations.runtime_error!r}\n"
-            f"obtido: {first_line!r}"
+            f"stderr:\n{result.stderr}"
         )
     elif expectations.compile_errors:
         assert result.returncode == 65, (
             f"esperado exit 65, obtido {result.returncode}\nstderr:\n{result.stderr}"
         )
+        diagnostics_only = _without_snippet(result.stderr)
         for expected in expectations.compile_errors:
-            assert expected in result.stderr, (
+            assert expected in diagnostics_only, (
                 f"erro esperado ausente: {expected!r}\nstderr:\n{result.stderr}"
             )
     else:

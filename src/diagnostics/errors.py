@@ -1,3 +1,4 @@
+from src.diagnostics.codes import Code
 from src.frontend.tokens import Token
 
 
@@ -14,10 +15,17 @@ def immutable_redeclare_message(name: str) -> str:
 
 
 class LoxRuntimeError(Exception):
-    def __init__(self, token: Token, message: str) -> None:
+    def __init__(
+        self,
+        token: Token,
+        message: str,
+        *,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> None:
         super().__init__(message)
         self.token = token
         self.message = message
+        self.code = code
 
 
 class LoxRaise(Exception):

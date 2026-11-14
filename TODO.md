@@ -21,9 +21,10 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: backend em **L0–L5 + T7 + L6a–L6k**; o que
-resta do L6 está em `PENDING` (`enums`, `exceptions`, `Result` e função genérica como
-valor) e o L7 não começou. O status por nível é **gerado** em
+vale o que está aqui. Estado em 2026-11-14: backend em **L0–L6**; o L6 está completo, o
+L7 começou pelo `mod.verify()` e o **M7 (GC Boehm)** foi implementado no
+[ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md). A próxima execução é o
+kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
 [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -31,8 +32,9 @@ valor) e o L7 não começou. O status por nível é **gerado** em
 
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
-| **L6 (resto)** | enums/`match` no backend (tags, dispatch e exaustividade), exceções (unwinding), `Any` residual (classes/funções), `repr` de enum e o que o ADR-0055 ainda lista | ⬜ |
-| **L7** | `mod.verify()`, passes `-O2`, benchmarks, JIT e mensagens de erro de codegen | ⬜ |
+| **L6** | enums/`match`, exceções, `Any` residual, `repr` de enum e o que o ADR-0055 ainda lista | ✅ |
+| **L7** | `mod.verify()` (feito), passes `-O2`, benchmarks, JIT e mensagens de erro de codegen | 🟡 |
+| **M7** | GC Boehm + contrato de memória do [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md) | ✅ implementado |
 
 ### 0.2 Ordem de execução
 
@@ -43,9 +45,42 @@ valor) e o L7 não começou. O status por nível é **gerado** em
       `setjmp`/`longjmp`, `try`/`except`/`finally` e classes sintéticas de exceção.
 - [x] **L6k — função genérica como valor**: ADR-0063; especialização no call site e
       cache, mantendo unboxed.
-- [x] **L6 — completo**: todos os 120 casos do corpus compilam; `PENDING` zerado.
-- [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, benchmarks, JIT no REPL e
-      mensagens de erro de codegen.
+- [x] **L6 — completo**: todos os casos do corpus declarado compilam; `PENDING` zerado.
+- [x] **L7a — `mod.verify()`**: verificação explícita do módulo LLVM antes de emitir,
+      com `BackendError` (exit 65) e teste de IR inválido.
+- [x] **M7 — GC Boehm**: alocador (`GC_malloc`/atômico), roots, hard cap de 128 MiB e I1
+      até 64 MiB de memória viva ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md));
+      vem antes do resto do kernel.
+- [ ] **L7b — Qualidade restante**: passes `-O2`, benchmarks, JIT no REPL e mensagens de
+      erro de codegen.
+- [ ] **Kernel v1** (§13): 13.3 → 13.4 → 13.2, depois stdlib.
+
+## 3. Diagnósticos
+
+O desenho e a primeira entrega estão no
+[ADR-0075](docs/adr/0075-diagnosticos-estruturados.md): modelo `Diagnostic`,
+códigos estáveis por família, spans (linha/coluna/offset), `human`/`short`/`json`,
+ordenação/dedup/cap e caminho relativo determinístico. Catálogo em
+[`docs/spec/erros.md`](docs/spec/erros.md).
+
+### 3.1 O que ainda falta
+
+- [ ] **Stack trace de runtime** (`P2`): frames `at f (linha N) ← main (linha M)`; no
+      binário, decidir o custo de carregar frames.
+- [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
+      spans de expressão no checker, não só o token.
+- [ ] **`fixes[]`** (`P3`): `applicability` + `edits[]` por span; só quando houver edição
+      confiável (um `fix` errado é pior que nenhum).
+- [ ] **`lox explain <code>`** e **`lox capabilities --json`** (`P3`): dependem de
+      subcomandos no CLI.
+- [ ] **`--json-lines`** (`P3`) e `--timeout` para execução.
+- [ ] **Warnings** e `-Werror` (`P3`): o modelo tem `severity`, mas nenhum produtor ainda.
+- [ ] **LSP** (`P3`): reusar o mesmo `Diagnostic` em `textDocument/publishDiagnostics`.
+- [ ] **Catálogo de códigos gerado**: `docs/spec/erros.md` é escrito à mão; um comando
+      `make codes` pode gerar a tabela a partir do `Code` (e o teste já exige cobertura).
+
+**Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
+Python para validar código do usuário; não classificar código por prefixo de mensagem.
 
 ### 6.9 CLI alvo
 
@@ -138,9 +173,9 @@ M0–M5 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M6** | LLVM vertical | L0–L6 completos e I1 verde no corpus anotado (hoje falta o resto do L6) | 🟡 em andamento |
-| **M7** | Runtime completo | L6 fechado + GC (Boehm) + I1 verde no corpus completo | ⬜ |
-| **M8** | Performance | L6–L7: `-O2`, benchmarks e JIT | ⬜ |
+| **M6** | LLVM vertical | L0–L6 completos e I1 verde no corpus anotado | ✅ |
+| **M7** | Runtime completo | GC Boehm ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)) + I1 verde no corpus completo | 🟡 GC implementado; bench/corpus completo pendentes |
+| **M8** | Performance | L7: `-O2`, benchmarks e JIT | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs e playground | ⬜ |
 
 **Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o
@@ -152,6 +187,22 @@ suspensos) é preparada durante o L6; a feature entra **depois do M7**, junto co
 de I/O, e **antes do M8**. Sem I/O não há o que esperar e a feature não passa no portão do
 ADR-0014. Paralelismo/multithread fica em avaliação no [`IDEIAS.md`](IDEIAS.md) — não é
 async.
+
+### 9.1 Divergências I1 conhecidas (fora do corpus)
+
+Achadas ao implementar o cabeçalho de runtime do [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md).
+Nenhuma está no corpus declarado; entram quando virarem caso diferencial.
+
+- [ ] **`Any as T` não checa a tag no lowering**: `_unbox_any` extrai o payload direto, então
+      `val x: Any = "a"; print x as Int` imprime lixo no binário (exit 0) em vez de panicar;
+      o tree-walk levanta `R1011`. `tests/cases/any_casts.lox` só cobre casts válidos.
+- [ ] **Exceção de usuário não capturada**: o binário imprime `MyError` sem a mensagem
+      (`lox_throw` recebe `NULL` em `lower_exceptions.py`); o tree-walk imprime
+      `MyError: falhou`. O corpus `exceptions.lox` só captura.
+- [ ] **Classes de exceção sintéticas**: o tree-walk aceita `Exception("x")`/
+      `LoxRuntimeError("x")` (aridade 1, campo `message`); o backend declara os construtores
+      com aridade 0 e recusa a chamada com `R1005`.
+
 
 ---
 
@@ -245,7 +296,8 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
 ## 13. Stdlib, kernel de primitivas e módulos
 
-> **Escopo:** pós-1.0; **não** bloqueia L6/L7 (§0.3). Decisões:
+> **Escopo:** pós-1.0; **não** bloqueia L6/L7 (§0.2). O kernel v1 vem **depois do GC**
+> ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)). Decisões:
 > [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (primitivas e complexidade),
 > [ADR-0072](docs/adr/0072-stdlib-batteries.md) (política de batteries) e
 > [ADR-0073](docs/adr/0073-imports-modulos.md) (imports — **proposto**, aguarda o gate do
@@ -299,7 +351,8 @@ Entram só quando `std.fs`/`std.paths` precisar; cada um acima de 15 exige remov
 - [ ] `charCodeAt`/`fromCodePoint` (Python + C + lowering + checker + spec).
 - [ ] `bench/cases/string_scan.lox` (100k code points): antes **2,22 s**; alvo **≤ 0,05 s**.
       Registrar o número no commit e no ADR-0071.
-- [ ] Reavaliar os testes de memória: o ponto do `Out of memory` pode mudar com o cache.
+- [ ] Reavaliar os testes de memória: o ponto do `Out of memory` muda com o cache e com o
+      GC (ADR-0074); o hard cap é 128 MiB e o I1 cobre até 64 MiB live.
 - [ ] `docs/spec/semantica.md` (+ nota "atualizado por ADR-0071" no ADR-0035, que é
       imutável).
 - [ ] Nível `k0` no `tests/corpus_manifest.py` para os casos do kernel.
@@ -381,7 +434,8 @@ determinismo.
 
 | # | Passo | Esforço | Depende de |
 | --- | --- | --- | --- |
-| 1 | **13.3** — cache de offsets + `substr`/`join`/`charCodeAt`/`fromCodePoint` + bench | M | — |
+| 0 | ✅ **GC Boehm + contrato de memória** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)): allocator, roots, hard cap 128 MiB, I1 até 64 MiB live | M | — |
+| 1 | **13.3** — cache de offsets + `substr`/`join`/`charCodeAt`/`fromCodePoint` + bench | M | 0 |
 | 2 | **13.4** — tabela única de primitivas | S | 1 |
 | 3 | **13.2** — kernel de SO: `args`, `io.*`, `os.*` + `main(argc, argv)` + exit code | M | 2 |
 | 4 | **13.5** — imports fase A + `std/strings` + `std/lists` | M | 3 |
@@ -389,9 +443,11 @@ determinismo.
 | 6 | **T2** restante (`paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
 | 7 | **T3** + dogfooding: `lox fmt` em Lox, depois front-end self-hosted (§10) | L/XL | 6 |
 
-O passo 1 é independente do backend e pode começar já. O passo 3 mexe no `main` gerado
-(`i32 main(void)` → `argc/argv`), mas não muda o ABI de funções — os casos atuais do I1
-continuam valendo; o programa que não usa `args()` não muda de saída.
+O passo 0 está feito: o kernel e a stdlib em Lox agora têm heap coletado. O 13.4 pode
+andar em paralelo ao 13.3; 13.3 e 13.2 tocam `LoxStr`/`main`/`runtime.c` e entram depois
+dele. O passo 3 mexe no `main` gerado (`i32 main(void)` → `argc/argv`), mas não muda o
+ABI de funções — os casos atuais do I1 continuam valendo; o programa que não usa `args()`
+não muda de saída.
 
 ### 13.8 Critério de pronto por módulo
 

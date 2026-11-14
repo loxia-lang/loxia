@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from src.diagnostics.codes import Code
 from src.diagnostics.errors import LoxRuntimeError
 from src.execution import numeric
 from src.execution.lox_callable import LoxCallable
@@ -65,7 +66,9 @@ class LoxMap:
     def get(self, key: object, token: Token) -> object:
         wrapped = self._require_key(key, token)
         if wrapped not in self._entries:
-            raise LoxRuntimeError(token, "Key not found in map.")
+            raise LoxRuntimeError(
+                token, "Key not found in map.", code=Code.KEY_NOT_FOUND
+            )
 
         return self._entries[wrapped]
 
@@ -86,7 +89,9 @@ class LoxMap:
     def remove(self, key: object, token: Token) -> object:
         wrapped = self._require_key(key, token)
         if wrapped not in self._entries:
-            raise LoxRuntimeError(token, "Key not found in map.")
+            raise LoxRuntimeError(
+                token, "Key not found in map.", code=Code.KEY_NOT_FOUND
+            )
 
         self._version += 1
         return self._entries.pop(wrapped)
@@ -111,13 +116,19 @@ class LoxMap:
         if name.lexeme == "values":
             return MapValuesMethod(self)
 
-        raise LoxRuntimeError(name, f"Undefined property '{name.lexeme}'.")
+        raise LoxRuntimeError(
+                name,
+                f"Undefined property '{name.lexeme}'.",
+                code=Code.UNDEFINED_PROPERTY,
+            )
 
     def _require_key(self, key: object, token: Token) -> _MapKey:
         wrapped = _canonical_key(key)
         if wrapped is None:
             raise LoxRuntimeError(
-                token, "Map keys must be strings, integers or booleans."
+                token,
+                "Map keys must be strings, integers or booleans.",
+                code=Code.INVALID_VALUE,
             )
 
         return wrapped

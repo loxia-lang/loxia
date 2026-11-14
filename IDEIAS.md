@@ -25,9 +25,9 @@ viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado s
 
 ## I-4 — Linguagem "agent-friendly": contratos + erros estruturados determinísticos
 
-**Status:** `em avaliação`
-**Decidir até:** contratos depois do backend/1.0 e antes de estabilizar a stdlib; formato
-JSON junto com o redesign de diagnósticos (`TODO.md` §3.1).
+**Status:** contratos `em avaliação`; **erros estruturados decididos e implementados**
+([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md)).
+**Decidir até:** contratos depois do backend/1.0 e antes de estabilizar a stdlib.
 
 ### A pergunta
 
@@ -130,142 +130,23 @@ a favor de DbC na linguagem, e combina com o fuzzing já previsto no `TODO.md` �
 - **Testes**: golden de contrato (violação com `kind`, `clause`, `bindings`), e teste de
   que `off` não altera o resultado.
 
-### Parte B — Erros estruturados em JSON
+### Parte B — Erros estruturados (decidido e implementado)
 
-#### Princípio
+O desenho de erros saiu deste documento: virou o
+[ADR-0075](docs/adr/0075-diagnosticos-estruturados.md), com modelo único
+(`Diagnostic`), códigos estáveis por família, spans (linha/coluna/offset),
+`--error-format=human|short|json`, ordenação/dedup/cap determinísticos e caminho relativo.
+Catálogo em [`docs/spec/erros.md`](docs/spec/erros.md). O que ainda falta — paridade do
+runtime nativo, stack trace, `notes` de proveniência, `fixes[]`, `explain`, `json-lines`,
+warnings e LSP — está no [`TODO.md`](TODO.md) §3.
 
-Um único **modelo de diagnóstico** interno; dois renderizadores: **humano** (caret +
-cores + stack trace) e **JSON** (máquina). Nunca gerar a mensagem duas vezes.
+### Parte C — Checklist "agent-friendly"
 
-#### Esquema proposto (v1)
-
-```json
-{
-  "schema_version": "1.0",
-  "command": "check",
-  "success": false,
-  "summary": { "errors": 1, "warnings": 0 },
-  "diagnostics": [
-    {
-      "code": "E3001",
-      "kind": "type_mismatch",
-      "severity": "error",
-      "phase": "typecheck",
-      "message": "expected Float, found String",
-      "span": {
-        "file": "src/main.lox",
-        "start": { "line": 3, "column": 9, "offset": 41 },
-        "end":   { "line": 3, "column": 14, "offset": 46 }
-      },
-      "labels": [
-        { "span": { "file": "src/main.lox", "start": { "line": 3, "column": 9 }, "end": { "line": 3, "column": 14 } },
-          "message": "encontrado String" }
-      ],
-      "notes": ["o valor vem de `pessoa.nome` (linha 2)"],
-      "help": "use `as Float` para converter explicitamente",
-      "docs": "https://lox.dev/errors/E3001",
-      "fixes": [
-        {
-          "applicability": "machine-applicable",
-          "edits": [
-            { "file": "src/main.lox",
-              "span": { "start": { "offset": 41 }, "end": { "offset": 46 } },
-              "replacement": "(pessoa.nome as Float)" }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-Campos-chave:
-- `code` **estável** (`E3xxx` tipo, `E1xxx` parser, `C1xxx` contrato, `R1xxx` runtime) e
-  nunca reutilizado; `docs` aponta para o catálogo.
-- `span` com **linha, coluna e offset em bytes** (offset é o que o editor/agente usa para
-  editar sem ambiguidade; linha/coluna é o que o humano lê).
-- `fixes[]` com `applicability` (`machine-applicable`, `maybe-incorrect`, `manual`) e
-  `edits[]` com substituição por span — é o que permite o agente corrigir sem adivinhar.
-- `kind` separa categorias sem quebrar `code`.
-
-Violação de contrato usa o mesmo envelope:
-
-```json
-{
-  "code": "C1002",
-  "kind": "contract_violation",
-  "phase": "runtime",
-  "message": "precondition failed: b != 0",
-  "function": "dividir",
-  "clause": "requires",
-  "span": { "file": "src/main.lox", "start": { "line": 2, "column": 12 }, "end": { "line": 2, "column": 18 } },
-  "bindings": { "a": "10", "b": "0" },
-  "trace": [ { "function": "main", "file": "src/main.lox", "line": 9 } ]
-}
-```
-
-`bindings` mostra os valores das variáveis citadas na cláusula — o equivalente
-estruturado do "mostre os argumentos no panic".
-
-#### Determinismo (o que faz a resolução ser repetível)
-
-1. **Ordenação fixa**: por `(file, start.offset, code)`; nunca pela ordem de um `dict`
-   ou de um `set` (foi exatamente a classe de bug do `<object at 0x...>`).
-2. **Sem dados voláteis**: nada de timestamps, PID, endereço de memória, caminho absoluto,
-   locale ou ordem de `os.listdir`. Caminhos **relativos à raiz do projeto**.
-3. **Formatação numérica canônica**: uma única `stringify` (ver
-   [ADR-0006](docs/adr/0006-int-float-separados.md)) para
-   mensagens e `bindings`; float sempre com representação round-trip.
-4. **Dedup e cascata**: um erro raiz gera um diagnóstico primário; derivados viram
-   `notes`/`related`, não erros novos. Limite `--max-errors`.
-5. **Códigos e schema versionados**: `schema_version` no envelope; código nunca muda de
-   significado. Mudança incompatível = nova major do schema.
-6. **Saída separada**: em `run`, o stdout é do **programa**; diagnósticos vão para o
-   **stderr** (JSON único ou NDJSON). Em `check`, o JSON vai para o stdout.
-7. **Mesmo input → mesmo output**: teste de determinismo roda duas vezes e compara bytes
-   (exceto nada — deve ser idêntico).
-
-#### Protocolo de reparo determinístico (para agentes)
-
-```
-1. lox check --json            → diagnostics[]
-2. selecionar fixes com applicability == "machine-applicable"
-3. descartar edits sobrepostos (aplicar só os disjuntos; reportar os demais)
-4. aplicar edições atomicamente (ou --fix --dry-run para só receber o diff)
-5. reexecutar
-6. progresso obrigatório: erros diminuíram OU conjunto de codes mudou
-7. parar após N iterações (ex.: 10) ou quando success == true
-8. se não houver fix: usar help/docs/code — nunca "adivinhar" edição
-```
-
-Comandos que tornam isso possível:
-- `lox check --json` / `lox build --json` / `lox run --json` (diagnósticos);
-- `lox check --fix --dry-run --json` (devolve `fixes[]` sem escrever);
-- `lox explain E3001 --json` (entrada do catálogo, com exemplo e contraexemplo);
-- `lox capabilities --json` (versão, schema, códigos suportados, exit codes).
-
-#### Lado humano
-
-- `--error-format=human|short|json|json-lines` (default `human` em TTY).
-- O renderizador humano usa os mesmos `Diagnostic`s: caret, cores (`NO_COLOR`), notas e
-  **stack trace** com frames (`at dividir (linha 2) ← main (linha 9)`).
-- `--json` não pode degradar a experiência humana: o humano vê o mesmo erro bonito, só que
-  em outro formato quando pedir.
-
-### Parte C — Checklist "agent-friendly" (além de erros)
-
-- [ ] `--json` em todos os comandos de inspeção (`check`, `ast`, `types`, `fmt --check`).
-- [ ] **Nunca** prompt interativo; `--yes`/`--non-interactive` onde houver risco.
-- [ ] Exit codes estáveis e documentados (65 sintaxe, 70 runtime, 66 arquivo; contrato
-      pode virar 71 no futuro, mas `kind` já distingue).
-- [ ] `--color=auto|always|never` e `NO_COLOR`; saída sem ANSI quando não-TTY.
-- [ ] `--no-progress`; progresso só em stderr.
-- [ ] Sem rede, sem telemetria, sem escrita fora do projeto.
-- [ ] `--timeout` para execução (agente não pode travar em loop infinito).
-- [ ] Catálogo de erros em JSON versionado no repo (`docs/erros/`), gerado dos códigos.
-- [ ] Formatter idempotente e determinístico (`fmt` duas vezes = igual).
-- [ ] Builds reproduzíveis (sem caminho absoluto no binário/objeto).
-- [ ] `llms.txt`/`docs/agents.md`? (documentação pensada para agente, curta e factual)
+O checklist operacional (JSON nos comandos, exit codes, cor, sem rede/telemetria,
+`--timeout`, catálogo, formatter idempotente, builds reproduzíveis) foi absorvido pelo
+[ADR-0075](docs/adr/0075-diagnosticos-estruturados.md) e pelo [`TODO.md`](TODO.md) §3.
+Itens ainda em aberto: `--json-lines`, `lox explain`, `lox capabilities`, `--timeout` e
+`llms.txt`.
 
 ### Argumentos a favor
 
@@ -303,13 +184,13 @@ Comandos que tornam isso possível:
   checagem **ligada por padrão no interpretador** e **desligável no nativo**
   (`--contracts=off|check|warn`). Violação = erro fatal estruturado (`C1xxx`), não
   exceção capturável.
-- **Erros: um modelo, dois renderizadores**, JSON v1 com `code`/`span`/`fixes`, ordenação
-  determinística e `--error-format`. Implementar **junto** com o redesign do §3.1 (não
-  depois), senão o formato nasce torto.
+- **Erros: um modelo, dois renderizadores** — decidido e implementado no
+  [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md) (JSON v1 com `code`/`span`,
+  ordenação determinística e `--error-format`).
 - **Protocolo de reparo** documentado (`check --json` → aplicar `fixes` → reexecutar →
   progresso), com `--fix --dry-run` e `explain`.
-- **Ordem prática**: JSON/determinismo primeiro (serve ao humano e ao agente, e é
-  pré-requisito do LSP); contratos depois do cap. 10, quando há funções para anotar.
+- **Ordem prática**: JSON/determinismo fechados (ADR-0075); contratos depois do cap. 10,
+  quando há funções para anotar.
 
 ### Riscos e anti-metas
 
@@ -322,7 +203,7 @@ Comandos que tornam isso possível:
 
 ### Gatilhos para revisitar
 
-- ao implementar o redesign de diagnósticos (`TODO.md` §3.1);
+- ao revisitar a paridade do runtime nativo ou `fixes[]` (`TODO.md` §3);
 - ao começar o codegen (contratos em LLVM);
 - quando houver `lox check --json` (aí medir se o agente realmente resolve com `fixes`).
 
@@ -332,10 +213,6 @@ Comandos que tornam isso possível:
 - [ ] Contrato no topo do corpo (`invariant x > 0`) em vez de cláusula? (não recomendo)
 - [ ] `off` remove a checagem **e** a avaliação das expressões? (sim, senão não otimiza)
 - [ ] Violação de contrato: exit 70 com `kind` ou exit 71 dedicado?
-- [ ] `fixes` automáticos: só para sintaxe/typo, ou também semânticos?
-- [ ] JSON em stderr (run) vs stdout (check) — confirmar contrato de CLI.
-- [ ] `schema_version` por major/minor? Onde fica o catálogo de códigos?
-- [ ] Contratos entram no AST público (`--ast --json`)? (sim, para tooling)
 - [ ] Invariante de laço entra em qual fase? (P3)
 
 ### Referências

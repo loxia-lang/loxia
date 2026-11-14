@@ -1,5 +1,6 @@
 from collections.abc import Callable, Iterator
 
+from src.diagnostics.codes import Code
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.errors import (
     LoxRaise,
@@ -139,6 +140,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 LoxRuntimeError(
                     raised.token,
                     f"Unhandled exception: {stringify(raised.value)}",
+                    code=Code.UNHANDLED_EXCEPTION,
                 )
             )
         except LoxRuntimeError as e:
@@ -164,7 +166,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if name.lexeme in self.environment.values and not self.environment.is_mutable(
             name.lexeme
         ):
-            raise LoxRuntimeError(name, immutable_redeclare_message(name.lexeme))
+            raise LoxRuntimeError(
+                name,
+                immutable_redeclare_message(name.lexeme),
+                code=Code.RUNTIME_IMMUTABLE,
+            )
 
     def _is_truthy(self, obj: object) -> bool:
         if obj is None:
@@ -308,7 +314,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def _check_number_operand(self, operator: Token, operand: object) -> None:
         if not numeric.is_number(operand):
-            raise LoxRuntimeError(operator, "Operand must be a number.")
+            raise LoxRuntimeError(
+                operator, "Operand must be a number.", code=Code.RUNTIME_OPERANDS
+            )
 
     def _relational(self, operator: Token, left: object, right: object) -> bool:
         """Ordem numérica ou lexicográfica (code points), nunca misturada."""
@@ -334,16 +342,22 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def _check_number_operands(self, operator: Token, *operands: object) -> None:
         for operand in operands:
             if not numeric.is_number(operand):
-                raise LoxRuntimeError(operator, "Operands must be numbers.")
+                raise LoxRuntimeError(
+                    operator, "Operands must be numbers.", code=Code.RUNTIME_OPERANDS
+                )
 
     def _check_int_operand(self, operator: Token, operand: object) -> None:
         if not numeric.is_int(operand):
-            raise LoxRuntimeError(operator, "Operand must be an integer.")
+            raise LoxRuntimeError(
+                operator, "Operand must be an integer.", code=Code.RUNTIME_OPERANDS
+            )
 
     def _check_int_operands(self, operator: Token, *operands: object) -> None:
         for operand in operands:
             if not numeric.is_int(operand):
-                raise LoxRuntimeError(operator, "Operands must be integers.")
+                raise LoxRuntimeError(
+                    operator, "Operands must be integers.", code=Code.RUNTIME_OPERANDS
+                )
 
     def _numeric_op(
         self,
@@ -357,9 +371,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         try:
             return operation(*arguments, checked=True)
         except numeric.NumericOverflow:
-            raise LoxRuntimeError(token, "Integer overflow.") from None
+            raise LoxRuntimeError(
+                token, "Integer overflow.", code=Code.INVALID_VALUE
+            ) from None
         except numeric.NumericConversionError:
-            raise LoxRuntimeError(token, "Numeric conversion failed.") from None
+            raise LoxRuntimeError(
+                token, "Numeric conversion failed.", code=Code.RUNTIME_CAST
+            ) from None
 
     def execute_block(self, statements: list[Stmt], environment: Environment) -> None:
         previous = self.environment
@@ -393,7 +411,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         for key, value in expr.entries:
             entry_key = self._evaluate(key)
             if result.has(entry_key, expr.brace):
-                raise LoxRuntimeError(expr.brace, "Duplicate key in map literal.")
+                raise LoxRuntimeError(
+                    expr.brace,
+                    "Duplicate key in map literal.",
+                    code=Code.INVALID_VALUE,
+                )
 
             entry_value = self._evaluate(value)
             result.set(entry_key, entry_value, expr.brace)
@@ -415,17 +437,24 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             index = self._evaluate(expr.index)
             if not numeric.is_int(index):
                 raise LoxRuntimeError(
-                    expr.bracket, "Tuple index must be an integer."
+                    expr.bracket,
+                    "Tuple index must be an integer.",
+                    code=Code.RUNTIME_OPERANDS,
                 )
             if not 0 <= index < len(ob.items):
                 raise LoxRuntimeError(
                     expr.bracket,
                     f"Tuple index {index} out of bounds for length "
                     f"{len(ob.items)}.",
+                    code=Code.INDEX_OUT_OF_BOUNDS,
                 )
             return ob.items[index]
 
-        raise LoxRuntimeError(expr.bracket, "Only lists and maps can be indexed.")
+        raise LoxRuntimeError(
+                expr.bracket,
+                "Only lists and maps can be indexed.",
+                code=Code.RUNTIME_OPERANDS,
+            )
 
     def visit_index_set_expr(self, expr: IndexSet) -> object:
         ob = self._evaluate(expr.object)
@@ -440,7 +469,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             value = self._evaluate(expr.value)
             return ob.set(key, value, expr.bracket)
 
-        raise LoxRuntimeError(expr.bracket, "Only lists and maps can be indexed.")
+        raise LoxRuntimeError(
+                expr.bracket,
+                "Only lists and maps can be indexed.",
+                code=Code.RUNTIME_OPERANDS,
+            )
 
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
@@ -450,11 +483,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             raise LoxRuntimeError(
                 expr.operator,
                 "is doesn't support type arguments on classes yet.",
+                code=Code.INVALID_VALUE,
             )
         if isinstance(expr.test_type, EnumTy) and expr.test_type.args:
             raise LoxRuntimeError(
                 expr.operator,
                 "is doesn't support type arguments on enums yet.",
+                code=Code.INVALID_VALUE,
             )
 
         value = self._evaluate(expr.left)
@@ -468,11 +503,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             raise LoxRuntimeError(
                 expr.operator,
                 "as doesn't support type arguments on classes yet.",
+                code=Code.RUNTIME_CAST,
             )
         if isinstance(target, EnumTy) and target.args:
             raise LoxRuntimeError(
                 expr.operator,
                 "as doesn't support type arguments on enums yet.",
+                code=Code.RUNTIME_CAST,
             )
 
         if target is INT:
@@ -483,7 +520,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                     return numeric.float_to_int(value)
                 except numeric.NumericConversionError:
                     raise LoxRuntimeError(
-                        expr.operator, "Can't cast this Float to Int."
+                        expr.operator,
+                        "Can't cast this Float to Int.",
+                        code=Code.RUNTIME_CAST,
                     ) from None
         elif target is FLOAT:
             if numeric.is_float(value):
@@ -494,7 +533,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return value
         elif isinstance(target, UnionTy):
             raise LoxRuntimeError(
-                expr.operator, "as doesn't support union types yet; narrow first."
+                expr.operator,
+                "as doesn't support union types yet; narrow first.",
+                code=Code.RUNTIME_CAST,
             )
         elif matches_type(value, target, self._class_for_type):
             return value
@@ -502,6 +543,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         raise LoxRuntimeError(
             expr.operator,
             f"Can't cast value to {display(target)}.",
+            code=Code.RUNTIME_CAST,
         )
 
     def visit_range_expr(self, expr: Range) -> object:
@@ -509,9 +551,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         end = self._evaluate(expr.end)
 
         if not numeric.is_int(start):
-            raise LoxRuntimeError(expr.operator, "Range bounds must be integers.")
+            raise LoxRuntimeError(
+                expr.operator, "Range bounds must be integers.", code=Code.RUNTIME_OPERANDS
+            )
         if not numeric.is_int(end):
-            raise LoxRuntimeError(expr.operator, "Range bounds must be integers.")
+            raise LoxRuntimeError(
+                expr.operator, "Range bounds must be integers.", code=Code.RUNTIME_OPERANDS
+            )
 
         return LoxRange(start, end)
 
@@ -547,22 +593,36 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 if isinstance(left, str) and isinstance(right, str):
                     return str(left) + str(right)
                 raise LoxRuntimeError(
-                    expr.operator, "Operands must be two numbers or two strings."
+                    expr.operator,
+                    "Operands must be two numbers or two strings.",
+                    code=Code.RUNTIME_OPERANDS,
                 )
             case TokenType.SLASH:
                 self._check_number_operands(expr.operator, left, right)
                 if right == 0:
-                    raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
+                    raise LoxRuntimeError(
+                        expr.operator,
+                        "Division by zero not allowed",
+                        code=Code.DIVISION_BY_ZERO,
+                    )
                 return numeric.divide(left, right)
             case TokenType.SLASH_SLASH:
                 self._check_int_operands(expr.operator, left, right)
                 if right == 0:
-                    raise LoxRuntimeError(expr.operator, "Division by zero not allowed")
+                    raise LoxRuntimeError(
+                        expr.operator,
+                        "Division by zero not allowed",
+                        code=Code.DIVISION_BY_ZERO,
+                    )
                 return self._numeric_op(numeric.int_divide, expr.operator, left, right)
             case TokenType.PERCENT:
                 self._check_number_operands(expr.operator, left, right)
                 if right == 0:
-                    raise LoxRuntimeError(expr.operator, "Modulo by zero not allowed")
+                    raise LoxRuntimeError(
+                        expr.operator,
+                        "Modulo by zero not allowed",
+                        code=Code.DIVISION_BY_ZERO,
+                    )
                 return self._numeric_op(numeric.modulo, expr.operator, left, right)
             case TokenType.STAR:
                 self._check_number_operands(expr.operator, left, right)
@@ -573,16 +633,21 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                     raise LoxRuntimeError(
                         expr.operator,
                         "Negative exponent not allowed for integer power.",
+                        code=Code.RUNTIME_OPERANDS,
                     )
                 try:
                     return self._numeric_op(numeric.power, expr.operator, left, right)
                 except ValueError:
                     raise LoxRuntimeError(
-                        expr.operator, "Invalid exponentiation."
+                        expr.operator,
+                        "Invalid exponentiation.",
+                        code=Code.RUNTIME_OPERANDS,
                     ) from None
                 except OverflowError:
                     raise LoxRuntimeError(
-                        expr.operator, "Exponentiation overflow."
+                        expr.operator,
+                        "Exponentiation overflow.",
+                        code=Code.INVALID_VALUE,
                     ) from None
             case TokenType.AMPERSAND:
                 self._check_int_operands(expr.operator, left, right)
@@ -618,7 +683,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self._check_int_operands(operator, left, right)
         assert numeric.is_int(right)
         if not 0 <= right <= 63:
-            raise LoxRuntimeError(operator, "Shift count must be between 0 and 63.")
+            raise LoxRuntimeError(
+                operator,
+                "Shift count must be between 0 and 63.",
+                code=Code.RUNTIME_OPERANDS,
+            )
 
         return operation(left, right)
 
@@ -633,7 +702,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             arguments.append(self._evaluate(argument))
 
         if not isinstance(callee, LoxCallable):
-            raise LoxRuntimeError(expr.paren, "Can only call functions and classes.")
+            raise LoxRuntimeError(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.RUNTIME_NOT_CALLABLE,
+            )
 
         minimum = callee.min_arity()
         maximum = callee.max_arity()
@@ -647,7 +720,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             else:
                 message = f"Expected {minimum} to {maximum} arguments but got {count}."
 
-            raise LoxRuntimeError(expr.paren, message)
+            raise LoxRuntimeError(
+                expr.paren, message, code=Code.RUNTIME_ARITY
+            )
 
         try:
             return callee.call(self, arguments)
@@ -682,7 +757,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             exception_class = self.environment.get(clause.type_name)
             if not isinstance(exception_class, LoxClass):
                 raise LoxRuntimeError(
-                    clause.type_name, "Exception type must be a class."
+                    clause.type_name,
+                    "Exception type must be a class.",
+                    code=Code.INVALID_VALUE,
                 )
             if not self._matches_exception(value, exception_class):
                 continue
@@ -725,7 +802,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         )
         if value is None:
             raise LoxRuntimeError(
-                stmt.keyword, "No exception to re-raise."
+                stmt.keyword,
+                "No exception to re-raise.",
+                code=Code.INVALID_VALUE,
             )
         if isinstance(value, LoxExceptionValue):
             raise LoxRaise(stmt.keyword, value)
@@ -733,7 +812,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             raise LoxRaise(stmt.keyword, value)
 
         raise LoxRuntimeError(
-            stmt.keyword, "Can only raise exceptions."
+            stmt.keyword,
+            "Can only raise exceptions.",
+            code=Code.INVALID_VALUE,
         )
 
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:
@@ -752,7 +833,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         value = self._evaluate(expr.scrutinee)
         if not isinstance(value, LoxEnumValue):
             raise LoxRuntimeError(
-                expr.keyword, "match requires an enum value."
+                expr.keyword,
+                "match requires an enum value.",
+                code=Code.INVALID_VALUE,
             )
 
         for arm in expr.arms:
@@ -779,7 +862,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             finally:
                 self.environment = previous
 
-        raise LoxRuntimeError(expr.keyword, "No match arm matched.")
+        raise LoxRuntimeError(
+            expr.keyword, "No match arm matched.", code=Code.INVALID_VALUE
+        )
 
     def visit_class_stmt(self, stmt: Class) -> None:
         self._reject_immutable_redeclaration(stmt.name)
@@ -789,7 +874,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             candidate = self._evaluate(stmt.superclass)
             if not isinstance(candidate, LoxClass):
                 raise LoxRuntimeError(
-                    stmt.superclass.name, "Superclass must be a class."
+                    stmt.superclass.name,
+                    "Superclass must be a class.",
+                    code=Code.INVALID_VALUE,
                 )
 
             superclass = candidate
@@ -814,7 +901,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         for field in stmt.fields:
             if field.name.lexeme in fields:
                 raise LoxRuntimeError(
-                    field.name, f"Field '{field.name.lexeme}' already declared."
+                    field.name,
+                    f"Field '{field.name.lexeme}' already declared.",
+                    code=Code.INVALID_VALUE,
                 )
 
             fields[field.name.lexeme] = FieldInfo(
@@ -852,7 +941,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             if expr.name.lexeme == "message":
                 return ob.message
             raise LoxRuntimeError(
-                expr.name, f"Undefined property '{expr.name.lexeme}'."
+                expr.name,
+                f"Undefined property '{expr.name.lexeme}'.",
+                code=Code.UNDEFINED_PROPERTY,
             )
 
         if isinstance(ob, LoxEnumObject):
@@ -861,6 +952,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 raise LoxRuntimeError(
                     expr.name,
                     f"Undefined variant '{expr.name.lexeme}'.",
+                    code=Code.UNDEFINED_PROPERTY,
                 )
             return value
 
@@ -870,10 +962,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 raise LoxRuntimeError(
                     expr.name,
                     f"Undefined property '{expr.name.lexeme}'.",
+                    code=Code.UNDEFINED_PROPERTY,
                 )
             return value
 
-        raise LoxRuntimeError(expr.name, "Only instances have properties.")
+        raise LoxRuntimeError(
+            expr.name,
+            "Only instances have properties.",
+            code=Code.INVALID_VALUE,
+        )
 
     def visit_conditional_expr(self, expr: Conditional) -> object:
         if self._is_truthy(self._evaluate(expr.condition)):
@@ -885,7 +982,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         ob = self._evaluate(expr.object)
 
         if not isinstance(ob, LoxInstance):
-            raise LoxRuntimeError(expr.name, "Only instances have fields.")
+            raise LoxRuntimeError(
+            expr.name,
+            "Only instances have fields.",
+            code=Code.INVALID_VALUE,
+        )
 
         value = self._evaluate(expr.value)
         ob.set(expr.name, value)
@@ -904,7 +1005,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         method = superclass.find_method(expr.method.lexeme)
         if method is None:
             raise LoxRuntimeError(
-                expr.method, f"Undefined property '{expr.method.lexeme}'."
+                expr.method,
+                f"Undefined property '{expr.method.lexeme}'.",
+                code=Code.UNDEFINED_PROPERTY,
             )
 
         return method.bind(ob)
@@ -942,7 +1045,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return iter(iterable.items)
 
         raise LoxRuntimeError(
-            name, "Can only iterate over a range, a list, a map or a string."
+            name,
+            "Can only iterate over a range, a list, a map or a string.",
+            code=Code.RUNTIME_ITERATION,
         )
 
     def _iterate_list(self, name: Token, values: LoxList) -> Iterator[object]:
@@ -952,7 +1057,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         while index < len(values.elements):
             if values.version != version:
                 raise LoxRuntimeError(
-                    name, "Can't modify a list while iterating over it."
+                    name,
+                    "Can't modify a list while iterating over it.",
+                    code=Code.RUNTIME_ITERATION,
                 )
 
             yield values.elements[index]
@@ -960,7 +1067,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if values.version != version:
             raise LoxRuntimeError(
-                name, "Can't modify a list while iterating over it."
+                name,
+                "Can't modify a list while iterating over it.",
+                code=Code.RUNTIME_ITERATION,
             )
 
     def _iterate_map(self, name: Token, values: LoxMap) -> Iterator[object]:
@@ -971,7 +1080,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         while index < len(keys):
             if values.version != version:
                 raise LoxRuntimeError(
-                    name, "Can't modify a map while iterating over it."
+                    name,
+                    "Can't modify a map while iterating over it.",
+                    code=Code.RUNTIME_ITERATION,
                 )
 
             yield keys[index]
@@ -979,7 +1090,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if values.version != version:
             raise LoxRuntimeError(
-                name, "Can't modify a map while iterating over it."
+                name,
+                "Can't modify a map while iterating over it.",
+                code=Code.RUNTIME_ITERATION,
             )
 
     def visit_print_stmt(self, stmt: Print) -> None:
@@ -1007,12 +1120,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         token = first_token(pattern)
         if not isinstance(value, LoxTuple):
-            raise LoxRuntimeError(token, "Can only destructure a tuple.")
+            raise LoxRuntimeError(
+            token, "Can only destructure a tuple.", code=Code.INVALID_VALUE
+        )
         if len(value.items) != len(pattern.elements):
             raise LoxRuntimeError(
                 token,
                 f"Destructuring expects {len(pattern.elements)} values, found "
                 f"{len(value.items)}.",
+                code=Code.RUNTIME_ARITY,
             )
 
         for element, item in zip(pattern.elements, value.items, strict=True):

@@ -355,7 +355,9 @@ não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` n
 `Int → Float`); `if`/`while` viram blocos com `br`/`cbranch`. `//`, `%`, `/` e o `%` de
 Float chamam o runtime: `INT_MIN / -1` é UB em LLVM (`idiv` trap no x86) e divisão por
 zero é erro fatal no interpretador. Esses casos viram `lox_panic`, que reproduz o stderr e
-sai com 70.
+sai com 70. Desde o ADR-0075, `lox_panic(linha, coluna, codigo, mensagem)` imprime o mesmo
+cabeçalho do diagnóstico de compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret; o
+caminho de exibição (relativo, nunca absoluto) é fixado em `lox_init`.
 
 `Float` impresso usa a menor representação que reconstrói o mesmo bit pattern, com as
 convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` fixa
@@ -365,11 +367,11 @@ convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` f
 Variáveis usam `alloca` (locais) e globais LLVM (topo); o `depth` do resolver decide o
 escopo (`depths`), e o tipo do slot é o tipo do **valor** em runtime, não o da anotação —
 como no interpretador, `val f: Float = 2` guarda `Int`. Variáveis capturadas por closures
-viram **células** na arena (`{ value }`) e são referenciadas por ponteiro; as demais
+viram **células** no heap coletado (`{ value }`) e são referenciadas por ponteiro; as demais
 continuam em `alloca`.
 
 Funções de usuário têm ABI `(i8* env, params...)`; uma closure é `{ fnptr, env, display }`
-alocada na arena. Funções de topo têm a assinatura pré-declarada (recursão mútua), mas o
+alocada no heap coletado. Funções de topo têm a assinatura pré-declarada (recursão mútua), mas o
 binding global só é inicializado quando o statement executa — usar antes vira
 `lox_panic` com `Undefined variable`, como no interpretador. O passe
 [`src/backend/captures.py`](../../src/backend/captures.py) decide o que cada função
@@ -392,15 +394,17 @@ prefixa os campos e resolve `super` pela classe onde o método foi declarado
 funcionam. `?.` com receptor opcional já funciona; classes locais gerais e `nil_aware` (união/`Any`) ficam no L6.
 
 `String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
-header), concatenação aloca na arena de 64 MiB e `len` devolve `cp_len` (code points).
-Igualdade é `memcmp`; `print` é um `fwrite`. Interpolação concatena as partes, convertendo
-escalares com `lox_str_from_int/double/bool` e `lox_str_nil`; `repr` cita e escapa com
-`lox_str_quote`.
+header), concatenação aloca no heap coletado (GC Boehm,
+[ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)) e `len` devolve `cp_len` (code
+points). Igualdade é `memcmp`; `print` é um `fwrite`. Interpolação concatena as partes,
+convertendo escalares com `lox_str_from_int/double/bool` e `lox_str_nil`; `repr` cita e
+escapa com `lox_str_quote`.
 
 `main` gerado devolve `0` no sucesso; sucesso/falha nunca é o valor de retorno de uma
-função do usuário. O `--emit=ll` é artefato de inspeção: o build emite object file com o
-mesmo LLVM que construiu o módulo e linka com `cc`, sem depender da versão do LLVM do
-sistema.
+função do usuário. Antes de emitir `.ll`, `.o` ou executável, o driver roda o verificador
+do LLVM (`mod.verify`); IR inválido vira `BackendError` (exit 65), nunca binário. O
+`--emit=ll` é artefato de inspeção: o build emite object file com o mesmo LLVM que
+construiu o módulo e linka com `cc`, sem depender da versão do LLVM do sistema.
 
 O teste diferencial (`tests/test_backend.py`) compila, executa e compara stdout, stderr e
 exit code com o interpretador — o oráculo é sempre o tree-walk.
@@ -411,7 +415,9 @@ exit code com o interpretador — o oráculo é sempre o tree-walk.
 - `Int` (i64) e `Float` (f64) separados; `/` sempre `Float`, `%` truncado, `Int` com
   wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
 - Recursão limitada pela pilha do Python (sem tail call).
-- Sem GC próprio: objetos são coletados pelo Python.
+- No tree-walk, sem GC próprio: objetos são coletados pelo Python. No backend, GC
+  Boehm conservador, hard cap de 128 MiB e I1 até 64 MiB de memória viva
+  ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)).
 - Sem bytecode/VM: o alvo é LLVM, e o tree-walk é o oráculo (ADR-0002).
 - `;` opcional é decidido no parser, não por inserção no scanner; operador no começo da
   linha não continua a expressão (ADR-0011).

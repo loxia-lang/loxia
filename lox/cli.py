@@ -1,10 +1,13 @@
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from lox import __version__
 from src.diagnostics.error_reporter import ErrorReporter
+from src.diagnostics.render import render_batch, render_json
+from src.diagnostics.source import SourceMap, display_path
 from src.execution.interpreter import Interpreter
 from src.frontend.ast_printer import AstPrinter
 from src.frontend.parser import Parser
@@ -16,16 +19,33 @@ from src.semantics.resolver import Resolver
 if TYPE_CHECKING:
     from src.backend.driver import Emit
 
+# Comandos de inspeção: o JSON vai para stdout (não há saída de programa). `build` e
+# `run` podem escrever IR/programa em stdout, então o JSON deles vai para stderr.
+JSON_ON_STDOUT = frozenset({"check"})
+
 
 class Lox:
-    def __init__(self, *, debug: bool = False) -> None:
-        self.reporter = ErrorReporter()
-        self.interpreter = Interpreter(
-            self.reporter, checked_overflow=debug
-        )
+    def __init__(
+        self,
+        *,
+        debug: bool = False,
+        error_format: str = "human",
+        color: str = "auto",
+        max_errors: int = 20,
+    ) -> None:
+        self.reporter = ErrorReporter(max_errors=max_errors)
+        self.interpreter = Interpreter(self.reporter, checked_overflow=debug)
+        self.error_format = error_format
+        self.color = color
+        self._sources = SourceMap()
+        self._file = "<stdin>"
+
+    # -- pipeline --------------------------------------------------------
 
     def _parse(self, source: str, *, repl: bool = False) -> list[Stmt] | None:
         self.reporter.reset()
+        self.reporter.file = self._file
+        self._sources.add(self._file, source)
 
         scanner = Scanner(source, self.reporter)
         tokens = scanner.scan_tokens()
@@ -45,41 +65,51 @@ class Lox:
 
         self.interpreter.interpret(statements)
 
+    # -- comandos --------------------------------------------------------
+
     def run(self, source: str) -> None:
         statements = self._parse(source)
         if statements is not None:
             self._execute(statements)
 
+        exit_code = self._exit_code()
+        self._flush("run", exit_code=exit_code)
+
     def run_repl(self, source: str) -> None:
+        self._file = "<repl>"
         statements = self._parse(source, repl=True)
         if statements is not None:
             self._execute(statements)
+
+        self._flush("repl", exit_code=self._exit_code())
 
     def dump_ast(self, source: str) -> None:
         statements = self._parse(source)
         if statements is not None:
             print(AstPrinter().print_program(statements))
 
+        self._flush("ast", exit_code=self._exit_code())
+
     def check(self, source: str) -> None:
         statements = self._parse(source)
-        if statements is None:
-            return
+        if statements is not None:
+            Resolver(self.interpreter, self.reporter).resolve(statements)
+            if not self.reporter.had_error:
+                Checker(self.reporter).check(statements)
 
-        Resolver(self.interpreter, self.reporter).resolve(statements)
-        if self.reporter.had_error:
-            return
-
-        Checker(self.reporter).check(statements)
+        self._flush("check", exit_code=self._exit_code(), always=True)
 
     def build(
         self, source: str, *, emit: str, output: Path | None, stem: str
     ) -> bool:
         statements = self._parse(source)
         if statements is None:
+            self._flush("build", exit_code=65, always=True)
             return False
 
         Resolver(self.interpreter, self.reporter).resolve(statements)
         if self.reporter.had_error:
+            self._flush("build", exit_code=65, always=True)
             return False
 
         # Erro que o interpretador só levantaria em runtime é rebaixável: não bloqueia
@@ -88,6 +118,7 @@ class Lox:
         checker = Checker(self.reporter)
         checker.check(statements)
         if self.reporter.had_fatal_error:
+            self._flush("build", exit_code=65, always=True)
             return False
 
         # Import tardio: `llvmlite` só é exigido quando o backend é usado.
@@ -105,11 +136,16 @@ class Lox:
                 generic_instances=checker.generic_fn_instances,
                 generic_classes=checker.concrete_class_types(),
                 generic_class_sites=checker.generic_class_sites,
+                source_path=self._file,
             )
         except BackendError as error:
-            self.reporter.backend_error(error.line, error.message)
+            self.reporter.backend_error(
+                error.line, error.message, code=error.code
+            )
+            self._flush("build", exit_code=65, always=True)
             return False
 
+        self._flush("build", exit_code=0, always=True)
         return True
 
     def run_file(
@@ -127,6 +163,8 @@ class Lox:
         except FileNotFoundError:
             print(f"Erro: Arquivo '{path}' não encontrado.", file=sys.stderr)
             sys.exit(66)
+
+        self._file = display_path(path)
 
         if dump_ast:
             self.dump_ast(source)
@@ -158,6 +196,48 @@ class Lox:
             except (KeyboardInterrupt, EOFError):
                 print("\nSaindo...")
                 break
+
+    # -- diagnóstico -----------------------------------------------------
+
+    def _exit_code(self) -> int:
+        if self.reporter.had_error:
+            return 65
+        if self.reporter.had_runtime_error:
+            return 70
+        return 0
+
+    def _flush(self, command: str, *, exit_code: int, always: bool = False) -> None:
+        batch = self.reporter.batch()
+        success = exit_code == 0
+
+        if self.error_format == "json":
+            if not batch and not always:
+                return
+            text = render_json(
+                batch, command=command, success=success, exit_code=exit_code
+            )
+            stream = sys.stdout if command in JSON_ON_STDOUT else sys.stderr
+            stream.write(text)
+            stream.flush()
+            return
+
+        if not batch:
+            return
+        text = render_batch(
+            batch,
+            self._sources,
+            error_format=self.error_format,
+            color=self._use_color(),
+        )
+        sys.stderr.write(text)
+        sys.stderr.flush()
+
+    def _use_color(self) -> bool:
+        if self.color == "always":
+            return True
+        if self.color == "never":
+            return False
+        return not os.environ.get("NO_COLOR") and sys.stderr.isatty()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -198,6 +278,25 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="checa overflow de Int em runtime (release faz wrapping)",
     )
+    parser.add_argument(
+        "--error-format",
+        choices=("human", "short", "json"),
+        default="human",
+        help="formato dos diagnósticos (human: trecho+caret; short: uma linha; json)",
+    )
+    parser.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="cor nos diagnósticos humanos (auto: só em TTY, respeita NO_COLOR)",
+    )
+    parser.add_argument(
+        "--max-errors",
+        type=int,
+        default=20,
+        metavar="N",
+        help="limite de diagnósticos por execução (0 = sem limite)",
+    )
     parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
     return parser
 
@@ -212,8 +311,15 @@ def main() -> None:
         parser.error("--dump-ast/--check/--emit requires a script")
     if parsed_args.output and not parsed_args.emit:
         parser.error("-o/--output requires --emit")
+    if parsed_args.max_errors < 0:
+        parser.error("--max-errors must be non-negative")
 
-    lox = Lox(debug=parsed_args.debug)
+    lox = Lox(
+        debug=parsed_args.debug,
+        error_format=parsed_args.error_format,
+        color=parsed_args.color,
+        max_errors=parsed_args.max_errors,
+    )
 
     if parsed_args.script:
         lox.run_file(

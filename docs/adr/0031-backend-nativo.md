@@ -1,6 +1,6 @@
 # ADR-0031 — Backend nativo: contrato de valor, runtime e corpus
 
-- **Status:** accepted (L0–L4 completos; L5–L7 pendentes)
+- **Status:** accepted (L0–L6 completos; L7 pendente)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md) (`Int`/`Float`),
@@ -85,6 +85,10 @@ cp_len` detecta ASCII sem campo extra — o fast path para indexação/slice fut
 Semântica de `s[i]`/slice fica congelada em *code points*, independente do layout.
 
 ### 7. Memória: arena com teto, Boehm depois
+
+> **Atualização (2026-11-14):** a arena foi substituída pelo GC Boehm no
+> [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md); `lox_alloc` continua sendo a
+> fronteira de troca. O hard cap é 128 MiB e o I1 cobre até 64 MiB de memória viva.
 
 `lox_alloc` é o único ponto de alocação: bump allocator sobre blocos, sem `free`, com
 teto configurável e `lox_panic` determinístico ao estourar (melhor que OOM killer). Trocar

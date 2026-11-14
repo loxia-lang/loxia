@@ -25,6 +25,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Call
 from src.frontend.stmt import Class, Function
 from src.frontend.ty import ClassTy, FnTy, Ty, TyVar, display
@@ -225,7 +226,10 @@ class GenericLowering(LoweringBase):
 
         binding = self._globals[layout.name]
         class_ptr = self._guard_closure(
-            self._load_binding(binding), layout.display, expr.paren.line
+            self._load_binding(binding),
+            layout.display,
+            expr.paren.line,
+            expr.paren.column,
         )
         arguments = [self._expr(argument) for argument in expr.arguments]
         init = layout.effective_init()
@@ -234,7 +238,9 @@ class GenericLowering(LoweringBase):
         count = len(arguments)
         if not minimum <= count <= maximum:
             self._poison(
-                expr.paren.line, self._arity_message(minimum, maximum, count)
+                expr.paren,
+                self._arity_message(minimum, maximum, count),
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero(ValueType.INSTANCE)
         if init is not None:
@@ -329,7 +335,9 @@ class GenericLowering(LoweringBase):
         count = len(arguments)
         if not minimum <= count <= maximum:
             self._poison(
-                expr.paren.line, self._arity_message(minimum, maximum, count)
+                expr.paren,
+                self._arity_message(minimum, maximum, count),
+                code=Code.RUNTIME_ARITY,
             )
             return self._zero_desc(info.fn_sig.ret)
 

@@ -1,5 +1,7 @@
 from collections.abc import Callable
 
+from src.diagnostics.codes import Code
+from src.diagnostics.diagnostic import Position
 from src.diagnostics.error_reporter import ErrorReporter
 from src.execution.numeric import INT_MAX
 from src.frontend.keywords import KEYWORDS
@@ -14,16 +16,46 @@ class Scanner:
         self._start: int = 0
         self._current: int = 0
         self._line: int = 1
+        self._column: int = 1
+        self._byte_offset: int = 0
+        self._start_line: int = 1
+        self._start_column: int = 1
+        self._start_offset: int = 0
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
 
     def scan_tokens(self) -> list[Token]:
 
         while not self._is_at_end():
-            self._start = self._current
+            self._begin_token()
             self._scan_token()
 
-        self._tokens.append(Token(TokenType.EOF, "", None, self._line))
+        self._tokens.append(
+            Token(
+                TokenType.EOF,
+                "",
+                None,
+                self._line,
+                self._column,
+                self._byte_offset,
+            )
+        )
         return self._tokens
+
+    def _begin_token(self) -> None:
+        """Marca o início do token atual (posição em code points e bytes)."""
+        self._start = self._current
+        self._start_line = self._line
+        self._start_column = self._column
+        self._start_offset = self._byte_offset
+
+    def _start_position(self) -> Position:
+        return Position(self._start_line, self._start_column, self._start_offset)
+
+    def _current_position(self) -> Position:
+        return Position(self._line, self._column, self._byte_offset)
+
+    def _error(self, start: Position, message: str, code: Code) -> None:
+        self.reporter.error_at(start, self._current_position(), message, code=code)
 
     def _scan_token(self) -> None:
         c = self._advance()
@@ -83,9 +115,10 @@ class Scanner:
                 self._add_token(TokenType.PERCENT)
             case "!":
                 if not self._match("="):
-                    self.reporter.error(
-                        self._line,
+                    self._error(
+                        self._start_position(),
                         "Unexpected character: ! (use 'not' for negation).",
+                        Code.UNEXPECTED_CHARACTER,
                     )
                     return
                 self._add_token(TokenType.NOT_EQUAL)
@@ -125,10 +158,10 @@ class Scanner:
                 else:
                     self._add_token(TokenType.SLASH)
             case " " | "\r" | "\t":
-                # Ignora espaços em branco
+                # Ignora espaços em branco (a posição é atualizada em `_advance`).
                 pass
             case "\n":
-                self._line += 1
+                pass
             case '"':
                 self._string()
             case "r" if self._peek() == '"':
@@ -139,7 +172,11 @@ class Scanner:
                 elif Scanner._is_alpha(c=c):
                     self._identifier()
                 else:
-                    self.reporter.error(self._line, f"Unexpected character: {c}")
+                    self._error(
+                        self._start_position(),
+                        f"Unexpected character: {c}",
+                        Code.UNEXPECTED_CHARACTER,
+                    )
 
     def _block_comment(self) -> None:
         depth = 1
@@ -154,12 +191,14 @@ class Scanner:
                 self._advance()
                 depth -= 1
             else:
-                if self._peek() == "\n":
-                    self._line += 1
                 self._advance()
 
         if depth > 0:
-            self.reporter.error(self._line, "Unterminated block comment.")
+            self._error(
+                self._start_position(),
+                "Unterminated block comment.",
+                Code.UNTERMINATED_COMMENT,
+            )
 
     def _is_at_end(self) -> bool:
         return self._current >= len(self._source)
@@ -167,11 +206,26 @@ class Scanner:
     def _advance(self) -> str:
         c = self._source[self._current]
         self._current += 1
+        self._byte_offset += len(c.encode("utf-8"))
+        if c == "\n":
+            self._line += 1
+            self._column = 1
+        else:
+            self._column += 1
         return c
 
     def _add_token(self, type: TokenType, literal: object = None) -> None:
         text = self._source[self._start : self._current]
-        self._tokens.append(Token(type, text, literal, self._line))
+        self._tokens.append(
+            Token(
+                type,
+                text,
+                literal,
+                self._start_line,
+                self._start_column,
+                self._start_offset,
+            )
+        )
 
     def _match(self, expected: str) -> bool:
         if self._is_at_end():
@@ -180,7 +234,7 @@ class Scanner:
         if self._source[self._current] != expected:
             return False
 
-        self._current += 1
+        self._advance()
         return True
 
     def _peek(self) -> str:
@@ -190,6 +244,7 @@ class Scanner:
 
     def _string(self, raw: bool = False) -> None:
         string_start = self._start
+        string_position = self._start_position()
         if raw:
             # O `r` já foi consumido; a aspa de abertura vem logo depois dele.
             self._advance()
@@ -221,25 +276,26 @@ class Scanner:
 
             if char == "\n":
                 if not triple:
-                    self.reporter.error(
-                        self._line,
+                    self._error(
+                        string_position,
                         "Unterminated string; multiline strings use '\"\"\"'.",
+                        Code.UNTERMINATED_STRING,
                     )
                     # Descarta o resto da linha para não gerar erros em cascata.
                     while not self._is_at_end() and self._peek() != "\n":
                         self._advance()
                     return
-                self._line += 1
                 value.append(self._advance())
                 continue
 
             if not raw and char == "$" and self._peek_next() == "{":
+                interpolation_start = self._current_position()
                 self._advance()
                 self._advance()
                 parts.append("".join(value))
                 value.clear()
 
-                expression = self._scan_expression_tokens()
+                expression = self._scan_expression_tokens(interpolation_start)
                 if expression is None:
                     return
 
@@ -252,14 +308,12 @@ class Scanner:
                 continue
 
             self._advance()
+            escape_start = self._current_position()
 
             if self._is_at_end():
                 break
 
             escape = self._advance()
-
-            if escape == "\n":
-                self._line += 1
 
             match escape:
                 case '"':
@@ -277,24 +331,33 @@ class Scanner:
                 case "$":
                     value.append("$")
                 case "u":
-                    self._unicode_escape(value)
+                    self._unicode_escape(value, escape_start)
                 case _:
-                    self.reporter.error(
-                        self._line, f"Unknown escape sequence '\\{escape}'."
+                    self._error(
+                        escape_start,
+                        f"Unknown escape sequence '\\{escape}'.",
+                        Code.INVALID_ESCAPE,
                     )
 
         if not closed:
-            self.reporter.error(self._line, "Unterminated string.")
+            self._error(
+                string_position,
+                "Unterminated string.",
+                Code.UNTERMINATED_STRING,
+            )
             return
 
         self._start = string_start
+        self._start_line = string_position.line
+        self._start_column = string_position.column or 1
+        self._start_offset = string_position.offset or 0
         if interpolated:
             parts.append("".join(value))
             self._add_token(TokenType.INTERPOLATED_STRING, parts)
         else:
             self._add_token(TokenType.STRING, "".join(value))
 
-    def _scan_expression_tokens(self) -> list[Token] | None:
+    def _scan_expression_tokens(self, start: Position) -> list[Token] | None:
         """Escaneia a expressão de `${...}` em um buffer próprio.
 
         O `}` de fechamento não entra nos tokens; chaves internas (mapa, bloco) são
@@ -313,7 +376,7 @@ class Scanner:
                     closed = True
                     break
 
-                self._start = self._current
+                self._begin_token()
                 before = len(self._tokens)
                 self._scan_token()
 
@@ -326,15 +389,24 @@ class Scanner:
             self._tokens = saved
 
         if not closed:
-            self.reporter.error(self._line, "Unterminated interpolation.")
+            self._error(start, "Unterminated interpolation.", Code.UNTERMINATED_INTERPOLATION)
             return None
 
-        tokens.append(Token(TokenType.EOF, "", None, self._line))
+        tokens.append(
+            Token(
+                TokenType.EOF,
+                "",
+                None,
+                self._line,
+                self._column,
+                self._byte_offset,
+            )
+        )
         return tokens
 
-    def _unicode_escape(self, value: list[str]) -> None:
+    def _unicode_escape(self, value: list[str], start: Position) -> None:
         if self._peek() != "{":
-            self.reporter.error(self._line, "Expect '{' after '\\u'.")
+            self._error(start, "Expect '{' after '\\u'.", Code.INVALID_UNICODE_ESCAPE)
             return
 
         self._advance()
@@ -343,10 +415,8 @@ class Scanner:
         while self._peek() != "}" and not self._is_at_end():
             char = self._advance()
             if char not in "0123456789abcdefABCDEF":
-                self.reporter.error(self._line, "Invalid Unicode escape.")
+                self._error(start, "Invalid Unicode escape.", Code.INVALID_UNICODE_ESCAPE)
                 while self._peek() not in ("}", "\0") and not self._is_at_end():
-                    if self._peek() == "\n":
-                        self._line += 1
                     self._advance()
                 if self._peek() == "}":
                     self._advance()
@@ -354,20 +424,20 @@ class Scanner:
             digits.append(char)
 
         if not digits or len(digits) > 6:
-            self.reporter.error(self._line, "Invalid Unicode escape.")
+            self._error(start, "Invalid Unicode escape.", Code.INVALID_UNICODE_ESCAPE)
             if self._peek() == "}":
                 self._advance()
             return
 
         if self._peek() != "}":
-            self.reporter.error(self._line, "Invalid Unicode escape.")
+            self._error(start, "Invalid Unicode escape.", Code.INVALID_UNICODE_ESCAPE)
             return
 
         self._advance()
         codepoint = int("".join(digits), 16)
 
         if codepoint > 0x10FFFF or 0xD800 <= codepoint <= 0xDFFF:
-            self.reporter.error(self._line, "Invalid Unicode escape.")
+            self._error(start, "Invalid Unicode escape.", Code.INVALID_UNICODE_ESCAPE)
             return
 
         value.append(chr(codepoint))
@@ -399,7 +469,11 @@ class Scanner:
 
         raw = self._source[self._start : self._current]
         if not Scanner._valid_separators(raw, Scanner._is_digit):
-            self.reporter.error(self._line, "Invalid number literal.")
+            self._error(
+                self._start_position(),
+                "Invalid number literal.",
+                Code.INVALID_NUMBER,
+            )
             return
 
         text = raw.replace("_", "")
@@ -409,7 +483,11 @@ class Scanner:
 
         value = int(text)
         if value > INT_MAX:
-            self.reporter.error(self._line, "Too large integer literal.")
+            self._error(
+                self._start_position(),
+                "Too large integer literal.",
+                Code.INVALID_NUMBER,
+            )
             return
 
         self._add_token(TokenType.NUMBER, value)
@@ -429,12 +507,20 @@ class Scanner:
         raw = self._source[digits_start : self._current]
 
         if not raw or not Scanner._valid_separators(raw, is_digit):
-            self.reporter.error(self._line, "Invalid number literal.")
+            self._error(
+                self._start_position(),
+                "Invalid number literal.",
+                Code.INVALID_NUMBER,
+            )
             return
 
         value = int(raw.replace("_", ""), base)
         if value > INT_MAX:
-            self.reporter.error(self._line, "Too large integer literal.")
+            self._error(
+                self._start_position(),
+                "Too large integer literal.",
+                Code.INVALID_NUMBER,
+            )
             return
 
         self._add_token(TokenType.NUMBER, value)

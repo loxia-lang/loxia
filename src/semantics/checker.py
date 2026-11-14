@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from src.diagnostics.codes import Code
 from src.diagnostics.error_reporter import ErrorReporter
 from src.execution.prelude import BUILTIN_NAMES
 from src.frontend.destructuring import (
@@ -299,12 +300,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     f"Type parameter can't be named '{token.lexeme}'.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
                 )
                 continue
             if token.lexeme in names:
                 self._error(
                     token,
                     f"Type parameter '{token.lexeme}' is already declared.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
                 )
                 continue
             names.append(token.lexeme)
@@ -393,7 +396,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _define(self, name: Token, ty: Ty) -> None:
         if len(self._scopes) == 1 and name.lexeme in BUILTIN_NAMES:
-            self._error(name, f"Can't redefine builtin '{name.lexeme}'.")
+            self._error(
+                name,
+                f"Can't redefine builtin '{name.lexeme}'.",
+                code=Code.RESERVED_NAME,
+            )
 
         self._scopes[-1][name.lexeme] = ty
         for key in [key for key in self._narrowings[-1] if key[0] == name.lexeme]:
@@ -415,7 +422,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return self._function_value_type(name.lexeme, predeclared)
 
             self._error(
-                name, f"Undefined variable '{name.lexeme}'.", lowerable=True
+                name,
+                f"Undefined variable '{name.lexeme}'.",
+                code=Code.UNDEFINED_NAME,
+                lowerable=True,
             )
             return ERROR
 
@@ -431,7 +441,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         found = self._find_decl(name.lexeme)
         if found is None:
             self._error(
-                name, f"Undefined variable '{name.lexeme}'.", lowerable=True
+                name,
+                f"Undefined variable '{name.lexeme}'.",
+                code=Code.UNDEFINED_NAME,
+                lowerable=True,
             )
             return ERROR
 
@@ -466,13 +479,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if found is not None:
                 self._narrowings[-1][key] = (found[0], ty)
 
-    def _error(self, token: Token, message: str, *, lowerable: bool = False) -> None:
+    def _error(
+        self,
+        token: Token,
+        message: str,
+        *,
+        code: Code = Code.SEMANTIC_ERROR,
+        lowerable: bool = False,
+    ) -> None:
         """Reporta erro de tipo.
 
         `lowerable=True` para os erros que o interpretador também levantaria em runtime
         (operandos de tipo errado): o backend os rebaixa a panic site (ADR-0031).
         """
-        self._reporter.error(token, message, lowerable=lowerable)
+        self._reporter.error(token, message, code=code, lowerable=lowerable)
 
     def _mismatch_message(self, expected: Ty, actual: Ty) -> str:
         if (
@@ -551,7 +571,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if actual is ERROR:
                 return ERROR
             if not self._assignable(expected, actual):
-                self._error(token, self._mismatch_message(expected, actual))
+                self._error(
+                token,
+                self._mismatch_message(expected, actual),
+                code=Code.TYPE_MISMATCH,
+            )
             return actual
 
         if isinstance(expr, ListLiteral):
@@ -580,6 +604,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         token,
                         f"Expected a tuple of {len(items)} elements, "
                         f"found {len(expr.elements)}.",
+                        code=Code.TYPE_MISMATCH,
                     )
                     return ERROR
 
@@ -602,7 +627,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self.types[expr] = actual
             self.storage_types[expr] = actual
             if not self._assignable(expected, actual):
-                self._error(token, self._mismatch_message(expected, actual))
+                self._error(
+                token,
+                self._mismatch_message(expected, actual),
+                code=Code.TYPE_MISMATCH,
+            )
                 return ERROR
 
             return actual
@@ -613,10 +642,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 f"Generic function '{actual.name}' can't be used as a value yet; "
                 "call it so its type arguments can be inferred.",
+                code=Code.GENERIC_INFERENCE,
             )
             return ERROR
         if not self._assignable(expected, actual):
-            self._error(token, self._mismatch_message(expected, actual))
+            self._error(
+                token,
+                self._mismatch_message(expected, actual),
+                code=Code.TYPE_MISMATCH,
+            )
 
         return actual
 
@@ -762,6 +796,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         token,
                         f"Type parameter '{ty.name}' can't take type arguments.",
+                        code=Code.TYPE_ARGUMENTS,
                     )
                     return ERROR
                 return parameter
@@ -774,6 +809,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                             token,
                             f"Enum '{ty.name}' needs "
                             f"{len(enum_info.type_params)} type argument(s).",
+                            code=Code.TYPE_ARGUMENTS,
                         )
                         return ERROR
                     if len(ty.args) != len(enum_info.type_params):
@@ -782,6 +818,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                             f"{ty.name} expects "
                             f"{len(enum_info.type_params)} type argument(s), "
                             f"got {len(ty.args)}.",
+                            code=Code.TYPE_ARGUMENTS,
                         )
                         return ERROR
                     args = tuple(
@@ -791,13 +828,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         return ERROR
                     return EnumTy(ty.name, args)
                 if ty.args:
-                    self._error(token, f"Enum '{ty.name}' isn't generic.")
+                    self._error(
+                        token,
+                        f"Enum '{ty.name}' isn't generic.",
+                        code=Code.TYPE_ARGUMENTS,
+                    )
                     return ERROR
                 return EnumTy(ty.name)
 
             info = self._classes.get(ty.name)
             if info is None:
-                self._error(token, f"Unknown type '{ty.name}'.")
+                self._error(
+                    token, f"Unknown type '{ty.name}'.", code=Code.UNKNOWN_TYPE
+                )
                 return ERROR
 
             if info.type_params:
@@ -807,6 +850,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         f"Class '{ty.name}' needs {len(info.type_params)} type "
                         "argument(s); annotate it as "
                         f"{ty.name}[...].",
+                        code=Code.TYPE_ARGUMENTS,
                     )
                     return ERROR
                 if len(ty.args) != len(info.type_params):
@@ -814,6 +858,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         token,
                         f"{ty.name} expects {len(info.type_params)} type "
                         f"argument(s), got {len(ty.args)}.",
+                        code=Code.TYPE_ARGUMENTS,
                     )
                     return ERROR
 
@@ -823,7 +868,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return ClassTy(ty.name, args)
 
             if ty.args:
-                self._error(token, f"Class '{ty.name}' isn't generic.")
+                self._error(
+                    token,
+                    f"Class '{ty.name}' isn't generic.",
+                    code=Code.TYPE_ARGUMENTS,
+                )
                 return ERROR
 
             return ty
@@ -833,7 +882,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             key = self._resolve_type(ty.key, token)
             value = self._resolve_type(ty.value, token)
             if not self._valid_map_key(key):
-                self._error(token, "Map keys must be String, Int or Bool.")
+                self._error(
+                    token,
+                    "Map keys must be String, Int or Bool.",
+                    code=Code.INVALID_MAP,
+                )
                 key = ERROR
             return MapTy(key, value)
         if isinstance(ty, TupleTy):
@@ -901,7 +954,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if ty is INT or ty is FLOAT:
             return ty
 
-        self._error(token, "Operands must be numbers.", lowerable=True)
+        self._error(
+            token,
+            "Operands must be numbers.",
+            code=Code.INVALID_OPERANDS,
+            lowerable=True,
+        )
         return ERROR
 
     def _promote(self, left: Ty, right: Ty) -> Ty:
@@ -923,7 +981,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:
         name = stmt.name.lexeme
         if name in BUILTIN_NAMES:
-            self._error(stmt.name, f"Can't redefine builtin '{name}'.")
+            self._error(
+                stmt.name,
+                f"Can't redefine builtin '{name}'.",
+                code=Code.RESERVED_NAME,
+            )
 
         info = self._enums.get(name)
         if info is None:
@@ -932,7 +994,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._enums[name] = info
 
         if len(self._scopes) > 1 or self._function_depth > 0:
-            self._error(stmt.name, "Enums must be declared at top level.")
+            self._error(
+                stmt.name,
+                "Enums must be declared at top level.",
+                code=Code.INVALID_CHECKER_DECLARATION,
+            )
 
         info.variants.clear()
         self._define(stmt.name, EnumObjectTy(name))
@@ -945,6 +1011,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         variant.name,
                         f"Variant '{variant_name}' is already declared.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
                     )
                     continue
                 seen.add(variant_name)
@@ -962,7 +1029,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_class_stmt(self, stmt: Class) -> None:
         name = stmt.name.lexeme
         if name in BUILTIN_NAMES:
-            self._error(stmt.name, f"Can't redefine builtin '{name}'.")
+            self._error(
+                stmt.name,
+                f"Can't redefine builtin '{name}'.",
+                code=Code.RESERVED_NAME,
+            )
 
         superclass_token = (
             stmt.superclass.name if stmt.superclass is not None else None
@@ -970,7 +1041,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         superclass = superclass_token.lexeme if superclass_token is not None else None
 
         if superclass_token is not None and superclass not in self._classes:
-            self._error(superclass_token, f"Unknown superclass '{superclass}'.")
+            self._error(
+                superclass_token,
+                f"Unknown superclass '{superclass}'.",
+                code=Code.UNKNOWN_TYPE,
+            )
 
         info = self._classes.get(name)
         if info is None:
@@ -993,6 +1068,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     superclass_token,
                     "Generic superclasses aren't supported yet; inherit from a "
                     "non-generic class.",
+                    code=Code.GENERIC_UNSUPPORTED,
                 )
 
         enclosing = self._current_class
@@ -1008,6 +1084,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         field_decl.name,
                         f"Field '{field_name}' conflicts with a method.",
+                        code=Code.INVALID_OVERRIDE,
                     )
 
                 if field_decl.type_annotation is not None:
@@ -1021,12 +1098,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                             field_decl.name,
                             f"Field '{field_decl.name.lexeme}' initialized with nil "
                             "needs a type annotation.",
+                            code=Code.MISSING_ANNOTATION,
                         )
                         field_ty = ANY
                 else:
                     self._error(
                         field_decl.name,
                         f"Field '{field_decl.name.lexeme}' needs a type annotation.",
+                        code=Code.MISSING_ANNOTATION,
                     )
                     field_ty = ANY
 
@@ -1045,6 +1124,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         method.name,
                         f"Method '{method.name.lexeme}' conflicts with a field.",
+                        code=Code.INVALID_OVERRIDE,
                     )
                 signature = self._signature(
                     method, is_init=is_init, allow_type_params=False
@@ -1086,6 +1166,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         f"Method '{name}' is incompatible with the superclass "
                         f"method: expected {display(superclass_signature)}, "
                         f"found {display(signature)}.",
+                        code=Code.INVALID_OVERRIDE,
                     )
 
     def _check_field_initialization(self, stmt: Class, info: ClassInfo) -> None:
@@ -1107,6 +1188,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         field.name,
                         f"Field '{field.name.lexeme}' must be initialized.",
+                        code=Code.MISSING_INITIALIZATION,
                     )
             return
 
@@ -1127,7 +1209,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         for field in stmt.fields:
             if field.name.lexeme in missing:
                 self._error(
-                    field.name, f"Field '{field.name.lexeme}' must be initialized."
+                    field.name,
+                    f"Field '{field.name.lexeme}' must be initialized.",
+                    code=Code.MISSING_INITIALIZATION,
                 )
 
     def _init_flow(
@@ -1226,7 +1310,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return union(*iterable.items)
 
         self._error(
-            token, "Can only iterate over a range, a list, a map or a string."
+            token,
+            "Can only iterate over a range, a list, a map or a string.",
+            code=Code.INVALID_ITERATION,
         )
         return ERROR
 
@@ -1256,7 +1342,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         if stmt.type_params and not allow_type_params:
             self._error(
-                stmt.type_params[0], "Generic methods aren't supported yet."
+                stmt.type_params[0],
+                "Generic methods aren't supported yet.",
+                code=Code.GENERIC_UNSUPPORTED,
             )
         elif stmt.type_params:
             variables, names = self._declare_type_params(stmt.type_params)
@@ -1273,6 +1361,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         param.name,
                         f"Parameter '{param.name.lexeme}' needs a type annotation.",
+                        code=Code.MISSING_ANNOTATION,
                     )
                     param_ty: Ty = ANY
                 else:
@@ -1288,7 +1377,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if is_init:
                 if stmt.return_type is not None:
                     self._error(
-                        stmt.name, "Initializer can't declare a return type."
+                        stmt.name,
+                        "Initializer can't declare a return type.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
                     )
                 assert self._current_class is not None
                 return_ty: Ty = ClassTy(
@@ -1298,6 +1389,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     stmt.name,
                     f"Function '{stmt.name.lexeme}' needs a return type annotation.",
+                    code=Code.MISSING_ANNOTATION,
                 )
                 return_ty = ANY
             else:
@@ -1379,6 +1471,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     stmt.name,
                     f"{kind} '{stmt.name.lexeme}' must return "
                     f"{display(signature.ret)} on all paths.",
+                    code=Code.RETURN_PATH,
                 )
 
             self._end_scope()
@@ -1437,6 +1530,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.operator,
                 f"Can't cast {display(source)} to {display(target)}.",
+                code=Code.INVALID_CAST,
             )
             return ERROR
         if target in (INT, FLOAT):
@@ -1454,6 +1548,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._error(
             expr.operator,
             f"Can't cast {display(source)} to {display(target)}.",
+            code=Code.INVALID_CAST,
         )
         return ERROR
 
@@ -1467,6 +1562,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     "as doesn't support type arguments on classes yet.",
+                    code=Code.INVALID_CAST,
                 )
             return
         if isinstance(ty, EnumTy):
@@ -1474,6 +1570,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     "as doesn't support type arguments on enums yet.",
+                    code=Code.INVALID_CAST,
                 )
             return
         if isinstance(ty, ListTy):
@@ -2405,7 +2502,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             and any(member is NIL for member in callee.members)
         )
         if nilable and not expr.optional:
-            self._error(expr.paren, "Can only call functions and classes.")
+            self._error(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.NOT_CALLABLE,
+            )
             return ERROR
         if callee is NIL:
             return NIL
@@ -2416,7 +2517,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if not members:
             return NIL
         if any(member != members[0] for member in members):
-            self._error(expr.paren, "Can only call functions and classes.")
+            self._error(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.NOT_CALLABLE,
+            )
             return ERROR
 
         callable_ty = members[0]
@@ -2425,7 +2530,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(callable_ty, ClassObjectTy):
             info = self._classes.get(callable_ty.name)
             if info is None:
-                self._error(expr.paren, f"Unknown class '{callable_ty.name}'.")
+                self._error(
+                    expr.paren,
+                    f"Unknown class '{callable_ty.name}'.",
+                    code=Code.UNKNOWN_TYPE,
+                )
                 return ERROR
 
             signature = self._initializer(info) or FnTy(
@@ -2439,7 +2548,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif isinstance(callable_ty, NativeFnTy):
             result = self._call_native(callable_ty, expr, arguments)
         else:
-            self._error(expr.paren, "Can only call functions and classes.")
+            self._error(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.NOT_CALLABLE,
+            )
             return ERROR
 
         return union(result, NIL) if expr.optional and nilable else result
@@ -2450,7 +2563,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if callee.name == "len":
             if len(arguments) != 1:
                 self._error(
-                    expr.paren, f"Expected 1 arguments but got {len(arguments)}."
+                    expr.paren,
+                    f"Expected 1 arguments but got {len(arguments)}.",
+                    code=Code.ARITY_MISMATCH,
                 )
                 return ERROR
 
@@ -2459,6 +2574,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.paren,
                     f"Expected a string, a list or a map, found {display(argument)}.",
+                    code=Code.INVALID_OPERANDS,
                 )
                 return ERROR
 
@@ -2467,7 +2583,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if callee.name == "chars":
             if len(arguments) != 1:
                 self._error(
-                    expr.paren, f"Expected 1 arguments but got {len(arguments)}."
+                    expr.paren,
+                    f"Expected 1 arguments but got {len(arguments)}.",
+                    code=Code.ARITY_MISMATCH,
                 )
                 return ERROR
 
@@ -2478,6 +2596,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.paren,
                     f"chars() expects a string, found {display(argument)}.",
+                    code=Code.INVALID_OPERANDS,
                 )
                 return ERROR
 
@@ -2486,7 +2605,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if callee.name in {"str", "repr"}:
             if len(arguments) != 1:
                 self._error(
-                    expr.paren, f"Expected 1 arguments but got {len(arguments)}."
+                    expr.paren,
+                    f"Expected 1 arguments but got {len(arguments)}.",
+                    code=Code.ARITY_MISMATCH,
                 )
                 return ERROR
 
@@ -2498,7 +2619,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if callee.name.startswith("math."):
             return self._call_math(callee.name, expr, arguments)
 
-        self._error(expr.paren, "Can only call functions and classes.")
+        self._error(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.NOT_CALLABLE,
+            )
         return ERROR
 
     def _call_math(
@@ -2512,6 +2637,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.paren,
                 f"Expected {expected} arguments but got {len(arguments)}.",
+                code=Code.ARITY_MISMATCH,
             )
             return ERROR
 
@@ -2522,7 +2648,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if name in {"math.min", "math.max", "math.clamp"}:
             return self._math_numeric_result(name, arguments, expr.paren)
 
-        self._error(expr.paren, "Can only call functions and classes.")
+        self._error(
+                expr.paren,
+                "Can only call functions and classes.",
+                code=Code.NOT_CALLABLE,
+            )
         return ERROR
 
     def _math_numeric_result(
@@ -2533,7 +2663,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 continue
             if argument is INT or argument is FLOAT:
                 continue
-            self._error(token, f"{name}() expects numbers.")
+            self._error(
+                token, f"{name}() expects numbers.", code=Code.MATH_ARGUMENT
+            )
             return ERROR
 
         if any(argument is FLOAT for argument in arguments):
@@ -2566,7 +2698,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 message = f"Expected at least {minimum} arguments but got {count}."
             else:
                 message = f"Expected {minimum} to {maximum} arguments but got {count}."
-            self._error(token, message, lowerable=True)
+            self._error(
+                token, message, code=Code.ARITY_MISMATCH, lowerable=True
+            )
             return
 
         for index, (argument, param) in enumerate(
@@ -2647,7 +2781,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 message = (
                     f"Expected {minimum} to {maximum} arguments but got {count}."
                 )
-            self._error(token, message)
+            self._error(token, message, code=Code.ARITY_MISMATCH)
             return ERROR
 
         for index, argument in enumerate(expr.arguments):
@@ -2670,6 +2804,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 f"Can't infer type argument(s) {names} for '{info.name}'; "
                 "annotate the value.",
+                code=Code.GENERIC_INFERENCE,
             )
             return ERROR
 
@@ -2704,7 +2839,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 message = (
                     f"Expected {minimum} to {maximum} arguments but got {count}."
                 )
-            self._error(token, message)
+            self._error(token, message, code=Code.ARITY_MISMATCH)
             return ERROR
 
         for index, argument in enumerate(expr.arguments):
@@ -2724,7 +2859,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         unbound = self._unbound_type_vars(result, instance.type_params)
         if unbound:
             names = ", ".join(f"'{variable.name}'" for variable in unbound)
-            self._error(token, f"Can't infer type argument(s) {names}.")
+            self._error(
+                token,
+                f"Can't infer type argument(s) {names}.",
+                code=Code.GENERIC_INFERENCE,
+            )
             return ERROR
 
         self._check_polymorphic_recursion(instance, bindings, token)
@@ -2832,6 +2971,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             token,
             f"Generic function '{name}' can't be used as a value yet; "
             "call it so its type arguments can be inferred.",
+            code=Code.GENERIC_INFERENCE,
         )
         return ERROR
 
@@ -2954,12 +3094,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     f"Can't infer type argument '{expected.name}' from Any.",
+                    code=Code.GENERIC_INFERENCE,
                 )
                 return False
             if self._occurs(expected, actual, bindings):
                 self._error(
                     token,
                     f"Recursive type inferred for '{expected.name}'.",
+                    code=Code.GENERIC_INFERENCE,
                 )
                 return False
             bindings[expected] = actual
@@ -3187,7 +3329,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             member = self._native_modules.get(obj.name, {}).get(name.lexeme)
             if member is None:
                 self._error(
-                    name, f"Undefined property '{name.lexeme}'."
+                    name,
+                    f"Undefined property '{name.lexeme}'.",
+                    code=Code.UNDEFINED_NAME,
                 )
                 return ERROR
             return member
@@ -3236,7 +3380,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _list_property(self, lists: list[ListTy], name: Token) -> Ty:
         element = lists[0].element
         if any(item.element != element for item in lists[1:]):
-            self._error(name, "List method requires a single element type.")
+            self._error(
+                name,
+                "List method requires a single element type.",
+                code=Code.INVALID_LIST,
+            )
             return ERROR
 
         if name.lexeme == "push":
@@ -3251,7 +3399,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         key = maps[0].key
         value = maps[0].value
         if any(item.key != key or item.value != value for item in maps[1:]):
-            self._error(name, "Map method requires a single key/value type.")
+            self._error(
+                name,
+                "Map method requires a single key/value type.",
+                code=Code.INVALID_MAP,
+            )
             return ERROR
 
         if name.lexeme == "get":
@@ -3321,6 +3473,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 expr.bracket,
                 "Can't infer the element type of an empty list; "
                 "annotate it as List[T].",
+                code=Code.INVALID_LIST,
             )
             return ListTy(ERROR)
 
@@ -3344,6 +3497,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 "List elements must have a common type; annotate the list as "
                 "List[A | B] to allow mixed elements.",
+                code=Code.INVALID_LIST,
             )
             return ERROR
         if self._assignable(left, right):
@@ -3356,6 +3510,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             "List elements must have a common type; found "
             f"{display(left)} and {display(right)}. Annotate as "
             f"List[{display(left)} | {display(right)}] to allow mixed elements.",
+            code=Code.INVALID_LIST,
         )
         return ERROR
 
@@ -3399,6 +3554,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 "Map keys must have a common type; annotate the map as "
                 "Map[K, V] to allow mixed keys.",
+                code=Code.INVALID_MAP,
             )
             return ERROR
         if self._assignable(left, right):
@@ -3411,6 +3567,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             "Map keys must have a common type; found "
             f"{display(left)} and {display(right)}. Annotate as "
             f"Map[{display(left)} | {display(right)}, V] to allow mixed keys.",
+            code=Code.INVALID_MAP,
         )
         return ERROR
 
@@ -3428,6 +3585,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 "Map values must have a common type; annotate the map as "
                 "Map[K, V] to allow mixed values.",
+                code=Code.INVALID_MAP,
             )
             return ERROR
         if self._assignable(left, right):
@@ -3440,6 +3598,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             "Map values must have a common type; found "
             f"{display(left)} and {display(right)}. Annotate as "
             f"Map[K, {display(left)} | {display(right)}] to allow mixed values.",
+            code=Code.INVALID_MAP,
         )
         return ERROR
 
@@ -3448,6 +3607,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.bracket,
                 f"Tuple index must be an integer, found {display(index)}.",
+                code=Code.INVALID_LIST,
             )
             return ERROR
 
@@ -3738,6 +3898,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._error(
             expr.bracket,
             f"List index must be an integer, found {display(index)}.",
+            code=Code.INVALID_LIST,
         )
 
     def visit_conditional_expr(self, expr: Conditional) -> Ty:
@@ -3805,7 +3966,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         field_info = self._find_field(obj.name, expr.name.lexeme)
         if field_info is None:
             self._infer(expr.value)
-            self._error(expr.name, f"Undefined field '{expr.name.lexeme}'.")
+            self._error(
+                expr.name,
+                f"Undefined field '{expr.name.lexeme}'.",
+                code=Code.UNDEFINED_NAME,
+            )
             return ANY
 
         value = self._check(
@@ -3836,7 +4001,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._current_class.superclass, expr.method.lexeme
         )
         if method is None:
-            self._error(expr.method, f"Undefined property '{expr.method.lexeme}'.")
+            self._error(
+                expr.method,
+                f"Undefined property '{expr.method.lexeme}'.",
+                code=Code.UNDEFINED_NAME,
+            )
             return ERROR
 
         return method

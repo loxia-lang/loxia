@@ -24,7 +24,7 @@ testpaths = ["tests"]
 addopts = "-q --strict-markers"
 markers = [
     "bench: benchmarks lentos, não rodam na suíte padrão",
-    "backend: compila e executa binários nativos (precisa de llvmlite e de um cc)",
+    "backend: compila e executa binários nativos (precisa de llvmlite, cc e libgc)",
 ]
 
 [tool.ruff]

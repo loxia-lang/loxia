@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 
+from src.diagnostics.codes import Code
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.errors import immutable_assignment_message
 from src.execution.interpreter import Interpreter
@@ -110,7 +111,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         scope = self._scopes[-1]
         if name.lexeme in scope:
-            self._reporter.error(name, "Already a variable with this name in this scope.")
+            self._reporter.error(
+                name,
+                "Already a variable with this name in this scope.",
+                code=Code.DUPLICATE_VARIABLE,
+            )
 
         scope[name.lexeme] = _VariableInfo(defined=False, mutable=mutable)
 
@@ -164,7 +169,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             and stmt.name.lexeme == stmt.superclass.name.lexeme
         ):
             self._reporter.error(
-                stmt.superclass.name, "A class can't inherit from itself."
+                stmt.superclass.name,
+                "A class can't inherit from itself.",
+                code=Code.INVALID_INHERITANCE,
             )
 
         if stmt.superclass is not None:
@@ -184,12 +191,15 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         for field in stmt.fields:
             if field.name.lexeme in fields:
                 self._reporter.error(
-                    field.name, f"Field '{field.name.lexeme}' already declared."
+                    field.name,
+                    f"Field '{field.name.lexeme}' already declared.",
+                    code=Code.FIELD_CONFLICT,
                 )
             if field.name.lexeme in method_names:
                 self._reporter.error(
                     field.name,
                     f"Field '{field.name.lexeme}' conflicts with a method.",
+                    code=Code.FIELD_CONFLICT,
                 )
 
             fields[field.name.lexeme] = field.mutable
@@ -249,12 +259,18 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_return_stmt(self, stmt: Return) -> None:
         if self._current_function is FunctionType.NONE:
-            self._reporter.error(stmt.keyword, "Can't return from top-level code.")
+            self._reporter.error(
+                stmt.keyword,
+                "Can't return from top-level code.",
+                code=Code.INVALID_RETURN,
+            )
 
         if stmt.value is not None:
             if self._current_function is FunctionType.INITIALIZER:
                 self._reporter.error(
-                    stmt.keyword, "Can't return a value from an initializer."
+                    stmt.keyword,
+                    "Can't return a value from an initializer.",
+                    code=Code.INVALID_RETURN,
                 )
 
             self._resolve_expr(stmt.value)
@@ -328,7 +344,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         info = self._resolve_local(expr, expr.name)
         if info is not None and not info.mutable:
             self._reporter.error(
-                expr.name, immutable_assignment_message(expr.name.lexeme)
+                expr.name,
+                immutable_assignment_message(expr.name.lexeme),
+                code=Code.IMMUTABLE_ASSIGNMENT,
             )
 
     def visit_binary_expr(self, expr: Binary) -> None:
@@ -408,23 +426,32 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._reporter.error(
                 expr.name,
                 f"Can't assign to immutable field '{expr.name.lexeme}'.",
+                code=Code.IMMUTABLE_FIELD,
             )
 
     def visit_super_expr(self, expr: Super) -> None:
         if self._current_class is ClassType.NONE:
             self._reporter.error(
-                expr.keyword, "Can't use 'super' outside of a class."
+                expr.keyword,
+                "Can't use 'super' outside of a class.",
+                code=Code.INVALID_SUPER,
             )
         elif self._current_class is not ClassType.SUBCLASS:
             self._reporter.error(
-                expr.keyword, "Can't use 'super' in a class with no superclass."
+                expr.keyword,
+                "Can't use 'super' in a class with no superclass.",
+                code=Code.INVALID_SUPER,
             )
 
         self._resolve_local(expr, expr.keyword)
 
     def visit_this_expr(self, expr: This) -> None:
         if self._current_class is ClassType.NONE:
-            self._reporter.error(expr.keyword, "Can't use 'this' outside of a class.")
+            self._reporter.error(
+                expr.keyword,
+                "Can't use 'this' outside of a class.",
+                code=Code.INVALID_THIS,
+            )
             return
 
         self._resolve_local(expr, expr.keyword)
@@ -437,7 +464,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             info = self._scopes[-1].get(expr.name.lexeme)
             if info is not None and not info.defined:
                 self._reporter.error(
-                    expr.name, "Can't read local variable in its own initializer."
+                    expr.name,
+                    "Can't read local variable in its own initializer.",
+                    code=Code.SELF_REFERENCE,
                 )
 
         self._resolve_local(expr, expr.name)

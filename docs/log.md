@@ -123,3 +123,60 @@ Intervalo: `HEAD..working tree` (planejamento; nenhum código tocado).
   a tabela, os imports e o inventário de batteries.
 - Sem mudança em `src/`, `runtime/` ou `docs/spec/`: 0071/0072 são plano; a spec só muda
   quando a implementação começar.
+
+## 2026-11-14 — GC Boehm (ADR-0074) e gate `mod.verify`
+
+Intervalo: `HEAD..working tree` (decisão registrada e GC implementado).
+
+- `docs/adr/0074-gc-boehm-e-contrato-de-memoria.md` — **novo**: Boehm, hard cap de 128 MiB,
+  I1 até 64 MiB de memória viva, OOM com ponto não determinístico, kernel depois do GC e
+  `mod.verify()` como gate; alternativas (conservador próprio, híbrido, shadow stack,
+  statepoints, RC, arena) registradas.
+- `docs/adr/0060-orcamento-de-memoria.md` — **superseded**: status e nota para o ADR-0074;
+  o corpo fica como histórico.
+- `docs/adr/0031-backend-nativo.md`, `docs/adr/0046-closures-celulas-l4.md` — **updated**:
+  notas de atualização da arena para o Boehm e status L0–L6.
+- `docs/adr/0071-primitivas-de-runtime.md` — **updated**: `cp_offsets` vai para o heap
+  coletado; literais estáticos precisam de root/cache não coletável.
+- `docs/adr/README.md`, `docs/decisoes.md` — **updated**: índice (0074, 0060 superseded) e
+  linhas de memória/verificação de IR.
+- `docs/spec/garantias.md` — **updated**: seção de memória agora descreve o GC Boehm
+  implementado (hard cap 128 MiB, I1 até 64 MiB live, OOM sem ponto determinístico) e o
+  limite de "programas acima do orçamento"; o bloco de níveis não mudou (nenhum caso novo).
+- `TODO.md` — **updated**: §0/§0.1/§0.2 (L6 fechado, `mod.verify` e GC feitos), §9
+  (M6 ✅, M7 com GC implementado e bench/corpus completo pendentes), §13.3/§13.7 (GC antes
+  do kernel).
+- `README.md`, `ESCOPO.md`, `docs/tech/arquitetura.md` — **updated**: status L0–L6,
+  dependência de `libgc` para `--emit=exe`, contrato de memória, GC e `mod.verify`.
+- `AGENTS.md` — **updated** (local): contrato de memória, status do backend e regra de não
+  aumentar o cap.
+- `src/backend/llvm_ir.py`, `src/backend/driver.py` — **updated**: `LLVMVerificationError`,
+  `verify`/`verify_text`, `_verify` no driver e link `-lgc` com dica de instalação;
+  `tests/test_ir_verify.py` **novo**.
+- `runtime/runtime.c` — **updated**: arena substituída por `GC_malloc`/`GC_MALLOC_ATOMIC`,
+  `GC_INIT`, hard cap de 128 MiB, OOM handler e supressão dos warnings do Boehm.
+- `tests/test_backend.py` — **updated**: teste de reciclagem (80 MiB de lixo), roots
+  (globais, classe, closure, containers, ciclo), `try`/`except` com GC e hard cap de
+  memória; o helper de float linka `-lgc`.
+- `.github/workflows/ci.yml`, `pyproject.toml` — **updated**: `libgc-dev` no runner e
+  marcador `backend` mencionando a dependência.
+- `CHANGELOG.md` — **updated**: GC e gate de verificação.
+
+## 2026-11-14 — diagnósticos estruturados (ADR-0075)
+
+Intervalo: `HEAD..HEAD` (diagnósticos; sem commit anterior para comparar no log).
+
+- `docs/spec/erros.md` — **updated**: formato `arquivo:linha:col: error[CODIGO]`, envelope
+  JSON v1, tabela de códigos por fase, determinismo e o que ainda falta.
+- `docs/spec/semantica.md` — **updated**: referência morta ao `TODO.md` §3.1 trocada pelo
+  ADR-0075 (mensagem de erro de runtime).
+- `docs/adr/0003-diagnosticos-por-execucao.md` — **no-change** de conteúdo; só o link
+  `Relacionados` passou a apontar para o ADR-0075.
+- `IDEIAS.md` — **updated**: I-4 teve a parte de erros estruturados movida para o ADR-0075;
+  sobrou a discussão de contratos (DbC).
+- `TODO.md` — **updated**: §3 restaurada com o que falta em diagnósticos (o §3.1 antigo
+  tinha sido removido do arquivo; o texto sobrevive no histórico do git).
+- `README.md` — **updated**: flags `--error-format`, `--color`, `--max-errors` e exemplos.
+- `docs/spec/erros.md`, `docs/spec/semantica.md`, `docs/decisoes.md`, `CHANGELOG.md` —
+  **updated** na fase 2: o erro de runtime passou a usar o mesmo cabeçalho do diagnóstico
+  de compilação, com `lox_panic(line, column, code, message)` no runtime C.

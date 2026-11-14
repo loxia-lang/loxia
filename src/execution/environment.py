@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.diagnostics.codes import Code
 from src.diagnostics.errors import LoxRuntimeError, immutable_assignment_message
 from src.frontend.tokens import Token
 
@@ -24,12 +25,20 @@ class Environment:
         if self.enclosing is not None:
             return self.enclosing.get(name)
 
-        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+        raise LoxRuntimeError(
+                name,
+                f"Undefined variable '{name.lexeme}'.",
+                code=Code.UNDEFINED_VARIABLE,
+            )
 
     def assign(self, name: Token, value: object) -> None:
         if name.lexeme in self.values:
             if not self.is_mutable(name.lexeme):
-                raise LoxRuntimeError(name, immutable_assignment_message(name.lexeme))
+                raise LoxRuntimeError(
+                    name,
+                    immutable_assignment_message(name.lexeme),
+                    code=Code.RUNTIME_IMMUTABLE,
+                )
 
             self.values[name.lexeme] = value
             return
@@ -38,7 +47,11 @@ class Environment:
             self.enclosing.assign(name, value)
             return
 
-        raise LoxRuntimeError(name, f"Undefined variable '{name.lexeme}'.")
+        raise LoxRuntimeError(
+                name,
+                f"Undefined variable '{name.lexeme}'.",
+                code=Code.UNDEFINED_VARIABLE,
+            )
 
     def get_at(self, distance: int, name: str) -> object:
         return self.ancestor(distance).values[name]
@@ -46,7 +59,11 @@ class Environment:
     def assign_at(self, distance: int, name: Token, value: object) -> None:
         target = self.ancestor(distance)
         if not target.is_mutable(name.lexeme):
-            raise LoxRuntimeError(name, immutable_assignment_message(name.lexeme))
+            raise LoxRuntimeError(
+                    name,
+                    immutable_assignment_message(name.lexeme),
+                    code=Code.RUNTIME_IMMUTABLE,
+                )
 
         target.values[name.lexeme] = value
 

@@ -1,6 +1,6 @@
 # ADR-0060 — Orçamento de memória faz parte do contrato (arena de 64 MiB)
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md),
@@ -9,6 +9,11 @@
 - **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c) (`LOX_HEAP_BYTES`,
   `lox_alloc`), [`tests/test_backend.py`](../../tests/test_backend.py)
   (`test_orcamento_de_memoria_...`)
+
+> **Substituído em 2026-11-14:** a arena de 64 MiB foi trocada pelo GC Boehm. O novo
+> contrato é hard cap de 128 MiB e I1 até 64 MiB de memória viva
+> ([ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md)). O texto abaixo fica como
+> histórico da decisão que valeu até o M7.
 
 ## Contexto
 

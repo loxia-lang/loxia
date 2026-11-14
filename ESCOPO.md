@@ -23,9 +23,10 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 | [`IDEIAS.md`](IDEIAS.md) | ideias ainda em avaliação (pós-1.0) |
 
 **Hoje:** a linguagem 1.0 está implementada no tree-walk e o backend nativo cobre
-**L0–L5 + T7 + L6a–L6h** — o L6 restante (enums/`match`/`Result`, exceções e função
-genérica como valor) está em `PENDING` no manifesto. O **M5 fechou**; a ordem oficial é a
-fila única do [`TODO.md`](TODO.md) §0.
+**L0–L6 + T7**; o corpus declarado compila e concorda. O **M5 fechou**, o **M6 fechou** e o
+**M7 (GC Boehm)** foi implementado conforme o
+[ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md). A ordem oficial é a fila
+única do [`TODO.md`](TODO.md) §0.
 
 ## Status da entrega
 
@@ -34,7 +35,8 @@ fila única do [`TODO.md`](TODO.md) §0.
 | Escopo/linguagem 1.0 | ✅ congelado e implementado |
 | Runtime tree-walk | ✅ |
 | Suíte e docs | ✅ `make check` verde (pytest, ruff, mypy strict) |
-| Backend nativo | 🟡 pós-1.0: L0–L5 + T7 + L6a–L6h entregues (escalares, strings/arena, optionais, funções/closures, classes/herança, monomorfização, `Range`/`for-in`, listas, mapas, tuplas, `Any`, `math`/parse); L6 restante em `PENDING` |
+| Backend nativo | ✅ pós-1.0: L0–L6 + T7 entregues (escalares, strings/GC Boehm, optionais, funções/closures, classes/herança, monomorfização, `Range`/`for-in`, listas, mapas, tuplas, `Any`, `math`/parse, enums, exceções) |
+| M7 — GC Boehm | ✅ implementado ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)) |
 | **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 
 **Nenhuma feature de linguagem da 1.0 está pendente.** A release local está preparada;
@@ -79,6 +81,8 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | --- | --- | --- |
 | Backend LLVM L0–L4 + L2.5 + L5a/L5b | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
 | M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | ✅ feito | T6a/T6c fechados; L4 liberado (TODO §9); traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| M6 — backend L0–L6 + T7 | ✅ feito | corpus declarado compila e concorda; L7 é qualidade |
+| M7 — GC Boehm + contrato de memória | ✅ feito | [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md); hard cap 128 MiB, I1 até 64 MiB live |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
 | Tuplas | ✅ feito | implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)); `for-in`/`is` e backend L6 pendentes |
 | Classes genéricas | ✅ feito | MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos/herança genérica pós-MVP |
