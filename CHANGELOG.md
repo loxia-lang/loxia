@@ -205,6 +205,16 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - `pyproject.toml`: extra `llvm` (`llvmlite>=0.50`); o interpretador continua sem
   dependências.
 
+### Corrigido
+
+- **`Any as T` checa a tag no backend**: um `Any` com tipo errado agora vira `R1011`
+  (`Can't cast value to T.`) como no tree-walk, em vez de reinterpretar o payload;
+  `Int`/`Float` mantêm a promoção numérica. Regressão em `tests/test_backend.py`.
+- **Exceções sintéticas com mensagem**: `Exception("x")`/`LoxRuntimeError("x")`
+  constroem a instância com `message` (aridade 1), como no tree-walk.
+- **Exceção de usuário não capturada**: o binário imprime `Tipo: mensagem`
+  (`Unhandled exception: MyError: falhou`), igual ao `stringify` do interpretador.
+
 ## [1.0.0] — 2026-11-12
 
 **1.0.0 é a versão de referência da linguagem no tree-walk.** Não há backend nativo

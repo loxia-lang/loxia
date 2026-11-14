@@ -41,9 +41,10 @@ class ExceptionLowering(LoweringBase):
             [],
             None,
             instance_type=instance_type,
+            synthetic_exception=True,
         )
         exception.ctor = llvm_ir.declare(
-            self.module, "lox.ctor.Exception", _I8_PTR, []
+            self.module, "lox.ctor.Exception", _I8_PTR, [_I8_PTR]
         )
         runtime_error = ClassLayout(
             "LoxRuntimeError",
@@ -54,9 +55,10 @@ class ExceptionLowering(LoweringBase):
             super_name="Exception",
             super_layout=exception,
             instance_type=instance_type,
+            synthetic_exception=True,
         )
         runtime_error.ctor = llvm_ir.declare(
-            self.module, "lox.ctor.LoxRuntimeError", _I8_PTR, []
+            self.module, "lox.ctor.LoxRuntimeError", _I8_PTR, [_I8_PTR]
         )
         for layout in (exception, runtime_error):
             self._classes[layout.name] = layout
@@ -94,6 +96,16 @@ class ExceptionLowering(LoweringBase):
             return
         layout = self._classes.get(value.class_name or "")
         type_name = layout.display if layout is not None else "Exception"
+        message = llvm_ir.null_pointer()
+        if layout is not None:
+            field = layout.field("message")
+            if field is not None:
+                raw = self.builder.load(self._field_slot(value, field))
+                string = self.builder.inttoptr(raw, _I8_PTR)
+                message = self.builder.call(
+                    self._function("lox_str_data", _I8_PTR, [_I8_PTR]),
+                    [string],
+                )
         self.builder.call(
             self._function(
                 "lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32, _I32]
@@ -101,7 +113,7 @@ class ExceptionLowering(LoweringBase):
             [
                 value.llvm,
                 self._cstring_pointer(type_name),
-                llvm_ir.null_pointer(),
+                message,
                 llvm_ir.constant(_I32, line),
                 llvm_ir.constant(_I32, column),
             ],

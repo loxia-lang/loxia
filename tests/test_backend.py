@@ -224,7 +224,23 @@ CASES = [
         "return fn() -> Int? { x = 5; return x; }; } print make()();",
         "closure captura T? e retorna T?",
     ),
-
+    (
+        'val x: Any = 3; print x as Int; val y: Any = 3; print y as Float;',
+        "Any as Int/Float com promoção",
+    ),
+    (
+        'val x: Any = "a"; print x as Int;',
+        "Any as Int com tag errada vira panic R1011",
+    ),
+    (
+        'raise LoxRuntimeError("boom");',
+        "raise na classe de exceção sintética com mensagem",
+    ),
+    (
+        'class MyError(Exception) { init(msg: String) { this.message = msg } } '
+        'raise MyError("falhou");',
+        "exceção de usuário não capturada com a mensagem",
+    ),
 ]
 
 

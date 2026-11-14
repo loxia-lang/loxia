@@ -191,17 +191,14 @@ async.
 ### 9.1 Divergências I1 conhecidas (fora do corpus)
 
 Achadas ao implementar o cabeçalho de runtime do [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md).
-Nenhuma está no corpus declarado; entram quando virarem caso diferencial.
+As três primeiras foram corrigidas em `tests/test_backend.py` (`Any as T` checa a tag,
+`Exception("x")`/`LoxRuntimeError("x")` têm aridade 1 e a exceção não capturada imprime
+`Tipo: mensagem`). Ainda em aberto:
 
-- [ ] **`Any as T` não checa a tag no lowering**: `_unbox_any` extrai o payload direto, então
-      `val x: Any = "a"; print x as Int` imprime lixo no binário (exit 0) em vez de panicar;
-      o tree-walk levanta `R1011`. `tests/cases/any_casts.lox` só cobre casts válidos.
-- [ ] **Exceção de usuário não capturada**: o binário imprime `MyError` sem a mensagem
-      (`lox_throw` recebe `NULL` em `lower_exceptions.py`); o tree-walk imprime
-      `MyError: falhou`. O corpus `exceptions.lox` só captura.
-- [ ] **Classes de exceção sintéticas**: o tree-walk aceita `Exception("x")`/
-      `LoxRuntimeError("x")` (aridade 1, campo `message`); o backend declara os construtores
-      com aridade 0 e recusa a chamada com `R1005`.
+- [ ] **`is/as List[T]`/`Map[K,V]` checam só a tag no backend**: o tree-walk percorre os
+      elementos (`matches_type`), então `val x: Any = ["a"]; print x as List[Int]` erra no
+      interpretador e passa no binário. Fora do corpus; exige uma checagem recursiva no
+      runtime (ou rebaixar para `E4001` quando o argumento não for concreto).
 
 
 ---

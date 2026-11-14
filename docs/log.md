@@ -180,3 +180,5 @@ Intervalo: `HEAD..HEAD` (diagnósticos; sem commit anterior para comparar no log
 - `docs/spec/erros.md`, `docs/spec/semantica.md`, `docs/decisoes.md`, `CHANGELOG.md` —
   **updated** na fase 2: o erro de runtime passou a usar o mesmo cabeçalho do diagnóstico
   de compilação, com `lox_panic(line, column, code, message)` no runtime C.
+- `TODO.md` e `CHANGELOG.md` — **updated** ao corrigir os achados: `Any as T` checa a tag,
+  exceções sintéticas têm aridade 1 e a exceção não capturada carrega a mensagem.

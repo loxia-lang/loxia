@@ -283,6 +283,22 @@ class CallLowering(LoweringBase):
         )
 
         arguments = [self._expr(argument) for argument in expr.arguments]
+        if layout.synthetic_exception:
+            if len(arguments) != 1:
+                self._poison(
+                    expr.paren,
+                    self._arity_message(1, 1, len(arguments)),
+                    code=Code.RUNTIME_ARITY,
+                )
+                return self._zero(ValueType.INSTANCE)
+            message = self._coerce(
+                arguments[0],
+                TypeDesc(ValueType.STRING),
+                expr.paren.line,
+            )
+            call = self.builder.call(layout.ctor, [message.llvm])
+            return Value(ValueType.INSTANCE, call, class_name=name)
+
         init = layout.effective_init()
         minimum = 0 if init is None else init.fn_sig.min_params
         maximum = 0 if init is None else len(init.fn_sig.params)

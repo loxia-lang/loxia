@@ -15,6 +15,7 @@ from src.backend.captures import CaptureAnalysis
 from src.backend.lower_model import (
     Binding,
     ClassLayout,
+    FieldLayout,
     FunctionInfo,
     MethodLayout,
     TypeDesc,
@@ -213,6 +214,9 @@ class LoweringBase:
         raise NotImplementedError
 
     def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
+        raise NotImplementedError
+
+    def _field_slot(self, value: Value, field: FieldLayout) -> Any:
         raise NotImplementedError
 
     def _poison(

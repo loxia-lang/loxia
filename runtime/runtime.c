@@ -984,8 +984,11 @@ void lox_throw(void *instance, const char *type_name, const char *message,
     if (frame == NULL) {
         fflush(stdout);
         lox_print_prefix(line, column, "R1010");
-        fprintf(stderr, "Unhandled exception: %s\n",
-                message != NULL ? message : type_name);
+        if (message != NULL) {
+            fprintf(stderr, "Unhandled exception: %s: %s\n", type_name, message);
+        } else {
+            fprintf(stderr, "Unhandled exception: %s\n", type_name);
+        }
         fflush(stderr);
         exit(70);
     }
@@ -1172,6 +1175,10 @@ static LoxStr *string_from_ascii(const char *data, size_t length) {
     result->cp_len = (int64_t)length;
     result->data = copy;
     return result;
+}
+
+const char *lox_str_data(const void *pointer) {
+    return ((const LoxStr *)pointer)->data;
 }
 
 void *lox_str_from_int(int64_t value) {

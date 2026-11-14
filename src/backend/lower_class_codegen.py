@@ -15,6 +15,8 @@ from src.backend.lower_model import (
     _I32,
     _INT,
     _VOID,
+    ANY_TAG_FLOAT,
+    ANY_TAG_INT,
     BackendError,
     Binding,
     ClassLayout,
@@ -29,7 +31,7 @@ from src.diagnostics.codes import Code
 from src.frontend.expr import As, Is, Super, This
 from src.frontend.stmt import Class
 from src.frontend.ty import ANY as TY_ANY
-from src.frontend.ty import TupleTy, Ty, UnionTy
+from src.frontend.ty import TupleTy, Ty, UnionTy, display
 
 
 class ClassCodegenLowering(LoweringBase):
@@ -322,6 +324,15 @@ class ClassCodegenLowering(LoweringBase):
     def _ctor_body(self, layout: ClassLayout, ctor: Any) -> None:
         descriptor = ctor.args[0] if layout.local else None
         instance = self._ctor_allocate(layout, descriptor)
+        if layout.synthetic_exception:
+            field = layout.field("message")
+            assert field is not None
+            self._store_field(
+                instance, field, Value(ValueType.STRING, ctor.args[0])
+            )
+            self._ctor_require_fields(layout, instance)
+            self.builder.ret(instance.llvm)
+            return
         self._ctor_run_initializers(layout, instance)
         effective = layout.effective_init()
         if effective is not None:
@@ -503,6 +514,7 @@ class ClassCodegenLowering(LoweringBase):
         from src.backend.lower_model import (
             ANY_TAG_BOOL,
             ANY_TAG_CLASS,
+            ANY_TAG_ENUM,
             ANY_TAG_FLOAT,
             ANY_TAG_FUNCTION,
             ANY_TAG_INSTANCE,
@@ -528,13 +540,130 @@ class ClassCodegenLowering(LoweringBase):
             ValueType.LIST: ANY_TAG_LIST,
             ValueType.MAP: ANY_TAG_MAP,
             ValueType.TUPLE: ANY_TAG_TUPLE,
+            ValueType.ENUM: ANY_TAG_ENUM,
         }[desc.ty]
+
+    def _as_any(self, expr: As, value: Value, target_desc: TypeDesc) -> Value:
+        """`Any as T`: checa a tag antes de extrair o payload (ADR-0075).
+
+        O tree-walk levanta `R1011` quando o valor não satisfaz `T`; sem a checagem o
+        binário reinterpretava o payload e imprimia lixo. `Int`/`Float` aceitam a
+        promoção numérica, como no interpretador.
+        """
+        if target_desc.ty is ValueType.ANY:
+            return value
+        line = expr.operator.line
+        column = expr.operator.column
+        if target_desc.ty is ValueType.INT:
+            return self._as_any_int(expr, value, line, column)
+        if target_desc.ty is ValueType.FLOAT:
+            return self._as_any_float(expr, value, line, column)
+
+        matches = self._is_any(value, expr.target_type, target_desc, line)
+        ok = llvm_ir.append_block(self._function_ir, "as.ok")
+        bad = llvm_ir.append_block(self._function_ir, "as.bad")
+        self.builder.cbranch(matches.llvm, ok, bad)
+        self.builder = llvm_ir.builder(bad)
+        self._poison(
+            expr.operator,
+            f"Can't cast value to {display(expr.target_type)}.",
+            code=Code.RUNTIME_CAST,
+        )
+        self.builder = llvm_ir.builder(ok)
+        return self._unbox_any(value, target_desc, line)
+
+    def _as_any_int(
+        self, expr: As, value: Value, line: int, column: int
+    ) -> Value:
+        tag = self.builder.extract_value(value.llvm, 0)
+        payload = self.builder.extract_value(value.llvm, 1)
+        is_int = self.builder.icmp_signed(
+            "==", tag, llvm_ir.constant(_INT, ANY_TAG_INT)
+        )
+        is_float = self.builder.icmp_signed(
+            "==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT)
+        )
+        int_ok = llvm_ir.append_block(self._function_ir, "as.int")
+        float_check = llvm_ir.append_block(self._function_ir, "as.float?")
+        float_ok = llvm_ir.append_block(self._function_ir, "as.float")
+        bad = llvm_ir.append_block(self._function_ir, "as.bad")
+        end = llvm_ir.append_block(self._function_ir, "as.end")
+
+        self.builder.cbranch(is_int, int_ok, float_check)
+        self.builder = llvm_ir.builder(float_check)
+        self.builder.cbranch(is_float, float_ok, bad)
+
+        self.builder = llvm_ir.builder(int_ok)
+        int_value = Value(ValueType.INT, payload)
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(float_ok)
+        converted = self.builder.call(
+            self._function("lox_float_to_int", _INT, [_FLOAT, _I32, _I32]),
+            [
+                self.builder.bitcast(payload, _FLOAT),
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
+            ],
+        )
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(
+            expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST
+        )
+
+        self.builder = llvm_ir.builder(end)
+        merged = self.builder.phi(_INT, "as.int")
+        merged.add_incoming(int_value.llvm, int_ok)
+        merged.add_incoming(converted, float_ok)
+        return Value(ValueType.INT, merged)
+
+    def _as_any_float(
+        self, expr: As, value: Value, line: int, column: int
+    ) -> Value:
+        tag = self.builder.extract_value(value.llvm, 0)
+        payload = self.builder.extract_value(value.llvm, 1)
+        is_int = self.builder.icmp_signed(
+            "==", tag, llvm_ir.constant(_INT, ANY_TAG_INT)
+        )
+        is_float = self.builder.icmp_signed(
+            "==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT)
+        )
+        int_ok = llvm_ir.append_block(self._function_ir, "as.int")
+        float_check = llvm_ir.append_block(self._function_ir, "as.float?")
+        float_ok = llvm_ir.append_block(self._function_ir, "as.float")
+        bad = llvm_ir.append_block(self._function_ir, "as.bad")
+        end = llvm_ir.append_block(self._function_ir, "as.end")
+
+        self.builder.cbranch(is_int, int_ok, float_check)
+        self.builder = llvm_ir.builder(float_check)
+        self.builder.cbranch(is_float, float_ok, bad)
+
+        self.builder = llvm_ir.builder(int_ok)
+        promoted = self.builder.sitofp(payload, _FLOAT)
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(float_ok)
+        converted = self.builder.bitcast(payload, _FLOAT)
+        self.builder.branch(end)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(
+            expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST
+        )
+
+        self.builder = llvm_ir.builder(end)
+        merged = self.builder.phi(_FLOAT, "as.float")
+        merged.add_incoming(promoted, int_ok)
+        merged.add_incoming(converted, float_ok)
+        return Value(ValueType.FLOAT, merged)
 
     def _as_expr(self, expr: As) -> Value:
         target_desc = self._type_desc(expr.target_type, expr.operator.line)
         value = self._expr(expr.left)
         if value.ty is ValueType.ANY:
-            return self._unbox_any(value, target_desc, expr.operator.line)
+            return self._as_any(expr, value, target_desc)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
             if value.optional:
