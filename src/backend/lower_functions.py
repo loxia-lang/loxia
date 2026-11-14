@@ -162,22 +162,32 @@ class FunctionLowering(LoweringBase):
         self._emit_function(info, stmt, captures)
 
     def _lambda(self, expr: Lambda) -> Value:
+        ty = self.types.get(expr)
+        if isinstance(ty, GenericFnTy):
+            return Value(
+                ValueType.FUNCTION,
+                llvm_ir.null_pointer(),
+                generic=ty,
+                generic_node=expr,
+            )
         info = self._lambda_info(expr)
         captures = self._make_captures(expr)
         closure = self._build_closure(info, captures, "<lambda>")
         self._emit_function(info, expr, captures)
         return closure
 
-    def _lambda_info(self, expr: Lambda) -> FunctionInfo:
+    def _lambda_info(self, expr: Lambda, fn_ty: FnTy | None = None) -> FunctionInfo:
         ty = self.types.get(expr)
-        if isinstance(ty, GenericFnTy):
-            raise _unsupported("Generic function value", expr.keyword.line)
-        if not isinstance(ty, FnTy):
-            raise _unsupported(
-                "Lambda without a concrete function type", expr.keyword.line
-            )
+        if fn_ty is None:
+            if isinstance(ty, GenericFnTy):
+                raise _unsupported("Generic function value", expr.keyword.line)
+            if not isinstance(ty, FnTy):
+                raise _unsupported(
+                    "Lambda without a concrete function type", expr.keyword.line
+                )
+            fn_ty = ty
 
-        desc = self._type_desc(ty, expr.keyword.line)
+        desc = self._type_desc(fn_ty, expr.keyword.line)
         assert desc.fn is not None
         sig = desc.fn
 

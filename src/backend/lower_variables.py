@@ -40,6 +40,8 @@ class VariableLowering(LoweringBase):
             binding.optional,
             binding.class_name,
             binding.function,
+            binding.generic,
+            binding.generic_node,
         )
 
     def _store_binding(self, binding: Binding, value: Value) -> None:
@@ -155,6 +157,8 @@ class VariableLowering(LoweringBase):
                     declared.optional,
                     class_name=declared.class_name,
                     function=value.function,
+                    generic=value.generic,
+                    generic_node=value.generic_node,
                 )
                 self._globals[stmt.name.lexeme] = binding
                 self.builder.store(value.llvm, binding.storage)
@@ -171,6 +175,8 @@ class VariableLowering(LoweringBase):
                 declared.optional,
                 class_name=declared.class_name,
                 function=value.function,
+                generic=value.generic,
+                generic_node=value.generic_node,
             )
             self._globals[stmt.name.lexeme] = binding
             self.builder.store(value.llvm, global_)
@@ -188,6 +194,8 @@ class VariableLowering(LoweringBase):
                 cell=True,
                 class_name=declared.class_name,
                 function=value.function,
+                generic=value.generic,
+                generic_node=value.generic_node,
             )
             return
 
@@ -202,6 +210,8 @@ class VariableLowering(LoweringBase):
             declared.optional,
             class_name=declared.class_name,
             function=value.function,
+            generic=value.generic,
+            generic_node=value.generic_node,
         )
 
     def _variable(self, expr: Variable) -> Value:
@@ -212,6 +222,8 @@ class VariableLowering(LoweringBase):
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
         value = self._load_binding(binding)
+        if value.generic is not None:
+            return value
         if value.ty in (ValueType.FUNCTION, ValueType.CLASS):
             return self._guard_closure(value, expr.name.lexeme, expr.name.line)
         return value

@@ -249,18 +249,6 @@ def test_binario_concorda_com_interpretador(
 
 
 @pytest.mark.backend
-def test_recurso_sem_representacao_e_rejeitado_explicitamente(tmp_path: Path) -> None:
-    path = _write(tmp_path, "val id = fn(x) => x;\nprint id(1);\n")
-
-    result, binary = _build(path, tmp_path)
-
-    assert result.returncode == 65
-    assert "not supported by the backend yet" in result.stderr
-    assert not binary.exists()
-    # O interpretador roda o mesmo programa: a lacuna é do backend, não da linguagem.
-    assert _interpret(path).returncode == 0
-
-
 @pytest.mark.backend
 @pytest.mark.parametrize(
     ("level", "case"),

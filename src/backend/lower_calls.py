@@ -110,6 +110,9 @@ class CallLowering(LoweringBase):
         else:
             callee = self._expr(expr.callee)
 
+        if callee.generic is not None:
+            callee = self._call_generic_lambda(callee, expr)
+
         if callee.ty is ValueType.NIL:
             # `nil?.m(args)` é nil e não avalia os argumentos.
             return Value(ValueType.NIL)

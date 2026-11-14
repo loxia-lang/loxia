@@ -124,6 +124,8 @@ class Binding:
     function: FunctionInfo | None = None
     class_name: str | None = None
     layout_key: str | None = None
+    generic: Any = None
+    generic_node: Any = None
 
     @property
     def desc(self) -> TypeDesc:
@@ -152,6 +154,8 @@ class Value:
     optional: bool = False
     class_name: str | None = None
     function: FunctionInfo | None = None
+    generic: Any = None
+    generic_node: Any = None
 
     @property
     def desc(self) -> TypeDesc:

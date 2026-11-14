@@ -53,10 +53,10 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l3` | 14 |
 | `l4` | 7 |
 | `l5` | 25 |
-| `l6` | 40 |
+| `l6` | 42 |
 | `t7` | 2 |
 
-**112 casos** em 9 níveis compilam e concordam; **2 em `PENDING`** (`generic_lambda_value` (l6), `is_union_parens` (l6)); **6 negativos** de propósito.
+**114 casos** em 9 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**

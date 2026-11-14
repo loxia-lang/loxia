@@ -174,6 +174,43 @@ class GenericLowering(LoweringBase):
             )
         return ty
 
+    def _call_generic_lambda(self, callee: Value, expr: Call) -> Value:
+        generic = callee.generic
+        node = callee.generic_node
+        assert generic is not None and node is not None
+        mapping: dict[str, Ty] = {}
+        for index, parameter in enumerate(generic.fn.params):
+            if index >= len(expr.arguments):
+                break
+            actual = self.types.get(expr.arguments[index])
+            if actual is None:
+                raise _unsupported("Generic lambda argument type", expr.paren.line)
+            if isinstance(parameter, TyVar):
+                mapping[parameter.name] = actual
+        if any(variable.name not in mapping for variable in generic.type_params):
+            raise _unsupported("Generic lambda without type arguments", expr.paren.line)
+        saved = self._type_subst
+        self._type_subst = {**saved, **mapping}
+        try:
+            fn_ty = FnTy(
+                tuple(self._subst_ty(item) for item in generic.fn.params),
+                self._subst_ty(generic.fn.ret),
+                generic.fn.min_params,
+            )
+            key = (id(node), tuple(mapping.values()))
+            info = self._generic_fn_cache.get(key)  # type: ignore[arg-type]
+            if info is None:
+                info = self._lambda_info(node, fn_ty)
+                info = replace(info, type_subst=dict(mapping))
+                self._generic_fn_cache[key] = info  # type: ignore[index]
+                captures = self._make_captures(node)
+                self._emit_function(info, node, captures)
+                closure = self._build_closure(info, captures, "<lambda>")
+                return closure
+        finally:
+            self._type_subst = saved
+        return self._build_closure(info, self._make_captures(node), "<lambda>")
+
     def _call_generic_class(self, name: str, expr: Call) -> Value:
         layout = None
         ty = self.types.get(expr) or self.generic_class_sites.get(expr)

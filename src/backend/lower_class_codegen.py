@@ -27,7 +27,8 @@ from src.backend.lower_model import (
 )
 from src.frontend.expr import As, Is, Super, This
 from src.frontend.stmt import Class
-from src.frontend.ty import TupleTy, Ty
+from src.frontend.ty import ANY as TY_ANY
+from src.frontend.ty import TupleTy, Ty, UnionTy
 
 
 class ClassCodegenLowering(LoweringBase):
@@ -443,6 +444,16 @@ class ClassCodegenLowering(LoweringBase):
     def _is_expr(self, expr: Is) -> Value:
         target_desc = self._type_desc(expr.test_type, expr.operator.line)
         value = self._expr(expr.left)
+        if isinstance(expr.test_type, UnionTy):
+            boxed = self._box_value(value, expr.operator.line)
+            result = llvm_ir.constant(_BOOL, 0)
+            for member in expr.test_type.members:
+                if member is TY_ANY:
+                    continue
+                member_desc = self._type_desc(member, expr.operator.line)
+                check = self._is_any(boxed, member, member_desc, expr.operator.line)
+                result = self.builder.or_(result, check.llvm)
+            return Value(ValueType.BOOL, result)
         if value.ty is ValueType.ANY:
             return self._is_any(value, expr.test_type, target_desc, expr.operator.line)
         if isinstance(expr.test_type, TupleTy):

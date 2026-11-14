@@ -138,6 +138,12 @@ class LoweringBase:
     def _enum_get(self, expr: Get) -> Value:
         raise NotImplementedError
 
+    def _call_generic_lambda(self, callee: Value, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _build_closure(self, info: Any, captures: Any, display: str) -> Value:
+        raise NotImplementedError
+
     def _unbox_any(self, value: Value, desc: TypeDesc, line: int | None) -> Value:
         raise NotImplementedError
 
