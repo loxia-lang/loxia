@@ -186,3 +186,17 @@ Intervalo: `HEAD..HEAD` (diagnósticos; sem commit anterior para comparar no log
   estático/opcional (boxing de `T?`, literal aninhado, classe local) usa o mesmo matcher.
 - `docs/spec/erros.md` — **updated** pelo novo `docs/_hooks/codes.py`: a tabela de códigos
   passou a ser gerada de `CODE_DESCRIPTIONS` (`make codes`), com `--check` em CI.
+
+## 2026-11-14 — M7 fechado e L7b (O2 + bench nativo)
+
+Intervalo: `3642c52..HEAD` (GC/M7, passes de otimização e benchmark nativo).
+
+- `docs/spec/garantias.md` — **no-change**: GC, hard cap e orçamento de memória já estavam
+  documentados; `-O2`/benchmark são desempenho, não alteram I1–I4.
+- `docs/spec/lexico.md` — **no-change**: o scanner e os tokens não mudaram; a pendência de
+  frescor vem de commits anteriores, sem alteração de comportamento léxico.
+- `docs/spec/sintaxe.md` — **no-change**: parser/AST não mudaram neste intervalo.
+- `README.md` — **updated**: `make bench-native` e status do L7b.
+- `TODO.md` — **updated**: M7 marcado como concluído; L7b com `-O2`/bench feito e JIT/erros
+  de codegen pendentes.
+- `CHANGELOG.md` — **updated**: passes `-O2` e benchmark nativo.

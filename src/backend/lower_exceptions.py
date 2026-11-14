@@ -128,9 +128,9 @@ class ExceptionLowering(LoweringBase):
         buffer = self.builder.call(
             self._function("lox_try_buffer", _I8_PTR, [_I8_PTR]), [frame]
         )
-        status = self.builder.call(
-            self._function("_setjmp", _I32, [_I8_PTR]), [buffer]
-        )
+        setjmp = self._function("_setjmp", _I32, [_I8_PTR])
+        setjmp.attributes.add("returns_twice")
+        status = self.builder.call(setjmp, [buffer])
         normal = llvm_ir.append_block(self._function_ir, "try.normal")
         caught = llvm_ir.append_block(self._function_ir, "try.caught")
         end = llvm_ir.append_block(self._function_ir, "try.end")

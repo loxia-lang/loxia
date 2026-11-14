@@ -19,6 +19,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,9 +46,42 @@ def discover_cases() -> list[Path]:
 
 
 def run_once(path: Path) -> float:
+    return _run_timed(
+        [sys.executable, str(ENTRYPOINT), str(path)], f"caso {path.name}"
+    )
+
+
+def build_native(path: Path, binary: Path) -> None:
+    process = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "--emit=exe",
+            "-o",
+            str(binary),
+            str(path),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+    if process.returncode != 0:
+        raise SystemExit(
+            f"build nativo de {path.name} falhou (exit {process.returncode}):\n"
+            f"{process.stderr}"
+        )
+
+
+def run_native(binary: Path) -> float:
+    return _run_timed([str(binary)], f"binário {binary.name}")
+
+
+def _run_timed(command: list[str], label: str) -> float:
     start = time.perf_counter()
     process = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        command,
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -58,16 +92,18 @@ def run_once(path: Path) -> float:
 
     if process.returncode != 0:
         raise SystemExit(
-            f"caso {path.name} falhou (exit {process.returncode}):\n{process.stderr}"
+            f"{label} falhou (exit {process.returncode}):\n{process.stderr}"
         )
 
     return elapsed * 1000.0
 
 
-def measure(path: Path, repeat: int) -> Measurement:
-    run_once(path)  # aquecimento: cache de página, imports, etc.
+def measure(path: Path, repeat: int, *, native: Path | None = None) -> Measurement:
+    run = run_native if native is not None else run_once
+    target = native if native is not None else path
+    run(target)  # aquecimento: cache de página, imports, etc.
 
-    samples = [run_once(path) for _ in range(repeat)]
+    samples = [run(target) for _ in range(repeat)]
     return Measurement(
         name=path.stem,
         median_ms=statistics.median(samples),
@@ -99,13 +135,20 @@ def save_baseline(measurements: list[Measurement]) -> None:
     print(f"baseline atualizado em {BASELINE_PATH.relative_to(ROOT)}")
 
 
-def print_report(measurements: list[Measurement], baseline: dict[str, float], tolerance: float) -> int:
+def print_report(
+    measurements: list[Measurement],
+    baseline: dict[str, float],
+    tolerance: float,
+    *,
+    native: bool = False,
+) -> int:
     if not measurements:
         print("nenhum caso em bench/cases/", file=sys.stderr)
         return 1
 
     name_width = max(len(m.name) for m in measurements)
-    header = f"{'caso':<{name_width}}  {'mediana':>10}  {'mínimo':>10}  {'vs base':>8}  status"
+    compare = "speedup" if native else "vs base"
+    header = f"{'caso':<{name_width}}  {'mediana':>10}  {'mínimo':>10}  {compare:>8}  status"
     print(header)
     print("-" * len(header))
 
@@ -114,6 +157,10 @@ def print_report(measurements: list[Measurement], baseline: dict[str, float], to
         reference = baseline.get(measurement.name)
         if reference is None:
             ratio_text, status = "—", "sem baseline"
+        elif native:
+            ratio = reference / measurement.median_ms
+            ratio_text = f"{ratio:.1f}x" if ratio < 100 else ">100x"
+            status = "mais rápido" if ratio > 1 else "mais lento"
         else:
             ratio = measurement.median_ms / reference
             ratio_text = f"{ratio:.2f}x"
@@ -152,6 +199,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="fator máximo aceitável vs baseline (default 1.35)",
     )
     parser.add_argument("--update", action="store_true", help="regrava o baseline")
+    parser.add_argument(
+        "--native",
+        action="store_true",
+        help="compila com --emit=exe e mede o binário (não regrava o baseline)",
+    )
     parser.add_argument("--json", action="store_true", help="imprime resultado em JSON")
 
     return parser.parse_args(argv)
@@ -164,8 +216,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.repeat < 1:
         print("--repeat deve ser >= 1", file=sys.stderr)
         return 2
+    if args.update and args.native:
+        print("--native não regrava o baseline do interpretador", file=sys.stderr)
+        return 2
 
-    measurements = [measure(case, args.repeat) for case in cases]
+    if args.native:
+        with tempfile.TemporaryDirectory(prefix="lox-bench-") as directory:
+            binaries = {}
+            for case in cases:
+                binary = Path(directory) / case.stem
+                build_native(case, binary)
+                binaries[case] = binary
+            measurements = [
+                measure(case, args.repeat, native=binaries[case])
+                for case in cases
+            ]
+    else:
+        measurements = [measure(case, args.repeat) for case in cases]
 
     if args.update:
         save_baseline(measurements)
@@ -174,7 +241,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             json.dumps(
                 [
-                    {"caso": m.name, "mediana_ms": round(m.median_ms, 2), "minimo_ms": round(m.min_ms, 2)}
+                    {
+                        "caso": m.name,
+                        "mediana_ms": round(m.median_ms, 2),
+                        "minimo_ms": round(m.min_ms, 2),
+                        "motor": "nativo" if args.native else "interpretador",
+                    }
                     for m in measurements
                 ],
                 indent=2,
@@ -189,7 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     if not baseline:
         print("sem baseline: rode com --update para criar\n")
 
-    return print_report(measurements, baseline, args.tolerance)
+    return print_report(
+        measurements, baseline, args.tolerance, native=args.native
+    )
 
 
 if __name__ == "__main__":

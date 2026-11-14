@@ -3,7 +3,7 @@
 
 FILE ?=
 
-.PHONY: help run test case lint type fmt check docs-sync codes docs-fresh hooks bench baseline
+.PHONY: help run test case lint type fmt check docs-sync codes docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lox   executa um script (sem FILE abre o REPL)"
@@ -18,6 +18,7 @@ help:
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
+	@echo "make bench-native              benchmarks do binário nativo (--emit=exe)"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:
@@ -55,6 +56,9 @@ hooks:
 
 bench:
 	uv run python bench/run.py
+
+bench-native:
+	uv run python bench/run.py --native
 
 baseline:
 	uv run python bench/run.py --update

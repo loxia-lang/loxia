@@ -34,7 +34,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: **L7** (qualidade, `-O2`, benchmarks, JIT). O L5, o T7 e o L6a–L6k já
+- 📐 Próximo passo: **L7b** (JIT no REPL e erros de codegen; `-O2` e benchmark nativo já
+  entregues). O L5, o T7 e o L6a–L6k já
   entregaram classes,
   herança, closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas,
   tuplas, `Any`, `math`/parse e defaults como valor; traits e constraints ficam
@@ -84,7 +85,8 @@ uv run main.py --emit=ll --output prog.ll prog.lox  # IR em arquivo (--output)
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make hooks                     # instala o hook de pre-commit
-make bench                     # benchmarks vs baseline
+make bench                     # benchmarks do interpretador vs baseline
+make bench-native              # benchmarks do binário nativo (speedup vs baseline)
 ```
 
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,

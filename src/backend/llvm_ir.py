@@ -75,10 +75,39 @@ def emit_text(module: Any) -> str:
 
 
 def emit_object(module: Any) -> bytes:
-    """Verifica o módulo e devolve o object file do alvo atual."""
+    """Verifica, otimiza (-O2) e devolve o object file do alvo atual."""
     parsed = _parse(str(module))
     _verify_parsed(parsed)
+    _optimize(parsed)
     return bytes(_target_machine().emit_object(parsed))
+
+
+def _optimize(parsed: Any) -> None:
+    """Pipeline de otimização de módulo correspondente ao `-O2` do backend.
+
+    O `llvmlite` já usa `opt=2` no codegen, mas não roda passes de IR. Estes são os
+    passes conservadores que importam para o código gerado (SSA de slots, inlining,
+    dobramento e DCE) e mantêm `setjmp`/`longjmp` intactos.
+    """
+    pass_builder = binding.PassBuilder(
+        _target_machine(), binding.PipelineTuningOptions(2)
+    )
+    manager = binding.ModulePassManager()
+    manager.add_global_opt_pass()
+    manager.add_ipsccp_pass()
+    manager.add_dead_arg_elimination_pass()
+    manager.add_always_inliner_pass()
+    manager.add_instruction_combine_pass()
+    manager.add_reassociate_pass()
+    manager.add_new_gvn_pass()
+    manager.add_sroa_pass()
+    manager.add_simplify_cfg_pass()
+    manager.add_aggressive_dce_pass()
+    manager.add_loop_simplify_pass()
+    manager.add_loop_strength_reduce_pass()
+    manager.add_loop_deletion_pass()
+    manager.add_sinking_pass()
+    manager.run(parsed, pass_builder)
 
 
 def int_type(bits: int) -> Any:
