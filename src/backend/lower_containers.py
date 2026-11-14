@@ -426,6 +426,11 @@ class ContainerLowering(LoweringBase):
                         self.builder.inttoptr(payload, _I8_PTR),
                         class_name=inner.class_name,
                     )
+                case ValueType.ENUM:
+                    return Value(
+                        ValueType.ENUM,
+                        self.builder.inttoptr(payload, _I8_PTR),
+                    )
                 case ValueType.FUNCTION:
                     return Value(
                         ValueType.FUNCTION,

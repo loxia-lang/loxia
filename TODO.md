@@ -193,12 +193,16 @@ async.
 Achadas ao implementar o cabeçalho de runtime do [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md).
 As três primeiras foram corrigidas em `tests/test_backend.py` (`Any as T` checa a tag,
 `Exception("x")`/`LoxRuntimeError("x")` têm aridade 1 e a exceção não capturada imprime
-`Tipo: mensagem`). Ainda em aberto:
+`Tipo: mensagem`), e `is/as` sobre `Any` agora checa **recursivamente** listas, mapas,
+tuplas e enums (`lox_type_matches_str` + descritor serializado). Ainda em aberto:
 
-- [ ] **`is/as List[T]`/`Map[K,V]` checam só a tag no backend**: o tree-walk percorre os
-      elementos (`matches_type`), então `val x: Any = ["a"]; print x as List[Int]` erra no
-      interpretador e passa no binário. Fora do corpus; exige uma checagem recursiva no
-      runtime (ou rebaixar para `E4001` quando o argumento não for concreto).
+- [ ] **Literal de lista aninhada fora de contexto tipado**: `val x: Any = [[1]]` cai em
+      `E4001: List element type` no lowering (o checker não publica o tipo do literal
+      interno). É lacuna declarada, não miscompile.
+- [ ] **`is`/`as` em container opcional**: `T?` de lista/mapa/tupla levanta
+      `E4001`; o tree-walk devolve `false`/erra conforme o caso.
+- [ ] **`is` de classe genérica sem argumentos** (`x is Box`): o id do layout depende da
+      instanciação; hoje recusa com `E4001`.
 
 
 ---

@@ -214,6 +214,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   constroem a instância com `message` (aridade 1), como no tree-walk.
 - **Exceção de usuário não capturada**: o binário imprime `Tipo: mensagem`
   (`Unhandled exception: MyError: falhou`), igual ao `stringify` do interpretador.
+- **`is`/`as` sobre `Any` agora são recursivos**: listas, mapas, tuplas e enums checam
+  elementos, aridade e identidade (enum id / classe id), em vez de só a tag. Corrige
+  `["a"] is List[Int]`, `(1, "a") is (Int, Int)`, `Size.Small is Color` e
+  `Any as List[Int]`; o `is` de tupla estática com elementos `Any` também deixou de usar
+  a comparação estática `same_as`.
 
 ## [1.0.0] — 2026-11-12
 

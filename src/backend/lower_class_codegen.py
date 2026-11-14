@@ -31,7 +31,41 @@ from src.diagnostics.codes import Code
 from src.frontend.expr import As, Is, Super, This
 from src.frontend.stmt import Class
 from src.frontend.ty import ANY as TY_ANY
-from src.frontend.ty import TupleTy, Ty, UnionTy, display
+from src.frontend.ty import (
+    BOOL as TY_BOOL,
+)
+from src.frontend.ty import (
+    FLOAT as TY_FLOAT,
+)
+from src.frontend.ty import (
+    INT as TY_INT,
+)
+from src.frontend.ty import (
+    NEVER as TY_NEVER,
+)
+from src.frontend.ty import (
+    NIL as TY_NIL,
+)
+from src.frontend.ty import (
+    RANGE as TY_RANGE,
+)
+from src.frontend.ty import (
+    STRING as TY_STRING,
+)
+from src.frontend.ty import (
+    ClassObjectTy,
+    ClassTy,
+    EnumTy,
+    FnTy,
+    ListTy,
+    MapTy,
+    NativeFnTy,
+    TupleTy,
+    Ty,
+    TyVar,
+    UnionTy,
+    display,
+)
 
 
 class ClassCodegenLowering(LoweringBase):
@@ -466,49 +500,123 @@ class ClassCodegenLowering(LoweringBase):
         target_desc = self._type_desc(expr.test_type, expr.operator.line)
         value = self._expr(expr.left)
         if isinstance(expr.test_type, UnionTy):
+            if any(member is TY_ANY for member in expr.test_type.members):
+                return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 1))
             boxed = self._box_value(value, expr.operator.line)
             result = llvm_ir.constant(_BOOL, 0)
             for member in expr.test_type.members:
-                if member is TY_ANY:
-                    continue
                 member_desc = self._type_desc(member, expr.operator.line)
-                check = self._is_any(boxed, member, member_desc, expr.operator.line)
+                check = self._is_any(
+                    boxed, member, member_desc, expr.operator.line
+                )
                 result = self.builder.or_(result, check.llvm)
             return Value(ValueType.BOOL, result)
         if value.ty is ValueType.ANY:
-            return self._is_any(value, expr.test_type, target_desc, expr.operator.line)
-        if isinstance(expr.test_type, TupleTy):
-            actual = self.types.get(expr.left)
-            if isinstance(actual, TupleTy) and len(actual.items) == len(expr.test_type.items):
-                matches = all(
-                    self._type_desc(left, None).same_as(self._type_desc(right, None))
-                    for left, right in zip(
-                        actual.items, expr.test_type.items, strict=True
-                    )
+            return self._is_any(
+                value, expr.test_type, target_desc, expr.operator.line
+            )
+        if isinstance(expr.test_type, (TupleTy, ListTy, MapTy)):
+            if value.optional:
+                raise _unsupported(
+                    "is on an optional container", expr.operator.line
                 )
-                return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(matches)))
-            return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
+            boxed = self._box_value(value, expr.operator.line)
+            return self._is_any(
+                boxed, expr.test_type, target_desc, expr.operator.line
+            )
+        if isinstance(expr.test_type, EnumTy) or (
+            isinstance(expr.test_type, ClassTy)
+            and expr.test_type.name in self._enum_layouts
+        ):
+            if value.optional:
+                raise _unsupported("is on an optional enum", expr.operator.line)
+            boxed = self._box_value(value, expr.operator.line)
+            return self._is_any(
+                boxed, expr.test_type, target_desc, expr.operator.line
+            )
         target = self._target_class(expr.test_type, expr.operator.line)
         return self._is_instance(
             value, target, expr.operator.line, expr.operator.column
         )
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
+        """`Any is T` com checagem recursiva (listas, mapas, tuplas, enums).
+
+        O tipo alvo é serializado (`_type_text`) e o matcher C percorre o valor;
+        a checagem de tag sozinha deixava `["a"] is List[Int]` passar.
+        """
         tag = self.builder.extract_value(value.llvm, 0)
         payload = self.builder.extract_value(value.llvm, 1)
-        if isinstance(target, TypeDesc) and target.ty is ValueType.INSTANCE:
-            instance = Value(
-                ValueType.INSTANCE,
-                self.builder.inttoptr(payload, _I8_PTR),
-                class_name=target.class_name,
-            )
-            return self._is_instance(instance, target.class_name or "", line)
+        text = self._type_text(test_type, line)
+        result = self.builder.call(
+            self._function(
+                "lox_type_matches_str", _I32, [_INT, _INT, _I8_PTR]
+            ),
+            [tag, payload, self._cstring_pointer(text)],
+        )
         return Value(
             ValueType.BOOL,
             self.builder.icmp_signed(
-                "==", tag, llvm_ir.constant(_INT, self._tag_of(target))
+                "!=", result, llvm_ir.constant(_I32, 0)
             ),
         )
+
+    def _type_text(self, ty: Ty, line: int) -> str:
+        if ty is TY_ANY:
+            return "A"
+        if ty is TY_NEVER:
+            return "X"
+        if ty is TY_NIL:
+            return "N"
+        if ty is TY_BOOL:
+            return "B"
+        if ty is TY_INT:
+            return "I"
+        if ty is TY_FLOAT:
+            return "F"
+        if ty is TY_STRING:
+            return "S"
+        if ty is TY_RANGE:
+            return "R"
+        if isinstance(ty, ListTy):
+            return f"L<{self._type_text(ty.element, line)}>"
+        if isinstance(ty, MapTy):
+            return (
+                f"M<{self._type_text(ty.key, line)},"
+                f"{self._type_text(ty.value, line)}>"
+            )
+        if isinstance(ty, TupleTy):
+            items = ",".join(self._type_text(item, line) for item in ty.items)
+            return f"T<{items}>"
+        if isinstance(ty, UnionTy):
+            members = "|".join(
+                self._type_text(member, line) for member in ty.members
+            )
+            return f"U<{members}>"
+        if isinstance(ty, EnumTy):
+            layout = self._enum_layouts.get(ty.name)
+            if layout is None:
+                raise _unsupported(f"Enum '{ty.name}'", line)
+            return f"E<{layout.enum_id}>"
+        if isinstance(ty, ClassTy):
+            if ty.name in self._enum_layouts:
+                return f"E<{self._enum_layouts[ty.name].enum_id}>"
+            if ty.args:
+                raise _unsupported("Class type arguments in is/as", line)
+            layout = self._classes.get(ty.name)
+            if layout is None:
+                raise _unsupported(f"Class '{ty.name}'", line)
+            return f"C<{layout.id}>"
+        if isinstance(ty, TyVar):
+            mapped = self._type_subst.get(ty.name)
+            if mapped is None:
+                raise _unsupported(
+                    f"Unbound type parameter '{ty.name}'", line
+                )
+            return self._type_text(mapped, line)
+        if isinstance(ty, (FnTy, NativeFnTy, ClassObjectTy)):
+            return "X"
+        raise _unsupported(f"Type '{ty}'", line)
 
     def _tag_of(self, desc: TypeDesc) -> int:
         from src.backend.lower_model import (
@@ -699,6 +807,19 @@ class ClassCodegenLowering(LoweringBase):
                     expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST
                 )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
+
+        if (
+            target_desc.ty
+            in (
+                ValueType.LIST,
+                ValueType.MAP,
+                ValueType.TUPLE,
+                ValueType.ENUM,
+            )
+            and value.ty is target_desc.ty
+            and not value.optional
+        ):
+            return value
 
         target = self._target_class(expr.target_type, expr.operator.line)
         if value.optional:

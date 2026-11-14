@@ -73,7 +73,7 @@ Pacotes por fase (dependência só para baixo):
 | [`src/backend/lower_instances.py`](../../src/backend/lower_instances.py) | leitura/escrita de campos, bitmap e `get`/`set` |
 | [`src/backend/lower_calls.py`](../../src/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
 | [`src/backend/driver.py`](../../src/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
-| [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%` |
+| [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%`, matcher recursivo de `is`/`as` (`lox_type_matches_str`) |
 | [`src/semantics/resolver.py`](../../src/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
 | [`src/execution/interpreter.py`](../../src/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
 | [`src/execution/environment.py`](../../src/execution/environment.py) | escopos encadeados (`values` + `enclosing`) |

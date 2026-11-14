@@ -219,6 +219,9 @@ class LoweringBase:
     def _field_slot(self, value: Value, field: FieldLayout) -> Any:
         raise NotImplementedError
 
+    def _cstring_pointer(self, text: str) -> Any:
+        raise NotImplementedError
+
     def _poison(
         self,
         target: Token | int,

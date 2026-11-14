@@ -241,6 +241,40 @@ CASES = [
         'raise MyError("falhou");',
         "exceção de usuário não capturada com a mensagem",
     ),
+    (
+        'val t: Any = (1, "a"); print t is (Int, String); '
+        'print t is (Int, Int); print t is (Int, String, Int);',
+        "Any is tupla checa aridade e elementos",
+    ),
+    (
+        'val t: (Any, Any) = (1, "a"); print t is (Int, String);',
+        "is de tupla estática com elementos Any",
+    ),
+    (
+        'val l: Any = ["a"]; print l is List[Int];',
+        "Any is List[Int] checa os elementos",
+    ),
+    (
+        'val l: Any = [1, 2]; print l is List[Int]; print l as List[Int];',
+        "Any is/as List[Int] válidos",
+    ),
+    (
+        'val l: Any = ["a"]; print l as List[Int];',
+        "Any as List[Int] com elemento errado vira panic",
+    ),
+    (
+        'val m: Any = {"a": "b"}; print m is Map[String, Int];',
+        "Any is Map checa chave e valor",
+    ),
+    (
+        'enum Color { Red } enum Size { Small } val x: Any = Size.Small; '
+        'print x is Color; print x is Size;',
+        "is de enum checa a identidade",
+    ),
+    (
+        'enum Color { Red } val x: Any = Color.Red; print x as Color;',
+        "as de enum",
+    ),
 ]
 
 
