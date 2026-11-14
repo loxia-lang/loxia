@@ -185,7 +185,12 @@ def cstring_pointer(builder: Any, global_: Any) -> Any:
 
 
 _STRING_STRUCT = ir.LiteralStructType(
-    [ir.IntType(64), ir.IntType(64), ir.IntType(8).as_pointer()]
+    [
+        ir.IntType(64),
+        ir.IntType(64),
+        ir.IntType(8).as_pointer(),
+        ir.IntType(8).as_pointer(),
+    ]
 )
 
 
@@ -203,7 +208,13 @@ def string_literal(module: Any, value: str, index: int) -> Any:
 
     i64 = ir.IntType(64)
     header = ir.Constant(
-        _STRING_STRUCT, [i64(len(encoded)), i64(len(value)), data_global]
+        _STRING_STRUCT,
+        [
+            i64(len(encoded)),
+            i64(len(value)),
+            data_global,
+            ir.Constant(ir.IntType(8).as_pointer(), None),
+        ],
     )
     # Não é `constant`: o header tem relocação e em .rodata geraria DT_TEXTREL.
     struct_global = ir.GlobalVariable(module, _STRING_STRUCT, name=f"str.{index}")

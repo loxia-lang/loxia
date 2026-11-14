@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from src.diagnostics.codes import Code
 from src.diagnostics.error_reporter import ErrorReporter
 from src.execution.prelude import BUILTIN_NAMES
+from src.execution.primitives import PRIMITIVES
 from src.frontend.destructuring import (
     DestructurePattern,
     NamePattern,
@@ -228,6 +229,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")
         self._scopes[0]["str"] = NativeFnTy("str")
+        for primitive in PRIMITIVES:
+            self._scopes[0][primitive.lox] = FnTy(
+                primitive.params,
+                primitive.result,
+                len(primitive.params),
+            )
 
         result_t = self._fresh_type_var("T")
         result_e = self._fresh_type_var("E")

@@ -141,6 +141,9 @@ class LoweringBase:
     def _enum_get(self, expr: Get) -> Value:
         raise NotImplementedError
 
+    def _primitive_call(self, primitive: Any, expr: Call) -> Value:
+        raise NotImplementedError
+
     def _call_generic_lambda(self, callee: Value, expr: Call) -> Value:
         raise NotImplementedError
 

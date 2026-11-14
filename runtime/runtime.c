@@ -51,9 +51,12 @@ typedef struct {
     int64_t byte_len;
     int64_t cp_len;
     const char *data;
+    int32_t *cp_offsets; /* cache preguiçoso; NULL até o primeiro acesso aleatório */
 } LoxStr;
 
 static LoxStr *string_from_ascii(const char *data, size_t length);
+static LoxStr *string_from_bytes(const char *data, size_t length,
+                                 int64_t code_points);
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message);
 
@@ -137,6 +140,7 @@ void *lox_str_from_function(const void *pointer) {
     result->byte_len = (int64_t)length;
     result->cp_len = (int64_t)length;
     result->data = data;
+    result->cp_offsets = NULL;
     return result;
 }
 
@@ -188,6 +192,7 @@ void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
     result->byte_len = (int64_t)bytes;
     result->cp_len = left->cp_len + right->cp_len;
     result->data = data;
+    result->cp_offsets = NULL;
     return result;
 }
 
@@ -1067,30 +1072,171 @@ int lox_type_matches_str(int64_t tag, int64_t payload, const char *text) {
 }
 
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
-void *lox_str_char_at(const void *pointer, int64_t index) {
-    const LoxStr *string = pointer;
-    if (index < 0 || index >= string->cp_len) {
+static int64_t utf8_cp_offset(const LoxStr *string, int64_t index) {
+    if (index < 0 || index > string->cp_len) {
         lox_panic(0, 0, "R1007", "String index out of bounds.");
+    }
+    if (string->cp_offsets == NULL && string->cp_len >= 64) {
+        int32_t *offsets = lox_alloc_atomic(
+            (size_t)(string->cp_len + 1) * sizeof(int32_t));
+        const unsigned char *data = (const unsigned char *)string->data;
+        size_t offset = 0;
+        int64_t position = 0;
+        offsets[0] = 0;
+        while (position < string->cp_len) {
+            unsigned char byte = data[offset];
+            offset += byte < 0x80 ? 1 : (byte & 0xE0) == 0xC0 ? 2
+                       : (byte & 0xF0) == 0xE0 ? 3 : 4;
+            position += 1;
+            offsets[position] = (int32_t)offset;
+        }
+        ((LoxStr *)string)->cp_offsets = offsets;
+    }
+    if (string->cp_offsets != NULL) {
+        return string->cp_offsets[index];
     }
     const unsigned char *data = (const unsigned char *)string->data;
     size_t offset = 0;
     for (int64_t position = 0; position < index; position++) {
         unsigned char byte = data[offset];
-        if (byte < 0x80) {
-            offset += 1;
-        } else if ((byte & 0xE0) == 0xC0) {
-            offset += 2;
-        } else if ((byte & 0xF0) == 0xE0) {
-            offset += 3;
-        } else {
-            offset += 4;
-        }
+        offset += byte < 0x80 ? 1 : (byte & 0xE0) == 0xC0 ? 2
+                   : (byte & 0xF0) == 0xE0 ? 3 : 4;
     }
+    return (int64_t)offset;
+}
+
+void *lox_str_char_at(const void *pointer, int64_t index) {
+    const LoxStr *string = pointer;
+    int64_t offset = utf8_cp_offset(string, index);
+    const unsigned char *data = (const unsigned char *)string->data;
     unsigned char byte = data[offset];
     size_t length = byte < 0x80 ? 1 : (byte & 0xE0) == 0xC0 ? 2
-                     : (byte & 0xF0) == 0xE0 ? 3
-                                             : 4;
-    return string_from_ascii((const char *)data + offset, length);
+                     : (byte & 0xF0) == 0xE0 ? 3 : 4;
+    return string_from_bytes((const char *)data + offset, length, 1);
+}
+
+void *lox_substr(const void *pointer, int64_t start, int64_t end) {
+    const LoxStr *string = pointer;
+    if (start < 0 || end < start) {
+        lox_panic(0, 0, "R1007", "String index out of bounds.");
+    }
+    int64_t begin = utf8_cp_offset(string, start);
+    int64_t finish = utf8_cp_offset(string, end);
+    size_t length = (size_t)(finish - begin);
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
+    char *data = (char *)(result + 1);
+    memcpy(data, string->data + begin, length);
+    data[length] = '\0';
+    result->byte_len = (int64_t)length;
+    result->cp_len = end - start;
+    result->data = data;
+    result->cp_offsets = NULL;
+    return result;
+}
+
+void *lox_join(const void *parts_pointer, const void *separator_pointer) {
+    const LoxList *parts = parts_pointer;
+    const LoxStr *separator = separator_pointer;
+    size_t bytes = 0;
+    for (int64_t index = 0; index < parts->count; index++) {
+        const LoxValue *item = &parts->items[index];
+        if (item->tag != 4) {
+            lox_panic(0, 0, "R1006", "join() expects List[String].");
+        }
+        bytes += (size_t)((const LoxStr *)item->payload)->byte_len;
+        if (index + 1 < parts->count) {
+            bytes += (size_t)separator->byte_len;
+        }
+    }
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + bytes + 1);
+    char *data = (char *)(result + 1);
+    size_t used = 0;
+    for (int64_t index = 0; index < parts->count; index++) {
+        const LoxStr *item = (const LoxStr *)parts->items[index].payload;
+        memcpy(data + used, item->data, (size_t)item->byte_len);
+        used += (size_t)item->byte_len;
+        if (index + 1 < parts->count) {
+            memcpy(data + used, separator->data, (size_t)separator->byte_len);
+            used += (size_t)separator->byte_len;
+        }
+    }
+    data[used] = '\0';
+    result->byte_len = (int64_t)used;
+    result->cp_len = 0;
+    for (int64_t index = 0; index < parts->count; index++) {
+        result->cp_len += ((const LoxStr *)parts->items[index].payload)->cp_len;
+        if (index + 1 < parts->count) {
+            result->cp_len += separator->cp_len;
+        }
+    }
+    result->data = data;
+    result->cp_offsets = NULL;
+    return result;
+}
+
+static int64_t utf8_decode(const unsigned char *data, size_t *length) {
+    unsigned char byte = data[0];
+    if (byte < 0x80) {
+        *length = 1;
+        return byte;
+    }
+    if ((byte & 0xE0) == 0xC0) {
+        *length = 2;
+        return ((int64_t)(byte & 0x1F) << 6) | (data[1] & 0x3F);
+    }
+    if ((byte & 0xF0) == 0xE0) {
+        *length = 3;
+        return ((int64_t)(byte & 0x0F) << 12) |
+               ((int64_t)(data[1] & 0x3F) << 6) | (data[2] & 0x3F);
+    }
+    *length = 4;
+    return ((int64_t)(byte & 0x07) << 18) |
+           ((int64_t)(data[1] & 0x3F) << 12) |
+           ((int64_t)(data[2] & 0x3F) << 6) | (data[3] & 0x3F);
+}
+
+int64_t lox_char_code_at(const void *pointer, int64_t index) {
+    const LoxStr *string = pointer;
+    int64_t offset = utf8_cp_offset(string, index);
+    size_t length = 0;
+    return utf8_decode((const unsigned char *)string->data + offset, &length);
+}
+
+void *lox_from_code_point(int64_t code_point) {
+    if (code_point < 0 || code_point > 0x10FFFF ||
+        (code_point >= 0xD800 && code_point <= 0xDFFF)) {
+        lox_panic(0, 0, "R1006", "Invalid Unicode code point.");
+    }
+    char bytes[4];
+    size_t length;
+    if (code_point < 0x80) {
+        bytes[0] = (char)code_point;
+        length = 1;
+    } else if (code_point < 0x800) {
+        bytes[0] = (char)(0xC0 | (code_point >> 6));
+        bytes[1] = (char)(0x80 | (code_point & 0x3F));
+        length = 2;
+    } else if (code_point < 0x10000) {
+        bytes[0] = (char)(0xE0 | (code_point >> 12));
+        bytes[1] = (char)(0x80 | ((code_point >> 6) & 0x3F));
+        bytes[2] = (char)(0x80 | (code_point & 0x3F));
+        length = 3;
+    } else {
+        bytes[0] = (char)(0xF0 | (code_point >> 18));
+        bytes[1] = (char)(0x80 | ((code_point >> 12) & 0x3F));
+        bytes[2] = (char)(0x80 | ((code_point >> 6) & 0x3F));
+        bytes[3] = (char)(0x80 | (code_point & 0x3F));
+        length = 4;
+    }
+    LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
+    char *data = (char *)(result + 1);
+    memcpy(data, bytes, length);
+    data[length] = '\0';
+    result->byte_len = (int64_t)length;
+    result->cp_len = 1;
+    result->data = data;
+    result->cp_offsets = NULL;
+    return result;
 }
 
 
@@ -1418,13 +1564,19 @@ void lox_print_float(double value) {
 
 /* Aloca uma LoxStr ASCII (números, booleanos, "nil") dentro da arena. */
 static LoxStr *string_from_ascii(const char *data, size_t length) {
+    return string_from_bytes(data, length, (int64_t)length);
+}
+
+static LoxStr *string_from_bytes(const char *data, size_t length,
+                                 int64_t code_points) {
     LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
     char *copy = (char *)(result + 1);
     memcpy(copy, data, length);
     copy[length] = '\0';
     result->byte_len = (int64_t)length;
-    result->cp_len = (int64_t)length;
+    result->cp_len = code_points;
     result->data = copy;
+    result->cp_offsets = NULL;
     return result;
 }
 

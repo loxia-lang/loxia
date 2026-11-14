@@ -202,3 +202,18 @@ Intervalo: `3642c52..HEAD` (GC/M7, passes de otimização e benchmark nativo).
 - `CHANGELOG.md` — **updated**: passes `-O2`, benchmark nativo e classificação dos erros
   de codegen.
 - `bench/README.md` — **novo**: metodologia e tabela de speedup interpretador × nativo.
+
+## 2026-11-14 — Kernel 13.3/13.4 (strings e tabela de primitivas)
+
+Intervalo: `HEAD..HEAD` (cache de code points, primitivas e benchmark).
+
+- `docs/spec/semantica.md` — **updated**: `substr`, `join`, `charCodeAt` e
+  `fromCodePoint` no prelúdio, com índices em code points e erros de limites.
+- `docs/spec/garantias.md` — **pending**: bloco de níveis regenerado (`k0`); o commit fecha.
+- `docs/decisoes.md`, `docs/spec/erros.md` — **no-change** de conteúdo de kernel; o diff é
+  gerado/estado de ADR e não muda as garantias I1–I4.
+- `docs/spec/lexico.md`, `docs/spec/sintaxe.md` — **no-change**: scanner/parser e gramática
+  não foram tocados; a pendência de frescor vem de commits anteriores.
+- `ADR-0071` — **updated**: status de implementação e medição `string_scan` (9,1 ms nativo).
+- `ADR-0035` — **updated**: nota de atualização para o cache de code points.
+- `bench/README.md` — **updated**: tabela e leitura do `string_scan`.

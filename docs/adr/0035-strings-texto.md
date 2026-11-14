@@ -1,5 +1,6 @@
 # ADR-0035 — Strings e texto: acesso, ordem, identificadores e parse
 
+- **Atualizado por:** [ADR-0071](0071-primitivas-de-runtime.md) (cache de code points e novas primitivas).
 - **Status:** accepted
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)

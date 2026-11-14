@@ -1,6 +1,6 @@
 # ADR-0071 — Primitivas de runtime: fronteira nativa, tabela única e complexidade linear
 
-- **Status:** accepted (plano; implementação pendente)
+- **Status:** accepted (13.3/13.4 implementados; kernel de SO ainda pendente)
 - **Data:** 2026-11-14
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0016](0016-api-stdlib-hibrida.md) (API da stdlib),
@@ -35,7 +35,9 @@ Além disso, o runtime nativo é **quadrático em strings**, e isso não é hip�
 - `lox_str_concat` ([`runtime.c:155`](../../runtime/runtime.c#L155)) copia os dois lados.
   Construir uma string de *m* caracteres com `+` custa **m²/2 bytes** na arena, que não
   tem `free`.
-- Medido em 2026-11-14, mesmo programa nos dois motores: 20k code points → 0,09 s nativo
+- **Medição após o cache (2026-11-14):** `bench/cases/string_scan.lox` com 100k code
+  points: nativo **9,1 ms**, interpretador **665,57 ms**; o alvo ≤ 50 ms foi cumprido.
+- Medido antes, mesmo programa nos dois motores: 20k code points → 0,09 s nativo
   × 0,10 s interpretado; 40k → 0,39 s × 0,14 s; 100k → **2,22 s × 0,25 s**. A cada
   dobra da entrada o nativo quadruplica.
 - 5k linhas montadas com `src = src + linha` → `Out of memory` (arena), enquanto o mesmo
@@ -193,8 +195,8 @@ que interpretador e binário vejam a mesma lista.
   diretório temporário e não imprimem caminho.
 - `tests/corpus_manifest.py`: novo nível `k0` com os casos de `substr`/`join`/
   `charCodeAt`/`fromCodePoint`; os três canais (stdout, stderr, exit) têm que bater.
-- `bench/cases/string_scan.lox`: varre 100k code points. Antes: 2,22 s. Alvo: ≤ 0,05 s.
-  O número medido fica neste ADR e no commit.
+- `bench/cases/string_scan.lox`: varre 100k code points. Antes: 2,22 s. Depois: 9,1 ms
+  no nativo. O número medido fica neste ADR e no commit.
 - Testes de memória do backend: o teto de 64 MiB continua falhando de forma determinística
   (`exit 70` + `Out of memory.`).
 - **Critério para reverter:** se o cache não reduzir o bench em ≥ 5×, ou se o custo de

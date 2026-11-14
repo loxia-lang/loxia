@@ -426,16 +426,24 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` **não existe na 1.0**: tempo é entrada ambiente e violaria o I3. Um módulo
   `time` explicitamente não determinístico fica para depois. O prelúdio determinístico é
-  `chars`, `len`, `str`, `repr`, `range`, `Int`, `Float` e `math`.
+  `chars`, `charCodeAt`, `fromCodePoint`, `join`, `len`, `str`, `repr`, `range`, `substr`,
+  `Int`, `Float` e `math`.
 - `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
   points para string). Outro tipo é erro:
   `len() expects a string, a list or a map.`
 - `chars(s)` exige `String` e devolve `List[String]` com os code points (cada um é uma
   string de 1 cp); O(n) explícito. `chars("aço")` → `["a", "ç", "o"]`; outro tipo é erro.
+- `substr(s, start, end)` exige `String`/`Int`/`Int` e devolve a substring por code
+  points; `0 <= start <= end <= len(s)`, senão erro de runtime.
+- `join(parts, sep)` exige `List[String]` e `String` e devolve a concatenação linear.
+- `charCodeAt(s, index)` devolve o code point (`Int`) na posição; erro fora dos limites.
+- `fromCodePoint(codePoint)` exige `Int` válido (0..0x10FFFF, sem surrogates) e devolve
+  `String` de 1 code point.
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
-  imutáveis: redefinir `chars`/`len`/`str`/`repr`/`range`/`Int`/`Float`/`math` no escopo global é
+  imutáveis: redefinir `chars`/`charCodeAt`/`fromCodePoint`/`join`/`len`/`str`/`repr`/
+  `range`/`substr`/`Int`/`Float`/`math` no escopo global é
   erro; local e parâmetro podem sombrear. `clock` deixou de ser builtin; pode ser usado
   como nome comum.
 - `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.

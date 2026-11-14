@@ -28,6 +28,7 @@ from src.execution.natives.modules import float_module, int_module, math_module
 from src.execution.natives.range import RangeNative
 from src.execution.natives.repr import Repr
 from src.execution.natives.str import Str
+from src.execution.primitives import PRIMITIVES, PrimitiveCallable
 from src.execution.type_test import matches_type
 from src.execution.values import stringify
 from src.frontend.destructuring import (
@@ -115,6 +116,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals.define("range", RangeNative(), mutable=False)
         self.globals.define("repr", Repr(), mutable=False)
         self.globals.define("str", Str(), mutable=False)
+        for primitive in PRIMITIVES:
+            self.globals.define(
+                primitive.lox, PrimitiveCallable(primitive), mutable=False
+            )
         self.globals.define("Int", int_module(), mutable=False)
         self.globals.define("Float", float_module(), mutable=False)
         self.globals.define("math", math_module(), mutable=False)

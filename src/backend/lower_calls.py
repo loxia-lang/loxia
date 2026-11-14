@@ -19,10 +19,45 @@ from src.backend.lower_model import (
     _unsupported,
 )
 from src.diagnostics.codes import Code
+from src.execution.primitives import PRIMITIVE_BY_LOX
 from src.frontend.expr import Call, Get, Variable
 
 
 class CallLowering(LoweringBase):
+    def _primitive_call(self, primitive: Any, expr: Call) -> Value:
+        params = [
+            self._type_desc(param, expr.paren.line)
+            for param in primitive.params
+        ]
+        if len(expr.arguments) != len(params):
+            self._poison(
+                expr.paren.line,
+                f"Expected {len(params)} arguments but got "
+                f"{len(expr.arguments)}.",
+            )
+            return Value(ValueType.NIL)
+
+        arguments = [
+            self._coerce(self._expr(argument), desc, expr.paren.line)
+            for argument, desc in zip(expr.arguments, params, strict=True)
+        ]
+        result = self._type_desc(primitive.result, expr.paren.line)
+        function = self._function(
+            primitive.c_symbol,
+            self._storage_llvm_type(result),
+            [self._storage_llvm_type(desc) for desc in params],
+        )
+        call = self.builder.call(
+            function, [argument.llvm for argument in arguments]
+        )
+        return Value(
+            result.ty,
+            call,
+            result.fn,
+            result.optional,
+            result.class_name,
+        )
+
     def _call(self, expr: Call) -> Value:
         if (
             isinstance(expr.callee, Get)
@@ -81,6 +116,9 @@ class CallLowering(LoweringBase):
                 return self._range_call(expr)
             if name == "chars":
                 return self._chars(expr)
+            primitive = PRIMITIVE_BY_LOX.get(name)
+            if primitive is not None:
+                return self._primitive_call(primitive, expr)
         if isinstance(expr.callee, Variable):
             depth = self.depths.get(expr.callee)
             if depth is not None or expr.callee.name.lexeme in self._globals:

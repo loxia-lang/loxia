@@ -55,9 +55,10 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l4` | 7 |
 | `l5` | 25 |
 | `l6` | 42 |
+| `k0` | 1 |
 | `t7` | 2 |
 
-**114 casos** em 9 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**115 casos** em 10 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**

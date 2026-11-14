@@ -10,10 +10,14 @@ from __future__ import annotations
 BUILTIN_NAMES = frozenset(
     {
         "chars",
+        "charCodeAt",
+        "fromCodePoint",
+        "join",
         "len",
         "range",
         "repr",
         "str",
+        "substr",
         "Int",
         "Float",
         "math",

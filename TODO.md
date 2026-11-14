@@ -56,7 +56,7 @@ kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
       fica como melhoria opcional.
 - [ ] **JIT no REPL** (`P3`, pendência futura): MCJIT + runtime + estado do REPL; não
       bloqueia o L7b. Desenho próprio antes de codar.
-- [ ] **Kernel v1** (§13): 13.3 → 13.4 → 13.2, depois stdlib.
+- [ ] **Kernel v1** (§13): 13.3 ✅ → 13.4 ✅ → 13.2 (SO) pendente, depois stdlib.
 
 ## 3. Diagnósticos
 
@@ -350,27 +350,27 @@ Entram só quando `std.fs`/`std.paths` precisar; cada um acima de 15 exige remov
 
 ### 13.3 Complexidade (ADR-0071)
 
-- [ ] `LoxStr` ganha `i32 *cp_offsets` (NULL até o primeiro acesso aleatório; só para
+- [x] `LoxStr` ganha `i32 *cp_offsets` (NULL até o primeiro acesso aleatório; só para
       `cp_len >= 64`), inicializado em **todo** construtor do runtime.
-- [ ] `lox_str_char_at` O(1) usando o cache; `chars` e `for-in` sobre `String` O(n) total.
-- [ ] `substr` O(1) para localizar + O(b−a) de cópia; `join` O(total).
-- [ ] `charCodeAt`/`fromCodePoint` (Python + C + lowering + checker + spec).
-- [ ] `bench/cases/string_scan.lox` (100k code points): antes **2,22 s**; alvo **≤ 0,05 s**.
-      Registrar o número no commit e no ADR-0071.
+- [x] `lox_str_char_at` O(1) usando o cache; `chars` e `for-in` sobre `String` O(n) total.
+- [x] `substr` O(1) para localizar + O(b−a) de cópia; `join` O(total).
+- [x] `charCodeAt`/`fromCodePoint` (Python + C + lowering + checker + spec).
+- [x] `bench/cases/string_scan.lox` (100k code points): nativo **9,1 ms** (alvo ≤ 0,05 s);
+      interpreter **665,57 ms**. Registrado no ADR-0071 e no commit.
 - [ ] Reavaliar os testes de memória: o ponto do `Out of memory` muda com o cache e com o
       GC (ADR-0074); o hard cap é 128 MiB e o I1 cobre até 64 MiB live.
-- [ ] `docs/spec/semantica.md` (+ nota "atualizado por ADR-0071" no ADR-0035, que é
+- [x] `docs/spec/semantica.md` (+ nota "atualizado por ADR-0071" no ADR-0035, que é
       imutável).
-- [ ] Nível `k0` no `tests/corpus_manifest.py` para os casos do kernel.
+- [x] Nível `k0` no `tests/corpus_manifest.py` para os casos do kernel.
 
 ### 13.4 Tabela única de primitivas
 
-- [ ] `src/execution/primitives.py`: `Primitive(lox, c_symbol, params, result, py, ambient)`
+- [x] `src/execution/primitives.py`: `Primitive(lox, c_symbol, params, result, py, ambient)`
       + `PRIMITIVES`.
-- [ ] Checker registra `FnTy` a partir da tabela (sem `if` por nome).
-- [ ] Interpreter embrulha `py` num `LoxCallable` genérico (aridade/tipos da tabela).
-- [ ] Backend resolve `c_symbol`/assinatura pela tabela (sem caso especial por nome).
-- [ ] `tests/test_primitives.py` itera a tabela: um caso por primitiva, ordem e aridade.
+- [x] Checker registra `FnTy` a partir da tabela (sem `if` por nome).
+- [x] Interpreter embrulha `py` num `LoxCallable` genérico (aridade/tipos da tabela).
+- [x] Backend resolve `c_symbol`/assinatura pela tabela (sem caso especial por nome).
+- [x] `tests/test_primitives.py` itera a tabela: um caso por primitiva, ordem e aridade.
 - [ ] Opcional: migrar `len`/`chars`/`str`/`repr`/`range` (tipo sobrecarregado) — não
       bloqueia.
 

@@ -1,0 +1,13 @@
+# Varredura de 100k code points: exercita char_at/for-in e o cache de offsets.
+val parts: List[String] = []
+var i = 0
+while (i < 100000) {
+  parts.push("á")
+  i = i + 1
+}
+val text = join(parts, "")
+var total = 0
+for c in text {
+  total = total + charCodeAt(c, 0)
+}
+print total + len(text)
