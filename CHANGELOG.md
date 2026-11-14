@@ -205,6 +205,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - `pyproject.toml`: extra `llvm` (`llvmlite>=0.50`); o interpretador continua sem
   dependências.
 
+- **Catálogo de códigos gerado**: `docs/spec/erros.md` agora é gerado a partir de
+  `Code`/`CODE_DESCRIPTIONS` (`make codes`, incluso em `make docs-sync`); o teste
+  `test_catalogo_de_codigos_esta_atualizado` falha se a tabela defasar.
+
 ### Corrigido
 
 - **`Any as T` checa a tag no backend**: um `Any` com tipo errado agora vira `R1011`

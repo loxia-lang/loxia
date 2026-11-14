@@ -202,6 +202,21 @@ def test_bloco_de_niveis_esta_atualizado() -> None:
     )
 
 
+def test_catalogo_de_codigos_esta_atualizado() -> None:
+    result = subprocess.run(
+        [sys.executable, "docs/_hooks/codes.py", "--check"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, (
+        "docs/spec/erros.md defasado em relação a src/diagnostics/codes.py; "
+        "rode `make codes`.\n" + result.stdout
+    )
+
+
 def test_sem_frases_defasadas() -> None:
     problems: list[str] = []
 
@@ -224,11 +239,12 @@ def test_pending_do_corpus_tem_teto() -> None:
 
 def test_todos_os_codigos_de_diagnostico_estao_documentados() -> None:
     """ADR-0075: o catálogo de erros é fechado e toda família aparece na spec."""
-    from src.diagnostics.codes import CODE_PHASE, Code
+    from src.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
 
     text = (SPEC_DIR / "erros.md").read_text(encoding="utf-8")
 
     assert set(CODE_PHASE) == set(Code), "todo código precisa de uma fase"
+    assert set(CODE_DESCRIPTIONS) == set(Code), "todo código precisa de descrição"
     missing = [code.value for code in Code if code.value not in text]
     assert missing == [], f"códigos sem documentação em docs/spec/erros.md: {missing}"
 

@@ -94,7 +94,8 @@ diagnósticos cortados por `--max-errors`.
 
 Códigos identificam **famílias**, não mensagens; nunca são reaproveitados e o catálogo é
 fechado (emitir um código fora daqui não compila). A cauda longa do checker usa `E3000`
-até ser refinada em códigos mais específicos.
+até ser refinada em códigos mais específicos. As tabelas por fase abaixo são **geradas** a
+partir de `src/diagnostics/codes.py` (`make codes`); não edite à mão.
 
 | Faixa | Fase | Significado |
 | --- | --- | --- |
@@ -105,6 +106,7 @@ até ser refinada em códigos mais específicos.
 | `E4xxx` | backend | lowering/emissão |
 | `R1xxx` | runtime | interpretação e binário |
 
+<!-- codes:start -->
 ### Léxico
 
 | Código | Família |
@@ -195,6 +197,8 @@ até ser refinada em códigos mais específicos.
 | `R1012` | iteração inválida ou mutação durante a iteração |
 | `R1013` | campo não inicializado |
 | `R1014` | valor inválido (chave de mapa, superclasse, …) |
+
+<!-- codes:end -->
 
 ## Léxico
 

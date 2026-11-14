@@ -3,7 +3,8 @@
 Um código identifica uma **família** de erro, não uma mensagem: a mensagem
 específica continua no texto. Códigos nunca são reaproveitados; refinar uma
 família em códigos mais específicos é permitido, desde que o catálogo em
-`docs/spec/erros.md` acompanhe.
+`CODE_DESCRIPTIONS` acompanhe. A tabela em `docs/spec/erros.md` é **gerada**
+a partir deste módulo (`make codes`); não edite a tabela à mão.
 
 Faixas:
 
@@ -159,4 +160,71 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.RUNTIME_ITERATION: Phase.RUNTIME,
     Code.FIELD_NOT_INITIALIZED: Phase.RUNTIME,
     Code.INVALID_VALUE: Phase.RUNTIME,
+}
+
+
+# Descrição de uma linha por código, na ordem do catálogo. Fonte da tabela
+# gerada em `docs/spec/erros.md` (`make codes`); não edite a tabela à mão.
+CODE_DESCRIPTIONS: dict[Code, str] = {
+    Code.UNEXPECTED_CHARACTER: "caractere inesperado",
+    Code.UNTERMINATED_STRING: "string não terminada",
+    Code.INVALID_ESCAPE: "escape de string inválido",
+    Code.INVALID_NUMBER: "literal numérico inválido (separador ou overflow de literal)",
+    Code.UNTERMINATED_COMMENT: "comentário de bloco não terminado",
+    Code.UNTERMINATED_INTERPOLATION: "interpolação não terminada",
+    Code.INVALID_UNICODE_ESCAPE: "escape Unicode inválido",
+    Code.SYNTAX_UNEXPECTED: "token inesperado (a família `Expect …`)",
+    Code.INVALID_ASSIGNMENT_TARGET: "alvo de atribuição inválido (inclui `?.` em atribuição)",
+    Code.LIMIT_EXCEEDED: "limite de 255 parâmetros/argumentos",
+    Code.INVALID_DECLARATION: "declaração inválida (`val` sem inicializador, default não constante, …)",
+    Code.INVALID_TYPE_ANNOTATION: "anotação de tipo inválida (arity de `List`/`Map`, união em `is`, genérico)",
+    Code.INVALID_LITERAL: "literal inválido (mapa no início de um statement)",
+    Code.INVALID_MATCH: "`match` inválido",
+    Code.DUPLICATE_VARIABLE: "variável duplicada no escopo",
+    Code.IMMUTABLE_ASSIGNMENT: "atribuição a `val`/parâmetro imutável",
+    Code.INVALID_RETURN: "`return` inválido (topo do programa ou valor em `init`)",
+    Code.INVALID_THIS: "`this` fora de classe",
+    Code.INVALID_SUPER: "`super` fora de classe ou sem superclasse",
+    Code.INVALID_INHERITANCE: "herança inválida (classe herda de si)",
+    Code.FIELD_CONFLICT: "conflito de campo (duplicado ou com método)",
+    Code.SELF_REFERENCE: "leitura de local no próprio inicializador",
+    Code.IMMUTABLE_FIELD: "atribuição a campo `val`",
+    Code.SEMANTIC_ERROR: "erro semântico genérico (fallback do checker)",
+    Code.TYPE_MISMATCH: "tipo incompatível",
+    Code.ARITY_MISMATCH: "aridade de chamada",
+    Code.UNDEFINED_NAME: "nome indefinido (variável, propriedade ou campo)",
+    Code.MISSING_ANNOTATION: "anotação ausente",
+    Code.UNKNOWN_TYPE: "tipo, classe ou superclasse desconhecida",
+    Code.NOT_CALLABLE: "valor não chamável",
+    Code.INVALID_OPERANDS: "operandos inválidos",
+    Code.INVALID_LIST: "lista inválida (tipo comum, elemento vazio, índice)",
+    Code.INVALID_MAP: "mapa inválido (chave, tipo comum)",
+    Code.INVALID_ITERATION: "iteração inválida",
+    Code.GENERIC_INFERENCE: "inferência de tipo genérico",
+    Code.GENERIC_UNSUPPORTED: "recurso genérico ainda não suportado",
+    Code.INVALID_CAST: "cast inválido",
+    Code.RESERVED_NAME: "builtin/nome reservado redefinido",
+    Code.INVALID_OVERRIDE: "override/conflito de método",
+    Code.MISSING_INITIALIZATION: "campo não inicializado",
+    Code.INVALID_CHECKER_DECLARATION: "declaração inválida (type param, enum, `init`)",
+    Code.RETURN_PATH: "retorno ausente em algum caminho",
+    Code.MATH_ARGUMENT: "argumento de `math.*`",
+    Code.TYPE_ARGUMENTS: "argumentos de tipo (arity de genérico/enum/classe)",
+    Code.BACKEND_UNSUPPORTED: "não suportado pelo backend ainda",
+    Code.BACKEND_INTERNAL: "erro interno/verificação/link do backend",
+    Code.RUNTIME_ERROR: "erro de runtime genérico",
+    Code.RUNTIME_NOT_CALLABLE: "valor não chamável",
+    Code.DIVISION_BY_ZERO: "divisão ou módulo por zero",
+    Code.UNDEFINED_VARIABLE: "variável indefinida",
+    Code.UNDEFINED_PROPERTY: "propriedade, campo ou variante indefinido",
+    Code.RUNTIME_ARITY: "aridade em runtime",
+    Code.RUNTIME_OPERANDS: "operandos ou índice de tipo inválido",
+    Code.INDEX_OUT_OF_BOUNDS: "índice fora dos limites",
+    Code.KEY_NOT_FOUND: "chave ausente no mapa",
+    Code.RUNTIME_IMMUTABLE: "atribuição a binding imutável",
+    Code.UNHANDLED_EXCEPTION: "exceção não capturada",
+    Code.RUNTIME_CAST: "cast inválido",
+    Code.RUNTIME_ITERATION: "iteração inválida ou mutação durante a iteração",
+    Code.FIELD_NOT_INITIALIZED: "campo não inicializado",
+    Code.INVALID_VALUE: "valor inválido (chave de mapa, superclasse, …)",
 }

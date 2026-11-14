@@ -3,7 +3,7 @@
 
 FILE ?=
 
-.PHONY: help run test case lint type fmt check docs-sync docs-fresh hooks bench baseline
+.PHONY: help run test case lint type fmt check docs-sync codes docs-fresh hooks bench baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lox   executa um script (sem FILE abre o REPL)"
@@ -13,7 +13,8 @@ help:
 	@echo "make type                      mypy strict"
 	@echo "make fmt                       ruff format (primeira vez reformata tudo)"
 	@echo "make check                     lint + type + test + docs"
-	@echo "make docs-sync                 regenera o bloco de níveis em docs/spec/garantias.md"
+	@echo "make docs-sync                 regenera níveis e catálogo de códigos"
+	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
@@ -41,6 +42,10 @@ check: lint type test docs-fresh
 
 docs-sync:
 	uv run python docs/_hooks/levels.py --write
+	uv run python docs/_hooks/codes.py --write
+
+codes:
+	uv run python docs/_hooks/codes.py --write
 
 docs-fresh:
 	uv run python docs/_hooks/freshness.py --quiet || true

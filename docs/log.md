@@ -184,3 +184,5 @@ Intervalo: `HEAD..HEAD` (diagnósticos; sem commit anterior para comparar no log
   exceções sintéticas têm aridade 1, a exceção não capturada carrega a mensagem,
   `is/as` sobre `Any` checa recursivamente containers/identidade de enum e o caminho
   estático/opcional (boxing de `T?`, literal aninhado, classe local) usa o mesmo matcher.
+- `docs/spec/erros.md` — **updated** pelo novo `docs/_hooks/codes.py`: a tabela de códigos
+  passou a ser gerada de `CODE_DESCRIPTIONS` (`make codes`), com `--check` em CI.

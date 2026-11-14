@@ -60,8 +60,9 @@ kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
 O desenho e a primeira entrega estão no
 [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md): modelo `Diagnostic`,
 códigos estáveis por família, spans (linha/coluna/offset), `human`/`short`/`json`,
-ordenação/dedup/cap e caminho relativo determinístico. Catálogo em
-[`docs/spec/erros.md`](docs/spec/erros.md).
+ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
+[`docs/spec/erros.md`](docs/spec/erros.md) é **gerado** a partir de
+`src/diagnostics/codes.py` (`make codes`).
 
 ### 3.1 O que ainda falta
 
@@ -76,8 +77,6 @@ ordenação/dedup/cap e caminho relativo determinístico. Catálogo em
 - [ ] **`--json-lines`** (`P3`) e `--timeout` para execução.
 - [ ] **Warnings** e `-Werror` (`P3`): o modelo tem `severity`, mas nenhum produtor ainda.
 - [ ] **LSP** (`P3`): reusar o mesmo `Diagnostic` em `textDocument/publishDiagnostics`.
-- [ ] **Catálogo de códigos gerado**: `docs/spec/erros.md` é escrito à mão; um comando
-      `make codes` pode gerar a tabela a partir do `Code` (e o teste já exige cobertura).
 
 **Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
 Python para validar código do usuário; não classificar código por prefixo de mensagem.
