@@ -35,19 +35,6 @@ class ContainerLowering(LoweringBase):
         raise _unsupported("List element type", line)
 
     def _list_literal(self, expr: ListLiteral) -> Value:
-        if not expr.elements and self.types.get(expr) is None:
-            # `len([])` não tem elemento; a lista vazia não carrega nenhum.
-            element = TypeDesc(ValueType.INT)
-        elif self.types.get(expr) is None and expr.elements:
-            first = self.types.get(expr.elements[0])
-            element = (
-                self._type_desc(self._subst_ty(first), None)
-                if first is not None
-                else self._element_desc(expr, None)
-            )
-        else:
-            element = self._element_desc(expr, None)
-        _ = element
         raw = self.builder.call(
             self._function("lox_list_new", _I8_PTR, []), []
         )
@@ -116,8 +103,6 @@ class ContainerLowering(LoweringBase):
         return TypeDesc(ValueType.ANY)
 
     def _map_literal(self, expr: MapLiteral) -> Value:
-        key_desc, value_desc = self._map_types(expr, None)
-        _ = key_desc, value_desc
         raw = self.builder.call(self._function("lox_map_new", _I8_PTR, []), [])
         for key_expr, value_expr in expr.entries:
             key = self._box_value(self._expr(key_expr), None)

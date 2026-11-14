@@ -275,6 +275,50 @@ CASES = [
         'enum Color { Red } val x: Any = Color.Red; print x as Color;',
         "as de enum",
     ),
+    (
+        'print 5 is Int; print 5 is String; print "a" is String; '
+        'print (1..2) is Range; print nil is Nil;',
+        "is estático de escalar",
+    ),
+    (
+        'class A {} print 5 is A;',
+        "is de classe com valor não-instância devolve false",
+    ),
+    (
+        'class A {} val a: A? = nil; print a is A; '
+        'val b: A? = A(); print b is A;',
+        "is de classe opcional (nil e presente)",
+    ),
+    (
+        'val x: Int? = nil; print x is Int; '
+        'val y: Int? = 3; print y is Int;',
+        "is de escalar opcional",
+    ),
+    (
+        'val l: List[Int]? = nil; print l is List[Int]; '
+        'val m: List[Int]? = [1]; print m is List[Int];',
+        "is de lista opcional",
+    ),
+    (
+        'val x: Any = [[1], [2]]; print x; '
+        'print x is List[List[Int]]; print x is List[List[String]];',
+        "literal de lista aninhada e is recursivo",
+    ),
+    (
+        'val x: Any = {"a": {"b": 1}}; print x; '
+        'print x is Map[String, Map[String, Int]];',
+        "literal de mapa aninhado e is recursivo",
+    ),
+    (
+        'fn f() -> Any { class Local {} val x: Any = Local(); '
+        'return x is Local; } print f();',
+        "is de classe local a partir de Any",
+    ),
+    (
+        'print true as Bool; print "a" as String; '
+        'print (1..2) as Range; print nil as Nil;',
+        "as estático de escalar",
+    ),
 ]
 
 

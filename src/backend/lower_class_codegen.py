@@ -69,6 +69,15 @@ from src.frontend.ty import (
 
 
 class ClassCodegenLowering(LoweringBase):
+    def _class_layout_for_type(self, name: str) -> ClassLayout | None:
+        """Layout do nome no escopo atual; classe local usa `layout_key`."""
+        binding = self._find_binding(name)
+        if binding is not None and binding.layout_key is not None:
+            layout = self._classes.get(binding.layout_key)
+            if layout is not None:
+                return layout
+        return self._classes.get(name)
+
     def _class_declaration(self, stmt: Class) -> None:
         if not (self._function_ir is self.main and len(self._scopes) == 1):
             self._local_class_declaration(stmt)
@@ -515,28 +524,9 @@ class ClassCodegenLowering(LoweringBase):
             return self._is_any(
                 value, expr.test_type, target_desc, expr.operator.line
             )
-        if isinstance(expr.test_type, (TupleTy, ListTy, MapTy)):
-            if value.optional:
-                raise _unsupported(
-                    "is on an optional container", expr.operator.line
-                )
-            boxed = self._box_value(value, expr.operator.line)
-            return self._is_any(
-                boxed, expr.test_type, target_desc, expr.operator.line
-            )
-        if isinstance(expr.test_type, EnumTy) or (
-            isinstance(expr.test_type, ClassTy)
-            and expr.test_type.name in self._enum_layouts
-        ):
-            if value.optional:
-                raise _unsupported("is on an optional enum", expr.operator.line)
-            boxed = self._box_value(value, expr.operator.line)
-            return self._is_any(
-                boxed, expr.test_type, target_desc, expr.operator.line
-            )
-        target = self._target_class(expr.test_type, expr.operator.line)
-        return self._is_instance(
-            value, target, expr.operator.line, expr.operator.column
+        boxed = self._box_value(value, expr.operator.line)
+        return self._is_any(
+            boxed, expr.test_type, target_desc, expr.operator.line
         )
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
@@ -603,7 +593,7 @@ class ClassCodegenLowering(LoweringBase):
                 return f"E<{self._enum_layouts[ty.name].enum_id}>"
             if ty.args:
                 raise _unsupported("Class type arguments in is/as", line)
-            layout = self._classes.get(ty.name)
+            layout = self._class_layout_for_type(ty.name)
             if layout is None:
                 raise _unsupported(f"Class '{ty.name}'", line)
             return f"C<{layout.id}>"
@@ -811,6 +801,10 @@ class ClassCodegenLowering(LoweringBase):
         if (
             target_desc.ty
             in (
+                ValueType.BOOL,
+                ValueType.STRING,
+                ValueType.RANGE,
+                ValueType.NIL,
                 ValueType.LIST,
                 ValueType.MAP,
                 ValueType.TUPLE,

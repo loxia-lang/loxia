@@ -187,6 +187,9 @@ class LoweringBase:
     def _find_binding(self, name: str) -> Binding | None:
         raise NotImplementedError
 
+    def _class_layout_for_type(self, name: str) -> ClassLayout | None:
+        raise NotImplementedError
+
     def _bound_method(
         self, instance: Value, layout: ClassLayout, method: MethodLayout
     ) -> Value:

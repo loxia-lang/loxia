@@ -181,5 +181,6 @@ Intervalo: `HEAD..HEAD` (diagnósticos; sem commit anterior para comparar no log
   **updated** na fase 2: o erro de runtime passou a usar o mesmo cabeçalho do diagnóstico
   de compilação, com `lox_panic(line, column, code, message)` no runtime C.
 - `TODO.md` e `CHANGELOG.md` — **updated** ao corrigir os achados: `Any as T` checa a tag,
-  exceções sintéticas têm aridade 1, a exceção não capturada carrega a mensagem e
-  `is/as` sobre `Any` passou a checar recursivamente containers e identidade de enum.
+  exceções sintéticas têm aridade 1, a exceção não capturada carrega a mensagem,
+  `is/as` sobre `Any` checa recursivamente containers/identidade de enum e o caminho
+  estático/opcional (boxing de `T?`, literal aninhado, classe local) usa o mesmo matcher.

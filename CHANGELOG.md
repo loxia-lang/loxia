@@ -219,6 +219,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `["a"] is List[Int]`, `(1, "a") is (Int, Int)`, `Size.Small is Color` e
   `Any as List[Int]`; o `is` de tupla estática com elementos `Any` também deixou de usar
   a comparação estática `same_as`.
+- **`is`/`as` estático e opcional**: `5 is Int`, `5 is A` (false, em vez de panic),
+  `T?` de escalar/classe/lista (`nil` → false, presente → checagem normal) e classe local
+  passam pelo matcher; `T?` é boxeado como `{0,0}`/`{tag,payload}`.
+- **Literais aninhados**: `val x: Any = [[1]]`/`{"a": {"b": 1}}` compilam (a checagem de
+  tipo morta do literal foi removida; os elementos já eram boxeados).
 
 ## [1.0.0] — 2026-11-12
 

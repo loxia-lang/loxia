@@ -190,19 +190,22 @@ async.
 
 ### 9.1 Divergências I1 conhecidas (fora do corpus)
 
-Achadas ao implementar o cabeçalho de runtime do [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md).
-As três primeiras foram corrigidas em `tests/test_backend.py` (`Any as T` checa a tag,
-`Exception("x")`/`LoxRuntimeError("x")` têm aridade 1 e a exceção não capturada imprime
-`Tipo: mensagem`), e `is/as` sobre `Any` agora checa **recursivamente** listas, mapas,
-tuplas e enums (`lox_type_matches_str` + descritor serializado). Ainda em aberto:
+Achadas ao implementar o [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md).
+Todas foram corrigidas com regressão no diferencial de `tests/test_backend.py`:
 
-- [ ] **Literal de lista aninhada fora de contexto tipado**: `val x: Any = [[1]]` cai em
-      `E4001: List element type` no lowering (o checker não publica o tipo do literal
-      interno). É lacuna declarada, não miscompile.
-- [ ] **`is`/`as` em container opcional**: `T?` de lista/mapa/tupla levanta
-      `E4001`; o tree-walk devolve `false`/erra conforme o caso.
-- [ ] **`is` de classe genérica sem argumentos** (`x is Box`): o id do layout depende da
-      instanciação; hoje recusa com `E4001`.
+- `Any as T` checa a tag e promove `Int`/`Float`;
+- `Exception("x")`/`LoxRuntimeError("x")` têm aridade 1 e a exceção não capturada imprime
+  `Tipo: mensagem`;
+- `is/as` sobre `Any` checa **recursivamente** listas, mapas, tuplas e enums
+  (`lox_type_matches_str` + descritor serializado);
+- `is/as` estático e opcional (escalar, classe, lista, `nil`) passa pelo mesmo matcher;
+  `T?` boxeado como `{0,0}`/`{tag,payload}`;
+- literais de lista/mapa aninhados compilam;
+- classe local é resolvida pelo `layout_key` do binding.
+
+Não há divergência I1 conhecida fora do corpus hoje. Limite declarado (regra da
+linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é recusado
+pelo checker (`E3000`) e o tree-walk levanta `R1014`.
 
 
 ---

@@ -117,7 +117,7 @@ class OptionalLowering(LoweringBase):
                     tuple(self._subst_ty(arg) for arg in ty.args),
                     line,
                 )
-            if ty.name not in self._class_names:
+            if self._class_layout_for_type(ty.name) is None:
                 raise _unsupported(f"Class '{ty.name}'", line)
             return TypeDesc(ValueType.INSTANCE, class_name=ty.name)
         if isinstance(ty, ClassObjectTy):
@@ -262,12 +262,7 @@ class OptionalLowering(LoweringBase):
             value.class_name,
         )
 
-    def _box_value(self, value: Value, line: int | None) -> Value:
-        if value.ty is ValueType.ANY:
-            return value
-        if value.optional:
-            raise _unsupported("Boxing an optional value", line)
-
+    def _any_tag(self, ty: ValueType, line: int | None) -> int:
         tag = {
             ValueType.NIL: ANY_TAG_NIL,
             ValueType.INT: ANY_TAG_INT,
@@ -282,9 +277,49 @@ class OptionalLowering(LoweringBase):
             ValueType.MAP: ANY_TAG_MAP,
             ValueType.TUPLE: ANY_TAG_TUPLE,
             ValueType.ENUM: ANY_TAG_ENUM,
-        }.get(value.ty)
+        }.get(ty)
         if tag is None:
-            raise _unsupported(f"Boxing {value.ty.name}", line)
+            raise _unsupported(f"Boxing {ty.name}", line)
+        return tag
+
+    def _box_optional(self, value: Value, line: int | None) -> Value:
+        """`T?` boxeado: `{0, 0}` para nil, `{tag, payload}` quando presente.
+
+        Escalares usam `{i1, T}`; referências usam ponteiro nulo. Os dois viram
+        o mesmo `Any` que o matcher de `is`/`as` entende.
+        """
+        if value.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
+            present = self.builder.extract_value(value.llvm, 0)
+            payload = self.builder.extract_value(value.llvm, 1)
+            if value.ty is ValueType.FLOAT:
+                payload = self.builder.bitcast(payload, _INT)
+            elif value.ty is ValueType.BOOL:
+                payload = self.builder.zext(payload, _INT)
+        else:
+            present = self.builder.icmp_signed(
+                "!=", value.llvm, llvm_ir.null_pointer()
+            )
+            payload = self.builder.ptrtoint(value.llvm, _INT)
+        tag = self.builder.select(
+            present,
+            llvm_ir.constant(_INT, self._any_tag(value.ty, line)),
+            llvm_ir.constant(_INT, ANY_TAG_NIL),
+        )
+        payload = self.builder.select(
+            present, payload, llvm_ir.constant(_INT, 0)
+        )
+        aggregate = llvm_ir.zero_value(_ANY)
+        aggregate = self.builder.insert_value(aggregate, tag, 0)
+        aggregate = self.builder.insert_value(aggregate, payload, 1)
+        return Value(ValueType.ANY, aggregate)
+
+    def _box_value(self, value: Value, line: int | None) -> Value:
+        if value.ty is ValueType.ANY:
+            return value
+        if value.optional:
+            return self._box_optional(value, line)
+
+        tag = self._any_tag(value.ty, line)
 
         if value.ty is ValueType.NIL:
             payload = llvm_ir.constant(_INT, 0)
