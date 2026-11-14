@@ -10,6 +10,7 @@
 
 #include <inttypes.h>
 #include <locale.h>
+#include <setjmp.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -857,7 +858,119 @@ int64_t lox_float_to_int(double value, int32_t line) {
     return (int64_t)value;
 }
 
+
+/* Exceções do L6j: frames de try, throw e cleanup mínimo (ADR-0062). */
+typedef struct {
+    const char *type_name;
+    void *instance;
+    const char *message;
+    int32_t line;
+} LoxException;
+
+typedef struct LoxTryFrame {
+    jmp_buf env;
+    struct LoxTryFrame *previous;
+    LoxException exception;
+    int32_t active;
+} LoxTryFrame;
+
+static LoxTryFrame *lox_current_try = NULL;
+
+void *lox_try_push(void) {
+    LoxTryFrame *frame = lox_alloc(sizeof(LoxTryFrame));
+    frame->previous = lox_current_try;
+    frame->active = 1;
+    frame->exception.type_name = NULL;
+    frame->exception.instance = NULL;
+    frame->exception.message = NULL;
+    frame->exception.line = 0;
+    lox_current_try = frame;
+    return frame;
+}
+
+void *lox_try_buffer(void *pointer) {
+    return &((LoxTryFrame *)pointer)->env;
+}
+
+void lox_try_pop(void *pointer) {
+    LoxTryFrame *frame = pointer;
+    frame->active = 0;
+    if (lox_current_try == frame) {
+        lox_current_try = frame->previous;
+    }
+}
+
+void *lox_try_exception(void *pointer) {
+    return &((LoxTryFrame *)pointer)->exception;
+}
+
+void *lox_exception_instance(const void *pointer) {
+    return ((const LoxException *)pointer)->instance;
+}
+
+const char *lox_exception_message(const void *pointer) {
+    return ((const LoxException *)pointer)->message;
+}
+
+int32_t lox_exception_matches(const void *pointer, const char *type_name) {
+    const LoxException *exception = pointer;
+    if (exception->instance != NULL) {
+        void *descriptor = *(void **)exception->instance;
+        while (descriptor != NULL) {
+            const LoxStr *name = ((const LoxStr **)descriptor)[2];
+            size_t length = strlen(type_name);
+            if (name->byte_len == (int64_t)length &&
+                memcmp(name->data, type_name, length) == 0) {
+                return 1;
+            }
+            descriptor = *(void **)descriptor;
+        }
+        return 0;
+    }
+    if (exception->type_name == NULL) {
+        return 0;
+    }
+    if (strcmp(exception->type_name, type_name) == 0) {
+        return 1;
+    }
+    return strcmp(type_name, "Exception") == 0;
+}
+
+void lox_throw(void *instance, const char *type_name, const char *message,
+               int32_t line) {
+    LoxTryFrame *frame = lox_current_try;
+    if (frame == NULL) {
+        fflush(stdout);
+        fprintf(stderr, "Unhandled exception: %s\n[line %" PRId32 "]\n",
+                message != NULL ? message : type_name, line);
+        fflush(stderr);
+        exit(70);
+    }
+    frame->exception.type_name = type_name;
+    frame->exception.instance = instance;
+    frame->exception.message = message;
+    frame->exception.line = line;
+    longjmp(frame->env, 1);
+}
+
+void lox_rethrow(void *exception_pointer, int32_t line) {
+    LoxException *exception = exception_pointer;
+    lox_throw(exception->instance, exception->type_name, exception->message, line);
+}
+
+void lox_raise_current(int32_t line) {
+    LoxTryFrame *frame = lox_current_try;
+    if (frame == NULL) {
+        lox_panic(line, "No exception to re-raise.");
+    }
+    lox_throw(frame->exception.instance, frame->exception.type_name,
+              frame->exception.message, line);
+}
+
 void lox_panic(int32_t line, const char *message) {
+    if (lox_current_try != NULL) {
+        lox_throw(NULL, "LoxRuntimeError", message, line);
+    }
     fflush(stdout);
     fprintf(stderr, "%s\n[line %" PRId32 "]\n", message, line);
     fflush(stderr);

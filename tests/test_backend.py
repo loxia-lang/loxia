@@ -250,7 +250,7 @@ def test_binario_concorda_com_interpretador(
 
 @pytest.mark.backend
 def test_recurso_sem_representacao_e_rejeitado_explicitamente(tmp_path: Path) -> None:
-    path = _write(tmp_path, "try { print 1 } except Exception as e { }\n")
+    path = _write(tmp_path, "val id = fn(x) => x;\nprint id(1);\n")
 
     result, binary = _build(path, tmp_path)
 
@@ -637,7 +637,7 @@ def test_enum_e_compilado(tmp_path: Path) -> None:
 
 
 @pytest.mark.backend
-def test_try_sem_backend_e_rejeitado(tmp_path: Path) -> None:
+def test_try_e_compilado(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "try { print 1; } finally { print 2; }\n",
@@ -645,9 +645,10 @@ def test_try_sem_backend_e_rejeitado(tmp_path: Path) -> None:
 
     result, binary = _build(path, tmp_path)
 
-    assert result.returncode == 65
-    assert "Try is not supported by the backend yet." in result.stderr
-    assert not binary.exists()
+    assert result.returncode == 0, result.stderr
+    assert binary.exists()
+    compiled = _run([str(binary)])
+    assert compiled.stdout == "1\n2\n"
 
 
 @pytest.mark.backend

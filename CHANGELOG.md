@@ -39,6 +39,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `docs/log.md` (skill `lox-docs`).
 
 - Backend **generics com lambda contextual**: checker publica o `FnTy` concreto da lambda em argumento genérico; `generics.lox` promovido.
+- Backend **L6j — exceções/unwinding**: frames `setjmp`/`longjmp`, `try`/`except`/`finally`, `raise`, classes sintéticas `Exception`/`LoxRuntimeError` e erros de runtime capturáveis; `exceptions.lox` promovido ([ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)).
 - Backend **L6i — enums/`match`/`Result`**: `LoxEnumValue` com descritor, construtores de variante, `match` por variante, igualdade/print e tag `ENUM`; `enums.lox` e `result.lox` promovidos ([ADR-0061](docs/adr/0061-l6-enums-match.md)).
 - Backend **L6h — loop/nil/Any**: captura por iteração, variável que começa `nil` e índice de `Any`-tupla ([ADR-0058](docs/adr/0058-l6-loop-capture-uninit.md)).
 - Backend **L6g — defaults como valor**: funções com parâmetros default podem ser passadas como valor; defaults são preenchidos na chamada indireta ([ADR-0057](docs/adr/0057-l6-defaults-as-value.md)).

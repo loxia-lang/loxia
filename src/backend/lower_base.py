@@ -55,6 +55,7 @@ class LoweringBase:
     _analysis: CaptureAnalysis
     _type_subst: dict[str, Ty]
     _enum_layouts: dict[str, Any]
+    _finally_stack: list[list[Any]]
     _enum_names: dict[str, Any]
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None

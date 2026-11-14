@@ -24,6 +24,7 @@ from src.backend.lower_class_codegen import ClassCodegenLowering
 from src.backend.lower_class_layout import ClassLayoutLowering
 from src.backend.lower_containers import ContainerLowering
 from src.backend.lower_enums import EnumLowering
+from src.backend.lower_exceptions import ExceptionLowering
 from src.backend.lower_functions import FunctionLowering
 from src.backend.lower_generics import GenericLowering
 from src.backend.lower_instances import InstanceLowering
@@ -88,8 +89,10 @@ from src.frontend.stmt import (
     Function,
     If,
     Print,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -100,6 +103,7 @@ from src.frontend.ty import (
 
 
 class Lowerer(
+    ExceptionLowering,
     EnumLowering,
     GenericLowering,
     MathLowering,
@@ -154,6 +158,7 @@ class Lowerer(
         self._type_subst: dict[str, Ty] = {}
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
+        self._finally_stack: list[list[Any]] = []
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
         self._map_expected_value: Ty | None = None
@@ -170,6 +175,7 @@ class Lowerer(
         self._analysis = analyze_captures(statements)
         self._prepare_generics(statements)
         self._prepare_enums(statements)
+        self._prepare_exception_classes()
         self._predeclare_classes(statements)
         self._prepare_generic_classes(statements)
         self._predeclare_functions(statements)
@@ -182,6 +188,7 @@ class Lowerer(
         self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
         self.builder.call(self._function("lox_init", _VOID, []), [])
+        self._emit_exception_classes()
 
         for statement in statements:
             if self.builder.block.is_terminated:
@@ -255,6 +262,10 @@ class Lowerer(
             self._destructure(stmt)
         elif isinstance(stmt, EnumDecl):
             self._enum_decl(stmt)
+        elif isinstance(stmt, Try):
+            self._try(stmt)
+        elif isinstance(stmt, Raise):
+            self._raise(stmt)
         elif isinstance(stmt, Print):
             self._print(stmt)
         elif isinstance(stmt, Expression):
@@ -952,6 +963,22 @@ class Lowerer(
                 "by the backend yet.",
                 stmt.keyword.line,
             )
+
+        if self._finally_stack:
+            saved = self._finally_stack.pop()
+            try:
+                self._scopes.append({})
+                try:
+                    for statement in saved:
+                        if self.builder.block.is_terminated:
+                            break
+                        self._stmt(statement)
+                finally:
+                    self._scopes.pop()
+            finally:
+                self._finally_stack = self._finally_stack
+            if self.builder.block.is_terminated:
+                return
 
         value = self._coerce(
             self._expr(stmt.value), self._return_type_desc, stmt.keyword.line

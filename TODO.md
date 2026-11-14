@@ -21,7 +21,7 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: backend em **L0–L5 + T7 + L6a–L6i**; o que
+vale o que está aqui. Estado em 2026-11-13: backend em **L0–L5 + T7 + L6a–L6j**; o que
 resta do L6 está em `PENDING` (`enums`, `exceptions`, `Result` e função genérica como
 valor) e o L7 não começou. O status por nível é **gerado** em
 [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
@@ -40,7 +40,7 @@ valor) e o L7 não começou. O status por nível é **gerado** em
        - [x] **L6i — enums/`match`/`Result`** (ADR-0061 aceito) ([ADR-0061](docs/adr/0061-l6-enums-match.md)):
          valor de enum + descritor, construtores de variante, `match` como expressão e
          igualdade/print; alvos `enums.lox`, `result.lox`.
-       - [ ] **L6j — exceções/unwinding** ([ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)):
+       - [x] **L6j — exceções/unwinding** ([ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)):
          aceitar o ADR de ABI **antes** de codar; spike `try`/`raise` com `setjmp`/
          `longjmp` + pilha de cleanup, depois `finally`/retorno e erros de runtime
          capturáveis; alvo `exceptions.lox`.
@@ -379,12 +379,12 @@ tabela do §6.3 (`Any`, enums, exceções).
 
 ### 6.8 Marcos do backend
 
-L0–L5, T7 e L6a–L6i estão entregues (ADRs 0031, 0046–0048, 0050–0058); o detalhe de cada
+L0–L5, T7 e L6a–L6j estão entregues (ADRs 0031, 0046–0048, 0050–0058); o detalhe de cada
 um fica nos ADRs e no [`CHANGELOG.md`](CHANGELOG.md). Falta:
 
 - [x] **L6i — enums/`match`/`Result`**: ADR-0061 implementado; representação
       `LoxEnumValue`, construtores de variante, `match` com blocos/phi e `Any` tag ENUM.
-- [ ] **L6j — exceções/unwinding**: ADR-0062 proposto; ABI `LoxTryFrame`/`LoxException`,
+- [x] **L6j — exceções/unwinding**: ADR-0062 proposto; ABI `LoxTryFrame`/`LoxException`,
       cleanup stack e `finally`; spike antes da feature completa.
 - [ ] **L6k — função genérica como valor**: ADR-0063; especialização no call site dentro
       do orçamento de monomorfização, ou adiamento declarado para o M8.

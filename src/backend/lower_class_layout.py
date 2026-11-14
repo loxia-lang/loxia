@@ -29,7 +29,7 @@ from src.frontend.token_type import TokenType
 class ClassLayoutLowering(LoweringBase):
     def _predeclare_classes(self, statements: list[Stmt]) -> None:
         classes = [stmt for stmt in statements if isinstance(stmt, Class)]
-        self._class_names = {stmt.name.lexeme for stmt in classes}
+        self._class_names = {stmt.name.lexeme for stmt in classes} | set(self._classes)
 
         for index, stmt in enumerate(classes, start=1):
             if stmt.type_params:
