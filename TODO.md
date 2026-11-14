@@ -33,7 +33,7 @@ kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
 | **L6** | enums/`match`, exceções, `Any` residual, `repr` de enum e o que o ADR-0055 ainda lista | ✅ |
-| **L7** | `mod.verify()` (feito), passes `-O2`, benchmarks, JIT e mensagens de erro de codegen | 🟡 `-O2`/bench nativo feitos; JIT e erros de codegen pendentes |
+| **L7** | `mod.verify()` (feito), passes `-O2`, benchmarks e mensagens de erro de codegen | 🟡 `-O2`/bench nativo feitos; erros de codegen em revisão |
 | **M7** | GC Boehm + contrato de memória do [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md) | ✅ implementado |
 
 ### 0.2 Ordem de execução
@@ -52,7 +52,9 @@ kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
       até 64 MiB de memória viva ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md));
       verificado com o corpus completo e os testes de GC/OOM.
 - [ ] **L7b — Qualidade restante**: `-O2` (passes de IR) e benchmark nativo feitos;
-      faltam JIT no REPL e mensagens de erro de codegen.
+      falta a revisão das mensagens de erro de codegen.
+- [ ] **JIT no REPL** (`P3`, pendência futura): MCJIT + runtime + estado do REPL; não
+      bloqueia o L7b. Desenho próprio antes de codar.
 - [ ] **Kernel v1** (§13): 13.3 → 13.4 → 13.2, depois stdlib.
 
 ## 3. Diagnósticos
@@ -174,7 +176,7 @@ M0–M5 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 | --- | --- | --- | --- |
 | **M6** | LLVM vertical | L0–L6 completos e I1 verde no corpus anotado | ✅ |
 | **M7** | Runtime completo | GC Boehm ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)) + I1 verde no corpus completo | ✅ GC, roots, hard cap e corpus verde |
-| **M8** | Performance | L7: `-O2`, benchmarks e JIT | ⬜ |
+| **M8** | Performance | L7: `-O2` e benchmarks; JIT no REPL fica como pendência futura (P3) | ⬜ |
 | **M9** | Ecossistema | formatter, LSP, docs e playground | ⬜ |
 
 **Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o

@@ -34,8 +34,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: **L7b** (JIT no REPL e erros de codegen; `-O2` e benchmark nativo já
-  entregues). O L5, o T7 e o L6a–L6k já
+- 📐 Próximo passo: **L7b** (revisão das mensagens de erro de codegen; `-O2` e benchmark
+  nativo já entregues). JIT no REPL fica como pendência futura. O L5, o T7 e o L6a–L6k já
   entregaram classes,
   herança, closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas,
   tuplas, `Any`, `math`/parse e defaults como valor; traits e constraints ficam
