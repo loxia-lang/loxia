@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import cast
 
 from src.diagnostics.error_reporter import ErrorReporter
@@ -81,6 +83,7 @@ class Parser:
         self._tokens: list[Token] = tokens
         self._current: int = 0
         self._repl: bool = repl
+        self._bracket_depth: int = 0
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
 
     def parse(self) -> list[Stmt] | None:
@@ -187,6 +190,8 @@ class Parser:
             elif self._match(TokenType.VAR):
                 fields.append(self._field_declaration(mutable=True))
             else:
+                # `fn` é opcional em método: o corpo da classe já marca a declaração.
+                self._match(TokenType.FN)
                 methods.append(self._function("method"))
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
@@ -353,13 +358,20 @@ class Parser:
     def _block(self) -> list[Stmt]:
         statements: list[Stmt] = []
 
-        while not self._check(TokenType.RIGHT_BRACE) and not self._is_at_end():
-            declaration = self._declaration()
-            if declaration is not None:
-                statements.append(declaration)
+        # Um bloco é uma fronteira de statements: brackets abertos fora dele não podem
+        # fazer um `-` no início da linha virar subtração (ADR-0067).
+        saved_depth = self._bracket_depth
+        self._bracket_depth = 0
+        try:
+            while not self._check(TokenType.RIGHT_BRACE) and not self._is_at_end():
+                declaration = self._declaration()
+                if declaration is not None:
+                    statements.append(declaration)
 
-        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
-        return statements
+            self._consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
+            return statements
+        finally:
+            self._bracket_depth = saved_depth
 
     def _for_statement(self) -> Stmt:
         if not self._check(TokenType.LEFT_PAREN):
@@ -462,6 +474,12 @@ class Parser:
 
     def _expression_statement(self) -> Stmt:
         expr = self._expression()
+        if self._check(TokenType.COLON):
+            raise self._error(
+                self._peek(),
+                "Unexpected ':'. Map literals can't start a statement; "
+                "use 'val m = { ... }' or parentheses.",
+            )
         self._end_statement("Expect ';' after expression.")
         return Expression(expr)
 
@@ -578,8 +596,11 @@ class Parser:
 
         return Lambda(keyword, parameters, body, return_type)
 
-    def _type(self) -> Ty:
+    def _type(self, *, allow_union: bool = True) -> Ty:
         ty = self._postfix_type()
+
+        if not allow_union:
+            return ty
 
         while self._match(TokenType.PIPE):
             ty = union(ty, self._postfix_type())
@@ -738,7 +759,7 @@ class Parser:
     def _conditional(self) -> Expr:
         expr = self._coalesce()
 
-        if self._match_inline(TokenType.IF):
+        if self._match_infix(TokenType.IF):
             condition = self._coalesce()
             self._consume(
                 TokenType.ELSE, "Expect 'else' after conditional expression."
@@ -751,7 +772,7 @@ class Parser:
     def _coalesce(self) -> Expr:
         expr = self._or()
 
-        if self._match_inline(TokenType.QUESTION_QUESTION):
+        if self._match_infix(TokenType.QUESTION_QUESTION):
             operator = self._previous()
             right = self._coalesce()
             return Logical(expr, operator, right)
@@ -761,7 +782,7 @@ class Parser:
     def _or(self) -> Expr:
         expr = self._and()
 
-        while self._match_inline(TokenType.OR):
+        while self._match_infix(TokenType.OR):
             operator = self._previous()
             right = self._and()
             expr = Logical(expr, operator, right)
@@ -771,7 +792,7 @@ class Parser:
     def _and(self) -> Expr:
         expr = self._equality()
 
-        while self._match_inline(TokenType.AND):
+        while self._match_infix(TokenType.AND):
             operator = self._previous()
             right = self._equality()
             expr = Logical(expr, operator, right)
@@ -781,7 +802,7 @@ class Parser:
     def _equality(self) -> Expr:
         expr = self._comparison()
 
-        while self._match_inline(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL):
+        while self._match_infix(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL):
             operator: Token = self._previous()
             right: Expr = self._comparison()
             expr = Binary(expr, operator, right)
@@ -792,7 +813,7 @@ class Parser:
         expr: Expr = self._bitwise_or()
 
         while True:
-            if self._match_inline(
+            if self._match_infix(
                 TokenType.GREATER,
                 TokenType.GREATER_EQUAL,
                 TokenType.LESS,
@@ -801,9 +822,14 @@ class Parser:
                 operator: Token = self._previous()
                 right: Expr = self._bitwise_or()
                 expr = Binary(expr, operator, right)
-            elif self._match_inline(TokenType.IS):
+            elif self._match_infix(TokenType.IS):
                 operator = self._previous()
-                test_type = self._type()
+                test_type = self._type(allow_union=False)
+                if self._check(TokenType.PIPE):
+                    raise self._error(
+                        self._peek(),
+                        "Type unions in 'is' need parentheses: 'is (A | B)'.",
+                    )
                 expr = Is(expr, test_type, operator)
             else:
                 break
@@ -813,7 +839,7 @@ class Parser:
     def _bitwise_or(self) -> Expr:
         expr: Expr = self._bitwise_xor()
 
-        while self._match_inline(TokenType.PIPE):
+        while self._match_infix(TokenType.PIPE):
             operator: Token = self._previous()
             right: Expr = self._bitwise_xor()
             expr = Binary(expr, operator, right)
@@ -823,7 +849,7 @@ class Parser:
     def _bitwise_xor(self) -> Expr:
         expr: Expr = self._bitwise_and()
 
-        while self._match_inline(TokenType.CARET):
+        while self._match_infix(TokenType.CARET):
             operator: Token = self._previous()
             right: Expr = self._bitwise_and()
             expr = Binary(expr, operator, right)
@@ -833,7 +859,7 @@ class Parser:
     def _bitwise_and(self) -> Expr:
         expr: Expr = self._range()
 
-        while self._match_inline(TokenType.AMPERSAND):
+        while self._match_infix(TokenType.AMPERSAND):
             operator: Token = self._previous()
             right: Expr = self._range()
             expr = Binary(expr, operator, right)
@@ -843,7 +869,7 @@ class Parser:
     def _range(self) -> Expr:
         expr: Expr = self._shift()
 
-        while self._match_inline(TokenType.DOT_DOT):
+        while self._match_infix(TokenType.DOT_DOT):
             operator: Token = self._previous()
             end: Expr = self._shift()
             expr = Range(expr, end, operator)
@@ -853,7 +879,7 @@ class Parser:
     def _shift(self) -> Expr:
         expr: Expr = self._term()
 
-        while self._match_inline(
+        while self._match_infix(
             TokenType.LESS_LESS,
             TokenType.GREATER_GREATER,
             TokenType.GREATER_GREATER_GREATER,
@@ -867,7 +893,7 @@ class Parser:
     def _term(self) -> Expr:
         expr: Expr = self._factor()
 
-        while self._match_inline(TokenType.MINUS, TokenType.PLUS):
+        while self._match_infix(TokenType.MINUS, TokenType.PLUS):
             operator: Token = self._previous()
             right: Expr = self._factor()
             expr = Binary(expr, operator, right)
@@ -877,7 +903,7 @@ class Parser:
     def _factor(self) -> Expr:
         expr: Expr = self._as()
 
-        while self._match_inline(
+        while self._match_infix(
             TokenType.SLASH,
             TokenType.SLASH_SLASH,
             TokenType.STAR,
@@ -892,7 +918,7 @@ class Parser:
     def _as(self) -> Expr:
         expr: Expr = self._unary()
 
-        while self._match_inline(TokenType.AS):
+        while self._match_infix(TokenType.AS):
             operator: Token = self._previous()
             target = self._type()
             expr = As(expr, target, operator)
@@ -910,7 +936,7 @@ class Parser:
     def _power(self) -> Expr:
         expr: Expr = self._call()
 
-        if self._match_inline(TokenType.STAR_STAR):
+        if self._match_infix(TokenType.STAR_STAR):
             operator: Token = self._previous()
             right: Expr = self._unary()
             return Binary(expr, operator, right)
@@ -946,12 +972,17 @@ class Parser:
                 and self._peek().line == self._previous().line
             ):
                 bracket = self._advance()
-                if self._check(TokenType.RIGHT_BRACKET):
-                    raise self._error(self._peek(), "Expect index expression.")
+                with self._in_brackets():
+                    if self._check(TokenType.RIGHT_BRACKET):
+                        raise self._error(
+                            self._peek(), "Expect index expression."
+                        )
 
-                index = self._expression()
-                self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
-                expr = Index(expr, index, bracket)
+                    index = self._expression()
+                    self._consume(
+                        TokenType.RIGHT_BRACKET, "Expect ']' after index."
+                    )
+                    expr = Index(expr, index, bracket)
                 optional_call = False
             else:
                 break
@@ -959,19 +990,22 @@ class Parser:
         return expr
 
     def _finish_call(self, callee: Expr, *, optional: bool = False) -> Expr:
-        arguments: list[Expr] = []
-        if not self._check(TokenType.RIGHT_PAREN):
-            while True:
-                if len(arguments) >= 255:
-                    self._error(self._peek(), "Can't have more than 255 arguments.")
+        with self._in_brackets():
+            arguments: list[Expr] = []
+            if not self._check(TokenType.RIGHT_PAREN):
+                while True:
+                    if len(arguments) >= 255:
+                        self._error(self._peek(), "Can't have more than 255 arguments.")
 
-                arguments.append(self._expression())
+                    arguments.append(self._expression())
 
-                if not self._match(TokenType.COMMA):
-                    break
+                    if not self._match(TokenType.COMMA):
+                        break
 
-        paren = self._consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
-        return Call(callee, paren, arguments, optional)
+            paren = self._consume(
+                TokenType.RIGHT_PAREN, "Expect ')' after arguments."
+            )
+            return Call(callee, paren, arguments, optional)
 
     def _interpolated_string(self, token: Token) -> Expr:
         raw_parts = cast(list[str | list[Token]], token.literal)
@@ -987,23 +1021,24 @@ class Parser:
         return InterpolatedString(parts, token)
 
     def _map_literal(self, brace: Token) -> Expr:
-        entries: list[tuple[Expr, Expr]] = []
+        with self._in_brackets():
+            entries: list[tuple[Expr, Expr]] = []
 
-        if not self._check(TokenType.RIGHT_BRACE):
-            while True:
-                key = self._expression()
-                self._consume(
-                    TokenType.COLON,
-                    "Expect ':' between key and value in map literal.",
-                )
-                value = self._expression()
-                entries.append((key, value))
+            if not self._check(TokenType.RIGHT_BRACE):
+                while True:
+                    key = self._expression()
+                    self._consume(
+                        TokenType.COLON,
+                        "Expect ':' between key and value in map literal.",
+                    )
+                    value = self._expression()
+                    entries.append((key, value))
 
-                if not self._match(TokenType.COMMA):
-                    break
+                    if not self._match(TokenType.COMMA):
+                        break
 
-        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after map entries.")
-        return MapLiteral(entries, brace)
+            self._consume(TokenType.RIGHT_BRACE, "Expect '}' after map entries.")
+            return MapLiteral(entries, brace)
 
     def _primary(self) -> Expr:
 
@@ -1041,17 +1076,20 @@ class Parser:
 
         if self._match(TokenType.LEFT_BRACKET):
             bracket = self._previous()
-            elements: list[Expr] = []
+            with self._in_brackets():
+                elements: list[Expr] = []
 
-            if not self._check(TokenType.RIGHT_BRACKET):
-                while True:
-                    elements.append(self._expression())
+                if not self._check(TokenType.RIGHT_BRACKET):
+                    while True:
+                        elements.append(self._expression())
 
-                    if not self._match(TokenType.COMMA):
-                        break
+                        if not self._match(TokenType.COMMA):
+                            break
 
-            self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.")
-            return ListLiteral(elements, bracket)
+                self._consume(
+                    TokenType.RIGHT_BRACKET, "Expect ']' after list elements."
+                )
+                return ListLiteral(elements, bracket)
 
         if self._match(TokenType.LEFT_BRACE):
             return self._map_literal(self._previous())
@@ -1061,22 +1099,31 @@ class Parser:
 
         if self._match(TokenType.LEFT_PAREN):
             paren = self._previous()
-            first: Expr = self._expression()
+            with self._in_brackets():
+                first: Expr = self._expression()
 
-            if self._match(TokenType.COMMA):
-                elements = [first]
-                while True:
-                    elements.append(self._expression())
-                    if not self._match(TokenType.COMMA):
-                        break
+                if self._match(TokenType.COMMA):
+                    elements = [first]
+                    while True:
+                        elements.append(self._expression())
+                        if not self._match(TokenType.COMMA):
+                            break
+
+                    self._consume(
+                        TokenType.RIGHT_PAREN, "Expect ')' after tuple elements."
+                    )
+                    return TupleLiteral(elements, paren)
 
                 self._consume(
-                    TokenType.RIGHT_PAREN, "Expect ')' after tuple elements."
+                    TokenType.RIGHT_PAREN, "Expect ')' after expression."
                 )
-                return TupleLiteral(elements, paren)
+                return Grouping(first)
 
-            self._consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
-            return Grouping(first)
+        if self._check(TokenType.SLASH_SLASH):
+            raise self._error(
+                self._peek(),
+                "Expect expression; '//' is integer division, and comments start with '#'.",
+            )
 
         raise self._error(self._peek(), "Expect expression.")
 
@@ -1128,8 +1175,16 @@ class Parser:
                 return True
         return False
 
-    def _match_inline(self, *types: TokenType) -> bool:
-        """Como `_match`, mas só consome operador que esteja na mesma linha."""
+    def _match_infix(self, *types: TokenType) -> bool:
+        """Consome um operador infixo.
+
+        Fora de brackets ele precisa estar na mesma linha do operando esquerdo (regra
+        do `;` opcional, ADR-0011). Dentro de `()`, `[]` e `{}` de expressão a quebra é
+        permitida: ali não existe um statement novo para começar (ADR-0067).
+        """
+        if self._bracket_depth > 0:
+            return self._match(*types)
+
         for token_type in types:
             if self._check(token_type):
                 if self._peek().line != self._previous().line:
@@ -1137,6 +1192,15 @@ class Parser:
                 self._advance()
                 return True
         return False
+
+    @contextmanager
+    def _in_brackets(self) -> Iterator[None]:
+        """Marca que a expressão corrente está dentro de `()`, `[]` ou `{}`."""
+        self._bracket_depth += 1
+        try:
+            yield
+        finally:
+            self._bracket_depth -= 1
 
     def _check(self, type: TokenType) -> bool:
         if self._is_at_end():

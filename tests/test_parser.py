@@ -408,13 +408,25 @@ def test_lambda_parameters_cannot_have_defaults() -> None:
 
 
 def test_parses_is_expression() -> None:
-    statements = parse("val ok = x is Int | String;")
+    statements = parse("val ok = x is (Int | String);")
 
     declaration = statements[0]
     assert isinstance(declaration, Var)
     initializer = declaration.initializer
     assert isinstance(initializer, Is)
     assert display(initializer.test_type) == "Int | String"
+
+
+def test_is_union_requires_parentheses() -> None:
+    parser = parser_for("val ok = x is Int | String;")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_leading_operator_inside_brackets() -> None:
+    assert ast("(1\n + 2)") == "(group (+ 1 2))"
+    assert ast("[1\n + 2]") == "(list (+ 1 2))"
 
 
 def test_is_binds_tighter_than_equality() -> None:

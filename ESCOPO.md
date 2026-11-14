@@ -22,9 +22,10 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 | [`TIPOS.md`](TIPOS.md) | pendências e decisões de tipo pós-1.0 |
 | [`IDEIAS.md`](IDEIAS.md) | ideias ainda em avaliação (pós-1.0) |
 
-**Hoje:** a linguagem 1.0 está implementada no tree-walk e o backend nativo existe em
-**L0–L4 + L2.5 + L5a/L5b** (ADR-0031, ADR-0046, ADR-0047). O **M5 fechou**; a ordem do que vem agora está na fila única do
-[`TODO.md`](TODO.md) §0 (próximo: L5).
+**Hoje:** a linguagem 1.0 está implementada no tree-walk e o backend nativo cobre
+**L0–L5 + T7 + L6a–L6h** — o L6 restante (enums/`match`/`Result`, exceções e função
+genérica como valor) está em `PENDING` no manifesto. O **M5 fechou**; a ordem oficial é a
+fila única do [`TODO.md`](TODO.md) §0.
 
 ## Status da entrega
 
@@ -32,8 +33,8 @@ Esta é a página para responder uma pergunta só: **isto entra na 1.0 ou fica p
 | --- | --- |
 | Escopo/linguagem 1.0 | ✅ congelado e implementado |
 | Runtime tree-walk | ✅ |
-| Suíte e docs | ✅ `make check` verde; 1042 pass + 8 `xfail` intencionais |
-| Backend nativo | 🟡 pós-1.0: L0–L4 + L2.5 + L5a/L5b entregues (Int/Float/Bool/nil/String, optionais escalares, funções, açúcar, arena, closures); L5/L6 na fila |
+| Suíte e docs | ✅ `make check` verde (pytest, ruff, mypy strict) |
+| Backend nativo | 🟡 pós-1.0: L0–L5 + T7 + L6a–L6h entregues (escalares, strings/arena, optionais, funções/closures, classes/herança, monomorfização, `Range`/`for-in`, listas, mapas, tuplas, `Any`, `math`/parse); L6 restante em `PENDING` |
 | **Publicação 1.0** | 🟡 **release local preparado**: versão `1.0.0`, [`CHANGELOG.md`](CHANGELOG.md) e tag `v1.0.0`; nada publicado externamente |
 
 **Nenhuma feature de linguagem da 1.0 está pendente.** A release local está preparada;

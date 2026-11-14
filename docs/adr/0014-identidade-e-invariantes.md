@@ -1,6 +1,6 @@
 # ADR-0014 — Identidade: três invariantes e um portão de admissão
 
-- **Status:** accepted
+- **Status:** accepted — **atualizado** por [ADR-0059](0059-i4-check-limpo-compila.md) (I4) e [ADR-0060](0060-orcamento-de-memoria.md) (memória). O texto abaixo é o registro original: onde ele diz "enquanto o backend não existe", leia o `docs/spec/garantias.md` e o manifesto do corpus.
 - **Data:** 2026-11-11
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0002](0002-tree-walk-como-oraculo.md),

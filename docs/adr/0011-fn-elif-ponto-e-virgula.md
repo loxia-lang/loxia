@@ -2,6 +2,8 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-11
+- **Atualizado por:** [ADR-0067](0067-desambiguacao-sintatica.md) — operador pode iniciar a
+  linha dentro de `()`, `[]` e `{}` de expressão; `fn` é opcional em método.
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/lexico.md`](../spec/lexico.md),
   [`../spec/semantica.md`](../spec/semantica.md)

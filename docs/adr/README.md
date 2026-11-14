@@ -104,6 +104,16 @@ Crie quando a decisão:
 | [0056](0056-l6-math-parse.md) | L6f: `math.*` e `Int.parse`/`Float.parse` | accepted | 2026-11-13 |
 | [0057](0057-l6-defaults-as-value.md) | L6g: função com defaults como valor | accepted | 2026-11-13 |
 | [0058](0058-l6-loop-capture-uninit.md) | L6h: captura por iteração, variável nil e índice de tupla `Any` | accepted | 2026-11-13 |
+| [0059](0059-i4-check-limpo-compila.md) | I4: check limpo compila; promoção só na aritmética | accepted | 2026-11-13 |
+| [0060](0060-orcamento-de-memoria.md) | Orçamento de memória (arena de 64 MiB) no contrato | accepted | 2026-11-13 |
+| [0061](0061-l6-enums-match.md) | L6i: enums, `Result` e `match` | accepted | 2026-11-13 |
+| [0062](0062-l6-excecoes-unwinding.md) | L6j: exceções, ABI de unwinding e cleanup | accepted | 2026-11-13 |
+| [0063](0063-orcamento-monomorfizacao.md) | Orçamento de monomorfização e valor genérico | accepted | 2026-11-13 |
+| [0064](0064-orcamento-do-corpus.md) | Teto de 5% para `PENDING` e promessa do I1 | accepted | 2026-11-13 |
+| [0065](0065-hir-lite-controle.md) | HIR-lite: escopo, gatilho e não fazer HIR completa | accepted | 2026-11-13 |
+| [0066](0066-orcamento-e-gate-sintatico.md) | Orçamento e gate sintático: tetos, não-objetivos e aprovação humana | accepted | 2026-11-13 |
+| [0067](0067-desambiguacao-sintatica.md) | Desambiguação: `//`, brackets, `fn` em método, união em `is`, mapa | accepted | 2026-11-13 |
+
 
 ## Próximas decisões que pedem ADR
 

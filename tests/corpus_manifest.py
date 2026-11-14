@@ -76,6 +76,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/one_line_block.lox",
         "tests/cases/optional_semicolons.lox",
         "tests/cases/range_value.lox",
+        "tests/cases/leading_operator_brackets.lox",
     ),
     "t7": (
         "tests/cases/generic_class.lox",
@@ -106,6 +107,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/super.lox",
         "tests/cases/super_with_this.lox",
         "tests/cases/typed_functions.lox",
+        "tests/cases/method_fn_keyword.lox",
     ),
     "l4": (
         "tests/cases/closure_reassign.lox",
@@ -142,6 +144,7 @@ PENDING: dict[str, str] = {
     "tests/cases/exceptions.lox": "l6",
     "tests/cases/generic_lambda_value.lox": "l6",
     "tests/cases/result.lox": "l6",
+    "tests/cases/is_union_parens.lox": "l6",
 }
 
 NEGATIVE: frozenset[str] = frozenset(
@@ -149,6 +152,9 @@ NEGATIVE: frozenset[str] = frozenset(
         # Casos que existem para provar erro de sintaxe: `--check` deve falhar.
         "tests/cases/reserved_async.lox",
         "tests/cases/reserved_await.lox",
+        "tests/cases/division_comment_hint.lox",
+        "tests/cases/is_union_needs_parens.lox",
+        "tests/cases/map_at_statement_start.lox",
     }
 )
 

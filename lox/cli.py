@@ -160,7 +160,8 @@ class Lox:
                 break
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Parser do CLI, isolado para testes de cobertura (flags x README)."""
     parser = argparse.ArgumentParser(
         prog="pylox",
         description="Interpretador Lox em Python",
@@ -198,7 +199,11 @@ def main() -> None:
         help="checa overflow de Int em runtime (release faz wrapping)",
     )
     parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
+    return parser
 
+
+def main() -> None:
+    parser = build_parser()
     parsed_args = parser.parse_args()
 
     if (parsed_args.dump_ast or parsed_args.check or parsed_args.emit) and not (

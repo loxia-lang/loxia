@@ -1,3 +1,11 @@
+---
+sources:
+  - src/frontend/scanner.py
+  - src/frontend/keywords.py
+  - src/frontend/token_type.py
+  - src/frontend/tokens.py
+---
+
 # Léxico
 
 Como o código-fonte é dividido em tokens. Implementação: [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
@@ -23,6 +31,9 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/frontend/scan
   `Unterminated block comment.` e conta as linhas internas.
 - Comentários aparecem em qualquer lugar entre tokens (inclusive no fim de linha); `#`
   dentro de string não é comentário. Não existe `--`.
+- `//` **não** é comentário: é o operador de divisão inteira. Onde se espera uma
+  expressão, `//` gera um erro dirigido (`'//' is integer division, and comments start
+  with '#'`) em vez do genérico `Expect expression.`
 
 ## Tokens
 
@@ -93,9 +104,10 @@ Strings:
 ### Palavras-chave
 
 ```
-and    as     async  await  class  elif   else   false  for
-fn     if     in     is     nil    or     print  return
-super  this   true   val    var    while
+and    as     async  await  class  elif   else   enum   except
+false  finally fn    for    if     in     is     match  nil
+or     print  raise  return super  this   true   try    val
+var    while
 ```
 
 `fn` substituiu `fun`; `fun` agora é identificador comum (não é palavra-chave).

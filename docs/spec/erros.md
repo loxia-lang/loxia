@@ -1,3 +1,10 @@
+---
+sources:
+  - src/diagnostics/**
+  - src/execution/interpreter.py
+  - src/semantics/checker.py
+---
+
 # Erros
 
 Catálogo do que o interpretador reporta hoje, com fase e consequência. Mensagens são em
@@ -41,6 +48,9 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | Mensagem | Quando |
 | --- | --- |
 | `Expect expression.` | `primary` não encontrou começo de expressão |
+| `Expect expression; '//' is integer division, and comments start with '#'.` | `//` onde se espera expressão (não é comentário) |
+| `Type unions in 'is' need parentheses: 'is (A \| B)'.` | `x is Int \| String` sem parênteses na união |
+| `Unexpected ':'. Map literals can't start a statement; use 'val m = { ... }' or parentheses.` | `{ "a": 1 }` no início de um statement |
 | `Expect end of interpolation.` | sobrou token depois da expressão de `${...}` |
 | `Expect 'else' after conditional expression.` | ternário sem `else` |
 | `Expect property name after '?.'.` | `a?.` sem nome |

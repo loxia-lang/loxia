@@ -7,6 +7,27 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Gate e orçamento sintático** ([ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md)):
+  toda sintaxe nova passa por quatro perguntas (substituição, decidibilidade local,
+  precedência, forma canônica), orçamento de superfície e lista de não-objetivos; o agente
+  pergunta ao humano antes de ampliar a gramática. Procedimento na skill `lox-syntax`.
+- **Desambiguação sintática** ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)):
+  `//` onde se espera expressão e mapa no início de statement ganham diagnóstico dirigido;
+  operador pode iniciar a linha dentro de `()`, `[]` e `{}` de expressão; `fn` é opcional
+  em método; união no lado direito de `is` exige parênteses (`x is (Int | String)`).
+- **I4 — `--check` limpo compila** ([ADR-0059](docs/adr/0059-i4-check-limpo-compila.md)):
+  o checker é a fonte única dos tipos; um programa aceito no `--check` não pode falhar no
+  `--emit` por tipo/coerção, só pela lacuna declarada. Gate novo em `tests/test_backend.py`
+  varre o corpus inteiro.
+- **Orçamento de memória como contrato** ([ADR-0060](docs/adr/0060-orcamento-de-memoria.md)):
+  arena de 64 MiB sem `free` documentada em `docs/spec/garantias.md` e teste que prova a
+  falha determinística (`exit 70`, `Out of memory.`) e a assimetria com o interpretador.
+- **Gate de documentação** (`tests/test_docs_consistency.py`, `docs/_hooks/`): ADR com
+  numeração única/sequencial e no índice, página de spec com `sources:` que casam com
+  arquivos reais, flags do CLI cobertas pelo README, bloco de níveis **gerado** do
+  manifesto e lista de frases defasadas proibidas. Frescor derivado do git com ledger em
+  `docs/log.md` (skill `lox-docs`).
+
 - Backend **generics com lambda contextual**: checker publica o `FnTy` concreto da lambda em argumento genérico; `generics.lox` promovido.
 - Backend **L6h — loop/nil/Any**: captura por iteração, variável que começa `nil` e índice de `Any`-tupla ([ADR-0058](docs/adr/0058-l6-loop-capture-uninit.md)).
 - Backend **L6g — defaults como valor**: funções com parâmetros default podem ser passadas como valor; defaults são preenchidos na chamada indireta ([ADR-0057](docs/adr/0057-l6-defaults-as-value.md)).
@@ -130,6 +151,14 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `String` (`lox_str_from_*`), `str()` e `repr()` com citação e escapes (`lox_str_quote`).
 
 ### Mudado
+
+- **Promoção `Int → Float` só na aritmética** ([ADR-0059](docs/adr/0059-i4-check-limpo-compila.md)):
+  `val x: Float = 2`, `x = 2`, `f(2)`, defaults e `return 2` em `-> Float` passaram a ser
+  erro de tipo (Kotlin-like). Escreva `2.0` ou `2 as Float`. A aritmética não mudou
+  (`1 + 2.0`, `4 / 2`, `1 == 1.0`).
+- **`--check` e `--emit` deixam de divergir**: o furo `var x: Float = 1.5; x = 2`
+  (check limpo, binário recusando) virou erro nos dois caminhos, com a mesma mensagem.
+
 
 - `docs/spec/garantias.md`: I1 passa a valer para o corpus declarado e cobre stderr.
 - `pyproject.toml`: extra `llvm` (`llvmlite>=0.50`); o interpretador continua sem

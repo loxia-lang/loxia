@@ -1,7 +1,7 @@
 # TODO — Roadmap e ideias
 
 Documento vivo do projeto: o que **falta** na linguagem, no checker, no runtime e no
-backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](docs/spec/) e
+backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`](docs/spec/) e
 [`docs/decisoes.md`](docs/decisoes.md). Discussões em aberto ficam em
 [`IDEIAS.md`](IDEIAS.md); tipos e números em [`TIPOS.md`](TIPOS.md).
 
@@ -21,72 +21,38 @@ backend. O que já foi implementado não fica aqui: vira ADR, [`docs/spec/`](doc
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: **110 golden cases** (104 compilam, 4 `PENDING`
-por nível, 2 negativos), corpus oficial anotado, backend em **L0–L5 + T7 + L6a (Range/for-in/escalares)**, M5
-fechado e ADRs 0043–0050 (layout, identidade, narrowing, L4, optionais escalares e ABI de
-classes) fechados.
+vale o que está aqui. Estado em 2026-11-13: backend em **L0–L5 + T7 + L6a–L6h**; o que
+resta do L6 está em `PENDING` (`enums`, `exceptions`, `Result` e função genérica como
+valor) e o L7 não começou. O status por nível é **gerado** em
+[`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
+[`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
 ### 0.1 Definições que não podem faltar antes de cada nível
 
 | Antes de | O que precisa estar fechado | Estado |
 | --- | --- | --- |
-| **L4** | ADR-0046: sem HIR, células só para capturados, funções locais/lambdas, valores de função, defaults/aridade, `print` de função e spans/stack trace fora do L4 | ✅ |
-| **L5** | ADRs 0043/0044/0045/0048: classes, campos/bitmap, métodos/`this`/`init`, bound methods, herança/vtable/`super`, `print`, `is`/`as`, `?.`, classes locais com campos/métodos/captura e `T?` de referência | ✅ |
-| **L6** | T7 (monomorfização) ✅, `Any` boxeado, representação numérica unificada, exceções (unwinding), enums/`match`, `List`/`Map`/tuplas/`Range`/`for-in` e `print` determinístico de listas/mapas/tuplas/enums | ⬜ |
-
-`T?` escalar apareceu como L2 na §6.3, mas o L2 fechou **sem** ele; o **L2.5** fechou a
-lacuna ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)). É exatamente o tipo de
-lacuna que esta fila existe para não repetir.
+| **L6 (resto)** | enums/`match` no backend (tags, dispatch e exaustividade), exceções (unwinding), `Any` residual (classes/funções), `repr` de enum e o que o ADR-0055 ainda lista | ⬜ |
+| **L7** | `mod.verify()`, passes `-O2`, benchmarks, JIT e mensagens de erro de codegen | ⬜ |
 
 ### 0.2 Ordem de execução
 
-1. [x] **L2.5 — optionais escalares e variáveis não inicializadas**: `T?` escalar
-       (`{i1, T}`), `var x: T?;`, `nil` contextual e unwrap checado
-       ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `variables.lox`
-       promovido. `var x: Int;` sem init segue `PENDING` no L6.
-2. [x] **Atribuir nível às operações escalares restantes**: decisão **L6** para
-       `**`, bits, `as`/`math.*` e `chars`; `repr` de `List`/`Map` também é L6. O L4 já
-       fechou sem elas e elas não mudam representação de valor; o L6 já era o dono
-       declarado dessas operações (TODO §6.8). Níveis atualizados no manifesto.
-3. [x] **ADR de L4 + implementação**: [ADR-0046](docs/adr/0046-closures-celulas-l4.md),
-       sem HIR, `env`/células, funções locais/lambdas, valores de função, defaults/aridade;
-       casos `l4` promovidos.
-4. [x] **L5 — objetos** ([ADR-0048](docs/adr/0048-abi-classes-l5.md)):
-       - [x] **L5a**: classes de topo, campos/bitmap, métodos/`this`/`init`, bound methods,
-         `print` de classe/instância e construção por nome;
-       - [x] **L5b**: herança, cópia/override de vtable, `super`/`super.init`, `init`
-         herdado e prefixo de campos;
-       - [x] **L5c**: `is`/`as` de classe, `?.` com receptor opcional, classes locais
-         (vazias, com campos/métodos e com captura) e `String?`/instância `T?` em
-         campos/parâmetros/retornos. `nil_aware` foi promovido no spike L6 com `Any`
-         boxeado ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)). Herança de classe
-         local não faz parte deste corte.
-5. [x] **P0 — Refactor do lowering / decisão HIR tipada, antes do L6**:
-       o gatilho do [ADR-0031](docs/adr/0031-backend-nativo.md) foi atingido no L5
-       (`lower.py` com ~3,4 mil linhas e +2,3 mil só no L5).
-       - [x] extrair `model`, `functions`, `variables`, `optionals`, `strings`,
-         `class_layout`, `class_codegen`, `instances` e `calls`;
-       - [x] reduzir os métodos grandes; nenhum passa de ~65 linhas, e os piores
-         (`_type_desc`, `_plain_equality`) ficaram perto do limite de 15 nós;
-       - [x] decidir com o spike L6: **não fazer HIR-lite agora**. O `Any` boxeado
-         ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)) passou sem HIR e a
-         extração absorveu o custo; reavaliar depois de `Any` completo/`List`/`Map`.
-       Critério de pronto: comportamento idêntico, `make check` verde, ABI do ADR-0048
-       intacta e a decisão HIR registrada.
-6. [x] **ADR T7 — monomorfização** ([ADR-0050](docs/adr/0050-monomorfizacao-t7.md)):
-       funções e classes genéricas por instanciação (`id$Int`, `Box$String`), sem
-       re-inferência e sem boxing; `generic_functions.lox` e `generic_class.lox` no nível
-       `t7`. Containers, `Any` completo, tuplas, enums e exceções seguem no L6.
-       - [x] spike de `Any` boxeado/união escalar e `nil_aware` promovido
-         ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
-       - [x] classes locais com campos/métodos e captura.
-       - [ ] completar `Any` (unbox, igualdade, `as`/`is`, classes/funções), `List`/`Map`,
-         tuplas, `for-in`, enums/`match`, exceções e operações escalares restantes.
-7. [ ] **Corpus por nível**: cada nível só fecha quando seus casos saem de `PENDING` e
-       entram em `LEVELS`; I1 só vale para o corpus anotado.
-8. [ ] **Diagnósticos** (spans → caret → stack trace): decisão do ADR-0046 é **fora do
-       L4**; ADR próprio antes do L6, porque mexem em stderr/I1.
-9. [ ] **L7 — qualidade**: `mod.verify()`, `-O2`, benchmarks, JIT e mensagens de codegen.
+1. [ ] **Fechar o L6 em três cortes** (ADRs 0061–0065, aceitos):
+       - [ ] **L6i — enums/`match`/`Result`** (ADR-0061 aceito) ([ADR-0061](docs/adr/0061-l6-enums-match.md)):
+         valor de enum + descritor, construtores de variante, `match` como expressão e
+         igualdade/print; alvos `enums.lox`, `result.lox`.
+       - [ ] **L6j — exceções/unwinding** ([ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)):
+         aceitar o ADR de ABI **antes** de codar; spike `try`/`raise` com `setjmp`/
+         `longjmp` + pilha de cleanup, depois `finally`/retorno e erros de runtime
+         capturáveis; alvo `exceptions.lox`.
+       - [ ] **L6k — função genérica como valor** ([ADR-0063](docs/adr/0063-orcamento-monomorfizacao.md)):
+         especialização no call site ou adiamento explícito para o M8; alvo
+         `generic_lambda_value.lox`.
+       Ordem recomendada: L6i → L6j → L6k. Enums são aditivos; exceções mexem em toda a
+       ABI de chamada e devem ter o spike isolado; o valor genérico é o menor ganho.
+2. [ ] **Diagnósticos**: spans → caret → stack trace. ADR próprio **antes**, porque mexe em
+       stderr (I3) e no corpus do I1.
+3. [ ] **L7 — qualidade**: `mod.verify()`, `-O2`, benchmarks nativo × interpretado, JIT no
+       REPL.
 
 ### 0.3 Fora do caminho crítico (não bloqueiam nenhum L)
 
@@ -94,7 +60,7 @@ Traits/constraints (T6b, [ADR-0038](docs/adr/0038-traits-nominais.md), pós-MVP)
 herança genérica/reificação (parked na §10), type application explícita, função genérica
 como valor, módulos/imports, stdlib, contratos, async, tooling/LSP/formatter e performance.
 Esses itens voltam quando o backend estiver no nível em que passam a doer; nenhum deles
-impede L4, L5 ou L6.
+impede o L6 ou o L7.
 
 ### 0.4 Onde está o detalhe
 
@@ -107,8 +73,8 @@ impede L4, L5 ou L6.
 | decisão sobre bytecode/VM | §5 |
 | backend LLVM, níveis, corpus | §6 |
 | tooling, CI e LSP | §7 |
-| o que copiar do Lox2 | §8 |
-| milestones M5–M9 | §9 |
+| o que ainda vale do Lox2 | §8 |
+| milestones M6–M9 | §9 |
 | ideias soltas e coisas adiadas | §10 |
 | decisões ainda em aberto | §11 |
 
@@ -116,63 +82,80 @@ impede L4, L5 ou L6.
 
 ## 1. Sintaxe pendente
 
+> Portão: sintaxe nova passa pelo
+> [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md) (quatro perguntas, orçamento e
+> aprovação humana). O agente **pergunta antes** de adicionar sintaxe; diagnóstico
+> dirigido sem mudar gramática não conta como feature.
+
 **Estrutural**
 - [ ] `P2` parênteses opcionais na condição (`if x > 0 print x`) — precisa de delimitador
       entre condição e corpo (nova linha ou `then`).
 - [ ] `P2` corpo de expressão em `fn` (`fn dobro(x) -> x * 2`).
 - [ ] `P2` bloco como expressão (último valor do bloco é o valor).
-- [ ] `P3` `match` estrutural para uniões; enum/`match` exaustivo já existe
-      ([ADR-0041](docs/adr/0041-enums-match.md)).
-- [ ] `P3` `loop { }` infinito e `break`/`continue` com rótulo.
+- [x] `fn` opcional em método (`fn m()` e `m()` dão a mesma AST); canônico continua sem
+      `fn` ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
+- [ ] `P3` `match` estrutural para uniões (enum/`match` exaustivo já existe,
+      [ADR-0041](docs/adr/0041-enums-match.md)).
+- [ ] `P3` `loop { }` infinito e `break`/`continue` com rótulo (`break outer`).
 
 **Operadores e literais**
+- [x] operador no início da linha dentro de `()`, `[]` e `{}` de expressão; fora de
+      brackets continua no fim da linha ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
+- [x] união no lado direito de `is` exige parênteses (`x is (Int | String)`);
+      anotações continuam sem parênteses ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
 - [ ] `P2` strings multilinha (`"""`) e raw strings (`r"..."`).
-- [x] `P2` acesso a caractere: `chars(s)` decidido; `s[i]` rejeitado ([ADR-0035](docs/adr/0035-strings-texto.md)).
-- [x] `P2` identificadores Unicode: mantidos ASCII por decisão ([ADR-0035](docs/adr/0035-strings-texto.md)).
 - [ ] `P3` spread `...lista` em chamadas e literais.
 
 **Dados e funções**
 - [ ] `P2` variádicos (`fn log(nivel, ...args)`); ver [`IDEIAS.md`](IDEIAS.md) I-5.
 - [ ] `P2` trailing closure (`lista.map { |x| x * 2 }`) — depois do conflito com `{}`.
-- [x] `P2` tuplas: `(a,b)`, `(A,B)`, `t[i]`, `val/var (a,b) = t`, igualdade, `len`,
-      formatação, `for-in`, `is`/`as` ([ADR-0030](docs/adr/0030-tuplas.md),
-      [ADR-0036](docs/adr/0036-tuplas-implementacao.md)).
-- [ ] `P2` tuplas no backend (L6) e destructuring aninhado (`val (a, (b,c)) = t`).
+- [ ] `P2` destructuring aninhado (`val (a, (b, c)) = t`).
 - [ ] `P3` argumentos nomeados e destructuring de campos.
-- [ ] `P3` namespaces/imports, traits nominais ([ADR-0038](docs/adr/0038-traits-nominais.md)), extension methods, operator overloading e `derive`.
-- [ ] `P3` `type` alias transparente (sem generics); decisão em [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
+- [ ] `P3` namespaces/imports, traits nominais ([ADR-0038](docs/adr/0038-traits-nominais.md)),
+      extension methods, operator overloading e `derive`.
+- [ ] `P3` `type` alias transparente (sem generics); decisão em
+      [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
 
 **Erros**
-- [ ] `P2` subclasses específicas de runtime (`DivisionByZero`, `IndexError`, ...) e
-      stack trace; hoje tudo é `LoxRuntimeError` ([ADR-0042](docs/adr/0042-excecoes.md)).
+- [x] diagnósticos dirigidos: `//` onde se espera expressão, mapa no início de statement
+      e união sem parênteses em `is` ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
+- [ ] `P2` subclasses específicas de runtime (`DivisionByZero`, `IndexError`, ...) e stack
+      trace; hoje tudo é `LoxRuntimeError` ([ADR-0042](docs/adr/0042-excecoes.md)).
 - [ ] `P2` `assert`/`panic`/`exit` nativos.
+
+### Decisões já descartadas (para não revisitar)
+
+A lista completa de não-objetivos sintáticos está no
+[ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md); os principais:
+
+- `//` como comentário → **não**: é divisão inteira; comentário é `#`.
+- `&&`/`||` → **não**: `and`/`or` existem; `!` cobre a negação.
+- `switch` → **não**: `match` existe ([ADR-0041](docs/adr/0041-enums-match.md)).
+- `++`/`--` → **não**: `i = i + 1` existe.
+- `end` no estilo Ruby/Lua → **não**: chaves são melhores para erro de parser.
+- Off-side rule (indentação significativa) → **não**: caro no scanner e ruim no REPL.
+- Herança com `<` → **não**: `class Cachorro(Animal)`
+  ([ADR-0008](docs/adr/0008-heranca-class-parens.md)).
+- Pipeline `|>`/`:>` → **não** por enquanto ([`IDEIAS.md`](IDEIAS.md) I-2).
+- `?:` elvis → **não**: duplicaria `??` ([ADR-0013](docs/adr/0013-ternario-nil-aware-escapes.md)).
+- `s[i]` em string → **não**: acesso explícito por `chars(s)`
+  ([ADR-0035](docs/adr/0035-strings-texto.md)).
+- Identificadores Unicode → **não** por ora: ASCII ([ADR-0035](docs/adr/0035-strings-texto.md)).
+- `fun` como keyword → **não**: é `fn` ([ADR-0011](docs/adr/0011-fn-elif-ponto-e-virgula.md)).
+- `**kwargs`, named args por enquanto e `**` de mapa: ver [I-5](IDEIAS.md).
 
 ---
 
 ## 2. Tipos: o que ainda falta
 
-O checker gradual (T1/T2/T3a/T3b) e D-8 estão feitos; detalhes em
-[`TIPOS.md`](TIPOS.md) e [ADR-0027](docs/adr/0027-generics-t3b.md).
+T1/T2/T3a/T3b, T4, T5, T6a, T6c e T7 estão **fechados** (detalhes em
+[`docs/decisoes.md`](docs/decisoes.md) e nos ADRs 0020–0027/0033/0040/0041/0050). O que
+sobrou:
 
 | Etapa | O que falta | Ganho |
 | --- | --- | --- |
 | **T3c** ❌ | parâmetro implícito foi implementado e **revertido**: omissão virava quantificação universal sem marcador, contra o [ADR-0020](docs/adr/0020-assinaturas-explicitas.md) ([ADR-0034](docs/adr/0034-t3c-revertido.md)) | — |
-| **T4** ✅ | generalização de `val f = fn(...)` (let-polymorphism); `var` não generaliza | bibliotecas |
-| **T5** ✅ | narrowing de campos/índices literais, invalidação por mutação/chamada e refino pós-`while` ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); resta CFG/aliasing completo | expressividade |
-| **T6a** ✅ | classes genéricas MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); follow-ups (métodos, herança de `Box[Int]`, reificação) **adiados** (ver §10) | bibliotecas |
-| **T6b** ⏸ | traits nominais com `implements` e métodos default, e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
-| **T6c** ✅ | `match`/enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)) | expressividade |
-| **T7** ✅ | monomorfização de funções/classes; identidade de fonte, layouts mangled e chamadas diretas; containers ficam no L6 | backend sabe layouts |
-
-Plano do **T6a** (desenho no [ADR-0040](docs/adr/0040-generics-classes-desenho.md)):
-- [x] parser/AST/tipos: `class C[T]`, `ClassTy.args`, printer, erro de superclasse genérica.
-- [x] checker: `ClassInfo` com params, `this`/`init`, resolução/aridade de `Box[Int]`.
-- [x] checker: inferência no construtor (`Box(1)`, `Pair(1, "a")`, esperado pré-binda).
-- [x] checker: membros substituídos, `_assignable` invariante, `_unify` de `ClassTy`, interop com funções genéricas.
-- [x] runtime erasure, guards de `is`/`as` e rejeição 65 no backend.
-- [x] testes, golden `generic_class.lox` e docs.
-- Follow-ups do MVP (métodos genéricos, herança de `Box[Int]` e `is/as` reificado)
-  **adiados**: ver §10.
+| **T6b** ⏸ | traits nominais com `implements`, métodos default e constraints: decididos, **pós-MVP** ([ADR-0038](docs/adr/0038-traits-nominais.md)) | abstração |
 
 Pendências pontuais:
 - [ ] `P2` merge completo em CFG e aliasing fino (chamada/atribuição já invalidam refinos de
@@ -184,13 +167,14 @@ Pendências pontuais:
       precisa de unificação no corpo e mensagens próprias ([ADR-0034](docs/adr/0034-t3c-revertido.md)).
 - [ ] `P3` flow-sensitive para `val` (uma atribuição só).
 - [ ] `P3` generics com constraints (`T: Trait`), type application explícita
-      (`id[Int] (1)`) e função genérica como valor.
+      (`id[Int](1)`) e função genérica como valor.
 - [ ] `P3` inferência de retorno para funções com corpo de expressão.
 - [ ] `P3` `--check --json` com spans para editor/LSP.
 
-Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]`, `Map[K,V]`, `FnTy`,
-`ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e `Never`.
-`Any` é escape no tree-walk, mas o backend L0–L5 o rejeita (com 65).
+Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]`, `Map[K,V]`,
+`FnTy`, `ClassTy`/`ClassObjectTy`, `NativeModuleTy`, `UnionTy`, `TyVar`, `GenericFnTy` e
+`Never`. `Any` existe no tree-walk e no backend boxeado (L6e,
+[ADR-0055](docs/adr/0055-l6-any-casts.md)); os limites estão no próprio ADR.
 
 ---
 
@@ -198,10 +182,7 @@ Modelo atual em [`src/frontend/ty.py`](src/frontend/ty.py): primitivos, `List[T]
 
 ### 3.1 Diagnósticos profissionais (P2, L)
 
-**Hoje (resolvido):** `ErrorReporter` é uma instância por execução — `Lox.run` cria,
-injeta em scanner/parser/interpreter e `reset()` no início de cada run. Não existe mais
-estado global de classe, então erro de uma execução (ou de uma linha do REPL) não vaza
-para a próxima. É simples de propósito; o desenho profissional é o abaixo.
+`ErrorReporter` já é instância por execução (sem estado global). O desenho profissional:
 
 - [ ] `Diagnostic` imutável: `severity` (error/warning/note/help), `code` (`E0102`),
       `span` (arquivo, linha, coluna, offset, largura), `message`, `labels[]`, `notes[]`.
@@ -210,8 +191,8 @@ para a próxima. É simples de propósito; o desenho profissional é o abaixo.
       direto — quebrar isso permite testar diagnóstico sem capturar stderr.
 - [ ] `SourceFile` com cache de linhas e coluna correta com tabs/Unicode → caret preciso.
 - [ ] Dedup por `(code, span)`, limite `--max-errors` e supressão de erros em cascata
-      (panick mode): um erro de sintaxe não deve gerar 20 erros derivados.
-- [ ] **Códigos estáveis** documentados em `docs/erros.md`: `E0xxx` lexer, `E1xxx`
+      (panic mode): um erro de sintaxe não deve gerar 20 erros derivados.
+- [ ] **Códigos estáveis** documentados em `docs/spec/erros.md`: `E0xxx` lexer, `E1xxx`
       parser, `E2xxx` resolver, `E3xxx` tipos, `E4xxx` runtime. Testes citam o código.
 - [ ] Mensagens com ação: `expected ';'` + `ajuda: adicione ';' ao fim da linha 3` +
       `nota: declarações terminam com ';' por enquanto`.
@@ -236,15 +217,13 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
 
 ### 3.2 Runtime e linguagem
 
-- [ ] `P1` **spans/caret/stack trace**: recorte mínimo da §3.1; **fora do L4** por decisão
-      do [ADR-0046](docs/adr/0046-closures-celulas-l4.md), com ADR próprio antes do L6;
-      pré-requisito para erros bonitos e stderr do nativo.
+- [ ] `P1` **spans/caret/stack trace**: recorte mínimo da §3.1; ADR próprio **antes** de
+      mexer em stderr (I3) e no corpus do I1.
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
-- [ ] `P2` **`assert`/`panic`/`exit`** nativos.
 - [ ] `P2` **REPL multiline** (continua enquanto `(`/`{`/`[` abertos) + histórico
       (`readline`) + `:help`, `:ast`, `:type expr`, `:clear`.
 - [ ] `P3` **`import`/módulos** com cache de compilação.
-- [ ] `P3` **interpolação de `toString`** customizável por classe (`__str__`).
+- [ ] `P3` **`toString` customizável por classe** (interpolação chamando o método).
 
 ### 3.3 Contratos (Design by Contract) — P2, M
 
@@ -267,10 +246,8 @@ Sintaxe, opcionalidade e protocolo de reparo: [`IDEIAS.md`](IDEIAS.md) I-4.
 ## 4. Performance do interpretador (paralelo, não bloqueia o backend)
 
 Objetivo: não otimizar por otimizar, mas **não deixar o oráculo lento demais** para os
-testes diferenciais. O backend já começou; isto não é pré-requisito de L4–L6.
+testes diferenciais. O backend já existe; isto não é pré-requisito do L6/L7.
 
-- Benchmark harness e baseline já existem (`make bench`); casos: `loop_sum`,
-  `nested_loop`, `branchy`, `string_concat`.
 - [ ] `P2` resolver já com **slots** (índice inteiro) em vez de dict de nomes.
       É o maior ganho por linha de código no tree-walk.
 - [ ] `P2` `Environment` com lista + profundidade em vez de dict encadeado.
@@ -301,125 +278,76 @@ sentido como *exercício* do livro (Parte III), em repositório separado.
 
 ### 6.1 Escolha de ferramenta
 
-| Opção | Prós | Contras |
-| --- | --- | --- |
-| **`llvmlite`** (recomendado) | `pip install`, LLVM embutido na wheel, `ir` builder + `binding` + MCJIT (REPL!), emite `.ll`/`.o` | API limitada (sem EH nativo fácil, debug info pobre), versão de LLVM presa à wheel |
-| Emitir **`.ll` textual** + `clang`/`llc` | zero dependência, IR legível e debugável, aprende LLVM de verdade | dois subprocessos, linking manual, erro de sintaxe só no `llc` |
-| Transpilar para **C** | MVP em dias, ótimo para validar semântica | não é LLVM, perde tipos, vira dívida |
-| `inkwell` (Rust) | cobertura completa | reescrever o compilador em Rust |
-
 **Decidido** ([ADR-0031](docs/adr/0031-backend-nativo.md)): `llvmlite` como *extra*
 opcional (`uv sync --extra llvm`), object file emitido pelo LLVM embutido e link com o
-`cc` do sistema. `.ll` é artefato de inspeção (`--emit=ll`), não etapa de build — evita
-descompasso entre a versão do LLVM que gera o IR e a que o parseia. Implementado no L0:
-`src/backend/`, `runtime/runtime.c`, `--emit=ll|obj|exe` e `tests/test_backend.py`.
+`cc` do sistema. `.ll` é artefato de inspeção (`--emit=ll`), não etapa de build. As
+alternativas (IR textual + `clang`, transpile para C, `inkwell`) foram comparadas e
+descartadas no ADR.
 
 ### 6.2 Pipeline
 
 ```
 AST → Resolver → TypeChecker (tipos concretos/monomorfizados)
-    → normalização leve (AST → AST; desugar)      ← ADR-0031, decisão 10
+    → normalização leve (AST → AST; desugar)
     → LLVM IR (llvmlite.ir)
     → object file (LLVM embutido) → cc → executável
                               └→ MCJIT (modo `lox jit` / REPL) — L7
 ```
 
-Sem HIR completa no L0–L4: a normalização só desaçucara e o L4 tem só um passe de captura
-(ADR-0046). O gatilho previsto — o `lower_expr` começar a duplicar o `interpreter.py` —
-**foi atingido no L5**. Antes do L6, a prioridade é extrair o lowering em módulos
-(`model`, `classes`, `optionals`, `strings`, `calls`) e então decidir, com dados, se uma
-HIR tipada (slots + tipos concretos + blocos/phi) paga o custo. Ver §0.2 item 5.
+Sem HIR: o lowering foi extraído em módulos no P0 do L5 e o spike de `Any` mostrou que
+HIR-lite não é necessária agora ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)).
+Reavaliar depois de `Any` completo e containers estabilizados (§11).
 
-### 6.3 Representação de valor (a decisão mais importante)
+### 6.3 Representação de valor (o que falta)
 
-**Decidido: desboxado por tipo concreto** ([ADR-0031](docs/adr/0031-backend-nativo.md)).
-A ideia de `i64` tagged foi **descartada**: 3 bits de tag deixam 61 bits de payload e
-conflitam com o wrap de i64 completo prometido pelo ADR-0006/0028.
+As representações já decididas e implementadas (escalares, `T?`, `String`, closures,
+instâncias) estão nos ADRs 0047/0048 e nos níveis `L0`–`L5` do manifesto. O que falta:
 
-| Tipo | Representação | Nível |
+| Item | Representação alvo | Nível |
 | --- | --- | --- |
-| `Int` | `i64` (wrap nativo, sem `nsw`) | L0 ✅ |
-| `Bool` | `i1` | L0 ✅ |
-| `nil` | ausência (`void` no print) | L0 ✅ |
-| `Float` | `double` | L1 ✅ |
-| `T?` escalar | `{i1, T}` | L2.5 ✅ ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)) |
-| `T?` referência | ponteiro nulo | L5 ✅ (`String?`/instância em campos/params/retornos; `?.` opcional) |
-| `String` | `{i64 byte_len, i64 cp_len, i8* data}` | L3 ✅ |
-| closure | `{fnptr, env*, display}` (ponteiro de arena) | L4 ✅ |
-| instância | ponteiro para struct `{classe, bitmap, slots i64}` | L5a/L5b ✅ ([ADR-0048](docs/adr/0048-abi-classes-l5.md)) |
-| `Any` / união escalar | caixa `{i64 tag, i64 payload}` (ADR-0049) | L6 🟡 (spike; sem unbox geral) |
+| `Any` completo | caixa `{i64 tag, i64 payload}` (spike em [ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md); unbox/`is`/`as` em [ADR-0055](docs/adr/0055-l6-any-casts.md)) — falta classes/funções como payload | L6 |
+| enums | tag da variante + payloads; exaustividade já checada no tree-walk ([ADR-0041](docs/adr/0041-enums-match.md)) | L6 |
+| exceções | unwinding (decisão pendente: `setjmp/longjmp` × valores de retorno) | L6 |
 
-Regras:
-- `Int` e `Float` separados (ADR-0006), sem boxing no caminho quente.
-- `Any`, `List` cru e `Map` heterogêneo são erro de compilação até o L6.
+Regras que continuam valendo:
+- `Int` e `Float` separados ([ADR-0006](docs/adr/0006-int-float-separados.md)), sem boxing
+  no caminho quente; slots são monomórficos.
+- `var x = 1.5; x = 2` **não** é mais divergência: é erro de tipo nos dois motores
+  ([ADR-0059](docs/adr/0059-i4-check-limpo-compila.md)).
 - `//` e `%` passam pelo runtime (guarda de zero e de `INT_MIN / -1`, que é UB em LLVM).
 - toda operação tem caminho desboxado; o runtime só entra onde há caso de borda ou I/O.
-- `T?` escalar já tem representação `{i1, T}` e `var x: T?;` nasce nil; `var x: Int;`
-  sem inicializador segue 65 até o L6. `T?` de referência é ponteiro nulo e já cobre
-  `String?`/instância em campos/params/retornos e `?.` com receptor opcional; `nil_aware`
-  completo (união/`Any`) fica no L6.
 
 ### 6.4 Runtime em C (`runtime/runtime.c`)
 
-Funções chamadas pelo código gerado — mantém o IR pequeno e legível:
+O runtime já cobre escalares, strings/arena, closures, classes e `Any` do spike (cada
+adição está no ADR do nível). Falta acrescentar:
 
-```c
-void     lox_panic(int32_t line, const char *msg);   // exit 70, stderr idêntico
-void     lox_init(void);                            // LC_NUMERIC=C (I3) — L1 ✅
-void     lox_print_int(int64_t v);                  // L0 ✅
-void     lox_print_bool(int32_t v);                 // L0 ✅
-void     lox_print_nil(void);                       // L0 ✅
-int64_t  lox_int_div(int64_t a, int64_t b, int32_t line);  // L0 ✅
-int64_t  lox_int_mod(int64_t a, int64_t b, int32_t line);  // L0 ✅
-void     lox_print_float(double v);                 // L1 ✅ (menor representação)
-double   lox_float_div(double a, double b, int32_t line);  // L1 ✅
-double   lox_float_mod(double a, double b, int32_t line);  // L1 ✅
-void     lox_print_str(const void *s);              // L3 ✅
-void    *lox_str_concat(const void *a, const void *b);  // L3 ✅
-int64_t  lox_str_len(const void *s);                // L3 ✅ (code points)
-int32_t  lox_str_equal(const void *a, const void *b);   // L3 ✅
-void    *lox_str_from_int/double/bool;              // L3 ✅ (interpolação)
-void    *lox_str_nil(void);                         // L3 ✅
-void    *lox_str_quote(const void *s);              // L3 ✅ (`repr`)
-int32_t  lox_str_compare(const void *a, const void *b); // L3 ✅ (`< <= > >=`)
-void    *lox_alloc(size_t n);                       // L3 ✅ (arena com teto)
-void    *lox_alloc_env(int64_t n);                   // L4 ✅ (env de closure)
-void    *lox_alloc_cell(void);                       // L4 ✅ (célula de captura)
-void    *lox_alloc_closure(void);                    // L4 ✅ (closure)
-void    *lox_alloc_bytes(int64_t n);                 // L5 ✅ (descritor/vtable/instância)
-int32_t  lox_is_instance(void *desc, void *target);  // L5 ✅ (`is`/`as`)
-void     lox_print_any(int64_t tag, int64_t payload); // L6 spike ✅ (`Any`)
-```
+- [ ] unwinding de exceções (com o desenho escolhido no L6);
+- [ ] despacho/impressão de enums;
+- [ ] os payloads residuais de `Any` (classes/funções).
 
-O runtime é compilado por build com o mesmo `cc` do link (`.o` em diretório temporário).
 `main` gerado devolve `0` no sucesso — o valor de retorno de uma função do usuário não é
 exit code.
 
 ### 6.5 Memória
 
-**Decidido** ([ADR-0031](docs/adr/0031-backend-nativo.md)): arena (bump) com teto
-configurável e `lox_panic` determinístico ao estourar. `lox_alloc` é o único ponto de
-alocação, então trocar por Boehm é mudar o corpo de uma função.
+**Decidido** ([ADR-0031](docs/adr/0031-backend-nativo.md), contrato no
+[ADR-0060](docs/adr/0060-orcamento-de-memoria.md)): arena (bump) com teto de **64 MiB**
+fixo e `lox_panic` determinístico ao estourar; o orçamento é contrato testado
+(`tests/test_backend.py`), não detalhe de implementação. `lox_alloc` é o único ponto de
+alocação, então trocar por Boehm é mudar o corpo de uma função — e um ADR novo decide qual
+passa a ser a falha determinística de esgotamento.
 
-- **Fase 1:** arena sem `free` (CLI curta) — simples, rápida e determinística na falha.
-- **Fase 2 (se rodar programa longo):** Boehm (`GC_malloc`, `-lgc`), opt-in por flag.
+- **Fase 1 (hoje):** arena sem `free` (CLI curta) — simples, rápida e determinística na falha.
+- **Fase 2 (M7, se rodar programa longo):** Boehm (`GC_malloc`, `-lgc`), opt-in por flag.
 - **Fase 3 (talvez):** GC preciso com shadow stack — só se o projeto virar sério.
 - Contagem de referência está fora: a linguagem permite ciclos (`list_cycle.lox`).
 - Referência: *Mapping High-Level Constructs to LLVM IR* (capítulo de GC) — ver §12.
 
 ### 6.6 Closures e classes
 
-- **Closure (L4 ✅):** `struct { fnptr, env, display }` na arena; `env` é uma struct de
-  ponteiros para **células** (heap `{ value }`) das variáveis capturadas. Variáveis não
-  capturadas continuam em `alloca` ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)).
-- **Classe (L5a/L5b ✅):** descritor `{super, id, name, vtable, n_fields, init,
-  init_min, init_max}`; instância `{classe, bitmap, slots i64}`; vtable = array de
-  **closures** na ordem determinística, copiada/sobrescrita na herança. Herança = prefixo
-  compatível de slots + vtable copiada ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
-- **`super`:** bound method usa a closure da vtable da classe-base; `super.init` usa a
-  closure de `init` da base, sem despacho virtual no receptor.
-- **Generics:** monomorfizar em compile-time (precisa do type checker!) — é o que
-  permite `List[Int]` virar `[N x i64]` sem boxing.
+Implementado no L4/L5 e registrado nos ADRs 0046 e 0048. O que ainda falta de ABI está na
+tabela do §6.3 (`Any`, enums, exceções).
 
 ### 6.7 Riscos conhecidos
 
@@ -428,54 +356,23 @@ alocação, então trocar por Boehm é mudar o corpo de uma função.
 | exceções em LLVM (`invoke`/landingpad) são difíceis | começar com `setjmp/longjmp` no runtime; ou `Result` na linguagem |
 | GC + LLVM não têm integração nativa | Boehm; ou arena sem free |
 | debug info ruim no llvmlite | `--emit=ll` + `lli` no começo; DWARF depois |
-| `llvmlite` 0.50 mudou a inicialização (`initialize()` agora levanta) | usar só `initialize_native_target()`/`initialize_native_asmprinter()`; isolado em `llvm_ir.py` |
 | ABI/linking em Windows | usar `clang` como driver, sempre; testar cedo |
 | otimizar antes de funcionar | `-O0` até passar a suíte inteira; depois ligar passes |
 | erros de codegen são crípticos | verificar módulo (`mod.verify()`), testes pequenos por feature |
 
 ### 6.8 Marcos do backend
 
-- [x] **L0 — Hello, IR**: `print` de `Int`/`Bool`/`nil`, `+ - * // %`, comparações,
-      igualdade e unário; `--emit=ll|obj|exe`; runtime C (`lox_print_*`, `lox_panic`) e
-      teste diferencial nos três canais.
-- [x] **L1 — Aritmética e controle de fluxo**: `Float` desboxado, promoção `Int → Float`,
-      `/` sempre Float, `%` de Float, comparações com NaN, `if`/`while`/blocos e impressão
-      de `double` pela menor representação (fuzz contra `repr`). Manifesto `l0`/`l1`.
-- [x] **L2 — Variáveis e funções**: `val`/`var` com `alloca`/globais, atribuição, escopo,
-      sombreamento; funções de topo com chamada direta, `return`, recursão, defaults no
-      call site e **aridade/variável indefinida como panic site**; `for` C-style
-      (desaçucarado pelo parser) compila. A lacuna de `T?` escalar/`var x: T?;` foi
-      fechada no L2.5 ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md)); `T?` de
-      referência entrou no L5.
-- [x] **L2b — Normalização**: ternário, `and`/`or` e `??` (blocos + `phi`, com
-      curto-circuito e dobra de literais); `for-in` fica no L6 (depende de
-      `Range`/`List`/`String`). Limitação conhecida: o slot é monomórfico, então
-      `var x = 1.5; x = 2` (troca `Float`/`Int` em runtime) é rejeitado com 65 — o
-      interpretador aceita; resolver junto com a representação numérica unificada (L6).
-- [x] **L3 — Strings**: literais em globals, concatenação, `print`, igualdade e `len`
-      (code points), **interpolação** (`"${expr}"` com `stringify` de escalares),
-      `str`/`repr` (com citação/escapes) e arena de 64 MiB com panic determinístico.
-      `repr` de listas/mapas entra no L6.
-- [x] **L2.5 — Optionais escalares**: `T?` escalar (`{i1, T}`), `var x: T?;`, nil
-      contextual e unwrap checado ([ADR-0047](docs/adr/0047-optionais-escalares-l2-5.md));
-      `variables.lox` promovido. Os campos/valores `T?` de referência entraram no L5.
-- [x] **L4 — Closures**: env struct, células só para capturados, funções locais/lambdas,
-      valores de função, chamada indireta e `print` (`<fn f>`/`<lambda>`) — [ADR-0046](docs/adr/0046-closures-celulas-l4.md).
-- [x] **L5a/L5b — Objetos**: classes, campos/bitmap, métodos/`this`/`init`, bound
-      methods, herança, vtable, `super`/`super.init`, `init` herdado e `print` de
-      classe/instância ([ADR-0048](docs/adr/0048-abi-classes-l5.md)).
-- [x] **L5c — Identidade, `?.` e classes locais**: `is`/`as` de classe, `?.` com
-      receptor opcional (curto-circuito), classes locais vazias/com campos/métodos e
-      captura em métodos de classe local, `String?`/instância `T?` em campos/params/
-      retornos. `nil_aware` foi promovido no spike L6. Layout/identidade em
-      [ADR-0043](docs/adr/0043-layout-l5-classes.md)/[ADR-0044](docs/adr/0044-identidade-classe.md);
-      representação/narrowing em [ADR-0045](docs/adr/0045-narrowing-representacao.md);
-      ABI em [ADR-0048](docs/adr/0048-abi-classes-l5.md).
-- [ ] **L6 — Tipos**: `Int`/`Float` desboxados, monomorfização de generics, `List`/`Map`,
-      tuplas, enums, exceções (unwinding), `Range` e `for-in`, mais as operações escalares
-      restantes (`**`, bits, `as`/`math.*`, `chars`; nível fixado na §0.2).
-- [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, testes diferenciais
-      interpretador × nativo, benchmarks, JIT no REPL, mensagens de erro de codegen.
+L0–L5, T7 e L6a–L6h estão entregues (ADRs 0031, 0046–0048, 0050–0058); o detalhe de cada
+um fica nos ADRs e no [`CHANGELOG.md`](CHANGELOG.md). Falta:
+
+- [ ] **L6i — enums/`match`/`Result`**: ADR-0061 proposto; representação
+      `LoxEnumValue`, construtores de variante, `match` com blocos/phi e `Any` tag ENUM.
+- [ ] **L6j — exceções/unwinding**: ADR-0062 proposto; ABI `LoxTryFrame`/`LoxException`,
+      cleanup stack e `finally`; spike antes da feature completa.
+- [ ] **L6k — função genérica como valor**: ADR-0063; especialização no call site dentro
+      do orçamento de monomorfização, ou adiamento declarado para o M8.
+- [ ] **L7 — Qualidade**: `mod.verify()`, passes `-O2`, benchmarks, JIT no REPL e
+      mensagens de erro de codegen.
 
 ### 6.9 CLI alvo
 
@@ -501,35 +398,29 @@ imports para `print`).
 
 ### 6.11 Corpus diferencial (bloqueia o I1)
 
-O I1 vale para o **corpus inteiro anotado**; a suíte oficial entra pela camada dinâmica e
-cada nível promove os seus casos de `PENDING` para `LEVELS`:
+Regra: o I1 vale para o **corpus anotado e classificado**, nunca para o que o backend
+"quase" faz. Todo caso está em `LEVELS`, `PENDING` ou `NEGATIVE`
+([`tests/corpus_manifest.py`](tests/corpus_manifest.py)); promover caso = mover de
+`PENDING` para `LEVELS` no mesmo commit, com o teste diferencial verde nos três canais.
+O status atual (quantos compilam, quantos em `PENDING`) é **gerado** em
+[`docs/spec/garantias.md`](docs/spec/garantias.md) — não duplique aqui.
 
-- [x] anotar os 109 `tests/cases`: 104 compilam; 4 ficam `PENDING` por nível
-      (`l6` e `l?` para o que ainda não tem nível) e 2 são negativos (check falha por
-      design);
-- [x] manifesto de casos por nível (`l0`–`l5`) e promoção monotônica;
-- [x] CI sempre com `--extra llvm` e `LOX_REQUIRE_LLVM=1` (falha, não skip);
-- [x] meta-teste de classificação: todo caso está em `LEVELS`, `PENDING` ou `NEGATIVE`;
-      `PENDING` passa no `--check` e falha no backend com 65, nunca traceback/exit 1;
-- [x] anotar `exemplos/classes.lox`;
-- [x] anotar `tests/official/cases`: os 59 positivos passam no `--check` via camada
-      dinâmica (`Any`) em [`tests/official_annotations.py`](tests/official_annotations.py),
-      aplicada sobre a fonte adaptada (originais intactos); os 56 negativos esperam erro
-      e os `xfail` de campos dinâmicos ficam fora ([README](tests/official/README.md)).
+**Teto proposto** ([ADR-0064](docs/adr/0064-orcamento-do-corpus.md)): `PENDING` ≤ 5% do
+corpus (hoje 4/110 = 3,6%), sempre com nível/motivo, e `l?` proibido. O I1 só cobre
+`LEVELS`; o teto impede que o teste verde vire ficção. Para features grandes, o caso
+espera em issue/branch em vez de inflar `PENDING`.
 
 ```bash
 uv sync --extra llvm
 uv run pytest tests/test_backend.py -q
 ```
 
-
 ---
-
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` testes diferenciais interpretador × LLVM no corpus inteiro (hoje: L0–L5,
-      comparando stdout, stderr e exit code).
+- [ ] `P2` testes diferenciais interpretador × LLVM no corpus **completo** (hoje: o corpus
+      declarado em `LEVELS`).
 - [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
       `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
       [`IDEIAS.md`](IDEIAS.md) I-4).
@@ -539,26 +430,23 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
 
-Infra já pronta: pytest (golden `.lox`; mais de 1.000 pass + 8 `xfail`), ruff, mypy strict,
-`make check`, pre-commit, CI, skills e docs com teste de links.
-
 ---
 
 ## 8. Lox2: o que ainda vale
 
 | Recurso | Status | Nota |
 | --- | --- | --- |
-| `for-in` + iterador de usuário | ⏳ | o `for-in` embutido existe; falta protocolo de usuário |
+| iterador de usuário no `for-in` | ⏳ | o `for-in` embutido existe; falta protocolo |
 | `print` como função (`println`) | ⏳ | depois da 1.0; statement é a decisão |
 | variádicos `...args` | ⏳ | falta implementar |
 | trailing closure | ⏳ | falta implementar |
 | `type` alias | ⏳ | falta implementar |
-| generics + constraints | ⏳ | funções T3b prontas; constraints pós-MVP, junto de traits ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| generics + constraints | ⏳ | funções T3b prontas; constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | uniões + narrowing | 🟡 | `T?`/`is`/`while`/campos/índices prontos; falta merge CFG/aliasing |
 | traits nominais + `implements` | ⏸ | decididos com métodos default; pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | operator overloading | ⏳ | depois de classes |
 | namespaces/import | ⏳ | necessário com stdlib |
-| `try`/`raise` | 🟡 | tree-walk implementado ([ADR-0042](docs/adr/0042-excecoes.md)); backend L6 (unwinding) |
+| `try`/`raise` no backend | 🟡 | tree-walk pronto ([ADR-0042](docs/adr/0042-excecoes.md)); unwinding no L6 |
 | `match` estrutural em uniões | ⏳ | enum/`match` exaustivo já existe ([ADR-0041](docs/adr/0041-enums-match.md)); falta união/estrutural |
 | extension methods | ⏳ | depois do LLVM MVP e de traits |
 | classes como valores / metaclasses | 🤔 | só se precisar |
@@ -566,33 +454,31 @@ Infra já pronta: pytest (golden `.lox`; mais de 1.000 pass + 8 `xfail`), ruff, 
 | stdlib (`io`, `string`, `collections`) | ⏳ | mínima primeiro |
 | `async`/`await` | ⏳ | direção no [ADR-0037](docs/adr/0037-async-direcao.md): colored, `Task[T]`, determinístico; só com I/O, pós-M7 |
 
-Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e
-`Object` raiz — o LLVM cobre o codegen e o escopo humano manda.
+Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e `Object` raiz — o LLVM
+cobre o codegen e o escopo humano manda.
 
 ---
 
 ## 9. Milestones pendentes
 
-M0–M4 (livro, sintaxe, tipos T1/T2/T3a/T3b e D-5/D-8) estão fechados. Falta:
+M0–M5 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M5** | Tipos v2 | T4, T5, T6a e T6c: generalização, classes genéricas, narrowing e exaustividade; traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) | ✅ **fechado** |
-| **M6** | LLVM vertical (+ HIR se necessária) | L0–L5 + T7 + spike L6 (`Any`): inteiros, controle de fluxo, funções, closures, strings, optionais e classes; I1 verde no corpus anotado. A extração foi feita e o spike mostrou que HIR-lite não é necessária agora | 🟡 em andamento |
-| **M7** | Runtime completo | L6: `Any` completo, coleções, GC e `for-in`; I1 verde no corpus completo | ⬜ |
-| **M8** | Performance | L6–L7: desboxar tipos, monomorfizar, `-O2`, benchmarks e JIT | ⬜ |
-| **M9** | Ecossistema | formatter, LSP, docs, CI e playground | ⬜ |
+| **M6** | LLVM vertical | L0–L6 completos e I1 verde no corpus anotado (hoje falta o resto do L6) | 🟡 em andamento |
+| **M7** | Runtime completo | L6 fechado + GC (Boehm) + I1 verde no corpus completo | ⬜ |
+| **M8** | Performance | L6–L7: `-O2`, benchmarks e JIT | ⬜ |
+| **M9** | Ecossistema | formatter, LSP, docs e playground | ⬜ |
 
-**Regra:** a ordem oficial é a §0. Em resumo: L2.5 antes do L5; ADR de L4 antes do L4;
-extração do lowering/HIR-lite antes do L6; T7/layouts antes do L6. Se algo mudar a semântica
-de um nível já compilado, o nível afetado volta para a fila com caso diferencial. Traits
-nominais continuam pós-MVP e não bloqueiam nenhum nível.
+**Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o
+nível afetado volta para a fila com caso diferencial. Traits nominais continuam pós-MVP e
+não bloqueiam nenhum nível.
 
 **Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
-suspensos) é preparada durante o L4/L6; a feature entra **depois do M7**, junto com a
-stdlib de I/O, e **antes do M8**. Sem I/O não há o que esperar e a feature não passa no
-portão do ADR-0014. Paralelismo/multithread fica em avaliação no
-[`IDEIAS.md`](IDEIAS.md) I-7 — não é async.
+suspensos) é preparada durante o L6; a feature entra **depois do M7**, junto com a stdlib
+de I/O, e **antes do M8**. Sem I/O não há o que esperar e a feature não passa no portão do
+ADR-0014. Paralelismo/multithread fica em avaliação no [`IDEIAS.md`](IDEIAS.md) — não é
+async.
 
 ---
 
@@ -624,7 +510,7 @@ quando T6b/constraints existirem; o desenho está no
 - [ ] `fn map[U]` — métodos genéricos: a função livre cobre; sem constraints o corpo só usa
       operações universais.
 - [ ] `class IntBox(Box[Int])` — herança de instanciação: composição cobre; exige
-      substituição em cadeia no checker e aumenta a superfície que o L5/L6 tem que
+      substituição em cadeia no checker e aumenta a superfície que o backend tem que
       reproduzir (I1).
 - [ ] `is`/`as Box[Int]` — reificação: exige tipos em runtime (*witnesses*), conflita com o
       erasure e com o tree-walk rodar sem `--check`; o erro explícito atual é o
@@ -632,38 +518,31 @@ quando T6b/constraints existirem; o desenho está no
 
 ---
 
-
 ## 11. Decisões em aberto
 
-Só o que ainda não foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md); pendências de tipo:
-[`TIPOS.md`](TIPOS.md).
+Só o que ainda **não** foi decidido. Fechadas: [`docs/decisoes.md`](docs/decisoes.md);
+pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
-1. **Generics além de funções:** classes genéricas MVP feitas ([ADR-0040](docs/adr/0040-generics-classes-desenho.md));
-   métodos genéricos, herança de `Box[Int]` e `is/as` reificado foram **adiados** (sem dor
-   demonstrada; ver §10). Continuam em aberto type application explícita e função genérica
-   como valor. Monomorfização já decidida ([ADR-0027](docs/adr/0027-generics-t3b.md)).
-   Constraints e traits nominais ficam pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+1. **Generics além do MVP:** continuam em aberto type application explícita e função
+   genérica como valor; métodos genéricos, herança de `Box[Int]` e `is/as` reificado estão
+   adiados (§10). Constraints e traits nominais ficam pós-MVP
+   ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 2. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
 3. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
    transcendentais de `math` fora do I3.
-4. **Constraints de generics e traits genéricos:** decisão de traits nominais/defaults já
-   registrada ([ADR-0038](docs/adr/0038-traits-nominais.md)); falta desenhar `T: Trait`,
-   coerência e o custo na monomorfização. `Result`/`Option` já estão implementados
-   ([ADR-0041](docs/adr/0041-enums-match.md)); `type` alias está em
-   [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
+4. **Constraints de generics e traits genéricos:** falta desenhar `T: Trait`, coerência e o
+   custo na monomorfização ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 5. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
-6. **`if`/bloco como expressão:** fora da 1.0; reavaliar depois do L4. `match`/enums já
-   entraram ([ADR-0041](docs/adr/0041-enums-match.md)).
-7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md) I-7; async é
+6. **`if`/bloco como expressão:** fora da 1.0; reavaliar quando houver dor real.
+7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md); async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
-8. **HIR tipada × extração:** o L5 mostrou o custo de um lowering monolítico; a decisão
-   é primeiro extrair (`model`/`classes`/`optionals`/`strings`/`calls`) e só depois avaliar
-   HIR-lite com tipos concretos, slots e blocos. Critérios e ordem no §0.2 item 5.
-
-Fechadas recentemente: backend em `llvmlite` (ADR-0031), normalização de ternário/
-`and`/`or`/`??` e strings do L3, enums/match/`Result` (ADR-0041) e exceções
-([ADR-0042](docs/adr/0042-excecoes.md)) (ver [`docs/adr`](docs/adr/) e [`CHANGELOG.md`](CHANGELOG.md)).
+8. **HIR tipada × extração:** a extração foi feita e o spike de `Any` não pediu HIR
+   ([ADR-0049](docs/adr/0049-any-boxeado-spike-l6.md)); reavaliar depois de `Any`
+   completo e containers estabilizados.
+9. **Unwinding de exceções no backend:** `setjmp`/`longjmp` no runtime × retorno de erro
+   explícito (`Result`-like) × tabelas de unwind do LLVM. Decidir antes de promover
+   `exceptions`; mexe em ABI, no runtime C e no I1.
 
 ---
 

@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from lox.cli import Lox
 from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
 
 MANIFEST_CASES = [
@@ -127,7 +128,7 @@ CASES = [
     ("while (false) { print 1; } print 2;", "while que não executa"),
     ("val a = 1; var b = a + 1; b = b * 2; print b;", "variáveis e atribuição"),
     ("val a = 1; { val a = 2; print a; } print a;", "sombreamento em bloco"),
-    ("val f: Float = 2; print f + 1;", "anotação não converte em runtime"),
+    ("val f: Float = 2 as Float; print f + 1;", "conversão explícita com as"),
     ("var n = 0; while (n < 3) { n = n + 1; print n; }", "laço que termina"),
     ("val x = 1; val y = x * 2; print y;", "dependência entre variáveis"),
     ("fn soma(a: Int, b: Int) -> Int { return a + b; } print soma(1, 2);", "função e chamada"),
@@ -305,7 +306,15 @@ def test_corpus_classificado() -> None:
     assert levels | pending | negative == paths
     assert len(levels) + len(pending) + len(negative) == len(paths)
     for case, level in PENDING.items():
-        assert level in {"l2", "l4", "l5", "l6", "l?"}, case
+        assert level in {"l2", "l4", "l5", "l6"}, case
+
+
+def test_pending_budget() -> None:
+    """ADR-0064: PENDING não pode passar de 5% do corpus anotado."""
+    total = len(_corpus_paths())
+    assert len(PENDING) * 100 <= total * 5, (
+        f"{len(PENDING)} PENDING em {total} casos; teto de 5%"
+    )
 
 
 @pytest.mark.backend
@@ -329,6 +338,105 @@ def test_pendente_check_limpo_e_recusado_pelo_backend(
     assert "not supported by the backend yet" in result.stderr, result.stderr
     assert "Traceback" not in result.stderr, result.stderr
     assert not binary.exists()
+
+
+@pytest.mark.backend
+def test_orcamento_de_memoria_e_deterministico_no_backend(tmp_path: Path) -> None:
+    """ADR-0060: a arena de 64 MiB é contrato; estourar falha sempre igual (exit 70).
+
+    O interpretador não tem teto (GC do Python) e roda o mesmo programa: a assimetria é
+    declarada, não um bug. Backend com `Out of memory.` determinístico em duas execuções.
+    """
+    path = _write(
+        tmp_path,
+        'var s = "0123456789abcdef"\n'
+        "var i = 0\n"
+        "while (i < 22) { s = s + s; i = i + 1 }\n"
+        "print len(s)\n",
+    )
+
+    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
+    assert interpreted.returncode == 0, interpreted.stderr
+    assert interpreted.stdout.strip() == str(16 * 2**22)
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    first = _run([str(binary)])
+    second = _run([str(binary)])
+
+    assert first.returncode == 70
+    assert "Out of memory." in first.stderr
+    assert "Traceback" not in first.stderr
+    assert (first.returncode, first.stdout, first.stderr) == (
+        second.returncode,
+        second.stdout,
+        second.stderr,
+    )
+
+
+def _checkable_sources() -> list[tuple[str, str]]:
+    """Casos do corpus que podem passar no `--check` (sem `errors/`)."""
+    paths = sorted(CASES_DIR.glob("*.lox")) + sorted(
+        (ROOT / "exemplos").glob("*.lox")
+    )
+    return [
+        (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
+        for path in paths
+    ]
+
+
+@pytest.mark.backend
+def test_promocao_int_para_float_e_recusada_pelos_dois(tmp_path: Path) -> None:
+    """Regressão do furo que motivou o I4 (ADR-0059).
+
+    Antes: `--check` limpo, interpretador imprime `2` e o backend recusava com
+    "Can't use INT where FLOAT is expected" — duas fontes de verdade.
+    Agora o checker recusa primeiro, com a mesma mensagem nos dois caminhos.
+    """
+    path = _write(tmp_path, "var x: Float = 1.5\nx = 2\nprint x\n")
+
+    checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+    expected = "Expected Float, found Int. Write `2.0` or use `2 as Float`."
+    assert checked.returncode == 65, checked.stderr
+    assert expected in checked.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 65, result.stderr
+    assert expected in result.stderr, result.stderr
+    assert not binary.exists()
+
+
+@pytest.mark.backend
+def test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """I4 (ADR-0059): `--check` limpo ⇒ o lowering não recusa por tipo/coerção.
+
+    A única recusa aceitável depois de um check limpo é a lacuna declarada
+    ("not supported by the backend yet"). Qualquer outro erro é divergência entre
+    checker e backend — a classe do `var x: Float = 1.5; x = 2` que motivou o I4.
+    """
+    problems: list[str] = []
+
+    for index, (name, source) in enumerate(_checkable_sources()):
+        probe = Lox()
+        probe.check(source)
+        capsys.readouterr()
+        if probe.reporter.had_error:
+            continue  # erro de check: fora do escopo do I4
+
+        output = tmp_path / f"case_{index}.ll"
+        lox = Lox()
+        built = lox.build(source, emit="ll", output=output, stem=f"case_{index}")
+        reported = capsys.readouterr().err
+
+        if not built and "not supported by the backend yet" not in reported:
+            problems.append(f"{name}: {reported.strip()}")
+
+    assert problems == [], (
+        "check limpo virou erro no backend:\n" + "\n".join(problems)
+    )
 
 
 @pytest.mark.parametrize(

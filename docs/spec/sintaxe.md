@@ -1,11 +1,19 @@
+---
+sources:
+  - src/frontend/parser.py
+  - src/frontend/keywords.py
+  - src/frontend/ast_printer.py
+---
+
 # Sintaxe
 
 Gramática do parser atual ([`src/frontend/parser.py`](../../src/frontend/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`match`, `"""`…)
-> está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif`, o `;` opcional, ternário,
-> `??`, `?.`, interpolação e escapes já existem; `val`/`var` existem desde o ADR-0005.
+> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`"""`,
+> `break`/`continue`…) está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif`, o `;`
+> opcional, ternário, `??`, `?.`, interpolação e escapes já existem; `val`/`var` existem
+> desde o ADR-0005.
 
 ## Gramática (EBNF)
 
@@ -22,7 +30,7 @@ declaration    → classDecl
 classDecl      → "class" IDENTIFIER typeParameters? ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
 enumDecl       → "enum" IDENTIFIER typeParameters? "{" variant ( "," variant )* "}" ;
 variant        → IDENTIFIER ( "(" type ( "," type )* ")" )? ;
-classMember    → fieldDecl | function ;
+classMember    → fieldDecl | "fn"? function ;
 fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
 funDecl        → "fn" function ;
 function       → IDENTIFIER typeParameters? "(" parameters? ")" ( "->" type )? block ;
@@ -77,7 +85,7 @@ coalesce       → logic_or ( "??" coalesce )? ;
 logic_or       → logic_and ( "or" logic_and )* ;
 logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → bitwise_or ( ( ">" | ">=" | "<" | "<=" ) bitwise_or | "is" type )* ;
+comparison     → bitwise_or ( ( ">" | ">=" | "<" | "<=" ) bitwise_or | "is" postfixType )* ;
 bitwise_or     → bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    → bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    → range ( "&" range )* ;
@@ -172,6 +180,13 @@ operador fica no nível de comparação. `is` testa primitivos, classes/subclass
 `--check`. `Animal` como valor não é instância: `Animal is Animal` é `false`. Ver
 [ADR-0025](../adr/0025-is-e-narrowing.md).
 
+Em **contexto de expressão** a união exige parênteses: `x is (Int | String)` é válido,
+mas `x is Int | String` é erro de sintaxe. O `|` é também o operador bitwise; sem o
+parêntese o parser não sabe se ele pertence ao tipo ou à expressão. Anotações
+(`val x: Int | String`, `-> Int | String`) continuam sem parênteses, porque ali não
+existe expressão concorrente. `as` segue a mesma gramática de tipo; união em `as` é
+recusada pelo checker (`as doesn't support union types`), não pelo parser.
+
 O literal de mapa só existe em **posição de expressão** (`val m = {...}`, argumento,
 `return`, condição). No início de um statement, `{` abre um **bloco**:
 
@@ -179,6 +194,9 @@ O literal de mapa só existe em **posição de expressão** (`val m = {...}`, ar
 val m = {"a": 1}    # mapa
 { "a": 1 }          # bloco: o ':' não é um statement válido
 ```
+
+No segundo caso o parser reporta um erro dirigido (`Unexpected ':'. Map literals can't
+start a statement...`) em vez do genérico `Expect ';' after expression.`
 
 ## Ponto e vírgula opcional
 
@@ -203,8 +221,18 @@ val total = 1 +
   2            # ok: 3
 ```
 
-Operador no começo da linha seguinte **não** continua a expressão; ele inicia outro
-statement:
+Dentro de `()`, `[]` e `{}` de expressão o operador também pode **começar** a linha,
+porque ali não existe um statement novo para iniciar:
+
+```lox
+val total = (
+  1
+  + 2          # ok: 3
+)
+```
+
+Fora de brackets, operador no começo da linha seguinte **não** continua a expressão; ele
+inicia outro statement:
 
 ```lox
 var x = 1
@@ -327,11 +355,13 @@ por iterável (Range/String/List/Map/Tuple — `Map` produz as chaves). Ver
 - `val` **exige inicializador** (`val x;` é erro). `var` pode omitir (`var x;` → `nil`).
 - Parâmetros são **`val` implícitos**; `var` antes do nome libera a reatribuição:
   `fn f(x, var y)`. `val` explícito em parâmetro não é aceito.
-- Métodos de classe **não usam `fn`**:
+- Métodos de classe aceitam `fn` **opcional**; a forma canônica continua sem `fn`, porque
+  o corpo da classe já marca a declaração:
 
   ```lox
   class Foo {
     bar(a) { return a; }
+    fn baz(a) { return a; }   # aceito; mesma AST
   }
   ```
 
@@ -339,9 +369,10 @@ por iterável (Range/String/List/Map/Tuple — `Map` produz as chaves). Ver
   função. Ao ultrapassar, o erro é reportado mas o parser continua (os argumentos são
   descartados da AST).
 - `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
-- Não existem: `break`/`continue`, `switch`, `match`, operador ternário no estilo `?:`,
-  `+=`, `++`, `import`, `try/catch`, funções anônimas (challenge #2 pendente). Listas,
-  mapas e interpolação existem desde os
+- Não existem: `break`/`continue`, `switch` (use `match`), operador ternário no estilo
+  `?:` (use `a if c else b`), `+=`, `++`, `import` e `catch` (use `except`). `match` com
+  enums ([ADR-0041](../adr/0041-enums-match.md)) e lambdas ([ADR-0022](../adr/0022-lambdas.md))
+  existem; listas, mapas e interpolação existem desde os
   [ADR-0015](../adr/0015-listas-tipadas.md), [ADR-0017](../adr/0017-mapas-hash.md) e
   [ADR-0019](../adr/0019-interpolacao.md).
 - `fn` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.

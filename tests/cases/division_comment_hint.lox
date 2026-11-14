@@ -1,0 +1,3 @@
+// comentário no estilo C
+print 1
+# expect error: '//' is integer division

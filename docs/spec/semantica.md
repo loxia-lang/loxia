@@ -1,3 +1,9 @@
+---
+sources:
+  - src/execution/**
+  - src/semantics/**
+---
+
 # Semântica
 
 Comportamento observável do interpretador. Implementação: [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
@@ -573,7 +579,9 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   **objeto de classe** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
   é verdadeiro, mas uma classe local homônima não é a classe global. `Any` sempre
   verdadeiro, `Never` sempre falso; tipos de função são recusados no `--check`. Uma classe
-  como valor não é instância (`Animal is Animal` é `false`). Ver
+  como valor não é instância (`Animal is Animal` é `false`). Na expressão, união no lado
+  direito exige parênteses (`x is (Int | String)`); ver
+  [ADR-0067](../adr/0067-desambiguacao-sintatica.md) e
   [ADR-0025](../adr/0025-is-e-narrowing.md).
 - Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` e `!` em volta disso
   refinam `x` no ramo; `if (x == nil) { return }` refina o resto do bloco. `and` no ramo

@@ -893,7 +893,7 @@ def test_nil_aware_and_conditional_types_are_clean() -> None:
         val nome: String = p?.nome ?? "sem nome"
         val tamanho: Int = p?.tamanho() ?? 0
         val escolha: Int = 1 if true else 2
-        val numero: Float = 1 if true else 2.0
+        val numero: Float = 1.0 if true else 2.0
         val zero: Int = 0 ?? 1
         val falso: Bool = false ?? true
         val texto: String = "a" ?? "b"
@@ -945,7 +945,7 @@ def test_list_types_are_clean() -> None:
     lox = check(
         """
         val xs: List[Int] = [1, 2, 3]
-        val ys: List[Float] = [1, 2.0]
+        val ys: List[Float] = [1.0, 2.0]
         val zs: List[Int | String] = [1, "a"]
         val talvez: List[Int?] = [1, nil]
         val empty: List[Int] = []
@@ -1937,7 +1937,7 @@ def test_casts_parse_and_math_are_typed() -> None:
         val b = math.abs(-3.5);
         val c = math.min(1, 2.0);
         val d = math.floor(3.9);
-        val e = math.sqrt(9);
+        val e = math.sqrt(9.0);
         val h = math.clamp(10, 0, 5);
         val ci: Int = math.min(1, 2);
         val cf: Float = math.min(1, 2.0);
@@ -1945,6 +1945,73 @@ def test_casts_parse_and_math_are_typed() -> None:
         print i; print f; print n; print g;
         print a; print b; print c; print d; print e; print h;
         print ci; print cf; print cd;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+# --- promoção Int -> Float é só aritmética (ADR-0059) -------------------------
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("val y: Float = 2;", "Expected Float, found Int. Write `2.0` or use `2 as Float`."),
+        (
+            "var x: Float = 1.5; x = 2;",
+            "Expected Float, found Int. Write `2.0` or use `2 as Float`.",
+        ),
+        (
+            "fn f(x: Float) -> Int { return 0; } f(2);",
+            "Argument 1: Expected Float, found Int.",
+        ),
+        ("fn f() -> Float { return 2; }", "Expected Float, found Int."),
+        (
+            "fn f(x: Float = 1) -> Float { return x; }",
+            "Expected Float, found Int.",
+        ),
+        ("val xs: List[Float] = [1];", "Expected Float, found Int."),
+        ("val m: Map[String, Float] = { \"a\": 1 };", "Expected Float, found Int."),
+        (
+            "class P { var x: Float; init() { this.x = 2; } }",
+            "Expected Float, found Int.",
+        ),
+    ],
+)
+def test_int_float_promotion_is_rejected_outside_arithmetic(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Kotlin-like: anotação/atribuição/argumento/retorno exigem `Float` explícito."""
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
+def test_arithmetic_promotion_still_works() -> None:
+    lox = check(
+        """
+        val a = 1 + 2.0;
+        val b = 4 / 2;
+        val c = 1 == 1.0;
+        val d = 1 < 2.5;
+        val e: Float = 2 ** 0.5;
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_explicit_conversion_is_the_escape_hatch() -> None:
+    lox = check(
+        """
+        val a: Float = 2 as Float;
+        var b: Float = 1.5;
+        b = 2 as Float;
+        fn f(x: Float = 1.0) -> Float { return x; }
+        print a; print b; print f();
         """
     )
 

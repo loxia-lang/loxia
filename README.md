@@ -33,13 +33,11 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: **L6** (`Any` completo, `List`/`Map`, `for-in`); o L5 e o T7 fecharam classes,
-  herança, `is`/`as`, `?.` e classes locais com campos/métodos/captura. Traits e constraints ficam pós-MVP
-  ([ADR-0038](docs/adr/0038-traits-nominais.md)); tuplas foram implementadas no
-  interpretador/checker ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)) e ficam para o
-  L6 no backend. T3a (assinaturas + recursão mútua), tipos de função, lambdas, T3b e D-8
-  já estão feitos (ADR-0020/0021/0022/0027/0029), e closures/valores de função entraram no
-  L4 ([ADR-0046](docs/adr/0046-closures-celulas-l4.md)).
+- 📐 Próximo passo: fechar o **L6** restante (enums/`match`/`Result`, exceções e
+  função genérica como valor). O L5, o T7 e o L6a–L6h já entregaram classes,
+  herança, closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas,
+  tuplas, `Any`, `math`/parse e defaults como valor; traits e constraints ficam
+  pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 
 ## O que esta linguagem promete
 
@@ -53,6 +51,12 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
   truthiness exótica, sem `nil` surpresa.
 - **I3 — determinismo observável.** Mesma entrada ⇒ mesmos bytes de saída e de
   diagnóstico: sem endereço, timestamp, PID ou caminho absoluto.
+- **I4 — `--check` limpo compila.** Se o checker aceita, o binário compila; a única recusa
+  aceitável é a lacuna declarada (`... is not supported by the backend yet.`). O checker é
+  a fonte única dos tipos.
+- **Memória é contrato.** O binário aloca em arena de 64 MiB sem `free`; estourar é
+  `exit 70` + `Out of memory.` determinístico. O interpretador não tem teto — o I1 vale
+  dentro do orçamento.
 
 Detalhes e o que **não** é prometido: [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
@@ -72,6 +76,7 @@ uv sync --extra llvm                 # habilita o backend nativo (llvmlite)
 uv run main.py --emit=ll prog.lox    # IR do LLVM (inspeção)
 uv run main.py --emit=obj prog.lox   # .o para linkar
 uv run main.py --emit=exe -o app prog.lox   # binário nativo
+uv run main.py --emit=ll --output prog.ll prog.lox  # IR em arquivo (--output)
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make hooks                     # instala o hook de pre-commit

@@ -483,6 +483,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Expected a function {display(expected)}, "
                 f"found the class {actual.name}."
             )
+        if expected is FLOAT and actual is INT:
+            return "Expected Float, found Int. Write `2.0` or use `2 as Float`."
 
         return f"Expected {display(expected)}, found {display(actual)}."
 
@@ -668,8 +670,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return any(self._assignable(member, actual) for member in expected.members)
         if isinstance(expected, TyVar) or isinstance(actual, TyVar):
             return False
-        if actual is INT and expected is FLOAT:
-            return True
+        # Sem promoção `Int -> Float` em contexto de armazenamento (ADR-0058):
+        # `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` exigem `2.0`/`as Float`.
+        # A promoção continua valendo só como regra de aritmética (ADR-0006).
         if isinstance(expected, ListTy) and isinstance(actual, ListTy):
             if expected.element is ERROR or actual.element is ERROR:
                 return True

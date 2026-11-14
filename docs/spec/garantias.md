@@ -1,3 +1,13 @@
+---
+sources:
+  - tests/corpus_manifest.py
+  - tests/test_backend.py
+  - tests/test_determinism.py
+  - src/backend/**
+  - runtime/runtime.c
+  - src/semantics/checker.py
+---
+
 # Garantias — o que a linguagem promete
 
 Esta página é o **contrato** com quem usa a linguagem (ou escreve ferramenta em cima
@@ -5,16 +15,19 @@ dela). Não descreve sintaxe nem semântica — isso está em
 [léxico](lexico.md), [sintaxe](sintaxe.md), [semântica](semantica.md) e
 [erros](erros.md). Aqui ficam as promessas que sobrevivem a features novas.
 
-A decisão por trás destas garantias (e o porquê de cada custo) está no
-[ADR-0014](../adr/0014-identidade-e-invariantes.md).
+As decisões por trás destas garantias estão nos
+[ADR-0014](../adr/0014-identidade-e-invariantes.md) (I1–I3),
+[ADR-0059](../adr/0059-i4-check-limpo-compila.md) (I4) e
+[ADR-0060](../adr/0060-orcamento-de-memoria.md) (memória).
 
-## As três garantias
+## As quatro garantias
 
 | # | Garantia | Status |
 | --- | --- | --- |
-| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 L0–L5 + T7; corpus por nível anotado |
+| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 cobre o corpus declarado (tabela abaixo) |
 | **I2** | Nada acontece implicitamente | ✅ vale hoje |
 | **I3** | Determinismo observável: mesma entrada ⇒ mesmos bytes | ✅ vale hoje e é testado em CI |
+| **I4** | `--check` limpo ⇒ o backend compila (ou recusa só a lacuna declarada) | ✅ vale hoje e é testado em CI |
 
 ### I1 — Equivalência executável
 
@@ -22,29 +35,32 @@ O tree-walk é a **definição normativa** da linguagem. Todo programa do corpus
 tem que produzir o **mesmo stdout (bytes)**, o **mesmo stderr** e o **mesmo exit code**
 nos dois motores; se divergirem, o bug é do backend.
 
-O backend nativo cobre **L0–L5 + T7** ([ADR-0031](../adr/0031-backend-nativo.md),
-[ADR-0046](../adr/0046-closures-celulas-l4.md), [ADR-0047](../adr/0047-optionais-escalares-l2-5.md)): `Int`, `Float`, `Bool`, `nil`, aritmética
-com promoção `Int → Float`, `/` sempre `Float`, `%`, comparações, igualdade, `if`,
-`while`, `val`/`var` com escopo e sombreamento, optionais escalares (`{i1, T}` e `nil`
-contextual), classes/campos/métodos/`this`/`init`/herança/`super`, funções com `return`,
-recursão e defaults,
-ternário/`and`/`or`/`??` com curto-circuito, `String` (concatenação, igualdade, `len` em
-code points, interpolação e `str`/`repr`) com arena, funções locais/lambdas, closures
-(células e `env`) e valores de função (`<fn f>`/`<lambda>`). O teste diferencial
-(`tests/test_backend.py`) compila cada caso, executa o binário e compara os três canais
-com o interpretador — nunca com uma expectativa escrita à mão. O manifesto
-`tests/corpus_manifest.py` declara os casos por nível.
+O corpus é o corpus de conformidade inteiro, **anotado e classificado por nível** em
+`tests/corpus_manifest.py`. Cada caso está em `LEVELS` (o backend compila e concorda),
+`PENDING` (o `--check` passa, o backend ainda recusa com **65** e a mensagem
+`... is not supported by the backend yet.`) ou `NEGATIVE` (falha de propósito no
+`--check`). Um caso só entra em `LEVELS` quando os três canais batem; a promoção é
+monotônica e o teste diferencial nunca compara com expectativa escrita à mão. A lista de
+`PENDING` é pública: é o registro honesto do que falta, não um segredo.
 
-O **corpus** é o corpus de conformidade inteiro, anotado: `tests/cases`, `exemplos/` e
-`tests/official/cases`. A suíte do livro ainda é código cru do Crafting Interpreters
-(`fun`, `//`, sem anotações) e por isso **não compila** enquanto não for anotada — a
-anotação é pré-requisito do L1, e o I1 só vale para os programas efetivamente no corpus.
-Não se escolhe o corpus depois olhando o que o backend já acerta.
+<!-- levels:start -->
+| Nível | Casos que compilam e concordam (I1) |
+| --- | --- |
+| `l0` | 4 |
+| `l1` | 3 |
+| `l2` | 14 |
+| `l2.5` | 3 |
+| `l3` | 12 |
+| `l4` | 7 |
+| `l5` | 25 |
+| `l6` | 36 |
+| `t7` | 2 |
 
-Os níveis ainda não implementados rejeitam com **erro de compilação explícito** (exit 65),
-nunca com lowering silencioso: classes/`T?` de referência (L5), `Any`/`List`/`Map`/
-tuplas/enums (L6). No L4, função com defaults usada como valor também é rejeitada com 65
-(fora do corpus declarado); ver [ADR-0046](../adr/0046-closures-celulas-l4.md).
+**106 casos** em 9 níveis compilam e concordam; **5 em `PENDING`** (`enums` (l6), `exceptions` (l6), `generic_lambda_value` (l6), `is_union_parens` (l6), `result` (l6)); **5 negativos** de propósito.
+<!-- levels:end -->
+
+Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
+(exit 65), nunca com lowering silencioso.
 
 A comparação é feita por canal: quando stdout e stderr vão para o **mesmo** descritor
 (`2>&1`), a ordem de intercalação das duas saídas não faz parte da garantia.
@@ -53,13 +69,24 @@ Não existe promessa de que código interpretado e compilado tenham a mesma **ve
 o mesmo consumo de memória ou o mesmo stack trace — só o mesmo resultado observável.
 Recursão profunda fica fora do corpus até existir contador de pilha no runtime.
 
+#### Orçamento de memória ([ADR-0060](../adr/0060-orcamento-de-memoria.md))
+
+O binário aloca em uma **arena de 64 MiB, sem `free`**. Exceder é falha determinística:
+`exit 70` e `Out of memory.` no stderr, o mesmo em toda execução. O interpretador **não**
+tem esse teto (GC do Python) e pode rodar programas que o binário recusa — a assimetria é
+declarada, e o I1 vale para programas cujo pico de alocação caiba no orçamento. Programas
+acima dele estão fora do corpus por definição. O teto **não** depende do ambiente.
+
+O GC (Boehm, M7) substituirá a arena por um ADR novo; naquele momento a pergunta "qual é
+a falha determinística de esgotamento?" volta a ser decidida explicitamente.
+
 ### I2 — Nada acontece implicitamente
 
 Nenhuma conversão, coerção, truncamento, arredondamento, truthiness ou fallback acontece
 sem estar escrito no código.
 
 ```lox
-print 1 + 2.0      # 3.0  — promoção Int -> Float, só para cima
+print 1 + 2.0      # 3.0  — promoção Int -> Float, só em aritmética
 print 1 + "1"      # erro — sem coerção entre número e string
 print 4 / 2        # 2.0  — `/` é sempre Float
 print -7 // 2      # -3   — truncado
@@ -69,6 +96,10 @@ if ("") { print "vazio é truthy" }  # imprime: só nil e false são falsy
 print (nil ?? 0)   # 0    — `??` troca apenas nil
 print 3.9 as Int   # 3    — cast explícito, truncado
 ```
+
+Em **armazenamento** não há promoção: `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` em
+função `-> Float` são erros de tipo; escreva `2.0` ou `2 as Float`
+([ADR-0059](../adr/0059-i4-check-limpo-compila.md)).
 
 Se você quiser a conversão, ela é escrita: não há "o compilador resolve".
 
@@ -97,9 +128,30 @@ A redação de uma mensagem de erro **pode mudar entre versões**; o exit code n
 (`65` compilação, `70` runtime). Quando existir o formato estruturado, os códigos
 (`E3xxx`…) também passam a ser estáveis.
 
+### I4 — `--check` limpo ⇒ compila
+
+Todo programa que passa no `--check` compila. A **única** recusa aceitável no lowering é a
+lacuna já declarada e classificada:
+
+```
+... is not supported by the backend yet.
+```
+
+Qualquer outro erro depois de um check limpo é violação do I4. O checker é a **fonte de
+verdade** dos tipos; o backend consome os tipos publicados e não inventa regra própria.
+
+```bash
+uv run main.py --check prog.lox      # exit 0 …
+uv run main.py --emit=exe prog.lox   # … então isto compila (ou recusa só "not supported")
+```
+
+É o corolário operacional do I1: sem ele, o mesmo programa poderia dar `2` no
+interpretador e um erro de tipo no compilador, com o usuário recebendo dois diagnósticos
+contraditórios ([ADR-0059](../adr/0059-i4-check-limpo-compila.md)).
+
 ## Princípios de design
 
-Não são garantias testáveis como I1–I3: são os critérios que orientam as decisões de
+Não são garantias testáveis como I1–I4: são os critérios que orientam as decisões de
 sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
 
 1. **Sem ruído** — `;` opcional, `elif`, corpo de uma linha; a sintaxe não deve exigir
@@ -123,10 +175,13 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
 - [`tests/test_determinism.py`](../../tests/test_determinism.py) roda casos com
   `PYTHONHASHSEED` diferentes e exige igualdade byte a byte (I3), além de proibir dados
   voláteis.
+- [`tests/test_backend.py`](../../tests/test_backend.py) compila cada caso do manifesto e
+  compara stdout/stderr/exit com o interpretador (I1), varre o corpus exigindo que check
+  limpo nunca vire erro de tipo (I4) e documenta o orçamento de memória.
 - Os golden cases em `tests/cases/` fixam as recusas de I2 (coerção mista, `nil`
-  surpresa, divisão por zero).
-- Quando o backend existir: um teste diferencial rodando o mesmo corpus nos dois motores
-  (I1).
+  surpresa, divisão por zero, promoção em armazenamento).
+- `tests/test_docs_consistency.py` impede que esta página fique defasada em relação ao
+  manifesto e ao CLI.
 
 ## O que **não** é prometido
 
@@ -140,6 +195,8 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
   existirem não serão contrato público na primeira versão.
 - **Timing.** Nada promete quando um `nil`/objeto é liberado, nem ordem de finalização —
   justamente para não quebrar I1.
+- **Programas acima do orçamento de memória** no binário (64 MiB até o GC), e **recursão
+  profunda** sem contador de pilha.
 
 ## Revisitar
 

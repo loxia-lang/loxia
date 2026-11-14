@@ -1,3 +1,8 @@
+---
+sources:
+  - docs/adr/**
+---
+
 # Decisões já tomadas
 
 Registro executivo das decisões **fechadas** que antes ficavam misturadas com as abertas
@@ -49,6 +54,7 @@ decisão.
 | `fn`/`elif`/`;` | `fn` substitui `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha, EOF ou antes de `}`; operador só continua na mesma linha; `return` sozinho devolve `nil`. | [ADR-0011](adr/0011-fn-elif-ponto-e-virgula.md) |
 | Comentários, `//`, `**` e bits | `#` e `/* */` aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`; `& \| ^ ~ << >> >>>` em i64; shift inválido é erro. | [ADR-0012](adr/0012-comentarios-divisao-potencia-bits.md) |
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
+| Desambiguação sintática | `//` onde se espera expressão ganha diagnóstico dirigido; operador pode iniciar linha dentro de `() [] {}` de expressão (fora, continua no fim da linha); `fn` é opcional em método; união no lado direito de `is` exige parênteses; mapa no início do statement ganha diagnóstico dirigido. | [ADR-0067](adr/0067-desambiguacao-sintatica.md) |
 | API da stdlib | Modelo **híbrido**: builtins globais para operações genéricas/protocolos (`len`, `str`, `repr`), métodos para ações específicas (`xs.push/pop`), namespaces nativos para conversão (`Int.parse`/`Float.parse`, `math.*`) e funções livres para composição. Builtins globais são reservados (shadowing só local); sem métodos em primitivos; extensões/UFCS em P3 pós-LLVM. | [ADR-0016](adr/0016-api-stdlib-hibrida.md), [ADR-0029](adr/0029-conversoes-math.md) |
 
 ## Backend nativo (LLVM)
@@ -71,6 +77,11 @@ decisão.
 | L6h — loop/nil/Any | Célula nova por iteração no `for-in`, variável não inicializada como `Any`, índice de `Any` com despacho de tupla. | [ADR-0058](adr/0058-l6-loop-capture-uninit.md) |
 | L6g — defaults como valor | `Value`/`Binding` preservam `FunctionInfo`; chamada indireta preenche defaults no call site. | [ADR-0057](adr/0057-l6-defaults-as-value.md) |
 | L6f — math/parse | `math.*` em IR/helpers, `floor` etc. com validação de Float em Int, e parse estrito de `Int`/`Float` devolvendo `T?`. | [ADR-0056](adr/0056-l6-math-parse.md) |
+| L6i — enums/`match`/`Result` | Valor de enum com descritor, construtor de variante, dispatch por variante, `Result` embutido, print/igualdade e tag `ENUM`; sem HIR. | [ADR-0061](adr/0061-l6-enums-match.md) |
+| L6j — exceções | ABI `LoxTryFrame`/`LoxException`, `setjmp`/`longjmp`, pilha de cleanup para `finally` e erros de runtime capturáveis; `lox_panic` vira fallback. | [ADR-0062](adr/0062-l6-excecoes-unwinding.md) |
+| Orçamento de monomorfização | Chave canônica, 256 funções + 256 classes, profundidade 8 e diagnóstico determinístico; valor genérico no call site ou adiado. | [ADR-0063](adr/0063-orcamento-monomorfizacao.md) |
+| Teto de `PENDING` | `PENDING` ≤ 5% do corpus, com nível/motivo e `l?` proibido; I1 só cobre `LEVELS`. | [ADR-0064](adr/0064-orcamento-do-corpus.md) |
+| HIR-lite | Sem HIR completa; enums diretos, exceções com cleanup stack e HIR-lite só de controle se o gatilho de complexidade disparar. | [ADR-0065](adr/0065-hir-lite-controle.md) |
 | L6e — `Any` | Unbox checado, `is`/`as` por tag/classe, igualdade dinâmica e `for-in` de tupla materializando `Any`; enums/exceções seguem. | [ADR-0055](adr/0055-l6-any-casts.md) |
 | L6d — tuplas | `LoxTuple` boxeada, literal/índice/`len`/igualdade/print e destructuring; `is/as`/`Any`/`for-in` de tupla seguem. | [ADR-0054](adr/0054-l6-tuplas.md) |
 | L6c — mapas | `Map` com entradas boxeadas, ordem de inserção, chaves Bool/Int/String distintas, `get`/`has`/`remove`/`keys`/`values`, igualdade independente de ordem e ciclos. | [ADR-0053](adr/0053-l6-mapas.md) |
@@ -93,9 +104,15 @@ decisão.
 | --- | --- | --- |
 | Pipeline `\|>`/`:>` | **Rejeitado por enquanto** em 2026-11-11; alternativas e gatilhos de reabertura ficam registrados. | histórico no git |
 | Identidade e invariantes | A linguagem se define por **I1** equivalência executável, **I2** nada implícito e **I3** determinismo observável; features passam pelo portão de admissão. | [ADR-0014](adr/0014-identidade-e-invariantes.md), [`spec/garantias.md`](spec/garantias.md) |
+| `--check` limpo compila (I4) | Programa com check limpo compila; a única recusa aceitável no lowering é `not supported by the backend yet`. O checker é a fonte única dos tipos. | [ADR-0059](adr/0059-i4-check-limpo-compila.md) |
+| Sem promoção em armazenamento | `Int → Float` só vale em aritmética; `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` exigem `2.0`/`as Float` (Kotlin-like). | [ADR-0059](adr/0059-i4-check-limpo-compila.md), [ADR-0006](adr/0006-int-float-separados.md) |
+| Orçamento de memória | Arena de 64 MiB sem `free` é contrato: estourar é `exit 70` + `Out of memory.` determinístico; I1 vale dentro do orçamento. GC (Boehm) no M7 substitui; ownership estilo Rust rejeitado. | [ADR-0060](adr/0060-orcamento-de-memoria.md) |
+| Gate e orçamento sintático | Sintaxe nova passa por quatro perguntas (substituição, decidibilidade local, precedência, forma canônica), tetos de superfície e lista de não-objetivos; o agente pergunta antes de adicionar sintaxe. | [ADR-0066](adr/0066-orcamento-e-gate-sintatico.md) |
 
 ## O que ainda não está aqui
 
-Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`,
-exceções vs `Result`, **generics de classes/métodos e constraints**, módulos, contratos e unificação mutável continuam **em aberto** no
+Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`
+estrutural para uniões (o de enums fechou no [ADR-0041](adr/0041-enums-match.md)),
+**generics de classes/métodos e constraints**, módulos, contratos e unificação mutável
+continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).
