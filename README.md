@@ -34,8 +34,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: fechar o **L6** restante (enums/`match`/`Result`, exceções e
-  função genérica como valor). O L5, o T7 e o L6a–L6h já entregaram classes,
+- 📐 Próximo passo: **L7** (qualidade, `-O2`, benchmarks, JIT). O L5, o T7 e o L6a–L6k já
+  entregaram classes,
   herança, closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas,
   tuplas, `Any`, `math`/parse e defaults como valor; traits e constraints ficam
   pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
@@ -47,7 +47,7 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
 
 - **I1 — o interpretador é a especificação.** O mesmo programa, interpretado e compilado,
   dá o mesmo stdout, stderr e exit code, byte a byte, para o corpus declarado por nível
-  (hoje L0–L5 + T7 em `tests/test_backend.py`).
+  (hoje L0–L6 em `tests/test_backend.py`).
 - **I2 — nada acontece implicitamente.** Sem coerção entre `Int`/`Float`/`String`, sem
   truthiness exótica, sem `nil` surpresa.
 - **I3 — determinismo observável.** Mesma entrada ⇒ mesmos bytes de saída e de
@@ -88,7 +88,7 @@ Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo
 `2` uso inválido (ex.: `--dump-ast` sem script). O binário gerado por `--emit=exe` segue o
 mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
 
-O backend nativo cobre **L0–L5 + T7**: `Int`/`Float`/`Bool`/`nil`/`String`, optionais escalares (`Int?`/`Float?`/`Bool?`), `if`/`while`,
+O backend nativo cobre **L0–L6**: `Int`/`Float`/`Bool`/`nil`/`String`, optionais escalares (`Int?`/`Float?`/`Bool?`), `if`/`while`,
 variáveis, funções com recursão, ternário/`and`/`or`/`??`, concatenação, interpolação,
 `len`/`str`/`repr`, arena, funções locais/lambdas, closures (células e `env`), valores de
 função (`<fn f>`/`<lambda>`), classes/campos/métodos/herança e monomorfização de funções e
