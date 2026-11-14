@@ -75,3 +75,51 @@ Intervalo: `HEAD..working tree` (mudanças ainda não commitadas).
 - `.dsh/skills/lox-syntax/SKILL.md` — **novo**: procedimento operacional do gate.
 - `tests/test_docs_consistency.py` — **updated**: guarda as frases defasadas de `match` e
   lambdas.
+
+## 2026-11-13 — `not`, destructuring aninhado e strings `"""`/raw (ADR-0068/0069/0070)
+
+Intervalo: `HEAD..working tree` (mudanças ainda não commitadas).
+
+- `docs/adr/0068-not-substitui-bang.md` — **novo**: `not` substitui `!` no nível unário,
+  `!` vira diagnóstico dirigido e `!=` continua; sem alias (uma grafia).
+- `docs/adr/0069-destructuring-aninhado.md` — **novo**: padrão recursivo em `val`/`var`,
+  erros por nível e a correção do I4 na captura por closure.
+- `docs/adr/0070-strings-multilinha-e-raw.md` — **novo**: `"""` canônico para multilinha,
+  raw `r"..."`/`r"""..."""` e `"..."` de uma linha (substituição, não segunda grafia).
+- `docs/adr/0066-orcamento-e-gate-sintatico.md` — **updated**: scoreboard de keywords com
+  a regra de contagem explícita (25) e os novos não-objetivos (parênteses opcionais, corpo
+  de expressão, bloco-expressão, `match` estrutural, `loop`, trailing closure, `!`).
+- `docs/spec/{lexico,sintaxe,semantica}.md` — **updated**: tokens/keywords (`not`), strings
+  `"""`/raw e regras de erro, padrão de destructuring recursivo, negação e precedência.
+- `docs/spec/garantias.md` — **generated**: bloco de níveis regerado (`docs-sync`) com os
+  casos novos de string e destructuring no corpus L3/L6.
+- `TODO.md` §1 — **updated**: fila aprovada (`break`/`continue`, spread, variádicos,
+  named args bloqueados até o LLVM MVP, imports, traits/extension/operator/`derive`,
+  `type` alias) e lista de descartados; `assert`/`panic`/`exit` e subclasses de runtime
+  movidos para §3.2 (não são sintaxe).
+- `docs/decisoes.md`, `docs/adr/README.md`, `CHANGELOG.md`, `README.md` — **updated**:
+  índice, resumo, changelog e exemplos (`not`, `"""`, raw).
+- `AGENTS.md` — **updated** (local): tabela de arquivos, semântica de strings/tuplas e
+  histórico da negação.
+- `tests/test_docs_consistency.py` — **updated**: o scoreboard de keywords do ADR-0066
+  agora é verificado contra `KEYWORDS`.
+
+## 2026-11-14 — primitivas, stdlib e imports (ADR-0071/0072/0073)
+
+Intervalo: `HEAD..working tree` (planejamento; nenhum código tocado).
+
+- `docs/adr/0071-primitivas-de-runtime.md` — **novo**: kernel = SO/representação, teto de
+  15 primitivas, tabela única, cache de offsets (`chars`/`for-in` O(n), `substr` O(1),
+  `join` O(total)), sem FFI genérica e sem `ctypes` no oráculo.
+- `docs/adr/0072-stdlib-batteries.md` — **novo**: três camadas, módulos só de declaração,
+  tiers T0–T3, critério de admissão e não-objetivos (regex, cripto, rede, async...).
+- `docs/adr/0073-imports-modulos.md` — **novo (proposed)**: `import std.<módulo>`, desugar
+  para programa plano com nomes manglados, fase A só std; quatro perguntas do gate
+  respondidas, aguardando aprovação humana.
+- `docs/adr/README.md`, `docs/decisoes.md` — **updated**: índice e resumos (primitivas,
+  stdlib; módulos marcados como propostos).
+- `TODO.md` — **updated**: §0.3/§0.4 (plano fora da fila), §8 (imports/FFI/stdlib), §10
+  (self-host reclassificado), §11 (imports, kernel, escopo) e **§13 novo** com o kernel,
+  a tabela, os imports e o inventário de batteries.
+- Sem mudança em `src/`, `runtime/` ou `docs/spec/`: 0071/0072 são plano; a spec só muda
+  quando a implementação começar.

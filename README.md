@@ -6,7 +6,8 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
 
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
-- ✅ Expressões: ternário `a if c else b`, `??`, `?.`, interpolação `"${expr}"` e escapes.
+- ✅ Expressões: ternário `a if c else b`, `??`, `?.`, negação `not`, interpolação
+  `"${expr}"`, escapes, string multilinha `"""..."""` e raw `r"..."`.
 - ✅ Narrowing de `T?`: `if (x != nil)`, `if (x == nil)`/early return e truthiness no `--check`.
 - ✅ `x is T`: primitivos, classes/subclasses, `List[T]`/`Map[K, V]` e uniões; narrowing em
   `if`/`else`, `while` e `and`/`or`.
@@ -164,6 +165,10 @@ val rotulo = nome ?? "sem nome"          # default só para nil
 val cidade = pessoa?.endereco?.cidade    # acesso seguro
 val status = "adulto" if idade >= 18 else "menor"
 print "linha 1\nlinha 2"                 # escapes
+print """texto em
+duas linhas"""                          # string multilinha (aspas livres)
+print r"c:\temp\novo"                   # raw: `\` literal, sem interpolação
+if (not pessoa?.nome) print "sem nome"   # `not` no lugar de `!`
 ```
 
 ## Estrutura
@@ -210,7 +215,8 @@ Ela é mantida separada dos golden cases; detalhes de adaptação e `xfail` em
   **ideias**: [`IDEIAS.md`](IDEIAS.md).
 
 > A especificação descreve o que o código faz **hoje** (Lox do livro + `val`/`var`,
-> `Int`/`Float`, ranges/`for-in`, listas, mapas, herança `class B(A)`, defaults/campos,
-> checker `--check`, `fn`/`elif`/`;` opcional, ternário/`??`/`?.` e escapes). O que falta —
-> narrowing/generics, interpolação, conversões da stdlib e o backend LLVM — está nos
-> documentos de roadmap e ainda **não** está implementado.
+> `Int`/`Float`, ranges/`for-in`, listas, mapas, tuplas, herança `class B(A)`,
+> defaults/campos, checker `--check`, `fn`/`elif`/`;` opcional, ternário/`??`/`?.`,
+> `not`, escapes, `"""`/raw, narrowing e generics). O que falta — o resto do L6/L7 no
+> backend (enums/`match`, exceções), `break`/`continue`, spread/variádicos e imports — está
+> nos documentos de roadmap e ainda **não** está implementado.

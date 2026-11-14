@@ -35,7 +35,9 @@ inglês; o texto de CLI e a documentação em português.
 | Mensagem | Quando |
 | --- | --- |
 | `Unexpected character: X` | caractere fora do alfabeto (ex.: `@`, `$`) |
-| `Unterminated string.` | `"` sem fechamento até EOF |
+| `Unexpected character: ! (use 'not' for negation).` | `!` sozinho; a negação é `not` ([ADR-0068](../adr/0068-not-substitui-bang.md)) |
+| `Unterminated string.` | `"`/`"""` sem fechamento até EOF |
+| `Unterminated string; multiline strings use '"""'.` | quebra de linha dentro de `"..."` ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)) |
 | `Unterminated interpolation.` | `${...}` sem `}` até EOF |
 | `Unknown escape sequence '\q'.` | escape de string desconhecido |
 | `Invalid Unicode escape.` | `\u{...}` inválido ou fora de `0..10FFFF` |

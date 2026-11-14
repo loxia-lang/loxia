@@ -1,2 +1,4 @@
+# Sem fechamento até o fim da linha: o erro dirige para `"""` (ADR-0070).
 print "abc;
-# expect error: Unterminated string.
+# expect error: Unterminated string; multiline strings use '"""'.
+# expect exit: 65

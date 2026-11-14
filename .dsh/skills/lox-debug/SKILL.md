@@ -29,7 +29,7 @@ ideal). Bug sem reprodução mínima costuma virar dois bugs.
 
 ## 3. Suspeitas que já morderam este repo
 
-- `!` retornava a truthiness em vez de negá-la.
+- a negação (`!`, hoje `not`) retornava a truthiness em vez de negá-la.
 - `Environment.get/assign` procuravam no escopo errado (blocos/`for` quebravam).
 - `ErrorReporter` global de classe — hoje é instância por execução; não recrie o padrão.
 - `bool` sendo aceito como número (`isinstance(True, int)` é `True` em Python).

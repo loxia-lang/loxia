@@ -10,10 +10,11 @@ sources:
 Gramática do parser atual ([`src/frontend/parser.py`](../../src/frontend/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria (`"""`,
-> `break`/`continue`…) está em [`../../TODO.md`](../../TODO.md) §1. `fn`, `elif`, o `;`
-> opcional, ternário, `??`, `?.`, interpolação e escapes já existem; `val`/`var` existem
-> desde o ADR-0005.
+> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria
+> (`break`/`continue`, variádicos, spread…) está em [`../../TODO.md`](../../TODO.md) §1.
+> `fn`, `elif`, o `;` opcional, ternário, `??`, `?.`, interpolação, escapes, `not`,
+> destructuring aninhado, `"""` e raw strings já existem; `val`/`var` existem desde o
+> ADR-0005.
 
 ## Gramática (EBNF)
 
@@ -39,9 +40,12 @@ parameters     → parameter ( "," parameter )* ;
 parameter      → "var"? IDENTIFIER ( ":" type )? ( "=" expression )? ;
 
 varDecl        → "var" ( IDENTIFIER ( ":" type )? ( "=" expression )?
-               | "(" IDENTIFIER ( "," IDENTIFIER )+ ")" ( ":" type )? "=" expression ) terminator ;
+               | destructure ( ":" type )? "=" expression ) terminator ;
 valDecl        → "val" ( IDENTIFIER ( ":" type )? "=" expression
-               | "(" IDENTIFIER ( "," IDENTIFIER )+ ")" ( ":" type )? "=" expression ) terminator ;
+               | destructure ( ":" type )? "=" expression ) terminator ;
+
+destructure    → "(" pattern ( "," pattern )+ ")" ;
+pattern        → IDENTIFIER | destructure ;   (* recursivo: (a, (b, c)) *)
 
 type           → unionType ;
 unionType      → postfixType ( "|" postfixType )* ;
@@ -93,7 +97,7 @@ range          → shift ( ".." shift )* ;
 shift          → term ( ( "<<" | ">>" | ">>>" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "*" | "/" | "//" | "%" ) unary )* ;
-unary          → ( "!" | "-" | "~" ) unary | power ;
+unary          → ( "not" | "-" | "~" ) unary | power ;
 power          → call ( "**" unary )? ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFIER
                  | "[" expression "]" )* ;
@@ -273,7 +277,7 @@ Do menor para o maior:
 | termo | `+` `-` | esquerda |
 | fator | `*` `/` `//` `%` | esquerda |
 | cast | `as T` | esquerda |
-| unário | `!` `-` `~` | direita |
+| unário | `not` `-` `~` | direita |
 | potência | `**` | direita; lado direito aceita unário |
 | chamada | `()` `.` `?.` `[ ]` | encadeia à esquerda |
 | primário | literais, `this`, `super.x`, `( … )`, `[ … ]` | — |
@@ -292,7 +296,7 @@ Consequências:
 - `-a.b()` = `-(a.b())` — a chamada liga mais forte que o unário;
 - `a = b = c` atribui da direita para a esquerda;
 - `a or b and c` = `a or (b and c)`;
-- `!a == b` = `(!a) == b`;
+- `not a == b` = `(not a) == b` — `not` liga mais forte que `==` (ADR-0068);
 - `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range;
 - `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação;
 - `a ?? b or c` = `a ?? (b or c)`;
@@ -303,7 +307,8 @@ Consequências:
   expressão anterior, como o `(` de chamada;
 - `(1, 2)` é literal de tupla (2+ elementos, sem `()` nem `(x,)` e sem vírgula final);
   `(1)` continua agrupamento. `f(1, 2)` são dois argumentos; para uma tupla como argumento,
-  `f((1, 2))`. `val (a, b) = t` e `var (c, d) = t` desestruturam (anotação opcional).
+  `f((1, 2))`. `val (a, b) = t` e `var (c, d) = t` desestruturam (anotação opcional); o padrão aninha em qualquer profundidade (`val (a, (b, c)) = t`), com anotação
+  recursiva `(Int, (String, Bool))` ([ADR-0069](../adr/0069-destructuring-aninhado.md)).
 - `[1, 2]` é literal de lista e `[]` é a lista vazia; não há vírgula final
   (`[1,]` é erro).
 

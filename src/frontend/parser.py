@@ -4,6 +4,12 @@ from typing import cast
 
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.errors import ParseError
+from src.frontend.destructuring import (
+    DestructurePattern,
+    NamePattern,
+    TuplePattern,
+    first_token,
+)
 from src.frontend.expr import (
     As,
     Assign,
@@ -245,18 +251,7 @@ class Parser:
         return Field(name, initializer, mutable, type_annotation)
 
     def _destructure(self, mutable: bool) -> Stmt:
-        self._consume(TokenType.LEFT_PAREN, "Expect '(' after val/var.")
-        names = [self._consume(TokenType.IDENTIFIER, "Expect variable name.")]
-        while self._match(TokenType.COMMA):
-            names.append(
-                self._consume(TokenType.IDENTIFIER, "Expect variable name.")
-            )
-
-        self._consume(
-            TokenType.RIGHT_PAREN, "Expect ')' after destructuring names."
-        )
-        if len(names) < 2:
-            raise self._error(names[0], "Destructuring needs at least two names.")
+        pattern = self._destructure_pattern()
 
         type_annotation: Ty | None = None
         if self._match(TokenType.COLON):
@@ -266,7 +261,26 @@ class Parser:
         initializer = self._expression()
         self._end_statement("Expect ';' after destructuring.")
 
-        return Destructure(names, initializer, mutable, type_annotation)
+        return Destructure(pattern, initializer, mutable, type_annotation)
+
+    def _destructure_pattern(self) -> DestructurePattern:
+        if self._match(TokenType.LEFT_PAREN):
+            elements = [self._destructure_pattern()]
+            while self._match(TokenType.COMMA):
+                elements.append(self._destructure_pattern())
+
+            self._consume(
+                TokenType.RIGHT_PAREN, "Expect ')' after destructuring pattern."
+            )
+            if len(elements) < 2:
+                raise self._error(
+                    first_token(elements[0]),
+                    "Destructuring needs at least two elements.",
+                )
+            return TuplePattern(elements)
+
+        name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
+        return NamePattern(name)
 
     def _var_declaration(self, mutable: bool) -> Stmt:
         if self._check(TokenType.LEFT_PAREN):
@@ -802,7 +816,7 @@ class Parser:
     def _equality(self) -> Expr:
         expr = self._comparison()
 
-        while self._match_infix(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL):
+        while self._match_infix(TokenType.NOT_EQUAL, TokenType.EQUAL_EQUAL):
             operator: Token = self._previous()
             right: Expr = self._comparison()
             expr = Binary(expr, operator, right)
@@ -926,7 +940,7 @@ class Parser:
         return expr
 
     def _unary(self) -> Expr:
-        if self._match(TokenType.BANG, TokenType.MINUS, TokenType.TILDE):
+        if self._match(TokenType.NOT, TokenType.MINUS, TokenType.TILDE):
             operator: Token = self._previous()
             right: Expr = self._unary()
             return Unary(operator, right)

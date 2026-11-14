@@ -85,7 +85,7 @@ explícitas. O `Int` já é i64 com wrapping (`ADR-0006`), e o checker já separ
   << >> >>>
   + -
   * / // %
-  unário ! - ~
+  unário not - ~
   **         (associativo à direita; lado direito aceita unário)
   chamada
   primary

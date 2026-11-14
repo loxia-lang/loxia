@@ -1,0 +1,4 @@
+# Um elemento aninhado que não é tupla falha no nível em que aparece.
+val (a, (b, c)) = (1, 2)
+# expect runtime error: Can only destructure a tuple.
+# expect exit: 70

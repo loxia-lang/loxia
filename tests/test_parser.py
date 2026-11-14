@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.frontend.ast_printer import AstPrinter
+from src.frontend.destructuring import NamePattern, TuplePattern, pattern_names
 from src.frontend.expr import Is, Lambda, MapLiteral, Match
 from src.frontend.parser import Parser
 from src.frontend.scanner import Scanner
@@ -54,7 +55,7 @@ def ast(expression: str) -> str:
         ("a = 1", "(= a 1)"),
         ("true and false or nil", "(or (and true false) nil)"),
         ("1 < 2 == true", "(== (< 1 2) true)"),
-        ("!nil", "(! nil)"),
+        ("not nil", "(not nil)"),
         ("a", "a"),
         ("0..10", "(.. 0 10)"),
         ("0..1 + 2", "(.. 0 (+ 1 2))"),
@@ -506,7 +507,7 @@ def test_destructuring_shape() -> None:
 
     first = statements[0]
     assert isinstance(first, Destructure)
-    assert [name.lexeme for name in first.names] == ["a", "b"]
+    assert [name.lexeme for name in pattern_names(first.pattern)] == ["a", "b"]
     assert first.mutable is False
     assert first.type_annotation is None
 
@@ -516,6 +517,21 @@ def test_destructuring_shape() -> None:
     annotation = second.type_annotation
     assert annotation is not None
     assert display(annotation) == "(Int, String)"
+
+
+def test_nested_destructuring_shape() -> None:
+    statements = parse('val (a, (b, c)): (Int, (Int, String)) = (1, (2, "x"));')
+
+    statement = statements[0]
+    assert isinstance(statement, Destructure)
+    pattern = statement.pattern
+    assert isinstance(pattern, TuplePattern)
+    assert isinstance(pattern.elements[0], NamePattern)
+    assert isinstance(pattern.elements[1], TuplePattern)
+    assert [name.lexeme for name in pattern_names(pattern)] == ["a", "b", "c"]
+    assert statement.accept(AstPrinter()) == (
+        '(val-destructure (a (b c)): (Int, (Int, String)) (tuple 1 (tuple 2 "x")))'
+    )
 
 
 @pytest.mark.parametrize(

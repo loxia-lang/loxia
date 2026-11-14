@@ -74,7 +74,7 @@ fn f(x: Int | String) -> String {
 - falso remove da união os membros **totalmente cobertos** por `T`;
 - `and` no ramo verdadeiro combina as interseções; `or` no ramo falso combina os restos;
 - `while` aplica o refinamento verdadeiro ao corpo (o laço pode executar);
-- `!`, agrupamento e `x != nil` continuam funcionando juntos.
+- `not`, agrupamento e `x != nil` continuam funcionando juntos.
 
 Refinamentos são **de fluxo e de variável**: não cobrem `obj.campo`, `xs[i]`, merge de CFG
 completo nem mutação de coleção após o teste. Atribuir à variável invalida o refinamento,

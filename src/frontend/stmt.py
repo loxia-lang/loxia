@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
+from src.frontend.destructuring import DestructurePattern
 from src.frontend.expr import Expr
 from src.frontend.tokens import Token
 from src.frontend.ty import Ty
@@ -183,7 +184,7 @@ class Var(Stmt):
 
 @dataclass(frozen=True, eq=False)
 class Destructure(Stmt):
-    names: list[Token]
+    pattern: DestructurePattern
     initializer: Expr
     mutable: bool
     type_annotation: Ty | None = None

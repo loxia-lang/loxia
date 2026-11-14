@@ -1,0 +1,4 @@
+# O padrão interno pede 2 valores, a tupla interna traz 3.
+val (a, (b, c)) = (1, (2, 3, 4))
+# expect runtime error: Destructuring expects 2 values, found 3.
+# expect exit: 70

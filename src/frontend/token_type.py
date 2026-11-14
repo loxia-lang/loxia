@@ -28,8 +28,8 @@ class TokenType(Enum):
     TILDE = auto()
 
     # One or two character tokens.
-    BANG = auto()
-    BANG_EQUAL = auto()
+    NOT = auto()
+    NOT_EQUAL = auto()
     EQUAL = auto()
     EXCEPT = auto()
     EQUAL_EQUAL = auto()

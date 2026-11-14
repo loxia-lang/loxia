@@ -21,7 +21,7 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-13: backend em **L0–L5 + T7 + L6a–L6h**; o que
+vale o que está aqui. Estado em 2026-11-13: backend em **L0–L5 + T7 + L6a–L6i**; o que
 resta do L6 está em `PENDING` (`enums`, `exceptions`, `Result` e função genérica como
 valor) e o L7 não começou. O status por nível é **gerado** em
 [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
@@ -37,7 +37,7 @@ valor) e o L7 não começou. O status por nível é **gerado** em
 ### 0.2 Ordem de execução
 
 1. [ ] **Fechar o L6 em três cortes** (ADRs 0061–0065, aceitos):
-       - [ ] **L6i — enums/`match`/`Result`** (ADR-0061 aceito) ([ADR-0061](docs/adr/0061-l6-enums-match.md)):
+       - [x] **L6i — enums/`match`/`Result`** (ADR-0061 aceito) ([ADR-0061](docs/adr/0061-l6-enums-match.md)):
          valor de enum + descritor, construtores de variante, `match` como expressão e
          igualdade/print; alvos `enums.lox`, `result.lox`.
        - [ ] **L6j — exceções/unwinding** ([ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)):
@@ -62,6 +62,14 @@ como valor, módulos/imports, stdlib, contratos, async, tooling/LSP/formatter e 
 Esses itens voltam quando o backend estiver no nível em que passam a doer; nenhum deles
 impede o L6 ou o L7.
 
+**Com plano fechado, mas ainda fora da fila:**
+
+- **stdlib, kernel e imports** — §13, com [ADR-0071](docs/adr/0071-primitivas-de-runtime.md)
+  (primitivas e complexidade), [ADR-0072](docs/adr/0072-stdlib-batteries.md) (batteries) e
+  [ADR-0073](docs/adr/0073-imports-modulos.md) (imports, **proposto**). O passo 13.3
+  (cache de offsets + `substr`/`join`) é independente do backend e pode começar já; a
+  ordem completa está na §13.7.
+
 ### 0.4 Onde está o detalhe
 
 | Assunto | Seção |
@@ -77,6 +85,7 @@ impede o L6 ou o L7.
 | milestones M6–M9 | §9 |
 | ideias soltas e coisas adiadas | §10 |
 | decisões ainda em aberto | §11 |
+| stdlib, kernel de primitivas e imports | §13 |
 
 ---
 
@@ -87,49 +96,52 @@ impede o L6 ou o L7.
 > aprovação humana). O agente **pergunta antes** de adicionar sintaxe; diagnóstico
 > dirigido sem mudar gramática não conta como feature.
 
-**Estrutural**
-- [ ] `P2` parênteses opcionais na condição (`if x > 0 print x`) — precisa de delimitador
-      entre condição e corpo (nova linha ou `then`).
-- [ ] `P2` corpo de expressão em `fn` (`fn dobro(x) -> x * 2`).
-- [ ] `P2` bloco como expressão (último valor do bloco é o valor).
-- [x] `fn` opcional em método (`fn m()` e `m()` dão a mesma AST); canônico continua sem
-      `fn` ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
-- [ ] `P3` `match` estrutural para uniões (enum/`match` exaustivo já existe,
-      [ADR-0041](docs/adr/0041-enums-match.md)).
-- [ ] `P3` `loop { }` infinito e `break`/`continue` com rótulo (`break outer`).
+**Fechado em 2026-11-13**
+- [x] `not` substitui `!` como negação ([ADR-0068](docs/adr/0068-not-substitui-bang.md)).
+- [x] destructuring aninhado (`val (a, (b, c)) = t`)
+      ([ADR-0069](docs/adr/0069-destructuring-aninhado.md)).
+- [x] `"""` multilinha canônica e raw `r"..."`/`r"""..."""`, com `"..."` de uma linha
+      ([ADR-0070](docs/adr/0070-strings-multilinha-e-raw.md)).
+- [x] `fn` opcional em método, operador no início da linha em brackets, união em `is`
+      com parênteses e diagnósticos dirigidos
+      ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
 
-**Operadores e literais**
-- [x] operador no início da linha dentro de `()`, `[]` e `{}` de expressão; fora de
-      brackets continua no fim da linha ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
-- [x] união no lado direito de `is` exige parênteses (`x is (Int | String)`);
-      anotações continuam sem parênteses ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
-- [ ] `P2` strings multilinha (`"""`) e raw strings (`r"..."`).
-- [ ] `P3` spread `...lista` em chamadas e literais.
+**Fila aprovada para permanecer** (o `P` é prioridade **dentro do §1**, não a ordem do §0;
+cada uma ainda responde às quatro perguntas e exige aprovação humana antes de codificar)
 
-**Dados e funções**
-- [ ] `P2` variádicos (`fn log(nivel, ...args)`); ver [`IDEIAS.md`](IDEIAS.md) I-5.
-- [ ] `P2` trailing closure (`lista.map { |x| x * 2 }`) — depois do conflito com `{}`.
-- [ ] `P2` destructuring aninhado (`val (a, (b, c)) = t`).
-- [ ] `P3` argumentos nomeados e destructuring de campos.
-- [ ] `P3` namespaces/imports, traits nominais ([ADR-0038](docs/adr/0038-traits-nominais.md)),
-      extension methods, operator overloading e `derive`.
-- [ ] `P3` `type` alias transparente (sem generics); decisão em
-      [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md).
+| Pri | Item | Nota |
+| --- | --- | --- |
+| `P2` | `break`/`continue` | saída antecipada de laço; `while` não cobre. Rótulo (`break outer`) é capacidade extra, depois. |
+| `P2` | spread `...lista` em chamadas e literais | anda junto com variádicos; custo no checker/backend. |
+| `P2` | variádicos (`fn log(nivel, ...args)`) | direção em [`IDEIAS.md`](IDEIAS.md) I-5; aridade dinâmica no checker/backend. |
+| `P3` | argumentos nomeados | **bloqueado até o LLVM MVP** ([ADR-0014](docs/adr/0014-identidade-e-invariantes.md)/[ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md)); o registro fica aqui. |
+| `P3` | namespaces/imports | capacidade, fora do caminho crítico (§0.3); ADR próprio. |
+| `P3` | traits nominais, extension methods, operator overloading e `derive` | pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)); o registro fica aqui. |
+| `P3` | `type` alias transparente (sem generics) | [ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md); gasta o último slot de forma de declaração (5/6). |
 
-**Erros**
-- [x] diagnósticos dirigidos: `//` onde se espera expressão, mapa no início de statement
-      e união sem parênteses em `is` ([ADR-0067](docs/adr/0067-desambiguacao-sintatica.md)).
-- [ ] `P2` subclasses específicas de runtime (`DivisionByZero`, `IndexError`, ...) e stack
-      trace; hoje tudo é `LoxRuntimeError` ([ADR-0042](docs/adr/0042-excecoes.md)).
-- [ ] `P2` `assert`/`panic`/`exit` nativos.
+Diagnóstico que não muda gramática continua sendo feito direto (e ganha teste), como os
+de [ADR-0067](docs/adr/0067-desambiguacao-sintatica.md).
 
 ### Decisões já descartadas (para não revisitar)
 
 A lista completa de não-objetivos sintáticos está no
 [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md); os principais:
 
+- parênteses opcionais na condição do `if` → **não**: exigiria regra de newline nova para
+  separar condição e corpo e manteria duas grafias do mesmo `if`.
+- corpo de expressão em `fn` (`fn f(x) -> x * 2`) → **não**: segunda forma de corpo, e o
+  `->` fica ambíguo com tipo-tupla e com corpo de bloco.
+- bloco como expressão → **não**: `{` já é bloco, mapa e braço de `match`; "último valor
+  implícito" contraria o I2.
+- `match` estrutural em uniões → **não**: exige tipos em runtime (*witnesses*), contra o
+  erasure do [ADR-0040](docs/adr/0040-generics-classes-desenho.md).
+- `loop { }` → **não**: duplica `while (true)`, mesma lógica de `++`/`--`.
+- trailing closure (`lista.map { |x| x * 2 }`) → **não**: `{` e `|` já têm dono (bloco,
+  mapa, ou-de-bits); não-objetivo do [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md).
+- `!` como negação → **não**: substituído por `not`
+  ([ADR-0068](docs/adr/0068-not-substitui-bang.md)).
 - `//` como comentário → **não**: é divisão inteira; comentário é `#`.
-- `&&`/`||` → **não**: `and`/`or` existem; `!` cobre a negação.
+- `&&`/`||` → **não**: `and`/`or` existem; `not` cobre a negação.
 - `switch` → **não**: `match` existe ([ADR-0041](docs/adr/0041-enums-match.md)).
 - `++`/`--` → **não**: `i = i + 1` existe.
 - `end` no estilo Ruby/Lua → **não**: chaves são melhores para erro de parser.
@@ -219,6 +231,11 @@ scanner/parser (só coletar); não usar exceção Python como controle de fluxo 
 
 - [ ] `P1` **spans/caret/stack trace**: recorte mínimo da §3.1; ADR próprio **antes** de
       mexer em stderr (I3) e no corpus do I1.
+- [ ] `P2` **subclasses de runtime** (`DivisionByZero`, `IndexError`, ...): hoje tudo é
+      `LoxRuntimeError` ([ADR-0042](docs/adr/0042-excecoes.md)); diagnóstico, não sintaxe.
+- [ ] `P2` **`assert`/`panic`/`exit` nativos**: funções da stdlib, sem sintaxe nova — o
+      portão aplicável é o do [ADR-0014](docs/adr/0014-identidade-e-invariantes.md), não o
+      sintático.
 - [ ] `P2` **recuperação de erro no parser** (múltiplos erros por execução).
 - [ ] `P2` **REPL multiline** (continua enquanto `(`/`{`/`[` abertos) + histórico
       (`readline`) + `:help`, `:ast`, `:type expr`, `:clear`.
@@ -362,10 +379,10 @@ tabela do §6.3 (`Any`, enums, exceções).
 
 ### 6.8 Marcos do backend
 
-L0–L5, T7 e L6a–L6h estão entregues (ADRs 0031, 0046–0048, 0050–0058); o detalhe de cada
+L0–L5, T7 e L6a–L6i estão entregues (ADRs 0031, 0046–0048, 0050–0058); o detalhe de cada
 um fica nos ADRs e no [`CHANGELOG.md`](CHANGELOG.md). Falta:
 
-- [ ] **L6i — enums/`match`/`Result`**: ADR-0061 proposto; representação
+- [x] **L6i — enums/`match`/`Result`**: ADR-0061 implementado; representação
       `LoxEnumValue`, construtores de variante, `match` com blocos/phi e `Any` tag ENUM.
 - [ ] **L6j — exceções/unwinding**: ADR-0062 proposto; ABI `LoxTryFrame`/`LoxException`,
       cleanup stack e `finally`; spike antes da feature completa.
@@ -445,13 +462,13 @@ uv run pytest tests/test_backend.py -q
 | uniões + narrowing | 🟡 | `T?`/`is`/`while`/campos/índices prontos; falta merge CFG/aliasing |
 | traits nominais + `implements` | ⏸ | decididos com métodos default; pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
 | operator overloading | ⏳ | depois de classes |
-| namespaces/import | ⏳ | necessário com stdlib |
+| namespaces/import | ⏳ | fase A proposta em [ADR-0073](docs/adr/0073-imports-modulos.md) (só `std.*`); fase B (arquivos) em aberto; plano na §13 |
 | `try`/`raise` no backend | 🟡 | tree-walk pronto ([ADR-0042](docs/adr/0042-excecoes.md)); unwinding no L6 |
 | `match` estrutural em uniões | ⏳ | enum/`match` exaustivo já existe ([ADR-0041](docs/adr/0041-enums-match.md)); falta união/estrutural |
 | extension methods | ⏳ | depois do LLVM MVP e de traits |
 | classes como valores / metaclasses | 🤔 | só se precisar |
-| FFI com C | ⏳ | depois de linking estável |
-| stdlib (`io`, `string`, `collections`) | ⏳ | mínima primeiro |
+| FFI com C | ⏸ | **não haverá FFI genérica**: kernel fixo de primitivas ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)); reavaliar só com dor demonstrada |
+| stdlib (`io`, `string`, `collections`) | 📝 | plano completo na §13 ([ADR-0072](docs/adr/0072-stdlib-batteries.md)); kernel mínimo primeiro, resto em Lox |
 | `async`/`await` | ⏳ | direção no [ADR-0037](docs/adr/0037-async-direcao.md): colored, `Task[T]`, determinístico; só com I/O, pós-M7 |
 
 Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e `Object` raiz — o LLVM
@@ -484,8 +501,11 @@ async.
 
 ## 10. Parque de diversões (ideias soltas)
 
-- [ ] **Compilar o próprio interpretador?** (self-hosting) — irrealista, mas o exercício
-      de escrever `loxc` em `.lox` ensina muito. P3/XL.
+- [ ] **Compilar o próprio interpretador?** (self-hosting) — o *front-end* já é
+      self-hostable hoje (lexer em Lox compila nativo e bate a saída); o compilador inteiro
+      depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 7). P3/XL.
+- [ ] **`lox fmt` em Lox** — primeiro exercício de dogfooding depois do kernel: parser +
+      AST printer na própria linguagem, validado contra o `--dump-ast` do Python (§13.7).
 - [ ] **Playground WASM** (target `wasm32` do LLVM) rodando no navegador.
 - [ ] **REPL com `:type`** — mostra o tipo inferido de uma expressão antes de rodar.
 - [ ] **`lox test`** — runner de testes embutido na linguagem (`#[test] fn ...`).
@@ -543,6 +563,10 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 9. **Unwinding de exceções no backend:** `setjmp`/`longjmp` no runtime × retorno de erro
    explícito (`Result`-like) × tabelas de unwind do LLVM. Decidir antes de promover
    `exceptions`; mexe em ABI, no runtime C e no I1.
+10. **Sintaxe de import:** [ADR-0073](docs/adr/0073-imports-modulos.md) propõe
+    `import std.<módulo>` (namespace completo, módulos só de declaração, fase A só std).
+    Aguarda aprovação humana no gate do ADR-0066; fase B (arquivos do usuário, caminho
+    relativo, diagnóstico por fonte) fica em aberto.
 
 ---
 
@@ -560,3 +584,164 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 - Hindley–Milner (para o modelo mental de unificação):
   <https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system>
 - Crafting Interpreters, cap. 11 (resolver) e cap. 26 (GC) — reler quando chegar a vez.
+
+---
+
+## 13. Stdlib, kernel de primitivas e módulos
+
+> **Escopo:** pós-1.0; **não** bloqueia L6/L7 (§0.3). Decisões:
+> [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (primitivas e complexidade),
+> [ADR-0072](docs/adr/0072-stdlib-batteries.md) (política de batteries) e
+> [ADR-0073](docs/adr/0073-imports-modulos.md) (imports — **proposto**, aguarda o gate do
+> ADR-0066).
+>
+> **Regra de ouro:** kernel = SO ou representação; tudo o mais é Lox. Nenhuma lógica de
+> negócio em primitiva, nenhuma primitiva que Lox faria em O(n).
+>
+> **Fora:** regex, cripto, rede, subprocesso, async, timezone DB, i18n, YAML/TOML, UUID, bigint.
+
+### 13.1 Camadas
+
+| Camada | O que entra | Implementações | Onde |
+| --- | --- | --- | --- |
+| kernel | syscalls e representação | Python (oráculo) + C (binário) | `src/execution/primitives.py`, `runtime/runtime.c` |
+| std | biblioteca | **uma** (Lox) | `std/*.lox` |
+| módulos | nomeação e carga | loader/desugar, sem lógica | `src/loader/` |
+
+### 13.2 Kernel v1 (teto: 15 primitivas)
+
+| # | Primitiva | Assinatura | Amb.¹ | Estado |
+| --- | --- | --- | --- | --- |
+| 1 | `args` | `args() -> List[String]` | sim | ⬜ |
+| 2 | `io.readFile` | `(path: String) -> String?` | sim | ⬜ |
+| 3 | `io.write` | `(text: String)` — stdout sem `\n` | não | ⬜ |
+| 4 | `io.writeErr` | `(text: String)` — stderr sem `\n` | não | ⬜ |
+| 5 | `io.writeFile` | `(path: String, text: String) -> Bool` | sim | ⬜ |
+| 6 | `io.readLine` | `() -> String?` (nil no EOF) | sim | ⬜ |
+| 7 | `os.exit` | `(code: Int)` — não retorna; 0..255 | sim | ⬜ |
+| 8 | `os.getenv` | `(name: String) -> String?` | sim | ⬜ |
+| 9 | `time.now` | `() -> Int` (ms desde a época) | sim | ⬜ |
+| 10 | `time.sleep` | `(ms: Int)` | sim | ⬜ |
+| 11 | `substr` | `(s: String, start: Int, end: Int) -> String` | não | ⬜ |
+| 12 | `join` | `(parts: List[String], sep: String) -> String` | não | ⬜ |
+| 13 | `charCodeAt` | `(s: String, index: Int) -> Int` | não | ⬜ |
+| 14 | `fromCodePoint` | `(codePoint: Int) -> String` | não | ⬜ |
+
+¹ Ambiente = fora do corpus I1 (depende do SO/mundo). `io.write`/`io.writeErr` são
+determinísticos e **podem** entrar no corpus. `args()` devolve os argumentos depois do
+script/binário, para os dois motores verem a mesma lista.
+
+**Fora do kernel v1** (candidatos à 15ª vaga): `fs.listDir`, `fs.exists`, `os.cwd`.
+Entram só quando `std.fs`/`std.paths` precisar; cada um acima de 15 exige remover outro.
+
+### 13.3 Complexidade (ADR-0071)
+
+- [ ] `LoxStr` ganha `i32 *cp_offsets` (NULL até o primeiro acesso aleatório; só para
+      `cp_len >= 64`), inicializado em **todo** construtor do runtime.
+- [ ] `lox_str_char_at` O(1) usando o cache; `chars` e `for-in` sobre `String` O(n) total.
+- [ ] `substr` O(1) para localizar + O(b−a) de cópia; `join` O(total).
+- [ ] `charCodeAt`/`fromCodePoint` (Python + C + lowering + checker + spec).
+- [ ] `bench/cases/string_scan.lox` (100k code points): antes **2,22 s**; alvo **≤ 0,05 s**.
+      Registrar o número no commit e no ADR-0071.
+- [ ] Reavaliar os testes de memória: o ponto do `Out of memory` pode mudar com o cache.
+- [ ] `docs/spec/semantica.md` (+ nota "atualizado por ADR-0071" no ADR-0035, que é
+      imutável).
+- [ ] Nível `k0` no `tests/corpus_manifest.py` para os casos do kernel.
+
+### 13.4 Tabela única de primitivas
+
+- [ ] `src/execution/primitives.py`: `Primitive(lox, c_symbol, params, result, py, ambient)`
+      + `PRIMITIVES`.
+- [ ] Checker registra `FnTy` a partir da tabela (sem `if` por nome).
+- [ ] Interpreter embrulha `py` num `LoxCallable` genérico (aridade/tipos da tabela).
+- [ ] Backend resolve `c_symbol`/assinatura pela tabela (sem caso especial por nome).
+- [ ] `tests/test_primitives.py` itera a tabela: um caso por primitiva, ordem e aridade.
+- [ ] Opcional: migrar `len`/`chars`/`str`/`repr`/`range` (tipo sobrecarregado) — não
+      bloqueia.
+
+### 13.5 Imports — fase A (ADR-0073, proposto)
+
+- [ ] **Aprovação humana** das quatro perguntas + dos quatro itens em aberto do ADR-0073.
+- [ ] `TokenType.IMPORT` + `KEYWORDS` (25 → 26) + linha do ADR-0066 atualizada.
+- [ ] Parser: bloco de imports só no topo (antes de qualquer outro statement).
+- [ ] Loader: resolve `std.<modulo>` no bundle, dedup, ciclo diagnosticado.
+- [ ] Desugar: mangle `std$strings$split` (separador não lexável) e reescreve
+      `std.strings.split`; `std` reservado; módulo não é valor.
+- [ ] Privacidade: `_nome` de módulo inacessível de fora.
+- [ ] Reporter com **nome da fonte** (`std/strings.lox:12`), sem caminho absoluto (I3).
+- [ ] Goldens (`tests/cases/imports/`): básico, dois módulos, genérico; negativos
+      (import fora do topo, módulo inexistente, módulo como valor, `_privado`, ciclo,
+      `std` redeclarado).
+- [ ] `docs/spec/sintaxe.md` + `docs/spec/erros.md`; `--dump-ast` documentado como
+      desugarizado.
+- [ ] **Fase B** (arquivos do usuário): ADR próprio; restrições já decididas no ADR-0073 §5.
+
+### 13.6 Batteries — inventário
+
+Tiers do ADR-0072. `⬜` = a fazer; cada módulo entra com golden + `--check` + auditoria de
+determinismo.
+
+**T0 — kernel** (13.2): a base de tudo.
+
+**T1 — núcleo**
+
+| Módulo | Funções | Estado |
+| --- | --- | --- |
+| `std.strings` | `split`, `splitLines`, `lines`, `words`, `trim`, `ltrim`, `rtrim`, `upper`, `lower` (ASCII), `capitalize`, `startsWith`, `endsWith`, `contains`, `indexOf`, `lastIndexOf`, `replaceAll`, `replaceFirst`, `repeat`, `padStart`, `padEnd`, `reverse`, `slice` (clamp), `isBlank`, `count` | ⬜ |
+| `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `sortBy`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `groupBy`, `flatMap` | ⬜ |
+| `std.maps` | `entries`, `fromEntries`, `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`, `hasValue`, `getOr`, `toList` | ⬜ |
+| `std.numeric` | `gcd`, `lcm`, `isPrime`, `primes`, `factorial`, `powMod`, `digitSum`, `isEven`, `isOdd`, `sign`, `mean`, `median`, `mode`, `variance`, `stddev`, `roundTo`, `toBase`, `fromBase` | ⬜ |
+| `std.asserts` | `assert`, `assertEq`, `assertNotNil`, `fail` | ⬜ |
+| `std.results` | `map`, `mapErr`, `unwrapOr`, `andThen`, `isOk`, `isErr`, `toOptional` | ⬜ |
+
+**T2 — comum**
+
+| Módulo | Funções | Estado |
+| --- | --- | --- |
+| `std.json` | `parse`, `stringify`, `pretty` (ordem de inserção; `Int`/`Float` distintos) | ⬜ |
+| `std.fmt` | `format(template, List[Any])`, `pad`, `commas`, `fixed`, `percent`, `bytes` | ⬜ |
+| `std.paths` | `join`, `dirname`, `basename`, `ext`, `stem`, `normalize`, `isAbsolute`, `split` (POSIX) | ⬜ |
+| `std.fs` | `readText`, `readLines`, `writeText`, `appendText`, `exists`, `listDir` | ⬜ |
+| `std.io` | `write`, `writeErr`, `readLine`, `readAll`, `prompt` | ⬜ |
+| `std.cli` | `parse(args, spec)`, `flag`, `option`, `positional`, `usage` | ⬜ |
+| `std.sets` | `Set[T]` sobre `Map[T, Bool]`: `add`, `has`, `remove`, `len`, `union`, `intersect`, `difference`, `toList`, `fromList` (precisa de **classe em módulo**) | ⬜ |
+| `std.csv` | `parse`, `stringify` (RFC 4180, determinístico) | ⬜ |
+| `std.convert` | `toInt`, `toFloat`, `toBool`, `base64Encode`, `base64Decode`, `hexEncode`, `hexDecode` (texto UTF-8 / `List[Int]` 0..255; sem tipo `Bytes`) | ⬜ |
+
+**T3 — extra**
+
+| Módulo | Funções | Estado |
+| --- | --- | --- |
+| `std.timex` | `iso`, `parseIso`, `daysFromCivil`, `civilFromDays`, `addDays`, `parts` (**UTC-only**) | ⬜ |
+| `std.rand` | `seed`, `int`, `float`, `bool`, `shuffle` (PRNG em Lox, determinístico com semente) | ⬜ |
+| `std.hash` | `fnv1a32`, `fnv1a64`, `djb2` (sobre `String`; não é cripto) | ⬜ |
+| `std.collections` | `Stack`, `Queue`, `Deque`, `PriorityQueue` (classes em módulo) | ⬜ |
+| `std.log` | níveis, `writeErr`, sem timestamp por padrão | ⬜ |
+| `std.test` | `describe`, `it`, `expect`, `run` (mini-harness; usa `os.exit`) | ⬜ |
+
+**Fora da stdlib:** a linha do topo da §13 (motivos no [ADR-0072](docs/adr/0072-stdlib-batteries.md)).
+
+### 13.7 Ordem de entrega
+
+| # | Passo | Esforço | Depende de |
+| --- | --- | --- | --- |
+| 1 | **13.3** — cache de offsets + `substr`/`join`/`charCodeAt`/`fromCodePoint` + bench | M | — |
+| 2 | **13.4** — tabela única de primitivas | S | 1 |
+| 3 | **13.2** — kernel de SO: `args`, `io.*`, `os.*` + `main(argc, argv)` + exit code | M | 2 |
+| 4 | **13.5** — imports fase A + `std/strings` + `std/lists` | M | 3 |
+| 5 | **T1** restante (`maps`, `numeric`, `asserts`, `results`) + `json`, `fmt` | M | 4 |
+| 6 | **T2** restante (`paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
+| 7 | **T3** + dogfooding: `lox fmt` em Lox, depois front-end self-hosted (§10) | L/XL | 6 |
+
+O passo 1 é independente do backend e pode começar já. O passo 3 mexe no `main` gerado
+(`i32 main(void)` → `argc/argv`), mas não muda o ABI de funções — os casos atuais do I1
+continuam valendo; o programa que não usa `args()` não muda de saída.
+
+### 13.8 Critério de pronto por módulo
+
+- [ ] programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
+- [ ] golden em `tests/cases/std/<modulo>/` + `--check` limpo;
+- [ ] determinismo declarado (função ambiente ≠ corpus I1);
+- [ ] doc na spec quando o módulo estabilizar (e `sources:` válido);
+- [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
+- [ ] `make check` verde; `make bench` se tocar caminho quente.

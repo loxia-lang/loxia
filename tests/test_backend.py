@@ -97,9 +97,9 @@ CASES = [
     ("print 2 <= 1;", "comparação falsa"),
     ("print true == false;", "igualdade de Bool"),
     ("print nil == nil;", "igualdade de nil"),
-    ("print !true;", "negação"),
-    ("print !nil;", "negação de nil"),
-    ("print !0;", "zero é truthy"),
+    ("print not true;", "negação"),
+    ("print not nil;", "negação de nil"),
+    ("print not 0;", "zero é truthy"),
     ("print -1;", "menos unário"),
     ("print (1 + 2) * 3;", "agrupamento"),
     ("print 1 + 2; print 4 * 5;", "duas instruções"),
@@ -168,7 +168,7 @@ CASES = [
     ('print "nested: ${"a" + "b"}";', "interpolação com expressão de string"),
     ('print "escape: \\${x}";', "escape de $"),
     ('print str(42) + "!";', "str de Int"),
-    ('print repr("a\nb");', "repr escapa nova linha"),
+    ('print repr("""a\nb""");', "repr escapa nova linha"),
     ('print repr(1.0);', "repr de Float"),
     (
         "fn dobro(x: Int) -> Int { return x * 2; } "
@@ -250,7 +250,7 @@ def test_binario_concorda_com_interpretador(
 
 @pytest.mark.backend
 def test_recurso_sem_representacao_e_rejeitado_explicitamente(tmp_path: Path) -> None:
-    path = _write(tmp_path, "enum Cor { Vermelho }\nprint Cor.Vermelho;\n")
+    path = _write(tmp_path, "try { print 1 } except Exception as e { }\n")
 
     result, binary = _build(path, tmp_path)
 
@@ -621,7 +621,7 @@ def test_classe_generica_e_monomorfizada(tmp_path: Path) -> None:
 
 
 @pytest.mark.backend
-def test_enum_sem_backend_e_rejeitado(tmp_path: Path) -> None:
+def test_enum_e_compilado(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "enum Cor { Vermelho, Verde }\n"
@@ -630,9 +630,10 @@ def test_enum_sem_backend_e_rejeitado(tmp_path: Path) -> None:
 
     result, binary = _build(path, tmp_path)
 
-    assert result.returncode == 65
-    assert "EnumDecl is not supported by the backend yet." in result.stderr
-    assert not binary.exists()
+    assert result.returncode == 0, result.stderr
+    assert binary.exists()
+    compiled = _run([str(binary)])
+    assert compiled.stdout == "1\n"
 
 
 @pytest.mark.backend

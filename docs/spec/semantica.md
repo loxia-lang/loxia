@@ -129,7 +129,7 @@ var a = "global";
 
 | Operador | Tipos | Resultado |
 | --- | --- | --- |
-| `!` | qualquer | nega a truthiness |
+| `not` | qualquer | nega a truthiness |
 | `-` | número | negação (em `Int`, com wrapping; debug checa overflow) |
 | `~` | `Int` | complemento de 64 bits (`~x == -x - 1`) |
 | `+` | dois números **ou** duas strings | soma com promoção / concatenação |
@@ -183,9 +183,11 @@ var a = "global";
 - `a?.b ?? c` combina os dois: `?.` evita o acesso e `??` aplica o default quando o
   resultado é nil. Sem `?.`, `a.b ?? c` ainda erra se `a` for nil.
 - `?:` elvis **não existe**; `??` é a única coalescência.
-- Strings processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}`; escape
-  desconhecido é erro. `"${expressão}"` interpola (ver abaixo). Ainda não há `"""` nem raw
-  strings.
+- Strings: `"..."` é de uma linha; `"""..."""` é multilinha (aspas livres, sem dedent
+  nem remoção da primeira quebra de linha); `r"..."`/`r"""..."""` são raw (`\` literal,
+  `${...}` não interpola). As formas não-raw processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`,
+  `\$` e `\u{XXXX}`; escape desconhecido é erro. Ver
+  [ADR-0070](../adr/0070-strings-multilinha-e-raw.md).
 - Fonte e strings são UTF-8; `len(s)` conta **code points**, não bytes. `s[i]` em string
   **não existe**: para acesso aleatório use `chars(s)` (`List[String]`, O(n) explícito);
   `for c in s` itera code points sem alocar. Strings comparam por conteúdo (`==`/`!=`) e
@@ -214,7 +216,8 @@ print "cifrão: $5"          # cifrão: $5
   interpolada; o resultado é sempre `String`.
 - `\$` e `\${` produzem `$`/`${` literais; fora de `${...}`, `$`, `{` e `}` são literais.
 - O checker checa cada expressão; erro dentro dela é erro normal do `--check`.
-- Sem format spec, `"""` ou raw strings na v1.
+- Vale em `"..."` e `"""..."""`; em raw (`r"..."`) `${...}` é texto literal
+  ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)). Sem format spec.
 
 ## Listas
 
@@ -285,8 +288,10 @@ print len(par)               # 2
   tem tipo `Int | String` (união dos elementos) e bounds em runtime
   (`Tuple index 5 out of bounds for length 2.`). Sem índice negativo.
 - **Destructuring**: `val (a, b) = t`, `var (c, d) = t` e anotação opcional
-  (`val (a, b): (Int, String) = t`). Exige tupla (ou união de tuplas de mesma aridade);
-  `Any` só com anotação; aridade errada e nome duplicado são erro.
+  (`val (a, b): (Int, String) = t`). O padrão **aninha** (`val (a, (b, c)) = t`,
+  [ADR-0069](../adr/0069-destructuring-aninhado.md)); cada nível exige tupla (ou união de
+  tuplas da mesma aridade) e erra a aridade localmente. `Any` só com anotação;
+  nome duplicado em qualquer nível é erro.
 - **Igualdade**: estrutural, elemento a elemento (`(1, "a") == (1.0, "a")` → `true`).
 - **Stringify**: `(1, "a")`, com strings citadas/escapadas, recursivo; `(...)` se houver
   ciclo via lista/mapa.
@@ -295,8 +300,7 @@ print len(par)               # 2
   (`(Int, String)` → `Int | String`).
 - **`is`/`as`**: `x is (A, B)` testa aridade e cada posição; `x as (A, B)` é cast
   verificado (aceita `Any`; falha em runtime se a forma não bater).
-- **Fora da v1**: tuplas não são hasháveis nem chave de `Map`; sem destructuring aninhado;
-  o backend L0–L4 as rejeita (layout no L6).
+- **Fora da v1**: tuplas não são hasháveis nem chave de `Map`; o backend as cobre no L6.
 
 ## Mapas
 
@@ -342,7 +346,7 @@ for nome in idades { print nome }   # Ana, Bia (ordem de inserção)
   não view). `m.len()` não existe; use `len(m)`.
 - **Iteração**: `for k in m` percorre **chaves** na ordem de inserção; mutar o mapa durante o
   laço é erro (`Can't modify a map while iterating over it.`), inclusive atualizar o valor de
-  uma chave existente. Pares `(k, v)` exigiriam tupla/destructuring (ainda não existem).
+  uma chave existente. Pares `(k, v)` ainda não têm método (`entries`); `for k in m` dá as chaves.
 - **Igualdade**: estrutural e independente da ordem (ver acima). **Stringify**:
   `{"a": 1, "b": 2}` com strings citadas/escapadas e ciclos como `{"self": {...}}`.
 - **Aliasing**: mapas são referências. `val n = m` não copia; mutar `n` é visível em `m`.
@@ -573,7 +577,7 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   Passar a classe onde se espera uma instância é reportado como
   `Expected an instance of Animal, found the class Animal.`
 - Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
-  tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `!` devolve `Bool`.
+  tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `not` devolve `Bool`.
 - `expr is T` devolve `Bool` e testa o valor em runtime: primitivos, classe/subclasse,
   `List[T]`/`Map[K, V]` (elementos inclusos; O(n)) e uniões. Para classe, a identidade é o
   **objeto de classe** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
@@ -583,7 +587,7 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   direito exige parênteses (`x is (Int | String)`); ver
   [ADR-0067](../adr/0067-desambiguacao-sintatica.md) e
   [ADR-0025](../adr/0025-is-e-narrowing.md).
-- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` e `!` em volta disso
+- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` e `not` em volta disso
   refinam `x` no ramo; `if (x == nil) { return }` refina o resto do bloco. `and` no ramo
   verdadeiro e `or` no ramo falso combinam refinamentos; `while` aplica o refinamento
   verdadeiro ao corpo. `val` e `var` estreitam, mas uma atribuição invalida o refinamento.

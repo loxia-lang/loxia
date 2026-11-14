@@ -21,7 +21,7 @@ from src.backend.lower_model import (
     Value,
     ValueType,
 )
-from src.frontend.expr import Call, Expr, Range
+from src.frontend.expr import Call, Expr, Get, Range
 from src.frontend.stmt import Function
 from src.frontend.token_type import TokenType
 from src.frontend.ty import Ty
@@ -54,6 +54,8 @@ class LoweringBase:
     _method_class: str | None
     _analysis: CaptureAnalysis
     _type_subst: dict[str, Ty]
+    _enum_layouts: dict[str, Any]
+    _enum_names: dict[str, Any]
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None
     _map_expected_value: Ty | None
@@ -127,6 +129,12 @@ class LoweringBase:
         raise NotImplementedError
 
     def _chars(self, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _enum_construct(self, expr: Call) -> Value:
+        raise NotImplementedError
+
+    def _enum_get(self, expr: Get) -> Value:
         raise NotImplementedError
 
     def _unbox_any(self, value: Value, desc: TypeDesc, line: int | None) -> Value:

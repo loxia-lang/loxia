@@ -31,6 +31,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/literals.lox",
         "tests/cases/scope_identity.lox",
         "tests/cases/string_escapes.lox",
+        "tests/cases/multiline_strings.lox",
+        "tests/cases/raw_strings.lox",
         "tests/cases/string_order.lox",
         "tests/cases/strings.lox",
         "tests/cases/val_shadowing.lox",
@@ -52,7 +54,9 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/casts_math.lox",
         "tests/cases/bitwise_precedence.lox",
         "tests/cases/exponentiation.lox",
+        "tests/cases/enums.lox",
         "tests/cases/for_in.lox",
+        "tests/cases/result.lox",
         "tests/cases/list_cycle.lox",
         "tests/cases/list_equality.lox",
         "tests/cases/list_index.lox",
@@ -71,6 +75,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/str_repr.lox",
         "tests/cases/string_chars.lox",
         "tests/cases/tuple_destructure.lox",
+        "tests/cases/nested_destructure.lox",
         "tests/cases/tuples.lox",
         "tests/cases/nil_aware.lox",
         "tests/cases/one_line_block.lox",
@@ -140,10 +145,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
 PENDING: dict[str, str] = {
     # Check-clean, mas o backend ainda recusa (exit 65). O nível é a expectativa,
     # não uma promessa: o teste diferencial só roda o que está em LEVELS.
-    "tests/cases/enums.lox": "l6",
     "tests/cases/exceptions.lox": "l6",
     "tests/cases/generic_lambda_value.lox": "l6",
-    "tests/cases/result.lox": "l6",
     "tests/cases/is_union_parens.lox": "l6",
 }
 
@@ -155,6 +158,7 @@ NEGATIVE: frozenset[str] = frozenset(
         "tests/cases/division_comment_hint.lox",
         "tests/cases/is_union_needs_parens.lox",
         "tests/cases/map_at_statement_start.lox",
+        "tests/cases/bang_removed.lox",
     }
 )
 

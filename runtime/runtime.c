@@ -313,6 +313,7 @@ LoxValue lox_list_pop(void *pointer, int32_t line) {
 static int lox_value_equal(LoxValue left, LoxValue right);
 int lox_map_equal(const void *left_pointer, const void *right_pointer);
 int lox_tuple_equal(const void *left_pointer, const void *right_pointer);
+int lox_enum_equal(const void *left_pointer, const void *right_pointer);
 
 int lox_list_equal(const void *left_pointer, const void *right_pointer) {
     if (left_pointer == right_pointer) {
@@ -377,6 +378,9 @@ static int lox_value_equal(LoxValue left, LoxValue right) {
         case 11:
             return lox_tuple_equal((const void *)left.payload,
                                    (const void *)right.payload);
+        case 12:
+            return lox_enum_equal((const void *)left.payload,
+                                  (const void *)right.payload);
         default:
             return left.payload == right.payload;
     }
@@ -718,6 +722,71 @@ LoxValue lox_parse_float(const void *pointer) {
     some.tag = 2;
     memcpy(&some.payload, &value, sizeof(value));
     return some;
+}
+
+
+/* Enum do L6: identidade + variante + payload boxeado. */
+typedef struct {
+    int64_t enum_id;
+    const char *enum_name;
+    const char *variant_name;
+    int64_t count;
+    LoxValue *payload;
+} LoxEnumValue;
+
+void *lox_enum_new(int64_t enum_id, const char *enum_name,
+                   const char *variant_name, int64_t count) {
+    LoxEnumValue *value = lox_alloc(sizeof(LoxEnumValue));
+    value->enum_id = enum_id;
+    value->enum_name = enum_name;
+    value->variant_name = variant_name;
+    value->count = count;
+    value->payload = lox_alloc(sizeof(LoxValue) * (size_t)(count > 0 ? count : 1));
+    return value;
+}
+
+void lox_enum_set(void *pointer, int64_t index, int64_t tag, int64_t payload) {
+    LoxEnumValue *value = pointer;
+    value->payload[index].tag = tag;
+    value->payload[index].payload = payload;
+}
+
+LoxValue lox_enum_payload(const void *pointer, int64_t index, int32_t line) {
+    const LoxEnumValue *value = pointer;
+    if (index < 0 || index >= value->count) {
+        lox_panic(line, "Enum payload index out of bounds.");
+    }
+    return value->payload[index];
+}
+
+int64_t lox_enum_variant(const void *pointer) {
+    const LoxEnumValue *value = pointer;
+    /* A variante é comparada pelo nome estável; o backend passa o índice. */
+    return value->count >= 0 ? (int64_t)0 : (int64_t)0;
+}
+
+int64_t lox_enum_variant_index(const void *pointer, const char *name) {
+    const LoxEnumValue *value = pointer;
+    return strcmp(value->variant_name, name) == 0 ? 1 : 0;
+}
+
+int lox_enum_equal(const void *left_pointer, const void *right_pointer) {
+    if (left_pointer == right_pointer) {
+        return 1;
+    }
+    const LoxEnumValue *left = left_pointer;
+    const LoxEnumValue *right = right_pointer;
+    if (left->enum_id != right->enum_id ||
+        strcmp(left->variant_name, right->variant_name) != 0 ||
+        left->count != right->count) {
+        return 0;
+    }
+    for (int64_t index = 0; index < left->count; index++) {
+        if (!lox_value_equal(left->payload[index], right->payload[index])) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 /* `chars(s)[i]`: i é índice em code points, não em bytes. */
@@ -1068,6 +1137,22 @@ static void buffer_bytes(LoxBuffer *buffer, const char *data, size_t length) {
 
 static void format_value(LoxBuffer *buffer, LoxValue value);
 
+static void format_enum(LoxBuffer *buffer, const LoxEnumValue *value) {
+    buffer_text(buffer, value->enum_name);
+    buffer_char(buffer, '.');
+    buffer_text(buffer, value->variant_name);
+    if (value->count > 0) {
+        buffer_char(buffer, '(');
+        for (int64_t index = 0; index < value->count; index++) {
+            if (index > 0) {
+                buffer_text(buffer, ", ");
+            }
+            format_value(buffer, value->payload[index]);
+        }
+        buffer_char(buffer, ')');
+    }
+}
+
 static void format_tuple(LoxBuffer *buffer, const LoxTuple *tuple) {
     buffer_char(buffer, '(');
     for (int64_t index = 0; index < tuple->count; index++) {
@@ -1198,6 +1283,9 @@ static void format_value(LoxBuffer *buffer, LoxValue value) {
         case 11:
             format_tuple(buffer, (const void *)value.payload);
             break;
+        case 12:
+            format_enum(buffer, (const void *)value.payload);
+            break;
         default:
             buffer_text(buffer, "<value>");
             break;
@@ -1218,6 +1306,21 @@ void lox_print_map(const void *pointer) {
     format_map(&buffer, pointer);
     fwrite(buffer.data, 1, buffer.length, stdout);
     fputc('\n', stdout);
+}
+
+void lox_print_enum(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_enum(&buffer, pointer);
+    fwrite(buffer.data, 1, buffer.length, stdout);
+    fputc('\n', stdout);
+}
+
+void *lox_str_from_enum(const void *pointer) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    format_enum(&buffer, pointer);
+    return string_from_ascii(buffer.data, buffer.length);
 }
 
 void lox_print_tuple(const void *pointer) {
@@ -1341,6 +1444,9 @@ void lox_print_any(int64_t tag, int64_t payload) {
             break;
         case 11:
             lox_print_tuple((const void *)payload);
+            break;
+        case 12:
+            lox_print_enum((const void *)payload);
             break;
         default:
             lox_panic(0, "Unknown Any tag");

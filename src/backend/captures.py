@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from src.frontend.destructuring import pattern_names
 from src.frontend.expr import (
     As,
     Assign,
@@ -42,6 +43,7 @@ from src.frontend.expr import (
 from src.frontend.stmt import (
     Block,
     Class,
+    Destructure,
     Expression,
     ForIn,
     Function,
@@ -195,6 +197,12 @@ class _Analyzer:
             if stmt.initializer is not None:
                 self._expr(stmt.initializer)
             self._declare(stmt.name.lexeme, stmt)
+            return
+
+        if isinstance(stmt, Destructure):
+            self._expr(stmt.initializer)
+            for name in pattern_names(stmt.pattern):
+                self._declare(name.lexeme, name)
             return
 
         if isinstance(stmt, If):

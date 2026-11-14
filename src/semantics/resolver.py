@@ -6,6 +6,7 @@ from enum import Enum, auto
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.errors import immutable_assignment_message
 from src.execution.interpreter import Interpreter
+from src.frontend.destructuring import pattern_names
 from src.frontend.expr import (
     As,
     Assign,
@@ -298,10 +299,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._end_scope()
 
     def visit_destructure_stmt(self, stmt: Destructure) -> None:
-        for name in stmt.names:
+        names = pattern_names(stmt.pattern)
+        for name in names:
             self._declare(name, stmt.mutable)
         self._resolve_expr(stmt.initializer)
-        for name in stmt.names:
+        for name in names:
             self._define(name)
 
     def visit_tuple_expr(self, expr: TupleLiteral) -> None:

@@ -82,13 +82,21 @@ def test_scans_type_punctuation() -> None:
 
 
 def test_keywords_fn_elif_and_fun_as_identifier() -> None:
-    assert scan_types("fn elif fun is") == [
+    assert scan_types("fn elif fun is not") == [
         TokenType.FN,
         TokenType.ELIF,
         TokenType.IDENTIFIER,
         TokenType.IS,
+        TokenType.NOT,
         TokenType.EOF,
     ]
+
+
+def test_bang_is_a_directed_error(capsys: pytest.CaptureFixture[str]) -> None:
+    scanner = scan_with_reporter("print !true;")
+
+    assert scanner.reporter.had_error
+    assert "use 'not' for negation" in capsys.readouterr().err
 
 
 def test_keywords_async_and_await_are_reserved() -> None:
@@ -204,12 +212,11 @@ def test_invalid_unicode_escape_reports_error(
 
 
 def test_scans_two_character_operators() -> None:
-    assert scan_types("!= == <= >= ! = < >") == [
-        TokenType.BANG_EQUAL,
+    assert scan_types("!= == <= >= = < >") == [
+        TokenType.NOT_EQUAL,
         TokenType.EQUAL_EQUAL,
         TokenType.LESS_EQUAL,
         TokenType.GREATER_EQUAL,
-        TokenType.BANG,
         TokenType.EQUAL,
         TokenType.LESS,
         TokenType.GREATER,
@@ -226,10 +233,63 @@ def test_string_literal_keeps_lexeme_and_value() -> None:
 
 
 def test_multiline_string_increments_line() -> None:
-    tokens = scan('"a\nb"\nprint 1;')
+    tokens = scan('"""a\nb"""\nprint 1;')
     number = next(token for token in tokens if token.type is TokenType.NUMBER)
 
     assert number.line == 3
+
+
+def test_triple_string_allows_quotes_and_newlines() -> None:
+    token = scan('"""a\n"b" """')[0]
+
+    assert token.type is TokenType.STRING
+    assert token.literal == 'a\n"b" '
+
+
+def test_triple_string_interpolates() -> None:
+    token = scan('"""Oi, ${nome}!"""')[0]
+
+    assert token.type is TokenType.INTERPOLATED_STRING
+    literal = token.literal
+    assert isinstance(literal, list)
+    assert literal[0] == "Oi, "
+
+
+def test_raw_string_keeps_backslashes_and_interpolation() -> None:
+    token = scan(r'r"a\n${1 + 1}"')[0]
+
+    assert token.type is TokenType.STRING
+    assert token.lexeme == r'r"a\n${1 + 1}"'
+    assert token.literal == r"a\n${1 + 1}"
+
+
+def test_raw_triple_string() -> None:
+    token = scan('r"""a\nb\n\\n"""')[0]
+
+    assert token.type is TokenType.STRING
+    assert token.literal == "a\nb\n\\n"
+
+
+def test_r_alone_is_an_identifier() -> None:
+    assert scan_types("r") == [TokenType.IDENTIFIER, TokenType.EOF]
+
+
+def test_newline_in_single_line_string_is_a_directed_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scanner = scan_with_reporter('"a\nb"')
+
+    assert scanner.reporter.had_error
+    assert 'multiline strings use \'"""\'' in capsys.readouterr().err
+
+
+def test_unterminated_triple_string_reports_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    scanner = scan_with_reporter('"""sem fim')
+
+    assert scanner.reporter.had_error
+    assert "Unterminated string." in capsys.readouterr().err
 
 
 def test_unterminated_string_reports_error() -> None:

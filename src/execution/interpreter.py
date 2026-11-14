@@ -29,6 +29,11 @@ from src.execution.natives.repr import Repr
 from src.execution.natives.str import Str
 from src.execution.type_test import matches_type
 from src.execution.values import stringify
+from src.frontend.destructuring import (
+    DestructurePattern,
+    NamePattern,
+    first_token,
+)
 from src.frontend.expr import (
     As,
     Assign,
@@ -514,7 +519,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         right = self._evaluate(expr.right)
 
         match expr.operator.type:
-            case TokenType.BANG:
+            case TokenType.NOT:
                 return not self._is_truthy(right)
             case TokenType.MINUS:
                 self._check_number_operand(expr.operator, right)
@@ -596,7 +601,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return self._shift(
                     expr.operator, left, right, numeric.shift_right_logical
                 )
-            case TokenType.BANG_EQUAL:
+            case TokenType.NOT_EQUAL:
                 return not self._is_equal(left, right)
             case TokenType.EQUAL_EQUAL:
                 return self._is_equal(left, right)
@@ -990,20 +995,28 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_destructure_stmt(self, stmt: Destructure) -> None:
         value = self._evaluate(stmt.initializer)
+        self._bind_pattern(stmt.pattern, value, stmt.mutable)
+
+    def _bind_pattern(
+        self, pattern: DestructurePattern, value: object, mutable: bool
+    ) -> None:
+        if isinstance(pattern, NamePattern):
+            self._reject_immutable_redeclaration(pattern.name)
+            self.environment.define(pattern.name.lexeme, value, mutable)
+            return
+
+        token = first_token(pattern)
         if not isinstance(value, LoxTuple):
+            raise LoxRuntimeError(token, "Can only destructure a tuple.")
+        if len(value.items) != len(pattern.elements):
             raise LoxRuntimeError(
-                stmt.names[0], "Can only destructure a tuple."
-            )
-        if len(value.items) != len(stmt.names):
-            raise LoxRuntimeError(
-                stmt.names[0],
-                f"Destructuring expects {len(stmt.names)} values, found "
+                token,
+                f"Destructuring expects {len(pattern.elements)} values, found "
                 f"{len(value.items)}.",
             )
 
-        for name, item in zip(stmt.names, value.items, strict=True):
-            self._reject_immutable_redeclaration(name)
-            self.environment.define(name.lexeme, item, stmt.mutable)
+        for element, item in zip(pattern.elements, value.items, strict=True):
+            self._bind_pattern(element, item, mutable)
 
     def visit_tuple_expr(self, expr: TupleLiteral) -> object:
         return LoxTuple(tuple(self._evaluate(element) for element in expr.elements))

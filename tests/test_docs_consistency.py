@@ -25,6 +25,7 @@ from pathlib import Path
 
 from lox import __version__
 from lox.cli import build_parser
+from src.frontend.keywords import KEYWORDS
 from tests.corpus_manifest import PENDING
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +77,20 @@ def _adr_number(path: Path) -> str:
     match = ADR_FILE.match(path.name)
     assert match is not None
     return match.group(1)
+
+
+def test_scoreboard_de_keywords_bate_com_keywords() -> None:
+    adr = (ADR_DIR / "0066-orcamento-e-gate-sintatico.md").read_text(encoding="utf-8")
+    line = re.search(r"^\| palavras-chave \| (\d+) \|$", adr, re.MULTILINE)
+
+    assert line is not None, "ADR-0066 sem a linha do scoreboard de palavras-chave"
+
+    # A regra está no próprio ADR: literais e reservas sem sintaxe não contam.
+    excluded = {"true", "false", "nil", "async", "await"}
+    expected = len(KEYWORDS) - len(excluded)
+    assert int(line.group(1)) == expected, (
+        f"scoreboard diz {line.group(1)}, KEYWORDS dá {expected}"
+    )
 
 
 def test_adr_numeracao_unica_sequencial_e_titulo_coerente() -> None:

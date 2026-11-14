@@ -26,12 +26,19 @@ A análise sintática de 2026-11-13 mediu o estado da linguagem:
 
 | Métrica | Valor |
 | --- | --- |
-| palavras-chave | 23 |
+| palavras-chave | 25 |
 | níveis de precedência | 19 (18 de operadores + primário) |
 | formas de statement | 9 |
 | formas de declaração | 5 |
 | construções sensíveis a newline | ~6 |
 | grafias canônicas por conceito | 1 (regra, com exceções documentadas) |
+
+**O que conta como palavra-chave:** todo lexema de `KEYWORDS` **menos** os literais
+(`true`, `false`, `nil`) e as reservas sem sintaxe (`async`, `await`). Hoje são 30
+lexemas − 5 = **25**; a conta é verificada por
+`tests/test_docs_consistency.py::test_scoreboard_de_keywords_bate_com_keywords`. `not`
+entrou em 2026-11-13 ([ADR-0068](0068-not-substitui-bang.md)); sem essa regra explícita o
+teto não era verificável.
 
 O número de features não é o problema: o custo está em **grafias duplicadas** e em
 **ambiguidade local**. O projeto já recusou o alias `fun` ("duas grafias para a mesma
@@ -95,13 +102,23 @@ Recusados por padrão; reabrir exige ADR e dor demonstrada:
 
 - `//` como comentário (colide com divisão inteira);
 - `?:` (o ternário `a if c else b` existe);
-- `&&`/`||` (o `and`/`or` existe; `!` cobre a negação);
+- `&&`/`||` (o `and`/`or` existe; `not` cobre a negação — [ADR-0068](0068-not-substitui-bang.md));
 - `++`/`--` (o `i = i + 1` existe);
 - `switch` (o `match` existe);
 - declaração estilo C (`int (*f)(int)`) e conversão implícita;
 - argumentos nomeados, extension methods, operator overloading e trailing closure antes
   do LLVM MVP (já no portão do ADR-0014);
-- duas grafias para a mesma declaração (o precedente é o `fun` recusado).
+- duas grafias para a mesma declaração (o precedente é o `fun` recusado);
+- parênteses opcionais na condição do `if` — exigiria regra de newline nova (ou `then`)
+  para separar condição e corpo e manteria duas grafias do mesmo `if`;
+- corpo de expressão em `fn` (`fn f(x) -> x * 2`) — segunda forma de corpo, e o `->`
+  fica ambíguo com tipo-tupla (`-> (A, B)`) e com corpo de bloco (`-> Ident {`);
+- bloco como expressão — `{` já é bloco, mapa e braço de `match`; "último valor
+  implícito" contraria o I2;
+- `loop { }` — duplica `while (true)`, mesma lógica de `++`/`--`;
+- `match` estrutural sobre uniões — exige tipos em runtime (*witnesses*), contra o
+  erasure do [ADR-0040](0040-generics-classes-desenho.md) e do [ADR-0041](0041-enums-match.md);
+- `!` como negação — substituído por `not` ([ADR-0068](0068-not-substitui-bang.md)).
 
 ### 5. Onde a regra mora
 

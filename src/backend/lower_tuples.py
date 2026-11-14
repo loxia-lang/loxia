@@ -18,9 +18,15 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.frontend.destructuring import (
+    DestructurePattern,
+    NamePattern,
+    first_token,
+)
 from src.frontend.expr import Index, TupleLiteral
 from src.frontend.stmt import Destructure
-from src.frontend.ty import TupleTy
+from src.frontend.tokens import Token
+from src.frontend.ty import TupleTy, Ty
 
 
 class TupleLowering(LoweringBase):
@@ -89,38 +95,75 @@ class TupleLowering(LoweringBase):
 
     def _destructure(self, stmt: Destructure) -> None:
         value = self._expr(stmt.initializer)
-        if value.ty is not ValueType.TUPLE:
-            raise _unsupported("Destructuring a non-tuple", stmt.names[0].line)
-        if isinstance(stmt.type_annotation, TupleTy):
-            descs = tuple(
-                self._type_desc(self._subst_ty(item), stmt.names[0].line)
-                for item in stmt.type_annotation.items
-            )
-        else:
-            descs = self._tuple_types(stmt.initializer, stmt.names[0].line)
-        if len(descs) != len(stmt.names):
-            raise _unsupported("Destructuring arity", stmt.names[0].line)
-        for index, (name, desc) in enumerate(zip(stmt.names, descs, strict=True)):
+        line = first_token(stmt.pattern).line
+        ty: Ty | None = stmt.type_annotation
+        if ty is None:
+            ty = self.types.get(stmt.initializer)
+        if ty is None:
+            raise _unsupported("Destructuring initializer type", line)
+        self._bind_pattern(stmt.pattern, value, ty)
+
+    def _bind_pattern(
+        self, pattern: DestructurePattern, value: Value, ty: Ty
+    ) -> None:
+        line = first_token(pattern).line
+
+        if isinstance(pattern, NamePattern):
+            desc = self._type_desc(self._subst_ty(ty), line)
+            self._bind_destructured_name(pattern.name, value, desc)
+            return
+
+        if value.ty is not ValueType.TUPLE or not isinstance(ty, TupleTy):
+            raise _unsupported("Destructuring a non-tuple", line)
+        if len(ty.items) != len(pattern.elements):
+            raise _unsupported("Destructuring arity", line)
+
+        for index, (element, item_ty) in enumerate(
+            zip(pattern.elements, ty.items, strict=True)
+        ):
             raw = self.builder.call(
                 self._function("lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32]),
                 [
                     value.llvm,
                     llvm_ir.constant(_INT, index),
-                    llvm_ir.constant(_I32, name.line),
+                    llvm_ir.constant(_I32, line),
                 ],
             )
-            item = self._unbox_value(raw, desc, name.line)
-            if self._function_ir is self.main and len(self._scopes) == 1:
-                slot = llvm_ir.global_variable(self.module, f"g.{name.lexeme}", self._storage_llvm_type(desc))
-            else:
-                slot = self.builder.alloca(
-                    self._storage_llvm_type(desc), name=name.lexeme
-                )
-            self.builder.store(item.llvm, slot)
-            binding = Binding(
+            item = self._unbox_value(
+                raw, self._type_desc(self._subst_ty(item_ty), line), line
+            )
+            self._bind_pattern(element, item, item_ty)
+
+    def _bind_destructured_name(
+        self, name: Token, value: Value, desc: TypeDesc
+    ) -> None:
+        if self._function_ir is self.main and len(self._scopes) == 1:
+            slot = llvm_ir.global_variable(
+                self.module, f"g.{name.lexeme}", self._storage_llvm_type(desc)
+            )
+            self.builder.store(value.llvm, slot)
+            self._globals[name.lexeme] = Binding(
                 slot, desc.ty, desc.fn, desc.optional, class_name=desc.class_name
             )
-            if self._function_ir is self.main and len(self._scopes) == 1:
-                self._globals[name.lexeme] = binding
-            else:
-                self._scopes[-1][name.lexeme] = binding
+            return
+
+        if self._analysis.is_captured(name):
+            cell = self._alloc_cell()
+            self.builder.store(value.llvm, self._cell_pointer(cell, desc))
+            self._scopes[-1][name.lexeme] = Binding(
+                cell,
+                desc.ty,
+                desc.fn,
+                desc.optional,
+                cell=True,
+                class_name=desc.class_name,
+            )
+            return
+
+        slot = self.builder.alloca(
+            self._storage_llvm_type(desc), name=name.lexeme
+        )
+        self.builder.store(value.llvm, slot)
+        self._scopes[-1][name.lexeme] = Binding(
+            slot, desc.ty, desc.fn, desc.optional, class_name=desc.class_name
+        )

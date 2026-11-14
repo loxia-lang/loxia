@@ -278,7 +278,7 @@ chamada.
 - `_find_decl` acha a declaração mais próxima; `_lookup` procura refinamento do nível mais
   interno até a declaração (com o índice batendo) e cai para o tipo declarado.
 - `_refinements(cond, truth)` reconhece `x == nil`, `x != nil`, `if (x)`, `x is T`,
-  `!`, e combina `and` (ramo verdadeiro) / `or` (ramo falso); `_check_branch` empilha um
+  `not`, e combina `and` (ramo verdadeiro) / `or` (ramo falso); `_check_branch` empilha um
   nível temporário e `_always_returns` decide se o ramo oposto persiste após retorno
   antecipado. `while` aplica o refinamento verdadeiro ao corpo.
 - `x is T` usa `_intersect_types`/`_narrow_to` no ramo verdadeiro e `_narrow_away` no falso

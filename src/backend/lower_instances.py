@@ -19,7 +19,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
-from src.frontend.expr import Get, Set
+from src.frontend.expr import Get, Set, Variable
 
 
 class InstanceLowering(LoweringBase):
@@ -138,6 +138,8 @@ class InstanceLowering(LoweringBase):
         self._set_bitmap(instance, field)
 
     def _get(self, expr: Get) -> Value:
+        if isinstance(expr.object, Variable) and expr.object.name.lexeme in self._enum_layouts:
+            return self._enum_get(expr)
         obj = self._expr(expr.object)
         if expr.optional:
             if obj.ty is ValueType.NIL:

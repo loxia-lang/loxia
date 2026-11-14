@@ -13,7 +13,8 @@
 
 O narrowing da v1 (ADR-0018/0025) refina **variáveis**: a chave é o nome mais o índice do
 escopo de declaração. `obj.campo` e `lista[i]` ficam de fora, então um campo `String?`
-obriga o usuário a copiar para uma variável local ou a usar `!` (que não existe) mesmo
+obriga o usuário a copiar para uma variável local ou a usar uma asserção de não-nulo
+(que não existe) mesmo
 depois de `if (p.nome != nil)`.
 
 T5 pedia três coisas: refinar campos/índices, invalidar quando o valor muda e melhorar o

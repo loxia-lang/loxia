@@ -10,6 +10,12 @@ from dataclasses import dataclass, field
 
 from src.diagnostics.error_reporter import ErrorReporter
 from src.execution.prelude import BUILTIN_NAMES
+from src.frontend.destructuring import (
+    DestructurePattern,
+    NamePattern,
+    first_token,
+    pattern_names,
+)
 from src.frontend.expr import (
     As,
     Assign,
@@ -582,7 +588,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 ):
                     self._check(tuple_element, item_ty, expr.paren)
 
-                return TupleTy(items)
+                # O lowering lê o tipo concreto da tupla (e do aninhamento) para
+                # desestruturar; `_check` não passa por `_infer`, então publica aqui.
+                result = TupleTy(items)
+                self.types[expr] = result
+                self.storage_types[expr] = self._storage_type(expr, result)
+                return result
 
         if isinstance(expr, Lambda):
             actual = self._lambda_type(expr, self._expected_fn(expected))
@@ -1704,12 +1715,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(expr, Grouping):
             return self._refinements(expr.expression, truth)
 
-        if isinstance(expr, Unary) and expr.operator.type is TokenType.BANG:
+        if isinstance(expr, Unary) and expr.operator.type is TokenType.NOT:
             return self._refinements(expr.right, not truth)
 
         if isinstance(expr, Binary) and expr.operator.type in (
             TokenType.EQUAL_EQUAL,
-            TokenType.BANG_EQUAL,
+            TokenType.NOT_EQUAL,
         ):
             left, right = expr.left, expr.right
             equal = expr.operator.type is TokenType.EQUAL_EQUAL
@@ -2240,7 +2251,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return self._comparison(left, right, operator)
             case TokenType.LESS | TokenType.LESS_EQUAL:
                 return self._comparison(left, right, operator)
-            case TokenType.EQUAL_EQUAL | TokenType.BANG_EQUAL:
+            case TokenType.EQUAL_EQUAL | TokenType.NOT_EQUAL:
                 return BOOL
 
         return ANY
@@ -3563,8 +3574,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return TupleTy(tuple(self._infer(element) for element in expr.elements))
 
     def visit_destructure_stmt(self, stmt: Destructure) -> None:
+        names = pattern_names(stmt.pattern)
         seen: set[str] = set()
-        for name in stmt.names:
+        for name in names:
             if name.lexeme in seen:
                 self._error(
                     name,
@@ -3573,28 +3585,36 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
             seen.add(name.lexeme)
 
+        token = first_token(stmt.pattern)
         if stmt.type_annotation is not None:
-            declared = self._resolve_type(stmt.type_annotation, stmt.names[0])
-            self._check(stmt.initializer, declared, stmt.names[0])
-            items = self._destructure_items(declared, stmt.names[0])
+            declared = self._resolve_type(stmt.type_annotation, token)
+            self._check(stmt.initializer, declared, token)
+            ty = declared
         else:
-            items = self._destructure_items(
-                self._infer(stmt.initializer), stmt.names[0]
-            )
+            ty = self._infer(stmt.initializer)
 
-        if items is None or len(items) != len(stmt.names):
+        self._bind_pattern(stmt.pattern, ty)
+
+    def _bind_pattern(self, pattern: DestructurePattern, ty: Ty) -> None:
+        if isinstance(pattern, NamePattern):
+            self._define(pattern.name, ty)
+            return
+
+        token = first_token(pattern)
+        items = self._destructure_items(ty, token)
+        if items is None or len(items) != len(pattern.elements):
             if items is not None:
                 self._error(
-                    stmt.names[0],
-                    f"Destructuring expects {len(items)} values, "
-                    f"found {len(stmt.names)}.",
+                    token,
+                    f"Destructuring expects {len(pattern.elements)} values, "
+                    f"found {len(items)}.",
                 )
-            for name in stmt.names:
+            for name in pattern_names(pattern):
                 self._define(name, ERROR)
             return
 
-        for name, item in zip(stmt.names, items, strict=True):
-            self._define(name, item)
+        for element, item in zip(pattern.elements, items, strict=True):
+            self._bind_pattern(element, item)
 
     def _destructure_items(self, ty: Ty, token: Token) -> tuple[Ty, ...] | None:
         if ty is ANY:
@@ -3832,7 +3852,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_unary_expr(self, expr: Unary) -> Ty:
         right = self._infer(expr.right)
 
-        if expr.operator.type is TokenType.BANG:
+        if expr.operator.type is TokenType.NOT:
             return BOOL
         if expr.operator.type is TokenType.TILDE:
             if right is ANY:

@@ -1,7 +1,7 @@
-print !true;   # expect: false
-print !false;  # expect: true
-print !nil;    # expect: true
-print !0;      # expect: false
-print !!true;  # expect: true
-print -1;      # expect: -1
-print --1;     # expect: 1
+print not true;      # expect: false
+print not false;     # expect: true
+print not nil;       # expect: true
+print not 0;         # expect: false
+print not not true;  # expect: true
+print -1;            # expect: -1
+print --1;           # expect: 1

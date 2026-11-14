@@ -33,8 +33,8 @@ inferidos. A discussão está no histórico do `TODO.md` §2 e em `TIPOS.md`.
    (ainda não implementado).
 7. **Booleanos como no Python**: condições usam truthiness (qualquer tipo); `and`/`or`
    devolvem o operando e curto-circuitam; o checker calcula o tipo com
-   `truthy(A) | B` / `falsy(A) | B`. `!` continua sendo a negação; a keyword `not` fica
-   para depois (duas precedências diferentes seria armadilha).
+   `truthy(A) | B` / `falsy(A) | B`. A negação era `!`; o [ADR-0068](0068-not-substitui-bang.md)
+   a substituiu por `not` no nível unário (sem duas precedências).
 8. **Corpo de expressão `= expr` fica adiado**; funções usam bloco `{ ... }` por enquanto.
 9. **Sem narrowing de fluxo ainda**: `if x != nil { x + 1 }` ainda não promove `x` para
    `Int` (T5). Uniões são checadas na atribuição/passagem, não refinadas por `if`.
@@ -74,7 +74,7 @@ inferidos. A discussão está no histórico do `TODO.md` §2 e em `TIPOS.md`.
 | Tipar obrigatoriamente todos os programas | quebraria todo o código dinâmico/golden de uma vez; `--check` permite migração |
 | Checar em runtime | não ajuda o LLVM e duplica regras; o tree-walk deve continuar simples |
 | `:` para retorno (Kotlin) | `->` já era a sintaxe planejada e lê melhor em `fn` |
-| `not` keyword agora | precedência diferente de `!`; duas negações confundem (fica para decidir) |
+| `not` keyword agora | precedência diferente de `!`; duas negações confundem — resolvido em 2026-11-13 pelo [ADR-0068](0068-not-substitui-bang.md), que **substituiu** `!` em vez de somar |
 
 ## Como verificar
 

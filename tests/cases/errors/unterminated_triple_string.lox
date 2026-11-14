@@ -1,0 +1,4 @@
+# `"""` sem fechamento é erro de compilação (exit 65).
+print """sem fim
+# expect error: Unterminated string.
+# expect exit: 65

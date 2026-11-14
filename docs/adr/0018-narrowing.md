@@ -42,7 +42,7 @@ len(nome)                             # depois do if: String
 
 ### Escopo da v1
 
-- Reconhece `x == nil`, `x != nil` (em qualquer lado), `if (x)` por truthiness e `!` em
+- Reconhece `x == nil`, `x != nil` (em qualquer lado), `if (x)` por truthiness e `not` em
   volta dessas formas, inclusive com parênteses.
 - Refina **variáveis**, não `obj.campo` nem `xs[i]`.
 - `val` e `var` estreitam. Atribuir à variável remove o refinamento ativo; a checagem da

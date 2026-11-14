@@ -15,6 +15,7 @@ from src.backend.lower_model import (
     _VOID,
     ANY_TAG_BOOL,
     ANY_TAG_CLASS,
+    ANY_TAG_ENUM,
     ANY_TAG_FLOAT,
     ANY_TAG_FUNCTION,
     ANY_TAG_INSTANCE,
@@ -44,6 +45,7 @@ from src.frontend.ty import (
     RANGE,
     ClassObjectTy,
     ClassTy,
+    EnumTy,
     FnTy,
     GenericFnTy,
     ListTy,
@@ -78,6 +80,8 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.MAP)
         if isinstance(ty, TupleTy):
             return TypeDesc(ValueType.TUPLE)
+        if isinstance(ty, EnumTy):
+            return TypeDesc(ValueType.ENUM)
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
@@ -102,6 +106,8 @@ class OptionalLowering(LoweringBase):
             raise _unsupported("Union of non-scalar values", line)
 
         if isinstance(ty, ClassTy):
+            if ty.name in self._enum_layouts:
+                return TypeDesc(ValueType.ENUM)
             if ty.name in self._type_subst:
                 return self._type_desc(self._type_subst[ty.name], line)
             if ty.args:
@@ -149,6 +155,7 @@ class OptionalLowering(LoweringBase):
                 | ValueType.LIST
                 | ValueType.MAP
                 | ValueType.TUPLE
+                | ValueType.ENUM
             ):
                 return _I8_PTR
             case ValueType.ANY:
@@ -197,6 +204,7 @@ class OptionalLowering(LoweringBase):
                 | ValueType.LIST
                 | ValueType.MAP
                 | ValueType.TUPLE
+                | ValueType.ENUM
             ):
                 return Value(ty, llvm_ir.null_pointer())
             case ValueType.ANY:
@@ -272,6 +280,7 @@ class OptionalLowering(LoweringBase):
             ValueType.LIST: ANY_TAG_LIST,
             ValueType.MAP: ANY_TAG_MAP,
             ValueType.TUPLE: ANY_TAG_TUPLE,
+            ValueType.ENUM: ANY_TAG_ENUM,
         }.get(value.ty)
         if tag is None:
             raise _unsupported(f"Boxing {value.ty.name}", line)

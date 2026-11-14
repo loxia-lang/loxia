@@ -7,6 +7,16 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **`not` substitui `!`** ([ADR-0068](docs/adr/0068-not-substitui-bang.md)): negação no
+  nível unário com a mesma precedência; `!` sozinho agora é diagnóstico dirigido
+  (`use 'not' for negation`) e `!=` continua. Quebra deliberada de quem usava `!`.
+- **Destructuring aninhado** ([ADR-0069](docs/adr/0069-destructuring-aninhado.md)):
+  `val (a, (b, c)) = t`, com anotação recursiva e erros por nível; corrige também a
+  captura por closure de nomes destruturados no backend (furo do I4).
+- **Strings `"""` e raw** ([ADR-0070](docs/adr/0070-strings-multilinha-e-raw.md)):
+  `"""..."""` é a forma canônica de multilinha (aspas livres, sem dedent/newline mágico);
+  `r"..."`/`r"""..."""` desligam escapes e interpolação. `"..."` passa a ser de uma linha.
+
 - **Gate e orçamento sintático** ([ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md)):
   toda sintaxe nova passa por quatro perguntas (substituição, decidibilidade local,
   precedência, forma canônica), orçamento de superfície e lista de não-objetivos; o agente
@@ -29,6 +39,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `docs/log.md` (skill `lox-docs`).
 
 - Backend **generics com lambda contextual**: checker publica o `FnTy` concreto da lambda em argumento genérico; `generics.lox` promovido.
+- Backend **L6i — enums/`match`/`Result`**: `LoxEnumValue` com descritor, construtores de variante, `match` por variante, igualdade/print e tag `ENUM`; `enums.lox` e `result.lox` promovidos ([ADR-0061](docs/adr/0061-l6-enums-match.md)).
 - Backend **L6h — loop/nil/Any**: captura por iteração, variável que começa `nil` e índice de `Any`-tupla ([ADR-0058](docs/adr/0058-l6-loop-capture-uninit.md)).
 - Backend **L6g — defaults como valor**: funções com parâmetros default podem ser passadas como valor; defaults são preenchidos na chamada indireta ([ADR-0057](docs/adr/0057-l6-defaults-as-value.md)).
 - Backend **L6f — math e parse**: `math.*`, `Int.parse` e `Float.parse` ([ADR-0056](docs/adr/0056-l6-math-parse.md)).
@@ -152,6 +163,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Mudado
 
+- **`"..."` não aceita mais quebra de linha**: quem escrevia multilinha com `"` usa
+  `"""..."""` (erro dirigido aponta a forma canônica). Ver
+  [ADR-0070](docs/adr/0070-strings-multilinha-e-raw.md).
 - **Promoção `Int → Float` só na aritmética** ([ADR-0059](docs/adr/0059-i4-check-limpo-compila.md)):
   `val x: Float = 2`, `x = 2`, `f(2)`, defaults e `return 2` em `-> Float` passaram a ser
   erro de tipo (Kotlin-like). Escreva `2.0` ou `2 as Float`. A aritmética não mudou

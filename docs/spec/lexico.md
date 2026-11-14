@@ -46,7 +46,7 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/frontend/scan
 ### Um ou dois caracteres
 
 ```
-!    !=          =    ==
+!=          =    ==
 <    <=          >    >=
 .    ..          -    ->
 /    //          *    **
@@ -89,26 +89,36 @@ Números ([ADR-0006](../adr/0006-int-float-separados.md)):
   não engolir o `..`;
 - `Float` é IEEE-754 binary64; um literal que estoura vira `inf` (comportamento do Python).
 
-Strings:
-- aceitam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}` (code point Unicode);
-- escape desconhecido é `Unknown escape sequence '\q'.`; `\u` inválido é
-  `Invalid Unicode escape.`;
-- podem conter quebras de linha reais (o contador de linha acompanha);
-- `"` não escapado encerra; sem fechar → `Unterminated string.`;
+Strings ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)):
+- `"..."` é de **uma linha**; quebra de linha real dentro dela é
+  `Unterminated string; multiline strings use '"""'.` (o scanner descarta o resto da
+  linha para não gerar erros em cascata);
+- `"""..."""` é a forma canônica de string **multilinha**: pode conter `"` e `""` livres e
+  fecha na primeira `"""`; nada de remover a primeira quebra de linha nem dedent — o valor
+  é exatamente o que está entre os delimitadores (I2); sem fechar → `Unterminated string.`;
+- `r"..."` e `r"""..."""` são **raw**: `\` é literal e `${...}` **não** interpola. O `r`
+  só é prefixo quando a aspa vem imediatamente depois; `r` sozinho é identificador;
+- `"..."` e `"""..."""` aceitam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`, `\$` e `\u{XXXX}`
+  (code point Unicode); escape desconhecido é `Unknown escape sequence '\q'.`; `\u`
+  inválido é `Invalid Unicode escape.`;
 - `${expressão}` interpola uma expressão (qualquer uma, inclusive outra string
   interpolada); os tokens da expressão são escaneados em um buffer próprio e o `}` de
   fechamento não entra nele. `\$` e `\${` produzem `$`/`${` literais; `$` sem `{` é
   literal;
-- não há raw strings nem `"""` ainda.
+- o contador de linha acompanha o conteúdo, inclusive dentro de `"""`; o token é reportado
+  na linha em que termina.
 
 ### Palavras-chave
 
 ```
 and    as     async  await  class  elif   else   enum   except
 false  finally fn    for    if     in     is     match  nil
-or     print  raise  return super  this   true   try    val
-var    while
+not    or     print  raise  return super  this   true   try
+val    var    while
 ```
+
+`not` é a negação (ADR-0068); `!` sozinho não é token — o scanner aponta
+`Unexpected character: ! (use 'not' for negation).` e `!=` continua sendo desigualdade.
 
 `fn` substituiu `fun`; `fun` agora é identificador comum (não é palavra-chave).
 
@@ -127,7 +137,9 @@ Sempre existe um token `EOF`, com a linha atual. O parser depende dele.
 | Situação | Mensagem | Consequência |
 | --- | --- | --- |
 | caractere fora do alfabeto | `Unexpected character: X` | erro de compilação (exit 65) |
-| string sem fechamento | `Unterminated string.` | erro de compilação (exit 65) |
+| `!` sozinho (fora de `!=`) | `Unexpected character: ! (use 'not' for negation).` | erro de compilação (exit 65) |
+| string sem fechamento (EOF ou `"""` aberta) | `Unterminated string.` | erro de compilação (exit 65) |
+| quebra de linha em `"..."` | `Unterminated string; multiline strings use '"""'.` | erro de compilação (exit 65) |
 | interpolação sem `}` | `Unterminated interpolation.` | erro de compilação (exit 65) |
 | escape desconhecido | `Unknown escape sequence '\q'.` | erro de compilação (exit 65) |
 | `\u{...}` inválido | `Invalid Unicode escape.` | erro de compilação (exit 65) |

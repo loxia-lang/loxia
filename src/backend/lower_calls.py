@@ -54,6 +54,13 @@ class CallLowering(LoweringBase):
                     expr.callee.name.lexeme, expr
                 )
 
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
+            and expr.callee.object.name.lexeme in self._enum_layouts
+        ):
+            return self._enum_construct(expr)
+
         if isinstance(expr.callee, Get):
             receiver = self._expr(expr.callee.object)
             if receiver.ty is ValueType.LIST:
@@ -73,7 +80,6 @@ class CallLowering(LoweringBase):
                 return self._range_call(expr)
             if name == "chars":
                 return self._chars(expr)
-
         if isinstance(expr.callee, Variable):
             depth = self.depths.get(expr.callee)
             if depth is not None or expr.callee.name.lexeme in self._globals:

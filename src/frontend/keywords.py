@@ -19,6 +19,7 @@ KEYWORDS: dict[str, TokenType] = {
     "match": TokenType.MATCH,
     "is": TokenType.IS,
     "nil": TokenType.NIL,
+    "not": TokenType.NOT,
     "or": TokenType.OR,
     "print": TokenType.PRINT,
     "raise": TokenType.RAISE,

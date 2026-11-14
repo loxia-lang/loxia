@@ -1,4 +1,5 @@
 from src.execution.values import repr_value
+from src.frontend.destructuring import DestructurePattern, NamePattern
 from src.frontend.expr import (
     As,
     Assign,
@@ -306,10 +307,18 @@ class AstPrinter:
 
     def visit_destructure_stmt(self, stmt: Destructure) -> str:
         keyword = "var" if stmt.mutable else "val"
-        names = " ".join(name.lexeme for name in stmt.names)
+        names = self._destructure_pattern(stmt.pattern)
         suffix = self._type_suffix(stmt.type_annotation)
         value = stmt.initializer.accept(self)
-        return f"({keyword}-destructure ({names}){suffix} {value})"
+        return f"({keyword}-destructure {names}{suffix} {value})"
+
+    def _destructure_pattern(self, pattern: DestructurePattern) -> str:
+        if isinstance(pattern, NamePattern):
+            return pattern.name.lexeme
+        inner = " ".join(
+            self._destructure_pattern(element) for element in pattern.elements
+        )
+        return f"({inner})"
 
     def visit_var_stmt(self, stmt: Var) -> str:
         keyword = "var" if stmt.mutable else "val"

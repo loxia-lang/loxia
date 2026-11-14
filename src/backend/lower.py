@@ -23,6 +23,7 @@ from src.backend.lower_calls import CallLowering
 from src.backend.lower_class_codegen import ClassCodegenLowering
 from src.backend.lower_class_layout import ClassLayoutLowering
 from src.backend.lower_containers import ContainerLowering
+from src.backend.lower_enums import EnumLowering
 from src.backend.lower_functions import FunctionLowering
 from src.backend.lower_generics import GenericLowering
 from src.backend.lower_instances import InstanceLowering
@@ -68,6 +69,7 @@ from src.frontend.expr import (
     Literal,
     Logical,
     MapLiteral,
+    Match,
     Range,
     Set,
     Super,
@@ -80,6 +82,7 @@ from src.frontend.stmt import (
     Block,
     Class,
     Destructure,
+    EnumDecl,
     Expression,
     ForIn,
     Function,
@@ -97,6 +100,7 @@ from src.frontend.ty import (
 
 
 class Lowerer(
+    EnumLowering,
     GenericLowering,
     MathLowering,
     TupleLowering,
@@ -148,6 +152,8 @@ class Lowerer(
         self._method_class: str | None = None
         self._analysis = CaptureAnalysis({}, frozenset())
         self._type_subst: dict[str, Ty] = {}
+        self._enum_layouts: dict[str, Any] = {}
+        self._enum_names: dict[str, Any] = {}
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
         self._map_expected_value: Ty | None = None
@@ -163,6 +169,7 @@ class Lowerer(
     def lower(self, statements: list[Stmt]) -> None:
         self._analysis = analyze_captures(statements)
         self._prepare_generics(statements)
+        self._prepare_enums(statements)
         self._predeclare_classes(statements)
         self._prepare_generic_classes(statements)
         self._predeclare_functions(statements)
@@ -246,6 +253,8 @@ class Lowerer(
             self._for_in(stmt)
         elif isinstance(stmt, Destructure):
             self._destructure(stmt)
+        elif isinstance(stmt, EnumDecl):
+            self._enum_decl(stmt)
         elif isinstance(stmt, Print):
             self._print(stmt)
         elif isinstance(stmt, Expression):
@@ -337,6 +346,10 @@ class Lowerer(
                 self.builder.call(
                     self._function("lox_print_tuple", _VOID, [_I8_PTR]), [value.llvm]
                 )
+            case ValueType.ENUM:
+                self.builder.call(
+                    self._function("lox_print_enum", _VOID, [_I8_PTR]), [value.llvm]
+                )
             case ValueType.FUNCTION:
                 self.builder.call(
                     self._function("lox_print_function", _VOID, [_I8_PTR]),
@@ -427,6 +440,8 @@ class Lowerer(
             return self._map_literal(expr)
         if isinstance(expr, TupleLiteral):
             return self._tuple_literal(expr)
+        if isinstance(expr, Match):
+            return self._match(expr)
         if isinstance(expr, Index):
             return self._list_get(expr)
         if isinstance(expr, IndexSet):
@@ -528,7 +543,7 @@ class Lowerer(
                     return Value(ValueType.FLOAT, self.builder.fneg(operand.llvm))
                 self._poison(line, "Operand must be a number.")
                 return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
-            case TokenType.BANG:
+            case TokenType.NOT:
                 truth = self._truthy(operand)
                 return Value(ValueType.BOOL, self.builder.not_(truth))
             case TokenType.TILDE:
@@ -571,7 +586,7 @@ class Lowerer(
                 | TokenType.GREATER_EQUAL
             ):
                 return self._comparison(left, right, operator.type, line)
-            case TokenType.EQUAL_EQUAL | TokenType.BANG_EQUAL:
+            case TokenType.EQUAL_EQUAL | TokenType.NOT_EQUAL:
                 return self._equality(left, right, operator.type)
             case TokenType.STAR_STAR:
                 return self._power(left, right, line)
@@ -799,6 +814,18 @@ class Lowerer(
                 compared = self.builder.not_(compared)
             return Value(ValueType.BOOL, compared)
 
+        if left.ty is ValueType.ENUM and right.ty is ValueType.ENUM:
+            equal_value = self.builder.call(
+                self._function("lox_enum_equal", _I32, [_I8_PTR, _I8_PTR]),
+                [left.llvm, right.llvm],
+            )
+            result = self.builder.icmp_signed(
+                "!=", equal_value, llvm_ir.constant(_I32, 0)
+            )
+            if not equal:
+                result = self.builder.not_(result)
+            return Value(ValueType.BOOL, result)
+
         if left.ty is ValueType.TUPLE and right.ty is ValueType.TUPLE:
             equal_value = self._tuple_equal(left, right).llvm
             if not equal:
@@ -832,6 +859,18 @@ class Lowerer(
             return Value(
                 ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
             )
+
+        if left.ty is ValueType.ENUM and right.ty is ValueType.ENUM:
+            equal_value = self.builder.call(
+                self._function("lox_enum_equal", _I32, [_I8_PTR, _I8_PTR]),
+                [left.llvm, right.llvm],
+            )
+            result = self.builder.icmp_signed(
+                "!=", equal_value, llvm_ir.constant(_I32, 0)
+            )
+            if not equal:
+                result = self.builder.not_(result)
+            return Value(ValueType.BOOL, result)
 
         if left.ty is ValueType.TUPLE and right.ty is ValueType.TUPLE:
             equal_value = self._tuple_equal(left, right).llvm

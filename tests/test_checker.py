@@ -1151,7 +1151,7 @@ def test_narrowing_types_are_clean() -> None:
           print len(nome)
         }
 
-        if (!(nome == nil)) {
+        if (not (nome == nil)) {
           print len(nome)
         }
 
@@ -2091,7 +2091,7 @@ def test_tuple_any_can_be_destructured_with_annotation() -> None:
         ("print (1, 2)[2]", "Tuple index 2 out of bounds for length 2."),
         (
             "val (a, b) = (1, 2, 3)",
-            "Destructuring expects 3 values, found 2.",
+            "Destructuring expects 2 values, found 3.",
         ),
         (
             "val (a, b) = [1, 2]",
@@ -2104,6 +2104,22 @@ def test_tuple_any_can_be_destructured_with_annotation() -> None:
         (
             "val (a, a) = (1, 2)",
             "Variable 'a' is declared twice in this destructuring.",
+        ),
+        (
+            "val (a, (b, a)) = (1, (2, 3))",
+            "Variable 'a' is declared twice in this destructuring.",
+        ),
+        (
+            "val (a, (b, c)) = (1, (2, 3, 4))",
+            "Destructuring expects 2 values, found 3.",
+        ),
+        (
+            "val (a, (b, c)) = (1, 2)",
+            "Can only destructure tuples, found Int.",
+        ),
+        (
+            'val (a, (b, c)): (Int, (String, Bool)) = (1, (2, true))',
+            "Expected String, found Int.",
         ),
         (
             'print (1, 2)["a"]',

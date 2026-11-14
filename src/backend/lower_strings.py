@@ -116,6 +116,14 @@ class StringLowering(LoweringBase):
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
+            case ValueType.ENUM:
+                function = self._function(
+                    "lox_str_from_enum", _I8_PTR, [_I8_PTR]
+                )
+                return Value(
+                    ValueType.STRING,
+                    self.builder.call(function, [value.llvm]),
+                )
             case ValueType.TUPLE:
                 function = self._function(
                     "lox_str_from_tuple", _I8_PTR, [_I8_PTR]
@@ -206,6 +214,8 @@ class StringLowering(LoweringBase):
             return self._map_len(argument)
         if argument.ty is ValueType.TUPLE:
             return self._tuple_len(argument)
+        if argument.ty is ValueType.ENUM:
+            raise _unsupported("len of Enum", expr.paren.line)
         if argument.ty is not ValueType.STRING:
             raise _unsupported("len of non-String", expr.paren.line)
 

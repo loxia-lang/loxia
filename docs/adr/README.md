@@ -113,6 +113,12 @@ Crie quando a decisão:
 | [0065](0065-hir-lite-controle.md) | HIR-lite: escopo, gatilho e não fazer HIR completa | accepted | 2026-11-13 |
 | [0066](0066-orcamento-e-gate-sintatico.md) | Orçamento e gate sintático: tetos, não-objetivos e aprovação humana | accepted | 2026-11-13 |
 | [0067](0067-desambiguacao-sintatica.md) | Desambiguação: `//`, brackets, `fn` em método, união em `is`, mapa | accepted | 2026-11-13 |
+| [0068](0068-not-substitui-bang.md) | `not` substitui `!` como negação (uma grafia, precede igual) | accepted | 2026-11-13 |
+| [0069](0069-destructuring-aninhado.md) | Destructuring aninhado recursivo em `val`/`var` | accepted | 2026-11-13 |
+| [0070](0070-strings-multilinha-e-raw.md) | `"""` canônico para multilinha e raw `r"..."`/`r"""..."""` | accepted | 2026-11-13 |
+| [0071](0071-primitivas-de-runtime.md) | Primitivas de runtime: fronteira nativa, tabela única e complexidade linear | accepted (plano; implementação pendente) | 2026-11-14 |
+| [0072](0072-stdlib-batteries.md) | Stdlib: kernel nativo, biblioteca em Lox e política de batteries | accepted (plano; implementação pendente) | 2026-11-14 |
+| [0073](0073-imports-modulos.md) | Imports: `import std.<módulo>` e módulos só de declarações | proposed (aguarda gate sintático) | 2026-11-14 |
 
 
 ## Próximas decisões que pedem ADR
@@ -120,11 +126,13 @@ Crie quando a decisão:
 Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`/`TODO.md` §11):
 
 - contratos/DbC e erros em JSON — [I-4](../../IDEIAS.md);
-- decisões de linguagem ainda abertas (nome, `if` expressão, `match`, exceções, generics
-  de classes/métodos e constraints, módulos, backend, unificação mutável) —
+- decisões de linguagem ainda abertas (nome, `if` expressão, exceções recuperáveis,
+  generics de classes/métodos e constraints, backend, unificação mutável) —
   [`../../TODO.md`](../../TODO.md) §11. Tuplas foram implementadas no interpretador/checker
   ([ADR-0036](0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem
   direção decidida, mas implementação pendente ([ADR-0037](0037-async-direcao.md)).
+- imports: forma proposta em [ADR-0073](0073-imports-modulos.md), aguardando o gate
+  sintático do [ADR-0066](0066-orcamento-e-gate-sintatico.md).
 
 O resumo das decisões **já fechadas** fica em [`../decisoes.md`](../decisoes.md); este
 índice continua sendo o histórico completo.

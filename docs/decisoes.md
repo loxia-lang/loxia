@@ -26,6 +26,9 @@ decisão.
 | Narrowing | `T?` refina em `if`/`elif`/`else`, `x == nil`/`x != nil`, truthiness e early return; `is T`, `while` e `and`/`or` também estreitam; `val` e `var`, com invalidação em atribuição; **campos e índices literais** refinam (`p.nome`, `xs[0]`, `m["k"]`), mutação do caminho/raiz invalida e a saída de `while` refina pelo falso; sem aliasing/CFG. | [ADR-0018](adr/0018-narrowing.md), [ADR-0025](adr/0025-is-e-narrowing.md), [ADR-0032](adr/0032-narrowing-campos-indices.md) |
 | Interpolação | `"${expr}"`, qualquer expressão, conversão por `stringify`; `\${` para literal; scanner empacota tokens da expressão. | [ADR-0019](adr/0019-interpolacao.md) |
 | Defaults e campos | Defaults posicionais constantes com aridade `[mín, máx]`; campos `val`/`var` declarados no corpo, sem campo dinâmico. | [ADR-0009](adr/0009-defaults-e-campos.md) |
+| Negação | `not` **substitui** `!` no nível unário (mesma precedência); `!` sozinho é diagnóstico dirigido e `!=` continua. | [ADR-0068](adr/0068-not-substitui-bang.md) |
+| Destructuring aninhado | O padrão de `val`/`var (…) = t` é recursivo (`val (a, (b, c)) = t`), com erros por nível e sem `_` curinga. | [ADR-0069](adr/0069-destructuring-aninhado.md) |
+| Strings multilinha e raw | `"""..."""` é a única forma multilinha (sem dedent/newline mágico); `r"..."`/`r"""..."""` desliga escapes e interpolação. | [ADR-0070](adr/0070-strings-multilinha-e-raw.md) |
 | Herança | `class B(A)` com parênteses (sem `extends`/`:`/`<`); `init` no corpo; `this` implícito; `super.init(...)` explícito. | [ADR-0008](adr/0008-heranca-class-parens.md) |
 | Tipagem gradual | Checker opt-in (`--check`), funções anotadas, inferência local, `T?`/uniões, narrowing e truthiness; sem inferência de parâmetro sem anotação. | [ADR-0010](adr/0010-tipagem-estatica.md) |
 | Assinaturas explícitas | Parâmetros/retorno obrigatórios; assinaturas de topo pré-declaradas para corpos (recursão mútua), mas o topo segue a ordem dos statements; inferir parâmetro ficou adiado. | [ADR-0020](adr/0020-assinaturas-explicitas.md) |
@@ -56,6 +59,7 @@ decisão.
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
 | Desambiguação sintática | `//` onde se espera expressão ganha diagnóstico dirigido; operador pode iniciar linha dentro de `() [] {}` de expressão (fora, continua no fim da linha); `fn` é opcional em método; união no lado direito de `is` exige parênteses; mapa no início do statement ganha diagnóstico dirigido. | [ADR-0067](adr/0067-desambiguacao-sintatica.md) |
 | API da stdlib | Modelo **híbrido**: builtins globais para operações genéricas/protocolos (`len`, `str`, `repr`), métodos para ações específicas (`xs.push/pop`), namespaces nativos para conversão (`Int.parse`/`Float.parse`, `math.*`) e funções livres para composição. Builtins globais são reservados (shadowing só local); sem métodos em primitivos; extensões/UFCS em P3 pós-LLVM. | [ADR-0016](adr/0016-api-stdlib-hibrida.md), [ADR-0029](adr/0029-conversoes-math.md) |
+| Stdlib e batteries | Três camadas — kernel nativo, std em Lox e módulos; módulo só de declaração em `std/<nome>.lox`, privacidade por `_`; tiers T0–T3; cada módulo entra com programa real, golden e determinismo declarado; falha esperada é `T?`/`Result`, sem exceção na v1; fora: regex, cripto, rede, async, timezone, i18n. | [ADR-0072](adr/0072-stdlib-batteries.md) |
 
 ## Backend nativo (LLVM)
 
@@ -97,6 +101,7 @@ decisão.
 | L4 — ordem de declaração | Assinaturas de topo são pré-declaradas (recursão mútua), mas o binding só existe quando o statement executa; usar antes vira panic 70, sem hoisting. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | Diagnósticos no L4 | Spans/caret e stack trace ficam **fora** do L4; o contrato segue `lox_panic(linha, msg)`/`[line N]`; decisão própria antes do L5/L6. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
+| Primitivas e kernel | Kernel = SO ou representação (≤ 15 funções); o resto é Lox. Tabela única (`lox`, símbolo C, tipos, corpo Python, `ambient`) alimenta checker/interpreter/backend/testes. `LoxStr` ganha cache de offsets: `charAt`/`chars`/`for-in` **O(n)**, `substr` O(1)+cópia e `join` O(total). Sem FFI genérica e sem `ctypes` no oráculo; gatilho: kernel > 15 ou divergência observada. | [ADR-0071](adr/0071-primitivas-de-runtime.md) |
 
 ## Processo e escopo
 
@@ -113,6 +118,8 @@ decisão.
 
 Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`
 estrutural para uniões (o de enums fechou no [ADR-0041](adr/0041-enums-match.md)),
-**generics de classes/métodos e constraints**, módulos, contratos e unificação mutável
+**generics de classes/métodos e constraints**, contratos e unificação mutável
 continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).
+Módulos têm forma proposta em [ADR-0073](adr/0073-imports-modulos.md) (fase A, só
+`std.*`), aguardando o gate sintático; fase B (arquivos do usuário) fica em aberto.

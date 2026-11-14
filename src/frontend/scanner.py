@@ -82,9 +82,13 @@ class Scanner:
             case "%":
                 self._add_token(TokenType.PERCENT)
             case "!":
-                self._add_token(
-                    TokenType.BANG_EQUAL if self._match("=") else TokenType.BANG
-                )
+                if not self._match("="):
+                    self.reporter.error(
+                        self._line,
+                        "Unexpected character: ! (use 'not' for negation).",
+                    )
+                    return
+                self._add_token(TokenType.NOT_EQUAL)
             case "=":
                 if self._match(">"):
                     self._add_token(TokenType.FAT_ARROW)
@@ -127,6 +131,8 @@ class Scanner:
                 self._line += 1
             case '"':
                 self._string()
+            case "r" if self._peek() == '"':
+                self._string(raw=True)
             case _:
                 if Scanner._is_digit(c=c):
                     self._number()
@@ -182,27 +188,52 @@ class Scanner:
             return "\0"
         return self._source[self._current]
 
-    def _string(self) -> None:
+    def _string(self, raw: bool = False) -> None:
         string_start = self._start
+        if raw:
+            # O `r` já foi consumido; a aspa de abertura vem logo depois dele.
+            self._advance()
+
+        triple = self._source[self._current : self._current + 2] == '""'
+        if triple:
+            self._advance()
+            self._advance()
+
         value: list[str] = []
         parts: list[str | list[Token]] = []
         interpolated = False
         closed = False
 
         while not self._is_at_end():
+            if triple and self._source[self._current : self._current + 3] == '"""':
+                self._advance()
+                self._advance()
+                self._advance()
+                closed = True
+                break
+
             char = self._peek()
 
-            if char == '"':
+            if not triple and char == '"':
                 self._advance()
                 closed = True
                 break
 
             if char == "\n":
+                if not triple:
+                    self.reporter.error(
+                        self._line,
+                        "Unterminated string; multiline strings use '\"\"\"'.",
+                    )
+                    # Descarta o resto da linha para não gerar erros em cascata.
+                    while not self._is_at_end() and self._peek() != "\n":
+                        self._advance()
+                    return
                 self._line += 1
                 value.append(self._advance())
                 continue
 
-            if char == "$" and self._peek_next() == "{":
+            if not raw and char == "$" and self._peek_next() == "{":
                 self._advance()
                 self._advance()
                 parts.append("".join(value))
@@ -216,7 +247,7 @@ class Scanner:
                 interpolated = True
                 continue
 
-            if char != "\\":
+            if raw or char != "\\":
                 value.append(self._advance())
                 continue
 

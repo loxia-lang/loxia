@@ -207,8 +207,8 @@ def test_while_and_for_loops(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(for_source, capsys)[0] == ["0", "1", "2"]
 
 
-def test_bang_negates_truthiness(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, _ = run("print !nil; print !true; print !!0;", capsys)
+def test_not_negates_truthiness(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout, _ = run("print not nil; print not true; print not not 0;", capsys)
 
     assert stdout == ["true", "false", "true"]
 
@@ -831,6 +831,11 @@ def test_tuple_destructuring_bindings(
             "Destructuring expects 2 values, found 3.",
         ),
         ("val (a, b) = 1;", "Can only destructure a tuple."),
+        (
+            "val (a, (b, c)) = (1, (2, 3, 4));",
+            "Destructuring expects 2 values, found 3.",
+        ),
+        ("val (a, (b, c)) = (1, 2);", "Can only destructure a tuple."),
         ('print (1, 2)["a"];', "Tuple index must be an integer."),
         ("print (1, 2)[5];", "Tuple index 5 out of bounds for length 2."),
     ],

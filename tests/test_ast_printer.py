@@ -130,3 +130,11 @@ def test_dump_tuples_and_destructuring() -> None:
         '(var-destructure (c d): (Int, String) (tuple 2 "y"))\n'
         "(print (index (tuple a (tuple b c)) 1))"
     )
+
+
+def test_dump_nested_destructuring() -> None:
+    source = 'val (a, (b, c)): (Int, (Int, Int)) = (1, (2, 3));'
+
+    assert dump(source) == (
+        "(val-destructure (a (b c)): (Int, (Int, Int)) (tuple 1 (tuple 2 3)))"
+    )
