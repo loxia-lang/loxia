@@ -1,0 +1,17 @@
+# Chamadas diretas + closure: mede call/return e captura de célula.
+fn add(a: Int, b: Int) -> Int {
+  return a + b
+}
+
+fn makeAdder(n: Int) -> fn(Int) -> Int {
+  return fn(x) => x + n
+}
+
+val add5 = makeAdder(5)
+var i = 0
+var acc = 0
+while (i < 50000) {
+  acc = add5(add(i, 1))
+  i = i + 1
+}
+print acc

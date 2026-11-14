@@ -78,6 +78,7 @@ class VariableLowering(LoweringBase):
                     "Uninitialized variables need a type annotation "
                     "for the backend.",
                     stmt.name.line,
+                    code=Code.BACKEND_UNSUPPORTED,
                 )
             declared = self._type_desc(stmt.type_annotation, stmt.name.line)
             if not declared.optional and declared.ty is not ValueType.FUNCTION:

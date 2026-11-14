@@ -199,4 +199,6 @@ Intervalo: `3642c52..HEAD` (GC/M7, passes de otimização e benchmark nativo).
 - `README.md` — **updated**: `make bench-native` e status do L7b.
 - `TODO.md` — **updated**: M7 marcado como concluído; L7b com `-O2`/bench feito; JIT no
   REPL virou pendência futura (P3) e restou a revisão dos erros de codegen.
-- `CHANGELOG.md` — **updated**: passes `-O2` e benchmark nativo.
+- `CHANGELOG.md` — **updated**: passes `-O2`, benchmark nativo e classificação dos erros
+  de codegen.
+- `bench/README.md` — **novo**: metodologia e tabela de speedup interpretador × nativo.

@@ -22,6 +22,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Lambda
 from src.frontend.stmt import Function, Param, Stmt
 from src.frontend.ty import FnTy, GenericFnTy, Ty
@@ -108,6 +109,7 @@ class FunctionLowering(LoweringBase):
                 f"Parameter '{param.name.lexeme}' needs a type annotation "
                 "for the backend.",
                 param.name.line,
+                code=Code.BACKEND_UNSUPPORTED,
             )
         return self._type_desc(param.type_annotation, param.name.line)
 
@@ -116,6 +118,7 @@ class FunctionLowering(LoweringBase):
             raise BackendError(
                 f"Function '{name}' needs a return type annotation for the backend.",
                 line,
+                code=Code.BACKEND_UNSUPPORTED,
             )
         return self._type_desc(ty, line)
 

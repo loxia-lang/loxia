@@ -45,6 +45,7 @@ class ClassLayoutLowering(LoweringBase):
                 "Classes with more than 64 fields are not supported by the "
                 "backend yet.",
                 stmt.name.line,
+                code=Code.BACKEND_UNSUPPORTED,
             )
 
     def _class_super(
@@ -229,6 +230,7 @@ class ClassLayoutLowering(LoweringBase):
                 f"Field '{field.name.lexeme}' needs a type annotation "
                 "for the backend.",
                 field.name.line,
+                code=Code.BACKEND_UNSUPPORTED,
             )
 
         if desc.ty is ValueType.NIL:
@@ -266,5 +268,7 @@ class ClassLayoutLowering(LoweringBase):
                 return inner
 
         raise BackendError(
-            "Field initializer must be a constant for the backend.", line
+            "Field initializer must be a constant for the backend.",
+            line,
+            code=Code.BACKEND_UNSUPPORTED,
         )

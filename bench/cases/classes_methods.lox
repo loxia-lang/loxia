@@ -1,0 +1,17 @@
+# Classes: campo mutável, dispatch de método e acesso a this.
+class Counter {
+  var value: Int
+  init() { this.value = 0 }
+  fn bump(n: Int) -> Int {
+    this.value = this.value + n
+    return this.value
+  }
+}
+
+val counter = Counter()
+var i = 0
+while (i < 50000) {
+  counter.bump(i % 7)
+  i = i + 1
+}
+print counter.value

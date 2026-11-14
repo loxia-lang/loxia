@@ -1,0 +1,9 @@
+# Alocação: strings temporárias e listas retidas (pressão no GC).
+var keep: List[String] = []
+var i = 0
+while (i < 10000) {
+  var s = "item-" + str(i)
+  keep.push(s)
+  i = i + 1
+}
+print len(keep) + len(keep[9999])

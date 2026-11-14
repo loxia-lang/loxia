@@ -35,6 +35,11 @@ exemplo.lox:3:7: error[E2001]: Already a variable with this name in this scope.
 | resolver | `arquivo:linha:col: error[E2xxx]: mensagem` + caret | 65 |
 | checker (`--check`) | `arquivo:linha:col: error[E3xxx]: mensagem` + caret | 65 |
 | backend | `arquivo:linha: error[E4xxx]: mensagem` (sem coluna/caret) | 65 |
+
+Erros internos do backend (`E4002`) são prefixados com `internal lowering error:` ou
+`internal error:`; `E4001` é reservado para lacunas declaradas (`... is not supported by
+the backend yet.`). Falhas do compilador C são sanitizadas para não vazar caminhos
+temporários.
 | runtime | `arquivo:linha:col: error[R1xxx]: mensagem` (sem caret) | 70 |
 | arquivo ausente | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |
 

@@ -51,8 +51,9 @@ kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
 - [x] **M7 — GC Boehm**: alocador (`GC_malloc`/atômico), roots, hard cap de 128 MiB e I1
       até 64 MiB de memória viva ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md));
       verificado com o corpus completo e os testes de GC/OOM.
-- [ ] **L7b — Qualidade restante**: `-O2` (passes de IR) e benchmark nativo feitos;
-      falta a revisão das mensagens de erro de codegen.
+- [x] **L7b — Qualidade restante**: `-O2` (passes de IR), benchmark nativo, casos de
+      performance e classificação/formato dos erros de codegen; coluna/caret do backend
+      fica como melhoria opcional.
 - [ ] **JIT no REPL** (`P3`, pendência futura): MCJIT + runtime + estado do REPL; não
       bloqueia o L7b. Desenho próprio antes de codar.
 - [ ] **Kernel v1** (§13): 13.3 → 13.4 → 13.2, depois stdlib.

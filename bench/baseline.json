@@ -1,11 +1,17 @@
 {
-  "gerado_em": "2026-11-10T23:49:50",
+  "gerado_em": "2026-11-14T18:57:09",
   "python": "3.13.13",
   "plataforma": "Linux-7.2.6-76070206-generic-x86_64-with-glibc2.39",
   "cases": {
-    "branchy": 370.79,
-    "loop_sum": 402.2,
-    "nested_loop": 246.48,
-    "string_concat": 191.79
+    "branchy": 504.06,
+    "calls_closures": 517.18,
+    "classes_methods": 473.06,
+    "collections": 248.18,
+    "enum_match": 385.62,
+    "float_math": 612.97,
+    "gc_churn": 115.04,
+    "loop_sum": 537.46,
+    "nested_loop": 339.13,
+    "string_concat": 235.75
   }
 }

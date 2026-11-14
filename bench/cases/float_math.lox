@@ -1,0 +1,9 @@
+# Float/math: aritmética não-inteira e chamadas nativas.
+var x = 0.0
+var i = 0
+while (i < 100000) {
+  x = x + (i as Float) * 0.5
+  x = x / 1.000001
+  i = i + 1
+}
+print x

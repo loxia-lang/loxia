@@ -87,6 +87,7 @@ make check                     # ruff + mypy strict + pytest
 make hooks                     # instala o hook de pre-commit
 make bench                     # benchmarks do interpretador vs baseline
 make bench-native              # benchmarks do binário nativo (speedup vs baseline)
+# resultados e metodologia: bench/README.md
 ```
 
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,

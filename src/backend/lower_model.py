@@ -67,6 +67,8 @@ class BackendError(Exception):
         *,
         code: Code = Code.BACKEND_INTERNAL,
     ) -> None:
+        if code is Code.BACKEND_INTERNAL and not message.startswith("internal "):
+            message = f"internal lowering error: {message}"
         super().__init__(message)
         self.message = message
         self.line = line

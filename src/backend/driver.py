@@ -39,26 +39,34 @@ def build(
     source_path: str = "<lox>",
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
-    module = lower_program(
-        statements,
-        types=types,
-        depths=depths,
-        generic_instances=generic_instances,
-        generic_classes=generic_classes,
-        generic_class_sites=generic_class_sites,
-        source_path=source_path,
-    )
-    _verify(module)
+    try:
+        module = lower_program(
+            statements,
+            types=types,
+            depths=depths,
+            generic_instances=generic_instances,
+            generic_classes=generic_classes,
+            generic_class_sites=generic_class_sites,
+            source_path=source_path,
+        )
+        _verify(module)
 
-    if emit == "ll":
-        text = llvm_ir.emit_text(module)
-        if output is None:
-            sys.stdout.write(text if text.endswith("\n") else f"{text}\n")
-            return None
-        output.write_text(text, encoding="utf-8")
-        return output
+        if emit == "ll":
+            text = llvm_ir.emit_text(module)
+            if output is None:
+                sys.stdout.write(text if text.endswith("\n") else f"{text}\n")
+                return None
+            output.write_text(text, encoding="utf-8")
+            return output
 
-    object_bytes = llvm_ir.emit_object(module)
+        object_bytes = llvm_ir.emit_object(module)
+    except BackendError:
+        raise
+    except Exception as error:
+        raise BackendError(
+            "internal error: LLVM lowering/emission failed: "
+            f"{type(error).__name__}: {error}"
+        ) from error
 
     if emit == "obj":
         target = output or Path(f"{stem}.o")
@@ -66,7 +74,15 @@ def build(
         return target
 
     target = output or Path(stem)
-    _link(object_bytes, target)
+    try:
+        _link(object_bytes, target)
+    except BackendError:
+        raise
+    except Exception as error:
+        raise BackendError(
+            "internal error: native link failed: "
+            f"{type(error).__name__}: {error}"
+        ) from error
     return target
 
 
@@ -102,7 +118,7 @@ def _link(object_bytes: bytes, target: Path) -> None:
                 ]
             )
         except BackendError as error:
-            raise _with_gc_hint(error) from error
+            raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
         try:
             _run(
                 [
@@ -116,7 +132,15 @@ def _link(object_bytes: bytes, target: Path) -> None:
                 ]
             )
         except BackendError as error:
-            raise _with_gc_hint(error) from error
+            raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
+
+
+def _sanitize_compiler_error(error: BackendError, build_dir: Path) -> BackendError:
+    """Remove caminhos temporários/absolutos do stderr do C compiler (I3)."""
+    message = error.message.replace(str(build_dir), "<build>")
+    message = message.replace(str(RUNTIME_SOURCE), "runtime/runtime.c")
+    message = message.replace(str(RUNTIME_SOURCE.parent.parent), "<repo>")
+    return BackendError(message, error.line, code=error.code)
 
 
 def _with_gc_hint(error: BackendError) -> BackendError:
@@ -141,9 +165,17 @@ def _compiler() -> str:
 
 
 def _run(command: list[str]) -> None:
-    process = subprocess.run(command, capture_output=True, text=True, check=False)
+    try:
+        process = subprocess.run(
+            command, capture_output=True, text=True, check=False
+        )
+    except OSError as error:
+        raise BackendError(
+            f"internal error: failed to run {Path(command[0]).name}: {error}"
+        ) from error
     if process.returncode == 0:
         return
 
     detail = process.stderr.strip() or process.stdout.strip()
+    # O detalhe é do compilador; o driver sanitiza os caminhos no chamador.
     raise BackendError(f"{Path(command[0]).name} failed: {detail}")

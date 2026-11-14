@@ -1,0 +1,14 @@
+# List/Map: push, indexação, for-in e len.
+var xs: List[Int] = []
+var m: Map[Int, Int] = {}
+var i = 0
+while (i < 20000) {
+  xs.push(i)
+  m[i] = i * 2
+  i = i + 1
+}
+var total = 0
+for x in xs {
+  total = total + x + m[x]
+}
+print total + len(xs) + len(m)

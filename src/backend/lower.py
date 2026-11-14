@@ -1157,6 +1157,7 @@ class Lowerer(
                 "Returning nil from a non-Nil function is not supported "
                 "by the backend yet.",
                 stmt.keyword.line,
+                code=Code.BACKEND_UNSUPPORTED,
             )
 
         if self._finally_stack:
