@@ -1,5 +1,9 @@
 # ADR-0062 — L6j: exceções, ABI de unwinding e cleanup
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): a classe embutida
+> `LoxRuntimeError` passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico
+> da decisão da época.
+
 - **Status:** accepted
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)

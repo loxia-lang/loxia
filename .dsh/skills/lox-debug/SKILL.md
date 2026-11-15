@@ -1,7 +1,7 @@
 ---
 name: lox-debug
 description: Triagem de falhas no interpretador — isolar caso mínimo, inspecionar tokens e AST, localizar a camada culpada e fechar com teste de regressão.
-whenToUse: Quando um script .lox falha, um caso da suíte quebra ou o comportamento diverge do esperado.
+whenToUse: Quando um script .lx falha, um caso da suíte quebra ou o comportamento diverge do esperado.
 ---
 
 # Depurar um bug
@@ -10,7 +10,7 @@ whenToUse: Quando um script .lox falha, um caso da suíte quebra ou o comportame
 
 ```bash
 uv run python -m tests.runner <filtro>   # ex.: undefined, block, for
-uv run main.py caminho/caso.lox           # veja stdout/stderr reais
+uv run main.py caminho/caso.lx           # veja stdout/stderr reais
 ```
 
 Se não houver caso, **reduza** o script até o mínimo que ainda falha (uma linha é

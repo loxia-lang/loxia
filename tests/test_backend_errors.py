@@ -33,14 +33,14 @@ def test_interno_ganha_contexto_e_codigo_e4002() -> None:
 
 def test_render_backend_short_sem_caret() -> None:
     reporter = ErrorReporter()
-    reporter.file = "caso.lox"
+    reporter.file = "caso.lx"
     reporter.backend_error(7, "Feature X is not supported.", code=Code.BACKEND_UNSUPPORTED)
 
     text = render_batch(
         reporter.batch(), SourceMap(), error_format="human", color=False
     )
 
-    assert text == "caso.lox:7: error[E4001]: Feature X is not supported.\n"
+    assert text == "caso.lx:7: error[E4001]: Feature X is not supported.\n"
     assert "^" not in text
 
 

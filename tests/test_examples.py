@@ -10,7 +10,7 @@ ENTRYPOINT = ROOT / "main.py"
 
 
 def test_examples_run_without_errors() -> None:
-    paths = sorted(EXAMPLES.glob("*.lox"))
+    paths = sorted(EXAMPLES.glob("*.lx"))
 
     assert len(paths) >= 5
 

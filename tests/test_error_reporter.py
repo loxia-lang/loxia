@@ -47,7 +47,7 @@ def test_has_error_aggregates_both_flags() -> None:
 
 def test_runtime_error_is_collected_with_span_and_default_code() -> None:
     reporter = ErrorReporter()
-    reporter.file = "exemplo.lox"
+    reporter.file = "exemplo.lx"
     token = Token(TokenType.IDENTIFIER, "x", None, 3, 7, 20)
 
     reporter.runtime_error(LoxRuntimeError(token, "boom"))
@@ -59,7 +59,7 @@ def test_runtime_error_is_collected_with_span_and_default_code() -> None:
     assert diagnostic.code is Code.RUNTIME_ERROR
     assert diagnostic.message == "boom"
     assert diagnostic.span is not None
-    assert diagnostic.span.file == "exemplo.lox"
+    assert diagnostic.span.file == "exemplo.lx"
     assert diagnostic.span.start.line == 3
     assert diagnostic.span.start.column == 7
     assert diagnostic.span.start.offset == 20
@@ -72,7 +72,7 @@ def test_error_at_builds_lexer_span() -> None:
     from src.diagnostics.diagnostic import Position
 
     reporter = ErrorReporter()
-    reporter.file = "a.lox"
+    reporter.file = "a.lx"
 
     reporter.error_at(
         Position(1, 3, 2),
@@ -163,12 +163,12 @@ def test_mark_and_restore_discard_speculative_diagnostics() -> None:
 @pytest.mark.parametrize("line", [1, 42])
 def test_backend_error_uses_current_file(line: int) -> None:
     reporter = ErrorReporter()
-    reporter.file = "prog.lox"
+    reporter.file = "prog.lx"
 
     reporter.backend_error(line, "not supported")
 
     diagnostic = reporter.batch().diagnostics[0]
     assert diagnostic.phase.value == "backend"
     assert diagnostic.span is not None
-    assert diagnostic.span.file == "prog.lox"
+    assert diagnostic.span.file == "prog.lx"
     assert diagnostic.span.start.line == line

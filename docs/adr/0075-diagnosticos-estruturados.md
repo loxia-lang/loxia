@@ -12,7 +12,7 @@
   [`src/frontend/tokens.py`](../../src/frontend/tokens.py),
   [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
   [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-  [`lox/cli.py`](../../lox/cli.py), [`runtime/runtime.c`](../../runtime/runtime.c),
+  [`loxia/cli.py`](../../loxia/cli.py), [`runtime/runtime.c`](../../runtime/runtime.c),
   [`tests/test_diagnostics.py`](../../tests/test_diagnostics.py),
   [`tests/test_determinism.py`](../../tests/test_determinism.py)
 

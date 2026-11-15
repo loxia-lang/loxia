@@ -8,7 +8,7 @@
 - **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
   [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),
   [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
-  [`tests/cases/interpolation.lox`](../../tests/cases/interpolation.lox)
+  [`tests/cases/interpolation.lox`](../../tests/cases/interpolation.lx)
 
 ## Contexto
 
@@ -96,7 +96,7 @@ dependência de hash, locale ou endereço; o resultado é determinístico.
 
 ## Como verificar
 
-- Golden [`tests/cases/interpolation.lox`](../../tests/cases/interpolation.lox): texto,
+- Golden [`tests/cases/interpolation.lox`](../../tests/cases/interpolation.lx): texto,
   expressões, mapa/lista, `nil`, `bool`, escape, `$` literal, aninhamento e índice.
 - Erros: `tests/cases/errors/interpolation_*.lox` (interpolação vazia, não terminada,
   variável indefinida).

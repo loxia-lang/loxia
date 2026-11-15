@@ -212,13 +212,13 @@ O tree-walk é a spec; o codegen futuro precisa reproduzir:
 
 ## Como verificar
 
-- Golden cases: [`tests/cases/list_literal.lox`](../../tests/cases/list_literal.lox),
-  [`list_index.lox`](../../tests/cases/list_index.lox),
-  [`list_methods.lox`](../../tests/cases/list_methods.lox),
-  [`list_iteration.lox`](../../tests/cases/list_iteration.lox),
-  [`list_equality.lox`](../../tests/cases/list_equality.lox),
-  [`list_stringify.lox`](../../tests/cases/list_stringify.lox),
-  [`list_cycle.lox`](../../tests/cases/list_cycle.lox) e os erros em
+- Golden cases: [`tests/cases/list_literal.lox`](../../tests/cases/list_literal.lx),
+  [`list_index.lox`](../../tests/cases/list_index.lx),
+  [`list_methods.lox`](../../tests/cases/list_methods.lx),
+  [`list_iteration.lox`](../../tests/cases/list_iteration.lx),
+  [`list_equality.lox`](../../tests/cases/list_equality.lx),
+  [`list_stringify.lox`](../../tests/cases/list_stringify.lx),
+  [`list_cycle.lox`](../../tests/cases/list_cycle.lx) e os erros em
   [`tests/cases/errors/list_*.lox`](../../tests/cases/errors).
 - Checker: [`tests/test_checker.py`](../../tests/test_checker.py) cobre invariância,
   literal misto, `[]` sem contexto, `push`/index com tipo errado e `len`.

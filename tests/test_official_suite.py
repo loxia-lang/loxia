@@ -1,6 +1,6 @@
 """Roda a suíte oficial do Crafting Interpreters (caps. 10-13) adaptada.
 
-Os `.lox` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:
+Os `.lx` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:
 - `fun` → `fn` e comentários `//` → `#`;
 - campos atribuídos via `this.x =` são declarados como `var x = nil` (ADR-0009);
 - `clock` (removido da 1.0, ADR-0026) é trocado por `len`, que também imprime
@@ -35,13 +35,13 @@ THIS_FIELD_RE = re.compile(r"\bthis\.(\w+)\s*=")
 DECLARED_RE = re.compile(r"\b(?:var|val)\s+(\w+)")
 
 DYNAMIC_FIELD_TESTS = {
-    "field/call_function_field.lox",
-    "field/call_nonfunction_field.lox",
-    "field/get_and_set_method.lox",
-    "field/many.lox",
-    "field/method_binds_this.lox",
-    "field/on_instance.lox",
-    "field/set_evaluation_order.lox",
+    "field/call_function_field.lx",
+    "field/call_nonfunction_field.lx",
+    "field/get_and_set_method.lx",
+    "field/many.lx",
+    "field/method_binds_this.lx",
+    "field/on_instance.lx",
+    "field/set_evaluation_order.lx",
 }
 
 
@@ -228,7 +228,7 @@ def _marks_for(path: Path, source: str) -> list[pytest.MarkDecorator]:
 def _cases() -> list[pytest.ParameterSet]:
     cases: list[pytest.ParameterSet] = []
 
-    for path in sorted(CASES.rglob("*.lox")):
+    for path in sorted(CASES.rglob("*.lx")):
         source = path.read_text(encoding="utf-8")
         if NONTEST_RE.search(source):
             continue
@@ -252,7 +252,7 @@ def _execute(path: Path) -> subprocess.CompletedProcess[str]:
     adapted = adapt_source(source)
 
     with tempfile.NamedTemporaryFile(
-        "w", suffix=".lox", encoding="utf-8", delete=False
+        "w", suffix=".lx", encoding="utf-8", delete=False
     ) as file:
         file.write(adapted)
         temporary = Path(file.name)

@@ -218,7 +218,7 @@ class ClassLayout:
     vtable_size: int = 0
     ctor: Any = None
     instance_type: Any = None
-    # `Exception`/`LoxRuntimeError`: ctor sintético de 1 argumento (`message`),
+    # `Exception`/`RuntimeError`: ctor sintético de 1 argumento (`message`),
     # sem `init` no AST. Ver `_ctor_body`/`_call_class`.
     synthetic_exception: bool = False
 

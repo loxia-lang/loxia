@@ -128,8 +128,8 @@ ficam **fora** da 1.0/I3 ([ADR-0029](../adr/0029-conversoes-math.md)). `--debug`
 comportamento de overflow por design; a garantia vale para as mesmas flags.
 
 ```bash
-./lox programa.lox > a.txt 2>&1   # duas vezes, em máquinas/flags diferentes
-./lox programa.lox > b.txt 2>&1
+./lox programa.lx > a.txt 2>&1   # duas vezes, em máquinas/flags diferentes
+./lox programa.lx > b.txt 2>&1
 cmp a.txt b.txt                   # idênticos
 ```
 
@@ -152,8 +152,8 @@ Qualquer outro erro depois de um check limpo é violação do I4. O checker é a
 verdade** dos tipos; o backend consome os tipos publicados e não inventa regra própria.
 
 ```bash
-uv run main.py --check prog.lox      # exit 0 …
-uv run main.py --emit=exe prog.lox   # … então isto compila (ou recusa só "not supported")
+uv run main.py --check prog.lx      # exit 0 …
+uv run main.py --emit=exe prog.lx   # … então isto compila (ou recusa só "not supported")
 ```
 
 É o corolário operacional do I1: sem ele, o mesmo programa poderia dar `2` no

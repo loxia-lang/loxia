@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, eq=False)
 class LoxExceptionValue:
-    """Instância de uma exceção embutida (`Exception`/`LoxRuntimeError`)."""
+    """Instância de uma exceção embutida (`Exception`/`RuntimeError`)."""
 
     type_name: str
     message: str

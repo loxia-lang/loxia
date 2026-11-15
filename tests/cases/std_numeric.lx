@@ -28,12 +28,12 @@ print numeric.fromBase("-1010", 2)
 print numeric.fromBase("z", 10)
 try {
   numeric.factorial(-1)
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print "negativo"
 }
 try {
   numeric.toBase(10, 1)
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print "base"
 }
 # expect: 6

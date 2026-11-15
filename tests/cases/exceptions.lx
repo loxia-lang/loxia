@@ -13,12 +13,12 @@ try {
 
 try {
   print 1 / 0
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print "runtime"
 }
 
 try { raise MyError("x") }
-except LoxRuntimeError as e { print "errado" }
+except RuntimeError as e { print "errado" }
 except Exception as e { print "generico" }
 
 fn f() -> Int {

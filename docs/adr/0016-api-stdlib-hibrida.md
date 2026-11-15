@@ -10,8 +10,8 @@
   [`src/execution/natives/str.py`](../../src/execution/natives/str.py),
   [`src/execution/natives/repr.py`](../../src/execution/natives/repr.py),
   [`src/semantics/checker.py`](../../src/semantics/checker.py), [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-  [`tests/cases/str_repr.lox`](../../tests/cases/str_repr.lox),
-  [`tests/cases/builtin_shadow_local.lox`](../../tests/cases/builtin_shadow_local.lox)
+  [`tests/cases/str_repr.lox`](../../tests/cases/str_repr.lx),
+  [`tests/cases/builtin_shadow_local.lox`](../../tests/cases/builtin_shadow_local.lx)
 
 > **Atualização (ADR-0026, 2026-11-12):** `clock` saiu do prelúdio da 1.0. Onde este ADR
 > o lista como builtin reservado, vale o [ADR-0026](0026-freeze-1.0.md): o prelúdio é
@@ -192,9 +192,9 @@ tomada junto com módulos/`Option`/`Result` e a sintaxe de cast (`D-8` no
 ## Como verificar
 
 - Golden cases:
-  [`tests/cases/str_repr.lox`](../../tests/cases/str_repr.lox) e
-  [`tests/cases/builtin_shadow_local.lox`](../../tests/cases/builtin_shadow_local.lox);
-  erro em [`tests/cases/errors/builtin_redeclare.lox`](../../tests/cases/errors/builtin_redeclare.lox).
+  [`tests/cases/str_repr.lox`](../../tests/cases/str_repr.lx) e
+  [`tests/cases/builtin_shadow_local.lox`](../../tests/cases/builtin_shadow_local.lx);
+  erro em [`tests/cases/errors/builtin_redeclare.lox`](../../tests/cases/errors/builtin_redeclare.lx).
 - Checker: [`tests/test_checker.py`](../../tests/test_checker.py) cobre `str`/`repr` como
   `String`, aridade e `Can't redefine builtin 'x'.` no global, além de shadowing local
   limpo.

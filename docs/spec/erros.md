@@ -6,7 +6,7 @@ sources:
   - src/frontend/parser.py
   - src/semantics/resolver.py
   - src/semantics/checker.py
-  - lox/cli.py
+  - loxia/cli.py
   - tests/test_diagnostics.py
 ---
 
@@ -22,7 +22,7 @@ Todo diagnóstico de compilação tem um **código estável** (`error[E3001]`), 
 formato `human`, um trecho da fonte com caret:
 
 ```
-exemplo.lox:3:7: error[E2001]: Already a variable with this name in this scope.
+exemplo.lx:3:7: error[E2001]: Already a variable with this name in this scope.
   |
 3 |   var a = 2;
   |       ^
@@ -54,7 +54,7 @@ temporários.
   listar vários erros; eles saem ordenados por `(arquivo, offset, código)` e sem duplicatas.
 - Runtime: para no **primeiro** erro não capturado. Sem `try`, o erro é **fatal**
   (exit 70) e o que já foi impresso permanece ([ADR-0026](../adr/0026-freeze-1.0.md)).
-  Dentro de `try`, o erro vira `LoxRuntimeError` capturável e `except ... as e` expõe
+  Dentro de `try`, o erro vira `RuntimeError` capturável e `except ... as e` expõe
   `e.message` ([ADR-0042](../adr/0042-excecoes.md)); `Result` é a alternativa explícita
   para erros esperados ([ADR-0041](../adr/0041-enums-match.md)). O runtime usa o
   **mesmo cabeçalho** da compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret — o
@@ -84,7 +84,7 @@ diagnósticos cortados por `--max-errors`.
       "severity": "error",
       "message": "Already a variable with this name in this scope.",
       "span": {
-        "file": "exemplo.lox",
+        "file": "exemplo.lx",
         "start": { "line": 3, "column": 7, "offset": 24 },
         "end": { "line": 3, "column": 8, "offset": 25 }
       },

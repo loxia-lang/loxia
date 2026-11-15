@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from lox.cli import Lox
+from loxia.cli import Loxia
 from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
 
 MANIFEST_CASES = [
@@ -56,7 +56,7 @@ def _run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _write(tmp_path: Path, source: str, name: str = "caso.lox") -> Path:
+def _write(tmp_path: Path, source: str, name: str = "caso.lx") -> Path:
     path = tmp_path / name
     path.write_text(source, encoding="utf-8")
     return path
@@ -233,7 +233,7 @@ CASES = [
         "Any as Int com tag errada vira panic R1011",
     ),
     (
-        'raise LoxRuntimeError("boom");',
+        'raise RuntimeError("boom");',
         "raise na classe de exceção sintética com mensagem",
     ),
     (
@@ -374,7 +374,7 @@ CASES_DIR = ROOT / "tests" / "cases"
 
 def _corpus_paths() -> set[str]:
     return {
-        path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lox")
+        path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lx")
     }
 
 
@@ -580,8 +580,8 @@ def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
 
 def _checkable_sources() -> list[tuple[str, str]]:
     """Casos do corpus que podem passar no `--check` (sem `errors/`)."""
-    paths = sorted(CASES_DIR.glob("*.lox")) + sorted(
-        (ROOT / "exemplos").glob("*.lox")
+    paths = sorted(CASES_DIR.glob("*.lx")) + sorted(
+        (ROOT / "exemplos").glob("*.lx")
     )
     return [
         (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
@@ -623,14 +623,14 @@ def test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering(
     problems: list[str] = []
 
     for index, (name, source) in enumerate(_checkable_sources()):
-        probe = Lox()
+        probe = Loxia()
         probe.check(source)
         capsys.readouterr()
         if probe.reporter.had_error:
             continue  # erro de check: fora do escopo do I4
 
         output = tmp_path / f"case_{index}.ll"
-        lox = Lox()
+        lox = Loxia()
         built = lox.build(source, emit="ll", output=output, stem=f"case_{index}")
         reported = capsys.readouterr().err
 
@@ -913,7 +913,7 @@ def test_kernel_args_nativo(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_modulos_nativos(tmp_path: Path) -> None:
-    (tmp_path / "lib.lox").write_text(
+    (tmp_path / "lib.lx").write_text(
         'fn dobro(x: Int) -> Int { return x * 2 }\n'
         'fn _privado() -> Int { return 1 }\n',
         encoding="utf-8",

@@ -23,8 +23,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from lox import __version__
-from lox.cli import build_parser
+from loxia import __version__
+from loxia.cli import build_parser
 from src.frontend.keywords import KEYWORDS
 from tests.corpus_manifest import PENDING
 
@@ -38,7 +38,7 @@ ADR_FILE = re.compile(r"^(\d{4})-[a-z0-9.-]+\.md$")
 ADR_TITLE = re.compile(r"^# ADR-(\d{4})\b", re.MULTILINE)
 ADR_ROW = re.compile(r"\[(\d{4})\]\(([^)]+)\)")
 
-# Módulos/scripts de ferramentas que documentam comandos que não são do CLI do Lox.
+# Módulos/scripts de ferramentas que documentam comandos que não são do CLI do Loxia.
 NON_CLI_FLAGS = {
     "--all",
     "--extra",
@@ -182,7 +182,7 @@ def test_flags_do_cli_estao_documentadas_no_readme() -> None:
 def test_versao_do_readme_bate_com_o_pacote() -> None:
     first_line = README.read_text(encoding="utf-8").splitlines()[0]
 
-    assert first_line == f"# PyLox {__version__}", (
+    assert first_line == f"# Loxia {__version__}", (
         f"README diz {first_line!r}, pacote é {__version__}"
     )
 

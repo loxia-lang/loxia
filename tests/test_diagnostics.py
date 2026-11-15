@@ -24,7 +24,7 @@ from src.diagnostics.source import SourceMap, display_path, display_text, displa
 
 def _span(
     *,
-    file: str = "x.lox",
+    file: str = "x.lx",
     line: int = 1,
     column: int = 1,
     end_line: int | None = None,
@@ -63,20 +63,20 @@ def _diagnostic(
 
 
 def test_display_path_is_relative_to_cwd(tmp_path: Path) -> None:
-    script = tmp_path / "sub" / "a.lox"
+    script = tmp_path / "sub" / "a.lx"
 
-    assert display_path(script, cwd=tmp_path) == "sub/a.lox"
+    assert display_path(script, cwd=tmp_path) == "sub/a.lx"
 
 
 def test_display_path_outside_cwd_is_basename_only(tmp_path: Path) -> None:
     outside = Path("/tmp") if not str(tmp_path).startswith("/tmp") else Path("/var")
-    script = outside / "fora.lox"
+    script = outside / "fora.lx"
 
-    assert display_path(script, cwd=tmp_path) == "fora.lox"
+    assert display_path(script, cwd=tmp_path) == "fora.lx"
 
 
 def test_display_path_never_returns_absolute(tmp_path: Path) -> None:
-    for path in (tmp_path / "a.lox", tmp_path / "x" / "b.lox", Path("/etc/c.lox")):
+    for path in (tmp_path / "a.lx", tmp_path / "x" / "b.lx", Path("/etc/c.lx")):
         assert not display_path(path, cwd=tmp_path).startswith("/")
 
 
@@ -101,7 +101,7 @@ def test_display_width_counts_wide_and_combining() -> None:
 
 def test_render_human_has_header_and_caret() -> None:
     sources = SourceMap()
-    sources.add("x.lox", "print 1;\nprint 2;\n  val x = nome\n")
+    sources.add("x.lx", "print 1;\nprint 2;\n  val x = nome\n")
     diagnostic = _diagnostic(
         code=Code.TYPE_MISMATCH,
         message="Expected Float, found String.",
@@ -111,7 +111,7 @@ def test_render_human_has_header_and_caret() -> None:
     text = render_human(diagnostic, sources)
 
     assert text == (
-        "x.lox:3:11: error[E3001]: Expected Float, found String.\n"
+        "x.lx:3:11: error[E3001]: Expected Float, found String.\n"
         "  |\n"
         "3 |   val x = nome\n"
         "  |           ^^^^\n"
@@ -120,9 +120,9 @@ def test_render_human_has_header_and_caret() -> None:
 
 def test_render_human_aligns_caret_with_tabs() -> None:
     sources = SourceMap()
-    sources.add("tab.lox", "\tval x = nome\n")
+    sources.add("tab.lx", "\tval x = nome\n")
     diagnostic = _diagnostic(
-        span=_span(file="tab.lox", line=1, column=10, end_column=14)
+        span=_span(file="tab.lx", line=1, column=10, end_column=14)
     )
 
     text = render_human(diagnostic, sources)
@@ -133,9 +133,9 @@ def test_render_human_aligns_caret_with_tabs() -> None:
 
 def test_render_human_counts_wide_characters() -> None:
     sources = SourceMap()
-    sources.add("wide.lox", "print 名前;\n")
+    sources.add("wide.lx", "print 名前;\n")
     diagnostic = _diagnostic(
-        span=_span(file="wide.lox", line=1, column=7, end_column=9)
+        span=_span(file="wide.lx", line=1, column=7, end_column=9)
     )
 
     text = render_human(diagnostic, sources)
@@ -147,19 +147,19 @@ def test_render_human_without_source_degrades_to_header() -> None:
     diagnostic = _diagnostic(span=_span(line=2, column=3))
 
     assert render_human(diagnostic, SourceMap()) == (
-        "x.lox:2:3: error[E3000]: boom\n"
+        "x.lx:2:3: error[E3000]: boom\n"
     )
 
 
 def test_render_human_without_column_omits_location_suffix() -> None:
-    diagnostic = _diagnostic(span=Span("x.lox", Position(4), Position(4)))
+    diagnostic = _diagnostic(span=Span("x.lx", Position(4), Position(4)))
 
-    assert render_human(diagnostic, SourceMap()) == "x.lox:4: error[E3000]: boom\n"
+    assert render_human(diagnostic, SourceMap()) == "x.lx:4: error[E3000]: boom\n"
 
 
 def test_render_human_colorizes_label_and_caret() -> None:
     sources = SourceMap()
-    sources.add("x.lox", "nome\n")
+    sources.add("x.lx", "nome\n")
     diagnostic = _diagnostic(span=_span(line=1, column=1, end_column=5))
 
     text = render_human(diagnostic, sources, color=True)
@@ -172,7 +172,7 @@ def test_render_human_colorizes_label_and_caret() -> None:
 def test_render_short_is_one_line() -> None:
     diagnostic = _diagnostic(span=_span(line=2, column=3))
 
-    assert render_short(diagnostic) == "x.lox:2:3: error[E3000]: boom\n"
+    assert render_short(diagnostic) == "x.lx:2:3: error[E3000]: boom\n"
 
 
 def test_render_short_without_span() -> None:
@@ -191,7 +191,7 @@ def test_render_runtime_uses_header() -> None:
     )
 
     assert render_runtime(diagnostic) == (
-        "x.lox:2:9: error[R1002]: Division by zero not allowed\n"
+        "x.lx:2:9: error[R1002]: Division by zero not allowed\n"
     )
 
 
@@ -206,7 +206,7 @@ def test_render_batch_human_uses_runtime_header() -> None:
 
     text = render_batch(batch, SourceMap(), error_format="human", color=False)
 
-    assert text == "x.lox:2:9: error[R1002]: Division by zero not allowed\n"
+    assert text == "x.lx:2:9: error[R1002]: Division by zero not allowed\n"
 
 
 def test_render_batch_short_always_uses_header() -> None:
@@ -220,7 +220,7 @@ def test_render_batch_short_always_uses_header() -> None:
 
     text = render_batch(batch, SourceMap(), error_format="short", color=False)
 
-    assert text == "x.lox:2:9: error[R1002]: Division by zero not allowed\n"
+    assert text == "x.lx:2:9: error[R1002]: Division by zero not allowed\n"
 
 
 # -- json -----------------------------------------------------------------
@@ -249,7 +249,7 @@ def test_render_json_envelope_is_deterministic_and_complete() -> None:
     assert entry["phase"] == "checker"
     assert entry["severity"] == "error"
     assert entry["message"] == "Expected Float, found String."
-    assert entry["span"]["file"] == "x.lox"
+    assert entry["span"]["file"] == "x.lx"
     assert entry["span"]["start"] == {"line": 3, "column": 11, "offset": 41}
     assert entry["span"]["end"] == {"line": 3, "column": 15, "offset": 45}
     assert entry["labels"] == []

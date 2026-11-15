@@ -14,7 +14,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
    LLVM reproduz (ou tem plano verificável), a ausência dói de verdade e existe teste que
    a policia. Feature bonita que só compra superfície = dívida paga pelo codegen.
 3. Escolha **um** comportamento observável e escreva o caso antes do código:
-   `tests/cases/<nome>.lox` com `# expect: ...` (ver skill `lox-testing`).
+   `tests/cases/<nome>.lx` com `# expect: ...` (ver skill `lox-testing`).
 4. Feature que muda gramática → registrar em `TODO.md` §1. Escolha de rumo da
    linguagem → registrar em `TODO.md` §11 **antes** de implementar.
 5. Nunca implemente um capítulo futuro do livro "de passagem" (ex.: funções antes do
@@ -44,9 +44,16 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
   caminho absoluto ou ordem de `set`/`dict`. `tests/test_determinism.py` policia.
 - `nil` é `None` — nunca use sentinela própria.
 - Truthiness: só `nil` e `false` são falsos.
+- Nome embutido novo (prelúdio, checker, backend) **não** leva a marca da linguagem:
+  `RuntimeError`, não `LoxiaError` ([ADR-0078](../../../docs/adr/0078-nome-loxia-extensao-lx.md)).
+  Ao adicionar um nome, atualize os três pontos: `src/execution/prelude.py`
+  (`BUILTIN_NAMES`), `src/semantics/checker.py` (classe pré-declarada) e o lowering.
 - Stringify vem de `src/execution/values.py::stringify`; não duplique formatação.
 - Erro de sintaxe → `self.reporter.error(...)` + `ParseError`; erro de runtime →
-  `raise LoxRuntimeError(token, msg)`. O reporter vem por injeção.
+  `raise LoxRuntimeError(token, msg)`. **Atenção às camadas** (ADR-0078): essa é a classe
+  **Python** interna; na linguagem ela aparece como `RuntimeError`. Não troque o `raise`
+  para `RuntimeError` — isso levantaria o builtin do Python e furaria o contrato.
+  O reporter vem por injeção.
 - Imports sempre `from src.x import Y` (nunca `from x import Y`).
 - O `ErrorReporter` é por execução (nunca volte a criar estado de classe).
 

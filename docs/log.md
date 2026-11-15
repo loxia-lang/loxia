@@ -306,3 +306,24 @@ Intervalo: `HEAD..HEAD` (decisão de profundidade de chamadas; código não impl
   decisões fechadas.
 - `docs/spec/erros.md`, `docs/spec/lexico.md` — **no-change**: sem mudança de
   comportamento, código de erro ou léxico nesta rodada.
+
+## 2026-11-15 — Loxia/`.lx` e `RuntimeError` (ADR-0078)
+
+Intervalo: `HEAD..HEAD` (renomeação de pacote, extensão e classe embutida; sem mudança de
+semântica).
+
+- `docs/adr/0078-nome-loxia-extensao-lx.md` — **novo** (accepted): nome, extensão, camadas
+  de nomenclatura e a alternativa `LoxiaError` rejeitada.
+- `docs/adr/README.md` — **updated**: linha 0078 no índice.
+- `docs/decisoes.md` — **updated**: linha de Exceções com `RuntimeError` + nova linha
+  "Nome e extensão".
+- `docs/spec/semantica.md`, `docs/spec/erros.md` — **updated**: `RuntimeError` no lugar de
+  `LoxRuntimeError` (nomes de classe embutida; nenhum comportamento mudou).
+- `docs/tech/arquitetura.md` — **updated**: links para `loxia/`, `Loxia.run` e o nome
+  embutido; a classe Python `LoxRuntimeError` continua documentada como interna.
+- `README.md`, `TODO.md`, `CHANGELOG.md` — **updated**: título, comandos, extensão e item
+  §11 de nome/extensão fechado.
+- `docs/adr/0003`, `0042`, `0062`, `0072`, `0077`, `0014`, `0026` — **updated** (só
+  cabeçalho): nota "atualizado por ADR-0078"; corpo histórico preservado.
+- `docs/spec/lexico.md`, `sintaxe.md`, `garantias.md` — **no-change**: renomear a extensão
+  e a classe embutida não altera léxico, gramática nem as garantias I1–I4.

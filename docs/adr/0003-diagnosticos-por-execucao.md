@@ -1,5 +1,9 @@
 # ADR-0003 — Diagnósticos por execução, sem estado global
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): a classe embutida
+> `LoxRuntimeError` passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico
+> da decisão da época.
+
 - **Status:** accepted
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../IDEIAS.md`](../../IDEIAS.md) I-4, [ADR-0075](0075-diagnosticos-estruturados.md)

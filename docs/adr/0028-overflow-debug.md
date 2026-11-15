@@ -9,7 +9,7 @@
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/erros.md`](../spec/erros.md)
 - **Implementação:** [`src/execution/numeric.py`](../../src/execution/numeric.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`lox/cli.py`](../../lox/cli.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`loxia/cli.py`](../../loxia/cli.py),
   [`tests/test_numeric.py`](../../tests/test_numeric.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py),
   [`tests/test_cli.py`](../../tests/test_cli.py)

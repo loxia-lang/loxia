@@ -1,8 +1,8 @@
-# PyLox 1.0.0
+# Loxia 1.0.0
 
-Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Interpreters*
-(Parte II — jlox), com o objetivo de evoluir para uma linguagem própria e um backend
-**LLVM**.
+**Loxia** é um dialeto de **Lox**: interpretador tree-walk em Python, nascido em
+*Crafting Interpreters* (Parte II — jlox) e evoluído para linguagem própria, com backend
+**LLVM** opcional.
 
 - ✅ Parte II concluída: scanner, parser, resolver, funções/closures, classes e herança.
 - ✅ Sintaxe própria: `fn`, `elif`, `;` opcional, `val`/`var`, campos declarados e `--check`.
@@ -26,7 +26,7 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   ([ADR-0028](docs/adr/0028-overflow-debug.md)).
 - ✅ Checker valida retorno em todos os caminhos, inicialização de campos e override
   compatível.
-- 🧪 Suíte pytest com golden cases `.lox`, testes unitários e benchmarks com baseline.
+- 🧪 Suíte pytest com golden cases `.lx`, testes unitários e benchmarks com baseline.
 - 🌍 Suíte oficial do Crafting Interpreters (caps. 10–13) adaptada em `tests/official/`.
 - 🏷️ **Versão 1.0.0**: release local da linguagem no tree-walk; backend nativo é
   pós-1.0. Ver [`CHANGELOG.md`](CHANGELOG.md).
@@ -73,17 +73,17 @@ nada disso.
 
 ```bash
 uv run main.py                 # REPL (Ctrl+C/Ctrl+D para sair)
-uv run main.py programa.lox    # executa um arquivo
-uv run python -m lox           # mesma coisa, via pacote
-uv run main.py --version       # pylox 1.0.0
-uv run main.py --dump-ast prog.lox   # imprime a AST (S-expression), não executa
-uv run main.py --check prog.lox      # checa os tipos, não executa
-uv run main.py --debug prog.lox      # checa overflow de Int em runtime (release faz wrap)
+uv run main.py programa.lx    # executa um arquivo
+uv run python -m loxia           # mesma coisa, via pacote
+uv run main.py --version       # loxia 1.0.0
+uv run main.py --dump-ast prog.lx   # imprime a AST (S-expression), não executa
+uv run main.py --check prog.lx      # checa os tipos, não executa
+uv run main.py --debug prog.lx      # checa overflow de Int em runtime (release faz wrap)
 uv sync --extra llvm                 # habilita o backend nativo (llvmlite)
-uv run main.py --emit=ll prog.lox    # IR do LLVM (inspeção)
-uv run main.py --emit=obj prog.lox   # .o para linkar
-uv run main.py --emit=exe -o app prog.lox   # binário nativo
-uv run main.py --emit=ll --output prog.ll prog.lox  # IR em arquivo (--output)
+uv run main.py --emit=ll prog.lx    # IR do LLVM (inspeção)
+uv run main.py --emit=obj prog.lx   # .o para linkar
+uv run main.py --emit=exe -o app prog.lx   # binário nativo
+uv run main.py --emit=ll --output prog.ll prog.lx  # IR em arquivo (--output)
 make test                      # pytest
 make check                     # ruff + mypy strict + pytest
 make hooks                     # instala o hook de pre-commit
@@ -105,11 +105,11 @@ fixa, sem timestamp/endereço) e os códigos são estáveis — catálogo em
 [`docs/spec/erros.md`](docs/spec/erros.md).
 
 ```bash
-uv run main.py --check --error-format=short prog.lox  # uma linha por diagnóstico
-uv run main.py --check --error-format=json prog.lox   # envelope JSON v1 (stdout)
-uv run main.py --error-format=json prog.lox           # diagnósticos JSON (stderr)
-uv run main.py --color=never prog.lox                 # sem ANSI (também respeita NO_COLOR)
-uv run main.py --max-errors=5 prog.lox                # limita (0 = sem limite)
+uv run main.py --check --error-format=short prog.lx  # uma linha por diagnóstico
+uv run main.py --check --error-format=json prog.lx   # envelope JSON v1 (stdout)
+uv run main.py --error-format=json prog.lx           # diagnósticos JSON (stderr)
+uv run main.py --color=never prog.lx                 # sem ANSI (também respeita NO_COLOR)
+uv run main.py --max-errors=5 prog.lx                # limita (0 = sem limite)
 ```
 
 `--error-format=human` (padrão) mostra o trecho; `short` é o cabeçalho; `json` traz
@@ -206,8 +206,8 @@ if (not pessoa?.nome) print "sem nome"   # `not` no lugar de `!`
 ## Estrutura
 
 ```
-main.py          entrypoint compatível (delega para lox/cli.py)
-lox/             pacote do CLI: `python -m lox`, --version, --dump-ast
+main.py          entrypoint compatível (delega para loxia/cli.py)
+loxia/           pacote do CLI: `python -m loxia`, --version, --dump-ast
 src/             núcleo em pacotes por fase
 src/frontend/    lexing, AST, parser, tipos de anotação e ast_printer
 src/semantics/   resolver de escopos e checker gradual
@@ -216,7 +216,7 @@ src/diagnostics/ erros e ErrorReporter
 src/backend/     backend LLVM (llvm_ir isolando a lib, lowering, driver de build)
 runtime/         runtime C do código gerado (print, panic, casos de borda de // e %)
 exemplos/        programas de exemplo (fib, fizzbuzz, closures, classes, primos, quicksort)
-tests/           pytest + golden cases (.lox)
+tests/           pytest + golden cases (.lx)
 tests/official/  suíte oficial do livro (caps. 10–13), adaptada
 bench/           harness de performance e baseline
 docs/            especificação, arquitetura e ADRs

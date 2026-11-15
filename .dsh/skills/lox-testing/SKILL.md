@@ -1,6 +1,6 @@
 ---
 name: lox-testing
-description: Como escrever, rodar e organizar testes neste repositório — casos golden .lox com expectativas, exit codes do CLI e testes unitários em pytest.
+description: Como escrever, rodar e organizar testes neste repositório — casos golden .lx com expectativas, exit codes do CLI e testes unitários em pytest.
 whenToUse: Ao adicionar um teste, fazer a suíte passar, investigar uma falha ou transformar um bug em caso de regressão.
 ---
 
@@ -15,9 +15,9 @@ make case                          # runner golden sem pytest
 uv run python -m tests.runner for  # um caso (filtro por substring)
 ```
 
-## Caso golden (`tests/cases/*.lox`)
+## Caso golden (`tests/cases/*.lx`)
 
-O próprio `.lox` carrega a expectativa em comentário:
+O próprio `.lx` carrega a expectativa em comentário:
 
 ```lox
 print 1 + 2;                          # expect: 3

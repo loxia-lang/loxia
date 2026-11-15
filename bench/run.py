@@ -6,7 +6,7 @@ Uso:
     uv run python bench/run.py --repeat 7 --tolerance 1.25
     uv run python bench/run.py --json
 
-Por que medir o processo inteiro: o alvo é o CLI real (`main.py script.lox`), então
+Por que medir o processo inteiro: o alvo é o CLI real (`main.py script.lx`), então
 o tempo inclui boot do Python (~40 ms). Casos devem durar >100 ms para o ruído
 não dominar — se um caso ficar rápido demais, aumente as constantes dele.
 """
@@ -42,7 +42,7 @@ class Measurement:
 
 
 def discover_cases() -> list[Path]:
-    return sorted(CASES_DIR.glob("*.lox"))
+    return sorted(CASES_DIR.glob("*.lx"))
 
 
 def run_once(path: Path) -> float:

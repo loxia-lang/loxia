@@ -6,7 +6,7 @@ Como o interpretador é montado por dentro. Para o comportamento observável, ve
 ## Pipeline
 
 ```
-fonte .lox
+fonte .lx
    │
    ▼
 Scanner ───────────────► list[Token]
@@ -51,8 +51,8 @@ Pacotes por fase (dependência só para baixo):
 | Módulo | Responsabilidade |
 | --- | --- |
 | [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
-| [`lox/cli.py`](../../lox/cli.py) | CLI, `Lox.run`, REPL, `--version`, `--dump-ast`, exit codes |
-| [`lox/__main__.py`](../../lox/__main__.py) | entrypoint `python -m lox` |
+| [`loxia/cli.py`](../../loxia/cli.py) | CLI, `Loxia.run`, REPL, `--version`, `--dump-ast`, exit codes |
+| [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
 | [`src/frontend/scanner.py`](../../src/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
 | [`src/frontend/tokens.py`](../../src/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
 | [`src/frontend/token_type.py`](../../src/frontend/token_type.py) | enum `TokenType` |
@@ -84,7 +84,7 @@ Pacotes por fase (dependência só para baixo):
 | [`src/execution/type_test.py`](../../src/execution/type_test.py) | teste dinâmico de tipo para `x is T` |
 | [`src/execution/lox_range.py`](../../src/execution/lox_range.py) | `Range` lazy (start, end, step) |
 | [`src/execution/lox_tuple.py`](../../src/execution/lox_tuple.py) | `LoxTuple` imutável (tuplas) |
-| [`src/execution/lox_exception.py`](../../src/execution/lox_exception.py) | `Exception`/`LoxRuntimeError` e valores de exceção |
+| [`src/execution/lox_exception.py`](../../src/execution/lox_exception.py) | `Exception`/`RuntimeError` e valores de exceção |
 | [`src/execution/lox_list.py`](../../src/execution/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
 | [`src/execution/lox_map.py`](../../src/execution/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
 | [`src/diagnostics/error_reporter.py`](../../src/diagnostics/error_reporter.py) | coleta/impressão de diagnósticos |
@@ -175,7 +175,7 @@ chamada.
   token `[` para o diagnóstico. `IndexSet` é o alvo de `xs[i] = v` (o parser transforma
   `Index` em `IndexSet` quando vê `=`).
 - `for-in` usa `_iterate_list`: confere `version` antes de cada elemento e ao final; mutação
-  no meio do laço vira `LoxRuntimeError`.
+  no meio do laço vira `RuntimeError`.
 - `stringify` é recursivo com pilha de identidades (ciclo → `[...]`); igualdade estrutural
   usa um conjunto de pares `(id(a), id(b))`.
 - Tipos são apagados: o `LoxList` não conhece `T`; o `Checker` é quem aplica `ListTy`,
@@ -185,7 +185,7 @@ chamada.
 
 - `LoxMap` envolve um `dict[_MapKey, object]` (ordem de inserção) e um `version`
   incremental. `_MapKey` é `(tag, valor)` para separar `Bool` de `Int` e restringir chaves a
-  `String`/`Int`/`Bool`; qualquer outra chave vira `LoxRuntimeError`.
+  `String`/`Int`/`Bool`; qualquer outra chave vira `RuntimeError`.
 - `MapLiteral(entries, brace)` guarda pares `(chave, valor)` como expressões; o parser só
   cria esse nó em posição de expressão (no início do statement, `{` é bloco). O
   interpretador avalia chave→valor, da esquerda para a direita, e confere `has` antes de
@@ -195,7 +195,7 @@ chamada.
   `get_method` (métodos nativos ligados), e `Get` aceita `LoxInstance`, `LoxList` e
   `LoxMap`.
 - `for-in` usa `_iterate_map`: snapshot das chaves + conferência de `version` antes de cada
-  chave e ao final; mutação no laço vira `LoxRuntimeError`.
+  chave e ao final; mutação no laço vira `RuntimeError`.
 - `stringify` de mapa é recursivo com a mesma pilha de identidades de `List` (ciclo →
   `{...}`); igualdade estrutural é independente de ordem e usa `b.find(key)` com o mesmo
   conjunto de pares `(id(a), id(b))`.
@@ -424,7 +424,7 @@ exit code com o interpretador — o oráculo é sempre o tree-walk.
 
 ## Testes e benchmark
 
-- `tests/` — pytest + golden cases `.lox`; ver a skill
+- `tests/` — pytest + golden cases `.lx`; ver a skill
   [`lox-testing`](../../.dsh/skills/lox-testing/SKILL.md).
 - `tests/official/` — suíte oficial do Crafting Interpreters (caps. 10–13), adaptada por
   `tests/test_official_suite.py`; 112 passam, 8 são `xfail` documentados.

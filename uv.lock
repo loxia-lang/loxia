@@ -241,7 +241,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lox"
+name = "loxia"
 version = "1.0.0"
 source = { virtual = "." }
 

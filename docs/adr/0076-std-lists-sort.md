@@ -6,8 +6,8 @@
 - **Relacionados:** [ADR-0072](0072-stdlib-batteries.md), [ADR-0073](0073-imports-modulos.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [ADR-0036](0036-tuplas-implementacao.md),
   [`../../TODO.md`](../../TODO.md) §13
-- **Implementação:** [`std/lists.lox`](../../std/lists.lox),
-  [`tests/cases/std_lists.lox`](../../tests/cases/std_lists.lox)
+- **Implementação:** [`std/lists.lox`](../../std/lists.lx),
+  [`tests/cases/std_lists.lox`](../../tests/cases/std_lists.lx)
 
 ## Contexto
 

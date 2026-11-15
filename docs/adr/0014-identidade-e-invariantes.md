@@ -1,5 +1,9 @@
 # ADR-0014 — Identidade: três invariantes e um portão de admissão
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): o nome e a extensão foram
+> decididos (Loxia/`.lx`); “PyLox”/`.lox` são históricos. O corpo abaixo é o registro
+> histórico da decisão da época.
+
 - **Status:** accepted — **atualizado** por [ADR-0059](0059-i4-check-limpo-compila.md) (I4) e [ADR-0060](0060-orcamento-de-memoria.md) (memória). O texto abaixo é o registro original: onde ele diz "enquanto o backend não existe", leia o `docs/spec/garantias.md` e o manifesto do corpus.
 - **Data:** 2026-11-11
 - **Decisores:** Cássio + agente (DSH)

@@ -225,13 +225,13 @@ O tree-walk é a spec; o codegen futuro precisa reproduzir:
 
 ## Como verificar
 
-- Golden cases: [`tests/cases/map_literal.lox`](../../tests/cases/map_literal.lox),
-  [`map_methods.lox`](../../tests/cases/map_methods.lox),
-  [`map_iteration.lox`](../../tests/cases/map_iteration.lox),
-  [`map_equality.lox`](../../tests/cases/map_equality.lox),
-  [`map_stringify.lox`](../../tests/cases/map_stringify.lox),
-  [`map_cycle.lox`](../../tests/cases/map_cycle.lox),
-  [`map_keys.lox`](../../tests/cases/map_keys.lox) e os erros em
+- Golden cases: [`tests/cases/map_literal.lox`](../../tests/cases/map_literal.lx),
+  [`map_methods.lox`](../../tests/cases/map_methods.lx),
+  [`map_iteration.lox`](../../tests/cases/map_iteration.lx),
+  [`map_equality.lox`](../../tests/cases/map_equality.lx),
+  [`map_stringify.lox`](../../tests/cases/map_stringify.lx),
+  [`map_cycle.lox`](../../tests/cases/map_cycle.lx),
+  [`map_keys.lox`](../../tests/cases/map_keys.lx) e os erros em
   [`tests/cases/errors/map_*.lox`](../../tests/cases/errors).
 - Checker: [`tests/test_checker.py`](../../tests/test_checker.py) cobre inferência do
   literal, `{}` sem contexto, mistura de chaves/valores, invariância, `get`/`has`/

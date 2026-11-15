@@ -11,8 +11,8 @@
   [`src/backend/lower_generics.py`](../../src/backend/lower_generics.py),
   [`src/backend/lower_class_layout.py`](../../src/backend/lower_class_layout.py),
   [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py),
-  [`tests/cases/generic_functions.lox`](../../tests/cases/generic_functions.lox),
-  [`tests/cases/generic_class.lox`](../../tests/cases/generic_class.lox)
+  [`tests/cases/generic_functions.lox`](../../tests/cases/generic_functions.lx),
+  [`tests/cases/generic_class.lox`](../../tests/cases/generic_class.lx)
 
 ## Contexto
 

@@ -75,6 +75,10 @@ from src.frontend.ty import (
 
 STD_ROOT = Path(__file__).resolve().parents[2] / "std"
 
+# Extensão canônica dos fontes da linguagem (ADR-0078). Um só lugar: o loader é quem
+# transforma `import a.b` no caminho `a/b.lx`.
+SOURCE_SUFFIX = ".lx"
+
 
 class ModuleError(Exception):
     """Falha de resolução de módulo; o reporter já tem o diagnóstico."""
@@ -162,10 +166,10 @@ class ModuleLoader:
             if len(parts) < 2:
                 self._error(token, "Expect a module name after 'std'.")
             name = "std." + ".".join(parts[1:])
-            file = STD_ROOT.joinpath(*parts[1:]).with_suffix(".lox")
+            file = STD_ROOT.joinpath(*parts[1:]).with_suffix(SOURCE_SUFFIX)
         else:
             name = ".".join(parts)
-            file = self.root.joinpath(*parts).with_suffix(".lox")
+            file = self.root.joinpath(*parts).with_suffix(SOURCE_SUFFIX)
         if not file.is_file():
             self._error(token, f"Module '{name}' not found.")
         return name, file

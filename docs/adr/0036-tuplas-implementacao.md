@@ -21,7 +21,7 @@
   [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py),
-  [`tests/cases/tuples.lox`](../../tests/cases/tuples.lox)
+  [`tests/cases/tuples.lox`](../../tests/cases/tuples.lx)
 
 ## Contexto
 

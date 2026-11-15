@@ -601,14 +601,14 @@ def test_enum_and_match_parse() -> None:
 
 def test_try_and_raise_parse() -> None:
     statements = parse(
-        'try { raise "x"; } except LoxRuntimeError as e { print e; } '
+        'try { raise "x"; } except RuntimeError as e { print e; } '
         "finally { print 1; }"
     )
 
     first = statements[0]
     assert isinstance(first, Try)
     assert len(first.handlers) == 1
-    assert first.handlers[0].type_name.lexeme == "LoxRuntimeError"
+    assert first.handlers[0].type_name.lexeme == "RuntimeError"
     assert first.handlers[0].binding.lexeme == "e"
     assert first.finally_body is not None
     assert isinstance(first.body[0], Raise)

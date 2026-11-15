@@ -252,13 +252,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             },
             init=FnTy((STRING,), ClassTy("Exception"), 1),
         )
-        self._classes["LoxRuntimeError"] = ClassInfo(
-            "LoxRuntimeError",
+        self._classes["RuntimeError"] = ClassInfo(
+            "RuntimeError",
             "Exception",
-            init=FnTy((STRING,), ClassTy("LoxRuntimeError"), 1),
+            init=FnTy((STRING,), ClassTy("RuntimeError"), 1),
         )
         self._scopes[0]["Exception"] = ClassObjectTy("Exception")
-        self._scopes[0]["LoxRuntimeError"] = ClassObjectTy("LoxRuntimeError")
+        self._scopes[0]["RuntimeError"] = ClassObjectTy("RuntimeError")
 
         self._native_modules = {
             "Int": {

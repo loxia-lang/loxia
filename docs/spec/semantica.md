@@ -772,14 +772,14 @@ try {
   raise MyError("falhou")
 } except MyError as e {
   print "meu: ${e.message}"
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print "runtime: ${e.message}"
 } finally {
   print "sempre"
 }
 ```
 
-- `Exception` é a base embutida; `LoxRuntimeError` é subclasse embutida e representa
+- `Exception` é a base embutida; `RuntimeError` é subclasse embutida e representa
   qualquer erro de runtime (divisão por zero, índice etc.). O usuário pode declarar
   `class MyError(Exception)` com `message`.
 - `raise Expr` exige instância de `Exception`; `raise;` dentro de `except` relança a
@@ -787,7 +787,7 @@ try {
 - `try` é statement; `except Tipo as e` é tipado, múltiplo e avaliado em ordem;
   `except Exception as e` é catch-all e precisa ser o último. Pelo menos um `except` ou
   `finally` é obrigatório.
-- Erros de runtime são convertidos para `LoxRuntimeError` no `try`; capturar tipos
+- Erros de runtime são convertidos para `RuntimeError` no `try`; capturar tipos
   específicos (`DivisionByZero`) fica para depois. `finally` sempre roda e seu
   `return`/`raise` vence o fluxo anterior.
 - Exceção não capturada: `Unhandled exception: <tipo>: <msg>` + `[line N]`, exit 70.
@@ -849,9 +849,9 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
   `isEven`/`isOdd`/`sign`, `mean`/`median`/`mode`/`variance`/`stddev` (estatísticas de
   `List[Int]`; lista vazia devolve `nil`; variância populacional) e
   `roundTo`/`toBase`/`fromBase` (base 2..36). Domínio inválido (`factorial` negativo,
-  base fora do intervalo) levanta `LoxRuntimeError`; `fromBase` inválido devolve `nil`.
+  base fora do intervalo) levanta `RuntimeError`; `fromBase` inválido devolve `nil`.
 - `std.asserts`: `assert`, `assertEq`, `assertNotNil` (devolve o valor estreitado) e
-  `fail`; a falha é `LoxRuntimeError`, capturável por `except LoxRuntimeError as e`.
+  `fail`; a falha é `RuntimeError`, capturável por `except RuntimeError as e`.
 - `std.results`: `isOk`/`isErr`, `map`/`mapErr`, `unwrapOr`, `andThen` e `toOptional`
   para `Result[T, E]`. Como `andThen` recebe `fn(T) -> Result[U, E]`, uma lambda que
   constrói `Result.Ok`/`Result.Err` ainda não infere o enum genérico; use função
@@ -863,7 +863,7 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 - Essas funções são Lox puro sobre o kernel; são determinísticas e entram no corpus T1.
 
 
-- Módulo é um arquivo `.lox`; pasta é namespace de caminho, não módulo.
+- Módulo é um arquivo `.lx`; pasta é namespace de caminho, não módulo.
 - Módulos contêm apenas imports, `fn`, `class` e `enum`; sem `val`/`var` ou statement de
   topo. Import é estático, sem ordem de inicialização.
 - `import m`/`import m as x` cria namespace; `from m import nome [as y]` liga públicos.

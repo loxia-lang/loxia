@@ -1,4 +1,4 @@
-"""Runner dos casos golden: um `.lox` por arquivo, expectativas em comentários.
+"""Runner dos casos golden: um `.lx` por arquivo, expectativas em comentários.
 
 Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):
 
@@ -125,7 +125,7 @@ def check_case(path: Path) -> list[str]:
 
 
 def discover_cases() -> list[Path]:
-    return sorted(CASES_DIR.rglob("*.lox"))
+    return sorted(CASES_DIR.rglob("*.lx"))
 
 
 def main(argv: list[str] | None = None) -> int:

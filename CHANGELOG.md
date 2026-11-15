@@ -192,6 +192,17 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Mudado
 
+- **O nome é Loxia e a extensão é `.lx`** ([ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)):
+  "PyLox" era nome de trabalho desde o [ADR-0014](docs/adr/0014-identidade-e-invariantes.md).
+  O pacote virou `loxia/`, o comando `loxia` (`python -m loxia`, `--version` →
+  `loxia 1.0.0`), `main.py` mantém `from main import Loxia` e o alias `Lox`, e os fontes
+  passaram de `.lox` para `.lx` (373 arquivos; `SOURCE_SUFFIX` no loader). O CLI não valida
+  extensão, então scripts antigos continuam rodando; só `import` deixou de resolver `.lox`.
+- **`RuntimeError` no lugar de `LoxRuntimeError`** ([ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)):
+  a classe embutida de erro de runtime perdeu a marca da linguagem — `except RuntimeError
+  as e` substitui `except LoxRuntimeError as e` no tree-walk e no backend. A classe Python
+  interna (`src/diagnostics/errors.py::LoxRuntimeError`) mantém o nome de herança do livro,
+  e `Exception` continua a base.
 - **Erros de compilação e de runtime mudaram de formato**
   ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md)): `[line N] Error at 'x': …`
   virou `arquivo:linha:col: error[CODIGO]: …` (+ trecho com caret na compilação). O

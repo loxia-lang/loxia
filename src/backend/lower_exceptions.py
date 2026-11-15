@@ -47,7 +47,7 @@ class ExceptionLowering(LoweringBase):
             self.module, "lox.ctor.Exception", _I8_PTR, [_I8_PTR]
         )
         runtime_error = ClassLayout(
-            "LoxRuntimeError",
+            "RuntimeError",
             901,
             [],
             [],
@@ -58,7 +58,7 @@ class ExceptionLowering(LoweringBase):
             synthetic_exception=True,
         )
         runtime_error.ctor = llvm_ir.declare(
-            self.module, "lox.ctor.LoxRuntimeError", _I8_PTR, [_I8_PTR]
+            self.module, "lox.ctor.RuntimeError", _I8_PTR, [_I8_PTR]
         )
         for layout in (exception, runtime_error):
             self._classes[layout.name] = layout
@@ -71,7 +71,7 @@ class ExceptionLowering(LoweringBase):
             )
 
     def _emit_exception_classes(self) -> None:
-        for name in ("Exception", "LoxRuntimeError"):
+        for name in ("Exception", "RuntimeError"):
             self._emit_top_level_class(self._classes[name])
 
     def _raise(self, stmt: Raise) -> None:
@@ -218,7 +218,7 @@ class ExceptionLowering(LoweringBase):
         self.builder = llvm_ir.builder(end)
 
     def _bind_handler_exception(self, exception: Any, binding: Any) -> None:
-        """Liga `except Tipo as e`: instância do usuário ou `LoxRuntimeError` novo.
+        """Liga `except Tipo as e`: instância do usuário ou `RuntimeError` novo.
 
         `lox_panic` (divisão por zero etc.) não tem instância, só `type_name` e
         `message`; sem esta materialização, `e.message` desreferenciava NULL.
@@ -242,7 +242,7 @@ class ExceptionLowering(LoweringBase):
             self._function("lox_str_from_cstr", _I8_PTR, [_I8_PTR]),
             [message],
         )
-        layout = self._classes["LoxRuntimeError"]
+        layout = self._classes["RuntimeError"]
         assert layout.ctor is not None
         constructed = self.builder.call(layout.ctor, [text])
         runtime_end = self.builder.block

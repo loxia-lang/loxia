@@ -1,6 +1,6 @@
 """Anotação dinâmica da suíte oficial para o `--check`.
 
-Os `.lox` de `tests/official/cases` são mantidos como no original (MIT). O
+Os `.lx` de `tests/official/cases` são mantidos como no original (MIT). O
 `test_official_suite` já adapta sintaxe; este módulo aplica uma camada de
 anotações **em cima da fonte adaptada**, só para o checker. Como os testes
 oficiais são dinâmicos, a anotação é `Any` (o escape explícito da linguagem):
@@ -36,7 +36,7 @@ _CONTROL = {
 _SPECIAL: dict[str, Callable[[str], str]] = {
     # O teste reatribui uma classe (`Base = OtherBase`); o checker nominal recusa
     # a troca. O `as Any` é só anotação: o runtime do teste oficial não muda.
-    "super/reassign_superclass.lox": lambda source: source.replace(
+    "super/reassign_superclass.lx": lambda source: source.replace(
         "Base = OtherBase;", "Base = OtherBase as Any;"
     ),
 }

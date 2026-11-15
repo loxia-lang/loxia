@@ -29,8 +29,8 @@ print outer()
 
 fn handler_return() -> Int {
   try {
-    raise LoxRuntimeError("x")
-  } except LoxRuntimeError as e {
+    raise RuntimeError("x")
+  } except RuntimeError as e {
     return 6
   } finally {
     print "handler finally"

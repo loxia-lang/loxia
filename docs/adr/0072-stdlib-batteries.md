@@ -1,5 +1,9 @@
 # ADR-0072 — Stdlib: kernel nativo, biblioteca em Lox e política de batteries
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): o `LoxRuntimeError` do
+> prelúdio passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico da decisão
+> da época.
+
 - **Status:** accepted (plano; implementação pendente)
 - **Data:** 2026-11-14
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)

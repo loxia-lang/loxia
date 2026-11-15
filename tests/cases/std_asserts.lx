@@ -1,4 +1,4 @@
-# std.asserts (T1): falhas viram LoxRuntimeError capturável.
+# std.asserts (T1): falhas viram RuntimeError capturável.
 import std.asserts as asserts
 
 asserts.assert(true)
@@ -10,37 +10,37 @@ print asserts.assertNotNil("x")
 val missing: Int? = nil
 try {
   asserts.assert(false)
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 try {
   asserts.assert(false, "boom")
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 try {
   asserts.assertEq(1, 2)
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 try {
   asserts.assertEq(1, 2, "contagem")
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 try {
   asserts.assertNotNil(missing)
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 try {
   asserts.assertNotNil(missing, "sem valor")
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 try {
   asserts.fail("nope")
-} except LoxRuntimeError as e {
+} except RuntimeError as e {
   print e.message
 }
 # expect: 42

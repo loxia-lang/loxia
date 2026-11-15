@@ -22,7 +22,7 @@ def _run(path: Path) -> subprocess.CompletedProcess[str]:
 
 def _project(tmp_path: Path) -> Path:
     (tmp_path / "dtos").mkdir()
-    (tmp_path / "dtos" / "dtoA.lox").write_text(
+    (tmp_path / "dtos" / "dtoA.lx").write_text(
         "class DtoA {\n"
         "  val nome: String\n"
         "  init(nome: String) { this.nome = nome }\n"
@@ -39,7 +39,7 @@ def _project(tmp_path: Path) -> Path:
 
 def test_from_importa_publicos(tmp_path: Path) -> None:
     root = _project(tmp_path)
-    main = root / "main.lox"
+    main = root / "main.lx"
     main.write_text(
         "from dtos.dtoA import DtoA, Status, helper\n"
         'print DtoA("a").publico()\n'
@@ -56,7 +56,7 @@ def test_from_importa_publicos(tmp_path: Path) -> None:
 
 def test_namespace_e_alias(tmp_path: Path) -> None:
     root = _project(tmp_path)
-    main = root / "main.lox"
+    main = root / "main.lx"
     main.write_text(
         "import dtos.dtoA as d\n"
         'print d.DtoA("b").publico()\n'
@@ -72,9 +72,9 @@ def test_namespace_e_alias(tmp_path: Path) -> None:
 
 def test_privado_e_rejeitado_em_from_e_namespace(tmp_path: Path) -> None:
     root = _project(tmp_path)
-    from_main = root / "from.lox"
+    from_main = root / "from.lx"
     from_main.write_text("from dtos.dtoA import _oculto\n", encoding="utf-8")
-    ns_main = root / "ns.lox"
+    ns_main = root / "ns.lx"
     ns_main.write_text("import dtos.dtoA as d\nprint d._oculto\n", encoding="utf-8")
 
     for main in (from_main, ns_main):
@@ -85,7 +85,7 @@ def test_privado_e_rejeitado_em_from_e_namespace(tmp_path: Path) -> None:
 
 def test_pasta_nao_e_modulo(tmp_path: Path) -> None:
     root = _project(tmp_path)
-    main = root / "main.lox"
+    main = root / "main.lx"
     main.write_text("from dtos import dtoA\n", encoding="utf-8")
 
     result = _run(main)
@@ -95,9 +95,9 @@ def test_pasta_nao_e_modulo(tmp_path: Path) -> None:
 
 
 def test_ciclo_e_erro(tmp_path: Path) -> None:
-    (tmp_path / "a.lox").write_text("import b\n", encoding="utf-8")
-    (tmp_path / "b.lox").write_text("import a\n", encoding="utf-8")
-    main = tmp_path / "main.lox"
+    (tmp_path / "a.lx").write_text("import b\n", encoding="utf-8")
+    (tmp_path / "b.lx").write_text("import a\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
     main.write_text("import a\n", encoding="utf-8")
 
     result = _run(main)
@@ -107,8 +107,8 @@ def test_ciclo_e_erro(tmp_path: Path) -> None:
 
 
 def test_modulo_so_declara(tmp_path: Path) -> None:
-    (tmp_path / "m.lox").write_text("print 1\n", encoding="utf-8")
-    main = tmp_path / "main.lox"
+    (tmp_path / "m.lx").write_text("print 1\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
     main.write_text("import m\n", encoding="utf-8")
 
     result = _run(main)
@@ -119,7 +119,7 @@ def test_modulo_so_declara(tmp_path: Path) -> None:
 
 def test_display_de_classe_de_modulo_preserva_nome(tmp_path: Path) -> None:
     root = _project(tmp_path)
-    main = root / "main.lox"
+    main = root / "main.lx"
     main.write_text(
         "from dtos.dtoA import DtoA\n"
         'print DtoA("a")\n',

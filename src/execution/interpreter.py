@@ -145,8 +145,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         exception_class = LoxExceptionClass("Exception", None)
         self.globals.define("Exception", exception_class, mutable=False)
         self.globals.define(
-            "LoxRuntimeError",
-            LoxExceptionClass("LoxRuntimeError", exception_class),
+            "RuntimeError",
+            LoxExceptionClass("RuntimeError", exception_class),
             mutable=False,
         )
 
@@ -762,7 +762,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 if not self._run_handlers(stmt, raised.value):
                     raise
             except LoxRuntimeError as runtime:
-                value = LoxExceptionValue("LoxRuntimeError", runtime.message)
+                value = LoxExceptionValue("RuntimeError", runtime.message)
                 if not self._run_handlers(stmt, value):
                     raise
         finally:

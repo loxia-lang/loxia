@@ -383,7 +383,7 @@ from dtos.dtoA import DtoA as Dto
 - `from caminho import nome [as alias] [, nome ...]` liga nomes públicos.
 - Imports só no topo, antes de qualquer outro statement; sem `*`, sem reexportação.
 - Caminho são identificadores separados por `.`; `std` é root reservado.
-- Módulo é arquivo `.lox`; pasta é só namespace (sem `__init__`/`index`).
+- Módulo é arquivo `.lx`; pasta é só namespace (sem `__init__`/`index`).
 - Módulo não é valor: `val m = std.lists` é erro.
 
 - Limites do parser: no máximo **255 argumentos** por chamada e **255 parâmetros** por

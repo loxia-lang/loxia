@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from lox.cli import Lox
+from loxia.cli import Loxia
 from src.diagnostics.error_reporter import ErrorReporter
 from src.execution.interpreter import Interpreter
 from src.frontend.expr import Get, Variable
@@ -13,8 +13,8 @@ from src.semantics.checker import Checker
 from src.semantics.resolver import Resolver
 
 
-def check(source: str) -> Lox:
-    lox = Lox()
+def check(source: str) -> Loxia:
+    lox = Loxia()
     lox.check(source)
     return lox
 
@@ -2387,15 +2387,15 @@ def test_exceptions_typed_catch_and_finally() -> None:
         }
 
         try { print 1 / 0 }
-        except LoxRuntimeError as e { print e.message }
+        except RuntimeError as e { print e.message }
 
         try { raise MyError("x") }
-        except LoxRuntimeError as e { print "runtime" }
+        except RuntimeError as e { print "runtime" }
         except Exception as e { print "generico" }
 
         print first()
         print Exception("base").message
-        print LoxRuntimeError("runtime").message
+        print RuntimeError("runtime").message
         """
     )
 
@@ -2417,7 +2417,7 @@ def test_exceptions_typed_catch_and_finally() -> None:
         ),
         (
             "try { print 1 } except Exception as e { print e } "
-            "except LoxRuntimeError as e { print e }",
+            "except RuntimeError as e { print e }",
             "Catch-all 'Exception' must be the last handler.",
         ),
         ("try { print 1 }", "Try needs at least one 'except' or 'finally'."),

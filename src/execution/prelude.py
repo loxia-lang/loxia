@@ -27,6 +27,6 @@ BUILTIN_NAMES = frozenset(
         "os",
         "Result",
         "Exception",
-        "LoxRuntimeError",
+        "RuntimeError",
     }
 )

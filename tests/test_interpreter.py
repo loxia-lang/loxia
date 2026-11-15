@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from main import Lox
+from main import Loxia
 
 
-def execute(lox: Lox, source: str, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str]:
+def execute(lox: Loxia, source: str, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str]:
     lox.run(source)
     captured = capsys.readouterr()
 
@@ -13,7 +13,7 @@ def execute(lox: Lox, source: str, capsys: pytest.CaptureFixture[str]) -> tuple[
 
 
 def run(source: str, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str]:
-    return execute(Lox(), source, capsys)
+    return execute(Loxia(), source, capsys)
 
 
 def test_prints_literals(capsys: pytest.CaptureFixture[str]) -> None:
@@ -134,7 +134,7 @@ def test_for_in_supports_descending_and_empty_ranges(
 def test_for_in_loop_variable_is_immutable(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, stderr = execute(lox, "for i in 0..3 { i = 1; }", capsys)
 
     assert stdout == []
@@ -229,7 +229,7 @@ def test_logical_operators_short_circuit(capsys: pytest.CaptureFixture[str]) -> 
 def test_undefined_variable_is_a_runtime_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, stderr = execute(lox, "print naoexiste;", capsys)
 
     assert stdout == []
@@ -245,7 +245,7 @@ def test_runtime_error_stops_execution(capsys: pytest.CaptureFixture[str]) -> No
 
 
 def test_syntax_error_does_not_execute(capsys: pytest.CaptureFixture[str]) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, _ = execute(lox, "print 1 + ;", capsys)
 
     assert stdout == []
@@ -253,7 +253,7 @@ def test_syntax_error_does_not_execute(capsys: pytest.CaptureFixture[str]) -> No
 
 
 def test_errors_do_not_leak_between_runs(capsys: pytest.CaptureFixture[str]) -> None:
-    lox = Lox()
+    lox = Loxia()
 
     execute(lox, "print naoexiste;", capsys)
     assert lox.reporter.had_runtime_error is True
@@ -444,7 +444,7 @@ def test_stringify_lambda_is_deterministic(
 
 
 def test_function_arity_error(capsys: pytest.CaptureFixture[str]) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, stderr = execute(lox, "fn soma(a, b) { return a + b; } soma(1);", capsys)
 
     assert stdout == []
@@ -476,7 +476,7 @@ def test_clock_is_not_a_builtin(capsys: pytest.CaptureFixture[str]) -> None:
 def test_top_level_return_is_a_compile_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, stderr = execute(lox, "return 1;", capsys)
 
     assert stdout == []
@@ -581,7 +581,7 @@ def test_inheritance_and_super(capsys: pytest.CaptureFixture[str]) -> None:
 def test_global_val_assignment_is_a_runtime_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, stderr = execute(lox, "val x = 1; x = 2;", capsys)
 
     assert stdout == []
@@ -592,7 +592,7 @@ def test_global_val_assignment_is_a_runtime_error(
 def test_val_global_cannot_be_redeclared(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = Lox()
+    lox = Loxia()
     _, stderr = execute(lox, "val x = 1; var x = 2;", capsys)
 
     assert "Can't redeclare immutable variable 'x'." in stderr
@@ -610,7 +610,7 @@ def test_var_parameter_can_be_mutated(capsys: pytest.CaptureFixture[str]) -> Non
 def test_immutable_parameter_assignment_is_compile_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = Lox()
+    lox = Loxia()
     stdout, stderr = execute(lox, "fn f(x) { x = 2; }", capsys)
 
     assert stdout == []
@@ -641,7 +641,7 @@ def test_val_shadowing_and_var_redeclaration(
 
 def test_debug_mode_checks_integer_overflow(capsys: pytest.CaptureFixture[str]) -> None:
     stdout, stderr = execute(
-        Lox(debug=True), "print 9223372036854775807 + 1;", capsys
+        Loxia(debug=True), "print 9223372036854775807 + 1;", capsys
     )
 
     assert stdout == []
@@ -712,7 +712,7 @@ def test_invalid_casts_and_math_domains_fail(capsys: pytest.CaptureFixture[str])
 
 def test_debug_mode_checks_abs_overflow(capsys: pytest.CaptureFixture[str]) -> None:
     source = "val min = -9223372036854775807 - 1; print math.abs(min);"
-    stdout, stderr = execute(Lox(debug=True), source, capsys)
+    stdout, stderr = execute(Loxia(debug=True), source, capsys)
     assert stdout == []
     assert "Integer overflow." in stderr
 
@@ -739,11 +739,11 @@ def test_debug_mode_checks_integer_division_and_power(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     source = "val min = -9223372036854775807 - 1; print min // -1;"
-    stdout, stderr = execute(Lox(debug=True), source, capsys)
+    stdout, stderr = execute(Loxia(debug=True), source, capsys)
     assert stdout == []
     assert "Integer overflow." in stderr
 
-    stdout, stderr = execute(Lox(debug=True), "print 2 ** 63;", capsys)
+    stdout, stderr = execute(Loxia(debug=True), "print 2 ** 63;", capsys)
     assert stdout == []
     assert "Integer overflow." in stderr
 
@@ -982,10 +982,10 @@ def test_exceptions_runtime_flow(
         }
 
         try { print 1 / 0 }
-        except LoxRuntimeError as e { print "runtime" }
+        except RuntimeError as e { print "runtime" }
 
         try { raise MyError("x") }
-        except LoxRuntimeError as e { print "errado" }
+        except RuntimeError as e { print "errado" }
         except Exception as e { print "generico" }
 
         fn f() -> Int {
@@ -1025,6 +1025,6 @@ def test_bare_raise_relanca(capsys: pytest.CaptureFixture[str]) -> None:
 def test_uncaught_exception_e_fatal(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _, stderr = run('raise LoxRuntimeError("boom");', capsys)
+    _, stderr = run('raise RuntimeError("boom");', capsys)
 
-    assert "Unhandled exception: LoxRuntimeError: boom" in stderr
+    assert "Unhandled exception: RuntimeError: boom" in stderr

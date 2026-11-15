@@ -123,6 +123,7 @@ Crie quando a decisão:
 | [0075](0075-diagnosticos-estruturados.md) | Diagnósticos estruturados: modelo, códigos estáveis, `human`/`short`/`json` e determinismo | accepted (implementado) | 2026-11-14 |
 | [0076](0076-std-lists-sort.md) | `std.lists.sort`: comparador de três vias, estável, lista nova | accepted (implementado) | 2026-11-14 |
 | [0077](0077-limite-de-pilha.md) | Limite de profundidade de chamadas (1.000) e `Stack overflow.` | proposed | 2026-11-15 |
+| [0078](0078-nome-loxia-extensao-lx.md) | Nome **Loxia**, extensão `.lx` e prelúdio sem a marca (`RuntimeError`) | accepted (implementado) | 2026-11-15 |
 
 
 ## Próximas decisões que pedem ADR

@@ -22,7 +22,7 @@ def _run(*arguments: str, env: dict[str, str] | None = None) -> subprocess.Compl
 
 
 def test_args_e_getenv(tmp_path: Path) -> None:
-    path = tmp_path / "args.lox"
+    path = tmp_path / "args.lx"
     path.write_text(
         'print args()\nprint os.getenv("LOX_KERNEL_TEST")\n',
         encoding="utf-8",
@@ -35,7 +35,7 @@ def test_args_e_getenv(tmp_path: Path) -> None:
 
 
 def test_os_exit(tmp_path: Path) -> None:
-    path = tmp_path / "exit.lox"
+    path = tmp_path / "exit.lx"
     path.write_text('print "antes"\nos.exit(7)\nprint "depois"\n', encoding="utf-8")
 
     result = _run(str(path))
@@ -46,7 +46,7 @@ def test_os_exit(tmp_path: Path) -> None:
 
 def test_leitura_e_escrita_de_arquivo(tmp_path: Path) -> None:
     target = tmp_path / "dados.txt"
-    path = tmp_path / "arquivo.lox"
+    path = tmp_path / "arquivo.lx"
     path.write_text(
         f'io.writeFile("{target}", "linha\\n")\n'
         f'print io.readFile("{target}")\n'

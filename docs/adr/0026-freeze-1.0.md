@@ -1,5 +1,9 @@
 # ADR-0026 — Freeze da 1.0: erros, determinismo, UTF-8 e escopo
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): o nome e a extensão foram
+> decididos (Loxia/`.lx`); “PyLox”/`.lox` são históricos. O corpo abaixo é o registro
+> histórico da decisão da época.
+
 - **Status:** accepted
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)

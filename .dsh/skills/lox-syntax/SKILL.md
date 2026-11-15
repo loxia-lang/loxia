@@ -61,7 +61,7 @@ Para reabrir qualquer um: ADR + dor demonstrada. A lista completa está no
 2. Atualize [`docs/spec/sintaxe.md`](../../../docs/spec/sintaxe.md) (gramática + prosa) e,
    se mudou mensagem, [`docs/spec/erros.md`](../../../docs/spec/erros.md).
 3. Atualize [`TODO.md`](../../../TODO.md) §1 e o `docs/adr/README.md`.
-4. Escreva o **golden** antes/durante o parser (`tests/cases/*.lox`), mais unitário em
+4. Escreva o **golden** antes/durante o parser (`tests/cases/*.lx`), mais unitário em
    `tests/test_parser.py` se a AST for não trivial.
 5. Rode `make check`; se tocou caminho quente, `make bench`.
 

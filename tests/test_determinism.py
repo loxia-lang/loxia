@@ -25,27 +25,27 @@ TIMEOUT_SECONDS = 30
 
 # Caminhos relativos: se um caminho absoluto vazar para a saída, ele aparece aqui.
 CASES = [
-    "exemplos/classes.lox",
-    "exemplos/closures.lox",
-    "exemplos/fib.lox",
-    "exemplos/fizzbuzz.lox",
-    "exemplos/primos.lox",
-    "exemplos/quicksort.lox",
-    "tests/cases/class_fields.lox",
-    "tests/cases/for_in.lox",
-    "tests/cases/inheritance.lox",
-    "tests/cases/interpolation.lox",
-    "tests/cases/list_iteration.lox",
-    "tests/cases/list_stringify.lox",
-    "tests/cases/map_iteration.lox",
-    "tests/cases/map_stringify.lox",
-    "tests/cases/nil_aware.lox",
-    "tests/cases/str_repr.lox",
-    "tests/cases/strings.lox",
-    "tests/cases/typed_functions.lox",
-    "tests/cases/errors/undefined_variable.lox",
-    "tests/cases/errors/type_mismatch_add.lox",
-    "tests/cases/errors/division_by_zero.lox",
+    "exemplos/classes.lx",
+    "exemplos/closures.lx",
+    "exemplos/fib.lx",
+    "exemplos/fizzbuzz.lx",
+    "exemplos/primos.lx",
+    "exemplos/quicksort.lx",
+    "tests/cases/class_fields.lx",
+    "tests/cases/for_in.lx",
+    "tests/cases/inheritance.lx",
+    "tests/cases/interpolation.lx",
+    "tests/cases/list_iteration.lx",
+    "tests/cases/list_stringify.lx",
+    "tests/cases/map_iteration.lx",
+    "tests/cases/map_stringify.lx",
+    "tests/cases/nil_aware.lx",
+    "tests/cases/str_repr.lx",
+    "tests/cases/strings.lx",
+    "tests/cases/typed_functions.lx",
+    "tests/cases/errors/undefined_variable.lx",
+    "tests/cases/errors/type_mismatch_add.lx",
+    "tests/cases/errors/division_by_zero.lx",
 ]
 
 # Sementes diferentes: ordem de `set`/`dict` sobre strings muda com o hash.
@@ -112,7 +112,7 @@ def test_check_output_is_deterministic(path: str) -> None:
     assert_no_volatile_output(path, result)
 
 
-@pytest.mark.parametrize("path", ["tests/cases/typed_functions.lox", "exemplos/classes.lox"])
+@pytest.mark.parametrize("path", ["tests/cases/typed_functions.lx", "exemplos/classes.lx"])
 def test_dump_ast_is_deterministic(path: str) -> None:
     result = assert_deterministic(path, "--dump-ast")
     assert_no_volatile_output(path, result)
@@ -120,7 +120,7 @@ def test_dump_ast_is_deterministic(path: str) -> None:
 
 def test_same_script_twice_is_byte_identical_even_with_different_cwd() -> None:
     """O caminho absoluto de execução não pode influenciar o resultado (I3)."""
-    path = "exemplos/fib.lox"
+    path = "exemplos/fib.lx"
     from_root = run_cli(path, SEEDS[0])
 
     process = subprocess.run(
@@ -137,8 +137,8 @@ def test_same_script_twice_is_byte_identical_even_with_different_cwd() -> None:
 
 
 DIAGNOSTIC_CASES = [
-    "tests/cases/errors/redeclaration.lox",
-    "tests/cases/errors/undefined_variable.lox",
+    "tests/cases/errors/redeclaration.lx",
+    "tests/cases/errors/undefined_variable.lx",
 ]
 
 
@@ -154,13 +154,13 @@ def test_json_diagnostics_are_deterministic_on_check(path: str) -> None:
     assert_no_volatile_output(path, result)
 
 
-@pytest.mark.parametrize("path", ["tests/cases/errors/undefined_variable.lox"])
+@pytest.mark.parametrize("path", ["tests/cases/errors/undefined_variable.lx"])
 def test_json_runtime_diagnostics_are_deterministic(path: str) -> None:
     result = assert_deterministic(path, "--error-format=json")
     assert_no_volatile_output(path, result)
 
 
 def test_color_always_is_byte_identical() -> None:
-    path = "tests/cases/errors/redeclaration.lox"
+    path = "tests/cases/errors/redeclaration.lx"
     result = assert_deterministic(path, "--color=always")
     assert "\x1b[" in result.stderr.decode("utf-8")

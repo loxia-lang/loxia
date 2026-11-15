@@ -1428,7 +1428,7 @@ void lox_raise_current(int32_t line, int32_t column) {
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message) {
     if (lox_current_try != NULL) {
-        lox_throw(NULL, "LoxRuntimeError", message, line, column);
+        lox_throw(NULL, "RuntimeError", message, line, column);
     }
     fflush(stdout);
     lox_print_prefix(line, column, code);

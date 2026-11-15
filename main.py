@@ -1,11 +1,14 @@
-"""Compatibilidade: mantém `python main.py` e `from main import Lox` funcionando.
+"""Compatibilidade: mantém `python main.py`, `from main import Loxia` e o alias `Lox`.
 
-A implementação fica em `lox.cli`; o pacote também roda com `python -m lox`.
+A implementação fica em `loxia.cli`; o pacote também roda com `python -m loxia`.
 """
 
-from lox.cli import Lox, main
+from loxia.cli import Loxia, main
 
-__all__ = ["Lox", "main"]
+# Nome antigo do driver: mantido como alias para não quebrar quem importa `Lox`.
+Lox = Loxia
+
+__all__ = ["Lox", "Loxia", "main"]
 
 
 if __name__ == "__main__":

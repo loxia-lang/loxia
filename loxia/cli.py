@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from lox import __version__
+from loxia import __version__
 from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.render import render_batch, render_json
 from src.diagnostics.source import SourceMap, display_path
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 JSON_ON_STDOUT = frozenset({"check"})
 
 
-class Lox:
+class Loxia:
     def __init__(
         self,
         *,
@@ -201,7 +201,7 @@ class Lox:
             sys.exit(70)
 
     def run_prompt(self) -> None:
-        print("PyLox REPL (Ctrl+C ou Ctrl+D para sair)")
+        print("Loxia REPL (Ctrl+C ou Ctrl+D para sair)")
         while True:
             try:
                 line = input("> ")
@@ -258,8 +258,8 @@ class Lox:
 def build_parser() -> argparse.ArgumentParser:
     """Parser do CLI, isolado para testes de cobertura (flags x README)."""
     parser = argparse.ArgumentParser(
-        prog="pylox",
-        description="Interpretador Lox em Python",
+        prog="loxia",
+        description="Loxia: interpretador tree-walk com backend LLVM opcional",
         usage="%(prog)s [opções] [script]",
     )
     parser.add_argument(
@@ -312,7 +312,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="limite de diagnósticos por execução (0 = sem limite)",
     )
-    parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
+    parser.add_argument("script", nargs="?", help="Caminho para o script Loxia")
     parser.add_argument(
         "script_args",
         nargs=argparse.REMAINDER,
@@ -334,7 +334,7 @@ def main() -> None:
     if parsed_args.max_errors < 0:
         parser.error("--max-errors must be non-negative")
 
-    lox = Lox(
+    lox = Loxia(
         debug=parsed_args.debug,
         error_format=parsed_args.error_format,
         color=parsed_args.color,

@@ -5,7 +5,7 @@
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §2/§11, [`../../TIPOS.md`](../../TIPOS.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
 - **Implementação:** `src/frontend/ty.py`, `src/semantics/checker.py`, `src/frontend/parser.py`, `src/frontend/stmt.py`,
-  `src/frontend/token_type.py`, `src/frontend/scanner.py`, `lox/cli.py`; testes em `tests/test_checker.py`,
+  `src/frontend/token_type.py`, `src/frontend/scanner.py`, `loxia/cli.py`; testes em `tests/test_checker.py`,
   `tests/test_cli.py`, `tests/cases/typed_functions.lox`
 
 ## Contexto

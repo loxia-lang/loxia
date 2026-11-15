@@ -29,14 +29,14 @@ TIMEOUT_SECONDS = 60
 # Sintaxe antiga de superclasse (`< (Foo)`) testada de propósito: não é
 # adaptável para a nossa gramática.
 _CHECK_XFAIL = set(DYNAMIC_FIELD_TESTS) | {
-    "inheritance/parenthesized_superclass.lox"
+    "inheritance/parenthesized_superclass.lx"
 }
 
 
 def _positive_cases() -> list[pytest.ParameterSet]:
     cases: list[pytest.ParameterSet] = []
 
-    for path in sorted(CASES.rglob("*.lox")):
+    for path in sorted(CASES.rglob("*.lx")):
         source = path.read_text(encoding="utf-8")
         if NONTEST_RE.search(source):
             continue
@@ -66,7 +66,7 @@ def test_oficial_positivo_passa_no_check(
 ) -> None:
     adapted = adapt_source(path.read_text(encoding="utf-8"))
     annotated = annotate_case(relative, adapted)
-    script = tmp_path / "caso.lox"
+    script = tmp_path / "caso.lx"
     script.write_text(annotated, encoding="utf-8")
 
     result = subprocess.run(

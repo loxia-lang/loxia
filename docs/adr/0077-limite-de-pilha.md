@@ -1,5 +1,9 @@
 # ADR-0077 — Limite de profundidade de chamadas e `Stack overflow.`
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): a classe embutida
+> `LoxRuntimeError` passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico
+> da decisão da época.
+
 - **Status:** proposed (decisão humana pendente; código não implementado)
 - **Data:** 2026-11-15
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)

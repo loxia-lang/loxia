@@ -1,5 +1,9 @@
 # ADR-0042 — Exceções: classes, `try`/`except`/`finally` e `raise` no tree-walk
 
+> **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): a classe embutida
+> `LoxRuntimeError` passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico
+> da decisão da época.
+
 - **Status:** accepted (implementado no tree-walk; backend L6 pendente)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)

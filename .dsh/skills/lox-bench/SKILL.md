@@ -17,7 +17,7 @@ make baseline                                # regrava o baseline (só quando fo
 
 ## Modelo de medição
 
-- Cada caso é um `.lox` executado como **processo** (`sys.executable main.py caso`),
+- Cada caso é um `.lx` executado como **processo** (`sys.executable main.py caso`),
   então o tempo inclui boot do Python (~40 ms). Por isso os casos devem durar
   **>100 ms**; se um caso novo ficar abaixo disso, aumente as constantes dele.
 - Roda 1 vez de aquecimento + `repeat` medidas; o relatório usa a **mediana** e
@@ -36,7 +36,7 @@ make baseline                                # regrava o baseline (só quando fo
 
 ## Adicionar um caso
 
-1. `bench/cases/<nome>.lox`, determinístico, uma saída estável (`print` de um valor).
+1. `bench/cases/<nome>.lx`, determinístico, uma saída estável (`print` de um valor).
 2. Precisa exercitar um caminho que ainda não é coberto. Casos atuais:
    `loop_sum` (laço+atribuição), `nested_loop` (blocos/escopos), `branchy`
    (if/else+lógica), `string_concat` (strings).

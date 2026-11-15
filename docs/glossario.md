@@ -36,7 +36,7 @@ pelo local de chamada. O resolver garante isso.
 **Expressão** — trecho que produz valor (`1 + 2`, `f()`, `a.b`). **Statement** — instrução
 que produz efeito (`print`, `var`, `if`, `while`, `return`, bloco).
 
-**Golden case** — arquivo `.lox` de teste com a saída esperada em comentários
+**Golden case** — arquivo `.lx` de teste com a saída esperada em comentários
 (`// expect: …`). Ver §5 do `AGENTS.md` (local) e a skill `lox-testing`.
 
 **Generics** — função que recebe parâmetros de tipo (`fn id[T] (x: T) -> T`) e é usada com
