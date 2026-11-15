@@ -42,9 +42,11 @@ tabela de primitivas, imports/módulos e a stdlib núcleo implementados. A próx
        `std.asserts` e `std.results`; cada módulo com golden, `--check` e determinismo.
 2. [ ] **T2 — stdlib comum**: `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`,
        `convert`.
-3. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
-4. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
-5. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
+3. [ ] **Limite de pilha**: [ADR-0077](docs/adr/0077-limite-de-pilha.md) proposto
+       (1.000 chamadas + `R1015`); implementar depois de T2 e decidir o número final.
+4. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
+5. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
+6. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
 
 ## 3. Diagnósticos
 
@@ -58,7 +60,8 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 ### 3.1 O que ainda falta
 
 - [ ] **Stack trace de runtime** (`P2`): frames `at f (linha N) ← main (linha M)`; no
-      binário, decidir o custo de carregar frames.
+      binário, decidir o custo de carregar frames. Depende do limite de pilha
+      ([ADR-0077](docs/adr/0077-limite-de-pilha.md), proposto).
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token.
 - [ ] **`fixes[]`** (`P3`): `applicability` + `edits[]` por span; só quando houver edição

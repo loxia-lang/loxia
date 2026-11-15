@@ -122,6 +122,7 @@ Crie quando a decisão:
 | [0074](0074-gc-boehm-e-contrato-de-memoria.md) | GC Boehm e contrato de memória (hard cap de 128 MiB) | accepted (implementado) | 2026-11-14 |
 | [0075](0075-diagnosticos-estruturados.md) | Diagnósticos estruturados: modelo, códigos estáveis, `human`/`short`/`json` e determinismo | accepted (implementado) | 2026-11-14 |
 | [0076](0076-std-lists-sort.md) | `std.lists.sort`: comparador de três vias, estável, lista nova | accepted (implementado) | 2026-11-14 |
+| [0077](0077-limite-de-pilha.md) | Limite de profundidade de chamadas (1.000) e `Stack overflow.` | proposed | 2026-11-15 |
 
 
 ## Próximas decisões que pedem ADR

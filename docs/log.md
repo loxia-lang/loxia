@@ -291,3 +291,18 @@ Intervalo: `HEAD..HEAD` (stdlib T1, inferência de `T?`, math em contexto espera
   esperado) não alteram diagnóstico.
 - `README.md`, `TODO.md`, `CHANGELOG.md`, `TIPOS.md` — **updated**: T1 concluída, próximo
   é T2; lacuna de enum genérico em lambda registrada.
+
+## 2026-11-15 — ADR-0077: limite de pilha (proposto)
+
+Intervalo: `HEAD..HEAD` (decisão de profundidade de chamadas; código não implementado).
+
+- `docs/adr/0077-limite-de-pilha.md` — **novo** (proposed): limite compartilhado de
+  1.000 chamadas Lox, erro `R1015`/`Stack overflow.`, restauração da profundidade no
+  unwinding e medições dos dois motores.
+- `docs/adr/README.md` — **updated**: linha 0077 no índice.
+- `TODO.md` — **updated**: contador de pilha na fila depois de T2; stack trace depende
+  do ADR.
+- `docs/decisoes.md` — **no-change**: ADR-0077 está `proposed`; o resumo só lista
+  decisões fechadas.
+- `docs/spec/erros.md`, `docs/spec/lexico.md` — **no-change**: sem mudança de
+  comportamento, código de erro ou léxico nesta rodada.
