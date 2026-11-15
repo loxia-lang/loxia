@@ -108,13 +108,19 @@ class ContainerLowering(LoweringBase):
             key = self._box_value(self._expr(key_expr), None)
             value = self._box_value(self._expr(value_expr), None)
             self.builder.call(
-                self._function("lox_map_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _INT]),
+                self._function(
+                    "lox_map_set",
+                    _VOID,
+                    [_I8_PTR, _INT, _INT, _INT, _INT, _I32, _I32],
+                ),
                 [
                     raw,
                     self.builder.extract_value(key.llvm, 0),
                     self.builder.extract_value(key.llvm, 1),
                     self.builder.extract_value(value.llvm, 0),
                     self.builder.extract_value(value.llvm, 1),
+                    llvm_ir.constant(_I32, expr.brace.line),
+                    llvm_ir.constant(_I32, expr.brace.column),
                 ],
             )
         return Value(ValueType.MAP, raw)
@@ -196,13 +202,19 @@ class ContainerLowering(LoweringBase):
             value = self._coerce(self._expr(expr.value), value_desc, expr.bracket.line)
             boxed = self._box_value(value, None)
             self.builder.call(
-                self._function("lox_map_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _INT]),
+                self._function(
+                    "lox_map_set",
+                    _VOID,
+                    [_I8_PTR, _INT, _INT, _INT, _INT, _I32, _I32],
+                ),
                 [
                     obj.llvm,
                     self.builder.extract_value(key.llvm, 0),
                     self.builder.extract_value(key.llvm, 1),
                     self.builder.extract_value(boxed.llvm, 0),
                     self.builder.extract_value(boxed.llvm, 1),
+                    llvm_ir.constant(_I32, expr.bracket.line),
+                    llvm_ir.constant(_I32, expr.bracket.column),
                 ],
             )
             return value
@@ -286,8 +298,16 @@ class ContainerLowering(LoweringBase):
             payload = self.builder.extract_value(key.llvm, 1)
             if name == "has":
                 call = self.builder.call(
-                    self._function("lox_map_has", _I32, [_I8_PTR, _INT, _INT]),
-                    [obj.llvm, tag, payload],
+                    self._function(
+                        "lox_map_has", _I32, [_I8_PTR, _INT, _INT, _I32, _I32]
+                    ),
+                    [
+                        obj.llvm,
+                        tag,
+                        payload,
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
                 )
                 return Value(
                     ValueType.BOOL,
@@ -311,8 +331,16 @@ class ContainerLowering(LoweringBase):
                 value_desc.ty, value_desc.fn, True, value_desc.class_name
             )
             raw = self.builder.call(
-                self._function("lox_map_get", _ANY, [_I8_PTR, _INT, _INT]),
-                [obj.llvm, tag, payload],
+                self._function(
+                    "lox_map_get", _ANY, [_I8_PTR, _INT, _INT, _I32, _I32]
+                ),
+                [
+                    obj.llvm,
+                    tag,
+                    payload,
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
             )
             return self._unbox_value(raw, optional, line)
         if name in {"keys", "values"}:

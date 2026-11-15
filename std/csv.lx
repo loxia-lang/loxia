@@ -1,0 +1,153 @@
+# std.csv — CSV RFC 4180 (T2), em Lox puro.
+# Determinístico: aceita CRLF e LF na entrada; `stringify` emite CRLF e uma quebra
+# final. Campos com `,`, `"`, CR ou LF são citados e `"` vira `""`.
+# `parse` devolve `nil` para entrada malformada (aspas não fechadas); uma linha em
+# branco é um registro com um campo vazio.
+
+class _Parser {
+  val text: String
+  var index: Int
+
+  init(text: String) {
+    this.text = text
+    this.index = 0
+  }
+
+  fn _parseField() -> String {
+    if (this.index < len(this.text) and charCodeAt(this.text, this.index) == 34) {
+      return this._parseQuoted()
+    }
+    val parts: List[String] = []
+    while (this.index < len(this.text)) {
+      val code = charCodeAt(this.text, this.index)
+      if (code == 44 or code == 13 or code == 10) {
+        return join(parts, "")
+      }
+      if (code == 34) {
+        raise RuntimeError("Invalid CSV: stray quote in an unquoted field.")
+      }
+      parts.push(fromCodePoint(code))
+      this.index = this.index + 1
+    }
+    return join(parts, "")
+  }
+
+  fn _parseQuoted() -> String {
+    this.index = this.index + 1
+    val parts: List[String] = []
+    while (true) {
+      if (this.index >= len(this.text)) {
+        raise RuntimeError("Invalid CSV: unterminated quoted field.")
+      }
+      val code = charCodeAt(this.text, this.index)
+      this.index = this.index + 1
+      if (code == 34) {
+        if (this.index < len(this.text) and charCodeAt(this.text, this.index) == 34) {
+          parts.push("\"")
+          this.index = this.index + 1
+        } else {
+          return join(parts, "")
+        }
+      } else {
+        parts.push(fromCodePoint(code))
+      }
+    }
+    return ""
+  }
+
+  fn _parseRow() -> List[String] {
+    val fields: List[String] = []
+    var finished = false
+    while (not finished) {
+      fields.push(this._parseField())
+      if (this.index >= len(this.text)) {
+        finished = true
+      } else {
+        val code = charCodeAt(this.text, this.index)
+        if (code == 44) {
+          this.index = this.index + 1
+        } elif (code == 13 or code == 10) {
+          this._endLine()
+          finished = true
+        } else {
+          raise RuntimeError("Invalid CSV: unexpected character after a field.")
+        }
+      }
+    }
+    return fields
+  }
+
+  fn _endLine() -> Nil {
+    if (this.index < len(this.text) and charCodeAt(this.text, this.index) == 13) {
+      this.index = this.index + 1
+    }
+    if (this.index < len(this.text) and charCodeAt(this.text, this.index) == 10) {
+      this.index = this.index + 1
+    }
+  }
+}
+
+fn parse(text: String) -> List[List[String]]? {
+  if (len(text) == 0) {
+    return []
+  }
+  try {
+    val parser = _Parser(text)
+    val rows: List[List[String]] = []
+    while (parser.index < len(text)) {
+      rows.push(parser._parseRow())
+    }
+    return rows
+  } except RuntimeError as error {
+    return nil
+  }
+}
+
+fn _needsQuotes(field: String) -> Bool {
+  var index = 0
+  while (index < len(field)) {
+    val code = charCodeAt(field, index)
+    if (code == 44 or code == 34 or code == 13 or code == 10) {
+      return true
+    }
+    index = index + 1
+  }
+  return false
+}
+
+fn _quoteField(field: String) -> String {
+  if (not _needsQuotes(field)) {
+    return field
+  }
+  val parts: List[String] = ["\""]
+  var index = 0
+  while (index < len(field)) {
+    val code = charCodeAt(field, index)
+    if (code == 34) {
+      parts.push("\"\"")
+    } else {
+      parts.push(fromCodePoint(code))
+    }
+    index = index + 1
+  }
+  parts.push("\"")
+  return join(parts, "")
+}
+
+fn stringify(rows: List[List[String]]) -> String {
+  if (len(rows) == 0) {
+    return ""
+  }
+  val parts: List[String] = []
+  for row in rows {
+    if (len(row) == 0) {
+      raise RuntimeError("stringify() can't represent an empty CSV row.")
+    }
+    val fields: List[String] = []
+    for field in row {
+      fields.push(_quoteField(field))
+    }
+    parts.push(join(fields, ","))
+  }
+  return join(parts, "\r\n") + "\r\n"
+}

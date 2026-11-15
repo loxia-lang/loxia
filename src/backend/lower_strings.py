@@ -92,7 +92,15 @@ class StringLowering(LoweringBase):
                 )
                 return self._string_literal(text)
             case ValueType.ANY:
-                raise _unsupported("Any in string conversion", None)
+                tag = self.builder.extract_value(value.llvm, 0)
+                payload = self.builder.extract_value(value.llvm, 1)
+                function = self._function(
+                    "lox_str_from_any", _I8_PTR, [_INT, _INT]
+                )
+                return Value(
+                    ValueType.STRING,
+                    self.builder.call(function, [tag, payload]),
+                )
             case ValueType.RANGE:
                 function = self._function(
                     "lox_str_from_range", _I8_PTR, [_I8_PTR]
@@ -136,8 +144,6 @@ class StringLowering(LoweringBase):
             case ValueType.NIL:
                 function = self._function("lox_str_nil", _I8_PTR, [])
                 return Value(ValueType.STRING, self.builder.call(function, []))
-            case ValueType.MAP:
-                raise _unsupported("Map in string conversion", None)
             case _:
                 raise _unsupported(f"String conversion for {value.ty.name}", None)
 

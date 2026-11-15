@@ -104,6 +104,11 @@ decisão.
 | Diagnósticos estruturados | Um `Diagnostic` por execução (código de família, fase, span com linha/coluna/offset), renderizadores `human`/`short`/`json`, ordem/dedup/cap determinísticos e caminho relativo; runtime humano com o mesmo cabeçalho, sem caret, nos dois motores. | [ADR-0075](adr/0075-diagnosticos-estruturados.md) |
 | Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
 | Primitivas e kernel | Kernel = SO ou representação (≤ 15 funções); o resto é Lox. Tabela única (`lox`, símbolo C, tipos, corpo Python, `ambient`) alimenta checker/interpreter/backend/testes. `LoxStr` ganha cache de offsets: `charAt`/`chars`/`for-in` **O(n)**, `substr` O(1)+cópia e `join` O(total). Sem FFI genérica e sem `ctypes` no oráculo; gatilho: kernel > 15 ou divergência observada. | [ADR-0071](adr/0071-primitivas-de-runtime.md) |
+| Kernel T2 | `io.readAll`, `fs.exists` e `fs.listDir` entram como primitivas `ambient` (SO); o teto vai de 15 para **17**. `listDir` ordena por byte e devolve `nil` em erro; `readAll` não normaliza quebras. | [ADR-0079](adr/0079-stdlib-t2.md) |
+| Campos-container | `List`/`Map`/`Tuple`/`Range`/`Enum` em campo de instância são ponteiros em slot `i64` (como `String`); `Any` como campo continua 65. | [ADR-0079](adr/0079-stdlib-t2.md) |
+| `str(Any)` | `str` e interpolação de valor boxeado usam `lox_str_from_any` com a mesma tabela do `print` dinâmico; no topo, string não é citada. | [ADR-0079](adr/0079-stdlib-t2.md) |
+| Chave de `Map` no C | `lox_map_set/has/get/get_checked/remove` recebem `line`/`column` e validam tags (`R1014`), igual ao interpretador; divergência fechada com caso diferencial. | [ADR-0079](adr/0079-stdlib-t2.md) |
+| Stdlib T2 | `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`: Lox puro sobre o kernel, sem sintaxe nova; `Set[T]` guarda `Map[Any, Bool]` (constraints de chave são pós-MVP) e `fs`/leitura de `io` são `ambient` (fora do corpus I1). | [ADR-0079](adr/0079-stdlib-t2.md) |
 
 ## Processo e escopo
 

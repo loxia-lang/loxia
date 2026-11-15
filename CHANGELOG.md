@@ -7,6 +7,17 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Stdlib T2 completa** ([ADR-0079](docs/adr/0079-stdlib-t2.md)): `std.json`
+  (`parse`/`stringify`/`pretty`, ordem de inserção e `Int`/`Float` distintos), `std.fmt`
+  (`format`/`pad`/`commas`/`fixed`/`percent`/`bytes`), `std.paths` (POSIX lexical),
+  `std.fs` (`readText`/`readLines`/`writeText`/`appendText`/`exists`/`listDir`),
+  `std.io` (`write`/`writeErr`/`readLine`/`readAll`/`prompt`), `std.cli`
+  (`parse`/`flag`/`option`/`positional`/`usage`), `std.sets` (`Set[T]`), `std.csv`
+  (RFC 4180) e `std.convert` (base64/hex sobre UTF-8), com golden, `--check` e corpus
+  `t2`. Kernel ganhou `io.readAll`, `fs.exists` e `fs.listDir` (teto 15 → 17, todos
+  `ambient`); classes passam a aceitar campos `List`/`Map`/tupla/`Range`/enum, `str(Any)`
+  funciona no backend e o runtime C valida chave de `Map` (`R1014`) como o interpretador.
+  Exemplo novo: [`exemplos/vendas.lx`](exemplos/vendas.lx).
 - **Stdlib T1 completa**: `std.maps` (`Map[String, V]`: `entries`, `fromEntries`,
   `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`,
   `hasValue`, `getOr`, `toList`), `std.numeric`, `std.asserts` e `std.results`, com

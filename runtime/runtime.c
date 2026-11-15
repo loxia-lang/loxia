@@ -11,6 +11,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <gc.h>
+#include <dirent.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <setjmp.h>
@@ -19,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
 /* Hard cap do heap coletado (ADR-0074); não é configurável por ambiente. */
@@ -474,10 +476,20 @@ static void lox_map_grow(LoxMap *map) {
     map->capacity = capacity;
 }
 
+/* ADR-0017: só String, Int e Bool são chaves; o interpretador é o oráculo. */
+static void lox_map_check_key(int64_t tag, int32_t line, int32_t column) {
+    if (tag != 1 && tag != 3 && tag != 4) {
+        lox_panic(line, column, "R1014",
+                  "Map keys must be strings, integers or booleans.");
+    }
+}
+
 void lox_map_set(void *pointer, int64_t key_tag, int64_t key_payload,
-                 int64_t value_tag, int64_t value_payload) {
+                 int64_t value_tag, int64_t value_payload, int32_t line,
+                 int32_t column) {
     LoxMap *map = pointer;
     LoxValue key = {key_tag, key_payload};
+    lox_map_check_key(key_tag, line, column);
     int64_t found = lox_map_find(map, key);
     if (found >= 0) {
         map->entries[found].value.tag = value_tag;
@@ -499,13 +511,17 @@ int64_t lox_map_len(const void *pointer) {
     return ((const LoxMap *)pointer)->count;
 }
 
-int32_t lox_map_has(const void *pointer, int64_t key_tag, int64_t key_payload) {
+int32_t lox_map_has(const void *pointer, int64_t key_tag, int64_t key_payload,
+                    int32_t line, int32_t column) {
     LoxValue key = {key_tag, key_payload};
+    lox_map_check_key(key_tag, line, column);
     return lox_map_find(pointer, key) >= 0;
 }
 
-LoxValue lox_map_get(const void *pointer, int64_t key_tag, int64_t key_payload) {
+LoxValue lox_map_get(const void *pointer, int64_t key_tag, int64_t key_payload,
+                     int32_t line, int32_t column) {
     LoxValue key = {key_tag, key_payload};
+    lox_map_check_key(key_tag, line, column);
     int64_t found = lox_map_find(pointer, key);
     if (found < 0) {
         LoxValue nil = {0, 0};
@@ -518,6 +534,7 @@ LoxValue lox_map_get_checked(const void *pointer, int64_t key_tag,
                              int64_t key_payload, int32_t line,
                              int32_t column) {
     LoxValue key = {key_tag, key_payload};
+    lox_map_check_key(key_tag, line, column);
     int64_t found = lox_map_find(pointer, key);
     if (found < 0) {
         lox_panic(line, column, "R1008", "Key not found in map.");
@@ -529,6 +546,7 @@ LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
                         int32_t line, int32_t column) {
     LoxMap *map = pointer;
     LoxValue key = {key_tag, key_payload};
+    lox_map_check_key(key_tag, line, column);
     int64_t found = lox_map_find(map, key);
     if (found < 0) {
         lox_panic(line, column, "R1008", "Key not found in map.");
@@ -1943,6 +1961,20 @@ void *lox_str_from_list(const void *pointer) {
     return string_from_ascii(buffer.data, buffer.length);
 }
 
+/* `str`/interpolação de valor boxeado `Any`: mesma formatação de `print` dinâmico. */
+void *lox_str_from_any(int64_t tag, int64_t payload) {
+    if (tag == 4) {
+        return (void *)payload;
+    }
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    LoxValue value;
+    value.tag = tag;
+    value.payload = payload;
+    format_value(&buffer, value);
+    return string_from_ascii(buffer.data, buffer.length);
+}
+
 /*
  * `//`: divisão inteira truncada em direção a zero, com wrapping de i64 em release
  * (ADR-0028). O interpretador devolve INT_MIN para INT_MIN // -1; em C e em LLVM isso
@@ -2136,6 +2168,80 @@ void *lox_io_read_line(void) {
     }
     return string_from_bytes(buffer.data, buffer.length,
                              utf8_code_points(buffer.data, buffer.length));
+}
+
+void *lox_io_read_all(void) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    char chunk[4096];
+    size_t read;
+    while ((read = fread(chunk, 1, sizeof chunk, stdin)) > 0) {
+        buffer_bytes(&buffer, chunk, read);
+    }
+    return string_from_bytes(buffer.data, buffer.length,
+                             utf8_code_points(buffer.data, buffer.length));
+}
+
+int32_t lox_fs_exists(const void *path_pointer) {
+    const LoxStr *path = path_pointer;
+    char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
+    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    path_copy[path->byte_len] = '\0';
+    struct stat info;
+    return stat(path_copy, &info) == 0 ? 1 : 0;
+}
+
+static int compare_dir_names(const void *left, const void *right) {
+    const char *a = *(const char *const *)left;
+    const char *b = *(const char *const *)right;
+    return strcmp(a, b);
+}
+
+/*
+ * Lista ordenada por byte (equivale à ordem de code point em UTF-8), sem "." e "..",
+ * para não vazar a ordem do diretório (I3). Devolve NULL quando não é um diretório
+ * legível — a stdlib traduz para nil.
+ */
+void *lox_fs_list_dir(const void *path_pointer) {
+    const LoxStr *path = path_pointer;
+    char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
+    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    path_copy[path->byte_len] = '\0';
+    DIR *dir = opendir(path_copy);
+    if (dir == NULL) {
+        return NULL;
+    }
+    size_t count = 0;
+    size_t capacity = 8;
+    char **names = lox_alloc(sizeof(char *) * capacity);
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        const char *name = entry->d_name;
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+            continue;
+        }
+        if (count == capacity) {
+            size_t grown_capacity = capacity * 2;
+            char **grown = lox_alloc(sizeof(char *) * grown_capacity);
+            memcpy(grown, names, sizeof(char *) * count);
+            names = grown;
+            capacity = grown_capacity;
+        }
+        size_t length = strlen(name);
+        char *copy = lox_alloc_atomic(length + 1);
+        memcpy(copy, name, length + 1);
+        names[count] = copy;
+        count += 1;
+    }
+    closedir(dir);
+    qsort(names, count, sizeof(char *), compare_dir_names);
+    void *list = lox_list_new();
+    for (size_t index = 0; index < count; index++) {
+        size_t length = strlen(names[index]);
+        lox_list_push(list, 4, (int64_t)string_from_bytes(
+            names[index], length, utf8_code_points(names[index], length)));
+    }
+    return list;
 }
 
 void lox_os_exit(int64_t code) {

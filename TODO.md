@@ -21,9 +21,10 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-15: **L0–L6, L7, M7 e T1 concluídos**; kernel v1,
-tabela de primitivas, imports/módulos e a stdlib núcleo implementados. A próxima execução
-é a **stdlib T2** (§13.6). O status por nível é **gerado** em
+vale o que está aqui. Estado em 2026-11-15: **L0–L6, L7, M7, T1 e T2 concluídos**; kernel
+v1 (17 primitivas), tabela de primitivas, imports/módulos e a stdlib comum implementados.
+A próxima execução é o **limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)).
+O status por nível é **gerado** em
 [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -35,13 +36,14 @@ tabela de primitivas, imports/módulos e a stdlib núcleo implementados. A próx
 | **L7** | `mod.verify()`, `-O2`, benchmark nativo, erros de codegen | ✅ (JIT no REPL é P3 separado) |
 | **M7** | GC Boehm + contrato de memória do [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md) | ✅ implementado |
 | **T1** | `std.strings`, `std.lists`, `std.maps`, `std.numeric`, `std.asserts`, `std.results` sobre módulos/imports | ✅ concluído |
+| **T2** | `std.{json,fmt,paths,fs,io,cli,sets,csv,convert}` sobre o kernel T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)) | ✅ concluído |
 
 ### 0.2 Ordem de execução
 
 1. [x] **T1 — stdlib núcleo**: `std.strings`, `std.lists`, `std.maps`, `std.numeric`,
        `std.asserts` e `std.results`; cada módulo com golden, `--check` e determinismo.
-2. [ ] **T2 — stdlib comum**: `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`,
-       `convert`.
+2. [x] **T2 — stdlib comum**: `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`,
+       `convert` ([ADR-0079](docs/adr/0079-stdlib-t2.md)).
 3. [ ] **Limite de pilha**: [ADR-0077](docs/adr/0077-limite-de-pilha.md) proposto
        (1.000 chamadas + `R1015`); implementar depois de T2 e decidir o número final.
 4. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
@@ -298,11 +300,11 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 | std | biblioteca | **uma** (Lox) | `std/*.lx` |
 | módulos | nomeação e carga | loader/desugar, sem lógica | `src/loader/` |
 
-**T0 — kernel v1 concluído** com 14 primitivas: `args`, `io.*`, `os.*`, `time.*`,
-`substr`, `join`, `charCodeAt`, `fromCodePoint`. O teto de **15** do [ADR-0071](docs/adr/0071-primitivas-de-runtime.md)
-existe para limitar a duplicação Python×C e a superfície de ABI; não é um número mágico.
-`fs.listDir`, `fs.exists` e `os.cwd` entram só quando `std.fs`/`std.paths` precisarem e
-passarem pelo ADR-0071 (entrar acima do teto exige remover outra ou justificar no ADR).
+**Kernel concluído** com **17** primitivas: `args`, `io.*` (incluindo `readAll`), `fs.*`
+(`exists`, `listDir`), `os.*`, `time.*`, `substr`, `join`, `charCodeAt`, `fromCodePoint`.
+O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)); o critério
+continua sendo SO ou representação, e qualquer crescimento novo exige ADR. `os.cwd`
+segue fora: `std.paths` é lexical e não precisou dele.
 
 ### 13.2–13.3 Kernel v1 e complexidade — concluídos
 
@@ -347,15 +349,15 @@ determinismo.
 
 | Módulo | Funções | Estado |
 | --- | --- | --- |
-| `std.json` | `parse`, `stringify`, `pretty` (ordem de inserção; `Int`/`Float` distintos) | ⬜ |
-| `std.fmt` | `format(template, List[Any])`, `pad`, `commas`, `fixed`, `percent`, `bytes` | ⬜ |
-| `std.paths` | `join`, `dirname`, `basename`, `ext`, `stem`, `normalize`, `isAbsolute`, `split` (POSIX) | ⬜ |
-| `std.fs` | `readText`, `readLines`, `writeText`, `appendText`, `exists`, `listDir` | ⬜ |
-| `std.io` | `write`, `writeErr`, `readLine`, `readAll`, `prompt` | ⬜ |
-| `std.cli` | `parse(args, spec)`, `flag`, `option`, `positional`, `usage` | ⬜ |
-| `std.sets` | `Set[T]` sobre `Map[T, Bool]`: `add`, `has`, `remove`, `len`, `union`, `intersect`, `difference`, `toList`, `fromList` (precisa de **classe em módulo**) | ⬜ |
-| `std.csv` | `parse`, `stringify` (RFC 4180, determinístico) | ⬜ |
-| `std.convert` | `toInt`, `toFloat`, `toBool`, `base64Encode`, `base64Decode`, `hexEncode`, `hexDecode` (texto UTF-8 / `List[Int]` 0..255; sem tipo `Bytes`) | ⬜ |
+| `std.json` | `parse`, `stringify`, `pretty` (ordem de inserção; `Int`/`Float` distintos) | ✅ |
+| `std.fmt` | `format(template, List[Any])`, `pad`, `commas`, `fixed`, `percent`, `bytes` | ✅ |
+| `std.paths` | `join`, `dirname`, `basename`, `ext`, `stem`, `normalize`, `isAbsolute`, `split` (POSIX) | ✅ |
+| `std.fs` | `readText`, `readLines`, `writeText`, `appendText`, `exists`, `listDir` | ✅ ambiente (pytest) |
+| `std.io` | `write`, `writeErr`, `readLine`, `readAll`, `prompt` | ✅ leitura ambiente (pytest) |
+| `std.cli` | `parse(args, spec)`, `flag`, `option`, `positional`, `usage` | ✅ spec em `List[String]` |
+| `std.sets` | `Set[T]` sobre `Map[Any, Bool]`: `add`, `has`, `remove`, `len`, `union`, `intersect`, `difference`, `toList`, `fromList` (classe em módulo) | ✅ (campo T em constraints pós-MVP) |
+| `std.csv` | `parse`, `stringify` (RFC 4180, determinístico) | ✅ |
+| `std.convert` | `toInt`, `toFloat`, `toBool`, `base64Encode`, `base64Decode`, `hexEncode`, `hexDecode` (texto UTF-8; sem tipo `Bytes`) | ✅ |
 
 **T3 — extra**
 
@@ -380,11 +382,12 @@ determinismo.
 | 3 | ✅ **13.2** — kernel de SO: `args`, `io.*`, `os.*` + `main(argc, argv)` + exit code | M | 2 |
 | 4 | ✅ **13.5** — imports/módulos + `std/strings` + `std/lists` mínimos | M | 3 |
 | 5 | ✅ **T1** restante (`maps`, `numeric`, `asserts`, `results`) | M | 4 |
-| 6 | **T2** (`json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
+| 6 | ✅ **T2** (`json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
 | 7 | **T3** + dogfooding: `lox fmt` em Lox, depois front-end self-hosted (§10) | L/XL | 6 |
 
-Os passos 0–5 estão feitos: GC, kernel, tabela de primitivas, imports/módulos e T1. O
-próximo é **T2**, começando por `std.json` e `std.fmt`. O `main` gerado agora é
+Os passos 0–6 estão feitos: GC, kernel, tabela de primitivas, imports/módulos, T1 e T2
+([ADR-0079](docs/adr/0079-stdlib-t2.md)). O próximo é o **limite de pilha**
+([ADR-0077](docs/adr/0077-limite-de-pilha.md)). O `main` gerado agora é
 `i32 main(argc, argv)`; o ABI das funções Lox não mudou.
 
 ### 13.8 Critério de pronto por módulo

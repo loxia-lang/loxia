@@ -54,12 +54,13 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l3` | 14 |
 | `l4` | 7 |
 | `l5` | 25 |
-| `l6` | 46 |
+| `l6` | 47 |
 | `k0` | 2 |
 | `t1` | 6 |
+| `t2` | 7 |
 | `t7` | 2 |
 
-**126 casos** em 11 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**134 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
@@ -119,8 +120,12 @@ stdout, stderr, exit code e `--dump-ast`. Ficam proibidos na saída: endereço d
 PID, timestamp, caminho absoluto, ordem de `set`/`dict`, locale e ordem de diretório.
 
 O prelúdio da 1.0 não lê o relógio nem outras entradas ambiente: `clock` foi removido
-([ADR-0026](../adr/0026-freeze-1.0.md)). Um módulo `time` futuro, se existir, fica
-explicitamente **fora** desta garantia e do corpus diferencial.
+([ADR-0026](../adr/0026-freeze-1.0.md)). As **funções ambiente** declaradas no
+[ADR-0072](../adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,
+`time.sleep`, `std.fs`, leitura de `std.io` e abertura de arquivo do kernel — ficam
+explicitamente **fora** desta garantia e do corpus diferencial; têm teste próprio com
+entrada fixa. `std.fs.listDir` ordena as entradas por byte justamente para não vazar a
+ordem do diretório.
 
 `math.*` implementado é determinístico: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,
 `round`, `trunc` e `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` e `pow` dependem da libm e

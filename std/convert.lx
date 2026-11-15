@@ -1,0 +1,235 @@
+# std.convert — conversões e codecs (T2), em Lox puro.
+# Sem tipo `Bytes` (ADR-0072): base64/hex operam sobre o texto UTF-8; a decodificação
+# devolve `nil` quando os bytes não são UTF-8 válido ou o texto é malformado.
+
+fn toInt(text: String) -> Int? {
+  return Int.parse(text)
+}
+
+fn toFloat(text: String) -> Float? {
+  return Float.parse(text)
+}
+
+fn toBool(text: String) -> Bool? {
+  if (text == "true") {
+    return true
+  }
+  if (text == "false") {
+    return false
+  }
+  return nil
+}
+
+fn _utf8Bytes(text: String) -> List[Int] {
+  val bytes: List[Int] = []
+  for character in text {
+    val code = charCodeAt(character, 0)
+    if (code < 128) {
+      bytes.push(code)
+    } elif (code < 2048) {
+      bytes.push(192 + code // 64)
+      bytes.push(128 + code % 64)
+    } elif (code < 65536) {
+      bytes.push(224 + code // 4096)
+      bytes.push(128 + (code // 64) % 64)
+      bytes.push(128 + code % 64)
+    } else {
+      bytes.push(240 + code // 262144)
+      bytes.push(128 + (code // 4096) % 64)
+      bytes.push(128 + (code // 64) % 64)
+      bytes.push(128 + code % 64)
+    }
+  }
+  return bytes
+}
+
+fn _byteAt(bytes: List[Int], index: Int) -> Int {
+  if (index >= len(bytes) or bytes[index] < 128 or bytes[index] > 191) {
+    return -1
+  }
+  return bytes[index] - 128
+}
+
+fn _utf8Text(bytes: List[Int]) -> String? {
+  val parts: List[String] = []
+  var index = 0
+  while (index < len(bytes)) {
+    val first = bytes[index]
+    if (first < 128) {
+      parts.push(fromCodePoint(first))
+      index = index + 1
+    } elif (first >= 194 and first <= 223) {
+      val second = _byteAt(bytes, index + 1)
+      if (second < 0) {
+        return nil
+      }
+      parts.push(fromCodePoint((first - 192) * 64 + second))
+      index = index + 2
+    } elif (first >= 224 and first <= 239) {
+      val second = _byteAt(bytes, index + 1)
+      val third = _byteAt(bytes, index + 2)
+      if (second < 0 or third < 0) {
+        return nil
+      }
+      val code = (first - 224) * 4096 + second * 64 + third
+      if (code < 2048 or (code >= 55296 and code <= 57343)) {
+        return nil
+      }
+      parts.push(fromCodePoint(code))
+      index = index + 3
+    } elif (first >= 240 and first <= 244) {
+      val second = _byteAt(bytes, index + 1)
+      val third = _byteAt(bytes, index + 2)
+      val fourth = _byteAt(bytes, index + 3)
+      if (second < 0 or third < 0 or fourth < 0) {
+        return nil
+      }
+      val code = (first - 240) * 262144 + second * 4096 + third * 64 + fourth
+      if (code < 65536 or code > 1114111) {
+        return nil
+      }
+      parts.push(fromCodePoint(code))
+      index = index + 4
+    } else {
+      return nil
+    }
+  }
+  return join(parts, "")
+}
+
+fn _base64Alphabet() -> String {
+  return "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+}
+
+fn base64Encode(text: String) -> String {
+  val bytes = _utf8Bytes(text)
+  val alphabet = chars(_base64Alphabet())
+  val parts: List[String] = []
+  var index = 0
+  while (index < len(bytes)) {
+    val remaining = len(bytes) - index
+    val first = bytes[index]
+    val second = 0 if remaining < 2 else bytes[index + 1]
+    val third = 0 if remaining < 3 else bytes[index + 2]
+    parts.push(alphabet[first // 4])
+    parts.push(alphabet[(first % 4) * 16 + second // 16])
+    if (remaining < 2) {
+      parts.push("=")
+      parts.push("=")
+    } elif (remaining < 3) {
+      parts.push(alphabet[(second % 16) * 4])
+      parts.push("=")
+    } else {
+      parts.push(alphabet[(second % 16) * 4 + third // 64])
+      parts.push(alphabet[third % 64])
+    }
+    index = index + 3
+  }
+  return join(parts, "")
+}
+
+fn _base64Value(code: Int) -> Int {
+  if (code >= 65 and code <= 90) {
+    return code - 65
+  }
+  if (code >= 97 and code <= 122) {
+    return code - 97 + 26
+  }
+  if (code >= 48 and code <= 57) {
+    return code - 48 + 52
+  }
+  if (code == 43) {
+    return 62
+  }
+  if (code == 47) {
+    return 63
+  }
+  return -1
+}
+
+fn base64Decode(text: String) -> String? {
+  if (len(text) % 4 != 0) {
+    return nil
+  }
+  val bytes: List[Int] = []
+  var index = 0
+  while (index < len(text)) {
+    val a = _base64Value(charCodeAt(text, index))
+    val b = _base64Value(charCodeAt(text, index + 1))
+    if (a < 0 or b < 0) {
+      return nil
+    }
+    val thirdCode = charCodeAt(text, index + 2)
+    val fourthCode = charCodeAt(text, index + 3)
+    val last = index + 4 == len(text)
+    if (thirdCode == 61) {
+      if (not last or fourthCode != 61) {
+        return nil
+      }
+      bytes.push(a * 4 + b // 16)
+    } else {
+      val c = _base64Value(thirdCode)
+      if (c < 0) {
+        return nil
+      }
+      bytes.push(a * 4 + b // 16)
+      bytes.push((b % 16) * 16 + c // 4)
+      if (fourthCode != 61) {
+        val d = _base64Value(fourthCode)
+        if (d < 0) {
+          return nil
+        }
+        bytes.push((c % 4) * 64 + d)
+      } elif (not last) {
+        return nil
+      }
+    }
+    index = index + 4
+  }
+  return _utf8Text(bytes)
+}
+
+fn _hexDigits() -> String {
+  return "0123456789abcdef"
+}
+
+fn _hexValue(code: Int) -> Int {
+  if (code >= 48 and code <= 57) {
+    return code - 48
+  }
+  if (code >= 65 and code <= 70) {
+    return code - 65 + 10
+  }
+  if (code >= 97 and code <= 102) {
+    return code - 97 + 10
+  }
+  return -1
+}
+
+fn hexEncode(text: String) -> String {
+  val digits = chars(_hexDigits())
+  val parts: List[String] = []
+  for byte in _utf8Bytes(text) {
+    parts.push(digits[byte // 16])
+    parts.push(digits[byte % 16])
+  }
+  return join(parts, "")
+}
+
+fn hexDecode(text: String) -> String? {
+  if (len(text) % 2 != 0) {
+    return nil
+  }
+  val bytes: List[Int] = []
+  var index = 0
+  while (index < len(text)) {
+    val high = _hexValue(charCodeAt(text, index))
+    val low = _hexValue(charCodeAt(text, index + 1))
+    if (high < 0 or low < 0) {
+      return nil
+    }
+    bytes.push(high * 16 + low)
+    index = index + 2
+  }
+  return _utf8Text(bytes)
+}

@@ -13,6 +13,7 @@ BUILTIN_NAMES = frozenset(
         "chars",
         "charCodeAt",
         "fromCodePoint",
+        "fs",
         "io",
         "join",
         "len",

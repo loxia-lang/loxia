@@ -74,6 +74,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/map_equality.lx",
         "tests/cases/math_optional.lx",
         "tests/cases/map_iteration.lx",
+        "tests/cases/map_key_any_error.lx",
         "tests/cases/map_keys.lx",
         "tests/cases/map_literal.lx",
         "tests/cases/map_methods.lx",
@@ -137,6 +138,15 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_numeric.lx",
         "tests/cases/std_results.lx",
         "tests/cases/std_strings.lx",
+    ),
+    "t2": (
+        "tests/cases/std_cli.lx",
+        "tests/cases/std_convert.lx",
+        "tests/cases/std_csv.lx",
+        "tests/cases/std_fmt.lx",
+        "tests/cases/std_json.lx",
+        "tests/cases/std_paths.lx",
+        "tests/cases/std_sets.lx",
     ),
     "k0": (
         "tests/cases/kernel_io.lx",

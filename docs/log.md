@@ -327,3 +327,25 @@ semântica).
   cabeçalho): nota "atualizado por ADR-0078"; corpo histórico preservado.
 - `docs/spec/lexico.md`, `sintaxe.md`, `garantias.md` — **no-change**: renomear a extensão
   e a classe embutida não altera léxico, gramática nem as garantias I1–I4.
+
+## 2026-11-15 — Stdlib T2 (ADR-0079)
+
+Intervalo: `d0804a5..HEAD` (nove módulos em `std/`, kernel em 17 primitivas,
+campos-container, `str(Any)` e validação de chave de `Map` no runtime C).
+
+- `docs/adr/0079-stdlib-t2.md` — **novo** (accepted): kernel T2, ABI de campo-container,
+  `str(Any)`, `R1014` no C, `Set[T]` com `Map[Any, Bool]` e a superfície dos módulos.
+- `docs/adr/README.md`, `docs/adr/0071-primitivas-de-runtime.md` — **updated**: linha no
+  índice e nota "atualizado por ADR-0079" (teto 15 → 17; corpo histórico preservado).
+- `docs/spec/semantica.md` — **updated**: seção `stdlib T2` com contrato de cada módulo,
+  ambiente × determinístico e a lacuna de `Set[Float]`.
+- `docs/spec/garantias.md` — **updated**: funções ambiente (incluindo `std.fs`, leitura de
+  `std.io`, `time.*`) explicitamente fora do I3; bloco de níveis regenerado com `t2`.
+- `docs/decisoes.md` — **updated**: cinco linhas (kernel T2, campos-container, `str(Any)`,
+  chave de `Map` no C, stdlib T2).
+- `TODO.md`, `README.md` — **updated**: T2 marcada como concluída; próximo é o limite de
+  pilha; kernel documentado em 17 primitivas.
+- `editors/` — **updated** (`make grammar`): `fs` entrou em `BUILTIN_NAMES`; a gramática é
+  gerada, não editada à mão.
+- `docs/spec/{lexico,sintaxe,erros}.md` — **no-change**: nenhuma sintaxe, palavra-chave ou
+  código de diagnóstico novo.

@@ -58,3 +58,37 @@ def test_leitura_e_escrita_de_arquivo(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "linha\n\nnil\n"
+
+
+def test_read_all_rejeita_stdin_nao_utf8(tmp_path: Path) -> None:
+    path = tmp_path / "readall.lx"
+    path.write_text(
+        "import std.io as io\nprint io.readAll()\n", encoding="utf-8"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), str(path)],
+        cwd=ROOT,
+        input=b"\xff\xfe",
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 70
+    assert b"expects UTF-8 input" in result.stderr
+    assert b"Traceback" not in result.stderr
+
+
+def test_read_file_preserva_crlf(tmp_path: Path) -> None:
+    target = tmp_path / "crlf.txt"
+    target.write_bytes(b"a\r\nb\r\n")
+    path = tmp_path / "ler.lx"
+    path.write_text(
+        f'val t = io.readFile("{target}")\nprint len(t)\nprint repr(t)\n',
+        encoding="utf-8",
+    )
+
+    result = _run(str(path))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == '6\n"a\\r\\nb\\r\\n"\n'

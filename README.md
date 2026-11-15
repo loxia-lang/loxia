@@ -34,9 +34,11 @@
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: **stdlib T2** (`std.json` e `std.fmt` primeiro; depois `paths`, `fs`,
-  `io`, `cli`, `sets`, `csv` e `convert`). A stdlib núcleo **T1** está completa
-  (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`) e entra no corpus T1.
+- 📐 A stdlib **T2** está completa ([ADR-0079](docs/adr/0079-stdlib-t2.md)): `json`,
+  `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv` e `convert`, além da T1
+  (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`). Os casos determinísticos
+  entram no corpus `t2`; `fs` e leitura de `io` são ambiente e têm teste próprio.
+  Próximo passo: **limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)).
   L7b (revisão das mensagens de erro de codegen) segue como pendência de qualidade; JIT
   no REPL fica para depois. O L5, o T7 e o L6a–L6k já entregaram classes, herança,
   closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas, tuplas,
@@ -50,7 +52,8 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
 
 - **I1 — o interpretador é a especificação.** O mesmo programa, interpretado e compilado,
   dá o mesmo stdout, stderr e exit code, byte a byte, para o corpus declarado por nível
-  (hoje L0–L6 em `tests/test_backend.py`).
+  (hoje L0–L6 + T7 + `k0`/`t1`/`t2` em `tests/test_backend.py`; o status por nível é
+  gerado em [`docs/spec/garantias.md`](docs/spec/garantias.md)).
 - **I2 — nada acontece implicitamente.** Sem coerção entre `Int`/`Float`/`String`, sem
   truthiness exótica, sem `nil` surpresa.
 - **I3 — determinismo observável.** Mesma entrada ⇒ mesmos bytes de saída e de

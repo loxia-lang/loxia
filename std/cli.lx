@@ -1,0 +1,142 @@
+# std.cli — parsing declarativo de argumentos (T2), em Lox puro.
+# `spec` é `List[String]` com entradas `flag:NOME`, `option:NOME` e `positional:NOME`.
+# Resultado é `Map[String, Any]`: flags viram Bool, options/positionais viram String
+# (ou `nil` quando ausentes). `--` encerra as opções; `--nome=valor` é aceito.
+# Erros de uso (opção desconhecida, valor faltando) levantam RuntimeError.
+
+import std.strings as strings
+
+fn _splitSpec(item: String) -> (String, String) {
+  val separator = strings.indexOf(item, ":")
+  if (separator <= 0 or separator == len(item) - 1) {
+    raise RuntimeError("Invalid CLI spec entry '${item}'.")
+  }
+  return (substr(item, 0, separator), substr(item, separator + 1, len(item)))
+}
+
+fn parse(args: List[String], spec: List[String]) -> Map[String, Any] {
+  val kinds: Map[String, String] = {}
+  val positionals: List[String] = []
+  for item in spec {
+    val entry = _splitSpec(item)
+    val kind = entry[0]
+    val name = entry[1]
+    if (kind != "flag" and kind != "option" and kind != "positional") {
+      raise RuntimeError("Unknown CLI spec kind '${kind}'.")
+    }
+    if (kinds.has(name)) {
+      raise RuntimeError("Duplicate CLI spec name '${name}'.")
+    }
+    kinds[name] = kind
+    if (kind == "positional") {
+      positionals.push(name)
+    }
+  }
+
+  val result: Map[String, Any] = {}
+  for name in kinds {
+    if (kinds[name] == "flag") {
+      result[name] = false
+    } else {
+      result[name] = nil
+    }
+  }
+
+  var index = 0
+  var positionalIndex = 0
+  var positionalOnly = false
+  while (index < len(args)) {
+    val argument = args[index]
+    if (not positionalOnly and argument == "--") {
+      positionalOnly = true
+    } elif (not positionalOnly and strings.startsWith(argument, "--")) {
+      val body = substr(argument, 2, len(argument))
+      val equals = strings.indexOf(body, "=")
+      var name = body
+      var inline: String? = nil
+      if (equals >= 0) {
+        name = substr(body, 0, equals)
+        inline = substr(body, equals + 1, len(body))
+      }
+      if (not kinds.has(name)) {
+        raise RuntimeError("Unknown option '--${name}'.")
+      }
+      val kind = kinds[name]
+      if (kind == "flag") {
+        if (inline != nil) {
+          raise RuntimeError("Flag '--${name}' takes no value.")
+        }
+        result[name] = true
+      } elif (kind == "option") {
+        if (inline != nil) {
+          result[name] = inline
+        } else {
+          if (index + 1 >= len(args)) {
+            raise RuntimeError("Option '--${name}' needs a value.")
+          }
+          index = index + 1
+          result[name] = args[index]
+        }
+      } else {
+        raise RuntimeError("'--${name}' is positional and takes no '--'.")
+      }
+    } else {
+      if (positionalIndex >= len(positionals)) {
+        raise RuntimeError("Unexpected positional argument '${argument}'.")
+      }
+      result[positionals[positionalIndex]] = argument
+      positionalIndex = positionalIndex + 1
+    }
+    index = index + 1
+  }
+  return result
+}
+
+fn flag(parsed: Map[String, Any], name: String) -> Bool {
+  if (not parsed.has(name)) {
+    return false
+  }
+  val value = parsed[name]
+  if (value is Bool) {
+    return value as Bool
+  }
+  return false
+}
+
+fn option(parsed: Map[String, Any], name: String) -> String? {
+  if (not parsed.has(name)) {
+    return nil
+  }
+  val value = parsed[name]
+  if (value is String) {
+    return value as String
+  }
+  return nil
+}
+
+fn positional(parsed: Map[String, Any], name: String) -> String? {
+  return option(parsed, name)
+}
+
+fn usage(program: String, spec: List[String]) -> String {
+  val parts: List[String] = []
+  var header = "Usage: " + program + " [options]"
+  for item in spec {
+    val entry = _splitSpec(item)
+    if (entry[0] == "positional") {
+      header = header + " <" + entry[1] + ">"
+    }
+  }
+  parts.push(header)
+  for item in spec {
+    val entry = _splitSpec(item)
+    if (entry[0] == "flag") {
+      parts.push("  --" + entry[1])
+    } elif (entry[0] == "option") {
+      parts.push("  --" + entry[1] + " <value>")
+    } else {
+      parts.push("  <" + entry[1] + ">")
+    }
+  }
+  return join(parts, "\n")
+}

@@ -56,7 +56,7 @@ def _args(interpreter: object) -> LoxList:
 
 def _read_file(path: str) -> str | None:
     try:
-        with open(path, encoding="utf-8") as file:
+        with open(path, encoding="utf-8", newline="") as file:
             return file.read()
     except (OSError, UnicodeError):
         return None
@@ -72,7 +72,10 @@ def _write_file(path: str, text: str) -> bool:
 
 
 def _read_line() -> str | None:
-    line = sys.stdin.readline()
+    try:
+        line = sys.stdin.readline()
+    except UnicodeError:
+        raise NativeError("io.readLine() expects UTF-8 input.") from None
     if line == "":
         return None
     if line.endswith("\n"):
@@ -80,6 +83,25 @@ def _read_line() -> str | None:
     if line.endswith("\r"):
         line = line[:-1]
     return line
+
+
+def _read_all() -> str:
+    try:
+        return sys.stdin.read()
+    except UnicodeError:
+        raise NativeError("io.readAll() expects UTF-8 input.") from None
+
+
+def _exists(path: str) -> bool:
+    return os.path.exists(path)
+
+
+def _list_dir(path: str) -> LoxList | None:
+    try:
+        entries = sorted(os.listdir(path))
+    except OSError:
+        return None
+    return LoxList(list(entries))
 
 
 def _write(text: str) -> None:
@@ -140,12 +162,18 @@ PRIMITIVES: tuple[Primitive, ...] = (
               needs_interpreter=True),
     Primitive("io.readFile", "lox_io_read_file", (STRING,),
               union(STRING, NIL), _read_file, ambient=True),
+    Primitive("io.readAll", "lox_io_read_all", (), STRING, _read_all,
+              ambient=True),
     Primitive("io.write", "lox_io_write", (STRING,), NIL, _write),
     Primitive("io.writeErr", "lox_io_write_err", (STRING,), NIL, _write_err),
     Primitive("io.writeFile", "lox_io_write_file", (STRING, STRING), BOOL,
               _write_file, ambient=True),
     Primitive("io.readLine", "lox_io_read_line", (), union(STRING, NIL),
               _read_line, ambient=True),
+    Primitive("fs.exists", "lox_fs_exists", (STRING,), BOOL, _exists,
+              ambient=True),
+    Primitive("fs.listDir", "lox_fs_list_dir", (STRING,),
+              union(ListTy(STRING), NIL), _list_dir, ambient=True),
     Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit),
     Primitive("os.getenv", "lox_os_getenv", (STRING,), union(STRING, NIL),
               _getenv, ambient=True),

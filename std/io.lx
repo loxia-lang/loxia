@@ -1,0 +1,24 @@
+# std.io — entrada e saída padrão (T2), casca fina sobre o kernel.
+# `write`/`writeErr` são determinísticos; `readLine`/`readAll`/`prompt` são ambiente
+# (ADR-0072) e só entram em teste com entrada fixa, nunca no corpus I1.
+
+fn write(text: String) -> Nil {
+  io.write(text)
+}
+
+fn writeErr(text: String) -> Nil {
+  io.writeErr(text)
+}
+
+fn readLine() -> String? {
+  return io.readLine()
+}
+
+fn readAll() -> String {
+  return io.readAll()
+}
+
+fn prompt(message: String) -> String? {
+  io.write(message)
+  return io.readLine()
+}

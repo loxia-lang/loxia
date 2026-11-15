@@ -1,0 +1,472 @@
+# std.json — JSON (RFC 8259) em Lox puro (T2).
+# Determinístico: objetos preservam a ordem de inserção, `Int`/`Float` são distintos
+# e nada depende de locale. `parse` devolve `nil` tanto para JSON `null` quanto para
+# entrada inválida (o chamador que precisa distinguir use `std.convert`).
+# Aninhamento máximo: 16 níveis; acima disso `parse` devolve `nil` em vez de estourar
+# a pilha do interpretador (ADR-0077 ainda não fixou o limite de chamadas).
+
+class _Parser {
+  val text: String
+  var index: Int
+
+  init(text: String) {
+    this.text = text
+    this.index = 0
+  }
+
+  fn _peek() -> Int? {
+    if (this.index >= len(this.text)) {
+      return nil
+    }
+    return charCodeAt(this.text, this.index)
+  }
+
+  fn _skipSpace() -> Nil {
+    while (this.index < len(this.text)) {
+      val code = charCodeAt(this.text, this.index)
+      if (code == 32 or code == 9 or code == 10 or code == 13) {
+        this.index = this.index + 1
+      } else {
+        return
+      }
+    }
+  }
+
+  fn _matches(literal: String) -> Bool {
+    if (this.index + len(literal) > len(this.text)) {
+      return false
+    }
+    var offset = 0
+    while (offset < len(literal)) {
+      if (charCodeAt(this.text, this.index + offset) != charCodeAt(literal, offset)) {
+        return false
+      }
+      offset = offset + 1
+    }
+    return true
+  }
+
+  fn _consume(literal: String) -> Nil {
+    if (not this._matches(literal)) {
+      raise RuntimeError("Invalid JSON: expected '${literal}'.")
+    }
+    this.index = this.index + len(literal)
+  }
+
+  fn _parseValue(depth: Int) -> Any {
+    this._skipSpace()
+    val code = this._peek()
+    if (code == nil) {
+      raise RuntimeError("Invalid JSON: unexpected end of input.")
+    }
+    if (code == 123) {
+      return this._parseObject(depth)
+    }
+    if (code == 91) {
+      return this._parseArray(depth)
+    }
+    if (code == 34) {
+      return this._parseString()
+    }
+    if (this._matches("true")) {
+      this.index = this.index + 4
+      return true
+    }
+    if (this._matches("false")) {
+      this.index = this.index + 5
+      return false
+    }
+    if (this._matches("null")) {
+      this.index = this.index + 4
+      return nil
+    }
+    if (code == 45 or (code >= 48 and code <= 57)) {
+      return this._parseNumber()
+    }
+    raise RuntimeError("Invalid JSON: unexpected character.")
+  }
+
+  fn _parseArray(depth: Int) -> Any {
+    if (depth >= 16) {
+      raise RuntimeError("Invalid JSON: nesting is too deep.")
+    }
+    this.index = this.index + 1
+    val result: List[Any] = []
+    this._skipSpace()
+    if (this._peek() == 93) {
+      this.index = this.index + 1
+      return result
+    }
+    while (true) {
+      result.push(this._parseValue(depth + 1))
+      this._skipSpace()
+      val separator = this._peek()
+      if (separator == nil) {
+        raise RuntimeError("Invalid JSON: unterminated array.")
+      }
+      this.index = this.index + 1
+      if (separator == 93) {
+        return result
+      }
+      if (separator != 44) {
+        raise RuntimeError("Invalid JSON: expected ',' or ']'.")
+      }
+    }
+  }
+
+  fn _parseObject(depth: Int) -> Any {
+    if (depth >= 16) {
+      raise RuntimeError("Invalid JSON: nesting is too deep.")
+    }
+    this.index = this.index + 1
+    val result: Map[String, Any] = {}
+    this._skipSpace()
+    if (this._peek() == 125) {
+      this.index = this.index + 1
+      return result
+    }
+    while (true) {
+      this._skipSpace()
+      if (this._peek() != 34) {
+        raise RuntimeError("Invalid JSON: expected a string key.")
+      }
+      val key = this._parseString()
+      this._skipSpace()
+      if (this._peek() != 58) {
+        raise RuntimeError("Invalid JSON: expected ':'.")
+      }
+      this.index = this.index + 1
+      result[key] = this._parseValue(depth + 1)
+      this._skipSpace()
+      val separator = this._peek()
+      if (separator == nil) {
+        raise RuntimeError("Invalid JSON: unterminated object.")
+      }
+      this.index = this.index + 1
+      if (separator == 125) {
+        return result
+      }
+      if (separator != 44) {
+        raise RuntimeError("Invalid JSON: expected ',' or '}'.")
+      }
+    }
+  }
+
+  fn _parseString() -> String {
+    this.index = this.index + 1
+    val parts: List[String] = []
+    while (true) {
+      if (this.index >= len(this.text)) {
+        raise RuntimeError("Invalid JSON: unterminated string.")
+      }
+      val code = charCodeAt(this.text, this.index)
+      this.index = this.index + 1
+      if (code == 34) {
+        return join(parts, "")
+      }
+      if (code == 92) {
+        parts.push(this._parseEscape())
+      } elif (code < 32) {
+        raise RuntimeError("Invalid JSON: raw control character in string.")
+      } else {
+        parts.push(fromCodePoint(code))
+      }
+    }
+    return ""
+  }
+
+  fn _parseEscape() -> String {
+    if (this.index >= len(this.text)) {
+      raise RuntimeError("Invalid JSON: unterminated escape.")
+    }
+    val code = charCodeAt(this.text, this.index)
+    this.index = this.index + 1
+    if (code == 34) {
+      return "\""
+    }
+    if (code == 92) {
+      return "\\"
+    }
+    if (code == 47) {
+      return "/"
+    }
+    if (code == 98) {
+      return fromCodePoint(8)
+    }
+    if (code == 102) {
+      return fromCodePoint(12)
+    }
+    if (code == 110) {
+      return "\n"
+    }
+    if (code == 114) {
+      return "\r"
+    }
+    if (code == 116) {
+      return "\t"
+    }
+    if (code != 117) {
+      raise RuntimeError("Invalid JSON: unknown escape sequence.")
+    }
+    val first = this._hex4()
+    if (first >= 55296 and first <= 56319) {
+      if (not this._matches("\\u")) {
+        raise RuntimeError("Invalid JSON: unpaired surrogate.")
+      }
+      this.index = this.index + 2
+      val second = this._hex4()
+      if (second < 56320 or second > 57343) {
+        raise RuntimeError("Invalid JSON: unpaired surrogate.")
+      }
+      return fromCodePoint(65536 + (first - 55296) * 1024 + (second - 56320))
+    }
+    if (first >= 56320 and first <= 57343) {
+      raise RuntimeError("Invalid JSON: unpaired surrogate.")
+    }
+    return fromCodePoint(first)
+  }
+
+  fn _hex4() -> Int {
+    if (this.index + 4 > len(this.text)) {
+      raise RuntimeError("Invalid JSON: truncated \\u escape.")
+    }
+    var value = 0
+    var offset = 0
+    while (offset < 4) {
+      val digit = _hexValue(charCodeAt(this.text, this.index + offset))
+      if (digit < 0) {
+        raise RuntimeError("Invalid JSON: bad \\u escape.")
+      }
+      value = value * 16 + digit
+      offset = offset + 1
+    }
+    this.index = this.index + 4
+    return value
+  }
+
+  fn _parseNumber() -> Any {
+    val start = this.index
+    if (this._peek() == 45) {
+      this.index = this.index + 1
+    }
+    if (this._peek() == 48) {
+      this.index = this.index + 1
+    } elif (this._isDigit(this._peek())) {
+      while (this._isDigit(this._peek())) {
+        this.index = this.index + 1
+      }
+    } else {
+      raise RuntimeError("Invalid JSON: expected a digit.")
+    }
+    var isFloat = false
+    if (this._peek() == 46) {
+      isFloat = true
+      this.index = this.index + 1
+      if (not this._isDigit(this._peek())) {
+        raise RuntimeError("Invalid JSON: expected a digit after '.'.")
+      }
+      while (this._isDigit(this._peek())) {
+        this.index = this.index + 1
+      }
+    }
+    val exponent = this._peek()
+    if (exponent == 101 or exponent == 69) {
+      isFloat = true
+      this.index = this.index + 1
+      val sign = this._peek()
+      if (sign == 43 or sign == 45) {
+        this.index = this.index + 1
+      }
+      if (not this._isDigit(this._peek())) {
+        raise RuntimeError("Invalid JSON: expected a digit in exponent.")
+      }
+      while (this._isDigit(this._peek())) {
+        this.index = this.index + 1
+      }
+    }
+    val raw = substr(this.text, start, this.index)
+    if (not isFloat) {
+      val integer = Int.parse(raw)
+      if (integer != nil) {
+        return integer
+      }
+    }
+    val number = Float.parse(raw)
+    if (number == nil) {
+      raise RuntimeError("Invalid JSON: number out of range.")
+    }
+    if (not _isFinite(number)) {
+      raise RuntimeError("Invalid JSON: number out of range.")
+    }
+    return number
+  }
+
+  fn _isDigit(code: Int?) -> Bool {
+    if (code == nil) {
+      return false
+    }
+    return code >= 48 and code <= 57
+  }
+}
+
+fn _hexValue(code: Int) -> Int {
+  if (code >= 48 and code <= 57) {
+    return code - 48
+  }
+  if (code >= 65 and code <= 70) {
+    return code - 65 + 10
+  }
+  if (code >= 97 and code <= 102) {
+    return code - 97 + 10
+  }
+  return -1
+}
+
+fn _hex4Digits(value: Int) -> String {
+  val digits = "0123456789abcdef"
+  val a = value // 4096
+  val b = (value // 256) % 16
+  val c = (value // 16) % 16
+  val d = value % 16
+  return chars(digits)[a] + chars(digits)[b] + chars(digits)[c] + chars(digits)[d]
+}
+
+fn _isFinite(value: Float) -> Bool {
+  if (value != value) {
+    return false
+  }
+  return value <= 1.7976931348623157e308 and value >= -1.7976931348623157e308
+}
+
+fn _quote(text: String) -> String {
+  val parts: List[String] = ["\""]
+  var index = 0
+  while (index < len(text)) {
+    val code = charCodeAt(text, index)
+    if (code == 34) {
+      parts.push("\\\"")
+    } elif (code == 92) {
+      parts.push("\\\\")
+    } elif (code == 8) {
+      parts.push("\\b")
+    } elif (code == 12) {
+      parts.push("\\f")
+    } elif (code == 10) {
+      parts.push("\\n")
+    } elif (code == 13) {
+      parts.push("\\r")
+    } elif (code == 9) {
+      parts.push("\\t")
+    } elif (code < 32) {
+      parts.push("\\u" + _hex4Digits(code))
+    } else {
+      parts.push(fromCodePoint(code))
+    }
+    index = index + 1
+  }
+  parts.push("\"")
+  return join(parts, "")
+}
+
+fn _spaces(count: Int) -> String {
+  val parts: List[String] = []
+  var index = 0
+  while (index < count) {
+    parts.push(" ")
+    index = index + 1
+  }
+  return join(parts, "")
+}
+
+fn parse(text: String) -> Any {
+  try {
+    val parser = _Parser(text)
+    val value = parser._parseValue(0)
+    parser._skipSpace()
+    if (parser.index != len(text)) {
+      raise RuntimeError("Invalid JSON: trailing characters.")
+    }
+    return value
+  } except RuntimeError as error {
+    return nil
+  }
+}
+
+fn stringify(value: Any) -> String {
+  if (value == nil) {
+    return "null"
+  }
+  if (value is Bool) {
+    if (value as Bool) {
+      return "true"
+    }
+    return "false"
+  }
+  if (value is Int) {
+    return str(value as Int)
+  }
+  if (value is Float) {
+    if (not _isFinite(value as Float)) {
+      raise RuntimeError("Cannot serialize a non-finite Float as JSON.")
+    }
+    return str(value as Float)
+  }
+  if (value is String) {
+    return _quote(value as String)
+  }
+  if (value is List[Any]) {
+    val items = value as List[Any]
+    val parts: List[String] = []
+    for item in items {
+      parts.push(stringify(item))
+    }
+    return "[" + join(parts, ",") + "]"
+  }
+  if (value is Map[String, Any]) {
+    val entries = value as Map[String, Any]
+    val parts: List[String] = []
+    for key in entries {
+      parts.push(_quote(key) + ":" + stringify(entries[key]))
+    }
+    return "{" + join(parts, ",") + "}"
+  }
+  raise RuntimeError("Cannot serialize this value as JSON.")
+}
+
+fn _pretty(value: Any, indent: Int, level: Int) -> String {
+  if (value is List[Any]) {
+    val items = value as List[Any]
+    if (len(items) == 0) {
+      return "[]"
+    }
+    val parts: List[String] = []
+    for item in items {
+      parts.push(_spaces(indent * (level + 1)) + _pretty(item, indent, level + 1))
+    }
+    return "[\n" + join(parts, ",\n") + "\n" + _spaces(indent * level) + "]"
+  }
+  if (value is Map[String, Any]) {
+    val entries = value as Map[String, Any]
+    if (len(entries) == 0) {
+      return "{}"
+    }
+    val parts: List[String] = []
+    for key in entries {
+      parts.push(
+        _spaces(indent * (level + 1))
+          + _quote(key)
+          + ": "
+          + _pretty(entries[key], indent, level + 1)
+      )
+    }
+    return "{\n" + join(parts, ",\n") + "\n" + _spaces(indent * level) + "}"
+  }
+  return stringify(value)
+}
+
+fn pretty(value: Any, indent: Int = 2) -> String {
+  if (indent <= 0) {
+    return stringify(value)
+  }
+  return _pretty(value, indent, 0)
+}

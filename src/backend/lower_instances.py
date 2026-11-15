@@ -90,9 +90,16 @@ class InstanceLowering(LoweringBase):
                 )
             case ValueType.BOOL:
                 return Value(ValueType.BOOL, self.builder.trunc(raw, _BOOL))
-            case ValueType.STRING:
+            case (
+                ValueType.STRING
+                | ValueType.RANGE
+                | ValueType.LIST
+                | ValueType.MAP
+                | ValueType.TUPLE
+                | ValueType.ENUM
+            ):
                 return Value(
-                    ValueType.STRING,
+                    desc.ty,
                     self.builder.inttoptr(raw, _I8_PTR),
                     optional=desc.optional,
                 )
@@ -122,7 +129,17 @@ class InstanceLowering(LoweringBase):
                 return self.builder.bitcast(value.llvm, _INT)
             case ValueType.BOOL:
                 return self.builder.zext(value.llvm, _INT)
-            case ValueType.STRING | ValueType.FUNCTION | ValueType.CLASS | ValueType.INSTANCE:
+            case (
+                ValueType.STRING
+                | ValueType.RANGE
+                | ValueType.LIST
+                | ValueType.MAP
+                | ValueType.TUPLE
+                | ValueType.ENUM
+                | ValueType.FUNCTION
+                | ValueType.CLASS
+                | ValueType.INSTANCE
+            ):
                 return self.builder.ptrtoint(value.llvm, _INT)
             case ValueType.NIL:
                 return llvm_ir.constant(_INT, 0)

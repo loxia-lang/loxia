@@ -1,0 +1,52 @@
+# std.json (T2): parse/stringify/pretty, ordem de inserção e Int/Float distintos.
+import std.json as json
+import std.strings as strings
+
+print json.stringify(json.parse("{\"a\":1,\"b\":[true,false,null]}"))
+print json.stringify(json.parse("{\"n\":1,\"f\":1.0,\"e\":1e3}"))
+print json.stringify(json.parse("[]"))
+print json.stringify(json.parse("{}"))
+print json.stringify(json.parse("\"x\\ny\\t\\\"z\\\"\""))
+print json.stringify(json.parse("\"\\u00e9\\uD83D\\uDE00\""))
+print json.stringify(json.parse("{\"a\":1,\"a\":2}"))
+print json.parse("[1, 2, 3]")
+print json.parse("{\"nome\": \"ação\"}")
+print json.parse("bad")
+print json.parse("[1,]")
+print json.parse("{\"a\": 1,}")
+print json.parse("01")
+print json.parse("")
+print json.parse("1e999")
+print json.parse("\"\\uD800\"")
+print json.stringify({"z": nil, "a": [1, 2], "b": true})
+print repr(json.pretty({"a": [1, 2], "b": {}}, 2))
+print repr(json.pretty([1, {"x": "y"}], 4))
+print repr(json.pretty({"a": [1, 2]}, 0))
+print len(json.stringify(json.parse("{\"k\": [1, 2, 3]}")))
+val exato = strings.repeat("[", 16) + strings.repeat("]", 16)
+print json.stringify(json.parse(exato)) == exato
+val fundo = strings.repeat("[", 17) + strings.repeat("]", 17)
+print json.parse(fundo)
+# expect: {"a":1,"b":[true,false,null]}
+# expect: {"n":1,"f":1.0,"e":1000.0}
+# expect: []
+# expect: {}
+# expect: "x\ny\t\"z\""
+# expect: "é😀"
+# expect: {"a":2}
+# expect: [1, 2, 3]
+# expect: {"nome": "ação"}
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: {"z":null,"a":[1,2],"b":true}
+# expect: "{\n  \"a\": [\n    1,\n    2\n  ],\n  \"b\": {}\n}"
+# expect: "[\n    1,\n    {\n        \"x\": \"y\"\n    }\n]"
+# expect: "{\"a\":[1,2]}"
+# expect: 13
+# expect: true
+# expect: nil

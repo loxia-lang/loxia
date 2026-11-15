@@ -1,5 +1,9 @@
 # ADR-0071 — Primitivas de runtime: fronteira nativa, tabela única e complexidade linear
 
+> **Atualizado por** [ADR-0079](0079-stdlib-t2.md): a T2 elevou o teto de 15 para
+> **17** primitivas (`io.readAll`, `fs.exists`, `fs.listDir`). O corpo abaixo é o registro
+> histórico da decisão de 2026-11-14; o critério (SO ou representação) não mudou.
+
 - **Status:** accepted (13.2/13.3/13.4 implementados; stdlib/imports pendentes)
 - **Data:** 2026-11-14
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)

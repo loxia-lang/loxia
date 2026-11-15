@@ -1,0 +1,91 @@
+# std.fmt (T2): format/pad/commas/fixed/percent/bytes, sem locale.
+import std.fmt as fmt
+
+print fmt.format("{} + {} = {}", [1, 2, 3])
+print fmt.format("{{x}} {} {{}}", ["ok"])
+print fmt.format("", [])
+print fmt.format("sem args", [])
+print fmt.format("{}", [nil])
+print fmt.format("{} {} {}", [true, 1.5, "s"])
+print fmt.pad("7", 3, "0")
+print repr(fmt.pad("x", 3))
+print fmt.pad("abc", 2)
+print fmt.commas(0)
+print fmt.commas(1234)
+print fmt.commas(1234567)
+print fmt.commas(-1234567)
+print fmt.commas(-9223372036854775807 - 1)
+print fmt.fixed(3.14159, 2)
+print fmt.fixed(2.0, 0)
+print fmt.fixed(2.5, 0)
+print fmt.fixed(-2.5, 0)
+print fmt.fixed(1.005, 2)
+print fmt.fixed(-0.0, 2)
+print fmt.fixed(1.0, 3)
+print fmt.percent(0.426, 1)
+print fmt.percent(0.5)
+print fmt.bytes(0)
+print fmt.bytes(1023)
+print fmt.bytes(1024)
+print fmt.bytes(1536)
+print fmt.bytes(1048576)
+print fmt.bytes(1099511627776)
+try {
+  fmt.format("{} {}", [1])
+} except RuntimeError as e {
+  print "poucos"
+}
+try {
+  fmt.format("{}", [1, 2])
+} except RuntimeError as e {
+  print "muitos"
+}
+try {
+  fmt.format("}", [])
+} except RuntimeError as e {
+  print "chave"
+}
+try {
+  fmt.fixed(1.0, 16)
+} except RuntimeError as e {
+  print "digitos"
+}
+try {
+  fmt.bytes(-1)
+} except RuntimeError as e {
+  print "negativo"
+}
+# expect: 1 + 2 = 3
+# expect: {x} ok {}
+# expect:
+# expect: sem args
+# expect: nil
+# expect: true 1.5 s
+# expect: 007
+# expect: "  x"
+# expect: abc
+# expect: 0
+# expect: 1,234
+# expect: 1,234,567
+# expect: -1,234,567
+# expect: -9,223,372,036,854,775,808
+# expect: 3.14
+# expect: 2
+# expect: 3
+# expect: -3
+# expect: 1.00
+# expect: 0.00
+# expect: 1.000
+# expect: 42.6%
+# expect: 50%
+# expect: 0 B
+# expect: 1023 B
+# expect: 1.0 KiB
+# expect: 1.5 KiB
+# expect: 1.0 MiB
+# expect: 1.0 TiB
+# expect: poucos
+# expect: muitos
+# expect: chave
+# expect: digitos
+# expect: negativo

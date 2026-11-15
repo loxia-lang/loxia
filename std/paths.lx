@@ -1,0 +1,142 @@
+# std.paths — caminhos POSIX (T2), em Lox puro.
+# Não toca no sistema de arquivos: só manipulação lexical. Separador é `/`.
+# `join` não normaliza (use `normalize`); `normalize` colapsa barras e resolve
+# `.`/`..` lexicamente, sem consultar o disco.
+
+import std.strings as strings
+
+fn isAbsolute(path: String) -> Bool {
+  return len(path) > 0 and charCodeAt(path, 0) == 47
+}
+
+fn split(path: String) -> List[String] {
+  val result: List[String] = []
+  for part in strings.split(path, "/") {
+    if (len(part) > 0) {
+      result.push(part)
+    }
+  }
+  return result
+}
+
+fn join(base: String, child: String) -> String {
+  if (len(child) == 0) {
+    return base
+  }
+  if (len(base) == 0 or isAbsolute(child)) {
+    return child
+  }
+  if (charCodeAt(base, len(base) - 1) == 47) {
+    return base + child
+  }
+  return base + "/" + child
+}
+
+fn _stripTrailing(path: String) -> String {
+  var end = len(path)
+  while (end > 1 and charCodeAt(path, end - 1) == 47) {
+    end = end - 1
+  }
+  return substr(path, 0, end)
+}
+
+fn _joinParts(parts: List[String]) -> String {
+  var result = ""
+  var index = 0
+  while (index < len(parts)) {
+    if (index > 0) {
+      result = result + "/"
+    }
+    result = result + parts[index]
+    index = index + 1
+  }
+  return result
+}
+
+fn basename(path: String) -> String {
+  if (len(path) == 0) {
+    return "."
+  }
+  val trimmed = _stripTrailing(path)
+  if (len(trimmed) == 1 and charCodeAt(trimmed, 0) == 47) {
+    return "/"
+  }
+  var index = len(trimmed) - 1
+  while (index >= 0) {
+    if (charCodeAt(trimmed, index) == 47) {
+      return substr(trimmed, index + 1, len(trimmed))
+    }
+    index = index - 1
+  }
+  return trimmed
+}
+
+fn dirname(path: String) -> String {
+  if (len(path) == 0) {
+    return "."
+  }
+  val trimmed = _stripTrailing(path)
+  var index = len(trimmed) - 1
+  while (index >= 0) {
+    if (charCodeAt(trimmed, index) == 47) {
+      if (index == 0) {
+        return "/"
+      }
+      return _stripTrailing(substr(trimmed, 0, index))
+    }
+    index = index - 1
+  }
+  return "."
+}
+
+fn ext(path: String) -> String {
+  val name = basename(path)
+  var index = len(name) - 1
+  while (index > 0) {
+    if (charCodeAt(name, index) == 46) {
+      return substr(name, index + 1, len(name))
+    }
+    index = index - 1
+  }
+  return ""
+}
+
+fn stem(path: String) -> String {
+  val name = basename(path)
+  val suffix = ext(name)
+  if (len(suffix) == 0) {
+    return name
+  }
+  return substr(name, 0, len(name) - len(suffix) - 1)
+}
+
+fn normalize(path: String) -> String {
+  if (len(path) == 0) {
+    return "."
+  }
+  val absolute = isAbsolute(path)
+  val stack: List[String] = []
+  for part in split(path) {
+    if (part != ".") {
+      if (part == "..") {
+        if (len(stack) > 0 and stack[len(stack) - 1] != "..") {
+          stack.pop()
+        } elif (not absolute) {
+          stack.push("..")
+        }
+      } else {
+        stack.push(part)
+      }
+    }
+  }
+  if (absolute) {
+    if (len(stack) == 0) {
+      return "/"
+    }
+    return "/" + _joinParts(stack)
+  }
+  if (len(stack) == 0) {
+    return "."
+  }
+  return _joinParts(stack)
+}

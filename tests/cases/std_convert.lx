@@ -1,0 +1,64 @@
+# std.convert (T2): conversões e base64/hex sobre texto UTF-8.
+import std.convert as convert
+
+print convert.toInt("42")
+print convert.toInt(" 42 ")
+print convert.toInt("4x")
+print convert.toFloat("2.5")
+print convert.toFloat("x")
+print convert.toBool("true")
+print convert.toBool("false")
+print convert.toBool("1")
+print convert.base64Encode("")
+print convert.base64Encode("f")
+print convert.base64Encode("fo")
+print convert.base64Encode("foo")
+print convert.base64Encode("ação😀")
+print convert.base64Decode("Zg==")
+print convert.base64Decode("Zm8=")
+print convert.base64Decode("Zm9v")
+print convert.base64Decode("YcOnw6Nv8J+YgA==")
+print convert.base64Decode("")
+print convert.base64Decode("Zm9")
+print convert.base64Decode("!!!!")
+print convert.base64Decode("/w==")
+print convert.hexEncode("ação😀")
+print convert.hexEncode("linha\n")
+print convert.hexDecode("61c3a7c3a36ff09f9880")
+print convert.hexDecode("6c696e68610a")
+print convert.hexDecode("f")
+print convert.hexDecode("zz")
+print convert.hexDecode("ff")
+print convert.base64Decode(convert.base64Encode("volta e meia")) == "volta e meia"
+print convert.hexDecode(convert.hexEncode("ação")) == "ação"
+# expect: 42
+# expect: nil
+# expect: nil
+# expect: 2.5
+# expect: nil
+# expect: true
+# expect: false
+# expect: nil
+# expect:
+# expect: Zg==
+# expect: Zm8=
+# expect: Zm9v
+# expect: YcOnw6Nv8J+YgA==
+# expect: f
+# expect: fo
+# expect: foo
+# expect: ação😀
+# expect:
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: 61c3a7c3a36ff09f9880
+# expect: 6c696e68610a
+# expect: ação😀
+# expect: linha
+# expect:
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: true
+# expect: true

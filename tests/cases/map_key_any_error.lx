@@ -1,0 +1,5 @@
+# Chave inválida em Map[Any, V]: erro de runtime idêntico nos dois motores (ADR-0017).
+val m: Map[Any, Bool] = {}
+print m.has(1.5)
+# expect runtime error: Map keys must be strings, integers or booleans.
+# expect exit: 70

@@ -45,7 +45,9 @@ if not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
     _require("nenhum compilador C encontrado (cc, clang ou gcc)")
 
 
-def _run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+def _run(
+    arguments: list[str], input: str | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         arguments,
         cwd=ROOT,
@@ -53,6 +55,7 @@ def _run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
         text=True,
         timeout=TIMEOUT_SECONDS,
         check=False,
+        input=input,
     )
 
 
@@ -909,6 +912,137 @@ def test_kernel_args_nativo(tmp_path: Path) -> None:
     native = _run([str(binary), "a", "b"])
     assert native.returncode == 0, native.stderr
     assert native.stdout == '["a", "b"]\n'
+
+
+@pytest.mark.backend
+def test_kernel_fs_ambiente_nativo(tmp_path: Path) -> None:
+    entries = tmp_path / "entrada"
+    entries.mkdir()
+    (entries / "b.txt").write_text("b", encoding="utf-8")
+    (entries / "a.txt").write_text("a", encoding="utf-8")
+    path = _write(
+        tmp_path,
+        f'print fs.exists("{entries}")\n'
+        f'print fs.exists("{tmp_path}/nao-existe")\n'
+        f'print fs.listDir("{entries}")\n'
+        f'print fs.listDir("{tmp_path}/nao-existe")\n'
+        f'print fs.listDir("{entries}/a.txt")\n',
+    )
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    interpreted = _interpret(path)
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+    assert native.stdout == 'true\nfalse\n["a.txt", "b.txt"]\nnil\nnil\n'
+
+
+@pytest.mark.backend
+def test_kernel_read_all_nativo(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "val text = io.readAll()\nprint len(text)\nprint text\n",
+    )
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)], input="linha1\nlinha2\n")
+    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)],
+                       input="linha1\nlinha2\n")
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+    assert native.stdout == "14\nlinha1\nlinha2\n\n"
+
+
+@pytest.mark.backend
+def test_std_fs_nativo(tmp_path: Path) -> None:
+    data = tmp_path / "dados"
+    data.mkdir()
+    crlf = data / "crlf.txt"
+    crlf.write_bytes(b"a\r\nb\r\n")
+    source = (
+        "import std.fs as fs\n"
+        f'val alvo = "{data}/arquivo.txt"\n'
+        f'val pasta = "{data}"\n'
+        f'val quebras = "{crlf}"\n'
+        "print fs.writeText(alvo, \"a\\nb\\n\")\n"
+        "print fs.readLines(alvo)\n"
+        "print fs.appendText(alvo, \"c\\n\")\n"
+        "print fs.readText(alvo)\n"
+        "print fs.listDir(pasta)\n"
+        'print fs.readText(pasta + "/nao-existe")\n'
+        "print fs.exists(pasta)\n"
+        "print repr(fs.readText(quebras) or \"\")\n"
+        "print len(fs.readText(quebras) or \"\")\n"
+    )
+    path = _write(tmp_path, source)
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    interpreted = _interpret(path)
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+
+
+@pytest.mark.backend
+def test_std_io_nativo(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "import std.io as io\n"
+        "print io.readLine()\n"
+        "print io.readAll()\n"
+        'print io.prompt("nome? ")\n',
+    )
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)], input="linha\nresto\n")
+    interpreted = _run(
+        [sys.executable, str(ENTRYPOINT), str(path)], input="linha\nresto\n"
+    )
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+
+
+@pytest.mark.backend
+def test_campos_container_nativos(tmp_path: Path) -> None:
+    source = (
+        "class Bag {\n"
+        "  val items: List[Int]\n"
+        "  val labels: Map[String, Int]\n"
+        "  val pair: (Int, String)\n"
+        "  val span: Range\n"
+        "  init() {\n"
+        "    this.items = []\n"
+        "    this.labels = {}\n"
+        "    this.pair = (1, \"a\")\n"
+        "    this.span = 0..3\n"
+        "  }\n"
+        "}\n"
+        "val bag = Bag()\n"
+        "bag.items.push(7)\n"
+        "bag.labels[\"x\"] = 9\n"
+        "print bag.items\n"
+        "print bag.labels\n"
+        "print bag.pair\n"
+        "print bag.span\n"
+    )
+    path = _write(tmp_path, source)
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    interpreted = _interpret(path)
+    assert native.returncode == interpreted.returncode, native.stderr
+    assert native.stdout == interpreted.stdout
+    assert native.stdout == "[7]\n{\"x\": 9}\n(1, \"a\")\n<range 0..3>\n"
 
 
 @pytest.mark.backend

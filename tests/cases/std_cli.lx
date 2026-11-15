@@ -1,0 +1,56 @@
+# std.cli (T2): parse declarativo de argumentos; spec em List[String].
+import std.cli as cli
+
+val spec = ["flag:verbose", "option:output", "positional:file", "positional:extra"]
+val parsed = cli.parse(["--verbose", "--output=out.txt", "a.txt", "b.txt"], spec)
+print cli.flag(parsed, "verbose")
+print cli.flag(parsed, "quiet")
+print cli.option(parsed, "output")
+print cli.option(parsed, "missing")
+print cli.positional(parsed, "file")
+print cli.positional(parsed, "extra")
+val reordered = cli.parse(["--output", "x", "--", "--verbose"], spec)
+print cli.flag(reordered, "verbose")
+print cli.option(reordered, "output")
+print cli.positional(reordered, "file")
+print repr(cli.usage("prog", spec))
+try {
+  cli.parse(["--nope"], spec)
+} except RuntimeError as e {
+  print "desconhecida"
+}
+try {
+  cli.parse(["--output"], spec)
+} except RuntimeError as e {
+  print "sem valor"
+}
+try {
+  cli.parse(["--verbose=1"], spec)
+} except RuntimeError as e {
+  print "flag com valor"
+}
+try {
+  cli.parse(["a", "b", "c"], spec)
+} except RuntimeError as e {
+  print "sobra"
+}
+try {
+  cli.parse([], ["bogus:x"])
+} except RuntimeError as e {
+  print "spec"
+}
+# expect: true
+# expect: false
+# expect: out.txt
+# expect: nil
+# expect: a.txt
+# expect: b.txt
+# expect: false
+# expect: x
+# expect: --verbose
+# expect: "Usage: prog [options] <file> <extra>\n  --verbose\n  --output <value>\n  <file>\n  <extra>"
+# expect: desconhecida
+# expect: sem valor
+# expect: flag com valor
+# expect: sobra
+# expect: spec

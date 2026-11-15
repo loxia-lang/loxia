@@ -253,7 +253,7 @@ const grammar = {
       "name": "support.class.builtin.loxia"
     },
     "builtin-function": {
-      "match": "\\b(?:args|charCodeAt|chars|fromCodePoint|io|join|len|math|os|range|repr|str|substr|time)\\b",
+      "match": "\\b(?:args|charCodeAt|chars|fromCodePoint|fs|io|join|len|math|os|range|repr|str|substr|time)\\b",
       "name": "support.function.builtin.loxia"
     },
     "keywords-control": {

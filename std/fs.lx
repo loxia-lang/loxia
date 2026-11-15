@@ -1,0 +1,42 @@
+# std.fs — leitura e escrita de arquivos (T2), casca fina sobre o kernel.
+# Ambiente (ADR-0072): não entra no corpus I1; teste com diretório temporário e sem
+# imprimir caminho absoluto. `readLines` descarta a quebra final (uma linha por item);
+# `appendText` relê e regrava o arquivo (sem primitiva de append no kernel).
+
+import std.strings as strings
+
+fn readText(path: String) -> String? {
+  return io.readFile(path)
+}
+
+fn readLines(path: String) -> List[String]? {
+  val text = io.readFile(path)
+  if (text == nil) {
+    return nil
+  }
+  val lines = strings.splitLines(text)
+  if (len(lines) > 0 and lines[len(lines) - 1] == "") {
+    lines.pop()
+  }
+  return lines
+}
+
+fn writeText(path: String, text: String) -> Bool {
+  return io.writeFile(path, text)
+}
+
+fn appendText(path: String, text: String) -> Bool {
+  val existing = io.readFile(path)
+  if (existing == nil) {
+    return io.writeFile(path, text)
+  }
+  return io.writeFile(path, existing + text)
+}
+
+fn exists(path: String) -> Bool {
+  return fs.exists(path)
+}
+
+fn listDir(path: String) -> List[String]? {
+  return fs.listDir(path)
+}

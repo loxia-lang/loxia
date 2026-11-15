@@ -862,6 +862,54 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
   `partition` devolve `(yes, no)`.
 - Essas funções são Lox puro sobre o kernel; são determinísticas e entram no corpus T1.
 
+### stdlib T2
+
+Os nove módulos da T2 são Lox puro sobre o kernel e não adicionam sintaxe
+([ADR-0079](../adr/0079-stdlib-t2.md)). Os determinísticos entram no corpus `t2`; os
+**ambiente** ([ADR-0072](../adr/0072-stdlib-batteries.md) §5) ficam fora do I1 e têm teste
+com entrada fixa.
+
+- `std.json`: `parse(text) -> Any`, `stringify(value) -> String` e
+  `pretty(value, indent = 2) -> String`. Objetos viram `Map[String, Any]` (ordem de
+  inserção), arrays viram `List[Any]`, `Int`/`Float` são distintos e `null` vira `nil`.
+  JSON inválido também vira `nil`; aninhamento acima de 16 é inválido. `stringify`
+  levanta `RuntimeError` para `Float` não finito ou valor que não é JSON.
+- `std.fmt`: `format(template, List[Any])` com `{}` e `{{`/`}}`, `pad(text, width,
+  fill = " ")` (à esquerda), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`
+  e `bytes(n)` (B/KiB/MiB/GiB/TiB). Sem locale; argumentos a mais/menos e `fixed` fora de
+  0..15 levantam `RuntimeError`.
+- `std.paths` (POSIX, lexical, não toca no disco): `join` (absoluto no segundo vence,
+  sem normalizar), `dirname`, `basename`, `ext`/`stem` (ponto inicial não conta como
+  extensão), `normalize` (colapsa barras, resolve `.`/`..`), `isAbsolute` e `split`.
+- `std.fs` **ambiente**: `readText -> String?`, `readLines -> List[String]?` (descarta a
+  quebra final), `writeText -> Bool`, `appendText -> Bool` (relê e regrava; cria o
+  arquivo se ausente), `exists -> Bool` e `listDir -> List[String]?` (ordenado, sem
+  `.`/`..`, `nil` se não for diretório legível).
+- `std.io`: `write`/`writeErr` (determinísticos), `readLine -> String?`, `readAll ->
+  String` e `prompt(message) -> String?` (escreve e lê uma linha); leitura é ambiente.
+  Entrada que não é UTF-8 válido é `RuntimeError` (sem traceback), não texto corrompido.
+- `std.cli`: `parse(args, spec) -> Map[String, Any]` com `spec` em `List[String]` de
+  entradas `flag:NOME`, `option:NOME` e `positional:NOME`; aceita `--nome valor`,
+  `--nome=valor` e `--`; flags viram `Bool`, options/positionais viram `String` ou `nil`.
+  `flag`/`option`/`positional` leem o resultado e `usage(program, spec)` gera o texto.
+  Uso inválido (opção desconhecida, valor faltando, flag com valor) é `RuntimeError`.
+- `std.sets`: `Set[T]` com `add`, `has`, `remove` (devolve `Bool`, sem erro se ausente),
+  `len`, `toList` (ordem de inserção), `union`, `intersect`, `difference` e
+  `fromList(List[T])`. O campo interno é `Map[Any, Bool]`: `T` deve ser `String`, `Int`
+  ou `Bool` no runtime; `Set[Float].add` falha com o erro de chave do `Map` (constraints
+  genéricas são pós-MVP).
+- `std.csv`: `parse(text) -> List[List[String]]?` (RFC 4180; aceita CRLF/LF, aspas com
+  `""`, quebra dentro de campo; `nil` se malformado) e `stringify(rows) -> String` (CRLF,
+  quebra final, citação quando precisa; lista vazia gera texto vazio e linha vazia é
+  erro).
+- `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`"true"`/`"false"`),
+  `base64Encode/Decode` e `hexEncode/Decode`. Sem tipo `Bytes`: operam sobre os bytes
+  UTF-8 do texto; decodificação de bytes que não são UTF-8 válido (ou texto malformado)
+  devolve `nil`. Hex é minúsculo.
+
+Campos de instância podem ter tipo-container (`List`, `Map`, tupla, `Range`, enum) desde
+o ADR-0079; `Any` como campo ainda não é suportado pelo backend.
+
 
 - Módulo é um arquivo `.lx`; pasta é namespace de caminho, não módulo.
 - Módulos contêm apenas imports, `fn`, `class` e `enum`; sem `val`/`var` ou statement de

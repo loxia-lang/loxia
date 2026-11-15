@@ -1,0 +1,164 @@
+# std.fmt — formatação textual determinística (T2).
+# Sem locale: `fixed`/`commas`/`bytes` produzem os mesmos bytes em qualquer ambiente.
+# Sem variádicos (ADR-0072): `format` recebe `List[Any]`.
+
+fn format(template: String, values: List[Any]) -> String {
+  val parts: List[String] = []
+  var index = 0
+  var next = 0
+  while (index < len(template)) {
+    val code = charCodeAt(template, index)
+    if (code == 123) {
+      if (index + 1 < len(template) and charCodeAt(template, index + 1) == 123) {
+        parts.push("{")
+        index = index + 2
+      } else {
+        if (index + 1 >= len(template) or charCodeAt(template, index + 1) != 125) {
+          raise RuntimeError("format() expects '{}' placeholders.")
+        }
+        if (next >= len(values)) {
+          raise RuntimeError("format() has too few arguments.")
+        }
+        parts.push(str(values[next]))
+        next = next + 1
+        index = index + 2
+      }
+    } elif (code == 125) {
+      if (index + 1 < len(template) and charCodeAt(template, index + 1) == 125) {
+        parts.push("}")
+        index = index + 2
+      } else {
+        raise RuntimeError("format() has a stray '}'.")
+      }
+    } else {
+      parts.push(fromCodePoint(code))
+      index = index + 1
+    }
+  }
+  if (next != len(values)) {
+    raise RuntimeError("format() has too many arguments.")
+  }
+  return join(parts, "")
+}
+
+fn pad(text: String, width: Int, fill: String = " ") -> String {
+  if (width < 0) {
+    raise RuntimeError("pad() expects a non-negative width.")
+  }
+  if (len(fill) != 1) {
+    raise RuntimeError("pad() expects a one-character fill.")
+  }
+  if (len(text) >= width) {
+    return text
+  }
+  val parts: List[String] = []
+  var count = width - len(text)
+  while (count > 0) {
+    parts.push(fill)
+    count = count - 1
+  }
+  parts.push(text)
+  return join(parts, "")
+}
+
+fn commas(value: Int) -> String {
+  val negative = value < 0
+  var rest = value
+  val digits: List[String] = []
+  if (rest == 0) {
+    digits.push("0")
+  }
+  while (rest != 0) {
+    val digit = rest % 10
+    if (digit < 0) {
+      digits.push(str(-digit))
+    } else {
+      digits.push(str(digit))
+    }
+    rest = rest // 10
+  }
+  val grouped: List[String] = []
+  var index = 0
+  while (index < len(digits)) {
+    if (index > 0 and index % 3 == 0) {
+      grouped.push(",")
+    }
+    grouped.push(digits[index])
+    index = index + 1
+  }
+  val parts: List[String] = []
+  index = len(grouped) - 1
+  while (index >= 0) {
+    parts.push(grouped[index])
+    index = index - 1
+  }
+  if (negative) {
+    return "-" + join(parts, "")
+  }
+  return join(parts, "")
+}
+
+fn _isFinite(value: Float) -> Bool {
+  if (value != value) {
+    return false
+  }
+  return value <= 1.7976931348623157e308 and value >= -1.7976931348623157e308
+}
+
+fn fixed(value: Float, digits: Int) -> String {
+  if (digits < 0 or digits > 15) {
+    raise RuntimeError("fixed() expects digits between 0 and 15.")
+  }
+  if (not _isFinite(value)) {
+    raise RuntimeError("fixed() requires a finite Float.")
+  }
+  val negative = value < 0.0
+  var scale = 1
+  var index = 0
+  while (index < digits) {
+    scale = scale * 10
+    index = index + 1
+  }
+  var magnitude = value
+  if (negative) {
+    magnitude = -value
+  }
+  val scaled = math.round(magnitude * (scale as Float))
+  val whole = scaled // scale
+  val fraction = scaled % scale
+  var fractionText = str(fraction)
+  while (len(fractionText) < digits) {
+    fractionText = "0" + fractionText
+  }
+  if (negative) {
+    if (digits == 0) {
+      return "-" + str(whole)
+    }
+    return "-" + str(whole) + "." + fractionText
+  }
+  if (digits == 0) {
+    return str(whole)
+  }
+  return str(whole) + "." + fractionText
+}
+
+fn percent(value: Float, digits: Int = 0) -> String {
+  return fixed(value * 100.0, digits) + "%"
+}
+
+fn bytes(value: Int) -> String {
+  if (value < 0) {
+    raise RuntimeError("bytes() expects a non-negative size.")
+  }
+  val units = ["B", "KiB", "MiB", "GiB", "TiB"]
+  var divisor = 1
+  var unit = 0
+  while (unit < 4 and value >= divisor * 1024) {
+    divisor = divisor * 1024
+    unit = unit + 1
+  }
+  if (unit == 0) {
+    return str(value) + " B"
+  }
+  return fixed((value as Float) / (divisor as Float), 1) + " " + units[unit]
+}

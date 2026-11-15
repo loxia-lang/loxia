@@ -1,0 +1,79 @@
+# std.sets — conjunto sobre `Map[Any, Bool]` (T2).
+# A ordem de `toList` é a de inserção (determinística). `T` deve ser `String`, `Int`
+# ou `Bool` no runtime: chaves de outro tipo são erro de runtime, porque constraints
+# de chave genérica são pós-MVP (o campo é `Map[Any, Bool]`, a API pública é `Set[T]`).
+
+class Set[T] {
+  val items: Map[Any, Bool]
+
+  init() {
+    this.items = {}
+  }
+
+  fn add(value: T) -> Nil {
+    this.items[value] = true
+  }
+
+  fn has(value: T) -> Bool {
+    return this.items.has(value)
+  }
+
+  fn remove(value: T) -> Bool {
+    if (not this.items.has(value)) {
+      return false
+    }
+    this.items.remove(value)
+    return true
+  }
+
+  fn len() -> Int {
+    return len(this.items)
+  }
+
+  fn toList() -> List[T] {
+    val result: List[T] = []
+    for key in this.items {
+      result.push(key)
+    }
+    return result
+  }
+
+  fn union(other: Set[T]) -> Set[T] {
+    val result: Set[T] = Set()
+    for value in this.toList() {
+      result.add(value)
+    }
+    for value in other.toList() {
+      result.add(value)
+    }
+    return result
+  }
+
+  fn intersect(other: Set[T]) -> Set[T] {
+    val result: Set[T] = Set()
+    for value in this.toList() {
+      if (other.has(value)) {
+        result.add(value)
+      }
+    }
+    return result
+  }
+
+  fn difference(other: Set[T]) -> Set[T] {
+    val result: Set[T] = Set()
+    for value in this.toList() {
+      if (not other.has(value)) {
+        result.add(value)
+      }
+    }
+    return result
+  }
+}
+
+fn fromList[T](values: List[T]) -> Set[T] {
+  val result: Set[T] = Set()
+  for value in values {
+    result.add(value)
+  }
+  return result
+}
