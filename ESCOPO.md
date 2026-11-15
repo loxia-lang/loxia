@@ -95,15 +95,15 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Async/await (`Task[T]`) | depois do M7 + I/O | direção no [ADR-0037](docs/adr/0037-async-direcao.md); colored, determinístico; não é paralelismo (IDEIAS I-7) |
 | Contratos (`requires`/`ensures`/`invariant`) e JSON | pós | ver I-4 no [`IDEIAS.md`](IDEIAS.md) |
 | `try`/`except`/`finally`/`raise` | ✅ feito | classes de exceção, `except Tipo as e`, `raise;`, `finally`; backend 65 até o L6 ([ADR-0042](docs/adr/0042-excecoes.md)) |
-| Variádicos, trailing closure, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
-| `type` alias, derive, operator overloading, extension methods | pós | — |
+| Variádicos, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
+| `type` alias, derive; extension methods e operator overloading estacionados em IDEIAS I-8 | pós | — |
 | `if`/bloco como expressão, `loop`/`break` rotulado | pós | — |
 | Strings multilinha/raw, indexação de string, UTF-8 em identificadores | pós | — |
 | `log`/`exp`/`sin`/`cos`/`tan`/`pow`/`math.pi` | pós | libm não garante I3 |
 | Formatter, LSP, fuzz, site, REPL multiline | pós | tooling |
 
 **Fora por enquanto:** VM própria/bytecode, `Object` raiz, GC geracional,
-JIT tracing, metaclasses, `UInt`/`f32`/`Decimal`/`BigInt`, coerção implícita.
+JIT tracing, metaclasses/decorators, `UInt`/`f32`/`Decimal`/`BigInt`, coerção implícita.
 
 ## Como decidir um item novo
 

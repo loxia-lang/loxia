@@ -356,3 +356,185 @@ I1/I3?
 Só depois que (a) async existir, (b) houver I/O, (c) houver caso de uso concreto e um
 benchmark mostrando ganho. A primeira forma a tentar é **data-parallel determinístico**;
 threads compartilhadas só com modelo de memória escrito e um ADR próprio.
+
+## I-8 — Ideias soltas (algum momento)
+
+Coisas sem dor demonstrada e **sem direção comprometida**. Não são backlog: não têm data,
+não bloqueiam nada e só viram ADR se aparecer um caso real. Diferente de I-4..I-7, aqui não
+há uma pergunta em avaliação — há uma ideia guardada.
+
+### Operator overloading — estacionado
+
+**Status:** `a pensar`, sem ADR e sem previsão. Saiu do `TODO.md` §8 porque não é uma
+pendência de implementação; se um dia voltar, volta como proposta com dor demonstrada.
+
+**O que seria:** `a + b` como açúcar para um método do tipo do operando esquerdo (por
+exemplo `a.add(b)`), resolvido pelo checker.
+
+**Por que não agora:**
+
+- não há `Vec`/`Matrix`/`Money` na stdlib nem caso real que fique ilegível sem operador;
+- `add()`/`compare()` explícitos já resolvem, sem dispatch implícito;
+- interfaces atuais não têm `Self` nem parâmetros de tipo; uma interface `Add` precisaria
+  de `Self` ou de interfaces genéricas antes;
+- `==`/`!=` são estruturais e usados por `Map`/enums; sobrecarregar igualdade quebraria a
+  consistência com hash — o mais seguro seria excluir;
+- o backend hoje baixa `+` para instrução LLVM; overloading vira chamada de método/vtable,
+  com custo de checker, ABI e testes diferenciais;
+- o [ADR-0014](docs/adr/0014-identidade-e-invariantes.md) recusa feature que só compra
+  superfície antes de dor real.
+
+**Se algum dia voltar, escopo mínimo:**
+
+- somente interfaces + constraints (`T: Add`);
+- `Self` na interface; sem ele, o retorno perde o tipo concreto;
+- só `+ - * /` e unário `-`; sem `==`, `[]`, `()` ou bitwise;
+- dispatch estático/monomorfizado; sem operador em valor de tipo interface;
+- método explícito como alternativa sempre disponível.
+
+**Alternativa atual:** métodos `add`, `sub`, `scale`, `compare` e funções de ordenação com
+`T: Ord`; nada disso exige mudança na linguagem.
+
+**Critério para reabrir:** um programa real de tamanho não trivial em que a ausência do
+operador seja a principal fonte de ilegibilidade — e um ADR que pague `Self`/interfaces
+genéricas separadamente do açúcar.
+
+### Trailing closure — estacionado
+
+**Status:** `a pensar`, sem data. Saiu do `TODO.md` §8.
+
+**O que seria:** permitir a lambda final fora dos parênteses:
+
+```lox
+lists.map(xs) { fn(x) => x * 2 }
+```
+
+**Utilidade:** reduz o ruído de `fn(...)` nas APIs de callback da stdlib (`lists.map`,
+`filter`, `fold`, `results.map` etc.). Não adiciona capacidade: funções já são valores.
+
+**Por que não agora:**
+
+- o ganho é cosmético; a forma explícita é legível e tipada;
+- `{` já é bloco, literal de mapa, corpo de `match` e agora disputaria o papel de closure
+  depois de uma chamada;
+- `;` opcional e regra de newline (ADR-0011/0067) tornam a decisão local do parser
+  delicada: `foo()` seguido de bloco na linha seguinte é ambíguo;
+- não há DSL nem biblioteca que dependa disso para ser usável.
+
+**Critério para reabrir:** um caso real em que a ausência da trailing closure seja a
+principal fonte de ilegibilidade, com um desenho de parser que não reintroduza ambiguidade
+com bloco/mapa e preserve uma única forma canônica.
+
+### `match` estrutural em uniões — estacionado
+
+**Status:** `a pensar`, sem data. Saiu do `TODO.md` §8.
+
+**O que seria:** padrões por tipo/estrutura, não só variantes de enum:
+
+```lox
+match x {
+  Int => ...
+  String => ...
+}
+```
+
+e, na versão completa, destructuring de campos:
+
+```lox
+match p {
+  Point(x, y) => ...
+  Circle(r) => ...
+}
+```
+
+**Utilidade:** substituir cadeias de `if (x is Int) ... elif (x is String) ...` e,
+na versão completa, destructuring com checagem de exaustividade.
+
+**Por que não agora:**
+
+- `is` + narrowing já resolve uniões de forma explícita (ADR-0025/0086);
+- o `match` atual é exaustivo, mas só para **enums fechados** (ADR-0041);
+- type-pattern match é viável e reusa os tags de `is`, mas ainda exige gramática de
+  padrão e regra de exaustividade para uniões;
+- match estrutural de campos exige metadados/reflexão em runtime, regras para classes
+  abertas, herança, campos privados, `List`/`Map`/tuplas e custo O(n) em padrões de
+  coleção;
+- o [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md) recusa match estrutural
+  sobre uniões justamente porque o erasure não fornece testemunhas de tipo.
+
+**Se um dia voltar, escopo mínimo:** só type-pattern match em uniões fechadas, sem
+destructuring de campos e sem padrões profundos de coleção.
+
+**Critério para reabrir:** muitas uniões reais com cadeias longas de `is` e uma proposta
+que separe claramente “type match” de “structural match”.
+
+### Extension methods — estacionado
+
+**Status:** `a pensar`, sem data. Saiu do `TODO.md` §8.
+
+**O que seria:** métodos declarados fora da classe, resolvidos pelo tipo do receptor:
+
+```lox
+val nomes = pessoas.map(fn(p) => p.nome)   # em vez de lists.map(pessoas, ...)
+```
+
+**Utilidade:** ergonomia de receptor para tipos existentes, inclusive primitivos e
+`List`/`Map`, sem tocar na declaração original.
+
+**Por que não agora:**
+
+- funções livres (`lists.map`, `strings.trim`, `maps.getOr`) já dão a capacidade;
+- a stdlib tem identidade híbrida deliberada (ADR-0016): builtins globais, métodos
+  específicos do tipo e funções de composição;
+- exige resolução por tipo, regras de visibilidade/importação, colisão com métodos reais,
+  prioridade entre extensões e backend com alvo estático/monomorfizado;
+- cria duas APIs para a mesma operação (`lists.map(xs, f)` e `xs.map(f)`) e fragmenta o
+  estilo.
+
+**Alternativa:** adicionar um método embutido pontual (`xs.map`) se um caso específico
+doer, ou manter a função livre.
+
+**Critério para reabrir:** um caso concreto que não possa ser resolvido por função livre
+nem por método embutido, e um desenho de resolução sem ambiguidade.
+
+### Classes como valores / metaclasses — estacionado
+
+**Status:** `a pensar`, sem data. Saiu do `TODO.md` §8.
+
+**O que já existe:** a classe pode ser passada como **valor de construtor**
+(`criar(Animal, "Rex")`), inclusive em um `Map` de fábricas. Isso cobre a maior parte de
+“classe como valor” para injeção/fábricas, sem reflexão (ADR-0021).
+
+**O que seria a versão completa:** um `Class[T]`/metaclasse com métodos estáticos, campos
+de classe, `Animal.nome`, introspecção de campos/superclasse e instanciação dinâmica.
+Metaclasses seriam a “classe da classe”, com hooks de criação.
+
+**Por que não agora:**
+
+- o caso útil (construtor/fábrica) já funciona;
+- `Class[T]` exige tipo, representação no backend, identidade/igualdade, impressão,
+  interação com herança e com genéricos apagados;
+- metaclasses são um sistema de metaobjetos, não um ajuste: hooks de criação, resolução
+  de métodos e semântica de classe;
+- **decorators não são metaclasses.** `@deco` é açúcar para `f = deco(f)` (ou
+  `C = deco(C)`), e Loxia já consegue o decorator manual para funções:
+
+  ```lox
+  fn logged(f: fn(Int) -> Int) -> fn(Int) -> Int {
+    return fn(x) => {
+      print("chamando")
+      return f(x)
+    }
+  }
+  val f2 = logged(f)
+  ```
+
+  `@` exigiria sintaxe, ordem de aplicação, múltiplos decorators e diagnóstico — e
+  esconderia fluxo, contra o I2.
+
+**Se um dia voltar:** no máximo um `Class[T]` mínimo para introspecção, sem metaclasses e
+sem `@decorators`; decorators de função continuam sendo funções de ordem superior.
+
+**Critério para reabrir:** dor real de fábrica/introspecção que construtores como valor não
+resolvam, com ADR separado para `Class[T]`; metaclasses/decorators só com justificativa
+muito forte.

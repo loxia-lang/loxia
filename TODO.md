@@ -144,17 +144,12 @@ uv run pytest tests/test_backend.py -q
 | iterador de usuário no `for-in` | ✅ | protocolo estrutural `iter()` + `next() -> T?`, classe/interface/genérico; caso no diferencial ([ADR-0082](docs/adr/0082-iterador-de-usuario.md)) |
 | `print` como função | ✅ | `print(valor): Any -> Nil`, statement removido; corpus/suíte oficial exemplos migrados ([ADR-0085](docs/adr/0085-print-como-funcao.md)) |
 | variádicos `...args` | ✅ | `...xs: T` + spread final `f(...xs)`; `fmt.format` migrado ([ADR-0083](docs/adr/0083-variadicos.md)) |
-| trailing closure | ⏳ | falta implementar |
 | `type` alias | ✅ | `type Nome = Tipo` transparente, não-genérico, módulos e backend ([ADR-0084](docs/adr/0084-type-alias.md)) |
 | generics + constraints | ✅ | funções T3b + `T: Ord + Num + Interface` ([ADR-0081](docs/adr/0081-constraints-generics.md)); constraints em classes seguem pós-MVP |
 | uniões + narrowing | ✅ | `T?`/`is`/`while`/campos/índices, merge de ramos e `var` capturado ([ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)); aliasing/CFG completo fora |
 | interfaces nominais + `implements` | ✅ | item "traits" do Lox2: tree-walk/checker + backend B2 (`itab`), dois casos no diferencial ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)) |
-| operator overloading | ⏳ | depois de classes |
 | namespaces/import | ✅ | [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, `_` privado, `std.*` e `from`/`as` |
 | `try`/`raise` no backend | ✅ | tree-walk e backend L6 ([ADR-0042](docs/adr/0042-excecoes.md), [ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)) |
-| `match` estrutural em uniões | ⏳ | enum/`match` exaustivo já existe ([ADR-0041](docs/adr/0041-enums-match.md)); falta união/estrutural |
-| extension methods | ⏳ | depois do LLVM MVP e de interfaces |
-| classes como valores / metaclasses | 🤔 | só se precisar |
 | FFI com C | ⏸ | **não haverá FFI genérica**: kernel fixo de primitivas ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)); reavaliar só com dor demonstrada |
 | stdlib (`strings`, `lists`, `collections`) | 🟡 | kernel e imports prontos; T1/T2 na §13 ([ADR-0072](docs/adr/0072-stdlib-batteries.md)) |
 | `async`/`await` | ⏳ | direção no [ADR-0037](docs/adr/0037-async-direcao.md): colored, `Task[T]`, determinístico; só com I/O, pós-M7 |

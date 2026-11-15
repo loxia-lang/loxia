@@ -530,3 +530,22 @@ Intervalo: `HEAD`..working tree (checker/resolver; sem mudança de runtime/backe
   usuário, chamadas nativas, merge de ramos, campos, `for-in` e `try`.
 - `docs/spec/erros.md` / `docs/spec/garantias.md` — **no-change**: mudança é só no
   checker; nenhuma mensagem, corpus ou contagem de casos mudou.
+
+
+## 2026-11-15 — Operator overloading estacionado
+
+- `TODO.md` §8 — **updated**: linha de operator overloading removida; não é pendência de
+  implementação.
+- `IDEIAS.md` — **updated**: nova seção I-8 (ideias soltas), com operator overloading,
+  motivos, escopo mínimo se um dia voltar e critério de reabertura.
+- `ESCOPO.md` — **updated**: operator overloading aponta para IDEIAS I-8.
+
+
+## 2026-11-15 — Trailing closure, match estrutural, extension methods e metaclasses estacionados
+
+- `TODO.md` §8 — **updated**: removidas as linhas `trailing closure`,
+  `match estrutural em uniões`, `extension methods` e
+  `classes como valores / metaclasses`.
+- `IDEIAS.md` — **updated**: I-8 ganhou as quatro ideias com utilidade, custos,
+  alternativas e critério de reabertura.
+- `ESCOPO.md` — **updated**: os itens apontam para IDEIAS I-8 ou para “fora por enquanto”.
