@@ -1,3 +1,265 @@
+# std.strings — texto UTF-8, operações em code points (T1).
+# Tudo aqui é Lox puro sobre substr/join/charCodeAt/fromCodePoint.
+
 fn isEmpty(s: String) -> Bool {
   return len(s) == 0
+}
+
+fn _isSpace(c: Int) -> Bool {
+  return c == 32 or c == 9 or c == 10 or c == 13
+}
+
+fn isBlank(s: String) -> Bool {
+  var i = 0
+  while (i < len(s)) {
+    if (not _isSpace(charCodeAt(s, i))) {
+      return false
+    }
+    i = i + 1
+  }
+  return true
+}
+
+fn ltrim(s: String) -> String {
+  var i = 0
+  while (i < len(s) and _isSpace(charCodeAt(s, i))) {
+    i = i + 1
+  }
+  return substr(s, i, len(s))
+}
+
+fn rtrim(s: String) -> String {
+  var i = len(s)
+  while (i > 0 and _isSpace(charCodeAt(s, i - 1))) {
+    i = i - 1
+  }
+  return substr(s, 0, i)
+}
+
+fn trim(s: String) -> String {
+  return ltrim(rtrim(s))
+}
+
+fn startsWith(s: String, prefix: String) -> Bool {
+  if (len(prefix) > len(s)) {
+    return false
+  }
+  return substr(s, 0, len(prefix)) == prefix
+}
+
+fn endsWith(s: String, suffix: String) -> Bool {
+  if (len(suffix) > len(s)) {
+    return false
+  }
+  return substr(s, len(s) - len(suffix), len(s)) == suffix
+}
+
+fn indexOf(s: String, needle: String) -> Int {
+  if (len(needle) == 0) {
+    return 0
+  }
+  if (len(needle) > len(s)) {
+    return -1
+  }
+  var i = 0
+  while (i + len(needle) <= len(s)) {
+    if (substr(s, i, i + len(needle)) == needle) {
+      return i
+    }
+    i = i + 1
+  }
+  return -1
+}
+
+fn lastIndexOf(s: String, needle: String) -> Int {
+  if (len(needle) == 0) {
+    return len(s)
+  }
+  if (len(needle) > len(s)) {
+    return -1
+  }
+  var i = len(s) - len(needle)
+  while (i >= 0) {
+    if (substr(s, i, i + len(needle)) == needle) {
+      return i
+    }
+    i = i - 1
+  }
+  return -1
+}
+
+fn contains(s: String, needle: String) -> Bool {
+  return indexOf(s, needle) >= 0
+}
+
+fn split(s: String, separator: String) -> List[String] {
+  if (len(separator) == 0) {
+    return chars(s)
+  }
+  val parts: List[String] = []
+  var start = 0
+  var found = indexOf(s, separator)
+  while (found >= 0) {
+    parts.push(substr(s, start, found))
+    start = found + len(separator)
+    found = indexOf(substr(s, start, len(s)), separator)
+    if (found >= 0) {
+      found = found + start
+    }
+  }
+  parts.push(substr(s, start, len(s)))
+  return parts
+}
+
+fn splitLines(s: String) -> List[String] {
+  val raw = split(s, "\n")
+  val result: List[String] = []
+  for line in raw {
+    if (endsWith(line, "\r")) {
+      result.push(substr(line, 0, len(line) - 1))
+    } else {
+      result.push(line)
+    }
+  }
+  return result
+}
+
+fn lines(s: String) -> List[String] {
+  return splitLines(s)
+}
+
+fn words(s: String) -> List[String] {
+  val result: List[String] = []
+  var i = 0
+  while (i < len(s)) {
+    while (i < len(s) and _isSpace(charCodeAt(s, i))) {
+      i = i + 1
+    }
+    if (i < len(s)) {
+      var start = i
+      while (i < len(s) and not _isSpace(charCodeAt(s, i))) {
+        i = i + 1
+      }
+      result.push(substr(s, start, i))
+    }
+  }
+  return result
+}
+
+fn repeat(s: String, count: Int) -> String {
+  if (count <= 0) {
+    return ""
+  }
+  val parts: List[String] = []
+  var i = 0
+  while (i < count) {
+    parts.push(s)
+    i = i + 1
+  }
+  return join(parts, "")
+}
+
+fn upper(s: String) -> String {
+  val parts: List[String] = []
+  var i = 0
+  while (i < len(s)) {
+    val c = charCodeAt(s, i)
+    if (c >= 97 and c <= 122) {
+      parts.push(fromCodePoint(c - 32))
+    } else {
+      parts.push(substr(s, i, i + 1))
+    }
+    i = i + 1
+  }
+  return join(parts, "")
+}
+
+fn lower(s: String) -> String {
+  val parts: List[String] = []
+  var i = 0
+  while (i < len(s)) {
+    val c = charCodeAt(s, i)
+    if (c >= 65 and c <= 90) {
+      parts.push(fromCodePoint(c + 32))
+    } else {
+      parts.push(substr(s, i, i + 1))
+    }
+    i = i + 1
+  }
+  return join(parts, "")
+}
+
+fn capitalize(s: String) -> String {
+  if (len(s) == 0) {
+    return ""
+  }
+  return upper(substr(s, 0, 1)) + lower(substr(s, 1, len(s)))
+}
+
+fn reverse(s: String) -> String {
+  val parts: List[String] = []
+  var i = len(s)
+  while (i > 0) {
+    parts.push(substr(s, i - 1, i))
+    i = i - 1
+  }
+  return join(parts, "")
+}
+
+fn count(s: String, needle: String) -> Int {
+  if (len(needle) == 0) {
+    return 0
+  }
+  var total = 0
+  var start = 0
+  var found = indexOf(s, needle)
+  while (found >= 0) {
+    total = total + 1
+    start = found + len(needle)
+    found = indexOf(substr(s, start, len(s)), needle)
+    if (found >= 0) {
+      found = found + start
+    }
+  }
+  return total
+}
+
+fn replaceFirst(s: String, old: String, new: String) -> String {
+  val found = indexOf(s, old)
+  if (found < 0) {
+    return s
+  }
+  return substr(s, 0, found) + new + substr(s, found + len(old), len(s))
+}
+
+fn replaceAll(s: String, old: String, new: String) -> String {
+  if (len(old) == 0) {
+    return s
+  }
+  return join(split(s, old), new)
+}
+
+fn slice(s: String, start: Int, end: Int) -> String {
+  var begin = start
+  var finish = end
+  if (begin < 0) { begin = 0 }
+  if (finish < begin) { finish = begin }
+  if (finish > len(s)) { finish = len(s) }
+  if (begin > len(s)) { begin = len(s) }
+  return substr(s, begin, finish)
+}
+
+fn padStart(s: String, width: Int, fill: String) -> String {
+  if (len(s) >= width or len(fill) == 0) {
+    return s
+  }
+  val padding = repeat(fill, width)
+  return slice(padding + s, len(padding) - (width - len(s)), len(padding) + len(s))
+}
+
+fn padEnd(s: String, width: Int, fill: String) -> String {
+  if (len(s) >= width or len(fill) == 0) {
+    return s
+  }
+  return slice(s + repeat(fill, width), 0, width)
 }

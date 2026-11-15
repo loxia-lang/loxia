@@ -1,0 +1,55 @@
+# std.strings (T1): funções em Lox sobre primitivas de string.
+from std.strings import isEmpty, isBlank, trim, ltrim, rtrim
+from std.strings import startsWith, endsWith, indexOf, lastIndexOf, contains
+from std.strings import split, splitLines, words
+from std.strings import repeat, upper, lower, capitalize, reverse, count
+from std.strings import replaceFirst, replaceAll, slice, padStart, padEnd
+
+print isEmpty("")
+print isBlank(" \t\n")
+print "[" + trim("  olá  ") + "]"
+print "[" + ltrim("  x") + "][" + rtrim("x  ") + "]"
+print startsWith("abc", "ab")
+print endsWith("abc", "bc")
+print indexOf("abcabc", "bc")
+print lastIndexOf("abcabc", "bc")
+print contains("abc", "zz")
+print split("a,b,c", ",")
+print split("ação", "")
+print splitLines("a\r\nb\n")
+print words("  um dois\t três ")
+print repeat("ab", 3)
+print upper("açB")
+print lower("AÇb")
+print capitalize("aLGO")
+print reverse("ação")
+print count("aaa", "aa")
+print replaceFirst("aXbX", "X", "-")
+print replaceAll("aXbX", "X", "-")
+print slice("abcdef", 2, 5)
+print padStart("7", 3, "0")
+print padEnd("7", 3, ".")
+# expect: true
+# expect: true
+# expect: [olá]
+# expect: [x][x]
+# expect: true
+# expect: true
+# expect: 1
+# expect: 4
+# expect: false
+# expect: ["a", "b", "c"]
+# expect: ["a", "ç", "ã", "o"]
+# expect: ["a", "b", ""]
+# expect: ["um", "dois", "três"]
+# expect: ababab
+# expect: AçB
+# expect: aÇb
+# expect: Algo
+# expect: oãça
+# expect: 1
+# expect: a-bX
+# expect: a-b-
+# expect: cde
+# expect: 007
+# expect: 7..

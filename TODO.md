@@ -34,7 +34,7 @@ imports/módulos implementados. A próxima execução é a **stdlib T1** (§13.6
 | **L6** | enums/`match`, exceções, `Any` e corpus completo | ✅ |
 | **L7** | `mod.verify()`, `-O2`, benchmark nativo, erros de codegen | ✅ (JIT no REPL é P3 separado) |
 | **M7** | GC Boehm + contrato de memória do [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md) | ✅ implementado |
-| **T1** | `std.strings` e `std.lists` sobre módulos/imports | ⬜ próximo |
+| **T1** | `std.strings` e `std.lists` sobre módulos/imports | 🟡 em andamento |
 
 ### 0.2 Ordem de execução
 
@@ -329,8 +329,8 @@ determinismo.
 
 | Módulo | Funções | Estado |
 | --- | --- | --- |
-| `std.strings` | `split`, `splitLines`, `lines`, `words`, `trim`, `ltrim`, `rtrim`, `upper`, `lower` (ASCII), `capitalize`, `startsWith`, `endsWith`, `contains`, `indexOf`, `lastIndexOf`, `replaceAll`, `replaceFirst`, `repeat`, `padStart`, `padEnd`, `reverse`, `slice` (clamp), `isBlank`, `count` | ⬜ |
-| `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `sortBy`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `groupBy`, `flatMap` | ⬜ |
+| `std.strings` | ✅ base: `split`, `splitLines`, `lines`, `words`, `trim`, `ltrim`, `rtrim`, `upper`, `lower` (ASCII), `capitalize`, `startsWith`, `endsWith`, `contains`, `indexOf`, `lastIndexOf`, `replaceAll`, `replaceFirst`, `repeat`, `padStart`, `padEnd`, `reverse`, `slice` (clamp), `isBlank`, `count` | ✅ base completa |
+| `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `sortBy`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `groupBy`, `flatMap` | 🟡 base (map/filter/fold/find/reverse/take/drop/slice/sum/first/last/getOr) |
 | `std.maps` | `entries`, `fromEntries`, `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`, `hasValue`, `getOr`, `toList` | ⬜ |
 | `std.numeric` | `gcd`, `lcm`, `isPrime`, `primes`, `factorial`, `powMod`, `digitSum`, `isEven`, `isOdd`, `sign`, `mean`, `median`, `mode`, `variance`, `stddev`, `roundTo`, `toBase`, `fromBase` | ⬜ |
 | `std.asserts` | `assert`, `assertEq`, `assertNotNil`, `fail` | ⬜ |

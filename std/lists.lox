@@ -1,7 +1,252 @@
+# std.lists — operações funcionais básicas (T1), em Lox puro.
+
 fn isEmpty(xs: List[Any]) -> Bool {
   return len(xs) == 0
 }
 
 fn length(xs: List[Any]) -> Int {
   return len(xs)
+}
+
+fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] {
+  val result: List[U] = []
+  var i = 0
+  while (i < len(xs)) {
+    result.push(f(xs[i]))
+    i = i + 1
+  }
+  return result
+}
+
+fn filter[T](xs: List[T], predicate: fn(T) -> Bool) -> List[T] {
+  val result: List[T] = []
+  var i = 0
+  while (i < len(xs)) {
+    if (predicate(xs[i])) {
+      result.push(xs[i])
+    }
+    i = i + 1
+  }
+  return result
+}
+
+fn each[T](xs: List[T], action: fn(T) -> Nil) -> Nil {
+  var i = 0
+  while (i < len(xs)) {
+    action(xs[i])
+    i = i + 1
+  }
+}
+
+fn fold[T, U](xs: List[T], initial: U, f: fn(U, T) -> U) -> U {
+  var acc = initial
+  var i = 0
+  while (i < len(xs)) {
+    acc = f(acc, xs[i])
+    i = i + 1
+  }
+  return acc
+}
+
+fn any[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
+  var i = 0
+  while (i < len(xs)) {
+    if (predicate(xs[i])) {
+      return true
+    }
+    i = i + 1
+  }
+  return false
+}
+
+fn all[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
+  var i = 0
+  while (i < len(xs)) {
+    if (not predicate(xs[i])) {
+      return false
+    }
+    i = i + 1
+  }
+  return true
+}
+
+fn none[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
+  return not any(xs, predicate)
+}
+
+fn findIndex[T](xs: List[T], predicate: fn(T) -> Bool) -> Int {
+  var i = 0
+  while (i < len(xs)) {
+    if (predicate(xs[i])) {
+      return i
+    }
+    i = i + 1
+  }
+  return -1
+}
+
+fn contains[T](xs: List[T], value: T) -> Bool {
+  var i = 0
+  while (i < len(xs)) {
+    if (xs[i] == value) {
+      return true
+    }
+    i = i + 1
+  }
+  return false
+}
+
+fn indexOf[T](xs: List[T], value: T) -> Int {
+  var i = 0
+  while (i < len(xs)) {
+    if (xs[i] == value) {
+      return i
+    }
+    i = i + 1
+  }
+  return -1
+}
+
+fn reverse[T](xs: List[T]) -> List[T] {
+  val result: List[T] = []
+  var i = len(xs)
+  while (i > 0) {
+    result.push(xs[i - 1])
+    i = i - 1
+  }
+  return result
+}
+
+fn take[T](xs: List[T], count: Int) -> List[T] {
+  val result: List[T] = []
+  var i = 0
+  while (i < len(xs) and i < count) {
+    result.push(xs[i])
+    i = i + 1
+  }
+  return result
+}
+
+fn drop[T](xs: List[T], count: Int) -> List[T] {
+  val result: List[T] = []
+  var i = count
+  if (i < 0) { i = 0 }
+  while (i < len(xs)) {
+    result.push(xs[i])
+    i = i + 1
+  }
+  return result
+}
+
+fn slice[T](xs: List[T], start: Int, end: Int) -> List[T] {
+  val result: List[T] = []
+  var begin = start
+  var finish = end
+  if (begin < 0) { begin = 0 }
+  if (finish < begin) { finish = begin }
+  if (finish > len(xs)) { finish = len(xs) }
+  if (begin > len(xs)) { begin = len(xs) }
+  var i = begin
+  while (i < finish) {
+    result.push(xs[i])
+    i = i + 1
+  }
+  return result
+}
+
+fn sum(xs: List[Int]) -> Int {
+  var total = 0
+  var i = 0
+  while (i < len(xs)) {
+    total = total + xs[i]
+    i = i + 1
+  }
+  return total
+}
+
+fn first[T](xs: List[T]) -> T? {
+  if (len(xs) == 0) {
+    return nil
+  }
+  return xs[0]
+}
+
+fn last[T](xs: List[T]) -> T? {
+  if (len(xs) == 0) {
+    return nil
+  }
+  return xs[len(xs) - 1]
+}
+
+fn find[T](xs: List[T], predicate: fn(T) -> Bool) -> T? {
+  var i = 0
+  while (i < len(xs)) {
+    if (predicate(xs[i])) {
+      return xs[i]
+    }
+    i = i + 1
+  }
+  return nil
+}
+
+fn reduce[T](xs: List[T], f: fn(T, T) -> T) -> T? {
+  if (len(xs) == 0) {
+    return nil
+  }
+  var acc = xs[0]
+  var i = 1
+  while (i < len(xs)) {
+    acc = f(acc, xs[i])
+    i = i + 1
+  }
+  return acc
+}
+
+fn count[T](xs: List[T], predicate: fn(T) -> Bool) -> Int {
+  var total = 0
+  var i = 0
+  while (i < len(xs)) {
+    if (predicate(xs[i])) {
+      total = total + 1
+    }
+    i = i + 1
+  }
+  return total
+}
+
+fn min(xs: List[Int]) -> Int? {
+  if (len(xs) == 0) {
+    return nil
+  }
+  var result = xs[0]
+  var i = 1
+  while (i < len(xs)) {
+    if (xs[i] < result) {
+      result = xs[i]
+    }
+    i = i + 1
+  }
+  return result
+}
+
+fn max(xs: List[Int]) -> Int? {
+  if (len(xs) == 0) {
+    return nil
+  }
+  var result = xs[0]
+  var i = 1
+  while (i < len(xs)) {
+    if (xs[i] > result) {
+      result = xs[i]
+    }
+    i = i + 1
+  }
+  return result
+}
+
+fn getOr[T](xs: List[T], index: Int, fallback: T) -> T {
+  if (index < 0 or index >= len(xs)) {
+    return fallback
+  }
+  return xs[index]
 }

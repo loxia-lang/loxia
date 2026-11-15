@@ -243,3 +243,14 @@ Intervalo: `HEAD..HEAD` (sintaxe, loader, privacidade, desugar e std mínima).
   formas de statement.
 - `docs/adr/README.md`, `docs/decisoes.md` — **updated**: status accepted.
 - `tests/test_modules.py` — **novo**; coverage de from/namespace/privado/ciclo/declarações.
+
+## 2026-11-14 — T1 base: std.strings e std.lists
+
+Intervalo: `HEAD..HEAD` (primeiros módulos T1 sobre imports/kernel).
+
+- `std/strings.lox`, `std/lists.lox` — **novos**: funções em Lox puro; privacidade `_`
+  dentro do módulo e uso de `substr`/`join`/`charCodeAt`.
+- `docs/spec/semantica.md` — **updated**: API T1 e garantia de determinismo.
+- `TODO.md` — **updated**: T1 em andamento; strings base completa e lists base parcial.
+- `tests/cases/std_strings.lox`, `std_lists.lox` — **novos** no nível `t1`.
+- `CHANGELOG.md` — **updated**: T1 base.

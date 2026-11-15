@@ -126,6 +126,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/lambda_closures.lox",
         "tests/cases/local_function.lox",
     ),
+    "t1": (
+        "tests/cases/std_lists.lox",
+        "tests/cases/std_strings.lox",
+    ),
     "k0": (
         "tests/cases/kernel_io.lox",
         "tests/cases/kernel_strings.lox",

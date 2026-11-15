@@ -830,6 +830,18 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 
 ## Módulos
 
+### stdlib T1
+
+- `std.strings`: `isEmpty`, `isBlank`, `trim`/`ltrim`/`rtrim`, `startsWith`/`endsWith`,
+  `contains`/`indexOf`/`lastIndexOf`, `split`/`splitLines`/`lines`/`words`,
+  `repeat`, `upper`/`lower`/`capitalize`, `reverse`, `count`, `replaceFirst`/`replaceAll`,
+  `slice`, `padStart`/`padEnd`.
+- `std.lists`: `isEmpty`, `length`, `map`, `filter`, `each`, `fold`, `reduce`, `any`,
+  `all`, `none`, `find`, `findIndex`, `contains`, `indexOf`, `reverse`, `take`, `drop`,
+  `slice`, `sum`, `first`, `last`, `count`, `min`, `max`, `getOr`.
+- Essas funções são Lox puro sobre o kernel; são determinísticas e entram no corpus T1.
+
+
 - Módulo é um arquivo `.lox`; pasta é namespace de caminho, não módulo.
 - Módulos contêm apenas imports, `fn`, `class` e `enum`; sem `val`/`var` ou statement de
   topo. Import é estático, sem ordem de inicialização.
