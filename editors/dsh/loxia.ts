@@ -220,6 +220,17 @@ const grammar = {
           }
         },
         {
+          "match": "\\b(interface)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.declaration.loxia"
+            },
+            "2": {
+              "name": "entity.name.class.interface.loxia"
+            }
+          }
+        },
+        {
           "match": "\\b(enum)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
@@ -241,7 +252,7 @@ const grammar = {
       "name": "entity.name.function.call.loxia"
     },
     "operators": {
-      "match": ">>>|!=|\\*\\*|\\->|\\.\\.|//|<<|<=|==|=>|>=|>>|\\?\\.|\\?\\?|!|%|\\&|\\*|\\+|\\-|/|<|=|>|\\?|\\^|\\||\\~",
+      "match": "\\.\\.\\.|>>>|!=|\\*\\*|\\->|\\.\\.|//|<<|<=|==|=>|>=|>>|\\?\\.|\\?\\?|!|%|\\&|\\*|\\+|\\-|/|<|=|>|\\?|\\^|\\||\\~",
       "name": "keyword.operator.loxia"
     },
     "punctuation": {
@@ -253,15 +264,15 @@ const grammar = {
       "name": "support.class.builtin.loxia"
     },
     "builtin-function": {
-      "match": "\\b(?:args|charCodeAt|chars|fromCodePoint|fs|io|join|len|math|os|range|repr|str|substr|time)\\b",
+      "match": "\\b(?:args|charCodeAt|chars|fromCodePoint|fs|io|join|len|math|os|print|range|repr|str|substr|time)\\b",
       "name": "support.function.builtin.loxia"
     },
     "keywords-control": {
-      "match": "\\b(?:elif|else|except|finally|for|if|in|match|print|raise|return|try|while)\\b",
+      "match": "\\b(?:elif|else|except|finally|for|if|in|match|raise|return|try|while)\\b",
       "name": "keyword.control.loxia"
     },
     "keywords-declaration": {
-      "match": "\\b(?:as|class|enum|fn|from|import|is|super|this|val|var)\\b",
+      "match": "\\b(?:as|class|enum|fn|from|import|interface|is|super|this|val|var)\\b",
       "name": "keyword.other.declaration.loxia"
     },
     "keywords-operator-word": {

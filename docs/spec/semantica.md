@@ -23,7 +23,7 @@ programa no ponto em que ocorreu; o que já foi impresso permanece. Desde o
 runtime, e `Result` cobre erro esperado. Erros de tipo/sintaxe saem 65.
 
 O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
-Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declarações
+Uma expressão pura como `1 + 1` é embrulhada em `print(1 + 1)` e mostra `2`; declarações
 (`var`, `fn`, `class`) não imprimem nada.
 
 ## Valores
@@ -44,7 +44,7 @@ Uma expressão pura como `1 + 1` é embrulhada em `print` e mostra `2`; declara�
 | instância | chamada de classe | `Nome instance` |
 
 Números são **`Int` (i64) ou `Float` (f64)** — [ADR-0006](../adr/0006-int-float-separados.md).
-`print 3;` mostra `3` e `print 3.0;` mostra `3.0`: o tipo vem do literal. As regras
+`print(3)` mostra `3` e `print(3.0)` mostra `3.0`: o tipo vem do literal. As regras
 completas estão neste documento e no
 [ADR-0006](../adr/0006-int-float-separados.md).
 
@@ -120,7 +120,7 @@ Exemplo canônico:
 ```lox
 var a = "global";
 {
-  fn showA() { print a; }
+  fn showA() { print(a); }
   showA();        // global
   var a = "block";
   showA();        // global (não "block")
@@ -207,11 +207,11 @@ concatena os trechos. A conversão é a mesma `stringify` do `print`:
 
 ```lox
 val nome = "Ana"
-print "Oi, ${nome}!"        # Oi, Ana!
-print "1 + 2 = ${1 + 2}"    # 1 + 2 = 3
-print "mapa: ${{"a": 1}}"   # mapa: {"a": 1}
-print "escape: \${nome}"   # escape: ${nome}
-print "cifrão: $5"          # cifrão: $5
+print("Oi, ${nome}!")        # Oi, Ana!
+print("1 + 2 = ${1 + 2}")    # 1 + 2 = 3
+print("mapa: ${{"a": 1}}")   # mapa: {"a": 1}
+print("escape: \${nome}")   # escape: ${nome}
+print("cifrão: $5")          # cifrão: $5
 ```
 
 - Qualquer expressão é aceita, inclusive chamada, índice, mapa/lista e outra string
@@ -228,12 +228,12 @@ print "cifrão: $5"          # cifrão: $5
 
 ```lox
 val xs: List[Int] = [1, 2, 3]
-print xs[0]          # 1
+print(xs[0])          # 1
 xs[1] = 20
 xs.push(4)
-print len(xs)        # 4
-print xs.pop()       # 4
-for x in xs { print x }
+print(len(xs))        # 4
+print(xs.pop())       # 4
+for x in xs { print(x) }
 ```
 
 - **Literal**: `[a, b, c]`; `[]` é a lista vazia. O tipo é inferido por unificação dos
@@ -262,7 +262,7 @@ for x in xs { print x }
 - **Tipos apagados**: sem `--check`, a lista aceita qualquer elemento em runtime; a
   homogeneidade é contrato estático. Não há checagem de tipo em `push` no runtime.
   A promoção `Int → Float` também é só de checagem: `xs.push(1)` em `List[Float]` é aceito,
-  mas o valor continua `Int` em runtime (`print xs` → `[1, 2.0]`), como
+  mas o valor continua `Int` em runtime (`print(xs)` → `[1, 2.0]`), como
   `val f: Float = 1`.
 - **Limites**: sem slice, `+` de listas, `map`/`filter`, `contains`, `sort` nem indexação de
   string na v1. Lista literal não é default de parâmetro nem inicializador de campo; em
@@ -277,10 +277,10 @@ atribuível a `(Animal, Int)` e `(Int, String)` a `(Any, Any)`. Ver
 
 ```lox
 val par: (Int, String) = (1, "a")
-print par[0]                 # 1
+print(par[0])                 # 1
 val (n, s) = par            # destructuring
-print s                      # a
-print len(par)               # 2
+print(s)                      # a
+print(len(par))               # 2
 ```
 
 - **Literal e tipo**: `(a, b)`; parênteses sem vírgula continuam agrupamento. O tipo
@@ -311,13 +311,13 @@ print len(par)               # 2
 
 ```lox
 val idades: Map[String, Int] = {"Ana": 32}
-print idades["Ana"]          # 32
-print idades.get("Bia")      # nil
-print idades.get("Bia") ?? 0 # 0
+print(idades["Ana"])          # 32
+print(idades.get("Bia"))      # nil
+print(idades.get("Bia") ?? 0) # 0
 idades["Bia"] = 28
-print idades.has("Bia")      # true
-print len(idades)            # 2
-for nome in idades { print nome }   # Ana, Bia (ordem de inserção)
+print(idades.has("Bia"))      # true
+print(len(idades))            # 2
+for nome in idades { print(nome) }   # Ana, Bia (ordem de inserção)
 ```
 
 - **Literal**: `{ chave: valor, ... }`; `{}` é o mapa vazio em posição de expressão. As
@@ -366,14 +366,15 @@ for nome in idades { print nome }   # Ana, Bia (ordem de inserção)
 lazy e reutilizável: não materializa elementos e cada `for` cria a sua própria iteração.
 
 ```lox
-for i in 0..4 { print i; }        // 0 1 2 3
+for i in 0..4 { print(i); }        // 0 1 2 3
 for i in range(5, 0, -2) { ... }  // 5 3 1
 for i in 5..2 { ... }             // vazio
 ```
 
 - Fontes aceitas hoje: `Range` (produz `Int`), `String` (produz `String` de 1 code point),
-  `List[T]` (produz `T`, na ordem de inserção) e `Map[K, V]` (produz `K`, as chaves, na
-  ordem de inserção).
+  `List[T]` (produz `T`, na ordem de inserção), `Map[K, V]` (produz `K`, as chaves, na
+  ordem de inserção), tupla (produz a união dos elementos) e classes/interfaces com
+  `iter()` + `next() -> T?`.
 - O iterável é avaliado **uma vez**, antes do binding do laço; bounds são avaliados uma vez
   da esquerda para a direita.
 - A variável do laço é um **`val` novo por iteração**: reatribuí-la é erro de compilação e
@@ -381,9 +382,18 @@ for i in 5..2 { ... }             // vazio
 - Mutar a coleção durante a iteração é **proibido**: em `List`/`Map` é erro de runtime
   (`Can't modify a list while iterating over it.` /
   `Can't modify a map while iterating over it.`); `Range`/`String` são imutáveis.
+- Iterador de usuário: `for x in e` chama `e.iter()` **uma vez**; o resultado precisa ter
+  `next() -> T?`; `nil` encerra e qualquer outro valor vira `x` (tipo `T`). O protocolo é
+  estrutural (não exige `implements`); a classe do iterador pode ser genérica
+  (`iter() -> BoxIter[T]`, `next() -> T?`). `next() -> Any?`, `next() -> Nil`, `iter()`/
+  `next()` com parâmetros e retorno que não seja iterador são erro de checker. `nil` como
+  elemento não é representável, porque é a sentinela de fim. Ver
+  [ADR-0082](../adr/0082-iterador-de-usuario.md).
 - `Range` é truthy, imprime como `<range a..b>` (ou `<range a..b step s>`) e compara
   estruturalmente.
 - Erros de runtime: `Can only iterate over a range, a list, a map or a string.`,
+  `iter() must return an instance with next() -> T?.`,
+  `iter() must take no arguments.`, `next() must take no arguments.`,
   `Range bounds must be integers.`, `range() arguments must be integers.`,
   `range() step can't be zero.`; aridade errada usa a mensagem padrão
   (`Expected 3 arguments but got N.`).
@@ -392,7 +402,6 @@ for i in 5..2 { ... }             // vazio
 
 | Statement | Efeito |
 | --- | --- |
-| `print expr;` | avalia e imprime com `stringify` + `\n` |
 | `expr;` | avalia e descarta |
 | `{ … }` | novo escopo |
 | `if (c) s elif (c) s else s` | executa o ramo conforme truthiness; `elif` é `else if` |
@@ -407,6 +416,10 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
 
 ## Funções
 
+- `print(valor)` é uma função builtin `Any -> Nil`: escreve `stringify(valor)` e uma
+  newline. Não é statement nem palavra-chave; pode ser aninhada (`print(print(1))`),
+  usada em `return` e como qualquer expressão. `print(a, b)` é erro de aridade
+  ([ADR-0085](../adr/0085-print-como-funcao.md)).
 - Declaração: `fn nome(params) { corpo }`; o nome é definido **antes** do corpo, então a
   função pode ser recursiva; funções no mesmo escopo podem se chamar (resolução em runtime
   para globais, distância para locais).
@@ -535,10 +548,24 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   (= `T | Nil`). `Int` é non-null. `List[T]` e `Map[K, V]` são invariantes:
   `List[Int]` não é `List[Float]` nem `List[Any]`; `Map[String, Int]` não é
   `Map[String, Any]`.
+- Type alias: `type UserId = Int` é **transparente** e não-genérico; o nome expande para o
+  alvo em qualquer anotação, `List`/`Map`, tupla, união, `T?`, tipo de função, `is`/`as` e
+  bound de interface. Aliases são top-level, podem referenciar declarações posteriores e
+  outros aliases, e ciclos/colisões são erro. `UserId` e `Int` são o mesmo tipo: não há
+  tipo nominal, construtor nem distinção em runtime. `class C(Alias)` e
+  `class C implements Alias` continuam exigindo o nome real da classe/interface. Ver
+  [ADR-0039](../adr/0039-decisoes-tipos-pendentes.md) e
+  [ADR-0084](../adr/0084-type-alias.md).
 - Tipos de função: parâmetros são **contravariantes** e o retorno é **covariante**;
   defaults contam como intervalo de aridade. Uma classe (`Animal`) é atribuível à
   assinatura do seu construtor (`fn(String) -> Animal`), mas uma instância (`: Animal`)
   não é. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
+- Variádicos: o último parâmetro pode ser `...xs: T`; dentro do corpo `xs` é `List[T]`.
+  Vale em funções, métodos, interfaces e lambdas; `init` é recusado na v1. A chamada
+  aceita extras (`f(1, 2, 3)`) ou um **spread final** (`f(a, ...xs)`), que preenche
+  somente o rest e exige os fixos explícitos; `f(...xs)` só vale sem fixos. O tipo do
+  spread é `List[T]`; `f(...xs, 2)` e spread no meio são erro de parser. Defaults nos
+  fixos continuam valendo. Ver [ADR-0083](../adr/0083-variadicos.md).
 - Funções genéricas introduzem parâmetros de tipo (`T`, `U`) que podem aparecer em
   `List[T]`, `Map[String, T]`, `fn(T) -> U`, uniões e `T?`. O checker cria uma variável de
   tipo fresca por declaração e resolve a chamada por unificação: argumentos e tipo
@@ -560,9 +587,9 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   `<lambda>`. Ver [ADR-0022](../adr/0022-lambdas.md).
 - Funções genéricas: `fn id[T] (x: T) -> T { ... }`. Os parâmetros de tipo são declarados
   entre o nome e `(` e valem nas anotações e no corpo (`T`, `List[T]`, `Map[String, T]`,
-  `fn(T) -> U`). O corpo é checado **uma vez**, sem constraints: só operações universais
-  valem (`==`, `str`/`repr`, atribuir, listas/mapas, chamar funções passadas). `a + b` e
-  `len(x)` em `T` são erro até existir trait. A chamada infere por unificação dos
+  `fn(T) -> U`). O corpo é checado **uma vez**. Sem bounds, só operações universais valem
+  (`==`, `str`/`repr`, atribuir, listas/mapas, chamar funções passadas); `a + b` e
+  `len(x)` em `T` são erro até existir um bound. A chamada infere por unificação dos
   argumentos e do tipo esperado; `id(1)` ⇒ `T = Int`. A inferência é da esquerda para a
   direita: uma lambda antes do argumento que fixa `T` precisa de anotação. Não há
   `id[Int] (1)` nem função genérica como valor (`val f = id` é erro); zero-arg exige
@@ -570,6 +597,16 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   permitida; recursão polimórfica é recusada. Métodos genéricos ainda não existem.
   O runtime apaga `T`; o backend monomorfiza (ADR-0027). Ver
   [ADR-0027](../adr/0027-generics-t3b.md).
+- Constraints de função: `fn max[T: Ord]`, `fn soma[T: Ord + Num]`,
+  `fn juntas[T: A + B]`. `Ord` vale para `Int`/`Float`/`String` e libera
+  `< <= > >=` entre dois valores do mesmo `T`; `Num` vale para `Int`/`Float` e libera
+  `+ - * % **` e unário `-` (não `/`, `//` nem bits). Bound de interface libera os métodos
+  da interface em `x`; duas interfaces com o mesmo método de assinaturas diferentes são
+  ambiguidade. Na chamada, cada type argument concreto precisa satisfazer o bound (`Bool`,
+  `Any`, uniões e optionais não satisfazem); um `TyVar` de outro generic satisfaz só se
+  carregar o mesmo bound. Bounds só existem em **funções** na v1; classes/enums com
+  `[T: ...]` são erro de parser. O runtime apaga bounds; o backend monomorfiza igual a
+  T7. Ver [ADR-0081](../adr/0081-constraints-generics.md).
 - Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
   esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
   elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string/mapa. `xs.pop()` e
@@ -686,7 +723,7 @@ class Box[T] {
 }
 
 val b: Box[Int] = Box(1)   # Box(1) infere Box[Int]
-print b.get()              # 1
+print(b.get())              # 1
 ```
 
 - `class Box[T]` e `class Pair[A, B]`: `T` vale em campos, métodos, `init` e `this`; o tipo
@@ -697,10 +734,10 @@ print b.get()              # 1
 - Os argumentos são **invariantes**: `Box[Int]` não é `Box[Any]` nem `Box[Float]`
   (campos mutáveis tornariam a covariância unsound). `Any` como argumento de inferência
   também é recusado: `Box(x)` com `x: Any` pede anotação.
-- `this` é `Box[T]` e `init` devolve `Box[T]`; o runtime apaga `T` (`print Box(1)` →
+- `this` é `Box[T]` e `init` devolve `Box[T]`; o runtime apaga `T` (`print(Box(1))` →
   `Box instance`).
-- Fora do MVP: métodos genéricos (`fn map[U]`), herança de `Box[Int]`, constraints,
-  type application explícita (aplicar argumentos à chamada) e `is`/`as Box[Int]`
+- Fora do MVP: métodos genéricos (`fn map[U]`), herança de `Box[Int]`, constraints em
+  classes, type application explícita (aplicar argumentos à chamada) e `is`/`as Box[Int]`
   (recusados com mensagem
   explícita). Ver [ADR-0040](../adr/0040-generics-classes-desenho.md).
 
@@ -725,6 +762,55 @@ print b.get()              # 1
 - Herdar de si mesma → erro de compilação: `A class can't inherit from itself.`
 - Superclasse precisa ser classe em runtime: `Superclass must be a class.`
 - `super.metodo` inexistente → `Undefined property 'metodo'.`
+
+### Interfaces
+
+```lox
+interface Forma {
+  area() -> Float
+  fn nome() -> String { return "forma" }
+  fn descricao() -> String { return "${this.nome()}:${this.area()}" }
+}
+
+class Circulo implements Forma {
+  val raio: Float
+  init(raio: Float) { this.raio = raio }
+  area() -> Float { return 3.14159 * this.raio * this.raio }
+}
+
+val f: Forma = Circulo(2.0)
+print(f.descricao())   # forma:12.56636
+```
+
+- Interface é **nominal** ([ADR-0080](../adr/0080-interfaces-nominais-implementacao.md)):
+  a classe declara `implements`; ter os métodos certos **não** basta (diferente de
+  `Protocol`/Go). A interface precisa ser declarada **antes** da classe que a implementa.
+- Interface é **tipo, não valor**: `print(Forma)` é erro; `Forma` só aparece em anotação.
+- Um método é **abstrato** (sem corpo) ou **default** (com corpo). Default é checado uma
+  vez, com `this` do tipo da interface; pode chamar os outros métodos da interface (que
+  despacham na classe), mas **não** acessa campos, `super` nem `init`.
+- Conformidade:
+  - a classe precisa declarar cada método abstrato (ou herdar um default);
+  - assinatura **exata** com a da interface (parâmetros e retorno); a ABI do backend usa a
+    assinatura da interface no `itab`, então covariância/contravariância de representação
+    não é aceita na v1;
+  - método próprio ou herdado da superclasse **vence** o default;
+  - duas interfaces distintas com o mesmo método exigem override explícito da classe,
+    mesmo que os defaults sejam iguais;
+  - campo com o nome de um método da interface é erro.
+- Ordem de resolução em runtime: método da classe → superclasse → defaults das interfaces
+  na ordem de `implements`; é determinística.
+- Atribuibilidade: `Classe` é atribuível a `Interface` se implementa direta ou
+  transitivamente pela superclasse; `Interface` não é atribuível a `Classe`. `I?`,
+  `List[I]`, campo/parâmetro/retorno de interface valem; a instância concreta continua
+  sendo o valor em runtime.
+- `is`/`as` com interface ainda **não** existem: o checker recusa com diagnóstico
+  dirigido (`Interface types aren't supported in 'is' yet.`).
+- Interfaces não têm estado, genéricos nem herança na v1. No backend LLVM a feature é
+  compilada pela ABI B2 do
+  [ADR-0080](../adr/0080-interfaces-nominais-implementacao.md): `interface_id`
+  determinístico e tabela `{id, itab}` no descritor de classe; cada classe implementada
+  (inclusive por herança) ganha o `itab`, com default ou override por método.
 
 ## Enums e match
 
@@ -755,8 +841,8 @@ val area = match s {
 - Os bindings do padrão têm o tipo do payload (`Result.Ok(v)` → `v: T`); o tipo do `match`
   é a união dos arms. Sem `--check`, um `match` sem arm que case é erro de runtime
   (`No match arm matched.`).
-- Igualdade é estrutural (enum, variante e payload); `print Cor.Verde` →
-  `Cor.Verde`, `print Shape.Circle(1.0)` → `Shape.Circle(1.0)`. Enums não são iteráveis,
+- Igualdade é estrutural (enum, variante e payload); `print(Cor.Verde)` →
+  `Cor.Verde`, `print(Shape.Circle(1.0))` → `Shape.Circle(1.0)`. Enums não são iteráveis,
   não têm `len` e não são chave de `Map`.
 - Fora da v1: padrões literais/`nil`, guards, aninhamento, `|`, `match` sobre uniões e
   variantes nulas de enum genérico. O backend rejeita `enum`/`match` até o L6.
@@ -771,11 +857,11 @@ class MyError(Exception) {
 try {
   raise MyError("falhou")
 } except MyError as e {
-  print "meu: ${e.message}"
+  print("meu: ${e.message}")
 } except RuntimeError as e {
-  print "runtime: ${e.message}"
+  print("runtime: ${e.message}")
 } finally {
-  print "sempre"
+  print("sempre")
 }
 ```
 

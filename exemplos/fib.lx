@@ -8,5 +8,5 @@ fn fib(n: Int) -> Int {
 }
 
 for i in 0..10 {
-  print fib(i);
+  print(fib(i));
 }

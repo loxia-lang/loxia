@@ -42,9 +42,12 @@ def test_from_importa_publicos(tmp_path: Path) -> None:
     main = root / "main.lx"
     main.write_text(
         "from dtos.dtoA import DtoA, Status, helper\n"
-        'print DtoA("a").publico()\n'
-        "print Status.Ativo\n"
-        "print helper()\n",
+        """print(DtoA("a").publico())
+"""
+        """print(Status.Ativo)
+"""
+        """print(helper())
+""",
         encoding="utf-8",
     )
 
@@ -59,8 +62,10 @@ def test_namespace_e_alias(tmp_path: Path) -> None:
     main = root / "main.lx"
     main.write_text(
         "import dtos.dtoA as d\n"
-        'print d.DtoA("b").publico()\n'
-        "print d.helper()\n",
+        """print(d.DtoA("b").publico())
+"""
+        """print(d.helper())
+""",
         encoding="utf-8",
     )
 
@@ -75,7 +80,9 @@ def test_privado_e_rejeitado_em_from_e_namespace(tmp_path: Path) -> None:
     from_main = root / "from.lx"
     from_main.write_text("from dtos.dtoA import _oculto\n", encoding="utf-8")
     ns_main = root / "ns.lx"
-    ns_main.write_text("import dtos.dtoA as d\nprint d._oculto\n", encoding="utf-8")
+    ns_main.write_text("""import dtos.dtoA as d
+print(d._oculto)
+""", encoding="utf-8")
 
     for main in (from_main, ns_main):
         result = _run(main)
@@ -107,14 +114,40 @@ def test_ciclo_e_erro(tmp_path: Path) -> None:
 
 
 def test_modulo_so_declara(tmp_path: Path) -> None:
-    (tmp_path / "m.lx").write_text("print 1\n", encoding="utf-8")
+    (tmp_path / "m.lx").write_text("""print(1)
+""", encoding="utf-8")
     main = tmp_path / "main.lx"
     main.write_text("import m\n", encoding="utf-8")
 
     result = _run(main)
 
     assert result.returncode == 65
-    assert "only imports, functions, classes and enums" in result.stderr
+    assert "only imports, functions, classes, interfaces, enums and type aliases" in result.stderr
+
+
+def test_importa_type_alias(tmp_path: Path) -> None:
+    (tmp_path / "types.lx").write_text(
+        "type UserId = Int\n"
+        "type Nomes = List[String]\n"
+        "fn eco(x: UserId) -> UserId { return x }\n",
+        encoding="utf-8",
+    )
+    main = tmp_path / "main.lx"
+    main.write_text(
+        "from types import UserId, Nomes, eco\n"
+        "val id: UserId = 7\n"
+        'val nomes: Nomes = ["a"]\n'
+        """print(eco(id))
+"""
+        """print(nomes)
+""",
+        encoding="utf-8",
+    )
+
+    result = _run(main)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == '7\n["a"]\n'
 
 
 def test_display_de_classe_de_modulo_preserva_nome(tmp_path: Path) -> None:
@@ -122,7 +155,8 @@ def test_display_de_classe_de_modulo_preserva_nome(tmp_path: Path) -> None:
     main = root / "main.lx"
     main.write_text(
         "from dtos.dtoA import DtoA\n"
-        'print DtoA("a")\n',
+        """print(DtoA("a"))
+""",
         encoding="utf-8",
     )
 

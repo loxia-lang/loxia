@@ -15,9 +15,9 @@ class Pessoa {
 }
 
 var p = Pessoa("Ana", 30);
-print p.nome;   # expect: Ana
-print p.idade;  # expect: 30
-print p.ativo;  # expect: true
+print(p.nome);   # expect: Ana
+print(p.idade);  # expect: 30
+print(p.ativo);  # expect: true
 
 p.aniversario();
-print p.idade;  # expect: 31
+print(p.idade);  # expect: 31

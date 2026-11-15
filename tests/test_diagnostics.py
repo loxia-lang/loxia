@@ -101,7 +101,10 @@ def test_display_width_counts_wide_and_combining() -> None:
 
 def test_render_human_has_header_and_caret() -> None:
     sources = SourceMap()
-    sources.add("x.lx", "print 1;\nprint 2;\n  val x = nome\n")
+    sources.add("x.lx", """print(1);
+print(2);
+  val x = nome
+""")
     diagnostic = _diagnostic(
         code=Code.TYPE_MISMATCH,
         message="Expected Float, found String.",
@@ -133,7 +136,8 @@ def test_render_human_aligns_caret_with_tabs() -> None:
 
 def test_render_human_counts_wide_characters() -> None:
     sources = SourceMap()
-    sources.add("wide.lx", "print 名前;\n")
+    sources.add("wide.lx", """print(名前);
+""")
     diagnostic = _diagnostic(
         span=_span(file="wide.lx", line=1, column=7, end_column=9)
     )

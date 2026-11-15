@@ -54,13 +54,13 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l3` | 14 |
 | `l4` | 7 |
 | `l5` | 25 |
-| `l6` | 47 |
+| `l6` | 53 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 7 |
-| `t7` | 2 |
+| `t7` | 3 |
 
-**134 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**141 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
@@ -96,15 +96,15 @@ Nenhuma conversão, coerção, truncamento, arredondamento, truthiness ou fallba
 sem estar escrito no código.
 
 ```lox
-print 1 + 2.0      # 3.0  — promoção Int -> Float, só em aritmética
-print 1 + "1"      # erro — sem coerção entre número e string
-print 4 / 2        # 2.0  — `/` é sempre Float
-print -7 // 2      # -3   — truncado
-print 1 == 1.0     # true — igualdade numérica com promoção
-print 1 == "1"     # false — tipos diferentes nunca são iguais
-if ("") { print "vazio é truthy" }  # imprime: só nil e false são falsy
-print (nil ?? 0)   # 0    — `??` troca apenas nil
-print 3.9 as Int   # 3    — cast explícito, truncado
+print(1 + 2.0)      # 3.0  — promoção Int -> Float, só em aritmética
+print(1 + "1")      # erro — sem coerção entre número e string
+print(4 / 2)        # 2.0  — `/` é sempre Float
+print(-7 // 2)      # -3   — truncado
+print(1 == 1.0)     # true — igualdade numérica com promoção
+print(1 == "1")     # false — tipos diferentes nunca são iguais
+if ("") { print("vazio é truthy") }  # imprime: só nil e false são falsy
+print((nil ?? 0))   # 0    — `??` troca apenas nil
+print(3.9 as Int)   # 3    — cast explícito, truncado
 ```
 
 Em **armazenamento** não há promoção: `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` em

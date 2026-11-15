@@ -8,8 +8,8 @@ fn g() -> Int {
 }
 
 f = fn() -> Int { return 2; };
-print f();  # expect: 2
-print g();  # expect: 2
+print(f());  # expect: 2
+print(g());  # expect: 2
 
 fn outer() -> Nil {
   fn local() -> Int {
@@ -19,7 +19,7 @@ fn outer() -> Nil {
     return local();
   }
   local = fn() -> Int { return 20; };
-  print le();
+  print(le());
 }
 
 outer();  # expect: 20

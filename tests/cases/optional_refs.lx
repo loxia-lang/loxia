@@ -11,13 +11,13 @@ class P {
 }
 
 val vazio = P(nil);
-print vazio.nome ?? "x";       # expect: x
-print vazio.nome == nil;       # expect: true
-print vazio.get() ?? "y";      # expect: y
+print(vazio.nome ?? "x");       # expect: x
+print(vazio.nome == nil);       # expect: true
+print(vazio.get() ?? "y");      # expect: y
 
 val ana = P("Ana");
-print ana.nome ?? "x";         # expect: Ana
-print ana.nome;                # expect: Ana
-print ana.get() ?? "y";        # expect: Ana
-print ana.nome == "Ana";       # expect: true
-print ana.nome == "Bia";       # expect: false
+print(ana.nome ?? "x");         # expect: Ana
+print(ana.nome);                # expect: Ana
+print(ana.get() ?? "y");        # expect: Ana
+print(ana.nome == "Ana");       # expect: true
+print(ana.nome == "Bia");       # expect: false

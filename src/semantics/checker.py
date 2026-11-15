@@ -58,11 +58,12 @@ from src.frontend.stmt import (
     Function,
     If,
     Import,
-    Print,
+    Interface,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -85,6 +86,7 @@ from src.frontend.ty import (
     EnumTy,
     FnTy,
     GenericFnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     NativeFnTy,
@@ -102,8 +104,25 @@ from src.frontend.ty import (
 )
 
 RESERVED_TYPE_PARAM_NAMES = frozenset(
-    {"Any", "Bool", "Float", "Int", "List", "Map", "Never", "Nil", "Range", "String"}
+    {
+        "Any",
+        "Bool",
+        "Float",
+        "Int",
+        "List",
+        "Map",
+        "Never",
+        "Nil",
+        "Num",
+        "Ord",
+        "Range",
+        "String",
+    }
 )
+
+BUILTIN_CONSTRAINTS = frozenset({"Ord", "Num"})
+ORD_TYPES: tuple[Ty, ...] = (INT, FLOAT, STRING)
+NUM_TYPES: tuple[Ty, ...] = (INT, FLOAT)
 
 
 @dataclass
@@ -123,6 +142,16 @@ class ClassInfo:
     init: FnTy | None = None
     type_params: tuple[TyVar, ...] = ()
     type_param_names: tuple[str, ...] = ()
+    interfaces: tuple[str, ...] = ()
+
+
+@dataclass
+class InterfaceInfo:
+    name: str
+    methods: dict[str, FnTy] = field(default_factory=dict)
+    method_tokens: dict[str, Token] = field(default_factory=dict)
+    defaults: dict[str, bool] = field(default_factory=dict)
+    declared: bool = False
 
 
 @dataclass
@@ -166,7 +195,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings: list[dict[RefinementKey, tuple[int, Ty]]] = [{}]
         self._classes: dict[str, ClassInfo] = {}
         self._enums: dict[str, EnumInfo] = {}
+        self._interfaces: dict[str, InterfaceInfo] = {}
         self._current_class: ClassInfo | None = None
+        self._current_interface: InterfaceInfo | None = None
         self._current_return: Ty | None = None
         self._in_initializer = False
         self._signatures: dict[Function, FunctionSignature] = {}
@@ -174,6 +205,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._type_param_scopes: list[dict[str, TyVar]] = []
         self._next_type_var_id = 0
         self._generic_context: list[tuple[str, tuple[TyVar, ...]]] = []
+        self._alias_targets: dict[str, Ty] = {}
+        self._alias_tokens: dict[str, Token] = {}
+        self._alias_resolved: dict[str, Ty] = {}
+        self._alias_resolving: set[str] = set()
         self._native_modules: dict[str, dict[str, Ty]] = {}
         self._except_depth = 0
         # Tipos inferidos por nó, consumidos pelo backend (ADR-0031, decisão 7).
@@ -215,7 +250,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def check(self, statements: list[Stmt]) -> None:
         self._predeclare_classes(statements)
+        self._predeclare_interfaces(statements)
         self._predeclare_enums(statements)
+        self._predeclare_aliases(statements)
         self._predeclare_functions(statements)
         for statement in statements:
             self._check_stmt(statement)
@@ -227,6 +264,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _define_builtins(self) -> None:
         self._scopes[0]["chars"] = NativeFnTy("chars")
         self._scopes[0]["len"] = NativeFnTy("len")
+        self._scopes[0]["print"] = NativeFnTy("print")
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")
         self._scopes[0]["str"] = NativeFnTy("str")
@@ -298,16 +336,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return GenericFnTy(name, signature.type_params, signature.fn)
         return signature.fn
 
-    def _fresh_type_var(self, name: str) -> TyVar:
+    def _fresh_type_var(
+        self, name: str, bounds: tuple[str, ...] = ()
+    ) -> TyVar:
         self._next_type_var_id += 1
-        return TyVar(name, self._next_type_var_id)
+        return TyVar(name, self._next_type_var_id, bounds)
 
     def _declare_type_params(
-        self, tokens: list[Token]
+        self,
+        tokens: list[Token],
+        bounds: list[tuple[Token, ...]] | None = None,
     ) -> tuple[tuple[TyVar, ...], tuple[str, ...]]:
         names: list[str] = []
         variables: list[TyVar] = []
-        for token in tokens:
+        for index, token in enumerate(tokens):
             if token.lexeme in RESERVED_TYPE_PARAM_NAMES:
                 self._error(
                     token,
@@ -322,8 +364,41 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.INVALID_CHECKER_DECLARATION,
                 )
                 continue
+
+            declared: list[str] = []
+            if bounds is not None and index < len(bounds):
+                for bound in bounds[index]:
+                    name = bound.lexeme
+                    if name in declared:
+                        self._error(
+                            bound,
+                            f"Constraint '{name}' is already declared.",
+                            code=Code.INVALID_CHECKER_DECLARATION,
+                        )
+                        continue
+                    if name not in BUILTIN_CONSTRAINTS and name not in self._interfaces:
+                        if name in self._alias_targets:
+                            resolved_bound = self._resolve_alias(name, bound)
+                            if isinstance(resolved_bound, InterfaceTy):
+                                name = resolved_bound.name
+                            else:
+                                self._error(
+                                    bound,
+                                    f"Type alias '{name}' isn't an interface.",
+                                    code=Code.INVALID_TYPE_ANNOTATION,
+                                )
+                                continue
+                        else:
+                            self._error(
+                                bound,
+                                f"Unknown constraint '{name}'.",
+                                code=Code.UNKNOWN_TYPE,
+                            )
+                            continue
+                    declared.append(name)
+
             names.append(token.lexeme)
-            variables.append(self._fresh_type_var(token.lexeme))
+            variables.append(self._fresh_type_var(token.lexeme, tuple(declared)))
 
         return tuple(variables), tuple(names)
 
@@ -367,6 +442,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 statement.name.lexeme, ClassObjectTy(statement.name.lexeme)
             )
 
+    def _predeclare_interfaces(self, statements: list[Stmt]) -> None:
+        for statement in statements:
+            if not isinstance(statement, Interface):
+                continue
+            self._interfaces.setdefault(
+                statement.name.lexeme, InterfaceInfo(statement.name.lexeme)
+            )
+
     def _predeclare_enums(self, statements: list[Stmt]) -> None:
         for statement in statements:
             if not isinstance(statement, EnumDecl):
@@ -381,6 +464,70 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             )
             self._scopes[0].setdefault(
                 statement.name.lexeme, EnumObjectTy(statement.name.lexeme)
+            )
+
+    def _predeclare_aliases(self, statements: list[Stmt]) -> None:
+        for statement in statements:
+            if not isinstance(statement, TypeAlias):
+                continue
+            name = statement.name.lexeme
+            if (
+                name in self._classes
+                or name in self._interfaces
+                or name in self._enums
+                or name in BUILTIN_NAMES
+                or name in RESERVED_TYPE_PARAM_NAMES
+            ):
+                self._error(
+                    statement.name,
+                    f"Name '{name}' is already declared.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
+                )
+                continue
+            if name in self._alias_targets:
+                self._error(
+                    statement.name,
+                    f"Type alias '{name}' is already declared.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
+                )
+                continue
+            self._alias_targets[name] = statement.target
+            self._alias_tokens[name] = statement.name
+
+        for name, token in self._alias_tokens.items():
+            self._resolve_alias(name, token)
+
+    def _resolve_alias(self, name: str, token: Token) -> Ty:
+        cached = self._alias_resolved.get(name)
+        if cached is not None:
+            return cached
+        target = self._alias_targets.get(name)
+        if target is None:
+            return ERROR
+        if name in self._alias_resolving:
+            self._error(
+                token,
+                f"Type alias '{name}' is recursive.",
+                code=Code.INVALID_TYPE_ANNOTATION,
+            )
+            return ERROR
+        self._alias_resolving.add(name)
+        try:
+            resolved = self._resolve_type(target, token)
+        finally:
+            self._alias_resolving.discard(name)
+        self._alias_resolved[name] = resolved
+        return resolved
+
+    def type_aliases(self) -> dict[str, Ty]:
+        return dict(self._alias_resolved)
+
+    def visit_type_alias_stmt(self, stmt: TypeAlias) -> None:
+        if self._function_depth > 0 or len(self._scopes) > 1:
+            self._error(
+                stmt.keyword,
+                "Type aliases must be declared at the top level.",
+                code=Code.INVALID_CHECKER_DECLARATION,
             )
 
     def _predeclare_functions(self, statements: list[Stmt]) -> None:
@@ -729,6 +876,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return all(self._assignable(expected, member) for member in actual.members)
         if isinstance(expected, UnionTy):
             return any(self._assignable(member, actual) for member in expected.members)
+        if isinstance(expected, InterfaceTy) and isinstance(actual, TyVar):
+            return expected.name in actual.bounds
         if isinstance(expected, TyVar) or isinstance(actual, TyVar):
             return False
         # Sem promoção `Int -> Float` em contexto de armazenamento (ADR-0058):
@@ -773,6 +922,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expected.name == actual.name and expected.args == actual.args
                 )
             return self._is_subclass(actual.name, expected.name)
+        if isinstance(expected, InterfaceTy):
+            if isinstance(actual, InterfaceTy):
+                return expected.name == actual.name
+            if isinstance(actual, ClassTy):
+                return self._implements_interface(actual.name, expected.name)
+            return False
         if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
             return (
                 expected.name == actual.name and expected.args == actual.args
@@ -782,8 +937,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _assignable_fn(self, expected: FnTy, actual: FnTy) -> bool:
         """Função é contravariante nos parâmetros e covariante no retorno."""
+        if expected.variadic != actual.variadic:
+            return False
         count = len(expected.params)
-        if not actual.min_params <= count <= len(actual.params):
+        if actual.variadic:
+            if len(actual.params) != len(expected.params):
+                return False
+        elif not actual.min_params <= count <= len(actual.params):
             return False
 
         for expected_param, actual_param in zip(
@@ -804,6 +964,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return False
 
+    def _implements_interface(self, class_name: str, interface: str) -> bool:
+        """Nominal e transitivo pela superclasse (ADR-0080)."""
+        name: str | None = class_name
+        while name is not None:
+            info = self._classes.get(name)
+            if info is None:
+                return False
+            if interface in info.interfaces:
+                return True
+            name = info.superclass
+
+        return False
+
     def _resolve_type(self, ty: Ty, token: Token) -> Ty:
         if isinstance(ty, ClassTy):
             parameter = self._lookup_type_param(ty.name)
@@ -816,6 +989,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
                     return ERROR
                 return parameter
+
+            if ty.name in self._alias_targets:
+                if ty.args:
+                    self._error(
+                        token,
+                        f"Type alias '{ty.name}' isn't generic.",
+                        code=Code.TYPE_ARGUMENTS,
+                    )
+                    return ERROR
+                return self._resolve_alias(ty.name, token)
 
             enum_info = self._enums.get(ty.name)
             if enum_info is not None:
@@ -851,6 +1034,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
                     return ERROR
                 return EnumTy(ty.name)
+
+            interface_info = self._interfaces.get(ty.name)
+            if interface_info is not None:
+                if ty.args:
+                    self._error(
+                        token,
+                        f"Interface '{ty.name}' isn't generic.",
+                        code=Code.TYPE_ARGUMENTS,
+                    )
+                    return ERROR
+                return InterfaceTy(ty.name)
 
             info = self._classes.get(ty.name)
             if info is None:
@@ -914,6 +1108,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 tuple(self._resolve_type(param, token) for param in ty.params),
                 self._resolve_type(ty.ret, token),
                 ty.min_params,
+                ty.variadic,
             )
         if isinstance(ty, UnionTy):
             return union(
@@ -954,6 +1149,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return info.init
             name = info.superclass
 
+        # Defaults das interfaces: derivada → base, na ordem de `implements`.
+        name = class_name
+        while name is not None:
+            info = self._classes.get(name)
+            if info is None:
+                return None
+            for interface in info.interfaces:
+                interface_info = self._interfaces.get(interface)
+                if interface_info is not None:
+                    method = interface_info.methods.get(method_name)
+                    if method is not None:
+                        return method
+            name = info.superclass
+
         return None
 
     def _initializer(self, info: ClassInfo) -> FnTy | None:
@@ -969,6 +1178,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
         if ty is INT or ty is FLOAT:
             return ty
+        if isinstance(ty, TyVar):
+            if "Num" in ty.bounds:
+                return ty
+            if ty.bounds:
+                self._error(
+                    token,
+                    f"Type parameter '{ty.name}' needs a 'Num' constraint.",
+                    code=Code.INVALID_OPERANDS,
+                )
+                return ERROR
+            self._error(
+                token,
+                "Operands must be numbers.",
+                code=Code.INVALID_OPERANDS,
+                lowerable=True,
+            )
+            return ERROR
 
         self._error(
             token,
@@ -978,9 +1204,25 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
         return ERROR
 
-    def _promote(self, left: Ty, right: Ty) -> Ty:
+    def _promote(self, left: Ty, right: Ty, token: Token) -> Ty:
         if left is ANY or right is ANY:
             return ANY
+        if left is ERROR or right is ERROR:
+            return ERROR
+        if isinstance(left, TyVar) or isinstance(right, TyVar):
+            if (
+                isinstance(left, TyVar)
+                and isinstance(right, TyVar)
+                and left == right
+                and "Num" in left.bounds
+            ):
+                return left
+            self._error(
+                token,
+                "Operands must be the same type parameter constrained by 'Num'.",
+                code=Code.INVALID_OPERANDS,
+            )
+            return ERROR
         if left is FLOAT or right is FLOAT:
             return FLOAT
 
@@ -1003,6 +1245,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 stmt.name,
                 f"Can't redefine builtin '{name}'.",
+                code=Code.RESERVED_NAME,
+            )
+        if name in BUILTIN_CONSTRAINTS:
+            self._error(
+                stmt.name,
+                f"Can't redefine builtin constraint '{name}'.",
                 code=Code.RESERVED_NAME,
             )
 
@@ -1045,12 +1293,101 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         finally:
             self._pop_type_params()
 
+    def visit_interface_stmt(self, stmt: Interface) -> None:
+        name = stmt.name.lexeme
+        if name in BUILTIN_NAMES:
+            self._error(
+                stmt.name,
+                f"Can't redefine builtin '{name}'.",
+                code=Code.RESERVED_NAME,
+            )
+        if name in BUILTIN_CONSTRAINTS:
+            self._error(
+                stmt.name,
+                f"Can't redefine builtin constraint '{name}'.",
+                code=Code.RESERVED_NAME,
+            )
+
+        if name in self._classes or name in self._enums:
+            self._error(
+                stmt.name,
+                f"Name '{name}' is already declared as a class or enum.",
+                code=Code.INVALID_CHECKER_DECLARATION,
+            )
+
+        if len(self._scopes) > 1 or self._function_depth > 0:
+            self._error(
+                stmt.name,
+                "Interfaces must be declared at top level.",
+                code=Code.INVALID_CHECKER_DECLARATION,
+            )
+
+        info = self._interfaces.get(name)
+        if info is None:
+            info = InterfaceInfo(name)
+            self._interfaces[name] = info
+
+        info.declared = True
+        info.methods.clear()
+        info.method_tokens.clear()
+        info.defaults.clear()
+
+        for method in stmt.methods:
+            method_name = method.name.lexeme
+            if method_name == "init":
+                self._error(
+                    method.name,
+                    "Interfaces can't declare 'init'.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
+                )
+                continue
+            if method_name in info.methods:
+                self._error(
+                    method.name,
+                    f"Method '{method_name}' is already declared in interface "
+                    f"'{name}'.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
+                )
+                continue
+
+            signature = self._signature(
+                method, is_init=False, allow_type_params=False
+            ).fn
+            info.methods[method_name] = signature
+            info.method_tokens[method_name] = method.name
+            info.defaults[method_name] = not method.abstract
+
+        enclosing = self._current_interface
+        self._current_interface = info
+        try:
+            for method in stmt.methods:
+                if method.abstract:
+                    continue
+                body_signature: FnTy | None = info.methods.get(method.name.lexeme)
+                if body_signature is None:
+                    continue
+                self._check_function_body(
+                    method,
+                    body_signature,
+                    None,
+                    is_init=False,
+                    interface_info=info,
+                )
+        finally:
+            self._current_interface = enclosing
+
     def visit_class_stmt(self, stmt: Class) -> None:
         name = stmt.name.lexeme
         if name in BUILTIN_NAMES:
             self._error(
                 stmt.name,
                 f"Can't redefine builtin '{name}'.",
+                code=Code.RESERVED_NAME,
+            )
+        if name in BUILTIN_CONSTRAINTS:
+            self._error(
+                stmt.name,
+                f"Can't redefine builtin constraint '{name}'.",
                 code=Code.RESERVED_NAME,
             )
 
@@ -1090,6 +1427,40 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.GENERIC_UNSUPPORTED,
                 )
 
+        interfaces: list[str] = []
+        for token in stmt.implements:
+            interface = self._interfaces.get(token.lexeme)
+            if interface is None:
+                self._error(
+                    token,
+                    f"Unknown interface '{token.lexeme}'.",
+                    code=Code.UNKNOWN_TYPE,
+                )
+                continue
+            if not interface.declared:
+                self._error(
+                    token,
+                    f"Interface '{token.lexeme}' must be declared before "
+                    f"class '{name}'.",
+                    code=Code.UNKNOWN_TYPE,
+                )
+                continue
+            if token.lexeme in interfaces:
+                self._error(
+                    token,
+                    f"Interface '{token.lexeme}' is already implemented.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
+                )
+                continue
+            interfaces.append(token.lexeme)
+        info.interfaces = tuple(interfaces)
+
+        own_interface_methods: set[str] = set()
+        for interface_name in interfaces:
+            interface = self._interfaces.get(interface_name)
+            if interface is not None:
+                own_interface_methods.update(interface.methods)
+
         enclosing = self._current_class
         self._current_class = info
         self._push_type_params(info.type_param_names, info.type_params)
@@ -1103,6 +1474,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         field_decl.name,
                         f"Field '{field_name}' conflicts with a method.",
+                        code=Code.INVALID_OVERRIDE,
+                    )
+                elif field_name in own_interface_methods:
+                    self._error(
+                        field_decl.name,
+                        f"Field '{field_name}' conflicts with an interface method.",
                         code=Code.INVALID_OVERRIDE,
                     )
 
@@ -1165,9 +1542,110 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
 
             self._check_field_initialization(stmt, info)
+            self._check_interface_conformance(stmt, info)
         finally:
             self._pop_type_params()
             self._current_class = enclosing
+
+    def _interface_names(self, info: ClassInfo) -> list[str]:
+        names: list[str] = []
+        current: ClassInfo | None = info
+        while current is not None:
+            for interface in current.interfaces:
+                if interface not in names:
+                    names.append(interface)
+            current = (
+                self._classes.get(current.superclass)
+                if current.superclass is not None
+                else None
+            )
+
+        return names
+
+    def _find_class_method(
+        self, class_name: str | None, method_name: str
+    ) -> FnTy | None:
+        """Só métodos declarados por classes (não defaults de interface)."""
+        name = class_name
+        while name is not None:
+            info = self._classes.get(name)
+            if info is None:
+                return None
+            if method_name in info.methods:
+                return info.methods[method_name]
+            if method_name == "init" and info.init is not None:
+                return info.init
+            name = info.superclass
+
+        return None
+
+    def _check_interface_conformance(self, stmt: Class, info: ClassInfo) -> None:
+        if not info.interfaces:
+            return
+
+        providers: dict[str, list[str]] = {}
+        for interface_name in self._interface_names(info):
+            interface = self._interfaces.get(interface_name)
+            if interface is None:
+                continue
+            for method_name in interface.methods:
+                providers.setdefault(method_name, []).append(interface_name)
+
+        for method_name, interface_names in providers.items():
+            own = info.methods.get(method_name)
+            inherited = (
+                self._find_class_method(info.superclass, method_name)
+                if own is None
+                else None
+            )
+
+            if own is None and inherited is None and len(interface_names) > 1:
+                self._error(
+                    stmt.name,
+                    f"Class '{info.name}' must override '{method_name}': "
+                    f"interfaces {', '.join(repr(name) for name in interface_names)} "
+                    "declare it.",
+                    code=Code.INVALID_OVERRIDE,
+                )
+                continue
+
+            for interface_name in info.interfaces:
+                interface = self._interfaces.get(interface_name)
+                if interface is None:
+                    continue
+                required = interface.methods.get(method_name)
+                if required is None:
+                    continue
+
+                implementation = own if own is not None else inherited
+                if implementation is not None:
+                    # Interface exige assinatura exata na v1: a ABI do itab é a da
+                    # interface, então covariância/contravariância de representação
+                    # diferente não é segura no backend (ADR-0080).
+                    if required != implementation:
+                        token = (
+                            info.method_tokens[method_name]
+                            if own is not None
+                            else stmt.name
+                        )
+                        self._error(
+                            token,
+                            f"Method '{method_name}' is incompatible with "
+                            f"interface '{interface_name}': expected "
+                            f"{display(required)}, found {display(implementation)}.",
+                            code=Code.INVALID_OVERRIDE,
+                        )
+                    continue
+
+                if interface.defaults.get(method_name):
+                    continue
+
+                self._error(
+                    stmt.name,
+                    f"Class '{info.name}' must implement method '{method_name}' "
+                    f"of interface '{interface_name}'.",
+                    code=Code.INVALID_OVERRIDE,
+                )
 
     def _check_overrides(self) -> None:
         for info in self._classes.values():
@@ -1286,10 +1764,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if stmt.initializer is not None:
                 self._mark_field_assignments(stmt.initializer, assigned)
             return assigned
-        if isinstance(stmt, Print):
-            self._mark_field_assignments(stmt.expression, assigned)
-            return assigned
-
         return assigned
 
     def _mark_field_assignments(self, expr: Expr | None, assigned: set[str]) -> None:
@@ -1327,6 +1801,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return iterable.key
         if isinstance(iterable, TupleTy):
             return union(*iterable.items)
+        if isinstance(iterable, (ClassTy, InterfaceTy)):
+            return self._iterator_element(iterable, token)
 
         self._error(
             token,
@@ -1334,6 +1810,87 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             code=Code.INVALID_ITERATION,
         )
         return ERROR
+
+    def _method_on_type(self, ty: Ty, name: str) -> FnTy | None:
+        if isinstance(ty, ClassTy):
+            method = self._find_method(ty.name, name)
+            info = self._classes.get(ty.name)
+            if (
+                method is not None
+                and ty.args
+                and info is not None
+                and info.type_params
+            ):
+                substituted = self._substitute(
+                    method,
+                    dict(
+                        zip(info.type_params, ty.args, strict=True)
+                    ),
+                )
+                assert isinstance(substituted, FnTy)
+                return substituted
+            return method
+        if isinstance(ty, InterfaceTy):
+            interface_info = self._interfaces.get(ty.name)
+            if interface_info is None:
+                return None
+            return interface_info.methods.get(name)
+
+        return None
+
+    def _iterator_element(self, iterable: Ty, token: Token) -> Ty:
+        iter_method = self._method_on_type(iterable, "iter")
+        if iter_method is None:
+            self._error(
+                token,
+                f"'{display(iterable)}' is not iterable: define "
+                "iter() returning an iterator with next() -> T?.",
+                code=Code.INVALID_ITERATION,
+            )
+            return ERROR
+        if len(iter_method.params) != 0 or iter_method.min_params != 0:
+            self._error(
+                token,
+                "iter() must take no arguments.",
+                code=Code.INVALID_ITERATION,
+            )
+            return ERROR
+
+        iterator = iter_method.ret
+        next_method = self._method_on_type(iterator, "next")
+        if next_method is None:
+            self._error(
+                token,
+                f"iter() must return an iterator with next() -> T?, "
+                f"found '{display(iterator)}'.",
+                code=Code.INVALID_ITERATION,
+            )
+            return ERROR
+        if len(next_method.params) != 0 or next_method.min_params != 0:
+            self._error(
+                token,
+                "next() must take no arguments.",
+                code=Code.INVALID_ITERATION,
+            )
+            return ERROR
+
+        result = next_method.ret
+        if not is_nilable(result):
+            self._error(
+                token,
+                f"next() must return T?, found '{display(result)}'.",
+                code=Code.INVALID_ITERATION,
+            )
+            return ERROR
+        element = non_nil(result)
+        if element is ANY or element is NEVER:
+            self._error(
+                token,
+                "next() must return T? with a concrete T.",
+                code=Code.INVALID_ITERATION,
+            )
+            return ERROR
+        return element
 
     def visit_function_stmt(self, stmt: Function) -> None:
         signature = self._signatures.get(stmt)
@@ -1366,7 +1923,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.GENERIC_UNSUPPORTED,
             )
         elif stmt.type_params:
-            variables, names = self._declare_type_params(stmt.type_params)
+            variables, names = self._declare_type_params(
+                stmt.type_params, stmt.type_param_bounds
+            )
 
         type_params = variables
         type_param_names = names
@@ -1374,15 +1933,45 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         try:
             param_types: list[Ty] = []
             minimum = 0
+            variadic = False
 
-            for param in stmt.params:
+            for index, param in enumerate(stmt.params):
+                if param.variadic:
+                    variadic = True
+                    if index != len(stmt.params) - 1:
+                        self._error(
+                            param.name,
+                            "Variadic parameter must be last.",
+                            code=Code.INVALID_CHECKER_DECLARATION,
+                        )
+                    if param.default is not None:
+                        self._error(
+                            param.name,
+                            "Variadic parameter can't have a default value.",
+                            code=Code.INVALID_CHECKER_DECLARATION,
+                        )
+                    if param.type_annotation is None:
+                        self._error(
+                            param.name,
+                            f"Variadic parameter '{param.name.lexeme}' needs "
+                            "a type annotation.",
+                            code=Code.MISSING_ANNOTATION,
+                        )
+                        param_ty: Ty = ANY
+                    else:
+                        param_ty = self._resolve_type(
+                            param.type_annotation, param.name
+                        )
+                    param_types.append(param_ty)
+                    continue
+
                 if param.type_annotation is None:
                     self._error(
                         param.name,
                         f"Parameter '{param.name.lexeme}' needs a type annotation.",
                         code=Code.MISSING_ANNOTATION,
                     )
-                    param_ty: Ty = ANY
+                    param_ty = ANY
                 else:
                     param_ty = self._resolve_type(param.type_annotation, param.name)
 
@@ -1392,6 +1981,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     minimum += 1
 
                 param_types.append(param_ty)
+
+            if is_init and variadic:
+                self._error(
+                    stmt.name,
+                    "Variadic parameters aren't supported in 'init' yet.",
+                    code=Code.GENERIC_UNSUPPORTED,
+                )
 
             if is_init:
                 if stmt.return_type is not None:
@@ -1417,7 +2013,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._pop_type_params()
 
         return FunctionSignature(
-            type_params, type_param_names, FnTy(tuple(param_types), return_ty, minimum)
+            type_params,
+            type_param_names,
+            FnTy(tuple(param_types), return_ty, minimum, variadic),
         )
 
     def _implicit_type_param_name(self, taken: list[str]) -> str:
@@ -1441,14 +2039,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         check_return_paths: bool = True,
         type_params: tuple[TyVar, ...] = (),
         type_param_names: tuple[str, ...] = (),
+        interface_info: InterfaceInfo | None = None,
     ) -> list[Ty]:
         enclosing_class = self._current_class
+        enclosing_interface = self._current_interface
         enclosing_return = self._current_return
         enclosing_init = self._in_initializer
         enclosing_collector = self._return_collector
 
         if not preserve_class:
             self._current_class = class_info
+            if interface_info is not None:
+                self._current_interface = interface_info
+                self._current_class = None
         self._current_return = NIL if is_init else signature.ret
         self._in_initializer = is_init
         self._return_collector = [] if collect_returns else None
@@ -1470,9 +2073,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._scopes[-1]["super"] = ClassObjectTy(
                         class_info.superclass
                     )
+            elif not preserve_class and interface_info is not None:
+                self._scopes[-1]["this"] = InterfaceTy(interface_info.name)
 
             for param, param_ty in zip(stmt.params, signature.params, strict=True):
-                self._define(param.name, param_ty)
+                self._define(
+                    param.name,
+                    ListTy(param_ty) if param.variadic else param_ty,
+                )
 
             for statement in stmt.body:
                 self._check_stmt(statement)
@@ -1485,7 +2093,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 and not is_nilable(signature.ret)
                 and not self._body_always_returns(stmt.body)
             ):
-                kind = "Method" if class_info is not None else "Function"
+                kind = (
+                    "Method"
+                    if class_info is not None or interface_info is not None
+                    else "Function"
+                )
                 self._error(
                     stmt.name,
                     f"{kind} '{stmt.name.lexeme}' must return "
@@ -1497,6 +2109,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         finally:
             self._function_depth -= 1
             self._current_class = enclosing_class
+            self._current_interface = enclosing_interface
             self._current_return = enclosing_return
             self._in_initializer = enclosing_init
             collected = self._return_collector or []
@@ -1574,6 +2187,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _validate_as_target(self, ty: Ty, token: Token) -> None:
         if ty is ERROR or ty is ANY:
             return
+        if isinstance(ty, InterfaceTy):
+            self._error(
+                token,
+                "Interface types aren't supported in 'as' yet.",
+                code=Code.INVALID_CAST,
+            )
+            return
         if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
             return
         if isinstance(ty, ClassTy):
@@ -1611,6 +2231,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _validate_is_type(self, ty: Ty, token: Token) -> None:
         if ty is ERROR or ty is ANY or ty is NEVER:
+            return
+        if isinstance(ty, InterfaceTy):
+            self._error(
+                token,
+                "Interface types aren't supported in 'is' yet.",
+                code=Code.INVALID_TYPE_ANNOTATION,
+            )
             return
         if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
             return
@@ -1657,8 +2284,38 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         variables: list[TyVar] = []
         param_types: list[Ty] = []
         minimum = 0
+        variadic = False
 
-        for param in expr.params:
+        for index, param in enumerate(expr.params):
+            if param.variadic:
+                variadic = True
+                if index != len(expr.params) - 1:
+                    self._error(
+                        param.name,
+                        "Variadic parameter must be last.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
+                    )
+                if param.default is not None:
+                    self._error(
+                        param.name,
+                        "Variadic parameter can't have a default value.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
+                    )
+                if param.type_annotation is None:
+                    self._error(
+                        param.name,
+                        f"Variadic parameter '{param.name.lexeme}' needs a "
+                        "type annotation.",
+                        code=Code.MISSING_ANNOTATION,
+                    )
+                    param_ty: Ty = ANY
+                else:
+                    param_ty = self._resolve_type(
+                        param.type_annotation, param.name
+                    )
+                param_types.append(param_ty)
+                continue
+
             if param.type_annotation is not None:
                 param_ty = self._resolve_type(param.type_annotation, param.name)
             else:
@@ -1683,6 +2340,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             tuple(param_types),
             declared_return if declared_return is not None else ANY,
             minimum,
+            variadic,
         )
         returns = self._check_function_body(
             expr,
@@ -1707,7 +2365,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return_ty = declared_return
         else:
             return_ty = self._infer_lambda_return(expr, returns, all_paths_return)
-        fn = FnTy(tuple(param_types), return_ty, minimum)
+        fn = FnTy(tuple(param_types), return_ty, minimum, variadic)
 
         free = [
             variable
@@ -1721,8 +2379,44 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _lambda_type(self, expr: Lambda, expected: FnTy | None) -> Ty:
         param_types: list[Ty] = []
+        variadic = False
 
         for index, param in enumerate(expr.params):
+            if param.variadic:
+                variadic = True
+                if index != len(expr.params) - 1:
+                    self._error(
+                        param.name,
+                        "Variadic parameter must be last.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
+                    )
+                if param.default is not None:
+                    self._error(
+                        param.name,
+                        "Variadic parameter can't have a default value.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
+                    )
+                if param.type_annotation is not None:
+                    param_ty = self._resolve_type(
+                        param.type_annotation, param.name
+                    )
+                elif (
+                    expected is not None
+                    and expected.variadic
+                    and index == len(expected.params) - 1
+                ):
+                    param_ty = expected.params[index]
+                else:
+                    self._error(
+                        param.name,
+                        f"Variadic parameter '{param.name.lexeme}' needs a "
+                        "type annotation.",
+                        code=Code.MISSING_ANNOTATION,
+                    )
+                    param_ty = ANY
+                param_types.append(param_ty)
+                continue
+
             if param.type_annotation is not None:
                 param_ty = self._resolve_type(param.type_annotation, param.name)
             elif expected is not None and index < len(expected.params):
@@ -1746,11 +2440,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif expected is not None and not self._has_any_type_var(expected.ret):
             declared_return = expected.ret
 
-        minimum = sum(1 for param in expr.params if param.default is None)
+        minimum = sum(
+            1
+            for param in expr.params
+            if param.default is None and not param.variadic
+        )
         signature = FnTy(
             tuple(param_types),
             declared_return if declared_return is not None else ANY,
             minimum,
+            variadic,
         )
         returns = self._check_function_body(
             expr,
@@ -1777,7 +2476,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         else:
             return_ty = self._infer_lambda_return(expr, returns, all_paths_return)
 
-        return FnTy(tuple(param_types), return_ty, minimum)
+        return FnTy(tuple(param_types), return_ty, minimum, variadic)
 
     def _infer_lambda_return(
         self, expr: Lambda, returns: list[Ty], all_paths_return: bool
@@ -2215,13 +2914,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Can only raise Exception instances, found {display(raised)}.",
             )
 
-    def visit_print_stmt(self, stmt: Print) -> None:
-        ty = self._infer(stmt.expression)
-        if isinstance(ty, GenericFnTy):
-            token = self._expr_token(stmt.expression)
-            if token is not None:
-                self._generic_value_error(token, ty.name)
-
     def _expr_token(self, expr: Expr) -> Token | None:
         if isinstance(expr, Variable):
             return expr.name
@@ -2337,16 +3029,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     return ANY
                 self._numeric(left, operator)
                 self._numeric(right, operator)
-                return self._promote(left, right)
+                return self._promote(left, right, operator)
             case TokenType.MINUS | TokenType.STAR | TokenType.PERCENT:
                 if left is ANY or right is ANY:
                     return ANY
                 self._numeric(left, operator)
                 self._numeric(right, operator)
-                return self._promote(left, right)
+                return self._promote(left, right, operator)
             case TokenType.SLASH:
                 if left is ANY or right is ANY:
                     return ANY
+                if isinstance(left, TyVar) or isinstance(right, TyVar):
+                    self._error(
+                        operator,
+                        "Operator '/' always returns Float; it isn't "
+                        "available on a type parameter.",
+                        code=Code.INVALID_OPERANDS,
+                    )
+                    return ERROR
                 self._numeric(left, operator)
                 self._numeric(right, operator)
                 return FLOAT
@@ -2389,6 +3089,31 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _power_type(self, left: Ty, right: Ty, operator: Token) -> Ty:
         if left is ANY or right is ANY:
             return ANY
+        if isinstance(left, TyVar) or isinstance(right, TyVar):
+            if (
+                isinstance(left, TyVar)
+                and isinstance(right, TyVar)
+                and left == right
+                and "Num" in left.bounds
+            ):
+                return left
+            if (isinstance(left, TyVar) and left.bounds) or (
+                isinstance(right, TyVar) and right.bounds
+            ):
+                self._error(
+                    operator,
+                    "Operands must be the same type parameter constrained "
+                    "by 'Num'.",
+                    code=Code.INVALID_OPERANDS,
+                )
+            else:
+                self._error(
+                    operator,
+                    "Operands must be numbers.",
+                    code=Code.INVALID_OPERANDS,
+                    lowerable=True,
+                )
+            return ERROR
         for ty in (left, right):
             if ty is INT or ty is FLOAT:
                 continue
@@ -2405,6 +3130,31 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _comparison(self, left: Ty, right: Ty, operator: Token) -> Ty:
         if left is ANY or right is ANY:
+            return BOOL
+        if isinstance(left, TyVar) or isinstance(right, TyVar):
+            if (
+                isinstance(left, TyVar)
+                and isinstance(right, TyVar)
+                and left == right
+                and "Ord" in left.bounds
+            ):
+                return BOOL
+            if (isinstance(left, TyVar) and left.bounds) or (
+                isinstance(right, TyVar) and right.bounds
+            ):
+                self._error(
+                    operator,
+                    "Comparisons need the same type parameter constrained "
+                    "by 'Ord'.",
+                    code=Code.INVALID_OPERANDS,
+                )
+            else:
+                self._error(
+                    operator,
+                    "Operands must be numbers.",
+                    code=Code.INVALID_OPERANDS,
+                    lowerable=True,
+                )
             return BOOL
         if self._is_string(left) and self._is_string(right):
             return BOOL
@@ -2434,36 +3184,40 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         arguments: list[Ty] = []
 
         for index, argument in enumerate(expr.arguments):
-            expected_param: Ty | None = None
-            if signature is not None and index < len(signature.params):
-                expected_param = self._expected_element(signature.params[index])
+            expected_ty: Ty | None = None
+            if signature is not None:
+                if signature.variadic and index >= signature.fixed_params:
+                    expected_ty = signature.params[-1]
+                elif index < len(signature.params):
+                    expected_ty = signature.params[index]
+            expected_param = (
+                self._expected_element(expected_ty)
+                if expected_ty is not None
+                else None
+            )
 
-            if (
-                isinstance(argument, Lambda)
-                and signature is not None
-                and index < len(signature.params)
-            ):
+            if isinstance(argument, Lambda) and expected_ty is not None:
                 arguments.append(
-                    self._check(argument, signature.params[index], expr.paren)
-                )
-            elif isinstance(argument, ListLiteral) and expected_param is not None:
-                assert signature is not None
-                arguments.append(
-                    self._check(argument, signature.params[index], expr.paren)
+                    self._check(argument, expected_ty, expr.paren)
                 )
             elif (
-                isinstance(argument, MapLiteral)
-                and signature is not None
-                and index < len(signature.params)
-                and self._expected_map(signature.params[index]) is not None
-            ) or (
-                isinstance(argument, TupleLiteral)
-                and signature is not None
-                and index < len(signature.params)
-                and isinstance(signature.params[index], TupleTy)
+                (
+                    isinstance(argument, ListLiteral)
+                    and expected_param is not None
+                )
+                or (
+                    isinstance(argument, MapLiteral)
+                    and expected_ty is not None
+                    and self._expected_map(expected_ty) is not None
+                )
+                or (
+                    isinstance(argument, TupleLiteral)
+                    and isinstance(expected_ty, TupleTy)
+                )
             ):
+                assert expected_ty is not None
                 arguments.append(
-                    self._check(argument, signature.params[index], expr.paren)
+                    self._check(argument, expected_ty, expr.paren)
                 )
             else:
                 arguments.append(self._infer(argument))
@@ -2477,6 +3231,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return FnTy((ANY,), INT, 1)
         if name in {"str", "repr"}:
             return FnTy((ANY,), STRING, 1)
+        if name == "print":
+            return FnTy((ANY,), NIL, 1)
 
         return None
 
@@ -2559,10 +3315,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             signature = self._initializer(info) or FnTy(
                 (), ClassTy(callable_ty.name), 0
             )
-            self._check_call(expr.paren, signature, arguments)
+            self._check_call(
+                expr.paren, signature, arguments, expr.spread
+            )
             result = ClassTy(callable_ty.name)
         elif isinstance(callable_ty, FnTy):
-            self._check_call(expr.paren, callable_ty, arguments)
+            self._check_call(
+                expr.paren, callable_ty, arguments, expr.spread
+            )
             result = callable_ty.ret
         elif isinstance(callable_ty, NativeFnTy):
             result = self._call_native(callable_ty, expr, arguments)
@@ -2579,6 +3339,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _call_native(
         self, callee: NativeFnTy, expr: Call, arguments: list[Ty]
     ) -> Ty:
+        if expr.spread:
+            self._error(
+                expr.paren,
+                "Spread arguments are only supported for variadic functions.",
+                code=Code.ARITY_MISMATCH,
+            )
+            return ERROR
+        for expression, argument in zip(
+            expr.arguments, arguments, strict=True
+        ):
+            if isinstance(argument, GenericFnTy):
+                token = self._expr_token(expression) or expr.paren
+                self._generic_value_error(token, argument.name)
+                return ERROR
         if callee.name == "len":
             if len(arguments) != 1:
                 self._error(
@@ -2634,6 +3408,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return ERROR
 
             return STRING
+
+        if callee.name == "print":
+            if len(arguments) != 1:
+                self._error(
+                    expr.paren,
+                    f"Expected 1 arguments but got {len(arguments)}.",
+                    code=Code.ARITY_MISMATCH,
+                )
+                return ERROR
+
+            return NIL
 
         if callee.name.startswith("math."):
             return self._call_math(callee.name, expr, arguments)
@@ -2705,11 +3490,81 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return False
 
-    def _check_call(self, token: Token, signature: FnTy, arguments: list[Ty]) -> None:
-        maximum = len(signature.params)
+    def _check_call(
+        self,
+        token: Token,
+        signature: FnTy,
+        arguments: list[Ty],
+        spread: bool = False,
+    ) -> None:
+        fixed = signature.fixed_params
         minimum = signature.min_params
         count = len(arguments)
 
+        if spread:
+            if not signature.variadic:
+                self._error(
+                    token,
+                    "Spread arguments are only supported for variadic functions.",
+                    code=Code.ARITY_MISMATCH,
+                    lowerable=True,
+                )
+                return
+            if count != fixed + 1:
+                self._error(
+                    token,
+                    "Spread arguments only fill the variadic parameter; "
+                    "pass the fixed parameters explicitly.",
+                    code=Code.ARITY_MISMATCH,
+                    lowerable=True,
+                )
+                return
+            for index, argument in enumerate(arguments[:-1], start=1):
+                if isinstance(argument, GenericFnTy):
+                    self._generic_value_error(token, argument.name)
+                    continue
+                if not self._assignable(signature.params[index - 1], argument):
+                    self._error(
+                        token,
+                        f"Argument {index}: "
+                        f"{self._mismatch_message(signature.params[index - 1], argument)}",
+                    )
+            expected_list = ListTy(signature.params[-1])
+            if not self._assignable(expected_list, arguments[-1]):
+                self._error(
+                    token,
+                    f"Argument {count}: "
+                    f"{self._mismatch_message(expected_list, arguments[-1])}",
+                )
+            return
+
+        if signature.variadic:
+            if count < minimum:
+                self._error(
+                    token,
+                    f"Expected at least {minimum} arguments but got {count}.",
+                    code=Code.ARITY_MISMATCH,
+                    lowerable=True,
+                )
+                return
+            for index, argument in enumerate(arguments, start=1):
+                if isinstance(argument, GenericFnTy):
+                    self._generic_value_error(token, argument.name)
+                    continue
+                expected = (
+                    signature.params[index - 1]
+                    if index - 1 < fixed
+                    else signature.params[-1]
+                )
+                if not self._assignable(expected, argument):
+                    self._error(
+                        token,
+                        f"Argument {index}: "
+                        f"{self._mismatch_message(expected, argument)}",
+                    )
+            return
+
+        maximum = len(signature.params)
         if not minimum <= count <= maximum:
             if minimum == maximum:
                 message = f"Expected {minimum} arguments but got {count}."
@@ -2736,7 +3591,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _instantiate_generic(self, callee: GenericFnTy) -> GenericFnTy:
         fresh = [
-            self._fresh_type_var(parameter.name)
+            self._fresh_type_var(parameter.name, parameter.bounds)
             for parameter in callee.type_params
         ]
         mapping: dict[TyVar, Ty] = {
@@ -2756,6 +3611,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         expected: Ty | None,
         token: Token,
     ) -> Ty:
+        if expr.spread:
+            self._error(
+                expr.paren,
+                "Spread arguments are only supported for variadic functions.",
+                code=Code.ARITY_MISMATCH,
+            )
+            return ERROR
         info = self._classes[callee.name]
         fresh = tuple(
             self._fresh_type_var(type_param.name)
@@ -2846,33 +3708,64 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if expected is not None and expected not in (ANY, ERROR):
             self._unify(signature.ret, expected, bindings, token)
 
-        maximum = len(signature.params)
+        fixed = signature.fixed_params
         minimum = signature.min_params
         count = len(expr.arguments)
-        if not minimum <= count <= maximum:
-            if minimum == maximum:
+        if expr.spread:
+            if not signature.variadic:
+                self._error(
+                    token,
+                    "Spread arguments are only supported for variadic functions.",
+                    code=Code.ARITY_MISMATCH,
+                )
+                return ERROR
+            if count != fixed + 1:
+                self._error(
+                    token,
+                    "Spread arguments only fill the variadic parameter; "
+                    "pass the fixed parameters explicitly.",
+                    code=Code.ARITY_MISMATCH,
+                )
+                return ERROR
+        elif signature.variadic:
+            if count < minimum:
+                self._error(
+                    token,
+                    f"Expected at least {minimum} arguments but got {count}.",
+                    code=Code.ARITY_MISMATCH,
+                )
+                return ERROR
+        elif not minimum <= count <= len(signature.params):
+            if minimum == len(signature.params):
                 message = f"Expected {minimum} arguments but got {count}."
             elif count < minimum:
                 message = f"Expected at least {minimum} arguments but got {count}."
             else:
                 message = (
-                    f"Expected {minimum} to {maximum} arguments but got {count}."
+                    f"Expected {minimum} to {len(signature.params)} "
+                    f"arguments but got {count}."
                 )
             self._error(token, message, code=Code.ARITY_MISMATCH)
             return ERROR
 
         for index, argument in enumerate(expr.arguments):
-            if index >= len(signature.params):
+            if index >= len(signature.params) and not signature.variadic:
                 break
-
-            parameter_type = self._substitute(
-                signature.params[index], bindings
-            )
+            parameter_type: Ty
+            if expr.spread and index == len(expr.arguments) - 1:
+                parameter_type = ListTy(signature.params[-1])
+            elif signature.variadic and index >= fixed:
+                parameter_type = signature.params[-1]
+            else:
+                parameter_type = signature.params[index]
+            parameter_type = self._substitute(parameter_type, bindings)
             actual = self._check_generic_argument(
                 argument, parameter_type, bindings, token, index + 1
             )
             if actual is ERROR:
                 return ERROR
+
+        self._check_type_bounds(instance.type_params, bindings, token)
 
         result = self._substitute(signature.ret, bindings)
         unbound = self._unbound_type_vars(result, instance.type_params)
@@ -2892,6 +3785,41 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 tuple(bindings[variable] for variable in instance.type_params),
             )
         return result
+
+    def _check_type_bounds(
+        self,
+        variables: tuple[TyVar, ...],
+        bindings: dict[TyVar, Ty],
+        token: Token,
+    ) -> None:
+        for variable in variables:
+            if not variable.bounds:
+                continue
+            actual = bindings.get(variable)
+            if actual is None:
+                continue
+            for bound in variable.bounds:
+                if self._satisfies_bound(actual, bound):
+                    continue
+                self._error(
+                    token,
+                    f"Type argument '{display(actual)}' for '{variable.name}' "
+                    f"doesn't satisfy constraint '{bound}'.",
+                    code=Code.TYPE_MISMATCH,
+                )
+
+    def _satisfies_bound(self, actual: Ty, bound: str) -> bool:
+        if isinstance(actual, TyVar):
+            return bound in actual.bounds
+        if isinstance(actual, InterfaceTy):
+            return actual.name == bound
+        if bound == "Ord":
+            return any(actual is candidate for candidate in ORD_TYPES)
+        if bound == "Num":
+            return any(actual is candidate for candidate in NUM_TYPES)
+        if isinstance(actual, ClassTy):
+            return self._implements_interface(actual.name, bound)
+        return False
 
     def _check_generic_argument(
         self,
@@ -3026,6 +3954,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 tuple(self._substitute(param, bindings) for param in ty.params),
                 self._substitute(ty.ret, bindings),
                 ty.min_params,
+                ty.variadic,
             )
         if isinstance(ty, UnionTy):
             return union(
@@ -3173,7 +4102,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
             )
         if isinstance(expected, FnTy) and isinstance(actual, FnTy):
-            if not actual.min_params <= len(expected.params) <= len(actual.params):
+            if expected.variadic != actual.variadic:
+                return False
+            if actual.variadic:
+                if len(expected.params) != len(actual.params):
+                    return False
+            elif not actual.min_params <= len(expected.params) <= len(
+                actual.params
+            ):
                 return False
             for expected_param, actual_param in zip(
                 expected.params, actual.params, strict=False
@@ -3325,6 +4261,32 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _get_property_type(self, obj: Ty, name: Token, optional: bool) -> Ty:
         if obj is ANY:
             return ANY
+        if isinstance(obj, TyVar):
+            found: list[FnTy] = []
+            for bound in obj.bounds:
+                interface_info = self._interfaces.get(bound)
+                if interface_info is None:
+                    continue
+                signature = interface_info.methods.get(name.lexeme)
+                if signature is not None:
+                    found.append(signature)
+            if not found:
+                self._error(
+                    name,
+                    f"Type parameter '{obj.name}' has no method "
+                    f"'{name.lexeme}'; add an interface bound.",
+                    code=Code.UNDEFINED_NAME,
+                )
+                return ERROR
+            if any(signature != found[0] for signature in found):
+                self._error(
+                    name,
+                    f"Method '{name.lexeme}' is ambiguous between interface "
+                    f"bounds of '{obj.name}'.",
+                    code=Code.INVALID_OVERRIDE,
+                )
+                return ERROR
+            return found[0]
         if isinstance(obj, EnumObjectTy):
             info = self._enums.get(obj.name)
             if info is None:
@@ -3405,6 +4367,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(name, "Only instances have properties.")
                     return ERROR
                 result = results[0]
+        elif all(isinstance(member, InterfaceTy) for member in members):
+            interfaces = [
+                member for member in members if isinstance(member, InterfaceTy)
+            ]
+            if len(interfaces) == 1:
+                result = self._interface_property(interfaces[0], name)
+            else:
+                results = [
+                    self._interface_property(member, name, report=False)
+                    for member in interfaces
+                ]
+                if any(item != results[0] for item in results):
+                    self._error(name, "Only instances have properties.")
+                    return ERROR
+                result = results[0]
         else:
             self._error(name, "Only instances have properties.")
             return ERROR
@@ -3480,6 +4457,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         if report:
             self._error(name, f"Undefined property '{name.lexeme}'.")
+
+        return ERROR
+
+    def _interface_property(
+        self, obj: InterfaceTy, name: Token, *, report: bool = True
+    ) -> Ty:
+        info = self._interfaces.get(obj.name)
+        if info is not None:
+            method = info.methods.get(name.lexeme)
+            if method is not None:
+                return method
+
+        if report:
+            self._error(
+                name,
+                f"Interface '{obj.name}' has no method '{name.lexeme}'.",
+                code=Code.UNDEFINED_NAME,
+            )
 
         return ERROR
 
@@ -3992,6 +4987,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if obj is ANY:
             return self._infer(expr.value)
 
+        if isinstance(obj, InterfaceTy):
+            self._infer(expr.value)
+            self._error(
+                expr.name, f"Interface '{obj.name}' has no fields."
+            )
+            return ANY
+
         if not isinstance(obj, ClassTy):
             self._infer(expr.value)
             self._error(expr.name, "Only instances have fields.")
@@ -4045,6 +5047,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return method
 
     def visit_this_expr(self, expr: This) -> Ty:
+        if self._current_interface is not None:
+            return InterfaceTy(self._current_interface.name)
         if self._current_class is None:
             return ERROR
 
@@ -4066,6 +5070,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ERROR
         if right is ANY:
             return ANY
+        if isinstance(right, TyVar):
+            if "Num" in right.bounds:
+                return right
+            if right.bounds:
+                self._error(
+                    expr.operator,
+                    f"Type parameter '{right.name}' needs a 'Num' constraint.",
+                    code=Code.INVALID_OPERANDS,
+                )
+                return ERROR
+            self._error(
+                expr.operator,
+                "Operand must be a number.",
+                code=Code.INVALID_OPERANDS,
+                lowerable=True,
+            )
+            return ERROR
         if right is INT or right is FLOAT:
             return right
 
@@ -4073,4 +5094,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return ERROR
 
     def visit_variable_expr(self, expr: Variable) -> Ty:
+        if expr.name.lexeme in self._interfaces:
+            self._error(
+                expr.name,
+                f"Interface '{expr.name.lexeme}' is a type, not a value.",
+                code=Code.UNDEFINED_NAME,
+            )
+            return ERROR
         return self._lookup(expr.name)

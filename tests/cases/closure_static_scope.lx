@@ -2,7 +2,7 @@
 var a = "global";
 {
   fn showA() -> Nil {
-    print a;
+    print(a);
   }
 
   showA();  # expect: global

@@ -6,4 +6,4 @@ while (i < 100000) {
   x = x / 1.000001
   i = i + 1
 }
-print x
+print(x)

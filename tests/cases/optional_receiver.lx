@@ -14,14 +14,14 @@ fn efeito() -> Int {
 val vazio: C? = nil;
 val cheio: C? = C(7);
 
-print vazio?.get() ?? 0;          # expect: 0
-print cheio?.get() ?? 0;          # expect: 7
-print vazio?.n ?? 0;              # expect: 0
-print cheio?.n ?? 0;              # expect: 7
-print vazio?.id(efeito()) ?? 0;   # expect: 0
-print efeitos;                    # expect: 0
-print cheio?.id(efeito()) ?? 0;   # expect: 1
-print efeitos;                    # expect: 1
+print(vazio?.get() ?? 0);          # expect: 0
+print(cheio?.get() ?? 0);          # expect: 7
+print(vazio?.n ?? 0);              # expect: 0
+print(cheio?.n ?? 0);              # expect: 7
+print(vazio?.id(efeito()) ?? 0);   # expect: 0
+print(efeitos);                    # expect: 0
+print(cheio?.id(efeito()) ?? 0);   # expect: 1
+print(efeitos);                    # expect: 1
 
 class P {
   var nome: String?;
@@ -29,5 +29,5 @@ class P {
 }
 val semNome: P? = nil;
 val ana: P? = P("Ana");
-print semNome?.nome ?? "x";       # expect: x
-print ana?.nome ?? "y";           # expect: Ana
+print(semNome?.nome ?? "x");       # expect: x
+print(ana?.nome ?? "y");           # expect: Ana

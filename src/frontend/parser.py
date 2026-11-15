@@ -56,12 +56,13 @@ from src.frontend.stmt import (
     If,
     Import,
     ImportName,
+    Interface,
     Param,
-    Print,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -129,8 +130,19 @@ class Parser:
             # Se consumiu a expressão e chegou exatamente ao fim da linha:
             if not self.reporter.had_error and self._is_at_end():
                 self.reporter.restore(state)
-                # Envelopa como um nó Print para ser avaliado e exibido!
-                return [Print(expr)]
+                # REPL: uma expressão pura é avaliada e exibida via `print`.
+                if (
+                    isinstance(expr, Call)
+                    and isinstance(expr.callee, Variable)
+                    and expr.callee.name.lexeme == "print"
+                ):
+                    return [Expression(expr)]
+                call = Call(
+                    Variable(Token(TokenType.IDENTIFIER, "print", None, 0)),
+                    Token(TokenType.LEFT_PAREN, "(", None, 0),
+                    [expr],
+                )
+                return [Expression(call)]
         except ParseError:
             pass
 
@@ -147,8 +159,13 @@ class Parser:
                 return self._import_declaration(self._previous())
             if self._match(TokenType.FROM):
                 return self._from_import_declaration(self._previous())
+            if self._is_type_alias_declaration():
+                return self._type_alias_declaration()
             if self._match(TokenType.CLASS):
                 return self._class_declaration()
+
+            if self._match(TokenType.INTERFACE):
+                return self._interface_declaration()
 
             if self._match(TokenType.ENUM):
                 return self._enum_declaration()
@@ -171,6 +188,31 @@ class Parser:
         except ParseError:
             self._synchronize()
             return None
+
+    def _is_type_alias_declaration(self) -> bool:
+        if not self._check(TokenType.IDENTIFIER) or self._peek().lexeme != "type":
+            return False
+        if self._current + 2 >= len(self._tokens):
+            return False
+        return (
+            self._tokens[self._current + 1].type is TokenType.IDENTIFIER
+            and self._tokens[self._current + 2].type
+            in (TokenType.EQUAL, TokenType.LEFT_BRACKET)
+        )
+
+    def _type_alias_declaration(self) -> Stmt:
+        keyword = self._advance()
+        name = self._consume(TokenType.IDENTIFIER, "Expect type alias name.")
+        if self._check(TokenType.LEFT_BRACKET):
+            raise self._error(
+                self._peek(),
+                "Type aliases can't be generic yet.",
+                Code.INVALID_TYPE_ANNOTATION,
+            )
+        self._consume(TokenType.EQUAL, "Expect '=' after type alias name.")
+        target = self._type()
+        self._end_statement("Expect ';' after type alias.")
+        return TypeAlias(keyword, name, target)
 
     def _module_path(self) -> tuple[Token, ...]:
         path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
@@ -205,7 +247,8 @@ class Parser:
 
     def _class_declaration(self) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")
-        type_params = self._type_parameters()
+        type_params, type_param_bounds = self._type_parameters()
+        self._reject_type_param_bounds(type_param_bounds, "class")
 
         superclass: Variable | None = None
         if self._match(TokenType.LEFT_PAREN):
@@ -218,6 +261,15 @@ class Parser:
                     Code.INVALID_TYPE_ANNOTATION,
                 )
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after superclass.")
+
+        implements: list[Token] = []
+        if self._match_contextual("implements"):
+            while True:
+                implements.append(
+                    self._consume(TokenType.IDENTIFIER, "Expect interface name.")
+                )
+                if not self._match(TokenType.COMMA):
+                    break
 
         self._consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
 
@@ -235,11 +287,39 @@ class Parser:
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
-        return Class(name, superclass, fields, methods, type_params)
+        return Class(
+            name, superclass, fields, methods, type_params, implements=implements
+        )
+
+    def _interface_declaration(self) -> Stmt:
+        name = self._consume(TokenType.IDENTIFIER, "Expect interface name.")
+        if self._check(TokenType.LEFT_BRACKET):
+            raise self._error(
+                self._peek(),
+                "Generic interfaces aren't supported yet.",
+                Code.GENERIC_UNSUPPORTED,
+            )
+
+        self._consume(TokenType.LEFT_BRACE, "Expect '{' before interface body.")
+        methods: list[Function] = []
+        while not self._check(TokenType.RIGHT_BRACE) and not self._is_at_end():
+            if self._match(TokenType.VAL, TokenType.VAR):
+                raise self._error(
+                    self._previous(),
+                    "Interfaces can't have fields.",
+                    Code.INVALID_DECLARATION,
+                )
+            # `fn` é opcional, como em método (ADR-0067).
+            self._match(TokenType.FN)
+            methods.append(self._function("method", allow_abstract=True))
+
+        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after interface body.")
+        return Interface(name, methods)
 
     def _enum_declaration(self) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect enum name.")
-        type_params = self._type_parameters()
+        type_params, type_param_bounds = self._type_parameters()
+        self._reject_type_param_bounds(type_param_bounds, "enum")
         self._consume(TokenType.LEFT_BRACE, "Expect '{' before enum variants.")
 
         variants: list[EnumVariant] = []
@@ -350,9 +430,6 @@ class Parser:
             return self._for_statement()
         if self._match(TokenType.IF):
             return self._if_statement("if")
-
-        if self._match(TokenType.PRINT):
-            return self._print_statement()
 
         if self._match(TokenType.RETURN):
             return self._return_statement()
@@ -494,11 +571,6 @@ class Parser:
 
         return While(cond, body)
 
-    def _print_statement(self) -> Stmt:
-        value = self._expression()
-        self._end_statement("Expect ';' after value.")
-        return Print(value)
-
     def _return_statement(self) -> Stmt:
         keyword = self._previous()
         value: Expr | None = None
@@ -563,9 +635,9 @@ class Parser:
 
         raise self._error(self._peek(), message)
 
-    def _function(self, kind: str) -> Function:
+    def _function(self, kind: str, *, allow_abstract: bool = False) -> Function:
         name = self._consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
-        type_params = self._type_parameters()
+        type_params, type_param_bounds = self._type_parameters()
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
         parameters = self._parameters()
 
@@ -573,29 +645,76 @@ class Parser:
         if self._match(TokenType.ARROW):
             return_type = self._type()
 
+        if allow_abstract and not self._check(TokenType.LEFT_BRACE):
+            self._end_statement("Expect ';' after method signature.")
+            return Function(
+                name,
+                parameters,
+                [],
+                return_type,
+                type_params,
+                type_param_bounds=type_param_bounds,
+                abstract=True,
+            )
+
         self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
 
         body = self._block()
-        return Function(name, parameters, body, return_type, type_params)
+        return Function(
+            name,
+            parameters,
+            body,
+            return_type,
+            type_params,
+            type_param_bounds=type_param_bounds,
+        )
 
-    def _type_parameters(self) -> list[Token]:
+    def _type_parameters(
+        self,
+    ) -> tuple[list[Token], list[tuple[Token, ...]]]:
         if not self._match(TokenType.LEFT_BRACKET):
-            return []
+            return [], []
 
-        parameters = [self._consume(TokenType.IDENTIFIER, "Expect type parameter name.")]
-        while self._match(TokenType.COMMA):
+        parameters: list[Token] = []
+        bounds: list[tuple[Token, ...]] = []
+        while True:
             parameters.append(
                 self._consume(TokenType.IDENTIFIER, "Expect type parameter name.")
             )
+            parameter_bounds: list[Token] = []
+            if self._match(TokenType.COLON):
+                while True:
+                    parameter_bounds.append(
+                        self._consume(
+                            TokenType.IDENTIFIER, "Expect constraint name."
+                        )
+                    )
+                    if not self._match(TokenType.PLUS):
+                        break
+            bounds.append(tuple(parameter_bounds))
+            if not self._match(TokenType.COMMA):
+                break
 
         self._consume(
             TokenType.RIGHT_BRACKET, "Expect ']' after type parameters."
         )
-        return parameters
+        return parameters, bounds
+
+    def _reject_type_param_bounds(
+        self, bounds: list[tuple[Token, ...]], kind: str
+    ) -> None:
+        for parameter_bounds in bounds:
+            if parameter_bounds:
+                raise self._error(
+                    parameter_bounds[0],
+                    f"Constraints on {kind} type parameters aren't supported yet.",
+                    Code.INVALID_TYPE_ANNOTATION,
+                )
 
     def _parameters(self) -> list[Param]:
         parameters: list[Param] = []
         seen_default = False
+        saw_variadic = False
         if not self._check(TokenType.RIGHT_PAREN):
             while True:
                 if len(parameters) >= 255:
@@ -604,6 +723,15 @@ class Parser:
                         "Can't have more than 255 parameters.",
                         Code.LIMIT_EXCEEDED,
                     )
+                variadic = self._match(TokenType.ELLIPSIS)
+                if variadic and saw_variadic:
+                    self._error(
+                        self._previous(),
+                        "Only one variadic parameter is allowed.",
+                        Code.INVALID_DECLARATION,
+                    )
+                if variadic:
+                    saw_variadic = True
 
                 mutable = self._match(TokenType.VAR)
                 name_token = self._consume(
@@ -624,19 +752,34 @@ class Parser:
                             Code.INVALID_DECLARATION,
                         )
                     seen_default = True
-                elif seen_default:
+                elif seen_default and not variadic:
                     self._error(
                         name_token,
                         "Required parameter can't follow an optional parameter.",
                         Code.INVALID_DECLARATION,
                     )
 
-                parameters.append(Param(name_token, mutable, default, type_annotation))
+                parameters.append(
+                    Param(
+                        name_token,
+                        mutable,
+                        default,
+                        type_annotation,
+                        variadic,
+                    )
+                )
 
                 if not self._match(TokenType.COMMA):
                     break
 
         self._consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+        for index, param in enumerate(parameters):
+            if param.variadic and index != len(parameters) - 1:
+                self._error(
+                    param.name,
+                    "Variadic parameter must be last.",
+                    Code.INVALID_DECLARATION,
+                )
         return parameters
 
     def _lambda(self, keyword: Token) -> Lambda:
@@ -740,10 +883,22 @@ class Parser:
             TokenType.LEFT_PAREN, "Expect '(' after 'fn' in function type."
         )
         params: list[Ty] = []
+        variadic = False
         if not self._check(TokenType.RIGHT_PAREN):
-            params.append(self._type())
-            while self._match(TokenType.COMMA):
+            while True:
+                if self._match(TokenType.ELLIPSIS):
+                    variadic = True
+                    params.append(self._type())
+                    if self._match(TokenType.COMMA):
+                        self._error(
+                            self._previous(),
+                            "Variadic parameter must be last.",
+                            Code.INVALID_TYPE_ANNOTATION,
+                        )
+                    break
                 params.append(self._type())
+                if not self._match(TokenType.COMMA):
+                    break
 
         self._consume(
             TokenType.RIGHT_PAREN, "Expect ')' after function type parameters."
@@ -752,7 +907,12 @@ class Parser:
             TokenType.ARROW, "Expect '->' after function type parameters."
         )
         ret = self._type()
-        return FnTy(tuple(params), ret, len(params))
+        return FnTy(
+            tuple(params),
+            ret,
+            len(params) - 1 if variadic else len(params),
+            variadic,
+        )
 
     def _generic_type(self, token: Token, name: str, arguments: list[Ty]) -> Ty:
         if name == "List" and len(arguments) == 1:
@@ -1079,6 +1239,7 @@ class Parser:
     def _finish_call(self, callee: Expr, *, optional: bool = False) -> Expr:
         with self._in_brackets():
             arguments: list[Expr] = []
+            spread = False
             if not self._check(TokenType.RIGHT_PAREN):
                 while True:
                     if len(arguments) >= 255:
@@ -1088,6 +1249,17 @@ class Parser:
                             Code.LIMIT_EXCEEDED,
                         )
 
+                    if self._match(TokenType.ELLIPSIS):
+                        spread = True
+                        arguments.append(self._expression())
+                        if self._match(TokenType.COMMA):
+                            self._error(
+                                self._previous(),
+                                "Spread argument must be last.",
+                                Code.INVALID_DECLARATION,
+                            )
+                        break
+
                     arguments.append(self._expression())
 
                     if not self._match(TokenType.COMMA):
@@ -1096,7 +1268,7 @@ class Parser:
             paren = self._consume(
                 TokenType.RIGHT_PAREN, "Expect ')' after arguments."
             )
-            return Call(callee, paren, arguments, optional)
+            return Call(callee, paren, arguments, optional, spread)
 
     def _interpolated_string(self, token: Token) -> Expr:
         raw_parts = cast(list[str | list[Token]], token.literal)
@@ -1268,6 +1440,13 @@ class Parser:
                 return True
         return False
 
+    def _match_contextual(self, lexeme: str) -> bool:
+        """Consome um identificador que só é especial neste contexto (ex.: `implements`)."""
+        if self._check(TokenType.IDENTIFIER) and self._peek().lexeme == lexeme:
+            self._advance()
+            return True
+        return False
+
     def _match_infix(self, *types: TokenType) -> bool:
         """Consome um operador infixo.
 
@@ -1344,7 +1523,6 @@ class Parser:
                 TokenType.FOR,
                 TokenType.IF,
                 TokenType.WHILE,
-                TokenType.PRINT,
                 TokenType.RETURN,
             }:
                 return

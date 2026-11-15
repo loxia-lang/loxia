@@ -12,13 +12,13 @@ class Pair[A, B] {
 }
 fn first[T](b: Box[T]) -> T { return b.get() }
 fn make[T](x: T) -> Box[T] { return Box(x) }
-print first(Box(7))
-print make("x").get()
+print(first(Box(7)))
+print(make("x").get())
 val p = Pair(1, "a")
 val q = p.swap()
-print q.first
-print q.second
-print Box(1)
+print(q.first)
+print(q.second)
+print(Box(1))
 # expect: 7
 # expect: x
 # expect: a

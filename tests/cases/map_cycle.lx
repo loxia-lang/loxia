@@ -1,17 +1,17 @@
 # Ciclos em mapas: stringify e igualdade não entram em loop.
 val a: Map[String, Any] = {}
 a["self"] = a
-print a
+print(a)
 val b: Map[String, Any] = {}
 b["self"] = b
-print a == b
-print a == a
+print(a == b)
+print(a == a)
 val xs = [a]
-print xs
+print(xs)
 val l: List[Any] = []
 val m: Map[String, List[Any]] = {"l": l}
 l.push(m)
-print m
+print(m)
 # expect: {"self": {...}}
 # expect: true
 # expect: true

@@ -3,9 +3,9 @@ class A {
 }
 
 val a = A();
-print A;             # expect: A
-print a;             # expect: A instance
-print str(A);        # expect: A
-print str(a);        # expect: A instance
-print "A=${A}";      # expect: A=A
-print "a=${a}";      # expect: a=A instance
+print(A);             # expect: A
+print(a);             # expect: A instance
+print(str(A));        # expect: A
+print(str(a));        # expect: A instance
+print("A=${A}");      # expect: A=A
+print("a=${a}");      # expect: a=A instance

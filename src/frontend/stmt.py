@@ -22,7 +22,8 @@ class Visitor[R](Protocol):
     def visit_for_in_stmt(self, stmt: ForIn) -> R: ...
     def visit_function_stmt(self, stmt: Function) -> R: ...
     def visit_if_stmt(self, stmt: If) -> R: ...
-    def visit_print_stmt(self, stmt: Print) -> R: ...
+    def visit_interface_stmt(self, stmt: Interface) -> R: ...
+    def visit_type_alias_stmt(self, stmt: TypeAlias) -> R: ...
     def visit_return_stmt(self, stmt: Return) -> R: ...
     def visit_var_stmt(self, stmt: Var) -> R: ...
     def visit_destructure_stmt(self, stmt: Destructure) -> R: ...
@@ -77,9 +78,38 @@ class Class(Stmt):
     methods: list[Function]
     type_params: list[Token] = field(default_factory=list)
     display_name: str | None = None
+    implements: list[Token] = field(default_factory=list)
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class TypeAlias(Stmt):
+    """`type Nome = Tipo`: transparente, sem genéricos e sem valor em runtime."""
+
+    keyword: Token
+    name: Token
+    target: Ty
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_type_alias_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Interface(Stmt):
+    """Declaração nominal de interface (ADR-0080).
+
+    Os métodos são `Function`; `abstract=True` marca a assinatura sem corpo.
+    Interfaces não têm campos, `init`, genéricos nem herança na v1.
+    """
+
+    name: Token
+    methods: list[Function]
+    display_name: str | None = None
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_interface_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)
@@ -140,6 +170,7 @@ class Param:
     mutable: bool
     default: Expr | None = None
     type_annotation: Ty | None = None
+    variadic: bool = False
 
 
 @dataclass(frozen=True, eq=False)
@@ -149,7 +180,9 @@ class Function(Stmt):
     body: list[Stmt]
     return_type: Ty | None = None
     type_params: list[Token] = field(default_factory=list)
+    type_param_bounds: list[tuple[Token, ...]] = field(default_factory=list)
     display_name: str | None = None
+    abstract: bool = False
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)
@@ -173,14 +206,6 @@ class If(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_if_stmt(self)
-
-
-@dataclass(frozen=True, eq=False)
-class Print(Stmt):
-    expression: Expr
-
-    def accept[R](self, visitor: Visitor[R]) -> R:
-        return visitor.visit_print_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)

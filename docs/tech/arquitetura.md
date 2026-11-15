@@ -92,7 +92,8 @@ Pacotes por fase (dependência só para baixo):
 | [`src/execution/lox_callable.py`](../../src/execution/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
 | [`src/execution/prelude.py`](../../src/execution/prelude.py) | nomes dos builtins globais reservados |
 | [`src/execution/lox_function.py`](../../src/execution/lox_function.py) | função de usuário + closure + `bind` |
-| [`src/execution/lox_class.py`](../../src/execution/lox_class.py) | classe (métodos, herança, `init`) |
+| [`src/execution/lox_class.py`](../../src/execution/lox_class.py) | classe (métodos, herança, `init`, interfaces) |
+| [`src/execution/lox_interface.py`](../../src/execution/lox_interface.py) | interface nominal (defaults ligados ao ambiente) |
 | [`src/execution/lox_instance.py`](../../src/execution/lox_instance.py) | instância (campos + métodos ligados) |
 | [`src/execution/natives/len.py`](../../src/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
 | [`src/execution/natives/repr.py`](../../src/execution/natives/repr.py) | `repr(x)` |

@@ -2,6 +2,6 @@
 /* bloco
    com /* aninhado */ comentário */
 
-print 1       # expect: 1
-print 2       /* inline */ # expect: 2
-print 3       # expect: 3
+print(1)       # expect: 1
+print(2       /* inline */) # expect: 2
+print(3)       # expect: 3

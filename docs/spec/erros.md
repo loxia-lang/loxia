@@ -234,7 +234,6 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Expect 'else' after conditional expression.` | ternário sem `else` |
 | `Expect property name after '?.'.` | `a?.` sem nome |
 | `Can't assign through optional chaining.` | `a?.b = 1` |
-| `Expect ';' after value.` | `print` sem `;` na mesma linha |
 | `Expect ';' after expression.` | expressão solta sem `;` na mesma linha |
 | `Expect ';' after variable declaration.` | `var`/`val` sem `;` na mesma linha |
 | `Expect ';' after return value.` | `return` seguido de outro statement na mesma linha (antes de `}` ou de nova linha, o `;` é opcional) |
@@ -259,6 +258,9 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Field initializer must be a constant.` | `var x = 1 + 2;` no corpo da classe |
 | `Default value must be a constant.` | `fn f(x = 1 + 2)` |
 | `Required parameter can't follow an optional parameter.` | `fn f(a = 1, b)` |
+| `Variadic parameter must be last.` | `fn f(...xs, y)` |
+| `Type aliases can't be generic yet.` | `type BoxAlias[T] = ...` |
+| `Spread argument must be last.` | `f(...xs, 2)` |
 | `Expect '.' after 'super'.` | `super` sem ponto |
 | `Expect superclass method name.` | `super.` sem nome |
 | `Expect property name after '.'.` | `obj.` sem nome |
@@ -333,6 +335,8 @@ Mensagens no padrão `Expect … .`; as mais comuns:
 | `Can't modify a map while iterating over it.` | `for k in m { m["b"] = 2 }` |
 | `len() expects a string, a list or a map.` | `len(3)` |
 | `Can only iterate over a range, a list, a map or a string.` | `for x in 42` |
+| `iter() must return an instance with next() -> T?.` | `iter()` devolve não-instância |
+| `iter() must take no arguments.` / `next() must take no arguments.` | protocolo com parâmetros |
 
 A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/parâmetros
 (65) e runtime para globais (70). O texto é o mesmo de propósito.
@@ -356,6 +360,9 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Operands must be two numbers or two strings.` | `+` misturando tipos |
 | `Range bounds must be integers.` | bound de `..` não-`Int` |
 | `Can only iterate over a range, a list, a map or a string.` | `for-in` em tipo não iterável |
+| `'C' is not iterable: define iter() returning an iterator with next() -> T?.` | classe sem `iter()` |
+| `iter() must return an iterator with next() -> T?.` | `iter()` devolve tipo sem `next()` |
+| `next() must return T?` / `next() must return T? with a concrete T.` | retorno inválido de `next()` |
 | `List elements must have a common type; found X and Y. ...` | literal misto sem anotação |
 | `Can't infer the element type of an empty list; annotate it as List[T].` | `val xs = []` |
 | `List index must be an integer, found X.` | `xs["0"]` no `--check` |
@@ -371,6 +378,15 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 | `Generic function 'id' can't be used as a value yet; ...` | `val f = id`, callback `id` sem chamada |
 | `Generic methods aren't supported yet.` | `get[T] (...)` em classe |
 | `Type parameter 'T' is already declared.` | `fn f[T, T]` |
+| `Type alias 'A' is recursive.` | `type A = B; type B = A` |
+| `Type alias 'A' isn't generic.` | `A[Int]` com `type A = Int` |
+| `Type aliases must be declared at the top level.` | `fn f() { type A = Int }` |
+| `Name 'A' is already declared.` | alias × classe/interface/enum/alias |
+| `Variadic parameter can't have a default value.` | `fn f(...xs = 1)` |
+| `Variadic parameters aren't supported in 'init' yet.` | `init(...xs)` |
+| `Spread arguments are only supported for variadic functions.` | `f(...xs)` em não-variádico |
+| `Spread arguments only fill the variadic parameter; pass the fixed parameters explicitly.` | `f(...xs)` faltando fixos |
+| `Expected List[T], found List[U].` | spread com elemento errado |
 | `Type parameter can't be named 'Int'.` | nome de tipo reservado como parâmetro |
 | `Polymorphic recursion is not supported yet; ...` | `grow[T]` chamando `grow([x])` |
 | `Type arguments on a call aren't supported; ...` | `id[Int] (1)` (use inferência) |

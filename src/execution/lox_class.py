@@ -8,6 +8,7 @@ from src.execution.lox_instance import LoxInstance
 
 if TYPE_CHECKING:
     from src.execution.interpreter import Interpreter
+    from src.execution.lox_interface import LoxInterface
     from src.frontend.expr import Expr
     from src.frontend.tokens import Token
 
@@ -26,15 +27,21 @@ class LoxClass:
         superclass: LoxClass | None,
         methods: dict[str, LoxFunction],
         fields: dict[str, FieldInfo],
+        interfaces: list[LoxInterface] | None = None,
     ) -> None:
         self._name = name
         self._superclass = superclass
         self._methods = methods
         self._fields = fields
+        self._interfaces = list(interfaces or [])
 
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def interfaces(self) -> list[LoxInterface]:
+        return self._interfaces
 
     @property
     def fields(self) -> dict[str, FieldInfo]:
@@ -50,11 +57,29 @@ class LoxClass:
         return None
 
     def find_method(self, name: str) -> LoxFunction | None:
+        method = self._find_class_method(name)
+        if method is not None:
+            return method
+
+        return self._find_interface_method(name)
+
+    def _find_class_method(self, name: str) -> LoxFunction | None:
         if name in self._methods:
             return self._methods[name]
 
         if self._superclass is not None:
-            return self._superclass.find_method(name)
+            return self._superclass._find_class_method(name)
+
+        return None
+
+    def _find_interface_method(self, name: str) -> LoxFunction | None:
+        for interface in self._interfaces:
+            method = interface.find_method(name)
+            if method is not None:
+                return method
+
+        if self._superclass is not None:
+            return self._superclass._find_interface_method(name)
 
         return None
 

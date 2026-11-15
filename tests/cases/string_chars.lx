@@ -1,8 +1,8 @@
 # `chars(s)`: code points como String de 1 cp.
-print chars("aço")
-print len(chars("ação"))
-for c in chars("ab") { print c }
-print chars("")
+print(chars("aço"))
+print(len(chars("ação")))
+for c in chars("ab") { print(c) }
+print(chars(""))
 # expect: ["a", "ç", "o"]
 # expect: 4
 # expect: a

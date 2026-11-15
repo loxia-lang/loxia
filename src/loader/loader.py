@@ -50,11 +50,12 @@ from src.frontend.stmt import (
     Function,
     If,
     Import,
-    Print,
+    Interface,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -66,6 +67,7 @@ from src.frontend.ty import (
     EnumObjectTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     TupleTy,
@@ -214,12 +216,13 @@ class ModuleLoader:
                 imports.append(statement)
                 continue
             seen_non_import = True
-            if not isinstance(statement, (Function, Class, EnumDecl)):
+            if not isinstance(statement, (Function, Class, EnumDecl, Interface, TypeAlias)):
                 self._error(
                     _first_token(statement),
-                    "Modules may contain only imports, functions, classes and enums.",
+                    "Modules may contain only imports, functions, classes, "
+                    "interfaces, enums and type aliases.",
                 )
-            assert isinstance(statement, (Function, Class, EnumDecl))
+            assert isinstance(statement, (Function, Class, EnumDecl, Interface, TypeAlias))
             decl_name = statement.name.lexeme
             if decl_name in declarations:
                 self._error(statement.name, f"Duplicate declaration '{decl_name}'.")
@@ -343,6 +346,22 @@ class _Rewriter:
             return Variable(self._rename_token(expr.name, replacement))
         return expr
 
+    def _type_param_bounds(
+        self, bounds: list[tuple[Token, ...]]
+    ) -> list[tuple[Token, ...]]:
+        renamed: list[tuple[Token, ...]] = []
+        for group in bounds:
+            items: list[Token] = []
+            for token in group:
+                replacement = self._global(token.lexeme, token)
+                items.append(
+                    self._rename_token(token, replacement)
+                    if replacement is not None
+                    else token
+                )
+            renamed.append(tuple(items))
+        return renamed
+
     def _type(self, ty: Ty | None) -> Ty | None:
         if ty is None:
             return None
@@ -356,6 +375,14 @@ class _Rewriter:
             args = tuple(self._type(arg) for arg in ty.args)
             assert all(arg is not None for arg in args)
             return replace(ty, name=name, args=args)  # type: ignore[arg-type]
+        if isinstance(ty, InterfaceTy):
+            return replace(
+                ty,
+                name=self._global(
+                    ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0)
+                )
+                or ty.name,
+            )
         if isinstance(ty, ClassObjectTy):
             return replace(
                 ty, name=self._global(ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0)) or ty.name
@@ -555,8 +582,6 @@ class _Rewriter:
             return statement
         if isinstance(statement, Expression):
             return replace(statement, expression=self.expr(statement.expression))
-        if isinstance(statement, Print):
-            return replace(statement, expression=self.expr(statement.expression))
         if isinstance(statement, Var):
             value = (
                 self.expr(statement.initializer)
@@ -603,6 +628,18 @@ class _Rewriter:
             finally:
                 self.bound.pop()
             return replace(statement, iterable=iterable, body=body)
+        if isinstance(statement, TypeAlias):
+            name = statement.name
+            replacement = self._global(name.lexeme, name)
+            if replacement is not None:
+                name = self._rename_token(name, replacement)
+            target = self._type(statement.target)
+            assert target is not None
+            return replace(
+                statement,
+                name=name,
+                target=target,
+            )
         if isinstance(statement, Function):
             name = statement.name
             replacement = self._global(name.lexeme, name)
@@ -629,6 +666,9 @@ class _Rewriter:
                 params=params,
                 body=function_body,
                 return_type=self._type(statement.return_type),
+                type_param_bounds=self._type_param_bounds(
+                    statement.type_param_bounds
+                ),
                 display_name=statement.display_name or statement.name.lexeme,
             )
         if isinstance(statement, Return):
@@ -685,11 +725,62 @@ class _Rewriter:
                     )
                 finally:
                     self.bound.pop()
+            implements = []
+            for token in statement.implements:
+                replacement = self._global(token.lexeme, token)
+                implements.append(
+                    self._rename_token(token, replacement)
+                    if replacement is not None
+                    else token
+                )
+
             return replace(
                 statement,
                 name=name,
                 superclass=superclass,  # type: ignore[arg-type]
                 fields=fields,
+                methods=methods,
+                implements=implements,
+                display_name=statement.display_name or statement.name.lexeme,
+            )
+        if isinstance(statement, Interface):
+            name = statement.name
+            replacement = self._global(name.lexeme, name)
+            if replacement is not None:
+                name = self._rename_token(name, replacement)
+
+            methods = []
+            for method in statement.methods:
+                self.bound.append({param.name.lexeme for param in method.params})
+                try:
+                    methods.append(
+                        replace(
+                            method,
+                            params=[
+                                replace(
+                                    param,
+                                    default=(
+                                        self.expr(param.default)
+                                        if param.default is not None
+                                        else None
+                                    ),
+                                    type_annotation=self._type(param.type_annotation),
+                                )
+                                for param in method.params
+                            ],
+                            body=(
+                                []
+                                if method.abstract
+                                else [self.stmt(item) for item in method.body]
+                            ),
+                            return_type=self._type(method.return_type),
+                        )
+                    )
+                finally:
+                    self.bound.pop()
+            return replace(
+                statement,
+                name=name,
                 methods=methods,
                 display_name=statement.display_name or statement.name.lexeme,
             )

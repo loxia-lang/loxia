@@ -121,6 +121,44 @@ void *lox_alloc_bytes(int64_t size) {
     return lox_alloc(size > 0 ? (size_t)size : 1u);
 }
 
+/* Layout espelhado de `_CLASS_DESC`/`_INTERFACE_ENTRY` (ADR-0080, fase B2). */
+typedef struct {
+    void *super;
+    int64_t id;
+    void *name;
+    void *vtable;
+    int64_t field_count;
+    void *init;
+    int64_t init_min;
+    int64_t init_max;
+    int64_t interface_count;
+    void *interfaces;
+} LoxClassDescRuntime;
+
+typedef struct {
+    int64_t interface_id;
+    void *itab;
+} LoxInterfaceEntryRuntime;
+
+void *lox_interface_method(const void *instance, int64_t interface_id,
+                           int64_t method_index) {
+    if (instance == NULL) {
+        lox_panic(0, 0, "R1004", "Interface method not found.");
+        return NULL;
+    }
+    const LoxClassDescRuntime *descriptor =
+        *(const LoxClassDescRuntime * const *)instance;
+    const LoxInterfaceEntryRuntime *entries = descriptor->interfaces;
+    for (int64_t index = 0; index < descriptor->interface_count; index++) {
+        if (entries[index].interface_id == interface_id) {
+            void **itab = entries[index].itab;
+            return itab[method_index];
+        }
+    }
+    lox_panic(0, 0, "R1004", "Interface method not found.");
+    return NULL;
+}
+
 int lox_is_instance(void *descriptor, void *target) {
     while (descriptor != NULL) {
         if (descriptor == target) {

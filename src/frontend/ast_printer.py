@@ -38,11 +38,12 @@ from src.frontend.stmt import (
     Function,
     If,
     Import,
-    Print,
+    Interface,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -184,7 +185,11 @@ class AstPrinter:
 
     def visit_call_expr(self, expr: Call) -> str:
         name = "?call" if expr.optional else "call"
-        return self._parenthesize(f"{name} {self.print(expr.callee)}", *expr.arguments)
+        arguments = [self.print(argument) for argument in expr.arguments]
+        if expr.spread and arguments:
+            arguments[-1] = f"...{arguments[-1]}"
+        inner = " ".join([name, self.print(expr.callee), *arguments])
+        return f"({inner})"
 
     def visit_conditional_expr(self, expr: Conditional) -> str:
         return self._parenthesize(
@@ -238,6 +243,9 @@ class AstPrinter:
         parts = [f"class {stmt.name.lexeme}{params}"]
         if stmt.superclass is not None:
             parts.append(f"(super {stmt.superclass.name.lexeme})")
+        if stmt.implements:
+            names = " ".join(token.lexeme for token in stmt.implements)
+            parts.append(f"(implements {names})")
 
         for field in stmt.fields:
             keyword = "var" if field.mutable else "val"
@@ -265,6 +273,7 @@ class AstPrinter:
     def visit_lambda_expr(self, expr: Lambda) -> str:
         params = " ".join(
             ("var " if param.mutable else "")
+            + ("..." if param.variadic else "")
             + param.name.lexeme
             + self._type_suffix(param.type_annotation)
             for param in expr.params
@@ -278,9 +287,10 @@ class AstPrinter:
         inner = f"({params})"
         return f"(lambda {inner}{returns}{f' {body}' if body else ''})"
 
-    def visit_function_stmt(self, stmt: Function) -> str:
+    def _function_signature(self, stmt: Function) -> tuple[str, str]:
         params = " ".join(
             ("var " if param.mutable else "")
+            + ("..." if param.variadic else "")
             + param.name.lexeme
             + self._type_suffix(param.type_annotation)
             for param in stmt.params
@@ -290,13 +300,46 @@ class AstPrinter:
             if stmt.return_type is not None
             else ""
         )
+        return f"({params})", returns
+
+    def visit_type_alias_stmt(self, stmt: TypeAlias) -> str:
+        return f"(type {stmt.name.lexeme} {display(stmt.target)})"
+
+    def visit_interface_stmt(self, stmt: Interface) -> str:
+        parts = [f"interface {stmt.name.lexeme}"]
+        for method in stmt.methods:
+            inner, returns = self._function_signature(method)
+            if method.abstract:
+                parts.append(f"(sig {method.name.lexeme} {inner}{returns})")
+            else:
+                body = " ".join(
+                    statement.accept(self) for statement in method.body
+                )
+                parts.append(
+                    f"(fn {method.name.lexeme} {inner}{returns}"
+                    f"{f' {body}' if body else ''})"
+                )
+        return f"({' '.join(parts)})"
+
+    def visit_function_stmt(self, stmt: Function) -> str:
+        inner, returns = self._function_signature(stmt)
         body = " ".join(statement.accept(self) for statement in stmt.body)
-        inner = f"({params})"
-        type_params = (
-            "[" + " ".join(token.lexeme for token in stmt.type_params) + "]"
-            if stmt.type_params
-            else ""
-        )
+        type_params = ""
+        if stmt.type_params:
+            rendered = []
+            for index, token in enumerate(stmt.type_params):
+                text = token.lexeme
+                if (
+                    index < len(stmt.type_param_bounds)
+                    and stmt.type_param_bounds[index]
+                ):
+                    constraints = " + ".join(
+                        bound.lexeme
+                        for bound in stmt.type_param_bounds[index]
+                    )
+                    text = f"{text}: {constraints}"
+                rendered.append(text)
+            type_params = "[" + " ".join(rendered) + "]"
         return (
             f"(fn {stmt.name.lexeme}{type_params} {inner}{returns}"
             f"{f' {body}' if body else ''})"
@@ -309,9 +352,6 @@ class AstPrinter:
             return f"(if {condition} {then_branch})"
 
         return f"(if {condition} {then_branch} {stmt.else_branch.accept(self)})"
-
-    def visit_print_stmt(self, stmt: Print) -> str:
-        return f"(print {stmt.expression.accept(self)})"
 
     def visit_return_stmt(self, stmt: Return) -> str:
         if stmt.value is None:

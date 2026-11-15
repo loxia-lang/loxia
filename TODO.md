@@ -141,19 +141,19 @@ uv run pytest tests/test_backend.py -q
 
 | Recurso | Status | Nota |
 | --- | --- | --- |
-| iterador de usuário no `for-in` | ⏳ | o `for-in` embutido existe; falta protocolo |
-| `print` como função (`println`) | ⏳ | depois da 1.0; statement é a decisão |
-| variádicos `...args` | ⏳ | falta implementar |
+| iterador de usuário no `for-in` | ✅ | protocolo estrutural `iter()` + `next() -> T?`, classe/interface/genérico; caso no diferencial ([ADR-0082](docs/adr/0082-iterador-de-usuario.md)) |
+| `print` como função | ✅ | `print(valor): Any -> Nil`, statement removido; corpus/suíte oficial exemplos migrados ([ADR-0085](docs/adr/0085-print-como-funcao.md)) |
+| variádicos `...args` | ✅ | `...xs: T` + spread final `f(...xs)`; `fmt.format` migrado ([ADR-0083](docs/adr/0083-variadicos.md)) |
 | trailing closure | ⏳ | falta implementar |
-| `type` alias | ⏳ | falta implementar |
-| generics + constraints | ⏳ | funções T3b prontas; constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| `type` alias | ✅ | `type Nome = Tipo` transparente, não-genérico, módulos e backend ([ADR-0084](docs/adr/0084-type-alias.md)) |
+| generics + constraints | ✅ | funções T3b + `T: Ord + Num + Interface` ([ADR-0081](docs/adr/0081-constraints-generics.md)); constraints em classes seguem pós-MVP |
 | uniões + narrowing | 🟡 | `T?`/`is`/`while`/campos/índices prontos; falta merge CFG/aliasing |
-| traits nominais + `implements` | ⏸ | decididos com métodos default; pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| interfaces nominais + `implements` | ✅ | item "traits" do Lox2: tree-walk/checker + backend B2 (`itab`), dois casos no diferencial ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)) |
 | operator overloading | ⏳ | depois de classes |
 | namespaces/import | ✅ | [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, `_` privado, `std.*` e `from`/`as` |
 | `try`/`raise` no backend | ✅ | tree-walk e backend L6 ([ADR-0042](docs/adr/0042-excecoes.md), [ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)) |
 | `match` estrutural em uniões | ⏳ | enum/`match` exaustivo já existe ([ADR-0041](docs/adr/0041-enums-match.md)); falta união/estrutural |
-| extension methods | ⏳ | depois do LLVM MVP e de traits |
+| extension methods | ⏳ | depois do LLVM MVP e de interfaces |
 | classes como valores / metaclasses | 🤔 | só se precisar |
 | FFI com C | ⏸ | **não haverá FFI genérica**: kernel fixo de primitivas ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)); reavaliar só com dor demonstrada |
 | stdlib (`strings`, `lists`, `collections`) | 🟡 | kernel e imports prontos; T1/T2 na §13 ([ADR-0072](docs/adr/0072-stdlib-batteries.md)) |
@@ -174,8 +174,9 @@ M0–M7 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 | **M9** | Ecossistema | formatter, LSP, docs e playground | ⬜ |
 
 **Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o
-nível afetado volta para a fila com caso diferencial. Traits nominais continuam pós-MVP e
-não bloqueiam nenhum nível.
+nível afetado volta para a fila com caso diferencial. Interfaces nominais estão
+implementadas (ADR-0080), constraints de função também (ADR-0081) e iteradores de usuário
+no `for-in` (ADR-0082) — nenhum bloqueia nível.
 
 **Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
 suspensos) é preparada durante o L6; a feature entra **depois do M7**, junto com a stdlib
@@ -216,12 +217,13 @@ linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é
 
 ### Generics pós-MVP — adiados (2026-11-13)
 
-Nada aqui será feito por enquanto. Retomar só com dor demonstrada (um caso de uso real) ou
-quando T6b/constraints existirem; o desenho está no
+Nada aqui será feito por enquanto. Retomar só com dor demonstrada (um caso de uso real);
+com constraints em funções ([ADR-0081](docs/adr/0081-constraints-generics.md)), métodos
+genéricos passam a ser desenháveis, mas continuam fora. O desenho de classes está no
 [ADR-0040](docs/adr/0040-generics-classes-desenho.md) §"Em aberto".
 
-- [ ] `fn map[U]` — métodos genéricos: a função livre cobre; sem constraints o corpo só usa
-      operações universais.
+- [ ] `fn map[U]` — métodos genéricos: a função livre cobre; exigiria bounds no método e
+      monomorfização por `this`.
 - [ ] `class IntBox(Box[Int])` — herança de instanciação: composição cobre; exige
       substituição em cadeia no checker e aumenta a superfície que o backend tem que
       reproduzir (I1).
@@ -238,12 +240,15 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
 1. **Generics além do MVP:** continuam em aberto type application explícita e função
    genérica como valor; métodos genéricos, herança de `Box[Int]` e `is/as` reificado estão
-   adiados (§10). Constraints e traits nominais ficam pós-MVP
-   ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+   adiados (§10). Interfaces nominais estão implementadas no tree-walk/checker e no
+   backend ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)); constraints
+   de função estão implementadas ([ADR-0081](docs/adr/0081-constraints-generics.md)) e
+   constraints em classes seguem pós-MVP.
 2. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
    transcendentais de `math` fora do I3.
-3. **Constraints de generics e traits genéricos:** falta desenhar `T: Trait`, coerência e o
-   custo na monomorfização ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+3. **Interfaces genéricas e constraints em classes:** `interface I[T]` e
+   `class C[T: I]` continuam em aberto; constraints de função já existem
+   ([ADR-0081](docs/adr/0081-constraints-generics.md)).
 4. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
 5. **`if`/bloco como expressão:** fora da 1.0; reavaliar quando houver dor real.
@@ -339,7 +344,7 @@ determinismo.
 | Módulo | Funções | Estado |
 | --- | --- | --- |
 | `std.strings` | ✅ base: `split`, `splitLines`, `lines`, `words`, `trim`, `ltrim`, `rtrim`, `upper`, `lower` (ASCII), `capitalize`, `startsWith`, `endsWith`, `contains`, `indexOf`, `lastIndexOf`, `replaceAll`, `replaceFirst`, `repeat`, `padStart`, `padEnd`, `reverse`, `slice` (clamp), `isBlank`, `count` | ✅ base completa |
-| `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `flatMap` | ✅ base + sort/gaps; `sortBy`/`groupBy` adiados ([ADR-0076](docs/adr/0076-std-lists-sort.md)) |
+| `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `sortNatural`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `flatMap` | ✅ base + sort/gaps; `min`/`max` são `[T: Ord]`, `sortNatural` é novo; `sortBy`/`groupBy` adiados ([ADR-0076](docs/adr/0076-std-lists-sort.md), [ADR-0081](docs/adr/0081-constraints-generics.md)) |
 | `std.maps` | `entries`, `fromEntries`, `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`, `hasValue`, `getOr`, `toList` | ✅ `Map[String, V]`; `invert` é `Map[String, String]` (constraints de chave genérica pós-MVP) |
 | `std.numeric` | `gcd`, `lcm`, `isPrime`, `primes`, `factorial`, `powMod`, `digitSum`, `isEven`, `isOdd`, `sign`, `mean`, `median`, `mode`, `variance`, `stddev`, `roundTo`, `toBase`, `fromBase` | ✅ estatísticas de `List[Int]`, vazio ⇒ `nil`; domínio inválido ⇒ `LoxRuntimeError` |
 | `std.asserts` | `assert`, `assertEq`, `assertNotNil`, `fail` | ✅ falha ⇒ `LoxRuntimeError` |

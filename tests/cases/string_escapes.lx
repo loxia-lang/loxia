@@ -1,8 +1,8 @@
-print "a\nb"          # expect: a
+print("a\nb")          # expect: a
                       # expect: b
-print "tab\tfim"      # expect: tab	fim
-print "\"aspas\""     # expect: "aspas"
-print "barra\\fim"    # expect: barra\fim
-print "\u{41}"        # expect: A
-print "\u{1F600}"     # expect: 😀
-print "ação"          # expect: ação
+print("tab\tfim")      # expect: tab	fim
+print("\"aspas\"")     # expect: "aspas"
+print("barra\\fim")    # expect: barra\fim
+print("\u{41}")        # expect: A
+print("\u{1F600}")     # expect: 😀
+print("ação")          # expect: ação

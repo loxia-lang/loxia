@@ -20,13 +20,13 @@ def resolve(source: str) -> tuple[ErrorReporter, Interpreter, list[Stmt]]:
 
 
 def test_global_variables_are_left_to_runtime_lookup() -> None:
-    _, interpreter, _ = resolve("var a = 1; print a;")
+    _, interpreter, _ = resolve("var a = 1; print(a);")
 
     assert interpreter.locals == {}
 
 
 def test_local_variable_gets_depth_zero() -> None:
-    reporter, interpreter, _ = resolve("{ var a = 1; print a; }")
+    reporter, interpreter, _ = resolve("{ var a = 1; print(a); }")
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [0]
@@ -37,9 +37,9 @@ def test_shadowing_resolves_to_different_depths() -> None:
         """
         {
           var a = 1;
-          print a;
+          print(a);
           {
-            print a;
+            print(a);
           }
         }
         """
@@ -51,14 +51,14 @@ def test_shadowing_resolves_to_different_depths() -> None:
 
 def test_identical_tokens_do_not_collide_in_locals() -> None:
     # Tudo na mesma linha: os dois nós `a` têm tokens iguais, mas identidades diferentes.
-    _, interpreter, _ = resolve("{ var a = 1; print a; { print a; } }")
+    _, interpreter, _ = resolve("{ var a = 1; print(a); { print(a); } }")
 
     assert len(interpreter.locals) == 2
     assert sorted(interpreter.locals.values()) == [0, 1]
 
 
 def test_function_parameter_depth() -> None:
-    reporter, interpreter, _ = resolve("fn f(a) { print a; }")
+    reporter, interpreter, _ = resolve("fn f(a) { print(a); }")
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [0]
@@ -96,13 +96,13 @@ def test_parameter_and_local_share_scope() -> None:
 
 
 def test_this_outside_class_reports_error() -> None:
-    reporter, _, _ = resolve("print this;")
+    reporter, _, _ = resolve("print(this);")
 
     assert reporter.had_error
 
 
 def test_this_inside_method_is_resolved() -> None:
-    reporter, interpreter, _ = resolve("class Foo { bar() { print this; } }")
+    reporter, interpreter, _ = resolve("class Foo { bar() { print(this); } }")
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [1]
@@ -147,7 +147,7 @@ def test_super_depth_in_subclass() -> None:
 
 def test_this_depth_in_subclass() -> None:
     reporter, interpreter, _ = resolve(
-        "class A {} class B(A) { m() { print this; } }"
+        "class A {} class B(A) { m() { print(this); } }"
     )
 
     assert not reporter.had_error

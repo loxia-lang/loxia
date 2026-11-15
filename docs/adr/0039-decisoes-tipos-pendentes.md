@@ -1,6 +1,6 @@
 # ADR-0039 — Decisões de tipos pendentes: sufixos, chave Float, Option/Result, alias e throw
 
-- **Status:** accepted
+- **Status:** accepted (item 4 implementado no [ADR-0084](0084-type-alias.md))
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md),
@@ -34,7 +34,7 @@ abertas é reabrir a mesma conversa a cada feature.
    tempo para o mesmo caso: `throw` fica para falha fatal, `Result` para erro esperado.
 4. **`type` alias é transparente, não genérico, P3.** `type UserId = Int` será apenas outro
    nome para o mesmo tipo (erased); não cria tipo nominal novo, não tem generics na v1 e
-   não muda a identidade de classes. Implementação fica no P3 do `TODO.md`.
+   não muda a identidade de classes. Implementado no [ADR-0084](0084-type-alias.md).
 5. **`throw` público continua fora da 1.0; `Never` é interno.** Erro de runtime é fatal
    (exit 70); `Never` segue como tipo de fluxo para `return`/loop e para o caminho que
    lança, sem `throw` público. Quando `Result` entrar, `throw` continua reservado a

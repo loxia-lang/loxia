@@ -188,6 +188,7 @@ class ClassLayoutLowering(LoweringBase):
             vtable_size=base_methods + new_methods,
             instance_type=instance_type,
             display_name=stmt.display_name,
+            interfaces=tuple(token.lexeme for token in stmt.implements),
         )
         ctor_params = (
             []

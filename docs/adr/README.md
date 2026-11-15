@@ -83,7 +83,7 @@ Crie quando a decisão:
 | [0035](0035-strings-texto.md) | Strings como texto: code points e ordem | accepted | 2026-11-12 |
 | [0036](0036-tuplas-implementacao.md) | Tuplas: implementação no interpretador e checker | accepted | 2026-11-12 |
 | [0037](0037-async-direcao.md) | Async: colored, determinístico e pós-M7 | accepted (direção; keywords reservadas) | 2026-11-12 |
-| [0038](0038-traits-nominais.md) | Traits nominais e métodos default | accepted (pós-MVP) | 2026-11-12 |
+| [0038](0038-traits-nominais.md) | Interfaces (ex-traits) nominais e métodos default | superseded by ADR-0080 (nomenclatura) e ADR-0081 (constraints) | 2026-11-12 |
 | [0039](0039-decisoes-tipos-pendentes.md) | Decisões de tipos pendentes | accepted | 2026-11-12 |
 | [0040](0040-generics-classes-desenho.md) | Classes genéricas (T6a): desenho | accepted (MVP; follow-ups adiados) | 2026-11-12 |
 | [0041](0041-enums-match.md) | Enums genéricos, `match` exaustivo e `Result` | accepted (MVP; backend L6) | 2026-11-13 |
@@ -125,6 +125,12 @@ Crie quando a decisão:
 | [0077](0077-limite-de-pilha.md) | Limite de profundidade de chamadas (1.000) e `Stack overflow.` | proposed | 2026-11-15 |
 | [0078](0078-nome-loxia-extensao-lx.md) | Nome **Loxia**, extensão `.lx` e prelúdio sem a marca (`RuntimeError`) | accepted (implementado) | 2026-11-15 |
 | [0079](0079-stdlib-t2.md) | Stdlib T2: kernel 17, campos-container, `str(Any)` e validação de chave de `Map` no C | accepted (implementado) | 2026-11-15 |
+| [0080](0080-interfaces-nominais-implementacao.md) | Interfaces nominais: sintaxe, verificação, defaults, tipos e ABI | accepted (implementado) | 2026-11-15 |
+| [0081](0081-constraints-generics.md) | Constraints em funções genéricas: `T: Ord + Num + Interface` | accepted (implementado) | 2026-11-15 |
+| [0082](0082-iterador-de-usuario.md) | Iterador de usuário no `for-in`: `iter()` + `next() -> T?` | accepted (implementado) | 2026-11-15 |
+| [0083](0083-variadicos.md) | Variádicos `...args` e spread final `f(...xs)` | accepted (implementado) | 2026-11-15 |
+| [0084](0084-type-alias.md) | `type` alias transparente e não-genérico | accepted (implementado) | 2026-11-15 |
+| [0085](0085-print-como-funcao.md) | `print` como função builtin (`Any -> Nil`); statement removido | accepted (implementado) | 2026-11-15 |
 
 
 ## Próximas decisões que pedem ADR

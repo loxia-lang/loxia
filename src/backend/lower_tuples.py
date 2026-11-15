@@ -151,7 +151,12 @@ class TupleLowering(LoweringBase):
             )
             self.builder.store(value.llvm, slot)
             self._globals[name.lexeme] = Binding(
-                slot, desc.ty, desc.fn, desc.optional, class_name=desc.class_name
+                slot,
+                desc.ty,
+                desc.fn,
+                desc.optional,
+                class_name=desc.class_name,
+                interface_name=desc.interface_name,
             )
             return
 
@@ -165,6 +170,7 @@ class TupleLowering(LoweringBase):
                 desc.optional,
                 cell=True,
                 class_name=desc.class_name,
+                interface_name=desc.interface_name,
             )
             return
 
@@ -173,5 +179,10 @@ class TupleLowering(LoweringBase):
         )
         self.builder.store(value.llvm, slot)
         self._scopes[-1][name.lexeme] = Binding(
-            slot, desc.ty, desc.fn, desc.optional, class_name=desc.class_name
+            slot,
+                desc.ty,
+                desc.fn,
+                desc.optional,
+                class_name=desc.class_name,
+                interface_name=desc.interface_name,
         )

@@ -1,4 +1,4 @@
 # Kernel 13.2: io.write não adiciona newline; print adiciona.
 io.write("A")
-print "B"
+print("B")
 # expect: AB

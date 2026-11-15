@@ -127,6 +127,7 @@ class GenericLowering(LoweringBase):
             init_method=init_method,
             vtable_size=new_methods,
             instance_type=instance_type,
+            interfaces=tuple(token.lexeme for token in stmt.implements),
         )
         layout.ctor = llvm_ir.declare(
             self.module,
@@ -172,6 +173,7 @@ class GenericLowering(LoweringBase):
                 tuple(self._subst_ty(param) for param in ty.params),
                 self._subst_ty(ty.ret),
                 ty.min_params,
+                ty.variadic,
             )
         return ty
 
@@ -217,8 +219,14 @@ class GenericLowering(LoweringBase):
         ty = self.types.get(expr) or self.generic_class_sites.get(expr)
         if ty is not None:
             ty = self._subst_ty(ty)
-        if isinstance(ty, ClassTy):
+        if isinstance(ty, ClassTy) and self._concrete_class_type(ty):
             layout = self._build_generic_class(ty)
+            if layout.name not in self._emitted_generic_classes:
+                if self._function_ir is self.main:
+                    self._emitted_generic_classes.add(layout.name)
+                    self._emit_top_level_class(layout)
+                else:
+                    self._pending_generic_classes.append(layout)
         elif len(self._generic_class_by_source.get(name, [])) == 1:
             layout = self._generic_class_by_source[name][0]
         if layout is None:
@@ -330,27 +338,12 @@ class GenericLowering(LoweringBase):
 
         info = self._generic_function(stmt, type_args)
         arguments = [self._expr(argument) for argument in expr.arguments]
-        minimum = info.fn_sig.min_params
-        maximum = len(info.fn_sig.params)
-        count = len(arguments)
-        if not minimum <= count <= maximum:
-            self._poison(
-                expr.paren,
-                self._arity_message(minimum, maximum, count),
-                code=Code.RUNTIME_ARITY,
-            )
+        prepared = self._prepare_call_arguments(
+            info.fn_sig, info, arguments, expr.spread, expr.paren
+        )
+        if prepared is None:
             return self._zero_desc(info.fn_sig.ret)
-
-        for index in range(count, maximum):
-            default = info.params[index].default
-            assert default is not None
-            arguments.append(self._expr(default))
-        arguments = [
-            self._coerce(argument, expected, expr.paren.line)
-            for argument, expected in zip(
-                arguments, info.fn_sig.params, strict=True
-            )
-        ]
+        arguments = prepared
         call = self.builder.call(
             info.ir,
             [llvm_ir.null_pointer(), *[argument.llvm for argument in arguments]],
@@ -361,6 +354,7 @@ class GenericLowering(LoweringBase):
             info.fn_sig.ret.fn,
             info.fn_sig.ret.optional,
             info.fn_sig.ret.class_name,
+            interface_name=info.fn_sig.ret.interface_name,
         )
 
     def _has_type_var(self, ty: Ty) -> bool:

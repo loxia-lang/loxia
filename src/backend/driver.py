@@ -41,6 +41,7 @@ def build(
     generic_instances: Any = None,
     generic_classes: Any = None,
     generic_class_sites: Any = None,
+    type_aliases: dict[str, Ty] | None = None,
     source_path: str = "<lox>",
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
@@ -52,6 +53,7 @@ def build(
             generic_instances=generic_instances,
             generic_classes=generic_classes,
             generic_class_sites=generic_class_sites,
+            type_aliases=type_aliases,
             source_path=source_path,
         )
         _verify(module)

@@ -229,6 +229,7 @@ class Call(Expr):
     paren: Token
     arguments: list[Expr]
     optional: bool = False
+    spread: bool = False
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_call_expr(self)

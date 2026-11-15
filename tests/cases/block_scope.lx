@@ -2,9 +2,9 @@
 var a = "global";
 {
   var a = "bloco";
-  print a;    # expect: bloco
+  print(a);    # expect: bloco
   {
-    print a;  # expect: bloco
+    print(a);  # expect: bloco
   }
 }
-print a;      # expect: global
+print(a);      # expect: global

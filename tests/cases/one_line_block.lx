@@ -1,17 +1,17 @@
 # `}` também termina o statement: o `;` é opcional antes da chave de fechamento.
 
-if (true) { print "if" }              # expect: if
-while (false) { print "nunca" }
+if (true) { print("if") }              # expect: if
+while (false) { print("nunca") }
 
-fn f() -> Nil { print "fn" }
+fn f() -> Nil { print("fn") }
 f()                                   # expect: fn
 
 fn g() -> Int { return 7 }
-print g()                             # expect: 7
+print(g())                             # expect: 7
 
 class C { var x = 3 }
-print C().x                           # expect: 3
+print(C().x)                           # expect: 3
 
-for i in 0..1 { print i }             # expect: 0
+for i in 0..1 { print(i) }             # expect: 0
 
-if (false) { print "nao" } else { print "else" }   # expect: else
+if (false) { print("nao") } else { print("else") }   # expect: else

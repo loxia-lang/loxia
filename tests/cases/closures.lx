@@ -2,7 +2,7 @@ fn makeCounter() -> fn() -> Nil {
   var i = 0;
   fn count() -> Nil {
     i = i + 1;
-    print i;
+    print(i);
   }
   return count;
 }

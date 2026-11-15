@@ -49,6 +49,7 @@ from src.frontend.ty import (
     EnumTy,
     FnTy,
     GenericFnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     TupleTy,
@@ -95,7 +96,13 @@ class OptionalLowering(LoweringBase):
                 inner = self._type_desc(non_nil[0], line)
                 if inner.ty is ValueType.NIL or inner.optional:
                     raise _unsupported("Nested optionals", line)
-                return TypeDesc(inner.ty, inner.fn, True, inner.class_name)
+                return TypeDesc(
+                    inner.ty,
+                    inner.fn,
+                    True,
+                    inner.class_name,
+                    inner.interface_name,
+                )
 
             descs = [self._type_desc(member, line) for member in non_nil]
             if all(
@@ -107,6 +114,12 @@ class OptionalLowering(LoweringBase):
             raise _unsupported("Union of non-scalar values", line)
 
         if isinstance(ty, ClassTy):
+            if ty.name in self.type_aliases:
+                return self._type_desc(self.type_aliases[ty.name], line)
+            if ty.name in self._interface_ids:
+                return TypeDesc(
+                    ValueType.INSTANCE, interface_name=ty.name
+                )
             if ty.name in self._enum_layouts:
                 return TypeDesc(ValueType.ENUM)
             if ty.name in self._type_subst:
@@ -124,14 +137,34 @@ class OptionalLowering(LoweringBase):
             if ty.name not in self._class_names:
                 raise _unsupported(f"Class '{ty.name}'", line)
             return TypeDesc(ValueType.CLASS, class_name=ty.name)
+        if isinstance(ty, InterfaceTy):
+            return TypeDesc(ValueType.INSTANCE, interface_name=ty.name)
 
         if isinstance(ty, FnTy):
-            params = tuple(self._type_desc(param, line) for param in ty.params)
-            for param in params:
-                if param.ty is ValueType.NIL:
-                    raise _unsupported("A Nil parameter", line)
+            param_descs: list[TypeDesc] = []
+            vararg: TypeDesc | None = None
+            for index, param in enumerate(ty.params):
+                if ty.variadic and index == len(ty.params) - 1:
+                    vararg = self._type_desc(param, line)
+                    if vararg.ty is ValueType.NIL:
+                        raise _unsupported("A Nil parameter", line)
+                    param_descs.append(TypeDesc(ValueType.LIST))
+                else:
+                    desc = self._type_desc(param, line)
+                    if desc.ty is ValueType.NIL:
+                        raise _unsupported("A Nil parameter", line)
+                    param_descs.append(desc)
             ret = self._type_desc(ty.ret, line)
-            return TypeDesc(ValueType.FUNCTION, FnSig(params, ret, ty.min_params))
+            return TypeDesc(
+                ValueType.FUNCTION,
+                FnSig(
+                    tuple(param_descs),
+                    ret,
+                    ty.min_params,
+                    ty.variadic,
+                    vararg,
+                ),
+            )
         if isinstance(ty, GenericFnTy):
             raise _unsupported("Generic function value", line)
 
@@ -180,11 +213,34 @@ class OptionalLowering(LoweringBase):
 
     def _zero_desc(self, desc: TypeDesc) -> Value:
         if not desc.optional:
-            return self._zero(desc.ty)
+            zero = self._zero(desc.ty)
+            return Value(
+                zero.ty,
+                zero.llvm,
+                zero.sig,
+                zero.optional,
+                zero.class_name,
+                zero.function,
+                zero.generic,
+                zero.generic_node,
+                desc.interface_name,
+            )
         if desc.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
             ty = self._storage_llvm_type(desc)
-            return Value(desc.ty, llvm_ir.zero_value(ty), desc.fn, True)
-        return Value(desc.ty, llvm_ir.null_pointer(), desc.fn, True)
+            return Value(
+                desc.ty,
+                llvm_ir.zero_value(ty),
+                desc.fn,
+                True,
+                interface_name=desc.interface_name,
+            )
+        return Value(
+            desc.ty,
+            llvm_ir.null_pointer(),
+            desc.fn,
+            True,
+            interface_name=desc.interface_name,
+        )
 
     def _zero(self, ty: ValueType) -> Value:
         match ty:
@@ -224,6 +280,7 @@ class OptionalLowering(LoweringBase):
                 desc.fn,
                 True,
                 desc.class_name,
+                interface_name=desc.interface_name,
             )
 
         aggregate = llvm_ir.zero_value(self._storage_llvm_type(desc))
@@ -236,6 +293,7 @@ class OptionalLowering(LoweringBase):
             desc.fn,
             True,
             desc.class_name,
+            interface_name=desc.interface_name,
         )
 
     def _optional_tag(self, value: Value) -> Any:
@@ -253,6 +311,7 @@ class OptionalLowering(LoweringBase):
                 value.sig,
                 False,
                 value.class_name,
+                interface_name=value.interface_name,
             )
         return Value(
             value.ty,
@@ -260,6 +319,7 @@ class OptionalLowering(LoweringBase):
             value.sig,
             False,
             value.class_name,
+            interface_name=value.interface_name,
         )
 
     def _any_tag(self, ty: ValueType, line: int | None) -> int:
@@ -381,6 +441,9 @@ class OptionalLowering(LoweringBase):
 
     def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
         """Converte `nil`/`T` para `T?` e faz unwrap checado de `T?` para `T`."""
+        if expected.interface_name is not None:
+            return self._coerce_interface(value, expected, line)
+
         if expected.ty is ValueType.NIL:
             if value.ty is ValueType.NIL:
                 return value
@@ -398,8 +461,20 @@ class OptionalLowering(LoweringBase):
             if value.ty is ValueType.NIL:
                 return self._zero_desc(expected)
             if value.optional:
-                inner = TypeDesc(value.ty, value.sig, False, value.class_name)
-                if not inner.same_as(TypeDesc(expected.ty, expected.fn, False, expected.class_name)):
+                inner = TypeDesc(
+                    value.ty,
+                    value.sig,
+                    False,
+                    value.class_name,
+                    value.interface_name,
+                )
+                if not inner.same_as(TypeDesc(
+                    expected.ty,
+                    expected.fn,
+                    False,
+                    expected.class_name,
+                    expected.interface_name,
+                )):
                     raise BackendError(
                         f"Can't use {value.ty.name}? where "
                         f"{expected.ty.name}? is expected.",
@@ -409,7 +484,13 @@ class OptionalLowering(LoweringBase):
 
             actual = value.desc
             if not actual.same_as(
-                TypeDesc(expected.ty, expected.fn, False, expected.class_name)
+                TypeDesc(
+                    expected.ty,
+                    expected.fn,
+                    False,
+                    expected.class_name,
+                    expected.interface_name,
+                )
             ):
                 raise BackendError(
                     f"Can't use {value.ty.name} where {expected.ty.name}? "
@@ -424,7 +505,13 @@ class OptionalLowering(LoweringBase):
             )
 
         if value.optional:
-            inner = TypeDesc(value.ty, value.sig, False, value.class_name)
+            inner = TypeDesc(
+                    value.ty,
+                    value.sig,
+                    False,
+                    value.class_name,
+                    value.interface_name,
+                )
             if not inner.same_as(expected):
                 raise BackendError(
                     f"Can't use {value.ty.name}? where {expected.ty.name} "
@@ -433,12 +520,87 @@ class OptionalLowering(LoweringBase):
                 )
             return self._unwrap(value, line or 0, "Can't use nil value.")
 
+        if (
+            expected.ty is ValueType.INSTANCE
+            and expected.class_name is None
+            and expected.interface_name is None
+            and value.ty is ValueType.INSTANCE
+            and not value.optional
+        ):
+            return Value(
+                ValueType.INSTANCE, value.llvm, expected.fn, False
+            )
+
         if not value.desc.same_as(expected):
             raise BackendError(
                 f"Can't use {value.ty.name} where {expected.ty.name} is expected.",
                 line,
             )
         return value
+
+    def _coerce_interface(
+        self, value: Value, expected: TypeDesc, line: int | None
+    ) -> Value:
+        """Converte classe/interface/`Any` para um tipo interface (ponteiro)."""
+        inner = TypeDesc(ValueType.INSTANCE, interface_name=expected.interface_name)
+
+        if expected.optional:
+            if value.ty is ValueType.NIL:
+                return self._zero_desc(expected)
+            if value.ty is ValueType.ANY:
+                return self._unbox_value(value.llvm, expected, line)
+            if value.optional:
+                if value.ty is not ValueType.INSTANCE:
+                    raise BackendError(
+                        f"Can't use {value.ty.name}? where "
+                        f"{expected.ty.name}? is expected.",
+                        line,
+                    )
+                return Value(
+                    ValueType.INSTANCE,
+                    value.llvm,
+                    expected.fn,
+                    True,
+                    value.class_name,
+                    interface_name=expected.interface_name,
+                )
+            if value.ty is not ValueType.INSTANCE:
+                raise BackendError(
+                    f"Can't use {value.ty.name} where {expected.ty.name}? "
+                    "is expected.",
+                    line,
+                )
+            return self._some(
+                expected,
+                Value(
+                    ValueType.INSTANCE,
+                    value.llvm,
+                    interface_name=expected.interface_name,
+                ),
+            )
+
+        if value.ty is ValueType.NIL:
+            raise BackendError(
+                f"Can't use nil where {expected.ty.name} is expected.", line
+            )
+        if value.optional:
+            unwrapped = self._unwrap(value, line or 0, "Can't use nil value.")
+            return self._coerce_interface(unwrapped, expected, line)
+        if value.ty is ValueType.ANY:
+            return self._unbox_value(value.llvm, inner, line)
+        if value.ty is not ValueType.INSTANCE:
+            raise BackendError(
+                f"Can't use {value.ty.name} where {expected.ty.name} is expected.",
+                line,
+            )
+        return Value(
+            ValueType.INSTANCE,
+            value.llvm,
+            expected.fn,
+            False,
+            value.class_name,
+            interface_name=expected.interface_name,
+        )
 
     def _optional_equality(
         self, left: Value, right: Value, operator: TokenType
@@ -506,7 +668,13 @@ class OptionalLowering(LoweringBase):
     ) -> Value:
         optional = left if left.optional else right
         other = right if left.optional else left
-        inner = TypeDesc(optional.ty, optional.sig, False, optional.class_name)
+        inner = TypeDesc(
+            optional.ty,
+            optional.sig,
+            False,
+            optional.class_name,
+            optional.interface_name,
+        )
         if not inner.same_as(other.desc) and not (
             optional.ty in NUMERIC and other.ty in NUMERIC
         ):

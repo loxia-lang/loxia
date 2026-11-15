@@ -1,0 +1,17 @@
+# `print` é função builtin: `Any -> Nil`, newline; ADR-0085.
+print(1)
+print("x")
+print(true)
+print(nil)
+print(print(1))
+
+fn eco(x: Any) -> Nil { return print(x) }
+eco(3)
+
+# expect: 1
+# expect: x
+# expect: true
+# expect: nil
+# expect: 1
+# expect: nil
+# expect: 3

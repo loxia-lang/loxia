@@ -1,2 +1,2 @@
-print len(1)
+print(len(1))
 # expect runtime error: len() expects a string, a list or a map.

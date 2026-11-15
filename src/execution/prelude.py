@@ -18,6 +18,7 @@ BUILTIN_NAMES = frozenset(
         "join",
         "len",
         "range",
+        "print",
         "repr",
         "str",
         "substr",

@@ -6,15 +6,15 @@ fn choose[T](a: T, b: T) -> T {
   return a;
 }
 
-print id(1);          # expect: 1
-print id("a");        # expect: a
-print id(1.5);        # expect: 1.5
-print choose(2, 3);   # expect: 2
-print choose("x", "y"); # expect: x
+print(id(1));          # expect: 1
+print(id("a"));        # expect: a
+print(id(1.5));        # expect: 1.5
+print(choose(2, 3));   # expect: 2
+print(choose("x", "y")); # expect: x
 
 fn keep[T](x: T, n: Int) -> T {
   if (n == 0) { return x; }
   return keep(x, n - 1);
 }
 
-print keep(9, 2);     # expect: 9
+print(keep(9, 2));     # expect: 9

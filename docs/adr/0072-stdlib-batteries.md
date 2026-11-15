@@ -107,8 +107,10 @@ Um módulo só entra se tiver **todos**:
 - Falha esperada devolve `T?` (ausência) ou `Result[T, E]` (detalhe). **Nenhuma função da
   stdlib lança exceção na v1** — o backend ainda não tem unwinding (L6j) e a stdlib tem
   que rodar nos dois motores.
-- Sem variádicos (TODO §1), APIs de formatação recebem `List[Any]`:
-  `fmt.format("{} + {} = {}", [a, b, c])`. Está declarado para não surpreender.
+- Variádicos existem desde o [ADR-0083](0083-variadicos.md): `fmt.format` recebe
+  `...values: Any` e a chamada é `fmt.format("{} + {} = {}", a, b, c)`; `...args`
+  (spread) também vale. APIs anteriores que recebiam `List[Any]` mantêm o corpo usando a
+  lista, agora ligada ao rest.
 - Sem tipo `Bytes`: `base64`/`hex` operam sobre texto (UTF-8) e `List[Int]` de 0..255,
   documentado em `std.convert`.
 

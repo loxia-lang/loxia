@@ -1,6 +1,6 @@
 # ADR-0007 — Ranges e iteração com protocolo embutido
 
-- **Status:** accepted
+- **Status:** accepted (atualizado por [ADR-0082](0082-iterador-de-usuario.md) para iteradores de usuário)
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) `D-10`, [`../decisoes.md`](../decisoes.md), [`../../TODO.md`](../../TODO.md)
   §1/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
@@ -26,10 +26,10 @@ futuros sem exigir OO?**
 ## Decisão
 
 1. **Iteração é capacidade embutida, não hereditariedade.** Na v1, `for` conhece um
-   conjunto fechado de fontes: `Range` e `String` (List/Map quando existirem). Classes de
-   usuário entram depois via trait estrutural `Iterable[T]`; o iterator precisará de
-   `next() -> T?`, o que depende de `Option` — por isso não expomos `iter()`/`next()`
-   agora.
+   conjunto fechado de fontes: `Range`, `String`, `List`, `Map` e tupla. Classes de usuário
+   entram pelo protocolo estrutural `iter()` + `next() -> T?`
+   ([ADR-0082](0082-iterador-de-usuario.md)): a primeira chamada devolve o iterador, e
+   `nil` encerra; não é preciso `implements`.
 
 2. **Range é literal e valor lazy:** `a..b` é half-open (`a` incluso, `b` exclusivo),
    aceita apenas `Int`, avalia os bounds uma vez (esquerda→direita) e não materializa
@@ -74,8 +74,8 @@ futuros sem exigir OO?**
 - `range` de 3 argumentos é menos ergonômico que o do Python; `range(10)` só quando
   defaults entrarem ([ADR-0009](0009-defaults-e-campos.md), P3).
 - `map`/`filter` eager podem alocar; um `Iter` lazy fica para depois, se houver dor.
-- Iteráveis de usuário e o par `iter()`/`next()` não existem; classes não entram em
-  `for-in` ainda.
+- Iteráveis de usuário exigem `iter()`/`next() -> T?`; `nil` é a sentinela e um iterador
+  não pode produzir `nil` como elemento ([ADR-0082](0082-iterador-de-usuario.md)).
 - Mutação durante iteração depende de disciplina do usuário até haver checagem.
 
 ### Neutras

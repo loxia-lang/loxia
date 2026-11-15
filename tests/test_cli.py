@@ -54,17 +54,19 @@ def test_module_entrypoint() -> None:
 
 def test_dump_ast_prints_and_does_not_execute(tmp_path: Path) -> None:
     script = tmp_path / "programa.lx"
-    script.write_text("print 1 + 2;\n", encoding="utf-8")
+    script.write_text("""print(1 + 2);
+""", encoding="utf-8")
 
     result = run_cli("--dump-ast", str(script))
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "(print (+ 1 2))"
+    assert result.stdout.strip() == "(expr (call print (+ 1 2)))"
 
 
 def test_dump_ast_syntax_error_exits_65(tmp_path: Path) -> None:
     script = tmp_path / "quebrado.lx"
-    script.write_text("print 1 + ;\n", encoding="utf-8")
+    script.write_text("""print(1 + );
+""", encoding="utf-8")
 
     result = run_cli("--dump-ast", str(script))
 
@@ -80,7 +82,9 @@ def test_dump_ast_requires_script() -> None:
 def test_check_annotated_program_does_not_execute(tmp_path: Path) -> None:
     script = tmp_path / "tipado.lx"
     script.write_text(
-        "fn f(a: Int) -> Int { return a; }\nprint f(1);\n",
+        """fn f(a: Int) -> Int { return a; }
+print(f(1));
+""",
         encoding="utf-8",
     )
 
@@ -93,7 +97,9 @@ def test_check_annotated_program_does_not_execute(tmp_path: Path) -> None:
 def test_check_type_error_exits_65_without_executing(tmp_path: Path) -> None:
     script = tmp_path / "tipado.lx"
     script.write_text(
-        'val x: Int = "a";\nprint "não devia imprimir";\n',
+        """val x: Int = "a";
+print("não devia imprimir");
+""",
         encoding="utf-8",
     )
 
@@ -112,7 +118,8 @@ def test_check_requires_script() -> None:
 
 def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
     script = tmp_path / "x.lx"
-    script.write_text("print 1;\n", encoding="utf-8")
+    script.write_text("""print(1);
+""", encoding="utf-8")
 
     result = run_cli("--check", "--dump-ast", str(script))
 
@@ -121,7 +128,8 @@ def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
 
 def test_debug_flag_checks_overflow(tmp_path: Path) -> None:
     script = tmp_path / "overflow.lx"
-    script.write_text("print 9223372036854775807 + 1;\n", encoding="utf-8")
+    script.write_text("""print(9223372036854775807 + 1);
+""", encoding="utf-8")
 
     debug = run_cli("--debug", str(script))
     release = run_cli(str(script))
@@ -137,7 +145,8 @@ def test_debug_flag_checks_overflow(tmp_path: Path) -> None:
 
 def test_error_format_short_is_one_line_per_diagnostic(tmp_path: Path) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("print 1 + ;\n", encoding="utf-8")
+    script.write_text("""print(1 + );
+""", encoding="utf-8")
 
     result = run_cli("--error-format=short", str(script))
 
@@ -149,14 +158,16 @@ def test_error_format_short_is_one_line_per_diagnostic(tmp_path: Path) -> None:
 
 def test_error_format_human_includes_source_snippet(tmp_path: Path) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("print 1 + ;\n", encoding="utf-8")
+    script.write_text("""print(1 + );
+""", encoding="utf-8")
 
     result = run_cli(str(script))
 
     assert result.returncode == 65
     assert "erro.lx:1:11: error[E1001]: Expect expression." in result.stderr
     assert "  |\n" in result.stderr
-    assert "1 | print 1 + ;\n" in result.stderr
+    assert """1 | print(1 + );
+""" in result.stderr
     assert "  |           ^\n" in result.stderr
 
 
@@ -179,7 +190,9 @@ def test_error_format_json_goes_to_stdout_on_check(tmp_path: Path) -> None:
 
 def test_error_format_json_success_envelope_on_check(tmp_path: Path) -> None:
     script = tmp_path / "ok.lx"
-    script.write_text("fn f(a: Int) -> Int { return a; }\nprint f(1);\n", encoding="utf-8")
+    script.write_text("""fn f(a: Int) -> Int { return a; }
+print(f(1));
+""", encoding="utf-8")
 
     result = run_cli("--check", "--error-format=json", str(script))
 
@@ -191,7 +204,8 @@ def test_error_format_json_success_envelope_on_check(tmp_path: Path) -> None:
 
 def test_error_format_json_goes_to_stderr_on_run(tmp_path: Path) -> None:
     script = tmp_path / "boom.lx"
-    script.write_text("print 1 / 0;\n", encoding="utf-8")
+    script.write_text("""print(1 / 0);
+""", encoding="utf-8")
 
     result = run_cli("--error-format=json", str(script))
 
@@ -205,7 +219,8 @@ def test_error_format_json_goes_to_stderr_on_run(tmp_path: Path) -> None:
 
 def test_runtime_human_uses_the_same_header_as_compilation(tmp_path: Path) -> None:
     script = tmp_path / "boom.lx"
-    script.write_text("print 1 / 0;\n", encoding="utf-8")
+    script.write_text("""print(1 / 0);
+""", encoding="utf-8")
 
     result = run_cli(str(script))
 
@@ -217,7 +232,8 @@ def test_runtime_human_uses_the_same_header_as_compilation(tmp_path: Path) -> No
 
 def test_color_always_emits_ansi_and_never_does_not(tmp_path: Path) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("print 1 + ;\n", encoding="utf-8")
+    script.write_text("""print(1 + );
+""", encoding="utf-8")
 
     colored = run_cli("--color=always", str(script))
     plain = run_cli("--color=never", str(script))
@@ -230,7 +246,8 @@ def test_no_color_is_respected_in_auto_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("print 1 + ;\n", encoding="utf-8")
+    script.write_text("""print(1 + );
+""", encoding="utf-8")
     monkeypatch.setenv("NO_COLOR", "1")
 
     result = run_cli(str(script))
@@ -255,7 +272,8 @@ def test_max_errors_limits_and_reports_suppressed(tmp_path: Path) -> None:
 
 def test_diagnostics_use_basename_for_files_outside_cwd(tmp_path: Path) -> None:
     script = tmp_path / "fora.lx"
-    script.write_text("print 1 + ;\n", encoding="utf-8")
+    script.write_text("""print(1 + );
+""", encoding="utf-8")
 
     result = run_cli("--error-format=short", str(script))
 

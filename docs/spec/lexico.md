@@ -48,15 +48,16 @@ Como o código-fonte é dividido em tokens. Implementação: [`src/frontend/scan
 ```
 !=          =    ==
 <    <=          >    >=
-.    ..          -    ->
+.    ..    ...   -    ->
 /    //          *    **
 <    <<          >    >>    >>>
 ?    ??          ?.
 ```
 
 `//` é divisão inteira; `/` sozinho é divisão `Float`. `..` é o operador de range
-(`0..10`); não existe `..=`. `?` é o sufixo de tipo opcional; `??` é coalescência e
-`?.` é optional chaining. `#` e `/*` iniciam comentários, não tokens.
+(`0..10`) e `...` é o prefixo de variádico/spread (`...xs`, `f(...xs)`); não existe `..=`.
+`?` é o sufixo de tipo opcional; `??` é coalescência e `?.` é optional chaining. `#` e
+`/*` iniciam comentários, não tokens.
 
 ### Literais
 
@@ -112,9 +113,9 @@ Strings ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)):
 
 ```
 and    as     async  await  class  elif   else   enum   except
-false  finally fn    for    if     in     is     match  nil
-not    or     print  raise  return super  this   true   try
-val    var    while
+false  finally fn    for    if     in     interface is  match
+nil    not    or     raise  return super  this   true
+try    val    var    while
 ```
 
 `not` é a negação (ADR-0068); `!` sozinho não é token — o scanner aponta

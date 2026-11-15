@@ -21,6 +21,7 @@ from src.backend.lower_model import (
 )
 from src.diagnostics.codes import Code
 from src.frontend.expr import Get, Set, Variable
+from src.frontend.tokens import Token
 
 
 class InstanceLowering(LoweringBase):
@@ -116,6 +117,7 @@ class InstanceLowering(LoweringBase):
                     self.builder.inttoptr(raw, _I8_PTR),
                     optional=desc.optional,
                     class_name=desc.class_name,
+                    interface_name=desc.interface_name,
                 )
             case ValueType.NIL:
                 return Value(ValueType.NIL)
@@ -222,24 +224,38 @@ class InstanceLowering(LoweringBase):
         )
 
     def _get_instance(self, obj: Value, expr: Get) -> Value:
+        return self._get_instance_name(obj, expr.name)
+
+    def _get_instance_name(self, obj: Value, name: Token) -> Value:
         if obj.ty is not ValueType.INSTANCE:
             self._poison(
-                expr.name, "Only instances have properties.", code=Code.INVALID_VALUE
+                name, "Only instances have properties.", code=Code.INVALID_VALUE
             )
             return self._zero(ValueType.INT)
 
-        layout = self._layout_for(obj, expr.name.line)
-        field = layout.field(expr.name.lexeme)
+        if obj.interface_name is not None and obj.class_name is None:
+            return self._interface_bound_method(
+                obj, obj.interface_name, name
+            )
+
+        layout = self._layout_for(obj, name.line)
+        field = layout.field(name.lexeme)
         if field is not None:
             return self._load_field(
-                obj, field, expr.name.line, expr.name.column
+                obj, field, name.line, name.column
             )
-        method = layout.method(expr.name.lexeme)
+        method = layout.method(name.lexeme)
         if method is not None:
             return self._bound_method(obj, layout, method)
 
+        for interface in layout.effective_interfaces():
+            if self._interface_has_method(interface, name.lexeme):
+                return self._interface_bound_method(
+                    obj, interface, name
+                )
+
         self._poison(
-            expr.name, f"Undefined property '{expr.name.lexeme}'."
+            name, f"Undefined property '{name.lexeme}'."
         )
         return self._zero(ValueType.INT)
 

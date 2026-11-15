@@ -11,6 +11,6 @@ fn makeCounter() -> fn() -> Int {
 }
 
 var counter = makeCounter();
-print counter();
-print counter();
-print counter();
+print(counter());
+print(counter());
+print(counter());

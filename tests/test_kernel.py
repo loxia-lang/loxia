@@ -24,7 +24,9 @@ def _run(*arguments: str, env: dict[str, str] | None = None) -> subprocess.Compl
 def test_args_e_getenv(tmp_path: Path) -> None:
     path = tmp_path / "args.lx"
     path.write_text(
-        'print args()\nprint os.getenv("LOX_KERNEL_TEST")\n',
+        """print(args())
+print(os.getenv("LOX_KERNEL_TEST"))
+""",
         encoding="utf-8",
     )
     env = {"LOX_KERNEL_TEST": "ok", "PATH": "/usr/bin:/bin"}
@@ -36,7 +38,10 @@ def test_args_e_getenv(tmp_path: Path) -> None:
 
 def test_os_exit(tmp_path: Path) -> None:
     path = tmp_path / "exit.lx"
-    path.write_text('print "antes"\nos.exit(7)\nprint "depois"\n', encoding="utf-8")
+    path.write_text("""print("antes")
+os.exit(7)
+print("depois")
+""", encoding="utf-8")
 
     result = _run(str(path))
 
@@ -49,8 +54,8 @@ def test_leitura_e_escrita_de_arquivo(tmp_path: Path) -> None:
     path = tmp_path / "arquivo.lx"
     path.write_text(
         f'io.writeFile("{target}", "linha\\n")\n'
-        f'print io.readFile("{target}")\n'
-        f'print io.readFile("{tmp_path}/nao-existe.txt")\n',
+        f'print(io.readFile("{target}"))\n'
+        f'print(io.readFile("{tmp_path}/nao-existe.txt"))\n',
         encoding="utf-8",
     )
 
@@ -63,7 +68,9 @@ def test_leitura_e_escrita_de_arquivo(tmp_path: Path) -> None:
 def test_read_all_rejeita_stdin_nao_utf8(tmp_path: Path) -> None:
     path = tmp_path / "readall.lx"
     path.write_text(
-        "import std.io as io\nprint io.readAll()\n", encoding="utf-8"
+        """import std.io as io
+print(io.readAll())
+""", encoding="utf-8"
     )
 
     result = subprocess.run(
@@ -84,7 +91,7 @@ def test_read_file_preserva_crlf(tmp_path: Path) -> None:
     target.write_bytes(b"a\r\nb\r\n")
     path = tmp_path / "ler.lx"
     path.write_text(
-        f'val t = io.readFile("{target}")\nprint len(t)\nprint repr(t)\n',
+        f'val t = io.readFile("{target}")\nprint(len(t))\nprint(repr(t))\n',
         encoding="utf-8",
     )
 

@@ -6,4 +6,4 @@ while (i < 10000) {
   keep.push(s)
   i = i + 1
 }
-print len(keep) + len(keep[9999])
+print(len(keep) + len(keep[9999]))

@@ -3,7 +3,7 @@ class C {
   var x: Int;
 
   init() {
-    print this.x;
+    print(this.x);
     this.x = 1;
   }
 }

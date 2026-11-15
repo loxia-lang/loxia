@@ -7,5 +7,5 @@ fn make(n: Int) -> Int {
   val p = P(n);
   return p.get();
 }
-print make(7); # expect: 7
-print make(9); # expect: 9
+print(make(7)); # expect: 7
+print(make(9)); # expect: 9

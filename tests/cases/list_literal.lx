@@ -1,13 +1,13 @@
 # Literais de lista, aninhamento e formatação.
 val xs: List[Int] = [1, 2, 3]
 val vazia: List[Int] = []
-print xs
-print ["a", "b"]
-print [[1], [2, 3]]
-print vazia
-print [1, 2.0]
+print(xs)
+print(["a", "b"])
+print([[1], [2, 3]])
+print(vazia)
+print([1, 2.0])
 val talvez: List[Int?] = [1, nil]
-print talvez
+print(talvez)
 # expect: [1, 2, 3]
 # expect: ["a", "b"]
 # expect: [[1], [2, 3]]

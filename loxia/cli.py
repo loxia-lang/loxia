@@ -150,6 +150,7 @@ class Loxia:
                 generic_instances=checker.generic_fn_instances,
                 generic_classes=checker.concrete_class_types(),
                 generic_class_sites=checker.generic_class_sites,
+                type_aliases=checker.type_aliases(),
                 source_path=self._file,
             )
         except BackendError as error:

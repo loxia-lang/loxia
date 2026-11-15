@@ -24,8 +24,9 @@ _VOID = llvm_ir.void_type()
 _I8_PTR = llvm_ir.pointer_type()
 _CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR])
 _CLASS_DESC = llvm_ir.literal_struct(
-    [_I8_PTR, _INT, _I8_PTR, _I8_PTR, _INT, _I8_PTR, _INT, _INT]
+    [_I8_PTR, _INT, _I8_PTR, _I8_PTR, _INT, _I8_PTR, _INT, _INT, _INT, _I8_PTR]
 )
+_INTERFACE_ENTRY = llvm_ir.literal_struct([_INT, _I8_PTR])
 _ANY = llvm_ir.literal_struct([_INT, _INT])
 ANY_TAG_NIL = 0
 ANY_TAG_INT = 1
@@ -97,11 +98,17 @@ NUMERIC = (ValueType.INT, ValueType.FLOAT)
 
 @dataclass(frozen=True)
 class FnSig:
-    """Assinatura de um valor de função, derivada do `FnTy` do checker."""
+    """Assinatura de um valor de função, derivada do `FnTy` do checker.
+
+    Em variádicos, o último item de `params` é a `List` do rest e
+    `vararg_element` guarda o descritor do elemento.
+    """
 
     params: tuple[TypeDesc, ...]
     ret: TypeDesc
     min_params: int
+    variadic: bool = False
+    vararg_element: TypeDesc | None = None
 
 
 @dataclass(frozen=True)
@@ -112,6 +119,7 @@ class TypeDesc:
     fn: FnSig | None = None
     optional: bool = False
     class_name: str | None = None
+    interface_name: str | None = None
 
     def same_as(self, other: TypeDesc) -> bool:
         return (
@@ -119,6 +127,7 @@ class TypeDesc:
             and self.fn == other.fn
             and self.optional == other.optional
             and self.class_name == other.class_name
+            and self.interface_name == other.interface_name
         )
 
 
@@ -136,10 +145,17 @@ class Binding:
     layout_key: str | None = None
     generic: Any = None
     generic_node: Any = None
+    interface_name: str | None = None
 
     @property
     def desc(self) -> TypeDesc:
-        return TypeDesc(self.ty, self.sig, self.optional, self.class_name)
+        return TypeDesc(
+            self.ty,
+            self.sig,
+            self.optional,
+            self.class_name,
+            self.interface_name,
+        )
 
 
 @dataclass(frozen=True)
@@ -152,6 +168,7 @@ class FunctionInfo:
     this_class: str | None = None
     is_init: bool = False
     type_subst: dict[str, Any] | None = None
+    this_interface: str | None = None
 
 
 @dataclass(frozen=True)
@@ -166,10 +183,17 @@ class Value:
     function: FunctionInfo | None = None
     generic: Any = None
     generic_node: Any = None
+    interface_name: str | None = None
 
     @property
     def desc(self) -> TypeDesc:
-        return TypeDesc(self.ty, self.sig, self.optional, self.class_name)
+        return TypeDesc(
+            self.ty,
+            self.sig,
+            self.optional,
+            self.class_name,
+            self.interface_name,
+        )
 
 
 @dataclass(frozen=True)
@@ -216,6 +240,7 @@ class ClassLayout:
     generic: bool = False
     init_method: MethodLayout | None = None
     vtable_size: int = 0
+    interfaces: tuple[str, ...] = ()
     ctor: Any = None
     instance_type: Any = None
     # `Exception`/`RuntimeError`: ctor sintético de 1 argumento (`message`),
@@ -256,6 +281,15 @@ class ClassLayout:
     def all_fields(self) -> list[FieldLayout]:
         base = [] if self.super_layout is None else self.super_layout.all_fields()
         return [*base, *self.fields]
+
+    def effective_interfaces(self) -> list[str]:
+        """Interfaces próprias + herdadas, sem duplicata e da derivada para a base."""
+        names = list(self.interfaces)
+        if self.super_layout is not None:
+            for name in self.super_layout.effective_interfaces():
+                if name not in names:
+                    names.append(name)
+        return names
 
 
 def _unsupported(what: str, line: int | None) -> BackendError:

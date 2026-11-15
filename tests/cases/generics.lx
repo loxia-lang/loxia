@@ -10,6 +10,6 @@ fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] {
   return out;
 }
 
-print id(1);                              # expect: 1
-print id("a");                            # expect: a
-print map([1, 2], fn(x) => x * 2);        # expect: [2, 4]
+print(id(1));                              # expect: 1
+print(id("a"));                            # expect: a
+print(map([1, 2], fn(x) => x * 2));        # expect: [2, 4]

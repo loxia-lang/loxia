@@ -1,3 +1,3 @@
 val x = 1
-print x is Int | String
+print(x is Int | String)
 # expect error: Type unions in 'is' need parentheses

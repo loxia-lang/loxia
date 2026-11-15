@@ -53,6 +53,7 @@ class TyVar(Ty):
 
     name: str
     id: int
+    bounds: tuple[str, ...] = ()
 
     def __str__(self) -> str:
         return self.name
@@ -105,6 +106,13 @@ class ClassObjectTy(Ty):
 
 
 @dataclass(frozen=True)
+class InterfaceTy(Ty):
+    """Tipo de uma interface nominal (ADR-0080); não é valor nem construtor."""
+
+    name: str
+
+
+@dataclass(frozen=True)
 class NativeModuleTy(Ty):
     """Namespace nativo somente leitura (`Int`, `Float`, `math`)."""
 
@@ -121,9 +129,17 @@ class FnTy(Ty):
     params: tuple[Ty, ...]
     ret: Ty
     min_params: int
+    variadic: bool = False
+
+    @property
+    def fixed_params(self) -> int:
+        return len(self.params) - 1 if self.variadic else len(self.params)
 
     def __str__(self) -> str:
-        params = ", ".join(display(param) for param in self.params)
+        rendered = [display(param) for param in self.params]
+        if self.variadic and rendered:
+            rendered[-1] = f"...{rendered[-1]}"
+        params = ", ".join(rendered)
         return f"fn({params}) -> {display(self.ret)}"
 
 
@@ -148,7 +164,11 @@ class NativeFnTy(Ty):
 
 
 def display(ty: Ty) -> str:
-    if isinstance(ty, (Prim, ClassObjectTy, NativeModuleTy, TyVar)):
+    if isinstance(ty, TyVar):
+        if ty.bounds:
+            return f"{ty.name}: {' + '.join(ty.bounds)}"
+        return ty.name
+    if isinstance(ty, (Prim, ClassObjectTy, InterfaceTy, NativeModuleTy)):
         return ty.name
     if isinstance(ty, ClassTy):
         if ty.args:
@@ -165,7 +185,7 @@ def display(ty: Ty) -> str:
     if isinstance(ty, TupleTy):
         return "(" + ", ".join(display(item) for item in ty.items) + ")"
     if isinstance(ty, GenericFnTy):
-        params = ", ".join(var.name for var in ty.type_params)
+        params = ", ".join(display(var) for var in ty.type_params)
         args = ", ".join(display(param) for param in ty.fn.params)
         return f"fn[{params}]({args}) -> {display(ty.fn.ret)}"
     if isinstance(ty, UnionTy):

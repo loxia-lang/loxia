@@ -1,2 +1,2 @@
-print "x ${naoexiste}"
+print("x ${naoexiste}")
 # expect runtime error: Undefined variable 'naoexiste'.

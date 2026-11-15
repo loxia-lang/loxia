@@ -1,20 +1,20 @@
 # Destructuring aninhado: val/var, anotação e captura por closure (ADR-0069).
 val (a, (b, c)) = (1, (2, 3))
-print a
-print b
-print c
+print(a)
+print(b)
+print(c)
 
 var (x, (y, z)): (Int, (String, Bool)) = (4, ("oi", true))
-print x
-print y
-print z
+print(x)
+print(y)
+print(z)
 
 fn soma() -> Int {
   val (p, (q, (r, s))) = (10, (20, (30, 40)))
   val total = fn() => p + q + r + s
   return total()
 }
-print soma()
+print(soma())
 # expect: 1
 # expect: 2
 # expect: 3

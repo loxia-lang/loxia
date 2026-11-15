@@ -52,11 +52,12 @@ esperar publicação; a continuação segue a fila do [`TODO.md`](TODO.md) §0.
 - `val`/`var`, parâmetros imutáveis, `fn`, `elif`, `;` opcional, comentários `#`/`/* */`.
 - `Int`/`Float` separados, promoção só `Int → Float`, `/` sempre `Float`, `//`, `%`, `**`,
   bits i64, `--debug` para overflow.
-- Ternário, `??`, `?.`, interpolação, escapes, `print` statement.
-- Ranges, `for-in` (`Range`/`String`/`List`/`Map`), `List[T]`, `Map[K, V]`.
+- Ternário, `??`, `?.`, interpolação, escapes; `print(valor)` como função builtin.
+- Ranges, `for-in` (`Range`/`String`/`List`/`Map`/tupla e iterador de usuário `iter()`/`next() -> T?`), variádicos `...args`/spread final, type aliases, `List[T]`, `Map[K, V]`.
 - Defaults e campos, `class B(A)`, lambdas.
 - Anotações de tipo, `--check`, inferência local, `T?`, uniões, `is T`, narrowing.
-- Generics T3b: funções `fn id[T]`, inferência, sem constraints, monomorfização no backend.
+- Generics T3b: funções `fn id[T]`, inferência e constraints (`T: Ord + Num + Interface`),
+  monomorfização no backend.
 - D-8: `as` explícito, `Int.parse`/`Float.parse` → `T?` e `math.*` determinístico.
 - Freeze: erro de runtime fatal (exit 70), sem `try`/`Result`; `clock` fora; strings UTF-8
   com `len` em code points e identificadores ASCII; single-file.
@@ -71,7 +72,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 
 | Exceção | ADR | O que entrou |
 | --- | --- | --- |
-| T3b | [ADR-0027](docs/adr/0027-generics-t3b.md) | funções genéricas, sem constraints |
+| T3b | [ADR-0027](docs/adr/0027-generics-t3b.md) | funções genéricas; constraints em [ADR-0081](docs/adr/0081-constraints-generics.md) |
 | D-8 | [ADR-0029](docs/adr/0029-conversoes-math.md) | `as`, parse e `math.*` determinístico |
 | D-5 | [ADR-0028](docs/adr/0028-overflow-debug.md) | `--debug` checando overflow (não muda o release) |
 
@@ -80,7 +81,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Item | Ordem | Observação |
 | --- | --- | --- |
 | Backend LLVM L0–L4 + L2.5 + L5a/L5b | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
-| M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | ✅ feito | T6a/T6c fechados; L4 liberado (TODO §9); traits/constraints pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | ✅ feito | T6a/T6c fechados; L4 liberado (TODO §9); interfaces e constraints implementadas ([ADR-0038](docs/adr/0038-traits-nominais.md), [ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md), [ADR-0081](docs/adr/0081-constraints-generics.md)) |
 | M6 — backend L0–L6 + T7 | ✅ feito | corpus declarado compila e concorda; L7 é qualidade |
 | M7 — GC Boehm + contrato de memória | ✅ feito | [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md); hard cap 128 MiB, I1 até 64 MiB live |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
@@ -88,7 +89,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Classes genéricas | ✅ feito | MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos/herança genérica pós-MVP |
 | Enums, `match` e `Result` | ✅ feito | enums genéricos, exaustividade e `Result` ([ADR-0041](docs/adr/0041-enums-match.md)); padrões avançados/backend L6 pendentes |
 | `Option` | ✅ feito | alias de `T?` ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)) |
-| Traits nominais + constraints | pós-MVP | nominal, `implements`, métodos default ([ADR-0038](docs/adr/0038-traits-nominais.md)) |
+| Interfaces nominais + constraints | ✅ v1 feita; constraints de função feitas; classes pós-MVP | nominal, `implements`, métodos default no tree-walk/checker e backend B2 (`itab`); `T: Ord + Num + Interface` ([ADR-0081](docs/adr/0081-constraints-generics.md)); casos no diferencial ([ADR-0038](docs/adr/0038-traits-nominais.md), [ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)) |
 | `match`/enums, exaustividade | M5 | depois de uniões |
 | Módulos/imports, `std.*`, `io`, `string`, `collections`, `time` | pós | single-file fica na 1.0 |
 | Async/await (`Task[T]`) | depois do M7 + I/O | direção no [ADR-0037](docs/adr/0037-async-direcao.md); colored, determinístico; não é paralelismo (IDEIAS I-7) |
@@ -96,7 +97,7 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | `try`/`except`/`finally`/`raise` | ✅ feito | classes de exceção, `except Tipo as e`, `raise;`, `finally`; backend 65 até o L6 ([ADR-0042](docs/adr/0042-excecoes.md)) |
 | Variádicos, trailing closure, named args, destructuring de campos | pós | ver [`IDEIAS.md`](IDEIAS.md) |
 | `type` alias, derive, operator overloading, extension methods | pós | — |
-| `if`/bloco como expressão, `println` função, `loop`/`break` rotulado | pós | — |
+| `if`/bloco como expressão, `loop`/`break` rotulado | pós | — |
 | Strings multilinha/raw, indexação de string, UTF-8 em identificadores | pós | — |
 | `log`/`exp`/`sin`/`cos`/`tan`/`pow`/`math.pi` | pós | libm não garante I3 |
 | Formatter, LSP, fuzz, site, REPL multiline | pós | tooling |

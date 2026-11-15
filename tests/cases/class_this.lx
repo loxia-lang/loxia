@@ -5,10 +5,10 @@ class Pessoa {
   }
 
   falar() -> Nil {
-    print this.nome;
+    print(this.nome);
   }
 }
 
 var p = Pessoa("Ana");
 p.falar();     # expect: Ana
-print p.nome;  # expect: Ana
+print(p.nome);  # expect: Ana

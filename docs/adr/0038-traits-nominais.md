@@ -1,13 +1,22 @@
 # ADR-0038 — Traits: nominais, com métodos default, pós-MVP
 
-- **Status:** accepted (decisão de modelo; implementação adiada)
+- **Status:** superseded by ADR-0080 (nomenclatura: "traits" passou a "interfaces") e ADR-0081 (constraints)
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0008](0008-heranca-class-parens.md) (herança simples),
   [ADR-0014](0014-identidade-e-invariantes.md) (I1–I3 e portão),
   [ADR-0026](0026-freeze-1.0.md) (freeze), [ADR-0027](0027-generics-t3b.md) (generics),
-  [ADR-0031](0031-backend-nativo.md) (backend),
+  [ADR-0031](0031-backend-nativo.md) (backend), [ADR-0080](0080-interfaces-nominais-implementacao.md)
+  (implementação e nome),
   [`../../TIPOS.md`](../../TIPOS.md) §1/§2.1, [`../../TODO.md`](../../TODO.md) §9/§11
+
+> **Nota de nomenclatura (2026-11-15):** o modelo decidido aqui continua válido — nominal,
+  `implements`, métodos default. O conceito passou a se chamar **interface**
+  ([ADR-0080](0080-interfaces-nominais-implementacao.md)): a v1 é uma interface nominal
+  com defaults, não um trait de Rust/Scala/PHP nem um `Protocol` estrutural do Python.
+> O texto abaixo é histórico e mantém a palavra "trait". As constraints (`T: Trait`) foram
+> entregues na forma `T: Interface + Ord + Num` pelo
+> [ADR-0081](0081-constraints-generics.md).
 
 ## Contexto
 

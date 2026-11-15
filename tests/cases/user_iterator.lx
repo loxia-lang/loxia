@@ -1,0 +1,147 @@
+# Iterador de usuário no for-in: iter() -> iterador com next() -> T? (ADR-0082).
+
+class ContadorIter {
+  val limite: Int
+  var atual: Int
+
+  fn init(limite: Int) {
+    this.limite = limite
+    this.atual = 0
+  }
+
+  fn next() -> Int? {
+    if (this.atual >= this.limite) {
+      return nil
+    }
+    val valor = this.atual
+    this.atual = this.atual + 1
+    return valor
+  }
+}
+
+class Contador {
+  val limite: Int
+  fn init(limite: Int) { this.limite = limite }
+  fn iter() -> ContadorIter { return ContadorIter(this.limite) }
+}
+
+for x in Contador(3) {
+  print(x)
+}
+
+class NomesIter {
+  val xs: List[String]
+  var i: Int
+
+  fn init(xs: List[String]) {
+    this.xs = xs
+    this.i = 0
+  }
+
+  fn next() -> String? {
+    if (this.i >= len(this.xs)) {
+      return nil
+    }
+    val valor = this.xs[this.i]
+    this.i = this.i + 1
+    return valor
+  }
+}
+
+class Nomes {
+  val xs: List[String]
+  fn init(xs: List[String]) { this.xs = xs }
+  fn iter() -> NomesIter { return NomesIter(this.xs) }
+}
+
+val nomes = Nomes(["a", "b"])
+for n in nomes {
+  print(n)
+}
+
+for a in nomes {
+  for b in nomes {
+    print("${a}${b}")
+  }
+}
+
+interface IntIter {
+  next() -> Int?
+}
+
+class RangeIter implements IntIter {
+  val n: Int
+  var i: Int
+
+  fn init(n: Int) {
+    this.n = n
+    this.i = 0
+  }
+
+  fn next() -> Int? {
+    if (this.i >= this.n) {
+      return nil
+    }
+    val valor = this.i
+    this.i = this.i + 1
+    return valor
+  }
+}
+
+class RangeBox {
+  val n: Int
+  fn init(n: Int) { this.n = n }
+  fn iter() -> IntIter { return RangeIter(this.n) }
+}
+
+for x in RangeBox(2) {
+  print("r${x}")
+}
+
+class BoxIter[T] {
+  val xs: List[T]
+  var i: Int
+
+  fn init(xs: List[T]) {
+    this.xs = xs
+    this.i = 0
+  }
+
+  fn next() -> T? {
+    if (this.i >= len(this.xs)) {
+      return nil
+    }
+    val valor = this.xs[this.i]
+    this.i = this.i + 1
+    return valor
+  }
+}
+
+class Box[T] {
+  val xs: List[T]
+  fn init(xs: List[T]) { this.xs = xs }
+  fn iter() -> BoxIter[T] { return BoxIter(this.xs) }
+}
+
+for x in Box([1, 2]) {
+  print(x)
+}
+
+for s in Box(["x", "y"]) {
+  print(s)
+}
+# expect: 0
+# expect: 1
+# expect: 2
+# expect: a
+# expect: b
+# expect: aa
+# expect: ab
+# expect: ba
+# expect: bb
+# expect: r0
+# expect: r1
+# expect: 1
+# expect: 2
+# expect: x
+# expect: y

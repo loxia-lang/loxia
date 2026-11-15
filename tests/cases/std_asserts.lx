@@ -4,44 +4,44 @@ import std.asserts as asserts
 asserts.assert(true)
 asserts.assertEq(1, 1)
 asserts.assertEq("a", "a")
-print asserts.assertNotNil(42)
-print asserts.assertNotNil("x")
+print(asserts.assertNotNil(42))
+print(asserts.assertNotNil("x"))
 
 val missing: Int? = nil
 try {
   asserts.assert(false)
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 try {
   asserts.assert(false, "boom")
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 try {
   asserts.assertEq(1, 2)
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 try {
   asserts.assertEq(1, 2, "contagem")
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 try {
   asserts.assertNotNil(missing)
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 try {
   asserts.assertNotNil(missing, "sem valor")
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 try {
   asserts.fail("nope")
 } except RuntimeError as e {
-  print e.message
+  print(e.message)
 }
 # expect: 42
 # expect: x

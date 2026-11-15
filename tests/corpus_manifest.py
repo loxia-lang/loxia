@@ -51,6 +51,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/map_equality_depth.lx",
         "tests/cases/try_return_cleanup.lx",
         "tests/cases/generics.lx",
+        "tests/cases/interfaces.lx",
+        "tests/cases/interface_decl.lx",
         "tests/cases/tuple_iteration.lx",
         "tests/cases/var_uninitialized_int.lx",
         "tests/cases/defaults_as_value.lx",
@@ -60,6 +62,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/enums.lx",
         "tests/cases/exceptions.lx",
         "tests/cases/for_in.lx",
+        "tests/cases/user_iterator.lx",
+        "tests/cases/variadic.lx",
+        "tests/cases/type_alias.lx",
+        "tests/cases/print_function.lx",
         "tests/cases/is_union_parens.lx",
         "tests/cases/generic_lambda_value.lx",
         "tests/cases/result.lx",
@@ -93,6 +99,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
     ),
     "t7": (
         "tests/cases/generic_class.lx",
+        "tests/cases/generic_constraints.lx",
         "tests/cases/generic_functions.lx",
     ),
     "l5": (

@@ -10,8 +10,10 @@ from src.backend.lower_model import (
     _CLOSURE,
     _I8_PTR,
     _I32,
+    _INT,
     _VOID,
     Binding,
+    FnSig,
     FunctionInfo,
     TypeDesc,
     Value,
@@ -21,6 +23,7 @@ from src.backend.lower_model import (
 from src.diagnostics.codes import Code
 from src.execution.primitives import PRIMITIVE_BY_LOX
 from src.frontend.expr import Call, Get, Variable
+from src.frontend.tokens import Token
 
 
 class CallLowering(LoweringBase):
@@ -56,6 +59,7 @@ class CallLowering(LoweringBase):
             result.fn,
             result.optional,
             result.class_name,
+            interface_name=result.interface_name,
         )
 
     def _call(self, expr: Call) -> Value:
@@ -95,7 +99,7 @@ class CallLowering(LoweringBase):
             generic = self._generic_fns.get(expr.callee.name.lexeme)
             if generic is not None:
                 return self._call_generic(generic, expr)
-            if expr.callee.name.lexeme in self._generic_class_by_source:
+            if expr.callee.name.lexeme in self._generic_class_nodes:
                 return self._call_generic_class(
                     expr.callee.name.lexeme, expr
                 )
@@ -116,6 +120,8 @@ class CallLowering(LoweringBase):
 
         if isinstance(expr.callee, Variable):
             name = expr.callee.name.lexeme
+            if name == "print":
+                return self._print_call(expr)
             if name == "len":
                 return self._len(expr)
             if name == "str":
@@ -184,28 +190,12 @@ class CallLowering(LoweringBase):
         effective = info if info is not None else callee.function
         sig = effective.fn_sig if effective is not None else callee.sig
         assert sig is not None
-        count = len(arguments)
-
-        minimum = sig.min_params
-        maximum = len(sig.params)
-        if not minimum <= count <= maximum:
-            self._poison(
-                expr.paren,
-                self._arity_message(minimum, maximum, count),
-                code=Code.RUNTIME_ARITY,
-            )
+        prepared = self._prepare_call_arguments(
+            sig, effective, arguments, expr.spread, expr.paren
+        )
+        if prepared is None:
             return self._zero_desc(sig.ret)
-
-        if effective is not None:
-            for index in range(count, maximum):
-                default = effective.params[index].default
-                assert default is not None
-                arguments.append(self._expr(default))
-
-        arguments = [
-            self._coerce(argument, expected, expr.paren.line)
-            for argument, expected in zip(arguments, sig.params, strict=True)
-        ]
+        arguments = prepared
 
         fnptr = self._closure_field(callee, 0)
         env = self._closure_field(callee, 1)
@@ -227,24 +217,137 @@ class CallLowering(LoweringBase):
             sig.ret.fn,
             sig.ret.optional,
             sig.ret.class_name,
+            interface_name=sig.ret.interface_name,
         )
+
+    def _prepare_call_arguments(
+        self,
+        sig: FnSig,
+        info: FunctionInfo | None,
+        values: list[Value],
+        spread: bool,
+        token: Token,
+    ) -> list[Value] | None:
+        fixed = len(sig.params) - 1 if sig.variadic else len(sig.params)
+        count = len(values)
+
+        if spread:
+            if not sig.variadic:
+                self._poison(
+                    token,
+                    "Spread arguments are only supported for variadic functions.",
+                    code=Code.RUNTIME_ARITY,
+                )
+                return None
+            if count != fixed + 1:
+                self._poison(
+                    token,
+                    "Spread arguments only fill the variadic parameter; "
+                    "pass the fixed parameters explicitly.",
+                    code=Code.RUNTIME_ARITY,
+                )
+                return None
+            rest = values[-1]
+            if rest.optional:
+                rest = self._unwrap(
+                    rest, token.line, "Spread argument can't be nil."
+                )
+            if rest.ty is not ValueType.LIST:
+                self._poison(
+                    token,
+                    "Spread argument must be a list.",
+                    code=Code.RUNTIME_OPERANDS,
+                )
+                return None
+            fixed_values = [
+                self._coerce(value, sig.params[index], token.line)
+                for index, value in enumerate(values[:fixed])
+            ]
+            return [*fixed_values, rest]
+
+        if not sig.variadic:
+            if not sig.min_params <= count <= len(sig.params):
+                self._poison(
+                    token,
+                    self._arity_message(sig.min_params, len(sig.params), count),
+                    code=Code.RUNTIME_ARITY,
+                )
+                return None
+            if info is not None:
+                for index in range(count, len(sig.params)):
+                    default = info.params[index].default
+                    assert default is not None
+                    values.append(self._expr(default))
+            return [
+                self._coerce(value, sig.params[index], token.line)
+                for index, value in enumerate(values)
+            ]
+
+        if count < sig.min_params:
+            self._poison(
+                token,
+                f"Expected at least {sig.min_params} arguments but got {count}.",
+                code=Code.RUNTIME_ARITY,
+            )
+            return None
+
+        fixed_values = values[:fixed]
+        if len(fixed_values) < fixed and info is not None:
+            for index in range(len(fixed_values), fixed):
+                default = info.params[index].default
+                assert default is not None
+                fixed_values.append(self._expr(default))
+        if len(fixed_values) != fixed:
+            self._poison(
+                token,
+                self._arity_message(sig.min_params, fixed, count),
+                code=Code.RUNTIME_ARITY,
+            )
+            return None
+
+        fixed_values = [
+            self._coerce(value, sig.params[index], token.line)
+            for index, value in enumerate(fixed_values)
+        ]
+        element = sig.vararg_element
+        assert element is not None
+        raw = self.builder.call(
+            self._function("lox_list_new", _I8_PTR, []), []
+        )
+        for value in values[fixed:]:
+            coerced = self._coerce(value, element, token.line)
+            boxed = self._box_value(coerced, token.line)
+            self.builder.call(
+                self._function(
+                    "lox_list_push", _I8_PTR, [_I8_PTR, _INT, _INT]
+                ),
+                [
+                    raw,
+                    self.builder.extract_value(boxed.llvm, 0),
+                    self.builder.extract_value(boxed.llvm, 1),
+                ],
+            )
+        return [*fixed_values, Value(ValueType.LIST, raw)]
 
     def _call_optional(self, callee: Value, expr: Call) -> Value:
         sig = callee.sig
         assert sig is not None
         count = len(expr.arguments)
-        if sig.min_params != len(sig.params):
-            raise _unsupported(
-                "Default parameters in optional function calls",
-                expr.paren.line,
-            )
-        if count != len(sig.params):
-            self._poison(
-                expr.paren,
-                self._arity_message(len(sig.params), len(sig.params), count),
-                code=Code.RUNTIME_ARITY,
-            )
-            return self._zero_desc(sig.ret)
+        if not sig.variadic:
+            if sig.min_params != len(sig.params):
+                raise _unsupported(
+                    "Default parameters in optional function calls",
+                    expr.paren.line,
+                )
+            if count != len(sig.params):
+                self._poison(
+                    expr.paren,
+                    self._arity_message(
+                        len(sig.params), len(sig.params), count
+                    ),
+                    code=Code.RUNTIME_ARITY,
+                )
+                return self._zero_desc(sig.ret)
 
         result = self._expr_type_desc(expr, expr.paren.line)
         if not result.optional and result.ty is not ValueType.NIL:
@@ -260,14 +363,26 @@ class CallLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(some)
         payload = self._optional_payload(callee)
-        arguments = [
-            self._coerce(
-                self._expr(argument), expected, expr.paren.line
+        if sig.variadic:
+            values = [self._expr(argument) for argument in expr.arguments]
+            prepared = self._prepare_call_arguments(
+                sig, callee.function, values, expr.spread, expr.paren
             )
-            for argument, expected in zip(
-                expr.arguments, sig.params, strict=True
-            )
-        ]
+            if prepared is None:
+                raise _unsupported(
+                    "Variadic optional call with invalid arguments",
+                    expr.paren.line,
+                )
+            arguments = prepared
+        else:
+            arguments = [
+                self._coerce(
+                    self._expr(argument), expected, expr.paren.line
+                )
+                for argument, expected in zip(
+                    expr.arguments, sig.params, strict=True
+                )
+            ]
         fnptr = self._closure_field(payload, 0)
         env = self._closure_field(payload, 1)
         function_type = llvm_ir.function_pointer(
@@ -290,6 +405,7 @@ class CallLowering(LoweringBase):
                     sig.ret.fn,
                     sig.ret.optional,
                     sig.ret.class_name,
+                    interface_name=sig.ret.interface_name,
                 ),
                 result,
                 expr.paren.line,
@@ -317,6 +433,7 @@ class CallLowering(LoweringBase):
             result.fn,
             True,
             result.class_name,
+            interface_name=result.interface_name,
         )
 
     def _call_class(self, binding: Binding, expr: Call) -> Value:
@@ -384,6 +501,23 @@ class CallLowering(LoweringBase):
             [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
         )
         return self.builder.load(field)
+
+    def _print_call(self, expr: Call) -> Value:
+        arguments = [self._expr(argument) for argument in expr.arguments]
+        if len(arguments) != 1:
+            self._poison(
+                expr.paren,
+                f"Expected 1 arguments but got {len(arguments)}.",
+                code=Code.RUNTIME_ARITY,
+            )
+            return self._zero(ValueType.NIL)
+
+        value = arguments[0]
+        if value.optional:
+            self._print_optional(value)
+        else:
+            self._print_value(value)
+        return self._zero(ValueType.NIL)
 
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
         if minimum == maximum:

@@ -1,13 +1,13 @@
 # push/pop e len em listas e strings.
 val xs: List[Int] = [1, 2]
-print xs.push(3)
-print xs
-print len(xs)
-print xs.pop()
-print xs
-print len("abc")
-print len("")
-print len([])
+print(xs.push(3))
+print(xs)
+print(len(xs))
+print(xs.pop())
+print(xs)
+print(len("abc"))
+print(len(""))
+print(len([]))
 # expect: nil
 # expect: [1, 2, 3]
 # expect: 3

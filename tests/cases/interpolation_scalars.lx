@@ -1,16 +1,16 @@
 # Interpolação com escalares (Int/Float/Bool/Nil/String) e str().
 val nome = "Ana"
-print "Oi, ${nome}!"
-print "1 + 2 = ${1 + 2}"
-print "float: ${1.5}"
-print "bool: ${true} ${false}"
-print "nil: ${nil}"
-print "${nome}${nome}"
-print "nested: ${"a" + "b"}"
-print "escape: \${nome}"
-print "cifrao: $5"
-print str(42)
-print str("ok")
+print("Oi, ${nome}!")
+print("1 + 2 = ${1 + 2}")
+print("float: ${1.5}")
+print("bool: ${true} ${false}")
+print("nil: ${nil}")
+print("${nome}${nome}")
+print("nested: ${"a" + "b"}")
+print("escape: \${nome}")
+print("cifrao: $5")
+print(str(42))
+print(str("ok"))
 # expect: Oi, Ana!
 # expect: 1 + 2 = 3
 # expect: float: 1.5

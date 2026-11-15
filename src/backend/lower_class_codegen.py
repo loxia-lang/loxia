@@ -14,6 +14,7 @@ from src.backend.lower_model import (
     _I8_PTR,
     _I32,
     _INT,
+    _INTERFACE_ENTRY,
     _VOID,
     ANY_TAG_FLOAT,
     ANY_TAG_INT,
@@ -21,6 +22,7 @@ from src.backend.lower_model import (
     Binding,
     ClassLayout,
     FnSig,
+    FunctionInfo,
     MethodLayout,
     TypeDesc,
     Value,
@@ -29,7 +31,7 @@ from src.backend.lower_model import (
 )
 from src.diagnostics.codes import Code
 from src.frontend.expr import As, Is, Super, This
-from src.frontend.stmt import Class
+from src.frontend.stmt import Class, Interface
 from src.frontend.ty import ANY as TY_ANY
 from src.frontend.ty import (
     BOOL as TY_BOOL,
@@ -78,6 +80,137 @@ class ClassCodegenLowering(LoweringBase):
                 return layout
         return self._classes.get(name)
 
+    def _prepare_interface_ids(self, statements: list[Any]) -> None:
+        for stmt in statements:
+            if not isinstance(stmt, Interface):
+                continue
+            name = stmt.name.lexeme
+            if name in self._interface_ids:
+                continue
+            self._interface_ids[name] = len(self._interface_ids) + 1
+            self._interface_nodes[name] = stmt
+            self._interface_method_names[name] = tuple(
+                method.name.lexeme for method in stmt.methods
+            )
+
+    def _prepare_interface_signatures(self) -> None:
+        for name, stmt in self._interface_nodes.items():
+            infos: dict[str, FunctionInfo] = {}
+            for method in stmt.methods:
+                method_name = method.name.lexeme
+                infos[method_name] = self._function_info(
+                    method,
+                    llvm_name=f"lox.iface.{name}.{method_name}",
+                    this_interface=name,
+                )
+            self._interface_method_infos[name] = infos
+
+    def _emit_interface_defaults(self) -> None:
+        for name, stmt in self._interface_nodes.items():
+            closures: dict[str, Value] = {}
+            globals_: dict[str, Any] = {}
+            infos = self._interface_method_infos[name]
+            for method in stmt.methods:
+                if method.abstract:
+                    continue
+                method_name = method.name.lexeme
+                info = infos[method_name]
+                self._emit_function(info, method, ())
+                closure = self._build_closure(
+                    info, (), f"<fn {name}.{method_name}>"
+                )
+                closures[method_name] = closure
+                slot = llvm_ir.global_variable(
+                    self.module, f"g.iface.{name}.{method_name}", _I8_PTR
+                )
+                self.builder.store(closure.llvm, slot)
+                globals_[method_name] = slot
+            self._interface_default_closures[name] = closures
+            self._interface_default_globals[name] = globals_
+
+    def _interface_has_method(self, interface: str, name: str) -> bool:
+        return name in self._interface_method_infos.get(interface, {})
+
+    def _interface_thunk(
+        self, interface: str, method_name: str, sig: FnSig
+    ) -> Any:
+        key = (interface, method_name)
+        cached = self._interface_thunks.get(key)
+        if cached is not None:
+            return cached
+
+        result = (
+            _VOID
+            if sig.ret.ty is ValueType.NIL
+            else self._storage_llvm_type(sig.ret)
+        )
+        thunk = llvm_ir.declare(
+            self.module,
+            f"lox.bound.interface.{interface}.{method_name}",
+            result,
+            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+        )
+        saved = (
+            self.builder,
+            self._function_ir,
+            self._return_type_desc,
+            self._in_init,
+            self._scopes,
+            self._captures,
+        )
+        self._function_ir = thunk
+        self._return_type_desc = sig.ret
+        self._in_init = False
+        self._scopes = [{}]
+        self._captures = {}
+        self.builder = llvm_ir.builder(llvm_ir.block_of(thunk, "entry"))
+        self._emit_thunk_call(thunk, sig, result)
+        self._seal_blocks(thunk)
+        (
+            self.builder,
+            self._function_ir,
+            self._return_type_desc,
+            self._in_init,
+            self._scopes,
+            self._captures,
+        ) = saved
+        self._interface_thunks[key] = thunk
+        return thunk
+
+    def _interface_bound_method(
+        self, instance: Value, interface: str, name: Any
+    ) -> Value:
+        method_name = name.lexeme
+        info = self._interface_method_infos.get(interface, {}).get(method_name)
+        if info is None:
+            self._poison(
+                name, f"Undefined property '{method_name}'."
+            )
+            return self._zero(ValueType.INT)
+
+        names = self._interface_method_names[interface]
+        index = names.index(method_name)
+        interface_id = self._interface_ids[interface]
+        closure_ptr = self.builder.call(
+            self._function(
+                "lox_interface_method", _I8_PTR, [_I8_PTR, _INT, _INT]
+            ),
+            [
+                instance.llvm,
+                llvm_ir.constant(_INT, interface_id),
+                llvm_ir.constant(_INT, index),
+            ],
+        )
+        thunk = self._interface_thunk(interface, method_name, info.fn_sig)
+        return self._bind_closure(
+            instance,
+            method_name,
+            info.fn_sig,
+            thunk,
+            closure_ptr,
+            info,
+        )
+
     def _class_declaration(self, stmt: Class) -> None:
         if not (self._function_ir is self.main and len(self._scopes) == 1):
             self._local_class_declaration(stmt)
@@ -86,7 +219,11 @@ class ClassCodegenLowering(LoweringBase):
             for layout in self._generic_class_by_source.get(
                 stmt.name.lexeme, []
             ):
+                if layout.name in self._emitted_generic_classes:
+                    continue
+                self._emitted_generic_classes.add(layout.name)
                 self._emit_top_level_class(layout)
+            self._drain_pending_generic_classes()
             return
         self._emit_top_level_class(self._classes[stmt.name.lexeme])
 
@@ -107,10 +244,18 @@ class ClassCodegenLowering(LoweringBase):
         self._emit_class_methods(layout)
         self._emit_ctor(layout)
 
+    def _drain_pending_generic_classes(self) -> None:
+        while self._pending_generic_classes:
+            layout = self._pending_generic_classes.pop(0)
+            if layout.name in self._emitted_generic_classes:
+                continue
+            self._emitted_generic_classes.add(layout.name)
+            self._emit_top_level_class(layout)
+
     def _new_class_descriptor(self) -> tuple[Any, Any]:
         raw = self.builder.call(
             self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
-            [llvm_ir.constant(_INT, 64)],
+            [llvm_ir.constant(_INT, 80)],
         )
         return raw, self.builder.bitcast(raw, _CLASS_DESC.as_pointer())
 
@@ -200,6 +345,9 @@ class ClassCodegenLowering(LoweringBase):
         name_value = self._string_literal(layout.display)
         init_min = 0 if effective is None else effective.fn_sig.min_params
         init_max = 0 if effective is None else len(effective.fn_sig.params)
+        interface_count, interface_table = self._class_interface_table(
+            layout, vtable_raw
+        )
         values = [
             super_ptr,
             llvm_ir.constant(_INT, layout.id),
@@ -209,6 +357,8 @@ class ClassCodegenLowering(LoweringBase):
             init_closure,
             llvm_ir.constant(_INT, init_min),
             llvm_ir.constant(_INT, init_max),
+            llvm_ir.constant(_INT, interface_count),
+            interface_table,
         ]
         for index, value in enumerate(values):
             slot = self.builder.gep(
@@ -216,6 +366,98 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, index)],
             )
             self.builder.store(value, slot)
+
+    def _class_interface_table(
+        self, layout: ClassLayout, vtable_raw: Any
+    ) -> tuple[int, Any]:
+        interfaces = layout.effective_interfaces()
+        if not interfaces:
+            return 0, llvm_ir.null_pointer()
+
+        itabs: list[tuple[int, Any]] = []
+        for interface in interfaces:
+            interface_id = self._interface_ids.get(interface)
+            if interface_id is None:
+                raise _unsupported(f"Interface '{interface}'", None)
+
+            names = self._interface_method_names.get(interface, ())
+            if not names:
+                itabs.append((interface_id, llvm_ir.null_pointer()))
+                continue
+
+            raw = self.builder.call(
+                self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
+                [llvm_ir.constant(_INT, 8 * len(names))],
+            )
+            itab = self.builder.bitcast(raw, _I8_PTR.as_pointer())
+            for index, method_name in enumerate(names):
+                closure = self._class_interface_closure(
+                    layout, vtable_raw, interface, method_name
+                )
+                slot = self.builder.gep(
+                    itab, [llvm_ir.constant(_I32, index)]
+                )
+                self.builder.store(closure, slot)
+            itabs.append((interface_id, raw))
+
+        table_raw = self.builder.call(
+            self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
+            [llvm_ir.constant(_INT, 16 * len(itabs))],
+        )
+        table = self.builder.bitcast(table_raw, _INTERFACE_ENTRY.as_pointer())
+        for index, (interface_id, itab_raw) in enumerate(itabs):
+            entry = self.builder.gep(
+                table, [llvm_ir.constant(_I32, index)]
+            )
+            self.builder.store(
+                llvm_ir.constant(_INT, interface_id),
+                self.builder.gep(
+                    entry,
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
+                ),
+            )
+            self.builder.store(
+                itab_raw,
+                self.builder.gep(
+                    entry,
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)],
+                ),
+            )
+        return len(itabs), table_raw
+
+    def _class_interface_closure(
+        self,
+        layout: ClassLayout,
+        vtable_raw: Any,
+        interface: str,
+        method_name: str,
+    ) -> Any:
+        method = layout.method(method_name)
+        if method is not None:
+            if layout.vtable_size == 0:
+                raise BackendError(
+                    f"Interface method '{interface}.{method_name}' has no vtable "
+                    "slot.",
+                    None,
+                    code=Code.BACKEND_INTERNAL,
+                )
+            vtable = self.builder.bitcast(vtable_raw, _I8_PTR.as_pointer())
+            slot = self.builder.gep(
+                vtable, [llvm_ir.constant(_I32, method.index)]
+            )
+            return self.builder.load(slot)
+
+        slot = self._interface_default_globals.get(interface, {}).get(
+            method_name
+        )
+        if slot is None:
+            raise BackendError(
+                f"Interface method '{interface}.{method_name}' has no "
+                "implementation.",
+                None,
+                code=Code.BACKEND_INTERNAL,
+            )
+        return self.builder.load(slot)
 
     def _emit_class_methods(self, layout: ClassLayout) -> None:
         for method in layout.methods:
@@ -273,6 +515,7 @@ class ClassCodegenLowering(LoweringBase):
             init_method=init_method,
             vtable_size=new_methods,
             instance_type=instance_type,
+            interfaces=tuple(token.lexeme for token in stmt.implements),
         )
         effective = init
         ctor_params = (
@@ -505,15 +748,21 @@ class ClassCodegenLowering(LoweringBase):
             ),
         )
 
+    def _expand_alias(self, ty: Ty) -> Ty:
+        if isinstance(ty, ClassTy) and ty.name in self.type_aliases:
+            return self.type_aliases[ty.name]
+        return ty
+
     def _is_expr(self, expr: Is) -> Value:
-        target_desc = self._type_desc(expr.test_type, expr.operator.line)
+        test_type = self._expand_alias(expr.test_type)
+        target_desc = self._type_desc(test_type, expr.operator.line)
         value = self._expr(expr.left)
-        if isinstance(expr.test_type, UnionTy):
-            if any(member is TY_ANY for member in expr.test_type.members):
+        if isinstance(test_type, UnionTy):
+            if any(member is TY_ANY for member in test_type.members):
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 1))
             boxed = self._box_value(value, expr.operator.line)
             result = llvm_ir.constant(_BOOL, 0)
-            for member in expr.test_type.members:
+            for member in test_type.members:
                 member_desc = self._type_desc(member, expr.operator.line)
                 check = self._is_any(
                     boxed, member, member_desc, expr.operator.line
@@ -522,11 +771,11 @@ class ClassCodegenLowering(LoweringBase):
             return Value(ValueType.BOOL, result)
         if value.ty is ValueType.ANY:
             return self._is_any(
-                value, expr.test_type, target_desc, expr.operator.line
+                value, test_type, target_desc, expr.operator.line
             )
         boxed = self._box_value(value, expr.operator.line)
         return self._is_any(
-            boxed, expr.test_type, target_desc, expr.operator.line
+            boxed, test_type, target_desc, expr.operator.line
         )
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
@@ -589,6 +838,8 @@ class ClassCodegenLowering(LoweringBase):
                 raise _unsupported(f"Enum '{ty.name}'", line)
             return f"E<{layout.enum_id}>"
         if isinstance(ty, ClassTy):
+            if ty.name in self.type_aliases:
+                return self._type_text(self.type_aliases[ty.name], line)
             if ty.name in self._enum_layouts:
                 return f"E<{self._enum_layouts[ty.name].enum_id}>"
             if ty.args:
@@ -657,14 +908,16 @@ class ClassCodegenLowering(LoweringBase):
         if target_desc.ty is ValueType.FLOAT:
             return self._as_any_float(expr, value, line, column)
 
-        matches = self._is_any(value, expr.target_type, target_desc, line)
+        matches = self._is_any(
+            value, self._expand_alias(expr.target_type), target_desc, line
+        )
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
         bad = llvm_ir.append_block(self._function_ir, "as.bad")
         self.builder.cbranch(matches.llvm, ok, bad)
         self.builder = llvm_ir.builder(bad)
         self._poison(
             expr.operator,
-            f"Can't cast value to {display(expr.target_type)}.",
+            f"Can't cast value to {display(self._expand_alias(expr.target_type))}.",
             code=Code.RUNTIME_CAST,
         )
         self.builder = llvm_ir.builder(ok)
@@ -853,6 +1106,7 @@ class ClassCodegenLowering(LoweringBase):
         env: Any,
         display: str,
         sig: FnSig,
+        function: FunctionInfo | None = None,
     ) -> Value:
         raw = self.builder.call(
             self._function("lox_alloc_closure", _I8_PTR, []), []
@@ -879,7 +1133,7 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 2)],
             ),
         )
-        return Value(ValueType.FUNCTION, raw, sig)
+        return Value(ValueType.FUNCTION, raw, sig, function=function)
 
     def _method_thunk(self, layout: ClassLayout, method: MethodLayout) -> Any:
         if method.thunk is not None:
@@ -982,7 +1236,23 @@ class ClassCodegenLowering(LoweringBase):
         method: MethodLayout,
         method_closure: Any,
     ) -> Value:
-        thunk = self._method_thunk(layout, method)
+        return self._bind_closure(
+            instance,
+            method.name,
+            method.info.fn_sig,
+            self._method_thunk(layout, method),
+            method_closure,
+        )
+
+    def _bind_closure(
+        self,
+        instance: Value,
+        name: str,
+        sig: FnSig,
+        thunk: Any,
+        method_closure: Any,
+        function: FunctionInfo | None = None,
+    ) -> Value:
         raw_env = self.builder.call(
             self._function("lox_alloc_env", _I8_PTR, [_INT]),
             [llvm_ir.constant(_INT, 2)],
@@ -1004,7 +1274,7 @@ class ClassCodegenLowering(LoweringBase):
             ),
         )
         return self._make_raw_closure(
-            thunk, raw_env, f"<fn {method.name}>", method.info.fn_sig
+            thunk, raw_env, f"<fn {name}>", sig, function
         )
 
     def _bound_method(

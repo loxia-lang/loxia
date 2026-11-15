@@ -43,6 +43,7 @@ class VariableLowering(LoweringBase):
             binding.function,
             binding.generic,
             binding.generic_node,
+            binding.interface_name,
         )
 
     def _store_binding(self, binding: Binding, value: Value) -> None:
@@ -103,7 +104,10 @@ class VariableLowering(LoweringBase):
                 self._map_expected_value = saved_value
             if stmt.type_annotation is not None:
                 annotated = self._type_desc(stmt.type_annotation, stmt.name.line)
-                if annotated.optional:
+                if annotated.interface_name is not None:
+                    declared = annotated
+                    value = self._coerce(value, annotated, stmt.name.line)
+                elif annotated.optional:
                     if value.ty is ValueType.NIL:
                         declared = annotated
                         value = self._zero_desc(annotated)
@@ -164,6 +168,7 @@ class VariableLowering(LoweringBase):
                     declared.fn,
                     declared.optional,
                     class_name=declared.class_name,
+                    interface_name=declared.interface_name,
                     function=value.function,
                     generic=value.generic,
                     generic_node=value.generic_node,
@@ -182,6 +187,7 @@ class VariableLowering(LoweringBase):
                 declared.fn,
                 declared.optional,
                 class_name=declared.class_name,
+                interface_name=declared.interface_name,
                 function=value.function,
                 generic=value.generic,
                 generic_node=value.generic_node,
@@ -201,6 +207,7 @@ class VariableLowering(LoweringBase):
                 declared.optional,
                 cell=True,
                 class_name=declared.class_name,
+                interface_name=declared.interface_name,
                 function=value.function,
                 generic=value.generic,
                 generic_node=value.generic_node,
@@ -217,6 +224,7 @@ class VariableLowering(LoweringBase):
             declared.fn,
             declared.optional,
             class_name=declared.class_name,
+            interface_name=declared.interface_name,
             function=value.function,
             generic=value.generic,
             generic_node=value.generic_node,
@@ -267,6 +275,7 @@ class VariableLowering(LoweringBase):
                 value.optional,
                 binding.cell,
                 class_name=value.class_name,
+                interface_name=value.interface_name,
             )
             self._replace_binding(expr, expr.name.lexeme, replacement)
 

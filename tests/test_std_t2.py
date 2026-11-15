@@ -39,18 +39,30 @@ def test_fs_escrita_leitura_listagem(tmp_path: Path) -> None:
         "import std.fs as fs\n"
         f'val alvo = "{alvo}"\n'
         f'val pasta = "{data}"\n'
-        'print fs.exists(alvo)\n'
-        'print fs.writeText(alvo, "a\\nb\\n")\n'
-        'print fs.exists(alvo)\n'
-        'print fs.readText(alvo)\n'
-        'print fs.readLines(alvo)\n'
-        'print fs.appendText(alvo, "c\\n")\n'
-        'print fs.readLines(alvo)\n'
-        'print fs.readText(pasta + "/nao-existe.txt")\n'
-        'print fs.readLines(pasta + "/nao-existe.txt")\n'
-        'print fs.listDir(pasta)\n'
-        'print fs.listDir(pasta + "/nao-existe")\n'
-        'print fs.exists(pasta + "/nao-existe")\n',
+        """print(fs.exists(alvo))
+"""
+        """print(fs.writeText(alvo, "a\\nb\\n"))
+"""
+        """print(fs.exists(alvo))
+"""
+        """print(fs.readText(alvo))
+"""
+        """print(fs.readLines(alvo))
+"""
+        """print(fs.appendText(alvo, "c\\n"))
+"""
+        """print(fs.readLines(alvo))
+"""
+        """print(fs.readText(pasta + "/nao-existe.txt"))
+"""
+        """print(fs.readLines(pasta + "/nao-existe.txt"))
+"""
+        """print(fs.listDir(pasta))
+"""
+        """print(fs.listDir(pasta + "/nao-existe"))
+"""
+        """print(fs.exists(pasta + "/nao-existe"))
+""",
     )
 
     checked = _run(["--check", str(path)])
@@ -80,8 +92,10 @@ def test_fs_append_cria_arquivo_ausente(tmp_path: Path) -> None:
         tmp_path,
         "import std.fs as fs\n"
         'val alvo = "novo.txt"\n'
-        'print fs.appendText(alvo, "x")\n'
-        'print fs.readText(alvo)\n',
+        """print(fs.appendText(alvo, "x"))
+"""
+        """print(fs.readText(alvo))
+""",
     )
 
     result = subprocess.run(
@@ -100,9 +114,12 @@ def test_io_stdin_e_write(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "import std.io as io\n"
-        "print io.readLine()\n"
-        'print io.readAll()\n'
-        'print io.prompt("nome? ")\n'
+        """print(io.readLine())
+"""
+        """print(io.readAll())
+"""
+        """print(io.prompt("nome? "))
+"""
         'io.write("fim")\n',
     )
 

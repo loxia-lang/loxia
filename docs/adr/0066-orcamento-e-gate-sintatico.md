@@ -28,8 +28,8 @@ A análise sintática de 2026-11-13 mediu o estado da linguagem:
 | --- | --- |
 | palavras-chave | 27 |
 | níveis de precedência | 19 (18 de operadores + primário) |
-| formas de statement | 11 |
-| formas de declaração | 5 |
+| formas de statement | 10 |
+| formas de declaração | 6 |
 | construções sensíveis a newline | ~6 |
 | grafias canônicas por conceito | 1 (regra, com exceções documentadas) |
 
@@ -37,8 +37,10 @@ A análise sintática de 2026-11-13 mediu o estado da linguagem:
 (`true`, `false`, `nil`) e as reservas sem sintaxe (`async`, `await`). Hoje são 32
 lexemas − 5 = **27**; a conta é verificada por
 `tests/test_docs_consistency.py::test_scoreboard_de_keywords_bate_com_keywords`. `not`
-entrou em 2026-11-13 ([ADR-0068](0068-not-substitui-bang.md)); sem essa regra explícita o
-teto não era verificável.
+entrou em 2026-11-13 ([ADR-0068](0068-not-substitui-bang.md)) e `interface` em 2026-11-15
+([ADR-0080](0080-interfaces-nominais-implementacao.md)); `print` saiu em 2026-11-15
+([ADR-0085](0085-print-como-funcao.md)). Sem essa regra explícita o teto não era
+verificável.
 
 O número de features não é o problema: o custo está em **grafias duplicadas** e em
 **ambiguidade local**. O projeto já recusou o alias `fun` ("duas grafias para a mesma
@@ -89,7 +91,7 @@ orçamento.
 
 | Métrica | Teto | Revisão |
 | --- | --- | --- |
-| palavras-chave | 28 | ADR |
+| palavras-chave | 27 | ADR |
 | níveis de precedência | 19 | ADR |
 | formas de statement | 12 | ADR |
 | formas de declaração | 6 | ADR |

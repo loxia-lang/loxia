@@ -1,8 +1,8 @@
 # std.fmt — formatação textual determinística (T2).
 # Sem locale: `fixed`/`commas`/`bytes` produzem os mesmos bytes em qualquer ambiente.
-# Sem variádicos (ADR-0072): `format` recebe `List[Any]`.
+# Variádico desde o ADR-0083: `format(template, ...values: Any)`.
 
-fn format(template: String, values: List[Any]) -> String {
+fn format(template: String, ...values: Any) -> String {
   val parts: List[String] = []
   var index = 0
   var next = 0

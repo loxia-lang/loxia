@@ -3,7 +3,7 @@
 var f: fn() -> Nil;
 
 for i in 0..3 {
-  fn captura() -> Nil { print i; }
+  fn captura() -> Nil { print(i); }
   if (i == 1) { f = captura; }
 }
 

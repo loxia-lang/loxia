@@ -1,17 +1,17 @@
 # Literal de mapa, chaves como expressões e leitura por índice.
 val vazio: Map[String, Int] = {}
-print vazio
-print {"a": 1}
+print(vazio)
+print({"a": 1})
 val nome = "dinamica"
 val m = {nome: 1, "a" + "b": 2}
-print m["dinamica"]
-print m["ab"]
-print len(m)
+print(m["dinamica"])
+print(m["ab"])
+print(len(m))
 fn total(m: Map[String, Int]) -> Int { return len(m) }
-print total({"x": 1, "y": 2})
-print total({})
+print(total({"x": 1, "y": 2}))
+print(total({}))
 fn make() -> Map[String, Bool] { return {"ok": true} }
-print make()
+print(make())
 # expect: {}
 # expect: {"a": 1}
 # expect: 1

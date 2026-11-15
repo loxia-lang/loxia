@@ -2,15 +2,15 @@
 fn id(x: Int?) -> Int? {
   return x;
 }
-print id(nil);  # expect: nil
-print id(5);    # expect: 5
+print(id(nil));  # expect: nil
+print(id(5));    # expect: 5
 
 fn soma(x: Int?) -> Int {
   if (x != nil) return x + 1;
   return 0;
 }
-print soma(nil);  # expect: 0
-print soma(4);    # expect: 5
+print(soma(nil));  # expect: 0
+print(soma(4));    # expect: 5
 
 fn make() -> fn() -> Int? {
   var x: Int?;
@@ -20,4 +20,4 @@ fn make() -> fn() -> Int? {
   };
 }
 val f = make();
-print f();  # expect: 3
+print(f());  # expect: 3

@@ -362,3 +362,154 @@ Intervalo: `c4a4511..HEAD` (cache do `runtime.o` no driver + `make test-fast`/
   motivo (o backend dominava a suíte de testes).
 - `README.md`, `Makefile`, `AGENTS.md` — **updated**: `make test-fast`/`check-fast` e
   `LOX_BUILD_CACHE` documentados.
+
+## 2026-11-15 — Nomenclatura: traits → interfaces (ADR-0080)
+
+Intervalo: `HEAD`..working tree (renomeação antes da implementação; sem mudança de
+comportamento observável).
+
+- `docs/adr/0080-interfaces-nominais-implementacao.md` — **novo** (accepted, plano):
+  desenho da v1 (sintaxe, tipos, defaults, conflitos, backend B1/B2) com o conceito
+  chamado de **interface**, não "trait".
+- `docs/adr/0038-traits-nominais.md` — **updated** (só cabeçalho): status
+  `superseded by ADR-0080 (nomenclatura)` e nota; corpo histórico preservado com "trait".
+- `docs/adr/README.md` — **updated**: linhas 0038 e 0080 no índice.
+- `docs/decisoes.md` — **updated**: linha "Interfaces (ex-traits)" apontando 0038+0080;
+  o freeze passa a dizer "interfaces".
+- `TODO.md`, `TIPOS.md`, `ESCOPO.md`, `IDEIAS.md`, `README.md` — **updated**: nomenclatura
+  viva; o item do Lox2 continua identificado como "traits".
+- `docs/spec/semantica.md` — **updated**: "até existir interface" na seção de generics
+  (nenhuma gramática nova).
+- `docs/spec/garantias.md` — **no-change**: a renomeação não muda I1–I4, corpus, canais
+  nem o contrato de memória.
+- `AGENTS.md` — **updated** (local): status e freeze com "interfaces".
+
+## 2026-11-15 — Interfaces nominais v1 (ADR-0080, fases T1–T8)
+
+Intervalo: `HEAD`..working tree (`interface`/`implements`, checker/tree-walk e backend B1).
+
+- `docs/spec/sintaxe.md` — **updated**: EBNF de `interfaceDecl`/`implements`, abstrato ×
+  default e `implements` contextual.
+- `docs/spec/semantica.md` — **updated**: seção Interfaces (nominal, conformidade,
+  defaults, ordem de resolução, `is`/`as` recusado, lacuna B1).
+- `docs/spec/lexico.md` — **updated**: `interface` na lista de palavras-chave.
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): dois casos novos em
+  `PENDING` (interfaces no backend B1).
+- `docs/spec/erros.md` — **no-change**: nenhum código de diagnóstico novo; a feature reusa
+  `E3015`/`E3017`/`E3005`/`E1005`/`E1004`/`E2005`.
+- `docs/adr/0066-orcamento-e-gate-sintatico.md` — **updated**: placar 28 palavras-chave e
+  6 formas de declaração.
+- `docs/adr/0080-interfaces-nominais-implementacao.md` — **updated**: status implementado
+  (tree-walk/checker + B1) e nota de entrega.
+- `docs/decisoes.md`, `TODO.md`, `TIPOS.md`, `ESCOPO.md`, `README.md` — **updated**:
+  status da v1 e pendência da ABI B2.
+- `editors/` — **updated** (`make grammar`): `interface` no grupo de declaração.
+- `docs/tech/arquitetura.md` — **updated**: `LoxInterface` na tabela de módulos.
+- `AGENTS.md` — **updated** (local): status da feature.
+
+## 2026-11-15 — Interfaces no backend (ADR-0080, fase B2)
+
+Intervalo: `HEAD`..working tree (ABI `interface_id` + `itab`, dispatch e casos no
+diferencial; sem mudança de sintaxe).
+
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): **136 casos** em `LEVELS`,
+  **0 em `PENDING`**; `interfaces.lx` e `interface_decl.lx` promovidos.
+- `docs/spec/semantica.md` — **updated**: conformidade por assinatura exata e ABI B2
+  (`itab` no descritor); a lacuna B1 sai da descrição corrente.
+- `docs/adr/0080-interfaces-nominais-implementacao.md` — **updated**: B2 implementada,
+  B1 marcada como histórico e assinatura exata documentada.
+- `docs/spec/erros.md` — **no-change**: nenhum código de diagnóstico novo.
+- `docs/decisoes.md`, `TODO.md`, `TIPOS.md`, `ESCOPO.md`, `README.md`, `AGENTS.md` —
+  **updated**: interfaces implementadas no tree-walk/checker e no backend; falta só
+  constraints.
+
+## 2026-11-15 — Constraints em funções genéricas (ADR-0081)
+
+Intervalo: `HEAD`..working tree (sintaxe `T: Ord + Num + Interface`, checker, stdlib e
+caso no corpus; backend inalterado).
+
+- `docs/adr/0081-constraints-generics.md` — **new**: desenho de bounds, `Ord`/`Num`,
+  regras de operador, checagem na chamada, limites da v1 e stdlib.
+- `docs/spec/sintaxe.md` — **updated**: `functionTypeParameters`/`typeParameter`/
+  `constraint` no EBNF e prosa (só funções aceitam bounds).
+- `docs/spec/semantica.md` — **updated**: `Ord`/`Num`/interface, operadores, métodos e
+  checagem de type arguments; classes/enums sem bounds.
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): **137 casos** em `LEVELS`,
+  **0 em `PENDING`**; `generic_constraints.lx` no `t7`.
+- `docs/spec/erros.md` — **updated** (`make docs-sync`): contagem de `E3001` mudou com
+  os bounds; nenhum código novo.
+- `docs/decisoes.md`, `TODO.md`, `TIPOS.md`, `ESCOPO.md`, `README.md`, `AGENTS.md` —
+  **updated**: constraints de função implementadas; classes/enums e interfaces genéricas
+  seguem pós-MVP.
+- `docs/adr/0038-traits-nominais.md` e `docs/adr/README.md` — **updated**: constraints
+  entregues pelo ADR-0081, sem reabrir o modelo nominal.
+
+## 2026-11-15 — Iterador de usuário no `for-in` (ADR-0082)
+
+Intervalo: `HEAD`..working tree (protocolo `iter()`/`next() -> T?`, checker, tree-walk,
+backend e caso no corpus; sem sintaxe nova).
+
+- `docs/adr/0082-iterador-de-usuario.md` — **new**: protocolo estrutural, regras de
+  checker, runtime, backend e limites (`nil` como sentinela, iterador stateful).
+- `docs/adr/0007-ranges-e-iteracao.md` — **updated**: status aponta para o ADR-0082 e a
+  fonte fechada deixa de ser a única.
+- `docs/spec/semantica.md` — **updated**: fontes de `for-in`, protocolo de usuário,
+  erros e `nil` como fim.
+- `docs/spec/erros.md` — **updated** (`make docs-sync`): contagem e mensagens de iterador.
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): **138 casos** em `LEVELS`,
+  **0 em `PENDING`**; `user_iterator.lx` no `l6`.
+- `docs/decisoes.md`, `TODO.md`, `ESCOPO.md`, `README.md`, `AGENTS.md` — **updated**:
+  iterador de usuário implementado no tree-walk/checker/backend.
+
+## 2026-11-15 — Variádicos `...args` e spread final (ADR-0083)
+
+Intervalo: `HEAD`..working tree (token `...`, parâmetro/spread, checker, tree-walk,
+backend e stdlib; `fmt.format` migrado).
+
+- `docs/adr/0083-variadicos.md` — **new**: assinatura `...xs: T`, spread final, regras,
+  ABI, stdlib e alternativas.
+- `docs/spec/sintaxe.md` — **updated**: `parameter`/`arguments`/`spread` no EBNF e prosa.
+- `docs/spec/semantica.md` — **updated**: variádicos, spread, `init` fora e `FnTy`.
+- `docs/spec/erros.md` — **updated**: mensagens de variádico/spread.
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): **139 casos** em `LEVELS`,
+  **0 em `PENDING`**; `variadic.lx` no `l6`.
+- `docs/adr/0072-stdlib-batteries.md` — **updated**: `fmt.format` agora variádico.
+- `docs/decisoes.md`, `TODO.md`, `ESCOPO.md`, `README.md`, `AGENTS.md` — **updated**:
+  variádicos e `fmt.format`.
+- `editors/` — **updated** (`make grammar`): `...` como operador.
+
+## 2026-11-15 — `type` alias transparente (ADR-0084)
+
+Intervalo: `HEAD`..working tree (`type Nome = Tipo`, resolução no checker, tree-walk,
+backend e módulos; sem runtime novo).
+
+- `docs/adr/0084-type-alias.md` — **new**: implementação do item 4 do ADR-0039,
+  transparência, forward references/ciclos, backend, módulos e limites.
+- `docs/adr/0039-decisoes-tipos-pendentes.md` — **updated**: item 4 aponta para a
+  implementação.
+- `docs/spec/sintaxe.md` — **updated**: `typeAliasDecl` no EBNF e prosa.
+- `docs/spec/semantica.md` — **updated**: alias transparente, expansão e limites.
+- `docs/spec/erros.md` — **updated**: mensagens de alias.
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): **140 casos** em `LEVELS`,
+  **0 em `PENDING`**; `type_alias.lx` no `l6`.
+- `docs/decisoes.md`, `TODO.md`, `TIPOS.md`, `ESCOPO.md`, `README.md`, `AGENTS.md` —
+  **updated**: type alias implementado.
+
+## 2026-11-15 — `print` como função builtin (ADR-0085)
+
+Intervalo: `HEAD`..working tree (statement/palavra-chave removidos, `print(valor)` nos dois
+motores; migração mecânica de corpus, suíte oficial, exemplos, stdlib e bench).
+
+- `docs/adr/0085-print-como-funcao.md` — **new**: `Any -> Nil`, REPL, backend, migração e
+  orçamento (27 palavras-chave, 10 statements).
+- `docs/adr/0026-freeze-1.0.md` — **updated**: item 4 substituído; histórico mantido.
+- `docs/adr/0066-orcamento-e-gate-sintatico.md` — **updated**: placar 28→27 e 11→10.
+- `docs/spec/sintaxe.md` — **updated**: `printStmt` removido; `print(valor)` builtin.
+- `docs/spec/semantica.md` — **updated**: `print` como função, REPL e tabela de statements.
+- `docs/spec/lexico.md`/`erros.md` — **updated**: keyword e mensagem de `print` removidas.
+- `docs/spec/garantias.md` — **updated** (`make docs-sync`): **141 casos** em `LEVELS`,
+  **0 em `PENDING`**; `print_function.lx` no `l6`.
+- `docs/decisoes.md`, `TODO.md`, `ESCOPO.md`, `README.md`, `AGENTS.md`,
+  `tests/official/README.md` — **updated**: `print` função e migração.
+- `tests/official/cases`, `tests/cases`, `exemplos`, `std`, `bench` — **updated**:
+  1.265 chamadas `print` migradas em 282 arquivos; testes Python e docs ajustados.

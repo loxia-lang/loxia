@@ -4,7 +4,7 @@ import pytest
 
 from src.frontend.ast_printer import AstPrinter
 from src.frontend.destructuring import NamePattern, TuplePattern, pattern_names
-from src.frontend.expr import Is, Lambda, MapLiteral, Match
+from src.frontend.expr import Call, Is, Lambda, MapLiteral, Match, Variable
 from src.frontend.parser import Parser
 from src.frontend.scanner import Scanner
 from src.frontend.stmt import (
@@ -15,11 +15,11 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
-    Print,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -66,16 +66,16 @@ def test_precedence_and_ast_shape(expression: str, expected: str) -> None:
 
 
 def test_parses_statements() -> None:
-    statements = parse("var a = 1; print a; if (a) print 0; while (a) a = 0;")
+    statements = parse("var a = 1; print(a); if (a) print(0); while (a) a = 0;")
 
     assert isinstance(statements[0], Var)
-    assert isinstance(statements[1], Print)
+    assert isinstance(statements[1], Expression)
     assert isinstance(statements[2], If)
     assert isinstance(statements[3], While)
 
 
 def test_parses_for_in_statement() -> None:
-    statements = parse("for i in 0..3 print i;")
+    statements = parse("for i in 0..3 print(i);")
 
     assert isinstance(statements[0], ForIn)
     assert statements[0].name.lexeme == "i"
@@ -98,20 +98,20 @@ def test_missing_semicolon_reports_error_and_recovers() -> None:
 
 
 def test_newline_ends_statement_without_semicolon() -> None:
-    statements = parse("val a = 1\nprint a\n")
+    statements = parse("val a = 1\nprint(a)\n")
 
     assert len(statements) == 2
     assert isinstance(statements[0], Var)
-    assert isinstance(statements[1], Print)
+    assert isinstance(statements[1], Expression)
 
 
 def test_elif_is_nested_if() -> None:
-    statements = parse("if (a) print 1\nelif (b) print 2\nelse print 3")
+    statements = parse("if (a) print(1)\nelif (b) print(2)\nelse print(3)")
 
     outer = statements[0]
     assert isinstance(outer, If)
     assert isinstance(outer.else_branch, If)
-    assert isinstance(outer.else_branch.else_branch, Print)
+    assert isinstance(outer.else_branch.else_branch, Expression)
 
 
 def test_return_at_line_end_is_bare() -> None:
@@ -151,16 +151,16 @@ def test_invalid_assignment_target_reports_error() -> None:
 
 
 def test_error_recovery_keeps_parsing_after_bad_declaration() -> None:
-    parser = parser_for("var = 1;\nprint 2;")
+    parser = parser_for("var = 1;\nprint(2);")
     statements = parser.parse()
 
     assert parser.reporter.had_error
     assert statements is not None
     assert len(statements) == 1
-    assert isinstance(statements[0], Print)
+    assert isinstance(statements[0], Expression)
 
 
-@pytest.mark.parametrize("source", ["1 + 1", "1 + 1;", "print 1", "var x = 5"])
+@pytest.mark.parametrize("source", ["1 + 1", "1 + 1;", "print(1)", "var x = 5"])
 def test_repl_accepts_missing_final_semicolon(source: str) -> None:
     parser = parser_for(source, repl=True)
     statements = parser.parse_repl()
@@ -173,7 +173,19 @@ def test_repl_wraps_bare_expression_in_print() -> None:
     statements = parser_for("1 + 1", repl=True).parse_repl()
 
     assert statements is not None
-    assert isinstance(statements[0], Print)
+    assert isinstance(statements[0], Expression)
+    assert isinstance(statements[0].expression, Call)
+    callee = statements[0].expression.callee
+    assert isinstance(callee, Variable)
+    assert callee.name.lexeme == "print"
+
+
+def test_repl_does_not_double_print_explicit_print() -> None:
+    statements = parser_for("print(1)", repl=True).parse_repl()
+
+    assert statements is not None
+    assert isinstance(statements[0], Expression)
+    assert isinstance(statements[0].expression, Call)
 
 
 def test_repl_keeps_statements_as_statements() -> None:
@@ -228,7 +240,7 @@ def test_list_and_index_ast_shape(expression: str, expected: str) -> None:
 
 
 def test_empty_index_reports_error() -> None:
-    parser = parser_for("print xs[];")
+    parser = parser_for("print(xs[]);")
     parser.parse()
 
     assert parser.reporter.had_error
@@ -488,9 +500,9 @@ def test_parameters_can_be_var() -> None:
 
 
 def test_parse_as_binds_tighter_than_addition() -> None:
-    statements = parse("print 3.9 as Int + 1;")
+    statements = parse("print(3.9 as Int + 1);")
     printed = statements[0]
-    assert isinstance(printed, Print)
+    assert isinstance(printed, Expression)
 
 
 def test_tuple_literal_and_grouping() -> None:
@@ -550,6 +562,78 @@ def test_tuple_parse_errors(source: str) -> None:
     assert parser.reporter.had_error
 
 
+def test_parses_type_param_bounds() -> None:
+    statements = parse(
+        "fn f[T: Ord + Forma, U: Num](a: T, b: U) -> T { return a; }"
+    )
+
+    function = statements[0]
+    assert isinstance(function, Function)
+    assert [token.lexeme for token in function.type_params] == ["T", "U"]
+    assert [
+        [token.lexeme for token in bounds]
+        for bounds in function.type_param_bounds
+    ] == [["Ord", "Forma"], ["Num"]]
+
+
+def test_class_type_param_bounds_are_rejected() -> None:
+    parser = parser_for("class C[T: Ord] {}")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_parses_type_alias() -> None:
+    statements = parse("type UserId = Int;")
+
+    alias = statements[0]
+    assert isinstance(alias, TypeAlias)
+    assert alias.name.lexeme == "UserId"
+    assert display(alias.target) == "Int"
+
+
+def test_generic_type_alias_is_rejected() -> None:
+    parser = parser_for("type BoxAlias[T] = List[T];")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_parses_variadic_parameter_and_spread_call() -> None:
+    statements = parse(
+        'fn f(a: Int, ...xs: String) -> Int { return a; }'
+        ' f(1, ...["a", "b"]);'
+    )
+
+    function = statements[0]
+    assert isinstance(function, Function)
+    assert function.params[0].variadic is False
+    assert function.params[1].variadic is True
+
+    call = statements[1]
+    assert isinstance(call, Expression)
+    assert isinstance(call.expression, Call)
+    assert call.expression.spread is True
+    assert len(call.expression.arguments) == 2
+
+
+def test_variadic_parameter_must_be_last() -> None:
+    parser = parser_for("fn f(...xs: Int, y: Int) -> Int { return y; }")
+    parser.parse()
+
+    assert parser.reporter.had_error
+
+
+def test_parses_variadic_function_type() -> None:
+    statements = parse("val f: fn(String, ...Int) -> String = fn(p, ...xs) => p;")
+
+    var = statements[0]
+    assert isinstance(var, Var)
+    annotation = var.type_annotation
+    assert annotation is not None
+    assert display(annotation) == "fn(String, ...Int) -> String"
+
+
 def test_generic_class_and_type_arguments() -> None:
     statements = parse(
         "class Box[T] { var value: T; init(value: T) { this.value = value; } "
@@ -601,8 +685,8 @@ def test_enum_and_match_parse() -> None:
 
 def test_try_and_raise_parse() -> None:
     statements = parse(
-        'try { raise "x"; } except RuntimeError as e { print e; } '
-        "finally { print 1; }"
+        'try { raise "x"; } except RuntimeError as e { print(e); } '
+        "finally { print(1); }"
     )
 
     first = statements[0]

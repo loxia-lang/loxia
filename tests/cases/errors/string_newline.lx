@@ -1,4 +1,4 @@
 # `"..."` é de uma linha; quebra de linha pede `"""..."""` (ADR-0070).
-print "a
+print("a
 # expect error: multiline strings use '"""'
 # expect exit: 65

@@ -15,6 +15,6 @@ fn ehPrimo(n: Int) -> Bool {
 
 for n in 0..50 {
   if (ehPrimo(n)) {
-    print n;
+    print(n);
   }
 }

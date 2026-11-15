@@ -2,19 +2,19 @@ val total = (
   1
   + 2
 )
-print total # expect: 3
+print(total) # expect: 3
 
 val xs = [
   10
   - 3,
   4
 ]
-print xs[0] # expect: 7
-print len(xs) # expect: 2
+print(xs[0]) # expect: 7
+print(len(xs)) # expect: 2
 
 fn soma(a: Int, b: Int) -> Int { return a + b }
-print soma(
+print(soma(
   1
   + 2,
   4
-) # expect: 7
+)) # expect: 7

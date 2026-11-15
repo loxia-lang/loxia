@@ -1,13 +1,13 @@
 # str: forma de exibição; repr: forma de debug (string citada/escapada).
-print str("a")
-print repr("a")
-print str([1, "a"])
-print repr([1, "a"])
-print repr("a\nb")
-print str(nil)
-print repr(nil)
-print str(1.0)
-print repr(1.0)
+print(str("a"))
+print(repr("a"))
+print(str([1, "a"]))
+print(repr([1, "a"]))
+print(repr("a\nb"))
+print(str(nil))
+print(repr(nil))
+print(str(1.0))
+print(repr(1.0))
 # expect: a
 # expect: "a"
 # expect: [1, "a"]

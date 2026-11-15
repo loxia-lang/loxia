@@ -91,11 +91,12 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
-    Print,
+    Interface,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -132,6 +133,7 @@ class Lowerer(
         generic_instances: Any = None,
         generic_classes: Any = None,
         generic_class_sites: Any = None,
+        type_aliases: dict[str, Ty] | None = None,
         source_path: str = "<lox>",
     ) -> None:
         self.module: Any = module
@@ -141,6 +143,7 @@ class Lowerer(
         self.generic_instances = generic_instances or {}
         self.generic_classes = generic_classes or set()
         self.generic_class_sites = generic_class_sites or {}
+        self.type_aliases = type_aliases or {}
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
@@ -174,6 +177,15 @@ class Lowerer(
         self._generic_class_by_source: dict[str, list[ClassLayout]] = {}
         self._generic_class_nodes: dict[str, Class] = {}
         self._generic_descriptors: dict[str, Any] = {}
+        self._interface_ids: dict[str, int] = {}
+        self._interface_nodes: dict[str, Interface] = {}
+        self._interface_method_names: dict[str, tuple[str, ...]] = {}
+        self._interface_method_infos: dict[str, dict[str, FunctionInfo]] = {}
+        self._interface_default_closures: dict[str, dict[str, Value]] = {}
+        self._interface_default_globals: dict[str, dict[str, Any]] = {}
+        self._interface_thunks: dict[tuple[str, str], Any] = {}
+        self._emitted_generic_classes: set[str] = set()
+        self._pending_generic_classes: list[ClassLayout] = []
 
     # --- programa ---
 
@@ -182,8 +194,10 @@ class Lowerer(
         self._prepare_generics(statements)
         self._prepare_enums(statements)
         self._prepare_exception_classes()
+        self._prepare_interface_ids(statements)
         self._predeclare_classes(statements)
         self._prepare_generic_classes(statements)
+        self._prepare_interface_signatures()
         self._predeclare_functions(statements)
 
         main = llvm_ir.define_main(self.module)
@@ -204,11 +218,15 @@ class Lowerer(
             [init_path, main.args[0], main.args[1]],
         )
         self._emit_exception_classes()
+        self._emit_interface_defaults()
+        self._drain_pending_generic_classes()
 
         for statement in statements:
             if self.builder.block.is_terminated:
                 break
             self._stmt(statement)
+            if self._function_ir is self.main:
+                self._drain_pending_generic_classes()
 
         if not self.builder.block.is_terminated:
             self.builder.ret(llvm_ir.constant(_I32, 0))
@@ -265,6 +283,12 @@ class Lowerer(
                 self._local_function(stmt)
         elif isinstance(stmt, Class):
             self._class_declaration(stmt)
+        elif isinstance(stmt, Interface):
+            # Tipo apagado em runtime; defaults são emitidos no bootstrap.
+            return
+        elif isinstance(stmt, TypeAlias):
+            # Tipo transparente: só o checker/backend usam o alvo.
+            return
         elif isinstance(stmt, Var):
             self._var(stmt)
         elif isinstance(stmt, If):
@@ -281,8 +305,6 @@ class Lowerer(
             self._try(stmt)
         elif isinstance(stmt, Raise):
             self._raise(stmt)
-        elif isinstance(stmt, Print):
-            self._print(stmt)
         elif isinstance(stmt, Expression):
             self._expr(stmt.expression)
         else:
@@ -329,13 +351,6 @@ class Lowerer(
             self.builder.branch(header)
 
         self.builder = llvm_ir.builder(end)
-
-    def _print(self, stmt: Print) -> None:
-        value = self._expr(stmt.expression)
-        if value.optional:
-            self._print_optional(value)
-        else:
-            self._print_value(value)
 
     def _print_value(self, value: Value) -> None:
         match value.ty:
@@ -1283,6 +1298,16 @@ class Lowerer(
         ):
             return right_desc
 
+        if (
+            left.ty is ValueType.INSTANCE
+            and right.ty is ValueType.INSTANCE
+            and not left.optional
+            and not right.optional
+        ):
+            # Duas classes concretas: o ponteiro é representável; o tipo comum
+            # fica dinâmico até uma coerção para interface/classe.
+            return TypeDesc(ValueType.INSTANCE)
+
         raise BackendError(
             f"Ternary branches are {left.ty.name} and {right.ty.name}; "
             "union types are not supported by the backend yet.",
@@ -1318,7 +1343,13 @@ class Lowerer(
         some_end = self.builder.block
 
         self.builder = llvm_ir.builder(nothing)
-        inner = TypeDesc(left.ty, left.sig, False, left.class_name)
+        inner = TypeDesc(
+            left.ty,
+            left.sig,
+            False,
+            left.class_name,
+            left.interface_name,
+        )
         try:
             right = self._coerce(
                 self._expr(expr.right),
@@ -1558,6 +1589,7 @@ def lower_program(
     generic_instances: Any = None,
     generic_classes: Any = None,
     generic_class_sites: Any = None,
+    type_aliases: dict[str, Ty] | None = None,
     source_path: str = "<lox>",
 ) -> Any:
     module = llvm_ir.new_module()
@@ -1568,6 +1600,7 @@ def lower_program(
         generic_instances=generic_instances,
         generic_classes=generic_classes,
         generic_class_sites=generic_class_sites,
+        type_aliases=type_aliases,
         source_path=source_path,
     ).lower(statements)
     return module

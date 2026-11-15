@@ -1,14 +1,14 @@
 # Igualdade estrutural de listas.
 val aninhada: List[Any] = [1, [2, 3]]
 val outra: List[Any] = [1, [2, 3]]
-print [1, 2] == [1, 2]
-print [1, 2] == [2, 1]
-print aninhada == outra
-print [1, 2] != [1, 2]
-print [1, 2] == [1, 2.0]
-print 1 == [1]
+print([1, 2] == [1, 2])
+print([1, 2] == [2, 1])
+print(aninhada == outra)
+print([1, 2] != [1, 2])
+print([1, 2] == [1, 2.0])
+print(1 == [1])
 val vazia: List[Int] = []
-print nil == vazia
+print(nil == vazia)
 # expect: true
 # expect: false
 # expect: true

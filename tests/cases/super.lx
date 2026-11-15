@@ -1,13 +1,13 @@
 class A {
   method() -> Nil {
-    print "A";
+    print("A");
   }
 }
 
 class B(A) {
   method() -> Nil {
     super.method();
-    print "B";
+    print("B");
   }
 }
 

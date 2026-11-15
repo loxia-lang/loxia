@@ -4,7 +4,7 @@ fn makeAdder(n: Int) -> fn(Int) -> Int {
 }
 
 val add = makeAdder(10);
-print add(5);  # expect: 15
+print(add(5));  # expect: 15
 
 fn makeCounter() -> fn() -> Int {
   var n = 0;
@@ -15,6 +15,6 @@ fn makeCounter() -> fn() -> Int {
 }
 
 val counter = makeCounter();
-print counter();  # expect: 1
-print counter();  # expect: 2
-print counter;    # expect: <lambda>
+print(counter());  # expect: 1
+print(counter());  # expect: 2
+print(counter);    # expect: <lambda>

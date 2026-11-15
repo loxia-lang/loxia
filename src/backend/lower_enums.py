@@ -294,6 +294,7 @@ class EnumLowering(LoweringBase):
                             desc.fn,
                             desc.optional,
                             class_name=desc.class_name,
+                            interface_name=desc.interface_name,
                         )
                 value = self._coerce(
                     self._expr(arm.body), result_desc, expr.keyword.line
@@ -330,4 +331,5 @@ class EnumLowering(LoweringBase):
             result_desc.fn,
             result_desc.optional,
             result_desc.class_name,
+            interface_name=result_desc.interface_name,
         )

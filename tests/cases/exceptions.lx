@@ -6,25 +6,25 @@ class MyError(Exception) {
 try {
   raise MyError("falhou")
 } except MyError as e {
-  print "meu: ${e.message}"
+  print("meu: ${e.message}")
 } finally {
-  print "fim"
+  print("fim")
 }
 
 try {
-  print 1 / 0
+  print(1 / 0)
 } except RuntimeError as e {
-  print "runtime"
+  print("runtime")
 }
 
 try { raise MyError("x") }
-except RuntimeError as e { print "errado" }
-except Exception as e { print "generico" }
+except RuntimeError as e { print("errado") }
+except Exception as e { print("generico") }
 
 fn f() -> Int {
   try { return 1 } finally { return 2 }
 }
-print f()
+print(f())
 # expect: meu: falhou
 # expect: fim
 # expect: runtime

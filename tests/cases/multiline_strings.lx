@@ -1,10 +1,10 @@
 # Strings com """ (ADR-0070): multilinha, aspas livres e interpolação.
-print """linha 1
-linha 2"""
-print """ele disse "oi" e ""duas"" aspas"""
-print """valor: ${1 + 2}"""
-print """vazia: []"""
-print """"""
+print("""linha 1
+linha 2""")
+print("""ele disse "oi" e ""duas"" aspas""")
+print("""valor: ${1 + 2}""")
+print("""vazia: []""")
+print("""""")
 # expect: linha 1
 # expect: linha 2
 # expect: ele disse "oi" e ""duas"" aspas

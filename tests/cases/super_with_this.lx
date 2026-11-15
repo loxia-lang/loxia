@@ -17,5 +17,5 @@ class Derived(Base) {
 }
 
 var d = Derived(5);
-print d.x;        # expect: 15
-print d.soma(1);  # expect: 16
+print(d.x);        # expect: 15
+print(d.soma(1));  # expect: 16

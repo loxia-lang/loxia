@@ -17,6 +17,7 @@ from src.execution.lox_enum import LoxEnumObject, LoxEnumValue
 from src.execution.lox_exception import LoxExceptionClass, LoxExceptionValue
 from src.execution.lox_function import LoxFunction
 from src.execution.lox_instance import LoxInstance
+from src.execution.lox_interface import LoxInterface
 from src.execution.lox_list import LoxList
 from src.execution.lox_map import LoxMap
 from src.execution.lox_range import LoxRange
@@ -25,6 +26,7 @@ from src.execution.native_module import NativeModule
 from src.execution.natives.chars import Chars
 from src.execution.natives.len import Len
 from src.execution.natives.modules import float_module, int_module, math_module
+from src.execution.natives.print import Print
 from src.execution.natives.range import RangeNative
 from src.execution.natives.repr import Repr
 from src.execution.natives.str import Str
@@ -76,18 +78,32 @@ from src.frontend.stmt import (
     Function,
     If,
     Import,
-    Print,
+    Interface,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
 from src.frontend.stmt import Visitor as StmtVisitor
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
-from src.frontend.ty import ANY, FLOAT, INT, ClassTy, EnumTy, UnionTy, display
+from src.frontend.ty import (
+    ANY,
+    FLOAT,
+    INT,
+    ClassTy,
+    EnumTy,
+    FnTy,
+    ListTy,
+    MapTy,
+    TupleTy,
+    Ty,
+    UnionTy,
+    display,
+)
 
 _RELATIONAL = frozenset(
     {
@@ -112,10 +128,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.argv = list(argv or [])
         self.globals = Environment()
         self.environment = self.globals
+        self._type_aliases: dict[str, Ty] = {}
         self.locals: dict[Expr, int] = {}
+        self.interfaces: dict[str, LoxInterface] = {}
         self._current_exception: object | None = None
         self.globals.define("chars", Chars(), mutable=False)
         self.globals.define("len", Len(), mutable=False)
+        self.globals.define("print", Print(), mutable=False)
         self.globals.define("range", RangeNative(), mutable=False)
         self.globals.define("repr", Repr(), mutable=False)
         self.globals.define("str", Str(), mutable=False)
@@ -151,6 +170,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         )
 
     def interpret(self, statements: list[Stmt]) -> None:
+        for statement in statements:
+            if isinstance(statement, TypeAlias):
+                self._type_aliases[statement.name.lexeme] = statement.target
         try:
             for statement in statements:
                 self._execute(statement)
@@ -497,14 +519,60 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
 
+    def _expand_type_aliases(
+        self, ty: Ty, seen: frozenset[str] = frozenset()
+    ) -> Ty:
+        if isinstance(ty, ClassTy):
+            if ty.name in self._type_aliases and ty.name not in seen:
+                return self._expand_type_aliases(
+                    self._type_aliases[ty.name], seen | {ty.name}
+                )
+            return ClassTy(
+                ty.name,
+                tuple(self._expand_type_aliases(arg, seen) for arg in ty.args),
+            )
+        if isinstance(ty, EnumTy):
+            return EnumTy(
+                ty.name,
+                tuple(self._expand_type_aliases(arg, seen) for arg in ty.args),
+            )
+        if isinstance(ty, ListTy):
+            return ListTy(self._expand_type_aliases(ty.element, seen))
+        if isinstance(ty, MapTy):
+            return MapTy(
+                self._expand_type_aliases(ty.key, seen),
+                self._expand_type_aliases(ty.value, seen),
+            )
+        if isinstance(ty, TupleTy):
+            return TupleTy(
+                tuple(self._expand_type_aliases(item, seen) for item in ty.items)
+            )
+        if isinstance(ty, FnTy):
+            return FnTy(
+                tuple(self._expand_type_aliases(item, seen) for item in ty.params),
+                self._expand_type_aliases(ty.ret, seen),
+                ty.min_params,
+                ty.variadic,
+            )
+        if isinstance(ty, UnionTy):
+            return UnionTy(
+                tuple(self._expand_type_aliases(item, seen) for item in ty.members)
+            )
+
+        return ty
+
+    def visit_type_alias_stmt(self, stmt: TypeAlias) -> None:
+        self._type_aliases[stmt.name.lexeme] = stmt.target
+
     def visit_is_expr(self, expr: Is) -> object:
-        if isinstance(expr.test_type, ClassTy) and expr.test_type.args:
+        test_type = self._expand_type_aliases(expr.test_type)
+        if isinstance(test_type, ClassTy) and test_type.args:
             raise LoxRuntimeError(
                 expr.operator,
                 "is doesn't support type arguments on classes yet.",
                 code=Code.INVALID_VALUE,
             )
-        if isinstance(expr.test_type, EnumTy) and expr.test_type.args:
+        if isinstance(test_type, EnumTy) and test_type.args:
             raise LoxRuntimeError(
                 expr.operator,
                 "is doesn't support type arguments on enums yet.",
@@ -512,11 +580,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
 
         value = self._evaluate(expr.left)
-        return matches_type(value, expr.test_type, self._class_for_type)
+        return matches_type(value, test_type, self._class_for_type)
 
     def visit_as_expr(self, expr: As) -> object:
         value = self._evaluate(expr.left)
-        target = expr.target_type
+        target = self._expand_type_aliases(expr.target_type)
 
         if isinstance(target, ClassTy) and target.args:
             raise LoxRuntimeError(
@@ -717,8 +785,18 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return None
 
         arguments: list[object] = []
-        for argument in expr.arguments:
+        fixed_arguments = expr.arguments[:-1] if expr.spread else expr.arguments
+        for argument in fixed_arguments:
             arguments.append(self._evaluate(argument))
+        if expr.spread:
+            spread = self._evaluate(expr.arguments[-1])
+            if not isinstance(spread, LoxList):
+                raise LoxRuntimeError(
+                    expr.paren,
+                    "Spread argument must be a list.",
+                    code=Code.RUNTIME_OPERANDS,
+                )
+            arguments.extend(spread.elements)
 
         if not isinstance(callee, LoxCallable):
             raise LoxRuntimeError(
@@ -890,6 +968,19 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             expr.keyword, "No match arm matched.", code=Code.INVALID_VALUE
         )
 
+    def visit_interface_stmt(self, stmt: Interface) -> None:
+        defaults: dict[str, LoxFunction] = {}
+        for method in stmt.methods:
+            if method.abstract:
+                continue
+            defaults[method.name.lexeme] = LoxFunction(
+                method, self.environment, False
+            )
+
+        self.interfaces[stmt.name.lexeme] = LoxInterface(
+            stmt.display_name or stmt.name.lexeme, defaults
+        )
+
     def visit_class_stmt(self, stmt: Class) -> None:
         self._reject_immutable_redeclaration(stmt.name)
 
@@ -904,6 +995,17 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 )
 
             superclass = candidate
+
+        interfaces: list[LoxInterface] = []
+        for token in stmt.implements:
+            interface = self.interfaces.get(token.lexeme)
+            if interface is None:
+                raise LoxRuntimeError(
+                    token,
+                    f"Unknown interface '{token.lexeme}'.",
+                    code=Code.INVALID_VALUE,
+                )
+            interfaces.append(interface)
 
         self.environment.define(stmt.name.lexeme, None)
 
@@ -939,6 +1041,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             superclass,
             methods,
             fields,
+            interfaces,
         )
 
         if stmt.superclass is not None:
@@ -1072,12 +1175,45 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return self._iterate_map(name, iterable)
         if isinstance(iterable, LoxTuple):
             return iter(iterable.items)
+        if isinstance(iterable, LoxInstance):
+            return self._iterate_instance(name, iterable)
 
         raise LoxRuntimeError(
             name,
             "Can only iterate over a range, a list, a map or a string.",
             code=Code.RUNTIME_ITERATION,
         )
+
+    def _iterate_instance(
+        self, name: Token, instance: LoxInstance
+    ) -> Iterator[object]:
+        iterator = self._iterator_method(instance, "iter", name)
+        if not isinstance(iterator, LoxInstance):
+            raise LoxRuntimeError(
+                name,
+                "iter() must return an instance with next() -> T?.",
+                code=Code.RUNTIME_ITERATION,
+            )
+
+        while True:
+            value = self._iterator_method(iterator, "next", name)
+            if value is None:
+                return
+            yield value
+
+    def _iterator_method(
+        self, instance: LoxInstance, method_name: str, token: Token
+    ) -> object:
+        method = instance.get(
+            Token(TokenType.IDENTIFIER, method_name, None, token.line)
+        )
+        if not isinstance(method, LoxCallable) or method.min_arity() != 0:
+            raise LoxRuntimeError(
+                token,
+                f"{method_name}() must take no arguments.",
+                code=Code.RUNTIME_ITERATION,
+            )
+        return method.call(self, [])
 
     def _iterate_list(self, name: Token, values: LoxList) -> Iterator[object]:
         version = values.version
@@ -1123,10 +1259,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "Can't modify a map while iterating over it.",
                 code=Code.RUNTIME_ITERATION,
             )
-
-    def visit_print_stmt(self, stmt: Print) -> None:
-        value = self._evaluate(stmt.expression)
-        print(stringify(value))
 
     def visit_return_stmt(self, stmt: Return) -> None:
         value: object = None

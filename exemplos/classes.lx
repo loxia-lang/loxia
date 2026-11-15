@@ -9,7 +9,7 @@ class Animal {
   }
 
   falar() -> Nil {
-    print this.nome + " faz um som.";
+    print(this.nome + " faz um som.");
   }
 }
 
@@ -21,11 +21,11 @@ class Cachorro(Animal) {
   }
 
   falar() -> Nil {
-    print this.nome + " late.";
+    print(this.nome + " late.");
   }
 }
 
 var rex = Cachorro("Rex", "vira-lata");
 rex.falar();
-print rex.raca;
-print rex.sexo;
+print(rex.raca);
+print(rex.sexo);

@@ -1,13 +1,13 @@
 val i: Any = 1;
 val s: Any = "a";
 val b: Any = true;
-print i is Int;  # expect: true
-print i as Int;  # expect: 1
-print s is String;  # expect: true
-print s as String;  # expect: a
-print b is Bool;  # expect: true
-print b as Bool;  # expect: true
-print i == 1;  # expect: true
-print i == 1.0;  # expect: true
-print i != s;  # expect: true
-print i as Int + 1;  # expect: 2
+print(i is Int);  # expect: true
+print(i as Int);  # expect: 1
+print(s is String);  # expect: true
+print(s as String);  # expect: a
+print(b is Bool);  # expect: true
+print(b as Bool);  # expect: true
+print(i == 1);  # expect: true
+print(i == 1.0);  # expect: true
+print(i != s);  # expect: true
+print(i as Int + 1);  # expect: 2

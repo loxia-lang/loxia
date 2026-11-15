@@ -2,9 +2,9 @@
 
 Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):
 
-    print 1 + 2;                       # expect: 3
+    print(1 + 2);                       # expect: 3
     # expect runtime error: Undefined variable 'a'.
-    # expect error: Expect ';' after value.
+    # expect error: Expect ';' after expression.
     # expect exit: 65
 
 O runner executa `main.py` como subprocesso para testar o CLI de verdade

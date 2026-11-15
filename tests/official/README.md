@@ -9,8 +9,9 @@ Casos copiados do repositório oficial:
 - os arquivos `.lx` são MIT; o `LICENSE` original está em [`LICENSE`](LICENSE).
 
 Os arquivos são mantidos **como no original** (`fun`, comentários `//`, campos
-dinâmicos). O runner [`../test_official_suite.py`](../test_official_suite.py) adapta na
-hora:
+dinâmicos), com uma exceção mecânica: `print expr;` virou `print(expr);` porque o
+statement foi removido ([ADR-0085](../../docs/adr/0085-print-como-funcao.md)). O runner
+[`../test_official_suite.py`](../test_official_suite.py) adapta na hora:
 
 1. `fun` → `fn` (nossa keyword);
 2. comentários `//` → `#` (nossa sintaxe; `//` virou divisão);
@@ -30,7 +31,8 @@ hora:
    stderr/exit 70, `// [line N] Error...` → erro de compilação/exit 65;
 8. `clock` foi removido da 1.0 ([ADR-0026](../../docs/adr/0026-freeze-1.0.md)); em
    `function/print.lx`, ele é trocado por `len`, que também imprime `<native fn>`.
-9. para o `--check`, [`../official_annotations.py`](../official_annotations.py) aplica uma
+9. `print expr;` já está migrado para `print(expr);` nos `.lx` (ADR-0085);
+10. para o `--check`, [`../official_annotations.py`](../official_annotations.py) aplica uma
    camada dinâmica (`Any`) sobre a fonte adaptada — os `.lx` originais continuam
    intactos. [`../test_official_check.py`](../test_official_check.py) cobre os **59
    positivos**; os 56 negativos esperam erro (e não são anotáveis) e os 7 `xfail` de campo

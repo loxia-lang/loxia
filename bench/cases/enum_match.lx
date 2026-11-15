@@ -20,4 +20,4 @@ while (i < 30000) {
   }
   i = i + 1
 }
-print total
+print(total)

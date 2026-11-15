@@ -4,7 +4,7 @@
 > decididos (Loxia/`.lx`); “PyLox”/`.lox` são históricos. O corpo abaixo é o registro
 > histórico da decisão da época.
 
-- **Status:** accepted
+- **Status:** accepted (item 4 substituído pelo [ADR-0085](0085-print-como-funcao.md))
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md),
@@ -85,12 +85,16 @@ len   str   repr   range
 - UTF-8 completo em identificadores fica para depois; exige decisão de normalização,
   colunas/caret e mangling no LLVM.
 
-### 4. `print` continua statement
+### 4. `print` continua statement — **substituído pelo ADR-0085**
 
-- `print expressão` é uma instrução; não é valor de primeira classe.
-- Não há `print(x)` função nem `println` na 1.0.
-- Se a composição fizer falta, `println(x)` entra depois como função, sem quebrar o
-  statement.
+- Histórico: a 1.0 congelou `print expressão` como instrução; o
+  [ADR-0085](0085-print-como-funcao.md) a trocou por `print(valor)` (`Any -> Nil`),
+  removeu o statement e migrou corpus/suíte oficial/exemplos.
+- Não há `println`.
+- A justificativa original era manter a gramática e a suíte sem mudança; com a migração
+  mecânica e o orçamento reduzido, o custo deixou de pagar a exceção.
+- Texto original: “Se a composição fizer falta, `println(x)` entra depois como função,
+  sem quebrar o statement.”
 - `str`/`repr` continuam sendo as formas de obter string.
 
 ### 5. Escopo congelado

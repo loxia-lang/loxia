@@ -51,14 +51,14 @@ KEYWORD_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "keywords-control",
         "keyword.control.loxia",
         (
-            "if", "elif", "else", "while", "for", "in", "return", "match", "print",
+            "if", "elif", "else", "while", "for", "in", "return", "match",
             "try", "except", "finally", "raise",
         ),
     ),
     (
         "keywords-declaration",
         "keyword.other.declaration.loxia",
-        ("class", "fn", "val", "var", "enum", "import", "from", "as", "is", "super", "this"),
+        ("class", "fn", "val", "var", "enum", "interface", "import", "from", "as", "is", "super", "this"),
     ),
     ("keywords-operator-word", "keyword.operator.word.loxia", ("and", "or", "not")),
     ("keywords-modifier", "storage.modifier.loxia", ("async", "await")),
@@ -93,6 +93,7 @@ OPERATORS: dict[TokenType, str] = {
     TokenType.GREATER_GREATER: ">>",
     TokenType.GREATER_GREATER_GREATER: ">>>",
     TokenType.DOT_DOT: "..",
+    TokenType.ELLIPSIS: "...",
     TokenType.ARROW: "->",
     TokenType.FAT_ARROW: "=>",
 }
@@ -264,6 +265,7 @@ def build() -> dict[str, Any]:
                 "patterns": [
                     _declaration_rule("fn", "entity.name.function.loxia"),
                     _declaration_rule("class", "entity.name.class.loxia"),
+                    _declaration_rule("interface", "entity.name.class.interface.loxia"),
                     _declaration_rule("enum", "entity.name.class.enum.loxia"),
                 ]
             },

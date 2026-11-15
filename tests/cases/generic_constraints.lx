@@ -1,0 +1,91 @@
+# Constraints em funções genéricas: Ord, Num e interfaces nominais (ADR-0081).
+
+fn max[T: Ord](a: T, b: T) -> T {
+  return a if a > b else b
+}
+
+fn twice[T: Num](x: T) -> T {
+  return x + x
+}
+
+fn somaMaior[T: Ord + Num](a: T, b: T) -> T {
+  return (a + b) if a > b else a
+}
+
+fn maior[T: Ord](a: T, b: T) -> T {
+  return max(a, b)
+}
+
+interface Nomeavel {
+  fn nome() -> String
+}
+
+class Pessoa implements Nomeavel {
+  val nomeValor: String
+
+  fn init(nomeValor: String) {
+    this.nomeValor = nomeValor
+  }
+
+  fn nome() -> String {
+    return this.nomeValor
+  }
+}
+
+fn chamarInterface(x: Nomeavel) -> String {
+  return x.nome()
+}
+
+fn chamar[T: Nomeavel](x: T) -> String {
+  return chamarInterface(x)
+}
+
+fn comoInterface[T: Nomeavel](x: T) -> Nomeavel {
+  return x
+}
+
+interface A {
+  fn a() -> String
+}
+
+interface B {
+  fn b() -> String
+}
+
+class AB implements A, B {
+  fn a() -> String { return "a" }
+  fn b() -> String { return "b" }
+}
+
+fn juntas[T: A + B](x: T) -> String {
+  return x.a() + x.b()
+}
+
+interface Calculo {
+  fn dobro(x: Int) -> Int
+}
+
+class Dobro implements Calculo {
+  fn dobro(x: Int) -> Int { return x * 2 }
+}
+
+fn calcular[T: Calculo](x: T) -> Int {
+  return x.dobro(3)
+}
+
+print(max(3, 7))                 # expect: 7
+print(max(2.5, 1.5))             # expect: 2.5
+print(max("a", "b"))             # expect: b
+print(twice(4))                  # expect: 8
+print(twice(1.5))                # expect: 3.0
+print(somaMaior(5, 2))           # expect: 7
+print(somaMaior(5.0, 2.0))       # expect: 7.0
+print(maior(9, 4))               # expect: 9
+print(maior("x", "a"))           # expect: x
+print(chamar(Pessoa("ana")))     # expect: ana
+print(juntas(AB()))              # expect: ab
+print(calcular(Dobro()))         # expect: 6
+
+val nomeavel: Nomeavel = Pessoa("bia")
+print(chamar(nomeavel))          # expect: bia
+print(comoInterface(Pessoa("caio")).nome())  # expect: caio

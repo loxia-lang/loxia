@@ -86,153 +86,154 @@ def _build(path: Path, tmp_path: Path) -> tuple[subprocess.CompletedProcess[str]
 
 
 CASES = [
-    ("print 1 + 2;", "adição"),
-    ("print 7 // 2;", "divisão inteira"),
-    ("print -7 // 2;", "divisão inteira trunca para zero"),
-    ("print 7 % 3;", "resto"),
-    ("print -7 % 3;", "resto com sinal do dividendo"),
-    ("print 2 * 21;", "multiplicação"),
-    ("print 1 - 2 - 3;", "subtração associativa à esquerda"),
-    ("print 9223372036854775807 + 1;", "wrapping de i64"),
-    ("print 1 < 2;", "comparação"),
-    ("print 3 == 4;", "igualdade falsa"),
-    ("print nil != nil;", "desigualdade de nil"),
-    ("print 2 <= 1;", "comparação falsa"),
-    ("print true == false;", "igualdade de Bool"),
-    ("print nil == nil;", "igualdade de nil"),
-    ("print not true;", "negação"),
-    ("print not nil;", "negação de nil"),
-    ("print not 0;", "zero é truthy"),
-    ("print -1;", "menos unário"),
-    ("print (1 + 2) * 3;", "agrupamento"),
-    ("print 1 + 2; print 4 * 5;", "duas instruções"),
-    ("print 1; print 1 // 0;", "panico de divisão por zero"),
-    ("print 1; print 5 % 0;", "panico de módulo por zero"),
-    ("print 1 + true;", "operando de + com tipo errado vira panic"),
-    ("print -true;", "menos unário com tipo errado"),
-    ("print true // 2;", "// com Bool"),
-    ("print 1 < true;", "comparação com Bool"),
-    ("print 3 == true;", "tipos diferentes nunca são iguais"),
-    ("print nil == 1;", "nil nunca é igual a Int"),
-    ("print 5; print 1 + true;", "panic depois de stdout"),
-    ("print 1 + 2.0;", "promoção Int -> Float"),
-    ("print 4 / 2;", "divisão sempre Float"),
-    ("print 0.1;", "float decimal"),
-    ("print 1e16;", "float em notação científica"),
-    ("print -0.0;", "zero negativo"),
-    ("print 1 == 1.0;", "igualdade numérica com promoção"),
-    ("print 1 == 1.5;", "igualdade numérica falsa"),
-    ("print 1 < 2.5;", "comparação mista"),
-    ("print 2.5 % 1.0;", "resto de Float"),
-    ("print 1.0 / 0.0;", "panico de divisão por zero em Float"),
-    ("print 1.5 % 0.0;", "panico de módulo por zero em Float"),
-    ("if (1 < 2) print 1;", "if verdadeiro"),
-    ("if (false) print 1; else print 2;", "if com else"),
-    ("while (false) { print 1; } print 2;", "while que não executa"),
-    ("val a = 1; var b = a + 1; b = b * 2; print b;", "variáveis e atribuição"),
-    ("val a = 1; { val a = 2; print a; } print a;", "sombreamento em bloco"),
-    ("val f: Float = 2 as Float; print f + 1;", "conversão explícita com as"),
-    ("var n = 0; while (n < 3) { n = n + 1; print n; }", "laço que termina"),
-    ("val x = 1; val y = x * 2; print y;", "dependência entre variáveis"),
-    ("fn soma(a: Int, b: Int) -> Int { return a + b; } print soma(1, 2);", "função e chamada"),
-    ("fn fib(n: Int) -> Int { if (n < 2) return n; return fib(n - 1) + fib(n - 2); } print fib(10);", "recursão"),
-    ("fn vazio() -> Nil { return; } print vazio();", "retorno Nil"),
-    ("fn f(a: Int) -> Int { return a; } print f();", "aridade vira panic"),
-    ("fn soma(a: Int, b: Int = 10) -> Int { return a + b; } print soma(1);", "default no call site"),
-    ("print naoexiste;", "variável indefinida vira panic"),
-    ("fn f(a: Int) -> Int { return a // 0; } print f(1);", "panic dentro de função"),
-    ("print (1 if true else 2);", "ternário verdadeiro"),
-    ("print (1 if false else 2);", "ternário falso"),
-    ("print (true and false);", "and de Bool"),
-    ("print (false or true);", "or de Bool"),
-    ("print (1 and 2);", "and devolve o segundo"),
-    ("print (0 or 3);", "0 é truthy"),
-    ("print (nil ?? 4);", "?? troca nil"),
-    ("print (1 ?? 4);", "?? mantém não-nil"),
+    ("print(1 + 2);", "adição"),
+    ("print(7 // 2);", "divisão inteira"),
+    ("print(-7 // 2);", "divisão inteira trunca para zero"),
+    ("print(7 % 3);", "resto"),
+    ("print(-7 % 3);", "resto com sinal do dividendo"),
+    ("print(2 * 21);", "multiplicação"),
+    ("print(1 - 2 - 3);", "subtração associativa à esquerda"),
+    ("print(9223372036854775807 + 1);", "wrapping de i64"),
+    ("print(1 < 2);", "comparação"),
+    ("print(3 == 4);", "igualdade falsa"),
+    ("print(nil != nil);", "desigualdade de nil"),
+    ("print(2 <= 1);", "comparação falsa"),
+    ("print(true == false);", "igualdade de Bool"),
+    ("print(nil == nil);", "igualdade de nil"),
+    ("print(not true);", "negação"),
+    ("print(not nil);", "negação de nil"),
+    ("print(not 0);", "zero é truthy"),
+    ("print(-1);", "menos unário"),
+    ("print((1 + 2) * 3);", "agrupamento"),
+    ("print(1 + 2); print(4 * 5);", "duas instruções"),
+    ("print(1); print(1 // 0);", "panico de divisão por zero"),
+    ("print(1); print(5 % 0);", "panico de módulo por zero"),
+    ("print(1 + true);", "operando de + com tipo errado vira panic"),
+    ("print(-true);", "menos unário com tipo errado"),
+    ("print(true // 2);", "// com Bool"),
+    ("print(1 < true);", "comparação com Bool"),
+    ("print(3 == true);", "tipos diferentes nunca são iguais"),
+    ("print(nil == 1);", "nil nunca é igual a Int"),
+    ("print(5); print(1 + true);", "panic depois de stdout"),
+    ("print(1 + 2.0);", "promoção Int -> Float"),
+    ("print(4 / 2);", "divisão sempre Float"),
+    ("print(0.1);", "float decimal"),
+    ("print(1e16);", "float em notação científica"),
+    ("print(-0.0);", "zero negativo"),
+    ("print(1 == 1.0);", "igualdade numérica com promoção"),
+    ("print(1 == 1.5);", "igualdade numérica falsa"),
+    ("print(1 < 2.5);", "comparação mista"),
+    ("print(2.5 % 1.0);", "resto de Float"),
+    ("print(1.0 / 0.0);", "panico de divisão por zero em Float"),
+    ("print(1.5 % 0.0);", "panico de módulo por zero em Float"),
+    ("if (1 < 2) print(1);", "if verdadeiro"),
+    ("if (false) print(1); else print(2);", "if com else"),
+    ("while (false) { print(1); } print(2);", "while que não executa"),
+    ("val a = 1; var b = a + 1; b = b * 2; print(b);", "variáveis e atribuição"),
+    ("val a = 1; { val a = 2; print(a); } print(a);", "sombreamento em bloco"),
+    ("val f: Float = 2 as Float; print(f + 1);", "conversão explícita com as"),
+    ("var n = 0; while (n < 3) { n = n + 1; print(n); }", "laço que termina"),
+    ("val x = 1; val y = x * 2; print(y);", "dependência entre variáveis"),
+    ("fn soma(a: Int, b: Int) -> Int { return a + b; } print(soma(1, 2));", "função e chamada"),
+    ("fn fib(n: Int) -> Int { if (n < 2) return n; return fib(n - 1) + fib(n - 2); } print(fib(10));", "recursão"),
+    ("fn vazio() -> Nil { return; } print(vazio());", "retorno Nil"),
+    ("fn f(a: Int) -> Int { return a; } print(f());", "aridade vira panic"),
+    ("fn soma(a: Int, b: Int = 10) -> Int { return a + b; } print(soma(1));", "default no call site"),
+    ("print(naoexiste);", "variável indefinida vira panic"),
+    ("fn f(a: Int) -> Int { return a // 0; } print(f(1));", "panic dentro de função"),
+    ("print((1 if true else 2));", "ternário verdadeiro"),
+    ("print((1 if false else 2));", "ternário falso"),
+    ("print((true and false));", "and de Bool"),
+    ("print((false or true));", "or de Bool"),
+    ("print((1 and 2));", "and devolve o segundo"),
+    ("print((0 or 3));", "0 é truthy"),
+    ("print((nil ?? 4));", "?? troca nil"),
+    ("print((1 ?? 4));", "?? mantém não-nil"),
     (
         "var n = 0; fn e() -> Int { n = n + 1; return 9; } "
-        "print (false and e()); print (7 ?? e()); print n;",
+        "print((false and e())); print((7 ?? e())); print(n);",
         "curto-circuito não avalia o lado direito",
     ),
-    ('print "hello";', "literal de string"),
-    ('print "";', "string vazia"),
-    ('print "a" + "b";', "concatenação"),
-    ('val s = "aço"; print len(s);', "len em code points"),
-    ('print "ab" == "ab"; print "ab" != "ab";', "igualdade de string"),
-    ('fn g(n: String) -> String { return "oi " + n; } print g("ana");', "string em função"),
-    ('print 1 + "a";', "tipos misturados em + viram panic"),
-    ('print "a" < "b";', "comparação de string"),
-    ('print "ab" < "abc";', "prefixo menor na comparação"),
-    ('print "é" > "z";', "ordem por code point"),
-    ('print "a" < 1;', "string com número vira panic"),
-    ('print "a${1}b";', "interpolação de Int"),
-    ('print "${1.5} ${true} ${nil}";', "interpolação de Float/Bool/nil"),
-    ("val n = 7; print \"n=${n}\";", "interpolação de variável"),
-    ('print "nested: ${"a" + "b"}";', "interpolação com expressão de string"),
-    ('print "escape: \\${x}";', "escape de $"),
-    ('print str(42) + "!";', "str de Int"),
-    ('print repr("""a\nb""");', "repr escapa nova linha"),
-    ('print repr(1.0);', "repr de Float"),
+    ("print(\"hello\");", "literal de string"),
+    ("print(\"\");", "string vazia"),
+    ("print(\"a\" + \"b\");", "concatenação"),
+    ("val s = \"aço\"; print(len(s));", "len em code points"),
+    ("print(\"ab\" == \"ab\"); print(\"ab\" != \"ab\");", "igualdade de string"),
+    ("fn g(n: String) -> String { return \"oi \" + n; } print(g(\"ana\"));", "string em função"),
+    ("print(1 + \"a\");", "tipos misturados em + viram panic"),
+    ("print(\"a\" < \"b\");", "comparação de string"),
+    ("print(\"ab\" < \"abc\");", "prefixo menor na comparação"),
+    ("print(\"é\" > \"z\");", "ordem por code point"),
+    ("print(\"a\" < 1);", "string com número vira panic"),
+    ("print(\"a${1}b\");", "interpolação de Int"),
+    ("print(\"${1.5} ${true} ${nil}\");", "interpolação de Float/Bool/nil"),
+    ("val n = 7; print(\"n=${n}\");", "interpolação de variável"),
+    ("print(\"nested: ${\"a\" + \"b\"}\");", "interpolação com expressão de string"),
+    ("print(\"escape: \\${x}\");", "escape de $"),
+    ("print(str(42) + \"!\");", "str de Int"),
+    ('''print(repr("""a
+b"""));''', "repr escapa nova linha"),
+    ("print(repr(1.0));", "repr de Float"),
     (
         "fn dobro(x: Int) -> Int { return x * 2; } "
         "fn aplica(f: fn(Int) -> Int, x: Int) -> Int { return f(x); } "
         "val f: fn(Int) -> Int = dobro; "
-        "print aplica(f, 4); print f; print str(f);",
+        "print(aplica(f, 4)); print(f); print(str(f));",
         "função como valor, parâmetro e print",
     ),
     (
         "fn make() -> fn() -> Int { var n = 0; "
         "return fn() -> Int { n = n + 1; return n; }; } "
-        "val c = make(); print c(); print c();",
+        "val c = make(); print(c()); print(c());",
         "closure com mutação compartilhada",
     ),
     (
         "fn aplica(f: fn(Int) -> Int, x: Int) -> Int { return f(x); } "
-        "print aplica(fn(x: Int) => x * 2, 3);",
+        "print(aplica(fn(x: Int) => x * 2, 3));",
         "lambda contextual como argumento",
     ),
     (
         "fn outer() -> fn() -> Int { var x = 7; { { "
-        "return fn() -> Int { return x; }; } } } print outer()();",
+        "return fn() -> Int { return x; }; } } } print(outer()());",
         "captura em profundidade através de blocos",
     ),
     (
         "fn um() -> Int { return 1; } fn dois() -> Int { return 2; } "
-        "var f: fn() -> Int = um; print f(); f = dois; print f();",
+        "var f: fn() -> Int = um; print(f()); f = dois; print(f());",
         "reatribuição de função como valor",
     ),
     (
-        "print f(); fn f() -> Int { return 1; }",
+        "print(f()); fn f() -> Int { return 1; }",
         "chamada antes da declaração de topo vira panic",
     ),
     (
-        "var b: Int?; print b; b = 7; print b; "
-        "if (b != nil) print b + 1;",
+        "var b: Int?; print(b); b = 7; print(b); "
+        "if (b != nil) print(b + 1);",
         "opcional escalar: nil, atribuição e narrow",
     ),
     (
-        "var b: Int?; print (b ?? 4); b = 2; print (b ?? 4);",
+        "var b: Int?; print((b ?? 4)); b = 2; print((b ?? 4));",
         "coalesce de opcional escalar",
     ),
     (
-        "fn f(x: Int?) -> Int? { return x; } print f(nil); print f(3);",
+        "fn f(x: Int?) -> Int? { return x; } print(f(nil)); print(f(3));",
         "T? em parâmetro e retorno",
     ),
     (
-        "var b: Bool?; b = false; if (b) print 1; else print 2;",
+        "var b: Bool?; b = false; if (b) print(1); else print(2);",
         "truthiness de Bool? com payload false",
     ),
     (
         "fn make() -> fn() -> Int? { var x: Int?; "
-        "return fn() -> Int? { x = 5; return x; }; } print make()();",
+        "return fn() -> Int? { x = 5; return x; }; } print(make()());",
         "closure captura T? e retorna T?",
     ),
     (
-        'val x: Any = 3; print x as Int; val y: Any = 3; print y as Float;',
+        "val x: Any = 3; print(x as Int); val y: Any = 3; print(y as Float);",
         "Any as Int/Float com promoção",
     ),
     (
-        'val x: Any = "a"; print x as Int;',
+        "val x: Any = \"a\"; print(x as Int);",
         "Any as Int com tag errada vira panic R1011",
     ),
     (
@@ -245,81 +246,81 @@ CASES = [
         "exceção de usuário não capturada com a mensagem",
     ),
     (
-        'val t: Any = (1, "a"); print t is (Int, String); '
-        'print t is (Int, Int); print t is (Int, String, Int);',
+        "val t: Any = (1, \"a\"); print(t is (Int, String)); "
+        "print(t is (Int, Int)); print(t is (Int, String, Int));",
         "Any is tupla checa aridade e elementos",
     ),
     (
-        'val t: (Any, Any) = (1, "a"); print t is (Int, String);',
+        "val t: (Any, Any) = (1, \"a\"); print(t is (Int, String));",
         "is de tupla estática com elementos Any",
     ),
     (
-        'val l: Any = ["a"]; print l is List[Int];',
+        "val l: Any = [\"a\"]; print(l is List[Int]);",
         "Any is List[Int] checa os elementos",
     ),
     (
-        'val l: Any = [1, 2]; print l is List[Int]; print l as List[Int];',
+        "val l: Any = [1, 2]; print(l is List[Int]); print(l as List[Int]);",
         "Any is/as List[Int] válidos",
     ),
     (
-        'val l: Any = ["a"]; print l as List[Int];',
+        "val l: Any = [\"a\"]; print(l as List[Int]);",
         "Any as List[Int] com elemento errado vira panic",
     ),
     (
-        'val m: Any = {"a": "b"}; print m is Map[String, Int];',
+        "val m: Any = {\"a\": \"b\"}; print(m is Map[String, Int]);",
         "Any is Map checa chave e valor",
     ),
     (
         'enum Color { Red } enum Size { Small } val x: Any = Size.Small; '
-        'print x is Color; print x is Size;',
+        "print(x is Color); print(x is Size);",
         "is de enum checa a identidade",
     ),
     (
-        'enum Color { Red } val x: Any = Color.Red; print x as Color;',
+        "enum Color { Red } val x: Any = Color.Red; print(x as Color);",
         "as de enum",
     ),
     (
-        'print 5 is Int; print 5 is String; print "a" is String; '
-        'print (1..2) is Range; print nil is Nil;',
+        "print(5 is Int); print(5 is String); print(\"a\" is String); "
+        "print((1..2) is Range); print(nil is Nil);",
         "is estático de escalar",
     ),
     (
-        'class A {} print 5 is A;',
+        "class A {} print(5 is A);",
         "is de classe com valor não-instância devolve false",
     ),
     (
-        'class A {} val a: A? = nil; print a is A; '
-        'val b: A? = A(); print b is A;',
+        "class A {} val a: A? = nil; print(a is A); "
+        "val b: A? = A(); print(b is A);",
         "is de classe opcional (nil e presente)",
     ),
     (
-        'val x: Int? = nil; print x is Int; '
-        'val y: Int? = 3; print y is Int;',
+        "val x: Int? = nil; print(x is Int); "
+        "val y: Int? = 3; print(y is Int);",
         "is de escalar opcional",
     ),
     (
-        'val l: List[Int]? = nil; print l is List[Int]; '
-        'val m: List[Int]? = [1]; print m is List[Int];',
+        "val l: List[Int]? = nil; print(l is List[Int]); "
+        "val m: List[Int]? = [1]; print(m is List[Int]);",
         "is de lista opcional",
     ),
     (
-        'val x: Any = [[1], [2]]; print x; '
-        'print x is List[List[Int]]; print x is List[List[String]];',
+        "val x: Any = [[1], [2]]; print(x); "
+        "print(x is List[List[Int]]); print(x is List[List[String]]);",
         "literal de lista aninhada e is recursivo",
     ),
     (
-        'val x: Any = {"a": {"b": 1}}; print x; '
-        'print x is Map[String, Map[String, Int]];',
+        "val x: Any = {\"a\": {\"b\": 1}}; print(x); "
+        "print(x is Map[String, Map[String, Int]]);",
         "literal de mapa aninhado e is recursivo",
     ),
     (
         'fn f() -> Any { class Local {} val x: Any = Local(); '
-        'return x is Local; } print f();',
+        "return x is Local; } print(f());",
         "is de classe local a partir de Any",
     ),
     (
-        'print true as Bool; print "a" as String; '
-        'print (1..2) as Range; print nil as Nil;',
+        "print(true as Bool); print(\"a\" as String); "
+        "print((1..2) as Range); print(nil as Nil);",
         "as estático de escalar",
     ),
 ]
@@ -442,7 +443,8 @@ def test_gc_recicla_memoria_no_backend(tmp_path: Path) -> None:
         "  while (j < 16) { s = s + s; j = j + 1 }\n"
         "  i = i + 1\n"
         "}\n"
-        "print i\n",
+        """print(i)
+""",
     )
 
     interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
@@ -485,7 +487,8 @@ def test_gc_preserva_roots_estaticos_e_objetos(tmp_path: Path) -> None:
         "  }\n"
         '  return f() + xs[0] + str(m["k"]) + t[1] + str(len(cyc))\n'
         "}\n"
-        "print prefix + check()\n",
+        """print(prefix + check())
+""",
     )
 
     interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
@@ -523,10 +526,12 @@ def test_gc_preserva_try_frame_e_excecao(tmp_path: Path) -> None:
         "  burn()\n"
         '  raise MyError("boom")\n'
         "} except MyError as e {\n"
-        "  print e.message\n"
+        """  print(e.message)
+"""
         "}\n"
         "burn()\n"
-        'print "done"\n',
+        """print("done")
+""",
     )
 
     interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)])
@@ -560,7 +565,8 @@ def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
         "  xs.push(s)\n"
         "  i = i + 1\n"
         "}\n"
-        "print len(xs)\n",
+        """print(len(xs))
+""",
     )
 
     result, binary = _build(path, tmp_path)
@@ -600,7 +606,10 @@ def test_promocao_int_para_float_e_recusada_pelos_dois(tmp_path: Path) -> None:
     "Can't use INT where FLOAT is expected" — duas fontes de verdade.
     Agora o checker recusa primeiro, com a mesma mensagem nos dois caminhos.
     """
-    path = _write(tmp_path, "var x: Float = 1.5\nx = 2\nprint x\n")
+    path = _write(tmp_path, """var x: Float = 1.5
+x = 2
+print(x)
+""")
 
     checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
     expected = "Expected Float, found Int. Write `2.0` or use `2 as Float`."
@@ -739,7 +748,8 @@ int main(void) {
 
 @pytest.mark.backend
 def test_erro_rebaixavel_nao_e_impresso_no_build(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print 1 + true;\n")
+    path = _write(tmp_path, """print(1 + true);
+""")
 
     result, binary = _build(path, tmp_path)
 
@@ -761,7 +771,8 @@ def test_erro_nao_rebaixavel_bloqueia_o_build(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_emit_ll_mostra_ir_sem_caminho_absoluto(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print 1 + 2;\n")
+    path = _write(tmp_path, """print(1 + 2);
+""")
 
     result = _run([sys.executable, str(ENTRYPOINT), "--emit", "ll", str(path)])
 
@@ -773,7 +784,8 @@ def test_emit_ll_mostra_ir_sem_caminho_absoluto(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print 1 + 2;\n")
+    path = _write(tmp_path, """print(1 + 2);
+""")
     output = tmp_path / "programa.o"
 
     result = _run(
@@ -795,7 +807,8 @@ def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_tupla_e_compilada(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print (1, 2);\n")
+    path = _write(tmp_path, """print((1, 2));
+""")
 
     result, binary = _build(path, tmp_path)
 
@@ -813,8 +826,10 @@ def test_classe_generica_e_monomorfizada(tmp_path: Path) -> None:
         "  init(value: T) { this.value = value }\n"
         "  get() -> T { return this.value }\n"
         "}\n"
-        "print Box(1).get();\n"
-        "print Box(\"x\").get();\n",
+        """print(Box(1).get());
+"""
+        """print(Box("x").get());
+""",
     )
 
     result, binary = _build(path, tmp_path)
@@ -832,7 +847,8 @@ def test_enum_e_compilado(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "enum Cor { Vermelho, Verde }\n"
-        "print match Cor.Vermelho { Cor.Vermelho => 1, Cor.Verde => 2 };\n",
+        """print(match Cor.Vermelho { Cor.Vermelho => 1, Cor.Verde => 2 });
+""",
     )
 
     result, binary = _build(path, tmp_path)
@@ -847,7 +863,8 @@ def test_enum_e_compilado(tmp_path: Path) -> None:
 def test_try_e_compilado(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
-        "try { print 1; } finally { print 2; }\n",
+        """try { print(1); } finally { print(2); }
+""",
     )
 
     result, binary = _build(path, tmp_path)
@@ -865,6 +882,7 @@ def test_abi_das_estruturas_publicas_e_estavel() -> None:
         _ANY,
         _CLASS_DESC,
         _CLOSURE,
+        _INTERFACE_ENTRY,
         ANY_TAG_BOOL,
         ANY_TAG_CLASS,
         ANY_TAG_FLOAT,
@@ -900,12 +918,19 @@ def test_abi_das_estruturas_publicas_e_estavel() -> None:
         "i8*",
         "i64",
         "i64",
+        "i64",
+        "i8*",
+    ]
+    assert [str(element) for element in _INTERFACE_ENTRY.elements] == [
+        "i64",
+        "i8*",
     ]
 
 
 @pytest.mark.backend
 def test_kernel_args_nativo(tmp_path: Path) -> None:
-    path = _write(tmp_path, "print args()\n")
+    path = _write(tmp_path, """print(args())
+""")
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr
 
@@ -943,8 +968,10 @@ def test_cache_do_runtime_objeto(tmp_path: Path) -> None:
         assert result.returncode == 0, result.stderr
         return binary
 
-    first = build('print "um"\n', "um.lx")
-    second = build('print "dois"\n', "dois.lx")
+    first = build("""print("um")
+""", "um.lx")
+    second = build("""print("dois")
+""", "dois.lx")
 
     assert len(list(cache.glob("runtime-*.o"))) == 1
     assert _run([str(first)]).stdout == "um\n"
@@ -959,11 +986,11 @@ def test_kernel_fs_ambiente_nativo(tmp_path: Path) -> None:
     (entries / "a.txt").write_text("a", encoding="utf-8")
     path = _write(
         tmp_path,
-        f'print fs.exists("{entries}")\n'
-        f'print fs.exists("{tmp_path}/nao-existe")\n'
-        f'print fs.listDir("{entries}")\n'
-        f'print fs.listDir("{tmp_path}/nao-existe")\n'
-        f'print fs.listDir("{entries}/a.txt")\n',
+        f'print(fs.exists("{entries}"))\n'
+        f'print(fs.exists("{tmp_path}/nao-existe"))\n'
+        f'print(fs.listDir("{entries}"))\n'
+        f'print(fs.listDir("{tmp_path}/nao-existe"))\n'
+        f'print(fs.listDir("{entries}/a.txt"))\n',
     )
 
     result, binary = _build(path, tmp_path)
@@ -980,7 +1007,10 @@ def test_kernel_fs_ambiente_nativo(tmp_path: Path) -> None:
 def test_kernel_read_all_nativo(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
-        "val text = io.readAll()\nprint len(text)\nprint text\n",
+        """val text = io.readAll()
+print(len(text))
+print(text)
+""",
     )
 
     result, binary = _build(path, tmp_path)
@@ -1005,15 +1035,24 @@ def test_std_fs_nativo(tmp_path: Path) -> None:
         f'val alvo = "{data}/arquivo.txt"\n'
         f'val pasta = "{data}"\n'
         f'val quebras = "{crlf}"\n'
-        "print fs.writeText(alvo, \"a\\nb\\n\")\n"
-        "print fs.readLines(alvo)\n"
-        "print fs.appendText(alvo, \"c\\n\")\n"
-        "print fs.readText(alvo)\n"
-        "print fs.listDir(pasta)\n"
-        'print fs.readText(pasta + "/nao-existe")\n'
-        "print fs.exists(pasta)\n"
-        "print repr(fs.readText(quebras) or \"\")\n"
-        "print len(fs.readText(quebras) or \"\")\n"
+        """print(fs.writeText(alvo, "a\\nb\\n"))
+"""
+        """print(fs.readLines(alvo))
+"""
+        """print(fs.appendText(alvo, "c\\n"))
+"""
+        """print(fs.readText(alvo))
+"""
+        """print(fs.listDir(pasta))
+"""
+        """print(fs.readText(pasta + "/nao-existe"))
+"""
+        """print(fs.exists(pasta))
+"""
+        """print(repr(fs.readText(quebras) or ""))
+"""
+        """print(len(fs.readText(quebras) or ""))
+"""
     )
     path = _write(tmp_path, source)
 
@@ -1031,9 +1070,12 @@ def test_std_io_nativo(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "import std.io as io\n"
-        "print io.readLine()\n"
-        "print io.readAll()\n"
-        'print io.prompt("nome? ")\n',
+        """print(io.readLine())
+"""
+        """print(io.readAll())
+"""
+        """print(io.prompt("nome? "))
+""",
     )
 
     result, binary = _build(path, tmp_path)
@@ -1065,10 +1107,14 @@ def test_campos_container_nativos(tmp_path: Path) -> None:
         "val bag = Bag()\n"
         "bag.items.push(7)\n"
         "bag.labels[\"x\"] = 9\n"
-        "print bag.items\n"
-        "print bag.labels\n"
-        "print bag.pair\n"
-        "print bag.span\n"
+        """print(bag.items)
+"""
+        """print(bag.labels)
+"""
+        """print(bag.pair)
+"""
+        """print(bag.span)
+"""
     )
     path = _write(tmp_path, source)
 
@@ -1089,7 +1135,9 @@ def test_modulos_nativos(tmp_path: Path) -> None:
         'fn _privado() -> Int { return 1 }\n',
         encoding="utf-8",
     )
-    path = _write(tmp_path, "from lib import dobro\nprint dobro(21)\n")
+    path = _write(tmp_path, """from lib import dobro
+print(dobro(21))
+""")
 
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr

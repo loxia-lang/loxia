@@ -3,41 +3,41 @@ import std.cli as cli
 
 val spec = ["flag:verbose", "option:output", "positional:file", "positional:extra"]
 val parsed = cli.parse(["--verbose", "--output=out.txt", "a.txt", "b.txt"], spec)
-print cli.flag(parsed, "verbose")
-print cli.flag(parsed, "quiet")
-print cli.option(parsed, "output")
-print cli.option(parsed, "missing")
-print cli.positional(parsed, "file")
-print cli.positional(parsed, "extra")
+print(cli.flag(parsed, "verbose"))
+print(cli.flag(parsed, "quiet"))
+print(cli.option(parsed, "output"))
+print(cli.option(parsed, "missing"))
+print(cli.positional(parsed, "file"))
+print(cli.positional(parsed, "extra"))
 val reordered = cli.parse(["--output", "x", "--", "--verbose"], spec)
-print cli.flag(reordered, "verbose")
-print cli.option(reordered, "output")
-print cli.positional(reordered, "file")
-print repr(cli.usage("prog", spec))
+print(cli.flag(reordered, "verbose"))
+print(cli.option(reordered, "output"))
+print(cli.positional(reordered, "file"))
+print(repr(cli.usage("prog", spec)))
 try {
   cli.parse(["--nope"], spec)
 } except RuntimeError as e {
-  print "desconhecida"
+  print("desconhecida")
 }
 try {
   cli.parse(["--output"], spec)
 } except RuntimeError as e {
-  print "sem valor"
+  print("sem valor")
 }
 try {
   cli.parse(["--verbose=1"], spec)
 } except RuntimeError as e {
-  print "flag com valor"
+  print("flag com valor")
 }
 try {
   cli.parse(["a", "b", "c"], spec)
 } except RuntimeError as e {
-  print "sobra"
+  print("sobra")
 }
 try {
   cli.parse([], ["bogus:x"])
 } except RuntimeError as e {
-  print "spec"
+  print("spec")
 }
 # expect: true
 # expect: false

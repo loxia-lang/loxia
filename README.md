@@ -12,6 +12,14 @@
 - ✅ `x is T`: primitivos, classes/subclasses, `List[T]`/`Map[K, V]` e uniões; narrowing em
   `if`/`else`, `while` e `and`/`or`.
 - ✅ Listas tipadas `List[T]`: literal, indexação, `push`/`pop`, `len` e `for-in`.
+- ✅ Iterador de usuário: `for x in e` aceita `iter()` + `next() -> T?` (classe, interface
+  ou iterador genérico), sem precisar de `implements` ([ADR-0082](docs/adr/0082-iterador-de-usuario.md)).
+- ✅ Variádicos `...args` e spread final `f(...lista)` em funções/métodos/lambdas
+  ([ADR-0083](docs/adr/0083-variadicos.md)); `fmt.format` usa o novo protocolo.
+- ✅ `type Nome = Tipo` transparente e não-genérico, com forward references e imports
+  ([ADR-0084](docs/adr/0084-type-alias.md)).
+- ✅ `print(valor)` é função builtin `Any -> Nil`; o statement `print expr` foi removido
+  ([ADR-0085](docs/adr/0085-print-como-funcao.md)).
 - ✅ Mapas tipados `Map[K, V]`: literal `{ "a": 1 }`, `get`/`has`/`remove`/`keys`/`values`,
   igualdade estrutural e `for-in` de chaves.
 - ✅ API híbrida: `len`/`str`/`repr` globais e métodos específicos de lista/mapa.
@@ -32,7 +40,7 @@
   pós-1.0. Ver [`CHANGELOG.md`](CHANGELOG.md).
 - 🧊 **Escopo da 1.0 congelado** ([ADR-0026](docs/adr/0026-freeze-1.0.md), com T3b e D-8
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
-  com identificadores ASCII, `print` como statement e escopo single-file. O mapa
+  com identificadores ASCII, `print` como função `Any -> Nil` e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
 - 📐 A stdlib **T2** está completa ([ADR-0079](docs/adr/0079-stdlib-t2.md)): `json`,
   `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv` e `convert`, além da T1
@@ -42,8 +50,11 @@
   L7b (revisão das mensagens de erro de codegen) segue como pendência de qualidade; JIT
   no REPL fica para depois. O L5, o T7 e o L6a–L6k já entregaram classes, herança,
   closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas, tuplas,
-  `Any`, `math`/parse e defaults como valor; traits e constraints ficam pós-MVP
-  ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+  `Any`, `math`/parse e defaults como valor; interfaces nominais estão no tree-walk, no
+  checker e no backend (`itab`), e constraints de função (`T: Ord + Num + Interface`)
+  também ([ADR-0038](docs/adr/0038-traits-nominais.md),
+  [ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md),
+  [ADR-0081](docs/adr/0081-constraints-generics.md)).
 
 ## O que esta linguagem promete
 
@@ -152,7 +163,7 @@ class Conta {
 
 var c = Conta(10);
 c.deposita(5);
-print c.saldo;  # 15
+print(c.saldo);  # 15
 ```
 
 ## Tipos
@@ -170,19 +181,19 @@ val talvez: String? = nil   # String | Nil
 
 val xs: List[Int] = [3, 1, 2]
 xs.push(4)
-print len(xs)               # 4
-print xs[0]                 # 3
-for x in xs { print x }
+print(len(xs))               # 4
+print(xs[0])                 # 3
+for x in xs { print(x) }
 
 val idades: Map[String, Int] = {"Ana": 32}
-print idades["Ana"]          # 32
-print idades.get("Bia") ?? 0 # 0 (get devolve Int?)
+print(idades["Ana"])          # 32
+print(idades.get("Bia") ?? 0) # 0 (get devolve Int?)
 idades["Bia"] = 28
-for nome in idades { print nome }   # chaves, em ordem de inserção
+for nome in idades { print(nome) }   # chaves, em ordem de inserção
 
 val saudacao: String? = "Ana"
 if (saudacao != nil) {
-  print "Oi, ${saudacao}!"   # narrowing: saudacao é String aqui
+  print("Oi, ${saudacao}!")   # narrowing: saudacao é String aqui
 }
 ```
 
@@ -202,11 +213,11 @@ Aritmética inclui `//` (divisão inteira), `**` (potência) e bits
 val rotulo = nome ?? "sem nome"          # default só para nil
 val cidade = pessoa?.endereco?.cidade    # acesso seguro
 val status = "adulto" if idade >= 18 else "menor"
-print "linha 1\nlinha 2"                 # escapes
-print """texto em
-duas linhas"""                          # string multilinha (aspas livres)
-print r"c:\temp\novo"                   # raw: `\` literal, sem interpolação
-if (not pessoa?.nome) print "sem nome"   # `not` no lugar de `!`
+print("linha 1\nlinha 2")                 # escapes
+print("""texto em
+duas linhas""")                         # string multilinha (aspas livres)
+print(r"c:\temp\novo")                   # raw: `\` literal, sem interpolação
+if (not pessoa?.nome) print("sem nome")   # `not` no lugar de `!`
 ```
 
 ## Estrutura

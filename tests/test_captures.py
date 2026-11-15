@@ -50,7 +50,7 @@ def test_uncaptured_local_is_not_boxed() -> None:
         """
         fn make() {
           var i = 0;
-          print i;
+          print(i);
         }
         """
     )
@@ -71,7 +71,7 @@ def test_capture_propagates_through_intermediate_function() -> None:
           var x = 1;
           fn middle() {
             fn inner() {
-              print x;
+              print(x);
             }
           }
         }
@@ -98,7 +98,7 @@ def test_global_is_not_captured() -> None:
         """
         var a = 1;
         fn show() {
-          print a;
+          print(a);
         }
         """
     )
@@ -115,7 +115,7 @@ def test_captured_parameter_is_boxed() -> None:
         """
         fn f(x) {
           fn g() {
-            print x;
+            print(x);
           }
         }
         """

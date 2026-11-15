@@ -1,12 +1,12 @@
 # Spike L6: `Any` boxeado com tag + payload de 64 bits.
 var x: Any = 1;
-print x;        # expect: 1
+print(x);        # expect: 1
 x = "a";
-print x;        # expect: a
+print(x);        # expect: a
 x = true;
-print x;        # expect: true
+print(x);        # expect: true
 x = nil;
-print x;        # expect: nil
+print(x);        # expect: nil
 x = 2.5;
-print x;        # expect: 2.5
-print x ?? 0;   # expect: 2.5
+print(x);        # expect: 2.5
+print(x ?? 0);   # expect: 2.5

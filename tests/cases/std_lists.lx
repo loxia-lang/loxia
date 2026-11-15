@@ -12,36 +12,40 @@ fn expand(x: Int) -> List[Int] {
 }
 
 val xs = [1, 2, 3]
-print lists.map(xs, fn(x) => x * 2)
-print lists.filter(xs, fn(x) => x > 1)
-print lists.fold(xs, 0, fn(acc, x) => acc + x)
-print lists.any(xs, fn(x) => x == 2)
-print lists.all(xs, fn(x) => x > 0)
-print lists.none(xs, fn(x) => x < 0)
-print lists.contains(xs, 2)
-print lists.indexOf(xs, 3)
-print lists.reverse(xs)
-print lists.take(xs, 2)
-print lists.drop(xs, 1)
-print lists.slice(xs, 1, 3)
-print lists.sum(xs)
-print lists.first(xs)
-print lists.last(xs)
+print(lists.map(xs, fn(x) => x * 2))
+print(lists.filter(xs, fn(x) => x > 1))
+print(lists.fold(xs, 0, fn(acc, x) => acc + x))
+print(lists.any(xs, fn(x) => x == 2))
+print(lists.all(xs, fn(x) => x > 0))
+print(lists.none(xs, fn(x) => x < 0))
+print(lists.contains(xs, 2))
+print(lists.indexOf(xs, 3))
+print(lists.reverse(xs))
+print(lists.take(xs, 2))
+print(lists.drop(xs, 1))
+print(lists.slice(xs, 1, 3))
+print(lists.sum(xs))
+print(lists.first(xs))
+print(lists.last(xs))
 val vazia: List[Int] = []
-print lists.first(vazia)
-print lists.find(xs, fn(x) => x > 1)
-print lists.reduce(xs, fn(a, b) => a + b)
-print lists.count(xs, fn(x) => x > 1)
-print lists.min(xs)
-print lists.max(xs)
-print lists.getOr(xs, 9, 0)
-print lists.sort([3, 1, 2, 1], compareInt)
-print lists.zip([1, 2, 3], ["a", "b"])
-print lists.flatten([[1, 2], [3]])
-print lists.flatMap([1, 2], expand)
-print lists.unique([3, 1, 2, 1])
-print lists.chunk([3, 1, 2, 1], 2)
-print lists.partition([3, 1, 2, 1], fn(x) => x > 1)
+print(lists.first(vazia))
+print(lists.find(xs, fn(x) => x > 1))
+print(lists.reduce(xs, fn(a, b) => a + b))
+print(lists.count(xs, fn(x) => x > 1))
+print(lists.min(xs))
+print(lists.max(xs))
+print(lists.min(["b", "a"]))
+print(lists.max([2.5, -1.5]))
+print(lists.sortNatural([3, 1, 2, 1]))
+print(lists.sortNatural(["b", "a", "c"]))
+print(lists.getOr(xs, 9, 0))
+print(lists.sort([3, 1, 2, 1], compareInt))
+print(lists.zip([1, 2, 3], ["a", "b"]))
+print(lists.flatten([[1, 2], [3]]))
+print(lists.flatMap([1, 2], expand))
+print(lists.unique([3, 1, 2, 1]))
+print(lists.chunk([3, 1, 2, 1], 2))
+print(lists.partition([3, 1, 2, 1], fn(x) => x > 1))
 # expect: [2, 4, 6]
 # expect: [2, 3]
 # expect: 6
@@ -63,6 +67,10 @@ print lists.partition([3, 1, 2, 1], fn(x) => x > 1)
 # expect: 2
 # expect: 1
 # expect: 3
+# expect: a
+# expect: 2.5
+# expect: [1, 1, 2, 3]
+# expect: ["a", "b", "c"]
 # expect: 0
 # expect: [1, 1, 2, 3]
 # expect: [(1, "a"), (2, "b")]

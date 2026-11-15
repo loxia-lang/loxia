@@ -1,10 +1,10 @@
 class Cafe {
   gostoso() -> Nil {
-    print "cafe";
+    print("cafe");
   }
 }
 
 var c = Cafe();
 c.gostoso();  # expect: cafe
-print Cafe;   # expect: Cafe
-print c;      # expect: Cafe instance
+print(Cafe);   # expect: Cafe
+print(c);      # expect: Cafe instance

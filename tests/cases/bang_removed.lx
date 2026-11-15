@@ -1,4 +1,4 @@
 # `!` foi substituído por `not` (ADR-0068): a mensagem aponta a forma canônica.
-print !true
+print(!true)
 # expect error: use 'not' for negation
 # expect exit: 65

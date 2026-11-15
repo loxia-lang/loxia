@@ -5,4 +5,4 @@ while (i < 50000) {
   texto = texto + "x";
   i = i + 1;
 }
-print i;
+print(i);

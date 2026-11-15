@@ -438,6 +438,7 @@ class ContainerLowering(LoweringBase):
                         inner.ty,
                         self.builder.inttoptr(payload, _I8_PTR),
                         class_name=inner.class_name,
+                        interface_name=inner.interface_name,
                     )
                 case ValueType.ENUM:
                     return Value(
@@ -473,7 +474,15 @@ class ContainerLowering(LoweringBase):
             self.builder.branch(end)
             none_end = self.builder.block
             self.builder = llvm_ir.builder(some)
-            inner = convert(TypeDesc(desc.ty, desc.fn, False, desc.class_name))
+            inner = convert(
+                TypeDesc(
+                    desc.ty,
+                    desc.fn,
+                    False,
+                    desc.class_name,
+                    desc.interface_name,
+                )
+            )
             value = self._some(desc, inner)
             self.builder.branch(end)
             some_end = self.builder.block

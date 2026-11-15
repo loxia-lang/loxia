@@ -3,5 +3,5 @@ fn f(len: Int) -> Int {
   return len;
 }
 
-print f(3);
+print(f(3));
 # expect: 3

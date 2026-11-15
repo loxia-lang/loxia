@@ -10,4 +10,4 @@ var total = 0
 for c in text {
   total = total + charCodeAt(c, 0)
 }
-print total + len(text)
+print(total + len(text))

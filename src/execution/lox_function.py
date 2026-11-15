@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from src.diagnostics.errors import ReturnSignal
 from src.execution.environment import Environment
+from src.execution.lox_list import LoxList
 from src.frontend.expr import Lambda
 from src.frontend.stmt import Function
 
@@ -31,14 +32,30 @@ class LoxFunction:
         return LoxFunction(self._declaration, environment, self._is_initializer)
 
     def min_arity(self) -> int:
-        return sum(1 for param in self._declaration.params if param.default is None)
+        required = 0
+        for param in self._declaration.params:
+            if param.variadic:
+                continue
+            if param.default is None:
+                required += 1
+        return required
 
     def max_arity(self) -> int:
+        if any(param.variadic for param in self._declaration.params):
+            return 2**63 - 1
         return len(self._declaration.params)
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
         environment = Environment(self._closure)
         for index, param in enumerate(self._declaration.params):
+            if param.variadic:
+                environment.define(
+                    param.name.lexeme,
+                    LoxList(list(arguments[index:])),
+                    param.mutable,
+                )
+                break
+
             if index < len(arguments):
                 value = arguments[index]
             else:

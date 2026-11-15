@@ -29,4 +29,4 @@ fn quicksort(xs: List[Int]) -> List[Int] {
 }
 
 val xs: List[Int] = [5, 3, 8, 1, 9, 2, 7, 4, 6];
-print quicksort(xs);
+print(quicksort(xs));

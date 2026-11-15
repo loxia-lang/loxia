@@ -1,23 +1,23 @@
 # std.csv (T2): RFC 4180, CRLF na saída, nil na entrada malformada.
 import std.csv as csv
 
-print csv.parse("a,b,c\r\n1,2,3\r\n")
-print csv.parse("a,b\n1,2")
-print csv.parse("\"x,y\",\"he said \"\"hi\"\"\"\n")
-print csv.parse("a,,c\n")
-print csv.parse("\n")
-print csv.parse("")
-print csv.parse("\"a\nb\",c\n")
-print csv.parse("\"aberto")
-print csv.parse("a\"b,c")
-print repr(csv.stringify([["a", "b"], ["1", "2"]]))
-print repr(csv.stringify([["x,y", "he said \"hi\""], ["", "a\nb"]]))
-print repr(csv.stringify([]))
-print repr(csv.stringify([[""] ]))
+print(csv.parse("a,b,c\r\n1,2,3\r\n"))
+print(csv.parse("a,b\n1,2"))
+print(csv.parse("\"x,y\",\"he said \"\"hi\"\"\"\n"))
+print(csv.parse("a,,c\n"))
+print(csv.parse("\n"))
+print(csv.parse(""))
+print(csv.parse("\"a\nb\",c\n"))
+print(csv.parse("\"aberto"))
+print(csv.parse("a\"b,c"))
+print(repr(csv.stringify([["a", "b"], ["1", "2"]])))
+print(repr(csv.stringify([["x,y", "he said \"hi\""], ["", "a\nb"]])))
+print(repr(csv.stringify([])))
+print(repr(csv.stringify([[""] ])))
 try {
   csv.stringify([[]])
 } except RuntimeError as e {
-  print "vazio"
+  print("vazio")
 }
 # expect: [["a", "b", "c"], ["1", "2", "3"]]
 # expect: [["a", "b"], ["1", "2"]]

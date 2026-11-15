@@ -11,4 +11,4 @@ var total = 0
 for x in xs {
   total = total + x + m[x]
 }
-print total + len(xs) + len(m)
+print(total + len(xs) + len(m))

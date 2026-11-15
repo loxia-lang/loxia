@@ -57,6 +57,15 @@ def test_scan_number_literals_split_int_and_float() -> None:
     ]
 
 
+def test_scans_ellipsis_before_range() -> None:
+    assert scan_types("... .. .") == [
+        TokenType.ELLIPSIS,
+        TokenType.DOT_DOT,
+        TokenType.DOT,
+        TokenType.EOF,
+    ]
+
+
 def test_scans_range_token_and_in_keyword() -> None:
     assert scan_types("0..10 in 1.0 a.b") == [
         TokenType.NUMBER,
@@ -96,10 +105,10 @@ def test_keywords_fn_elif_and_fun_as_identifier() -> None:
 
 
 def test_bang_is_a_directed_error() -> None:
-    scanner = scan_with_reporter("print !true;")
+    scanner = scan_with_reporter("print(!true);")
 
     assert scanner.reporter.had_error
-    assert any("use 'not' for negation" in item for item in messages("print !true;"))
+    assert any("use 'not' for negation" in item for item in messages("print(!true);"))
 
 
 def test_keywords_async_and_await_are_reserved() -> None:

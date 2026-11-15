@@ -57,6 +57,7 @@ class FunctionLowering(LoweringBase):
         *,
         llvm_name: str | None = None,
         this_class: str | None = None,
+        this_interface: str | None = None,
         is_init: bool = False,
         allow_generic: bool = False,
     ) -> FunctionInfo:
@@ -65,7 +66,14 @@ class FunctionLowering(LoweringBase):
 
         params: list[TypeDesc] = []
         minimum = 0
+        variadic = False
+        vararg_element: TypeDesc | None = None
         for param in stmt.params:
+            if param.variadic:
+                variadic = True
+                vararg_element = self._param_desc(param)
+                params.append(TypeDesc(ValueType.LIST))
+                continue
             desc = self._param_desc(param)
             params.append(desc)
             if param.default is None:
@@ -77,7 +85,13 @@ class FunctionLowering(LoweringBase):
             return_desc = self._return_desc(
                 stmt.return_type, stmt.name.line, stmt.name.lexeme
             )
-        sig = FnSig(tuple(params), return_desc, minimum)
+        sig = FnSig(
+            tuple(params),
+            return_desc,
+            minimum,
+            variadic,
+            vararg_element,
+        )
 
         if llvm_name is None:
             self._function_counter += 1
@@ -88,7 +102,8 @@ class FunctionLowering(LoweringBase):
             if return_desc.ty is ValueType.NIL
             else self._storage_llvm_type(return_desc)
         )
-        prefix = [_I8_PTR, *([_I8_PTR] if this_class is not None else [])]
+        has_this = this_class is not None or this_interface is not None
+        prefix = [_I8_PTR, *([_I8_PTR] if has_this else [])]
         signature = llvm_ir.declare(
             self.module,
             llvm_name,
@@ -100,6 +115,7 @@ class FunctionLowering(LoweringBase):
             stmt.params,
             sig,
             this_class=this_class,
+            this_interface=this_interface,
             is_init=is_init,
         )
 
@@ -317,13 +333,14 @@ class FunctionLowering(LoweringBase):
                 )
 
         offset = 1
-        if info.this_class is not None:
+        if info.this_class is not None or info.this_interface is not None:
             this_slot = self.builder.alloca(_I8_PTR, name="this")
             self.builder.store(info.ir.args[1], this_slot)
             self._scopes[-1]["this"] = Binding(
                 this_slot,
                 ValueType.INSTANCE,
                 class_name=info.this_class,
+                interface_name=info.this_interface,
             )
             offset = 2
 
@@ -341,6 +358,7 @@ class FunctionLowering(LoweringBase):
                     desc.optional,
                     cell=True,
                     class_name=desc.class_name,
+                    interface_name=desc.interface_name,
                 )
             else:
                 slot = self.builder.alloca(
@@ -353,6 +371,7 @@ class FunctionLowering(LoweringBase):
                     desc.fn,
                     desc.optional,
                     class_name=desc.class_name,
+                    interface_name=desc.interface_name,
                 )
 
             self._scopes[-1][param.name.lexeme] = binding

@@ -6,5 +6,5 @@ fn make_local() -> A {
   return A()
 }
 
-print (make_local() as A);
+print((make_local() as A));
 # expect runtime error: Can't cast value to A.

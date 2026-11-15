@@ -1,6 +1,6 @@
 # Listas com strings são citadas e escapadas na saída.
 val misto: List[Any] = [1, 2.0, nil, true]
-print misto
-print ["a\nb", "c\"d"]
+print(misto)
+print(["a\nb", "c\"d"])
 # expect: [1, 2.0, nil, true]
 # expect: ["a\nb", "c\"d"]

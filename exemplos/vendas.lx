@@ -13,11 +13,11 @@ import std.strings as strings
 val spec = ["flag:detalhado", "option:saida", "positional:entrada"]
 val opcoes = cli.parse(["--detalhado", "--saida", "relatorio.json", "vendas.csv"], spec)
 
-print cli.usage("relatorio", spec)
-print ""
-print "arquivo: " + (cli.positional(opcoes, "entrada") or "?")
-print "saida:   " + (cli.option(opcoes, "saida") or "?")
-print "ext:     " + paths.ext(cli.option(opcoes, "saida") or "")
+print(cli.usage("relatorio", spec))
+print("")
+print("arquivo: " + (cli.positional(opcoes, "entrada") or "?"))
+print("saida:   " + (cli.option(opcoes, "saida") or "?"))
+print("ext:     " + paths.ext(cli.option(opcoes, "saida") or ""))
 
 val linhas = csv.parse(
   "produto,categoria,quantidade,preco\n"
@@ -31,7 +31,7 @@ if (linhas == nil) {
 }
 val registros = linhas
 val cabecalho = registros[0]
-print "colunas: " + join(cabecalho, " | ")
+print("colunas: " + join(cabecalho, " | "))
 
 val categorias: Set[String] = Set()
 val totais: Map[String, Float] = {}
@@ -70,23 +70,23 @@ fn compararTexto(a: String, b: String) -> Int {
   return 0
 }
 
-print ""
-print fmt.pad("categoria", 14) + fmt.pad("total", 10) + "  participação"
+print("")
+print(fmt.pad("categoria", 14) + fmt.pad("total", 10) + "  participação")
 for categoria in lists.sort(categorias.toList(), compararTexto) {
   val valor = totais[categoria]
-  print (
+  print((
     fmt.pad(categoria, 14)
       + fmt.pad(fmt.fixed(valor, 2), 10)
       + "  "
       + fmt.pad(fmt.percent(valor / total, 1), 8)
-  )
+  ))
 }
 
-print ""
-print "produtos: " + join(lists.sort(produtos, compararTexto), ", ")
-print "itens: " + fmt.commas(quantidade)
-print "total: " + fmt.fixed(total, 2)
-print "ticket: " + fmt.fixed(total / (quantidade as Float), 2)
+print("")
+print("produtos: " + join(lists.sort(produtos, compararTexto), ", "))
+print("itens: " + fmt.commas(quantidade))
+print("total: " + fmt.fixed(total, 2))
+print("ticket: " + fmt.fixed(total / (quantidade as Float), 2))
 
 val resumo: Map[String, Any] = {}
 resumo["arquivo"] = cli.positional(opcoes, "entrada")
@@ -94,6 +94,6 @@ resumo["categorias"] = categorias.toList()
 resumo["itens"] = quantidade
 resumo["total"] = total
 resumo["detalhado"] = cli.flag(opcoes, "detalhado")
-print ""
-print json.pretty(resumo, 2)
-print "assinatura: " + convert.hexEncode(strings.upper("vendas"))
+print("")
+print(json.pretty(resumo, 2))
+print("assinatura: " + convert.hexEncode(strings.upper("vendas")))

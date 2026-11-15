@@ -4,4 +4,4 @@ fn soma(a: Int, b: Int = 10) -> Int {
 }
 
 val f = soma;
-print f(1);  # expect: 11
+print(f(1));  # expect: 11

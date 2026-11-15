@@ -85,6 +85,10 @@ class LoweringBase:
     _generic_class_by_source: Any
     _generic_class_nodes: Any
     _generic_descriptors: Any
+    _interface_method_infos: dict[str, dict[str, FunctionInfo]]
+    _emitted_generic_classes: set[str]
+    _pending_generic_classes: list[ClassLayout]
+    type_aliases: dict[str, Ty]
 
     # Métodos compartilhados entre mixins. O MRO resolve para a implementação real.
     def _expr(self, expr: Expr) -> Value:
@@ -96,6 +100,7 @@ class LoweringBase:
         *,
         llvm_name: str | None = None,
         this_class: str | None = None,
+        this_interface: str | None = None,
         is_init: bool = False,
         allow_generic: bool = False,
     ) -> FunctionInfo:
@@ -208,6 +213,14 @@ class LoweringBase:
 
     def _bound_method(
         self, instance: Value, layout: ClassLayout, method: MethodLayout
+    ) -> Value:
+        raise NotImplementedError
+
+    def _interface_has_method(self, interface: str, name: str) -> bool:
+        raise NotImplementedError
+
+    def _interface_bound_method(
+        self, instance: Value, interface: str, name: Any
     ) -> Value:
         raise NotImplementedError
 

@@ -7,10 +7,10 @@ while (i < 40) {
   if (a != b) { mismatches = mismatches + 1 }
   i = i + 1
 }
-print mismatches
+print(mismatches)
 
 var c: Map[String, Int] = {"x": 1}
 var d: Map[String, Int] = {"x": 1}
-print c == d
+print(c == d)
 # expect: 40
 # expect: true

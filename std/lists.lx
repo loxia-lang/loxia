@@ -214,7 +214,7 @@ fn count[T](xs: List[T], predicate: fn(T) -> Bool) -> Int {
   return total
 }
 
-fn min(xs: List[Int]) -> Int? {
+fn min[T: Ord](xs: List[T]) -> T? {
   if (len(xs) == 0) {
     return nil
   }
@@ -229,7 +229,7 @@ fn min(xs: List[Int]) -> Int? {
   return result
 }
 
-fn max(xs: List[Int]) -> Int? {
+fn max[T: Ord](xs: List[T]) -> T? {
   if (len(xs) == 0) {
     return nil
   }
@@ -263,6 +263,36 @@ fn sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
   var j = 0
   while (i < len(left) and j < len(right)) {
     if (compare(left[i], right[j]) <= 0) {
+      result.push(left[i])
+      i = i + 1
+    } else {
+      result.push(right[j])
+      j = j + 1
+    }
+  }
+  while (i < len(left)) {
+    result.push(left[i])
+    i = i + 1
+  }
+  while (j < len(right)) {
+    result.push(right[j])
+    j = j + 1
+  }
+  return result
+}
+
+fn sortNatural[T: Ord](xs: List[T]) -> List[T] {
+  if (len(xs) <= 1) {
+    return slice(xs, 0, len(xs))
+  }
+  val middle = len(xs) // 2
+  val left = sortNatural(slice(xs, 0, middle))
+  val right = sortNatural(slice(xs, middle, len(xs)))
+  val result: List[T] = []
+  var i = 0
+  var j = 0
+  while (i < len(left) and j < len(right)) {
+    if (left[i] <= right[j]) {
       result.push(left[i])
       i = i + 1
     } else {

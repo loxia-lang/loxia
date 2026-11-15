@@ -3,15 +3,15 @@ fn soma(a: Int, b: Int = 10) -> Int {
   return a + b;
 }
 
-print soma(1);     # expect: 11
-print soma(1, 2);  # expect: 3
+print(soma(1));     # expect: 11
+print(soma(1, 2));  # expect: 3
 
 fn cumprimenta(nome: String, saudacao: String = "Oi", pontuacao: String = "!") -> String {
   return saudacao + ", " + nome + pontuacao;
 }
 
-print cumprimenta("Ana");         # expect: Oi, Ana!
-print cumprimenta("Ana", "Olá");  # expect: Olá, Ana!
+print(cumprimenta("Ana"));         # expect: Oi, Ana!
+print(cumprimenta("Ana", "Olá"));  # expect: Olá, Ana!
 
 class Caixa {
   var valor: Int;
@@ -21,14 +21,14 @@ class Caixa {
   }
 }
 
-print Caixa().valor;   # expect: 0
-print Caixa(7).valor;  # expect: 7
+print(Caixa().valor);   # expect: 0
+print(Caixa(7).valor);  # expect: 7
 
 class CaixaForte(Caixa) {}
-print CaixaForte().valor;  # expect: 0
+print(CaixaForte().valor);  # expect: 0
 
 fn neg(x: Int = -1) -> Int {
   return x;
 }
 
-print neg();  # expect: -1
+print(neg());  # expect: -1

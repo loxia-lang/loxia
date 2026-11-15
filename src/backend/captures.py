@@ -49,7 +49,6 @@ from src.frontend.stmt import (
     Function,
     If,
     Param,
-    Print,
     Return,
     Stmt,
     Var,
@@ -217,9 +216,6 @@ class _Analyzer:
             self._stmt(stmt.body)
             return
 
-        if isinstance(stmt, Print):
-            self._expr(stmt.expression)
-            return
 
         if isinstance(stmt, Return):
             if stmt.value is not None:

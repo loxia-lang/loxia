@@ -14,4 +14,4 @@ while (i < 50000) {
   counter.bump(i % 7)
   i = i + 1
 }
-print counter.value
+print(counter.value)

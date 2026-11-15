@@ -47,11 +47,12 @@ from src.frontend.stmt import (
     Function,
     If,
     Import,
-    Print,
+    Interface,
     Raise,
     Return,
     Stmt,
     Try,
+    TypeAlias,
     Var,
     While,
 )
@@ -70,6 +71,7 @@ class ClassType(Enum):
     NONE = auto()
     CLASS = auto()
     SUBCLASS = auto()
+    INTERFACE = auto()
 
 
 @dataclass
@@ -249,14 +251,30 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._define(stmt.name)
         self._resolve_function(stmt, FunctionType.FUNCTION)
 
+    def visit_type_alias_stmt(self, stmt: TypeAlias) -> None:
+        return
+
+    def visit_interface_stmt(self, stmt: Interface) -> None:
+        # Interface é tipo, não valor: o nome não entra no escopo de variáveis.
+        # Os corpos default resolvem `this` e não têm `super` nem campos.
+        enclosing_class = self._current_class
+        self._current_class = ClassType.INTERFACE
+
+        self._begin_scope()
+        self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False)
+        for method in stmt.methods:
+            if method.abstract:
+                continue
+            self._resolve_function(method, FunctionType.METHOD)
+        self._end_scope()
+
+        self._current_class = enclosing_class
+
     def visit_if_stmt(self, stmt: If) -> None:
         self._resolve_expr(stmt.condition)
         self._resolve_stmt(stmt.then_branch)
         if stmt.else_branch is not None:
             self._resolve_stmt(stmt.else_branch)
-
-    def visit_print_stmt(self, stmt: Print) -> None:
-        self._resolve_expr(stmt.expression)
 
     def visit_return_stmt(self, stmt: Return) -> None:
         if self._current_function is FunctionType.NONE:
@@ -438,6 +456,12 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._reporter.error(
                 expr.keyword,
                 "Can't use 'super' outside of a class.",
+                code=Code.INVALID_SUPER,
+            )
+        elif self._current_class is ClassType.INTERFACE:
+            self._reporter.error(
+                expr.keyword,
+                "Can't use 'super' in an interface.",
                 code=Code.INVALID_SUPER,
             )
         elif self._current_class is not ClassType.SUBCLASS:

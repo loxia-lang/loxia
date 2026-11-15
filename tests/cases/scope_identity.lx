@@ -1,4 +1,4 @@
 # Tudo na mesma linha: os nós de `a` têm tokens iguais, mas identidades diferentes.
-{ var a = "x"; print a; { print a; } }
+{ var a = "x"; print(a); { print(a); } }
 # expect: x
 # expect: x

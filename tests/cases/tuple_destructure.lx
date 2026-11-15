@@ -1,11 +1,11 @@
 # Destructuring com val e var, e anotação de tipo.
 var (a, b) = (1, 2)
 a = a + 1
-print a
-print b
+print(a)
+print(b)
 val (c, d): (Int, String) = (3, "x")
-print c
-print d
+print(c)
+print(d)
 # expect: 2
 # expect: 2
 # expect: 3

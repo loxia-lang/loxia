@@ -5,4 +5,4 @@ fn make(n: Int) -> Int {
   }
   return P().get();
 }
-print make(3); # expect: 3
+print(make(3)); # expect: 3

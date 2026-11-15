@@ -1,0 +1,54 @@
+# Variádicos `...args` e spread final (`f(...lista)`) — ADR-0083.
+
+fn soma(...xs: Int) -> Int {
+  var total = 0
+  for x in xs {
+    total = total + x
+  }
+  return total
+}
+
+fn rotulo(prefixo: String = ">", ...xs: String) -> String {
+  var out = prefixo
+  for x in xs {
+    out = out + x
+  }
+  return out
+}
+
+class Junta {
+  fn juntar(sep: String, ...xs: String) -> String {
+    var out = ""
+    var first = true
+    for x in xs {
+      if (first) {
+        out = x
+        first = false
+      } else {
+        out = out + sep + x
+      }
+    }
+    return out
+  }
+}
+
+fn pares[T](...xs: T) -> List[T] {
+  return xs
+}
+
+val dobro = fn(...xs: Int) => soma(...xs)
+val somaRef: fn(...Int) -> Int = soma
+
+print(soma(1, 2, 3))          # expect: 6
+print(soma())                 # expect: 0
+val xs = [4, 5]
+print(soma(...xs))            # expect: 9
+print(rotulo("a", "b", "c"))  # expect: abc
+print(rotulo())               # expect: >
+print(rotulo(">", ...["x", "y"]))  # expect: >xy
+print(Junta().juntar("-", "a", "b", "c"))  # expect: a-b-c
+print(Junta().juntar("-"))    # expect: 
+print(pares(1, 2, 3))         # expect: [1, 2, 3]
+print(pares(...["x", "y"]))   # expect: ["x", "y"]
+print(dobro(7, 8))            # expect: 15
+print(somaRef(2, 3))          # expect: 5

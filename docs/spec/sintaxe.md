@@ -11,7 +11,7 @@ Gramática do parser atual ([`src/frontend/parser.py`](../../src/frontend/parser
 uma função por nível de precedência.
 
 > Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria
-> (`break`/`continue`, variádicos, spread…) está em [`../../TODO.md`](../../TODO.md) §1.
+> (`break`/`continue`, por exemplo) está em [`../../TODO.md`](../../TODO.md) §1.
 > `fn`, `elif`, o `;` opcional, ternário, `??`, `?.`, interpolação, escapes, `not`,
 > destructuring aninhado, `"""` e raw strings já existem; `val`/`var` existem desde o
 > ADR-0005.
@@ -22,22 +22,31 @@ uma função por nível de precedência.
 program        → declaration* EOF ;
 
 declaration    → classDecl
+               | interfaceDecl
+               | typeAliasDecl
                | enumDecl
                | funDecl
                | varDecl
                | valDecl
                | statement ;
 
-classDecl      → "class" IDENTIFIER typeParameters? ( "(" IDENTIFIER ")" )? "{" classMember* "}" ;
+classDecl      → "class" IDENTIFIER typeParameters? ( "(" IDENTIFIER ")" )?
+                 ( "implements" IDENTIFIER ( "," IDENTIFIER )* )? "{" classMember* "}" ;
+interfaceDecl  → "interface" IDENTIFIER "{" interfaceMember* "}" ;
+typeAliasDecl  → "type" IDENTIFIER "=" type terminator ;
+interfaceMember → "fn"? IDENTIFIER "(" parameters? ")" ( "->" type )? ( block | terminator ) ;
 enumDecl       → "enum" IDENTIFIER typeParameters? "{" variant ( "," variant )* "}" ;
 variant        → IDENTIFIER ( "(" type ( "," type )* ")" )? ;
 classMember    → fieldDecl | "fn"? function ;
 fieldDecl      → ( "val" | "var" ) IDENTIFIER ( ":" type )? ( "=" expression )? terminator ;
 funDecl        → "fn" function ;
-function       → IDENTIFIER typeParameters? "(" parameters? ")" ( "->" type )? block ;
+function       → IDENTIFIER functionTypeParameters? "(" parameters? ")" ( "->" type )? block ;
 typeParameters → "[" IDENTIFIER ( "," IDENTIFIER )* "]" ;
+functionTypeParameters → "[" typeParameter ( "," typeParameter )* "]" ;
+typeParameter  → IDENTIFIER ( ":" constraint ( "+" constraint )* )? ;
+constraint     → IDENTIFIER ;
 parameters     → parameter ( "," parameter )* ;
-parameter      → "var"? IDENTIFIER ( ":" type )? ( "=" expression )? ;
+parameter      → "var"? "..."? IDENTIFIER ( ":" type )? ( "=" expression )? ;
 
 varDecl        → "var" ( IDENTIFIER ( ":" type )? ( "=" expression )?
                | destructure ( ":" type )? "=" expression ) terminator ;
@@ -57,7 +66,6 @@ primaryType    → IDENTIFIER ( "[" type ( "," type )* "]" )?
 statement      → exprStmt
                | forStmt
                | ifStmt
-               | printStmt
                | returnStmt
                | whileStmt
                | tryStmt
@@ -74,7 +82,6 @@ forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
 ifStmt         → "if" "(" expression ")" statement
                  ( "elif" "(" expression ")" statement )*
                  ( "else" statement )? ;
-printStmt      → "print" expression terminator ;
 returnStmt     → "return" expression? terminator ;
 whileStmt      → "while" "(" expression ")" statement ;
 tryStmt        → "try" block ( "except" IDENTIFIER "as" IDENTIFIER block )*
@@ -101,7 +108,8 @@ unary          → ( "not" | "-" | "~" ) unary | power ;
 power          → call ( "**" unary )? ;
 call           → primary ( "(" arguments? ")" | "." IDENTIFIER | "?." IDENTIFIER
                  | "[" expression "]" )* ;
-arguments      → expression ( "," expression )* ;
+arguments      → ( expression ( "," expression )* ( "," spread )? ) | spread ;
+spread         → "..." expression ;
 primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | INTERPOLATED_STRING | IDENTIFIER
                | "(" expression ( "," expression )+ ")"   (* tupla *)
@@ -163,6 +171,20 @@ aplicar(fn(x) => x * 2, 3)
 regras de funções, **menos defaults** (`fn(x: Int = 1) => ...` é erro). `fn(` em expressão
 é lambda; `fn nome(` é declaração. Ver [ADR-0022](../adr/0022-lambdas.md).
 
+Type aliases são declarações top-level com `type` **contextual** (não é palavra-chave):
+
+```lox
+type UserId = Int
+type Nomes = List[String]
+type Callback = fn(Int) -> Int
+```
+
+O alvo usa a gramática normal de tipos, pode referenciar classes/interfaces/enums/aliases
+declarados antes ou depois e não pode ser genérico (`type BoxAlias[T] = ...` é erro). O
+alias é transparente: `UserId` e `Int` são o mesmo tipo em anotações, `is`/`as` e no
+backend. Ver [ADR-0039](../adr/0039-decisoes-tipos-pendentes.md) e
+[ADR-0084](../adr/0084-type-alias.md).
+
 Funções genéricas declaram parâmetros de tipo entre o nome e `(`:
 
 ```lox
@@ -171,12 +193,25 @@ fn map[T, U] (xs: List[T], f: fn(T) -> U) -> List[U] { ... }
 ```
 
 `T`/`U` são nomes comuns (ASCII), válidos em `: T`, `-> T`, `List[T]`, `Map[String, T]`,
-`fn(T) -> U` e no corpo. Não há constraints, `T: Add` nem type application explícita:
-`id(1)` infere `T = Int`; `id[Int] (1)` **não** existe. Chamadas sem argumento/contexto que
-permitam inferir todos os `T` são erro. Classes genéricas (`class Box[T]`) existem e
-inferem os argumentos no construtor; métodos com `[T]` continuam recusados no `--check`.
-Herança de classe genérica (`class C(Box[Int])`) ainda não existe. Ver
-[ADR-0027](../adr/0027-generics-t3b.md) e [ADR-0040](../adr/0040-generics-classes-desenho.md).
+`fn(T) -> U` e no corpo. Não há type application explícita: `id(1)` infere `T = Int`;
+`id[Int] (1)` **não** existe. Chamadas sem argumento/contexto que permitam inferir todos os
+`T` são erro.
+
+Funções genéricas podem declarar **constraints** depois de `:`, unidas por `+`:
+
+```lox
+fn max[T: Ord] (a: T, b: T) -> T { ... }
+fn juntas[T: A + B] (x: T) -> String { ... }
+```
+
+`Ord` e `Num` são constraints embutidas; nomes de interface também valem. Na v1 só
+funções aceitam bounds: `class C[T: Ord]` e `enum E[T: Ord]` são erro de parser
+(`Constraints on class type parameters aren't supported yet.`). Classes genéricas
+(`class Box[T]`) existem e inferem os argumentos no construtor; métodos com `[T]`
+continuam recusados no `--check`. Herança de classe genérica (`class C(Box[Int])`) ainda
+não existe. Ver [ADR-0027](../adr/0027-generics-t3b.md),
+[ADR-0040](../adr/0040-generics-classes-desenho.md) e
+[ADR-0081](../adr/0081-constraints-generics.md).
 
 `expr is Tipo` é uma expressão booleana; o lado direito usa a gramática de tipos e o
 operador fica no nível de comparação. `is` testa primitivos, classes/subclasses,
@@ -211,11 +246,11 @@ outra linha, no EOF ou num `}` de fechamento. Duas instruções na mesma linha a
 ```lox
 val a = 1
 var b = 2
-print a + b
+print(a + b)
 
 val c = 1; val d = 2
 
-if (ok) { print "um" }     # `}` fecha o statement: `;` é opcional antes da chave
+if (ok) { print("um") }     # `}` fecha o statement: `;` é opcional antes da chave
 ```
 
 Para continuar uma expressão na linha seguinte, deixe o **operador no fim** da linha:
@@ -251,9 +286,9 @@ quebrar antes de `.` é permitido (encadeamento de propriedades). Os `;` do cabe
 `elif` é açúcar para `else if`, com a mesma exigência de parênteses na condição:
 
 ```lox
-if (n < 0) print "negativo"
-elif (n == 0) print "zero"
-else print "positivo"
+if (n < 0) print("negativo")
+elif (n == 0) print("zero")
+else print("positivo")
 ```
 
 ## Precedência e associatividade
@@ -317,6 +352,30 @@ Consequências:
 não pode ser genérica (`class C(Box[Int])` é erro); classe genérica pode herdar de classe
 não genérica.
 
+Interfaces são nominais e usam `implements` **contextual** depois do cabeçalho da classe
+([ADR-0080](../adr/0080-interfaces-nominais-implementacao.md)):
+
+```lox
+interface Forma {
+  area() -> Float                 # abstrato: sem corpo
+  fn nome() -> String {           # default: com corpo; `fn` é opcional
+    return "forma"
+  }
+}
+
+class Circulo implements Forma { ... }
+class Triangulo(Figura) implements Forma, Desenhavel { ... }
+```
+
+- `interface` é palavra-chave e a declaração é **top-level**.
+- O corpo só aceita métodos; `init`, campos e `static` são recusados. Método sem `{` é
+  assinatura abstrata e termina pela regra normal de `;` opcional (fim de linha, `}` ou
+  EOF); método com `{ ... }` é default.
+- `implements` só é especial no cabeçalho da classe; em qualquer outro lugar continua
+  identificador (`val implements = 1` funciona).
+- Sem interfaces genéricas (`interface I[T]`), sem herança de interface (`interface A : B`)
+  e sem `class C(A, I)`.
+
 ## Açúcar sintático
 
 ### `for` C-style vira `while`
@@ -324,7 +383,7 @@ não genérica.
 Não existe nó para o `for` C-style na AST. O parser desaçucara:
 
 ```lox
-for (var i = 0; i < 3; i = i + 1) print i;
+for (var i = 0; i < 3; i = i + 1) print(i);
 ```
 
 vira
@@ -333,7 +392,7 @@ vira
 {
   var i = 0;
   while (i < 3) {
-    print i;
+    print(i);
     i = i + 1;
   }
 }

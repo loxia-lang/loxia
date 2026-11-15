@@ -1,17 +1,17 @@
 # Kernel v1: substr/join/charCodeAt/fromCodePoint e cache de code points.
-print substr("abcdef", 1, 4)
-print substr("ação", 1, 3)
-print join(["a", "b", "c"], "-")
-print join([], ",")
-print charCodeAt("ação", 1)
-print fromCodePoint(233)
-print fromCodePoint(128512)
-print chars("ação")
+print(substr("abcdef", 1, 4))
+print(substr("ação", 1, 3))
+print(join(["a", "b", "c"], "-"))
+print(join([], ","))
+print(charCodeAt("ação", 1))
+print(fromCodePoint(233))
+print(fromCodePoint(128512))
+print(chars("ação"))
 var total = 0
 for c in "ação" {
   total = total + len(c)
 }
-print total
+print(total)
 # expect: bcd
 # expect: çã
 # expect: a-b-c

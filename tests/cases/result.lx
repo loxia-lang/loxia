@@ -5,15 +5,15 @@ fn parse(n: Int) -> Result[Int, String] {
 }
 
 val r = parse(3)
-print r
-print match r {
+print(r)
+print(match r {
   Result.Ok(v) => v
   Result.Err(e) => e
-}
-print match parse(0) {
+})
+print(match parse(0) {
   Result.Ok(v) => "ok ${v}"
   Result.Err(e) => "erro ${e}"
-}
+})
 # expect: Result.Ok(3)
 # expect: 3
 # expect: erro negativo
