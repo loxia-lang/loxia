@@ -1200,6 +1200,7 @@ class Lowerer(
                 if self.builder.block.is_terminated:
                     return
 
+        self._stack_leave()
         if value is None:
             self.builder.ret_void()
         else:
@@ -1579,6 +1580,12 @@ class Lowerer(
             function = llvm_ir.declare(self.module, name, result, params)
             self._runtime[name] = function
         return function
+
+    def _stack_enter(self) -> None:
+        self.builder.call(self._function("lox_stack_enter", _VOID, []), [])
+
+    def _stack_leave(self) -> None:
+        self.builder.call(self._function("lox_stack_leave", _VOID, []), [])
 
 
 def lower_program(

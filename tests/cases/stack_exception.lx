@@ -1,0 +1,14 @@
+# Construtor de exceção embutida não conta como chamada Lox (é nativo).
+fn f(n: Int) -> Int {
+  if (n <= 0) {
+    return 0
+  }
+  try {
+    raise RuntimeError("x")
+  } except RuntimeError as e {
+  }
+  return 1 + f(n - 1)
+}
+
+print(f(9999))
+# expect: 9999

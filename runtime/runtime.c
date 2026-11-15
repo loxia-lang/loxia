@@ -20,13 +20,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <time.h>
 
-/* Hard cap do heap coletado (ADR-0074); não é configurável por ambiente. */
-#define LOX_GC_MAX_HEAP_BYTES (128ull * 1024ull * 1024ull)
+/* Hard cap do heap coletado (ADR-0087); o driver passa o valor do build. */
+#ifndef LOX_GC_MAX_HEAP_BYTES
+#define LOX_GC_MAX_HEAP_BYTES (512ull * 1024ull * 1024ull)
+#endif
+
+/* Contrato de pilha (ADR-0077); o driver passa o valor do build. */
+#ifndef LOX_MAX_CALL_DEPTH
+#define LOX_MAX_CALL_DEPTH 10000
+#endif
+#ifndef LOX_STACK_RESERVE_BYTES
+#define LOX_STACK_RESERVE_BYTES (128ull * 1024ull * 1024ull)
+#endif
 
 static void *lox_oom(size_t size);
+static void lox_reserve_stack(void);
 
 /*
  * I3: a conversão de/para texto de `double` não pode depender do locale do processo.
@@ -45,6 +57,7 @@ void lox_init(const char *source_path, int32_t argc, char **argv) {
     lox_argc = argc;
     lox_argv = argv;
     setlocale(LC_NUMERIC, "C");
+    lox_reserve_stack();
     GC_set_all_interior_pointers(1);
     GC_INIT();
     GC_set_warn_proc(GC_ignore_warn_proc);
@@ -68,6 +81,42 @@ static LoxStr *string_from_bytes(const char *data, size_t length,
                                  int64_t code_points);
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message);
+
+/*
+ * Pilha de chamadas (ADR-0077): o contador é o contrato; a reserva de SO é
+ * orçamento interno para frames gordos. Chamadas nativas não entram no contador.
+ */
+static int64_t lox_call_depth = 0;
+
+void lox_stack_enter(void) {
+    if (lox_call_depth >= LOX_MAX_CALL_DEPTH) {
+        lox_panic(0, 0, "R1015", "Stack overflow.");
+    }
+    lox_call_depth += 1;
+}
+
+void lox_stack_leave(void) {
+    if (lox_call_depth > 0) {
+        lox_call_depth -= 1;
+    }
+}
+
+/* Sobe o soft limit da pilha da thread principal; virtual, commit sob demanda. */
+static void lox_reserve_stack(void) {
+    struct rlimit limit;
+    if (getrlimit(RLIMIT_STACK, &limit) != 0) {
+        return;
+    }
+    rlim_t desired = (rlim_t)LOX_STACK_RESERVE_BYTES;
+    if (limit.rlim_cur >= desired) {
+        return;
+    }
+    if (limit.rlim_max != RLIM_INFINITY && desired > limit.rlim_max) {
+        desired = limit.rlim_max;
+    }
+    limit.rlim_cur = desired;
+    (void)setrlimit(RLIMIT_STACK, &limit);
+}
 
 /* Heap coletado (ADR-0074): o Boehm é o único alocador; sem free manual. */
 static void *lox_oom(size_t size) {
@@ -1359,6 +1408,7 @@ typedef struct {
     const char *type_name;
     void *instance;
     const char *message;
+    const char *code; /* R1xxx quando o throw veio de um panic; NULL em exceção de usuário */
     int32_t line;
     int32_t column;
 } LoxException;
@@ -1368,6 +1418,7 @@ typedef struct LoxTryFrame {
     struct LoxTryFrame *previous;
     LoxException exception;
     int32_t active;
+    int64_t depth;
 } LoxTryFrame;
 
 static LoxTryFrame *lox_current_try = NULL;
@@ -1376,9 +1427,11 @@ void *lox_try_push(void) {
     LoxTryFrame *frame = lox_alloc(sizeof(LoxTryFrame));
     frame->previous = lox_current_try;
     frame->active = 1;
+    frame->depth = lox_call_depth;
     frame->exception.type_name = NULL;
     frame->exception.instance = NULL;
     frame->exception.message = NULL;
+    frame->exception.code = NULL;
     frame->exception.line = 0;
     frame->exception.column = 0;
     lox_current_try = frame;
@@ -1391,7 +1444,11 @@ void *lox_try_buffer(void *pointer) {
 
 void lox_try_pop(void *pointer) {
     LoxTryFrame *frame = pointer;
-    frame->active = 0;
+    if (frame->active) {
+        frame->active = 0;
+        /* Desfaz o contador das funções abandonadas pelo longjmp (ADR-0077). */
+        lox_call_depth = frame->depth;
+    }
     if (lox_current_try == frame) {
         lox_current_try = frame->previous;
     }
@@ -1444,16 +1501,28 @@ static void lox_print_prefix(int32_t line, int32_t column, const char *code) {
     }
 }
 
-void lox_throw(void *instance, const char *type_name, const char *message,
-               int32_t line, int32_t column) {
+/*
+ * `code != NULL` marca um panic de runtime convertido em exceção para um `try`.
+ * Se ele não for capturado, o topo imprime o código original (ex.: R1015), como o
+ * tree-walk; sem `code`, é uma exceção de usuário (R1010 unhandled).
+ */
+static void lox_throw_internal(const char *code, void *instance,
+                               const char *type_name, const char *message,
+                               int32_t line, int32_t column) {
     LoxTryFrame *frame = lox_current_try;
     if (frame == NULL) {
         fflush(stdout);
-        lox_print_prefix(line, column, "R1010");
-        if (message != NULL) {
-            fprintf(stderr, "Unhandled exception: %s: %s\n", type_name, message);
+        if (code != NULL) {
+            lox_print_prefix(line, column, code);
+            fprintf(stderr, "%s\n", message);
         } else {
-            fprintf(stderr, "Unhandled exception: %s\n", type_name);
+            lox_print_prefix(line, column, "R1010");
+            if (message != NULL) {
+                fprintf(stderr, "Unhandled exception: %s: %s\n", type_name,
+                        message);
+            } else {
+                fprintf(stderr, "Unhandled exception: %s\n", type_name);
+            }
         }
         fflush(stderr);
         exit(70);
@@ -1461,15 +1530,25 @@ void lox_throw(void *instance, const char *type_name, const char *message,
     frame->exception.type_name = type_name;
     frame->exception.instance = instance;
     frame->exception.message = message;
+    frame->exception.code = code;
     frame->exception.line = line;
     frame->exception.column = column;
     longjmp(frame->env, 1);
 }
 
+void lox_throw(void *instance, const char *type_name, const char *message,
+               int32_t line, int32_t column) {
+    lox_throw_internal(NULL, instance, type_name, message, line, column);
+}
+
 void lox_rethrow(void *exception_pointer, int32_t line, int32_t column) {
     LoxException *exception = exception_pointer;
-    lox_throw(exception->instance, exception->type_name, exception->message, line,
-              column);
+    if (exception->code != NULL) {
+        line = exception->line;
+        column = exception->column;
+    }
+    lox_throw_internal(exception->code, exception->instance,
+                       exception->type_name, exception->message, line, column);
 }
 
 void lox_raise_current(int32_t line, int32_t column) {
@@ -1477,14 +1556,16 @@ void lox_raise_current(int32_t line, int32_t column) {
     if (frame == NULL) {
         lox_panic(line, column, "R1014", "No exception to re-raise.");
     }
-    lox_throw(frame->exception.instance, frame->exception.type_name,
-              frame->exception.message, line, column);
+    /* `raise;` reemite como exceção de usuário; o código do panic não sobrevive. */
+    lox_throw_internal(NULL, frame->exception.instance,
+                       frame->exception.type_name, frame->exception.message,
+                       line, column);
 }
 
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message) {
     if (lox_current_try != NULL) {
-        lox_throw(NULL, "RuntimeError", message, line, column);
+        lox_throw_internal(code, NULL, "RuntimeError", message, line, column);
     }
     fflush(stdout);
     lox_print_prefix(line, column, code);

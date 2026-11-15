@@ -1,0 +1,22 @@
+# O finally roda uma vez durante o unwinding do R1015 e a profundidade é restaurada.
+fn f(n: Int) -> Int {
+  if (n <= 0) {
+    return 0
+  }
+  return 1 + f(n - 1)
+}
+
+try {
+  try {
+    print(f(10000))
+  } finally {
+    print("finally")
+  }
+} except RuntimeError as e {
+  print("caught")
+}
+
+print(f(2))
+# expect: finally
+# expect: caught
+# expect: 2

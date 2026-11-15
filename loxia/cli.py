@@ -9,6 +9,11 @@ from src.diagnostics.error_reporter import ErrorReporter
 from src.diagnostics.render import render_batch, render_json
 from src.diagnostics.source import SourceMap, display_path
 from src.execution.interpreter import Interpreter
+from src.execution.limits import (
+    DEFAULT_HEAP_BYTES,
+    MAX_HEAP_BYTES,
+    MIN_HEAP_BYTES,
+)
 from src.frontend.ast_printer import AstPrinter
 from src.frontend.parser import Parser
 from src.frontend.scanner import Scanner
@@ -22,6 +27,29 @@ if TYPE_CHECKING:
 # Comandos de inspeção: o JSON vai para stdout (não há saída de programa). `build` e
 # `run` podem escrever IR/programa em stdout, então o JSON deles vai para stderr.
 JSON_ON_STDOUT = frozenset({"check"})
+_HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
+
+
+def parse_heap_size(text: str) -> int:
+    """Interpreta `512M`, `2G` ou bytes puros; devolve o valor validado."""
+    value = text.strip().lower()
+    multiplier = 1
+    if value and value[-1] in _HEAP_SUFFIXES:
+        multiplier = _HEAP_SUFFIXES[value[-1]]
+        value = value[:-1]
+    try:
+        number = int(value, 10)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid heap size '{text}' (use bytes, K, M or G)"
+        ) from None
+    size = number * multiplier
+    if not MIN_HEAP_BYTES <= size <= MAX_HEAP_BYTES:
+        raise argparse.ArgumentTypeError(
+            f"heap size must be between {MIN_HEAP_BYTES // 1024**2}M "
+            f"and {MAX_HEAP_BYTES // 1024**3}G"
+        )
+    return size
 
 
 class Loxia:
@@ -119,7 +147,13 @@ class Loxia:
         self._flush("check", exit_code=self._exit_code(), always=True)
 
     def build(
-        self, source: str, *, emit: str, output: Path | None, stem: str
+        self,
+        source: str,
+        *,
+        emit: str,
+        output: Path | None,
+        stem: str,
+        max_heap: int | None = None,
     ) -> bool:
         statements = self._parse(source)
         if statements is None:
@@ -162,6 +196,7 @@ class Loxia:
                 generic_class_sites=checker.generic_class_sites,
                 type_aliases=checker.type_aliases(),
                 source_path=self._file,
+                max_heap=max_heap,
             )
         except BackendError as error:
             self.reporter.backend_error(
@@ -181,6 +216,7 @@ class Loxia:
         check: bool = False,
         emit: str | None = None,
         output: str | None = None,
+        max_heap: int | None = None,
     ) -> None:
         try:
             with open(path, encoding="utf-8") as file:
@@ -199,7 +235,11 @@ class Loxia:
         elif emit is not None:
             destination = Path(output) if output is not None else None
             if not self.build(
-                source, emit=emit, output=destination, stem=Path(path).stem
+                source,
+                emit=emit,
+                output=destination,
+                stem=Path(path).stem,
+                max_heap=max_heap,
             ):
                 sys.exit(65)
             return
@@ -300,6 +340,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="caminho de saída do build (padrão: nome do script)",
     )
     parser.add_argument(
+        "--max-heap",
+        type=parse_heap_size,
+        metavar="SIZE",
+        help=(
+            "teto de heap do binário nativo (default: "
+            f"{DEFAULT_HEAP_BYTES // 1024**2}M; ex.: 512M, 2G); só com --emit=exe"
+        ),
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="checa overflow de Int em runtime (release faz wrapping)",
@@ -344,6 +393,8 @@ def main() -> None:
         parser.error("-o/--output requires --emit")
     if parsed_args.max_errors < 0:
         parser.error("--max-errors must be non-negative")
+    if parsed_args.max_heap is not None and parsed_args.emit != "exe":
+        parser.error("--max-heap requires --emit=exe")
 
     lox = Loxia(
         debug=parsed_args.debug,
@@ -360,6 +411,7 @@ def main() -> None:
             check=parsed_args.check,
             emit=parsed_args.emit,
             output=parsed_args.output,
+            max_heap=parsed_args.max_heap,
         )
     else:
         lox.run_prompt()

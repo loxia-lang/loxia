@@ -22,6 +22,12 @@ programa no ponto em que ocorreu; o que já foi impresso permanece. Desde o
 `try`/`raise` ([ADR-0042](../adr/0042-excecoes.md)) capturam exceções explícitas e erros de
 runtime, e `Result` cobre erro esperado. Erros de tipo/sintaxe saem 65.
 
+A profundidade de chamadas é limitada a **10.000 ativações Lox** (função, método, lambda,
+`init` e construtor); a próxima é `error[R1015]: Stack overflow.`, exit 70, capturável por
+`try`/`except RuntimeError`. Chamadas nativas e construtores de `Exception`/`RuntimeError`
+não contam. Um `try`/`finally` que atravessa o estouro restaura a profundidade antes de o
+handler continuar ([ADR-0077](../adr/0077-limite-de-pilha.md)).
+
 O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
 Uma expressão pura como `1 + 1` é embrulhada em `print(1 + 1)` e mostra `2`; declarações
 (`var`, `fn`, `class`) não imprimem nada.

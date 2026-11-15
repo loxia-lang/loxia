@@ -69,19 +69,15 @@ def _interpret(path: Path) -> subprocess.CompletedProcess[str]:
     return _run([sys.executable, str(ENTRYPOINT), str(path)])
 
 
-def _build(path: Path, tmp_path: Path) -> tuple[subprocess.CompletedProcess[str], Path]:
+def _build(
+    path: Path, tmp_path: Path, *, max_heap: str | None = None
+) -> tuple[subprocess.CompletedProcess[str], Path]:
     binary = tmp_path / "programa"
-    result = _run(
-        [
-            sys.executable,
-            str(ENTRYPOINT),
-            "--emit",
-            "exe",
-            "-o",
-            str(binary),
-            str(path),
-        ]
-    )
+    arguments = [sys.executable, str(ENTRYPOINT), "--emit", "exe"]
+    if max_heap is not None:
+        arguments.extend(["--max-heap", max_heap])
+    arguments.extend(["-o", str(binary), str(path)])
+    result = _run(arguments)
     return result, binary
 
 
@@ -547,29 +543,31 @@ def test_gc_preserva_try_frame_e_excecao(tmp_path: Path) -> None:
     assert native.stderr == ""
 
 
+# ~200 MiB de strings vivas: acima do override de 128 MiB, abaixo do default de 512 MiB.
+HEAP_PRESSURE_SOURCE = (
+    "var xs: List[String] = []\n"
+    "var i = 0\n"
+    "while (i < 200) {\n"
+    '  var s = "0123456789abcdef"\n'
+    "  var j = 0\n"
+    "  while (j < 16) { s = s + s; j = j + 1 }\n"
+    "  xs.push(s)\n"
+    "  i = i + 1\n"
+    "}\n"
+    "print(len(xs))\n"
+)
+
+
 @pytest.mark.backend
 def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
-    """ADR-0074: acima do hard cap de 128 MiB, o binário morre com a mensagem do contrato.
+    """ADR-0087: com `--max-heap=128M`, o binário morre com a mensagem do contrato.
 
     O coletor conservador não promete o ponto exato da falha, mas promete canal, mensagem
     e exit code. O teste não imprime nada antes do estouro e roda duas vezes.
     """
-    path = _write(
-        tmp_path,
-        "var xs: List[String] = []\n"
-        "var i = 0\n"
-        "while (i < 200) {\n"
-        '  var s = "0123456789abcdef"\n'
-        "  var j = 0\n"
-        "  while (j < 16) { s = s + s; j = j + 1 }\n"
-        "  xs.push(s)\n"
-        "  i = i + 1\n"
-        "}\n"
-        """print(len(xs))
-""",
-    )
+    path = _write(tmp_path, HEAP_PRESSURE_SOURCE)
 
-    result, binary = _build(path, tmp_path)
+    result, binary = _build(path, tmp_path, max_heap="128M")
     assert result.returncode == 0, result.stderr
 
     first = _run([str(binary)])
@@ -585,6 +583,67 @@ def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
         second.stdout,
         second.stderr,
     )
+
+
+@pytest.mark.backend
+def test_heap_default_de_512_mib_permite_200_mib(tmp_path: Path) -> None:
+    """ADR-0087: o default de 512 MiB não é mais o teto de 128 MiB."""
+    path = _write(tmp_path, HEAP_PRESSURE_SOURCE)
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == "200\n"
+    assert native.stderr == ""
+
+
+@pytest.mark.backend
+def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
+    tmp_path: Path,
+) -> None:
+    """ADR-0077: com soft limit de 8 MiB, `lox_init` sobe a pilha antes da recursão."""
+    import resource
+
+    hard = resource.getrlimit(resource.RLIMIT_STACK)[1]
+    if hard != resource.RLIM_INFINITY and hard < 64 * 1024 * 1024:
+        pytest.skip("hard limit de pilha baixo demais para o teste de reserva")
+
+    locals_source = "\n".join(
+        f"  var a{index}: Int = n + {index}" for index in range(200)
+    )
+    terms = " + ".join(f"a{index}" for index in range(200))
+    source = (
+        "fn g(n: Int) -> Int {\n"
+        f"{locals_source}\n"
+        f"  if (n <= 0) {{ return {terms} }}\n"
+        f"  return ({terms}) + g(n - 1)\n"
+        "}\n"
+        "print(g(9999))\n"
+    )
+    path = _write(tmp_path, source)
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    def soft_8_mib() -> None:
+        _soft, maximum = resource.getrlimit(resource.RLIMIT_STACK)
+        resource.setrlimit(
+            resource.RLIMIT_STACK, (8 * 1024 * 1024, maximum)
+        )
+
+    native = subprocess.run(
+        [str(binary)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+        preexec_fn=soft_8_mib,
+    )
+
+    assert native.returncode == 0, native.stderr
 
 
 def _checkable_sources() -> list[tuple[str, str]]:

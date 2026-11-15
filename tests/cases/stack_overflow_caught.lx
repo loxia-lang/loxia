@@ -1,0 +1,17 @@
+# R1015 é capturável: o contador volta ao valor anterior e o programa continua.
+fn f(n: Int) -> Int {
+  if (n <= 0) {
+    return 0
+  }
+  return 1 + f(n - 1)
+}
+
+try {
+  print(f(10000))
+} except RuntimeError as e {
+  print("caught")
+}
+
+print(f(3))
+# expect: caught
+# expect: 3

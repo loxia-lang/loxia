@@ -18,6 +18,11 @@ from typing import Any, Literal
 
 from src.backend import llvm_ir
 from src.backend.lower import BackendError, lower_program
+from src.execution.limits import (
+    DEFAULT_HEAP_BYTES,
+    MAX_CALL_DEPTH,
+    NATIVE_STACK_RESERVE_BYTES,
+)
 from src.frontend.expr import Expr
 from src.frontend.stmt import Stmt
 from src.frontend.ty import Ty
@@ -26,8 +31,17 @@ Emit = Literal["ll", "obj", "exe"]
 
 RUNTIME_SOURCE = Path(__file__).resolve().parents[2] / "runtime" / "runtime.c"
 
-# Flags do `runtime.c`; entram na chave do cache de objeto.
+# Flags base do `runtime.c`; o cap de heap e o teto de pilha entram por build.
 RUNTIME_FLAGS = ("-O2", "-std=c11")
+
+
+def _runtime_flags(heap_bytes: int) -> tuple[str, ...]:
+    return (
+        *RUNTIME_FLAGS,
+        f"-DLOX_GC_MAX_HEAP_BYTES={heap_bytes}ull",
+        f"-DLOX_MAX_CALL_DEPTH={MAX_CALL_DEPTH}",
+        f"-DLOX_STACK_RESERVE_BYTES={NATIVE_STACK_RESERVE_BYTES}ull",
+    )
 
 
 def build(
@@ -43,6 +57,7 @@ def build(
     generic_class_sites: Any = None,
     type_aliases: dict[str, Ty] | None = None,
     source_path: str = "<lox>",
+    max_heap: int | None = None,
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
     try:
@@ -81,8 +96,9 @@ def build(
         return target
 
     target = output or Path(stem)
+    heap_bytes = DEFAULT_HEAP_BYTES if max_heap is None else max_heap
     try:
-        _link(object_bytes, target)
+        _link(object_bytes, target, heap_bytes)
     except BackendError:
         raise
     except Exception as error:
@@ -103,14 +119,14 @@ def _verify(module: Any) -> None:
         ) from error
 
 
-def _link(object_bytes: bytes, target: Path) -> None:
+def _link(object_bytes: bytes, target: Path, heap_bytes: int) -> None:
     compiler = _compiler()
 
     with tempfile.TemporaryDirectory(prefix="lox-build-") as directory:
         build_dir = Path(directory)
         program_object = build_dir / "program.o"
         program_object.write_bytes(object_bytes)
-        runtime_object = _runtime_object(compiler, build_dir)
+        runtime_object = _runtime_object(compiler, build_dir, heap_bytes)
 
         try:
             _run(
@@ -128,7 +144,7 @@ def _link(object_bytes: bytes, target: Path) -> None:
             raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
 
 
-def _runtime_object(compiler: str, build_dir: Path) -> Path:
+def _runtime_object(compiler: str, build_dir: Path, heap_bytes: int) -> Path:
     """Compila `runtime.c` uma vez por (fonte, compilador, flags) e reusa o `.o`.
 
     O `runtime.c` não depende do programa do usuário; recompilá-lo a cada `--emit=exe`
@@ -138,30 +154,32 @@ def _runtime_object(compiler: str, build_dir: Path) -> Path:
     """
     cache = _runtime_cache_dir()
     if cache is not None:
-        key = _runtime_key(compiler)
+        key = _runtime_key(compiler, heap_bytes)
         cached = cache / f"runtime-{key}.o"
         if cached.exists() and cached.stat().st_size > 0:
             return cached
 
         temporary = cache / f"runtime-{key}.{os.getpid()}.tmp.o"
         try:
-            _compile_runtime(compiler, temporary, cache)
+            _compile_runtime(compiler, temporary, cache, heap_bytes)
             os.replace(temporary, cached)
             return cached
         except (BackendError, OSError):
             temporary.unlink(missing_ok=True)
 
     fallback = build_dir / "runtime.o"
-    _compile_runtime(compiler, fallback, build_dir)
+    _compile_runtime(compiler, fallback, build_dir, heap_bytes)
     return fallback
 
 
-def _compile_runtime(compiler: str, output: Path, sanitized_dir: Path) -> None:
+def _compile_runtime(
+    compiler: str, output: Path, sanitized_dir: Path, heap_bytes: int
+) -> None:
     try:
         _run(
             [
                 compiler,
-                *RUNTIME_FLAGS,
+                *_runtime_flags(heap_bytes),
                 "-c",
                 str(RUNTIME_SOURCE),
                 "-o",
@@ -174,7 +192,7 @@ def _compile_runtime(compiler: str, output: Path, sanitized_dir: Path) -> None:
         ) from error
 
 
-def _runtime_key(compiler: str) -> str:
+def _runtime_key(compiler: str, heap_bytes: int) -> str:
     try:
         source = RUNTIME_SOURCE.read_bytes()
     except OSError as error:
@@ -185,7 +203,7 @@ def _runtime_key(compiler: str) -> str:
     digest.update(source)
     digest.update(compiler.encode("utf-8"))
     digest.update(_compiler_version(compiler).encode("utf-8"))
-    digest.update(" ".join(RUNTIME_FLAGS).encode("utf-8"))
+    digest.update(" ".join(_runtime_flags(heap_bytes)).encode("utf-8"))
     # `CPATH` muda de onde vem o `gc.h`; incluir evita cache de header trocado.
     digest.update(os.environ.get("CPATH", "").encode("utf-8"))
     return digest.hexdigest()[:32]

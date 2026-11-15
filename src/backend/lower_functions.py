@@ -311,6 +311,7 @@ class FunctionLowering(LoweringBase):
         self._captures = {}
         self._cleanup_stack = []
         self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
+        self._stack_enter()
 
         env_arg = info.ir.args[0]
         if captures:
@@ -383,8 +384,10 @@ class FunctionLowering(LoweringBase):
 
         if not self.builder.block.is_terminated:
             if info.fn_sig.ret.ty is ValueType.NIL:
+                self._stack_leave()
                 self.builder.ret_void()
             elif info.fn_sig.ret.optional:
+                self._stack_leave()
                 self.builder.ret(self._zero_desc(info.fn_sig.ret).llvm)
             else:
                 # O checker garante `return` em todos os caminhos.

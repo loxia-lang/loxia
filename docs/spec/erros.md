@@ -204,6 +204,7 @@ partir de `src/diagnostics/codes.py` (`make codes`); não edite à mão.
 | `R1012` | iteração inválida ou mutação durante a iteração |
 | `R1013` | campo não inicializado |
 | `R1014` | valor inválido (chave de mapa, superclasse, …) |
+| `R1015` | profundidade de chamadas acima do limite |
 
 <!-- codes:end -->
 

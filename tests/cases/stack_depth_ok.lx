@@ -1,0 +1,10 @@
+# ADR-0077: exatamente 10.000 chamadas Lox ativas (9999..0) são permitidas.
+fn f(n: Int) -> Int {
+  if (n <= 0) {
+    return 0
+  }
+  return 1 + f(n - 1)
+}
+
+print(f(9999))
+# expect: 9999

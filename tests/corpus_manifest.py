@@ -61,6 +61,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/exponentiation.lx",
         "tests/cases/enums.lx",
         "tests/cases/exceptions.lx",
+        "tests/cases/stack_overflow_caught.lx",
+        "tests/cases/stack_overflow_finally.lx",
+        "tests/cases/stack_exception.lx",
+        "tests/cases/stack_exception_user.lx",
         "tests/cases/for_in.lx",
         "tests/cases/user_iterator.lx",
         "tests/cases/variadic.lx",
@@ -128,6 +132,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/super_with_this.lx",
         "tests/cases/typed_functions.lx",
         "tests/cases/method_fn_keyword.lx",
+        "tests/cases/stack_methods.lx",
+        "tests/cases/stack_ctor.lx",
     ),
     "l4": (
         "tests/cases/closure_reassign.lx",
@@ -137,6 +143,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/functions.lx",
         "tests/cases/lambda_closures.lx",
         "tests/cases/local_function.lx",
+        "tests/cases/stack_depth_ok.lx",
+        "tests/cases/stack_overflow.lx",
     ),
     "t1": (
         "tests/cases/std_asserts.lx",

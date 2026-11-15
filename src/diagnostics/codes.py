@@ -96,6 +96,7 @@ class Code(StrEnum):
     RUNTIME_ITERATION = "R1012"
     FIELD_NOT_INITIALIZED = "R1013"
     INVALID_VALUE = "R1014"
+    RUNTIME_STACK_OVERFLOW = "R1015"
 
 
 CODE_PHASE: dict[Code, Phase] = {
@@ -160,6 +161,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.RUNTIME_ITERATION: Phase.RUNTIME,
     Code.FIELD_NOT_INITIALIZED: Phase.RUNTIME,
     Code.INVALID_VALUE: Phase.RUNTIME,
+    Code.RUNTIME_STACK_OVERFLOW: Phase.RUNTIME,
 }
 
 
@@ -227,4 +229,5 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.RUNTIME_ITERATION: "iteração inválida ou mutação durante a iteração",
     Code.FIELD_NOT_INITIALIZED: "campo não inicializado",
     Code.INVALID_VALUE: "valor inválido (chave de mapa, superclasse, …)",
+    Code.RUNTIME_STACK_OVERFLOW: "profundidade de chamadas acima do limite",
 }

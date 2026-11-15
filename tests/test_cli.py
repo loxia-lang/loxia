@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from loxia import __version__
+from loxia.cli import parse_heap_size
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -279,3 +281,28 @@ def test_diagnostics_use_basename_for_files_outside_cwd(tmp_path: Path) -> None:
 
     assert str(tmp_path) not in result.stderr
     assert result.stderr.startswith("fora.lx:1:11: ")
+
+
+def test_max_heap_requires_emit_exe(tmp_path: Path) -> None:
+    script = tmp_path / "ok.lx"
+    script.write_text("print(1);\n", encoding="utf-8")
+
+    result = run_cli("--max-heap=128M", str(script))
+
+    assert result.returncode == 2
+    assert "--max-heap requires --emit=exe" in result.stderr
+
+
+def test_parse_heap_size_accepts_units_and_bytes() -> None:
+    assert parse_heap_size("512M") == 512 * 1024**2
+    assert parse_heap_size("2g") == 2 * 1024**3
+    assert parse_heap_size(str(64 * 1024**2)) == 64 * 1024**2
+
+
+def test_parse_heap_size_rejects_invalid_values() -> None:
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_heap_size("16M")
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_heap_size("9G")
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_heap_size("muito")

@@ -72,9 +72,12 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
 - **I4 — `--check` limpo compila.** Se o checker aceita, o binário compila; a única recusa
   aceitável é a lacuna declarada (`... is not supported by the backend yet.`). O checker é
   a fonte única dos tipos.
-- **Memória é contrato.** O binário usa GC Boehm ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)):
-  hard cap de 128 MiB e I1 até 64 MiB de memória viva; estourar é `exit 70` +
-  `Out of memory.`. O interpretador não tem teto — o I1 vale dentro do orçamento.
+- **Memória é contrato.** O binário usa GC Boehm ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md),
+  [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)): hard cap default de 512 MiB
+  (`--max-heap` no build) e I1 até 64 MiB de memória viva; estourar é `exit 70` +
+  `Out of memory.`. A pilha tem contrato próprio ([ADR-0077](docs/adr/0077-limite-de-pilha.md)):
+  10.000 chamadas / 64 MiB e `Stack overflow.` (R1015). O interpretador não tem teto — o
+  I1 vale dentro do orçamento.
 
 Detalhes e o que **não** é prometido: [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
@@ -97,6 +100,7 @@ uv sync --extra llvm                 # habilita o backend nativo (llvmlite)
 uv run main.py --emit=ll prog.lx    # IR do LLVM (inspeção)
 uv run main.py --emit=obj prog.lx   # .o para linkar
 uv run main.py --emit=exe -o app prog.lx   # binário nativo
+uv run main.py --emit=exe --max-heap=2G -o app prog.lx  # teto de heap do binário
 uv run main.py --emit=ll --output prog.ll prog.lx  # IR em arquivo (--output)
 # o runtime C é compilado uma vez e cacheado (LOX_BUILD_CACHE=<dir> isola o cache)
 make test                      # pytest (inclui os testes nativos)

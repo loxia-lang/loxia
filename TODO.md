@@ -23,8 +23,9 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
 vale o que está aqui. Estado em 2026-11-15: **L0–L6, L7, M7, T1 e T2 concluídos**; kernel
 v1 (17 primitivas), tabela de primitivas, imports/módulos e a stdlib comum implementados.
-A próxima execução é o **limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)).
-O status por nível é **gerado** em
+Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
+([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; a próxima execução
+é **diagnósticos** (§0.2). O status por nível é **gerado** em
 [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -44,11 +45,13 @@ O status por nível é **gerado** em
        `std.asserts` e `std.results`; cada módulo com golden, `--check` e determinismo.
 2. [x] **T2 — stdlib comum**: `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`,
        `convert` ([ADR-0079](docs/adr/0079-stdlib-t2.md)).
-3. [ ] **Limite de pilha**: [ADR-0077](docs/adr/0077-limite-de-pilha.md) proposto
-       (1.000 chamadas + `R1015`); implementar depois de T2 e decidir o número final.
-4. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
-5. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
-6. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
+3. [x] **Limite de pilha**: [ADR-0077](docs/adr/0077-limite-de-pilha.md) implementado
+       (10.000 chamadas, orçamento de 64 MiB, `R1015`).
+4. [x] **Heap**: [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md) implementado
+       (default 512 MiB + `--max-heap` de build).
+5. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
+6. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
+7. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
 
 ## 3. Diagnósticos
 
@@ -62,8 +65,8 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 ### 3.1 O que ainda falta
 
 - [ ] **Stack trace de runtime** (`P2`): frames `at f (linha N) ← main (linha M)`; no
-      binário, decidir o custo de carregar frames. Depende do limite de pilha
-      ([ADR-0077](docs/adr/0077-limite-de-pilha.md), proposto).
+      binário, decidir o custo de carregar frames. O limite de pilha já existe
+      ([ADR-0077](docs/adr/0077-limite-de-pilha.md)); `R1015` ainda não tem posição.
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token.
 - [ ] **`fixes[]`** (`P3`): `applicability` + `edits[]` por span; só quando houver edição
@@ -196,6 +199,26 @@ linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é
       depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 7). P3/XL.
 - [ ] **`lox fmt` em Lox** — primeiro exercício de dogfooding depois do kernel: parser +
       AST printer na própria linguagem, validado contra o `--dump-ast` do Python (§13.7).
+- [ ] **`fs.open` + leitura/escrita em streaming** (`P2`, `M`) — handle de arquivo
+      explícito, no espírito do `open()` do Python, para não materializar arquivos grandes
+      em `String`/`List[String]` (o `readLines` atual lê o arquivo inteiro). Ideias:
+      - `fs.open(path, mode) -> File?` com modos `"r"`, `"w"`, `"a"`, `"r+"`, `"w+"`,
+        `"a+"` (texto UTF-8; binário/`Bytes` fica fora até existir o tipo); `File` com
+        `readLine() -> String?` (nil = EOF), `readAll() -> String`, `read(n) -> String?`,
+        `write(text)`, `flush()`, `close()`, `seek`/`tell` (avaliar), `lines()` (avaliar);
+      - **fechamento automático**: Loxia não tem `with`. Opções: (a) helper de stdlib
+        `fs.withOpen(path, mode, fn(f: File) { ... })` que fecha em `finally`, sem sintaxe
+        nova; (b) `with`/`defer` de verdade, só com aprovação do gate do
+        [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md); (c) finalizer/GC não é
+        determinístico no Boehm, então não;
+      - erros: `File?` para abrir e `String?` para EOF, erro de I/O vira `LoxRuntimeError`;
+        `close()` idempotente; usar depois de fechar é erro; exceção no callback de
+        `withOpen` fecha o handle;
+      - custo: dois motores (`FILE*` no runtime, file object no Python), testes com diretório
+        temporário, UTF-8/CRLF, append, leitura linha a linha com memória limitada; I/O é
+        ambiente (fora do I1), sem caminho absoluto na saída;
+      - relação: `readText`/`readLines` continuam como conveniência; `fs.open` é o caminho
+        para CSV/logs grandes e para o `lox fmt`/self-hosting.
 - [ ] **Playground WASM** (target `wasm32` do LLVM) rodando no navegador.
 - [ ] **REPL com `:type`** — mostra o tipo inferido de uma expressão antes de rodar.
 - [ ] **`lox test`** — runner de testes embutido na linguagem (`#[test] fn ...`).
@@ -352,7 +375,7 @@ determinismo.
 | `std.json` | `parse`, `stringify`, `pretty` (ordem de inserção; `Int`/`Float` distintos) | ✅ |
 | `std.fmt` | `format(template, List[Any])`, `pad`, `commas`, `fixed`, `percent`, `bytes` | ✅ |
 | `std.paths` | `join`, `dirname`, `basename`, `ext`, `stem`, `normalize`, `isAbsolute`, `split` (POSIX) | ✅ |
-| `std.fs` | `readText`, `readLines`, `writeText`, `appendText`, `exists`, `listDir` | ✅ ambiente (pytest) |
+| `std.fs` | `readText`, `readLines`, `writeText`, `appendText`, `exists`, `listDir` | ✅ ambiente (pytest); `fs.open`/streaming: ver §10 |
 | `std.io` | `write`, `writeErr`, `readLine`, `readAll`, `prompt` | ✅ leitura ambiente (pytest) |
 | `std.cli` | `parse(args, spec)`, `flag`, `option`, `positional`, `usage` | ✅ spec em `List[String]` |
 | `std.sets` | `Set[T]` sobre `Map[Any, Bool]`: `add`, `has`, `remove`, `len`, `union`, `intersect`, `difference`, `toList`, `fromList` (classe em módulo) | ✅ (campo T em constraints pós-MVP) |
@@ -376,7 +399,7 @@ determinismo.
 
 | # | Passo | Esforço | Depende de |
 | --- | --- | --- | --- |
-| 0 | ✅ **GC Boehm + contrato de memória** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)): allocator, roots, hard cap 128 MiB, I1 até 64 MiB live | M | — |
+| 0 | ✅ **GC Boehm + contrato de memória** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)): allocator, roots, hard cap default 512 MiB + `--max-heap`, I1 até 64 MiB live | M | — |
 | 1 | ✅ **13.3** — cache de offsets + `substr`/`join`/`charCodeAt`/`fromCodePoint` + bench | M | 0 |
 | 2 | ✅ **13.4** — tabela única de primitivas | S | 1 |
 | 3 | ✅ **13.2** — kernel de SO: `args`, `io.*`, `os.*` + `main(argc, argv)` + exit code | M | 2 |

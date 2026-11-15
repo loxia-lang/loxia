@@ -1,5 +1,9 @@
 # ADR-0074 — GC Boehm e contrato de memória (hard cap de 128 MiB)
 
+> **Atualizado por** [ADR-0087](0087-heap-cap-e-self-hosting.md): o hard cap default
+> passou a **512 MiB** e o build ganhou `--max-heap`; o Boehm, os roots e o I1 até 64 MiB
+> live continuam valendo. O corpo abaixo é o registro histórico da decisão de 128 MiB.
+
 - **Status:** accepted (implementado)
 - **Data:** 2026-11-14
 - **Decisores:** Cássio Dalla (dono do projeto) e agente (DSH)

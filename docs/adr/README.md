@@ -119,10 +119,10 @@ Crie quando a decisão:
 | [0071](0071-primitivas-de-runtime.md) | Primitivas de runtime: fronteira nativa, tabela única e complexidade linear | accepted (plano; implementação pendente) | 2026-11-14 |
 | [0072](0072-stdlib-batteries.md) | Stdlib: kernel nativo, biblioteca em Lox e política de batteries | accepted (plano; implementação pendente) | 2026-11-14 |
 | [0073](0073-imports-modulos.md) | Imports, módulos-arquivo, `_` privado e desugar | accepted (implementado) | 2026-11-14 |
-| [0074](0074-gc-boehm-e-contrato-de-memoria.md) | GC Boehm e contrato de memória (hard cap de 128 MiB) | accepted (implementado) | 2026-11-14 |
+| [0074](0074-gc-boehm-e-contrato-de-memoria.md) | GC Boehm e contrato de memória (hard cap atualizado para 512 MiB pelo ADR-0087) | accepted (implementado) | 2026-11-14 |
 | [0075](0075-diagnosticos-estruturados.md) | Diagnósticos estruturados: modelo, códigos estáveis, `human`/`short`/`json` e determinismo | accepted (implementado) | 2026-11-14 |
 | [0076](0076-std-lists-sort.md) | `std.lists.sort`: comparador de três vias, estável, lista nova | accepted (implementado) | 2026-11-14 |
-| [0077](0077-limite-de-pilha.md) | Limite de profundidade de chamadas (1.000) e `Stack overflow.` | proposed | 2026-11-15 |
+| [0077](0077-limite-de-pilha.md) | Limite de profundidade de chamadas (10.000) e `Stack overflow.` | accepted (implementado) | 2026-11-15 |
 | [0078](0078-nome-loxia-extensao-lx.md) | Nome **Loxia**, extensão `.lx` e prelúdio sem a marca (`RuntimeError`) | accepted (implementado) | 2026-11-15 |
 | [0079](0079-stdlib-t2.md) | Stdlib T2: kernel 17, campos-container, `str(Any)` e validação de chave de `Map` no C | accepted (implementado) | 2026-11-15 |
 | [0080](0080-interfaces-nominais-implementacao.md) | Interfaces nominais: sintaxe, verificação, defaults, tipos e ABI | accepted (implementado) | 2026-11-15 |
@@ -132,6 +132,7 @@ Crie quando a decisão:
 | [0084](0084-type-alias.md) | `type` alias transparente e não-genérico | accepted (implementado) | 2026-11-15 |
 | [0085](0085-print-como-funcao.md) | `print` como função builtin (`Any -> Nil`); statement removido | accepted (implementado) | 2026-11-15 |
 | [0086](0086-narrowing-captura-e-merge.md) | Narrowing: invalidação de `var` capturado e merge de fluxo | accepted (implementado) | 2026-11-15 |
+| [0087](0087-heap-cap-e-self-hosting.md) | Heap: default de 512 MiB e `--max-heap` de build | accepted (implementado) | 2026-11-15 |
 
 
 ## Próximas decisões que pedem ADR

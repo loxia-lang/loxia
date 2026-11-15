@@ -7,6 +7,15 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)): 10.000 chamadas
+  Lox ativas nos dois motores, erro `R1015`/`Stack overflow.` capturável por
+  `try`/`except RuntimeError`, restauração da profundidade em `try`/`finally` e reserva de
+  pilha no binário via `setrlimit`. Chamadas nativas e construtores de exceção embutida
+  não contam; construtor + `init` contam duas ativações.
+- **Heap default de 512 MiB + `--max-heap`** ([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)):
+  o hard cap do binário subiu de 128 MiB para 512 MiB e `--emit=exe --max-heap=SIZE`
+  embute outro teto no runtime (default `512M`, faixa `32M..8G`). I1 continua até 64 MiB
+  de memória viva; o teste de OOM usa um build de 128 MiB e um caso novo prova os 512 MiB.
 - **Stdlib T2 completa** ([ADR-0079](docs/adr/0079-stdlib-t2.md)): `std.json`
   (`parse`/`stringify`/`pretty`, ordem de inserção e `Int`/`Float` distintos), `std.fmt`
   (`format`/`pad`/`commas`/`fixed`/`percent`/`bytes`), `std.paths` (POSIX lexical),

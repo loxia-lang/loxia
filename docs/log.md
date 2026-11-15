@@ -549,3 +549,26 @@ Intervalo: `HEAD`..working tree (checker/resolver; sem mudança de runtime/backe
 - `IDEIAS.md` — **updated**: I-8 ganhou as quatro ideias com utilidade, custos,
   alternativas e critério de reabertura.
 - `ESCOPO.md` — **updated**: os itens apontam para IDEIAS I-8 ou para “fora por enquanto”.
+
+## 2026-11-15 — Limite de pilha 10.000/64 MiB e heap 512 MiB (ADR-0077/ADR-0087)
+
+Intervalo: `HEAD`..working tree (runtime, interpreter, backend, CLI, testes e docs).
+
+- `docs/adr/0077-limite-de-pilha.md` — **updated**: contrato de 10.000 chamadas / 64 MiB,
+  correção da medição (limite de frames do Python, não pilha C), contagem ctor+init e
+  restauração no unwinding.
+- `docs/adr/0087-heap-cap-e-self-hosting.md` — **new**: default de 512 MiB,
+  `--max-heap` de build, I1 inalterado em 64 MiB live e nota de self-hosting.
+- `docs/adr/0074-gc-boehm-e-contrato-de-memoria.md`, `docs/adr/README.md` — **updated**:
+  nota de atualização do cap e índice/status.
+- `docs/spec/garantias.md` — **updated**: orçamento de pilha (10k/64 MiB/R1015) e heap
+  512 MiB/`--max-heap`; I1 continua em 64 MiB live.
+- `docs/spec/erros.md` — **updated**: `R1015` no catálogo gerado.
+- `docs/spec/semantica.md` — **updated**: limite de ativações Lox, R1015 catchable e
+  restauração por `try`/`finally`.
+- `docs/tech/arquitetura.md` — **updated**: limitações de recursão e memória.
+- `docs/decisoes.md`, `TODO.md`, `ESCOPO.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md` —
+  **updated**: números, fila, flags e registro executivo.
+- `tests/cases/stack_*.lx`, `tests/corpus_manifest.py`, `tests/test_backend.py`,
+  `tests/test_cli.py` — **updated**: corpus e testes de borda, reserva de pilha e
+  override de heap.

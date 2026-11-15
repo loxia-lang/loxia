@@ -52,15 +52,15 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l2` | 14 |
 | `l2.5` | 3 |
 | `l3` | 14 |
-| `l4` | 7 |
-| `l5` | 25 |
-| `l6` | 53 |
+| `l4` | 9 |
+| `l5` | 27 |
+| `l6` | 57 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 7 |
 | `t7` | 3 |
 
-**141 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**149 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
@@ -71,18 +71,33 @@ A comparação é feita por canal: quando stdout e stderr vão para o **mesmo** 
 
 Não existe promessa de que código interpretado e compilado tenham a mesma **velocidade**,
 o mesmo consumo de memória ou o mesmo stack trace — só o mesmo resultado observável.
-Recursão profunda fica fora do corpus até existir contador de pilha no runtime.
 
-#### Orçamento de memória ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md))
+#### Orçamento de pilha ([ADR-0077](../adr/0077-limite-de-pilha.md))
 
-O binário usa **GC Boehm** conservador, com **hard cap de 128 MiB** de heap coletado
-(substitui a arena de 64 MiB do [ADR-0060](../adr/0060-orcamento-de-memoria.md)). Exceder
-o cap é `exit 70` + `Out of memory.` no stderr, sem traceback, e o teto **não** depende do
-ambiente.
+O binário e o tree-walk contam **ativações Lox** (função, método, lambda, `init` e
+construtor) com o mesmo limite: **10.000 chamadas**. A chamada 10.001 é
+`error[R1015]: Stack overflow.`, exit 70, capturável por `try`/`except RuntimeError`.
+Chamadas nativas e construtores de exceção embutida não contam. Construtor + `init` contam
+duas ativações.
 
+- O binário reserva 128 MiB de soft limit de pilha (`setrlimit`) antes de executar; o
+  orçamento declarado é 64 MiB. Em plataformas com hard limit menor, o limite é clampado.
+- O tree-walk eleva o `sys.setrecursionlimit` para 200.000 (orçamento interno, não
+  contrato).
+- Acima de 10.000 chamadas o erro é determinístico, mas **stack trace com frames** ainda
+  não existe (dívida em `TODO.md` §3.1).
+
+#### Orçamento de memória ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](../adr/0087-heap-cap-e-self-hosting.md))
+
+O binário usa **GC Boehm** conservador, com **hard cap default de 512 MiB** de heap
+coletado (o ADR-0074 fixou 128 MiB; o ADR-0087 subiu o default). Exceder o cap é `exit 70`
++ `Out of memory.` no stderr, sem traceback, e o teto **não** depende do ambiente.
+
+- O build pode escolher outro teto com `--max-heap=SIZE` (só `--emit=exe`; default `512M`,
+  faixa `32M..8G`). O valor é embutido no binário, não é env nem flag de runtime.
 - O **I1 cobre programas cujo pico de memória viva caiba em 64 MiB**. Acima disso, o
-  programa está fora do corpus: pode rodar, mas não há garantia de resultado nem de ponto
-  de falha.
+  programa está fora do corpus: pode rodar (até o cap), mas não há garantia de resultado
+  nem de ponto de falha. Self-hosting é declarado fora do I1 até existir corpus próprio.
 - O interpretador **não** tem teto (GC do Python) e pode rodar programas que o binário
   recusa — a assimetria é declarada.
 - Como o Boehm é conservador, o **ponto exato** em que um programa acima do cap estoura
@@ -211,8 +226,9 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
   existirem não serão contrato público na primeira versão.
 - **Timing.** Nada promete quando um `nil`/objeto é liberado, nem ordem de finalização —
   justamente para não quebrar I1.
-- **Programas acima do orçamento de memória** no binário (hard cap de 128 MiB e I1 até
-  64 MiB de memória viva) e **recursão profunda** sem contador de pilha.
+- **Programas acima do orçamento de memória** no binário (hard cap default de 512 MiB e
+  I1 até 64 MiB de memória viva), **acima de 10.000 chamadas Lox** (R1015 é o limite) e
+  **stack trace com frames** (R1015 não tem posição).
 
 ## Revisitar
 

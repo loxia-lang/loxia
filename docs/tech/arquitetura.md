@@ -422,10 +422,12 @@ exit code com o interpretador — o oráculo é sempre o tree-walk.
 - Sem colunas/spans, sem stack trace, sem códigos de erro.
 - `Int` (i64) e `Float` (f64) separados; `/` sempre `Float`, `%` truncado, `Int` com
   wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
-- Recursão limitada pela pilha do Python (sem tail call).
+- Recursão limitada a 10.000 chamadas Lox (R1015, capturável) nos dois motores; sem tail
+  call e sem stack trace de frames ([ADR-0077](../adr/0077-limite-de-pilha.md)).
 - No tree-walk, sem GC próprio: objetos são coletados pelo Python. No backend, GC
-  Boehm conservador, hard cap de 128 MiB e I1 até 64 MiB de memória viva
-  ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)).
+  Boehm conservador, hard cap default de 512 MiB (`--max-heap` no build) e I1 até 64 MiB
+  de memória viva ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md),
+  [ADR-0087](../adr/0087-heap-cap-e-self-hosting.md)).
 - Sem bytecode/VM: o alvo é LLVM, e o tree-walk é o oráculo (ADR-0002).
 - `;` opcional é decidido no parser, não por inserção no scanner; operador no começo da
   linha não continua a expressão (ADR-0011).

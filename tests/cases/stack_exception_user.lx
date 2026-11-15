@@ -1,0 +1,18 @@
+# R1015 dentro de um try cujo handler não casa: o código original sobrevive ao rethrow.
+class E(Exception) {
+  fn init(m: String) { this.message = m }
+}
+
+fn f(n: Int) -> Int {
+  if (n <= 0) {
+    return 0
+  }
+  try {
+    raise E("x")
+  } except E as e {
+  }
+  return 1 + f(n - 1)
+}
+
+print(f(9999))
+# expect runtime error: Stack overflow.

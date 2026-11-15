@@ -1,0 +1,13 @@
+# O contador inclui ativações de método (thunks de bound method não contam em dobro).
+class C {
+  fn down(n: Int) -> Int {
+    if (n <= 0) {
+      return 0
+    }
+    return 1 + this.down(n - 1)
+  }
+}
+
+val c = C()
+print(c.down(5000))
+# expect: 5000

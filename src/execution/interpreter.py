@@ -11,6 +11,7 @@ from src.diagnostics.errors import (
 )
 from src.execution import numeric
 from src.execution.environment import Environment
+from src.execution.limits import MAX_CALL_DEPTH, ensure_recursion_budget
 from src.execution.lox_callable import LoxCallable
 from src.execution.lox_class import FieldInfo, LoxClass
 from src.execution.lox_enum import LoxEnumObject, LoxEnumValue
@@ -123,9 +124,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         checked_overflow: bool = False,
         argv: list[str] | None = None,
     ) -> None:
+        ensure_recursion_budget()
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
         self.checked_overflow = checked_overflow
         self.argv = list(argv or [])
+        self._call_depth = 0
         self.globals = Environment()
         self.environment = self.globals
         self._type_aliases: dict[str, Ty] = {}
@@ -170,6 +173,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         )
 
     def interpret(self, statements: list[Stmt]) -> None:
+        self._call_depth = 0
         for statement in statements:
             if isinstance(statement, TypeAlias):
                 self._type_aliases[statement.name.lexeme] = statement.target
@@ -186,6 +190,20 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
         except LoxRuntimeError as e:
             self.reporter.runtime_error(e)
+
+    def _enter_call(self) -> None:
+        """Conta uma ativação Lox (ADR-0077); a próxima acima do teto é R1015."""
+        if self._call_depth >= MAX_CALL_DEPTH:
+            raise LoxRuntimeError(
+                Token(TokenType.EOF, "", None, 0),
+                "Stack overflow.",
+                code=Code.RUNTIME_STACK_OVERFLOW,
+            )
+        self._call_depth += 1
+
+    def _leave_call(self) -> None:
+        if self._call_depth > 0:
+            self._call_depth -= 1
 
     def resolve(self, expr: Expr, depth: int) -> None:
         self.locals[expr] = depth

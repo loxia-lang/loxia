@@ -1,135 +1,149 @@
 # ADR-0077 — Limite de profundidade de chamadas e `Stack overflow.`
 
 > **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): a classe embutida
-> `LoxRuntimeError` passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico
-> da decisão da época.
+> `LoxRuntimeError` passou a se chamar `RuntimeError`. **Revisado em 2026-11-15** para o
+> contrato de 10.000 chamadas / 64 MiB; a medição original confundia o limite de frames
+> do Python com a pilha C (ver §"Medições").
 
-- **Status:** proposed (decisão humana pendente; código não implementado)
+- **Status:** accepted (implementado)
 - **Data:** 2026-11-15
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md) (I1–I4),
   [ADR-0031](0031-backend-nativo.md) (backend),
   [ADR-0042](0042-excecoes.md) e [ADR-0062](0062-l6-excecoes-unwinding.md)
-  (exceções/unwinding), [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) (memória),
-  [`../../TODO.md`](../../TODO.md) §3.1, [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** nenhuma ainda; quando aceito, toca
-  [`runtime/runtime.c`](../../runtime/runtime.c), [`src/backend/lower_functions.py`](../../src/backend/lower_functions.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py) e o corpus
-  (`tests/cases/`)
+  (exceções/unwinding), [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) e
+  [ADR-0087](0087-heap-cap-e-self-hosting.md) (memória), [`../../TODO.md`](../../TODO.md)
+  §3.1, [`../spec/garantias.md`](../spec/garantias.md)
+- **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c),
+  [`src/backend/lower_functions.py`](../../src/backend/lower_functions.py),
+  [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py),
+  [`src/backend/lower.py`](../../src/backend/lower.py),
+  [`src/execution/lox_function.py`](../../src/execution/lox_function.py),
+  [`src/execution/lox_class.py`](../../src/execution/lox_class.py),
+  [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
+  [`src/execution/limits.py`](../../src/execution/limits.py),
+  [`src/backend/driver.py`](../../src/backend/driver.py) e o corpus (`tests/cases/`)
 
 ## Contexto
 
-Hoje a profundidade de chamadas não é contratada:
+Antes deste ADR a profundidade de chamadas não era contratada:
 
-- o **tree-walk** usa a pilha do Python. Uma recursão Lox profunda vira
-  `RecursionError` não tratado: traceback em stderr e **exit 1**, não um diagnóstico Lox;
-- o **binário** usa a pilha C. Recursão profunda estoura a pilha e o processo morre com
-  **SIGSEGV (139)**, sem mensagem e sem `exit 70`;
-- [`garantias.md`](../spec/garantias.md) declara recursão profunda **fora do corpus**
-  “até existir contador de pilha no runtime”. O I1, portanto, não cobre esse caso;
-- o [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) cobre o **heap** (128 MiB, I1 até
-  64 MiB vivos), mas não a pilha de chamadas.
+- o **tree-walk** usava a pilha do Python sem contador Lox; recursão profunda virava
+  `RecursionError` não tratado (traceback em stderr, **exit 1**);
+- o **binário** usava a pilha C; recursão profunda morria com **SIGSEGV (139)**, sem
+  mensagem e sem `exit 70`;
+- [`garantias.md`](../spec/garantias.md) declarava recursão profunda **fora do corpus**;
+- o [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) cobre o **heap**, não a pilha.
 
-Isso deixa um crash conhecido no MVP: um programa válido derruba o binário sem
-diagnóstico. O contador é a menor intervenção que troca o crash por um erro Lox
-determinístico e comparável entre os dois motores.
+O contador é a menor intervenção que troca o crash por um erro Lox determinístico,
+capturável e comparável entre os dois motores.
 
 ### Medições deste ambiente (2026-11-15)
 
-Não são contrato; servem para dimensionar o limite. Python 3.13, pilha de 8 MiB,
-`libgc` Boehm:
+Python 3.13, pilha C de 8 MiB, `libgc` Boehm. Números de engenharia, não contrato:
 
 | Motor | Profundidade | Resultado |
 | --- | --- | --- |
-| tree-walk, `sys.setrecursionlimit` padrão (1000) | 120 | ok |
-| tree-walk, limite padrão | 125 | `RecursionError`, exit 1 |
-| tree-walk, `sys.setrecursionlimit(20000)` | 2.000 | ok |
-| tree-walk, `sys.setrecursionlimit(20000)` | 5.000 | `RecursionError`, exit 1 |
-| binário (`--emit=exe`) | 500.000 | ok |
-| binário | 1.000.000 | SIGSEGV (139) |
+| tree-walk, `sys.setrecursionlimit` default (1000) | ~100 | `RecursionError`, exit 1 |
+| tree-walk, limite proporcional (200k) | 10.000 | ok (~50 MB RSS no pior caminho) |
+| tree-walk, limite proporcional (15M) | 1.000.000 | ok, **~2,2 GB RSS e 7 s** |
+| binário, função simples | 500.000 | ok com 8 MiB |
+| binário, função simples | 1.000.000 | SIGSEGV com 8 MiB; ok com 64 MiB |
+| binário, função com 200 locais | 10.000 | SIGSEGV com 8 MiB; ok com 64 MiB |
 
-O tree-walk é o gargalo. Um limite compartilhado precisa caber nele com margem, mesmo
-depois de elevar o limite do Python.
+A medição antiga (“5.000 falha com `setrecursionlimit(20000)`”) era o **limite de frames
+do Python**, não a pilha C: cada chamada Lox consome ~11–13 frames Python. Com orçamento
+proporcional, o tree-walk chega a 1M — o limite real é memória (~2,2 KB/chamada), não C
+stack. O binário gasta ~16 B a ~1,2 KB por frame, dependendo do corpo.
 
 ## Decisão
 
-### 1. Limite único e determinístico: 1.000 chamadas Lox
+### 1. Limite único e determinístico: 10.000 chamadas Lox
 
-`LOX_MAX_CALL_DEPTH = 1000` é o mesmo número nos dois motores. Conta **chamadas Lox**
-(função, método, lambda, construtor de classe), não primitivas nativas (`len`, `str`,
-`math.*`, etc.). Código de topo e `main` ficam em profundidade 0.
+`LOX_MAX_CALL_DEPTH = 10_000` é o mesmo número nos dois motores (`src/execution/limits.py`
+e `-D` do driver para o runtime). A profundidade permitida é `1..10_000`; a chamada
+10.001 é `Stack overflow.`. Código de topo e `main` ficam em profundidade 0.
 
-A profundidade permitida é `0..999`; entrar na chamada de número 1000 é
-`Stack overflow.`. O limite **não** é configurável por ambiente ou flag: mudar o número
-é mudança de contrato (ADR novo + `garantias.md` + corpus).
+Conta **ativações Lox**: função, método, lambda, `init` e construtor de classe. Chamadas
+nativas (`len`, `str`, `math.*`, construtor de `Exception`/`RuntimeError`) **não** contam.
+Construtor + `init` contam **duas** ativações, porque são dois frames reais nos dois
+motores. O limite não é configurável por ambiente ou flag; mudar o número é mudança de
+contrato (ADR novo + `garantias.md` + corpus).
 
-### 2. O erro é `R1015`, capturável e sem posição na v1
+### 2. O erro é `R1015`, capturável e sem posição
 
 - Mensagem: `Stack overflow.`
-- Código novo: `R1015` (família runtime; não reutiliza código).
-- `exit 70` quando não capturado.
-- É `LoxRuntimeError`: `try`/`except LoxRuntimeError` captura e o programa continua.
-- **Sem linha/coluna na v1**: o contador dispara na entrada da função, e a posição
-  sintética (`line = 0`) produz `error[R1015]: Stack overflow.` nos dois motores. Um
-  stack trace com frames é trabalho separado (TODO §3.1), não requisito deste ADR.
+- Código: `R1015`, família runtime (`src/diagnostics/codes.py`).
+- `exit 70` quando não capturado; `try`/`except RuntimeError` captura e o programa
+  continua.
+- **Sem linha/coluna**: o contador dispara na entrada da função; o token sintético tem
+  `line = 0` e o renderizador imprime `error[R1015]: Stack overflow.` sem localização.
+  Stack trace com frames continua trabalho separado (TODO §3.1).
+- O formato é idêntico ao `lox_panic(0, 0, "R1015", ...)` do binário, preservando o I1.
 
-O formato exato é o que o renderizador já faz para posição sintética: sem
-`arquivo:linha:col`. Isso mantém o I1 byte a byte sem inventar uma posição que um dos
-motores não tem.
+### 3. Tree-walk: contador nas ativações e orçamento de recursão do Python
 
-### 3. Tree-walk: contador no `call` e orçamento de recursão do Python
-
-- `Interpreter` mantém `_call_depth` (inicia em 0).
-- Em `visit_call_expr`, depois de calcular o callee e os argumentos e antes de
-  `callee.call(...)`: se `_call_depth >= 1000`, levanta
+- `Interpreter` mantém `_call_depth`, zerado no início de cada `interpret`.
+- `_enter_call()`: se `_call_depth >= 10_000`, levanta
   `LoxRuntimeError(token_sintético, "Stack overflow.", code=R1015)`; senão incrementa.
-- `finally` decrementa em **todas** as saídas (retorno, `raise`, `ReturnSignal`).
-- O CLI garante `sys.setrecursionlimit >= 20_000` antes de executar. Com 1.000 chamadas
-  Lox e ~5–8 frames Python por chamada, sobram ~10× de margem para o pior caminho e para
-  `try`/`finally` aninhados. O limite do Python não é contrato: é orçamento interno.
-- Teste dedicado mede o caminho mais fundo (método + lambda + `try`) no limite.
+- `_leave_call()` no `finally` de `LoxFunction.call` e `LoxClass.call`, cobrindo retorno
+  normal, `raise` e `ReturnSignal`.
+- O interpretador eleva `sys.setrecursionlimit` para **200.000** (≈15 × 10.000 + folga)
+  em `ensure_recursion_budget()`. Esse limite é orçamento interno, não contrato: o teto
+  observável é `MAX_CALL_DEPTH`.
+- Construtor de exceção embutida usa `LoxExceptionClass.call`, que não conta — espelhando
+  o ctor sintético não instrumentado do backend.
 
 ### 4. Backend: contador no runtime e restauração no unwinding
 
-- `runtime.c` ganha `lox_call_depth` e `lox_max_call_depth` (constante 1000), com:
-  - `lox_stack_enter()`: se `depth >= 1000`, `lox_panic(0, 0, "R1015", "Stack overflow.")`;
-    senão `depth += 1`;
+- `runtime.c` ganha `lox_call_depth` e:
+  - `lox_stack_enter()`: se `depth >= LOX_MAX_CALL_DEPTH`,
+    `lox_panic(0, 0, "R1015", "Stack overflow.")`; senão `depth += 1`;
   - `lox_stack_leave()`: `depth -= 1`.
-- O lowering emite `lox_stack_enter()` na **entrada** de cada função/método/lambda/
-  construtor gerado e `lox_stack_leave()` antes de cada `ret` normal. `main` e funções
-  nativas não são instrumentadas.
-- `LoxTryFrame` guarda a profundidade no `lox_try_push`. `lox_try_pop` restaura
-  `lox_call_depth = frame->depth`, tanto no caminho normal quanto no `longjmp`; assim uma
-  exceção que atravessa N funções não deixa o contador inflado.
-- `raise`/`lox_panic` sem `try` continuam saindo por `exit 70`, sem precisar de
-  `leave`.
-- O `mod.verify()` continua sendo o gate do IR; a instrumentação não muda ABI de
-  classes, closures ou containers.
+- O lowering emite `lox_stack_enter()` na **entrada** de cada função/método/lambda/`init`
+  gerado e no ctor de classe do usuário; `lox_stack_leave()` antes de cada `ret` normal.
+  `main`, thunks de método/interface, funções nativas e o ctor sintético de
+  `Exception`/`RuntimeError` **não** são instrumentados.
+- Todo `ret` de função de usuário passa por `_stack_leave()`: retorno explícito em
+  [`lower.py`](../../src/backend/lower.py), retorno implícito em
+  [`lower_functions.py`](../../src/backend/lower_functions.py) e ctor em
+  [`lower_class_codegen.py`](../../src/backend/lower_class_codegen.py).
+- `LoxTryFrame` guarda `depth` no `lox_try_push`; `lox_try_pop` restaura
+  `lox_call_depth = frame->depth` no caminho normal e após `longjmp`. Uma exceção que
+  atravessa N funções não deixa o contador inflado.
+- `raise`/`lox_panic` sem `try` continuam saindo por `exit 70`, sem precisar de `leave`.
+- `mod.verify()` continua sendo o gate do IR; a instrumentação não muda ABI de classes,
+  closures ou containers.
 
-### 5. Contrato e corpus
+### 5. Orçamento de pilha e reserva do SO
+
+- O contrato declara **64 MiB** de orçamento de pilha (`STACK_BUDGET_BYTES` em
+  `limits.py`). O binário reserva **128 MiB** de soft limit via `setrlimit(RLIMIT_STACK)`
+  em `lox_init` (clampado ao hard), antes de qualquer recursão. A reserva é virtual e
+  commit sob demanda; o GC continua enxergando só a faixa usada.
+- Em plataformas com hard limit menor (ex.: 64 MiB no macOS), o clamp usa o hard
+  disponível; 10.000 chamadas com frames usuais cabem com margem. Frame patológico acima
+  do orçamento é dívida declarada; uma guarda por SP fica como follow-up se doer.
+- O interpretador não precisa de reserva de thread: com Python 3.13 as chamadas
+  Python→Python não empilham C stack; 10.000 chamadas cabem nos 8 MiB default (medido).
+
+### 6. Contrato e corpus
 
 - `Stack overflow.` entra em `docs/spec/erros.md` (`R1015`) e em
-  `docs/spec/garantias.md` (recursão deixa de ser “fora do corpus” no limite; abaixo de
-  1.000 é suportada, acima é erro determinístico).
-- Casos novos no corpus (nível `l4`, funções):
-  - profundidade 999: roda e imprime o resultado;
-  - profundidade 1.001: `error[R1015]: Stack overflow.`, `exit 70`, sem stdout;
-  - `try`/`except LoxRuntimeError` em 1.001: captura, imprime e continua chamando
-    funções (prova a restauração da profundidade);
-  - `try`/`finally` durante a chamada que estoura: `finally` roda uma vez e o contador
-    volta ao valor anterior.
-- O teste diferencial compara stdout, stderr e exit code byte a byte, como sempre.
-
-### 6. Fora de escopo
-
-- Stack trace com `at f (linha N) ← main (linha M)`: depende de frames e posição de
-  chamada; ADR/tooling separado.
-- Limite configurável por `--max-depth` ou ambiente: quebra a ideia de contrato único e
-  o I3.
-- Detecção por guard page/`sigaltstack`/`SIGSEGV`: específico de plataforma e handler de
-  sinal não é lugar para alocar/formatar com segurança.
-- Contagem de primitivas nativas: não consomem pilha Lox recursiva; contá-las só
-  criaria assimetria com o tree-walk.
+  `docs/spec/garantias.md`: até 10.000 chamadas (e dentro do orçamento de 64 MiB) é
+  suportado; acima é erro determinístico.
+- Casos novos em `tests/cases/` e no manifesto:
+  - `stack_depth_ok.lx` (10.000 chamadas) roda;
+  - `stack_overflow.lx` (10.001) → `error[R1015]: Stack overflow.`, exit 70, sem stdout;
+  - `stack_overflow_caught.lx` captura, imprime e continua chamando funções;
+  - `stack_overflow_finally.lx` prova `finally` uma vez e restauração da profundidade;
+  - `stack_methods.lx` e `stack_ctor.lx` cobrem método e ctor+init;
+  - `stack_exception.lx` prova que o ctor de exceção embutida não conta;
+  - `stack_exception_user.lx` prova que R1015 atravessa um `try` com handler que não
+    casa e chega ao topo como R1015 (não R1010).
+- O teste diferencial compara stdout, stderr e exit code byte a byte.
+- `tests/test_backend.py` cobre o frame gordo com soft limit de 8 MiB, provando a reserva
+  de `lox_init`.
 
 ## Consequências
 
@@ -140,33 +154,29 @@ motores não tem.
 - O I1 ganha o caso de borda; o limite é observável e testado, não um detalhe de
   plataforma.
 - O erro é recuperável: `try`/`except` pode continuar depois de um estouro.
-- O custo no caminho de chamada é previsível (duas chamadas de runtime por chamada Lox).
+- O custo no caminho de chamada é previsível (duas chamadas de runtime por chamada Lox);
+  se o bench acusar regressão, o contador pode ser inlinado no IR sem mudar o contrato.
 
 ### Negativas / custos
 
-- **Mudança de comportamento**: programas que hoje recursam acima de 1.000 passam a
-  falhar (o binário suportava ~500 mil; o tree-walk já falhava por volta de 120).
-  Nenhum caso do corpus atual chega perto; a mudança precisa de nota no CHANGELOG.
-- **Limite baixo para alguns algoritmos**: 1.000 é confortável para árvores/listas
-  usuais, mas não para recursão linear em entradas grandes. Subir exige medir o
-  tree-walk e novo ADR.
-- Elevar `sys.setrecursionlimit` é global no processo do interpretador; o contador Lox
-  é a proteção real, mas o orçamento precisa de teste para não mascarar `RecursionError`
-  em caminhos internos.
-- Duas chamadas a mais por chamada Lox no binário; medir em `make bench` e, se doer,
-  inlinear o `load/add/store` no IR (sem mudar o contrato).
-- O unwinding passa a depender de `lox_try_pop` restaurar a profundidade; um `try`
-  esquecido no lowering vira contador inflado. O teste de `try`/`finally` é
-  obrigatório.
-- Erro sem linha/coluna na v1 é menos útil que um stack trace; é dívida declarada.
+- **Mudança de comportamento**: programas acima de 10.000 chamadas passam a falhar com
+  R1015 (o binário suportava ~500 mil; o tree-walk falhava antes por volta de 100 sem o
+  orçamento). Nenhum caso do corpus chega perto; o CHANGELOG registra.
+- **Limite ainda finito**: 10.000 é confortável para árvores/listas usuais, mas não para
+  recursão linear em entradas gigantes. Subir exige medir o tree-walk e novo ADR; 1M custa
+  ~2,2 GB no oráculo.
+- Elevar `sys.setrecursionlimit` é global no processo; o contador Lox é a proteção real.
+- Duas chamadas a mais por chamada Lox no binário; medir em `make bench-native`.
+- O unwinding depende de `lox_try_pop` restaurar a profundidade; um `try` esquecido no
+  lowering vira contador inflado. Os testes de `try`/`finally` policiam.
+- Erro sem linha/coluna é menos útil que um stack trace; dívida declarada.
 
 ### Neutras
 
-- O hard cap de heap (128 MiB) e o I1 até 64 MiB vivos não mudam; pilha e heap são
-  orçamentos separados.
+- O hard cap de heap (512 MiB, [ADR-0087](0087-heap-cap-e-self-hosting.md)) e o I1 até
+  64 MiB vivos são orçamentos separados; não mudam com a pilha.
 - O limite não depende de `--debug` nem de release/debug.
-- O tree-walk e o binário continuam comparados pelo mesmo corpus; o caso de borda entra
-  no nível `l4`.
+- O tree-walk e o binário continuam comparados pelo mesmo corpus.
 
 ## Alternativas consideradas
 
@@ -175,32 +185,25 @@ motores não tem.
 | Só guarda no binário, tree-walk como está | Quebra o I1: um motor erra com `exit 70`, o outro com `RecursionError`/exit 1. |
 | Deixar fora do corpus e não fazer nada | Mantém SIGSEGV e traceback; o MVP não pode prometer “memory safe” com crash conhecido. |
 | Guard page + `sigaltstack`/`SIGSEGV` | Específico de plataforma; handler de sinal não pode alocar/formatar com segurança; `longjmp` do handler é frágil. |
-| Limite 100 | Cabe no Python padrão sem elevar o limite, mas é baixo demais para recursão legítima (parsers, árvores). |
-| Limite 10.000 | O tree-walk não chega lá nem com `setrecursionlimit(20000)` (5.000 já falha); exigiria pilha de thread maior e mais risco. |
+| Limite 1.000 | Seguro, mas baixo demais para recursão legítima; foi o número original, revisado aqui. |
+| Limite 100.000 ou 1M | O tree-walk custa ~2,2 KB/chamada; 1M = ~2,2 GB e 7 s no oráculo. 100k é possível, mas o teste de borda fica pesado e o default deixa de ser econômico. |
 | Limite configurável (`--max-depth`, env) | Contrato não determinístico e fácil de divergir entre motores; viola I3. |
 | Shadow stack/`gc.statepoint` | Resolve stack trace preciso, mas é projeto de semanas e não é necessário para trocar o crash por erro. |
 | Trampolim/VM com pilha explícita | Reescreve o tree-walk e o backend; o limite é uma guarda, não uma nova arquitetura. |
+| Pilha crescente (Go-style/segmentos) | Exige GC escanear todos os segmentos e unwinding entre eles; projeto à parte, sem dor demonstrada. |
 
 ## Como verificar
 
-Quando aceito e implementado:
-
-- `tests/cases/stack_depth_ok.lox`: profundidade 999 termina com o resultado esperado.
-- `tests/cases/stack_overflow.lox`: profundidade 1.001 termina em
-  `error[R1015]: Stack overflow.`, `exit 70`, sem stdout; o teste diferencial exige
-  igualdade byte a byte.
-- Caso `try`/`except LoxRuntimeError`: captura, imprime e chama outra função depois;
-  prova que `lox_try_pop` restaurou a profundidade.
-- Caso `try`/`finally`: o `finally` roda uma vez, sem duplicar, e a profundidade volta.
-- `tests/test_backend.py` cobre os casos no nível `l4`;
-  `tests/test_determinism.py` continua verde.
-- `make bench`: mede o custo por chamada em `recursion`/closures; se a regressão passar
-  do limite acordado, inlinear o contador antes de fechar.
+- `uv run pytest -m backend -k stack` cobre os casos e o teste diferencial.
+- `uv run python -m tests.runner stack` cobre os goldens.
+- `uv run pytest -m backend -k stack_reserve` prova a reserva com soft limit de 8 MiB.
+- `make bench-native`: mede o custo por chamada; se a regressão passar do limite acordado,
+  inlinar o contador antes de fechar.
 - `make check` verde e `docs/spec/garantias.md` atualizado.
 
-**Critério para revisitar:** 1.000 insuficiente para programas reais; custo de chamada
-inaceitável; necessidade de stack trace com frames; diferença de pilha entre plataformas
-que faça 1.000 não ser seguro. Nesses casos, ADR novo — não ajuste silencioso do número.
+**Critério para revisitar:** 10.000 insuficiente para programas reais; custo de chamada
+inaceitável; necessidade de stack trace com frames; ou dor real de frame gordo acima do
+orçamento de 64 MiB. Nesses casos, ADR novo — não ajuste silencioso do número.
 
 ## Referências
 
@@ -208,6 +211,7 @@ que faça 1.000 não ser seguro. Nesses casos, ADR novo — não ajuste silencio
 - [ADR-0031](0031-backend-nativo.md) — backend e decisão 7.
 - [ADR-0042](0042-excecoes.md) e [ADR-0062](0062-l6-excecoes-unwinding.md) — exceções e
   `setjmp`/`longjmp`.
-- [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) — heap e orçamento de memória.
+- [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) e
+  [ADR-0087](0087-heap-cap-e-self-hosting.md) — heap e orçamento de memória.
 - [`../spec/garantias.md`](../spec/garantias.md) — o que a linguagem promete hoje.
 - [`../../TODO.md`](../../TODO.md) §3.1 — stack trace de runtime.

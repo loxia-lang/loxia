@@ -117,19 +117,25 @@ class LoxClass:
         return initializer.max_arity()
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
-        instance = LoxInstance(self)
+        interpreter._enter_call()
+        try:
+            instance = LoxInstance(self)
 
-        for field in self._fields.values():
-            if field.initializer is not None:
-                instance.initialize(field, interpreter.evaluate(field.initializer))
+            for field in self._fields.values():
+                if field.initializer is not None:
+                    instance.initialize(
+                        field, interpreter.evaluate(field.initializer)
+                    )
 
-        initializer = self.find_method("init")
-        if initializer is not None:
-            initializer.bind(instance).call(interpreter, arguments)
+            initializer = self.find_method("init")
+            if initializer is not None:
+                initializer.bind(instance).call(interpreter, arguments)
 
-        instance.assert_initialized()
+            instance.assert_initialized()
 
-        return instance
+            return instance
+        finally:
+            interpreter._leave_call()
 
     def __str__(self) -> str:
         return self._name

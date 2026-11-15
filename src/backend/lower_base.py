@@ -111,6 +111,12 @@ class LoweringBase:
     ) -> None:
         raise NotImplementedError
 
+    def _stack_enter(self) -> None:
+        raise NotImplementedError
+
+    def _stack_leave(self) -> None:
+        raise NotImplementedError
+
     def _arity_message(self, minimum: int, maximum: int, count: int) -> str:
         raise NotImplementedError
 

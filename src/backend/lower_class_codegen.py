@@ -593,6 +593,8 @@ class ClassCodegenLowering(LoweringBase):
         self._scopes = [{}]
         self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(ctor, "entry"))
+        if not layout.synthetic_exception:
+            self._stack_enter()
 
         self._ctor_body(layout, ctor)
         self._seal_blocks(ctor)
@@ -635,6 +637,8 @@ class ClassCodegenLowering(LoweringBase):
                 ],
             )
         self._ctor_require_fields(layout, instance)
+        if not layout.synthetic_exception:
+            self._stack_leave()
         self.builder.ret(instance.llvm)
 
     def _ctor_allocate(

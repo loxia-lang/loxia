@@ -1,0 +1,10 @@
+# ADR-0077: a chamada 10.001 é R1015, determinística nos dois motores.
+fn f(n: Int) -> Int {
+  if (n <= 0) {
+    return 0
+  }
+  return 1 + f(n - 1)
+}
+
+print(f(10000))
+# expect runtime error: Stack overflow.

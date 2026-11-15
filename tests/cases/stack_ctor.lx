@@ -1,0 +1,12 @@
+# Construtor + init contam duas ativações Lox, como no backend (ctor + init).
+class C {
+  fn init(n: Int) {
+    if (n > 0) {
+      C(n - 1)
+    }
+  }
+}
+
+C(4999)
+print("ok")
+# expect: ok

@@ -46,36 +46,40 @@ class LoxFunction:
         return len(self._declaration.params)
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
-        environment = Environment(self._closure)
-        for index, param in enumerate(self._declaration.params):
-            if param.variadic:
-                environment.define(
-                    param.name.lexeme,
-                    LoxList(list(arguments[index:])),
-                    param.mutable,
-                )
-                break
-
-            if index < len(arguments):
-                value = arguments[index]
-            else:
-                assert param.default is not None
-                value = interpreter.evaluate(param.default)
-
-            environment.define(param.name.lexeme, value, param.mutable)
-
+        interpreter._enter_call()
         try:
-            interpreter.execute_block(self._declaration.body, environment)
-        except ReturnSignal as return_value:
+            environment = Environment(self._closure)
+            for index, param in enumerate(self._declaration.params):
+                if param.variadic:
+                    environment.define(
+                        param.name.lexeme,
+                        LoxList(list(arguments[index:])),
+                        param.mutable,
+                    )
+                    break
+
+                if index < len(arguments):
+                    value = arguments[index]
+                else:
+                    assert param.default is not None
+                    value = interpreter.evaluate(param.default)
+
+                environment.define(param.name.lexeme, value, param.mutable)
+
+            try:
+                interpreter.execute_block(self._declaration.body, environment)
+            except ReturnSignal as return_value:
+                if self._is_initializer:
+                    return self._closure.get_at(0, "this")
+
+                return return_value.value
+
             if self._is_initializer:
                 return self._closure.get_at(0, "this")
 
-            return return_value.value
-
-        if self._is_initializer:
-            return self._closure.get_at(0, "this")
-
-        return None
+            return None
+        finally:
+            interpreter._leave_call()
 
     def __str__(self) -> str:
         if isinstance(self._declaration, Lambda):

@@ -83,7 +83,8 @@ e LSP **não** fazem parte da 1.0; são pós-1.0 (tooling).
 | Backend LLVM L0–L4 + L2.5 + L5a/L5b | ✅ feito | objetivo do projeto; não muda a linguagem 1.0 |
 | M5 — Tipos v2 (T3c/T4/T5/T6a/T6c) | ✅ feito | T6a/T6c fechados; L4 liberado (TODO §9); interfaces e constraints implementadas ([ADR-0038](docs/adr/0038-traits-nominais.md), [ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md), [ADR-0081](docs/adr/0081-constraints-generics.md)) |
 | M6 — backend L0–L6 + T7 | ✅ feito | corpus declarado compila e concorda; L7 é qualidade |
-| M7 — GC Boehm + contrato de memória | ✅ feito | [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md); hard cap 128 MiB, I1 até 64 MiB live |
+| M7 — GC Boehm + contrato de memória | ✅ feito | [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md); hard cap default 512 MiB + `--max-heap`, I1 até 64 MiB live |
+| Pilha de chamadas | ✅ feito | [ADR-0077](docs/adr/0077-limite-de-pilha.md); 10.000 chamadas / 64 MiB, R1015 catchable |
 | Diagnósticos (spans/caret/stack trace/JSON) | próximo (tooling) | não bloqueia a linguagem; pode vir antes do backend |
 | Tuplas | ✅ feito | implementadas ([ADR-0036](docs/adr/0036-tuplas-implementacao.md)); `for-in`/`is` e backend L6 pendentes |
 | Classes genéricas | ✅ feito | MVP ([ADR-0040](docs/adr/0040-generics-classes-desenho.md)); métodos/herança genérica pós-MVP |
