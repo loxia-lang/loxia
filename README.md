@@ -87,8 +87,11 @@ uv run main.py --emit=ll prog.lx    # IR do LLVM (inspeção)
 uv run main.py --emit=obj prog.lx   # .o para linkar
 uv run main.py --emit=exe -o app prog.lx   # binário nativo
 uv run main.py --emit=ll --output prog.ll prog.lx  # IR em arquivo (--output)
-make test                      # pytest
-make check                     # ruff + mypy strict + pytest
+# o runtime C é compilado uma vez e cacheado (LOX_BUILD_CACHE=<dir> isola o cache)
+make test                      # pytest (inclui os testes nativos)
+make test-fast                 # pytest sem os testes nativos (loop local)
+make check                     # ruff + mypy strict + pytest (gate completo)
+make check-fast                # ruff + mypy strict + pytest sem nativos
 make hooks                     # instala o hook de pre-commit
 make bench                     # benchmarks do interpretador vs baseline
 make bench-native              # benchmarks do binário nativo (speedup vs baseline)

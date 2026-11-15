@@ -3,16 +3,18 @@
 
 FILE ?=
 
-.PHONY: help run test case lint type fmt check docs-sync codes grammar docs-fresh hooks bench bench-native baseline
+.PHONY: help run test test-fast case lint type fmt check check-fast docs-sync codes grammar docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
 	@echo "make test                      pytest (suite completa)"
+	@echo "make test-fast                 pytest sem os testes nativos (loop local)"
 	@echo "make case                      runner golden, sem pytest"
 	@echo "make lint                      ruff"
 	@echo "make type                      mypy strict"
 	@echo "make fmt                       ruff format (primeira vez reformata tudo)"
-	@echo "make check                     lint + type + test + docs"
+	@echo "make check                     lint + type + test + docs (gate completo)"
+	@echo "make check-fast                lint + type + test-fast + docs (loop local)"
 	@echo "make docs-sync                 regenera níveis e catálogo de códigos"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
 	@echo "make grammar                   regenera a grammar TextMate de editors/"
@@ -28,6 +30,9 @@ run:
 test:
 	uv run pytest
 
+test-fast:
+	uv run pytest -m "not backend"
+
 case:
 	uv run python -m tests.runner
 
@@ -41,6 +46,8 @@ fmt:
 	uv run ruff format .
 
 check: lint type test docs-fresh
+
+check-fast: lint type test-fast docs-fresh
 
 docs-sync:
 	uv run python docs/_hooks/levels.py --write

@@ -406,6 +406,13 @@ do LLVM (`mod.verify`); IR inválido vira `BackendError` (exit 65), nunca binár
 `--emit=ll` é artefato de inspeção: o build emite object file com o mesmo LLVM que
 construiu o módulo e linka com `cc`, sem depender da versão do LLVM do sistema.
 
+O `runtime.c` é compilado uma vez por (conteúdo da fonte, compilador, versão, flags e
+`CPATH`) e o `.o` fica em `$TMPDIR/loxia-build-<uid>/`; `LOX_BUILD_CACHE=<dir>` isola o
+cache. Builds seguintes reusam o objeto e pagam só o link — antes, cada `--emit=exe`
+recompilava o runtime (`cc -O2`, ~0,4 s), o que dominava a suíte de testes. O cache é só
+desempenho: não muda bytes gerados, não entra na saída e caminhos de erro são sanitizados
+para `<build>`.
+
 O teste diferencial (`tests/test_backend.py`) compila, executa e compara stdout, stderr e
 exit code com o interpretador — o oráculo é sempre o tree-walk.
 

@@ -915,6 +915,43 @@ def test_kernel_args_nativo(tmp_path: Path) -> None:
 
 
 @pytest.mark.backend
+def test_cache_do_runtime_objeto(tmp_path: Path) -> None:
+    """O `runtime.o` é compilado uma vez e reusado entre programas (só desempenho)."""
+    cache = tmp_path / "cache"
+    env = {**os.environ, "LOX_BUILD_CACHE": str(cache)}
+
+    def build(source: str, name: str) -> Path:
+        path = _write(tmp_path, source, name)
+        binary = tmp_path / f"{name}.bin"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ENTRYPOINT),
+                "--emit",
+                "exe",
+                "-o",
+                str(binary),
+                str(path),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=TIMEOUT_SECONDS,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        return binary
+
+    first = build('print "um"\n', "um.lx")
+    second = build('print "dois"\n', "dois.lx")
+
+    assert len(list(cache.glob("runtime-*.o"))) == 1
+    assert _run([str(first)]).stdout == "um\n"
+    assert _run([str(second)]).stdout == "dois\n"
+
+
+@pytest.mark.backend
 def test_kernel_fs_ambiente_nativo(tmp_path: Path) -> None:
     entries = tmp_path / "entrada"
     entries.mkdir()

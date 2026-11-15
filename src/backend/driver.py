@@ -7,6 +7,8 @@ linkar. Assim não há descompasso entre a versão do LLVM que gera o `.ll` e a 
 
 from __future__ import annotations
 
+import hashlib
+import os
 import shutil
 import subprocess
 import sys
@@ -23,6 +25,9 @@ from src.frontend.ty import Ty
 Emit = Literal["ll", "obj", "exe"]
 
 RUNTIME_SOURCE = Path(__file__).resolve().parents[2] / "runtime" / "runtime.c"
+
+# Flags do `runtime.c`; entram na chave do cache de objeto.
+RUNTIME_FLAGS = ("-O2", "-std=c11")
 
 
 def build(
@@ -102,23 +107,9 @@ def _link(object_bytes: bytes, target: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="lox-build-") as directory:
         build_dir = Path(directory)
         program_object = build_dir / "program.o"
-        runtime_object = build_dir / "runtime.o"
         program_object.write_bytes(object_bytes)
+        runtime_object = _runtime_object(compiler, build_dir)
 
-        try:
-            _run(
-                [
-                    compiler,
-                    "-O2",
-                    "-std=c11",
-                    "-c",
-                    str(RUNTIME_SOURCE),
-                    "-o",
-                    str(runtime_object),
-                ]
-            )
-        except BackendError as error:
-            raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
         try:
             _run(
                 [
@@ -135,9 +126,108 @@ def _link(object_bytes: bytes, target: Path) -> None:
             raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
 
 
-def _sanitize_compiler_error(error: BackendError, build_dir: Path) -> BackendError:
+def _runtime_object(compiler: str, build_dir: Path) -> Path:
+    """Compila `runtime.c` uma vez por (fonte, compilador, flags) e reusa o `.o`.
+
+    O `runtime.c` não depende do programa do usuário; recompilá-lo a cada `--emit=exe`
+    custava ~0,4 s por build (a maior parte da suíte de testes). O cache é só de
+    desempenho: nenhum caminho dele aparece na saída e qualquer falha cai no caminho
+    antigo (compilar dentro do diretório temporário do build).
+    """
+    cache = _runtime_cache_dir()
+    if cache is not None:
+        key = _runtime_key(compiler)
+        cached = cache / f"runtime-{key}.o"
+        if cached.exists() and cached.stat().st_size > 0:
+            return cached
+
+        temporary = cache / f"runtime-{key}.{os.getpid()}.tmp.o"
+        try:
+            _compile_runtime(compiler, temporary, cache)
+            os.replace(temporary, cached)
+            return cached
+        except (BackendError, OSError):
+            temporary.unlink(missing_ok=True)
+
+    fallback = build_dir / "runtime.o"
+    _compile_runtime(compiler, fallback, build_dir)
+    return fallback
+
+
+def _compile_runtime(compiler: str, output: Path, sanitized_dir: Path) -> None:
+    try:
+        _run(
+            [
+                compiler,
+                *RUNTIME_FLAGS,
+                "-c",
+                str(RUNTIME_SOURCE),
+                "-o",
+                str(output),
+            ]
+        )
+    except BackendError as error:
+        raise _with_gc_hint(
+            _sanitize_compiler_error(error, sanitized_dir, output=output)
+        ) from error
+
+
+def _runtime_key(compiler: str) -> str:
+    try:
+        source = RUNTIME_SOURCE.read_bytes()
+    except OSError as error:
+        raise BackendError(
+            f"internal error: can't read runtime source: {error}"
+        ) from error
+    digest = hashlib.sha256()
+    digest.update(source)
+    digest.update(compiler.encode("utf-8"))
+    digest.update(_compiler_version(compiler).encode("utf-8"))
+    digest.update(" ".join(RUNTIME_FLAGS).encode("utf-8"))
+    # `CPATH` muda de onde vem o `gc.h`; incluir evita cache de header trocado.
+    digest.update(os.environ.get("CPATH", "").encode("utf-8"))
+    return digest.hexdigest()[:32]
+
+
+def _compiler_version(compiler: str) -> str:
+    try:
+        process = subprocess.run(
+            [compiler, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ""
+    return process.stdout.splitlines()[0] if process.stdout else ""
+
+
+def _runtime_cache_dir() -> Path | None:
+    """Diretório de cache por usuário; `LOX_BUILD_CACHE` permite isolar/testar."""
+    configured = os.environ.get("LOX_BUILD_CACHE")
+    if configured:
+        base = Path(configured)
+    else:
+        user = str(os.getuid()) if hasattr(os, "getuid") else "user"
+        base = Path(tempfile.gettempdir()) / f"loxia-build-{user}"
+    try:
+        base.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if hasattr(os, "getuid") and base.stat().st_uid != os.getuid():
+            return None
+    except OSError:
+        return None
+    return base
+
+
+def _sanitize_compiler_error(
+    error: BackendError, build_dir: Path, *, output: Path | None = None
+) -> BackendError:
     """Remove caminhos temporários/absolutos do stderr do C compiler (I3)."""
-    message = error.message.replace(str(build_dir), "<build>")
+    message = error.message
+    if output is not None:
+        # O nome do `.o` da cache carrega o PID do processo; nunca pode vazar.
+        message = message.replace(str(output), "<build>/runtime.o")
+    message = message.replace(str(build_dir), "<build>")
     message = message.replace(str(RUNTIME_SOURCE), "runtime/runtime.c")
     message = message.replace(str(RUNTIME_SOURCE.parent.parent), "<repo>")
     return BackendError(message, error.line, code=error.code)

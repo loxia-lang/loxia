@@ -349,3 +349,16 @@ campos-container, `str(Any)` e validação de chave de `Map` no runtime C).
   gerada, não editada à mão.
 - `docs/spec/{lexico,sintaxe,erros}.md` — **no-change**: nenhuma sintaxe, palavra-chave ou
   código de diagnóstico novo.
+
+## 2026-11-15 — Cache de build do runtime (infra)
+
+Intervalo: `c4a4511..HEAD` (cache do `runtime.o` no driver + `make test-fast`/
+`check-fast`; sem mudança de comportamento observável).
+
+- `docs/spec/garantias.md` — **no-change**: I1–I4, canais e memória não mudaram; o cache
+  do `runtime.o` afeta só o tempo de build e não entra na saída (caminho de erro continua
+  sanitizado para `<build>`).
+- `docs/tech/arquitetura.md` — **updated**: parágrafo do cache no pipeline nativo e o
+  motivo (o backend dominava a suíte de testes).
+- `README.md`, `Makefile`, `AGENTS.md` — **updated**: `make test-fast`/`check-fast` e
+  `LOX_BUILD_CACHE` documentados.
