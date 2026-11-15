@@ -78,15 +78,15 @@ Python para validar código do usuário; não classificar código por prefixo de
 ### 6.9 CLI alvo
 
 ```bash
-lox run script.lox            # interpretador (hoje: main.py script.lox)
-lox check script.lox          # só typecheck/resolver (hoje: --check)
-uv run main.py --emit=ll  script.lox  # inspecionar LLVM IR (hoje)
-uv run main.py --emit=obj script.lox  # .o para linkar (hoje)
-uv run main.py --emit=exe -o app script.lox  # nativo (hoje)
-lox build script.lox -o app   # nativo (quando o CLI ganhar subcomandos)
-lox build script.lox --emit=ll        # equivalente futuro
-lox jit script.lox            # MCJIT, sem arquivo intermediário
-lox fmt script.lox            # formatador (dogfooding do parser)
+lox run script.lx            # interpretador (hoje: main.py script.lx)
+lox check script.lx          # só typecheck/resolver (hoje: --check)
+uv run main.py --emit=ll  script.lx  # inspecionar LLVM IR (hoje)
+uv run main.py --emit=obj script.lx  # .o para linkar (hoje)
+uv run main.py --emit=exe -o app script.lx  # nativo (hoje)
+lox build script.lx -o app   # nativo (quando o CLI ganhar subcomandos)
+lox build script.lx --emit=ll        # equivalente futuro
+lox jit script.lx            # MCJIT, sem arquivo intermediário
+lox fmt script.lx            # formatador (dogfooding do parser)
 lox repl                      # REPL, com :type, :ast
 ```
 
@@ -128,7 +128,8 @@ uv run pytest tests/test_backend.py -q
 - [ ] `P3` snapshot de AST em arquivo.
 - [ ] `P3` tree-sitter grammar + LSP mínimo (diagnostics/hover).
 - [ ] `P3` `lox fmt` e teste de idempotência.
-- [ ] `P3` site publicado (mkdocs/mdbook) a partir de `docs/`.
+- [ ] `P3` site publicado a partir de `docs/` — ver §14.2 (stack, i18n e gate).
+- [ ] `P3` servidor MCP (`loxia-mcp`) — ver §14.3; depende do CLI agent-friendly acima.
 
 ---
 
@@ -235,26 +236,28 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    genérica como valor; métodos genéricos, herança de `Box[Int]` e `is/as` reificado estão
    adiados (§10). Constraints e traits nominais ficam pós-MVP
    ([ADR-0038](docs/adr/0038-traits-nominais.md)).
-2. **Nome e extensão** definitivos (hoje "PyLox", `.lox`; nomes de trabalho na 1.0).
-3. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
+2. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
    transcendentais de `math` fora do I3.
-4. **Constraints de generics e traits genéricos:** falta desenhar `T: Trait`, coerência e o
+3. **Constraints de generics e traits genéricos:** falta desenhar `T: Trait`, coerência e o
    custo na monomorfização ([ADR-0038](docs/adr/0038-traits-nominais.md)).
-5. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
+4. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
    schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
-6. **`if`/bloco como expressão:** fora da 1.0; reavaliar quando houver dor real.
-7. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md); async é
+5. **`if`/bloco como expressão:** fora da 1.0; reavaliar quando houver dor real.
+6. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md); async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
-8. **HIR-lite — gate explícito:** não construir agora. Trocar para HIR-lite só se um
+7. **HIR-lite — gate explícito:** não construir agora. Trocar para HIR-lite só se um
    destes gatilhos disparar ([ADR-0065](docs/adr/0065-hir-lite-controle.md)):
    `lower_exceptions.py`/`lower_enums.py` passarem de ~350 linhas, o lowering precisar de
    mais de 2 níveis manuais de blocos/phi, ou uma feature exigir CFG explícito (stack
    trace com frames, cleanup dinâmico completo, JIT). `Any` e containers sozinhos não
    disparam.
-9. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
+8. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
    `raise` através de frames aninhados é dívida declarada, não bloqueia a stdlib.
-10. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; restam `..`
-    fora da raiz e diagnóstico de checker com fonte do módulo.
+9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; restam `..`
+   fora da raiz e diagnóstico de checker com fonte do módulo.
+
+> Nome e extensão saíram daqui: **Loxia** e `.lx`, decididos no
+> [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md).
 
 ---
 
@@ -290,7 +293,7 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 | Camada | O que entra | Implementações | Onde |
 | --- | --- | --- | --- |
 | kernel | syscalls e representação | Python (oráculo) + C (binário) | `src/execution/primitives.py`, `runtime/runtime.c` |
-| std | biblioteca | **uma** (Lox) | `std/*.lox` |
+| std | biblioteca | **uma** (Lox) | `std/*.lx` |
 | módulos | nomeação e carga | loader/desugar, sem lógica | `src/loader/` |
 
 **T0 — kernel v1 concluído** com 14 primitivas: `args`, `io.*`, `os.*`, `time.*`,
@@ -303,7 +306,7 @@ passarem pelo ADR-0071 (entrar acima do teto exige remover outra ou justificar n
 
 Kernel de SO (13.2) e cache de code points/`substr`/`join`/`charCodeAt`/`fromCodePoint`
 (13.3) estão implementados e cobertos por `k0`, `tests/test_kernel.py` e
-`bench/cases/string_scan.lox`. O detalhe fica no [ADR-0071](docs/adr/0071-primitivas-de-runtime.md);
+`bench/cases/string_scan.lx`. O detalhe fica no [ADR-0071](docs/adr/0071-primitivas-de-runtime.md);
 não repetir a tabela aqui.
 
 ### 13.4 Tabela única de primitivas
@@ -385,8 +388,98 @@ próximo é **T2**, começando por `std.json` e `std.fmt`. O `main` gerado agora
 ### 13.8 Critério de pronto por módulo
 
 - [ ] programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
-- [ ] golden em `tests/cases/std_<modulo>.lox` + `--check` limpo;
+- [ ] golden em `tests/cases/std_<modulo>.lx` + `--check` limpo;
 - [ ] determinismo declarado (função ambiente ≠ corpus I1);
 - [ ] doc na spec quando o módulo estabilizar (e `sources:` válido);
 - [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
 - [ ] `make check` verde; `make bench` se tocar caminho quente.
+
+---
+
+## 14. Publicação e ecossistema
+
+Fora da fila de features (§0): nada aqui muda a linguagem, então não passa pelo portão do
+ADR-0014. A ordem importa por dependência real — URL e CI estáveis antes do site, e a spec
+consolidada antes do MCP, que a consome.
+
+| # | Entrega | Por que nesta ordem |
+| --- | --- | --- |
+| 1 | {@14.1} Repositório público | é o pré-requisito de URL, issues e release |
+| 2 | {@14.2} Documentação como site | depende do repo público e do CI |
+| 3 | {@14.3} Servidor MCP | depende da spec publicada e estável |
+
+### 14.1 Abrir o repositório
+
+Hoje existem `LICENSE`, `README` e um workflow de CI; falta o "contrato social" de um repo
+público e a automação de suprimentos.
+
+- **Comunidade:** `CONTRIBUTING.md` (rodar da raiz, `make check`, Conventional Commits,
+  resumo dos portões do [ADR-0014](docs/adr/0014-identidade-e-invariantes.md) e do
+  [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md)), `CODE_OF_CONDUCT.md`
+  (Contributor Covenant), `SECURITY.md` (o que é vulnerabilidade aqui: crash/panic no
+  interpretador ou no backend, escape do sandbox do `--emit` — bug de semântica é issue,
+  não CVE) e `GOVERNANCE.md` só quando houver segundo mantenedor.
+- **Templates:** `.github/ISSUE_TEMPLATE/bug.yml` (versão, saída de `--version`, caso mínimo
+  `.lx`), `feature.yml` (exige as quatro perguntas do ADR-0066 — filtro barato contra pedido
+  de sintaxe) e `PULL_REQUEST_TEMPLATE.md` com o DoD do `AGENTS.md` §7.
+- **Dependabot** (`.github/dependabot.yml`): `uv` (dev-deps), `github-actions` e `pip`,
+  agrupado semanal; ignorar major de `llvmlite` (acoplado ao LLVM).
+- **Endurecer CI:** `permissions: read-all` no topo do workflow, `contents: write` só no job
+  de release, ações pinadas por SHA (cadeia de suprimentos) e CodeQL para Python (CLI/interpretador)
+  e C (`runtime/runtime.c`); o código gerado não entra.
+- **Release:** workflow em tag `v*` → `uv build`, anexar wheel/sdist no GitHub Release e
+  publicar no PyPI via **Trusted Publishing** (OIDC, sem token). Depende de reservar `loxia`
+  no PyPI (hoje livre).
+- **Higiene:** `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`, badges no README
+  (CI, versão, licença) e conferir `.gitignore` (`.tmp-*`, `.uv-cache`, shim de `gc.h`) no
+  primeiro clone público.
+- **Custo/risco:** público significa issue e PR de estranho; sem `CONTRIBUTING` a triagem
+  vira ruído. E publicar **congela** API — por isso o [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)
+  veio antes.
+
+### 14.2 Documentação como site (+ i18n)
+
+Princípio: o site é **build** de `docs/`, nunca fonte paralela. O front matter `sources:` de
+`docs/spec/*.md` dá de graça o diferencial que linguagem pequena não costuma ter: cada
+página declara "verificado no commit X", reusando `docs/_hooks/freshness.py`.
+
+- **Stack:** Astro Starlight (mais perto da UX do site do Kotlin: sidebar, busca local, i18n
+  por pasta, dark mode) ou VitePress. Alternativa que não soma toolchain JS: MkDocs
+  Material, que é Python e casa com o resto do repo. **Decisão pendente:** dois ecossistemas
+  vs. um.
+- **Estrutura:** `/learn` (tutorial de 30 min), `/reference` (gerado da spec), `/stdlib`,
+  `/cookbook` (de `exemplos/`), `/why` (I1–I4 em uma página) e `/changelog`. ADRs ficam fora
+  do site — são registro interno; linkar só o índice.
+- **i18n:** a spec e os ADRs são pt-BR. Recomendação: pt-BR é a fonte; en-US traduz apenas
+  *learn* e *reference*; ADRs não são traduzidos. Tradução congela texto, então cada página
+  traduzida precisa do mesmo mecanismo de frescor, senão o inglês apodrece primeiro.
+- **Playground:** o alvo é WASM (§6.10). Até lá, ou playground server-side (`run`/`--check`
+  com timeout e sem rede), ou nenhum — não vale um serviço só para enfeite.
+- **Gate:** `make docs-build` no CI (links quebrados, front matter inválido, página sem par
+  traduzido). O `tests/test_docs_links.py` continua sendo o portão da fonte.
+
+### 14.3 Servidor MCP (`loxia-mcp`)
+
+Objetivo: um agente (Claude/Codex/DSH) escrever Loxia **que compila** e ler a spec sem
+alucinar. O projeto está pronto de um jeito incomum: `--error-format=json` já devolve
+envelope versionado (`schema_version`, `code`, `phase`, `span`) e o I3 garante os mesmos
+bytes — diagnóstico determinístico é exatamente o que tool de agente precisa.
+
+- **Tools:** `loxia_check(source)` → diagnósticos; `loxia_run(source, args, timeout_ms)` →
+  stdout/stderr/exit; `loxia_ast(source)` → S-expression; `loxia_spec(query)` → trechos de
+  `docs/spec/` (índice/grep determinístico, sem embeddings); `loxia_explain(code)` →
+  descrição do catálogo ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md));
+  `loxia_version()`; opcional `loxia_repl(session, line)`.
+- **Resources:** `spec://lexico|sintaxe|semantica|erros|garantias`, `adr://NNNN`,
+  `example://fib`. **Prompts:** "corrija este erro", "escreva uma função com contrato".
+- **Dependências:** SDK `mcp` só no extra `[mcp]`; o runtime segue sem dependências.
+  Transporte stdio (local); HTTP/SSE só com caso de uso hospedado.
+- **Segurança:** `loxia_run` é execução de código arbitrário → timeout, sem rede, fs
+  read-only, cap de pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e de memória
+  ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)); `--emit=exe` negado por
+  padrão.
+- **Contrato:** toda tool devolve os **mesmos bytes** do CLI correspondente, com teste de
+  paridade CLI×MCP — o MCP é camada fina sobre o CLI, não reimplementação. Fixar a versão do
+  protocolo: a especificação do MCP muda rápido.
+- **Não fazer:** MCP que gera código por conta própria, RAG com embeddings (não
+  determinístico) e tool que edita arquivo do usuário.
