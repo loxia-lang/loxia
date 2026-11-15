@@ -1,6 +1,6 @@
 # ADR-0018 — Narrowing de fluxo para `T?`
 
-- **Status:** accepted
+- **Status:** accepted (captura e merge implementados no [ADR-0086](0086-narrowing-captura-e-merge.md))
 - **Data:** 2026-11-11
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
@@ -84,8 +84,9 @@ len(nome)                             # depois do if: String
 - `is T` não existe; uniões que não sejam `T?` só melhoram com narrowing futuro.
 - A invalidação é conservadora: atribuir em um ramo pode perder o refinamento no bloco
   inteiro.
-- Refinar `var` é pragmático; closures que mutam a variável durante uma chamada não são
-  rastreadas (documentado).
+- Refinar `var` é pragmático; closures que mutam a variável durante uma chamada são
+  invalidadas desde o [ADR-0086](0086-narrowing-captura-e-merge.md) (o corpo de função
+  começa com estado de fluxo vazio e chamadas de usuário derrubam refinos capturados).
 
 ## Alternativas consideradas
 

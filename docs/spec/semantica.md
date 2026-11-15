@@ -642,17 +642,23 @@ val rotulo = nome or "sem nome";  // String (truthy remove Nil)
   refinam `x` no ramo; `if (x == nil) { return }` refina o resto do bloco. `and` no ramo
   verdadeiro e `or` no ramo falso combinam refinamentos; `while` aplica o refinamento
   verdadeiro ao corpo. `val` e `var` estreitam, mas uma atribuição invalida o refinamento.
-  Chamadas/closure que mutam um `var` durante a execução não são rastreadas — prefira `val`
-  quando precisar da garantia. **Campos e índices literais** também refinam
+  Chamadas que podem executar código do usuário (função, método, construtor, valor de
+  função ou iterador de usuário) invalidam refinos de `var` mutável capturado por closure;
+  chamadas nativas puras (`print`, `len`, `str`, `repr`, `chars`, `range`, métodos de
+  `List`/`Map`) não. O corpo de uma função/lambda começa sem refinos do chamador. **Campos e índices literais** também refinam
   (`p.nome`, `xs[0]`, `m["k"]`); mutar o caminho (`p.nome = ...`), a raiz (`p = ...`),
   **qualquer chamada** ou atribuição a campo/índice invalida todos os refinos de
   campo/índice (sem aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)), e a
   saída normal de `while (x != nil)` refina o resto do bloco pelo falso.
-  Índice dinâmico (`xs[i]`) não refina; merge completo em CFG fica fora; ver
-  [ADR-0018](../adr/0018-narrowing.md), [ADR-0025](../adr/0025-is-e-narrowing.md) e
-  [ADR-0032](../adr/0032-narrowing-campos-indices.md).
+  `if`/`elif`/`else` juntam os ramos que caem no fim (interseção de chaves, união dos
+  tipos); ramo que sempre retorna não contribui. `while`/`for-in` juntam a entrada com a
+  saída do corpo (zero iterações) e `try` une corpo e handlers que caem no fim. Atribuir
+  atualiza o refino para o tipo atribuído. Índice dinâmico (`xs[i]`) não refina; aliasing e
+  CFG completo ficam fora; ver [ADR-0018](../adr/0018-narrowing.md),
+  [ADR-0025](../adr/0025-is-e-narrowing.md), [ADR-0032](../adr/0032-narrowing-campos-indices.md)
+  e [ADR-0086](../adr/0086-narrowing-captura-e-merge.md).
 - Erros de tipo são de **compilação** e impedem a execução; exit code 65.
-- Limitações atuais: merge completo de fluxo em CFG, classes/métodos
+- Limitações atuais: aliasing/efeitos completos, classes/métodos
   genéricos, inferência de parâmetro sem anotação, tipos de função/casts de união em `is`,
   e cast de união em `as`; lambdas existem, mas sem trailing closure, parâmetro único sem
   parênteses ou retorno implícito de bloco. Anotar `Float` não converte o valor em runtime

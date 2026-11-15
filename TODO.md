@@ -147,7 +147,7 @@ uv run pytest tests/test_backend.py -q
 | trailing closure | ⏳ | falta implementar |
 | `type` alias | ✅ | `type Nome = Tipo` transparente, não-genérico, módulos e backend ([ADR-0084](docs/adr/0084-type-alias.md)) |
 | generics + constraints | ✅ | funções T3b + `T: Ord + Num + Interface` ([ADR-0081](docs/adr/0081-constraints-generics.md)); constraints em classes seguem pós-MVP |
-| uniões + narrowing | 🟡 | `T?`/`is`/`while`/campos/índices prontos; falta merge CFG/aliasing |
+| uniões + narrowing | ✅ | `T?`/`is`/`while`/campos/índices, merge de ramos e `var` capturado ([ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)); aliasing/CFG completo fora |
 | interfaces nominais + `implements` | ✅ | item "traits" do Lox2: tree-walk/checker + backend B2 (`itab`), dois casos no diferencial ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)) |
 | operator overloading | ⏳ | depois de classes |
 | namespaces/import | ✅ | [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, `_` privado, `std.*` e `from`/`as` |

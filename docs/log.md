@@ -513,3 +513,20 @@ motores; migração mecânica de corpus, suíte oficial, exemplos, stdlib e benc
   `tests/official/README.md` — **updated**: `print` função e migração.
 - `tests/official/cases`, `tests/cases`, `exemplos`, `std`, `bench` — **updated**:
   1.265 chamadas `print` migradas em 282 arquivos; testes Python e docs ajustados.
+
+## 2026-11-15 — Narrowing: captura de `var` e merge de fluxo (ADR-0086)
+
+Intervalo: `HEAD`..working tree (checker/resolver; sem mudança de runtime/backend).
+
+- `docs/adr/0086-narrowing-captura-e-merge.md` — **new**: captura/invalidação de `var`
+  mutável e merge estruturado de `if`/`while`/`for-in`/`try`.
+- ADR-0018/0032/0045 — **updated**: limitações e status; CFG/aliasing completo continua
+  fora.
+- `docs/spec/semantica.md` — **updated**: chamadas de usuário invalidam capturadas,
+  funções começam sem refinos e ramos fazem merge.
+- `TODO.md` §8, `TIPOS.md`, `docs/decisoes.md` — **updated**: item de uniões/narrowing
+  fechado com as limitações declaradas.
+- `tests/test_checker.py` — **updated**: casos de captura local/global, iterador de
+  usuário, chamadas nativas, merge de ramos, campos, `for-in` e `try`.
+- `docs/spec/erros.md` / `docs/spec/garantias.md` — **no-change**: mudança é só no
+  checker; nenhuma mensagem, corpus ou contagem de casos mudou.

@@ -131,6 +131,7 @@ Crie quando a decisão:
 | [0083](0083-variadicos.md) | Variádicos `...args` e spread final `f(...xs)` | accepted (implementado) | 2026-11-15 |
 | [0084](0084-type-alias.md) | `type` alias transparente e não-genérico | accepted (implementado) | 2026-11-15 |
 | [0085](0085-print-como-funcao.md) | `print` como função builtin (`Any -> Nil`); statement removido | accepted (implementado) | 2026-11-15 |
+| [0086](0086-narrowing-captura-e-merge.md) | Narrowing: invalidação de `var` capturado e merge de fluxo | accepted (implementado) | 2026-11-15 |
 
 
 ## Próximas decisões que pedem ADR

@@ -107,9 +107,14 @@ class Loxia:
     def check(self, source: str) -> None:
         statements = self._parse(source)
         if statements is not None:
-            Resolver(self.interpreter, self.reporter).resolve(statements)
+            resolver = Resolver(self.interpreter, self.reporter)
+            resolver.resolve(statements)
             if not self.reporter.had_error:
-                Checker(self.reporter).check(statements)
+                Checker(
+                    self.reporter,
+                    captured_mutables=resolver.captured_mutables,
+                    captured_globals=resolver.captured_global_names,
+                ).check(statements)
 
         self._flush("check", exit_code=self._exit_code(), always=True)
 
@@ -121,7 +126,8 @@ class Loxia:
             self._flush("build", exit_code=65, always=True)
             return False
 
-        Resolver(self.interpreter, self.reporter).resolve(statements)
+        resolver = Resolver(self.interpreter, self.reporter)
+        resolver.resolve(statements)
         if self.reporter.had_error:
             self._flush("build", exit_code=65, always=True)
             return False
@@ -129,7 +135,11 @@ class Loxia:
         # Erro que o interpretador só levantaria em runtime é rebaixável: não bloqueia
         # o build e não é impresso agora — vira `lox_panic` no ponto (ADR-0031).
         self.reporter.defer_lowerable = True
-        checker = Checker(self.reporter)
+        checker = Checker(
+            self.reporter,
+            captured_mutables=resolver.captured_mutables,
+            captured_globals=resolver.captured_global_names,
+        )
         checker.check(statements)
         if self.reporter.had_fatal_error:
             self._flush("build", exit_code=65, always=True)

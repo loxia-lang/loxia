@@ -1,6 +1,6 @@
 # ADR-0032 — Narrowing de campos e índices (T5)
 
-- **Status:** accepted
+- **Status:** accepted (merge estruturado no [ADR-0086](0086-narrowing-captura-e-merge.md))
 - **Data:** 2026-11-12
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0025](0025-is-e-narrowing.md),
@@ -52,8 +52,9 @@ merge de fluxo. Sem invalidação, o refino seria **inseguro** — o caso cláss
    `return`, os refinos valem só dentro de cada ramo (o join os descarta).
 
 6. **Merge completo em CFG fica fora.** O ADR-0018 já julgou CFG desproporcional ao
-   estágio; o que entra aqui é o join pós-laço, que é local e barato. Um `if`/`else`
-   sintetizado em CFG continua no `TODO.md`.
+   estágio; o [ADR-0086](0086-narrowing-captura-e-merge.md) acrescentou merge estruturado
+   de `if`/`else`, `while`, `for-in` e `try`, sem CFG/SSA. Aliasing e efeitos completos
+   continuam fora.
 
 ## Limitações (honestas)
 

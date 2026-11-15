@@ -1,6 +1,6 @@
 # ADR-0045 — Narrowing e tipos de representação no backend
 
-- **Status:** accepted (checker/tree-walk implementados; backend L5 pendente)
+- **Status:** accepted (checker/tree-walk/backend implementados; captura no [ADR-0086](0086-narrowing-captura-e-merge.md))
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0032](0032-narrowing-campos-indices.md),
@@ -34,7 +34,9 @@ Este ADR acrescenta o que exatamente é consumido e como o checker fica conserva
    genéricos), independentemente de `p` estar estreitado; idem `xs[0]`. Acesso a membro
    ainda exige objeto não nulo no fluxo (o checker já garante isso); o que não se propaga
    é o tipo do resultado.
-4. **Invalidação conservadora (B).** Qualquer:
+4. **Invalidação conservadora (B).** Desde o [ADR-0086](0086-narrowing-captura-e-merge.md),
+   variáveis mutáveis capturadas também são invalidadas por chamadas que podem executar
+   código do usuário; chamadas nativas puras não. Qualquer:
    - chamada de função/método (inclui nativas);
    - atribuição a campo (`p.x = ...`);
    - atribuição a índice (`xs[0] = ...`, `m[k] = ...`)

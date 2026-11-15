@@ -169,7 +169,7 @@ class EnumInfo:
     variants: dict[str, EnumVariantInfo] = field(default_factory=dict)
 
 
-RefinementKey = tuple[str, tuple[tuple[str, object], ...]]
+RefinementKey = tuple[int, str, tuple[tuple[str, object], ...]]
 """Chave de refinamento: nome da raiz + caminho (campo ou índice literal)."""
 
 
@@ -189,10 +189,19 @@ class GenericFnInstance:
 
 
 class Checker(ExprVisitor[Ty], StmtVisitor[None]):
-    def __init__(self, reporter: ErrorReporter) -> None:
+    def __init__(
+        self,
+        reporter: ErrorReporter,
+        *,
+        captured_mutables: set[Token] | None = None,
+        captured_globals: set[str] | None = None,
+    ) -> None:
         self._reporter = reporter
         self._scopes: list[dict[str, Ty]] = [{}]
-        self._narrowings: list[dict[RefinementKey, tuple[int, Ty]]] = [{}]
+        self._decl_tokens: list[dict[str, Token]] = [{}]
+        self._captured_mutables: set[Token] = set(captured_mutables or ())
+        self._captured_globals: set[str] = set(captured_globals or ())
+        self._narrowings: dict[RefinementKey, Ty] = {}
         self._classes: dict[str, ClassInfo] = {}
         self._enums: dict[str, EnumInfo] = {}
         self._interfaces: dict[str, InterfaceInfo] = {}
@@ -547,11 +556,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _begin_scope(self) -> None:
         self._scopes.append({})
-        self._narrowings.append({})
+        self._decl_tokens.append({})
 
     def _end_scope(self) -> None:
+        index = len(self._scopes) - 1
+        for key in [key for key in self._narrowings if key[0] == index]:
+            del self._narrowings[key]
         self._scopes.pop()
-        self._narrowings.pop()
+        self._decl_tokens.pop()
 
     def _define(self, name: Token, ty: Ty) -> None:
         if len(self._scopes) == 1 and name.lexeme in BUILTIN_NAMES:
@@ -562,8 +574,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             )
 
         self._scopes[-1][name.lexeme] = ty
-        for key in [key for key in self._narrowings[-1] if key[0] == name.lexeme]:
-            del self._narrowings[-1][key]
+        self._decl_tokens[-1][name.lexeme] = name
+        index = len(self._scopes) - 1
+        for key in [
+            key
+            for key in self._narrowings
+            if key[0] == index and key[1] == name.lexeme
+        ]:
+            del self._narrowings[key]
 
     def _find_decl(self, name: str) -> tuple[int, Ty] | None:
         for index in range(len(self._scopes) - 1, -1, -1):
@@ -589,12 +607,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ERROR
 
         index, declared = found
-        for narrowing in reversed(self._narrowings):
-            entry = narrowing.get((name.lexeme, ()))
-            if entry is not None and entry[0] == index:
-                return entry[1]
-
-        return declared
+        narrowed = self._narrowings.get((index, name.lexeme, ()))
+        return narrowed if narrowed is not None else declared
 
     def _lookup_declared(self, name: Token) -> Ty:
         found = self._find_decl(name.lexeme)
@@ -609,34 +623,68 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return found[1]
 
-    def _invalidate(self, name: str) -> None:
+    def _invalidate(self, name: str, index: int) -> None:
         """Atribuir à raiz invalida o caminho inteiro (`p`, `p.nome`, `p[0]`)."""
-        for narrowing in self._narrowings:
-            for key in [key for key in narrowing if key[0] == name]:
-                del narrowing[key]
+        for key in list(self._narrowings):
+            if key[0] == index and key[1] == name:
+                del self._narrowings[key]
+
+    def _call_may_run_user_code(self, expr: Call) -> bool:
+        """Chamadas nativas puras não executam closures do usuário.
+
+        `print`, `len`, `str`, `repr`, `chars`, `range` e métodos de `List`/`Map` são
+        nativos; o resto (função, método de classe, construtor, valor de função) pode
+        executar código do usuário e invalidar `var` capturado.
+        """
+        callee = self.types.get(expr.callee)
+        if isinstance(callee, NativeFnTy):
+            return False
+        if isinstance(expr.callee, Get):
+            receiver = self.types.get(expr.callee.object)
+            if isinstance(receiver, (ListTy, MapTy)):
+                return False
+        return True
+
+    def _invalidate_captured(self) -> None:
+        """Chamadas podem executar closures que mutam `var` capturado (P2).
+
+        Refinos de campo/índice já caem em `_invalidate_members`; aqui só os de
+        variável. Globo é identificado pelo nome (o resolver não resolve globais).
+        """
+        if not self._captured_mutables and not self._captured_globals:
+            return
+        for key in list(self._narrowings):
+            if key[2]:
+                continue
+            index = key[0]
+            if index == 0 and key[1] in self._captured_globals:
+                del self._narrowings[key]
+                continue
+            token = self._decl_tokens[index].get(key[1])
+            if token in self._captured_mutables:
+                del self._narrowings[key]
 
     def _invalidate_path(self, key: RefinementKey) -> None:
         """Mutar um caminho invalida ele e os caminhos mais fundos com o mesmo prefixo."""
-        size = len(key[1])
-        for narrowing in self._narrowings:
-            for candidate in list(narrowing):
-                if candidate[0] == key[0] and candidate[1][:size] == key[1]:
-                    del narrowing[candidate]
+        size = len(key[2])
+        for candidate in list(self._narrowings):
+            if (
+                candidate[0] == key[0]
+                and candidate[1] == key[1]
+                and candidate[2][:size] == key[2]
+            ):
+                del self._narrowings[candidate]
 
     def _invalidate_members(self) -> None:
         """Chamada/atribuição de campo/índice derruba todo refino de campo/índice.
 
         Sem aliasing não dá para saber o que a chamada mutou; refinos de variáveis
         continuam (ADR-0045)."""
-        for narrowing in self._narrowings:
-            for key in [key for key in narrowing if key[1]]:
-                del narrowing[key]
+        for key in [key for key in self._narrowings if key[2]]:
+            del self._narrowings[key]
 
     def _apply_refinements(self, refinements: dict[RefinementKey, Ty]) -> None:
-        for key, ty in refinements.items():
-            found = self._find_decl(key[0])
-            if found is not None:
-                self._narrowings[-1][key] = (found[0], ty)
+        self._narrowings.update(refinements)
 
     def _error(
         self,
@@ -727,6 +775,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(expr, Call):
             actual = self._infer_call(expr, expected, token)
             self._invalidate_members()
+            if self._call_may_run_user_code(expr):
+                self._invalidate_captured()
             if actual is ERROR:
                 return ERROR
             # `_check` não passa por `_infer`; o lowering lê o tipo de chamadas
@@ -1783,10 +1833,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         iterable = self._infer(stmt.iterable)
         element = self._element_type(iterable, stmt.name)
 
+        if isinstance(iterable, (ClassTy, InterfaceTy)) or iterable is ANY:
+            self._invalidate_members()
+            self._invalidate_captured()
+        base = dict(self._narrowings)
         self._begin_scope()
         self._define(stmt.name, element)
         self._check_stmt(stmt.body)
+        body_state = dict(self._narrowings)
         self._end_scope()
+        # O corpo pode executar zero vezes; só sobrevive o que vale nos dois caminhos.
+        self._narrowings = self._join_states(base, body_state)
 
     def _element_type(self, iterable: Ty, token: Token) -> Ty:
         if iterable is ANY:
@@ -2046,6 +2103,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         enclosing_return = self._current_return
         enclosing_init = self._in_initializer
         enclosing_collector = self._return_collector
+        enclosing_narrowings = dict(self._narrowings)
+        self._narrowings = {}
 
         if not preserve_class:
             self._current_class = class_info
@@ -2114,6 +2173,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._in_initializer = enclosing_init
             collected = self._return_collector or []
             self._return_collector = enclosing_collector
+            self._narrowings = enclosing_narrowings
             if generic:
                 self._generic_context.pop()
                 self._pop_type_params()
@@ -2503,28 +2563,59 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._infer(stmt.condition)
         then_refinements = self._refinements(stmt.condition, True)
         else_refinements = self._refinements(stmt.condition, False)
+        base = dict(self._narrowings)
 
-        then_returns = self._check_branch(stmt.then_branch, then_refinements)
-        else_returns = False
+        then_state, then_returns = self._check_branch(
+            stmt.then_branch, then_refinements
+        )
         if stmt.else_branch is not None:
-            else_returns = self._check_branch(stmt.else_branch, else_refinements)
+            else_state, else_returns = self._check_branch(
+                stmt.else_branch, else_refinements
+            )
+        else:
+            else_state = dict(base)
+            else_state.update(else_refinements)
+            else_returns = False
 
-        # `if (x == nil) { return }` refina o resto do bloco com o ramo oposto.
-        if then_returns and not else_returns:
-            self._apply_refinements(else_refinements)
-        elif else_returns and not then_returns:
-            self._apply_refinements(then_refinements)
+        # Junta o estado dos caminhos que chegam ao fim do `if`.
+        if then_returns and else_returns:
+            self._narrowings = base
+        elif then_returns:
+            self._narrowings = dict(else_state)
+        elif else_returns:
+            self._narrowings = dict(then_state)
+        else:
+            self._narrowings = self._join_states(then_state, else_state)
 
     def _check_branch(
         self, stmt: Stmt, refinements: dict[RefinementKey, Ty]
-    ) -> bool:
-        self._narrowings.append({})
+    ) -> tuple[dict[RefinementKey, Ty], bool]:
+        base = dict(self._narrowings)
         try:
             self._apply_refinements(refinements)
             self._check_stmt(stmt)
-            return self._always_returns(stmt)
+            state = dict(self._narrowings)
+            returns = self._always_returns(stmt)
         finally:
-            self._narrowings.pop()
+            self._narrowings = base
+        return state, returns
+
+    def _join_states(
+        self,
+        left: dict[RefinementKey, Ty],
+        right: dict[RefinementKey, Ty],
+    ) -> dict[RefinementKey, Ty]:
+        result: dict[RefinementKey, Ty] = {}
+        for key in left.keys() & right.keys():
+            left_ty = left[key]
+            right_ty = right[key]
+            if left_ty == right_ty:
+                result[key] = left_ty
+                continue
+            merged = union(left_ty, right_ty)
+            if merged is not NEVER:
+                result[key] = merged
+        return result
 
     def _refinements(self, expr: Expr, truth: bool) -> dict[RefinementKey, Ty]:
         if isinstance(expr, Grouping):
@@ -2594,20 +2685,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _refinement_path(self, expr: Expr) -> RefinementKey | None:
         """Caminho refinável: variável, ou campos/índices literais encadeados."""
         if isinstance(expr, Variable):
-            return expr.name.lexeme, ()
+            found = self._find_decl(expr.name.lexeme)
+            if found is None:
+                return None
+            return found[0], expr.name.lexeme, ()
 
         if isinstance(expr, Get):
             base = self._refinement_path(expr.object)
             if base is None:
                 return None
-            return base[0], base[1] + (("field", expr.name.lexeme),)
+            return base[0], base[1], base[2] + (("field", expr.name.lexeme),)
 
         if isinstance(expr, Index):
             base = self._refinement_path(expr.object)
             segment = self._literal_segment(expr.index)
             if base is None or segment is None:
                 return None
-            return base[0], base[1] + (segment,)
+            return base[0], base[1], base[2] + (segment,)
 
         return None
 
@@ -2662,14 +2756,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return field.ty if field is not None else None
 
     def _narrowed_at(self, key: RefinementKey) -> Ty | None:
-        found = self._find_decl(key[0])
-        if found is None:
-            return None
-        for narrowing in reversed(self._narrowings):
-            entry = narrowing.get(key)
-            if entry is not None and entry[0] == found[0]:
-                return entry[1]
-        return None
+        return self._narrowings.get(key)
 
     def _nil_refinement(
         self, key: RefinementKey, declared: Ty, truth: bool, *, equal: bool
@@ -2861,12 +2948,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return ClassTy(token.lexeme)
 
-    def visit_try_stmt(self, stmt: Try) -> None:
+    def _check_list_from(
+        self, statements: list[Stmt], state: dict[RefinementKey, Ty]
+    ) -> dict[RefinementKey, Ty]:
+        """Checa uma lista em escopo novo, partindo de `state`, e devolve a saída."""
+        self._narrowings = dict(state)
         self._begin_scope()
-        for statement in stmt.body:
-            self._check_stmt(statement)
-        self._end_scope()
+        try:
+            for statement in statements:
+                self._check_stmt(statement)
+        finally:
+            self._end_scope()
+        return dict(self._narrowings)
 
+    def visit_try_stmt(self, stmt: Try) -> None:
+        base = dict(self._narrowings)
+        body_state = self._check_list_from(stmt.body, base)
+        body_returns = self._body_always_returns(stmt.body)
+
+        handler_states: list[dict[RefinementKey, Ty]] = []
+        handler_returns: list[bool] = []
         for index, clause in enumerate(stmt.handlers):
             exception_ty = self._resolve_exception_type(clause.type_name)
             if (
@@ -2878,6 +2979,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "Catch-all 'Exception' must be the last handler.",
                 )
 
+            self._narrowings = dict(base)
             self._begin_scope()
             self._define(clause.binding, exception_ty)
             self._except_depth += 1
@@ -2887,12 +2989,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             finally:
                 self._except_depth -= 1
                 self._end_scope()
+            handler_states.append(dict(self._narrowings))
+            handler_returns.append(self._body_always_returns(clause.body))
+
+        continuing: list[dict[RefinementKey, Ty]] = []
+        if not body_returns:
+            continuing.append(body_state)
+        for state, returns in zip(handler_states, handler_returns, strict=True):
+            if not returns:
+                continuing.append(state)
+        if not continuing:
+            continuing.append(base)
+        merged = continuing[0]
+        for state in continuing[1:]:
+            merged = self._join_states(merged, state)
+        self._narrowings = merged
 
         if stmt.finally_body is not None:
-            self._begin_scope()
-            for statement in stmt.finally_body:
-                self._check_stmt(statement)
-            self._end_scope()
+            self._narrowings = self._check_list_from(
+                stmt.finally_body, merged
+            )
 
     def visit_raise_stmt(self, stmt: Raise) -> None:
         if stmt.value is None:
@@ -3004,16 +3120,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)
-        self._check_branch(stmt.body, self._refinements(stmt.condition, True))
-        # Na saída normal a condição é falsa: o resto do bloco vê o refino oposto.
+        base = dict(self._narrowings)
+        body_state, _ = self._check_branch(
+            stmt.body, self._refinements(stmt.condition, True)
+        )
+        # O laço pode executar zero vezes: junta a entrada com a saída do corpo e
+        # depois aplica a condição falsa da saída normal.
+        self._narrowings = self._join_states(base, body_state)
         self._apply_refinements(self._refinements(stmt.condition, False))
 
     # --- expressões ---
 
     def visit_assign_expr(self, expr: Assign) -> Ty:
         expected = self._lookup_declared(expr.name)
-        self._check(expr.value, expected, expr.name)
-        self._invalidate(expr.name.lexeme)
+        assigned = self._check(expr.value, expected, expr.name)
+        found = self._find_decl(expr.name.lexeme)
+        if found is not None:
+            index = found[0]
+            self._invalidate(expr.name.lexeme, index)
+            if assigned is not ERROR:
+                self._narrowings[(index, expr.name.lexeme, ())] = assigned
         return expected
 
     def visit_binary_expr(self, expr: Binary) -> Ty:
@@ -3165,6 +3291,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_call_expr(self, expr: Call) -> Ty:
         result = self._infer_call(expr, None, expr.paren)
         self._invalidate_members()
+        if self._call_may_run_user_code(expr):
+            self._invalidate_captured()
         return result
 
     def _infer_call(
@@ -5017,7 +5145,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         path = self._refinement_path(expr.object)
         if path is not None:
-            self._invalidate_path((path[0], path[1] + (("field", expr.name.lexeme),)))
+            self._invalidate_path(
+                (path[0], path[1], path[2] + (("field", expr.name.lexeme),))
+            )
         self._invalidate_members()
 
         is_initializer_this = self._in_initializer and isinstance(expr.object, This)

@@ -78,6 +78,7 @@ class ClassType(Enum):
 class _VariableInfo:
     defined: bool
     mutable: bool
+    declaration: Token | None = None
 
 
 class Resolver(ExprVisitor[None], StmtVisitor[None]):
@@ -91,6 +92,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_class: ClassType = ClassType.NONE
         self._current_fields: dict[str, bool] | None = None
         self._class_fields: dict[str, dict[str, bool]] = {}
+        self._function_starts: list[int] = []
+        self.captured_mutables: set[Token] = set()
+        self.captured_global_names: set[str] = set()
 
     def resolve(self, statements: list[Stmt]) -> None:
         for statement in statements:
@@ -120,7 +124,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 code=Code.DUPLICATE_VARIABLE,
             )
 
-        scope[name.lexeme] = _VariableInfo(defined=False, mutable=mutable)
+        scope[name.lexeme] = _VariableInfo(
+            defined=False, mutable=mutable, declaration=name
+        )
 
     def _define(self, name: Token) -> None:
         if not self._scopes:
@@ -128,12 +134,14 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         self._scopes[-1][name.lexeme].defined = True
 
-    def _resolve_local(self, expr: Expr, name: Token) -> _VariableInfo | None:
+    def _resolve_local(
+        self, expr: Expr, name: Token
+    ) -> tuple[_VariableInfo, int] | None:
         for i in range(len(self._scopes) - 1, -1, -1):
             info = self._scopes[i].get(name.lexeme)
             if info is not None:
                 self._interpreter.resolve(expr, len(self._scopes) - 1 - i)
-                return info
+                return info, i
 
         return None
 
@@ -144,12 +152,16 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_function = function_type
 
         self._begin_scope()
-        for param in function.params:
-            self._declare(param.name, param.mutable)
-            self._define(param.name)
+        self._function_starts.append(len(self._scopes) - 1)
+        try:
+            for param in function.params:
+                self._declare(param.name, param.mutable)
+                self._define(param.name)
 
-        self.resolve(function.body)
-        self._end_scope()
+            self.resolve(function.body)
+        finally:
+            self._function_starts.pop()
+            self._end_scope()
 
         self._current_function = enclosing_function
 
@@ -363,13 +375,25 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_assign_expr(self, expr: Assign) -> None:
         self._resolve_expr(expr.value)
-        info = self._resolve_local(expr, expr.name)
-        if info is not None and not info.mutable:
-            self._reporter.error(
-                expr.name,
-                immutable_assignment_message(expr.name.lexeme),
-                code=Code.IMMUTABLE_ASSIGNMENT,
-            )
+        resolved = self._resolve_local(expr, expr.name)
+        if resolved is not None:
+            info, scope_index = resolved
+            if not info.mutable:
+                self._reporter.error(
+                    expr.name,
+                    immutable_assignment_message(expr.name.lexeme),
+                    code=Code.IMMUTABLE_ASSIGNMENT,
+                )
+            elif (
+                self._function_starts
+                and scope_index < self._function_starts[-1]
+                and info.declaration is not None
+            ):
+                self.captured_mutables.add(info.declaration)
+            return
+
+        if self._function_starts:
+            self.captured_global_names.add(expr.name.lexeme)
 
     def visit_binary_expr(self, expr: Binary) -> None:
         self._resolve_expr(expr.left)

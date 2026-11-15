@@ -23,8 +23,9 @@ T6a/T6c foram implementados; restam no pós-MVP:
 ### 1.2 Checker
 
 - **Narrowing**: invalidação em chamada/atribuição a campo/índice implementada
-  ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); resta CFG/aliasing fino e `var`
-  capturado por closure ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)).
+  ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); `var` capturado e merge de
+  fluxo implementados ([ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)); resta
+  aliasing/efeitos/CFG completo, declarado fora.
 - **Função genérica como valor** (T3b só permite chamada).
 - **Enum genérico em lambda/match**: `fn(x) => Result.Ok(x)` não infere `U`/`E`; exige
   função nomeada com retorno anotado. (O `T?` contra `Int?` já unifica `T = Int`.)

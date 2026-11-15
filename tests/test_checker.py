@@ -1275,7 +1275,7 @@ def test_narrowing_types_are_clean() -> None:
         (
             'var nome: String? = "Ana";'
             " if (nome != nil) { nome = nil; print(len(nome)); }",
-            "Expected a string, a list or a map, found String | Nil.",
+            "Expected a string, a list or a map, found Nil.",
         ),
     ],
 )
@@ -2842,3 +2842,299 @@ def test_type_alias_errors(
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_narrowing_captured_var_is_invalidated_by_call(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        val clear = fn() { x = nil }
+        if (x != nil) {
+          clear()
+          print(len(x))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found String | Nil." in captured.err
+
+
+def test_narrowing_captured_var_survives_before_call(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        val clear = fn() { x = nil }
+        if (x != nil) {
+          print(len(x))
+          clear()
+        }
+        """
+    )
+    capsys.readouterr()
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_captured_global_is_invalidated_by_call(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        fn clear() -> Nil { x = nil }
+        if (x != nil) {
+          clear()
+          print(len(x))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found String | Nil." in captured.err
+
+
+def test_narrowing_native_calls_do_not_invalidate_captured_var(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        val clear = fn() { x = nil }
+        if (x != nil) {
+          print(len(x))
+          print(len(x))
+        }
+        """
+    )
+    capsys.readouterr()
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_merges_both_branches() -> None:
+    lox = check(
+        """
+        fn f(x: Int | String, c: Bool) -> String {
+          if (c) {
+            if (x is Int) { return "i" }
+          } else {
+            if (x is Int) { return "j" }
+          }
+          return x
+        }
+        print(f(1, true))
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_merges_one_returning_branch() -> None:
+    lox = check(
+        """
+        fn f(x: Int | String, c: Bool) -> String {
+          if (c) { return "c" }
+          if (x is Int) { return "i" }
+          return x
+        }
+        print(f(1, true))
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_merge_keeps_union_when_branches_differ(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f(var x: Int | String, c: Bool) -> String {
+          if (c) {
+            x = 1
+          } else {
+            if (x is Int) { return "j" }
+          }
+          return x
+        }
+        print(f(1, true))
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected String, found Int | String." in captured.err
+
+
+def test_narrowing_merge_keeps_refinement_when_both_assign_string() -> None:
+    lox = check(
+        """
+        fn f(var x: Int | String, c: Bool) -> String {
+          if (c) {
+            if (x is Int) { x = "a" }
+          } else {
+            if (x is Int) { x = "b" }
+          }
+          return x
+        }
+        print(f(1, true))
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_merge_of_field_paths() -> None:
+    lox = check(
+        """
+        class P {
+          var nome: String?
+          init(n: String?) { this.nome = n }
+        }
+        fn f(p: P, c: Bool) -> String {
+          if (c) {
+            if (p.nome != nil) { return p.nome }
+          } else {
+            if (p.nome != nil) { return p.nome }
+          }
+          return "vazio"
+        }
+        print(f(P("a"), true))
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_captured_local_inside_function(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f() -> Nil {
+          var x: String? = "a"
+          val clear = fn() { x = nil }
+          if (x != nil) {
+            clear()
+            print(len(x))
+          }
+        }
+        f()
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found String | Nil." in captured.err
+
+
+def test_narrowing_only_invalidates_captured_variables(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        var y: String? = "b"
+        val clear = fn() { x = nil }
+        if (y != nil) {
+          clear()
+          print(len(y))
+        }
+        """
+    )
+    capsys.readouterr()
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_user_iterator_invalidates_captured_var(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        class It {
+          fn iter() -> It { return this }
+          fn next() -> Int? {
+            x = nil
+            return nil
+          }
+        }
+        if (x != nil) {
+          for v in It() {}
+          print(len(x))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found String | Nil." in captured.err
+
+
+def test_narrowing_for_in_does_not_leak_body_refinement(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var x: String? = "a"
+        for i in 0..1 {
+          if (x != nil) {
+            print(len(x))
+          }
+        }
+        print(len(x))
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found String | Nil." in captured.err
+
+
+def test_narrowing_try_ignores_returning_handler() -> None:
+    lox = check(
+        """
+        fn f(x: Int | String, c: Bool) -> String {
+          try {
+            if (c) { return "c" }
+            if (x is Int) { return "i" }
+          } except Exception as e {
+            return "e"
+          }
+          return x
+        }
+        print(f(1, true))
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_narrowing_try_joins_falling_through_handler(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn f(x: Int | String) -> String {
+          try {
+            if (x is Int) { return "i" }
+          } except Exception as e {
+            print(e)
+          }
+          return x
+        }
+        print(f(1))
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected String, found Int | String." in captured.err
