@@ -55,6 +55,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 - Backend **generics com lambda contextual**: checker publica o `FnTy` concreto da lambda em argumento genérico; `generics.lox` promovido.
 - Backend **`is` com união parentetizada**: `x is (Int | String)` compara tags/classes e fecha `is_union_parens.lox`.
+- Stdlib **T1**: `std.lists.sort` estável (comparador de 3 vias), `zip`, `flatten`, `flatMap`, `unique`, `chunk` e `partition` ([ADR-0076](docs/adr/0076-std-lists-sort.md)).
 - Stdlib **T1 (base)**: `std.strings` e `std.lists` em Lox sobre as primitivas; casos `t1` no corpus.
 - Imports/módulos: arquivo=módulo, pasta=namespace, `_` privado verificado, `from`/`as`, desugar e display preservado.
 - Kernel **13.2**: `args`, `io.*`, `os.*`, `time.*` e `main(argc, argv)`; tabela única cobre as 14 primitivas.

@@ -839,6 +839,10 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 - `std.lists`: `isEmpty`, `length`, `map`, `filter`, `each`, `fold`, `reduce`, `any`,
   `all`, `none`, `find`, `findIndex`, `contains`, `indexOf`, `reverse`, `take`, `drop`,
   `slice`, `sum`, `first`, `last`, `count`, `min`, `max`, `getOr`.
+- `lists.sort(xs, compare)` exige `compare: fn(T, T) -> Int` (negativo/zero/positivo),
+  é estável e devolve lista nova. `sortBy`/`groupBy` ainda não existem.
+- `lists.zip`, `flatten`, `flatMap`, `unique`, `chunk` e `partition` são genéricos;
+  `partition` devolve `(yes, no)`.
 - Essas funções são Lox puro sobre o kernel; são determinísticas e entram no corpus T1.
 
 

@@ -250,3 +250,101 @@ fn getOr[T](xs: List[T], index: Int, fallback: T) -> T {
   }
   return xs[index]
 }
+
+fn sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
+  if (len(xs) <= 1) {
+    return slice(xs, 0, len(xs))
+  }
+  val middle = len(xs) // 2
+  val left = sort(slice(xs, 0, middle), compare)
+  val right = sort(slice(xs, middle, len(xs)), compare)
+  val result: List[T] = []
+  var i = 0
+  var j = 0
+  while (i < len(left) and j < len(right)) {
+    if (compare(left[i], right[j]) <= 0) {
+      result.push(left[i])
+      i = i + 1
+    } else {
+      result.push(right[j])
+      j = j + 1
+    }
+  }
+  while (i < len(left)) {
+    result.push(left[i])
+    i = i + 1
+  }
+  while (j < len(right)) {
+    result.push(right[j])
+    j = j + 1
+  }
+  return result
+}
+
+fn zip[T, U](xs: List[T], ys: List[U]) -> List[(T, U)] {
+  val result: List[(T, U)] = []
+  var i = 0
+  while (i < len(xs) and i < len(ys)) {
+    result.push((xs[i], ys[i]))
+    i = i + 1
+  }
+  return result
+}
+
+fn flatten[T](xs: List[List[T]]) -> List[T] {
+  val result: List[T] = []
+  for inner in xs {
+    for item in inner {
+      result.push(item)
+    }
+  }
+  return result
+}
+
+fn flatMap[T, U](xs: List[T], f: fn(T) -> List[U]) -> List[U] {
+  val result: List[U] = []
+  var i = 0
+  while (i < len(xs)) {
+    for item in f(xs[i]) {
+      result.push(item)
+    }
+    i = i + 1
+  }
+  return result
+}
+
+fn unique[T](xs: List[T]) -> List[T] {
+  val result: List[T] = []
+  for item in xs {
+    if (not contains(result, item)) {
+      result.push(item)
+    }
+  }
+  return result
+}
+
+fn chunk[T](xs: List[T], size: Int) -> List[List[T]] {
+  val result: List[List[T]] = []
+  if (size <= 0) {
+    return result
+  }
+  var i = 0
+  while (i < len(xs)) {
+    result.push(slice(xs, i, i + size))
+    i = i + size
+  }
+  return result
+}
+
+fn partition[T](xs: List[T], predicate: fn(T) -> Bool) -> (List[T], List[T]) {
+  val yes: List[T] = []
+  val no: List[T] = []
+  for item in xs {
+    if (predicate(item)) {
+      yes.push(item)
+    } else {
+      no.push(item)
+    }
+  }
+  return (yes, no)
+}

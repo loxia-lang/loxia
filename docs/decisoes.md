@@ -125,3 +125,5 @@ continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).
 Módulos têm forma implementada em [ADR-0073](adr/0073-imports-modulos.md): arquivo=módulo,
 pasta=namespace, `_` privado verificado, `std.*` reservado e imports de arquivos do usuário.
+
+`std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortBy`/`groupBy` ficam para depois de constraints ([ADR-0076](adr/0076-std-lists-sort.md)).

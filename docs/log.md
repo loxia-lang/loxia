@@ -254,3 +254,14 @@ Intervalo: `HEAD..HEAD` (primeiros módulos T1 sobre imports/kernel).
 - `TODO.md` — **updated**: T1 em andamento; strings base completa e lists base parcial.
 - `tests/cases/std_strings.lox`, `std_lists.lox` — **novos** no nível `t1`.
 - `CHANGELOG.md` — **updated**: T1 base.
+
+## 2026-11-14 — `std.lists.sort` e lacunas T1
+
+Intervalo: `HEAD..HEAD` (decisão do comparador e funções restantes de lists).
+
+- `docs/adr/0076-std-lists-sort.md` — **novo**: comparador de três vias, merge sort
+  estável, lista nova; `sortBy`/`groupBy` adiados.
+- `docs/spec/semantica.md` — **updated**: contrato de `sort` e utilitários genéricos.
+- `TODO.md`, `CHANGELOG.md`, `docs/adr/README.md`, `docs/decisoes.md` — **updated**.
+- `std/lists.lox` — **updated**: `sort`, `zip`, `flatten`, `flatMap`, `unique`, `chunk`,
+  `partition`; testes no caso `t1`.
