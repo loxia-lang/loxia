@@ -229,13 +229,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["range"] = FnTy((INT, INT, INT), RANGE, 3)
         self._scopes[0]["repr"] = NativeFnTy("repr")
         self._scopes[0]["str"] = NativeFnTy("str")
-        for primitive in PRIMITIVES:
-            self._scopes[0][primitive.lox] = FnTy(
-                primitive.params,
-                primitive.result,
-                len(primitive.params),
-            )
-
         result_t = self._fresh_type_var("T")
         result_e = self._fresh_type_var("E")
         self._enums["Result"] = EnumInfo(
@@ -285,6 +278,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 "sqrt": FnTy((FLOAT,), FLOAT, 1),
             },
         }
+        for primitive in PRIMITIVES:
+            signature = FnTy(
+                primitive.params,
+                primitive.result,
+                len(primitive.params),
+            )
+            if "." in primitive.lox:
+                module, member = primitive.lox.split(".", 1)
+                self._native_modules.setdefault(module, {})[member] = signature
+            else:
+                self._scopes[0][primitive.lox] = signature
         for name in self._native_modules:
             self._scopes[0][name] = NativeModuleTy(name)
 

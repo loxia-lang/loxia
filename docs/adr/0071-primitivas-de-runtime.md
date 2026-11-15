@@ -1,6 +1,6 @@
 # ADR-0071 — Primitivas de runtime: fronteira nativa, tabela única e complexidade linear
 
-- **Status:** accepted (13.3/13.4 implementados; kernel de SO ainda pendente)
+- **Status:** accepted (13.2/13.3/13.4 implementados; stdlib/imports pendentes)
 - **Data:** 2026-11-14
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0016](0016-api-stdlib-hibrida.md) (API da stdlib),
@@ -35,6 +35,8 @@ Além disso, o runtime nativo é **quadrático em strings**, e isso não é hip�
 - `lox_str_concat` ([`runtime.c:155`](../../runtime/runtime.c#L155)) copia os dois lados.
   Construir uma string de *m* caracteres com `+` custa **m²/2 bytes** na arena, que não
   tem `free`.
+- Kernel 13.2 implementado: `args`, `io.*`, `os.*` e `time.*`, com `main(argc, argv)` e
+  argumentos repassados por script/binário.
 - **Medição após o cache (2026-11-14):** `bench/cases/string_scan.lox` com 100k code
   points: nativo **9,1 ms**, interpretador **665,57 ms**; o alvo ≤ 50 ms foi cumprido.
 - Medido antes, mesmo programa nos dois motores: 20k code points → 0,09 s nativo

@@ -217,3 +217,15 @@ Intervalo: `HEAD..HEAD` (cache de code points, primitivas e benchmark).
 - `ADR-0071` — **updated**: status de implementação e medição `string_scan` (9,1 ms nativo).
 - `ADR-0035` — **updated**: nota de atualização para o cache de code points.
 - `bench/README.md` — **updated**: tabela e leitura do `string_scan`.
+
+## 2026-11-14 — Kernel 13.2 (SO, args e I/O)
+
+Intervalo: `HEAD..HEAD` (primitivas de SO e `main(argc, argv)`).
+
+- `docs/spec/semantica.md` — **updated**: `args`, `io.*`, `os.*`, `time.*`, ambiente e
+  códigos de `os.exit`.
+- `TODO.md` — **updated**: tabela 13.2 marcada como entregue e ordem do kernel.
+- `ADR-0071` — **updated**: status 13.2/13.3/13.4 e `main(argc, argv)`.
+- `README.md`, `CHANGELOG.md` — **updated**: kernel v1 pronto e próximo passo imports/stdlib.
+- `tests/test_kernel.py` — **novo**: args, getenv, os.exit e leitura/escrita de arquivo no
+  interpretador; `test_backend.py` cobre `args()` no binário.

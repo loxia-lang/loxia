@@ -55,6 +55,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 - Backend **generics com lambda contextual**: checker publica o `FnTy` concreto da lambda em argumento genérico; `generics.lox` promovido.
 - Backend **`is` com união parentetizada**: `x is (Int | String)` compara tags/classes e fecha `is_union_parens.lox`.
+- Kernel **13.2**: `args`, `io.*`, `os.*`, `time.*` e `main(argc, argv)`; tabela única cobre as 14 primitivas.
 - Kernel **13.3/13.4**: cache preguiçoso de code points no `LoxStr`, `substr`/`join`/`charCodeAt`/`fromCodePoint` e tabela única de primitivas ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)); `bench/cases/string_scan.lox` cai para 9,1 ms no nativo.
 - Backend **L7b (parte)**: passes de IR `-O2` antes de emitir objeto e `make bench-native`
   com speedup contra o baseline do interpretador; `returns_twice` no `_setjmp`.

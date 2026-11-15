@@ -104,9 +104,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         reporter: ErrorReporter | None = None,
         *,
         checked_overflow: bool = False,
+        argv: list[str] | None = None,
     ) -> None:
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
         self.checked_overflow = checked_overflow
+        self.argv = list(argv or [])
         self.globals = Environment()
         self.environment = self.globals
         self.locals: dict[Expr, int] = {}
@@ -116,9 +118,20 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals.define("range", RangeNative(), mutable=False)
         self.globals.define("repr", Repr(), mutable=False)
         self.globals.define("str", Str(), mutable=False)
+        primitive_modules: dict[str, dict[str, object]] = {}
         for primitive in PRIMITIVES:
+            if "." in primitive.lox:
+                module, member = primitive.lox.split(".", 1)
+                primitive_modules.setdefault(module, {})[member] = (
+                    PrimitiveCallable(primitive)
+                )
+            else:
+                self.globals.define(
+                    primitive.lox, PrimitiveCallable(primitive), mutable=False
+                )
+        for module, members in primitive_modules.items():
             self.globals.define(
-                primitive.lox, PrimitiveCallable(primitive), mutable=False
+                module, NativeModule(module, members), mutable=False
             )
         self.globals.define("Int", int_module(), mutable=False)
         self.globals.define("Float", float_module(), mutable=False)

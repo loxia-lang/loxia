@@ -236,8 +236,16 @@ def global_variable(module: Any, name: str, ty: Any) -> Any:
     return global_
 
 
+def pointer_pointer() -> Any:
+    return ir.IntType(8).as_pointer().as_pointer()
+
+
 def define_main(module: Any) -> Any:
-    return ir.Function(module, ir.FunctionType(ir.IntType(32), []), name="main")
+    return ir.Function(
+        module,
+        ir.FunctionType(ir.IntType(32), [ir.IntType(32), pointer_pointer()]),
+        name="main",
+    )
 
 
 def builder(block: Any) -> Any:

@@ -56,7 +56,7 @@ kernel v1 (§13.3), com o L7b em paralelo. O status por nível é **gerado** em
       fica como melhoria opcional.
 - [ ] **JIT no REPL** (`P3`, pendência futura): MCJIT + runtime + estado do REPL; não
       bloqueia o L7b. Desenho próprio antes de codar.
-- [ ] **Kernel v1** (§13): 13.3 ✅ → 13.4 ✅ → 13.2 (SO) pendente, depois stdlib.
+- [x] **Kernel v1** (§13): 13.2/13.3/13.4 implementados; imports/stdlib pendentes.
 
 ## 3. Diagnósticos
 
@@ -326,20 +326,20 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
 | # | Primitiva | Assinatura | Amb.¹ | Estado |
 | --- | --- | --- | --- | --- |
-| 1 | `args` | `args() -> List[String]` | sim | ⬜ |
-| 2 | `io.readFile` | `(path: String) -> String?` | sim | ⬜ |
-| 3 | `io.write` | `(text: String)` — stdout sem `\n` | não | ⬜ |
-| 4 | `io.writeErr` | `(text: String)` — stderr sem `\n` | não | ⬜ |
-| 5 | `io.writeFile` | `(path: String, text: String) -> Bool` | sim | ⬜ |
-| 6 | `io.readLine` | `() -> String?` (nil no EOF) | sim | ⬜ |
-| 7 | `os.exit` | `(code: Int)` — não retorna; 0..255 | sim | ⬜ |
-| 8 | `os.getenv` | `(name: String) -> String?` | sim | ⬜ |
-| 9 | `time.now` | `() -> Int` (ms desde a época) | sim | ⬜ |
-| 10 | `time.sleep` | `(ms: Int)` | sim | ⬜ |
-| 11 | `substr` | `(s: String, start: Int, end: Int) -> String` | não | ⬜ |
-| 12 | `join` | `(parts: List[String], sep: String) -> String` | não | ⬜ |
-| 13 | `charCodeAt` | `(s: String, index: Int) -> Int` | não | ⬜ |
-| 14 | `fromCodePoint` | `(codePoint: Int) -> String` | não | ⬜ |
+| 1 | `args` | `args() -> List[String]` | sim | ✅ |
+| 2 | `io.readFile` | `(path: String) -> String?` | sim | ✅ |
+| 3 | `io.write` | `(text: String)` — stdout sem `\n` | não | ✅ |
+| 4 | `io.writeErr` | `(text: String)` — stderr sem `\n` | não | ✅ |
+| 5 | `io.writeFile` | `(path: String, text: String) -> Bool` | sim | ✅ |
+| 6 | `io.readLine` | `() -> String?` (nil no EOF) | sim | ✅ |
+| 7 | `os.exit` | `(code: Int)` — não retorna; 0..255 | sim | ✅ |
+| 8 | `os.getenv` | `(name: String) -> String?` | sim | ✅ |
+| 9 | `time.now` | `() -> Int` (ms desde a época) | sim | ✅ |
+| 10 | `time.sleep` | `(ms: Int)` | sim | ✅ |
+| 11 | `substr` | `(s: String, start: Int, end: Int) -> String` | não | ✅ |
+| 12 | `join` | `(parts: List[String], sep: String) -> String` | não | ✅ |
+| 13 | `charCodeAt` | `(s: String, index: Int) -> Int` | não | ✅ |
+| 14 | `fromCodePoint` | `(codePoint: Int) -> String` | não | ✅ |
 
 ¹ Ambiente = fora do corpus I1 (depende do SO/mundo). `io.write`/`io.writeErr` são
 determinísticos e **podem** entrar no corpus. `args()` devolve os argumentos depois do
@@ -357,7 +357,7 @@ Entram só quando `std.fs`/`std.paths` precisar; cada um acima de 15 exige remov
 - [x] `charCodeAt`/`fromCodePoint` (Python + C + lowering + checker + spec).
 - [x] `bench/cases/string_scan.lox` (100k code points): nativo **9,1 ms** (alvo ≤ 0,05 s);
       interpreter **665,57 ms**. Registrado no ADR-0071 e no commit.
-- [ ] Reavaliar os testes de memória: o ponto do `Out of memory` muda com o cache e com o
+- [x] Reavaliar os testes de memória: o ponto do `Out of memory` muda com o cache e com o
       GC (ADR-0074); o hard cap é 128 MiB e o I1 cobre até 64 MiB live.
 - [x] `docs/spec/semantica.md` (+ nota "atualizado por ADR-0071" no ADR-0035, que é
       imutável).

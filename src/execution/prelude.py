@@ -9,18 +9,22 @@ from __future__ import annotations
 
 BUILTIN_NAMES = frozenset(
     {
+        "args",
         "chars",
         "charCodeAt",
         "fromCodePoint",
+        "io",
         "join",
         "len",
         "range",
         "repr",
         "str",
         "substr",
+        "time",
         "Int",
         "Float",
         "math",
+        "os",
         "Result",
         "Exception",
         "LoxRuntimeError",

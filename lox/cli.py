@@ -32,9 +32,12 @@ class Lox:
         error_format: str = "human",
         color: str = "auto",
         max_errors: int = 20,
+        script_args: list[str] | None = None,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors)
-        self.interpreter = Interpreter(self.reporter, checked_overflow=debug)
+        self.interpreter = Interpreter(
+            self.reporter, checked_overflow=debug, argv=script_args
+        )
         self.error_format = error_format
         self.color = color
         self._sources = SourceMap()
@@ -298,6 +301,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="limite de diagnósticos por execução (0 = sem limite)",
     )
     parser.add_argument("script", nargs="?", help="Caminho para o script Lox")
+    parser.add_argument(
+        "script_args",
+        nargs=argparse.REMAINDER,
+        help="argumentos repassados para o programa (args())",
+    )
     return parser
 
 
@@ -319,6 +327,7 @@ def main() -> None:
         error_format=parsed_args.error_format,
         color=parsed_args.color,
         max_errors=parsed_args.max_errors,
+        script_args=parsed_args.script_args,
     )
 
     if parsed_args.script:

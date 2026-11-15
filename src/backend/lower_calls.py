@@ -62,6 +62,16 @@ class CallLowering(LoweringBase):
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
+        ):
+            primitive = PRIMITIVE_BY_LOX.get(
+                f"{expr.callee.object.name.lexeme}.{expr.callee.name.lexeme}"
+            )
+            if primitive is not None:
+                return self._primitive_call(primitive, expr)
+
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float"}
             and expr.callee.name.lexeme == "parse"
         ):

@@ -426,8 +426,8 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   parâmetro `a` é erro (mesma mensagem de redeclaração).
 - `clock()` **não existe na 1.0**: tempo é entrada ambiente e violaria o I3. Um módulo
   `time` explicitamente não determinístico fica para depois. O prelúdio determinístico é
-  `chars`, `charCodeAt`, `fromCodePoint`, `join`, `len`, `str`, `repr`, `range`, `substr`,
-  `Int`, `Float` e `math`.
+  `args`, `chars`, `charCodeAt`, `fromCodePoint`, `join`, `len`, `str`, `repr`, `range`,
+  `substr`, `Int`, `Float`, `math`, `io`, `os` e `time`.
 - `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
   points para string). Outro tipo é erro:
   `len() expects a string, a list or a map.`
@@ -439,6 +439,10 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
 - `charCodeAt(s, index)` devolve o code point (`Int`) na posição; erro fora dos limites.
 - `fromCodePoint(codePoint)` exige `Int` válido (0..0x10FFFF, sem surrogates) e devolve
   `String` de 1 code point.
+- Kernel de SO: `args()` devolve `List[String]` com os argumentos depois do script/binário;
+  `io.readFile(path)`, `io.write(text)`, `io.writeErr(text)`, `io.writeFile(path, text)`,
+  `io.readLine()` e `os.getenv(name)` são ambiente (entrada/FS); `os.exit(code)` encerra
+  com 0..255; `time.now()`/`time.sleep(ms)` são ambiente.
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são

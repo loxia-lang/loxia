@@ -196,7 +196,10 @@ class Lowerer(
             self.builder, self._cstring(self.source_path)
         )
         self.builder.call(
-            self._function("lox_init", _VOID, [_I8_PTR]), [init_path]
+            self._function(
+                "lox_init", _VOID, [_I8_PTR, _I32, llvm_ir.pointer_pointer()]
+            ),
+            [init_path, main.args[0], main.args[1]],
         )
         self._emit_exception_classes()
 

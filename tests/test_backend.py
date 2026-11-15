@@ -898,3 +898,14 @@ def test_abi_das_estruturas_publicas_e_estavel() -> None:
         "i64",
         "i64",
     ]
+
+
+@pytest.mark.backend
+def test_kernel_args_nativo(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print args()\n")
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary), "a", "b"])
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == '["a", "b"]\n'

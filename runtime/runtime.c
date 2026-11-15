@@ -8,6 +8,8 @@
  * `lox_print_*` reproduzem `stringify` + `print` (valor e '\n').
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <gc.h>
 #include <inttypes.h>
 #include <locale.h>
@@ -17,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /* Hard cap do heap coletado (ADR-0074); não é configurável por ambiente. */
 #define LOX_GC_MAX_HEAP_BYTES (128ull * 1024ull * 1024ull)
@@ -32,9 +35,13 @@ static void *lox_oom(size_t size);
  * cobrem temporários de topo.
  */
 static const char *lox_source_path = "<lox>";
+static int32_t lox_argc = 0;
+static char **lox_argv = NULL;
 
-void lox_init(const char *source_path) {
+void lox_init(const char *source_path, int32_t argc, char **argv) {
     lox_source_path = source_path;
+    lox_argc = argc;
+    lox_argv = argv;
     setlocale(LC_NUMERIC, "C");
     GC_set_all_interior_pointers(1);
     GC_INIT();
@@ -2024,5 +2031,136 @@ void lox_print_any(int64_t tag, int64_t payload) {
             break;
         default:
             lox_panic(0, 0, "R1000", "Unknown Any tag");
+    }
+}
+
+
+/* Kernel 13.2 (ADR-0071): SO e representação. */
+static int64_t utf8_code_points(const char *data, size_t length) {
+    int64_t count = 0;
+    for (size_t index = 0; index < length; index++) {
+        unsigned char byte = (unsigned char)data[index];
+        if ((byte & 0xC0) != 0x80) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+void *lox_args(void) {
+    void *list = lox_list_new();
+    for (int32_t index = 1; index < lox_argc; index++) {
+        const char *argument = lox_argv[index];
+        size_t length = strlen(argument);
+        lox_list_push(list, 4, (int64_t)string_from_bytes(
+            argument, length, utf8_code_points(argument, length)));
+    }
+    return list;
+}
+
+void lox_io_write(const void *pointer) {
+    const LoxStr *text = pointer;
+    fwrite(text->data, 1, (size_t)text->byte_len, stdout);
+}
+
+void lox_io_write_err(const void *pointer) {
+    const LoxStr *text = pointer;
+    fwrite(text->data, 1, (size_t)text->byte_len, stderr);
+}
+
+void *lox_io_read_file(const void *pointer) {
+    const LoxStr *path = pointer;
+    char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
+    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    path_copy[path->byte_len] = '\0';
+    FILE *file = fopen(path_copy, "rb");
+    if (file == NULL) {
+        return NULL;
+    }
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    char chunk[4096];
+    size_t read;
+    while ((read = fread(chunk, 1, sizeof chunk, file)) > 0) {
+        buffer_bytes(&buffer, chunk, read);
+    }
+    fclose(file);
+    return string_from_bytes(buffer.data, buffer.length,
+                             utf8_code_points(buffer.data, buffer.length));
+}
+
+int32_t lox_io_write_file(const void *path_pointer, const void *text_pointer) {
+    const LoxStr *path = path_pointer;
+    const LoxStr *text = text_pointer;
+    char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
+    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    path_copy[path->byte_len] = '\0';
+    FILE *file = fopen(path_copy, "wb");
+    if (file == NULL) {
+        return 0;
+    }
+    size_t written = fwrite(text->data, 1, (size_t)text->byte_len, file);
+    int ok = written == (size_t)text->byte_len;
+    if (fclose(file) != 0) {
+        ok = 0;
+    }
+    return ok ? 1 : 0;
+}
+
+void *lox_io_read_line(void) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    int byte;
+    while ((byte = fgetc(stdin)) != EOF && byte != '\n') {
+        buffer_char(&buffer, (char)byte);
+    }
+    if (byte == EOF && buffer.length == 0) {
+        return NULL;
+    }
+    if (buffer.length > 0 && buffer.data[buffer.length - 1] == '\r') {
+        buffer.length -= 1;
+    }
+    return string_from_bytes(buffer.data, buffer.length,
+                             utf8_code_points(buffer.data, buffer.length));
+}
+
+void lox_os_exit(int64_t code) {
+    if (code < 0 || code > 255) {
+        lox_panic(0, 0, "R1006", "os.exit() expects a code between 0 and 255.");
+    }
+    fflush(stdout);
+    fflush(stderr);
+    exit((int)code);
+}
+
+void *lox_os_getenv(const void *name_pointer) {
+    const LoxStr *name = name_pointer;
+    char *name_copy = lox_alloc_atomic((size_t)name->byte_len + 1);
+    memcpy(name_copy, name->data, (size_t)name->byte_len);
+    name_copy[name->byte_len] = '\0';
+    const char *value = getenv(name_copy);
+    if (value == NULL) {
+        return NULL;
+    }
+    size_t length = strlen(value);
+    return string_from_bytes(value, length, utf8_code_points(value, length));
+}
+
+int64_t lox_time_now(void) {
+    struct timespec timestamp;
+    timespec_get(&timestamp, TIME_UTC);
+    return (int64_t)timestamp.tv_sec * 1000 +
+           (int64_t)(timestamp.tv_nsec / 1000000);
+}
+
+void lox_time_sleep(int64_t milliseconds) {
+    if (milliseconds < 0) {
+        lox_panic(0, 0, "R1006", "time.sleep() expects a non-negative duration.");
+    }
+    struct timespec duration;
+    duration.tv_sec = (time_t)(milliseconds / 1000);
+    duration.tv_nsec = (long)((milliseconds % 1000) * 1000000);
+    while (nanosleep(&duration, &duration) == -1) {
+        /* interrupção por sinal: continua o restante */
     }
 }
