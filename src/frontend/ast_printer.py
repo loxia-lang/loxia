@@ -37,6 +37,7 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
+    Import,
     Print,
     Raise,
     Return,
@@ -215,6 +216,19 @@ class AstPrinter:
     def visit_block_stmt(self, stmt: Block) -> str:
         inner = " ".join(statement.accept(self) for statement in stmt.statements)
         return f"(block {inner})" if inner else "(block)"
+
+    def visit_import_stmt(self, stmt: Import) -> str:
+        path = ".".join(token.lexeme for token in stmt.path)
+        if stmt.from_import:
+            names = ", ".join(
+                f"{item.name.lexeme} as {item.alias.lexeme}"
+                if item.alias is not None
+                else item.name.lexeme
+                for item in stmt.names
+            )
+            return f"(from {path} import {names})"
+        alias = f" as {stmt.alias.lexeme}" if stmt.alias is not None else ""
+        return f"(import {path}{alias})"
 
     def visit_class_stmt(self, stmt: Class) -> str:
         params = ""

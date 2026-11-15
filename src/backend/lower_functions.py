@@ -130,7 +130,9 @@ class FunctionLowering(LoweringBase):
                 stmt.name.line,
             )
 
-        closure = self._build_closure(info, (), f"<fn {stmt.name.lexeme}>")
+        closure = self._build_closure(
+            info, (), f"<fn {stmt.display_name or stmt.name.lexeme}>"
+        )
         self.builder.store(closure.llvm, binding.storage)
 
     def _local_function(self, stmt: Function) -> None:
@@ -159,7 +161,9 @@ class FunctionLowering(LoweringBase):
         self._scopes[-1][stmt.name.lexeme] = binding
 
         captures = self._make_captures(stmt)
-        closure = self._build_closure(info, captures, f"<fn {stmt.name.lexeme}>")
+        closure = self._build_closure(
+            info, captures, f"<fn {stmt.display_name or stmt.name.lexeme}>"
+        )
         self._store_binding(binding, closure)
 
         self._emit_function(info, stmt, captures)

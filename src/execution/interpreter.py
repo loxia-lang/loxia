@@ -75,6 +75,7 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
+    Import,
     Print,
     Raise,
     Return,
@@ -835,6 +836,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             code=Code.INVALID_VALUE,
         )
 
+    def visit_import_stmt(self, stmt: Import) -> None:
+        raise LoxRuntimeError(
+            stmt.path[0], "Imports must be resolved before execution."
+        )
+
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:
         self._reject_immutable_redeclaration(stmt.name)
         variants = {
@@ -843,7 +849,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         }
         self.environment.define(
             stmt.name.lexeme,
-            LoxEnumObject(stmt.name.lexeme, variants),
+            LoxEnumObject(stmt.display_name or stmt.name.lexeme, variants),
             mutable=False,
         )
 
@@ -928,7 +934,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 field.name, field.initializer, field.mutable
             )
 
-        klass = LoxClass(stmt.name.lexeme, superclass, methods, fields)
+        klass = LoxClass(
+            stmt.display_name or stmt.name.lexeme,
+            superclass,
+            methods,
+            fields,
+        )
 
         if stmt.superclass is not None:
             enclosing = self.environment.enclosing

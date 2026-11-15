@@ -374,22 +374,17 @@ Entram só quando `std.fs`/`std.paths` precisar; cada um acima de 15 exige remov
 - [ ] Opcional: migrar `len`/`chars`/`str`/`repr`/`range` (tipo sobrecarregado) — não
       bloqueia.
 
-### 13.5 Imports — fase A (ADR-0073, proposto)
+### 13.5 Imports — implementado
 
-- [ ] **Aprovação humana** das quatro perguntas + dos quatro itens em aberto do ADR-0073.
-- [ ] `TokenType.IMPORT` + `KEYWORDS` (25 → 26) + linha do ADR-0066 atualizada.
-- [ ] Parser: bloco de imports só no topo (antes de qualquer outro statement).
-- [ ] Loader: resolve `std.<modulo>` no bundle, dedup, ciclo diagnosticado.
-- [ ] Desugar: mangle `std$strings$split` (separador não lexável) e reescreve
-      `std.strings.split`; `std` reservado; módulo não é valor.
-- [ ] Privacidade: `_nome` de módulo inacessível de fora.
-- [ ] Reporter com **nome da fonte** (`std/strings.lox:12`), sem caminho absoluto (I3).
-- [ ] Goldens (`tests/cases/imports/`): básico, dois módulos, genérico; negativos
-      (import fora do topo, módulo inexistente, módulo como valor, `_privado`, ciclo,
-      `std` redeclarado).
-- [ ] `docs/spec/sintaxe.md` + `docs/spec/erros.md`; `--dump-ast` documentado como
-      desugarizado.
-- [ ] **Fase B** (arquivos do usuário): ADR próprio; restrições já decididas no ADR-0073 §5.
+- [x] Sintaxe `import caminho [as alias]` e `from caminho import nome [as alias]`.
+- [x] Loader arquivo=módulo, pasta=namespace; sem `__init__`/`index`.
+- [x] Privacidade `_` no loader/resolver (namespace e `from`).
+- [x] Desugar para nomes manglados; display de classe/enum/função preservado.
+- [x] Ciclo, módulo só de declarações, import fora do topo e `std.` reservado.
+- [x] `std/lists.lox` e `std/strings.lox` mínimos.
+- [x] Testes `tests/test_modules.py` e `test_backend.py::test_modulos_nativos`.
+- [ ] Imports de módulos do usuário com caminho que sai da raiz (`..`) — decisão futura.
+- [ ] Fase B completa (diagnóstico de checker com fonte do módulo).
 
 ### 13.6 Batteries — inventário
 

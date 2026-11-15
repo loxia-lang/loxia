@@ -57,6 +57,8 @@ class TokenType(Enum):
     ASYNC = auto()
     AWAIT = auto()
     CLASS = auto()
+    IMPORT = auto()
+    FROM = auto()
     ELIF = auto()
     ELSE = auto()
     ENUM = auto()

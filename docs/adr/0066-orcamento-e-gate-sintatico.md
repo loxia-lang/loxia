@@ -26,16 +26,16 @@ A análise sintática de 2026-11-13 mediu o estado da linguagem:
 
 | Métrica | Valor |
 | --- | --- |
-| palavras-chave | 25 |
+| palavras-chave | 27 |
 | níveis de precedência | 19 (18 de operadores + primário) |
-| formas de statement | 9 |
+| formas de statement | 11 |
 | formas de declaração | 5 |
 | construções sensíveis a newline | ~6 |
 | grafias canônicas por conceito | 1 (regra, com exceções documentadas) |
 
 **O que conta como palavra-chave:** todo lexema de `KEYWORDS` **menos** os literais
-(`true`, `false`, `nil`) e as reservas sem sintaxe (`async`, `await`). Hoje são 30
-lexemas − 5 = **25**; a conta é verificada por
+(`true`, `false`, `nil`) e as reservas sem sintaxe (`async`, `await`). Hoje são 32
+lexemas − 5 = **27**; a conta é verificada por
 `tests/test_docs_consistency.py::test_scoreboard_de_keywords_bate_com_keywords`. `not`
 entrou em 2026-11-13 ([ADR-0068](0068-not-substitui-bang.md)); sem essa regra explícita o
 teto não era verificável.

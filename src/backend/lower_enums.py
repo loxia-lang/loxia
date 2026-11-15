@@ -76,7 +76,7 @@ class EnumLowering(LoweringBase):
                 for variant in stmt.variants
             )
             layouts[stmt.name.lexeme] = EnumLayout(
-                stmt.name.lexeme,
+                stmt.display_name or stmt.name.lexeme,
                 next_id,
                 tuple(param.lexeme for param in stmt.type_params),
                 variants,

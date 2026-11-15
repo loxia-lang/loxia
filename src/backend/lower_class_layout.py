@@ -187,6 +187,7 @@ class ClassLayoutLowering(LoweringBase):
             init_method=init_method,
             vtable_size=base_methods + new_methods,
             instance_type=instance_type,
+            display_name=stmt.display_name,
         )
         ctor_params = (
             []

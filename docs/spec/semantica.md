@@ -2,6 +2,7 @@
 sources:
   - src/execution/**
   - src/semantics/**
+  - src/loader/**
 ---
 
 # Semântica
@@ -825,3 +826,15 @@ try {
   livro; ver [ADR-0015](../adr/0015-listas-tipadas.md).
 
 Tudo o mais segue o jlox do livro, inclusive as mensagens.
+
+
+## Módulos
+
+- Módulo é um arquivo `.lox`; pasta é namespace de caminho, não módulo.
+- Módulos contêm apenas imports, `fn`, `class` e `enum`; sem `val`/`var` ou statement de
+  topo. Import é estático, sem ordem de inicialização.
+- `import m`/`import m as x` cria namespace; `from m import nome [as y]` liga públicos.
+- Nome de topo que começa com `_` é privado do módulo; fora dele `_x` é erro, inclusive
+  via namespace (`m._x`).
+- `std.` resolve no bundle; módulos do usuário são relativos ao diretório do entry.
+- Sem `*`, sem reexportação e sem módulo como valor.

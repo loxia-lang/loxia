@@ -15,6 +15,8 @@ KEYWORDS: dict[str, TokenType] = {
     "finally": TokenType.FINALLY,
     "for": TokenType.FOR,
     "if": TokenType.IF,
+    "import": TokenType.IMPORT,
+    "from": TokenType.FROM,
     "in": TokenType.IN,
     "match": TokenType.MATCH,
     "is": TokenType.IS,

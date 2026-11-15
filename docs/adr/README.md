@@ -118,7 +118,7 @@ Crie quando a decisão:
 | [0070](0070-strings-multilinha-e-raw.md) | `"""` canônico para multilinha e raw `r"..."`/`r"""..."""` | accepted | 2026-11-13 |
 | [0071](0071-primitivas-de-runtime.md) | Primitivas de runtime: fronteira nativa, tabela única e complexidade linear | accepted (plano; implementação pendente) | 2026-11-14 |
 | [0072](0072-stdlib-batteries.md) | Stdlib: kernel nativo, biblioteca em Lox e política de batteries | accepted (plano; implementação pendente) | 2026-11-14 |
-| [0073](0073-imports-modulos.md) | Imports: `import std.<módulo>` e módulos só de declarações | proposed (aguarda gate sintático) | 2026-11-14 |
+| [0073](0073-imports-modulos.md) | Imports, módulos-arquivo, `_` privado e desugar | accepted (implementado) | 2026-11-14 |
 | [0074](0074-gc-boehm-e-contrato-de-memoria.md) | GC Boehm e contrato de memória (hard cap de 128 MiB) | accepted (implementado) | 2026-11-14 |
 | [0075](0075-diagnosticos-estruturados.md) | Diagnósticos estruturados: modelo, códigos estáveis, `human`/`short`/`json` e determinismo | accepted (implementado) | 2026-11-14 |
 
@@ -133,7 +133,7 @@ Quando forem fechadas, viram ADR (hoje estão em `IDEIAS.md`/`TIPOS.md`/`TODO.md
   [`../../TODO.md`](../../TODO.md) §11. Tuplas foram implementadas no interpretador/checker
   ([ADR-0036](0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem
   direção decidida, mas implementação pendente ([ADR-0037](0037-async-direcao.md)).
-- imports: forma proposta em [ADR-0073](0073-imports-modulos.md), aguardando o gate
+- imports: [ADR-0073](0073-imports-modulos.md) implementado
   sintático do [ADR-0066](0066-orcamento-e-gate-sintatico.md).
 
 O resumo das decisões **já fechadas** fica em [`../decisoes.md`](../decisoes.md); este

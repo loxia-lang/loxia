@@ -909,3 +909,20 @@ def test_kernel_args_nativo(tmp_path: Path) -> None:
     native = _run([str(binary), "a", "b"])
     assert native.returncode == 0, native.stderr
     assert native.stdout == '["a", "b"]\n'
+
+
+@pytest.mark.backend
+def test_modulos_nativos(tmp_path: Path) -> None:
+    (tmp_path / "lib.lox").write_text(
+        'fn dobro(x: Int) -> Int { return x * 2 }\n'
+        'fn _privado() -> Int { return 1 }\n',
+        encoding="utf-8",
+    )
+    path = _write(tmp_path, "from lib import dobro\nprint dobro(21)\n")
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == "42\n"

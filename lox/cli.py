@@ -42,6 +42,7 @@ class Lox:
         self.color = color
         self._sources = SourceMap()
         self._file = "<stdin>"
+        self._module_root: Path | None = None
 
     # -- pipeline --------------------------------------------------------
 
@@ -57,6 +58,16 @@ class Lox:
 
         if self.reporter.had_error or statements is None:
             return None
+
+        if self._module_root is not None:
+            from src.loader.loader import ModuleLoader
+
+            loaded = ModuleLoader(
+                self.reporter, self._sources, self._module_root
+            ).load(statements, self._file)
+            if loaded is None:
+                return None
+            statements = loaded
 
         return statements
 
@@ -168,6 +179,7 @@ class Lox:
             sys.exit(66)
 
         self._file = display_path(path)
+        self._module_root = Path(path).resolve().parent
 
         if dump_ast:
             self.dump_ast(source)

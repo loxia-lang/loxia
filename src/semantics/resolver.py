@@ -46,6 +46,7 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
+    Import,
     Print,
     Raise,
     Return,
@@ -298,6 +299,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_raise_stmt(self, stmt: Raise) -> None:
         if stmt.value is not None:
             self._resolve_expr(stmt.value)
+
+    def visit_import_stmt(self, stmt: Import) -> None:
+        return
 
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:
         self._declare(stmt.name, mutable=False)

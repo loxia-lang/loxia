@@ -229,3 +229,17 @@ Intervalo: `HEAD..HEAD` (primitivas de SO e `main(argc, argv)`).
 - `README.md`, `CHANGELOG.md` — **updated**: kernel v1 pronto e próximo passo imports/stdlib.
 - `tests/test_kernel.py` — **novo**: args, getenv, os.exit e leitura/escrita de arquivo no
   interpretador; `test_backend.py` cobre `args()` no binário.
+
+## 2026-11-14 — Imports/módulos (ADR-0073)
+
+Intervalo: `HEAD..HEAD` (sintaxe, loader, privacidade, desugar e std mínima).
+
+- `docs/spec/sintaxe.md` — **updated**: formas `import`/`from`, aliases, topo e módulo-arquivo.
+- `docs/spec/semantica.md` — **updated**: módulo/pasta, `_` privado, sem módulo-valor e
+  resolução pelo root do entry.
+- `docs/adr/0073-imports-modulos.md` — **updated**: aceito e implementado; decisões de
+  arquivo=módulo, pasta=namespace, `std.` reservado, `from`/`as` e desugar.
+- `docs/adr/0066-orcamento-e-gate-sintatico.md` — **updated**: 27 palavras-chave e 11
+  formas de statement.
+- `docs/adr/README.md`, `docs/decisoes.md` — **updated**: status accepted.
+- `tests/test_modules.py` — **novo**; coverage de from/namespace/privado/ciclo/declarações.

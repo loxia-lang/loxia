@@ -64,4 +64,4 @@ class LoxFunction:
         if isinstance(self._declaration, Lambda):
             return "<lambda>"
 
-        return f"<fn {self._declaration.name.lexeme}>"
+        return f"<fn {self._declaration.display_name or self._declaration.name.lexeme}>"

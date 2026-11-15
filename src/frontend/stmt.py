@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 class Visitor[R](Protocol):
     """Protocolo que define os métodos que qualquer Visitor de Stmt precisa implementar."""
 
+    def visit_import_stmt(self, stmt: Import) -> R: ...
     def visit_block_stmt(self, stmt: Block) -> R: ...
     def visit_class_stmt(self, stmt: Class) -> R: ...
     def visit_expression_stmt(self, stmt: Expression) -> R: ...
@@ -33,6 +34,23 @@ class Visitor[R](Protocol):
 
 class Stmt(Protocol):
     def accept[R](self, visitor: Visitor[R]) -> R: ...
+
+
+@dataclass(frozen=True, eq=False)
+class ImportName:
+    name: Token
+    alias: Token | None = None
+
+
+@dataclass(frozen=True, eq=False)
+class Import(Stmt):
+    path: tuple[Token, ...]
+    alias: Token | None = None
+    names: tuple[ImportName, ...] = ()
+    from_import: bool = False
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_import_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)
@@ -58,6 +76,7 @@ class Class(Stmt):
     fields: list[Field]
     methods: list[Function]
     type_params: list[Token] = field(default_factory=list)
+    display_name: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)
@@ -74,6 +93,7 @@ class EnumDecl(Stmt):
     name: Token
     type_params: list[Token]
     variants: list[EnumVariant]
+    display_name: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_enum_stmt(self)
@@ -129,6 +149,7 @@ class Function(Stmt):
     body: list[Stmt]
     return_type: Ty | None = None
     type_params: list[Token] = field(default_factory=list)
+    display_name: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)

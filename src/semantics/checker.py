@@ -57,6 +57,7 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
+    Import,
     Print,
     Raise,
     Return,
@@ -988,6 +989,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         for statement in stmt.statements:
             self._check_stmt(statement)
         self._end_scope()
+
+    def visit_import_stmt(self, stmt: Import) -> None:
+        return
 
     def visit_enum_stmt(self, stmt: EnumDecl) -> None:
         name = stmt.name.lexeme

@@ -1,0 +1,7 @@
+fn isEmpty(xs: List[Any]) -> Bool {
+  return len(xs) == 0
+}
+
+fn length(xs: List[Any]) -> Int {
+  return len(xs)
+}

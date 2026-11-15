@@ -54,6 +54,8 @@ from src.frontend.stmt import (
     ForIn,
     Function,
     If,
+    Import,
+    ImportName,
     Param,
     Print,
     Raise,
@@ -141,6 +143,10 @@ class Parser:
 
     def _declaration(self) -> Stmt | None:
         try:
+            if self._match(TokenType.IMPORT):
+                return self._import_declaration(self._previous())
+            if self._match(TokenType.FROM):
+                return self._from_import_declaration(self._previous())
             if self._match(TokenType.CLASS):
                 return self._class_declaration()
 
@@ -165,6 +171,37 @@ class Parser:
         except ParseError:
             self._synchronize()
             return None
+
+    def _module_path(self) -> tuple[Token, ...]:
+        path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
+        while self._match(TokenType.DOT):
+            path.append(
+                self._consume(TokenType.IDENTIFIER, "Expect name after '.'.")
+            )
+        return tuple(path)
+
+    def _import_declaration(self, keyword: Token) -> Stmt:
+        path = self._module_path()
+        alias = None
+        if self._match(TokenType.AS):
+            alias = self._consume(TokenType.IDENTIFIER, "Expect alias name.")
+        self._end_statement("Expect ';' after import.")
+        return Import(path=path, alias=alias, from_import=False)
+
+    def _from_import_declaration(self, keyword: Token) -> Stmt:
+        path = self._module_path()
+        self._consume(TokenType.IMPORT, "Expect 'import' after module path.")
+        names: list[ImportName] = []
+        while True:
+            name = self._consume(TokenType.IDENTIFIER, "Expect imported name.")
+            alias = None
+            if self._match(TokenType.AS):
+                alias = self._consume(TokenType.IDENTIFIER, "Expect alias name.")
+            names.append(ImportName(name, alias))
+            if not self._match(TokenType.COMMA):
+                break
+        self._end_statement("Expect ';' after import.")
+        return Import(path=path, names=tuple(names), from_import=True)
 
     def _class_declaration(self) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")

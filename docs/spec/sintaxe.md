@@ -370,12 +370,28 @@ por iterável (Range/String/List/Map/Tuple — `Map` produz as chaves). Ver
   }
   ```
 
+### Imports
+
+```lox
+import std.lists
+import dtos.dtoA as dto
+from std.strings import trim
+from dtos.dtoA import DtoA as Dto
+```
+
+- `import caminho [as alias]` liga o último segmento (ou o alias) como namespace.
+- `from caminho import nome [as alias] [, nome ...]` liga nomes públicos.
+- Imports só no topo, antes de qualquer outro statement; sem `*`, sem reexportação.
+- Caminho são identificadores separados por `.`; `std` é root reservado.
+- Módulo é arquivo `.lox`; pasta é só namespace (sem `__init__`/`index`).
+- Módulo não é valor: `val m = std.lists` é erro.
+
 - Limites do parser: no máximo **255 argumentos** por chamada e **255 parâmetros** por
   função. Ao ultrapassar, o erro é reportado mas o parser continua (os argumentos são
   descartados da AST).
 - `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
 - Não existem: `break`/`continue`, `switch` (use `match`), operador ternário no estilo
-  `?:` (use `a if c else b`), `+=`, `++`, `import` e `catch` (use `except`). `match` com
+  `?:` (use `a if c else b`), `+=`, `++` e `catch` (use `except`). `match` com
   enums ([ADR-0041](../adr/0041-enums-match.md)) e lambdas ([ADR-0022](../adr/0022-lambdas.md))
   existem; listas, mapas e interpolação existem desde os
   [ADR-0015](../adr/0015-listas-tipadas.md), [ADR-0017](../adr/0017-mapas-hash.md) e
