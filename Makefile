@@ -3,7 +3,7 @@
 
 FILE ?=
 
-.PHONY: help run test case lint type fmt check docs-sync codes docs-fresh hooks bench bench-native baseline
+.PHONY: help run test case lint type fmt check docs-sync codes grammar docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
@@ -15,6 +15,7 @@ help:
 	@echo "make check                     lint + type + test + docs"
 	@echo "make docs-sync                 regenera níveis e catálogo de códigos"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
+	@echo "make grammar                   regenera a grammar TextMate de editors/"
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
@@ -47,6 +48,9 @@ docs-sync:
 
 codes:
 	uv run python docs/_hooks/codes.py --write
+
+grammar:
+	uv run python editors/build_grammar.py --write
 
 docs-fresh:
 	uv run python docs/_hooks/freshness.py --quiet || true

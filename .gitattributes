@@ -1,0 +1,6 @@
+# A Loxia ainda não está no github-linguist (2.000+ arquivos `.lx` em repos públicos,
+# ver TODO §14): o GitHub mostra os fontes como texto puro. Este override declara a
+# intenção — os `.lx` ficam fora do breakdown do repo em vez de serem adivinhados como
+# outra linguagem. NÃO use `linguist-language=` : ele faria o repo se declarar PHP/JS.
+*.lx linguist-detectable=false
+*.lx text eol=lf

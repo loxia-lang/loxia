@@ -126,6 +126,8 @@ uv run pytest tests/test_backend.py -q
       [`IDEIAS.md`](IDEIAS.md) I-4).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
+- [x] `P3` grammar TextMate + extensão VS Code em `editors/`, gerada de `keywords.py`
+      (`make grammar`), com teste de drift.
 - [ ] `P3` tree-sitter grammar + LSP mínimo (diagnostics/hover).
 - [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado a partir de `docs/` — ver §14.2 (stack, i18n e gate).
@@ -470,6 +472,9 @@ bytes — diagnóstico determinístico é exatamente o que tool de agente precis
   `docs/spec/` (índice/grep determinístico, sem embeddings); `loxia_explain(code)` →
   descrição do catálogo ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md));
   `loxia_version()`; opcional `loxia_repl(session, line)`.
+- **Grammar pronta:** `editors/shiki/loxia.mjs` (Shiki genérico) e `editors/dsh/loxia.ts`
+  (viewer do harness, cópia manual); ambos gerados por `make grammar`, com o patch de
+  3 pontos descrito em [`editors/README.md`](editors/README.md).
 - **Resources:** `spec://lexico|sintaxe|semantica|erros|garantias`, `adr://NNNN`,
   `example://fib`. **Prompts:** "corrija este erro", "escreva uma função com contrato".
 - **Dependências:** SDK `mcp` só no extra `[mcp]`; o runtime segue sem dependências.

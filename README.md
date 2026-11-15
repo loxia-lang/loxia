@@ -236,6 +236,26 @@ uv run pytest tests/test_official_suite.py -q
 Ela é mantida separada dos golden cases; detalhes de adaptação e `xfail` em
 [`tests/official/README.md`](tests/official/README.md).
 
+## Editores
+
+O GitHub **ainda não** destaca `.lx`: o [linguist](https://github.com/github-linguist/linguist)
+exige adoção (2.000 arquivos por extensão indexados em repos públicos) e uma grammar
+TextMate vendorizada. Por isso o `.gitattributes` mantém os fontes fora do breakdown do
+repo (`linguist-detectable=false`) em vez de marcá-los como outra linguagem.
+
+O destaque real vem da grammar TextMate de [`editors/`](editors/) — a mesma que VS Code,
+Sublime e TextMate usam, e a que um PR futuro no linguist vai exigir. Ela é **gerada** de
+`src/frontend/` (keywords e tokens) e `src/execution/prelude.py` (nomes embutidos), então
+não descola do scanner:
+
+```bash
+make grammar     # regera editors/vscode/syntaxes/loxia.tmLanguage.json
+```
+
+Instalação, troubleshooting e limitações: [`editors/README.md`](editors/README.md).
+Para Shiki (site de docs e viewer do harness), `editors/shiki/loxia.mjs` entrega a mesma
+grammar no formato que ele consome — também gerado por `make grammar`.
+
 ## Documentação
 
 - **Especificação atual**: [`docs/spec/`](docs/spec/) — [garantias](docs/spec/garantias.md),

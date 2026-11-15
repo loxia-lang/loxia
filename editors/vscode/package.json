@@ -1,0 +1,36 @@
+{
+  "name": "loxia",
+  "displayName": "Loxia",
+  "description": "Sintaxe da linguagem Loxia (.lx): destaque, pares e comentários",
+  "version": "1.0.0",
+  "publisher": "loxia-lang",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "loxia",
+        "aliases": [
+          "Loxia",
+          "loxia"
+        ],
+        "extensions": [
+          ".lx"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "loxia",
+        "scopeName": "source.loxia",
+        "path": "./syntaxes/loxia.tmLanguage.json"
+      }
+    ]
+  }
+}
