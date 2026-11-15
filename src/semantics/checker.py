@@ -582,6 +582,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._invalidate_members()
             if actual is ERROR:
                 return ERROR
+            # `_check` não passa por `_infer`; o lowering lê o tipo de chamadas
+            # esperadas (ex.: `return math.sqrt(x)`) daqui.
+            self.types[expr] = actual
+            self.storage_types[expr] = self._storage_type(expr, actual)
             if not self._assignable(expected, actual):
                 self._error(
                 token,
@@ -3180,6 +3184,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     return False
             return self._unify(expected.ret, actual.ret, bindings, token)
         if isinstance(expected, UnionTy):
+            # `T?` unifica com `Int?` como T=Int, não T=Int? (opcional aninhado).
+            if isinstance(actual, UnionTy):
+                expected_non_nil = [
+                    member for member in expected.members if member is not NIL
+                ]
+                actual_non_nil = [
+                    member for member in actual.members if member is not NIL
+                ]
+                if len(expected_non_nil) == 1 and len(actual_non_nil) == 1:
+                    return self._unify(
+                        expected_non_nil[0],
+                        actual_non_nil[0],
+                        bindings,
+                        token,
+                    )
             for member in expected.members:
                 trial = dict(bindings)
                 if self._unify(member, actual, trial, token):

@@ -34,13 +34,14 @@ Interpretador da linguagem **Lox** em Python, construído seguindo *Crafting Int
   como exceções): erros de runtime fatais, `clock` removido do prelúdio, strings UTF-8
   com identificadores ASCII, `print` como statement e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
-- 📐 Próximo passo: **L7b** (revisão das mensagens de erro de codegen; `-O2` e benchmark
-  nativo já entregues). Kernel v1 (13.2–13.4) e imports/módulos prontos; o próximo
-  passo é a stdlib T1. JIT no REPL fica como pendência futura. O L5, o T7 e o L6a–L6k já
-  entregaram classes,
-  herança, closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas,
-  tuplas, `Any`, `math`/parse e defaults como valor; traits e constraints ficam
-  pós-MVP ([ADR-0038](docs/adr/0038-traits-nominais.md)).
+- 📐 Próximo passo: **stdlib T2** (`std.json` e `std.fmt` primeiro; depois `paths`, `fs`,
+  `io`, `cli`, `sets`, `csv` e `convert`). A stdlib núcleo **T1** está completa
+  (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`) e entra no corpus T1.
+  L7b (revisão das mensagens de erro de codegen) segue como pendência de qualidade; JIT
+  no REPL fica para depois. O L5, o T7 e o L6a–L6k já entregaram classes, herança,
+  closures, `is`/`as`, optionais escalares, `Range`/`for-in`, listas, mapas, tuplas,
+  `Any`, `math`/parse e defaults como valor; traits e constraints ficam pós-MVP
+  ([ADR-0038](docs/adr/0038-traits-nominais.md)).
 
 ## O que esta linguagem promete
 

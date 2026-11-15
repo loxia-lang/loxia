@@ -1,0 +1,77 @@
+# std.results — combinadores para Result[T, E] (T1), em Lox puro.
+# `_ok`/`_err` existem para o checker inferir os argumentos de tipo a partir do
+# tipo esperado; `map`/`mapErr`/`andThen` atribuem em `var out: Result[...]`.
+# Nota: uma lambda que constrói `Result.Ok`/`Result.Err` ainda não infere o enum
+# genérico; nesse caso use uma função nomeada com retorno anotado.
+
+fn _ok[U, E](value: U) -> Result[U, E] {
+  return Result.Ok(value)
+}
+
+fn _err[U, E](error: E) -> Result[U, E] {
+  return Result.Err(error)
+}
+
+fn isOk[T, E](result: Result[T, E]) -> Bool {
+  return match result {
+    Result.Ok(_) => true
+    Result.Err(_) => false
+  }
+}
+
+fn isErr[T, E](result: Result[T, E]) -> Bool {
+  return match result {
+    Result.Ok(_) => false
+    Result.Err(_) => true
+  }
+}
+
+fn map[T, U, E](
+  result: Result[T, E],
+  transform: fn(T) -> U
+) -> Result[U, E] {
+  var out: Result[U, E]
+  match result {
+    Result.Ok(value) => out = _ok(transform(value))
+    Result.Err(error) => out = _err(error)
+  }
+  return out
+}
+
+fn mapErr[T, E, F](
+  result: Result[T, E],
+  transform: fn(E) -> F
+) -> Result[T, F] {
+  var out: Result[T, F]
+  match result {
+    Result.Ok(value) => out = _ok(value)
+    Result.Err(error) => out = _err(transform(error))
+  }
+  return out
+}
+
+fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T {
+  return match result {
+    Result.Ok(value) => value
+    Result.Err(_) => fallback
+  }
+}
+
+fn andThen[T, U, E](
+  result: Result[T, E],
+  transform: fn(T) -> Result[U, E]
+) -> Result[U, E] {
+  var out: Result[U, E]
+  match result {
+    Result.Ok(value) => out = transform(value)
+    Result.Err(error) => out = _err(error)
+  }
+  return out
+}
+
+fn toOptional[T, E](result: Result[T, E]) -> T? {
+  return match result {
+    Result.Ok(value) => value
+    Result.Err(_) => nil
+  }
+}

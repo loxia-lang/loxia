@@ -22,6 +22,8 @@ T6a/T6c foram implementados; restam no pós-MVP:
   ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); resta CFG/aliasing fino e `var`
   capturado por closure ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)).
 - **Função genérica como valor** (T3b só permite chamada).
+- **Enum genérico em lambda/match**: `fn(x) => Result.Ok(x)` não infere `U`/`E`; exige
+  função nomeada com retorno anotado. (O `T?` contra `Int?` já unifica `T = Int`.)
 
 ### 1.3 L5 — desenho fechado, backend pendente
 

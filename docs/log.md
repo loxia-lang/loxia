@@ -276,3 +276,18 @@ Intervalo: `HEAD..HEAD` (frame de `try` no `return`, igualdade de mapa e `charCo
   `LoxRuntimeError` e `e.message` funciona; `Result` é alternativa explícita.
 - `docs/spec/lexico.md` — **no-change**: scanner, keywords, `token_type` e `tokens` não
   mudaram; o léxico continua o mesmo.
+
+## 2026-11-15 — T1 completa (maps, numeric, asserts, results)
+
+Intervalo: `HEAD..HEAD` (stdlib T1, inferência de `T?`, math em contexto esperado).
+
+- `docs/spec/semantica.md` — **updated**: seção `stdlib T1` com `std.maps`, `std.numeric`,
+  `std.asserts` e `std.results`, semântica de lista vazia/erros e limite `Map[String, V]`;
+  `sources:` ganhou `std/**`.
+- `docs/spec/garantias.md` — **updated**: bloco de níveis regenerado; 4 casos em `t1` e
+  `math_optional` em `l6`.
+- `docs/spec/erros.md` — **no-change**: catálogo de códigos e mensagens não mudou; as
+  correções de inferência no checker (`T?` × `Int?` e tipo de chamada em contexto
+  esperado) não alteram diagnóstico.
+- `README.md`, `TODO.md`, `CHANGELOG.md`, `TIPOS.md` — **updated**: T1 concluída, próximo
+  é T2; lacuna de enum genérico em lambda registrada.

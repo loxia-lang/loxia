@@ -1,0 +1,38 @@
+# std.results (T1): combinadores para Result[T, E].
+import std.results as results
+
+fn doubleOk(value: Int) -> Result[Int, String] {
+  return Result.Ok(value * 2)
+}
+
+val ok: Result[Int, String] = Result.Ok(2)
+val err: Result[Int, String] = Result.Err("x")
+
+print results.isOk(ok)
+print results.isErr(ok)
+print results.isOk(err)
+print results.isErr(err)
+print results.map(ok, fn(value) => value + 1)
+print results.map(err, fn(value) => value + 1)
+print results.mapErr(ok, fn(error) => "E:${error}")
+print results.mapErr(err, fn(error) => "E:${error}")
+print results.unwrapOr(ok, 9)
+print results.unwrapOr(err, 9)
+print results.andThen(ok, doubleOk)
+print results.andThen(err, doubleOk)
+print results.toOptional(ok)
+print results.toOptional(err)
+# expect: true
+# expect: false
+# expect: false
+# expect: true
+# expect: Result.Ok(3)
+# expect: Result.Err("x")
+# expect: Result.Ok(2)
+# expect: Result.Err("E:x")
+# expect: 2
+# expect: 9
+# expect: Result.Ok(4)
+# expect: Result.Err("x")
+# expect: 2
+# expect: nil

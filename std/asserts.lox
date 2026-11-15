@@ -1,0 +1,34 @@
+# std.asserts — falhas explícitas para testes e contratos (T1).
+# A falha é LoxRuntimeError: capturável por `except LoxRuntimeError as e`.
+
+fn assert(condition: Bool, message: String = "assertion failed") -> Nil {
+  if (not condition) {
+    raise LoxRuntimeError(message)
+  }
+}
+
+fn assertEq[T](
+  actual: T,
+  expected: T,
+  message: String = "assertEq failed"
+) -> Nil {
+  if (actual != expected) {
+    raise LoxRuntimeError(
+      "${message}: expected ${str(expected)}, got ${str(actual)}"
+    )
+  }
+}
+
+fn assertNotNil[T](
+  value: T?,
+  message: String = "expected a non-nil value"
+) -> T {
+  if (value == nil) {
+    raise LoxRuntimeError(message)
+  }
+  return value
+}
+
+fn fail(message: String) -> Nil {
+  raise LoxRuntimeError(message)
+}

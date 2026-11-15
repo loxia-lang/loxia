@@ -21,9 +21,9 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-14: **L0–L6, L7 e M7 concluídos**; kernel v1, tabela de primitivas e
-imports/módulos implementados. A próxima execução é a **stdlib T1** (§13.6), começando por
-`std.strings` e `std.lists`. O status por nível é **gerado** em
+vale o que está aqui. Estado em 2026-11-15: **L0–L6, L7, M7 e T1 concluídos**; kernel v1,
+tabela de primitivas, imports/módulos e a stdlib núcleo implementados. A próxima execução
+é a **stdlib T2** (§13.6). O status por nível é **gerado** em
 [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -34,13 +34,12 @@ imports/módulos implementados. A próxima execução é a **stdlib T1** (§13.6
 | **L6** | enums/`match`, exceções, `Any` e corpus completo | ✅ |
 | **L7** | `mod.verify()`, `-O2`, benchmark nativo, erros de codegen | ✅ (JIT no REPL é P3 separado) |
 | **M7** | GC Boehm + contrato de memória do [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md) | ✅ implementado |
-| **T1** | `std.strings` e `std.lists` sobre módulos/imports | 🟡 em andamento |
+| **T1** | `std.strings`, `std.lists`, `std.maps`, `std.numeric`, `std.asserts`, `std.results` sobre módulos/imports | ✅ concluído |
 
 ### 0.2 Ordem de execução
 
-1. [ ] **T1 — stdlib núcleo**: `std.strings` e `std.lists` primeiro; depois `maps`,
-       `numeric`, `asserts` e `results` (§13.6). Cada módulo entra com golden, `--check`
-       e determinismo declarado.
+1. [x] **T1 — stdlib núcleo**: `std.strings`, `std.lists`, `std.maps`, `std.numeric`,
+       `std.asserts` e `std.results`; cada módulo com golden, `--check` e determinismo.
 2. [ ] **T2 — stdlib comum**: `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`,
        `convert`.
 3. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
@@ -331,10 +330,10 @@ determinismo.
 | --- | --- | --- |
 | `std.strings` | ✅ base: `split`, `splitLines`, `lines`, `words`, `trim`, `ltrim`, `rtrim`, `upper`, `lower` (ASCII), `capitalize`, `startsWith`, `endsWith`, `contains`, `indexOf`, `lastIndexOf`, `replaceAll`, `replaceFirst`, `repeat`, `padStart`, `padEnd`, `reverse`, `slice` (clamp), `isBlank`, `count` | ✅ base completa |
 | `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `flatMap` | ✅ base + sort/gaps; `sortBy`/`groupBy` adiados ([ADR-0076](docs/adr/0076-std-lists-sort.md)) |
-| `std.maps` | `entries`, `fromEntries`, `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`, `hasValue`, `getOr`, `toList` | ⬜ |
-| `std.numeric` | `gcd`, `lcm`, `isPrime`, `primes`, `factorial`, `powMod`, `digitSum`, `isEven`, `isOdd`, `sign`, `mean`, `median`, `mode`, `variance`, `stddev`, `roundTo`, `toBase`, `fromBase` | ⬜ |
-| `std.asserts` | `assert`, `assertEq`, `assertNotNil`, `fail` | ⬜ |
-| `std.results` | `map`, `mapErr`, `unwrapOr`, `andThen`, `isOk`, `isErr`, `toOptional` | ⬜ |
+| `std.maps` | `entries`, `fromEntries`, `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`, `hasValue`, `getOr`, `toList` | ✅ `Map[String, V]`; `invert` é `Map[String, String]` (constraints de chave genérica pós-MVP) |
+| `std.numeric` | `gcd`, `lcm`, `isPrime`, `primes`, `factorial`, `powMod`, `digitSum`, `isEven`, `isOdd`, `sign`, `mean`, `median`, `mode`, `variance`, `stddev`, `roundTo`, `toBase`, `fromBase` | ✅ estatísticas de `List[Int]`, vazio ⇒ `nil`; domínio inválido ⇒ `LoxRuntimeError` |
+| `std.asserts` | `assert`, `assertEq`, `assertNotNil`, `fail` | ✅ falha ⇒ `LoxRuntimeError` |
+| `std.results` | `map`, `mapErr`, `unwrapOr`, `andThen`, `isOk`, `isErr`, `toOptional` | ✅ `Result[T, E]` |
 
 **T2 — comum**
 
@@ -372,18 +371,18 @@ determinismo.
 | 2 | ✅ **13.4** — tabela única de primitivas | S | 1 |
 | 3 | ✅ **13.2** — kernel de SO: `args`, `io.*`, `os.*` + `main(argc, argv)` + exit code | M | 2 |
 | 4 | ✅ **13.5** — imports/módulos + `std/strings` + `std/lists` mínimos | M | 3 |
-| 5 | ⬜ **T1** restante (`maps`, `numeric`, `asserts`, `results`) + `json`, `fmt` | M | 4 |
-| 6 | **T2** restante (`paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
+| 5 | ✅ **T1** restante (`maps`, `numeric`, `asserts`, `results`) | M | 4 |
+| 6 | **T2** (`json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
 | 7 | **T3** + dogfooding: `lox fmt` em Lox, depois front-end self-hosted (§10) | L/XL | 6 |
 
-Os passos 0–4 estão feitos: GC, kernel, tabela de primitivas e imports/módulos. O próximo
-é **T1**, começando por `std.strings` e `std.lists`. O `main` gerado agora é
+Os passos 0–5 estão feitos: GC, kernel, tabela de primitivas, imports/módulos e T1. O
+próximo é **T2**, começando por `std.json` e `std.fmt`. O `main` gerado agora é
 `i32 main(argc, argv)`; o ABI das funções Lox não mudou.
 
 ### 13.8 Critério de pronto por módulo
 
 - [ ] programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
-- [ ] golden em `tests/cases/std/<modulo>/` + `--check` limpo;
+- [ ] golden em `tests/cases/std_<modulo>.lox` + `--check` limpo;
 - [ ] determinismo declarado (função ambiente ≠ corpus I1);
 - [ ] doc na spec quando o módulo estabilizar (e `sources:` válido);
 - [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;

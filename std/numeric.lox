@@ -1,0 +1,282 @@
+# std.numeric — inteiros e estatísticas (T1), em Lox puro.
+# Funções de domínio inválido levantam LoxRuntimeError; estatísticas devolvem nil
+# para lista vazia. A variância é populacional (divide por n).
+
+import std.lists as lists
+
+fn _abs(value: Int) -> Int {
+  if (value < 0) {
+    return -value
+  }
+  return value
+}
+
+fn _compareInt(left: Int, right: Int) -> Int {
+  if (left < right) {
+    return -1
+  }
+  if (left > right) {
+    return 1
+  }
+  return 0
+}
+
+fn gcd(left: Int, right: Int) -> Int {
+  var a = _abs(left)
+  var b = _abs(right)
+  while (b != 0) {
+    val rest = a % b
+    a = b
+    b = rest
+  }
+  return a
+}
+
+fn lcm(left: Int, right: Int) -> Int {
+  if (left == 0 or right == 0) {
+    return 0
+  }
+  val divisor = gcd(left, right)
+  return _abs((left // divisor) * right)
+}
+
+fn isPrime(value: Int) -> Bool {
+  if (value < 2) {
+    return false
+  }
+  if (value == 2) {
+    return true
+  }
+  if (value % 2 == 0) {
+    return false
+  }
+  var candidate = 3
+  while (candidate <= value // candidate) {
+    if (value % candidate == 0) {
+      return false
+    }
+    candidate = candidate + 2
+  }
+  return true
+}
+
+fn primes(limit: Int) -> List[Int] {
+  val result: List[Int] = []
+  var value = 2
+  while (value <= limit) {
+    if (isPrime(value)) {
+      result.push(value)
+    }
+    value = value + 1
+  }
+  return result
+}
+
+fn factorial(value: Int) -> Int {
+  if (value < 0) {
+    raise LoxRuntimeError("factorial() expects a non-negative integer.")
+  }
+  var result = 1
+  var factor = 2
+  while (factor <= value) {
+    result = result * factor
+    factor = factor + 1
+  }
+  return result
+}
+
+fn powMod(base: Int, exponent: Int, modulus: Int) -> Int {
+  if (modulus <= 0) {
+    raise LoxRuntimeError("powMod() expects a positive modulus.")
+  }
+  if (exponent < 0) {
+    raise LoxRuntimeError("powMod() expects a non-negative exponent.")
+  }
+  var result = 1 % modulus
+  var factor = ((base % modulus) + modulus) % modulus
+  var power = exponent
+  while (power > 0) {
+    if (power % 2 == 1) {
+      result = (result * factor) % modulus
+    }
+    power = power // 2
+    factor = (factor * factor) % modulus
+  }
+  return result
+}
+
+fn digitSum(value: Int) -> Int {
+  var rest = value
+  var total = 0
+  while (rest != 0) {
+    var digit = rest % 10
+    if (digit < 0) {
+      digit = -digit
+    }
+    total = total + digit
+    rest = rest // 10
+  }
+  return total
+}
+
+fn isEven(value: Int) -> Bool {
+  return value % 2 == 0
+}
+
+fn isOdd(value: Int) -> Bool {
+  return value % 2 != 0
+}
+
+fn sign(value: Int) -> Int {
+  if (value < 0) {
+    return -1
+  }
+  if (value > 0) {
+    return 1
+  }
+  return 0
+}
+
+fn mean(values: List[Int]) -> Float? {
+  if (len(values) == 0) {
+    return nil
+  }
+  var total = 0.0
+  for value in values {
+    total = total + (value as Float)
+  }
+  return total / len(values)
+}
+
+fn median(values: List[Int]) -> Float? {
+  if (len(values) == 0) {
+    return nil
+  }
+  val copy = lists.slice(values, 0, len(values))
+  val sorted = lists.sort(copy, _compareInt)
+  val middle = len(sorted) // 2
+  if (len(sorted) % 2 == 1) {
+    return sorted[middle] as Float
+  }
+  return ((sorted[middle - 1] as Float) + (sorted[middle] as Float)) / 2.0
+}
+
+fn mode(values: List[Int]) -> Int? {
+  if (len(values) == 0) {
+    return nil
+  }
+  var best = values[0]
+  var bestCount = 0
+  for candidate in values {
+    var count = 0
+    for item in values {
+      if (item == candidate) {
+        count = count + 1
+      }
+    }
+    if (count > bestCount) {
+      best = candidate
+      bestCount = count
+    }
+  }
+  return best
+}
+
+fn variance(values: List[Int]) -> Float? {
+  val average = mean(values)
+  if (average == nil) {
+    return nil
+  }
+  var total = 0.0
+  for value in values {
+    val difference = (value as Float) - average
+    total = total + difference * difference
+  }
+  return total / len(values)
+}
+
+fn stddev(values: List[Int]) -> Float? {
+  val spread = variance(values)
+  if (spread == nil) {
+    return nil
+  }
+  return math.sqrt(spread)
+}
+
+fn roundTo(value: Float, digits: Int) -> Float {
+  val factor = 10.0 ** digits
+  return (math.round(value * factor) as Float) / factor
+}
+
+fn _digitChar(digit: Int) -> String {
+  return substr("0123456789abcdefghijklmnopqrstuvwxyz", digit, digit + 1)
+}
+
+fn toBase(value: Int, base: Int) -> String {
+  if (base < 2 or base > 36) {
+    raise LoxRuntimeError("toBase() expects a base between 2 and 36.")
+  }
+  if (value == 0) {
+    return "0"
+  }
+  val negative = value < 0
+  var rest = value
+  var result = ""
+  while (rest != 0) {
+    var digit = rest % base
+    if (digit < 0) {
+      digit = -digit
+    }
+    result = _digitChar(digit) + result
+    rest = rest // base
+  }
+  if (negative) {
+    return "-" + result
+  }
+  return result
+}
+
+fn _digitValue(code: Int) -> Int {
+  if (code >= 48 and code <= 57) {
+    return code - 48
+  }
+  if (code >= 65 and code <= 90) {
+    return code - 65 + 10
+  }
+  if (code >= 97 and code <= 122) {
+    return code - 97 + 10
+  }
+  return -1
+}
+
+fn fromBase(text: String, base: Int) -> Int? {
+  if (base < 2 or base > 36) {
+    raise LoxRuntimeError("fromBase() expects a base between 2 and 36.")
+  }
+  if (len(text) == 0) {
+    return nil
+  }
+  var index = 0
+  var negative = false
+  val first = charCodeAt(text, 0)
+  if (first == 45 or first == 43) {
+    negative = first == 45
+    index = 1
+    if (len(text) == 1) {
+      return nil
+    }
+  }
+  var result = 0
+  while (index < len(text)) {
+    val digit = _digitValue(charCodeAt(text, index))
+    if (digit < 0 or digit >= base) {
+      return nil
+    }
+    result = result * base + digit
+    index = index + 1
+  }
+  if (negative) {
+    return -result
+  }
+  return result
+}

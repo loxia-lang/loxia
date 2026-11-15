@@ -15,6 +15,7 @@ from src.backend.lower_model import (
     ValueType,
     _unsupported,
 )
+from src.diagnostics.codes import Code
 from src.frontend.expr import Call
 
 
@@ -22,7 +23,16 @@ class MathLowering(LoweringBase):
     def _math_call(self, expr: Call) -> Value:
         assert hasattr(expr.callee, "name")
         name = expr.callee.name.lexeme
-        args = [self._expr(argument) for argument in expr.arguments]
+        args: list[Value] = [
+            self._unwrap_operand(
+                self._expr(argument),
+                expr.paren.line,
+                "Operand must be a number.",
+                column=expr.paren.column,
+                code=Code.RUNTIME_OPERANDS,
+            )
+            for argument in expr.arguments
+        ]
         result = self.types.get(expr)
         if result is None:
             raise _unsupported("math result type", expr.paren.line)

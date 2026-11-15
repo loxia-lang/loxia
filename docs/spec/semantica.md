@@ -3,6 +3,7 @@ sources:
   - src/execution/**
   - src/semantics/**
   - src/loader/**
+  - std/**
 ---
 
 # Semântica
@@ -839,6 +840,22 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 - `std.lists`: `isEmpty`, `length`, `map`, `filter`, `each`, `fold`, `reduce`, `any`,
   `all`, `none`, `find`, `findIndex`, `contains`, `indexOf`, `reverse`, `take`, `drop`,
   `slice`, `sum`, `first`, `last`, `count`, `min`, `max`, `getOr`.
+- `std.maps`: `entries`/`toList` (pares `(String, V)`), `fromEntries`, `merge` (o da
+  direita vence), `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`
+  (`Map[String, String]`), `hasValue`, `getOr`. A API é `Map[String, V]`: o checker
+  ainda não expressa constraints de chave genérica (pós-MVP); chaves `Int`/`Bool` usam
+  os métodos da linguagem.
+- `std.numeric`: `gcd`/`lcm`, `isPrime`/`primes`, `factorial`, `powMod`, `digitSum`,
+  `isEven`/`isOdd`/`sign`, `mean`/`median`/`mode`/`variance`/`stddev` (estatísticas de
+  `List[Int]`; lista vazia devolve `nil`; variância populacional) e
+  `roundTo`/`toBase`/`fromBase` (base 2..36). Domínio inválido (`factorial` negativo,
+  base fora do intervalo) levanta `LoxRuntimeError`; `fromBase` inválido devolve `nil`.
+- `std.asserts`: `assert`, `assertEq`, `assertNotNil` (devolve o valor estreitado) e
+  `fail`; a falha é `LoxRuntimeError`, capturável por `except LoxRuntimeError as e`.
+- `std.results`: `isOk`/`isErr`, `map`/`mapErr`, `unwrapOr`, `andThen` e `toOptional`
+  para `Result[T, E]`. Como `andThen` recebe `fn(T) -> Result[U, E]`, uma lambda que
+  constrói `Result.Ok`/`Result.Err` ainda não infere o enum genérico; use função
+  nomeada com retorno anotado (lacuna do checker pós-MVP).
 - `lists.sort(xs, compare)` exige `compare: fn(T, T) -> Int` (negativo/zero/positivo),
   é estável e devolve lista nova. `sortBy`/`groupBy` ainda não existem.
 - `lists.zip`, `flatten`, `flatMap`, `unique`, `chunk` e `partition` são genéricos;

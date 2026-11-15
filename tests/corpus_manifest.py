@@ -72,6 +72,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/list_stringify.lox",
         "tests/cases/map_cycle.lox",
         "tests/cases/map_equality.lox",
+        "tests/cases/math_optional.lox",
         "tests/cases/map_iteration.lox",
         "tests/cases/map_keys.lox",
         "tests/cases/map_literal.lox",
@@ -130,7 +131,11 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/local_function.lox",
     ),
     "t1": (
+        "tests/cases/std_asserts.lox",
         "tests/cases/std_lists.lox",
+        "tests/cases/std_maps.lox",
+        "tests/cases/std_numeric.lox",
+        "tests/cases/std_results.lox",
         "tests/cases/std_strings.lox",
     ),
     "k0": (

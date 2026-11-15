@@ -1,0 +1,121 @@
+# std.maps — utilitários para Map[String, V] (T1), em Lox puro.
+# Chaves String: o checker ainda não expressa "K é String, Int ou Bool" em função
+# genérica (constraints são pós-MVP), então a API fixa String e generaliza só o valor.
+
+fn entries[V](m: Map[String, V]) -> List[(String, V)] {
+  val result: List[(String, V)] = []
+  for key in m {
+    result.push((key, m[key]))
+  }
+  return result
+}
+
+fn toList[V](m: Map[String, V]) -> List[(String, V)] {
+  return entries(m)
+}
+
+fn fromEntries[V](items: List[(String, V)]) -> Map[String, V] {
+  val result: Map[String, V] = {}
+  for item in items {
+    result[item[0]] = item[1]
+  }
+  return result
+}
+
+fn merge[V](left: Map[String, V], right: Map[String, V]) -> Map[String, V] {
+  val result: Map[String, V] = {}
+  for key in left {
+    result[key] = left[key]
+  }
+  for key in right {
+    result[key] = right[key]
+  }
+  return result
+}
+
+fn pick[V](m: Map[String, V], keys: List[String]) -> Map[String, V] {
+  val result: Map[String, V] = {}
+  for key in keys {
+    if (m.has(key)) {
+      result[key] = m[key]
+    }
+  }
+  return result
+}
+
+fn _contains(keys: List[String], needle: String) -> Bool {
+  for key in keys {
+    if (key == needle) {
+      return true
+    }
+  }
+  return false
+}
+
+fn omit[V](m: Map[String, V], keys: List[String]) -> Map[String, V] {
+  val result: Map[String, V] = {}
+  for key in m {
+    if (not _contains(keys, key)) {
+      result[key] = m[key]
+    }
+  }
+  return result
+}
+
+fn mapValues[V, U](m: Map[String, V], f: fn(V) -> U) -> Map[String, U] {
+  val result: Map[String, U] = {}
+  for key in m {
+    result[key] = f(m[key])
+  }
+  return result
+}
+
+fn filterKeys[V](
+  m: Map[String, V],
+  predicate: fn(String) -> Bool
+) -> Map[String, V] {
+  val result: Map[String, V] = {}
+  for key in m {
+    if (predicate(key)) {
+      result[key] = m[key]
+    }
+  }
+  return result
+}
+
+fn filterValues[V](
+  m: Map[String, V],
+  predicate: fn(V) -> Bool
+) -> Map[String, V] {
+  val result: Map[String, V] = {}
+  for key in m {
+    if (predicate(m[key])) {
+      result[key] = m[key]
+    }
+  }
+  return result
+}
+
+fn invert(m: Map[String, String]) -> Map[String, String] {
+  val result: Map[String, String] = {}
+  for key in m {
+    result[m[key]] = key
+  }
+  return result
+}
+
+fn hasValue[V](m: Map[String, V], value: V) -> Bool {
+  for key in m {
+    if (m[key] == value) {
+      return true
+    }
+  }
+  return false
+}
+
+fn getOr[V](m: Map[String, V], key: String, fallback: V) -> V {
+  if (m.has(key)) {
+    return m[key]
+  }
+  return fallback
+}

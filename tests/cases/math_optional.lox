@@ -1,0 +1,14 @@
+# math.* em T? estreitado: o lowering desembrulha antes da chamada nativa.
+fn root(value: Float?) -> Float? {
+  if (value == nil) {
+    return nil
+  }
+  return math.sqrt(value)
+}
+
+print root(4.0)
+print root(9.0)
+print root(nil)
+# expect: 2.0
+# expect: 3.0
+# expect: nil

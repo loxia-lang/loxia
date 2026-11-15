@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Stdlib T1 completa**: `std.maps` (`Map[String, V]`: `entries`, `fromEntries`,
+  `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`,
+  `hasValue`, `getOr`, `toList`), `std.numeric`, `std.asserts` e `std.results`, com
+  golden, `--check` e casos no corpus `t1`; `std.strings` e `std.lists` já estavam.
 - **Diagnósticos estruturados** ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md)):
   modelo único de `Diagnostic` (código de família, fase, severidade e span com
   linha/coluna/offset em bytes), renderizadores `human` (cabeçalho + caret), `short` e
@@ -218,6 +222,16 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Corrigido
 
+- **`return` dentro de `try`**: o frame de `try` é desempilhado em toda saída, o valor
+  é avaliado antes do `finally`, o `finally` roda uma vez e funções locais/lambdas
+  isolam os cleanups. `except ... as e` materializa `LoxRuntimeError` para que
+  `e.message` não desreferencie NULL ([commit `c7666fb`]).
+- **Igualdade de mapa**: o contador de profundidade não vaza mais em comparações com
+  contagens diferentes; `charCodeAt(s, len(s))` vira erro em vez de ler o NUL.
+- **`T?` na inferência genérica**: `T?` com `Int?` unifica `T = Int`, não `T = Int?`;
+  `assertNotNil` deixa de gerar opcional aninhado no backend.
+- **Chamada em contexto esperado publica tipo**: `return math.sqrt(x)` compila; `math.*`
+  desembrulha `T?` estreitado antes da chamada nativa.
 - **`Any as T` checa a tag no backend**: um `Any` com tipo errado agora vira `R1011`
   (`Can't cast value to T.`) como no tree-walk, em vez de reinterpretar o payload;
   `Int`/`Float` mantêm a promoção numérica. Regressão em `tests/test_backend.py`.

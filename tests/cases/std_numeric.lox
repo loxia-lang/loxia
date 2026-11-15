@@ -1,0 +1,65 @@
+# std.numeric (T1): inteiros e estatísticas; lista vazia => nil.
+import std.numeric as numeric
+
+print numeric.gcd(48, 18)
+print numeric.lcm(4, 6)
+print numeric.isPrime(97)
+print numeric.isPrime(1)
+print numeric.primes(20)
+print numeric.factorial(5)
+print numeric.powMod(2, 10, 1000)
+print numeric.digitSum(-123)
+print numeric.isEven(-4)
+print numeric.isOdd(3)
+print numeric.sign(-9)
+print numeric.mean([1, 2, 3, 4])
+print numeric.mean([])
+print numeric.median([3, 1, 2])
+print numeric.median([4, 1, 3, 2])
+print numeric.mode([1, 2, 2, 3])
+print numeric.mode([])
+print numeric.variance([1, 2, 3, 4])
+print numeric.stddev([1, 2, 3, 4])
+print numeric.roundTo(3.14159, 2)
+print numeric.toBase(255, 16)
+print numeric.toBase(-10, 2)
+print numeric.fromBase("ff", 16)
+print numeric.fromBase("-1010", 2)
+print numeric.fromBase("z", 10)
+try {
+  numeric.factorial(-1)
+} except LoxRuntimeError as e {
+  print "negativo"
+}
+try {
+  numeric.toBase(10, 1)
+} except LoxRuntimeError as e {
+  print "base"
+}
+# expect: 6
+# expect: 12
+# expect: true
+# expect: false
+# expect: [2, 3, 5, 7, 11, 13, 17, 19]
+# expect: 120
+# expect: 24
+# expect: 6
+# expect: true
+# expect: true
+# expect: -1
+# expect: 2.5
+# expect: nil
+# expect: 2.0
+# expect: 2.5
+# expect: 2
+# expect: nil
+# expect: 1.25
+# expect: 1.118033988749895
+# expect: 3.14
+# expect: ff
+# expect: -1010
+# expect: 255
+# expect: -10
+# expect: nil
+# expect: negativo
+# expect: base
