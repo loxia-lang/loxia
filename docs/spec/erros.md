@@ -52,12 +52,14 @@ temporários.
 - Compilação (léxico, parser, resolver e checker): o programa **não executa**. O parser se
   recupera (`synchronize`) e o resolver percorre a AST inteira, então uma execução pode
   listar vários erros; eles saem ordenados por `(arquivo, offset, código)` e sem duplicatas.
-- Runtime: para no **primeiro** erro. Na 1.0 o erro de runtime é **fatal** (exit 70):
-  não há `try`/`catch`/`Result`; o que já foi impresso permanece
-  ([ADR-0026](../adr/0026-freeze-1.0.md)). O runtime usa o **mesmo cabeçalho** da
-  compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret — o binário pode rodar sem a
-  fonte. Quando a posição é sintética (campo interno), o cabeçalho degrada para
-  `error[CODIGO]: mensagem`.
+- Runtime: para no **primeiro** erro não capturado. Sem `try`, o erro é **fatal**
+  (exit 70) e o que já foi impresso permanece ([ADR-0026](../adr/0026-freeze-1.0.md)).
+  Dentro de `try`, o erro vira `LoxRuntimeError` capturável e `except ... as e` expõe
+  `e.message` ([ADR-0042](../adr/0042-excecoes.md)); `Result` é a alternativa explícita
+  para erros esperados ([ADR-0041](../adr/0041-enums-match.md)). O runtime usa o
+  **mesmo cabeçalho** da compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret — o
+  binário pode rodar sem a fonte. Quando a posição é sintética (campo interno), o
+  cabeçalho degrada para `error[CODIGO]: mensagem`.
 - No REPL não há exit code; a linha com erro é descartada e a sessão continua. O arquivo é
   `<repl>`.
 - O caminho exibido é relativo ao CWD; se o arquivo estiver fora do CWD, só o basename.

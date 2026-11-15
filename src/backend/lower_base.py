@@ -9,6 +9,7 @@ ADR-0048.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from src.backend.captures import CaptureAnalysis
@@ -24,10 +25,22 @@ from src.backend.lower_model import (
 )
 from src.diagnostics.codes import Code
 from src.frontend.expr import Call, Expr, Get, Range
-from src.frontend.stmt import Function
+from src.frontend.stmt import Function, Stmt
 from src.frontend.token_type import TokenType
 from src.frontend.tokens import Token
 from src.frontend.ty import Ty
+
+
+@dataclass
+class CleanupContext:
+    """Cleanup ativo do lowering: frame de `try` e/ou `finally` pendente.
+
+    `frame is None` significa que o frame já foi desempilhado (corpo de `except` ou
+    `finally`); `finally_body is None` significa que o `try` não tem `finally`.
+    """
+
+    frame: Any | None
+    finally_body: list[Stmt] | None
 
 
 class LoweringBase:
@@ -58,7 +71,7 @@ class LoweringBase:
     _analysis: CaptureAnalysis
     _type_subst: dict[str, Ty]
     _enum_layouts: dict[str, Any]
-    _finally_stack: list[list[Any]]
+    _cleanup_stack: list[CleanupContext]
     _enum_names: dict[str, Any]
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None
@@ -237,6 +250,23 @@ class LoweringBase:
         code: Code = Code.RUNTIME_ERROR,
     ) -> None:
         raise NotImplementedError
+
+    def _push_cleanup(
+        self, frame: Any | None, finally_body: list[Stmt] | None
+    ) -> CleanupContext:
+        """Registra um `try` ativo para o `return` desempilhar frame/finally."""
+        context = CleanupContext(frame, finally_body)
+        self._cleanup_stack.append(context)
+        return context
+
+    def _pop_cleanup(self, context: CleanupContext) -> None:
+        """Remove o contexto no fim léxico do `try`.
+
+        Um `return` pode já ter consumido o contexto (e os de fora) ao desenrolar a
+        pilha; nesse caso o pop léxico é no-op, não erro.
+        """
+        if self._cleanup_stack and self._cleanup_stack[-1] is context:
+            self._cleanup_stack.pop()
 
     def __getattr__(self, name: str) -> Any:
         # Demais métodos definidos em outro mixin são resolvidos pelo MRO em runtime.

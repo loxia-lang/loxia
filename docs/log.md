@@ -265,3 +265,14 @@ Intervalo: `HEAD..HEAD` (decisão do comparador e funções restantes de lists).
 - `TODO.md`, `CHANGELOG.md`, `docs/adr/README.md`, `docs/decisoes.md` — **updated**.
 - `std/lists.lox` — **updated**: `sort`, `zip`, `flatten`, `flatMap`, `unique`, `chunk`,
   `partition`; testes no caso `t1`.
+
+## 2026-11-15 — cleanup de `try`/`return` e bordas do runtime
+
+Intervalo: `HEAD..HEAD` (frame de `try` no `return`, igualdade de mapa e `charCodeAt`).
+
+- `docs/spec/garantias.md` — **updated**: bloco de níveis regenerado; 3 casos novos em
+  `l6` (`try_return_cleanup`, `map_equality_depth`, `char_code_at_bounds`).
+- `docs/spec/erros.md` — **updated**: erro de runtime dentro de `try` é capturável como
+  `LoxRuntimeError` e `e.message` funciona; `Result` é alternativa explícita.
+- `docs/spec/lexico.md` — **no-change**: scanner, keywords, `token_type` e `tokens` não
+  mudaram; o léxico continua o mesmo.

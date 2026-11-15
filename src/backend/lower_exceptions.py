@@ -18,7 +18,7 @@ from src.backend.lower_model import (
     ValueType,
 )
 from src.diagnostics.codes import Code
-from src.frontend.stmt import Raise, Try
+from src.frontend.stmt import Raise, Stmt, Try
 
 
 class ExceptionLowering(LoweringBase):
@@ -142,21 +142,15 @@ class ExceptionLowering(LoweringBase):
         # Caminho normal: corpo, pop, finally.
         self.builder = llvm_ir.builder(normal)
         self._scopes.append({})
-        if stmt.finally_body is not None:
-            self._finally_stack.append(stmt.finally_body)
+        context = self._push_cleanup(frame, stmt.finally_body)
         try:
             for statement in stmt.body:
                 if self.builder.block.is_terminated:
                     break
                 self._stmt(statement)
         finally:
-            if (
-                stmt.finally_body is not None
-                and self._finally_stack
-                and self._finally_stack[-1] is stmt.finally_body
-            ):
-                self._finally_stack.pop()
             self._scopes.pop()
+            self._pop_cleanup(context)
         if not self.builder.block.is_terminated:
             self.builder.call(
                 self._function("lox_try_pop", _VOID, [_I8_PTR]), [frame]
@@ -188,15 +182,10 @@ class ExceptionLowering(LoweringBase):
             handler_blocks.append(body)
             self.builder = llvm_ir.builder(body)
             self._scopes.append({})
-            if stmt.finally_body is not None:
-                self._finally_stack.append(stmt.finally_body)
+            handler_context = self._push_cleanup(None, stmt.finally_body)
             try:
                 binding = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
-                instance = self.builder.call(
-                    self._function("lox_exception_instance", _I8_PTR, [_I8_PTR]),
-                    [exception],
-                )
-                self.builder.store(instance, binding)
+                self._bind_handler_exception(exception, binding)
                 self._scopes[-1][clause.binding.lexeme] = Binding(
                     binding,
                     ValueType.INSTANCE,
@@ -207,13 +196,8 @@ class ExceptionLowering(LoweringBase):
                         break
                     self._stmt(statement)
             finally:
-                if (
-                    stmt.finally_body is not None
-                    and self._finally_stack
-                    and self._finally_stack[-1] is stmt.finally_body
-                ):
-                    self._finally_stack.pop()
                 self._scopes.pop()
+                self._pop_cleanup(handler_context)
             if not self.builder.block.is_terminated:
                 self._emit_finally(stmt, end, None)
             self.builder = llvm_ir.builder(next_block)
@@ -233,6 +217,43 @@ class ExceptionLowering(LoweringBase):
             self.builder.unreachable()
         self.builder = llvm_ir.builder(end)
 
+    def _bind_handler_exception(self, exception: Any, binding: Any) -> None:
+        """Liga `except Tipo as e`: instância do usuário ou `LoxRuntimeError` novo.
+
+        `lox_panic` (divisão por zero etc.) não tem instância, só `type_name` e
+        `message`; sem esta materialização, `e.message` desreferenciava NULL.
+        """
+        raw = self.builder.call(
+            self._function("lox_exception_instance", _I8_PTR, [_I8_PTR]),
+            [exception],
+        )
+        missing = self.builder.icmp_signed("==", raw, llvm_ir.null_pointer())
+        runtime_block = llvm_ir.append_block(self._function_ir, "except.runtime")
+        bound_block = llvm_ir.append_block(self._function_ir, "except.bound")
+        self.builder.cbranch(missing, runtime_block, bound_block)
+        instance_end = self.builder.block
+
+        self.builder = llvm_ir.builder(runtime_block)
+        message = self.builder.call(
+            self._function("lox_exception_message", _I8_PTR, [_I8_PTR]),
+            [exception],
+        )
+        text = self.builder.call(
+            self._function("lox_str_from_cstr", _I8_PTR, [_I8_PTR]),
+            [message],
+        )
+        layout = self._classes["LoxRuntimeError"]
+        assert layout.ctor is not None
+        constructed = self.builder.call(layout.ctor, [text])
+        runtime_end = self.builder.block
+        self.builder.branch(bound_block)
+
+        self.builder = llvm_ir.builder(bound_block)
+        instance = self.builder.phi(_I8_PTR, "except.value")
+        instance.add_incoming(raw, instance_end)
+        instance.add_incoming(constructed, runtime_end)
+        self.builder.store(instance, binding)
+
     def _emit_finally(
         self, stmt: Try, end: Any, pending: Any | None
     ) -> None:
@@ -250,19 +271,9 @@ class ExceptionLowering(LoweringBase):
             else:
                 self.builder.branch(end)
             return
-        self._finally_stack.append(stmt.finally_body)
-        try:
-            self._scopes.append({})
-            try:
-                for statement in stmt.finally_body:
-                    if self.builder.block.is_terminated:
-                        break
-                    self._stmt(statement)
-            finally:
-                self._scopes.pop()
-        finally:
-            if self._finally_stack and self._finally_stack[-1] is stmt.finally_body:
-                self._finally_stack.pop()
+        # O frame já foi desempilhado antes de chamar o finally; um `return` aqui
+        # deve rodar apenas os cleanups de fora, nunca este de novo.
+        self._lower_finally_body(stmt.finally_body)
         if self.builder.block.is_terminated:
             return
         if pending is not None:
@@ -277,6 +288,17 @@ class ExceptionLowering(LoweringBase):
             self.builder.unreachable()
         else:
             self.builder.branch(end)
+
+    def _lower_finally_body(self, body: list[Stmt]) -> None:
+        """Emite o corpo do `finally` uma única vez, no contexto atual."""
+        self._scopes.append({})
+        try:
+            for statement in body:
+                if self.builder.block.is_terminated:
+                    break
+                self._stmt(statement)
+        finally:
+            self._scopes.pop()
 
     def _new_block(self, name: str) -> None:
         block = llvm_ir.append_block(self._function_ir, name)

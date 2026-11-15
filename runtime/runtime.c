@@ -567,6 +567,8 @@ void *lox_map_values(const void *pointer) {
 }
 
 int lox_map_equal(const void *left_pointer, const void *right_pointer) {
+    /* Guarda de ciclo: `depth` é compartilhada pela recursão; todo caminho que
+       incrementa precisa decrementar antes de retornar. */
     static int depth = 0;
     if (left_pointer == right_pointer) {
         return 1;
@@ -577,20 +579,21 @@ int lox_map_equal(const void *left_pointer, const void *right_pointer) {
     depth += 1;
     const LoxMap *left = left_pointer;
     const LoxMap *right = right_pointer;
-    if (left->count != right->count) {
-        return 0;
-    }
-    for (int64_t index = 0; index < left->count; index++) {
-        LoxValue key = left->entries[index].key;
-        int64_t found = lox_map_find(right, key);
-        if (found < 0 || !lox_value_equal(left->entries[index].value,
-                                           right->entries[found].value)) {
-            depth -= 1;
-            return 0;
+    int result = 0;
+    if (left->count == right->count) {
+        result = 1;
+        for (int64_t index = 0; index < left->count; index++) {
+            LoxValue key = left->entries[index].key;
+            int64_t found = lox_map_find(right, key);
+            if (found < 0 || !lox_value_equal(left->entries[index].value,
+                                               right->entries[found].value)) {
+                result = 0;
+                break;
+            }
         }
     }
     depth -= 1;
-    return 1;
+    return result;
 }
 
 
@@ -1204,6 +1207,9 @@ static int64_t utf8_decode(const unsigned char *data, size_t *length) {
 
 int64_t lox_char_code_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;
+    if (index < 0 || index >= string->cp_len) {
+        lox_panic(0, 0, "R1000", "charCodeAt() index out of bounds.");
+    }
     int64_t offset = utf8_cp_offset(string, index);
     size_t length = 0;
     return utf8_decode((const unsigned char *)string->data + offset, &length);
@@ -1610,6 +1616,14 @@ void *lox_str_from_bool(int32_t value) {
 
 void *lox_str_nil(void) {
     return string_from_ascii("nil", 3);
+}
+
+/* Materializa a mensagem C de um panic como LoxStr para `except ... as e`. */
+void *lox_str_from_cstr(const char *data) {
+    if (data == NULL) {
+        return lox_str_nil();
+    }
+    return string_from_ascii(data, strlen(data));
 }
 
 /* `repr` de string: aspas + escapes, como `values._quote` do interpretador. */

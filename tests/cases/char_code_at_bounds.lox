@@ -1,0 +1,13 @@
+# charCodeAt no limite (index == len) é erro, não o terminador NUL.
+try {
+  print charCodeAt("ab", 2)
+} except LoxRuntimeError as e {
+  print e.message
+}
+try {
+  print charCodeAt("ab", -1)
+} except LoxRuntimeError as e {
+  print e.message
+}
+# expect: charCodeAt() index out of bounds.
+# expect: charCodeAt() index out of bounds.

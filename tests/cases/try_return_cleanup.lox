@@ -1,0 +1,70 @@
+# Regressão: return dentro de try desempilha o frame e roda o finally uma vez.
+var x = 1
+
+fn value_before_finally() -> Int {
+  try { return x } finally { x = 99 }
+}
+print value_before_finally()
+
+fn finally_once() -> Int {
+  try { print "body" } finally { print "finally"; return 2 }
+}
+print finally_once()
+
+fn nested() -> Int {
+  try {
+    try { return 3 } finally { print "inner finally" }
+  } finally { print "outer finally" }
+}
+print nested()
+
+fn outer() -> Int {
+  try {
+    fn inner() -> Int { return 4 }
+    print inner()
+    return 5
+  } finally { print "outer finally" }
+}
+print outer()
+
+fn handler_return() -> Int {
+  try {
+    raise LoxRuntimeError("x")
+  } except LoxRuntimeError as e {
+    return 6
+  } finally {
+    print "handler finally"
+  }
+}
+print handler_return()
+
+fn empty() -> Nil {
+  try {
+    return
+  } finally {
+    print "empty finally"
+  }
+}
+print empty()
+
+fn stale() -> Int {
+  try { return 7 } except Exception as e { print "stale catch"; return 8 }
+}
+print stale()
+print 1 / 0
+# expect: 1
+# expect: body
+# expect: finally
+# expect: 2
+# expect: inner finally
+# expect: outer finally
+# expect: 3
+# expect: 4
+# expect: outer finally
+# expect: 5
+# expect: handler finally
+# expect: 6
+# expect: empty finally
+# expect: nil
+# expect: 7
+# expect runtime error: Division by zero not allowed

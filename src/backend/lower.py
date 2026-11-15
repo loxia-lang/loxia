@@ -21,6 +21,7 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from src.backend import llvm_ir
 from src.backend.captures import CaptureAnalysis, analyze_captures
+from src.backend.lower_base import CleanupContext
 from src.backend.lower_calls import CallLowering
 from src.backend.lower_class_codegen import ClassCodegenLowering
 from src.backend.lower_class_layout import ClassLayoutLowering
@@ -163,7 +164,7 @@ class Lowerer(
         self._type_subst: dict[str, Ty] = {}
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
-        self._finally_stack: list[list[Any]] = []
+        self._cleanup_stack: list[CleanupContext] = []
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
         self._map_expected_value: Ty | None = None
@@ -191,6 +192,7 @@ class Lowerer(
         self._return_type_desc = TypeDesc(ValueType.NIL)
         self._scopes = [{}]
         self._captures = {}
+        self._cleanup_stack = []
         self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
         init_path = llvm_ir.cstring_pointer(
             self.builder, self._cstring(self.source_path)
@@ -1149,44 +1151,44 @@ class Lowerer(
         return self.builder.sitofp(value.llvm, _FLOAT)
 
     def _return(self, stmt: Return) -> None:
+        value: Value | None
         if stmt.value is None:
             if self._return_type_desc.ty is ValueType.NIL:
-                self.builder.ret_void()
-                return
-            if self._return_type_desc.optional:
-                self.builder.ret(self._zero_desc(self._return_type_desc).llvm)
-                return
-            raise BackendError(
-                "Returning nil from a non-Nil function is not supported "
-                "by the backend yet.",
-                stmt.keyword.line,
-                code=Code.BACKEND_UNSUPPORTED,
+                value = None
+            elif self._return_type_desc.optional:
+                value = self._zero_desc(self._return_type_desc)
+            else:
+                raise BackendError(
+                    "Returning nil from a non-Nil function is not supported "
+                    "by the backend yet.",
+                    stmt.keyword.line,
+                    code=Code.BACKEND_UNSUPPORTED,
+                )
+        else:
+            value = self._coerce(
+                self._expr(stmt.value), self._return_type_desc, stmt.keyword.line
             )
+            if self._return_type_desc.ty is ValueType.NIL:
+                value = None
 
-        if self._finally_stack:
-            saved = self._finally_stack.pop()
-            try:
-                self._scopes.append({})
-                try:
-                    for statement in saved:
-                        if self.builder.block.is_terminated:
-                            break
-                        self._stmt(statement)
-                finally:
-                    self._scopes.pop()
-            finally:
-                self._finally_stack = self._finally_stack
-            if self.builder.block.is_terminated:
-                return
+        # O valor é avaliado antes do finally (semântica do tree-walk); o `ret` só
+        # acontece depois de desempilhar os frames e rodar os cleanups ativos.
+        while self._cleanup_stack:
+            context = self._cleanup_stack.pop()
+            if context.frame is not None:
+                self.builder.call(
+                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
+                    [context.frame],
+                )
+            if context.finally_body is not None:
+                self._lower_finally_body(context.finally_body)
+                if self.builder.block.is_terminated:
+                    return
 
-        value = self._coerce(
-            self._expr(stmt.value), self._return_type_desc, stmt.keyword.line
-        )
-        if self._return_type_desc.ty is ValueType.NIL:
+        if value is None:
             self.builder.ret_void()
-            return
-
-        self.builder.ret(value.llvm)
+        else:
+            self.builder.ret(value.llvm)
 
 
 
