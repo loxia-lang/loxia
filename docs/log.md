@@ -696,3 +696,5 @@ aditivos, `capabilities`/`explain`, `--json`/`--json-lines`, `--stdin`, `--timeo
 - `README.md`, `docs/tech/arquitetura.md`, `CHANGELOG.md`, `TODO.md`,
   `docs/adr/0093`, `docs/adr/README.md`, `docs/decisoes.md` — **updated**: contrato e status.
 - `tests/test_cli.py`, `tests/test_docs_consistency.py` — **updated**: cobertura nova.
+
+<!-- triaged: 20de298 -->
