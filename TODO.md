@@ -381,6 +381,34 @@ Fora da fila de features (§0): nada aqui muda a linguagem, então não passa pe
 ADR-0014. A ordem importa por dependência real — URL e CI estáveis antes do site, e a spec
 consolidada antes do MCP, que a consome.
 
+
+### 14.0 Lacunas do produto (visão)
+
+A linguagem e a stdlib T1–T3 estão fechadas; o que falta é a camada de produto. Esta
+tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
+
+| Área | Estado | Gap de produto | Prioridade |
+| --- | --- | --- | --- |
+| **Pacotes/módulos** | loader e `std.*` prontos | **maior gap técnico**: sem `loxia.toml`, dependências, lock e `..` fora da raiz; projeto não consome código fora da pasta do entry | **P0** |
+| **Distribuição/release** | wheel, entry point e teste de instalação | `uv build`/sdist sem duplicação, PyPI com Trusted Publishing, workflow de tag e Homebrew | **P0** |
+| **Repo público** | LICENSE/README/CI | `CONTRIBUTING`, `SECURITY`, templates de issue/PR, Dependabot, CI endurecido/CodeQL e badges | **P0** |
+| **Docs de usuário** | spec, ADRs, stdlib gerada e guia de estilo | site público, tutorial de 30 min, cookbook, "por que Loxia" e `make docs-build` no CI | **P0** |
+| **Extensão VS Code** | cliente funcional em `editors/vscode/` | validar UX num VS Code real, empacotar (`vsce`), manifest completo e snippets/inlay hints | **P1** |
+| **LSP residual** | diagnostics, hover, completion, codeAction, rename e workspace symbols | rename cross-file plenamente semântico, membros herdados na completion, signatureHelp de método importado e `inlayHint` | **P1** |
+| **MCP** | contrato do CLI pronto (`--json`, `explain`, `capabilities`, `fix`) | servidor `loxia-mcp` ainda não existe | **P1** |
+| **Robustez** | diferencial I1, determinismo e docs | fuzzing do scanner/parser antes do público, snapshots e LSP contra código incompleto | **P1** |
+| **Debugger/playground** | — | DAP no tree-walk e playground WASM | P2/P3 |
+| **Conformância** | corpus interno maduro | extrair `loxia-conformance` e runner genérico para outras implementações | P2 |
+| **Performance** | bench local e baseline | M8 restante; suíte pública só depois do release | P2 |
+| **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities` e `lsp` | `loxia repl` como subcomando e `loxia new`/scaffold | P3 |
+
+**Stdlib:** T1–T3 concluídas (26 módulos). Fora por decisão de escopo: regex, cripto,
+rede/HTTP, async, timezone DB, i18n, YAML/TOML, UUID e bigint; `fs.open`/`net` são as
+únicas capacidades de host em avaliação (§13.9). Não há módulo pendente nos tiers.
+
+**Dogfood/self-hosting:** explicitamente adiados até o repo público e bem documentado
+(§13.7).
+
 | # | Entrega | Por que nesta ordem |
 | --- | --- | --- |
 | 1 | {@14.1} Repositório público | é o pré-requisito de URL, issues e release |
