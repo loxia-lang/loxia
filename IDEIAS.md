@@ -769,9 +769,10 @@ problema de comunidade, não de código.
 
 ## I-11 — Capacidades de host: stdio binário, processo, `poll` e rede
 
-**Status:** `em avaliação` — **P0 implementado** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)):
-`io.flush` + `io.readUtf8` + flush por escrita; `proc`/`poll`/`fs.open`/`net` continuam em
-avaliação. O servidor LSP continua em Python
+**Status:** `em avaliação` — **P0 e P2 implementados**:
+`io.flush`/`io.readUtf8` ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)) e
+`process.*` + `std.proc` + `poll` ([ADR-0095](docs/adr/0095-processos-streams-poll.md)).
+`fs.open`/`net` continuam em avaliação; o servidor LSP continua em Python
 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 **Origem:** 2026-11-16 — "o LSP não deu em Loxia por falta de stdlib de processo/rede?".
 **Relacionados:** [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (kernel, sem FFI
@@ -842,8 +843,8 @@ self-hosting do front-end — e aí o trabalho é de compilador, não de stdlib.
 | --- | --- | --- | --- |
 | kernel #18 | `io.flush()` | S | ✅ feito (ADR-0094) |
 | kernel #19 | `io.readUtf8(n) -> String?` | S | ✅ feito (ADR-0094) |
-| kernel #20–26 (ilustrativo) | `proc.spawn(argv, opts) -> Process`; `Process.{stdin, stdout, stderr, wait() -> Int, tryWait() -> Int?, kill(sig)}` | M | B, `lox fmt`, `lox test` |
-| kernel #27 | `poll(handles, timeoutMs) -> List[Int]` (índices prontos) | M | `spawn` com dois pipes; I/O concorrente |
+| kernel #20–26 ✅ | `process.*` (handles `Int`) + `std.proc` (`Stream`/`Process`/`Output`, `spawn`, `run`) | feito (ADR-0095) | B, `lox fmt`, `lox test` |
+| kernel #27 ✅ | `process.poll(handles, timeoutMs) -> List[Int]` | feito (ADR-0095) | `spawn` com dois pipes; I/O concorrente |
 | kernel #28–31 | `net.tcpListen`/`tcpConnect`; `Socket.{read, write, close}`; `net.unix*` | M | nenhum (LSP não usa) |
 | kernel #32 | `fs.open(path, mode) -> File` (streaming) | M | arquivos grandes (§10 do TODO) |
 | std | `utf8`: `byteLen`, `utf16Width`, decode estrito | S | LSP/qualquer protocolo |
@@ -891,7 +892,7 @@ self-hosting do front-end — e aí o trabalho é de compilador, não de stdlib.
    [ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)); `std/utf8` em Lox continua
    pendente.
 2. P1: `std/lsp` de framing (sem servidor) — é determinístico e testável por transcrição.
-3. P2: `proc` + `poll` quando `lox fmt`/`lox test`/caminho B precisarem.
+3. P2 ✅: `proc` + `poll` ([ADR-0095](docs/adr/0095-processos-streams-poll.md)); falta o consumidor real (`lox fmt`/test runner).
 4. P3: `fs.open`; `net` só com consumidor real.
 
 ### Perguntas abertas

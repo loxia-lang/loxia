@@ -2,10 +2,12 @@
 #include "lox_runtime.h"
 #include "kernel_gen.h"
 
-void *lox_substr(const void *pointer, int64_t start, int64_t end) {
+void *lox_substr(const void *pointer, int64_t start, int64_t end,
+                 int32_t line, int32_t column) {
     const LoxStr *string = pointer;
-    if (start < 0 || end < start) {
-        lox_panic(0, 0, "R1007", "String index out of bounds.");
+    if (start < 0 || end < start || end > string->cp_len) {
+        lox_panic(line, column, "R1000", "substr() index out of bounds.");
+        return NULL;
     }
     int64_t begin = utf8_cp_offset(string, start);
     int64_t finish = utf8_cp_offset(string, end);
@@ -21,14 +23,15 @@ void *lox_substr(const void *pointer, int64_t start, int64_t end) {
     return result;
 }
 
-void *lox_join(const void *parts_pointer, const void *separator_pointer) {
+void *lox_join(const void *parts_pointer, const void *separator_pointer,
+               int32_t line, int32_t column) {
     const LoxList *parts = parts_pointer;
     const LoxStr *separator = separator_pointer;
     size_t bytes = 0;
     for (int64_t index = 0; index < parts->count; index++) {
         const LoxValue *item = &parts->items[index];
         if (item->tag != 4) {
-            lox_panic(0, 0, "R1006", "join() expects List[String].");
+            lox_panic(line, column, "R1000", "join() expects List[String].");
         }
         bytes += (size_t)((const LoxStr *)item->payload)->byte_len;
         if (index + 1 < parts->count) {
@@ -62,20 +65,22 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer) {
 }
 
 
-int64_t lox_char_code_at(const void *pointer, int64_t index) {
+int64_t lox_char_code_at(const void *pointer, int64_t index, int32_t line,
+                         int32_t column) {
     const LoxStr *string = pointer;
     if (index < 0 || index >= string->cp_len) {
-        lox_panic(0, 0, "R1000", "charCodeAt() index out of bounds.");
+        lox_panic(line, column, "R1000", "charCodeAt() index out of bounds.");
     }
     int64_t offset = utf8_cp_offset(string, index);
     size_t length = 0;
     return utf8_decode((const unsigned char *)string->data + offset, &length);
 }
 
-void *lox_from_code_point(int64_t code_point) {
+void *lox_from_code_point(int64_t code_point, int32_t line, int32_t column) {
     if (code_point < 0 || code_point > 0x10FFFF ||
         (code_point >= 0xD800 && code_point <= 0xDFFF)) {
-        lox_panic(0, 0, "R1006", "Invalid Unicode code point.");
+        lox_panic(line, column, "R1000",
+                  "fromCodePoint() expects a valid Unicode code point.");
     }
     char bytes[4];
     size_t length;
@@ -379,9 +384,10 @@ void *lox_fs_list_dir(const void *path_pointer) {
     return list;
 }
 
-void lox_os_exit(int64_t code) {
+void lox_os_exit(int64_t code, int32_t line, int32_t column) {
     if (code < 0 || code > 255) {
-        lox_panic(0, 0, "R1006", "os.exit() expects a code between 0 and 255.");
+        lox_panic(line, column, "R1000",
+                  "os.exit() expects a code between 0 and 255.");
     }
     fflush(stdout);
     fflush(stderr);
@@ -408,9 +414,10 @@ int64_t lox_time_now(void) {
            (int64_t)(timestamp.tv_nsec / 1000000);
 }
 
-void lox_time_sleep(int64_t milliseconds) {
+void lox_time_sleep(int64_t milliseconds, int32_t line, int32_t column) {
     if (milliseconds < 0) {
-        lox_panic(0, 0, "R1006", "time.sleep() expects a non-negative duration.");
+        lox_panic(line, column, "R1000",
+                  "time.sleep() expects a non-negative duration.");
     }
     struct timespec duration;
     duration.tv_sec = (time_t)(milliseconds / 1000);

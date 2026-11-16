@@ -466,6 +466,12 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   `io.readFile(path)`, `io.write(text)`, `io.writeErr(text)`, `io.writeFile(path, text)`,
   `io.readLine()` e `os.getenv(name)` são ambiente (entrada/FS); `os.exit(code)` encerra
   com 0..255; `time.now()`/`time.sleep(ms)` são ambiente.
+- `process.*` (POSIX, ambiente): `spawn(argv) -> Int` inicia sem shell (0 = falha);
+  `stdin/stdout/stderr(handle) -> Int`; `wait(handle) -> Int` (negativo = sinal);
+  `kill`/`close(handle)`; `read(handle, n) -> String?` (até `n` bytes, sempre em fronteira
+  UTF-8); `write(handle, text) -> Bool`; `poll(handles, timeoutMs) -> List[Int]` (streams
+  legíveis/EOF e processos já saídos; `timeout < 0` = infinito, `0` = não bloqueante).
+  Kernel 19 → 29 ([ADR-0095](../adr/0095-processos-streams-poll.md)).
 - `io.write`/`io.writeErr` fazem flush a cada chamada (nos dois motores) e `io.flush()`
   força stdout e stderr: um processo consegue ler a saída antes do EOF
   ([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)).
@@ -977,7 +983,7 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 
 ### stdlib T2
 
-Os nove módulos da T2 são Lox puro sobre o kernel e não adicionam sintaxe
+Os onze módulos da T2 são Lox puro sobre o kernel e não adicionam sintaxe
 ([ADR-0079](../adr/0079-stdlib-t2.md)). Os determinísticos entram no corpus `t2`; os
 **ambiente** ([ADR-0072](../adr/0072-stdlib-batteries.md) §5) ficam fora do I1 e têm teste
 com entrada fixa.
@@ -1015,6 +1021,15 @@ com entrada fixa.
   `""`, quebra dentro de campo; `nil` se malformado) e `stringify(rows) -> String` (CRLF,
   quebra final, citação quando precisa; lista vazia gera texto vazio e linha vazia é
   erro).
+- `std.utf8`: `byteLen(text) -> Int` (bytes UTF-8), `utf16Len(text) -> Int` e
+  `utf16Column(text, index) -> Int` (largura UTF-16 do prefixo de `index` code points,
+  limitado a `0..len(text)`). Lox puro sobre `charCodeAt`, determinístico, no corpus `t2`.
+- `std.proc` **ambiente** (POSIX, [ADR-0095](../adr/0095-processos-streams-poll.md)):
+  `Stream` (`read`, `write`, `close`), `Process` (`stdin`/`stdout`/`stderr`, `wait`,
+  `kill`, `close`), `Output` (`code`, `stdout`, `stderr`), `spawn(argv) -> Process?` e
+  `run(argv, stdin = "", timeoutMs = 0) -> Output?`. Sem shell; `run` drena stdout/stderr
+  com `poll`, mata no timeout e devolve `nil`; `stdin` tem o limite prático do buffer do
+  pipe (~64 KiB). Fora do corpus I1/I3.
 - `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`"true"`/`"false"`),
   `base64Encode/Decode` e `hexEncode/Decode`. Sem tipo `Bytes`: operam sobre os bytes
   UTF-8 do texto; decodificação de bytes que não são UTF-8 válido (ou texto malformado)

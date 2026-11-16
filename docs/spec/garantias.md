@@ -57,10 +57,10 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l6` | 57 |
 | `k0` | 2 |
 | `t1` | 6 |
-| `t2` | 7 |
+| `t2` | 8 |
 | `t7` | 3 |
 
-**151 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**152 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
@@ -139,7 +139,8 @@ PID, timestamp, caminho absoluto, ordem de `set`/`dict`, locale e ordem de diret
 O prelúdio da 1.0 não lê o relógio nem outras entradas ambiente: `clock` foi removido
 ([ADR-0026](../adr/0026-freeze-1.0.md)). As **funções ambiente** declaradas no
 [ADR-0072](../adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,
-`time.sleep`, `std.fs`, leitura de `std.io` e abertura de arquivo do kernel — ficam
+`time.sleep`, `std.fs`, leitura de `std.io`, `std.proc`/`process.*` e abertura de
+arquivo do kernel — ficam
 explicitamente **fora** desta garantia e do corpus diferencial; têm teste próprio com
 entrada fixa. `std.fs.listDir` ordena as entradas por byte justamente para não vazar a
 ordem do diretório.

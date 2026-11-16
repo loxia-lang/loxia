@@ -164,6 +164,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_json.lx",
         "tests/cases/std_paths.lx",
         "tests/cases/std_sets.lx",
+        "tests/cases/std_utf8.lx",
     ),
     "k0": (
         "tests/cases/kernel_io.lx",

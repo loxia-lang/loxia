@@ -25,9 +25,11 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.maps`](maps.md) | Helpers for `Map[String, V]`. |
 | [`std.numeric`](numeric.md) | Integer number theory and statistics. |
 | [`std.paths`](paths.md) | Lexical POSIX path helpers. |
+| [`std.proc`](proc.md) | Processes, streams and `poll` (POSIX, ambient). |
 | [`std.results`](results.md) | Combinators for `Result[T, E]`. |
 | [`std.sets`](sets.md) | `Set[T]` backed by `Map[Any, Bool]`. |
 | [`std.strings`](strings.md) | UTF-8 text operations over code points. |
+| [`std.utf8`](utf8.md) | UTF-8 and UTF-16 widths (bytes, code units, columns). |
 
 ## Builtins
 

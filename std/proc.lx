@@ -1,0 +1,167 @@
+# std.proc — processos e streams (T2, ambiente: fora do I1/I3).
+# Casca em Lox sobre `proc.*`: sem shell, sem thread; `poll` é a concorrência.
+
+/// Fluxo de bytes de um processo (`stdin`, `stdout` ou `stderr`).
+class Stream {
+  /// Handle do stream em `proc.*`.
+  val id: Int
+
+  /// Cria a casca em volta de um handle já existente.
+  init(id: Int) {
+    this.id = id
+  }
+
+  /// Lê até `n` bytes; `nil` no fim do stream. Sempre em fronteira de UTF-8.
+  fn read(n: Int) -> String? {
+    return process.read(this.id, n)
+  }
+
+  /// Escreve todo o texto; `false` se o outro lado fechou.
+  fn write(text: String) -> Bool {
+    return process.write(this.id, text)
+  }
+
+  /// Fecha o descritor; usar o stream depois disso é erro.
+  fn close() -> Nil {
+    process.close(this.id)
+  }
+}
+
+/// Processo filho com os três canais em pipes.
+class Process {
+  /// Handle do processo em `proc.*`.
+  val id: Int
+  /// Canal de entrada do filho.
+  val stdin: Stream
+  /// Canal de saída do filho.
+  val stdout: Stream
+  /// Canal de erro do filho.
+  val stderr: Stream
+
+  /// Cria a casca em volta de um processo já iniciado.
+  init(id: Int) {
+    this.id = id
+    this.stdin = Stream(process.stdin(id))
+    this.stdout = Stream(process.stdout(id))
+    this.stderr = Stream(process.stderr(id))
+  }
+
+  /// Espera o processo terminar; código negativo significa sinal.
+  fn wait() -> Int {
+    return process.wait(this.id)
+  }
+
+  /// Mata com `SIGKILL`; `false` se o processo já tinha saído.
+  fn kill() -> Bool {
+    return process.kill(this.id)
+  }
+
+  /// Fecha os canais e libera o handle (não mata um processo em execução).
+  fn close() -> Nil {
+    process.close(this.id)
+  }
+}
+
+/// Saída capturada por `run`.
+class Output {
+  /// Código de saída (negativo quando o filho morreu por sinal).
+  val code: Int
+  /// Tudo o que o filho escreveu em stdout.
+  val stdout: String
+  /// Tudo o que o filho escreveu em stderr.
+  val stderr: String
+
+  /// Monta o resultado de uma execução.
+  init(code: Int, stdout: String, stderr: String) {
+    this.code = code
+    this.stdout = stdout
+    this.stderr = stderr
+  }
+}
+
+/// Inicia `argv` (sem shell) com pipes nos três canais; `nil` se não conseguiu.
+fn spawn(argv: List[String]) -> Process? {
+  val id = process.spawn(argv)
+  if (id == 0) {
+    return nil
+  }
+  return Process(id)
+}
+
+/// Roda `argv` até o fim e devolve código e saída; `nil` em falha ou timeout.
+///
+/// `stdin` é escrito antes do primeiro `poll` (limite prático: o buffer do pipe,
+/// ~64 KiB; texto maior pode bloquear se o filho não ler). `timeoutMs > 0` mata o
+/// processo e devolve `nil`. Sem shell e sem interpolação de comando.
+fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Output? {
+  val child = spawn(argv)
+  if (child == nil) {
+    return nil
+  }
+  if (stdin != "") {
+    child.stdin.write(stdin)
+  }
+  child.stdin.close()
+
+  val outId = child.stdout.id
+  val errId = child.stderr.id
+  val outParts: List[String] = []
+  val errParts: List[String] = []
+  var outOpen = true
+  var errOpen = true
+  var done = false
+  var code = 0
+  var deadline = 0
+  if (timeoutMs > 0) {
+    deadline = time.now() + timeoutMs
+  }
+
+  while (not done or outOpen or errOpen) {
+    val handles: List[Int] = []
+    if (not done) {
+      handles.push(child.id)
+    }
+    if (outOpen) {
+      handles.push(outId)
+    }
+    if (errOpen) {
+      handles.push(errId)
+    }
+    var timeout = -1
+    if (deadline != 0) {
+      timeout = deadline - time.now()
+      if (timeout < 0) {
+        timeout = 0
+      }
+    }
+    val ready = process.poll(handles, timeout)
+    if (len(ready) == 0) {
+      child.kill()
+      child.wait()
+      child.close()
+      return nil
+    }
+    for id in ready {
+      if (id == child.id) {
+        code = child.wait()
+        done = true
+      } else if (id == outId) {
+        val chunk = child.stdout.read(4096)
+        if (chunk == nil) {
+          outOpen = false
+        } else {
+          outParts.push(chunk)
+        }
+      } else if (id == errId) {
+        val chunk = child.stderr.read(4096)
+        if (chunk == nil) {
+          errOpen = false
+        } else {
+          errParts.push(chunk)
+        }
+      }
+    }
+  }
+  child.close()
+  return Output(code, join(outParts, ""), join(errParts, ""))
+}

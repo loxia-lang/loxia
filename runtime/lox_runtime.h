@@ -9,7 +9,11 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include <errno.h>
 #include <gc.h>
+#include <poll.h>
+#include <signal.h>
+#include <spawn.h>
 #include <dirent.h>
 #include <inttypes.h>
 #include <locale.h>
@@ -21,6 +25,8 @@
 #include <string.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <time.h>
 
 /* Hard cap do heap coletado (ADR-0087); o driver passa o valor do build. */

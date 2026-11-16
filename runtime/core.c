@@ -16,6 +16,8 @@ void lox_init(const char *source_path, int32_t argc, char **argv) {
     lox_argc = argc;
     lox_argv = argv;
     setlocale(LC_NUMERIC, "C");
+    /* `proc.write` em pipe fechado deve devolver EPIPE, não matar o processo. */
+    signal(SIGPIPE, SIG_IGN);
     lox_reserve_stack();
     GC_set_all_interior_pointers(1);
     GC_INIT();

@@ -1,0 +1,52 @@
+# std.utf8 — larguras UTF-8/UTF-16 (T2). Lox puro sobre `charCodeAt`; determinístico.
+# LSP e qualquer protocolo posicional precisam das duas unidades no mesmo texto:
+# `byteLen` para `Content-Length`, `utf16Column` para coluna de editor.
+
+/// Conta os bytes UTF-8 de `text` (1..4 por code point).
+fn byteLen(text: String) -> Int {
+  var total = 0
+  var index = 0
+  while (index < len(text)) {
+    val code = charCodeAt(text, index)
+    if (code < 0x80) {
+      total = total + 1
+    } else if (code < 0x800) {
+      total = total + 2
+    } else if (code < 0x10000) {
+      total = total + 3
+    } else {
+      total = total + 4
+    }
+    index = index + 1
+  }
+  return total
+}
+
+/// Conta as unidades UTF-16 de `text` (2 para code points acima de U+FFFF).
+fn utf16Len(text: String) -> Int {
+  var total = 0
+  var index = 0
+  while (index < len(text)) {
+    total = total + (2 if charCodeAt(text, index) > 0xFFFF else 1)
+    index = index + 1
+  }
+  return total
+}
+
+/// Largura UTF-16 do prefixo de `index` code points; `index` é limitado a 0..len(text).
+fn utf16Column(text: String, index: Int) -> Int {
+  var end = index
+  if (end < 0) {
+    end = 0
+  }
+  if (end > len(text)) {
+    end = len(text)
+  }
+  var total = 0
+  var current = 0
+  while (current < end) {
+    total = total + (2 if charCodeAt(text, current) > 0xFFFF else 1)
+    current = current + 1
+  }
+  return total
+}

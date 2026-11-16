@@ -190,24 +190,15 @@ porque compara só os bytes do fim do processo. Correção: `fflush` em
 `test_io_write_flush_antes_de_bloquear_no_stdin` (entrega o stdin só depois de ler a
 saída). Alternativas e custos ficam no ADR-0094.
 
-#### `R2` — panic de primitiva antiga sem posição e com código/mensagem divergentes (`P1`)
+#### `R2` — panic de primitiva antiga sem posição — ✅ resolvido (2026-11-16)
 
-As primitivas que falham antes do `site` ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md))
-chamam `lox_panic(0, 0, ...)`, então o binário imprime `error[R1006]: ...` sem
-`arquivo:linha:col`, enquanto o oráculo imprime `arquivo:linha:col: error[R1000]: ...`.
-Código e mensagem também divergem em casos concretos:
-
-| Chamada | oráculo | binário |
-| --- | --- | --- |
-| `substr("a", 0, 9)` | `R1000: substr() index out of bounds.` em `1:23` | `R1007: String index out of bounds.` sem posição |
-| `fromCodePoint(-1)` | `R1000: fromCodePoint() expects a valid Unicode code point.` | `R1006: Invalid Unicode code point.` |
-
-É I1 real (determinístico), mas nenhum caso do corpus deixa o erro escapar — os testes
-capturam com `try` e imprimem a mensagem, que nesses dois casos coincide com a do
-oráculo. `charCodeAt` já usa `R1000`, mas também não tem posição. **Correção:** marcar
-`site=True` em `substr`/`fromCodePoint`/`charCodeAt` (e em `os.exit`/`time.sleep`, que
-também falham), alinhar mensagem/código e adicionar um caso diferencial com erro **não
-capturado**. O mecanismo já está no lowering; falta a migração das entradas da tabela.
+`substr`, `join`, `charCodeAt`, `fromCodePoint`, `os.exit` e `time.sleep` chamavam
+`lox_panic(0, 0, ...)`: o binário saía sem `arquivo:linha:col`, com `R1007`/`R1006` em vez
+de `R1000` e, em `substr`/`fromCodePoint`, com mensagem diferente (e `substr` nem checava
+`end > len`). Todas passaram a declarar `site` e a usar `R1000` com a mensagem do oráculo;
+`test_panic_de_primitiva_bate_com_oraculo` cobre os seis casos com erro **não capturado**,
+comparando stderr byte a byte. Mecanismo e contexto no
+[ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md).
 
 
 ---
@@ -356,12 +347,14 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 | std | biblioteca | **uma** (Lox) | `std/*.lx` |
 | módulos | nomeação e carga | loader/desugar, sem lógica | `loxia_core/loader/` |
 
-**Kernel concluído** com **19** primitivas: `args`, `io.*` (incluindo `readAll`,
+**Kernel concluído** com **29** primitivas: `args`, `io.*` (incluindo `readAll`,
 `readUtf8` e `flush`), `fs.*` (`exists`, `listDir`), `os.*`, `time.*`, `substr`, `join`,
-`charCodeAt`, `fromCodePoint`.
-O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)) e para 19 em
-2026-11-16 ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)); o critério continua
-sendo SO ou representação, e qualquer crescimento novo exige ADR. `os.cwd` segue fora:
+`charCodeAt`, `fromCodePoint` e `process.*` (spawn/streams/read/write/wait/kill/close/poll,
+[ADR-0095](docs/adr/0095-processos-streams-poll.md)).
+O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)), para 19 com
+stdio por bytes ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)) e para 29 com
+processos/`poll` ([ADR-0095](docs/adr/0095-processos-streams-poll.md)) — o teto de ~30 foi
+atingido; o próximo crescimento exige tipo opaco de handle ou ADR que justifique a camada. `os.cwd` segue fora:
 `std.paths` é lexical e não precisou dele.
 Candidatas em avaliação na §13.9: `proc`/`poll`/`fs.open`/`net`, só com consumidor e ADR
 próprio.
@@ -454,8 +447,8 @@ puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos a
 
 | Camada | Superfície | Consumidor | Esforço |
 | --- | --- | --- | --- |
-| `proc` | `spawn(argv, opts)`, `Process.{stdin, stdout, stderr, wait, tryWait, kill}` | caminho B do LSP, `lox fmt`, `lox test` | M |
-| `poll` | `poll(handles, timeoutMs) -> List[Int]` | `spawn` com dois pipes; I/O concorrente sem thread | M |
+| `proc` ✅ | `process.*` + `std.proc` (`Stream`/`Process`/`Output`, `spawn`, `run`) | caminho B do LSP, `lox fmt`, `lox test` | feito (ADR-0095) |
+| `poll` ✅ | `process.poll(handles, timeoutMs) -> List[Int]` | `spawn` com dois pipes; I/O concorrente sem thread | feito (ADR-0095) |
 | `fs.open` | `open(path, mode) -> File` (streaming, §10) | arquivos grandes, CSV/log | M |
 | `net` | `tcpListen`/`tcpConnect`/`accept`/`close` (+ unix) | só com consumidor (HTTP client, debugger remoto) | M |
 
@@ -465,9 +458,9 @@ puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos a
 lançar; sem FFI genérica (`extern fn` continua fora, ADR-0071); `net` v1 só com IP
 literal, sem DNS nem TLS.
 
-**Ordem sugerida:** 18–19 (S) → `std/utf8` + `std/lsp` de framing (M, testável sem
-servidor) → `proc`+`poll` (M) → `fs.open` (M) → `net` (L, só com dor). O servidor LSP
-continua em Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
+**Ordem sugerida:** 18–19 ✅ → `std/utf8` ✅ → `proc`+`poll` ✅ → `fs.open` (M) → `net`
+(L, só com dor). O servidor LSP continua em Python
+([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
 
 **Tamanho do runtime — ✅ separado (2026-11-16).** `runtime/runtime.c` tinha 2.524 linhas,
 mas só ~200 eram kernel (a seção `Kernel 13.2`); o resto é representação (strings,
@@ -479,7 +472,7 @@ compila cada uma, cacheia em `runtime-<chave>/` com a chave sobre **todas** as f
 headers, e linka os `.o`. Sem mudança de ABI nem de bytes gerados; `test_runtime_lista_todas_as_unidades`
 impede que um `.c` novo fique fora do build.
 
-**Orçamento de kernel:** 17 → 19 (feito, ADR-0094); acima de ~30 é sinal de camada errada.
+**Orçamento de kernel:** 19 → 29 (feito, ADR-0095); ~30 é o teto, e crescer daqui pede tipo opaco de handle.
 
 ---
 

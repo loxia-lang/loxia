@@ -1,0 +1,24 @@
+# std.utf8: bytes UTF-8 e unidades UTF-16 do mesmo texto.
+import std.utf8 as utf8
+print(utf8.byteLen(""))
+print(utf8.byteLen("abc"))
+print(utf8.byteLen("ação"))
+print(utf8.byteLen("😀"))
+print(utf8.utf16Len("ação"))
+print(utf8.utf16Len("😀"))
+print(utf8.utf16Column("a😀b", 0))
+print(utf8.utf16Column("a😀b", 1))
+print(utf8.utf16Column("a😀b", 2))
+print(utf8.utf16Column("a😀b", 99))
+print(utf8.utf16Column("a😀b", -5))
+# expect: 0
+# expect: 3
+# expect: 6
+# expect: 4
+# expect: 4
+# expect: 2
+# expect: 0
+# expect: 1
+# expect: 3
+# expect: 4
+# expect: 0

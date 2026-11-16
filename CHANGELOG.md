@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Processos, streams e `poll`** ([ADR-0095](docs/adr/0095-processos-streams-poll.md)):
+  kernel `process.*` (`spawn` sem shell, `stdin`/`stdout`/`stderr`, `read`/`write` em
+  pipes com fronteira de UTF-8, `wait`/`kill`/`close` e `poll`) e `std.proc`
+  (`Stream`, `Process`, `Output`, `spawn`, `run` com drenagem concorrente e timeout).
+  POSIX e ambiente; kernel 19 → 29. `std.utf8` (`byteLen`, `utf16Len`, `utf16Column`)
+  fecha as duas unidades de posição que um protocolo precisa.
 - **Runtime C em unidades + ABI gerada** ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)):
   `runtime/runtime.c` virou `core`, `objects`, `strings`, `containers`, `numeric` e
   `kernel` com um header comum (`lox_runtime.h`); o driver compila cada unidade e
@@ -319,6 +325,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Corrigido
 
+- **Panic de primitiva sem posição** (`R2`): `substr`, `join`, `charCodeAt`,
+  `fromCodePoint`, `os.exit` e `time.sleep` agora usam `R1000` com a mensagem e a
+  posição do oráculo; `substr` também passou a rejeitar `end > len`. Teste diferencial
+  com erro não capturado cobre os seis casos.
 - **`io.write`/`io.writeErr` sem flush no binário** (`R1`, [ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)):
   o oráculo flushava por chamada e o binário não, então `std.io.prompt` nunca mostrava a
   mensagem e qualquer consumidor de stdout em pipe (JSONL, MCP, LSP) travava. A comparação

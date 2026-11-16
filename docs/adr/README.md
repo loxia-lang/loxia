@@ -140,6 +140,7 @@ Crie quando a decisão:
 | [0092](0092-estilo-e-formatter.md) | Estilo e formatter: nomes, perfil e dogfood em Lox | accepted (implementação parcial) | 2026-11-16 |
 | [0093](0093-cli-agent-friendly-e-reparo.md) | CLI agent-friendly: subcomandos, JSONL/watch, timeout, warnings e reparo | accepted (implementação parcial) | 2026-11-16 |
 | [0094](0094-kernel-io-flush-e-read-utf8.md) | Kernel: `io.flush`, `io.readUtf8` e flush por escrita em stdio | accepted (implementado) | 2026-11-16 |
+| [0095](0095-processos-streams-poll.md) | Processos, streams e `poll` no kernel (`std.proc`) | accepted (implementado) | 2026-11-16 |
 
 
 ## Próximas decisões que pedem ADR

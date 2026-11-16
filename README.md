@@ -43,9 +43,9 @@
   com identificadores ASCII, `print` como função `Any -> Nil` e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
 - 📐 A stdlib **T2** está completa ([ADR-0079](docs/adr/0079-stdlib-t2.md)): `json`,
-  `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv` e `convert`, além da T1
+  `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`, `utf8` e `proc`, além da T1
   (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`). Os casos determinísticos
-  entram no corpus `t2`; `fs` e leitura de `io` são ambiente e têm teste próprio.
+  entram no corpus `t2`; `fs`, leitura de `io` e `proc` são ambiente e têm teste próprio.
   Próximo passo: **limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)).
   L7b (revisão das mensagens de erro de codegen) segue como pendência de qualidade; JIT
   no REPL fica para depois. O L5, o T7 e o L6a–L6k já entregaram classes, herança,

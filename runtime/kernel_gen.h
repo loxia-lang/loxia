@@ -12,13 +12,13 @@
 #include <stdint.h>
 
 /* substr */
-void * lox_substr(const void *, int64_t, int64_t);
+void * lox_substr(const void *, int64_t, int64_t, int32_t, int32_t);
 /* join */
-void * lox_join(const void *, const void *);
+void * lox_join(const void *, const void *, int32_t, int32_t);
 /* charCodeAt */
-int64_t lox_char_code_at(const void *, int64_t);
+int64_t lox_char_code_at(const void *, int64_t, int32_t, int32_t);
 /* fromCodePoint */
-void * lox_from_code_point(int64_t);
+void * lox_from_code_point(int64_t, int32_t, int32_t);
 /* args */
 void * lox_args(void);
 /* io.readFile */
@@ -42,12 +42,32 @@ int32_t lox_fs_exists(const void *);
 /* fs.listDir */
 void * lox_fs_list_dir(const void *);
 /* os.exit */
-void lox_os_exit(int64_t);
+void lox_os_exit(int64_t, int32_t, int32_t);
 /* os.getenv */
 void * lox_os_getenv(const void *);
+/* process.spawn */
+int64_t lox_proc_spawn(const void *);
+/* process.stdin */
+int64_t lox_proc_stdin(int64_t, int32_t, int32_t);
+/* process.stdout */
+int64_t lox_proc_stdout(int64_t, int32_t, int32_t);
+/* process.stderr */
+int64_t lox_proc_stderr(int64_t, int32_t, int32_t);
+/* process.wait */
+int64_t lox_proc_wait(int64_t, int32_t, int32_t);
+/* process.kill */
+int32_t lox_proc_kill(int64_t, int32_t, int32_t);
+/* process.close */
+void lox_proc_close(int64_t, int32_t, int32_t);
+/* process.read */
+void * lox_proc_read(int64_t, int64_t, int32_t, int32_t);
+/* process.write */
+int32_t lox_proc_write(int64_t, const void *, int32_t, int32_t);
+/* process.poll */
+void * lox_proc_poll(const void *, int64_t, int32_t, int32_t);
 /* time.now */
 int64_t lox_time_now(void);
 /* time.sleep */
-void lox_time_sleep(int64_t);
+void lox_time_sleep(int64_t, int32_t, int32_t);
 
 #endif /* LOX_KERNEL_GEN_H */

@@ -1253,6 +1253,101 @@ def _run_bytes(
     )
 
 
+R2_CASOS = (
+    'print(substr("a", 0, 9))\n',
+    'print(substr("a", -1, 0))\n',
+    'print(fromCodePoint(-1))\n',
+    'print(charCodeAt("a", 5))\n',
+    'os.exit(999)\n',
+    'time.sleep(-1)\n',
+)
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize("source", R2_CASOS, ids=range(len(R2_CASOS)))
+def test_panic_de_primitiva_bate_com_oraculo(
+    tmp_path: Path, source: str
+) -> None:
+    """R2: primitivas antigas reportam o mesmo código, mensagem e posição."""
+    path = _write(tmp_path, source)
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    interpreted = _interpret(path)
+    assert native.returncode == 70
+    assert native.returncode == interpreted.returncode
+    assert native.stderr == interpreted.stderr
+
+
+def _proc_program(py_code: str) -> str:
+    import json
+
+    return (
+        "import std.proc as p\n"
+        f"val py = {json.dumps(sys.executable)}\n"
+        f'val out = p.run([py, "-c", {json.dumps(py_code)}])\n'
+        "if (out == nil) {\n  print(\"nil\")\n} else {\n"
+        "  print(out.code)\n  print(len(out.stdout))\n"
+        "  print(repr(out.stderr))\n}\n"
+    )
+
+
+@pytest.mark.backend
+def test_std_proc_nativo(tmp_path: Path) -> None:
+    if os.name == "nt":
+        pytest.skip("process.* é POSIX")
+
+    path = _write(
+        tmp_path,
+        _proc_program(
+            "import sys; sys.stdout.write(chr(231)*3000); "
+            "sys.stderr.write(chr(101)); sys.exit(3)"
+        ),
+    )
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    interpreted = _interpret(path)
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+    assert native.stderr == interpreted.stderr
+    assert native.stdout == '3\n3000\n"e"\n'
+
+
+@pytest.mark.backend
+def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
+    if os.name == "nt":
+        pytest.skip("process.* é POSIX")
+
+    import json
+
+    source = (
+        "import std.proc as p\n"
+        f"val py = {json.dumps(sys.executable)}\n"
+        'val child = p.spawn([py, "-c", '
+        + json.dumps("import sys; sys.stdout.write('eco')")
+        + "])\n"
+        "if (child == nil) {\n  print(\"nil\")\n} else {\n"
+        "  val ready = process.poll([child.id, child.stdout.id], 5000)\n"
+        "  print(len(ready) >= 1)\n"
+        "  print(child.stdout.read(64))\n"
+        "  print(child.wait())\n"
+        "  child.close()\n}\n"
+    )
+    path = _write(tmp_path, source)
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run([str(binary)])
+    interpreted = _interpret(path)
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+    assert native.stdout == "true\neco\n0\n"
+
+
 @pytest.mark.backend
 def test_io_read_utf8_nativo(tmp_path: Path) -> None:
     path = _write(

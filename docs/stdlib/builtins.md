@@ -77,6 +77,10 @@ Standard input/output namespace.
 
 Filesystem namespace.
 
+### `process`
+
+Process and stream handles (POSIX, ambient).
+
 ### `os`
 
 Operating-system namespace.
@@ -182,6 +186,46 @@ Returns whether the path exists.
 ### `fs.listDir(path: String) -> List[String]?`
 
 Lists directory entries, or `nil` when unreadable.
+
+### `process.spawn(argv: List[String]) -> Int`
+
+Starts a process without a shell; 0 when it cannot start.
+
+### `process.stdin(handle: Int) -> Int`
+
+Returns the stdin stream handle of a process.
+
+### `process.stdout(handle: Int) -> Int`
+
+Returns the stdout stream handle of a process.
+
+### `process.stderr(handle: Int) -> Int`
+
+Returns the stderr stream handle of a process.
+
+### `process.wait(handle: Int) -> Int`
+
+Waits for a process; negative code means a signal.
+
+### `process.kill(handle: Int) -> Bool`
+
+Sends SIGKILL; false when the process already exited.
+
+### `process.close(handle: Int) -> Nil`
+
+Releases a handle (does not kill a running process).
+
+### `process.read(handle: Int, n: Int) -> String?`
+
+Reads up to `n` bytes as UTF-8; `nil` at end of stream.
+
+### `process.write(handle: Int, text: String) -> Bool`
+
+Writes all text; false when the other side closed.
+
+### `process.poll(handles: List[Int], timeoutMs: Int) -> List[Int]`
+
+Returns ready stream/process ids; negative timeout waits forever.
 
 ### `os.exit(code: Int) -> Nil`
 

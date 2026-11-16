@@ -85,6 +85,7 @@ Pacotes por fase (dependência só para baixo):
 | [`runtime/containers.c`](../../runtime/containers.c) | `Range`, `List`, `Map`, tupla, enum e igualdade |
 | [`runtime/numeric.c`](../../runtime/numeric.c) | guardas de `//`/`%`/divisão, `**`, shifts, `math.*` e parse |
 | [`runtime/kernel.c`](../../runtime/kernel.c) | kernel 13.2 (ADR-0071): `args`, `io.*`, `fs.*`, `os.*`, `time.*` |
+| [`runtime/proc.c`](../../runtime/proc.c) | processos/streams (ADR-0095): `posix_spawnp`, pipes, `poll(2)` e handles |
 | [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | ABI das primitivas, **gerado** de `primitives.py` por `runtime/gen_kernel.py` |
 | [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
 | [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
@@ -425,8 +426,8 @@ do LLVM (`mod.verify`); IR inválido vira `BackendError` (exit 65), nunca binár
 `--emit=ll` é artefato de inspeção: o build emite object file com o mesmo LLVM que
 construiu o módulo e linka com `cc`, sem depender da versão do LLVM do sistema.
 
-O runtime é dividido por domínio em seis unidades (`core`, `objects`, `strings`,
-`containers`, `numeric`, `kernel`) com um header comum. Elas são compiladas uma vez por
+O runtime é dividido por domínio em sete unidades (`core`, `objects`, `strings`,
+`containers`, `numeric`, `kernel`, `proc`) com um header comum. Elas são compiladas uma vez por
 (conteúdo de **todas** as fontes e headers, compilador, versão, flags e `CPATH`) e os `.o`
 ficam em `$TMPDIR/loxia-build-<uid>/runtime-<chave>/`; `LOX_BUILD_CACHE=<dir>` isola o
 cache. Builds seguintes reusam os objetos e pagam só o link. O cache é só desempenho: não

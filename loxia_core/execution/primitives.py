@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from loxia_core.diagnostics.errors import NativeError
 from loxia_core.execution.lox_list import LoxList
+from loxia_core.execution.proc_runtime import ProcTable
 from loxia_core.frontend.ty import BOOL, INT, NIL, STRING, ListTy, Ty, union
 
 
@@ -153,6 +154,56 @@ def _now() -> int:
     return time.time_ns() // 1_000_000
 
 
+def _proc_table(interpreter: object) -> ProcTable:
+    table = getattr(interpreter, "proc_handles", None)
+    if not isinstance(table, ProcTable):
+        table = ProcTable()
+        setattr(interpreter, "proc_handles", table)  # noqa: B010
+    return table
+
+
+def _proc_spawn(interpreter: object, argv: LoxList) -> int:
+    return _proc_table(interpreter).spawn(argv)
+
+
+def _proc_stdin(interpreter: object, identifier: int) -> int:
+    return _proc_table(interpreter).stream_id(identifier, 0, "process.stdin")
+
+
+def _proc_stdout(interpreter: object, identifier: int) -> int:
+    return _proc_table(interpreter).stream_id(identifier, 1, "process.stdout")
+
+
+def _proc_stderr(interpreter: object, identifier: int) -> int:
+    return _proc_table(interpreter).stream_id(identifier, 2, "process.stderr")
+
+
+def _proc_wait(interpreter: object, identifier: int) -> int:
+    return _proc_table(interpreter).wait(identifier)
+
+
+def _proc_kill(interpreter: object, identifier: int) -> bool:
+    return _proc_table(interpreter).kill(identifier)
+
+
+def _proc_close(interpreter: object, identifier: int) -> None:
+    _proc_table(interpreter).close(identifier)
+
+
+def _proc_read(interpreter: object, identifier: int, count: int) -> str | None:
+    return _proc_table(interpreter).read(identifier, count)
+
+
+def _proc_write(interpreter: object, identifier: int, text: str) -> bool:
+    return _proc_table(interpreter).write(identifier, text)
+
+
+def _proc_poll(
+    interpreter: object, identifiers: LoxList, timeout_ms: int
+) -> LoxList:
+    return _proc_table(interpreter).poll(identifiers, timeout_ms)
+
+
 def _sleep(milliseconds: int) -> None:
     if milliseconds < 0:
         raise NativeError("time.sleep() expects a non-negative duration.")
@@ -174,16 +225,20 @@ class Primitive:
 
 PRIMITIVES: tuple[Primitive, ...] = (
     Primitive(
-        "substr", "lox_substr", (STRING, INT, INT), STRING, _substr
+        "substr", "lox_substr", (STRING, INT, INT), STRING, _substr,
+        site=True
     ),
     Primitive(
-        "join", "lox_join", (ListTy(STRING), STRING), STRING, _join
+        "join", "lox_join", (ListTy(STRING), STRING), STRING, _join,
+        site=True
     ),
     Primitive(
-        "charCodeAt", "lox_char_code_at", (STRING, INT), INT, _char_code_at
+        "charCodeAt", "lox_char_code_at", (STRING, INT), INT,
+        _char_code_at, site=True
     ),
     Primitive(
-        "fromCodePoint", "lox_from_code_point", (INT,), STRING, _from_code_point
+        "fromCodePoint", "lox_from_code_point", (INT,), STRING,
+        _from_code_point, site=True
     ),
     Primitive("args", "lox_args", (), ListTy(STRING), _args, ambient=True,
               needs_interpreter=True),
@@ -204,11 +259,32 @@ PRIMITIVES: tuple[Primitive, ...] = (
               ambient=True),
     Primitive("fs.listDir", "lox_fs_list_dir", (STRING,),
               union(ListTy(STRING), NIL), _list_dir, ambient=True),
-    Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit),
+    Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit, site=True),
     Primitive("os.getenv", "lox_os_getenv", (STRING,), union(STRING, NIL),
               _getenv, ambient=True),
+    Primitive("process.spawn", "lox_proc_spawn", (ListTy(STRING),), INT,
+              _proc_spawn, ambient=True, needs_interpreter=True),
+    Primitive("process.stdin", "lox_proc_stdin", (INT,), INT, _proc_stdin,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.stdout", "lox_proc_stdout", (INT,), INT, _proc_stdout,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.stderr", "lox_proc_stderr", (INT,), INT, _proc_stderr,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.wait", "lox_proc_wait", (INT,), INT, _proc_wait,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.kill", "lox_proc_kill", (INT,), BOOL, _proc_kill,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.close", "lox_proc_close", (INT,), NIL, _proc_close,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.read", "lox_proc_read", (INT, INT), union(STRING, NIL),
+              _proc_read, ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.write", "lox_proc_write", (INT, STRING), BOOL, _proc_write,
+              ambient=True, needs_interpreter=True, site=True),
+    Primitive("process.poll", "lox_proc_poll", (ListTy(INT), INT), ListTy(INT),
+              _proc_poll, ambient=True, needs_interpreter=True, site=True),
     Primitive("time.now", "lox_time_now", (), INT, _now, ambient=True),
-    Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True),
+    Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True,
+              site=True),
 )
 
 PRIMITIVE_BY_LOX: dict[str, Primitive] = {
@@ -230,7 +306,7 @@ class PrimitiveCallable:
 
     def call(self, interpreter: object, arguments: list[object]) -> object:
         if self.primitive.needs_interpreter:
-            return self.primitive.py(interpreter)
+            return self.primitive.py(interpreter, *arguments)
         return self.primitive.py(*arguments)
 
     def __str__(self) -> str:
