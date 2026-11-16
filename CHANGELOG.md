@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Estilo e formatter mínimo** ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)):
+  `docs/guia-estilo.md` normativo e `lox fmt` Python (indentação de bloco, `;` de fim de
+  linha, newline final, preservação de strings/comentários), com `fmt --check` (exit 1 se
+  mudaria) e `fmt --stdin`. `fn` em método, trailing comma, reflow e dogfood Lox ficam
+  pendentes.
 - **Doc comments `///` e `lox doc`** ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)):
   doc Markdown anexada a funções/métodos, classes, interfaces, enums/variantes, campos,
   type alias e `val`/`var`; `lox doc arquivo [--json]` gera a referência sem executar o

@@ -28,9 +28,10 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
 também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
 [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
 também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)), assim como
-`///` + `lox doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)). A próxima
-execução é **estilo/formatter** e **LSP** (§0.2); docs da stdlib/builtins, `fixes[]` e
-`W1002` ficam pendentes. O status por nível é **gerado**
+`///` + `lox doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)) e o
+formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)). A próxima execução é
+**LSP** e o dogfood Lox do formatter (§0.2); docs da stdlib/builtins, `fixes[]` e `W1002`
+ficam pendentes. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -66,8 +67,9 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
        ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md),
        [ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
        - [x] `///` + `lox doc` Markdown/JSON para código de usuário.
+       - [x] `docs/guia-estilo.md` e formatter Python mínimo (`fmt`/`--check`/`--stdin`).
        - [ ] docs públicas obrigatórias da stdlib, registry de builtins e `docs/stdlib/`.
-       - [ ] `docs/guia-estilo.md` e formatter Python.
+       - [ ] `fn` em método, trailing comma/reflow e dogfood Lox (após T3).
 8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols, depois spans de expressão + `SymbolIndex`
        para hover/definition, e só então completion/format/code actions
        ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
@@ -173,9 +175,11 @@ uv run pytest tests/test_backend.py -q
       usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
 - [ ] `P1` docs da stdlib/builtins e `docs/stdlib/` gerado
       ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
-- [ ] `P1` `lox fmt`: formatter Python idempotente, `--check`, depois dogfood em Lox após a
-      T3 ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P1` `docs/guia-estilo.md`: nomes, formatação, imports e comentários
+- [x] `P1` `lox fmt` (core): formatter Python mínimo idempotente, `--check`, `--stdin`
+      ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
+- [ ] `P2` `lox fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
+      ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
+- [x] `P1` `docs/guia-estilo.md`: nomes, formatação, imports e comentários
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
 - [ ] `P2` LSP: LSP-0 (diagnostics/documentSymbol), LSP-1 (spans + `SymbolIndex` →
       hover/definition) e LSP-2 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).

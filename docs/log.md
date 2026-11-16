@@ -717,3 +717,17 @@ Docs obrigatórias da stdlib/builtins e a geração de `docs/stdlib/` continuam 
 - `tests/test_cli.py` — **updated**: cobertura de doc/Markdown/JSON/anexação.
 
 <!-- triaged: ed30798 -->
+
+## 2026-11-16 — estilo e formatter mínimo
+
+Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0092: guia de estilo
+normativo e `lox fmt` Python mínimo (indentação de bloco, `;` de fim de linha, newline
+final, preservação de strings/comentários), com `--check`/`--stdin`. `fn` em método,
+trailing comma/reflow e o dogfood Lox continuam pendentes.
+
+- `docs/guia-estilo.md` — **new**: nomes, formatação, imports e doc comments.
+- `loxia/formatter.py` — **new**: formatter Python de referência.
+- `loxia/cli.py` — **updated**: subcomando `fmt`.
+- `tests/test_formatter.py` — **new**: idempotência, check/stdin, strings/comentários.
+- `docs/adr/0092`, `docs/adr/README.md`, `docs/decisoes.md`, `TODO.md`, `CHANGELOG.md`,
+  `README.md`, `docs/tech/arquitetura.md` — **updated**: status/contrato.

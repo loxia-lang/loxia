@@ -42,7 +42,16 @@ if TYPE_CHECKING:
 # Comandos de inspeção: o JSON vai para stdout (não há saída de programa). `build` e
 # `run` podem escrever IR/programa em stdout, então o JSON deles vai para stderr.
 JSON_ON_STDOUT = frozenset({"check"})
-COMMANDS = ("run", "check", "build", "ast", "doc", "explain", "capabilities")
+COMMANDS = (
+    "run",
+    "check",
+    "build",
+    "ast",
+    "fmt",
+    "doc",
+    "explain",
+    "capabilities",
+)
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
 _WATCH_INTERVAL_SECONDS = 0.25
 
@@ -681,6 +690,13 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_common_options(parser)
         _add_stdin_options(parser)
         parser.add_argument("script", nargs="?", help="script Loxia")
+    elif command == "fmt":
+        _add_common_options(parser)
+        _add_stdin_options(parser)
+        parser.add_argument(
+            "--check", action="store_true", help="não escreve; exit 1 se mudaria"
+        )
+        parser.add_argument("script", nargs="?", help="arquivo Loxia")
     elif command == "doc":
         parser.add_argument("script", nargs="?", help="arquivo Loxia")
         parser.add_argument("--stdin", action="store_true", help="lê de stdin")
@@ -872,6 +888,53 @@ def _run_source(
     sys.exit(lox.exit_code())
 
 
+def _run_fmt(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    from loxia.formatter import format_source
+
+    if args.stdin and args.script:
+        parser.error("--stdin cannot be combined with a script")
+    if not args.stdin and not args.script:
+        parser.error("fmt requires a script (or --stdin)")
+    if args.file_name is not None and not args.stdin:
+        parser.error("--file-name requires --stdin")
+    if args.max_errors < 0:
+        parser.error("--max-errors must be non-negative")
+    if args.timeout if hasattr(args, "timeout") else False:
+        parser.error("--timeout is not supported by fmt")
+
+    lox = Loxia(
+        error_format=(
+            "json" if args.json or args.json_lines else args.error_format
+        ),
+        color=args.color,
+        max_errors=args.max_errors,
+        json_lines=args.json_lines,
+    )
+    source = _set_source(
+        lox,
+        path=args.script,
+        stdin=args.stdin,
+        file_name=args.file_name,
+    )
+    result = format_source(source, reporter=lox.reporter)
+    if result is None:
+        lox._flush("fmt", exit_code=65, always=True)
+        sys.exit(65)
+
+    if args.check:
+        sys.exit(1 if result.changed else 0)
+
+    if args.stdin:
+        sys.stdout.write(result.text)
+        sys.stdout.flush()
+        return
+
+    assert args.script is not None
+    if result.changed:
+        Path(args.script).write_text(result.text, encoding="utf-8")
+    sys.exit(0)
+
+
 def _run_doc(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.script and args.stdin:
         parser.error("--stdin cannot be combined with a script")
@@ -969,6 +1032,7 @@ def _capabilities_payload() -> dict[str, object]:
         },
         {"name": "build", "features": ["json", "json-lines"]},
         {"name": "ast", "features": ["json", "json-lines", "stdin"]},
+        {"name": "fmt", "features": ["check", "stdin"]},
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
@@ -1057,6 +1121,10 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
             _explain(args.code, args.json)
         else:
             _print_capabilities(args.json)
+        return
+
+    if command == "fmt":
+        _run_fmt(args, parser)
         return
 
     if command == "doc":

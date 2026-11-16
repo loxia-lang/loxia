@@ -1,6 +1,11 @@
 # ADR-0092 — Estilo e formatter: convenções, perfil e dogfood
 
-- **Status:** accepted (plano; implementação pendente)
+> **Implementação parcial (2026-11-16):** `docs/guia-estilo.md` e `lox fmt` mínimo
+> (indentação de bloco, `;` de fim de linha, newline final, preservação de strings/
+> comentários), `fmt --check`/`--stdin` e testes de idempotência. Pendentes: inserir
+> `fn` em método, trailing comma, reflow, paridade Lox após a T3.
+
+- **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0066](0066-orcamento-e-gate-sintatico.md) (forma canônica e gate),
@@ -9,10 +14,10 @@
   [ADR-0091](0091-doc-comments-e-geracao-de-docs.md) (doc comments),
   [ADR-0093](0093-cli-agent-friendly-e-reparo.md) (subcomando `fmt`),
   [`../../TODO.md`](../../TODO.md) §7, §10, §13.7
-- **Implementação (a criar):** `docs/guia-estilo.md` (norma),
-  `loxia_core/fmt.py` (referência Python), `loxia/cli.py` (`fmt`),
-  `tests/test_fmt.py` e `tests/cases/fmt/` (golden/idempotência), `std/fmt.lx`/tooling
-  Lox depois da T3. Nada implementado neste ADR.
+- **Implementação:** `docs/guia-estilo.md`, `loxia/formatter.py` (referência Python),
+  `loxia/cli.py` (`fmt`), `tests/test_formatter.py` (idempotência/check/stdin) e
+  `docs/spec/lexico.md`/grammar para doc comments. Pendentes: `fn`/trailing comma/
+  reflow e o dogfood Lox após a T3.
 
 ## Contexto
 

@@ -136,6 +136,8 @@ uv run main.py run prog.lx                 # executa
 uv run main.py check prog.lx               # checa (como --check)
 uv run main.py build prog.lx --emit=exe -o app
 uv run main.py ast prog.lx                 # como --dump-ast
+uv run main.py fmt prog.lx                 # formatter mínimo (ADR-0092)
+uv run main.py fmt --check prog.lx         # exit 1 se mudaria
 uv run main.py doc prog.lx --json          # doc comments /// (ADR-0091)
 uv run main.py explain E2001               # família do código
 uv run main.py capabilities --json         # versão, comandos, códigos e limites
@@ -328,6 +330,7 @@ grammar no formato que ele consome — também gerado por `make grammar`.
   [léxico](docs/spec/lexico.md), [sintaxe](docs/spec/sintaxe.md),
   [semântica](docs/spec/semantica.md), [erros](docs/spec/erros.md).
 - **Documentação técnica**: [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
+- **Estilo**: [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Decisões de design (ADRs)**: [`docs/adr/`](docs/adr/).
 - **Roadmap**: [`TODO.md`](TODO.md) · **tipos**: [`TIPOS.md`](TIPOS.md) ·
   **ideias**: [`IDEIAS.md`](IDEIAS.md).

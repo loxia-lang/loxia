@@ -29,6 +29,9 @@ class Scanner:
         self._doc_lines: list[str] = []
         self._last_doc_line: int = 0
         self._line_has_code: bool = False
+        # Linhas interiores de comentários de bloco (protegidas pelo formatter).
+        self.block_comment_lines: set[int] = set()
+        self.block_comment_starts: set[int] = set()
 
     def scan_tokens(self) -> list[Token]:
 
@@ -196,6 +199,7 @@ class Scanner:
                     )
 
     def _block_comment(self) -> None:
+        start_line = self._start_line
         depth = 1
 
         while depth > 0 and not self._is_at_end():
@@ -218,6 +222,9 @@ class Scanner:
                 "Unterminated block comment.",
                 Code.UNTERMINATED_COMMENT,
             )
+
+        self.block_comment_starts.add(start_line)
+        self.block_comment_lines.update(range(start_line + 1, self._line + 1))
 
     def _is_at_end(self) -> bool:
         return self._current >= len(self._source)
