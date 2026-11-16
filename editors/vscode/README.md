@@ -11,16 +11,22 @@ rename e símbolos.
 code --extensionDevelopmentPath="$PWD/editors/vscode" .
 ```
 
-Com o CLI instalado (`loxia` no `PATH`), o padrão já funciona. Para rodar sem instalar:
+Com o CLI instalado (`loxia` no `PATH`), o padrão já funciona. Sem instalar, o cliente
+tenta automaticamente, nesta ordem: `loxia lsp`, `python3 -m loxia lsp`,
+`python -m loxia lsp` e `uv run python -m loxia lsp` (com o workspace na raiz do repo).
+Para fixar um comando:
 
 ```json
 {
-  "loxia.server.path": "python",
+  "loxia.server.path": "python3",
   "loxia.server.args": ["-m", "loxia", "lsp"]
 }
 ```
 
 `Loxia: reiniciar servidor LSP` recarrega o processo depois de mudar a configuração.
+Se nenhum comando iniciar, a mensagem mostra o erro e o canal **Loxia** registra cada
+ tentativa; `loxia.server.path` vazio significa autodetecção. O `cwd` padrão é a raiz do
+workspace; abra o repo principal (ou ajuste `loxia.server.cwd`).
 
 ## Publicar (quando separar o repo)
 

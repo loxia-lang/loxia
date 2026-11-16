@@ -51,8 +51,8 @@
       "properties": {
         "loxia.server.path": {
           "type": "string",
-          "default": "loxia",
-          "description": "Comando do servidor LSP. Para rodar do checkout: python."
+          "default": "",
+          "description": "Comando do servidor LSP (vazio = detecta loxia, python3, python ou uv)."
         },
         "loxia.server.args": {
           "type": "array",

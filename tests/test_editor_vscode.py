@@ -21,7 +21,7 @@ def test_manifesto_aponta_para_o_cliente_e_o_servidor() -> None:
     grammar = manifest["contributes"]["grammars"][0]
     assert (VSCODE / grammar["path"]).is_file()
     properties = manifest["contributes"]["configuration"]["properties"]
-    assert properties["loxia.server.path"]["default"] == "loxia"
+    assert properties["loxia.server.path"]["default"] == ""
     assert properties["loxia.server.args"]["default"] == ["lsp"]
     assert (
         manifest["contributes"]["commands"][0]["command"]
@@ -46,6 +46,8 @@ def test_cliente_cobre_os_metodos_do_servidor() -> None:
     ):
         assert method in source
     assert "vscode-languageclient" not in source
+    assert "python3" in source
+    assert "uv" in source
     assert "vscode.languages.registerWorkspaceSymbolProvider" in source
     assert "vscode.workspace.registerWorkspaceSymbolProvider" not in source
 

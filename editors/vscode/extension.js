@@ -86,40 +86,93 @@ class LspClient {
 
   async start() {
     const config = vscode.workspace.getConfiguration("loxia");
-    const command = config.get("server.path", "loxia");
-    const args = config.get("server.args", ["lsp"]);
-    const cwd = config.get("server.cwd", undefined);
-    this.output.appendLine(`[lsp] iniciando: ${command} ${args.join(" ")}`);
-    this.process = cp.spawn(command, args, {
-      cwd: cwd || undefined,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    this.process.stdout.on("data", (chunk) => this._onData(chunk));
-    this.process.stderr.on("data", (chunk) =>
-      this.output.append(chunk.toString("utf8"))
-    );
-    this.process.on("error", (error) => {
-      this.output.appendLine(`[lsp] erro: ${error.message}`);
-      vscode.window.showErrorMessage(
-        `Loxia LSP não iniciou (${command}). Configure "loxia.server.path"/"loxia.server.args".`
-      );
-      this._failPending(error);
-    });
-    this.process.on("exit", (code) => {
-      this.output.appendLine(`[lsp] encerrou (${code})`);
-      if (!this.stopped) {
-        this._failPending(new Error(`LSP encerrou com código ${code}`));
+    const explicit = String(config.get("server.path", "")).trim();
+    const cwd =
+      String(config.get("server.cwd", "")).trim() ||
+      vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const candidates = explicit
+      ? [[explicit, config.get("server.args", ["lsp"])]]
+      : [
+          ["loxia", ["lsp"]],
+          ["python3", ["-m", "loxia", "lsp"]],
+          ["python", ["-m", "loxia", "lsp"]],
+          ["uv", ["run", "python", "-m", "loxia", "lsp"]],
+        ];
+    let lastError = null;
+    for (const [command, args] of candidates) {
+      try {
+        this.output.appendLine(`[lsp] tentando: ${command} ${args.join(" ")}`);
+        await this._spawnProcess(command, args, cwd);
+        break;
+      } catch (error) {
+        lastError = error;
+        this.output.appendLine(`[lsp] falhou: ${error.message}`);
+        this._stopProcess();
       }
+    }
+    if (!this.process) {
+      const detail = lastError ? ` (${lastError.message})` : "";
+      vscode.window.showErrorMessage(
+        `Loxia LSP não iniciou${detail}. Configure "loxia.server.path" e ` +
+          '"loxia.server.args"; no checkout use python3 + ["-m","loxia","lsp"].'
+      );
+      this.ready = Promise.reject(lastError || new Error("LSP indisponível"));
+      this.ready.catch(() => {});
+      return;
+    }
+    this.ready = this._initialize().catch((error) => {
+      this.output.appendLine(`[lsp] initialize falhou: ${error.message}`);
+      throw error;
     });
+    try {
+      await this.ready;
+    } catch (error) {
+      this.output.appendLine(`[lsp] servidor não respondeu: ${error.message}`);
+    }
+  }
 
+  _spawnProcess(command, args, cwd) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const child = cp.spawn(command, args, {
+        cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      this.process = child;
+      this.buffer = Buffer.alloc(0);
+      child.stdout.on("data", (chunk) => this._onData(chunk));
+      child.stderr.on("data", (chunk) =>
+        this.output.append(chunk.toString("utf8"))
+      );
+      child.once("error", (error) => {
+        if (!settled) {
+          settled = true;
+          reject(error);
+        }
+      });
+      child.once("spawn", () => {
+        settled = true;
+        resolve();
+      });
+      child.on("exit", (code) => {
+        this.output.appendLine(`[lsp] encerrou (${code})`);
+        if (!this.stopped) {
+          this._failPending(new Error(`LSP encerrou com código ${code}`));
+        }
+      });
+    });
+  }
+
+  _initialize() {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri;
-    this.ready = this.request("initialize", {
+    return this.request("initialize", {
       processId: process.pid,
       rootUri: root ? root.toString() : null,
-      workspaceFolders: vscode.workspace.workspaceFolders?.map((folder) => ({
-        uri: folder.uri.toString(),
-        name: folder.name,
-      })) || null,
+      workspaceFolders:
+        vscode.workspace.workspaceFolders?.map((folder) => ({
+          uri: folder.uri.toString(),
+          name: folder.name,
+        })) || null,
       capabilities: {
         workspace: { configuration: false, workspaceFolders: true },
         textDocument: {
@@ -144,10 +197,13 @@ class LspClient {
         }
       }
     });
+  }
 
-    this.ready.catch((error) => {
-      this.output.appendLine(`[lsp] initialize falhou: ${error.message}`);
-    });
+  _stopProcess() {
+    if (this.process) {
+      this.process.kill();
+      this.process = null;
+    }
   }
 
   didOpen(document) {
@@ -180,10 +236,14 @@ class LspClient {
     });
   }
 
-  request(method, params) {
+  request(method, params, timeoutMs = 10000) {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`timeout em ${method}`));
+      }, timeoutMs);
+      this.pending.set(id, { resolve, reject, timer });
       this._send({ jsonrpc: "2.0", id, method, params });
     });
   }
@@ -246,6 +306,9 @@ class LspClient {
         return;
       }
       this.pending.delete(message.id);
+      if (pending.timer) {
+        clearTimeout(pending.timer);
+      }
       if (message.error) {
         pending.reject(new Error(message.error.message || "erro LSP"));
       } else {
@@ -263,7 +326,10 @@ class LspClient {
   }
 
   _failPending(error) {
-    for (const { reject } of this.pending.values()) {
+    for (const { reject, timer } of this.pending.values()) {
+      if (timer) {
+        clearTimeout(timer);
+      }
       reject(error);
     }
     this.pending.clear();
@@ -271,10 +337,7 @@ class LspClient {
 
   stop() {
     this.stopped = true;
-    if (this.process) {
-      this.process.kill();
-      this.process = null;
-    }
+    this._stopProcess();
   }
 }
 
@@ -363,7 +426,15 @@ async function activate(context) {
     diagnostics.set(uri, items.map(toDiagnostic));
   };
 
-  const send = (method, params) => client.ready.then(() => client.request(method, params));
+  const send = async (method, params) => {
+    try {
+      await client.ready;
+      return await client.request(method, params);
+    } catch (error) {
+      output.appendLine(`[lsp] ${method}: ${error.message}`);
+      return undefined;
+    }
+  };
   const documentOf = (document) => ({
     textDocument: { uri: document.uri.toString() },
   });
