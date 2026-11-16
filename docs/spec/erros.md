@@ -244,6 +244,7 @@ partir de `loxia_core/diagnostics/codes.py` (`make codes`); não edite à mão.
 | `E2008` | leitura de local no próprio inicializador |
 | `E2009` | atribuição a campo `val` |
 | `W1001` | local declarado e nunca lido (warning) |
+| `W1002` | import declarado e nunca usado (warning) |
 
 ### Checker
 

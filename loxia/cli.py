@@ -104,6 +104,7 @@ class Loxia:
         self._file = "<stdin>"
         self._module_root: Path | None = None
         self._watched_files: set[Path] = set()
+        self._warn_unused_imports = False
         self._jsonl_started = False
         self._revision = 0
         # Estado da última análise, consumido pelo LSP (hover/definition).
@@ -132,7 +133,11 @@ class Loxia:
             from loxia_core.loader.loader import ModuleLoader
 
             loader = ModuleLoader(self.reporter, self._sources, self._module_root)
-            loaded = loader.load(statements, self._file)
+            loaded = loader.load(
+                statements,
+                self._file,
+                warn_unused=self._warn_unused_imports,
+            )
             if loaded is None:
                 return None
             self._watched_files = {
@@ -206,7 +211,11 @@ class Loxia:
     def check(self, source: str, *, emit: bool = True) -> int:
         self.last_resolver = None
         self.last_checker = None
-        statements = self._parse(source)
+        self._warn_unused_imports = True
+        try:
+            statements = self._parse(source)
+        finally:
+            self._warn_unused_imports = False
         if statements is not None:
             resolver = Resolver(self.interpreter, self.reporter)
             resolver.resolve(statements)

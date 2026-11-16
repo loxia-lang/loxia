@@ -1,7 +1,7 @@
 # Fixes confiáveis: quem produz, o que é seguro e o que fica para depois
 
-**Status:** `W1001` (`safe`) e `E3003` (`unsafe`), `loxia fix` (safe-only) e
-`codeAction` implementados (2026-11-16); `W1002` e os demais produtores pendentes.
+**Status:** `W1001`/`W1002` (`safe`), `E3003`/`E2002`/`E2009` (`unsafe`), `loxia fix`
+(safe-only) e `codeAction` implementados (2026-11-16); os demais produtores pendentes.
 **Decisão:** [ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md) (schema e protocolo de
 reparo), [ADR-0075](../adr/0075-diagnosticos-estruturados.md) (diagnóstico),
 [ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md) (LSP consumidor).
@@ -51,14 +51,16 @@ UTF-8. O schema é aditivo (v1): `fixes: []` quando não há candidato.
 
 | Código | Fase | Condição para `safe` | Risco se ignorar |
 | --- | --- | --- | --- |
-| **W1002** import não usado | Resolver/Loader | módulo importado **puro** (sem statements executáveis no topo), remoção não muda resolução/shadowing | remover efeito colateral do módulo |
-| **W1001** local não lido | Resolver | inicializador **puro** (literal/expressão sem chamada, sem `as` que possa falhar), sem captura e sem conflito | `val x = f()` removido apaga a chamada; `as` removido deixa de lançar |
+| **W1002** import não usado | Resolver/Loader | módulos só têm declarações (loader recusa statement executável) e imports **não são re-exportados**; sem uso em valor/tipo, remover a linha é seguro | remover import usado em tipo/valor ou re-exportado |
+| **W1001** local não lido | Resolver | renomeia a declaração para `_unused_N` único (não remove); o inicializador continua executando | nome novo colidir ou mudar shadowing (mitigado pelo conjunto de nomes) |
 | **E3004** anotação ausente | Checker | só com tipo **exato**, sem `<error>`/type var, e sem mudar API pública | anotar `Any`/tipo inferido errado muda a checagem |
 
-Implementados: **W1001** renomeia a declaração para `_unused_N` único (preserva o
-inicializador; `safe`) e **E3003** troca o token pelo candidato (did-you-mean; `unsafe`).
-W1002 só depois de uma garantia de pureza de módulo: hoje o loader inlina statements,
-então "import não usado" **não** é automaticamente seguro.
+Implementados: **W1001** (rename), **W1002** (remove import; pureza estrutural: o loader
+só aceita declarações em módulo e imports não são re-exportados), **E3003**
+(did-you-mean), **E2002** (`val`→`var` local) e **E2009** (`val`→`var` campo).
+A pureza de módulo **já é garantida pelo loader**: não há como um import executar
+statement no topo, então o risco residual é só uso/re-export, coberto pelo scan
+conservador (valor + anotação de tipo).
 
 ### `unsafe` (quickfix, nunca automático)
 
@@ -66,8 +68,8 @@ então "import não usado" **não** é automaticamente seguro.
 | --- | --- | --- |
 | **E3003** nome indefinido | trocar pelo `did you mean 'x'?` | pode ser uma variável nova, não um typo; sugestão fuzzy |
 | **E2001** variável duplicada | remover/renomear a segunda | muda qual binding cada uso resolve |
-| **E2002** atribuição a `val` | trocar `val`→`var` | muda captura/mutabilidade e comportamento |
-| **E2009** campo imutável | trocar `val`→`var` no campo | muda API e semântica de captura |
+| **E2002** atribuição a `val` | trocar `val`→`var` (implementado) | muda captura/mutabilidade e comportamento |
+| **E2009** campo imutável | trocar `val`→`var` no campo (implementado) | muda API e semântica de captura |
 | **E3016** campo não inicializado | adicionar `= <default>` | não há default único; `nil` pode não ser do tipo |
 | **E3018** return path | adicionar `return` | valor e ponto de retorno são intenção do autor |
 | **E3002** aridade | adicionar/remover argumento | não se sabe qual argumento falta/sobra |
@@ -80,18 +82,15 @@ então "import não usado" **não** é automaticamente seguro.
 - `E4001` backend não suportado: não é erro do programa.
 - `R1xxx`: runtime; depende de entrada/estado, não de edição de fonte.
 - `C0001`: timeout; não é fonte.
-- W1001 com inicializador não puro; W1002 sem pureza de módulo.
+- E2001 (duplicado): remover/renomear exigiria reescrever todos os usos do segundo binding.
 
-## Lote inicial recomendado
+## Lote inicial
 
-1. **W1001 `safe` literal**: só `val/var x = <literal puro>`; editar a declaração inteira
-   (span da declaração), sem tocar em usos; se houver dúvida, não emitir fix.
-2. **E3003 `unsafe`**: trocar o token pelo candidato de `help`; `isPreferred: false` no
-   LSP; nunca auto-aplicar.
-3. **W1002** depois de o loader expor “módulo sem efeitos” (ou restringir módulos a
-   declarações); então `safe` para import removível.
-4. **E2001/E2002/E2009** como `unsafe`, com teste de comportamento/captura.
-5. **E3016/E3018/E3002/E3015** só depois de um desenho específico por código.
+1. ✅ **W1001 `safe`**: renomeia a declaração para `_unused_N` (preserva o inicializador).
+2. ✅ **E3003 `unsafe`**: troca o token pelo candidato de `help`; `isPreferred: false`.
+3. ✅ **W1002 `safe`**: remove a linha de import não usada; pureza estrutural do loader.
+4. ✅ **E2002/E2009 `unsafe`**: troca `val`→`var` no local/campo; nunca auto-aplicado.
+5. ⬜ **E2001/E3016/E3018/E3002/E3015**: desenho específico por código.
 
 ## Aplicação
 
@@ -104,12 +103,8 @@ então "import não usado" **não** é automaticamente seguro.
 
 ## Perguntas abertas
 
-- Pureza de inicializador: literal apenas ou uma pequena álgebra (variável, unário,
-  binário sem chamada)? Qual o conjunto que dá para provar barato?
-- Módulos podem ter statements executáveis? Se sim, W1002 precisa de análise de efeitos;
-  se não, o loader deve recusar e aí o fix fica trivial.
-- W1001 deve remover a declaração ou renomear para `_`? Remover é mais limpo, mas só se o
-  inicializador for puro.
+- Pureza de inicializador não é mais necessária para W1001: renomear preserva a execução.
+- Módulos **não** têm statements executáveis (loader recusa); W1002 é estruturalmente seguro.
 - `fixes[]` fica no `Diagnostic` (sim, decisão atual) ou em um catálogo separado por
   código? O modelo atual evita uma segunda fonte.
 - Fix multi-arquivo (renomear símbolo de módulo) fica fora até existir `loxia fix` e

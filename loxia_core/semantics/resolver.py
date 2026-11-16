@@ -88,6 +88,7 @@ class _VariableInfo:
     used: bool = False
     parameter: bool = False
     warn: bool = True
+    keyword: Token | None = None
 
 
 class Resolver(ExprVisitor[None], StmtVisitor[None]):
@@ -104,6 +105,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._reporter = reporter
         self._warn_unused = warn_unused
         self._scopes: list[dict[str, _VariableInfo]] = []
+        self._current_field_keywords: dict[str, Token] | None = None
+        self._class_field_keywords: dict[str, dict[str, Token]] = {}
         self._current_function: FunctionType = FunctionType.NONE
         self._current_class: ClassType = ClassType.NONE
         self._current_fields: dict[str, bool] | None = None
@@ -183,6 +186,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         *,
         parameter: bool = False,
         warn: bool = True,
+        keyword: Token | None = None,
     ) -> None:
         if not self._scopes:
             return
@@ -207,6 +211,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             declaration=name,
             parameter=parameter,
             warn=warn,
+            keyword=keyword,
         )
 
     def _define(self, name: Token) -> None:
@@ -285,10 +290,15 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         )
 
         inherited: dict[str, bool] = {}
+        inherited_keywords: dict[str, Token] = {}
         if stmt.superclass is not None:
             inherited = self._class_fields.get(stmt.superclass.name.lexeme, {})
+            inherited_keywords = self._class_field_keywords.get(
+                stmt.superclass.name.lexeme, {}
+            )
 
         fields: dict[str, bool] = dict(inherited)
+        field_keywords: dict[str, Token] = dict(inherited_keywords)
         method_names = {method.name.lexeme for method in stmt.methods}
         for field in stmt.fields:
             if field.name.lexeme in fields:
@@ -305,13 +315,18 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 )
 
             fields[field.name.lexeme] = field.mutable
+            if field.keyword is not None:
+                field_keywords[field.name.lexeme] = field.keyword
             if field.initializer is not None:
                 self._resolve_expr(field.initializer)
 
         self._class_fields[stmt.name.lexeme] = fields
+        self._class_field_keywords[stmt.name.lexeme] = field_keywords
 
         enclosing_fields = self._current_fields
+        enclosing_field_keywords = self._current_field_keywords
         self._current_fields = fields
+        self._current_field_keywords = field_keywords
 
         self._begin_scope()
         self._scopes[-1]["this"] = _VariableInfo(
@@ -328,6 +343,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._end_scope()
 
         self._current_fields = enclosing_fields
+        self._current_field_keywords = enclosing_field_keywords
 
         if stmt.superclass is not None:
             self._end_scope()
@@ -452,7 +468,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             self._resolve_expr(element)
 
     def visit_var_stmt(self, stmt: Var) -> None:
-        self._declare(stmt.name, stmt.mutable)
+        self._declare(stmt.name, stmt.mutable, keyword=stmt.keyword)
         if stmt.initializer is not None:
             self._resolve_expr(stmt.initializer)
 
@@ -470,6 +486,25 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         if resolved is not None:
             info, scope_index = resolved
             if not info.mutable:
+                fixes: tuple[Fix, ...] = ()
+                if (
+                    info.keyword is not None
+                    and info.keyword.lexeme == "val"
+                ):
+                    fixes = (
+                        Fix(
+                            Applicability.UNSAFE,
+                            "Change 'val' to 'var'.",
+                            (
+                                Edit(
+                                    span_of_token(
+                                        info.keyword, self._reporter.file
+                                    ),
+                                    "var",
+                                ),
+                            ),
+                        ),
+                    )
                 self._reporter.error(
                     expr.name,
                     immutable_assignment_message(expr.name.lexeme),
@@ -479,6 +514,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                         if info.declaration is not None
                         else ()
                     ),
+                    fixes=fixes,
                 )
             elif (
                 self._function_starts
@@ -565,10 +601,28 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             and not self._current_fields[expr.name.lexeme]
             and self._current_function is not FunctionType.INITIALIZER
         ):
+            fixes: tuple[Fix, ...] = ()
+            keyword = None
+            if self._current_field_keywords is not None:
+                keyword = self._current_field_keywords.get(expr.name.lexeme)
+            if keyword is not None and keyword.lexeme == "val":
+                fixes = (
+                    Fix(
+                        Applicability.UNSAFE,
+                        "Change the field to 'var'.",
+                        (
+                            Edit(
+                                span_of_token(keyword, self._reporter.file),
+                                "var",
+                            ),
+                        ),
+                    ),
+                )
             self._reporter.error(
                 expr.name,
                 f"Can't assign to immutable field '{expr.name.lexeme}'.",
                 code=Code.IMMUTABLE_FIELD,
+                fixes=fixes,
             )
 
     def visit_super_expr(self, expr: Super) -> None:

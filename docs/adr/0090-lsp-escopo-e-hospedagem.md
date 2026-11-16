@@ -5,8 +5,9 @@
 > `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references` e
 > `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
 > variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
-> documentFormatting, semanticTokens/full e `codeAction` (quickfixes de `data.fixes`).
-> Rename e spans de expressão formais ficam pendentes.
+> documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`)
+> e `rename`/`prepareRename` para locais/parâmetros. Spans de expressão formais
+> continuam pendentes.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -19,7 +20,7 @@
 - **Implementação:** `loxia/lsp.py` (servidor), `loxia/symbols.py` (índice),
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
-  `codeAction` já existe; rename e o cliente VS Code ainda não.
+  `codeAction` e `rename` (locais/parâmetros) já existem; o cliente VS Code ainda não.
 
 ## Contexto
 
@@ -85,8 +86,9 @@ de "linguagem de verdade", mas depende de:
 Esse índice também serve às `notes` de proveniência e ao `loxia doc`; é trabalho de
 compilador, não de LSP.
 
-LSP-2 é incremental e não é prometido junto do MVP. `codeAction`/fixes entrou
-(2026-11-16); `rename`, `workspace/symbol`, `inlayHint` e DAP ficam fora por enquanto.
+LSP-2 é incremental e não é prometido junto do MVP. `codeAction`/fixes e `rename`
+de locais/parâmetros entraram (2026-11-16); `workspace/symbol`, `inlayHint`, DAP e
+rename cross-file ficam fora por enquanto.
 
 ### 3. Mapeamento do diagnóstico
 

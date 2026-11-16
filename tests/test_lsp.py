@@ -564,3 +564,68 @@ def test_lsp_code_action_expoe_fixes(tmp_path: Path) -> None:
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_lsp_rename_local(tmp_path: Path) -> None:
+    uri = (tmp_path / "rename.lx").as_uri()
+    source = "fn f() -> Int {\n  val x = 1\n  return x + x\n}\n"
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        initialized = read(process)
+        assert initialized["result"]["capabilities"]["renameProvider"] == {
+            "prepareProvider": True
+        }
+        send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": source,
+                    }
+                },
+            },
+        )
+        read(process)
+        position = {"line": 1, "character": 6}
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/prepareRename",
+                "params": {"textDocument": {"uri": uri}, "position": position},
+            },
+        )
+        prepared = read(process)
+        assert prepared["result"]["placeholder"] == "x"
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": position,
+                    "newName": "y",
+                },
+            },
+        )
+        renamed = read(process)
+        edits = renamed["result"]["changes"][uri]
+        assert len(edits) == 3
+        assert all(edit["newText"] == "y" for edit in edits)
+
+        send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)

@@ -18,7 +18,7 @@ from loxia import __version__
 from loxia.builtins_docs import BUILTIN_DOCS
 from loxia.cli import Loxia
 from loxia.formatter import format_source
-from loxia.symbols import Symbol, SymbolIndex
+from loxia.symbols import Symbol, SymbolIndex, token_key
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
@@ -273,6 +273,7 @@ class Server:
                             "textDocumentSync": 1,
                             "hoverProvider": True,
                             "definitionProvider": True,
+                            "renameProvider": {"prepareProvider": True},
                             "documentSymbolProvider": True,
                             "completionProvider": {
                                 "triggerCharacters": [".", ":"],
@@ -348,6 +349,21 @@ class Server:
                 self.stdout,
                 _response(message_id, self._code_action(message)),
             )
+            return
+
+        if method == "textDocument/prepareRename":
+            _send(
+                self.stdout,
+                _response(message_id, self._prepare_rename(message)),
+            )
+            return
+
+        if method == "textDocument/rename":
+            result = self._rename(message)
+            if isinstance(result, str):
+                _send(self.stdout, _error(message_id, -32602, result))
+            else:
+                _send(self.stdout, _response(message_id, result))
             return
 
         if method == "textDocument/semanticTokens/full":
@@ -597,6 +613,97 @@ class Server:
         if document.path is not None:
             return _path_to_uri(document.path.parent / span.file), source
         return document.uri, source
+
+    def _rename_target(
+        self, index: SymbolIndex, token: Token
+    ) -> tuple[tuple[int, int, int], set[tuple[int, int, int]]] | None:
+        """Só variáveis locais/parâmetros: `references` do resolver cobre esses casos."""
+        key = token_key(token)
+        declaration = index.references.get(key)
+        if declaration is None:
+            if key in index.references.values():
+                declaration = key
+            else:
+                return None
+        occurrences = {
+            use
+            for use, declaration_key in index.references.items()
+            if declaration_key == declaration
+        }
+        occurrences.add(declaration)
+        return declaration, occurrences
+
+    def _tokens_by_key(self, text: str) -> dict[tuple[int, int, int], Token]:
+        reporter = ErrorReporter(max_errors=0)
+        return {
+            token_key(token): token
+            for token in Scanner(text, reporter).scan_tokens()
+        }
+
+    def _prepare_rename(self, message: dict[str, Any]) -> object:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        document = self._document(params)
+        if document is None:
+            return None
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return None
+        index = self._index_for(document.uri)
+        if index is None:
+            return None
+        if self._rename_target(index, token) is None:
+            return None
+        return {
+            "range": _token_range(token, document.text),
+            "placeholder": token.lexeme,
+        }
+
+    def _rename(self, message: dict[str, Any]) -> object:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        new_name = params.get("newName")
+        if not isinstance(new_name, str) or not _valid_name(new_name):
+            return "Invalid name."
+        document = self._document(params)
+        if document is None:
+            return None
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return None
+        index = self._index_for(document.uri)
+        if index is None:
+            return None
+        target = self._rename_target(index, token)
+        if target is None:
+            return "Rename is only supported for local variables and parameters."
+        _declaration, occurrences = target
+        tokens = self._tokens_by_key(document.text)
+        edits: list[dict[str, object]] = []
+        for key in sorted(occurrences, key=lambda item: (item[0], item[1])):
+            found = tokens.get(key)
+            if found is None:
+                continue
+            edits.append(
+                {
+                    "range": _token_range(found, document.text),
+                    "newText": new_name,
+                }
+            )
+        if not edits:
+            return None
+        return {"changes": {document.uri: edits}}
+
+    def _document(self, params: dict[str, Any]) -> Document | None:
+        text_document = params.get("textDocument")
+        if not isinstance(text_document, dict):
+            return None
+        uri = text_document.get("uri")
+        if not isinstance(uri, str):
+            return None
+        return self.documents.get(uri)
 
     def _code_action(self, message: dict[str, Any]) -> list[dict[str, object]]:
         params = message.get("params")
@@ -1320,3 +1427,18 @@ def main() -> int:
         return server.run()
     except KeyboardInterrupt:
         return 0
+
+
+def _valid_name(name: str) -> bool:
+    if not name or not name.isascii():
+        return False
+    if not (name[0].isalpha() or name[0] == "_"):
+        return False
+    if not all(char.isalnum() or char == "_" for char in name):
+        return False
+    return name not in {
+        "and", "as", "class", "elif", "else", "enum", "false", "fn", "for",
+        "from", "if", "implements", "import", "in", "interface", "is", "match",
+        "nil", "not", "or", "raise", "return", "super", "this", "true", "try",
+        "except", "finally", "type", "val", "var", "while",
+    }

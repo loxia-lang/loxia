@@ -49,6 +49,8 @@ class Import(Stmt):
     alias: Token | None = None
     names: tuple[ImportName, ...] = ()
     from_import: bool = False
+    start: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_import_stmt(self)
@@ -69,6 +71,7 @@ class Field:
     mutable: bool
     type_annotation: Ty | None = None
     doc: str | None = None
+    keyword: Token | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -231,6 +234,7 @@ class Var(Stmt):
     mutable: bool
     type_annotation: Ty | None = None
     doc: str | None = None
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)

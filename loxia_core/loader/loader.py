@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from loxia_core.bundle import bundle_dir
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import (
+    Applicability,
+    Edit,
+    Fix,
+    Span,
+)
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.source import SourceMap, display_path
 from loxia_core.frontend.destructuring import NamePattern, TuplePattern
@@ -41,6 +47,7 @@ from loxia_core.frontend.expr import (
 )
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.spans import span_of_token
 from loxia_core.frontend.stmt import (
     Block,
     Class,
@@ -113,7 +120,13 @@ class ModuleLoader:
 
     # -- entrada ---------------------------------------------------------
 
-    def load(self, entry: list[Stmt], entry_file: str) -> list[Stmt] | None:
+    def load(
+        self,
+        entry: list[Stmt],
+        entry_file: str,
+        *,
+        warn_unused: bool = False,
+    ) -> list[Stmt] | None:
         entry_imports = self._entry_imports(entry, entry_file)
         try:
             for statement in entry_imports:
@@ -123,6 +136,11 @@ class ModuleLoader:
                 name: self._declaration_map(module)
                 for name, module in self.modules.items()
             }
+            if warn_unused and not self.reporter.had_error:
+                self._warn_unused_imports(entry, entry_imports)
+                for name in self._order:
+                    module = self.modules[name]
+                    self._warn_unused_imports(module.statements, module.imports)
             rewritten: list[Stmt] = []
             for name in self._order:
                 module = self.modules[name]
@@ -141,6 +159,71 @@ class ModuleLoader:
             return rewritten
         except ModuleError:
             return None
+
+    def _warn_unused_imports(
+        self, statements: list[Stmt], imports: list[Import]
+    ) -> None:
+        """W1002: módulos são puros (só declarações) e imports não são re-exportados."""
+        used = _used_names(statements)
+        for statement in imports:
+            if statement.from_import:
+                unused = [
+                    item
+                    for item in statement.names
+                    if (item.alias or item.name).lexeme not in used
+                ]
+                if not unused:
+                    continue
+                names = [ (item.alias or item.name).lexeme for item in unused ]
+                label = "Import" if len(names) == 1 else "Imports"
+                quoted = ", ".join(f"'{name}'" for name in names)
+                self.reporter.warning(
+                    (unused[0].alias or unused[0].name),
+                    f"{label} {quoted} {'is' if len(names) == 1 else 'are'} never used.",
+                    code=Code.UNUSED_IMPORT,
+                    fixes=self._unused_import_fix(
+                        statement, remove=len(unused) == len(statement.names)
+                    ),
+                )
+            else:
+                token = statement.alias or statement.path[-1]
+                if token.lexeme in used:
+                    continue
+                self.reporter.warning(
+                    token,
+                    f"Import '{token.lexeme}' is never used.",
+                    code=Code.UNUSED_IMPORT,
+                    fixes=self._unused_import_fix(statement, remove=True),
+                )
+
+    def _unused_import_fix(
+        self, statement: Import, *, remove: bool
+    ) -> tuple[Fix, ...]:
+        if not remove:
+            return ()
+        start = statement.start or statement.path[0]
+        if statement.end is not None:
+            end = statement.end
+        elif statement.from_import:
+            last = statement.names[-1]
+            end = last.alias or last.name
+        else:
+            end = statement.alias or statement.path[-1]
+        start_span = span_of_token(start, start.file)
+        end_span = span_of_token(end, end.file)
+
+        return (
+            Fix(
+                Applicability.SAFE,
+                "Remove unused import.",
+                (
+                    Edit(
+                        Span(start_span.file, start_span.start, end_span.end),
+                        "",
+                    ),
+                ),
+            ),
+        )
 
     def _entry_imports(self, entry: list[Stmt], entry_file: str) -> list[Import]:
         imports: list[Import] = []
@@ -891,3 +974,28 @@ def _first_token(statement: Stmt) -> Token:
         if isinstance(token, Token):
             return token
     return Token(TokenType.IDENTIFIER, "<module>", None, 0)
+
+
+def _used_names(statements: list[Stmt]) -> set[str]:
+    """Nomes citados fora de imports; conservador (inclui anotações de tipo)."""
+    names: set[str] = set()
+
+    def visit(value: object) -> None:
+        if isinstance(value, Token):
+            names.add(value.lexeme)
+            return
+        if isinstance(value, Ty):
+            name = getattr(value, "name", None)
+            if isinstance(name, str):
+                names.add(name)
+        if is_dataclass(value) and not isinstance(value, type):
+            for item in fields(value):
+                visit(getattr(value, item.name))
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                visit(item)
+
+    for statement in statements:
+        if not isinstance(statement, Import):
+            visit(statement)
+    return names

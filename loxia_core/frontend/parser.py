@@ -231,8 +231,14 @@ class Parser:
         alias = None
         if self._match(TokenType.AS):
             alias = self._consume(TokenType.IDENTIFIER, "Expect alias name.")
-        self._end_statement("Expect ';' after import.")
-        return Import(path=path, alias=alias, from_import=False)
+        end = self._end_statement("Expect ';' after import.")
+        return Import(
+            path=path,
+            alias=alias,
+            from_import=False,
+            start=keyword,
+            end=end,
+        )
 
     def _from_import_declaration(self, keyword: Token) -> Stmt:
         path = self._module_path()
@@ -246,8 +252,14 @@ class Parser:
             names.append(ImportName(name, alias))
             if not self._match(TokenType.COMMA):
                 break
-        self._end_statement("Expect ';' after import.")
-        return Import(path=path, names=tuple(names), from_import=True)
+        end = self._end_statement("Expect ';' after import.")
+        return Import(
+            path=path,
+            names=tuple(names),
+            from_import=True,
+            start=keyword,
+            end=end,
+        )
 
     def _class_declaration(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")
@@ -395,6 +407,7 @@ class Parser:
             mutable,
             type_annotation,
             doc=keyword.doc,
+            keyword=keyword,
         )
 
     def _destructure(self, mutable: bool) -> Stmt:
@@ -459,6 +472,7 @@ class Parser:
             mutable,
             type_annotation,
             doc=keyword.doc,
+            keyword=keyword,
         )
 
     def _statement(self) -> Stmt:
@@ -654,24 +668,24 @@ class Parser:
         self._end_statement("Expect ';' after expression.")
         return Expression(expr)
 
-    def _end_statement(self, message: str) -> None:
+    def _end_statement(self, message: str) -> Token | None:
         """Consome o `;` final; no REPL/EOF, no fim da linha ou antes de `}` ele é opcional."""
         if self._match(TokenType.SEMICOLON):
-            return
+            return self._previous()
 
         if self._repl and self._is_at_end():
-            return
+            return None
 
         if self._is_at_end():
-            return
+            return None
 
         # `}` nunca continua uma expressão: fechar o bloco/pai termina o statement
         # (permite `if (ok) { print 1 }` na mesma linha).
         if self._check(TokenType.RIGHT_BRACE):
-            return
+            return None
 
         if self._peek().line > self._previous().line:
-            return
+            return None
 
         raise self._error(self._peek(), message)
 

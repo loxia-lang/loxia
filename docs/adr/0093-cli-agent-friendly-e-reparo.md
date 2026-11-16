@@ -4,11 +4,11 @@
 > (sem produtores ainda); subcomandos `run`/`check`/`build`/`ast`/`explain`/`capabilities`;
 > `--json`/`--json-lines`; `--stdin`; `--timeout` (`C0001`, exit 124); `--watch` restrito a
 > `check`; warning `W1001` + `-Werror`. Também `fmt`, `doc` e `lsp` (LSP-2 parcial)
-> `loxia fix` (safe-only), `codeAction` no LSP e os produtores W1001/E3003 foram
-> implementados. Pendentes: `W1002`, os demais produtores e rename. Análise em
+> `loxia fix` (safe-only), `codeAction` no LSP e os produtores W1001/W1002/E3003/E2002/E2009
+> foram implementados. Pendentes: E2001 e os demais produtores; rename. Análise em
 > [`../tech/fixes.md`](../tech/fixes.md).
 
-- **Status:** accepted (implementação parcial: `loxia fix`, W1001/E3003, codeAction)
+- **Status:** accepted (implementação parcial: `loxia fix`, W1001/W1002/E3003/E2002/E2009, codeAction)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0075](0075-diagnosticos-estruturados.md) (diagnóstico e JSON),

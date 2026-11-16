@@ -42,11 +42,12 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `loxia fmt` para Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
        §13.7). Inclui `fn` em método, trailing comma/reflow.
-2. [ ] **Diagnósticos restantes** (`P2`): spans de expressão/`notes` de proveniência,
-       `W1002` (import não usado) e os demais produtores de fix
+2. [ ] **Diagnósticos restantes** (`P2`): spans de expressão/`notes` de proveniência e
+       os produtores `E2001`/`E3016`/`E3018`/`E3002`/`E3015`
        ([`docs/tech/fixes.md`](docs/tech/fixes.md)).
-3. [ ] **LSP-2 restante** (`P2`): rename e spans de expressão formais; `codeAction`/fixes
-       já estão implementados ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+3. [ ] **LSP-2 restante** (`P2`): spans de expressão formais; `codeAction`/fixes e
+       `rename` de locais/parâmetros já estão implementados
+       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 4. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
 5. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
        itens de ecossistema agora têm ADR; M9 acompanha a fila acima.
@@ -69,10 +70,9 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-2
       restante ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [x] **W1001/E3003** (`safe`/`unsafe`) e `loxia fix` (2026-11-16).
-- [ ] **W1002** (import não usado) e os demais produtores de fix:
-      [`docs/tech/fixes.md`](docs/tech/fixes.md). Ordem: W1002 com pureza de módulo
-      (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`).
+- [x] **W1001/W1002/E3003/E2002/E2009** e `loxia fix` (2026-11-16).
+- [ ] **E2001** e **E3016/E3018/E3002/E3015** (`unsafe`):
+      [`docs/tech/fixes.md`](docs/tech/fixes.md).
 
 **Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
 Python para validar código do usuário; não classificar código por prefixo de mensagem.
@@ -127,12 +127,12 @@ uv run pytest tests/test_backend.py -q
 
 - [x] `P2` W1001 (`safe`), E3003 (`unsafe`), `loxia fix` (`--apply`/dry-run) e
       `codeAction` no LSP (2026-11-16).
-- [ ] `P2` W1002 com pureza (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015
-      (`unsafe`) — critérios e perguntas em [`docs/tech/fixes.md`](docs/tech/fixes.md).
+- [ ] `P2` E2001 e E3016/E3018/E3002/E3015 (`unsafe`) — critérios e perguntas em
+      [`docs/tech/fixes.md`](docs/tech/fixes.md).
 - [ ] `P2` `loxia fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P2` LSP-2 restante: rename e spans de expressão formais; `codeAction`/fixes
-      implementados ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] `P2` LSP-2 restante: spans de expressão formais; `codeAction`/fixes e `rename`
+      de locais/parâmetros implementados ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.

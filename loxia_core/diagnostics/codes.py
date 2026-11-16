@@ -105,6 +105,7 @@ class Code(StrEnum):
 
     # Warnings
     UNUSED_LOCAL = "W1001"
+    UNUSED_IMPORT = "W1002"
 
 
 CODE_PHASE: dict[Code, Phase] = {
@@ -172,6 +173,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.RUNTIME_STACK_OVERFLOW: Phase.RUNTIME,
     Code.CLI_TIMEOUT: Phase.CLI,
     Code.UNUSED_LOCAL: Phase.RESOLVER,
+    Code.UNUSED_IMPORT: Phase.RESOLVER,
 }
 
 
@@ -242,4 +244,5 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.RUNTIME_STACK_OVERFLOW: "profundidade de chamadas acima do limite",
     Code.CLI_TIMEOUT: "tempo limite de execução excedido",
     Code.UNUSED_LOCAL: "local declarado e nunca lido (warning)",
+    Code.UNUSED_IMPORT: "import declarado e nunca usado (warning)",
 }

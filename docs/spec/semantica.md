@@ -1077,3 +1077,5 @@ o ADR-0079; `Any` como campo ainda não é suportado pelo backend.
   via namespace (`m._x`).
 - `std.` resolve no bundle; módulos do usuário são relativos ao diretório do entry.
 - Sem `*`, sem reexportação e sem módulo como valor.
+- Módulo é **puro por construção**: só declarações no topo, então importar não executa
+  efeito; import não usado é `W1002` e a remoção da linha é `safe` (fix).

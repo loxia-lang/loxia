@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **LSP rename**: `textDocument/prepareRename` e `textDocument/rename` para variáveis
+  locais/parâmetros (mesmo arquivo, via `SymbolIndex.references`); cross-file/globais
+  continuam fora.
+- **W1002/E2002/E2009** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
+  import não usado (`safe`, remove a linha; pureza estrutural de módulo), `val`→`var`
+  local (E2002) e campo (E2009), ambos `unsafe`.
 - **Fixes + `loxia fix` + `codeAction`** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
   W1001 (`safe`, renomeia para `_unused_N`) e E3003 (`unsafe`, did-you-mean); o LSP
   publica `data.fixes` e responde `textDocument/codeAction`; `loxia fix` aplica só
