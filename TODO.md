@@ -240,9 +240,9 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    backend ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)); constraints
    de função estão implementadas ([ADR-0081](docs/adr/0081-constraints-generics.md)) e
    constraints em classes seguem pós-MVP.
-2. **Stdlib pós-1.0:** T1/T2/T3 concluídas. Restam `std.utf8` (`byteLen`/coluna UTF-16),
-   `fs.open` em streaming (§13.9) e as capacidades de host não aprovadas. `time`
-   não determinístico e transcendentais de `math` continuam fora do I3.
+2. **Stdlib pós-1.0:** T1/T2/T3 concluídas; `std.utf8` já cobre `byteLen` e coluna
+   UTF-16. Restam apenas capacidades de host (`fs.open` em streaming, §13.9; `net`).
+   `time` não determinístico e transcendentais de `math` continuam fora do I3.
 3. **Interfaces genéricas e constraints em classes:** `interface I[T]` e
    `class C[T: I]` continuam em aberto; constraints de função já existem
    ([ADR-0081](docs/adr/0081-constraints-generics.md)).
@@ -356,8 +356,8 @@ programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. `io.flush`/
 [ADR-0095](docs/adr/0095-processos-streams-poll.md)); `fs.open`/`net` seguem não
 aprovados, e o servidor LSP continua em Python.
 
-`byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) continuam **Lox
-puro** a fazer em `std/utf8` — não precisam de kernel e ainda não foram escritos.
+`byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) já estão em
+`std/utf8` — são Lox puro e não precisam de kernel.
 
 **Candidatas depois (cada uma pede ADR próprio):**
 
