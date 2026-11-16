@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Fixes + `loxia fix` + `codeAction`** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
+  W1001 (`safe`, renomeia para `_unused_N`) e E3003 (`unsafe`, did-you-mean); o LSP
+  publica `data.fixes` e responde `textDocument/codeAction`; `loxia fix` aplica só
+  `safe`, com dry-run/`--apply` e reparse/check a cada rodada.
+- **Property-based testing** ([ADR-0098](docs/adr/0098-property-based-testing.md)):
+  `std.property` com `Gen[T]`, `forAll`, geradores, shrinking e seed determinística.
 - **Stdlib T3**: `std.rand` (xorshift64* com semente, `int`/`float`/`bool`/`shuffle`),
   `std.log` (níveis em stderr, sem timestamp), `std.hash` (FNV-1a 32/64 e djb2 sobre
   bytes UTF-8), `std.collections` (Stack/Queue/Deque/PriorityQueue) e `std.timex`
@@ -30,7 +36,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   e regressão em `tests/test_module_exceptions.py`.
 - **Testes** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)): `std.test`
   (`Suite` com `describe`/`it`/`skip`/`report`/`done`, matchers híbridos, `Recorder`,
-  TAP determinístico) e `lox test` (descoberta de `tests/**/*_test.lx`, um subprocesso
+  TAP determinístico) e `loxia test` (descoberta de `tests/**/*_test.lx`, um subprocesso
   por arquivo, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`).
   Sem reflection/registry (`R3`); `R4` registrado para exceção de classe de módulo.
 - **Processos, streams e `poll`** ([ADR-0095](docs/adr/0095-processos-streams-poll.md)):
@@ -69,16 +75,16 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   variantes, interfaces, funções e variáveis). **LSP-1 básico**: `SymbolIndex` +
   `Resolver.references` para `hover` (assinatura/tipo/doc) e `textDocument/definition`
   de variáveis, funções, classes, campos/métodos e variantes. **LSP-2 parcial**:
-  completion (global e por membro), signatureHelp, documentFormatting (via `lox fmt`)
+  completion (global e por membro), signatureHelp, documentFormatting (via `loxia fmt`)
   e semanticTokens/full. Code actions/fixes, rename e spans formais ficam pendentes.
 - **Estilo e formatter mínimo** ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)):
-  `docs/guia-estilo.md` normativo e `lox fmt` Python (indentação de bloco, `;` de fim de
+  `docs/guia-estilo.md` normativo e `loxia fmt` Python (indentação de bloco, `;` de fim de
   linha, newline final, preservação de strings/comentários), com `fmt --check` (exit 1 se
   mudaria) e `fmt --stdin`. `fn` em método, trailing comma, reflow e dogfood Lox ficam
   pendentes.
-- **Doc comments `///` e `lox doc`** ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)):
+- **Doc comments `///` e `loxia doc`** ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)):
   doc Markdown anexada a funções/métodos, classes, interfaces, enums/variantes, campos,
-  type alias e `val`/`var`; `lox doc arquivo [--json]` gera a referência sem executar o
+  type alias e `val`/`var`; `loxia doc arquivo [--json]` gera a referência sem executar o
   programa. A grammar TextMate ganhou o scope de doc; a spec léxica documenta o vínculo
   (linha em branco quebra). Docs obrigatórias da stdlib/builtins e geração do site ficam
   pendentes.
@@ -88,7 +94,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `--file-name`, `--timeout` em `run`/`check` (exit `124` + `C0001`), `--watch` restrito a
   `check` e `-Werror`/`W1001` (local não lido) em `check`/`build`, nunca em `run`.
   `capabilities --json` publica versão, comandos, códigos e limites; `explain <code>`
-  consulta o catálogo. `fixes[]`/`lox fix`, `W1002`, `fmt`, `doc` e `lsp` ficam pendentes.
+  consulta o catálogo. `fixes[]`/`loxia fix`, `W1002`, `fmt`, `doc` e `lsp` ficam pendentes.
 - **Diagnósticos com labels e sugestão**: `E2001`/`E2002` apontam a declaração anterior
   (`- first declared here`) e `E3003` ganha `help: did you mean '…'?` com candidatos
   visíveis ordenados. `human` renderiza o segundo trecho, `note:` e `help:`; `short`

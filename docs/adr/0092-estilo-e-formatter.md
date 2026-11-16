@@ -1,6 +1,6 @@
 # ADR-0092 — Estilo e formatter: convenções, perfil e dogfood
 
-> **Implementação parcial (2026-11-16):** `docs/guia-estilo.md` e `lox fmt` mínimo
+> **Implementação parcial (2026-11-16):** `docs/guia-estilo.md` e `loxia fmt` mínimo
 > (indentação de bloco, `;` de fim de linha, newline final, preservação de strings/
 > comentários), `fmt --check`/`--stdin` e testes de idempotência. Pendentes: inserir
 > `fn` em método, trailing comma, reflow, paridade Lox após a T3.
@@ -23,8 +23,8 @@
 
 O [ADR-0066](0066-orcamento-e-gate-sintatico.md) exige **uma forma canônica** para cada
 construção e manda o style guide/formatter impor o que o parser aceita em duas formas
-(`fn` opcional em método, `;` opcional). O TODO §7 já pede `lox fmt` com teste de
-idempotência; o §13.7 passo 7 planeja `lox fmt` em Lox **depois da T3**, seguido do
+(`fn` opcional em método, `;` opcional). O TODO §7 já pede `loxia fmt` com teste de
+idempotência; o §13.7 passo 7 planeja `loxia fmt` em Lox **depois da T3**, seguido do
 front-end self-hosted; o §10 registra o parser + AST printer em Lox.
 
 O código atual não é consistente: a stdlib usa 2 espaços, `camelCase` para funções,
@@ -109,7 +109,7 @@ renomeados** — isso é revisão e, no futuro, lint/aviso (ADR-0093).
 ### 3. Duas fases e dogfood
 
 1. **Python agora** (referência): em `loxia_core/fmt.py`, reusando o scanner (com
-   comentários/doc preservados) e o parser/AST para estrutura. É o comando `lox fmt`
+   comentários/doc preservados) e o parser/AST para estrutura. É o comando `loxia fmt`
    shipped. Golden pairs + idempotência + equivalência de execução.
 2. **Lox depois da T3**: parser + AST printer na própria linguagem (TODO §10/§13.7),
    produzindo **bytes idênticos** ao Python em `std/`, `tests/cases/` e `exemplos/`. O Lox
@@ -118,7 +118,7 @@ renomeados** — isso é revisão e, no futuro, lint/aviso (ADR-0093).
 3. O formatter Lox **não** é pré-requisito do formatter Python; não bloqueia T3 nem o CLI.
    Ele depende do parser self-hosted, que é o exercício maior.
 
-Bootstrap: se o Lox virar o comando shipped, `lox fmt` precisará executar um programa
+Bootstrap: se o Lox virar o comando shipped, `loxia fmt` precisará executar um programa
 Loxia (interpretador/binário embarcado). Isso não é decidido agora; o default continua
 Python e a troca exige ADR próprio.
 
@@ -137,7 +137,7 @@ Python e a troca exige ADR próprio.
 
 - Uma forma canônica escrita e testada; o parser pode continuar aceitando `fn`/`;`
   opcionais sem ambiguidade de estilo.
-- `lox fmt` cedo dá valor e cria o oráculo para o dogfood em Lox.
+- `loxia fmt` cedo dá valor e cria o oráculo para o dogfood em Lox.
 - Regras de nomes resolvem `cor.AMARELO` sem quebrar `Result.Ok`.
 - Idempotência + equivalência de execução dão confiança para formatar o repo inteiro.
 
@@ -162,7 +162,7 @@ Python e a troca exige ADR próprio.
 | --- | --- |
 | Só Lox depois da T3 | Sem formatter até lá e sem oráculo; o Lox fica mais difícil de validar. |
 | Só Python | Não dá o dogfood que o TODO §13.7 quer. |
-| Lox como comando desde já | Bootstrap (como `lox fmt` executa Lox) e paridade sem referência. |
+| Lox como comando desde já | Bootstrap (como `loxia fmt` executa Lox) e paridade sem referência. |
 | Full reflow já | Muito caso de borda (comentários, strings, lambdas) antes de ter o básico. |
 | Preservar escolhas do autor | Não é forma canônica; o ADR-0066 exige uma. |
 | 4 espaços/88 col | Destoa dos fontes Loxia atuais; o Python do repo não é o estilo da linguagem. |

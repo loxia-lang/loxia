@@ -672,7 +672,7 @@ LSP continua em Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 ## I-13 — Testes: o que falta
 
 - [ ] Detalhes do `--json` (schema exato, `tests[]` plano ou por arquivo).
-- [ ] Cobertura, snapshot e property-based (cada um é feature própria; `std.rand` semeado
-      para o último).
+- [ ] Cobertura e snapshot (features próprias; property-based já tem
+      [ADR-0098](docs/adr/0098-property-based-testing.md)).
 - [ ] Localização de falha no relatório: expor `e.trace`/linha do `expect` (feature de
       linguagem, não do runner).

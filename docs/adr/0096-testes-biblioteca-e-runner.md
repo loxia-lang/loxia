@@ -1,4 +1,4 @@
-# ADR-0096 — Testes: biblioteca (`std.test`) e runner (`lox test`)
+# ADR-0096 — Testes: biblioteca (`std.test`) e runner (`loxia test`)
 
 - **Status:** accepted (implementado em 2026-11-16)
 - **Data:** 2026-11-16
@@ -36,7 +36,7 @@ em global (hook de um nível).
 
 - **`std.test`** — biblioteca em Lox puro, determinística: registrar/executar/relatar no
   próprio processo.
-- **`lox test`** — runner na CLI: descobre arquivos, roda cada um em subprocesso, agrega.
+- **`loxia test`** — runner na CLI: descobre arquivos, roda cada um em subprocesso, agrega.
 
 Os dois são independentes: um arquivo de teste pode ser rodado com `loxia run
 tests/foo_test.lx` (chama `t.done()`), e o runner só orquestra.
@@ -92,7 +92,7 @@ Sem matcher fluente completo (uma classe por tipo); sem `.not` (keyword).
 
 ### 4. Runner em Python agora, Lox depois
 
-`lox test [paths]` em Python (stdlib só), com:
+`loxia test [paths]` em Python (stdlib só), com:
 
 - descoberta: `tests/**/*_test.lx` (ou os caminhos passados) — **só** esse padrão;
 - **um subprocesso por arquivo** (`--isolate=file`, padrão) ou **um por teste**
@@ -173,7 +173,7 @@ Com isso `suite.skip` volta a ser um `except Skip` normal (sem flag de contorno)
 ### Neutras
 
 - `std.asserts` não muda (continua `RuntimeError`).
-- O corpus dourado (`tests/runner.py`) não muda; `lox test` é para testes de usuário.
+- O corpus dourado (`tests/runner.py`) não muda; `loxia test` é para testes de usuário.
 - Testes que usam `proc`/`fs`/`time` são `ambient` e ficam fora do corpus I1.
 
 ## Alternativas consideradas

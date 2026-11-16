@@ -172,9 +172,8 @@ diagnósticos cortados por `--max-errors`.
 ```
 
 `fixes` é uma lista aditiva (pode ficar vazia): cada item tem `applicability`
-(`safe`/`unsafe`), `message` e `edits[]` com `span` + `new_text`. Hoje o modelo e o
-envelope existem, mas **nenhum produtor** emite fixes; `safe` só será aplicado
-automaticamente quando houver prova de preservação de comportamento
+(`safe`/`unsafe`), `message` e `edits[]` com `span` + `new_text`. W1001 (`safe`) e E3003 (`unsafe`) já emitem fixes; `safe` só é aplicado
+automaticamente quando há prova de preservação de comportamento
 ([ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md), análise em
 [`tech/fixes.md`](../tech/fixes.md)).
 
@@ -518,5 +517,5 @@ Pendências registradas no [`../../TODO.md`](../../TODO.md) §3 e no
 
 - stack trace de runtime com frames;
 - `notes` de proveniência (ex.: "o valor vem de `pessoa.nome`");
-- `fixes[]` com `applicability` e edições, `lox explain`, `lox capabilities`;
+- `fixes[]` com `applicability` e edições, `loxia explain`, `loxia capabilities`;
 - `--json-lines`, warnings/`-Werror` e LSP.

@@ -282,6 +282,7 @@ class Server:
                                 "triggerCharacters": ["(", ","]
                             },
                             "documentFormattingProvider": True,
+                            "codeActionProvider": True,
                             "semanticTokensProvider": {
                                 "legend": {
                                     "tokenTypes": list(SEMANTIC_TOKEN_TYPES),
@@ -339,6 +340,13 @@ class Server:
         if method == "textDocument/formatting":
             _send(
                 self.stdout, _response(message_id, self._formatting(message))
+            )
+            return
+
+        if method == "textDocument/codeAction":
+            _send(
+                self.stdout,
+                _response(message_id, self._code_action(message)),
             )
             return
 
@@ -527,6 +535,25 @@ class Server:
             data["help"] = diagnostic.help
         if diagnostic.notes:
             data["notes"] = list(diagnostic.notes)
+        if diagnostic.fixes:
+            data["fixes"] = [
+                {
+                    "title": fix.message,
+                    "applicability": fix.applicability.value,
+                    "edits": [
+                        {
+                            "uri": edit_uri,
+                            "range": _range(edit.span, edit_source),
+                            "newText": edit.new_text,
+                        }
+                        for edit, (edit_uri, edit_source) in (
+                            (edit, self._fix_target(edit, document, lox, sources))
+                            for edit in fix.edits
+                        )
+                    ],
+                }
+                for fix in diagnostic.fixes
+            ]
         if diagnostic.trace is not None:
             data["trace"] = {
                 "frames": [
@@ -552,6 +579,87 @@ class Server:
             payload["relatedInformation"] = related
         payload["data"] = data
         return payload
+
+    def _fix_target(
+        self,
+        edit: object,
+        document: Document,
+        lox: Loxia,
+        sources: object,
+    ) -> tuple[str, str]:
+        """Resolve URI e texto do arquivo de um `Edit` (mesmo mapa do span)."""
+        span = edit.span  # type: ignore[attr-defined]
+        if span.file == lox._file:
+            return document.uri, document.text
+        source = _source_for(sources, span.file, document.text)
+        if self.root is not None:
+            return _path_to_uri(self.root / span.file), source
+        if document.path is not None:
+            return _path_to_uri(document.path.parent / span.file), source
+        return document.uri, source
+
+    def _code_action(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return []
+        context = params.get("context")
+        if not isinstance(context, dict):
+            return []
+        diagnostics = context.get("diagnostics")
+        if not isinstance(diagnostics, list):
+            return []
+        actions: list[dict[str, object]] = []
+        seen: set[tuple[str, str]] = set()
+        for diagnostic in diagnostics:
+            if not isinstance(diagnostic, dict):
+                continue
+            data = diagnostic.get("data")
+            if not isinstance(data, dict):
+                continue
+            fixes = data.get("fixes")
+            if not isinstance(fixes, list):
+                continue
+            for fix in fixes:
+                if not isinstance(fix, dict):
+                    continue
+                edits = fix.get("edits")
+                if not isinstance(edits, list):
+                    continue
+                changes: dict[str, list[dict[str, object]]] = {}
+                for edit in edits:
+                    if not isinstance(edit, dict):
+                        continue
+                    uri = edit.get("uri")
+                    edit_range = edit.get("range")
+                    new_text = edit.get("newText")
+                    if (
+                        not isinstance(uri, str)
+                        or not isinstance(edit_range, dict)
+                        or not isinstance(new_text, str)
+                    ):
+                        continue
+                    changes.setdefault(uri, []).append(
+                        {"range": edit_range, "newText": new_text}
+                    )
+                if not changes:
+                    continue
+                title = fix.get("title")
+                if not isinstance(title, str):
+                    title = "Fix"
+                key = (title, json.dumps(changes, sort_keys=True))
+                if key in seen:
+                    continue
+                seen.add(key)
+                actions.append(
+                    {
+                        "title": title,
+                        "kind": "quickfix",
+                        "isPreferred": fix.get("applicability") == "safe",
+                        "edit": {"changes": changes},
+                        "diagnostics": [diagnostic],
+                    }
+                )
+        return actions
 
     # -- hover/definition ------------------------------------------------
 

@@ -141,8 +141,9 @@ Crie quando a decisão:
 | [0093](0093-cli-agent-friendly-e-reparo.md) | CLI agent-friendly: subcomandos, JSONL/watch, timeout, warnings e reparo | accepted (implementação parcial) | 2026-11-16 |
 | [0094](0094-kernel-io-flush-e-read-utf8.md) | Kernel: `io.flush`, `io.readUtf8` e flush por escrita em stdio | accepted (implementado) | 2026-11-16 |
 | [0095](0095-processos-streams-poll.md) | Processos, streams e `poll` no kernel (`std.proc`) | accepted (implementado) | 2026-11-16 |
-| [0096](0096-testes-biblioteca-e-runner.md) | Testes: `std.test` (biblioteca) e `lox test` (runner) | accepted (implementado) | 2026-11-16 |
+| [0096](0096-testes-biblioteca-e-runner.md) | Testes: `std.test` (biblioteca) e `loxia test` (runner) | accepted (implementado) | 2026-11-16 |
 | [0097](0097-ranges-inclusivos.md) | Ranges inclusivos (`..=`) | accepted (implementado) | 2026-11-16 |
+| [0098](0098-property-based-testing.md) | Property-based testing (`std.property`) | accepted (implementado) | 2026-11-16 |
 
 
 ## Próximas decisões que pedem ADR

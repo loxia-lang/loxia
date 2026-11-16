@@ -498,3 +498,69 @@ def test_lsp_signature_help_and_semantic_tokens(tmp_path: Path) -> None:
         if process.poll() is None:
             process.kill()
             process.wait(timeout=5)
+
+
+def test_lsp_code_action_expoe_fixes(tmp_path: Path) -> None:
+    uri = (tmp_path / "fix.lx").as_uri()
+    source = (
+        "fn f() -> Nil {\n"
+        "  val unused = 1\n"
+        '  prin("x")\n'
+        "}\n"
+    )
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        initialized = read(process)
+        assert initialized["result"]["capabilities"]["codeActionProvider"] is True
+        send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": source,
+                    }
+                },
+            },
+        )
+        published = read(process)
+        diagnostics = published["params"]["diagnostics"]
+        codes = {item["code"] for item in diagnostics}
+        assert codes == {"W1001", "E3003"}
+        assert all(item["data"]["fixes"] for item in diagnostics)
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/codeAction",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": {
+                        "start": {"line": 0, "character": 0},
+                        "end": {"line": 4, "character": 0},
+                    },
+                    "context": {"diagnostics": diagnostics},
+                },
+            },
+        )
+        response = read(process)
+        actions = response["result"]
+        assert len(actions) == 2
+        preferred = {action["isPreferred"]: action for action in actions}
+        assert preferred[True]["title"].startswith("Rename to")
+        assert preferred[False]["title"].startswith("Replace with")
+        assert preferred[True]["kind"] == "quickfix"
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)

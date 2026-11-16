@@ -28,7 +28,17 @@ from loxia_core.backend.lower_model import (
 from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import Call
 from loxia_core.frontend.stmt import Class, Function
-from loxia_core.frontend.ty import ClassTy, FnTy, Ty, TyVar, display
+from loxia_core.frontend.ty import (
+    ClassTy,
+    FnTy,
+    ListTy,
+    MapTy,
+    TupleTy,
+    Ty,
+    TyVar,
+    UnionTy,
+    display,
+)
 
 
 class GenericLowering(LoweringBase):
@@ -175,6 +185,18 @@ class GenericLowering(LoweringBase):
                 self._subst_ty(ty.ret),
                 ty.min_params,
                 ty.variadic,
+            )
+        if isinstance(ty, ListTy):
+            return ListTy(self._subst_ty(ty.element))
+        if isinstance(ty, MapTy):
+            return MapTy(
+                self._subst_ty(ty.key), self._subst_ty(ty.value)
+            )
+        if isinstance(ty, TupleTy):
+            return TupleTy(tuple(self._subst_ty(item) for item in ty.items))
+        if isinstance(ty, UnionTy):
+            return UnionTy(
+                tuple(self._subst_ty(member) for member in ty.members)
             )
         return ty
 
@@ -365,4 +387,20 @@ class GenericLowering(LoweringBase):
             return True
         if isinstance(ty, (list, tuple)):
             return any(self._has_type_var(item) for item in ty)
+        if isinstance(ty, ClassTy):
+            return any(self._has_type_var(arg) for arg in ty.args)
+        if isinstance(ty, ListTy):
+            return self._has_type_var(ty.element)
+        if isinstance(ty, MapTy):
+            return self._has_type_var(ty.key) or self._has_type_var(
+                ty.value
+            )
+        if isinstance(ty, TupleTy):
+            return any(self._has_type_var(item) for item in ty.items)
+        if isinstance(ty, UnionTy):
+            return any(self._has_type_var(member) for member in ty.members)
+        if isinstance(ty, FnTy):
+            return any(
+                self._has_type_var(param) for param in ty.params
+            ) or self._has_type_var(ty.ret)
         return False

@@ -10,6 +10,11 @@ import difflib
 from dataclasses import dataclass, field
 
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import (
+    Applicability,
+    Edit,
+    Fix,
+)
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.prelude import BUILTIN_NAMES
 from loxia_core.execution.primitives import PRIMITIVES
@@ -49,6 +54,7 @@ from loxia_core.frontend.expr import (
     WildcardPattern,
 )
 from loxia_core.frontend.expr import Visitor as ExprVisitor
+from loxia_core.frontend.spans import span_of_token
 from loxia_core.frontend.stmt import (
     Block,
     Class,
@@ -613,6 +619,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         suggestion = self._suggest(name)
         return f"did you mean '{suggestion}'?" if suggestion else None
 
+    def _undefined_fixes(self, token: Token) -> tuple[Fix, ...]:
+        suggestion = self._suggest(token.lexeme)
+        if suggestion is None:
+            return ()
+        return (
+            Fix(
+                Applicability.UNSAFE,
+                f"Replace with '{suggestion}'.",
+                (
+                    Edit(
+                        span_of_token(token, self._reporter.file),
+                        suggestion,
+                    ),
+                ),
+            ),
+        )
+
     def _lookup(self, name: Token) -> Ty:
         found = self._find_decl(name.lexeme)
         if found is None:
@@ -626,6 +649,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.UNDEFINED_NAME,
                 lowerable=True,
                 help=self._undefined_help(name.lexeme),
+                fixes=self._undefined_fixes(name),
             )
             return ERROR
 
@@ -642,6 +666,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.UNDEFINED_NAME,
                 lowerable=True,
                 help=self._undefined_help(name.lexeme),
+                fixes=self._undefined_fixes(name),
             )
             return ERROR
 
@@ -720,6 +745,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         notes: tuple[str, ...] = (),
         help: str | None = None,
         label_tokens: tuple[tuple[Token, str], ...] = (),
+        fixes: tuple[Fix, ...] = (),
     ) -> None:
         """Reporta erro de tipo.
 
@@ -734,6 +760,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             notes=notes,
             help=help,
             label_tokens=label_tokens,
+            fixes=fixes,
         )
 
     def _mismatch_message(self, expected: Ty, actual: Ty) -> str:

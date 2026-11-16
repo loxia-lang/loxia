@@ -113,7 +113,7 @@ Ficam **fora da 1.0** (revisão depois do backend/M5):
   compilador do MVP o rejeita com erro claro; boxed depois;
 - nome/extensão definitivos: “PyLox”/`.lox` são nomes de trabalho até o release público.
 
-`--check` continua opt-in no CLI; `lox build` (quando existir) sempre roda o checker antes
+`--check` continua opt-in no CLI; `loxia build` (quando existir) sempre roda o checker antes
 de gerar código.
 
 ### 6. Generics é uma trilha separada

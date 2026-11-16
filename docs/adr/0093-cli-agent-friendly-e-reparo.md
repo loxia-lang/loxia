@@ -1,26 +1,28 @@
 # ADR-0093 — CLI agent-friendly: subcomandos, JSONL/watch, timeout, warnings e reparo
 
-> **Implementação parcial (2026-11-16):** modelo `Fix`/`Edit` e `fixes[]` no JSON
+> **Implementação parcial (2026-11-16):** modelo `Fix`/`Edit`, `fixes[]` no JSON,
 > (sem produtores ainda); subcomandos `run`/`check`/`build`/`ast`/`explain`/`capabilities`;
 > `--json`/`--json-lines`; `--stdin`; `--timeout` (`C0001`, exit 124); `--watch` restrito a
 > `check`; warning `W1001` + `-Werror`. Também `fmt`, `doc` e `lsp` (LSP-2 parcial)
-> foram implementados. Pendentes: `W1002`, produtores de `fixes[]`/`lox fix` e
-> code actions/rename do LSP. Análise em [`../tech/fixes.md`](../tech/fixes.md).
+> `loxia fix` (safe-only), `codeAction` no LSP e os produtores W1001/E3003 foram
+> implementados. Pendentes: `W1002`, os demais produtores e rename. Análise em
+> [`../tech/fixes.md`](../tech/fixes.md).
 
-- **Status:** accepted (implementação parcial)
+- **Status:** accepted (implementação parcial: `loxia fix`, W1001/E3003, codeAction)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0075](0075-diagnosticos-estruturados.md) (diagnóstico e JSON),
   [ADR-0089](0089-stack-trace-de-runtime.md) (trace), [ADR-0090](0090-lsp-escopo-e-hospedagem.md)
   (LSP consome o mesmo diagnóstico), [ADR-0091](0091-doc-comments-e-geracao-de-docs.md)
-  (`lox doc`), [ADR-0092](0092-estilo-e-formatter.md) (`lox fmt`),
+  (`loxia doc`), [ADR-0092](0092-estilo-e-formatter.md) (`loxia fmt`),
   [`../../IDEIAS.md`](../../IDEIAS.md) I-4, [`../../TODO.md`](../../TODO.md) §6.9, §7,
   §14.3 e §14.7
 - **Implementação:** `loxia/cli.py` (subcomandos, flags, timeout, watch, JSONL),
   `loxia_core/diagnostics/diagnostic.py` (`Fix`/`Edit`), `render.py` (`fixes[]`),
   `loxia_core/diagnostics/codes.py` (`C0001`, `W1001`), `ErrorReporter.warning`/`werror`,
   `Resolver` (local não lido), `docs/_hooks/codes.py` e `docs/spec/erros.md`; testes em
-  `tests/test_cli.py` e `tests/test_docs_consistency.py`. Pendentes: `lox fix`, `fmt`,
+  `tests/test_cli.py`, `tests/test_fix.py` e `tests/test_docs_consistency.py`.
+  Pendentes: `W1002`, `fmt`, rename e os demais produtores;
   `doc`, `lsp` e `W1002`.
 
 ## Contexto
@@ -31,13 +33,12 @@ O CLI atual é `argparse` com flags (`--check`, `--emit`, `--dump-ast`, `--error
 65/70/66/2; o [IDEIAS I-4](../../IDEIAS.md) definiu o checklist agent-friendly e o
 protocolo de reparo (`check --json` → aplicar `fixes` → reexecutar → progresso); o
 TODO §14.3 quer um MCP que seja camada fina sobre o CLI; o §14.7 já planeja
-`lox run|check|build` como subcomandos.
+`loxia run|check|build` como subcomandos.
 
 Faltam decisões de contrato: como adicionar subcomandos sem quebrar as flags antigas,
 o que um agente lê (`capabilities`, `explain`, JSONL), como `--timeout` e `--watch`
-funcionam, como warnings entram, e o **schema de `fixes[]`/reparo** — hoje
-`Diagnostic` tem espaço para `fixes[]` (ADR-0075) mas nenhum produtor, e um `fix` errado é
-pior que nenhum.
+funcionam, como warnings entram, e o **schema de `fixes[]`/reparo** — o modelo (ADR-0075) já tem
+produtores W1001/E3003 e `loxia fix` safe-only; um `fix` errado continua pior que nenhum.
 
 ## Decisão
 
@@ -127,14 +128,14 @@ Os quatro códigos atuais (2/65/66/70) não mudam. O binário gerado continua `0
  "limits":{"max_call_depth":10000,"stack_budget_bytes":67108864,
            "default_heap_bytes":536870912,"max_errors":20},
  "warnings":{"codes":["W1001","W1002"],"werror":true},
- "fixes":{"applicability":["safe","unsafe"],"implemented":false}}
+ "fixes":{"applicability":["safe","unsafe"],"implemented":true}}
 ```
 
-- Ordem fixa; códigos vêm do catálogo `codes.py`; `implemented:false` para `fixes` até
-  haver produtor. Nada de caminho absoluto/ambiente.
+- Ordem fixa; códigos vêm do catálogo `codes.py`; `implemented:true` para `fixes`
+  (W1001/E3003). Nada de caminho absoluto/ambiente.
 - `loxia explain <code>` imprime a família/mensagem do catálogo + link da spec
   (`docs/spec/erros.md`); `--json` devolve `{code, phase, severity, summary, help?, doc_url}`.
-  Código desconhecido ⇒ exit 2. Não é documentação de API (`lox doc`).
+  Código desconhecido ⇒ exit 2. Não é documentação de API (`loxia doc`).
 - `--no-progress` é aceito como no-op até existir progresso real; `--color` respeita
   `NO_COLOR`; sem prompt interativo em nenhum comando (REPL é explícito).
 
@@ -212,7 +213,7 @@ O schema entra agora como **contrato de agente**, mesmo sem produtor:
   nunca aplica `unsafe` por padrão; `check` **nunca escreve arquivo**.
 - Enquanto não houver produtor confiável, `fixes: []`; o campo é aditivo e o
   `schema_version` não muda. `capabilities.fixes.implemented` diz a verdade.
-- O agente pode aplicar os edits em vez de usar `lox fix`; o contrato é o JSON.
+- O agente pode aplicar os edits em vez de usar `loxia fix`; o contrato é o JSON.
 
 ### 10. Relação com MCP e LSP
 
@@ -258,7 +259,7 @@ O schema entra agora como **contrato de agente**, mesmo sem produtor:
 | `run --watch` | Repetir efeitos colaterais automaticamente é perigoso. |
 | Timeout no binário | Runner/SO resolve; o binário não tem CLI. |
 | Warnings em `run` | Divergiria do binário (I1) porque ele não roda o checker. |
-| `fixes[]` aplicados pelo `check` | `check` que escreve arquivo surpreende e quebra CI; `lox fix` explícito é melhor. |
+| `fixes[]` aplicados pelo `check` | `check` que escreve arquivo surpreende e quebra CI; `loxia fix` explícito é melhor. |
 | Fix `unsafe` automático | Um fix errado é pior que nenhum; só `safe` automático. |
 | MCP antes do CLI | O MCP é camada fina; sem contrato de CLI ele vira reimplementação. |
 
@@ -272,8 +273,8 @@ O schema entra agora como **contrato de agente**, mesmo sem produtor:
   desconhecido).
 - Warnings: `check` com warning (exit 0), `-Werror` (65), `run` sem warning; LSP com
   severidade Warning (quando LSP-0).
-- `fixes[]`: fixture de schema; teste de aplicação atômica/ordem/limite de 10 iterações
-  quando houver produtor; hoje `fixes: []` e `implemented:false`.
+- `fixes[]`: fixture de schema; aplicação segura/ordem/limite em `tests/test_fix.py`;
+  `fixes: []` quando não há produtor.
 - Paridade CLI×MCP e CLI×LSP (quando existirem).
 - `make check`; nenhum caminho absoluto/timestamp na saída.
 

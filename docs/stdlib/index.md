@@ -30,6 +30,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.numeric`](numeric.md) | Integer number theory and statistics. |
 | [`std.paths`](paths.md) | Lexical POSIX path helpers. |
 | [`std.proc`](proc.md) | Processes, streams and `poll` (POSIX, ambient). |
+| [`std.property`](property.md) | Property-based testing with generators, shrinking and seeds. |
 | [`std.rand`](rand.md) | Deterministic PRNG with an explicit seed. |
 | [`std.results`](results.md) | Combinators for `Result[T, E]`. |
 | [`std.sets`](sets.md) | `Set[T]` backed by `Map[Any, Bool]`. |

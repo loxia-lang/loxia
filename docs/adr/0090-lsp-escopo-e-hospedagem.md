@@ -5,8 +5,8 @@
 > `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references` e
 > `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
 > variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
-> documentFormatting e semanticTokens/full. `codeAction`/fixes, rename e spans de
-> expressão formais ficam pendentes.
+> documentFormatting, semanticTokens/full e `codeAction` (quickfixes de `data.fixes`).
+> Rename e spans de expressão formais ficam pendentes.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -19,7 +19,7 @@
 - **Implementação:** `loxia/lsp.py` (servidor), `loxia/symbols.py` (índice),
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
-  `codeAction`/fixes, rename e o cliente VS Code ainda não existem.
+  `codeAction` já existe; rename e o cliente VS Code ainda não.
 
 ## Contexto
 
@@ -82,11 +82,11 @@ de "linguagem de verdade", mas depende de:
   uso, doc (`///`, ADR-0091), contêiner (módulo/classe/função);
 - exposição pública de `type_at(offset)`/`symbol_at(offset)` sem duplicar inferência.
 
-Esse índice também serve às `notes` de proveniência e ao `lox doc`; é trabalho de
+Esse índice também serve às `notes` de proveniência e ao `loxia doc`; é trabalho de
 compilador, não de LSP.
 
-LSP-2 é incremental e não é prometido junto do MVP. `rename`, `workspace/symbol`,
-`inlayHint` e DAP ficam fora por enquanto.
+LSP-2 é incremental e não é prometido junto do MVP. `codeAction`/fixes entrou
+(2026-11-16); `rename`, `workspace/symbol`, `inlayHint` e DAP ficam fora por enquanto.
 
 ### 3. Mapeamento do diagnóstico
 
@@ -161,7 +161,7 @@ mensagem ao usuário.
 | LSP em Loxia | Sem processo/servidor nem front-end self-hosted acessível ao programa Loxia. |
 | Python em repo separado | Duplica versão de span/código; TODO §14.8 quer o diagnóstico junto. |
 | `pygls`/`lsprotocol` | Menos código de framing, mas dependência extra e versões a acompanhar; o protocolo mínimo é pequeno. |
-| Extensão VS Code só com `lox check --json` | Bom interino (S), mas não dá hover/definition/completion; não é LSP. |
+| Extensão VS Code só com `loxia check --json` | Bom interino (S), mas não dá hover/definition/completion; não é LSP. |
 | Só tree-sitter | Syntax highlighting/seleção sem tipos; não resolve erro de tipo. |
 | LSP-2 inteiro no MVP | Sem spans/índice confiáveis, completion e code actions seriam frágeis. |
 | Incremental desde o início | Parser atual é batch; complexidade desnecessária antes de medir. |

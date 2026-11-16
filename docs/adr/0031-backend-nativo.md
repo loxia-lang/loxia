@@ -51,7 +51,7 @@ com o wrap de **i64 completo** prometido pelo ADR-0006/0028. `Any`, `List` cru e
 heterogêneo são **erro de compilação** (exit 65) até o L6; quando entrarem, ganham uma
 caixa `LoxValue` usada só nos pontos dinâmicos, nunca no caminho estático.
 
-Consequência de pipeline: `lox build` **sempre** roda o resolver e o checker; o backend
+Consequência de pipeline: `loxia build` **sempre** roda o resolver e o checker; o backend
 consome tipos concretos.
 
 ### 3. `T?`: ponteiro nulo para referência, `{i1, T}` para escalar
@@ -176,7 +176,7 @@ Regras de operação do harness:
 
 ### Neutras
 
-- `--emit` entra como flag do CLI atual; o subcomando `lox build` fica para quando o CLI
+- `--emit` entra como flag do CLI atual; o subcomando `loxia build` fica para quando o CLI
   ganhar subcomandos.
 - Recursão profunda continua divergindo (SIGSEGV × traceback do Python) e fica fora do
   corpus até existir contador de pilha.

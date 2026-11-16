@@ -48,10 +48,10 @@
   (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`). Os casos determinísticos
   entram no corpus `t2`; `fs`, leitura de `io` e `proc` são ambiente e têm teste próprio.
 - 🧰 **T3**: `std.timex` (UTC), `std.rand` (semente explícita), `std.hash`
-  (FNV/djb2 sobre UTF-8), `std.collections` (Stack/Queue/Deque/PriorityQueue) e
-  `std.log` (stderr, sem timestamp).
+  (FNV/djb2 sobre UTF-8), `std.collections` (Stack/Queue/Deque/PriorityQueue),
+  `std.log` (stderr, sem timestamp) e `std.property` (`forAll`, shrinking, seed).
 - 🧪 **Testes de usuário** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
-  `std.test` (T3: `Suite`, matchers, `Recorder`, TAP) e `lox test` (descoberta, isolamento
+  `std.test` (T3: `Suite`, matchers, `Recorder`, TAP) e `loxia test` (descoberta, isolamento
   por subprocesso, `--filter`/`--jobs`/`--json`/`--native`).
   Próximo passo: **limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)).
   L7b (revisão das mensagens de erro de codegen) segue como pendência de qualidade; JIT
@@ -150,6 +150,7 @@ uv run main.py explain E2001               # família do código
 uv run main.py capabilities --json         # versão, comandos, códigos e limites
 uv run main.py lsp --stdio                 # servidor LSP em stdio (ADR-0090)
 uv run main.py test tests                  # roda tests/**/*_test.lx (ADR-0096)
+uv run main.py fix prog.lx --apply         # aplica só fixes safe (ADR-0093)
 ```
 
 `--json` é alias de `--error-format=json`; `--json-lines` emite um objeto por linha
@@ -157,7 +158,10 @@ uv run main.py test tests                  # roda tests/**/*_test.lx (ADR-0096)
 timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibido e a raiz
 de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
 para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
-`test` descobre `tests/**/*_test.lx` (ou os caminhos passados), roda cada unidade em
+`loxia fix` (ou `uv run main.py fix` no checkout) aplica apenas fixes `safe`
+(W1001/E3003 por enquanto) com reparse/check a cada
+rodada; sem `--apply` é dry-run, `--max-iterations=N` limita as rodadas e `--json`
+resume o que mudou. `test` descobre `tests/**/*_test.lx` (ou os caminhos passados), roda cada unidade em
 subprocesso (isolando `os.exit`/panic) e agrega TAP; `--isolate=file|test` escolhe um
 processo por arquivo (padrão) ou por teste, com `--jobs=N` processos em paralelo.
 `--filter=SUB`, `--only=NOME`, `--timeout=MS`, `--fail-fast`, `--native` e `--json`

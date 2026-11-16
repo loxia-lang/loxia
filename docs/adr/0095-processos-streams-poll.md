@@ -15,7 +15,7 @@
 
 O [ADR-0094](0094-kernel-io-flush-e-read-utf8.md) fechou o stdio por bytes (flush +
 `readUtf8`), que é o que um protocolo por stdio exige. Faltava o outro lado do
-ferramental: **rodar um programa** e falar com ele — para o `lox fmt`/`lox test`, para
+ferramental: **rodar um programa** e falar com ele — para o `loxia fmt`/`loxia test`, para
 delegar diagnóstico ao CLI (caminho B do LSP) e para qualquer script que orquestra
 comandos.
 

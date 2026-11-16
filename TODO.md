@@ -28,25 +28,25 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
 também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
 [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
 também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)), assim como
-`///` + `lox doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)) e o
+`///` + `loxia doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)) e o
 formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)), o **LSP** (0/1 e 2
 parcial) ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) e as docs da
 stdlib/builtins ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)). A próxima
-execução é o **dogfooding do `lox fmt` em Lox** e o **LSP-2 restante**. O status por nível é **gerado**
+execução é o **dogfooding do `loxia fmt` em Lox** e o **LSP-2 restante**. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
 
 ### 0.2 Ordem de execução
 
-1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `lox fmt` para Lox após a T3, com
+1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `loxia fmt` para Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
        §13.7). Inclui `fn` em método, trailing comma/reflow.
 2. [ ] **Diagnósticos restantes** (`P2`): spans de expressão/`notes` de proveniência,
-       `W1002` (import não usado) e produtores de fix confiáveis
+       `W1002` (import não usado) e os demais produtores de fix
        ([`docs/tech/fixes.md`](docs/tech/fixes.md)).
-3. [ ] **LSP-2 restante** (`P2`): codeAction/fixes e rename (o ADR-0090 ainda o deixa
-       fora) ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+3. [ ] **LSP-2 restante** (`P2`): rename e spans de expressão formais; `codeAction`/fixes
+       já estão implementados ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 4. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
 5. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
        itens de ecossistema agora têm ADR; M9 acompanha a fila acima.
@@ -69,10 +69,10 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-2
       restante ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [ ] **produtores de fix confiáveis** (`P2`): análise completa e lotes em
-      [`docs/tech/fixes.md`](docs/tech/fixes.md). Ordem: W1001 literal (`safe`),
-      E3003 did-you-mean (`unsafe`), W1002 com pureza de módulo (`safe`), depois
-      E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`).
+- [x] **W1001/E3003** (`safe`/`unsafe`) e `loxia fix` (2026-11-16).
+- [ ] **W1002** (import não usado) e os demais produtores de fix:
+      [`docs/tech/fixes.md`](docs/tech/fixes.md). Ordem: W1002 com pureza de módulo
+      (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`).
 
 **Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
 Python para validar código do usuário; não classificar código por prefixo de mensagem.
@@ -80,15 +80,15 @@ Python para validar código do usuário; não classificar código por prefixo de
 ### 6.9 CLI alvo
 
 ```bash
-lox run script.lx
-lox check script.lx
-lox build script.lx --emit=ll|obj|exe -o app
+loxia run script.lx
+loxia check script.lx
+loxia build script.lx --emit=ll|obj|exe -o app
 lox ast script.lx
-lox fmt [--check] script.lx
-lox doc std/strings.lx --json
-lox explain E2001
-lox capabilities --json
-lox lsp
+loxia fmt [--check] script.lx
+loxia doc std/strings.lx --json
+loxia explain E2001
+loxia capabilities --json
+loxia lsp
 lox repl                      # REPL, com :type, :ast
 ```
 
@@ -125,15 +125,14 @@ uv run pytest tests/test_backend.py -q
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` produtores de fix: W1001 literal (`safe`), E3003 (`unsafe`), W1002 com pureza
-      (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`) — critérios e
-      perguntas em [`docs/tech/fixes.md`](docs/tech/fixes.md).
-- [ ] `P2` `lox fix`/LSP: aplicar só `safe`, dry-run/apply, codeAction para `unsafe`
-      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] `P2` `lox fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
+- [x] `P2` W1001 (`safe`), E3003 (`unsafe`), `loxia fix` (`--apply`/dry-run) e
+      `codeAction` no LSP (2026-11-16).
+- [ ] `P2` W1002 com pureza (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015
+      (`unsafe`) — critérios e perguntas em [`docs/tech/fixes.md`](docs/tech/fixes.md).
+- [ ] `P2` `loxia fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P2` LSP-2 restante: codeAction/fixes, rename e spans de expressão formais
-      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] `P2` LSP-2 restante: rename e spans de expressão formais; `codeAction`/fixes
+      implementados ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
@@ -174,6 +173,11 @@ pré-requisito de M8; revisar o ADR-0037 antes de codar. Paralelismo/multithread
 fora — não é async.
 
 ### 9.1 Divergências I1 conhecidas (fora do corpus)
+
+**Limitação de backend (E4001, não é divergência I1):** `fn listOf[T](...) -> Gen[List[T]]`
+passa no `--check` e o binário recusa com `Unbound type parameter 'T'` (classe genérica
+instanciada com `List[T]` dentro de função genérica). `std.property` expõe `listOfInt` e
+`listOfString` até o lowering substituir o TyVar antes de instanciar a classe.
 
 Achadas ao implementar o [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md) e
 corrigidas com regressão no diferencial de `tests/test_backend.py`. No sentido estrito
@@ -236,7 +240,7 @@ exibição); `std.test` voltou a usar `except Skip` tipado.
       a `loxia check --error-format=json` via `proc.spawn`) não duplica regra; caminho C
       (front-end em Loxia) cria duas verdades de diagnóstico (I4). Por ora o servidor fica
       em Python; revisitar depois do self-hosting. Ver [`IDEIAS.md`](IDEIAS.md) I-11.
-- [ ] **`lox fmt`** — o formatter shipped começa em Python (referência, idempotente); o
+- [ ] **`loxia fmt`** — o formatter shipped começa em Python (referência, idempotente); o
       exercício de dogfooding em Lox (parser + AST printer) entra depois da T3, com
       paridade byte a byte ([ADR-0092](docs/adr/0092-estilo-e-formatter.md), §13.7).
 - [ ] **`fs.open` + leitura/escrita em streaming** (`P2`, `M`) — handle de arquivo
@@ -258,10 +262,10 @@ exibição); `std.test` voltou a usar `except Skip` tipado.
         temporário, UTF-8/CRLF, append, leitura linha a linha com memória limitada; I/O é
         ambiente (fora do I1), sem caminho absoluto na saída;
       - relação: `readText`/`readLines` continuam como conveniência; `fs.open` é o caminho
-        para CSV/logs grandes e para o `lox fmt`/self-hosting.
+        para CSV/logs grandes e para o `loxia fmt`/self-hosting.
 - [ ] **Playground WASM** (target `wasm32` do LLVM) rodando no navegador.
 - [ ] **REPL com `:type`** — mostra o tipo inferido de uma expressão antes de rodar.
-- [ ] **`lox test`** — runner de testes embutido na linguagem (`#[test] fn ...`).
+- [ ] **`loxia test`** — runner de testes embutido na linguagem (`#[test] fn ...`).
 - [ ] **Erros com sugestão** ("você quis dizer `println`?" via distância de edição).
 - [ ] **Debugger (DAP)** — breakpoints no tree-walk primeiro; no nativo depois.
 - [ ] **Hot reload** no REPL (redefinir funções sem perder estado).
@@ -271,7 +275,7 @@ exibição); `std.test` voltou a usar `except Skip` tipado.
 - [ ] **Dialeto embutido**: `lox` como linguagem de script de um app Python (via CFFI).
 - [ ] **Gerador de AST a partir de schema** (o livro faz à mão; um script evita erro
       quando a linguagem crescer).
-- [ ] **`lox doc`** — doc comments `///` (Markdown) + geração Markdown/JSON para stdlib,
+- [ ] **`loxia doc`** — doc comments `///` (Markdown) + geração Markdown/JSON para stdlib,
       builtins e código de usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
 
 ### Generics pós-MVP — adiados (2026-11-13)
@@ -421,7 +425,8 @@ determinismo.
 | `std.hash` | `fnv1a32`, `fnv1a64`, `djb2` (bytes UTF-8; não é cripto) | ✅ |
 | `std.collections` | `Stack`, `Queue`, `Deque`, `PriorityQueue` (classes em módulo) | ✅ |
 | `std.log` | níveis, `writeErr`, sem timestamp por padrão | ✅ |
-| `std.test` | `Suite`/`describe`/`it`/`beforeEach`/`afterEach`/`expect`/`skip`/`report` + `lox test` (glob, `--isolate=file|test`, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
+| `std.property` | `Gen[T]`, `forAll`, `int`/`intRange`/`bool`/`float`/`stringOf`/`listOfInt`/`listOfString`/`oneOf`, shrinking e seed — [ADR-0098](docs/adr/0098-property-based-testing.md) | ✅ |
+| `std.test` | `Suite`/`describe`/`it`/`beforeEach`/`afterEach`/`expect`/`skip`/`report` + `loxia test` (glob, `--isolate=file|test`, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
 
 **Fora da stdlib:** a linha do topo da §13 (motivos no [ADR-0072](docs/adr/0072-stdlib-batteries.md)).
 
@@ -429,7 +434,7 @@ determinismo.
 
 | # | Passo | Esforço | Depende de |
 | --- | --- | --- | --- |
-| 1 | **Dogfooding**: portar `lox fmt` para Lox (T3 concluída), com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | — |
+| 1 | **Dogfooding**: portar `loxia fmt` para Lox (T3 concluída), com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | — |
 
 ### 13.8 Critério de pronto por módulo
 
@@ -468,7 +473,7 @@ puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos a
 
 | Camada | Superfície | Consumidor | Esforço |
 | --- | --- | --- | --- |
-| `proc` ✅ | `process.*` + `std.proc` (`Stream`/`Process`/`Output`, `spawn`, `run`) | caminho B do LSP, `lox fmt`, `lox test` | feito (ADR-0095) |
+| `proc` ✅ | `process.*` + `std.proc` (`Stream`/`Process`/`Output`, `spawn`, `run`) | caminho B do LSP, `loxia fmt`, `loxia test` | feito (ADR-0095) |
 | `poll` ✅ | `process.poll(handles, timeoutMs) -> List[Int]` | `spawn` com dois pipes; I/O concorrente sem thread | feito (ADR-0095) |
 | `fs.open` | `open(path, mode) -> File` (streaming, §10) | arquivos grandes, CSV/log | M |
 | `net` | `tcpListen`/`tcpConnect`/`accept`/`close` (+ unix) | só com consumidor (HTTP client, debugger remoto) | M |
@@ -561,7 +566,7 @@ página declara "verificado no commit X", reusando `docs/_hooks/freshness.py`.
   `/stdlib` como inglês e o resto como pt-BR até a tradução. Tradução congela texto, então
   cada página traduzida precisa do mesmo mecanismo de frescor, senão o inglês apodrece
   primeiro.
-- **`/stdlib` e builtins gerados:** `lox doc` (ADR-0091) gera Markdown/JSON a partir de
+- **`/stdlib` e builtins gerados:** `loxia doc` (ADR-0091) gera Markdown/JSON a partir de
   `///` e do registry de primitivas; o site **consome** o gerado, não edita à mão. O build
   falha se a referência estiver defasada.
 - **Playground:** o alvo é WASM (§6.10). Até lá, ou playground server-side (`run`/`--check`

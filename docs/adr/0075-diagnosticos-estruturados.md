@@ -147,14 +147,14 @@ sintética (campo interno como `message` da classe `Exception`), o cabeçalho de
 
 ### 6. Fora de escopo desta decisão
 
-`fixes[]` com edições, `lox explain`, `lox capabilities`, `--json-lines`, stack trace de
+`fixes[]` com edições, `loxia explain`, `loxia capabilities`, `--json-lines`, stack trace de
 runtime, proveniência em `notes` (ex.: "o valor vem de `pessoa.nome`"), warnings/`-Werror`
 e LSP. O modelo tem espaço para eles; o contrato só nasce quando houver produtor confiável.
 Um `fix` errado é pior do que nenhum.
 
 > **Nota (ADR-0090/0093):** o LSP, o JSONL/watch, o timeout e os warnings ganharam
-> contrato próprio; `fixes[]` tem schema/loop definidos no ADR-0093, mas **nenhum produtor**
-> ainda. Esta seção continua valendo para o que não tem produtor.
+> contrato próprio; `fixes[]` ganhou produtores W1001/E3003 e `loxia fix`
+> (ADR-0093). Esta seção continua valendo para o que ainda não tem produtor.
 
 ## Consequências
 
@@ -180,7 +180,7 @@ Um `fix` errado é pior do que nenhum.
 
 - O formato antigo `[line N] Error at 'x':` some dos erros de compilação; o
   `docs/spec/erros.md`, a suíte oficial e os testes foram adaptados no mesmo commit.
-- `--error-format=json` não tem contraparte no binário gerado; o contrato cobre `lox run`.
+- `--error-format=json` não tem contraparte no binário gerado; o contrato cobre `loxia run`.
 
 ## Alternativas consideradas
 

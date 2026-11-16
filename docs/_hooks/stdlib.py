@@ -40,6 +40,7 @@ MODULES = {
     "numeric": "Integer number theory and statistics.",
     "paths": "Lexical POSIX path helpers.",
     "proc": "Processes, streams and `poll` (POSIX, ambient).",
+    "property": "Property-based testing with generators, shrinking and seeds.",
     "results": "Combinators for `Result[T, E]`.",
     "sets": "`Set[T]` backed by `Map[Any, Bool]`.",
     "utf8": "UTF-8 and UTF-16 widths (bytes, code units, columns).",

@@ -399,7 +399,7 @@ def test_capabilities_json_is_deterministic() -> None:
     assert payload["program"] == "loxia"
     assert {"C0001", "W1001"} <= {item["code"] for item in payload["codes"]}
     assert payload["warnings"] == {"codes": ["W1001"], "werror": True}
-    assert payload["fixes"]["implemented"] is False
+    assert payload["fixes"]["implemented"] is True
 
 
 def test_explain_known_and_unknown_code() -> None:

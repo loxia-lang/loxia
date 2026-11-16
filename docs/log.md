@@ -663,7 +663,7 @@ tudo é **plano** (implementação pendente), então nenhuma página de `docs/sp
 - `docs/adr/0090-lsp-escopo-e-hospedagem.md` — **new**: LSP em Python no repo, JSON-RPC à
   mão, fases LSP-0/1/2, mapeamento e paridade.
 - `docs/adr/0091-doc-comments-e-geracao-de-docs.md` — **new**: `///`, Markdown, anexação,
-  API em inglês, `lox doc`, registry de builtins e política da stdlib.
+  API em inglês, `loxia doc`, registry de builtins e política da stdlib.
 - `docs/adr/0092-estilo-e-formatter.md` — **new**: nomes, perfil 2/100/K&R/`;`/`fn`, escopo
   minimal, fases Python → Lox e dogfood após T3.
 - `docs/adr/0093-cli-agent-friendly-e-reparo.md` — **new**: subcomandos, JSONL/watch,
@@ -674,7 +674,7 @@ tudo é **plano** (implementação pendente), então nenhuma página de `docs/sp
   §0.2/§7/§10/§13.7/§14.
 - `docs/spec/garantias.md` — **no-change**: os ADRs 0090–0093 são planos; I1–I4 e os
   orçamentos atuais não mudam até a implementação.
-- `docs/spec/semantica.md` — **no-change**: `///`, `lox doc`, CLI/LSP ainda não são
+- `docs/spec/semantica.md` — **no-change**: `///`, `loxia doc`, CLI/LSP ainda não são
   comportamento implementado; a spec continua descrevendo o estado atual.
 
 
@@ -699,10 +699,10 @@ aditivos, `capabilities`/`explain`, `--json`/`--json-lines`, `--stdin`, `--timeo
 
 <!-- triaged: 20de298 -->
 
-## 2026-11-16 — doc comments `///` e `lox doc`
+## 2026-11-16 — doc comments `///` e `loxia doc`
 
 Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0091: doc comments
-`///` no scanner/AST/parser, `lox doc` Markdown/JSON e scope de documentação na grammar.
+`///` no scanner/AST/parser, `loxia doc` Markdown/JSON e scope de documentação na grammar.
 Docs obrigatórias da stdlib/builtins e a geração de `docs/stdlib/` continuam pendentes.
 
 - `loxia_core/frontend/tokens.py`, `scanner.py`, `parser.py`, `stmt.py` — **updated**:
@@ -721,7 +721,7 @@ Docs obrigatórias da stdlib/builtins e a geração de `docs/stdlib/` continuam 
 ## 2026-11-16 — estilo e formatter mínimo
 
 Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0092: guia de estilo
-normativo e `lox fmt` Python mínimo (indentação de bloco, `;` de fim de linha, newline
+normativo e `loxia fmt` Python mínimo (indentação de bloco, `;` de fim de linha, newline
 final, preservação de strings/comentários), com `--check`/`--stdin`. `fn` em método,
 trailing comma/reflow e o dogfood Lox continuam pendentes.
 

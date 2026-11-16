@@ -2,7 +2,7 @@
 
 > **Implementação parcial (2026-11-16):** `///` no scanner/AST/parser, doc em
 > função/método/classe/interface/enum/variante/campo/type alias/`val`/`var`,
-> `lox doc` Markdown/JSON, registry de builtins e `docs/stdlib/` gerado (15 módulos +
+> `loxia doc` Markdown/JSON, registry de builtins e `docs/stdlib/` gerado (15 módulos +
 > builtins) com teste de cobertura. Pendente: integração do site (§14.2).
 
 - **Status:** accepted (implementação parcial)
@@ -28,7 +28,7 @@ a AST não guardam nada. A stdlib é documentada **à mão** na lista de
 mostra o problema: a assinatura vive no código, a descrição vive em outro arquivo, e
 qualquer mudança exige editar os dois.
 
-O TODO §10 já registrava a ideia de `lox doc` gerando documentação a partir de comentários
+O TODO §10 já registrava a ideia de `loxia doc` gerando documentação a partir de comentários
 (`##`). A pergunta agora é a forma canônica, o formato e a fonte de verdade para stdlib,
 builtins e código de usuário.
 
@@ -66,9 +66,9 @@ fn add(a: Int, b: Int) -> Int {
   desabilitar. **`/** ... */` não é doc comment** (ver alternativas).
 - `///` só é doc quando o bloco precede uma **declaração nomeada** (função/método, classe,
   interface, enum, variante, campo, type alias, `val`/`var` de topo). Local functions/
-  classes também podem ter doc; o `lox doc` decide o que é API.
+  classes também podem ter doc; o `loxia doc` decide o que é API.
 - Linha em branco, outro comentário (`#`) ou uma declaração entre o bloco e o alvo quebram
-  o vínculo. Doc órfão é ignorada (o `lox doc` pode avisar no futuro; não é erro de
+  o vínculo. Doc órfão é ignorada (o `loxia doc` pode avisar no futuro; não é erro de
   compilação).
 - A doc é **apagada no runtime/backend**: não entra em código gerado, não muda I1.
 
@@ -77,7 +77,7 @@ fn add(a: Int, b: Int) -> Int {
 As quatro respostas, com aprovação humana registrada nesta decisão:
 
 1. **Substituição** — `///` não substitui `#` e não é uma segunda forma de escrever um
-   comentário comum: é **metadado de documentação**, com consumidor (`lox doc`, LSP hover,
+   comentário comum: é **metadado de documentação**, com consumidor (`loxia doc`, LSP hover,
    site). Não há programa válido hoje que use `///` (o scanner atual veria `//` divisão
    seguida de `/`, inválido), então nenhum código existente muda.
 2. **Decidibilidade local** — o scanner reconhece `///` antes de `//`; sem lookahead, sem
@@ -111,31 +111,31 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
   lê a referência sem tradução; combina com identificadores em inglês (AGENTS §4).
 - **Spec, ADRs, tutoriais e docs de projeto: pt-BR** (fonte), com tradução en-US depois
   (TODO §14.2). O site terá `/stdlib` em inglês e `/reference` em pt-BR até a tradução.
-- **Código de usuário**: a doc pode estar no idioma do projeto; `lox doc` não impõe idioma.
+- **Código de usuário**: a doc pode estar no idioma do projeto; `loxia doc` não impõe idioma.
   Bibliotecas publicadas são encorajadas a usar inglês.
 - A mistura é aceita e declarada; não haverá dois arquivos de doc por símbolo.
 
-### 5. Fonte de verdade e ferramenta `lox doc`
+### 5. Fonte de verdade e ferramenta `loxia doc`
 
 - **Stdlib**: a doc vem de `std/*.lx` (`///`), não de lista manual. A API pública (sem `_`)
   é obrigatória; o teste de docs falha se faltar.
 - **Builtins**: um **registry de doc** na tabela de primitivas/nativas (Python), com texto
   em inglês e assinatura. A geração usa esse registry; `docs/spec/semantica.md` passa a
   **linkar** a referência gerada em vez de repetir a lista.
-- **Código de usuário**: `lox doc` gera a referência do projeto (Markdown/JSON) a partir
+- **Código de usuário**: `loxia doc` gera a referência do projeto (Markdown/JSON) a partir
   das declarações e docs; sem doc, o símbolo aparece com assinatura e sem descrição.
-- **`lox doc`** (subcomando do ADR-0093):
-  - `lox doc [caminho]` → Markdown (padrão), um arquivo por módulo + índice;
-  - `lox doc --json` → JSON determinístico (schema versionado) para agentes/LSP;
+- **`loxia doc`** (subcomando do ADR-0093):
+  - `loxia doc [caminho]` → Markdown (padrão), um arquivo por módulo + índice;
+  - `loxia doc --json` → JSON determinístico (schema versionado) para agentes/LSP;
   - `--out DIR`; sem rede; caminhos relativos; ordem por módulo/nome.
   - O JSON inclui `name`, `kind`, `signature`, `doc`, `module`, `span` (linha/coluna) e
     `visibility` (`public`/`private`). É consumido pelo LSP hover e pelo site.
 - **Site**: `docs/stdlib/` é **gerado** (não editado à mão), com `sources:`/frescor; o
   build da §14.2 consome. `make docs-sync` ou um `make doc` gate falha se a doc gerada
   estiver defasada.
-- **LSP**: hover mostra assinatura + doc do `SymbolIndex`; o `lox doc --json` e o LSP devem
+- **LSP**: hover mostra assinatura + doc do `SymbolIndex`; o `loxia doc --json` e o LSP devem
   concordar (teste de paridade, como o CLI×MCP).
-- `lox explain` continua sendo catálogo de **códigos de erro**; não é doc de API.
+- `loxia explain` continua sendo catálogo de **códigos de erro**; não é doc de API.
 
 ### 6. Política
 
@@ -143,7 +143,7 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
   (`T1`, `T2`, `T3`) tem `///`; builtins têm entrada no registry.
 - **Recomendado**: campos e variantes públicos; funções privadas (`_`) quando a intenção
   não é óbvia.
-- **Opcional**: código de usuário; `lox doc` funciona sem.
+- **Opcional**: código de usuário; `loxia doc` funciona sem.
 - O critério de pronto por módulo da stdlib (§13.8) ganha "doc pública em inglês e gerada";
   o teste de docs é o portão.
 - Não haverá doctest nesta decisão; exemplos em cerca de código são texto até um runner
@@ -153,7 +153,7 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
 
 ### Positivas
 
-- Uma fonte de verdade por símbolo: assinatura e doc no código; site/LSP/`lox doc` derivam.
+- Uma fonte de verdade por símbolo: assinatura e doc no código; site/LSP/`loxia doc` derivam.
 - Hover de código de usuário e referência da stdlib deixam de ser listas manuais que
   apodrecem.
 - `///` é familiar (Rust/C#), combina com Markdown e não conflita com `//` divisão em
@@ -173,7 +173,7 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
 
 ### Neutras
 
-- `lox doc` e o LSP não mudam a linguagem; só consomem a AST/doc.
+- `loxia doc` e o LSP não mudam a linguagem; só consomem a AST/doc.
 - A doc pode ser multilíngue no código de usuário; o gerador preserva.
 
 ## Alternativas consideradas
@@ -186,7 +186,7 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
 | Docs externas/manuais | Já é o status quo; drift e hover vazio para código de usuário. |
 | Markdown + tags `@param`/`@returns` | Duplica a assinatura tipada e exige parser de tags; não paga. |
 | pt-BR na API pública | Consistente com a spec, mas limita a referência a quem lê português; a decisão foi inglês. |
-| `lox doc` em HTML próprio | O site (§14.2) já é o consumidor; Markdown/JSON evita um renderizador a mais. |
+| `loxia doc` em HTML próprio | O site (§14.2) já é o consumidor; Markdown/JSON evita um renderizador a mais. |
 
 ## Como verificar
 
@@ -196,7 +196,7 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
   absoluto); `--format=markdown` idempotente.
 - Teste que toda função pública de `std/*.lx` tem doc em inglês e aparece na referência
   gerada; builtins no registry.
-- Paridade hover do LSP × `lox doc --json` (quando LSP-1 existir).
+- Paridade hover do LSP × `loxia doc --json` (quando LSP-1 existir).
 - `make check` e `make docs-sync`; `tests/test_docs_consistency.py`/links verdes.
 - Critério para revisitar: doc obrigatória gerar atrito; Markdown sem tags limitar o site;
   necessidade de doctest; tradução en-US mudar a estratégia.
@@ -207,4 +207,4 @@ documentada em `docs/spec/lexico.md` e na grammar do editor no commit de impleme
 - Markdown — <https://commonmark.org/>
 - [`../spec/lexico.md`](../spec/lexico.md) — comentários atuais.
 - [`../spec/semantica.md`](../spec/semantica.md) — lista manual da stdlib.
-- [`../../TODO.md`](../../TODO.md) §10 (`lox doc`), §13.8 (pronto por módulo), §14.2 (site).
+- [`../../TODO.md`](../../TODO.md) §10 (`loxia doc`), §13.8 (pronto por módulo), §14.2 (site).

@@ -52,7 +52,7 @@ Pacotes por fase (dependência só para baixo):
 | --- | --- |
 | [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcomandos, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restrito a `check`, warnings, `doc` e exit codes |
-| [`loxia/test_runner.py`](../../loxia/test_runner.py) | runner `lox test` (ADR-0096): descobre `*_test.lx`, um subprocesso por arquivo, agrega TAP e `--json` |
+| [`loxia/test_runner.py`](../../loxia/test_runner.py) | runner `loxia test` (ADR-0096): descobre `*_test.lx`, um subprocesso por arquivo, agrega TAP e `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition e LSP-2 básico (completion/signature/formatting/semantic tokens) |

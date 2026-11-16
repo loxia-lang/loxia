@@ -1047,6 +1047,10 @@ com entrada fixa.
   comparador explícito `fn(T, T) -> Bool`).
 - `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (estrito,
   devolve `Int?`), `addDays` e `parts`; sem timezone e sem relógio.
+- `std.property` ([ADR-0098](../adr/0098-property-based-testing.md)): `Gen[T]` com
+  `generate`/`shrink`, `forAll(gen, check, runs = 100, seed = 0)` e geradores
+  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOfInt`/`listOfString` e
+  `oneOf`; falha reduz o contraexemplo e reporta a seed.
 - `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (estado
   explícito, porque módulo não aceita `var` top-level) com `describe`, `it` (executa na
   hora), `beforeEach`/`afterEach` (escopados ao `describe`; `before` externo→interno,

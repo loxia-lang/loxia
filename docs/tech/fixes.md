@@ -1,7 +1,7 @@
 # Fixes confiáveis: quem produz, o que é seguro e o que fica para depois
 
-**Status:** análise/design; modelo `Fix`/`Edit` e `fixes[]` implementados; **nenhum
-produtor** emite fixes ainda (2026-11-16).
+**Status:** `W1001` (`safe`) e `E3003` (`unsafe`), `loxia fix` (safe-only) e
+`codeAction` implementados (2026-11-16); `W1002` e os demais produtores pendentes.
 **Decisão:** [ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md) (schema e protocolo de
 reparo), [ADR-0075](../adr/0075-diagnosticos-estruturados.md) (diagnóstico),
 [ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md) (LSP consumidor).
@@ -18,7 +18,7 @@ semântica**:
 | Parser | erro sintático (quase nunca tem edição local inequívoca) |
 | Loader | import/módulo (precisa provar pureza) |
 | **LSP / CLI / MCP / agente** | **consumidor**: aplica/renderiza, não inventa `safe` |
-| `lox fmt` | formatação, não é `fixes[]` |
+| `loxia fmt` | formatação, não é `fixes[]` |
 
 Um fix só é `safe` quando o produtor consegue provar que a edição:
 
@@ -29,7 +29,7 @@ Um fix só é `safe` quando o produtor consegue provar que a edição:
 5. passa no teste aplicar → reparsear → `--check` → executar antes/depois (I1).
 
 Sem prova, o máximo é `unsafe`: útil como quickfix de editor, nunca aplicado pelo
-`lox fix` nem por um agente sem confirmação.
+`loxia fix` nem por um agente sem confirmação.
 
 ## Modelo atual
 
@@ -55,9 +55,10 @@ UTF-8. O schema é aditivo (v1): `fixes: []` quando não há candidato.
 | **W1001** local não lido | Resolver | inicializador **puro** (literal/expressão sem chamada, sem `as` que possa falhar), sem captura e sem conflito | `val x = f()` removido apaga a chamada; `as` removido deixa de lançar |
 | **E3004** anotação ausente | Checker | só com tipo **exato**, sem `<error>`/type var, e sem mudar API pública | anotar `Any`/tipo inferido errado muda a checagem |
 
-Na prática, o primeiro `safe` realista é **W1001 com inicializador literal**. W1002 só
-depois de uma garantia de pureza de módulo: hoje o loader inlina statements de módulo, então
-"import não usado" **não** é automaticamente seguro.
+Implementados: **W1001** renomeia a declaração para `_unused_N` único (preserva o
+inicializador; `safe`) e **E3003** troca o token pelo candidato (did-you-mean; `unsafe`).
+W1002 só depois de uma garantia de pureza de módulo: hoje o loader inlina statements,
+então "import não usado" **não** é automaticamente seguro.
 
 ### `unsafe` (quickfix, nunca automático)
 
@@ -94,7 +95,7 @@ depois de uma garantia de pureza de módulo: hoje o loader inlina statements de 
 
 ## Aplicação
 
-- `lox fix` (futuro): aplica só `safe`, `--dry-run`/`--apply`, limite de 10 iterações,
+- `loxia fix` (implementado): aplica só `safe`, `--apply` (padrão dry-run), limite de 10 iterações,
   aplicação atômica por fix, detecção de conflito e `no-progress`.
 - LSP `codeAction`: mostra `unsafe` como quickfix; `safe` pode ser `isPreferred`.
 - MCP: expõe `fixes[]`; agente pode propor edits, mas `safe` só o compilador marca.
@@ -111,5 +112,5 @@ depois de uma garantia de pureza de módulo: hoje o loader inlina statements de 
   inicializador for puro.
 - `fixes[]` fica no `Diagnostic` (sim, decisão atual) ou em um catálogo separado por
   código? O modelo atual evita uma segunda fonte.
-- Fix multi-arquivo (renomear símbolo de módulo) fica fora até existir `lox fix` e
+- Fix multi-arquivo (renomear símbolo de módulo) fica fora até existir `loxia fix` e
   `WorkspaceEdit` com mapa de módulos.

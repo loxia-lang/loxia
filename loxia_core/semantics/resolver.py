@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import (
+    Applicability,
+    Edit,
+    Fix,
+)
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.errors import immutable_assignment_message
 from loxia_core.execution.interpreter import Interpreter
@@ -37,6 +42,7 @@ from loxia_core.frontend.expr import (
     VariantPattern,
 )
 from loxia_core.frontend.expr import Visitor as ExprVisitor
+from loxia_core.frontend.spans import span_of_token
 from loxia_core.frontend.stmt import (
     Block,
     Class,
@@ -133,11 +139,42 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 and not name.startswith("_")
                 and info.declaration is not None
             ):
+                replacement = self._unused_name(info.declaration)
                 self._reporter.warning(
                     info.declaration,
                     f"Local '{name}' is never used.",
                     code=Code.UNUSED_LOCAL,
+                    fixes=(
+                        Fix(
+                            Applicability.SAFE,
+                            f"Rename to '{replacement}' to mark it unused.",
+                            (
+                                Edit(
+                                    span_of_token(
+                                        info.declaration, self._reporter.file
+                                    ),
+                                    replacement,
+                                ),
+                            ),
+                        ),
+                    ),
                 )
+
+    def _unused_name(self, token: Token) -> str:
+        taken: set[str] = set()
+        for scope in self._scopes:
+            taken.update(scope)
+        taken.update(declaration.lexeme for declaration in self.references.values())
+        globals_env = getattr(self._interpreter, "globals", None)
+        values = getattr(globals_env, "values", None)
+        if isinstance(values, dict):
+            taken.update(values)
+        index = token.offset or 0
+        candidate = f"_unused_{index}"
+        while candidate in taken:
+            index += 1
+            candidate = f"_unused_{index}"
+        return candidate
 
     def _declare(
         self,

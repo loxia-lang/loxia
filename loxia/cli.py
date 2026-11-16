@@ -53,6 +53,7 @@ COMMANDS = (
     "capabilities",
     "lsp",
     "test",
+    "fix",
 )
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
 _WATCH_INTERVAL_SECONDS = 0.25
@@ -612,7 +613,7 @@ def build_parser() -> argparse.ArgumentParser:
         usage="%(prog)s [opções] [script]",
         epilog=(
             "subcomandos: run, check, build, ast, fmt, doc, explain, capabilities, "
-            "lsp, test (use 'loxia <comando> --help')"
+            "lsp, test, fix (use 'loxia <comando> --help')"
         ),
     )
     parser.add_argument(
@@ -744,6 +745,23 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             "--stdio",
             action="store_true",
             help="usa stdio (padrão; aceito para compatibilidade)",
+        )
+    elif command == "fix":
+        parser.add_argument("script", help="arquivo Loxia")
+        parser.add_argument(
+            "--apply",
+            action="store_true",
+            help="grava as mudanças (padrão: dry-run)",
+        )
+        parser.add_argument(
+            "--max-iterations",
+            type=int,
+            default=10,
+            metavar="N",
+            help="rodadas de fix (default: 10)",
+        )
+        parser.add_argument(
+            "--json", action="store_true", help="resumo em JSON"
         )
     elif command == "test":
         parser.add_argument(
@@ -1093,6 +1111,7 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "build", "features": ["json", "json-lines"]},
         {"name": "ast", "features": ["json", "json-lines", "stdin"]},
         {"name": "fmt", "features": ["check", "stdin"]},
+        {"name": "fix", "features": ["apply", "json"]},
         {
             "name": "test",
             "features": [
@@ -1144,7 +1163,7 @@ def _capabilities_payload() -> dict[str, object]:
         "warnings": {"codes": ["W1001"], "werror": True},
         "fixes": {
             "applicability": ["safe", "unsafe"],
-            "implemented": False,
+            "implemented": True,
         },
     }
 
@@ -1215,6 +1234,11 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
         from loxia.test_runner import run_tests
 
         raise SystemExit(run_tests(args))
+
+    if command == "fix":
+        from loxia.fixer import run_fix_command
+
+        raise SystemExit(run_fix_command(args))
 
     if command == "fmt":
         _run_fmt(args, parser)
