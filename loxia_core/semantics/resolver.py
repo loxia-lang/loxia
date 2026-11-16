@@ -104,6 +104,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._class_fields: dict[str, dict[str, bool]] = {}
         self._function_starts: list[int] = []
         self.captured_mutables: set[Token] = set()
+        # Uso -> token da declaração, para go-to-definition (LSP-1).
+        self.references: dict[Token, Token] = {}
         self.captured_global_names: set[str] = set()
 
     def resolve(self, statements: list[Stmt]) -> None:
@@ -185,6 +187,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 self._interpreter.resolve(expr, len(self._scopes) - 1 - i)
                 if read:
                     info.used = True
+                if info.declaration is not None:
+                    self.references[name] = info.declaration
                 return info, i
 
         return None

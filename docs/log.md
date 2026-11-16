@@ -746,3 +746,19 @@ Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0090: servid
   documentSymbol/shutdown.
 - `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0090`, `docs/adr/README.md`,
   `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**: contrato/status.
+
+## 2026-11-16 — LSP-1 básico (hover/definition)
+
+Intervalo: `HEAD`..working tree. Complementa o LSP-0 com `SymbolIndex` e
+`Resolver.references`: hover de assinatura/tipo/doc e go-to-definition para variáveis,
+funções, classes, campos/métodos, enums e variantes. LSP-2 segue pendente.
+
+- `loxia/symbols.py` — **new**: índice de declarações/referências/tipos.
+- `loxia_core/semantics/resolver.py` — **updated**: `references` uso→declaração.
+- `loxia/cli.py` — **updated**: estado da última análise para o LSP.
+- `loxia/lsp.py` — **updated**: hover/definition e capabilities.
+- `tests/test_lsp.py` — **updated**: hover/definition de função, variável e campo.
+- `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0090`, `docs/adr/README.md`,
+  `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**: status.
+- `docs/spec/erros.md` — **no-change**: `Resolver.references` é estado interno do LSP;
+  catálogo, spans e exit codes de erro não mudaram.

@@ -2,8 +2,10 @@
 
 > **Implementação parcial (2026-11-16):** LSP-0 em Python (`loxia lsp`, JSON-RPC
 > stdio à mão): `initialize`/`shutdown`/`exit`, full sync, `publishDiagnostics` e
-> `documentSymbol`, com testes de transcrição. LSP-1 (spans + `SymbolIndex` →
-> hover/definition) e LSP-2 ficam pendentes.
+> `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references` e
+> `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
+> variantes (sem spans de expressão formais). LSP-2 (completion/format/code actions)
+> fica pendente.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -13,9 +15,10 @@
   [ADR-0088](0088-distribuicao-e-raizes-de-modulo.md) (distribuição e organização),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (custo de superfície),
   [`../../TODO.md`](../../TODO.md) §3.1 e §14.8, [`../../IDEIAS.md`](../../IDEIAS.md) I-4
-- **Implementação:** `loxia/lsp.py` (servidor), `loxia/cli.py` (`lsp`),
-  `tests/test_lsp.py` (transcrições JSON-RPC). LSP-1/2 e o cliente VS Code ainda
-  não existem.
+- **Implementação:** `loxia/lsp.py` (servidor), `loxia/symbols.py` (índice),
+  `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`) e
+  `tests/test_lsp.py` (transcrições JSON-RPC). LSP-2 e o cliente VS Code ainda não
+  existem.
 
 ## Contexto
 

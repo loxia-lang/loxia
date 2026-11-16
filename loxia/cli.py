@@ -104,6 +104,10 @@ class Loxia:
         self._watched_files: set[Path] = set()
         self._jsonl_started = False
         self._revision = 0
+        # Estado da última análise, consumido pelo LSP (hover/definition).
+        self.last_statements: list[Stmt] | None = None
+        self.last_resolver: Resolver | None = None
+        self.last_checker: Checker | None = None
 
     # -- pipeline --------------------------------------------------------
 
@@ -119,6 +123,7 @@ class Loxia:
         statements = parser.parse_repl() if repl else parser.parse()
 
         if self.reporter.had_error or statements is None:
+            self.last_statements = None
             return None
 
         if self._module_root is not None:
@@ -133,6 +138,7 @@ class Loxia:
             }
             statements = loaded
 
+        self.last_statements = statements
         return statements
 
     def _execute(self, statements: list[Stmt]) -> None:
@@ -196,16 +202,22 @@ class Loxia:
         return True
 
     def check(self, source: str, *, emit: bool = True) -> int:
+        self.last_resolver = None
+        self.last_checker = None
         statements = self._parse(source)
         if statements is not None:
             resolver = Resolver(self.interpreter, self.reporter)
             resolver.resolve(statements)
+            self.last_resolver = resolver
+            self.last_checker = None
             if not self.reporter.had_error:
-                Checker(
+                checker = Checker(
                     self.reporter,
                     captured_mutables=resolver.captured_mutables,
                     captured_globals=resolver.captured_global_names,
-                ).check(statements)
+                )
+                checker.check(statements)
+                self.last_checker = checker
 
         exit_code = self._exit_code()
         if emit:
@@ -1043,7 +1055,7 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
-        {"name": "lsp", "features": ["stdio"]},
+        {"name": "lsp", "features": ["stdio", "hover", "definition", "documentSymbol"]},
     ]
     codes = [
         {

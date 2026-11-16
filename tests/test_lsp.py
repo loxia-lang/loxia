@@ -157,3 +157,165 @@ def test_lsp_document_symbols_include_class_children(tmp_path: Path) -> None:
         if process.poll() is None:
             process.kill()
             process.wait(timeout=5)
+
+
+def test_lsp_hover_and_definition_for_function_and_variable(tmp_path: Path) -> None:
+    uri = (tmp_path / "hover.lx").as_uri()
+    text = (
+        "/// Adds.\n"
+        "fn add(a: Int, b: Int) -> Int {\n"
+        "  return a + b\n"
+        "}\n"
+        "val x = add(1, 2)\n"
+        "print(x)\n"
+    )
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": text,
+                    }
+                },
+            },
+        )
+        read(process)  # publishDiagnostics
+
+        # `add` na chamada (linha 4, coluna 8 em 0-based).
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 4, "character": 8},
+                },
+            },
+        )
+        hover = read(process)["result"]
+        assert "fn add(a: Int, b: Int) -> Int" in hover["contents"]["value"]
+        assert "Adds." in hover["contents"]["value"]
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "textDocument/definition",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 4, "character": 8},
+                },
+            },
+        )
+        definition = read(process)["result"]
+        assert definition["uri"] == uri
+        assert definition["range"]["start"] == {"line": 1, "character": 3}
+
+        # `x` na chamada de print: tipo e definição.
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 5, "character": 6},
+                },
+            },
+        )
+        hover_x = read(process)["result"]
+        assert "Int" in hover_x["contents"]["value"]
+
+        send(process, {"jsonrpc": "2.0", "id": 5, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_lsp_hover_field_via_class_type(tmp_path: Path) -> None:
+    uri = (tmp_path / "field.lx").as_uri()
+    text = (
+        "class Point {\n"
+        "  val x: Int\n"
+        "  init(x: Int) { this.x = x }\n"
+        "  fn get() -> Int { return this.x }\n"
+        "}\n"
+        "val p = Point(1)\n"
+        "print(p.x)\n"
+    )
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": text,
+                    }
+                },
+            },
+        )
+        read(process)
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 6, "character": 8},
+                },
+            },
+        )
+        hover = read(process)["result"]
+        assert "val x: Int" in hover["contents"]["value"]
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "textDocument/definition",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 6, "character": 8},
+                },
+            },
+        )
+        definition = read(process)["result"]
+        assert definition["range"]["start"] == {"line": 1, "character": 6}
+
+        send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)

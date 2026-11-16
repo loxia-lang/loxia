@@ -153,7 +153,7 @@ para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`
 `check`/`build`; `run` nunca emite warnings). `doc` gera Markdown (padrão) ou JSON a
 partir dos comentários `///` de funções, classes, interfaces, enums, variantes, campos,
 tipos e `val`/`var`; não executa o programa. `lsp` sobe o servidor JSON-RPC em stdio
-(LSP-0: diagnostics e documentSymbol; hover/definition ainda pendentes).
+(LSP-0: diagnostics/documentSymbol; LSP-1 básico: hover/definition).
 
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,
 `2` uso inválido, `124` timeout, `130` `--watch` interrompido. O binário gerado por

@@ -15,6 +15,7 @@ from urllib.parse import unquote, urlparse
 
 from loxia import __version__
 from loxia.cli import Loxia
+from loxia.symbols import SymbolIndex
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
@@ -33,7 +34,9 @@ from loxia_core.frontend.stmt import (
     TypeAlias,
     Var,
 )
+from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.ty import display
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
@@ -165,6 +168,8 @@ class Server:
         self.stdin = stdin
         self.stdout = stdout
         self.documents: dict[str, Document] = {}
+        self.indexes: dict[str, SymbolIndex] = {}
+        self.source_maps: dict[str, object] = {}
         self.root: Path | None = None
         self.shutdown = False
 
@@ -200,6 +205,8 @@ class Server:
                     {
                         "capabilities": {
                             "textDocumentSync": 1,
+                            "hoverProvider": True,
+                            "definitionProvider": True,
                             "documentSymbolProvider": True,
                             "diagnosticProvider": {
                                 "interFileDependencies": False,
@@ -227,6 +234,16 @@ class Server:
             )
             return
 
+        if method == "textDocument/hover":
+            _send(self.stdout, _response(message_id, self._hover(message)))
+            return
+
+        if method == "textDocument/definition":
+            _send(
+                self.stdout, _response(message_id, self._definition(message))
+            )
+            return
+
         _send(
             self.stdout,
             _error(message_id, -32601, f"Method not found: {method}"),
@@ -248,6 +265,7 @@ class Server:
             if isinstance(document, dict) and isinstance(document.get("uri"), str):
                 uri = document["uri"]
                 self.documents.pop(uri, None)
+                self.indexes.pop(uri, None)
                 _send(
                     self.stdout,
                     _notification(
@@ -271,6 +289,7 @@ class Server:
             path=path,
             uri=uri,
         )
+        self.indexes.pop(uri, None)
         self._publish_by_uri(uri)
 
     def _change(self, params: dict[str, Any]) -> None:
@@ -291,6 +310,7 @@ class Server:
         current.text = change["text"]
         if isinstance(version, int):
             current.version = version
+        self.indexes.pop(uri, None)
         self._publish_by_uri(uri)
 
     def _publish(self, document: object) -> None:
@@ -325,6 +345,13 @@ class Server:
         lox.check(document.text, emit=False)
         batch = lox.reporter.batch()
         sources = lox._sources
+        self.source_maps[document.uri] = sources
+        self.indexes[document.uri] = SymbolIndex(
+            lox.last_statements or [],
+            source=document.text,
+            checker=lox.last_checker,
+            resolver=lox.last_resolver,
+        )
 
         result: list[dict[str, object]] = []
         for diagnostic in batch.diagnostics:
@@ -420,6 +447,140 @@ class Server:
             payload["relatedInformation"] = related
         payload["data"] = data
         return payload
+
+    # -- hover/definition ------------------------------------------------
+
+    def _index_for(self, uri: str) -> SymbolIndex | None:
+        index = self.indexes.get(uri)
+        if index is not None:
+            return index
+        document = self.documents.get(uri)
+        if document is None:
+            return None
+        self._diagnostics(document)
+        return self.indexes.get(uri)
+
+    def _token_at(
+        self, document: Document, position: object
+    ) -> Token | None:
+        if not isinstance(position, dict):
+            return None
+        line = position.get("line")
+        character = position.get("character")
+        if not isinstance(line, int) or not isinstance(character, int):
+            return None
+        lines = document.text.splitlines()
+        if line < 0 or line >= len(lines):
+            return None
+        line_text = lines[line]
+        units = 0
+        column = 1
+        for char in line_text:
+            width = len(char.encode("utf-16-le")) // 2
+            if units >= character:
+                break
+            units += width
+            column += 1
+
+        reporter = ErrorReporter(max_errors=0)
+        tokens = Scanner(document.text, reporter).scan_tokens()
+        for token in tokens:
+            if token.line != line + 1:
+                continue
+            end = (token.column or 1) + len(token.lexeme)
+            if (token.column or 1) <= column < end and token.type in (
+                TokenType.IDENTIFIER,
+                TokenType.THIS,
+                TokenType.SUPER,
+            ):
+                return token
+        return None
+
+    def _hover(self, message: dict[str, Any]) -> dict[str, object] | None:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return None
+        uri = document_info.get("uri")
+        if not isinstance(uri, str):
+            return None
+        document = self.documents.get(uri)
+        if document is None:
+            return None
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return None
+        index = self._index_for(uri)
+        if index is None:
+            return None
+
+        symbol = index.symbol_at(token)
+        ty = index.type_at(token) or (symbol.type if symbol is not None else None)
+        parts: list[str] = []
+        if symbol is not None:
+            parts.append(f"```lox\n{symbol.signature}\n```")
+            if symbol.doc:
+                parts.append(symbol.doc)
+        elif ty is not None:
+            parts.append(f"```lox\n{display(ty)}\n```")
+        else:
+            return None
+
+        return {
+            "contents": {"kind": "markdown", "value": "\n\n".join(parts)},
+            "range": _token_range(token, document.text),
+        }
+
+    def _definition(
+        self, message: dict[str, Any]
+    ) -> dict[str, object] | None:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return None
+        uri = document_info.get("uri")
+        if not isinstance(uri, str):
+            return None
+        document = self.documents.get(uri)
+        if document is None:
+            return None
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return None
+        index = self._index_for(uri)
+        if index is None:
+            return None
+        symbol = index.reference_target(token)
+        if symbol is None:
+            return None
+
+        target_uri = self._uri_for_token(symbol.token, document)
+        target_source = document.text
+        if (
+            symbol.token.file
+            and document.path is not None
+            and symbol.token.file != document.path.name
+        ):
+            target_source = _source_for(
+                self.source_maps.get(uri), symbol.token.file, document.text
+            )
+        return {
+            "uri": target_uri,
+            "range": _token_range(symbol.token, target_source),
+        }
+
+    def _uri_for_token(self, token: Token, document: Document) -> str:
+        if not token.file or document.path is None:
+            return document.uri
+        if token.file == display_path(str(document.path)):
+            return document.uri
+        if self.root is not None:
+            return _path_to_uri(self.root / token.file)
+        return _path_to_uri(document.path.parent / token.file)
 
     # -- símbolos --------------------------------------------------------
 

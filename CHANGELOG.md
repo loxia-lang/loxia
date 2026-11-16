@@ -11,7 +11,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   JSON-RPC sobre stdio sem dependências, `initialize`/`shutdown`/`exit`, full sync
   `didOpen`/`didChange`/`didClose`, `publishDiagnostics` com code/severity/range/
   relatedInformation/help/trace e `documentSymbol` (classes, métodos, campos, enums,
-  variantes, interfaces, funções e variáveis). Hover/definition (LSP-1) ficam pendentes.
+  variantes, interfaces, funções e variáveis). **LSP-1 básico**: `SymbolIndex` +
+  `Resolver.references` para `hover` (assinatura/tipo/doc) e `textDocument/definition`
+  de variáveis, funções, classes, campos/métodos e variantes. Completion/format/code
+  actions (LSP-2) ficam pendentes.
 - **Estilo e formatter mínimo** ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)):
   `docs/guia-estilo.md` normativo e `lox fmt` Python (indentação de bloco, `;` de fim de
   linha, newline final, preservação de strings/comentários), com `fmt --check` (exit 1 se

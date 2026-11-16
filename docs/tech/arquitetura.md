@@ -54,7 +54,8 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcomandos, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restrito a `check`, warnings, `doc` e exit codes |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
-| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP-0 (ADR-0090): JSON-RPC stdio, full sync, diagnostics e documentSymbol |
+| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, full sync, diagnostics, documentSymbol, hover e definition |
+| [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
 | [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
 | [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
