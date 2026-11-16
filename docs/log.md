@@ -731,3 +731,5 @@ trailing comma/reflow e o dogfood Lox continuam pendentes.
 - `tests/test_formatter.py` — **new**: idempotência, check/stdin, strings/comentários.
 - `docs/adr/0092`, `docs/adr/README.md`, `docs/decisoes.md`, `TODO.md`, `CHANGELOG.md`,
   `README.md`, `docs/tech/arquitetura.md` — **updated**: status/contrato.
+
+<!-- triaged: 18f0697 -->
