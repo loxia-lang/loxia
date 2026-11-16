@@ -71,11 +71,13 @@ def complete(
     type_index: SymbolIndex | None,
 ) -> list[dict[str, object]]:
     """Itens de completion para o offset (byte) no documento."""
+    prefix, dot_receiver = _cursor(source, offset)
     statements = _parse_for_completion(source, offset)
     if statements is None:
-        return []
+        if dot_receiver is not None:
+            return _render(_textual_enum_members(dot_receiver, source), prefix)
+        return _render(_keyword_items() + _builtin_items(), prefix)
     imports = _imports(statements)
-    prefix, dot_receiver = _cursor(source, offset)
     import_items = _import_items(source, offset, path, statements)
     if import_items:
         items = import_items
@@ -88,9 +90,15 @@ def complete(
             imports,
             type_index,
         )
+        if not items:
+            items = _textual_enum_members(dot_receiver, source)
     else:
         items = _value_items(statements, offset, imports, path)
         items.extend(_keyword_items())
+    return _render(items, prefix)
+
+
+def _render(items: list[Item], prefix: str) -> list[dict[str, object]]:
     items = [item for item in items if item.label.startswith(prefix)]
     best: dict[str, Item] = {}
     for item in items:
@@ -122,11 +130,20 @@ def _parse_for_completion(source: str, offset: int) -> list[Stmt] | None:
         or _IMPORT.match(line) is not None
         or _FROM.match(line) is not None
     )
-    if needs_placeholder:
-        statements = _parse(prefix + "x" + source[offset:])
+    placeholder = "x" if needs_placeholder else ""
+    candidates = [
+        prefix + placeholder + source[offset:],
+        source,
+        prefix + placeholder,
+    ]
+    depth = prefix.count("{") - prefix.count("}")
+    if depth > 0:
+        candidates.append(prefix + placeholder + "\n" + "}" * depth)
+    for candidate in candidates:
+        statements = _parse(candidate)
         if statements is not None:
             return statements
-    return _parse(source)
+    return None
 
 
 def _parse(source: str) -> list[Stmt] | None:
@@ -674,3 +691,43 @@ def _superclass(statements: list[Stmt], name: str) -> str | None:
         ):
             return statement.superclass.name.lexeme
     return None
+
+
+def _builtin_items() -> list[Item]:
+    return [
+        Item(
+            builtin.name,
+            KIND_MODULE if builtin.kind == "module" else KIND_FUNCTION,
+            builtin.signature,
+            builtin.doc,
+            f"3_{builtin.name}",
+        )
+        for builtin in BUILTIN_DOCS
+        if "." not in builtin.name
+    ]
+
+
+_ENUM_TEXT = __import__("re").compile(
+    r"\benum\s+([A-Za-z_][A-Za-z0-9_]*)[^{]*\{(.*?)\}", __import__("re").S
+)
+
+
+def _textual_enum_members(receiver: str, source: str) -> list[Item]:
+    for match in _ENUM_TEXT.finditer(source):
+        if match.group(1) != receiver:
+            continue
+        items: list[Item] = []
+        for chunk in match.group(2).split(","):
+            part = chunk.strip().split("(", 1)[0].strip()
+            if part and part[0].isalpha():
+                items.append(
+                    Item(
+                        part,
+                        KIND_ENUM_MEMBER,
+                        f"{receiver}.{part}",
+                        None,
+                        f"1_{part}",
+                    )
+                )
+        return items
+    return []

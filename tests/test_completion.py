@@ -62,6 +62,16 @@ def test_completion_de_this_e_enum() -> None:
     assert {"Red", "Blue"} <= set(labels(enum, "Color."))
 
 
+def test_completion_de_keywords_com_documento_incompleto() -> None:
+    found = labels("fn f( {\n  \n", "  ")
+    assert {"fn", "if", "val", "return"} <= set(found)
+
+
+def test_completion_de_enum_com_virgula_final() -> None:
+    source = "enum Color {\n  Red,\n  Blue,\n}\nval c = Color.\n"
+    assert {"Red", "Blue"} <= set(labels(source, "Color."))
+
+
 def test_completion_de_caminho_de_import() -> None:
     found = labels("import std.\n", "std.")
     assert "json" in found
