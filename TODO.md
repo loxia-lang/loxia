@@ -49,7 +49,8 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
        (10.000 chamadas, orçamento de 64 MiB, `R1015`).
 4. [x] **Heap**: [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md) implementado
        (default 512 MiB + `--max-heap` de build).
-5. [ ] **Diagnósticos**: stack trace de runtime e fonte de módulo no checker.
+5. [ ] **Diagnósticos**: fonte de módulo no checker entregue; falta stack trace de
+       runtime (com a fonte do módulo nos frames, inclusive no nativo).
 6. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
 7. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
 
@@ -284,8 +285,9 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    disparam.
 8. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
    `raise` através de frames aninhados é dívida declarada, não bloqueia a stdlib.
-9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; restam `..`
-   fora da raiz e diagnóstico de checker com fonte do módulo.
+9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; resta `..`
+   fora da raiz. Diagnóstico de checker com a fonte do módulo está feito
+   (`Token.file`); o runtime ainda fica no arquivo da entrada até o frame stack (§3.1).
 
 > Nome e extensão saíram daqui: **Loxia** e `.lx`, decididos no
 > [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md).

@@ -3,9 +3,11 @@ sources:
   - loxia_core/diagnostics/**
   - loxia_core/execution/interpreter.py
   - loxia_core/frontend/scanner.py
+  - loxia_core/frontend/tokens.py
   - loxia_core/frontend/parser.py
   - loxia_core/semantics/resolver.py
   - loxia_core/semantics/checker.py
+  - loxia_core/loader/loader.py
   - loxia/cli.py
   - tests/test_diagnostics.py
 ---
@@ -63,7 +65,13 @@ temporários.
 - No REPL não há exit code; a linha com erro é descartada e a sessão continua. O arquivo é
   `<repl>`.
 - O caminho exibido é relativo ao CWD; se o arquivo estiver fora do CWD, só o basename.
-  Caminho absoluto nunca aparece (I3).
+  Caminho absoluto nunca aparece (I3). Módulos `std.*` usam o nome lógico
+  (`std/strings.lx`) para não depender do CWD nem colidir com um arquivo de usuário.
+- Erro de **compilação** em módulo aponta o arquivo do módulo, com trecho e caret desse
+  arquivo: o token carrega a origem, então checker e resolver não herdam o arquivo da
+  entrada. O erro de **runtime** ainda usa o arquivo da entrada: o binário só embute o
+  `source_path` do build, e trocar isso exige o frame stack dos dois motores
+  ([TODO §3.1](../../TODO.md)).
 
 ### Envelope JSON (v1)
 

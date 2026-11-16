@@ -120,7 +120,12 @@ class ErrorReporter:
         )
 
     def runtime_error(self, error: LoxRuntimeError) -> None:
-        """Erro de runtime do tree-walk; o backend nativo o reproduz no commit 2."""
+        """Erro de runtime do tree-walk; o backend nativo o reproduz no commit 2.
+
+        Até o frame stack nativo (TODO §3.1), o runtime continua no arquivo da entrada:
+        o binário só embute o `source_path` do build. Trocar para `error.token.file`
+        junto com a paridade, senão os dois motores divergem em módulo.
+        """
         self.had_runtime_error = True
         self._diagnostics.append(
             Diagnostic(
@@ -128,7 +133,7 @@ class ErrorReporter:
                 phase=Phase.RUNTIME,
                 severity=Severity.ERROR,
                 message=error.message,
-                span=self._span_of_token(error.token),
+                span=self._span_of_token(error.token, file=self.file),
             )
         )
 
@@ -241,9 +246,15 @@ class ErrorReporter:
         self.had_error = True
         self._diagnostics.append(diagnostic)
 
-    def _span_of_token(self, token: Token) -> Span:
+    def _span_of_token(self, token: Token, *, file: str | None = None) -> Span:
+        """Span do token; usa `token.file` (origem real) salvo quando `file` manda.
+
+        Tokens sintéticos (file vazio) e diagnósticos sem arquivo próprio caem no
+        arquivo atual do reporter.
+        """
         start = Position(token.line, token.column, token.offset)
-        return Span(self.file, start, _end_position(start, token.lexeme))
+        origin = file if file is not None else (token.file or self.file)
+        return Span(origin, start, _end_position(start, token.lexeme))
 
     def _span_of_line(self, line: int) -> Span:
         position = Position(line)

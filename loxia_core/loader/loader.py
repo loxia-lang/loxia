@@ -9,7 +9,7 @@ from typing import Any
 from loxia_core.bundle import bundle_dir
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.error_reporter import ErrorReporter
-from loxia_core.diagnostics.source import SourceMap
+from loxia_core.diagnostics.source import SourceMap, display_path
 from loxia_core.frontend.destructuring import NamePattern, TuplePattern
 from loxia_core.frontend.expr import (
     As,
@@ -188,11 +188,10 @@ class ModuleLoader:
             source = path.read_text(encoding="utf-8")
         except OSError:
             self._error(token, f"Can't read module '{name}'.")
-        display = (
-            path.relative_to(self.root).as_posix()
-            if path.is_relative_to(self.root)
-            else path.name
-        )
+        # Caminho de exibição determinístico e consistente com a entrada (relativo ao
+        # CWD; basename fora dele). Módulos `std.*` usam o nome lógico para não colidir
+        # entre si nem depender do CWD (ADR-0075: nunca caminho absoluto).
+        display = self._display_path(name, path)
         self.sources.add(display, source)
         previous = self.reporter.file
         self.reporter.file = display
@@ -238,6 +237,21 @@ class ModuleLoader:
             self._load_module(target_import, statement.path[0])
         self._loading.remove(name)
         self._order.append(name)
+
+    def _display_path(self, name: str, path: Path) -> str:
+        """Caminho de exibição do módulo: sem absoluto, estável e sem colisão.
+
+        `std.*` usa o nome lógico (`std/strings.lx`). Fora do CWD, `display_path`
+        devolveria só o basename; aí preferimos o caminho relativo à raiz do programa
+        para que `pkgA/util.lx` e `pkgB/util.lx` não virem o mesmo `util.lx`.
+        """
+        if name.startswith("std."):
+            return name.replace(".", "/") + SOURCE_SUFFIX
+
+        display = display_path(path)
+        if display == path.name and path.is_relative_to(self.root):
+            return path.relative_to(self.root).as_posix()
+        return display
 
     def _entry_root(self) -> Path:
         return self.root
@@ -337,7 +351,9 @@ class _Rewriter:
         return self.declarations.get(name)
 
     def _rename_token(self, token: Token, name: str) -> Token:
-        return Token(token.type, name, token.literal, token.line)
+        # `replace` preserva linha/coluna/offset/arquivo: o token reescrito continua
+        # apontando o ponto original (senão o caret cai na coluna 1/offset 0).
+        return replace(token, lexeme=name)
 
     def _var(self, expr: Variable) -> Expr:
         if self._is_local(expr.name.lexeme):

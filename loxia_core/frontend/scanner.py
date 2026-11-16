@@ -22,6 +22,9 @@ class Scanner:
         self._start_column: int = 1
         self._start_offset: int = 0
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
+        # Snapshot do arquivo de exibição: o loader troca `reporter.file` por módulo.
+        # Sem reporter explícito o scanner não conhece a origem (tokens sintéticos).
+        self._file: str = reporter.file if reporter is not None else ""
 
     def scan_tokens(self) -> list[Token]:
 
@@ -37,6 +40,7 @@ class Scanner:
                 self._line,
                 self._column,
                 self._byte_offset,
+                file=self._file,
             )
         )
         return self._tokens
@@ -229,6 +233,7 @@ class Scanner:
                 self._start_line,
                 self._start_column,
                 self._start_offset,
+                file=self._file,
             )
         )
 
@@ -405,6 +410,7 @@ class Scanner:
                 self._line,
                 self._column,
                 self._byte_offset,
+                file=self._file,
             )
         )
         return tokens

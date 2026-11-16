@@ -332,8 +332,11 @@ chamada.
 - Sintaxe/escopo: `reporter.error(token, mensagem)`; o parser se recupera e o resolver
   continua. Runtime: `raise LoxRuntimeError` e o `interpret` captura.
 - Exit codes: 65 (compilação), 70 (runtime), 66 (arquivo).
-- Ainda não há spans além da linha, stack trace nem JSON — desenho em
-  [`../../IDEIAS.md`](../../IDEIAS.md) I-4.
+- Diagnósticos estruturados ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)):
+  `Diagnostic` com código, fase, span e `labels`/`notes`/`help`; renderizadores
+  `human`/`short`/`json`; flags `--error-format`, `--color` e `--max-errors`. O token
+  carrega o arquivo de origem, então erro de compilação em módulo aponta o módulo.
+  Falta o stack trace de runtime ([TODO §3.1](../../TODO.md)).
 
 ## REPL
 
@@ -419,7 +422,9 @@ exit code com o interpretador — o oráculo é sempre o tree-walk.
 
 ## Limitações conhecidas
 
-- Sem colunas/spans, sem stack trace, sem códigos de erro.
+- Sem stack trace de runtime; o erro de runtime em módulo ainda usa o arquivo da
+  entrada (o binário só embute o `source_path` do build). Posição, código e JSON existem
+  ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
 - `Int` (i64) e `Float` (f64) separados; `/` sempre `Float`, `%` truncado, `Int` com
   wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
 - Recursão limitada a 10.000 chamadas Lox (R1015, capturável) nos dois motores; sem tail

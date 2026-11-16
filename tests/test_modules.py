@@ -2,17 +2,26 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
+
+from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.diagnostics.source import SourceMap
+from loxia_core.frontend.expr import Call, Variable
+from loxia_core.frontend.parser import Parser
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.stmt import Function, Return
+from loxia_core.loader.loader import ModuleLoader
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 
 
-def _run(path: Path) -> subprocess.CompletedProcess[str]:
+def _run(path: Path, *flags: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
+        [sys.executable, str(ENTRYPOINT), *flags, str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -164,3 +173,117 @@ def test_display_de_classe_de_modulo_preserva_nome(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "DtoA instance\n"
+
+
+def test_erro_de_checker_aponta_o_arquivo_do_modulo(tmp_path: Path) -> None:
+    """ADR-0075: o span carrega a origem real, não o arquivo da entrada."""
+    (tmp_path / "mod.lx").write_text(
+        'fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8"
+    )
+    main = tmp_path / "main.lx"
+    main.write_text("import mod\n\nprint(mod.f())\n", encoding="utf-8")
+
+    result = _run(main, "--check")
+
+    assert result.returncode == 65
+    assert "mod.lx:2:3: error[E3001]: Expected Int, found String." in result.stderr
+    assert "main.lx:2" not in result.stderr
+    assert '2 |   return "boom"' in result.stderr
+    assert "  |   ^" in result.stderr
+
+
+def test_erro_de_checker_em_modulo_aninhado_nao_vira_basename(tmp_path: Path) -> None:
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "mod.lx").write_text(
+        'fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8"
+    )
+    main = tmp_path / "main.lx"
+    main.write_text("import pkg.mod\n\nprint(pkg.mod.f())\n", encoding="utf-8")
+
+    result = _run(main, "--check")
+
+    assert result.returncode == 65
+    assert "pkg/mod.lx:2:3: error[E3001]" in result.stderr, result.stderr
+
+
+def test_erro_de_resolver_aponta_o_arquivo_do_modulo(tmp_path: Path) -> None:
+    (tmp_path / "mod.lx").write_text(
+        "fn f() -> Int {\n  val x = 1\n  x = 2\n  return x\n}\n",
+        encoding="utf-8",
+    )
+    main = tmp_path / "main.lx"
+    main.write_text("import mod\n\nprint(mod.f())\n", encoding="utf-8")
+
+    result = _run(main, "--check")
+
+    assert result.returncode == 65
+    assert "mod.lx:3:3: error[E2002]" in result.stderr
+    assert "3 |   x = 2" in result.stderr
+
+
+def test_json_do_checker_traz_span_do_modulo(tmp_path: Path) -> None:
+    (tmp_path / "mod.lx").write_text(
+        'fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8"
+    )
+    main = tmp_path / "main.lx"
+    main.write_text("import mod\n\nprint(mod.f())\n", encoding="utf-8")
+
+    result = _run(main, "--check", "--error-format=json")
+    payload = json.loads(result.stdout)
+    span = payload["diagnostics"][0]["span"]
+
+    assert span["file"] == "mod.lx"
+    assert span["start"]["line"] == 2
+    assert span["start"]["column"] == 3
+    assert span["start"]["offset"] > 0
+
+
+def test_rewriter_preserva_posicao_do_token(tmp_path: Path) -> None:
+    """O rewriter renomeia `f` para `a$f`; posição e arquivo não podem se perder."""
+    (tmp_path / "a.lx").write_text(
+        "fn f() -> Int { return 1 }\n", encoding="utf-8"
+    )
+    line = "fn h() -> Int { return g(f) }"
+    (tmp_path / "b.lx").write_text(
+        f"from a import f\nfn g(x: Int) -> Int {{ return x }}\n{line}\n",
+        encoding="utf-8",
+    )
+
+    reporter = ErrorReporter()
+    reporter.file = "main.lx"
+    source = "import b\n"
+    statements = Parser(Scanner(source, reporter).scan_tokens(), reporter=reporter).parse()
+    assert statements is not None
+    loaded = ModuleLoader(reporter, SourceMap(), tmp_path).load(statements, "main.lx")
+    assert loaded is not None
+
+    function = next(
+        stmt
+        for stmt in loaded
+        if isinstance(stmt, Function) and stmt.display_name == "h"
+    )
+    return_stmt = next(stmt for stmt in function.body if isinstance(stmt, Return))
+    call = return_stmt.value
+    assert isinstance(call, Call)
+    argument = call.arguments[0]
+    assert isinstance(argument, Variable)
+
+    assert argument.name.lexeme.endswith("$f")
+    assert argument.name.file == "b.lx"
+    assert argument.name.column == line.index("f)") + 1
+    assert argument.name.offset > 0
+
+
+def test_erro_de_runtime_ainda_usa_o_arquivo_da_entrada(tmp_path: Path) -> None:
+    """Limite declarado até o frame stack nativo (TODO §3.1): o binário só embute o
+    `source_path` do build, então o tree-walk mantém o mesmo arquivo para o I1."""
+    (tmp_path / "mod.lx").write_text(
+        "fn f(x: Int) -> Int {\n  return x // 0\n}\n", encoding="utf-8"
+    )
+    main = tmp_path / "main.lx"
+    main.write_text("import mod\n\nprint(mod.f(1))\n", encoding="utf-8")
+
+    result = _run(main)
+
+    assert result.returncode == 70
+    assert "main.lx:2:12: error[R1002]: Division by zero not allowed" in result.stderr

@@ -13,6 +13,10 @@ class Token:
     # Os defaults mantêm compatível quem constrói Token à mão (testes, tokens sintéticos).
     column: int = 1
     offset: int = 0
+    # Arquivo de origem (caminho de exibição). Vazio = sintético/desconhecido; o
+    # reporter cai no arquivo da execução. É o que permite checker/resolver apontarem
+    # o módulo certo depois que o loader devolve a entrada (ADR-0075).
+    file: str = ""
 
     def __str__(self) -> str:
         return f"{self.type.name} {self.lexeme} {self.literal}"

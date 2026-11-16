@@ -12,7 +12,10 @@ o veredicto e o motivo.
    - `updated` — o texto mudou (e o diff da página está no mesmo commit);
    - `no-change` — o texto continua verdadeiro (diga por quê, em uma linha).
 3. Registre aqui: data, intervalo (commits) e uma linha por página.
-4. Se o código ganhou/removeu um módulo, ajuste as `sources:` da página no mesmo commit —
+4. Feche o intervalo com um marcador no fim deste arquivo: `<!-- triaged: <sha> -->`.
+   O `freshness.py` ignora commits até esse SHA (e ignora mudanças não commitadas, que
+   ainda não são fato). Sem o marcador, `no-change` nunca silencia o relatório.
+5. Se o código ganhou/removeu um módulo, ajuste as `sources:` da página no mesmo commit —
    glob que não casa com nada é erro no `tests/test_docs_consistency.py`.
 
 Regras:
@@ -581,4 +584,39 @@ loader (`STD_ROOT`), `editors/build_grammar.py`, `docs/_hooks/{codes,freshness}.
 teste de sombreamento da stdlib. Resolve a dívida registrada no
 [ADR-0088](../docs/adr/0088-distribuicao-e-raizes-de-modulo.md) (pacote top-level `src` no
 wheel). Nenhum comportamento mudou: suíte completa verde, incluindo o backend.
+
+## 2026-11-15 — empacotamento (ADR-0088, parte entregue)
+
+`pyproject.toml` ganhou `[build-system]` (hatchling), `[project.scripts] loxia`, metadados e
+`force-include` de `std/` e `runtime/` para dentro de `loxia_core`. O novo
+`loxia_core/bundle.py` resolve dev (raiz do repo) × instalado (`importlib.resources`), e o
+loader/driver usam ele. Verificado com wheel real: `loxia --version`, `import std.json`,
+`--emit=ll` e `--emit=exe` (runtime empacotado) fora do clone. README ganhou a seção
+"Instalar"; workflow de release com Trusted Publishing.
+
+## 2026-11-15 — triagem pós-empacotamento
+
+Intervalo: mudanças do empacotamento (ADR-0088) ainda não commitadas no momento da
+triagem; o marcador `<!-- triaged: <sha> -->` deve ser adicionado no commit que fecha
+este lote.
+
+- `docs/spec/garantias.md` — **no-change**: `loxia_core/bundle.py` mudou a *localização*
+  de `std/` e `runtime.c` (dev × wheel), não o contrato de I1–I4 nem os orçamentos.
+- `docs/spec/semantica.md` — **no-change**: a mudança em `loxia_core/loader/**` é de
+  resolução de bundle; a semântica de módulos e imports não mudou.
+- `docs/decisoes.md` — **updated**: linha de distribuição passa a dizer que o
+  empacotamento foi entregue (comando + `std/` + `runtime.c` no wheel).
+
+## 2026-11-15 — fonte de módulo nos diagnósticos (`Token.file`)
+
+Intervalo: `HEAD`..working tree. Diagnóstico de compilação em módulo passou a apontar o
+arquivo do módulo (com trecho/caret e `span.file` no JSON); runtime e nativo intocados,
+então o I1 não muda. O marcador `<!-- triaged: <sha> -->` fica para o commit que fechar o
+lote (junto do empacotamento acima).
+
+- `docs/spec/erros.md` — **updated**: caminho do módulo e `std/...`, span por token e
+  limite declarado do runtime (arquivo da entrada até o frame stack).
+- `docs/tech/arquitetura.md` — **updated**: as seções de diagnósticos/limitações diziam
+  “sem spans, códigos ou JSON”; reescritas para o estado do ADR-0075.
+- `TODO.md` — **updated**: §0.2 item 5 e §11.9 (fonte de módulo entregue; resta `..`).
 
