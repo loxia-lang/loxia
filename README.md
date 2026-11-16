@@ -141,6 +141,7 @@ uv run main.py fmt --check prog.lx         # exit 1 se mudaria
 uv run main.py doc prog.lx --json          # doc comments /// (ADR-0091)
 uv run main.py explain E2001               # família do código
 uv run main.py capabilities --json         # versão, comandos, códigos e limites
+uv run main.py lsp                         # servidor LSP em stdio (ADR-0090)
 ```
 
 `--json` é alias de `--error-format=json`; `--json-lines` emite um objeto por linha
@@ -151,7 +152,8 @@ para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`
 `--no-progress` é aceito e hoje é no-op. `-Werror` transforma warnings em erros (só
 `check`/`build`; `run` nunca emite warnings). `doc` gera Markdown (padrão) ou JSON a
 partir dos comentários `///` de funções, classes, interfaces, enums, variantes, campos,
-tipos e `val`/`var`; não executa o programa.
+tipos e `val`/`var`; não executa o programa. `lsp` sobe o servidor JSON-RPC em stdio
+(LSP-0: diagnostics e documentSymbol; hover/definition ainda pendentes).
 
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,
 `2` uso inválido, `124` timeout, `130` `--watch` interrompido. O binário gerado por

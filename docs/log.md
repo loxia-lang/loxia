@@ -733,3 +733,16 @@ trailing comma/reflow e o dogfood Lox continuam pendentes.
   `README.md`, `docs/tech/arquitetura.md` — **updated**: status/contrato.
 
 <!-- triaged: 18f0697 -->
+
+## 2026-11-16 — LSP-0
+
+Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0090: servidor
+`loxia lsp` em Python com JSON-RPC stdio à mão, full sync, `publishDiagnostics` e
+`documentSymbol`; LSP-1/2 (hover/definition/completion) continuam pendentes.
+
+- `loxia/lsp.py` — **new**: servidor LSP-0.
+- `loxia/cli.py` — **updated**: subcomando `lsp`.
+- `tests/test_lsp.py` — **new**: transcrições initialize/didOpen/diagnostics/change/
+  documentSymbol/shutdown.
+- `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0090`, `docs/adr/README.md`,
+  `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**: contrato/status.

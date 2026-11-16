@@ -1,6 +1,11 @@
 # ADR-0090 — LSP: hospedagem, escopo e fases
 
-- **Status:** accepted (plano; implementação pendente)
+> **Implementação parcial (2026-11-16):** LSP-0 em Python (`loxia lsp`, JSON-RPC
+> stdio à mão): `initialize`/`shutdown`/`exit`, full sync, `publishDiagnostics` e
+> `documentSymbol`, com testes de transcrição. LSP-1 (spans + `SymbolIndex` →
+> hover/definition) e LSP-2 ficam pendentes.
+
+- **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0075](0075-diagnosticos-estruturados.md) (modelo de
@@ -8,9 +13,9 @@
   [ADR-0088](0088-distribuicao-e-raizes-de-modulo.md) (distribuição e organização),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (custo de superfície),
   [`../../TODO.md`](../../TODO.md) §3.1 e §14.8, [`../../IDEIAS.md`](../../IDEIAS.md) I-4
-- **Implementação (a criar):** `loxia/lsp.py` ou `loxia/lsp/` (servidor),
-  `tests/test_lsp.py` (transcrições JSON-RPC), `editors/` (cliente VS Code),
-  `loxia/cli.py` (subcomando `lsp`). Nada implementado neste ADR.
+- **Implementação:** `loxia/lsp.py` (servidor), `loxia/cli.py` (`lsp`),
+  `tests/test_lsp.py` (transcrições JSON-RPC). LSP-1/2 e o cliente VS Code ainda
+  não existem.
 
 ## Contexto
 

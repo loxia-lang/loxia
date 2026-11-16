@@ -51,6 +51,7 @@ COMMANDS = (
     "doc",
     "explain",
     "capabilities",
+    "lsp",
 )
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
 _WATCH_INTERVAL_SECONDS = 0.25
@@ -725,6 +726,12 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             help="limite de diagnósticos",
         )
         parser.set_defaults(error_format_explicit=False)
+    elif command == "lsp":
+        parser.add_argument(
+            "--stdio",
+            action="store_true",
+            help="usa stdio (padrão; aceito para compatibilidade)",
+        )
     elif command == "explain":
         parser.add_argument("code", help="código de diagnóstico (ex.: E2001)")
         parser.add_argument("--json", action="store_true", help="saída JSON")
@@ -1036,6 +1043,7 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
+        {"name": "lsp", "features": ["stdio"]},
     ]
     codes = [
         {
@@ -1122,6 +1130,11 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
         else:
             _print_capabilities(args.json)
         return
+
+    if command == "lsp":
+        from loxia.lsp import main as lsp_main
+
+        raise SystemExit(lsp_main())
 
     if command == "fmt":
         _run_fmt(args, parser)
