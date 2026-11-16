@@ -8,9 +8,9 @@
   [ADR-0026](0026-freeze-1.0.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../../TIPOS.md`](../../TIPOS.md) §2.1, [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/frontend/ty.py`](../../src/frontend/ty.py), [`src/frontend/stmt.py`](../../src/frontend/stmt.py),
-  [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
-  [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py),
+- **Implementação:** [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py), [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py),
+  [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py), [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
+  [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)

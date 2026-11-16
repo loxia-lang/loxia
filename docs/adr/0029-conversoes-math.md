@@ -8,12 +8,12 @@
   [ADR-0026](0026-freeze-1.0.md), [ADR-0028](0028-overflow-debug.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/erros.md`](../spec/erros.md)
-- **Implementação:** [`src/frontend/expr.py`](../../src/frontend/expr.py), [`src/frontend/parser.py`](../../src/frontend/parser.py),
-  [`src/semantics/checker.py`](../../src/semantics/checker.py), [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-  [`src/execution/numeric.py`](../../src/execution/numeric.py), [`src/execution/native_module.py`](../../src/execution/native_module.py),
-  [`src/execution/natives/parse.py`](../../src/execution/natives/parse.py),
-  [`src/execution/natives/math.py`](../../src/execution/natives/math.py),
-  [`src/execution/natives/modules.py`](../../src/execution/natives/modules.py)
+- **Implementação:** [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py), [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py),
+  [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py), [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
+  [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py), [`loxia_core/execution/native_module.py`](../../loxia_core/execution/native_module.py),
+  [`loxia_core/execution/natives/parse.py`](../../loxia_core/execution/natives/parse.py),
+  [`loxia_core/execution/natives/math.py`](../../loxia_core/execution/natives/math.py),
+  [`loxia_core/execution/natives/modules.py`](../../loxia_core/execution/natives/modules.py)
 
 ## Contexto
 

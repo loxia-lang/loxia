@@ -1,7 +1,7 @@
 """Gera o catálogo de códigos de diagnóstico em `docs/spec/erros.md`.
 
 A tabela entre `<!-- codes:start -->` e `<!-- codes:end -->` é **gerada** a partir de
-`src/diagnostics/codes.py` (`Code`, `CODE_PHASE` e `CODE_DESCRIPTIONS`); não edite à mão.
+`loxia_core/diagnostics/codes.py` (`Code`, `CODE_PHASE` e `CODE_DESCRIPTIONS`); não edite à mão.
 Assim o catálogo não descola do enum: um código novo sem descrição quebra o `--check`.
 
 Uso:
@@ -22,12 +22,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.diagnostics.codes import (  # noqa: E402
+from loxia_core.diagnostics.codes import (  # noqa: E402
     CODE_DESCRIPTIONS,
     CODE_PHASE,
     Code,
 )
-from src.diagnostics.diagnostic import Phase  # noqa: E402
+from loxia_core.diagnostics.diagnostic import Phase  # noqa: E402
 
 PAGE = ROOT / "docs" / "spec" / "erros.md"
 START = "<!-- codes:start -->"
@@ -69,7 +69,7 @@ def render() -> str:
             if description is None:
                 raise SystemExit(
                     f"{code.value}: sem descrição em CODE_DESCRIPTIONS "
-                    "(src/diagnostics/codes.py)"
+                    "(loxia_core/diagnostics/codes.py)"
                 )
             escaped = description.replace("|", "\\|")
             lines.append(f"| `{code.value}` | {escaped} |")
@@ -106,7 +106,7 @@ def main(argv: list[str]) -> int:
             return 0
         print(
             f"{PAGE.relative_to(ROOT)} está defasado em relação a "
-            "src/diagnostics/codes.py. Rode: make codes"
+            "loxia_core/diagnostics/codes.py. Rode: make codes"
         )
         print("--- esperado ---")
         print(block)

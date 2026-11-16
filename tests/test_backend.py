@@ -727,7 +727,7 @@ def test_formatacao_de_float_igual_ao_repr(tmp_path: Path) -> None:
     import random
     import struct
 
-    from src.execution.values import stringify
+    from loxia_core.execution.values import stringify
 
     values = [
         0.0,
@@ -937,7 +937,7 @@ def test_try_e_compilado(tmp_path: Path) -> None:
 @pytest.mark.backend
 def test_abi_das_estruturas_publicas_e_estavel() -> None:
     """Contrato mínimo para a futura FFI com C (ADR-0048)."""
-    from src.backend.lower_model import (
+    from loxia_core.backend.lower_model import (
         _ANY,
         _CLASS_DESC,
         _CLOSURE,

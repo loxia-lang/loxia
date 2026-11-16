@@ -52,9 +52,9 @@ diretório em `Packages/`; no TextMate, `~/Library/Application Support/TextMate/
 
 | Fonte | O que entra |
 | --- | --- |
-| `src/frontend/keywords.py` (`KEYWORDS`) | todos os 32 keywords, agrupados por scope |
-| `src/frontend/token_type.py` (`TokenType`) | operadores (`**`, `??`, `?.`, `..`, `>>>`…) e pontuação |
-| `src/execution/prelude.py` (`BUILTIN_NAMES`) | `Int`, `Result`, `RuntimeError`, `len`, `math`… |
+| `loxia_core/frontend/keywords.py` (`KEYWORDS`) | todos os 32 keywords, agrupados por scope |
+| `loxia_core/frontend/token_type.py` (`TokenType`) | operadores (`**`, `??`, `?.`, `..`, `>>>`…) e pontuação |
+| `loxia_core/execution/prelude.py` (`BUILTIN_NAMES`) | `Int`, `Result`, `RuntimeError`, `len`, `math`… |
 
 ```bash
 make grammar       # uv run python editors/build_grammar.py --write
@@ -85,11 +85,11 @@ texto puro, e não existe hook de plugin para registrar gramática. Fazer `.lx` 
 um patch de **3 pontos + 1 arquivo** no checkout do harness:
 
 1. copie `editors/dsh/loxia.ts` para
-   `packages/client/ui-primitives/src/markdown/grammars/loxia.ts` (autocontido, sem dependência
+   `packages/client/ui-primitives/loxia_core/markdown/grammars/loxia.ts` (autocontido, sem dependência
    deste repo);
-2. `packages/util/code-language/src/index.ts`, na tabela `LANGUAGE_EXTENSIONS`:
+2. `packages/util/code-language/loxia_core/index.ts`, na tabela `LANGUAGE_EXTENSIONS`:
    `loxia: ['lx'],`
-3. `packages/client/ui-primitives/src/markdown/highlight.ts`:
+3. `packages/client/ui-primitives/loxia_core/markdown/highlight.ts`:
    - no fim do `LAZY_GRAMMARS`: `['loxia', () => import('./grammars/loxia')],`
    - no `LANG_ALIASES`: `['loxia', 'loxia'], ['lx', 'loxia'],`
 

@@ -7,9 +7,9 @@
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0011](0011-fn-elif-ponto-e-virgula.md),
   [ADR-0032](0032-narrowing-campos-indices.md),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md)
-- **Implementação:** `src/frontend/scanner.py`, `src/frontend/keywords.py`,
-  `src/frontend/parser.py`, `src/semantics/checker.py`, `src/execution/interpreter.py`,
-  `src/backend/lower.py`; casos `tests/cases/unary.lox`, `precedence.lox`,
+- **Implementação:** `loxia_core/frontend/scanner.py`, `loxia_core/frontend/keywords.py`,
+  `loxia_core/frontend/parser.py`, `loxia_core/semantics/checker.py`, `loxia_core/execution/interpreter.py`,
+  `loxia_core/backend/lower.py`; casos `tests/cases/unary.lox`, `precedence.lox`,
   `bang_removed.lox`; testes em `tests/test_scanner.py`, `tests/test_parser.py` e
   `tests/test_checker.py`
 
@@ -85,7 +85,7 @@ duas linhas de teste), **zero** vezes na suíte oficial dos capítulos 10–13, 
 - `uv run python -m tests.runner unary` e `precedence` (negação e precedência unária);
 - `uv run pytest tests/test_scanner.py tests/test_parser.py tests/test_checker.py`;
 - `--dump-ast` de `not nil` imprime `(not nil)`;
-- `grep -rn 'BANG' src tests` não retorna nada;
+- `grep -rn 'BANG' loxia_core tests` não retorna nada;
 - `make check` (docs consistency + suíte completa).
 
 ## Referências

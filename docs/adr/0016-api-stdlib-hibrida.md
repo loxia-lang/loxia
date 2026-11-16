@@ -6,10 +6,10 @@
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md),
   [ADR-0015](0015-listas-tipadas.md), a discussão histórica de I-3 (git),
   [`TODO.md`](../../TODO.md) §11, [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/execution/prelude.py`](../../src/execution/prelude.py),
-  [`src/execution/natives/str.py`](../../src/execution/natives/str.py),
-  [`src/execution/natives/repr.py`](../../src/execution/natives/repr.py),
-  [`src/semantics/checker.py`](../../src/semantics/checker.py), [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
+- **Implementação:** [`loxia_core/execution/prelude.py`](../../loxia_core/execution/prelude.py),
+  [`loxia_core/execution/natives/str.py`](../../loxia_core/execution/natives/str.py),
+  [`loxia_core/execution/natives/repr.py`](../../loxia_core/execution/natives/repr.py),
+  [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py), [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
   [`tests/cases/str_repr.lox`](../../tests/cases/str_repr.lx),
   [`tests/cases/builtin_shadow_local.lox`](../../tests/cases/builtin_shadow_local.lx)
 
@@ -87,7 +87,7 @@ print repr("a\nb")    # "a\nb"
   formatação de elementos já cita strings.
 - Ambas são aridade 1, aceitam qualquer valor e devolvem `String`; não há boxing.
 - Hooks customizados (`__str__`/`__repr__` em classes) ficam para quando o modelo de
-  objetos precisar; hoje a formatação é centralizada em `src/execution/values.py`.
+  objetos precisar; hoje a formatação é centralizada em `loxia_core/execution/values.py`.
 - `repr` é determinístico: nada de endereço, `id` ou ordem de hash; ciclos de lista viram
   `[...]`.
 
@@ -107,7 +107,7 @@ class range {}            # erro
   `Can't redeclare immutable variable 'x'.`
 - **Shadowing local é permitido**: `fn f(len: Int)` ou `{ val str = 1; }` funcionam como
   sombreamento lexical normal; o builtin continua disponível fora daquele escopo.
-- A lista canônica fica em [`src/execution/prelude.py`](../../src/execution/prelude.py) para checker e
+- A lista canônica fica em [`loxia_core/execution/prelude.py`](../../loxia_core/execution/prelude.py) para checker e
   interpretador não divergirem.
 
 ### 5. Sem métodos em primitivos agora

@@ -53,6 +53,10 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
 6. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
 7. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
 
+> **Trilha paralela:** a §14 (publicação, distribuição, pacotes, corpus de conformidade e
+> docs de usuário) não bloqueia nenhum nível da linguagem/backend e pode andar junto com a
+> fila acima. Ela é pré-requisito de **adoção**, não de correção.
+
 ## 3. Diagnósticos
 
 O desenho e a primeira entrega estão no
@@ -60,7 +64,7 @@ O desenho e a primeira entrega estão no
 códigos estáveis por família, spans (linha/coluna/offset), `human`/`short`/`json`,
 ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 [`docs/spec/erros.md`](docs/spec/erros.md) é **gerado** a partir de
-`src/diagnostics/codes.py` (`make codes`).
+`loxia_core/diagnostics/codes.py` (`make codes`).
 
 ### 3.1 O que ainda falta
 
@@ -319,9 +323,9 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
 | Camada | O que entra | Implementações | Onde |
 | --- | --- | --- | --- |
-| kernel | syscalls e representação | Python (oráculo) + C (binário) | `src/execution/primitives.py`, `runtime/runtime.c` |
+| kernel | syscalls e representação | Python (oráculo) + C (binário) | `loxia_core/execution/primitives.py`, `runtime/runtime.c` |
 | std | biblioteca | **uma** (Lox) | `std/*.lx` |
-| módulos | nomeação e carga | loader/desugar, sem lógica | `src/loader/` |
+| módulos | nomeação e carga | loader/desugar, sem lógica | `loxia_core/loader/` |
 
 **Kernel concluído** com **17** primitivas: `args`, `io.*` (incluindo `readAll`), `fs.*`
 (`exists`, `listDir`), `os.*`, `time.*`, `substr`, `join`, `charCodeAt`, `fromCodePoint`.
@@ -435,6 +439,10 @@ consolidada antes do MCP, que a consome.
 | 1 | {@14.1} Repositório público | é o pré-requisito de URL, issues e release |
 | 2 | {@14.2} Documentação como site | depende do repo público e do CI |
 | 3 | {@14.3} Servidor MCP | depende da spec publicada e estável |
+| 4 | {@14.4} Distribuição, stdlib instalada e pacotes | **pré-requisito técnico** do release da §14.1: hoje o wheel não entrega comando nem `std/` |
+| 5 | {@14.5} Corpus de conformidade como artefato | em paralelo; depende do manifesto estabilizado (já está) |
+| 6 | {@14.6} Primeiro programa real e docs de usuário | depende de 4 (instalar) e alimenta a §14.2 (tutorial/cookbook) |
+| 7 | {@14.7} CLI único e gerenciador de pacotes | fase 0 junto da 4; fases 1–2 depois do release; fase 3 só com demanda |
 
 ### 14.1 Abrir o repositório
 
@@ -514,3 +522,135 @@ bytes — diagnóstico determinístico é exatamente o que tool de agente precis
   protocolo: a especificação do MCP muda rápido.
 - **Não fazer:** MCP que gera código por conta própria, RAG com embeddings (não
   determinístico) e tool que edita arquivo do usuário.
+
+### 14.4 Distribuição, stdlib instalada e pacotes externos
+
+**O buraco, em fatos.** O repo funciona; o **pacote** não existe:
+
+- `pyproject.toml` não tem `[build-system]` nem `[project.scripts]` — `pip install loxia`
+  não produz o comando `loxia`;
+- `std/` está fora do pacote Python e `STD_ROOT` resolve por
+  `Path(__file__).parents[2] / "std"` (raiz do repo). Funciona no clone, **quebra no wheel**;
+- a raiz de módulos é o diretório do arquivo de entrada; `..` e caminho absoluto são erro
+  ([ADR-0073](docs/adr/0073-imports-modulos.md)). Consequência: um projeto **não consegue**
+  consumir código fora da própria pasta — nem dependência, nem monorepo, nem a stdlib se ela
+  não estiver no repo;
+- `std.*` é raiz reservada e resolve no bundle; o loader **inlina** os módulos em
+  compile-time, então tree-walk e backend usam a mesma resolução (bom: um caminho só).
+
+**O que isso custa hoje.** Quem quiser experimentar precisa clonar, instalar `uv`, `libgc` e
+`llvmlite`; e o primeiro usuário que tentar `import` de um pacote vai bater na regra do `..`.
+É o maior *gap* entre "projeto impressionante" e "ferramenta" — e é o único que depende de
+decisão de design, não de feature.
+
+**Item 1 — empacotar e instalar (sem decidir resolução ainda).**
+
+> Dívida do ADR-0088 **resolvida** em 2026-11-15: `src/` virou `loxia_core/`; o wheel
+> não instala mais um pacote top-level chamado `src`.
+
+- [ ] `[build-system]` (uv_build ou hatchling) + `[project.scripts] loxia = "loxia.cli:main"`;
+      `loxia run|check|build` como subcomandos, alinhados ao alvo da §6.9 (flags antigas
+      continuam valendo por compatibilidade).
+- [ ] Mover `std/` para dentro do pacote (`loxia/std/`) **ou** incluí-lo como *package data*;
+      `STD_ROOT` passa a resolver por `importlib.resources` (`files("loxia") / "std"`), com
+      fallback para o repo em dev. Fonte única, sem `parents[2]`.
+- [ ] Teste de instalação real: `uv build` → instalar o wheel num venv **fora do repo** →
+      `loxia --version` e um programa que importa `std.json` (hoje nenhum teste cobre o
+      layout instalado; é o único jeito de não descobrir isso na primeira release).
+- [ ] `uv build` e sdist sem `std/` duplicado; `CHANGELOG`/README com o comando de instalação.
+
+**Item 2 — resolução de módulos e pacotes (decidido no
+[ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md); desenho e opções em
+[`IDEIAS.md`](IDEIAS.md) I-9).**
+
+- [ ] Raízes ordenadas e determinísticas: `projeto` → raízes declaradas no manifest →
+      `std` (reservada, sempre por último).
+- [ ] `loxia.toml` com `[package] name` e `[modules] paths`; resolver `import acme.foo` pelo
+      pacote declarado, não pelo nome do diretório.
+- [ ] Política do `..`: **proibido no statement `import`** (mantém a regra), permitido apenas
+      como raiz declarada no manifest — monorepo funciona, fonte nunca escapa da raiz.
+- [ ] Ambiguidade entre raízes = erro explícito (nunca "primeira vence" em silêncio).
+- [ ] Determinismo: sem variável de ambiente; ordem fixa; diagnóstico lista raízes
+      **relativas** ao projeto (I3); `std` não pode ser sombreado.
+- [ ] Testes: monorepo com `../shared` declarado; raiz ambígua; pacote instalado; `std`
+      reservado; wheel de fora do repo.
+
+**Não fazer agora:** registry com rede, resolução de versões/semver, pacote binário e
+`../` dentro do fonte. Um gerenciador de pacotes completo é outro produto; o mínimo é
+"dependência declarada + resolução determinística".
+
+### 14.5 Corpus de conformidade como artefato
+
+O que viaja não é a linguagem — é o **corpus**. Hoje ele já é maduro: casos `.lx`
+autoexplicativos, manifesto por nível, promoção monotônica, runner diferencial nos três
+canais.
+
+- [ ] Extrair `conformance/` (ou repo próprio): casos anotados, manifesto, runner e README
+      que explique o contrato (`# expect:`, `PENDING`, `NEGATIVE`).
+- [ ] Duas camadas: **`lox-core`** (subconjunto compatível com o livro, para quem implementa
+      jlox/clox) e **`loxia`** (dialeto: `val`/`var`, `fn`, `print(...)`, enums, etc.).
+      Sem essa separação o corpus só serve a nós.
+- [ ] Runner genérico: `conformance run --impl "<comando>"` roda qualquer interpretador e
+      compara stdout/stderr/exit, sem depender do nosso CLI.
+- [ ] Licença: conferir a da suíte oficial (`tests/official/LICENSE`) e declarar a dos casos
+      nossos.
+- [ ] README com o mapeamento de divergências (o que um implementador do livro precisa
+      mudar para rodar a camada `lox-core`).
+
+**Por que vale:** precedente é WebAssembly spec tests/Test262 — quem implementa uma linguagem
+usa os testes de outra. É uma contribuição à comunidade Lox que **não exige adotar a Loxia**,
+e resolve o problema de "mais uma linguagem" na base da utilidade. É também a melhor
+vitrine técnica do projeto: o corpus é o que prova I1.
+
+### 14.6 Posicionamento, primeiro programa real e docs de usuário
+
+**A escada da singularidade.** Feature se copia num fim de semana; propriedade não:
+
+| Nível | O que é | Estado |
+| --- | --- | --- |
+| feature | `??`, `match`, generics | emprestado, e deve continuar assim |
+| **propriedade** | dois motores obrigados a concordar byte a byte + contratos de recurso + manifesto público | ✅ é o que existe de único |
+| **nicho** | "a linguagem para X" | ⬜ ainda não escolhido |
+
+**Métricas melhores que "adoção".** (1) você usa a Loxia todo dia para algo que te dá
+valor; (2) um artefato seu é usado por outra pessoa (o corpus, §14.5); (3) self-hosting.
+Adoção ampla não é meta de projeto solo — é consequência improvável de uma dessas três.
+
+- [ ] **Um programa real**, com `std.csv`/`std.json`/`std.fs`/`std.cli`: algo que você
+      realmente use (relatório CSV→HTML/JSON, analisador de logs, gerador de site). Publicar
+      o **programa** e um texto curto de "por que escrevi isso em Loxia".
+- [ ] Tutorial de 30 min (base do `/learn` da §14.2) e cookbook a partir de `exemplos/`.
+- [ ] Página "por que Loxia": os três casos de uso reais + I1–I4 + orçamentos, em uma
+      página; sem comparação com Python/Kotlin que não seja "para este caso, aqui".
+- [ ] Transparência: o README e os ADRs já dizem "Cássio + agente"; manter isso declarado,
+      sem liderar com o assunto. O post técnico é sobre o harness/contratos — o artefato
+      fala por si.
+
+**Não fazer:** caçar aprovação de comunidade que rejeita o método de construção; anunciar
+a linguagem antes de existir um programa real; medir sucesso por estrelas.
+
+### 14.7 CLI único e gerenciador de pacotes (fases)
+
+Objetivo: **um** comando (`loxia`) que roda, compila, testa e resolve pacotes — sem um
+segundo nome. A análise completa (o que o `uv` resolve que a Loxia não tem, requisitos,
+não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
+
+- [ ] **Fase 0 — CLI único** (junto da §14.4): `loxia run|check|build|fmt|test|repl|version`;
+      as flags atuais continuam aceitas. Sem rede, sem config nova. É só o entry point e o
+      despacho.
+- [ ] **Fase 1 — manifest + lock** (`loxia.toml` já existe pelo [ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)):
+      `[dependencies]`, `loxia.lock` com versão exata + `sha256`, `loxia lock`,
+      `loxia fetch --offline` e cache local. Critério de pronto: dois manifests iguais com o
+      mesmo lock produzem a mesma árvore de raízes e o mesmo build; `loxia run` funciona
+      offline.
+- [ ] **Fase 2 — path e git**: `dep = { path = "../lib" }` e `dep = { git = "...", rev = "..." }`.
+      Resolve monorepo sem registry. Critério: monorepo real em `exemplos/` compila nos dois
+      motores.
+- [ ] **Fase 3 — índice estático**: índice *sparse* (JSON por pacote) + tarball por versão +
+      `loxia add nome@1.2`. **Só entra com demanda de terceiro**; hospedar é barato, moderar
+      nome não.
+- [ ] **Fase 4 — resolver em Loxia**: dogfooding do resolver na própria linguagem (como
+      Cargo em Rust), depois do self-hosting; exige `sha256` como primitiva do kernel.
+
+**Não fazer:** registry antes de demanda, semver completo com backtracking antes de pacote
+real, scripts de build em pacote (risco de supply chain), pacote binário, mirrors.

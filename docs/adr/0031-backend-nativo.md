@@ -8,7 +8,7 @@
   (anotações), [ADR-0026](0026-freeze-1.0.md) (`Any` fora do backend),
   [ADR-0027](0027-generics-t3b.md), [ADR-0028](0028-overflow-debug.md),
   [`../../TODO.md`](../../TODO.md) §6, [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** `src/backend/`, `runtime/runtime.c`, `--emit=ll|obj|exe`,
+- **Implementação:** `loxia_core/backend/`, `runtime/runtime.c`, `--emit=ll|obj|exe`,
   `tests/test_backend.py`
 
 ## Contexto
@@ -32,7 +32,7 @@ inspeção (`--emit=ll`), não etapa.
 
 `llvmlite` é **extra opcional** (`uv sync --extra llvm`), não dependência de runtime: o
 interpretador continua sem dependências e `python main.py programa.lox` não importa nada
-do backend. A lib fica isolada em `src/backend/llvm_ir.py`, a única fronteira sem tipos
+do backend. A lib fica isolada em `loxia_core/backend/llvm_ir.py`, a única fronteira sem tipos
 (o resto do backend passa pelo mypy strict).
 
 ### 2. Modelo de valor: desboxado por tipo concreto

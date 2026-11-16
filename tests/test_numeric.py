@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.execution import numeric
+from loxia_core.execution import numeric
 
 
 def test_int_division_truncates_toward_zero() -> None:

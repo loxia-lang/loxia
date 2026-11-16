@@ -538,3 +538,224 @@ sem `@decorators`; decorators de função continuam sendo funções de ordem sup
 **Critério para reabrir:** dor real de fábrica/introspecção que construtores como valor não
 resolvam, com ADR separado para `Class[T]`; metaclasses/decorators só com justificativa
 muito forte.
+
+---
+
+## I-9 — Módulos fora do projeto, stdlib instalada e pacotes externos
+
+**Status:** `em avaliação`
+**Decidir até:** antes do primeiro release público — é o pré-requisito técnico do
+[`TODO.md`](TODO.md) §14.4. Hoje o repo funciona e o pacote não.
+
+### A pergunta
+
+Com a regra atual do [ADR-0073](docs/adr/0073-imports-modulos.md) — raiz = diretório do
+arquivo de entrada, `..` e caminho absoluto são erro, `std.` é raiz reservada — como um
+programa consome:
+
+1. a **stdlib instalada** (o wheel não tem `std/`);
+2. um **monorepo** (`../shared/util.lx`, fora da pasta do projeto);
+3. um **pacote de terceiro** instalado ou vendorizado?
+
+Sem quebrar I3 (determinismo) nem a segurança de "import nunca escapa da raiz".
+
+### Fatos do código (2026-11-15)
+
+- [`loxia_core/loader/loader.py`](loxia_core/loader/loader.py): módulo = arquivo, pasta = namespace,
+  `_` privado; `STD_ROOT = Path(__file__).resolve().parents[2] / "std"`; o loader **inlina**
+  os módulos em compile-time (não há módulo em runtime).
+- A resolução é a mesma para os dois motores (o backend recebe a AST achatada) — bom: uma
+  regra só, e o I1 não depende de runtime de módulos.
+- `pyproject.toml`: sem `[build-system]`, sem `[project.scripts]`, `std/` fora do pacote.
+- A suíte cobre `import std.*` nos casos `t1`/`t2` do diferencial, mas **sempre a partir do
+  repo**: nenhum teste roda o layout instalado.
+
+### Restrições que a decisão não pode violar
+
+- **I3:** ordem de resolução fixa, sem variável de ambiente, sem caminho absoluto no
+  diagnóstico, sem `set`/`dict` decidindo precedência.
+- **I1:** a resolução é a mesma nos dois motores; nada de "no nativo resolve outro arquivo".
+- **ADR-0073:** sem `__init__.py`, sem `index.lox`, sem reexportação, sem glob em `import`.
+- **ADR-0066 (gate sintático):** versão/hash não entram no `import` (`import acme@1.2` é
+  sintaxe nova); a restrição de versão mora no manifest.
+- **Sem rede no caminho de build** por padrão: `loxia run` não pode depender de internet.
+
+### Opções
+
+| Opção | Como funciona | Prós | Contras |
+| --- | --- | --- | --- |
+| **A. Vendor-only** | dependências copiadas para dentro do projeto; raiz única | zero resolução; determinístico; nada novo no loader | update manual; duplicação; monorepo impossível; não é "pacote" |
+| **B. Raízes declaradas** | `loxia.toml` com `paths` + ordem fixa; `import` continua só com identificadores | monorepo e dependência vendorizada funcionam; determinístico; sem rede; aditivo (sem manifest = hoje) | um arquivo de config; erro de "raiz não encontrada" precisa ser bom; precedência vira API |
+| **C. Manifest + lockfile + registry** | `loxia add`, lock com hash, fetch | ecossistema de verdade | rede, confiança, semver, supply chain; é outro produto; só faz sentido depois de B |
+| **D. Diretório global de pacotes** | `~/.loxia/pkgs/<nome>/<versão>`, resolvido por manifest | instala uma vez, usa em vários projetos | estado fora do projeto quebra reprodutibilidade a menos que o lock fixe; difícil de depurar |
+| **E. `std` como pacote comum** | publicar `std` no mesmo mecanismo | uniformidade | versão da std divergir do compilador quebra semântica/I1; rejeitar |
+
+### Sub-decisões (independentes da opção)
+
+1. **Identidade do pacote:** nome declarado (`[package] name`) ou nome do diretório? Nome
+   declarado permite `vendor/acme/` sem exigir `acme/` na raiz; o diretório passa a ser só
+   localização.
+2. **Layout interno:** `loxia_core/` do pacote vira a raiz de namespace (`acme/loxia_core/foo.lx`)?
+   Recomendo raiz = diretório do pacote, como hoje, e `loxia_core/` só convenção de repositório.
+3. **Precedência e ambiguidade:** ordem fixa `projeto → declaradas → std`. Se dois roots
+   têm `acme/foo.lx`, **erro** (nunca primeira-vence em silêncio) — a mensagem lista as
+   raízes relativas.
+4. **`..`:** proibido no statement `import` (mantém ADR-0073); permitido **apenas** como
+   raiz declarada no manifest. A diferença é auditabilidade: raiz declarada é explícita e
+   versionada; `../` no meio do código é invisível.
+5. **Variável de ambiente:** rejeitar (`LOXIA_PATH` quebraria I3). Para desenvolvimento,
+   flag `--module-path DIR` (repetível) — flag entra no contrato "mesmas flags ⇒ mesmos
+   bytes".
+6. **Versão da stdlib:** acompanha o compilador na v1 (sem semver independente). Pacote de
+   terceiro só ganha versão quando C existir.
+7. **Cache:** nenhum na v1; depois, cache por hash de conteúdo (nunca por mtime).
+8. **Symlinks:** seguir só dentro da raiz; symlink que escapa = erro na resolução.
+
+### Recomendação provisória
+
+**B agora, com `std` embutida e reservada** (opção A continua funcionando de graça, porque
+sem manifest a raiz é o projeto). **C depois**, e só com lockfile + hash de conteúdo — sem
+isso, rede quebra a promessa de reprodutibilidade que o projeto inteiro vende. **E
+rejeitada**: a stdlib é parte da linguagem, não uma dependência.
+
+Desenho mínimo:
+
+```toml
+# loxia.toml (na raiz do projeto)
+[package]
+name = "meu-app"
+
+[modules]
+paths = ["vendor", "../shared"]   # relativo ao manifest; ordem = precedência
+```
+
+```lox
+import acme.json          # resolve em <root>/acme/json.lx do pacote "acme"
+import std.json           # raiz reservada, embutida no wheel
+```
+
+### Impacto técnico
+
+- **Loader:** parse do manifest (`tomllib`, stdlib), lista de raízes, erro de ambiguidade,
+  diagnóstico com caminho relativo; `STD_ROOT` via `importlib.resources`.
+- **CLI:** `--module-path`; mensagens de "módulo não encontrado" listando as raízes
+  procuradas (sem absoluto).
+- **Checker/backend:** nada — a resolução é compile-time e a AST chega achatada.
+- **Packaging:** `loxia/std/` como package data; teste de instalação real (TODO §14.4).
+- **Docs:** `docs/spec/` ganha a seção de módulos; ADR novo quando a opção fechar.
+
+### Perguntas abertas
+
+- [ ] `loxia.toml` ou `loxia.json`? (toml já está no ecossistema e `tomllib` é stdlib.)
+- [ ] `[package] name` é obrigatório ou o diretório basta quando não há manifest?
+- [ ] Pacote pode ter dependências próprias (manifest de pacote) ou só o projeto raiz
+      declara? (recomendo: só o projeto raiz na v1.)
+- [ ] Raiz declarada que não existe: erro na hora ou só quando um `import` a usa?
+- [ ] `std` pode ser reimplementado pelo usuário? (não: nome reservado.)
+- [ ] Como o corpus `t1`/`t2` roda instalado, e não só no repo?
+
+### Gatilhos para revisitar
+
+- primeiro release público (o wheel precisa funcionar fora do repo);
+- primeiro usuário pedindo para consumir um pacote;
+- self-hosting do front-end: precisará organizar lexer/parser/checker em módulos e vai
+  exercitar a resolução de verdade;
+- se aparecer monorepo real (dor concreta de `../shared`).
+
+---
+
+## I-10 — CLI único e gerenciador de pacotes (o "uv" da Loxia)
+
+**Status:** `em avaliação` — a fase 0 (CLI único) já está decidida no
+[ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md); as fases 1–4 são roadmap.
+**Decidir até:** fase 1 antes do primeiro `loxia add`; fase 3 só com demanda real.
+
+### A pergunta
+
+Dá para ter **um** comando (`loxia`) que roda, compila, testa **e** resolve/baixa os
+pacotes — no espírito do `uv`, sem um segundo nome (`loxpkg`)?
+
+### Resposta curta
+
+Dá, e é **muito** mais simples que o `uv` — porque a Loxia não tem os problemas que o `uv`
+foi criado para resolver.
+
+| O `uv` resolve (Python) | A Loxia tem? |
+| --- | --- |
+| virtualenvs isolados por projeto | ❌ não precisa: a compilação é por conjunto de fontes, sem ambiente global |
+| wheels/ABI tag/manylinux, `pip` legado | ❌ tudo é fonte `.lx`; não há binário de dependência |
+| PEP 517, `setup.py`, build isolation, sdist | ❌ o "build" é compilar; não há script de build executado na instalação |
+| grupos dev/optional, editable install | ⚠️ dev-deps talvez; editable não faz sentido (fonte é fonte) |
+| versão do Python, matriz de interpretadores | ❌ uma implementação (por enquanto) |
+
+O que **sobra** — e é o gerenciador de pacotes de verdade: resolver o grafo de dependências,
+travar versões com hash, baixar/cachear, e um índice de onde baixar. Isso é umas 2–3 mil
+linhas, não 300 mil.
+
+### Fases
+
+| Fase | Entrega | Esforço | Depende de |
+| --- | --- | --- | --- |
+| **0. CLI único** | `loxia run/check/build/fmt/test/repl/version`; flags antigas preservadas | S | ADR-0088 §1 |
+| **1. Manifest + lock** | `[dependencies]` no `loxia.toml`, `loxia.lock` (versão exata + `sha256`), `loxia lock`, `loxia fetch --offline`, cache local | M | 0 + ADR-0088 §3 |
+| **2. Path e git** | `dep = { path = "../lib" }`, `dep = { git = "...", rev = "..." }` | M | 1 |
+| **3. Índice estático** | índice tipo *sparse index* (JSON por pacote) em GitHub Pages/S3, tarball por versão, `loxia add nome@1.2` | L | 2 |
+| **4. Resolver em Loxia** | reescrever o resolver na própria linguagem (dogfooding, como Cargo em Rust) | XL | self-hosting + `sha256` como primitiva |
+
+A fase 2 resolve o caso de monorepo sem registry nenhum — provavelmente é onde o projeto
+vai viver por muito tempo. A fase 3 só se paga com **terceiros publicando**, e isso é
+problema de comunidade, não de código.
+
+### Requisitos não negociáveis
+
+1. **Lock com hash.** `loxia.lock` fixa versão + `sha256` do conteúdo; `--frozen` usa só o
+   lock e falha se o manifest divergir.
+2. **Resolução determinística.** Mesma entrada (manifest + lock) ⇒ mesmas versões, mesma
+   ordem de download, mesma árvore. Nada de "depende do que o resolver achou primeiro".
+3. **`loxia run` nunca acessa a rede.** Fetch é comando explícito (`loxia fetch`), cache
+   local, e o build roda offline.
+4. **Sem env var.** Caminho de cache e de pacotes vêm de flag/config; resultado não pode
+   depender do ambiente (I3).
+5. **Erro de conflito explicável.** Quando não há solução, a mensagem mostra a árvore de
+   dependências que levou ao conflito, não "resolution failed".
+
+### O que **não** fazer
+
+- **Registry antes de haver demanda.** Índice vazio não é ecossistema; e moderar nomes
+  (squatting) é trabalho humano contínuo.
+- **Semver completo com backtracking** antes de existir pacote real com conflito. V1:
+  versões exatas no lock; ranges depois, com teste de resolução.
+- **Scripts de build em pacote.** É a maior parte do risco de supply chain do npm/PyPI e
+  não é necessário: pacote Loxia é fonte + manifest.
+- **Pacote binário.** Tudo compila do fonte; isso elimina ABI/manylinux/wheels de uma vez.
+- **Mirrors, workspaces completos e namespaces de pacote** antes da fase 3.
+
+### Impacto técnico
+
+- **Loader/CLI:** o manifest ganha `[dependencies]`; a árvore de dependências vira um
+  conjunto de raízes resolvidas (mesmo mecanismo do ADR-0088 §3).
+- **Reprodutibilidade:** o lock é o que permite dizer "este build é o mesmo" — e a Loxia já
+  vende determinismo; um gerenciador de pacotes sem lock contradiria o produto.
+- **Self-hosting:** o resolver da fase 4 precisa de `sha256` e (talvez) descompressão como
+  primitivas do kernel — hoje não há criptografia na linguagem. Isso é uma decisão de
+  runtime, não de sintaxe.
+- **Segurança:** hash obrigatório, sem execução de código no fetch/build; o pior caso vira
+  "código-fonte hostil compila", não "instalação executa script".
+
+### Perguntas abertas
+
+- [ ] V1 usa versões exatas + lock, ou já aceita `^1.2` (ranges)?
+- [ ] `loxia add` edita o manifest ou só calcula e imprime o diff? (recomendo editar, com
+      `--dry-run`.)
+- [ ] O lock é commitado? (sim, sempre — é o contrato de reprodutibilidade.)
+- [ ] Dependência declarada por pacote (transitiva) ou só na raiz? (v1: só raiz, como no
+      ADR-0088.)
+- [ ] Vendor: pasta comum ou cidadão de primeira classe (manifest aponta para ela)?
+- [ ] Onde fica o cache (`~/.cache/loxia` ou por projeto)? Como isolar em CI?
+
+### Gatilhos para revisitar
+
+- primeiro pacote de **terceiro** (não seu) que alguém quer usar;
+- self-hosting do front-end (o resolver em Loxia vira exercício real);
+- se `loxia.toml` já existir com `[modules]`, a fase 1 é aditiva — só adiciona
+  `[dependencies]`.

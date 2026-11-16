@@ -4,7 +4,7 @@ Uma página que descreve código declara, no front matter, **quais arquivos ela 
 
     ---
     sources:
-      - src/backend/**
+      - loxia_core/backend/**
       - runtime/runtime.c
     ---
 

@@ -5,7 +5,7 @@
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
   [ADR-0009](0009-defaults-e-campos.md) (campos/defaults),
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/frontend/parser.py`; casos em `tests/cases/inheritance*.lox`,
+- **Implementação:** `loxia_core/frontend/parser.py`; casos em `tests/cases/inheritance*.lox`,
   `super*.lox` e `tests/cases/errors/class_inherit_self.lox`,
   `superclass_not_class.lox`
 

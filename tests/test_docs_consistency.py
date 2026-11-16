@@ -25,7 +25,7 @@ from pathlib import Path
 
 from loxia import __version__
 from loxia.cli import build_parser
-from src.frontend.keywords import KEYWORDS
+from loxia_core.frontend.keywords import KEYWORDS
 from tests.corpus_manifest import PENDING
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -212,7 +212,7 @@ def test_catalogo_de_codigos_esta_atualizado() -> None:
     )
 
     assert result.returncode == 0, (
-        "docs/spec/erros.md defasado em relação a src/diagnostics/codes.py; "
+        "docs/spec/erros.md defasado em relação a loxia_core/diagnostics/codes.py; "
         "rode `make codes`.\n" + result.stdout
     )
 
@@ -239,7 +239,7 @@ def test_pending_do_corpus_tem_teto() -> None:
 
 def test_todos_os_codigos_de_diagnostico_estao_documentados() -> None:
     """ADR-0075: o catálogo de erros é fechado e toda família aparece na spec."""
-    from src.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
+    from loxia_core.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
 
     text = (SPEC_DIR / "erros.md").read_text(encoding="utf-8")
 
@@ -250,8 +250,8 @@ def test_todos_os_codigos_de_diagnostico_estao_documentados() -> None:
 
 
 def test_faixa_do_codigo_bate_com_a_fase() -> None:
-    from src.diagnostics.codes import CODE_PHASE
-    from src.diagnostics.diagnostic import Phase
+    from loxia_core.diagnostics.codes import CODE_PHASE
+    from loxia_core.diagnostics.diagnostic import Phase
 
     expected_prefix = {
         Phase.LEXER: "E0",

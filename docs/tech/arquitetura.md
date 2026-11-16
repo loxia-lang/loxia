@@ -42,71 +42,71 @@ Pacotes por fase (dependência só para baixo):
 
 | Pacote | Fase |
 | --- | --- |
-| [`src/frontend/`](../../src/frontend) | lexing → tokens → AST → parser; tipos de anotação (`ty.py`) e `ast_printer` |
-| [`src/semantics/`](../../src/semantics) | `resolver` (escopos/`depth`) e `checker` gradual |
-| [`src/execution/`](../../src/execution) | valores, ambiente, objetos, nativos e `interpreter` |
-| [`src/diagnostics/`](../../src/diagnostics) | `errors` e `error_reporter` |
-| [`src/backend/`](../../src/backend) | lowering e emissão LLVM (opt-in via `--emit`) |
+| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; tipos de anotação (`ty.py`) e `ast_printer` |
+| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (escopos/`depth`) e `checker` gradual |
+| [`loxia_core/execution/`](../../loxia_core/execution) | valores, ambiente, objetos, nativos e `interpreter` |
+| [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` e `error_reporter` |
+| [`loxia_core/backend/`](../../loxia_core/backend) | lowering e emissão LLVM (opt-in via `--emit`) |
 
 | Módulo | Responsabilidade |
 | --- | --- |
 | [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI, `Loxia.run`, REPL, `--version`, `--dump-ast`, exit codes |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
-| [`src/frontend/scanner.py`](../../src/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
-| [`src/frontend/tokens.py`](../../src/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
-| [`src/frontend/token_type.py`](../../src/frontend/token_type.py) | enum `TokenType` |
-| [`src/frontend/keywords.py`](../../src/frontend/keywords.py) | mapa lexema → token |
-| [`src/frontend/expr.py`](../../src/frontend/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
-| [`src/frontend/stmt.py`](../../src/frontend/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
-| [`src/frontend/parser.py`](../../src/frontend/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
-| [`src/backend/llvm_ir.py`](../../src/backend/llvm_ir.py) | única fronteira com o `llvmlite` (módulo, target machine, object file) |
-| [`src/backend/lower.py`](../../src/backend/lower.py) | coordenação do lowering: programa, statements, expressões, aritmética e controle de fluxo |
-| [`src/backend/lower_model.py`](../../src/backend/lower_model.py) | tipos, valores, bindings e layouts de campo/classe (ABI do ADR-0048) |
-| [`src/backend/lower_base.py`](../../src/backend/lower_base.py) | contexto compartilhado pelos mixins do lowering |
-| [`src/backend/lower_functions.py`](../../src/backend/lower_functions.py) | funções, lambdas, captura e ABI de closure |
-| [`src/backend/lower_variables.py`](../../src/backend/lower_variables.py) | slots, células, atribuição e escopo |
-| [`src/backend/lower_optionals.py`](../../src/backend/lower_optionals.py) | `T?`, coerções, unwrap e igualdade opcional |
-| [`src/backend/lower_strings.py`](../../src/backend/lower_strings.py) | strings, interpolação, `str`/`repr`/`len` e display |
-| [`src/backend/lower_class_layout.py`](../../src/backend/lower_class_layout.py) | planejamento de layout, campos e inicializadores constantes |
-| [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py) | descritor, vtable, construtor (topo e local), bound methods, `super`, `is`/`as` |
-| [`src/backend/lower_instances.py`](../../src/backend/lower_instances.py) | leitura/escrita de campos, bitmap e `get`/`set` |
-| [`src/backend/lower_calls.py`](../../src/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
-| [`src/backend/driver.py`](../../src/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
+| [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
+| [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
+| [`loxia_core/frontend/token_type.py`](../../loxia_core/frontend/token_type.py) | enum `TokenType` |
+| [`loxia_core/frontend/keywords.py`](../../loxia_core/frontend/keywords.py) | mapa lexema → token |
+| [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
+| [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
+| [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
+| [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | única fronteira com o `llvmlite` (módulo, target machine, object file) |
+| [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | coordenação do lowering: programa, statements, expressões, aritmética e controle de fluxo |
+| [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | tipos, valores, bindings e layouts de campo/classe (ABI do ADR-0048) |
+| [`loxia_core/backend/lower_base.py`](../../loxia_core/backend/lower_base.py) | contexto compartilhado pelos mixins do lowering |
+| [`loxia_core/backend/lower_functions.py`](../../loxia_core/backend/lower_functions.py) | funções, lambdas, captura e ABI de closure |
+| [`loxia_core/backend/lower_variables.py`](../../loxia_core/backend/lower_variables.py) | slots, células, atribuição e escopo |
+| [`loxia_core/backend/lower_optionals.py`](../../loxia_core/backend/lower_optionals.py) | `T?`, coerções, unwrap e igualdade opcional |
+| [`loxia_core/backend/lower_strings.py`](../../loxia_core/backend/lower_strings.py) | strings, interpolação, `str`/`repr`/`len` e display |
+| [`loxia_core/backend/lower_class_layout.py`](../../loxia_core/backend/lower_class_layout.py) | planejamento de layout, campos e inicializadores constantes |
+| [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py) | descritor, vtable, construtor (topo e local), bound methods, `super`, `is`/`as` |
+| [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py) | leitura/escrita de campos, bitmap e `get`/`set` |
+| [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
+| [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
 | [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%`, matcher recursivo de `is`/`as` (`lox_type_matches_str`) |
-| [`src/semantics/resolver.py`](../../src/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
-| [`src/execution/interpreter.py`](../../src/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
-| [`src/execution/environment.py`](../../src/execution/environment.py) | escopos encadeados (`values` + `enclosing`) |
-| [`src/execution/values.py`](../../src/execution/values.py) | `stringify` única |
-| [`src/execution/numeric.py`](../../src/execution/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
-| [`src/frontend/ty.py`](../../src/frontend/ty.py) | tipos (`Ty`), `TyVar`, `GenericFnTy`, uniões, `T?`, `FnTy` e helpers |
-| [`src/semantics/checker.py`](../../src/semantics/checker.py) | checker estático gradual (`--check`) |
-| [`src/execution/type_test.py`](../../src/execution/type_test.py) | teste dinâmico de tipo para `x is T` |
-| [`src/execution/lox_range.py`](../../src/execution/lox_range.py) | `Range` lazy (start, end, step) |
-| [`src/execution/lox_tuple.py`](../../src/execution/lox_tuple.py) | `LoxTuple` imutável (tuplas) |
-| [`src/execution/lox_exception.py`](../../src/execution/lox_exception.py) | `Exception`/`RuntimeError` e valores de exceção |
-| [`src/execution/lox_list.py`](../../src/execution/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
-| [`src/execution/lox_map.py`](../../src/execution/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
-| [`src/diagnostics/error_reporter.py`](../../src/diagnostics/error_reporter.py) | coleta/impressão de diagnósticos |
-| [`src/diagnostics/errors.py`](../../src/diagnostics/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
-| [`src/execution/lox_callable.py`](../../src/execution/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
-| [`src/execution/prelude.py`](../../src/execution/prelude.py) | nomes dos builtins globais reservados |
-| [`src/execution/lox_function.py`](../../src/execution/lox_function.py) | função de usuário + closure + `bind` |
-| [`src/execution/lox_class.py`](../../src/execution/lox_class.py) | classe (métodos, herança, `init`, interfaces) |
-| [`src/execution/lox_interface.py`](../../src/execution/lox_interface.py) | interface nominal (defaults ligados ao ambiente) |
-| [`src/execution/lox_instance.py`](../../src/execution/lox_instance.py) | instância (campos + métodos ligados) |
-| [`src/execution/natives/len.py`](../../src/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
-| [`src/execution/natives/repr.py`](../../src/execution/natives/repr.py) | `repr(x)` |
-| [`src/execution/natives/range.py`](../../src/execution/natives/range.py) | `range(a, b, step)` |
-| [`src/execution/natives/str.py`](../../src/execution/natives/str.py) | `str(x)` |
-| [`src/execution/native_module.py`](../../src/execution/native_module.py) | namespace nativo somente leitura (`Int`, `Float`, `math`) |
-| [`src/execution/natives/parse.py`](../../src/execution/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, sem crash) |
-| [`src/execution/natives/math.py`](../../src/execution/natives/math.py) | `math.*` determinístico (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
-| [`src/execution/natives/modules.py`](../../src/execution/natives/modules.py) | montagem dos namespaces nativos |
-| [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py) | dump S-expression (debug/testes) |
+| [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
+| [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
+| [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py) | escopos encadeados (`values` + `enclosing`) |
+| [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py) | `stringify` única |
+| [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
+| [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py) | tipos (`Ty`), `TyVar`, `GenericFnTy`, uniões, `T?`, `FnTy` e helpers |
+| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | checker estático gradual (`--check`) |
+| [`loxia_core/execution/type_test.py`](../../loxia_core/execution/type_test.py) | teste dinâmico de tipo para `x is T` |
+| [`loxia_core/execution/lox_range.py`](../../loxia_core/execution/lox_range.py) | `Range` lazy (start, end, step) |
+| [`loxia_core/execution/lox_tuple.py`](../../loxia_core/execution/lox_tuple.py) | `LoxTuple` imutável (tuplas) |
+| [`loxia_core/execution/lox_exception.py`](../../loxia_core/execution/lox_exception.py) | `Exception`/`RuntimeError` e valores de exceção |
+| [`loxia_core/execution/lox_list.py`](../../loxia_core/execution/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
+| [`loxia_core/execution/lox_map.py`](../../loxia_core/execution/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
+| [`loxia_core/diagnostics/error_reporter.py`](../../loxia_core/diagnostics/error_reporter.py) | coleta/impressão de diagnósticos |
+| [`loxia_core/diagnostics/errors.py`](../../loxia_core/diagnostics/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
+| [`loxia_core/execution/lox_callable.py`](../../loxia_core/execution/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
+| [`loxia_core/execution/prelude.py`](../../loxia_core/execution/prelude.py) | nomes dos builtins globais reservados |
+| [`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py) | função de usuário + closure + `bind` |
+| [`loxia_core/execution/lox_class.py`](../../loxia_core/execution/lox_class.py) | classe (métodos, herança, `init`, interfaces) |
+| [`loxia_core/execution/lox_interface.py`](../../loxia_core/execution/lox_interface.py) | interface nominal (defaults ligados ao ambiente) |
+| [`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py) | instância (campos + métodos ligados) |
+| [`loxia_core/execution/natives/len.py`](../../loxia_core/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
+| [`loxia_core/execution/natives/repr.py`](../../loxia_core/execution/natives/repr.py) | `repr(x)` |
+| [`loxia_core/execution/natives/range.py`](../../loxia_core/execution/natives/range.py) | `range(a, b, step)` |
+| [`loxia_core/execution/natives/str.py`](../../loxia_core/execution/natives/str.py) | `str(x)` |
+| [`loxia_core/execution/native_module.py`](../../loxia_core/execution/native_module.py) | namespace nativo somente leitura (`Int`, `Float`, `math`) |
+| [`loxia_core/execution/natives/parse.py`](../../loxia_core/execution/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, sem crash) |
+| [`loxia_core/execution/natives/math.py`](../../loxia_core/execution/natives/math.py) | `math.*` determinístico (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
+| [`loxia_core/execution/natives/modules.py`](../../loxia_core/execution/natives/modules.py) | montagem dos namespaces nativos |
+| [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py) | dump S-expression (debug/testes) |
 
-`src` é um pacote normal (`__init__.py`). Os imports são sempre absolutos e apontam para
-o pacote da fase (`from src.frontend.expr import Binary`, `from src.execution.numeric
+`loxia_core` é um pacote normal (`__init__.py`). Os imports são sempre absolutos e apontam para
+o pacote da fase (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
 import wrap_int`). O programa roda da raiz do repositório.
 
 ## Visitor
@@ -286,7 +286,7 @@ chamada.
   (remove membros da união totalmente cobertos por `T`); `_merge_refinements` combina
   `and`/`or` por interseção.
 - `Is` é um nó de expressão (`left`, `test_type`, `operator`); o interpreter chama
-  `matches_type`, que mora em `src/execution/type_test.py` e cobre primitivos, classes/subclasses,
+  `matches_type`, que mora em `loxia_core/execution/type_test.py` e cobre primitivos, classes/subclasses,
   `List[T]`/`Map[K, V]` (recursivo) e uniões. O runtime não ganha um sistema de tipos
   geral; `matches_type` existe só para `is`.
 - `_invalidate` remove o nome de todos os níveis ativos quando há atribuição. É
@@ -319,7 +319,7 @@ chamada.
 - `as` é um nó `As(left, target_type, operator)` no parser (entre `factor` e `unary`); o
   checker valida targets/`Any` e o interpreter converte/checa em runtime
   ([ADR-0029](../adr/0029-conversoes-math.md)).
-- O checker tem a mesma lista em `src/execution/prelude.py::BUILTIN_NAMES`: `_define` reporta
+- O checker tem a mesma lista em `loxia_core/execution/prelude.py::BUILTIN_NAMES`: `_define` reporta
   `Can't redefine builtin 'x'.` quando o escopo é o global; `visit_class_stmt` faz a
   checagem própria porque classes são pré-declaradas.
 - Escopos locais (parâmetro, bloco, `for`) podem sombrear o nome normalmente; a resolução
@@ -375,7 +375,7 @@ Funções de usuário têm ABI `(i8* env, params...)`; uma closure é `{ fnptr, 
 alocada no heap coletado. Funções de topo têm a assinatura pré-declarada (recursão mútua), mas o
 binding global só é inicializado quando o statement executa — usar antes vira
 `lox_panic` com `Undefined variable`, como no interpretador. O passe
-[`src/backend/captures.py`](../../src/backend/captures.py) decide o que cada função
+[`loxia_core/backend/captures.py`](../../loxia_core/backend/captures.py) decide o que cada função
 captura e o que vira célula ([ADR-0046](../adr/0046-closures-celulas-l4.md)); funções
 locais, lambdas com tipo concreto e chamadas indiretas usam a mesma closure.
 

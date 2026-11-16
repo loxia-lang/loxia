@@ -3,8 +3,8 @@
 - **Status:** accepted (primeira fatia de `Any`; enums/exceções e alguns casos de tupla pendentes)
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0049](0049-any-boxeado-spike-l6.md), [ADR-0054](0054-l6-tuplas.md)
-- **Implementação:** [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py),
-  [`src/backend/lower_containers.py`](../../src/backend/lower_containers.py),
+- **Implementação:** [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py),
+  [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py),
   [`runtime/runtime.c`](../../runtime/runtime.c)
 
 ## Decisão

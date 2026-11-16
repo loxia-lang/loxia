@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.frontend.scanner import Scanner
-from src.frontend.token_type import TokenType
-from src.frontend.tokens import Token
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.token_type import TokenType
+from loxia_core.frontend.tokens import Token
 
 
 def scan(source: str) -> list[Token]:

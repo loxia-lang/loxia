@@ -9,10 +9,10 @@
   [ADR-0029](0029-conversoes-math.md), [ADR-0031](0031-backend-nativo.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/lexico.md`](../spec/lexico.md)
-- **Implementação:** [`src/execution/natives/chars.py`](../../src/execution/natives/chars.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-  [`src/semantics/checker.py`](../../src/semantics/checker.py),
-  [`src/backend/lower.py`](../../src/backend/lower.py),
+- **Implementação:** [`loxia_core/execution/natives/chars.py`](../../loxia_core/execution/natives/chars.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
+  [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
+  [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py),
   [`runtime/runtime.c`](../../runtime/runtime.c),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_backend.py`](../../tests/test_backend.py)

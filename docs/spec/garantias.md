@@ -3,9 +3,9 @@ sources:
   - tests/corpus_manifest.py
   - tests/test_backend.py
   - tests/test_determinism.py
-  - src/backend/**
+  - loxia_core/backend/**
   - runtime/runtime.c
-  - src/semantics/checker.py
+  - loxia_core/semantics/checker.py
 ---
 
 # Garantias — o que a linguagem promete

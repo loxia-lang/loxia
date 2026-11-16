@@ -1,8 +1,8 @@
 """Gera a grammar TextMate da Loxia (VS Code, Sublime, TextMate, GitHub).
 
 A lista de keywords, a de operadores e a de nomes embutidos **não** são copiadas à mão:
-vêm de `src/frontend/keywords.py` (`KEYWORDS`), `src/frontend/token_type.py`
-(`TokenType`) e `src/execution/prelude.py` (`BUILTIN_NAMES`). Keyword, operador ou nome
+vêm de `loxia_core/frontend/keywords.py` (`KEYWORDS`), `loxia_core/frontend/token_type.py`
+(`TokenType`) e `loxia_core/execution/prelude.py` (`BUILTIN_NAMES`). Keyword, operador ou nome
 embutido novo sem grammar atualizada falha no `--check`, que roda em
 `tests/test_editor_grammar.py` (`make check`).
 
@@ -34,9 +34,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.execution.prelude import BUILTIN_NAMES  # noqa: E402
-from src.frontend.keywords import KEYWORDS  # noqa: E402
-from src.frontend.token_type import TokenType  # noqa: E402
+from loxia_core.execution.prelude import BUILTIN_NAMES  # noqa: E402
+from loxia_core.frontend.keywords import KEYWORDS  # noqa: E402
+from loxia_core.frontend.token_type import TokenType  # noqa: E402
 
 TARGET = ROOT / "editors" / "vscode" / "syntaxes" / "loxia.tmLanguage.json"
 SHIKI_TARGET = ROOT / "editors" / "shiki" / "loxia.mjs"
@@ -392,7 +392,7 @@ def main(argv: list[str]) -> int:
             return 0
         print(
             ", ".join(stale) + " defasado(s) em relação a "
-            "src/frontend (keywords/tokens) ou src/execution/prelude.py. "
+            "loxia_core/frontend (keywords/tokens) ou loxia_core/execution/prelude.py. "
             "Rode: make grammar"
         )
         return 1

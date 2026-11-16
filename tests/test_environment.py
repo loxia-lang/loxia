@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from src.diagnostics.errors import LoxRuntimeError
-from src.execution.environment import Environment
-from src.frontend.token_type import TokenType
-from src.frontend.tokens import Token
+from loxia_core.diagnostics.errors import LoxRuntimeError
+from loxia_core.execution.environment import Environment
+from loxia_core.frontend.token_type import TokenType
+from loxia_core.frontend.tokens import Token
 
 
 def ident(name: str) -> Token:

@@ -2,9 +2,9 @@
 
 - **Status:** accepted
 - **Data:** 2026-11-13
-- **Implementação:** [`src/backend/lower_range.py`](../../src/backend/lower_range.py),
-  [`src/backend/lower_variables.py`](../../src/backend/lower_variables.py),
-  [`src/backend/lower_containers.py`](../../src/backend/lower_containers.py)
+- **Implementação:** [`loxia_core/backend/lower_range.py`](../../loxia_core/backend/lower_range.py),
+  [`loxia_core/backend/lower_variables.py`](../../loxia_core/backend/lower_variables.py),
+  [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py)
 
 ## Decisão
 

@@ -39,10 +39,10 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["src", "loxia", "main.py", "tests", "bench", "editors"]
+files = ["loxia_core", "loxia", "main.py", "tests", "bench", "editors"]
 
 [[tool.mypy.overrides]]
-# llvmlite não publica stubs; a fronteira é `src/backend/llvm_ir.py`.
+# llvmlite não publica stubs; a fronteira é `loxia_core/backend/llvm_ir.py`.
 module = ["llvmlite.*"]
 ignore_missing_imports = true
 

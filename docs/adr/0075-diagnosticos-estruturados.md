@@ -8,10 +8,10 @@
   [ADR-0026](0026-freeze-1.0.md), [ADR-0046](0046-closures-celulas-l4.md),
   [`../../IDEIAS.md`](../../IDEIAS.md) I-4,
   [`../../TODO.md`](../../TODO.md) §3
-- **Implementação:** [`src/diagnostics/`](../../src/diagnostics/),
-  [`src/frontend/tokens.py`](../../src/frontend/tokens.py),
-  [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
+- **Implementação:** [`loxia_core/diagnostics/`](../../loxia_core/diagnostics/),
+  [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py),
+  [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
   [`loxia/cli.py`](../../loxia/cli.py), [`runtime/runtime.c`](../../runtime/runtime.c),
   [`tests/test_diagnostics.py`](../../tests/test_diagnostics.py),
   [`tests/test_determinism.py`](../../tests/test_determinism.py)
@@ -48,7 +48,7 @@ O que restringe o desenho:
 
 ### 1. Modelo
 
-`Diagnostic` imutável (em `src/diagnostics/diagnostic.py`) com `code`, `phase`, `severity`,
+`Diagnostic` imutável (em `loxia_core/diagnostics/diagnostic.py`) com `code`, `phase`, `severity`,
 `message`, `span`, `labels[]`, `notes[]`, `help`. `Span` tem arquivo e `start`/`end`
 half-open; `Position` guarda `line` e `column` 1-based em **code points** e `offset`
 0-based em **bytes UTF-8**. `Token` ganha `column` e `offset` (defaults preservam quem
@@ -60,7 +60,7 @@ separação que o ADR-0003 já anunciava e permite testar diagnóstico sem captu
 
 ### 2. Códigos estáveis por família
 
-`Code` é um `StrEnum` tipado (`src/diagnostics/codes.py`), então **não é possível emitir um
+`Code` é um `StrEnum` tipado (`loxia_core/diagnostics/codes.py`), então **não é possível emitir um
 código fora do catálogo** (mypy strict pega) e cada código tem uma fase fixa em
 `CODE_PHASE`. Faixas:
 

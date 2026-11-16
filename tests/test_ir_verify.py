@@ -6,8 +6,8 @@ import pytest
 
 pytest.importorskip("llvmlite")
 
-from src.backend import driver, llvm_ir
-from src.backend.lower import BackendError
+from loxia_core.backend import driver, llvm_ir
+from loxia_core.backend.lower import BackendError
 
 _VALID_IR = "define i32 @f() {\nentry:\n  ret i32 0\n}\n"
 _INVALID_IR = "define i32 @f() {\nentry:\n  ret i64 0\n}\n"

@@ -1,6 +1,6 @@
 """Pacote de entrada e versão pública da linguagem Loxia.
 
-O motor continua em `src/`; o CLI fica em `loxia.cli`, exposto por `main.py` e por
+O motor continua em `loxia_core/`; o CLI fica em `loxia.cli`, exposto por `main.py` e por
 `python -m loxia`.
 """
 

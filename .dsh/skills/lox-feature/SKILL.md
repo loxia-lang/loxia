@@ -24,21 +24,21 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 
 | # | O quê | Onde |
 |---|-------|------|
-| 1 | Token / keyword | `src/frontend/token_type.py`, `src/frontend/keywords.py` |
-| 2 | Lexema (símbolo novo) | `src/frontend/scanner.py::_scan_token` |
-| 3 | Nó de AST | `src/frontend/expr.py` ou `src/frontend/stmt.py` — `@dataclass(frozen=True)` herdando de `Expr`/`Stmt` |
+| 1 | Token / keyword | `loxia_core/frontend/token_type.py`, `loxia_core/frontend/keywords.py` |
+| 2 | Lexema (símbolo novo) | `loxia_core/frontend/scanner.py::_scan_token` |
+| 3 | Nó de AST | `loxia_core/frontend/expr.py` ou `loxia_core/frontend/stmt.py` — `@dataclass(frozen=True)` herdando de `Expr`/`Stmt` |
 | 4 | Método no `Visitor` | mesmo arquivo (`visit_<no>_expr` / `visit_<no>_stmt`) |
 | 5 | `accept` | mesmo arquivo |
-| 6 | Parsing | `src/frontend/parser.py` (respeite a cascata de precedência do `AGENTS.md` §3) |
-| 7 | Semântica | `src/execution/interpreter.py` |
-| 8 | Debug | `src/frontend/ast_printer.py` — todo nó precisa de `visit_*`, senão o dump quebra |
+| 6 | Parsing | `loxia_core/frontend/parser.py` (respeite a cascata de precedência do `AGENTS.md` §3) |
+| 7 | Semântica | `loxia_core/execution/interpreter.py` |
+| 8 | Debug | `loxia_core/frontend/ast_printer.py` — todo nó precisa de `visit_*`, senão o dump quebra |
 | 9 | Teste | `tests/cases/` + unitário se a lógica interna for não trivial |
 | 10 | Docs | `docs/spec/` (comportamento) e ADR em `docs/adr/` se for decisão; marque no `TODO.md` |
 
 ## Invariantes que não podem quebrar
 
 - Números são `Int` (i64) e `Float` (f64), **separados** ([ADR-0006](../../../docs/adr/0006-int-float-separados.md)).
-  Em checagem numérica use `src.execution.numeric.is_number`/`is_int`; nunca
+  Em checagem numérica use `loxia_core.execution.numeric.is_number`/`is_int`; nunca
   `isinstance(x, (int, float))` direto — `isinstance(True, int)` é `True`.
 - Saída e diagnóstico são **determinísticos** (I3): nada de endereço, PID, timestamp,
   caminho absoluto ou ordem de `set`/`dict`. `tests/test_determinism.py` policia.
@@ -46,15 +46,15 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 - Truthiness: só `nil` e `false` são falsos.
 - Nome embutido novo (prelúdio, checker, backend) **não** leva a marca da linguagem:
   `RuntimeError`, não `LoxiaError` ([ADR-0078](../../../docs/adr/0078-nome-loxia-extensao-lx.md)).
-  Ao adicionar um nome, atualize os três pontos: `src/execution/prelude.py`
-  (`BUILTIN_NAMES`), `src/semantics/checker.py` (classe pré-declarada) e o lowering.
-- Stringify vem de `src/execution/values.py::stringify`; não duplique formatação.
+  Ao adicionar um nome, atualize os três pontos: `loxia_core/execution/prelude.py`
+  (`BUILTIN_NAMES`), `loxia_core/semantics/checker.py` (classe pré-declarada) e o lowering.
+- Stringify vem de `loxia_core/execution/values.py::stringify`; não duplique formatação.
 - Erro de sintaxe → `self.reporter.error(...)` + `ParseError`; erro de runtime →
   `raise LoxRuntimeError(token, msg)`. **Atenção às camadas** (ADR-0078): essa é a classe
   **Python** interna; na linguagem ela aparece como `RuntimeError`. Não troque o `raise`
   para `RuntimeError` — isso levantaria o builtin do Python e furaria o contrato.
   O reporter vem por injeção.
-- Imports sempre `from src.x import Y` (nunca `from x import Y`).
+- Imports sempre `from loxia_core.x import Y` (nunca `from x import Y`).
 - O `ErrorReporter` é por execução (nunca volte a criar estado de classe).
 
 ## Definition of Done
@@ -72,4 +72,4 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 - Mudar precedência sem teste de AST: escreva o caso `(1 + 2) * 3` antes.
 - Esquecer o `accept`: o nó existe, mas o visitor nunca é chamado.
 - Implementar no `Interpreter` sem adicionar ao `Visitor`: o `mypy` (strict) acusa.
-- Usar `print()` para debug no `src/`: use o REPL ou o `AstPrinter`.
+- Usar `print()` para debug no `loxia_core/`: use o REPL ou o `AstPrinter`.

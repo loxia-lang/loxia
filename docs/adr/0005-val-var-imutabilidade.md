@@ -4,8 +4,8 @@
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1/§11,
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/frontend/parser.py`, `src/frontend/stmt.py`, `src/semantics/resolver.py`, `src/execution/environment.py`,
-  `src/execution/interpreter.py`, `src/execution/lox_function.py`, casos em `tests/cases/val_*.lox`
+- **Implementação:** `loxia_core/frontend/parser.py`, `loxia_core/frontend/stmt.py`, `loxia_core/semantics/resolver.py`, `loxia_core/execution/environment.py`,
+  `loxia_core/execution/interpreter.py`, `loxia_core/execution/lox_function.py`, casos em `tests/cases/val_*.lox`
 
 ## Contexto
 

@@ -11,10 +11,10 @@
   [ADR-0067](0067-desambiguacao-sintatica.md) (`;` opcional),
   [ADR-0031](0031-backend-nativo.md) / [ADR-0048](0048-abi-classes-l5.md) (backend),
   [`../../TIPOS.md`](../../TIPOS.md) §1.1, [`../../TODO.md`](../../TODO.md) §8/§9
-- **Implementação:** `src/frontend/{token_type,keywords,stmt,parser,ast_printer}.py`,
-  `src/frontend/ty.py`, `src/loader/loader.py`, `src/semantics/{resolver,checker}.py`,
-  `src/execution/{lox_interface,lox_class,lox_instance,interpreter}.py`,
-  `src/backend/*`, `tests/cases/interface_*.lx`, `tests/test_checker.py`,
+- **Implementação:** `loxia_core/frontend/{token_type,keywords,stmt,parser,ast_printer}.py`,
+  `loxia_core/frontend/ty.py`, `loxia_core/loader/loader.py`, `loxia_core/semantics/{resolver,checker}.py`,
+  `loxia_core/execution/{lox_interface,lox_class,lox_instance,interpreter}.py`,
+  `loxia_core/backend/*`, `tests/cases/interface_*.lx`, `tests/test_checker.py`,
   `tests/test_backend.py`, `tests/corpus_manifest.py`
 
 ## Contexto
@@ -79,7 +79,7 @@ class Triangulo(Figura) implements Forma, Desenhavel { ... }
 
 ### 2. Tipos
 
-- Novo `InterfaceTy(name)` em `src/frontend/ty.py`; `display` devolve o nome. Interface
+- Novo `InterfaceTy(name)` em `loxia_core/frontend/ty.py`; `display` devolve o nome. Interface
   **não** é `ClassTy`: não tem construtor, campos nem herança.
 - Interface é **tipo, não valor**. Usar `Forma` como expressão é erro dirigido
   (`Interface 'Forma' is a type, not a value.`), não `Undefined variable`.

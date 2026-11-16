@@ -1,15 +1,15 @@
 ---
 sources:
-  - src/frontend/scanner.py
-  - src/frontend/keywords.py
-  - src/frontend/token_type.py
-  - src/frontend/tokens.py
+  - loxia_core/frontend/scanner.py
+  - loxia_core/frontend/keywords.py
+  - loxia_core/frontend/token_type.py
+  - loxia_core/frontend/tokens.py
 ---
 
 # Léxico
 
-Como o código-fonte é dividido em tokens. Implementação: [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
-[`src/frontend/keywords.py`](../../src/frontend/keywords.py), [`src/frontend/token_type.py`](../../src/frontend/token_type.py).
+Como o código-fonte é dividido em tokens. Implementação: [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py),
+[`loxia_core/frontend/keywords.py`](../../loxia_core/frontend/keywords.py), [`loxia_core/frontend/token_type.py`](../../loxia_core/frontend/token_type.py).
 
 ## Arquivos
 

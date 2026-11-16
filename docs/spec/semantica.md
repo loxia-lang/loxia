@@ -1,17 +1,17 @@
 ---
 sources:
-  - src/execution/**
-  - src/semantics/**
-  - src/loader/**
+  - loxia_core/execution/**
+  - loxia_core/semantics/**
+  - loxia_core/loader/**
   - std/**
 ---
 
 # Semântica
 
-Comportamento observável do interpretador. Implementação: [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-[`src/semantics/resolver.py`](../../src/semantics/resolver.py), [`src/execution/environment.py`](../../src/execution/environment.py),
-[`src/execution/lox_function.py`](../../src/execution/lox_function.py), [`src/execution/lox_class.py`](../../src/execution/lox_class.py),
-[`src/execution/lox_instance.py`](../../src/execution/lox_instance.py), [`src/execution/values.py`](../../src/execution/values.py).
+Comportamento observável do interpretador. Implementação: [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
+[`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py), [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py),
+[`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py), [`loxia_core/execution/lox_class.py`](../../loxia_core/execution/lox_class.py),
+[`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py), [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py).
 
 ## Execução
 

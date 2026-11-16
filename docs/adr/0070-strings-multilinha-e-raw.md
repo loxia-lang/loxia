@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0013](0013-ternario-nil-aware-escapes.md),
   [ADR-0019](0019-interpolacao.md), [ADR-0035](0035-strings-texto.md),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md)
-- **Implementação:** `src/frontend/scanner.py`; casos
+- **Implementação:** `loxia_core/frontend/scanner.py`; casos
   `tests/cases/multiline_strings.lox`, `tests/cases/raw_strings.lox`,
   `tests/cases/errors/string_newline.lox`,
   `tests/cases/errors/unterminated_triple_string.lox`; testes em `tests/test_scanner.py`

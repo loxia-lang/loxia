@@ -5,24 +5,24 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from loxia import __version__
-from src.diagnostics.error_reporter import ErrorReporter
-from src.diagnostics.render import render_batch, render_json
-from src.diagnostics.source import SourceMap, display_path
-from src.execution.interpreter import Interpreter
-from src.execution.limits import (
+from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.diagnostics.render import render_batch, render_json
+from loxia_core.diagnostics.source import SourceMap, display_path
+from loxia_core.execution.interpreter import Interpreter
+from loxia_core.execution.limits import (
     DEFAULT_HEAP_BYTES,
     MAX_HEAP_BYTES,
     MIN_HEAP_BYTES,
 )
-from src.frontend.ast_printer import AstPrinter
-from src.frontend.parser import Parser
-from src.frontend.scanner import Scanner
-from src.frontend.stmt import Stmt
-from src.semantics.checker import Checker
-from src.semantics.resolver import Resolver
+from loxia_core.frontend.ast_printer import AstPrinter
+from loxia_core.frontend.parser import Parser
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.stmt import Stmt
+from loxia_core.semantics.checker import Checker
+from loxia_core.semantics.resolver import Resolver
 
 if TYPE_CHECKING:
-    from src.backend.driver import Emit
+    from loxia_core.backend.driver import Emit
 
 # Comandos de inspeção: o JSON vai para stdout (não há saída de programa). `build` e
 # `run` podem escrever IR/programa em stdout, então o JSON deles vai para stderr.
@@ -88,7 +88,7 @@ class Loxia:
             return None
 
         if self._module_root is not None:
-            from src.loader.loader import ModuleLoader
+            from loxia_core.loader.loader import ModuleLoader
 
             loaded = ModuleLoader(
                 self.reporter, self._sources, self._module_root
@@ -180,8 +180,8 @@ class Loxia:
             return False
 
         # Import tardio: `llvmlite` só é exigido quando o backend é usado.
-        from src.backend.driver import build as build_native
-        from src.backend.lower import BackendError
+        from loxia_core.backend.driver import build as build_native
+        from loxia_core.backend.lower import BackendError
 
         try:
             build_native(

@@ -13,7 +13,7 @@
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (gate sintático),
   [ADR-0071](0071-primitivas-de-runtime.md) (primitivas),
   [ADR-0073](0073-imports-modulos.md) (imports), [`../../TODO.md`](../../TODO.md) §13
-- **Implementação:** `std/*.lox` (novo), `src/loader/` (novo), casos em
+- **Implementação:** `std/*.lox` (novo), `loxia_core/loader/` (novo), casos em
   `tests/cases/std/`, manifesto em `tests/corpus_manifest.py`
 
 ## Contexto

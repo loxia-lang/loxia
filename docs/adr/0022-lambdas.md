@@ -8,12 +8,12 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §1,
   [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
-  [`src/frontend/token_type.py`](../../src/frontend/token_type.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),
-  [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/semantics/resolver.py`](../../src/semantics/resolver.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-  [`src/execution/lox_function.py`](../../src/execution/lox_function.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
-  [`src/frontend/ast_printer.py`](../../src/frontend/ast_printer.py),
+- **Implementação:** [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py),
+  [`loxia_core/frontend/token_type.py`](../../loxia_core/frontend/token_type.py), [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py),
+  [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py), [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
+  [`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py), [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
+  [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py),
   [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py)

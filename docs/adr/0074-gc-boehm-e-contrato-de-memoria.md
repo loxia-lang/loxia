@@ -15,8 +15,8 @@
   [ADR-0037](0037-async-direcao.md) (frames e GC),
   [`../../TODO.md`](../../TODO.md) §9/§13, [`../spec/garantias.md`](../spec/garantias.md)
 - **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c) (`lox_alloc`,
-  `lox_init`, OOM), [`src/backend/driver.py`](../../src/backend/driver.py) (link,
-  `mod.verify`), [`src/backend/llvm_ir.py`](../../src/backend/llvm_ir.py) (verificação),
+  `lox_init`, OOM), [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) (link,
+  `mod.verify`), [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) (verificação),
   [`tests/test_backend.py`](../../tests/test_backend.py),
   [`tests/test_ir_verify.py`](../../tests/test_ir_verify.py)
 

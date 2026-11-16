@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0006](0006-int-float-separados.md),
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md),
   [ADR-0024](0024-mutacao-monomorfica.md), [`../../TODO.md`](../../TODO.md) §2
-- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py)
+- **Implementação:** [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py)
   (`_assignable`, `_mismatch_message`), [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_backend.py`](../../tests/test_backend.py)
 

@@ -4,7 +4,7 @@
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0031](0031-backend-nativo.md), [ADR-0051](0051-l6-range-for-in-escalares.md),
   [`../../TODO.md`](../../TODO.md) §6
-- **Implementação:** [`src/backend/lower_containers.py`](../../src/backend/lower_containers.py),
+- **Implementação:** [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py),
   [`runtime/runtime.c`](../../runtime/runtime.c)
 
 ## Decisão

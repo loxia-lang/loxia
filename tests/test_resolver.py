@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.diagnostics.error_reporter import ErrorReporter
-from src.execution.interpreter import Interpreter
-from src.frontend.parser import Parser
-from src.frontend.scanner import Scanner
-from src.frontend.stmt import Stmt
-from src.semantics.resolver import Resolver
+from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.execution.interpreter import Interpreter
+from loxia_core.frontend.parser import Parser
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.stmt import Stmt
+from loxia_core.semantics.resolver import Resolver
 
 
 def resolve(source: str) -> tuple[ErrorReporter, Interpreter, list[Stmt]]:

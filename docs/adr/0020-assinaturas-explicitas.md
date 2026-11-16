@@ -7,7 +7,7 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
+- **Implementação:** [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

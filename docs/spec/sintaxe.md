@@ -1,13 +1,13 @@
 ---
 sources:
-  - src/frontend/parser.py
-  - src/frontend/keywords.py
-  - src/frontend/ast_printer.py
+  - loxia_core/frontend/parser.py
+  - loxia_core/frontend/keywords.py
+  - loxia_core/frontend/ast_printer.py
 ---
 
 # Sintaxe
 
-Gramática do parser atual ([`src/frontend/parser.py`](../../src/frontend/parser.py)) — recursive descent,
+Gramática do parser atual ([`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py)) — recursive descent,
 uma função por nível de precedência.
 
 > Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria

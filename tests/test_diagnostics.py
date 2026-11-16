@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.diagnostics.codes import Code
-from src.diagnostics.diagnostic import (
+from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     DiagnosticBatch,
     Phase,
@@ -12,14 +12,14 @@ from src.diagnostics.diagnostic import (
     Severity,
     Span,
 )
-from src.diagnostics.render import (
+from loxia_core.diagnostics.render import (
     render_batch,
     render_human,
     render_json,
     render_runtime,
     render_short,
 )
-from src.diagnostics.source import SourceMap, display_path, display_text, display_width
+from loxia_core.diagnostics.source import SourceMap, display_path, display_text, display_width
 
 
 def _span(

@@ -3,7 +3,7 @@
 - **Status:** accepted (tuplas básicas; `Any`/`is`/`as` de tupla e `for-in` de tupla pendentes)
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0052](0052-l6-listas.md), [ADR-0053](0053-l6-mapas.md)
-- **Implementação:** [`src/backend/lower_tuples.py`](../../src/backend/lower_tuples.py),
+- **Implementação:** [`loxia_core/backend/lower_tuples.py`](../../loxia_core/backend/lower_tuples.py),
   [`runtime/runtime.c`](../../runtime/runtime.c)
 
 ## Decisão

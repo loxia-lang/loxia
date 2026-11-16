@@ -5,8 +5,8 @@
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) (`D-4`, overflow),
   [`../spec/lexico.md`](../spec/lexico.md), [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../../TODO.md`](../../TODO.md) §1/§3
-- **Implementação:** `src/frontend/scanner.py`, `src/frontend/token_type.py`, `src/frontend/parser.py`,
-  `src/execution/numeric.py`, `src/execution/interpreter.py`, `src/semantics/checker.py`; testes em
+- **Implementação:** `loxia_core/frontend/scanner.py`, `loxia_core/frontend/token_type.py`, `loxia_core/frontend/parser.py`,
+  `loxia_core/execution/numeric.py`, `loxia_core/execution/interpreter.py`, `loxia_core/semantics/checker.py`; testes em
   `tests/test_scanner.py`, `tests/test_parser.py`, `tests/test_checker.py` e
   `tests/cases/*.lox`
 

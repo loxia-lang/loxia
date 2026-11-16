@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.frontend.ast_printer import AstPrinter
-from src.frontend.parser import Parser
-from src.frontend.scanner import Scanner
+from loxia_core.frontend.ast_printer import AstPrinter
+from loxia_core.frontend.parser import Parser
+from loxia_core.frontend.scanner import Scanner
 
 
 def dump(source: str) -> str:

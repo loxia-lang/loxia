@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0025](0025-is-e-narrowing.md),
   [ADR-0024](0024-mutacao-monomorfica.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../../TIPOS.md`](../../TIPOS.md) §2.2, [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
+- **Implementação:** [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

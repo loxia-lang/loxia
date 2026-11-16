@@ -13,18 +13,18 @@
   [ADR-0060](0060-orcamento-de-memoria.md) (memória),
   [ADR-0072](0072-stdlib-batteries.md) (stdlib),
   [ADR-0073](0073-imports-modulos.md) (imports), [`../../TODO.md`](../../TODO.md) §13
-- **Implementação:** `runtime/runtime.c`, `src/execution/primitives.py` (novo),
-  `src/execution/natives/`, `src/backend/lower_*.py`, `tests/cases/kernel/`,
+- **Implementação:** `runtime/runtime.c`, `loxia_core/execution/primitives.py` (novo),
+  `loxia_core/execution/natives/`, `loxia_core/backend/lower_*.py`, `tests/cases/kernel/`,
   `bench/cases/string_scan.lox`
 
 ## Contexto
 
 Hoje uma função nativa tem até **quatro definições independentes**:
 
-1. o corpo Python que serve de oráculo (`src/execution/natives/*.py`);
+1. o corpo Python que serve de oráculo (`loxia_core/execution/natives/*.py`);
 2. a assinatura no checker (`_define_builtins` e `_native_modules` em
-   [`src/semantics/checker.py`](../../src/semantics/checker.py));
-3. o caso especial de lowering no backend ([`../../src/backend/lower_calls.py`](../../src/backend/lower_calls.py));
+   [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py));
+3. o caso especial de lowering no backend ([`../../loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py));
 4. o símbolo e o corpo em C ([`../../runtime/runtime.c`](../../runtime/runtime.c)).
 
 `math.*` são nove funções definidas nesses quatro lugares, sem nenhum teste que compare
@@ -35,7 +35,7 @@ Além disso, o runtime nativo é **quadrático em strings**, e isso não é hip�
 
 - `lox_str_char_at` ([`runtime.c:724`](../../runtime/runtime.c#L724)) varre o UTF-8 desde
   o byte 0 a cada acesso. `chars` chama por índice e `for c in s` no backend
-  ([`lower_range.py:204`](../../src/backend/lower_range.py#L204)) idem: **n²/2 passos**.
+  ([`lower_range.py:204`](../../loxia_core/backend/lower_range.py#L204)) idem: **n²/2 passos**.
 - `lox_str_concat` ([`runtime.c:155`](../../runtime/runtime.c#L155)) copia os dois lados.
   Construir uma string de *m* caracteres com `+` custa **m²/2 bytes** na arena, que não
   tem `free`.
@@ -111,7 +111,7 @@ Semântica das novas primitivas:
 
 ### 3. Uma tabela é a fonte única do contrato
 
-`src/execution/primitives.py` (módulo folha: só `frontend.ty` e a stdlib do Python)
+`loxia_core/execution/primitives.py` (módulo folha: só `frontend.ty` e a stdlib do Python)
 declara cada primitiva:
 
 ```python

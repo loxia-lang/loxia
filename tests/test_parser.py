@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from src.frontend.ast_printer import AstPrinter
-from src.frontend.destructuring import NamePattern, TuplePattern, pattern_names
-from src.frontend.expr import Call, Is, Lambda, MapLiteral, Match, Variable
-from src.frontend.parser import Parser
-from src.frontend.scanner import Scanner
-from src.frontend.stmt import (
+from loxia_core.frontend.ast_printer import AstPrinter
+from loxia_core.frontend.destructuring import NamePattern, TuplePattern, pattern_names
+from loxia_core.frontend.expr import Call, Is, Lambda, MapLiteral, Match, Variable
+from loxia_core.frontend.parser import Parser
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.stmt import (
     Class,
     Destructure,
     EnumDecl,
@@ -23,7 +23,7 @@ from src.frontend.stmt import (
     Var,
     While,
 )
-from src.frontend.ty import display
+from loxia_core.frontend.ty import display
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:

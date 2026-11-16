@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.execution.lox_list import LoxList
-from src.execution.primitives import PRIMITIVES, PrimitiveCallable
-from src.frontend.ty import INT, STRING, ListTy
+from loxia_core.execution.lox_list import LoxList
+from loxia_core.execution.primitives import PRIMITIVES, PrimitiveCallable
+from loxia_core.frontend.ty import INT, STRING, ListTy
 
 
 def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
@@ -47,7 +47,7 @@ def test_adaptador_respeita_aridade_da_tabela() -> None:
 
 
 def test_oraculo_de_arquivo(tmp_path: Path) -> None:
-    from src.execution.primitives import PRIMITIVE_BY_LOX
+    from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
 
     path = tmp_path / "saida.txt"
     write = PRIMITIVE_BY_LOX["io.writeFile"].py
@@ -58,7 +58,7 @@ def test_oraculo_de_arquivo(tmp_path: Path) -> None:
 
 
 def test_oraculo_de_exists_e_list_dir(tmp_path: Path) -> None:
-    from src.execution.primitives import PRIMITIVE_BY_LOX
+    from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
 
     directory = tmp_path / "entrada"
     directory.mkdir()
@@ -78,7 +78,7 @@ def test_oraculo_de_exists_e_list_dir(tmp_path: Path) -> None:
 
 
 def test_oraculo_de_args_usa_o_interpretador() -> None:
-    from src.execution.primitives import PRIMITIVE_BY_LOX
+    from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
 
     class _Interpreter:
         def __init__(self) -> None:

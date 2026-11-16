@@ -11,7 +11,7 @@
   (genericidade), [`../spec/garantias.md`](../spec/garantias.md), [`../../TODO.md`](../../TODO.md)
   §9, [`../../IDEIAS.md`](../../IDEIAS.md) I-7 (paralelismo)
 - **Implementação:** parcial. `async`/`await` já estão reservadas em
-  `src/frontend/keywords.py` (sem sintaxe); `Task`, checker e runtime ainda não existem.
+  `loxia_core/frontend/keywords.py` (sem sintaxe); `Task`, checker e runtime ainda não existem.
   Nenhum programa do corpus usava esses nomes.
 
 ## Contexto

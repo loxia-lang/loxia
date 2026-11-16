@@ -4,8 +4,8 @@
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0031](0031-backend-nativo.md), [ADR-0047](0047-optionais-escalares-l2-5.md),
   [ADR-0050](0050-monomorfizacao-t7.md), [`../../TODO.md`](../../TODO.md) §6
-- **Implementação:** [`src/backend/lower_range.py`](../../src/backend/lower_range.py),
-  [`runtime/runtime.c`](../../runtime/runtime.c), [`src/backend/lower.py`](../../src/backend/lower.py)
+- **Implementação:** [`loxia_core/backend/lower_range.py`](../../loxia_core/backend/lower_range.py),
+  [`runtime/runtime.c`](../../runtime/runtime.c), [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py)
 
 ## Contexto
 

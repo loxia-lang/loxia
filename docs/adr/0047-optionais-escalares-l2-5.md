@@ -10,7 +10,7 @@
   [ADR-0032](0032-narrowing-campos-indices.md),
   [ADR-0045](0045-narrowing-representacao.md) (`storage_types`),
   [ADR-0046](0046-closures-celulas-l4.md) (células), [`../../TODO.md`](../../TODO.md) §0.1/§6.3
-- **Implementação:** `src/backend/lower.py`, `runtime/runtime.c`,
+- **Implementação:** `loxia_core/backend/lower.py`, `runtime/runtime.c`,
   `tests/test_backend.py`, `tests/corpus_manifest.py`, `tests/cases/variables.lox`
 
 ## Contexto

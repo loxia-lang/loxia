@@ -7,10 +7,10 @@
   [ADR-0030](0030-tuplas.md), [ADR-0036](0036-tuplas-implementacao.md),
   [ADR-0059](0059-i4-check-limpo-compila.md),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md)
-- **Implementação:** `src/frontend/destructuring.py` (padrões),
-  `src/frontend/parser.py`, `src/execution/interpreter.py`,
-  `src/semantics/{resolver,checker}.py`, `src/frontend/ast_printer.py`,
-  `src/backend/{captures,lower_tuples}.py`; casos
+- **Implementação:** `loxia_core/frontend/destructuring.py` (padrões),
+  `loxia_core/frontend/parser.py`, `loxia_core/execution/interpreter.py`,
+  `loxia_core/semantics/{resolver,checker}.py`, `loxia_core/frontend/ast_printer.py`,
+  `loxia_core/backend/{captures,lower_tuples}.py`; casos
   `tests/cases/nested_destructure.lox`, `tests/cases/errors/nested_destructure_*.lox`;
   testes em `tests/test_parser.py`, `tests/test_ast_printer.py`,
   `tests/test_interpreter.py` e `tests/test_checker.py`

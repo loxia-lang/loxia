@@ -5,9 +5,9 @@
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0013](0013-ternario-nil-aware-escapes.md),
   [ADR-0014](0014-identidade-e-invariantes.md), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/frontend/scanner.py`](../../src/frontend/scanner.py),
-  [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/frontend/expr.py`](../../src/frontend/expr.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
+- **Implementação:** [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py),
+  [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py), [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py), [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
   [`tests/cases/interpolation.lox`](../../tests/cases/interpolation.lx)
 
 ## Contexto

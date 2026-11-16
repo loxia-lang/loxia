@@ -229,12 +229,12 @@ if (not pessoa?.nome) print("sem nome")   # `not` no lugar de `!`
 ```
 main.py          entrypoint compatível (delega para loxia/cli.py)
 loxia/           pacote do CLI: `python -m loxia`, --version, --dump-ast
-src/             núcleo em pacotes por fase
-src/frontend/    lexing, AST, parser, tipos de anotação e ast_printer
-src/semantics/   resolver de escopos e checker gradual
-src/execution/   valores, ambiente, objetos, nativos e interpreter
-src/diagnostics/ erros e ErrorReporter
-src/backend/     backend LLVM (llvm_ir isolando a lib, lowering, driver de build)
+loxia_core/             núcleo em pacotes por fase
+loxia_core/frontend/    lexing, AST, parser, tipos de anotação e ast_printer
+loxia_core/semantics/   resolver de escopos e checker gradual
+loxia_core/execution/   valores, ambiente, objetos, nativos e interpreter
+loxia_core/diagnostics/ erros e ErrorReporter
+loxia_core/backend/     backend LLVM (llvm_ir isolando a lib, lowering, driver de build)
 runtime/         runtime C do código gerado (print, panic, casos de borda de // e %)
 exemplos/        programas de exemplo (fib, fizzbuzz, closures, classes, primos, quicksort)
 tests/           pytest + golden cases (.lx)
@@ -266,7 +266,7 @@ repo (`linguist-detectable=false`) em vez de marcá-los como outra linguagem.
 
 O destaque real vem da grammar TextMate de [`editors/`](editors/) — a mesma que VS Code,
 Sublime e TextMate usam, e a que um PR futuro no linguist vai exigir. Ela é **gerada** de
-`src/frontend/` (keywords e tokens) e `src/execution/prelude.py` (nomes embutidos), então
+`loxia_core/frontend/` (keywords e tokens) e `loxia_core/execution/prelude.py` (nomes embutidos), então
 não descola do scanner:
 
 ```bash

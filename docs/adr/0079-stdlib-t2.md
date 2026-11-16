@@ -13,10 +13,10 @@
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (gate sintático),
   [`../../TODO.md`](../../TODO.md) §13
 - **Implementação:** `std/{json,fmt,paths,fs,io,cli,sets,csv,convert}.lx`,
-  [`src/execution/primitives.py`](../../src/execution/primitives.py),
-  [`src/backend/lower_instances.py`](../../src/backend/lower_instances.py),
-  [`src/backend/lower_strings.py`](../../src/backend/lower_strings.py),
-  [`src/backend/lower_containers.py`](../../src/backend/lower_containers.py),
+  [`loxia_core/execution/primitives.py`](../../loxia_core/execution/primitives.py),
+  [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py),
+  [`loxia_core/backend/lower_strings.py`](../../loxia_core/backend/lower_strings.py),
+  [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py),
   [`runtime/runtime.c`](../../runtime/runtime.c),
   `tests/cases/std_*.lx`, [`tests/test_std_t2.py`](../../tests/test_std_t2.py)
 

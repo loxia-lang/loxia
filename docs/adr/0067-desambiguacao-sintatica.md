@@ -7,7 +7,7 @@
   [ADR-0013](0013-ternario-nil-aware-escapes.md),
   [ADR-0025](0025-is-e-narrowing.md),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md)
-- **Implementação:** `src/frontend/parser.py`; casos
+- **Implementação:** `loxia_core/frontend/parser.py`; casos
   `tests/cases/division_comment_hint.lox`, `leading_operator_brackets.lox`,
   `method_fn_keyword.lox`, `is_union_parens.lox`, `is_union_needs_parens.lox`,
   `map_at_statement_start.lox`; testes em `tests/test_parser.py`

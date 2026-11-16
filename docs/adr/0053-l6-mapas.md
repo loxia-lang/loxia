@@ -3,7 +3,7 @@
 - **Status:** accepted (Map implementado; tuplas/Any/enums/exceções pendentes)
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0052](0052-l6-listas.md), [ADR-0051](0051-l6-range-for-in-escalares.md)
-- **Implementação:** [`src/backend/lower_containers.py`](../../src/backend/lower_containers.py),
+- **Implementação:** [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py),
   [`runtime/runtime.c`](../../runtime/runtime.c)
 
 ## Decisão

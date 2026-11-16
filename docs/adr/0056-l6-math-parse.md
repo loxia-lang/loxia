@@ -3,7 +3,7 @@
 - **Status:** accepted
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0029](0029-conversoes-math.md), [ADR-0047](0047-optionais-escalares-l2-5.md)
-- **Implementação:** [`src/backend/lower_math.py`](../../src/backend/lower_math.py),
+- **Implementação:** [`loxia_core/backend/lower_math.py`](../../loxia_core/backend/lower_math.py),
   [`runtime/runtime.c`](../../runtime/runtime.c)
 
 ## Decisão

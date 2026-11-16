@@ -23,7 +23,7 @@ não julgamento de prosa.
   arquivo, comando ou teste que você leu/rodou.
 - **Não avance o frescor tocando a página.** `no-change` com motivo é resposta legítima;
   editar por editar apaga o sinal.
-- **Não documente intenção.** Se não está no `src/`, pertence ao `TODO.md` §11, não à spec.
+- **Não documente intenção.** Se não está no `loxia_core/`, pertence ao `TODO.md` §11, não à spec.
 - **Números absolutos envelhecem.** Prefira "gerado do manifesto" a "1042 testes"; se um
   número aparece, ou é gerado (`docs/_hooks/levels.py`) ou tem teste que o compara.
 

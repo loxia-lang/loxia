@@ -79,7 +79,7 @@ envelopado de novo (evita imprimir `nil` extra). Statements continuam statements
 - Programas antigos com `print expr` precisam de parênteses — mudança **breaking**,
   aceita e coberta pela migração do repositório.
 - O nome `Print` do AST/visitor deixa de existir; o builtin Python chama-se `Print` em
-  `src/execution/natives/print.py`.
+  `loxia_core/execution/natives/print.py`.
 
 ## Alternativas
 

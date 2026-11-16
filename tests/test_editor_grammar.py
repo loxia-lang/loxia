@@ -1,8 +1,8 @@
 """Drift gate da grammar de editor (VS Code / Sublime / TextMate).
 
 A grammar `editors/vscode/syntaxes/loxia.tmLanguage.json` é **gerada** por
-`editors/build_grammar.py` a partir de `src/frontend/keywords.py`,
-`src/frontend/token_type.py` e `src/execution/prelude.py`. Este teste falha quando alguém
+`editors/build_grammar.py` a partir de `loxia_core/frontend/keywords.py`,
+`loxia_core/frontend/token_type.py` e `loxia_core/execution/prelude.py`. Este teste falha quando alguém
 edita o JSON à mão, adiciona keyword/operador sem rodar `make grammar`, ou quebra o
 contrato do `.gitattributes` (fontes fora das estatísticas do GitHub).
 """
@@ -16,8 +16,8 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
-from src.execution.prelude import BUILTIN_NAMES
-from src.frontend.keywords import KEYWORDS
+from loxia_core.execution.prelude import BUILTIN_NAMES
+from loxia_core.frontend.keywords import KEYWORDS
 
 ROOT = Path(__file__).resolve().parents[1]
 VSCODE = ROOT / "editors" / "vscode"

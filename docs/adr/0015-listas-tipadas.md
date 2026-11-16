@@ -7,8 +7,8 @@
   [ADR-0006](0006-int-float-separados.md), [ADR-0007](0007-ranges-e-iteracao.md),
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`TODO.md`](../../TODO.md) §1
-- **Implementação:** [`src/execution/lox_list.py`](../../src/execution/lox_list.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
+- **Implementação:** [`loxia_core/execution/lox_list.py`](../../loxia_core/execution/lox_list.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py), [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
   [`docs/spec/semantica.md`](../spec/semantica.md),
   [`tests/cases/list_*.lox`](../../tests/cases)
 

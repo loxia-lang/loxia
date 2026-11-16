@@ -221,7 +221,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - **`RuntimeError` no lugar de `LoxRuntimeError`** ([ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)):
   a classe embutida de erro de runtime perdeu a marca da linguagem — `except RuntimeError
   as e` substitui `except LoxRuntimeError as e` no tree-walk e no backend. A classe Python
-  interna (`src/diagnostics/errors.py::LoxRuntimeError`) mantém o nome de herança do livro,
+  interna (`loxia_core/diagnostics/errors.py::LoxRuntimeError`) mantém o nome de herança do livro,
   e `Exception` continua a base.
 - **Erros de compilação e de runtime mudaram de formato**
   ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md)): `[line N] Error at 'x': …`

@@ -8,8 +8,8 @@
   [ADR-0042](0042-excecoes.md) e [ADR-0062](0062-l6-excecoes-unwinding.md) (exceções),
   [ADR-0072](0072-stdlib-batteries.md) (batteries),
   [`../../TODO.md`](../../TODO.md) §14 (publicação), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `loxia/` (pacote do CLI), `src/loader/loader.py` (`SOURCE_SUFFIX`),
-  `src/execution/prelude.py`, `src/semantics/checker.py`,
+- **Implementação:** `loxia/` (pacote do CLI), `loxia_core/loader/loader.py` (`SOURCE_SUFFIX`),
+  `loxia_core/execution/prelude.py`, `loxia_core/semantics/checker.py`,
   `runtime/runtime.c` (`lox_throw`), `tests/cases/*.lx`
 
 ## Contexto
@@ -36,14 +36,14 @@ Três forças empurravam para longe do nome provisório:
 1. **Nome:** a linguagem se chama **Loxia**. "Lox" permanece o nome do *dialeto do livro*
    e do oráculo normativo — a linhagem continua declarada, não apagada.
 2. **Extensão:** `.lx` é a extensão canônica dos fontes. `SOURCE_SUFFIX` em
-   `src/loader/loader.py` é o único ponto que a conhece; `import a.b` resolve `a/b.lx`.
+   `loxia_core/loader/loader.py` é o único ponto que a conhece; `import a.b` resolve `a/b.lx`.
    O CLI continua aceitando qualquer nome de arquivo (não valida extensão), então scripts
    antigos rodam; só `import` deixou de resolver `.lox`.
 3. **Pacote e comando:** o pacote Python é `loxia`, o comando é `loxia`
    (`python -m loxia`), e `main.py` mantém o alias `Lox = Loxia` para quem importa o driver.
 4. **Prelúdio sem marca:** a classe de erro de runtime embutida passa a se chamar
    **`RuntimeError`** (era `LoxRuntimeError`); `Exception` continua a base. A classe
-   **Python** `src/diagnostics/errors.py::LoxRuntimeError` mantém o nome: é herança de
+   **Python** `loxia_core/diagnostics/errors.py::LoxRuntimeError` mantém o nome: é herança de
    nomenclatura do livro, não superfície da linguagem.
 5. **`Lox*` no código é herança e fica.** `LoxClass`, `LoxInstance`, `LoxFunction`,
    `LoxCallable`, `LoxList`, `LoxMap`, `LoxTuple`, `LoxRange`, `LoxExceptionValue` etc. são

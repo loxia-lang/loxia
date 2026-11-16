@@ -8,8 +8,8 @@
   [ADR-0010](0010-tipagem-estatica.md), [ADR-0014](0014-identidade-e-invariantes.md),
   [ADR-0015](0015-listas-tipadas.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`TODO.md`](../../TODO.md) §1 e §11
-- **Implementação:** [`src/execution/lox_map.py`](../../src/execution/lox_map.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`src/semantics/checker.py`](../../src/semantics/checker.py),
+- **Implementação:** [`loxia_core/execution/lox_map.py`](../../loxia_core/execution/lox_map.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py), [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
   [`docs/spec/semantica.md`](../spec/semantica.md),
   [`tests/cases/map_*.lox`](../../tests/cases)
 

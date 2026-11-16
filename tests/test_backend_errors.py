@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from src.backend import driver, llvm_ir
-from src.backend.lower import BackendError
-from src.backend.lower_model import _unsupported
-from src.diagnostics.codes import Code
-from src.diagnostics.error_reporter import ErrorReporter
-from src.diagnostics.render import render_batch
-from src.diagnostics.source import SourceMap
+from loxia_core.backend import driver, llvm_ir
+from loxia_core.backend.lower import BackendError
+from loxia_core.backend.lower_model import _unsupported
+from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.diagnostics.render import render_batch
+from loxia_core.diagnostics.source import SourceMap
 
 
 def test_unsupported_tem_codigo_e4001() -> None:

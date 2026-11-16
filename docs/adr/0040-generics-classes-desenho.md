@@ -51,14 +51,14 @@ a implementação é a próxima fatia e não muda o backend agora.
 
 | Arquivo | Mudança |
 | --- | --- |
-| `src/frontend/ty.py` | `ClassTy.args`; `display` com argumentos |
-| `src/frontend/stmt.py` | `Class.type_params` |
-| `src/frontend/parser.py` | `_class_declaration` lê `[T, ...]`; `_generic_type` devolve `ClassTy(name, args)` para classes (validação sai do parser e vai para o checker); erro em superclasse genérica |
-| `src/frontend/ast_printer.py` | sufixo de type params no dump |
-| `src/semantics/checker.py` | `ClassInfo` com params/nomes; `_declare_type_params`; push/pop no escopo da classe; `_resolve_type` com aridade; `_infer_class_construction`; `_class_bindings` + substituição em campos/métodos/`this`/`init`; `_assignable`/`_unify`/`_substitute`/`_occurs`/`_unbound_type_vars` sobre `args`; guards de `is`/`as` |
-| `src/execution/interpreter.py` | guards de `is`/`as` com `ClassTy` que tem args; resto inalterado |
-| `src/execution/type_test.py` | sem mudança (guards impedem `ClassTy` com args) |
-| `src/backend/lower.py` | sem mudança; `Class` já cai no fallback 65 |
+| `loxia_core/frontend/ty.py` | `ClassTy.args`; `display` com argumentos |
+| `loxia_core/frontend/stmt.py` | `Class.type_params` |
+| `loxia_core/frontend/parser.py` | `_class_declaration` lê `[T, ...]`; `_generic_type` devolve `ClassTy(name, args)` para classes (validação sai do parser e vai para o checker); erro em superclasse genérica |
+| `loxia_core/frontend/ast_printer.py` | sufixo de type params no dump |
+| `loxia_core/semantics/checker.py` | `ClassInfo` com params/nomes; `_declare_type_params`; push/pop no escopo da classe; `_resolve_type` com aridade; `_infer_class_construction`; `_class_bindings` + substituição em campos/métodos/`this`/`init`; `_assignable`/`_unify`/`_substitute`/`_occurs`/`_unbound_type_vars` sobre `args`; guards de `is`/`as` |
+| `loxia_core/execution/interpreter.py` | guards de `is`/`as` com `ClassTy` que tem args; resto inalterado |
+| `loxia_core/execution/type_test.py` | sem mudança (guards impedem `ClassTy` com args) |
+| `loxia_core/backend/lower.py` | sem mudança; `Class` já cai no fallback 65 |
 | testes | parser, checker, interpreter, backend e golden `generic_class.lox` |
 
 ## Plano de implementação

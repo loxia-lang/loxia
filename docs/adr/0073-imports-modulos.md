@@ -6,9 +6,9 @@
 - **Relacionados:** [ADR-0066](0066-orcamento-e-gate-sintatico.md),
   [ADR-0072](0072-stdlib-batteries.md), [ADR-0071](0071-primitivas-de-runtime.md),
   [ADR-0020](0020-assinaturas-explicitas.md), [`../../TODO.md`](../../TODO.md) §13
-- **Implementação:** [`src/loader/loader.py`](../../src/loader/loader.py),
-  [`src/frontend/parser.py`](../../src/frontend/parser.py),
-  [`src/frontend/stmt.py`](../../src/frontend/stmt.py) (`Import`),
+- **Implementação:** [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py),
+  [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py),
+  [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) (`Import`),
   [`tests/test_modules.py`](../../tests/test_modules.py), `std/*.lox`
 
 ## Contexto

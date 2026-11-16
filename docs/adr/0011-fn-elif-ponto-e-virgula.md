@@ -7,8 +7,8 @@
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §1,
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/lexico.md`](../spec/lexico.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/frontend/token_type.py`, `src/frontend/keywords.py`, `src/frontend/parser.py`,
-  `src/frontend/ast_printer.py`; testes em `tests/test_parser.py`, `tests/test_scanner.py` e
+- **Implementação:** `loxia_core/frontend/token_type.py`, `loxia_core/frontend/keywords.py`, `loxia_core/frontend/parser.py`,
+  `loxia_core/frontend/ast_printer.py`; testes em `tests/test_parser.py`, `tests/test_scanner.py` e
   `tests/cases/optional_semicolons.lox` / `elif.lox` / `return_newline.lox` /
   `operator_line.lox`
 

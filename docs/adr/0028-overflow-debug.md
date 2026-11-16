@@ -8,8 +8,8 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [ADR-0026](0026-freeze-1.0.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/erros.md`](../spec/erros.md)
-- **Implementação:** [`src/execution/numeric.py`](../../src/execution/numeric.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py), [`loxia/cli.py`](../../loxia/cli.py),
+- **Implementação:** [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py), [`loxia/cli.py`](../../loxia/cli.py),
   [`tests/test_numeric.py`](../../tests/test_numeric.py),
   [`tests/test_interpreter.py`](../../tests/test_interpreter.py),
   [`tests/test_cli.py`](../../tests/test_cli.py)

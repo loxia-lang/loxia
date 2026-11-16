@@ -7,10 +7,10 @@
   [ADR-0040](0040-generics-classes-desenho.md),
   [ADR-0048](0048-abi-classes-l5.md), [ADR-0049](0049-any-boxeado-spike-l6.md),
   [`../../TODO.md`](../../TODO.md) §0/§2/§6.11
-- **Implementação:** [`src/semantics/checker.py`](../../src/semantics/checker.py),
-  [`src/backend/lower_generics.py`](../../src/backend/lower_generics.py),
-  [`src/backend/lower_class_layout.py`](../../src/backend/lower_class_layout.py),
-  [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py),
+- **Implementação:** [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
+  [`loxia_core/backend/lower_generics.py`](../../loxia_core/backend/lower_generics.py),
+  [`loxia_core/backend/lower_class_layout.py`](../../loxia_core/backend/lower_class_layout.py),
+  [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py),
   [`tests/cases/generic_functions.lox`](../../tests/cases/generic_functions.lx),
   [`tests/cases/generic_class.lox`](../../tests/cases/generic_class.lx)
 

@@ -1,11 +1,11 @@
 ---
 sources:
-  - src/diagnostics/**
-  - src/execution/interpreter.py
-  - src/frontend/scanner.py
-  - src/frontend/parser.py
-  - src/semantics/resolver.py
-  - src/semantics/checker.py
+  - loxia_core/diagnostics/**
+  - loxia_core/execution/interpreter.py
+  - loxia_core/frontend/scanner.py
+  - loxia_core/frontend/parser.py
+  - loxia_core/semantics/resolver.py
+  - loxia_core/semantics/checker.py
   - loxia/cli.py
   - tests/test_diagnostics.py
 ---
@@ -102,7 +102,7 @@ diagnósticos cortados por `--max-errors`.
 Códigos identificam **famílias**, não mensagens; nunca são reaproveitados e o catálogo é
 fechado (emitir um código fora daqui não compila). A cauda longa do checker usa `E3000`
 até ser refinada em códigos mais específicos. As tabelas por fase abaixo são **geradas** a
-partir de `src/diagnostics/codes.py` (`make codes`); não edite à mão.
+partir de `loxia_core/diagnostics/codes.py` (`make codes`); não edite à mão.
 
 | Faixa | Fase | Significado |
 | --- | --- | --- |

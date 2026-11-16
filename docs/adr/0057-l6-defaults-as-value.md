@@ -3,8 +3,8 @@
 - **Status:** accepted
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0046](0046-closures-celulas-l4.md), [ADR-0050](0050-monomorfizacao-t7.md)
-- **Implementação:** [`src/backend/lower_variables.py`](../../src/backend/lower_variables.py),
-  [`src/backend/lower_calls.py`](../../src/backend/lower_calls.py)
+- **Implementação:** [`loxia_core/backend/lower_variables.py`](../../loxia_core/backend/lower_variables.py),
+  [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py)
 
 ## Decisão
 

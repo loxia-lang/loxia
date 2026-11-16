@@ -5,9 +5,9 @@
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md)
   (futuro: tipos de campo/default), [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/frontend/parser.py`, `src/frontend/stmt.py`, `src/execution/lox_callable.py`,
-  `src/execution/lox_function.py`, `src/execution/lox_class.py`, `src/execution/lox_instance.py`, `src/semantics/resolver.py`,
-  `src/execution/interpreter.py`; casos em `tests/cases/default_params.lox`, `fields_*.lox` e
+- **Implementação:** `loxia_core/frontend/parser.py`, `loxia_core/frontend/stmt.py`, `loxia_core/execution/lox_callable.py`,
+  `loxia_core/execution/lox_function.py`, `loxia_core/execution/lox_class.py`, `loxia_core/execution/lox_instance.py`, `loxia_core/semantics/resolver.py`,
+  `loxia_core/execution/interpreter.py`; casos em `tests/cases/default_params.lox`, `fields_*.lox` e
   `tests/cases/errors/{default,field,arity_default}*.lox`
 
 ## Contexto

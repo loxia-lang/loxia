@@ -70,7 +70,7 @@ decisão.
 
 | Decisão | Resumo | Fonte |
 | --- | --- | --- |
-| Ferramenta | `llvmlite` como **extra opcional** (`uv sync --extra llvm`); object file emitido pelo LLVM embutido e link com `cc`; `.ll` é artefato de inspeção, não etapa de build; lib isolada em `src/backend/llvm_ir.py`. | [ADR-0031](adr/0031-backend-nativo.md) |
+| Ferramenta | `llvmlite` como **extra opcional** (`uv sync --extra llvm`); object file emitido pelo LLVM embutido e link com `cc`; `.ll` é artefato de inspeção, não etapa de build; lib isolada em `loxia_core/backend/llvm_ir.py`. | [ADR-0031](adr/0031-backend-nativo.md) |
 | Modelo de valor | Desboxado por tipo concreto (`Int`=i64, `Float`=f64, `Bool`=i1); `Any`/`List` cru/`Map` heterogêneo são erro de compilação até o L6; `lox build` sempre roda checker. | [ADR-0031](adr/0031-backend-nativo.md) |
 | `T?` | Ponteiro nulo para referência (`String?`, instância); `{i1, T}` para escalar (`Int?`, `Float?`, `Bool?`); narrowing devolve o `T` cru. | [ADR-0031](adr/0031-backend-nativo.md) |
 | Erro de runtime | `lox_panic(linha, msg)`: flush do stdout, mensagem idêntica ao interpretador no stderr e exit 70; `main` devolve 0 no sucesso; traps de hardware proibidos. | [ADR-0031](adr/0031-backend-nativo.md) |
@@ -138,5 +138,12 @@ continuam **em aberto** no
 [`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).
 Módulos têm forma implementada em [ADR-0073](adr/0073-imports-modulos.md): arquivo=módulo,
 pasta=namespace, `_` privado verificado, `std.*` reservado e imports de arquivos do usuário.
+
+Distribuição fechada no [ADR-0088](adr/0088-distribuicao-e-raizes-de-modulo.md):
+`loxia` é o comando (`[project.scripts]`), a stdlib viaja como package data
+(`loxia/std`, nome reservado, versão = versão do compilador), `loxia.toml` declara raízes
+(`[modules] paths`) com ordem fixa **projeto → declaradas → std**, ambiguidade é erro,
+`..` continua proibido no `import` (só como raiz declarada) e sem manifest o comportamento
+atual permanece. Implementação pendente ([`../TODO.md`](../TODO.md) §14.4).
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

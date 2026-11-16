@@ -4,8 +4,8 @@
 - **Data:** 2026-11-11
 - **Relacionados:** [`../../TODO.md`](../../TODO.md) §2/§11, [`../../TIPOS.md`](../../TIPOS.md),
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
-- **Implementação:** `src/frontend/ty.py`, `src/semantics/checker.py`, `src/frontend/parser.py`, `src/frontend/stmt.py`,
-  `src/frontend/token_type.py`, `src/frontend/scanner.py`, `loxia/cli.py`; testes em `tests/test_checker.py`,
+- **Implementação:** `loxia_core/frontend/ty.py`, `loxia_core/semantics/checker.py`, `loxia_core/frontend/parser.py`, `loxia_core/frontend/stmt.py`,
+  `loxia_core/frontend/token_type.py`, `loxia_core/frontend/scanner.py`, `loxia/cli.py`; testes em `tests/test_checker.py`,
   `tests/test_cli.py`, `tests/cases/typed_functions.lox`
 
 ## Contexto
@@ -64,7 +64,7 @@ inferidos. A discussão está no histórico do `TODO.md` §2 e em `TIPOS.md`.
 ### Neutras
 
 - Novos tokens `:`, `?`, `[`, `]`, `->`, `|`; `Ty` no `Param`/`Var`/`Field`/`Function`.
-- `src/frontend/ty.py` (tipos e helpers de união) e `src/semantics/checker.py` separados do interpretador.
+- `loxia_core/frontend/ty.py` (tipos e helpers de união) e `loxia_core/semantics/checker.py` separados do interpretador.
 
 ## Alternativas consideradas
 

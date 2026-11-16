@@ -15,14 +15,14 @@
   [ADR-0087](0087-heap-cap-e-self-hosting.md) (memória), [`../../TODO.md`](../../TODO.md)
   §3.1, [`../spec/garantias.md`](../spec/garantias.md)
 - **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c),
-  [`src/backend/lower_functions.py`](../../src/backend/lower_functions.py),
-  [`src/backend/lower_class_codegen.py`](../../src/backend/lower_class_codegen.py),
-  [`src/backend/lower.py`](../../src/backend/lower.py),
-  [`src/execution/lox_function.py`](../../src/execution/lox_function.py),
-  [`src/execution/lox_class.py`](../../src/execution/lox_class.py),
-  [`src/execution/interpreter.py`](../../src/execution/interpreter.py),
-  [`src/execution/limits.py`](../../src/execution/limits.py),
-  [`src/backend/driver.py`](../../src/backend/driver.py) e o corpus (`tests/cases/`)
+  [`loxia_core/backend/lower_functions.py`](../../loxia_core/backend/lower_functions.py),
+  [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py),
+  [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py),
+  [`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py),
+  [`loxia_core/execution/lox_class.py`](../../loxia_core/execution/lox_class.py),
+  [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
+  [`loxia_core/execution/limits.py`](../../loxia_core/execution/limits.py),
+  [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) e o corpus (`tests/cases/`)
 
 ## Contexto
 
@@ -60,7 +60,7 @@ stack. O binário gasta ~16 B a ~1,2 KB por frame, dependendo do corpo.
 
 ### 1. Limite único e determinístico: 10.000 chamadas Lox
 
-`LOX_MAX_CALL_DEPTH = 10_000` é o mesmo número nos dois motores (`src/execution/limits.py`
+`LOX_MAX_CALL_DEPTH = 10_000` é o mesmo número nos dois motores (`loxia_core/execution/limits.py`
 e `-D` do driver para o runtime). A profundidade permitida é `1..10_000`; a chamada
 10.001 é `Stack overflow.`. Código de topo e `main` ficam em profundidade 0.
 
@@ -73,7 +73,7 @@ contrato (ADR novo + `garantias.md` + corpus).
 ### 2. O erro é `R1015`, capturável e sem posição
 
 - Mensagem: `Stack overflow.`
-- Código: `R1015`, família runtime (`src/diagnostics/codes.py`).
+- Código: `R1015`, família runtime (`loxia_core/diagnostics/codes.py`).
 - `exit 70` quando não capturado; `try`/`except RuntimeError` captura e o programa
   continua.
 - **Sem linha/coluna**: o contador dispara na entrada da função; o token sintético tem
@@ -105,9 +105,9 @@ contrato (ADR novo + `garantias.md` + corpus).
   `main`, thunks de método/interface, funções nativas e o ctor sintético de
   `Exception`/`RuntimeError` **não** são instrumentados.
 - Todo `ret` de função de usuário passa por `_stack_leave()`: retorno explícito em
-  [`lower.py`](../../src/backend/lower.py), retorno implícito em
-  [`lower_functions.py`](../../src/backend/lower_functions.py) e ctor em
-  [`lower_class_codegen.py`](../../src/backend/lower_class_codegen.py).
+  [`lower.py`](../../loxia_core/backend/lower.py), retorno implícito em
+  [`lower_functions.py`](../../loxia_core/backend/lower_functions.py) e ctor em
+  [`lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py).
 - `LoxTryFrame` guarda `depth` no `lox_try_push`; `lox_try_pop` restaura
   `lox_call_depth = frame->depth` no caminho normal e após `longjmp`. Uma exceção que
   atravessa N funções não deixa o contador inflado.

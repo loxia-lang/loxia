@@ -5,9 +5,9 @@
 - **Relacionados:** [`../../TIPOS.md`](../../TIPOS.md) `D-10`, [`../decisoes.md`](../decisoes.md), [`../../TODO.md`](../../TODO.md)
   §1/§11, [`../../IDEIAS.md`](../../IDEIAS.md) I-6,
   [`../spec/semantica.md`](../spec/semantica.md), [`../spec/sintaxe.md`](../spec/sintaxe.md)
-- **Implementação:** `src/frontend/scanner.py`, `src/frontend/token_type.py`, `src/frontend/keywords.py`,
-  `src/frontend/expr.py`, `src/frontend/stmt.py`, `src/frontend/parser.py`, `src/semantics/resolver.py`,
-  `src/execution/interpreter.py`, `src/execution/lox_range.py`, `src/execution/natives/range.py`; casos em
+- **Implementação:** `loxia_core/frontend/scanner.py`, `loxia_core/frontend/token_type.py`, `loxia_core/frontend/keywords.py`,
+  `loxia_core/frontend/expr.py`, `loxia_core/frontend/stmt.py`, `loxia_core/frontend/parser.py`, `loxia_core/semantics/resolver.py`,
+  `loxia_core/execution/interpreter.py`, `loxia_core/execution/lox_range.py`, `loxia_core/execution/natives/range.py`; casos em
   `tests/cases/for_in*.lox`, `range_value.lox` e `tests/cases/errors/for_in*.lox`,
   `range_*.lox`
 

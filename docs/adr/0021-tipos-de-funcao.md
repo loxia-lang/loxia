@@ -8,8 +8,8 @@
   [ADR-0014](0014-identidade-e-invariantes.md), [`../../TODO.md`](../../TODO.md) §2,
   [`../spec/semantica.md`](../spec/semantica.md),
   [`../spec/sintaxe.md`](../spec/sintaxe.md), [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** [`src/frontend/parser.py`](../../src/frontend/parser.py), [`src/frontend/ty.py`](../../src/frontend/ty.py),
-  [`src/semantics/checker.py`](../../src/semantics/checker.py), [`tests/test_parser.py`](../../tests/test_parser.py),
+- **Implementação:** [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py), [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py),
+  [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py), [`tests/test_parser.py`](../../tests/test_parser.py),
   [`tests/test_checker.py`](../../tests/test_checker.py)
 
 ## Contexto

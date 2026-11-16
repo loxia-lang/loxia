@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from src.backend.captures import CaptureAnalysis, analyze_captures
-from src.frontend.expr import Lambda
-from src.frontend.parser import Parser
-from src.frontend.scanner import Scanner
-from src.frontend.stmt import Block, Function, Stmt, Var
+from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
+from loxia_core.frontend.expr import Lambda
+from loxia_core.frontend.parser import Parser
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.stmt import Block, Function, Stmt, Var
 
 
 def _parse(source: str) -> list[Stmt]:

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from src.diagnostics.codes import Code
-from src.diagnostics.error_reporter import ErrorReporter
-from src.diagnostics.errors import LoxRuntimeError
-from src.frontend.token_type import TokenType
-from src.frontend.tokens import Token
+from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.diagnostics.errors import LoxRuntimeError
+from loxia_core.frontend.token_type import TokenType
+from loxia_core.frontend.tokens import Token
 
 
 def _token(lexeme: str = "x", line: int = 1, column: int = 1) -> Token:
@@ -69,7 +69,7 @@ def test_runtime_error_is_collected_with_span_and_default_code() -> None:
 
 
 def test_error_at_builds_lexer_span() -> None:
-    from src.diagnostics.diagnostic import Position
+    from loxia_core.diagnostics.diagnostic import Position
 
     reporter = ErrorReporter()
     reporter.file = "a.lx"

@@ -121,7 +121,7 @@ Intervalo: `HEAD..working tree` (planejamento; nenhum código tocado).
 - `TODO.md` — **updated**: §0.3/§0.4 (plano fora da fila), §8 (imports/FFI/stdlib), §10
   (self-host reclassificado), §11 (imports, kernel, escopo) e **§13 novo** com o kernel,
   a tabela, os imports e o inventário de batteries.
-- Sem mudança em `src/`, `runtime/` ou `docs/spec/`: 0071/0072 são plano; a spec só muda
+- Sem mudança em `loxia_core/`, `runtime/` ou `docs/spec/`: 0071/0072 são plano; a spec só muda
   quando a implementação começar.
 
 ## 2026-11-14 — GC Boehm (ADR-0074) e gate `mod.verify`
@@ -150,7 +150,7 @@ Intervalo: `HEAD..working tree` (decisão registrada e GC implementado).
   dependência de `libgc` para `--emit=exe`, contrato de memória, GC e `mod.verify`.
 - `AGENTS.md` — **updated** (local): contrato de memória, status do backend e regra de não
   aumentar o cap.
-- `src/backend/llvm_ir.py`, `src/backend/driver.py` — **updated**: `LLVMVerificationError`,
+- `loxia_core/backend/llvm_ir.py`, `loxia_core/backend/driver.py` — **updated**: `LLVMVerificationError`,
   `verify`/`verify_text`, `_verify` no driver e link `-lgc` com dica de instalação;
   `tests/test_ir_verify.py` **novo**.
 - `runtime/runtime.c` — **updated**: arena substituída por `GC_malloc`/`GC_MALLOC_ATOMIC`,
@@ -572,3 +572,13 @@ Intervalo: `HEAD`..working tree (runtime, interpreter, backend, CLI, testes e do
 - `tests/cases/stack_*.lx`, `tests/corpus_manifest.py`, `tests/test_backend.py`,
   `tests/test_cli.py` — **updated**: corpus e testes de borda, reserva de pilha e
   override de heap.
+
+## 2026-11-15 — rename `src` → `loxia_core`
+
+Renomeado o pacote do motor (`git mv src loxia_core`): 80 arquivos Python com imports
+`from loxia_core.*`, 80 documentos com caminhos atualizados, `pyproject.toml` (mypy),
+loader (`STD_ROOT`), `editors/build_grammar.py`, `docs/_hooks/{codes,freshness}.py` e o
+teste de sombreamento da stdlib. Resolve a dívida registrada no
+[ADR-0088](../docs/adr/0088-distribuicao-e-raizes-de-modulo.md) (pacote top-level `src` no
+wheel). Nenhum comportamento mudou: suíte completa verde, incluindo o backend.
+

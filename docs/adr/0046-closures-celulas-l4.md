@@ -10,8 +10,8 @@
   [ADR-0026](0026-freeze-1.0.md), [ADR-0031](0031-backend-nativo.md) (contrato do backend),
   [ADR-0033](0033-inferencia-t3c-t4.md) (T4), [ADR-0034](0034-t3c-revertido.md),
   [`../../TODO.md`](../../TODO.md) §0.1/§6, [`../spec/semantica.md`](../spec/semantica.md)
-- **Implementação:** `src/backend/captures.py`, `src/backend/lower.py`,
-  `src/backend/llvm_ir.py`, `runtime/runtime.c`, `tests/test_backend.py`,
+- **Implementação:** `loxia_core/backend/captures.py`, `loxia_core/backend/lower.py`,
+  `loxia_core/backend/llvm_ir.py`, `runtime/runtime.c`, `tests/test_backend.py`,
   `tests/test_captures.py`, `tests/corpus_manifest.py`
 
 ## Contexto
@@ -44,7 +44,7 @@ Decisões já tomadas que restringem o espaço:
 ### 1. Sem HIR: lowering direto + passe de captura
 
 O L4 continua `AST → LLVM` com a normalização leve do ADR-0031. A única análise nova é um
-passe **de captura** (`src/backend/captures.py`), que descobre quais bindings locais são
+passe **de captura** (`loxia_core/backend/captures.py`), que descobre quais bindings locais são
 usados por funções aninhadas e quais funções cada closure precisa capturar. Ele não muda a
 AST nem vira camada de IR.
 
