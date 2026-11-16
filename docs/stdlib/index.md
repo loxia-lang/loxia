@@ -29,6 +29,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.results`](results.md) | Combinators for `Result[T, E]`. |
 | [`std.sets`](sets.md) | `Set[T]` backed by `Map[Any, Bool]`. |
 | [`std.strings`](strings.md) | UTF-8 text operations over code points. |
+| [`std.test`](test.md) | Mini-harness de testes (TAP, `Suite`, matchers, `Recorder`). |
 | [`std.utf8`](utf8.md) | UTF-8 and UTF-16 widths (bytes, code units, columns). |
 
 ## Builtins

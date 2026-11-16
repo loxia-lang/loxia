@@ -38,6 +38,7 @@ MODULES = {
     "sets": "`Set[T]` backed by `Map[Any, Bool]`.",
     "utf8": "UTF-8 and UTF-16 widths (bytes, code units, columns).",
     "strings": "UTF-8 text operations over code points.",
+    "test": "Mini-harness de testes (TAP, `Suite`, matchers, `Recorder`).",
 }
 
 

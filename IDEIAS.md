@@ -1000,3 +1000,188 @@ alternativa barata; TOML só se a tabela virar fonte de mais de um gerador.
 - kernel passando de ~30 primitivas;
 - primeiro drift de assinatura entre tabela e C que só apareceu em teste;
 - se o gerador de protótipo C pegar um drift real, o resto se paga sozinho.
+
+---
+
+## I-13 — Testes: `std.test` (biblioteca) + `lox test` (runner) e mocks
+
+**Status:** `implementado` ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md),
+2026-11-16) — `std/test.lx` + `lox test`; os probes de viabilidade ficam abaixo.
+**Relacionados:** [ADR-0092](docs/adr/0092-estilo-e-formatter.md) (estilo),
+[ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md) (CLI e JSON),
+[ADR-0095](docs/adr/0095-processos-streams-poll.md) (`proc`/`poll` para o runner),
+[`TODO.md`](TODO.md) §13.6 (`std.test`), `tests/runner.py` (corpus dourado — **não** é
+isto), `R3` no TODO §9.1, [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md).
+
+### A pergunta
+
+Como testar código Loxia? Uma biblioteca dentro da linguagem (`asserts`, `describe`/`it`,
+matchers, mocks) e/ou um runner de fora (`lox test`)? O que a linguagem **não** permite e
+como contornar sem inventar sintaxe?
+
+### Fatos do código (probes de 2026-11-16, interpretador e binário)
+
+| Capacidade | Resultado |
+| --- | --- |
+| `it(name, fn() { ... })` (closure como argumento, executada na hora) | ✅ idêntico nos dois motores |
+| `class TestFailure(Exception) { init(msg) { this.message = msg } }` | ✅ capturável por `except Exception` |
+| `class Expectation[T] { val value: T; fn toBe(other: T) }` + `expect[T]` | ✅ monomorfiza e roda nos dois motores (inclusive igualdade de listas) |
+| método chamado `not` | ❌ `not` é keyword; usar `notToBe`/`negate()` |
+| `<=`/`>` em `T` sem constraint | ❌ checker `E3007`; **classe não aceita constraint** (ADR-0040) |
+| `expect(anyValue)` (`T = Any`) | ❌ não infere (`E3011`); `Any` como campo também não existe no backend |
+| closure em **global** (`var before: fn() -> Nil = ...`) | ✅ nos dois motores (hooks de um nível são viáveis) |
+| closure em **lista**, chamada depois | ❌ no binário: `R1001: Can only call functions and classes` (`R3`) |
+
+Consequência: o desenho não pode depender de **registry de closures**. `it` executa o
+corpo na hora; o runner descobre testes por **arquivo**, não por reflexão.
+
+### Decisão de desenho (adotada): duas camadas
+
+**1. `std.test` — biblioteca em Lox puro, determinística.**
+Sem reflection, sem anotação, sem registro adiado. Módulo não aceita `var` top-level
+(`E1001`), então o estado vive numa `Suite` explícita; `it` roda imediatamente e imprime TAP:
+
+```lox
+import std.test as t
+
+val suite = t.Suite()
+
+suite.describe("soma", fn() {
+  suite.it("inteiros", fn() {
+    t.expect(1 + 1).toBe(2)
+  })
+  suite.it("string", fn() {
+    t.expect("a" + "b").toBe("ab")
+  })
+  suite.it("pula", fn() { suite.skip("sem rede") })
+})
+suite.done()   # imprime plano/resumo e encerra com 0/1
+```
+
+API mínima proposta:
+
+- `class TestFailure(Exception)`, `class Skip(Exception)`;
+- `Suite` com `describe(name, body)`, `it(name, body)`, `skip(reason)`, `report()` e
+  `done()`; `fail(message)` é função livre;
+- `expect[T](value) -> Expectation[T]` com `toBe`, `notToBe` (só igualdade universal; sem
+  constraint dentro de classe);
+- matchers numéricos como **funções livres** com `T: Ord` (`expectGt`, `expectGe`,
+  `expectLt`, `expectLe`) — é o que o checker permite hoje (ADR-0081);
+- `expectNil[T](value: T?)`, `expectNotNil[T](value: T?) -> T`;
+- `expectList[T](items: List[T])` com `toContain`; `expectString(s)` com `contains`;
+- `expectRaise(body: fn() -> Nil) -> String` (devolve a mensagem; o tipo da exceção não é
+  reificável — sem `is T` dinâmico);
+- `Recorder` (mocks, abaixo).
+
+Por que imediato: (a) `R3` impede guardar closures em lista no binário; (b) ordem é a do
+fonte (determinística por construção); (c) uma falha não interrompe as seguintes porque
+`it` captura a exceção por teste. `suite.skip` usa um flag (`skipRequested`) porque
+`except` de classe de módulo não casa no binário (`R4`).
+
+**2. `lox test` — runner na CLI (Python).**
+Não precisa de reflection: descobre `tests/**/*_test.lx` (ou os caminhos passados), roda
+cada arquivo em **subprocesso** e agrega a saída TAP.
+
+- `loxia test [paths] [--filter SUB] [--only NAME] [--jobs N] [--timeout MS] [--json]
+  [--fail-fast] [--native]`;
+- subprocesso por arquivo: `os.exit`, stack overflow ou panic de um teste não matam a
+  suíte; `--timeout` é por arquivo (sem thread não há timeout por teste);
+- `--jobs` roda N arquivos em paralelo (threads no Python; o runner em Lox, se um dia
+  existir, usa `std.proc` + `poll`);
+- `--native` compila cada arquivo (`--emit=exe`) e roda o binário — o runner não duplica o
+  diferencial do corpus, mas dá o mesmo caminho para o usuário;
+- `--json`: envelope estável (`schema_version`, `tests[]` com `file`, `name`, `status`,
+  `message`), **sem duração/timestamp** por padrão (I3);
+- filtro: o runner passa `-- --filter=SUB` e a lib ignora `it` que não casa (contando só
+  os executados).
+
+Alternativas descartadas para descoberta:
+
+| Alternativa | Por que não |
+| --- | --- |
+| `#[test]` / anotação | sintaxe nova; gate do ADR-0066 e sem ganho sobre convenção de arquivo |
+| reflection em runtime | a linguagem não tem (e não deve ter) metadata |
+| registry de closures (`List[fn]`) | `R3`: não chama no binário; e o interpretador viraria a única verdade |
+| gerar driver a partir de `fn test_*` | viável (o front-end Python já parseia), mas é um segundo mecanismo antes de haver dor; fica como plano B se `--only`/isolamento por teste forem necessários |
+
+### Mocks, spies e fakes (sem reflection)
+
+Não há monkey-patching, nem substituição de método em instância, nem interceptação. O que
+existe — e é suficiente — são três padrões:
+
+1. **Injeção por função** (o mais barato): a produção recebe `fn(...) -> ...` em vez de
+   chamar o global. Stub = closure; spy = closure que registra num `Recorder`.
+   ```lox
+   fn total(carrinho: List[Int], now: fn() -> Int) -> Int { ... }
+   t.it("usa o relógio", fn() {
+     val fixed = fn() -> Int { return 1_700_000_000 }
+     t.expect(total([1, 2], fixed)).toBe(3)
+   })
+   ```
+2. **Interface + fake** (quando há estado): `interface Mailer { fn send(to: String) -> Bool }`
+   e um `class FakeMailer implements Mailer` que grava em `List[(String, String)]`. É o
+   mock nominal que o ADR-0080 já suporta; `Recorder` cobre contagem/ordem sem classe
+   específica.
+3. **Fakes de capacidade** para `process`/`fs`/`time`: a produção recebe
+   `fn(List[String]) -> Output?`/`fn(String) -> String?`/`fn() -> Int`; o teste devolve
+   `Output(0, "...", "")`, um mapa em memória ou um relógio fixo. Zero dependência de
+   `std.test` no código de produção.
+
+Regras que o `std.test` deve documentar: nada de mock implícito (I2), nada de ordem de mock
+depender de hash (I3), e mock de processo/arquivo só entra em teste `ambient` (fora do
+corpus I1).
+
+### Limites e decisões abertas
+
+- **Hooks**: `beforeEach`/`afterEach` de **um nível** cabem (closure em global, probe ✅);
+  aninhados exigem lista de closures (`R3`). MVP: sem hooks ou um nível.
+- **Localização da falha**: `TestFailure` capturada não carrega stack trace (o `Trace` não
+  é exposto à linguagem), então a mensagem aponta o teste, não a linha do `expect`. Melhor
+  no futuro com `Trace` acessível ou spans.
+- **`done()` sai do processo?** Recomendo `report() -> Int` (puro) + `done()` que faz
+  `os.exit(report())`; o runner usa o exit code.
+- **`--json` compartilha schema com `check`/`mcp`?** Sim, envelope v1 + `tests[]`.
+- **Convenção de arquivo**: `*_test.lx` (Go) ou `*.test.lx` (JS)? Nenhuma colide com o
+  loader (o runner roda o arquivo, não importa). Recomendo `*_test.lx`.
+- **Corpus**: testes puros de `std.test` entram no corpus `t3` e no diferencial; testes que
+  usam `proc`/`fs`/`time` são `ambient` e ficam fora.
+- **`std.asserts` vs `std.test`**: `asserts` continua sendo contrato de produção (usa
+  `RuntimeError`); `std.test` tem `TestFailure`/`Skip` próprios para o runner distinguir
+  falha de bug de infraestrutura.
+
+### MVP (ordem)
+
+1. `std/test.lx` (`TestFailure`, `Skip`, `describe`, `it`, `fail`, `skip`, `expect`,
+   `toBe`/`notToBe`, `expectNil`/`expectNotNil`, `expectGt`/`Ge`/`Lt`/`Le`,
+   `expectList`/`toContain`, `expectString`/`contains`, `expectRaise`, `Recorder`,
+   `report`/`done`) + golden `std_test.lx` no corpus `t3` (subconjunto determinístico).
+2. `loxia test` (glob, subprocesso, TAP, `--filter`, `--timeout`, `--json`, `--jobs`,
+   `--fail-fast`, `--native`) + testes em pytest com projeto temporário.
+3. Docs: `docs/stdlib/test.md` gerado, spec, ADR quando fechado.
+4. Depois: hooks (1 nível), `--only` + isolamento por teste, snapshots, property-based com
+   `std.rand` semeado, cobertura; corrigir `R3` se hooks aninhados/registry virarem
+   requisito.
+
+### Decidido (2026-11-16, [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md))
+
+- Duas camadas: `std.test` (Lox) + `lox test` (CLI); `it` imediato, sem registry.
+- Asserções híbridas: `expect(x).toBe(y)` + funções livres com `T: Ord`/coleções/`raise`.
+- Runner em Python agora; runner em Lox depois, com `proc`+`poll`.
+- Fakes no usuário; `std.test` só `Recorder`.
+- Descoberta só `tests/**/*_test.lx`; um subprocesso por arquivo.
+- `report() -> Int` + `done()` com `os.exit`.
+- Localização (trace) fica para depois; MVP aponta arquivo + nome do teste.
+
+### Ainda em aberto
+
+- [ ] Hooks (`beforeEach`/`afterEach`) no MVP ou só depois de `R3`?
+- [ ] Detalhes do `--json` (schema exato, `tests[]` plano ou por arquivo).
+- [ ] Isolamento por teste (`--only` + N processos) — quando a dor aparecer.
+- [ ] Cobertura/snapshot/property-based: cada um é feature própria, fora do MVP.
+
+### Gatilhos para revisitar
+
+- primeira suíte de usuário real (não a do repo) querendo rodar testes;
+- `lox fmt`/`lox test` no caminho de CI de alguém;
+- `R3` corrigido (aí registry/hooks aninhados voltam à mesa);
+- pedido de cobertura/snapshot/property-based — cada um é feature própria, não MVP.

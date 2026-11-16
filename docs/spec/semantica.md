@@ -1030,6 +1030,13 @@ com entrada fixa.
   `run(argv, stdin = "", timeoutMs = 0) -> Output?`. Sem shell; `run` drena stdout/stderr
   com `poll`, mata no timeout e devolve `nil`; `stdin` tem o limite prático do buffer do
   pipe (~64 KiB). Fora do corpus I1/I3.
+- `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (estado
+  explícito, porque módulo não aceita `var` top-level) com `describe`, `it` (executa na
+  hora), `skip`, `report` (TAP + 0/1) e `done` (`os.exit(report())`); matchers `expect`
+  (`toBe`/`notToBe`), `expectGt/Ge/Lt/Le` (`T: Ord`), `expectNil`/`expectNotNil`,
+  `expectList`/`toContain`, `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip`
+  e `Recorder`. Sem reflection/registry (R3); filtros `--filter=`/`--only=` vêm de
+  `args()`. Corpo de teste é `fn() -> Nil`; exceção não tratada vira `not ok`.
 - `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`"true"`/`"false"`),
   `base64Encode/Decode` e `hexEncode/Decode`. Sem tipo `Bytes`: operam sobre os bytes
   UTF-8 do texto; decodificação de bytes que não são UTF-8 válido (ou texto malformado)

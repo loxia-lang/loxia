@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 from loxia import __version__
-from loxia.cli import build_parser
+from loxia.cli import COMMANDS, _build_subcommand_parser, build_parser
 from loxia_core.frontend.keywords import KEYWORDS
 from tests.corpus_manifest import PENDING
 
@@ -163,9 +163,11 @@ def test_sources_casam_com_arquivos_reais() -> None:
 
 
 def test_flags_do_cli_estao_documentadas_no_readme() -> None:
+    parsers = [build_parser(), *(_build_subcommand_parser(c) for c in COMMANDS)]
     flags = {
         option
-        for action in build_parser()._actions
+        for parser in parsers
+        for action in parser._actions
         for option in action.option_strings
         if option.startswith("--") and option not in {"--help"}
     }

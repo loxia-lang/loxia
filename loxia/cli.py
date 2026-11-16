@@ -52,6 +52,7 @@ COMMANDS = (
     "explain",
     "capabilities",
     "lsp",
+    "test",
 )
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
 _WATCH_INTERVAL_SECONDS = 0.25
@@ -610,8 +611,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Loxia: interpretador tree-walk com backend LLVM opcional",
         usage="%(prog)s [opções] [script]",
         epilog=(
-            "subcomandos: run, check, build, ast, explain, capabilities "
-            "(use 'loxia <comando> --help')"
+            "subcomandos: run, check, build, ast, fmt, doc, explain, capabilities, "
+            "lsp, test (use 'loxia <comando> --help')"
         ),
     )
     parser.add_argument(
@@ -743,6 +744,40 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             "--stdio",
             action="store_true",
             help="usa stdio (padrão; aceito para compatibilidade)",
+        )
+    elif command == "test":
+        parser.add_argument(
+            "paths",
+            nargs="*",
+            help="arquivos ou diretórios (default: tests/ se existir, senão .)",
+        )
+        parser.add_argument("--filter", metavar="SUB", help="só nomes com SUB")
+        parser.add_argument(
+            "--only", metavar="NAME", help="só o teste com esse nome exato"
+        )
+        parser.add_argument(
+            "--jobs",
+            type=int,
+            default=1,
+            metavar="N",
+            help="arquivos em paralelo (default: 1)",
+        )
+        parser.add_argument(
+            "--timeout",
+            type=int,
+            metavar="MS",
+            help="timeout por arquivo em milissegundos",
+        )
+        parser.add_argument(
+            "--json", action="store_true", help="relatório em JSON"
+        )
+        parser.add_argument(
+            "--fail-fast", action="store_true", help="para no primeiro arquivo com falha"
+        )
+        parser.add_argument(
+            "--native",
+            action="store_true",
+            help="compila cada arquivo e roda o binário",
         )
     elif command == "explain":
         parser.add_argument("code", help="código de diagnóstico (ex.: E2001)")
@@ -1052,6 +1087,10 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "build", "features": ["json", "json-lines"]},
         {"name": "ast", "features": ["json", "json-lines", "stdin"]},
         {"name": "fmt", "features": ["check", "stdin"]},
+        {
+            "name": "test",
+            "features": ["json", "filter", "jobs", "fail-fast", "native", "timeout"],
+        },
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
@@ -1156,6 +1195,11 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
         from loxia.lsp import main as lsp_main
 
         raise SystemExit(lsp_main())
+
+    if command == "test":
+        from loxia.test_runner import run_tests
+
+        raise SystemExit(run_tests(args))
 
     if command == "fmt":
         _run_fmt(args, parser)

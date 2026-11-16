@@ -166,6 +166,9 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_sets.lx",
         "tests/cases/std_utf8.lx",
     ),
+    "t3": (
+        "tests/cases/std_test.lx",
+    ),
     "k0": (
         "tests/cases/kernel_io.lx",
         "tests/cases/kernel_strings.lx",

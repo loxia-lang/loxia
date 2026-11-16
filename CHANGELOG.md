@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Testes** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)): `std.test`
+  (`Suite` com `describe`/`it`/`skip`/`report`/`done`, matchers híbridos, `Recorder`,
+  TAP determinístico) e `lox test` (descoberta de `tests/**/*_test.lx`, um subprocesso
+  por arquivo, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`).
+  Sem reflection/registry (`R3`); `R4` registrado para exceção de classe de módulo.
 - **Processos, streams e `poll`** ([ADR-0095](docs/adr/0095-processos-streams-poll.md)):
   kernel `process.*` (`spawn` sem shell, `stdin`/`stdout`/`stderr`, `read`/`write` em
   pipes com fronteira de UTF-8, `wait`/`kill`/`close` e `poll`) e `std.proc`

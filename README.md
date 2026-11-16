@@ -46,6 +46,9 @@
   `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`, `utf8` e `proc`, além da T1
   (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`). Os casos determinísticos
   entram no corpus `t2`; `fs`, leitura de `io` e `proc` são ambiente e têm teste próprio.
+- 🧪 **Testes de usuário** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
+  `std.test` (T3: `Suite`, matchers, `Recorder`, TAP) e `lox test` (descoberta, isolamento
+  por subprocesso, `--filter`/`--jobs`/`--json`/`--native`).
   Próximo passo: **limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)).
   L7b (revisão das mensagens de erro de codegen) segue como pendência de qualidade; JIT
   no REPL fica para depois. O L5, o T7 e o L6a–L6k já entregaram classes, herança,
@@ -63,7 +66,7 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
 
 - **I1 — o interpretador é a especificação.** O mesmo programa, interpretado e compilado,
   dá o mesmo stdout, stderr e exit code, byte a byte, para o corpus declarado por nível
-  (hoje L0–L6 + T7 + `k0`/`t1`/`t2` em `tests/test_backend.py`; o status por nível é
+  (hoje L0–L6 + T7 + `k0`/`t1`/`t2`/`t3` em `tests/test_backend.py`; o status por nível é
   gerado em [`docs/spec/garantias.md`](docs/spec/garantias.md)).
 - **I2 — nada acontece implicitamente.** Sem coerção entre `Int`/`Float`/`String`, sem
   truthiness exótica, sem `nil` surpresa.
@@ -141,7 +144,8 @@ uv run main.py fmt --check prog.lx         # exit 1 se mudaria
 uv run main.py doc prog.lx --json          # doc comments /// (ADR-0091)
 uv run main.py explain E2001               # família do código
 uv run main.py capabilities --json         # versão, comandos, códigos e limites
-uv run main.py lsp                         # servidor LSP em stdio (ADR-0090)
+uv run main.py lsp --stdio                 # servidor LSP em stdio (ADR-0090)
+uv run main.py test tests                  # roda tests/**/*_test.lx (ADR-0096)
 ```
 
 `--json` é alias de `--error-format=json`; `--json-lines` emite um objeto por linha
@@ -149,6 +153,9 @@ uv run main.py lsp                         # servidor LSP em stdio (ADR-0090)
 timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibido e a raiz
 de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
 para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
+`test` descobre `tests/**/*_test.lx` (ou os caminhos passados), roda cada arquivo em
+subprocesso (isolando `os.exit`/panic) e agrega TAP; `--filter=SUB`, `--only=NOME`,
+`--jobs=N`, `--timeout=MS`, `--fail-fast`, `--native` e `--json` são suportados.
 `--no-progress` é aceito e hoje é no-op. `-Werror` transforma warnings em erros (só
 `check`/`build`; `run` nunca emite warnings). `doc` gera Markdown (padrão) ou JSON a
 partir dos comentários `///` de funções, classes, interfaces, enums, variantes, campos,

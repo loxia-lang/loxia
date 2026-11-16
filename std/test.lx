@@ -1,0 +1,328 @@
+# std.test — mini-harness de testes (T3, determinístico).
+#
+# `Suite.it` executa o corpo na hora e imprime TAP; sem registry de closures (R3) e sem
+# reflection (ADR-0096). O runner `lox test` só orquestra arquivos `*_test.lx`.
+#
+# Estado é do objeto (módulo não aceita `var` top-level): `val suite = t.Suite()`.
+import std.strings as strings
+
+/// Falha de teste (separada de `RuntimeError`, que é bug de infraestrutura).
+class TestFailure(Exception) {
+  /// Cria a falha com a mensagem exibida no relatório.
+  init(message: String) {
+    this.message = message
+  }
+}
+
+/// Teste pulado de propósito; o runner conta como `skip`, não como falha.
+class Skip(Exception) {
+  /// Cria o skip com o motivo.
+  init(reason: String) {
+    this.message = reason
+  }
+}
+
+/// Suite de testes: `describe`, `it`, `report` e `done`.
+class Suite {
+  /// Total de testes executados (filtrados não contam).
+  var total: Int
+  /// Testes que passaram.
+  var passed: Int
+  /// Testes que falharam.
+  var failed: Int
+  /// Testes pulados com `skip`.
+  var skipped: Int
+  /// Prefixos abertos por `describe`.
+  var prefixes: List[String]
+  /// Filtro de `--filter=` vindo dos argumentos do script.
+  var filter: String
+  /// Nome exato de `--only=` vindo dos argumentos do script.
+  var only: String
+  /// Marca que `skip` foi chamado no teste atual.
+  var skipRequested: Bool
+
+  /// Cria uma suite vazia e lê `--filter=`/`--only=` de `args()`.
+  init() {
+    this.total = 0
+    this.passed = 0
+    this.failed = 0
+    this.skipped = 0
+    this.prefixes = []
+    this.filter = ""
+    this.only = ""
+    this.skipRequested = false
+    for argument in args() {
+      if (strings.startsWith(argument, "--filter=")) {
+        this.filter = strings.slice(argument, 9, len(argument))
+      } else if (strings.startsWith(argument, "--only=")) {
+        this.only = strings.slice(argument, 7, len(argument))
+      }
+    }
+  }
+
+  /// Abre um grupo; o nome entra no nome de cada `it`.
+  fn describe(name: String, body: fn() -> Nil) -> Nil {
+    this.prefixes.push(name)
+    try {
+      body()
+    } finally {
+      this.prefixes.pop()
+    }
+  }
+
+  /// Executa um teste agora e imprime `ok`/`not ok` em TAP.
+  fn it(name: String, body: fn() -> Nil) -> Nil {
+    val full = this._fullName(name)
+    if (not this._selected(full)) {
+      return
+    }
+    this.total = this.total + 1
+    this.skipRequested = false
+    try {
+      body()
+      this.passed = this.passed + 1
+      print("ok ${this.total} - ${full}")
+    } except Exception as e {
+      if (this.skipRequested) {
+        this.skipped = this.skipped + 1
+        print("ok ${this.total} - ${full} # SKIP ${e.message}")
+      } else {
+        this.failed = this.failed + 1
+        this._reportFailure(this.total, full, e.message)
+      }
+    }
+  }
+
+  /// Pula o teste atual com `reason` (o `it` conta como skip, não falha).
+  fn skip(reason: String) -> Nil {
+    this.skipRequested = true
+    raise Skip(reason)
+  }
+
+  /// Imprime plano e resumo em TAP; devolve 0 (tudo ok) ou 1 (alguma falha).
+  fn report() -> Int {
+    print("1..${this.total}")
+    print("# tests ${this.total}")
+    print("# pass ${this.passed}")
+    print("# fail ${this.failed}")
+    print("# skip ${this.skipped}")
+    if (this.failed > 0) {
+      return 1
+    }
+    return 0
+  }
+
+  /// Atalho de `report()` que encerra o processo com o código de saída.
+  fn done() -> Nil {
+    os.exit(this.report())
+  }
+
+  fn _fullName(name: String) -> String {
+    if (len(this.prefixes) == 0) {
+      return name
+    }
+    return join(this.prefixes, " / ") + " / " + name
+  }
+
+  fn _selected(full: String) -> Bool {
+    if (this.only != "" and full != this.only) {
+      return false
+    }
+    if (this.filter != "" and not strings.contains(full, this.filter)) {
+      return false
+    }
+    return true
+  }
+
+  fn _reportFailure(number: Int, name: String, message: String) -> Nil {
+    print("not ok ${number} - ${name}")
+    for line in strings.splitLines(message) {
+      print("  # ${line}")
+    }
+  }
+}
+
+/// Asserção de igualdade para um valor concreto (escalar, string, lista, mapa, tupla).
+class Expectation[T] {
+  /// Valor observado.
+  val value: T
+
+  /// Envolve o valor observado.
+  init(value: T) {
+    this.value = value
+  }
+
+  /// Falha quando `value != other`.
+  fn toBe(other: T) -> Nil {
+    if (this.value != other) {
+      raise TestFailure("expected ${repr(other)}, got ${repr(this.value)}")
+    }
+  }
+
+  /// Falha quando `value == other`.
+  fn notToBe(other: T) -> Nil {
+    if (this.value == other) {
+      raise TestFailure("expected not ${repr(other)}")
+    }
+  }
+}
+
+/// Asserção sobre os elementos de uma lista.
+class ListExpectation[T] {
+  /// Lista observada.
+  val items: List[T]
+
+  /// Envolve a lista observada.
+  init(items: List[T]) {
+    this.items = items
+  }
+
+  /// Falha quando `item` não está na lista (igualdade estrutural).
+  fn toContain(item: T) -> Nil {
+    for current in this.items {
+      if (current == item) {
+        return
+      }
+    }
+    raise TestFailure(
+      "expected ${repr(this.items)} to contain ${repr(item)}"
+    )
+  }
+}
+
+/// Asserção sobre o conteúdo de uma string.
+class StringExpectation {
+  /// Texto observado.
+  val text: String
+
+  /// Envolve o texto observado.
+  init(text: String) {
+    this.text = text
+  }
+
+  /// Falha quando `text` não contém `needle`.
+  fn contains(needle: String) -> Nil {
+    if (not strings.contains(this.text, needle)) {
+      raise TestFailure(
+        "expected ${repr(this.text)} to contain ${repr(needle)}"
+      )
+    }
+  }
+}
+
+/// Registra chamadas de um spy/fake: `record`, `count`, `order`, `clear`.
+class Recorder {
+  /// Chamadas na ordem em que foram registradas.
+  val calls: List[String]
+
+  /// Cria um gravador vazio.
+  init() {
+    this.calls = []
+  }
+
+  /// Registra uma chamada pelo nome.
+  fn record(name: String) -> Nil {
+    this.calls.push(name)
+  }
+
+  /// Quantas vezes `name` foi registrado.
+  fn count(name: String) -> Int {
+    var total = 0
+    for call in this.calls {
+      if (call == name) {
+        total = total + 1
+      }
+    }
+    return total
+  }
+
+  /// Cópia das chamadas na ordem registrada.
+  fn order() -> List[String] {
+    val copy: List[String] = []
+    for call in this.calls {
+      copy.push(call)
+    }
+    return copy
+  }
+
+  /// Esvazia o registro.
+  fn clear() -> Nil {
+    while (len(this.calls) > 0) {
+      this.calls.pop()
+    }
+  }
+}
+
+/// Falha o teste atual com `message`.
+fn fail(message: String) -> Nil {
+  raise TestFailure(message)
+}
+
+/// Envolve um valor concreto para `toBe`/`notToBe`.
+fn expect[T](value: T) -> Expectation[T] {
+  return Expectation(value)
+}
+
+/// Falha quando `actual <= expected` (ordem natural de `T: Ord`).
+fn expectGt[T: Ord](actual: T, expected: T) -> Nil {
+  if (actual <= expected) {
+    raise TestFailure("expected > ${repr(expected)}, got ${repr(actual)}")
+  }
+}
+
+/// Falha quando `actual < expected`.
+fn expectGe[T: Ord](actual: T, expected: T) -> Nil {
+  if (actual < expected) {
+    raise TestFailure("expected >= ${repr(expected)}, got ${repr(actual)}")
+  }
+}
+
+/// Falha quando `actual >= expected`.
+fn expectLt[T: Ord](actual: T, expected: T) -> Nil {
+  if (actual >= expected) {
+    raise TestFailure("expected < ${repr(expected)}, got ${repr(actual)}")
+  }
+}
+
+/// Falha quando `actual > expected`.
+fn expectLe[T: Ord](actual: T, expected: T) -> Nil {
+  if (actual > expected) {
+    raise TestFailure("expected <= ${repr(expected)}, got ${repr(actual)}")
+  }
+}
+
+/// Falha quando `value` não é `nil`. Passe um opcional tipado (`val x: Int? = nil`);
+/// `expectNil(nil)` é opcional aninhado e o backend recusa.
+fn expectNil[T](value: T?) -> Nil {
+  if (value != nil) {
+    raise TestFailure("expected nil, got ${repr(value)}")
+  }
+}
+
+/// Falha quando `value` é `nil`; devolve o valor estreitado.
+fn expectNotNil[T](value: T?) -> T {
+  if (value == nil) {
+    raise TestFailure("expected a non-nil value")
+  }
+  return value
+}
+
+/// Envolve uma lista para `toContain`.
+fn expectList[T](items: List[T]) -> ListExpectation[T] {
+  return ListExpectation(items)
+}
+
+/// Envolve uma string para `contains`.
+fn expectString(text: String) -> StringExpectation {
+  return StringExpectation(text)
+}
+
+/// Executa `body` e devolve a mensagem da exceção; falha se nada foi lançado.
+fn expectRaise(body: fn() -> Nil) -> String {
+  try {
+    body()
+  } except Exception as e {
+    return e.message
+  }
+  raise TestFailure("expected an exception, none was raised")
+}
