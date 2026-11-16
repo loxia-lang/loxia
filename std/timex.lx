@@ -1,0 +1,140 @@
+# std.timex — datas e horas UTC (T3), em Lox puro; sem timezone e sem timestamp.
+import std.strings as strings
+
+/// Dias desde 1970-01-01 para a data civil (algoritmo de Howard Hinnant).
+fn daysFromCivil(year: Int, month: Int, day: Int) -> Int {
+  var adjusted = month + 9
+  var y = year
+  if (month > 2) {
+    adjusted = month - 3
+  } else {
+    y = y - 1
+  }
+  val era = _floorDiv(y, 400)
+  val yoe = y - era * 400
+  val doy = (153 * adjusted + 2) // 5 + day - 1
+  val doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+  return era * 146097 + doe - 719468
+}
+
+/// Data civil `(ano, mês, dia)` para dias desde 1970-01-01.
+fn civilFromDays(days: Int) -> (Int, Int, Int) {
+  val shifted = days + 719468
+  val era = _floorDiv(shifted, 146097)
+  val doe = shifted - era * 146097
+  val yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+  var year = yoe + era * 400
+  val doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+  val mp = (5 * doy + 2) // 153
+  val day = doy - (153 * mp + 2) // 5 + 1
+  var month = mp + 3
+  if (mp >= 10) {
+    month = mp - 9
+  }
+  if (month <= 2) {
+    year = year + 1
+  }
+  return (year, month, day)
+}
+
+/// Formata o instante (segundos desde a época) como `YYYY-MM-DDTHH:MM:SSZ`.
+fn iso(seconds: Int) -> String {
+  val (year, month, day, hour, minute, second) = parts(seconds)
+  if (year < 0 or year > 9999) {
+    raise RuntimeError("timex.iso() year out of range.")
+  }
+  return _pad4(year) + "-" + _pad2(month) + "-" + _pad2(day) +
+    "T" + _pad2(hour) + ":" + _pad2(minute) + ":" + _pad2(second) + "Z"
+}
+
+/// Lê `YYYY-MM-DDTHH:MM:SSZ` estrito; devolve `nil` se inválido.
+fn parseIso(text: String) -> Int? {
+  if (len(text) != 20) {
+    return nil
+  }
+  if (
+    strings.slice(text, 4, 5) != "-" or
+    strings.slice(text, 7, 8) != "-" or
+    strings.slice(text, 10, 11) != "T" or
+    strings.slice(text, 13, 14) != ":" or
+    strings.slice(text, 16, 17) != ":" or
+    strings.slice(text, 19, 20) != "Z"
+  ) {
+    return nil
+  }
+  val year = _digits(text, 0, 4)
+  val month = _digits(text, 5, 2)
+  val day = _digits(text, 8, 2)
+  val hour = _digits(text, 11, 2)
+  val minute = _digits(text, 14, 2)
+  val second = _digits(text, 17, 2)
+  if (
+    year == nil or month == nil or day == nil or
+    hour == nil or minute == nil or second == nil
+  ) {
+    return nil
+  }
+  if (month < 1 or month > 12 or day < 1 or day > 31) {
+    return nil
+  }
+  if (hour > 23 or minute > 59 or second > 59) {
+    return nil
+  }
+  val days = daysFromCivil(year, month, day)
+  val (checkYear, checkMonth, checkDay) = civilFromDays(days)
+  if (checkYear != year or checkMonth != month or checkDay != day) {
+    return nil
+  }
+  return days * 86400 + hour * 3600 + minute * 60 + second
+}
+
+/// Soma `days` dias ao instante `seconds`, devolvendo o novo instante.
+fn addDays(seconds: Int, days: Int) -> Int {
+  return seconds + days * 86400
+}
+
+/// Decompõe o instante em `(ano, mês, dia, hora, minuto, segundo)` UTC.
+fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int) {
+  val days = _floorDiv(seconds, 86400)
+  val rest = seconds - days * 86400
+  val (year, month, day) = civilFromDays(days)
+  return (
+    year,
+    month,
+    day,
+    rest // 3600,
+    (rest % 3600) // 60,
+    rest % 60
+  )
+}
+
+fn _floorDiv(left: Int, right: Int) -> Int {
+  var quotient = left // right
+  if (left % right != 0 and ((left < 0) != (right < 0))) {
+    quotient = quotient - 1
+  }
+  return quotient
+}
+
+fn _digits(text: String, start: Int, count: Int) -> Int? {
+  val part = strings.slice(text, start, start + count)
+  if (len(part) != count) {
+    return nil
+  }
+  return Int.parse(part)
+}
+
+fn _pad2(value: Int) -> String {
+  if (value < 10) {
+    return "0" + str(value)
+  }
+  return str(value)
+}
+
+fn _pad4(value: Int) -> String {
+  var text = str(value)
+  while (len(text) < 4) {
+    text = "0" + text
+  }
+  return text
+}

@@ -161,18 +161,22 @@ LEVELS: dict[str, tuple[str, ...]] = {
     ),
     "t2": (
         "tests/cases/std_cli.lx",
+        "tests/cases/std_collections.lx",
         "tests/cases/std_convert.lx",
         "tests/cases/std_csv.lx",
         "tests/cases/std_fmt.lx",
+        "tests/cases/std_hash.lx",
         "tests/cases/std_iter.lx",
         "tests/cases/std_json.lx",
         "tests/cases/std_paths.lx",
+        "tests/cases/std_rand.lx",
         "tests/cases/std_sets.lx",
         "tests/cases/std_utf8.lx",
     ),
     "t3": (
         "tests/cases/std_test.lx",
         "tests/cases/std_test_hooks.lx",
+        "tests/cases/std_timex.lx",
     ),
     "k0": (
         "tests/cases/kernel_io.lx",

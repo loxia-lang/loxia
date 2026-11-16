@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Stdlib T3**: `std.rand` (xorshift64* com semente, `int`/`float`/`bool`/`shuffle`),
+  `std.log` (níveis em stderr, sem timestamp), `std.hash` (FNV-1a 32/64 e djb2 sobre
+  bytes UTF-8), `std.collections` (Stack/Queue/Deque/PriorityQueue) e `std.timex`
+  (datas UTC: `iso`, `parseIso`, `daysFromCivil`, `civilFromDays`, `addDays`, `parts`).
 - **Ranges inclusivos `..=`** ([ADR-0097](docs/adr/0097-ranges-inclusivos.md)):
   `a..=b` inclui o fim, com a mesma precedência de `..`, sem passo; `Range` compara e
   imprime `inclusive`, e `INT_MAX..=INT_MAX` roda uma vez sem wrap.

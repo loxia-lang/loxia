@@ -1,0 +1,33 @@
+# std.hash: FNV-1a 32/64 e djb2 sobre bytes UTF-8.
+from std.hash import fnv1a32, fnv1a64, djb2
+
+print(fnv1a32(""))
+print(fnv1a32("a"))
+print(fnv1a32("foobar"))
+print(fnv1a32("ação"))
+print(fnv1a32("😀"))
+print(fnv1a64(""))
+print(fnv1a64("a"))
+print(fnv1a64("foobar"))
+print(fnv1a64("ação"))
+print(fnv1a64("😀"))
+print(djb2(""))
+print(djb2("a"))
+print(djb2("foobar"))
+print(djb2("ação"))
+print(djb2("😀"))
+# expect: 2166136261
+# expect: 3826002220
+# expect: 3214735720
+# expect: 187489801
+# expect: 866293256
+# expect: -3750763034362895579
+# expect: -5808556873153909620
+# expect: -8821353812377114648
+# expect: 8409037489517478729
+# expect: -72331129952009592
+# expect: 5381
+# expect: 177670
+# expect: 4259602622
+# expect: 4165663301
+# expect: 2095276780

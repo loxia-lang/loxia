@@ -1,0 +1,75 @@
+# std.log — log em stderr com níveis, sem timestamp (T3), em Lox puro.
+
+/// Nível de log; a ordem é `Debug < Info < Warn < Error`.
+enum Level {
+  /// Detalhe de diagnóstico.
+  Debug,
+  /// Evento normal.
+  Info,
+  /// Situação suspeita.
+  Warn,
+  /// Falha.
+  Error
+}
+
+/// Logger que escreve em stderr; `minimum` filtra os níveis mais baixos.
+class Logger {
+  /// Menor nível que será escrito.
+  var minimum: Level
+
+  /// Cria o logger; sem argumento, o mínimo é `Level.Info`.
+  init(minimum: Level? = nil) {
+    this.minimum = minimum ?? Level.Info
+  }
+
+  /// Troca o nível mínimo.
+  fn setMinimum(level: Level) -> Nil {
+    this.minimum = level
+  }
+
+  /// Escreve `[NÍVEL] mensagem` em stderr se `level >= minimum`.
+  fn log(level: Level, message: String) -> Nil {
+    if (_rank(level) < _rank(this.minimum)) {
+      return
+    }
+    io.writeErr("[${_name(level)}] ${message}\n")
+  }
+
+  /// Loga em `Debug`.
+  fn debug(message: String) -> Nil {
+    this.log(Level.Debug, message)
+  }
+
+  /// Loga em `Info`.
+  fn info(message: String) -> Nil {
+    this.log(Level.Info, message)
+  }
+
+  /// Loga em `Warn`.
+  fn warn(message: String) -> Nil {
+    this.log(Level.Warn, message)
+  }
+
+  /// Loga em `Error`.
+  fn error(message: String) -> Nil {
+    this.log(Level.Error, message)
+  }
+}
+
+fn _rank(level: Level) -> Int {
+  return match level {
+    Level.Debug => 0
+    Level.Info => 1
+    Level.Warn => 2
+    Level.Error => 3
+  }
+}
+
+fn _name(level: Level) -> String {
+  return match level {
+    Level.Debug => "DEBUG"
+    Level.Info => "INFO"
+    Level.Warn => "WARN"
+    Level.Error => "ERROR"
+  }
+}

@@ -47,6 +47,9 @@
   além da T1
   (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`). Os casos determinísticos
   entram no corpus `t2`; `fs`, leitura de `io` e `proc` são ambiente e têm teste próprio.
+- 🧰 **T3**: `std.timex` (UTC), `std.rand` (semente explícita), `std.hash`
+  (FNV/djb2 sobre UTF-8), `std.collections` (Stack/Queue/Deque/PriorityQueue) e
+  `std.log` (stderr, sem timestamp).
 - 🧪 **Testes de usuário** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
   `std.test` (T3: `Suite`, matchers, `Recorder`, TAP) e `lox test` (descoberta, isolamento
   por subprocesso, `--filter`/`--jobs`/`--json`/`--native`).

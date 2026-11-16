@@ -1,0 +1,28 @@
+# std.timex: dias civis, ISO/parse, addDays e parts (UTC-only).
+from std.timex import daysFromCivil, civilFromDays, iso, parseIso, addDays, parts
+print(daysFromCivil(1970, 1, 1))
+print(daysFromCivil(1969, 12, 31))
+print(civilFromDays(0))
+print(iso(0))
+print(iso(-1))
+print(iso(951782400))
+print(iso(1709210096))
+print(parseIso("2000-02-29T00:00:00Z") ?? -1)
+print(parseIso("2023-02-29T00:00:00Z") ?? -1)
+print(parseIso("2024-02-29T12:34:56Z") ?? -1)
+print(addDays(0, 1))
+print(iso(addDays(0, 1)))
+print(parts(1709210096))
+# expect: 0
+# expect: -1
+# expect: (1970, 1, 1)
+# expect: 1970-01-01T00:00:00Z
+# expect: 1969-12-31T23:59:59Z
+# expect: 2000-02-29T00:00:00Z
+# expect: 2024-02-29T12:34:56Z
+# expect: 951782400
+# expect: -1
+# expect: 1709210096
+# expect: 86400
+# expect: 1970-01-02T00:00:00Z
+# expect: (2024, 2, 29, 12, 34, 56)

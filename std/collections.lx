@@ -1,0 +1,348 @@
+# std.collections — Stack, Queue, Deque e PriorityQueue (T3), em Lox puro.
+
+/// Pilha LIFO genérica.
+class Stack[T] {
+  /// Elementos do topo para a base.
+  var items: List[T]
+
+  /// Cria uma pilha vazia.
+  init() {
+    this.items = []
+  }
+
+  /// Empilha `value`.
+  fn push(value: T) -> Nil {
+    this.items.push(value)
+  }
+
+  /// Desempilha o topo, ou `nil` se vazia.
+  fn pop() -> T? {
+    return this.items.pop()
+  }
+
+  /// Espia o topo sem desempilhar.
+  fn peek() -> T? {
+    if (len(this.items) == 0) {
+      return nil
+    }
+    return this.items[len(this.items) - 1]
+  }
+
+  /// Número de elementos.
+  fn len() -> Int {
+    return len(this.items)
+  }
+
+  /// `true` quando vazia.
+  fn isEmpty() -> Bool {
+    return len(this.items) == 0
+  }
+
+  /// Cópia dos elementos do topo para a base.
+  fn toList() -> List[T] {
+    val copy: List[T] = []
+    var index = len(this.items) - 1
+    while (index >= 0) {
+      copy.push(this.items[index])
+      index = index - 1
+    }
+    return copy
+  }
+
+  /// Remove todos os elementos.
+  fn clear() -> Nil {
+    while (len(this.items) > 0) {
+      this.items.pop()
+    }
+  }
+}
+
+/// Fila FIFO genérica.
+class Queue[T] {
+  /// Elementos na ordem de chegada (com lixo antes de `head`).
+  var items: List[T]
+  /// Índice do próximo elemento a sair.
+  var head: Int
+
+  /// Cria uma fila vazia.
+  init() {
+    this.items = []
+    this.head = 0
+  }
+
+  /// Enfileira `value`.
+  fn enqueue(value: T) -> Nil {
+    this.items.push(value)
+  }
+
+  /// Desenfileira o mais antigo, ou `nil` se vazia.
+  fn dequeue() -> T? {
+    if (this.head >= len(this.items)) {
+      return nil
+    }
+    val value = this.items[this.head]
+    this.head = this.head + 1
+    return value
+  }
+
+  /// Espia o próximo sem remover.
+  fn peek() -> T? {
+    if (this.head >= len(this.items)) {
+      return nil
+    }
+    return this.items[this.head]
+  }
+
+  /// Número de elementos vivos.
+  fn len() -> Int {
+    return len(this.items) - this.head
+  }
+
+  /// `true` quando vazia.
+  fn isEmpty() -> Bool {
+    return this.head >= len(this.items)
+  }
+
+  /// Cópia dos elementos na ordem de saída.
+  fn toList() -> List[T] {
+    val copy: List[T] = []
+    var index = this.head
+    while (index < len(this.items)) {
+      copy.push(this.items[index])
+      index = index + 1
+    }
+    return copy
+  }
+
+  /// Remove todos os elementos.
+  fn clear() -> Nil {
+    this.items = []
+    this.head = 0
+  }
+}
+
+/// Deque (fila de duas pontas) genérica.
+class Deque[T] {
+  /// Metade da frente, com o topo no fim.
+  var front: List[T]
+  /// Metade de trás, com o topo no fim.
+  var back: List[T]
+
+  /// Cria um deque vazio.
+  init() {
+    this.front = []
+    this.back = []
+  }
+
+  /// Insere no início.
+  fn pushFront(value: T) -> Nil {
+    this.front.push(value)
+  }
+
+  /// Insere no fim.
+  fn pushBack(value: T) -> Nil {
+    this.back.push(value)
+  }
+
+  /// Remove do início, ou `nil` se vazio.
+  fn popFront() -> T? {
+    if (len(this.front) > 0) {
+      return this.front.pop()
+    }
+    if (len(this.back) == 0) {
+      return nil
+    }
+    while (len(this.back) > 0) {
+      this.front.push(this.back.pop())
+    }
+    return this.front.pop()
+  }
+
+  /// Remove do fim, ou `nil` se vazio.
+  fn popBack() -> T? {
+    if (len(this.back) > 0) {
+      return this.back.pop()
+    }
+    if (len(this.front) == 0) {
+      return nil
+    }
+    while (len(this.front) > 0) {
+      this.back.push(this.front.pop())
+    }
+    return this.back.pop()
+  }
+
+  /// Espia o início.
+  fn peekFront() -> T? {
+    if (len(this.front) > 0) {
+      return this.front[len(this.front) - 1]
+    }
+    if (len(this.back) == 0) {
+      return nil
+    }
+    return this.back[0]
+  }
+
+  /// Espia o fim.
+  fn peekBack() -> T? {
+    if (len(this.back) > 0) {
+      return this.back[len(this.back) - 1]
+    }
+    if (len(this.front) == 0) {
+      return nil
+    }
+    return this.front[0]
+  }
+
+  /// Número de elementos.
+  fn len() -> Int {
+    return len(this.front) + len(this.back)
+  }
+
+  /// `true` quando vazio.
+  fn isEmpty() -> Bool {
+    return this.len() == 0
+  }
+
+  /// Cópia na ordem do início para o fim.
+  fn toList() -> List[T] {
+    val copy: List[T] = []
+    var index = len(this.front) - 1
+    while (index >= 0) {
+      copy.push(this.front[index])
+      index = index - 1
+    }
+    for item in this.back {
+      copy.push(item)
+    }
+    return copy
+  }
+
+  /// Remove todos os elementos.
+  fn clear() -> Nil {
+    this.front = []
+    this.back = []
+  }
+}
+
+/// Fila de prioridade (min-heap) com comparador explícito.
+class PriorityQueue[T] {
+  /// Heap em ordem parcial.
+  var items: List[T]
+  /// `true` quando `a` deve sair antes de `b`.
+  val less: fn(T, T) -> Bool
+
+  /// Cria a fila vazia com o comparador `less`.
+  init(less: fn(T, T) -> Bool) {
+    this.items = []
+    this.less = less
+  }
+
+  /// Insere `value`.
+  fn push(value: T) -> Nil {
+    this.items.push(value)
+    this._siftUp(len(this.items) - 1)
+  }
+
+  /// Remove o menor, ou `nil` se vazia.
+  fn pop() -> T? {
+    if (len(this.items) == 0) {
+      return nil
+    }
+    val root = this.items[0]
+    val size = len(this.items)
+    if (size == 1) {
+      this.items.pop()
+      return root
+    }
+    val last = this.items[size - 1]
+    this.items.pop()
+    this.items[0] = last
+    this._siftDown(0)
+    return root
+  }
+
+  /// Espia o menor sem remover.
+  fn peek() -> T? {
+    if (len(this.items) == 0) {
+      return nil
+    }
+    return this.items[0]
+  }
+
+  /// Número de elementos.
+  fn len() -> Int {
+    return len(this.items)
+  }
+
+  /// `true` quando vazia.
+  fn isEmpty() -> Bool {
+    return len(this.items) == 0
+  }
+
+  /// Cópia ordenada do menor para o maior.
+  fn toList() -> List[T] {
+    val result: List[T] = []
+    for item in this.items {
+      result.push(item)
+    }
+    var index = 1
+    while (index < len(result)) {
+      val value = result[index]
+      var position = index - 1
+      while (position >= 0 and this.less(value, result[position])) {
+        result[position + 1] = result[position]
+        position = position - 1
+      }
+      result[position + 1] = value
+      index = index + 1
+    }
+    return result
+  }
+
+  /// Remove todos os elementos.
+  fn clear() -> Nil {
+    while (len(this.items) > 0) {
+      this.items.pop()
+    }
+  }
+
+  fn _swap(left: Int, right: Int) -> Nil {
+    val value = this.items[left]
+    this.items[left] = this.items[right]
+    this.items[right] = value
+  }
+
+  fn _siftUp(var index: Int) -> Nil {
+    while (index > 0) {
+      val parent = (index - 1) // 2
+      if (this.less(this.items[index], this.items[parent])) {
+        this._swap(index, parent)
+        index = parent
+      } else {
+        return
+      }
+    }
+  }
+
+  fn _siftDown(var index: Int) -> Nil {
+    val size = len(this.items)
+    while (true) {
+      val left = index * 2 + 1
+      if (left >= size) {
+        return
+      }
+      var smallest = left
+      val right = left + 1
+      if (right < size and this.less(this.items[right], this.items[left])) {
+        smallest = right
+      }
+      if (this.less(this.items[smallest], this.items[index])) {
+        this._swap(index, smallest)
+        index = smallest
+      } else {
+        return
+      }
+    }
+  }
+}

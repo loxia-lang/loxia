@@ -1037,6 +1037,16 @@ com entrada fixa.
   `sumFloat(List[Float])`, `contains`, `any`, `all` e `find` (primeiro que casa ou `nil`).
   O enum `Step[T]` (`Step.Item(value)`) permite iterar elementos `nil`:
   `next() -> Step[T]?` encerra em `nil` e o corpo casa `Step.Item(value)`.
+- `std.rand`: `Rand(seed)` (xorshift64*), `nextInt`, `int(min, max)` inclusivo,
+  `float` em `[0, 1)`, `bool` e `shuffle(items, r)`; determinístico por semente.
+- `std.log` **ambiente**: enum `Level` (`Debug`/`Info`/`Warn`/`Error`) e `Logger`, que
+  escreve `[NÍVEL] mensagem` em stderr; sem timestamp.
+- `std.hash`: `fnv1a32`, `fnv1a64` e `djb2` sobre os **bytes UTF-8**; o 64 devolve o padrão
+  de bits em i64 (pode ser negativo). Não é criptográfico.
+- `std.collections`: `Stack`, `Queue`, `Deque` e `PriorityQueue` genéricos (heap com
+  comparador explícito `fn(T, T) -> Bool`).
+- `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (estrito,
+  devolve `Int?`), `addDays` e `parts`; sem timezone e sem relógio.
 - `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (estado
   explícito, porque módulo não aceita `var` top-level) com `describe`, `it` (executa na
   hora), `beforeEach`/`afterEach` (escopados ao `describe`; `before` externo→interno,

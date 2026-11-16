@@ -1,0 +1,23 @@
+# std.rand: sequência determinística por semente, faixas e shuffle.
+from std.rand import Rand, shuffle
+
+val r = Rand(42)
+print(r.nextInt())
+print(r.nextInt())
+print(r.int(0, 9))
+print(r.bool())
+print(r.float())
+val items = [1, 2, 3, 4, 5]
+shuffle(items, r)
+print(items)
+val again = Rand(42)
+print(again.nextInt())
+print(again.nextInt())
+# expect: 6255019084209693600
+# expect: -4016670646968046118
+# expect: 8
+# expect: true
+# expect: 0.7643936779309685
+# expect: [2, 1, 4, 5, 3]
+# expect: 6255019084209693600
+# expect: -4016670646968046118

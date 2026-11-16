@@ -1,0 +1,76 @@
+# std.collections: Stack, Queue, Deque (com rebalance) e PriorityQueue.
+from std.collections import Stack, Queue, Deque, PriorityQueue
+
+val stack: Stack[Int] = Stack()
+stack.push(1)
+stack.push(2)
+print(stack.len())
+print(stack.peek())
+print(stack.pop())
+print(stack.toList())
+
+val queue: Queue[Int] = Queue()
+queue.enqueue(1)
+queue.enqueue(2)
+queue.enqueue(3)
+print(queue.dequeue())
+print(queue.len())
+print(queue.toList())
+
+val deque: Deque[Int] = Deque()
+deque.pushBack(2)
+deque.pushBack(3)
+deque.pushFront(1)
+print(deque.toList())
+print(deque.popFront())
+print(deque.popBack())
+print(deque.toList())
+
+val rebalance: Deque[Int] = Deque()
+rebalance.pushBack(1)
+rebalance.pushBack(2)
+rebalance.pushBack(3)
+print(rebalance.popFront())
+print(rebalance.popFront())
+rebalance.pushFront(0)
+print(rebalance.toList())
+print(rebalance.popBack())
+print(rebalance.toList())
+print(rebalance.isEmpty())
+print(rebalance.popFront())
+print(rebalance.isEmpty())
+
+val pq: PriorityQueue[Int] = PriorityQueue(fn(a: Int, b: Int) -> Bool { return a < b })
+pq.push(5)
+pq.push(1)
+pq.push(3)
+pq.push(1)
+print(pq.peek())
+print(pq.toList())
+print(pq.pop())
+print(pq.pop())
+print(pq.toList())
+# expect: 2
+# expect: 2
+# expect: 2
+# expect: [1]
+# expect: 1
+# expect: 2
+# expect: [2, 3]
+# expect: [1, 2, 3]
+# expect: 1
+# expect: 3
+# expect: [2]
+# expect: 1
+# expect: 2
+# expect: [0, 3]
+# expect: 3
+# expect: [0]
+# expect: false
+# expect: 0
+# expect: true
+# expect: 1
+# expect: [1, 1, 3, 5]
+# expect: 1
+# expect: 1
+# expect: [3, 5]

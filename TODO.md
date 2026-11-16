@@ -21,7 +21,7 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-16: **L0–L6, L7, M7, T1 e T2 concluídos**; kernel
+vale o que está aqui. Estado em 2026-11-16: **L0–L6, L7, M7, T1, T2 e T3 concluídos**; kernel
 v1 (17 primitivas), tabela de primitivas, imports/módulos e a stdlib comum implementados.
 Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
 ([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; diagnósticos
@@ -32,16 +32,16 @@ também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo
 formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)), o **LSP** (0/1 e 2
 parcial) ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) e as docs da
 stdlib/builtins ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)). A próxima
-execução é **T3 + dogfooding** e o **LSP-2 restante**. O status por nível é **gerado**
+execução é o **dogfooding do `lox fmt` em Lox** e o **LSP-2 restante**. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
 
 ### 0.2 Ordem de execução
 
-1. [ ] **T3 + dogfooding** (`P2`/`L`): módulos T3 e formatter em Lox após a T3, com
+1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `lox fmt` para Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
-       §13.7). Inclui o restante do formatter: `fn` em método, trailing comma/reflow.
+       §13.7). Inclui `fn` em método, trailing comma/reflow.
 2. [ ] **Diagnósticos restantes** (`P2`): spans de expressão/`notes` de proveniência,
        `W1002` (import não usado) e produtores de fix confiáveis
        ([`docs/tech/fixes.md`](docs/tech/fixes.md)).
@@ -416,11 +416,11 @@ determinismo.
 
 | Módulo | Funções | Estado |
 | --- | --- | --- |
-| `std.timex` | `iso`, `parseIso`, `daysFromCivil`, `civilFromDays`, `addDays`, `parts` (**UTC-only**) | ⬜ |
-| `std.rand` | `seed`, `int`, `float`, `bool`, `shuffle` (PRNG em Lox, determinístico com semente) | ⬜ |
-| `std.hash` | `fnv1a32`, `fnv1a64`, `djb2` (sobre `String`; não é cripto) | ⬜ |
-| `std.collections` | `Stack`, `Queue`, `Deque`, `PriorityQueue` (classes em módulo) | ⬜ |
-| `std.log` | níveis, `writeErr`, sem timestamp por padrão | ⬜ |
+| `std.timex` | `iso`, `parseIso`, `daysFromCivil`, `civilFromDays`, `addDays`, `parts` (**UTC-only**) | ✅ |
+| `std.rand` | `Rand(seed)`, `nextInt`, `int`, `float`, `bool`, `shuffle` (xorshift64*, determinístico) | ✅ |
+| `std.hash` | `fnv1a32`, `fnv1a64`, `djb2` (bytes UTF-8; não é cripto) | ✅ |
+| `std.collections` | `Stack`, `Queue`, `Deque`, `PriorityQueue` (classes em módulo) | ✅ |
+| `std.log` | níveis, `writeErr`, sem timestamp por padrão | ✅ |
 | `std.test` | `Suite`/`describe`/`it`/`beforeEach`/`afterEach`/`expect`/`skip`/`report` + `lox test` (glob, `--isolate=file|test`, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
 
 **Fora da stdlib:** a linha do topo da §13 (motivos no [ADR-0072](docs/adr/0072-stdlib-batteries.md)).
@@ -429,7 +429,7 @@ determinismo.
 
 | # | Passo | Esforço | Depende de |
 | --- | --- | --- | --- |
-| 1 | **T3** + dogfooding: `lox fmt` em Lox depois da T3, com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | — |
+| 1 | **Dogfooding**: portar `lox fmt` para Lox (T3 concluída), com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | — |
 
 ### 13.8 Critério de pronto por módulo
 

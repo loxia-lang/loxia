@@ -1,0 +1,55 @@
+# std.hash — hashes não criptográficos sobre os bytes UTF-8 do texto (T3).
+
+/// FNV-1a de 32 bits (0..4294967295) dos bytes UTF-8 de `text`.
+fn fnv1a32(text: String) -> Int {
+  var hash = 2166136261
+  for byte in _utf8Bytes(text) {
+    hash = hash ^ byte
+    hash = (hash * 16777619) & 4294967295
+  }
+  return hash
+}
+
+/// FNV-1a de 64 bits dos bytes UTF-8; devolve o padrão de bits em i64 (pode negar).
+fn fnv1a64(text: String) -> Int {
+  var hash = -3750763034362895579
+  for byte in _utf8Bytes(text) {
+    hash = hash ^ byte
+    hash = hash * 1099511628211
+  }
+  return hash
+}
+
+/// djb2 de 32 bits (0..4294967295) dos bytes UTF-8 de `text`.
+fn djb2(text: String) -> Int {
+  var hash = 5381
+  for byte in _utf8Bytes(text) {
+    hash = ((hash << 5) + hash + byte) & 4294967295
+  }
+  return hash
+}
+
+fn _utf8Bytes(text: String) -> List[Int] {
+  val bytes: List[Int] = []
+  var index = 0
+  while (index < len(text)) {
+    val code = charCodeAt(text, index)
+    if (code < 128) {
+      bytes.push(code)
+    } else if (code < 2048) {
+      bytes.push(192 | (code >> 6))
+      bytes.push(128 | (code & 63))
+    } else if (code < 65536) {
+      bytes.push(224 | (code >> 12))
+      bytes.push(128 | ((code >> 6) & 63))
+      bytes.push(128 | (code & 63))
+    } else {
+      bytes.push(240 | (code >> 18))
+      bytes.push(128 | ((code >> 12) & 63))
+      bytes.push(128 | ((code >> 6) & 63))
+      bytes.push(128 | (code & 63))
+    }
+    index = index + 1
+  }
+  return bytes
+}
