@@ -134,6 +134,7 @@ Crie quando a decisão:
 | [0086](0086-narrowing-captura-e-merge.md) | Narrowing: invalidação de `var` capturado e merge de fluxo | accepted (implementado) | 2026-11-15 |
 | [0087](0087-heap-cap-e-self-hosting.md) | Heap: default de 512 MiB e `--max-heap` de build | accepted (implementado) | 2026-11-15 |
 | [0088](0088-distribuicao-e-raizes-de-modulo.md) | Distribuição: comando `loxia`, stdlib embutida e raízes de módulo declaradas | accepted (implementação pendente) | 2026-11-15 |
+| [0089](0089-stack-trace-de-runtime.md) | Stack trace de runtime: frames, call site e posição do R1015 | accepted (implementado) | 2026-11-15 |
 
 
 ## Próximas decisões que pedem ADR

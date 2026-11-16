@@ -1,6 +1,7 @@
 from collections.abc import Callable, Iterator
 
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import Frame, Trace
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.errors import (
     LoxRaise,
@@ -11,7 +12,12 @@ from loxia_core.diagnostics.errors import (
 )
 from loxia_core.execution import numeric
 from loxia_core.execution.environment import Environment
-from loxia_core.execution.limits import MAX_CALL_DEPTH, ensure_recursion_budget
+from loxia_core.execution.limits import (
+    MAX_CALL_DEPTH,
+    TRACE_HEAD,
+    TRACE_TAIL,
+    ensure_recursion_budget,
+)
 from loxia_core.execution.lox_callable import LoxCallable
 from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumObject, LoxEnumValue
@@ -129,6 +135,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.checked_overflow = checked_overflow
         self.argv = list(argv or [])
         self._call_depth = 0
+        # Tuplas leves no caminho feliz; `Frame` só é materializado ao capturar o trace.
+        self._frames: list[tuple[str, str, int, int]] = []
+        self._call_site: Token | None = None
         self.globals = Environment()
         self.environment = self.globals
         self._type_aliases: dict[str, Ty] = {}
@@ -174,6 +183,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def interpret(self, statements: list[Stmt]) -> None:
         self._call_depth = 0
+        self._frames.clear()
+        self._call_site = None
         for statement in statements:
             if isinstance(statement, TypeAlias):
                 self._type_aliases[statement.name.lexeme] = statement.target
@@ -181,29 +192,64 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             for statement in statements:
                 self._execute(statement)
         except LoxRaise as raised:
-            self.reporter.runtime_error(
-                LoxRuntimeError(
-                    raised.token,
-                    f"Unhandled exception: {stringify(raised.value)}",
-                    code=Code.UNHANDLED_EXCEPTION,
-                )
+            error = LoxRuntimeError(
+                raised.token,
+                f"Unhandled exception: {stringify(raised.value)}",
+                code=Code.UNHANDLED_EXCEPTION,
             )
+            error.trace = raised.trace
+            self._capture_trace(error)
+            self.reporter.runtime_error(error)
         except LoxRuntimeError as e:
+            self._capture_trace(e)
             self.reporter.runtime_error(e)
 
-    def _enter_call(self) -> None:
-        """Conta uma ativação Lox (ADR-0077); a próxima acima do teto é R1015."""
+    def _enter_call(self, name: str, token: Token | None) -> None:
+        """Registra uma ativação Lox (ADR-0077) e o frame para o stack trace.
+
+        A posição do frame é o call site (onde o chamado foi chamado); para R1015 a
+        posição do erro é a declaração do chamado (o topo do estouro).
+        """
+        declaration = token or Token(TokenType.EOF, "", None, 0)
         if self._call_depth >= MAX_CALL_DEPTH:
             raise LoxRuntimeError(
-                Token(TokenType.EOF, "", None, 0),
+                declaration,
                 "Stack overflow.",
                 code=Code.RUNTIME_STACK_OVERFLOW,
             )
+        site = self._call_site or declaration
+        self._frames.append(
+            (
+                name,
+                site.file or self.reporter.file,
+                site.line,
+                site.column or 1,
+            )
+        )
         self._call_depth += 1
 
     def _leave_call(self) -> None:
         if self._call_depth > 0:
             self._call_depth -= 1
+            if self._frames:
+                self._frames.pop()
+
+    def _capture_trace(self, error: LoxRuntimeError | LoxRaise) -> None:
+        """Congela o trace no ponto mais interno; o `finally` desempilha os frames."""
+        if error.trace is None:
+            error.trace = self._build_trace()
+
+    def _build_trace(self) -> Trace | None:
+        if not self._frames:
+            return None
+
+        frames = [Frame(*item) for item in reversed(self._frames)]
+        if len(frames) <= TRACE_HEAD + TRACE_TAIL:
+            return Trace(tuple(frames))
+
+        omitted = len(frames) - TRACE_HEAD - TRACE_TAIL
+        kept = frames[:TRACE_HEAD] + frames[-TRACE_TAIL:]
+        return Trace(tuple(kept), omitted=omitted, head=TRACE_HEAD)
 
     def resolve(self, expr: Expr, depth: int) -> None:
         self.locals[expr] = depth
@@ -839,16 +885,21 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 expr.paren, message, code=Code.RUNTIME_ARITY
             )
 
+        previous_site = self._call_site
+        self._call_site = expr.paren
         try:
-            return callee.call(self, arguments)
-        except NativeError as error:
-            raise LoxRuntimeError(expr.paren, str(error)) from error
-        except numeric.NumericOverflow:
-            raise LoxRuntimeError(expr.paren, "Integer overflow.") from None
-        except numeric.NumericConversionError:
-            raise LoxRuntimeError(
-                expr.paren, "Numeric conversion failed."
-            ) from None
+            try:
+                return callee.call(self, arguments)
+            except NativeError as error:
+                raise LoxRuntimeError(expr.paren, str(error)) from error
+            except numeric.NumericOverflow:
+                raise LoxRuntimeError(expr.paren, "Integer overflow.") from None
+            except numeric.NumericConversionError:
+                raise LoxRuntimeError(
+                    expr.paren, "Numeric conversion failed."
+                ) from None
+        finally:
+            self._call_site = previous_site
 
     def visit_try_stmt(self, stmt: Try) -> None:
         try:
@@ -1060,6 +1111,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             methods,
             fields,
             interfaces,
+            declaration=stmt.name,
         )
 
         if stmt.superclass is not None:
@@ -1231,7 +1283,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 f"{method_name}() must take no arguments.",
                 code=Code.RUNTIME_ITERATION,
             )
-        return method.call(self, [])
+        previous_site = self._call_site
+        self._call_site = token
+        try:
+            return method.call(self, [])
+        finally:
+            self._call_site = previous_site
 
     def _iterate_list(self, name: Token, values: LoxList) -> Iterator[object]:
         version = values.version

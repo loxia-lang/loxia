@@ -7,10 +7,12 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     DiagnosticBatch,
+    Frame,
     Phase,
     Position,
     Severity,
     Span,
+    Trace,
 )
 from loxia_core.diagnostics.render import (
     render_batch,
@@ -49,6 +51,7 @@ def _diagnostic(
     phase: Phase = Phase.CHECKER,
     message: str = "boom",
     span: Span | None = None,
+    trace: Trace | None = None,
 ) -> Diagnostic:
     return Diagnostic(
         code=code,
@@ -56,6 +59,7 @@ def _diagnostic(
         severity=Severity.ERROR,
         message=message,
         span=span,
+        trace=trace,
     )
 
 
@@ -219,12 +223,51 @@ def test_render_batch_short_always_uses_header() -> None:
         phase=Phase.RUNTIME,
         message="Division by zero not allowed",
         span=_span(line=2, column=9),
+        trace=Trace(
+            (Frame("f", "x.lx", 4, 3), Frame("g", "x.lx", 8, 1))
+        ),
     )
     batch = DiagnosticBatch((runtime,))
 
     text = render_batch(batch, SourceMap(), error_format="short", color=False)
 
     assert text == "x.lx:2:9: error[R1002]: Division by zero not allowed\n"
+
+
+def test_render_runtime_appends_trace_frames() -> None:
+    diagnostic = _diagnostic(
+        code=Code.DIVISION_BY_ZERO,
+        phase=Phase.RUNTIME,
+        message="Division by zero not allowed",
+        span=_span(line=2, column=9),
+        trace=Trace(
+            (Frame("f", "x.lx", 4, 3), Frame("g", "x.lx", 8, 1))
+        ),
+    )
+
+    assert render_runtime(diagnostic) == (
+        "x.lx:2:9: error[R1002]: Division by zero not allowed\n"
+        "  at f (x.lx:4:3)\n"
+        "  at g (x.lx:8:1)\n"
+    )
+
+
+def test_render_runtime_elides_middle_frames() -> None:
+    frames = tuple(
+        Frame(f"f{index}", "x.lx", index, 1) for index in range(1, 13)
+    )
+    diagnostic = _diagnostic(
+        code=Code.DIVISION_BY_ZERO,
+        phase=Phase.RUNTIME,
+        message="Division by zero not allowed",
+        trace=Trace(frames[:5] + frames[-5:], omitted=2, head=5),
+    )
+
+    text = render_runtime(diagnostic)
+
+    assert "  ... 2 frames omitted\n" in text
+    assert text.index("at f5 (") < text.index("frames omitted")
+    assert text.index("frames omitted") < text.index("at f8 (")
 
 
 # -- json -----------------------------------------------------------------
@@ -259,6 +302,40 @@ def test_render_json_envelope_is_deterministic_and_complete() -> None:
     assert entry["labels"] == []
     assert entry["notes"] == []
     assert entry["help"] is None
+    assert entry["trace"] is None
+
+
+def test_render_json_trace_is_structured() -> None:
+    diagnostic = _diagnostic(
+        code=Code.DIVISION_BY_ZERO,
+        phase=Phase.RUNTIME,
+        message="Division by zero not allowed",
+        span=_span(line=2, column=9),
+        trace=Trace(
+            (Frame("f", "mod.lx", 4, 3), Frame("g", "main.lx", 8, 1)),
+            omitted=7,
+            head=1,
+        ),
+    )
+
+    payload = json.loads(
+        render_json(
+            DiagnosticBatch((diagnostic,)),
+            command="run",
+            success=False,
+            exit_code=70,
+        )
+    )
+    trace = payload["diagnostics"][0]["trace"]
+
+    assert trace == {
+        "frames": [
+            {"name": "f", "file": "mod.lx", "line": 4, "column": 3},
+            {"name": "g", "file": "main.lx", "line": 8, "column": 1},
+        ],
+        "omitted": 7,
+        "head": 1,
+    }
 
 
 def test_render_json_is_byte_identical_across_calls() -> None:

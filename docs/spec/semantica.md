@@ -23,10 +23,12 @@ programa no ponto em que ocorreu; o que já foi impresso permanece. Desde o
 runtime, e `Result` cobre erro esperado. Erros de tipo/sintaxe saem 65.
 
 A profundidade de chamadas é limitada a **10.000 ativações Lox** (função, método, lambda,
-`init` e construtor); a próxima é `error[R1015]: Stack overflow.`, exit 70, capturável por
-`try`/`except RuntimeError`. Chamadas nativas e construtores de `Exception`/`RuntimeError`
-não contam. Um `try`/`finally` que atravessa o estouro restaura a profundidade antes de o
-handler continuar ([ADR-0077](../adr/0077-limite-de-pilha.md)).
+`init` e construtor); a próxima é `R1015` (`Stack overflow.`), exit 70, capturável por
+`try`/`except RuntimeError`, com posição e stack trace
+([ADR-0077](../adr/0077-limite-de-pilha.md),
+[ADR-0089](../adr/0089-stack-trace-de-runtime.md)). Chamadas nativas e construtores de
+`Exception`/`RuntimeError` não contam. Um `try`/`finally` que atravessa o estouro restaura
+a profundidade antes de o handler continuar.
 
 O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
 Uma expressão pura como `1 + 1` é embrulhada em `print(1 + 1)` e mostra `2`; declarações
@@ -888,8 +890,9 @@ try {
 - Erros de runtime são convertidos para `RuntimeError` no `try`; capturar tipos
   específicos (`DivisionByZero`) fica para depois. `finally` sempre roda e seu
   `return`/`raise` vence o fluxo anterior.
-- Exceção não capturada: `Unhandled exception: <tipo>: <msg>` + `[line N]`, exit 70.
-  Sem stack trace; o backend rejeita `try`/`raise` até o L6.
+- Exceção não capturada: `arquivo:linha:col: error[R1010]: Unhandled exception: <tipo>:
+  <msg>`, exit 70, seguida do stack trace ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
+  O backend L6 implementa `try`/`raise` com a mesma saída ([ADR-0062](../adr/0062-l6-excecoes-unwinding.md)).
 
 ## Erros
 

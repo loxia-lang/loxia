@@ -19,8 +19,8 @@ Como o código-fonte é dividido em tokens. Implementação: [`loxia_core/fronte
   Unicode é permitido em strings e comentários, não em identificadores
   ([ADR-0035](../adr/0035-strings-texto.md));
   `ação` ainda não é um nome válido. O scanner percorre a string Python.
-- Não há BOM especial, diretivas nem módulos: um arquivo `.lx` é um programa. Uma
-  primeira linha `#!` é só um comentário `#` normal.
+- Não há BOM especial nem diretivas. Um arquivo `.lx` é um programa **ou um módulo**
+  (arquivo = módulo, ADR-0073); uma primeira linha `#!` é só um comentário `#` normal.
 
 ## Espaços e comentários
 

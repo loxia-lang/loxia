@@ -23,6 +23,8 @@ from loxia_core.execution.limits import (
     DEFAULT_HEAP_BYTES,
     MAX_CALL_DEPTH,
     NATIVE_STACK_RESERVE_BYTES,
+    TRACE_HEAD,
+    TRACE_TAIL,
 )
 from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Stmt
@@ -41,6 +43,8 @@ def _runtime_flags(heap_bytes: int) -> tuple[str, ...]:
         *RUNTIME_FLAGS,
         f"-DLOX_GC_MAX_HEAP_BYTES={heap_bytes}ull",
         f"-DLOX_MAX_CALL_DEPTH={MAX_CALL_DEPTH}",
+        f"-DLOX_TRACE_HEAD={TRACE_HEAD}",
+        f"-DLOX_TRACE_TAIL={TRACE_TAIL}",
         f"-DLOX_STACK_RESERVE_BYTES={NATIVE_STACK_RESERVE_BYTES}ull",
     )
 

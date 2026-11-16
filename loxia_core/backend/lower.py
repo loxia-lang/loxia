@@ -186,6 +186,18 @@ class Lowerer(
         self._interface_thunks: dict[tuple[str, str], Any] = {}
         self._emitted_generic_classes: set[str] = set()
         self._pending_generic_classes: list[ClassLayout] = []
+        # Stack trace (ADR-0089): strings deduplicadas e call site global lido pelo
+        # prologue do chamado. Os globais vivem no runtime C; aqui só declaramos.
+        self._trace_strings: dict[tuple[str, str], Any] = {}
+        self._call_file_global = llvm_ir.extern_global(
+            self.module, "lox_call_file", _I8_PTR
+        )
+        self._call_line_global = llvm_ir.extern_global(
+            self.module, "lox_call_line", _I32
+        )
+        self._call_column_global = llvm_ir.extern_global(
+            self.module, "lox_call_column", _I32
+        )
 
     # --- programa ---
 
@@ -1581,8 +1593,72 @@ class Lowerer(
             self._runtime[name] = function
         return function
 
-    def _stack_enter(self) -> None:
-        self.builder.call(self._function("lox_stack_enter", _VOID, []), [])
+    def _trace_string(self, text: str, kind: str) -> Any:
+        key = (kind, text)
+        global_ = self._trace_strings.get(key)
+        if global_ is None:
+            global_ = llvm_ir.cstring(
+                self.module, text, f"trace.{kind}.{len(self._trace_strings)}"
+            )
+            self._trace_strings[key] = global_
+        return global_
+
+    def _emit_stack_enter(
+        self, name: str, file: str, line: int, column: int
+    ) -> None:
+        """Prologue do chamado: empilha (nome, arquivo, decl) + call site global."""
+        name_ptr = llvm_ir.cstring_pointer(
+            self.builder, self._trace_string(name, "name")
+        )
+        file_ptr = llvm_ir.cstring_pointer(
+            self.builder, self._trace_string(file or self.source_path, "file")
+        )
+        self.builder.call(
+            self._function(
+                "lox_stack_enter", _VOID, [_I8_PTR, _I8_PTR, _I32, _I32]
+            ),
+            [
+                name_ptr,
+                file_ptr,
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, max(1, column)),
+            ],
+        )
+
+    def _stack_enter(self, info: FunctionInfo) -> None:
+        self._emit_stack_enter(
+            info.trace_name,
+            info.decl_file,
+            info.decl_line,
+            info.decl_column,
+        )
+
+    def _stack_enter_class(self, layout: ClassLayout) -> None:
+        token = layout.decl_token
+        if token is None:
+            self._emit_stack_enter(layout.display, self.source_path, 0, 1)
+            return
+        self._emit_stack_enter(
+            layout.display, token.file, token.line, token.column
+        )
+
+    def _set_call_site(self, token: Token) -> None:
+        """Grava o call site para o prologue do chamado (lido em `lox_stack_enter`)."""
+        file_ptr = llvm_ir.cstring_pointer(
+            self.builder,
+            self._trace_string(token.file or self.source_path, "file"),
+        )
+        self.builder.store(file_ptr, self._call_file_global)
+        self.builder.store(llvm_ir.constant(_I32, token.line), self._call_line_global)
+        self.builder.store(
+            llvm_ir.constant(_I32, max(1, token.column)), self._call_column_global
+        )
+
+    def _restore_call_site(self) -> None:
+        """Devolve o call site do frame atual (ctor → init, após inicializadores)."""
+        self.builder.call(
+            self._function("lox_call_site_restore", _VOID, []), []
+        )
 
     def _stack_leave(self) -> None:
         self.builder.call(self._function("lox_stack_leave", _VOID, []), [])

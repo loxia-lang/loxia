@@ -52,7 +52,7 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `l2` | 14 |
 | `l2.5` | 3 |
 | `l3` | 14 |
-| `l4` | 9 |
+| `l4` | 11 |
 | `l5` | 27 |
 | `l6` | 57 |
 | `k0` | 2 |
@@ -60,7 +60,7 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `t2` | 7 |
 | `t7` | 3 |
 
-**149 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**151 casos** em 12 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
 <!-- levels:end -->
 
 Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
@@ -69,23 +69,25 @@ Os níveis ainda não implementados rejeitam com **erro de compilação explíci
 A comparação é feita por canal: quando stdout e stderr vão para o **mesmo** descritor
 (`2>&1`), a ordem de intercalação das duas saídas não faz parte da garantia.
 
-Não existe promessa de que código interpretado e compilado tenham a mesma **velocidade**,
-o mesmo consumo de memória ou o mesmo stack trace — só o mesmo resultado observável.
+Não existe promessa de que código interpretado e compilado tenham a mesma **velocidade**
+ou o mesmo consumo de memória. O mesmo resultado observável inclui **stderr byte a byte**,
+portanto o stack trace de runtime também é idêntico nos dois motores
+([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 
 #### Orçamento de pilha ([ADR-0077](../adr/0077-limite-de-pilha.md))
 
 O binário e o tree-walk contam **ativações Lox** (função, método, lambda, `init` e
-construtor) com o mesmo limite: **10.000 chamadas**. A chamada 10.001 é
-`error[R1015]: Stack overflow.`, exit 70, capturável por `try`/`except RuntimeError`.
-Chamadas nativas e construtores de exceção embutida não contam. Construtor + `init` contam
-duas ativações.
+construtor) com o mesmo limite: **10.000 chamadas**. A chamada 10.001 é `R1015`
+(`Stack overflow.`), exit 70, capturável por `try`/`except RuntimeError`, com a posição da
+declaração do chamado e o stack trace dos frames ativos. Chamadas nativas e construtores
+de exceção embutida não contam. Construtor + `init` contam duas ativações.
 
 - O binário reserva 128 MiB de soft limit de pilha (`setrlimit`) antes de executar; o
   orçamento declarado é 64 MiB. Em plataformas com hard limit menor, o limite é clampado.
 - O tree-walk eleva o `sys.setrecursionlimit` para 200.000 (orçamento interno, não
   contrato).
-- Acima de 10.000 chamadas o erro é determinístico, mas **stack trace com frames** ainda
-  não existe (dívida em `TODO.md` §3.1).
+- Acima de 10.000 chamadas o erro é determinístico e o trace é recortado (5 internos + 5
+  externos + elisão), sem endereço/tempo na saída.
 
 #### Orçamento de memória ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](../adr/0087-heap-cap-e-self-hosting.md))
 
@@ -195,7 +197,9 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
 4. **Tipos opcionais, não cerimônia** — anotar só onde ajuda; no `--check` a inferência
    local já existe e parâmetros/retorno continuam assinados. Inferir parâmetro sem
    anotação ficou adiado; ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).
-5. **Falhar cedo e claro** — spans, caret e stack trace são P1; hoje há linha e mensagem.
+5. **Falhar cedo e claro** — spans, caret e stack trace existem hoje
+   ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
+   [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 6. **Previsível** — nada de coerção implícita, nada de `nil` surpresa; é o I2.
 7. **Identidade = invariantes, não features** — o contrato é o
    [ADR-0014](../adr/0014-identidade-e-invariantes.md); toda feature passa pelo portão de
@@ -227,8 +231,7 @@ sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
 - **Timing.** Nada promete quando um `nil`/objeto é liberado, nem ordem de finalização —
   justamente para não quebrar I1.
 - **Programas acima do orçamento de memória** no binário (hard cap default de 512 MiB e
-  I1 até 64 MiB de memória viva), **acima de 10.000 chamadas Lox** (R1015 é o limite) e
-  **stack trace com frames** (R1015 não tem posição).
+  I1 até 64 MiB de memória viva) e **acima de 10.000 chamadas Lox** (R1015 é o limite).
 
 ## Revisitar
 

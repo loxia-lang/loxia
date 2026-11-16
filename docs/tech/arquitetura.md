@@ -333,10 +333,13 @@ chamada.
   continua. Runtime: `raise LoxRuntimeError` e o `interpret` captura.
 - Exit codes: 65 (compilação), 70 (runtime), 66 (arquivo).
 - Diagnósticos estruturados ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)):
-  `Diagnostic` com código, fase, span e `labels`/`notes`/`help`; renderizadores
+  `Diagnostic` com código, fase, span, `labels`/`notes`/`help` e `trace`; renderizadores
   `human`/`short`/`json`; flags `--error-format`, `--color` e `--max-errors`. O token
   carrega o arquivo de origem, então erro de compilação em módulo aponta o módulo.
-  Falta o stack trace de runtime ([TODO §3.1](../../TODO.md)).
+- Stack trace de runtime ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)): o
+  `Interpreter` mantém `_frames` e congela o trace no `except` mais interno; o binário
+  mantém `lox_frames` e o call site em três globais lidos por `lox_stack_enter`. Formato,
+  recorte e `R1015` são idênticos nos dois motores (I1).
 
 ## REPL
 
@@ -422,13 +425,16 @@ exit code com o interpretador — o oráculo é sempre o tree-walk.
 
 ## Limitações conhecidas
 
-- Sem stack trace de runtime; o erro de runtime em módulo ainda usa o arquivo da
-  entrada (o binário só embute o `source_path` do build). Posição, código e JSON existem
-  ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
+- Sem stack trace em exceção **capturada** (o valor não carrega frames) e sem frames
+  suspensos de async; posição, código, JSON e trace do erro não capturado existem
+  ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
+  [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 - `Int` (i64) e `Float` (f64) separados; `/` sempre `Float`, `%` truncado, `Int` com
   wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
 - Recursão limitada a 10.000 chamadas Lox (R1015, capturável) nos dois motores; sem tail
-  call e sem stack trace de frames ([ADR-0077](../adr/0077-limite-de-pilha.md)).
+  call. O R1015 tem posição e o trace mostra os frames ativos
+  ([ADR-0077](../adr/0077-limite-de-pilha.md),
+  [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 - No tree-walk, sem GC próprio: objetos são coletados pelo Python. No backend, GC
   Boehm conservador, hard cap default de 512 MiB (`--max-heap` no build) e I1 até 64 MiB
   de memória viva ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md),

@@ -145,6 +145,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/local_function.lx",
         "tests/cases/stack_depth_ok.lx",
         "tests/cases/stack_overflow.lx",
+        "tests/cases/stack_trace.lx",
+        "tests/cases/stack_trace_cap.lx",
     ),
     "t1": (
         "tests/cases/std_asserts.lx",

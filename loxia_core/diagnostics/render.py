@@ -13,6 +13,7 @@ from loxia_core.diagnostics.diagnostic import (
     Phase,
     Position,
     Span,
+    Trace,
 )
 from loxia_core.diagnostics.source import SourceMap, display_text
 
@@ -67,9 +68,25 @@ def render_runtime(diagnostic: Diagnostic) -> str:
     """Formato humano do erro de runtime, igual ao `lox_panic` do runtime C.
 
     Cabeçalho `arquivo:linha:col: error[CODIGO]: mensagem`, sem trecho de código: o
-    binário pode rodar sem a fonte (ADR-0075, fase 2).
+    binário pode rodar sem a fonte (ADR-0075, fase 2). Depois do cabeçalho, os frames
+    do stack trace no mesmo formato do runtime C (ADR-0089).
     """
-    return _header(diagnostic, color=False)
+    return _header(diagnostic, color=False) + _trace_lines(diagnostic)
+
+
+def _trace_lines(diagnostic: Diagnostic) -> str:
+    trace = diagnostic.trace
+    if trace is None:
+        return ""
+
+    parts: list[str] = []
+    for index, frame in enumerate(trace.frames):
+        if trace.omitted > 0 and index == trace.head:
+            parts.append(f"  ... {trace.omitted} frames omitted\n")
+        parts.append(
+            f"  at {frame.name} ({frame.file}:{frame.line}:{frame.column})\n"
+        )
+    return "".join(parts)
 
 
 def _snippet(
@@ -162,6 +179,24 @@ def _span_json(span: Span) -> dict[str, object]:
     }
 
 
+def _trace_json(trace: Trace | None) -> dict[str, object] | None:
+    if trace is None:
+        return None
+    return {
+        "frames": [
+            {
+                "name": frame.name,
+                "file": frame.file,
+                "line": frame.line,
+                "column": frame.column,
+            }
+            for frame in trace.frames
+        ],
+        "omitted": trace.omitted,
+        "head": trace.head,
+    }
+
+
 def _diagnostic_json(diagnostic: Diagnostic) -> dict[str, object]:
     return {
         "code": diagnostic.code.value,
@@ -178,6 +213,7 @@ def _diagnostic_json(diagnostic: Diagnostic) -> dict[str, object]:
         ],
         "notes": list(diagnostic.notes),
         "help": diagnostic.help,
+        "trace": _trace_json(diagnostic.trace),
     }
 
 

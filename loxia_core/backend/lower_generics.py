@@ -122,11 +122,12 @@ class GenericLowering(LoweringBase):
                 None,
             ),
             ir_name=key,
-            display_name=class_ty.name,
+            display_name=stmt.display_name or class_ty.name,
             generic=True,
             init_method=init_method,
             vtable_size=new_methods,
             instance_type=instance_type,
+            decl_token=stmt.name,
             interfaces=tuple(token.lexeme for token in stmt.implements),
         )
         layout.ctor = llvm_ir.declare(
@@ -263,6 +264,7 @@ class GenericLowering(LoweringBase):
                 )
             ]
         _ = class_ptr
+        self._set_call_site(expr.paren)
         call = self.builder.call(
             layout.ctor, [argument.llvm for argument in arguments]
         )
@@ -344,6 +346,7 @@ class GenericLowering(LoweringBase):
         if prepared is None:
             return self._zero_desc(info.fn_sig.ret)
         arguments = prepared
+        self._set_call_site(expr.paren)
         call = self.builder.call(
             info.ir,
             [llvm_ir.null_pointer(), *[argument.llvm for argument in arguments]],

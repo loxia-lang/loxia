@@ -15,6 +15,7 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Function, Param
 from loxia_core.frontend.token_type import TokenType
+from loxia_core.frontend.tokens import Token
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -169,6 +170,11 @@ class FunctionInfo:
     is_init: bool = False
     type_subst: dict[str, Any] | None = None
     this_interface: str | None = None
+    # Stack trace (ADR-0089): nome exibível e posição da declaração (R1015).
+    trace_name: str = ""
+    decl_file: str = ""
+    decl_line: int = 0
+    decl_column: int = 1
 
 
 @dataclass(frozen=True)
@@ -243,6 +249,8 @@ class ClassLayout:
     interfaces: tuple[str, ...] = ()
     ctor: Any = None
     instance_type: Any = None
+    # Declaração da classe: nome exibível nos frames e posição do R1015 no ctor.
+    decl_token: Token | None = None
     # `Exception`/`RuntimeError`: ctor sintético de 1 argumento (`message`),
     # sem `init` no AST. Ver `_ctor_body`/`_call_class`.
     synthetic_exception: bool = False

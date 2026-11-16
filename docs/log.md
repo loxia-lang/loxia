@@ -620,3 +620,27 @@ lote (junto do empacotamento acima).
   “sem spans, códigos ou JSON”; reescritas para o estado do ADR-0075.
 - `TODO.md` — **updated**: §0.2 item 5 e §11.9 (fonte de módulo entregue; resta `..`).
 
+## 2026-11-15 — stack trace de runtime (ADR-0089)
+
+Intervalo: `HEAD`..working tree. Erro de runtime não capturado passa a imprimir frames
+(nome + call site) nos dois motores, com recorte 5+5+elisão; `R1015` ganha posição e o
+runtime em módulo aponta o módulo. O marcador `<!-- triaged: <sha> -->` fica para o commit
+que fechar o lote.
+
+- `docs/adr/0089-stack-trace-de-runtime.md` — **new**: formato, captura, ABI, recorte,
+  revisão do R1015 e o que fica de fora.
+- `docs/adr/0077-limite-de-pilha.md` — **updated** (nota): R1015 com posição e frames;
+  limite 10.000/64 MiB inalterado.
+- `docs/spec/erros.md` — **updated**: stack trace, `trace` no JSON, `short` sem frames,
+  runtime em módulo.
+- `docs/spec/garantias.md` — **updated**: I1 inclui o trace em stderr; R1015 com posição;
+  stack trace saiu da lista de fora-de-garantia.
+- `docs/spec/semantica.md` — **updated**: R1015 com posição/trace e exceção não capturada
+  com frames.
+- `docs/tech/arquitetura.md` — **updated**: captura no tree-walk × array no nativo.
+- `docs/decisoes.md`, `docs/adr/README.md`, `README.md`, `CHANGELOG.md`, `TODO.md` —
+  **updated**: índice, resumo, diagnóstico de runtime, changelog e fila.
+- `docs/spec/lexico.md` — **updated**: a página ainda dizia que não havia módulos e que
+  "um arquivo `.lx` é um programa"; agora reflete arquivo=módulo (ADR-0073). O resto da
+  página (regras léxicas) não mudou com `Token.file`, então não foi tocado.
+

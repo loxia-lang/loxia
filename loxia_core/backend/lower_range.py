@@ -156,6 +156,7 @@ class RangeLowering(LoweringBase):
         function_type = llvm_ir.function_pointer(
             self._storage_llvm_type(sig.ret), [_I8_PTR]
         )
+        self._set_call_site(token)
         call = self.builder.call(
             self.builder.bitcast(fnptr, function_type), [env]
         )

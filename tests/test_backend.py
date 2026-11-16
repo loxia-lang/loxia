@@ -806,6 +806,30 @@ int main(void) {
 
 
 @pytest.mark.backend
+def test_stack_trace_de_modulo_bate_com_interpretador(tmp_path: Path) -> None:
+    (tmp_path / "mod.lx").write_text(
+        "fn inner() -> Int { return 1 // 0 }\n"
+        "fn outer() -> Int { return inner() }\n",
+        encoding="utf-8",
+    )
+    path = tmp_path / "main.lx"
+    path.write_text("import mod\nprint(mod.outer())\n", encoding="utf-8")
+
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode == 70
+    assert "mod.lx:1:30: error[R1002]" in compiled.stderr
+    assert "  at inner (" in compiled.stderr
+    assert "  at outer (" in compiled.stderr
+
+
+@pytest.mark.backend
 def test_erro_rebaixavel_nao_e_impresso_no_build(tmp_path: Path) -> None:
     path = _write(tmp_path, """print(1 + true);
 """)

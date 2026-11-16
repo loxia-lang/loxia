@@ -76,7 +76,8 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
   [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)): hard cap default de 512 MiB
   (`--max-heap` no build) e I1 até 64 MiB de memória viva; estourar é `exit 70` +
   `Out of memory.`. A pilha tem contrato próprio ([ADR-0077](docs/adr/0077-limite-de-pilha.md)):
-  10.000 chamadas / 64 MiB e `Stack overflow.` (R1015). O interpretador não tem teto — o
+  10.000 chamadas / 64 MiB e `Stack overflow.` (R1015, com posição e stack trace desde o
+  [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O interpretador não tem teto — o
   I1 vale dentro do orçamento.
 
 Detalhes e o que **não** é prometido: [`docs/spec/garantias.md`](docs/spec/garantias.md).
@@ -134,9 +135,11 @@ mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
 
 Diagnósticos de compilação vão para stderr no formato
 `arquivo:linha:col: error[CODIGO]: mensagem` + trecho com caret; erros de runtime usam o
-mesmo cabeçalho, sem caret. O formato é determinístico (caminho relativo ao CWD, ordem
-fixa, sem timestamp/endereço) e os códigos são estáveis — catálogo em
-[`docs/spec/erros.md`](docs/spec/erros.md).
+mesmo cabeçalho, sem caret, seguidos do **stack trace** (`  at f (arquivo:linha:col)`, com
+nome e call site de cada ativação; [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
+O arquivo é o real, inclusive para código em módulo. O formato é determinístico (caminho
+relativo ao CWD, ordem fixa, sem timestamp/endereço, trace recortado em 5+5+elisão) e os
+códigos são estáveis — catálogo em [`docs/spec/erros.md`](docs/spec/erros.md).
 
 ```bash
 uv run main.py --check --error-format=short prog.lx  # uma linha por diagnóstico
@@ -147,10 +150,10 @@ uv run main.py --max-errors=5 prog.lx                # limita (0 = sem limite)
 ```
 
 `--error-format=human` (padrão) mostra o trecho; `short` é o cabeçalho; `json` traz
-`schema_version`, `code`, `phase`, `span` (linha/coluna em code points e `offset` em bytes)
-e `summary`. Em `--check` o JSON vai para **stdout**; em `run`/`build` vai para **stderr**
-(o programa/IR já usam stdout). `--color` aceita `auto|always|never` e `NO_COLOR` desliga
-a cor no modo `auto`.
+`schema_version`, `code`, `phase`, `span` (linha/coluna em code points e `offset` em bytes),
+`trace` (frames do runtime) e `summary`. Em `--check` o JSON vai para **stdout**; em
+`run`/`build` vai para **stderr** (o programa/IR já usam stdout). `--color` aceita
+`auto|always|never` e `NO_COLOR` desliga a cor no modo `auto`.
 
 O backend nativo cobre **L0–L6**: `Int`/`Float`/`Bool`/`nil`/`String`, optionais escalares (`Int?`/`Float?`/`Bool?`), `if`/`while`,
 variáveis, funções com recursão, ternário/`and`/`or`/`??`, concatenação, interpolação,

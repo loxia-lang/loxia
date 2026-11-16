@@ -187,6 +187,7 @@ class ClassLayoutLowering(LoweringBase):
             init_method=init_method,
             vtable_size=base_methods + new_methods,
             instance_type=instance_type,
+            decl_token=stmt.name,
             display_name=stmt.display_name,
             interfaces=tuple(token.lexeme for token in stmt.implements),
         )

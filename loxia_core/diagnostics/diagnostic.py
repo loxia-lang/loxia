@@ -60,6 +60,34 @@ class Label:
 
 
 @dataclass(frozen=True)
+class Frame:
+    """Uma ativação Lox no stack trace.
+
+    `name` é o nome exibível do chamado (`f`, `init`, `<lambda>`, `C` no construtor);
+    `file`/`line`/`column` são o **call site** — onde o chamado foi chamado. A posição
+    do erro em si já está no `span` do diagnóstico.
+    """
+
+    name: str
+    file: str
+    line: int
+    column: int
+
+
+@dataclass(frozen=True)
+class Trace:
+    """Frames já em ordem de exibição (mais interno primeiro).
+
+    Com mais de `head + tail` frames, `omitted` conta o miolo e `head` marca quantos
+    frames vêm antes da linha de elisão. A elisão é determinística (sem endereço/tempo).
+    """
+
+    frames: tuple[Frame, ...]
+    omitted: int = 0
+    head: int = 0
+
+
+@dataclass(frozen=True)
 class Diagnostic:
     code: Code
     phase: Phase
@@ -69,6 +97,7 @@ class Diagnostic:
     labels: tuple[Label, ...] = ()
     notes: tuple[str, ...] = ()
     help: str | None = None
+    trace: Trace | None = None
 
 
 @dataclass(frozen=True)

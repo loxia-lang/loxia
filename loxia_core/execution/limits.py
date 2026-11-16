@@ -13,6 +13,12 @@ import sys
 # ADR-0077: chamadas Lox ativas. Profundidade 1..MAX_CALL_DEPTH; a próxima é R1015.
 MAX_CALL_DEPTH = 10_000
 
+# Stack trace (ADR-0089): mostra os `TRACE_HEAD` frames mais internos e os
+# `TRACE_TAIL` mais externos; o miolo vira uma linha de elisão. O runtime C recebe os
+# mesmos números via `-D` do driver.
+TRACE_HEAD = 5
+TRACE_TAIL = 5
+
 # Orçamento declarado de pilha para o binário (ADR-0077). A reserva do SO é maior
 # para absorver frames gordos e o runtime; o contrato é o par (profundidade, budget).
 STACK_BUDGET_BYTES = 64 * 1024 * 1024

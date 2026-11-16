@@ -49,8 +49,8 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
        (10.000 chamadas, orçamento de 64 MiB, `R1015`).
 4. [x] **Heap**: [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md) implementado
        (default 512 MiB + `--max-heap` de build).
-5. [ ] **Diagnósticos**: fonte de módulo no checker entregue; falta stack trace de
-       runtime (com a fonte do módulo nos frames, inclusive no nativo).
+5. [x] **Diagnósticos**: fonte de módulo no checker e stack trace de runtime (frames +
+       `R1015` com posição) implementados ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 6. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
 7. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
 
@@ -69,9 +69,6 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 
 ### 3.1 O que ainda falta
 
-- [ ] **Stack trace de runtime** (`P2`): frames `at f (linha N) ← main (linha M)`; no
-      binário, decidir o custo de carregar frames. O limite de pilha já existe
-      ([ADR-0077](docs/adr/0077-limite-de-pilha.md)); `R1015` ainda não tem posição.
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token.
 - [ ] **`fixes[]`** (`P3`): `applicability` + `edits[]` por span; só quando houver edição
@@ -280,14 +277,15 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 7. **HIR-lite — gate explícito:** não construir agora. Trocar para HIR-lite só se um
    destes gatilhos disparar ([ADR-0065](docs/adr/0065-hir-lite-controle.md)):
    `lower_exceptions.py`/`lower_enums.py` passarem de ~350 linhas, o lowering precisar de
-   mais de 2 níveis manuais de blocos/phi, ou uma feature exigir CFG explícito (stack
-   trace com frames, cleanup dinâmico completo, JIT). `Any` e containers sozinhos não
-   disparam.
+   mais de 2 níveis manuais de blocos/phi, ou uma feature exigir CFG explícito (cleanup
+   dinâmico completo, JIT). `Any` e containers sozinhos não disparam. Stack trace com
+   frames **não** disparou: array de frames resolvido sem CFG
+   ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 8. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
    `raise` através de frames aninhados é dívida declarada, não bloqueia a stdlib.
 9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; resta `..`
-   fora da raiz. Diagnóstico de checker com a fonte do módulo está feito
-   (`Token.file`); o runtime ainda fica no arquivo da entrada até o frame stack (§3.1).
+   fora da raiz. Fonte do módulo e stack trace estão feitos
+   ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 
 > Nome e extensão saíram daqui: **Loxia** e `.lx`, decididos no
 > [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md).

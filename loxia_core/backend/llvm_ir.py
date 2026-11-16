@@ -236,6 +236,11 @@ def global_variable(module: Any, name: str, ty: Any) -> Any:
     return global_
 
 
+def extern_global(module: Any, name: str, ty: Any) -> Any:
+    """Declaração de global externo, definido pelo runtime C (sem inicializador)."""
+    return ir.GlobalVariable(module, ty, name=name)
+
+
 def pointer_pointer() -> Any:
     return ir.IntType(8).as_pointer().as_pointer()
 

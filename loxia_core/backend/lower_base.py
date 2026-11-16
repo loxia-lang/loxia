@@ -111,7 +111,7 @@ class LoweringBase:
     ) -> None:
         raise NotImplementedError
 
-    def _stack_enter(self) -> None:
+    def _stack_enter(self, info: FunctionInfo) -> None:
         raise NotImplementedError
 
     def _stack_leave(self) -> None:

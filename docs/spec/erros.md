@@ -2,12 +2,14 @@
 sources:
   - loxia_core/diagnostics/**
   - loxia_core/execution/interpreter.py
+  - loxia_core/execution/limits.py
   - loxia_core/frontend/scanner.py
   - loxia_core/frontend/tokens.py
   - loxia_core/frontend/parser.py
   - loxia_core/semantics/resolver.py
   - loxia_core/semantics/checker.py
   - loxia_core/loader/loader.py
+  - runtime/runtime.c
   - loxia/cli.py
   - tests/test_diagnostics.py
 ---
@@ -61,7 +63,8 @@ temporários.
   para erros esperados ([ADR-0041](../adr/0041-enums-match.md)). O runtime usa o
   **mesmo cabeçalho** da compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret — o
   binário pode rodar sem a fonte. Quando a posição é sintética (campo interno), o
-  cabeçalho degrada para `error[CODIGO]: mensagem`.
+  cabeçalho degrada para `error[CODIGO]: mensagem`. Depois do cabeçalho vêm os frames do
+  stack trace ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 - No REPL não há exit code; a linha com erro é descartada e a sessão continua. O arquivo é
   `<repl>`.
 - O caminho exibido é relativo ao CWD; se o arquivo estiver fora do CWD, só o basename.
@@ -69,9 +72,33 @@ temporários.
   (`std/strings.lx`) para não depender do CWD nem colidir com um arquivo de usuário.
 - Erro de **compilação** em módulo aponta o arquivo do módulo, com trecho e caret desse
   arquivo: o token carrega a origem, então checker e resolver não herdam o arquivo da
-  entrada. O erro de **runtime** ainda usa o arquivo da entrada: o binário só embute o
-  `source_path` do build, e trocar isso exige o frame stack dos dois motores
-  ([TODO §3.1](../../TODO.md)).
+  entrada. O erro de **runtime** também aponta o módulo, porque o frame carrega o arquivo
+  da função (ADR-0089).
+
+### Stack trace de runtime
+
+Erro de runtime não capturado imprime, depois do cabeçalho, um frame por ativação Lox
+(mais interno primeiro). O nome é o exibível da função (`f`, `init`, `<lambda>`, `C` no
+construtor) e a posição é o **call site** — onde aquela ativação foi chamada:
+
+```text
+mod.lx:2:12: error[R1002]: Division by zero not allowed
+  at inner (main.lx:7:14)
+  at outer (main.lx:9:3)
+```
+
+- O frame mais interno é o que estava executando o erro; a posição dele é a chamada que o
+  ativou. O topo (código do script) não é frame.
+- Mais de 10 frames: mostra os **5 mais internos**, uma linha
+  `  ... N frames omitted` e os **5 mais externos** (`TRACE_HEAD`/`TRACE_TAIL` em
+  [`limits.py`](../../loxia_core/execution/limits.py)). O recorte é determinístico.
+- `--error-format=short` mantém uma linha por diagnóstico e **omite** os frames; `json` os
+  expõe em `trace` (`frames[]`, `omitted`, `head`). No binário o formato é sempre o humano.
+- O erro de runtime em módulo aponta o arquivo da função (não o da entrada). Exceção
+  capturada não imprime nada; `raise;` reemite a partir do ponto do `raise`.
+- `R1015` tem posição: a declaração da função cuja ativação estourou
+  ([ADR-0089](../adr/0089-stack-trace-de-runtime.md), que revisita o
+  [ADR-0077](../adr/0077-limite-de-pilha.md)).
 
 ### Envelope JSON (v1)
 
@@ -98,10 +125,23 @@ diagnósticos cortados por `--max-errors`.
       },
       "labels": [],
       "notes": [],
-      "help": null
+      "help": null,
+      "trace": null
     }
   ],
   "summary": { "errors": 1, "warnings": 0, "suppressed": 0 }
+}
+```
+
+`trace` é `null` fora do runtime; num erro de runtime tem os frames já recortados:
+
+```json
+"trace": {
+  "frames": [
+    { "name": "f", "file": "main.lx", "line": 7, "column": 14 }
+  ],
+  "omitted": 0,
+  "head": 0
 }
 ```
 

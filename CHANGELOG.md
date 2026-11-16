@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Diagnósticos: fonte do módulo e stack trace de runtime** ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)):
+  erro de compilação e de runtime em módulo aponta o arquivo do módulo (`Token.file`), e
+  todo erro de runtime não capturado imprime frames default-on no formato
+  `  at <nome> (<arquivo>:<linha>:<col>)`, com os 5 frames mais internos + 5 mais externos
+  e elisão acima de 10. O binário reproduz o mesmo stderr (I1). `R1015` ganhou a posição
+  da declaração; `--error-format=json` expõe `trace` e `short` omite os frames.
 - **Distribuição**: `pip install loxia` / `uv tool install loxia` entrega o comando `loxia`,
   a stdlib e o `runtime.c` no wheel (hatchling, `force-include`; resolução em
   `loxia_core/bundle.py`). `tests/test_install.py` (`pytest -m install`) prova o layout

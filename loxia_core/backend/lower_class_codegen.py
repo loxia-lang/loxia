@@ -515,6 +515,7 @@ class ClassCodegenLowering(LoweringBase):
             init_method=init_method,
             vtable_size=new_methods,
             instance_type=instance_type,
+            decl_token=stmt.name,
             interfaces=tuple(token.lexeme for token in stmt.implements),
         )
         effective = init
@@ -594,7 +595,7 @@ class ClassCodegenLowering(LoweringBase):
         self._captures = {}
         self.builder = llvm_ir.builder(llvm_ir.block_of(ctor, "entry"))
         if not layout.synthetic_exception:
-            self._stack_enter()
+            self._stack_enter_class(layout)
 
         self._ctor_body(layout, ctor)
         self._seal_blocks(ctor)
@@ -624,6 +625,9 @@ class ClassCodegenLowering(LoweringBase):
         self._ctor_run_initializers(layout, instance)
         effective = layout.effective_init()
         if effective is not None:
+            # Os inicializadores podem ter chamado funções e sobrescrito o call site
+            # global; o init interno do ctor continua sendo o call site da classe.
+            self._restore_call_site()
             offset = 1 if layout.local else 0
             self.builder.call(
                 effective.ir,

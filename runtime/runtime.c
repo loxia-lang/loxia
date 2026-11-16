@@ -37,6 +37,14 @@
 #define LOX_STACK_RESERVE_BYTES (128ull * 1024ull * 1024ull)
 #endif
 
+/* Stack trace (ADR-0089): mesmos números de `execution/limits.py`, via driver. */
+#ifndef LOX_TRACE_HEAD
+#define LOX_TRACE_HEAD 5
+#endif
+#ifndef LOX_TRACE_TAIL
+#define LOX_TRACE_TAIL 5
+#endif
+
 static void *lox_oom(size_t size);
 static void lox_reserve_stack(void);
 
@@ -81,23 +89,101 @@ static LoxStr *string_from_bytes(const char *data, size_t length,
                                  int64_t code_points);
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message);
+static void lox_panic_at(const char *file, int32_t line, int32_t column,
+                         const char *code, const char *message);
+static void lox_print_frames(int64_t depth);
 
 /*
  * Pilha de chamadas (ADR-0077): o contador é o contrato; a reserva de SO é
  * orçamento interno para frames gordos. Chamadas nativas não entram no contador.
+ *
+ * ADR-0089: o mesmo array carrega o stack trace. `file` é a função atual (cabeçalho
+ * de panic); `call_*` é onde ela foi chamada (linha do frame). O call site chega
+ * pelos globais abaixo, gravados pelo lowering imediatamente antes da chamada.
  */
+typedef struct {
+    const char *name;
+    const char *file;
+    const char *call_file;
+    int32_t call_line;
+    int32_t call_column;
+} LoxFrame;
+
+static LoxFrame lox_frames[LOX_MAX_CALL_DEPTH];
 static int64_t lox_call_depth = 0;
 
-void lox_stack_enter(void) {
-    if (lox_call_depth >= LOX_MAX_CALL_DEPTH) {
-        lox_panic(0, 0, "R1015", "Stack overflow.");
+const char *lox_call_file = NULL;
+int32_t lox_call_line = 0;
+int32_t lox_call_column = 0;
+
+static const char *lox_current_file(void) {
+    if (lox_call_depth <= 0) {
+        return lox_source_path;
     }
+    return lox_frames[lox_call_depth - 1].file;
+}
+
+void lox_stack_enter(const char *name, const char *file, int32_t decl_line,
+                     int32_t decl_column) {
+    if (lox_call_depth >= LOX_MAX_CALL_DEPTH) {
+        lox_panic_at(file != NULL ? file : lox_source_path, decl_line,
+                     decl_column, "R1015", "Stack overflow.");
+        return;
+    }
+    LoxFrame *frame = &lox_frames[lox_call_depth];
+    frame->name = name != NULL ? name : "<fn>";
+    frame->file = file != NULL ? file : lox_source_path;
+    frame->call_file = lox_call_file != NULL ? lox_call_file : frame->file;
+    frame->call_line = lox_call_line;
+    frame->call_column = lox_call_column;
     lox_call_depth += 1;
 }
 
 void lox_stack_leave(void) {
     if (lox_call_depth > 0) {
         lox_call_depth -= 1;
+    }
+}
+
+/* Devolve o call site do frame atual (ctor → init após inicializadores). */
+void lox_call_site_restore(void) {
+    if (lox_call_depth <= 0) {
+        return;
+    }
+    const LoxFrame *frame = &lox_frames[lox_call_depth - 1];
+    lox_call_file = frame->call_file;
+    lox_call_line = frame->call_line;
+    lox_call_column = frame->call_column;
+}
+
+static void lox_print_frame(const LoxFrame *frame) {
+    fprintf(stderr, "  at %s (%s:%" PRId32 ":%" PRId32 ")\n", frame->name,
+            frame->call_file, frame->call_line, frame->call_column);
+}
+
+static void lox_print_frames(int64_t depth) {
+    if (depth <= 0) {
+        return;
+    }
+
+    int64_t head = LOX_TRACE_HEAD;
+    int64_t tail = LOX_TRACE_TAIL;
+    int64_t show_head = depth < head ? depth : head;
+    int64_t show_tail = 0;
+    int64_t omitted = 0;
+    if (depth > head + tail) {
+        omitted = depth - head - tail;
+        show_tail = tail;
+    }
+
+    for (int64_t index = 0; index < show_head; index++) {
+        lox_print_frame(&lox_frames[depth - 1 - index]);
+    }
+    if (omitted > 0) {
+        fprintf(stderr, "  ... %" PRId64 " frames omitted\n", omitted);
+    }
+    for (int64_t index = show_tail; index > 0; index--) {
+        lox_print_frame(&lox_frames[index - 1]);
     }
 }
 
@@ -1409,8 +1495,10 @@ typedef struct {
     void *instance;
     const char *message;
     const char *code; /* R1xxx quando o throw veio de um panic; NULL em exceção de usuário */
+    const char *file; /* origem do throw (ADR-0089; módulo no cabeçalho) */
     int32_t line;
     int32_t column;
+    int64_t trace_depth; /* frames vivos no throw: o unwinding não os apaga */
 } LoxException;
 
 typedef struct LoxTryFrame {
@@ -1432,8 +1520,10 @@ void *lox_try_push(void) {
     frame->exception.instance = NULL;
     frame->exception.message = NULL;
     frame->exception.code = NULL;
+    frame->exception.file = NULL;
     frame->exception.line = 0;
     frame->exception.column = 0;
+    frame->exception.trace_depth = 0;
     lox_current_try = frame;
     return frame;
 }
@@ -1490,12 +1580,14 @@ int32_t lox_exception_matches(const void *pointer, const char *type_name) {
     return strcmp(type_name, "Exception") == 0;
 }
 
-static void lox_print_prefix(int32_t line, int32_t column, const char *code) {
+static void lox_print_prefix_at(const char *file, int32_t line, int32_t column,
+                                const char *code) {
+    const char *origin = file != NULL ? file : lox_source_path;
     if (line > 0 && column > 0) {
-        fprintf(stderr, "%s:%" PRId32 ":%" PRId32 ": error[%s]: ",
-                lox_source_path, line, column, code);
+        fprintf(stderr, "%s:%" PRId32 ":%" PRId32 ": error[%s]: ", origin, line,
+                column, code);
     } else if (line > 0) {
-        fprintf(stderr, "%s:%" PRId32 ": error[%s]: ", lox_source_path, line, code);
+        fprintf(stderr, "%s:%" PRId32 ": error[%s]: ", origin, line, code);
     } else {
         fprintf(stderr, "error[%s]: ", code);
     }
@@ -1505,18 +1597,22 @@ static void lox_print_prefix(int32_t line, int32_t column, const char *code) {
  * `code != NULL` marca um panic de runtime convertido em exceção para um `try`.
  * Se ele não for capturado, o topo imprime o código original (ex.: R1015), como o
  * tree-walk; sem `code`, é uma exceção de usuário (R1010 unhandled).
+ *
+ * `file`/`trace_depth` são os do ponto do throw: o longjmp desempilha os frames, mas
+ * os do array continuam válidos para o trace (ADR-0089).
  */
-static void lox_throw_internal(const char *code, void *instance,
-                               const char *type_name, const char *message,
-                               int32_t line, int32_t column) {
+static void lox_throw_internal_at(const char *file, const char *code,
+                                  void *instance, const char *type_name,
+                                  const char *message, int32_t line,
+                                  int32_t column, int64_t trace_depth) {
     LoxTryFrame *frame = lox_current_try;
     if (frame == NULL) {
         fflush(stdout);
         if (code != NULL) {
-            lox_print_prefix(line, column, code);
+            lox_print_prefix_at(file, line, column, code);
             fprintf(stderr, "%s\n", message);
         } else {
-            lox_print_prefix(line, column, "R1010");
+            lox_print_prefix_at(file, line, column, "R1010");
             if (message != NULL) {
                 fprintf(stderr, "Unhandled exception: %s: %s\n", type_name,
                         message);
@@ -1524,6 +1620,7 @@ static void lox_throw_internal(const char *code, void *instance,
                 fprintf(stderr, "Unhandled exception: %s\n", type_name);
             }
         }
+        lox_print_frames(trace_depth);
         fflush(stderr);
         exit(70);
     }
@@ -1531,9 +1628,18 @@ static void lox_throw_internal(const char *code, void *instance,
     frame->exception.instance = instance;
     frame->exception.message = message;
     frame->exception.code = code;
+    frame->exception.file = file;
     frame->exception.line = line;
     frame->exception.column = column;
+    frame->exception.trace_depth = trace_depth;
     longjmp(frame->env, 1);
+}
+
+static void lox_throw_internal(const char *code, void *instance,
+                               const char *type_name, const char *message,
+                               int32_t line, int32_t column) {
+    lox_throw_internal_at(lox_current_file(), code, instance, type_name, message,
+                          line, column, lox_call_depth);
 }
 
 void lox_throw(void *instance, const char *type_name, const char *message,
@@ -1543,12 +1649,17 @@ void lox_throw(void *instance, const char *type_name, const char *message,
 
 void lox_rethrow(void *exception_pointer, int32_t line, int32_t column) {
     LoxException *exception = exception_pointer;
+    const char *file = lox_current_file();
+    int64_t trace_depth = lox_call_depth;
     if (exception->code != NULL) {
         line = exception->line;
         column = exception->column;
+        file = exception->file;
+        trace_depth = exception->trace_depth;
     }
-    lox_throw_internal(exception->code, exception->instance,
-                       exception->type_name, exception->message, line, column);
+    lox_throw_internal_at(file, exception->code, exception->instance,
+                          exception->type_name, exception->message, line,
+                          column, trace_depth);
 }
 
 void lox_raise_current(int32_t line, int32_t column) {
@@ -1557,21 +1668,29 @@ void lox_raise_current(int32_t line, int32_t column) {
         lox_panic(line, column, "R1014", "No exception to re-raise.");
     }
     /* `raise;` reemite como exceção de usuário; o código do panic não sobrevive. */
-    lox_throw_internal(NULL, frame->exception.instance,
-                       frame->exception.type_name, frame->exception.message,
-                       line, column);
+    lox_throw_internal_at(lox_current_file(), NULL, frame->exception.instance,
+                          frame->exception.type_name,
+                          frame->exception.message, line, column,
+                          lox_call_depth);
+}
+
+static void lox_panic_at(const char *file, int32_t line, int32_t column,
+                         const char *code, const char *message) {
+    if (lox_current_try != NULL) {
+        lox_throw_internal_at(file, code, NULL, "RuntimeError", message, line,
+                              column, lox_call_depth);
+    }
+    fflush(stdout);
+    lox_print_prefix_at(file, line, column, code);
+    fprintf(stderr, "%s\n", message);
+    lox_print_frames(lox_call_depth);
+    fflush(stderr);
+    exit(70);
 }
 
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message) {
-    if (lox_current_try != NULL) {
-        lox_throw_internal(code, NULL, "RuntimeError", message, line, column);
-    }
-    fflush(stdout);
-    lox_print_prefix(line, column, code);
-    fprintf(stderr, "%s\n", message);
-    fflush(stderr);
-    exit(70);
+    lox_panic_at(lox_current_file(), line, column, code, message);
 }
 
 void lox_print_int(int64_t value) {

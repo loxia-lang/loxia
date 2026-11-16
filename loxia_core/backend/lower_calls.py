@@ -205,6 +205,7 @@ class CallLowering(LoweringBase):
             else self._storage_llvm_type(sig.ret),
             [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
+        self._set_call_site(expr.paren)
         call = self.builder.call(
             self.builder.bitcast(fnptr, function_type),
             [env, *[argument.llvm for argument in arguments]],
@@ -391,6 +392,7 @@ class CallLowering(LoweringBase):
             else self._storage_llvm_type(sig.ret),
             [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
+        self._set_call_site(expr.paren)
         call = self.builder.call(
             self.builder.bitcast(fnptr, function_type),
             [env, *[argument.llvm for argument in arguments]],
@@ -491,6 +493,7 @@ class CallLowering(LoweringBase):
         call_args = [argument.llvm for argument in arguments]
         if binding.layout_key is not None:
             call_args.insert(0, class_ptr.llvm)
+        self._set_call_site(expr.paren)
         call = self.builder.call(layout.ctor, call_args)
         return Value(ValueType.INSTANCE, call, class_name=name)
 

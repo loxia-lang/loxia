@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from loxia_core.diagnostics.errors import LoxRaise, LoxRuntimeError
 from loxia_core.execution.lox_function import LoxFunction
 from loxia_core.execution.lox_instance import LoxInstance
 
@@ -28,12 +29,15 @@ class LoxClass:
         methods: dict[str, LoxFunction],
         fields: dict[str, FieldInfo],
         interfaces: list[LoxInterface] | None = None,
+        *,
+        declaration: Token | None = None,
     ) -> None:
         self._name = name
         self._superclass = superclass
         self._methods = methods
         self._fields = fields
         self._interfaces = list(interfaces or [])
+        self._declaration = declaration
 
     @property
     def name(self) -> str:
@@ -117,23 +121,27 @@ class LoxClass:
         return initializer.max_arity()
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
-        interpreter._enter_call()
+        interpreter._enter_call(self._name, self._declaration)
         try:
-            instance = LoxInstance(self)
+            try:
+                instance = LoxInstance(self)
 
-            for field in self._fields.values():
-                if field.initializer is not None:
-                    instance.initialize(
-                        field, interpreter.evaluate(field.initializer)
-                    )
+                for field in self._fields.values():
+                    if field.initializer is not None:
+                        instance.initialize(
+                            field, interpreter.evaluate(field.initializer)
+                        )
 
-            initializer = self.find_method("init")
-            if initializer is not None:
-                initializer.bind(instance).call(interpreter, arguments)
+                initializer = self.find_method("init")
+                if initializer is not None:
+                    initializer.bind(instance).call(interpreter, arguments)
 
-            instance.assert_initialized()
+                instance.assert_initialized()
 
-            return instance
+                return instance
+            except (LoxRuntimeError, LoxRaise) as error:
+                interpreter._capture_trace(error)
+                raise
         finally:
             interpreter._leave_call()
 

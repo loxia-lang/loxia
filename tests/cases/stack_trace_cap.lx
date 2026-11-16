@@ -1,0 +1,15 @@
+# ADR-0089: acima de 10 frames, mostra os 5 mais internos e os 5 mais externos.
+fn f1() -> Int { return 1 // 0 }
+fn f2() -> Int { return f1() }
+fn f3() -> Int { return f2() }
+fn f4() -> Int { return f3() }
+fn f5() -> Int { return f4() }
+fn f6() -> Int { return f5() }
+fn f7() -> Int { return f6() }
+fn f8() -> Int { return f7() }
+fn f9() -> Int { return f8() }
+fn f10() -> Int { return f9() }
+fn f11() -> Int { return f10() }
+fn f12() -> Int { return f11() }
+print(f12())
+# expect runtime error: Division by zero not allowed

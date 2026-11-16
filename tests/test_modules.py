@@ -274,9 +274,8 @@ def test_rewriter_preserva_posicao_do_token(tmp_path: Path) -> None:
     assert argument.name.offset > 0
 
 
-def test_erro_de_runtime_ainda_usa_o_arquivo_da_entrada(tmp_path: Path) -> None:
-    """Limite declarado até o frame stack nativo (TODO §3.1): o binário só embute o
-    `source_path` do build, então o tree-walk mantém o mesmo arquivo para o I1."""
+def test_erro_de_runtime_aponta_o_modulo_e_o_frame(tmp_path: Path) -> None:
+    """ADR-0089: o runtime também usa o arquivo do módulo e mostra o call site."""
     (tmp_path / "mod.lx").write_text(
         "fn f(x: Int) -> Int {\n  return x // 0\n}\n", encoding="utf-8"
     )
@@ -286,4 +285,5 @@ def test_erro_de_runtime_ainda_usa_o_arquivo_da_entrada(tmp_path: Path) -> None:
     result = _run(main)
 
     assert result.returncode == 70
-    assert "main.lx:2:12: error[R1002]: Division by zero not allowed" in result.stderr
+    assert "mod.lx:2:12: error[R1002]: Division by zero not allowed" in result.stderr
+    assert "  at f (main.lx:3:14)\n" in result.stderr

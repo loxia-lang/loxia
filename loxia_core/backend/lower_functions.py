@@ -117,6 +117,10 @@ class FunctionLowering(LoweringBase):
             this_class=this_class,
             this_interface=this_interface,
             is_init=is_init,
+            trace_name=stmt.display_name or stmt.name.lexeme,
+            decl_file=stmt.name.file,
+            decl_line=stmt.name.line,
+            decl_column=stmt.name.column,
         )
 
     def _param_desc(self, param: Param) -> TypeDesc:
@@ -227,7 +231,15 @@ class FunctionLowering(LoweringBase):
             result,
             [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
-        return FunctionInfo(signature, expr.params, sig)
+        return FunctionInfo(
+            signature,
+            expr.params,
+            sig,
+            trace_name="<lambda>",
+            decl_file=expr.keyword.file,
+            decl_line=expr.keyword.line,
+            decl_column=expr.keyword.column,
+        )
 
     def _make_captures(self, node: Function | Lambda) -> tuple[CaptureBinding, ...]:
         result: list[CaptureBinding] = []
@@ -311,7 +323,7 @@ class FunctionLowering(LoweringBase):
         self._captures = {}
         self._cleanup_stack = []
         self.builder = llvm_ir.builder(llvm_ir.block_of(info.ir, "entry"))
-        self._stack_enter()
+        self._stack_enter(info)
 
         env_arg = info.ir.args[0]
         if captures:

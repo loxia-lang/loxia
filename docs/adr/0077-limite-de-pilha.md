@@ -4,6 +4,11 @@
 > `LoxRuntimeError` passou a se chamar `RuntimeError`. **Revisado em 2026-11-15** para o
 > contrato de 10.000 chamadas / 64 MiB; a medição original confundia o limite de frames
 > do Python com a pilha C (ver §"Medições").
+>
+> **Atualizado por** [ADR-0089](0089-stack-trace-de-runtime.md): `R1015` ganhou a posição
+> da declaração do chamado e todo erro de runtime não capturado imprime stack trace. O
+> limite 10.000/64 MiB e o caráter catchable **não** mudaram; só a ABI de
+> `lox_stack_enter` (agora com nome, arquivo e posição) e o cabeçalho do erro.
 
 - **Status:** accepted (implementado)
 - **Data:** 2026-11-15
@@ -80,6 +85,10 @@ contrato (ADR novo + `garantias.md` + corpus).
   `line = 0` e o renderizador imprime `error[R1015]: Stack overflow.` sem localização.
   Stack trace com frames continua trabalho separado (TODO §3.1).
 - O formato é idêntico ao `lox_panic(0, 0, "R1015", ...)` do binário, preservando o I1.
+
+> **Nota (ADR-0089, 2026-11-15):** os dois bullets acima foram revisados. `R1015` agora
+> aponta a declaração do chamado e traz o trace; o formato continua idêntico nos dois
+> motores. O restante desta decisão (limite, contagem de ativações, unwinding) vale.
 
 ### 3. Tree-walk: contador nas ativações e orçamento de recursão do Python
 

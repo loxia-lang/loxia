@@ -1,4 +1,5 @@
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import Trace
 from loxia_core.frontend.tokens import Token
 
 
@@ -26,6 +27,9 @@ class LoxRuntimeError(Exception):
         self.token = token
         self.message = message
         self.code = code
+        # Capturado no ponto mais interno (antes do `finally` desempilhar), não no
+        # topo: os frames ativos somem durante o unwinding.
+        self.trace: Trace | None = None
 
 
 class LoxRaise(Exception):
@@ -35,6 +39,7 @@ class LoxRaise(Exception):
         super().__init__("raise")
         self.token = token
         self.value = value
+        self.trace: Trace | None = None
 
 
 class NativeError(Exception):
