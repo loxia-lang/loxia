@@ -679,3 +679,20 @@ tudo é **plano** (implementação pendente), então nenhuma página de `docs/sp
 
 
 <!-- triaged: 3cacb66 -->
+
+## 2026-11-16 — CLI agent-friendly (core), warnings e C0001
+
+Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0093: subcomandos
+aditivos, `capabilities`/`explain`, `--json`/`--json-lines`, `--stdin`, `--timeout`
+(`C0001`/124), `--watch` restrito a `check` e `W1001`/`-Werror`. `fixes[]`, `W1002`,
+`fmt`, `doc` e `lsp` continuam pendentes.
+
+- `loxia/cli.py` — **updated**: subcomandos, JSONL, timeout, watch, stdin, warnings.
+- `loxia_core/diagnostics/codes.py` — **updated**: `C0001`, `W1001`.
+- `loxia_core/diagnostics/error_reporter.py` — **updated**: `warning`/`werror`.
+- `loxia_core/semantics/resolver.py` — **updated**: local não lido.
+- `loxia_core/diagnostics/render.py` — **updated**: `diagnostic_json` público.
+- `docs/spec/erros.md` — **updated**: fases CLI, warnings e `--json-lines`/timeout.
+- `README.md`, `docs/tech/arquitetura.md`, `CHANGELOG.md`, `TODO.md`,
+  `docs/adr/0093`, `docs/adr/README.md`, `docs/decisoes.md` — **updated**: contrato e status.
+- `tests/test_cli.py`, `tests/test_docs_consistency.py` — **updated**: cobertura nova.

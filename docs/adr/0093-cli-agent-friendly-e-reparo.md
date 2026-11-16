@@ -1,6 +1,11 @@
 # ADR-0093 — CLI agent-friendly: subcomandos, JSONL/watch, timeout, warnings e reparo
 
-- **Status:** accepted (plano; implementação pendente)
+> **Implementação parcial (2026-11-16):** subcomandos `run`/`check`/`build`/`ast`/`explain`/`capabilities`;
+> `--json`/`--json-lines`; `--stdin`; `--timeout` (`C0001`, exit 124); `--watch` restrito a
+> `check`; warning `W1001` + `-Werror`. Pendentes: `W1002` (import não usado), produtores
+> de `fixes[]`/`lox fix`, `fmt`, `doc` e `lsp`.
+
+- **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0075](0075-diagnosticos-estruturados.md) (diagnóstico e JSON),
@@ -9,10 +14,11 @@
   (`lox doc`), [ADR-0092](0092-estilo-e-formatter.md) (`lox fmt`),
   [`../../IDEIAS.md`](../../IDEIAS.md) I-4, [`../../TODO.md`](../../TODO.md) §6.9, §7,
   §14.3 e §14.7
-- **Implementação (a criar):** `loxia/cli.py` (subcomandos, flags, timeout, watch, JSONL),
-  `loxia_core/diagnostics/codes.py` (`C0001`, `W1001`/`W1002`), `ErrorReporter` (warning/
-  `-Werror`), `loxia/fix.py` (`lox fix`, depois), `tests/test_cli.py` e transcrições de
-  JSONL/watch. Nada implementado neste ADR.
+- **Implementação:** `loxia/cli.py` (subcomandos, flags, timeout, watch, JSONL),
+  `loxia_core/diagnostics/codes.py` (`C0001`, `W1001`), `ErrorReporter.warning`/`werror`,
+  `Resolver` (local não lido), `docs/_hooks/codes.py` e `docs/spec/erros.md`; testes em
+  `tests/test_cli.py` e `tests/test_docs_consistency.py`. Pendentes: `lox fix`, `fmt`,
+  `doc`, `lsp` e `W1002`.
 
 ## Contexto
 

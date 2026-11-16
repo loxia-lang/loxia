@@ -127,9 +127,31 @@ make bench-native              # benchmarks do binário nativo (speedup vs basel
 # resultados e metodologia: bench/README.md
 ```
 
+### Subcomandos
+
+As flags antigas continuam valendo; os subcomandos são aliases explícitos:
+
+```bash
+uv run main.py run prog.lx                 # executa
+uv run main.py check prog.lx               # checa (como --check)
+uv run main.py build prog.lx --emit=exe -o app
+uv run main.py ast prog.lx                 # como --dump-ast
+uv run main.py explain E2001               # família do código
+uv run main.py capabilities --json         # versão, comandos, códigos e limites
+```
+
+`--json` é alias de `--error-format=json`; `--json-lines` emite um objeto por linha
+(`start`, `diagnostic`, `summary`) para agentes, com `revision` determinística e sem
+timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibido e a raiz
+de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
+para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
+`--no-progress` é aceito e hoje é no-op. `-Werror` transforma warnings em erros (só
+`check`/`build`; `run` nunca emite warnings).
+
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,
-`2` uso inválido (ex.: `--dump-ast` sem script). O binário gerado por `--emit=exe` segue o
-mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo stderr.
+`2` uso inválido, `124` timeout, `130` `--watch` interrompido. O binário gerado por
+`--emit=exe` segue o mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo
+stderr.
 
 ### Diagnósticos
 
@@ -147,6 +169,10 @@ uv run main.py --check --error-format=json prog.lx   # envelope JSON v1 (stdout)
 uv run main.py --error-format=json prog.lx           # diagnósticos JSON (stderr)
 uv run main.py --color=never prog.lx                 # sem ANSI (também respeita NO_COLOR)
 uv run main.py --max-errors=5 prog.lx                # limita (0 = sem limite)
+uv run main.py check --json-lines prog.lx            # stream para agente
+uv run main.py check --watch --json-lines prog.lx    # recheca a cada mudança
+uv run main.py check -Werror prog.lx                 # warning vira erro
+uv run main.py run --stdin --file-name prog.lx < prog.lx
 ```
 
 `--error-format=human` (padrão) mostra o trecho; `short` é o cabeçalho; `json` traz

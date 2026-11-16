@@ -260,8 +260,12 @@ def test_faixa_do_codigo_bate_com_a_fase() -> None:
         Phase.CHECKER: "E3",
         Phase.BACKEND: "E4",
         Phase.RUNTIME: "R1",
+        Phase.CLI: "C0",
     }
 
     for code, phase in CODE_PHASE.items():
+        if code.value.startswith("W"):
+            assert phase is Phase.RESOLVER, (code, phase)
+            continue
         assert code.value.startswith(expected_prefix[phase]), (code, phase)
         assert 0 <= len(code.value) <= 5

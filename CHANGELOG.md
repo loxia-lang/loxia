@@ -7,6 +7,13 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **CLI agent-friendly (core)** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
+  subcomandos `run`/`check`/`build`/`ast`/`explain`/`capabilities` (flags antigas
+  preservadas), `--json`/`--json-lines` (`start`/`diagnostic`/`summary`), `--stdin` +
+  `--file-name`, `--timeout` em `run`/`check` (exit `124` + `C0001`), `--watch` restrito a
+  `check` e `-Werror`/`W1001` (local não lido) em `check`/`build`, nunca em `run`.
+  `capabilities --json` publica versão, comandos, códigos e limites; `explain <code>`
+  consulta o catálogo. `fixes[]`/`lox fix`, `W1002`, `fmt`, `doc` e `lsp` ficam pendentes.
 - **Diagnósticos com labels e sugestão**: `E2001`/`E2002` apontam a declaração anterior
   (`- first declared here`) e `E3003` ganha `help: did you mean '…'?` com candidatos
   visíveis ordenados. `human` renderiza o segundo trecho, `note:` e `help:`; `short`

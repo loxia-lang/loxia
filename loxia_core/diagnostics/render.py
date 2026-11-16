@@ -250,7 +250,7 @@ def _trace_json(trace: Trace | None) -> dict[str, object] | None:
     }
 
 
-def _diagnostic_json(diagnostic: Diagnostic) -> dict[str, object]:
+def diagnostic_json(diagnostic: Diagnostic) -> dict[str, object]:
     return {
         "code": diagnostic.code.value,
         "phase": diagnostic.phase.value,
@@ -284,7 +284,7 @@ def render_json(
         "success": success,
         "exit_code": exit_code,
         "diagnostics": [
-            _diagnostic_json(item) for item in batch.diagnostics
+            diagnostic_json(item) for item in batch.diagnostics
         ],
         "summary": {
             "errors": batch.errors,

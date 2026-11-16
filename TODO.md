@@ -21,15 +21,15 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ## 0. Fila única
 
 Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-15: **L0–L6, L7, M7, T1 e T2 concluídos**; kernel
+vale o que está aqui. Estado em 2026-11-16: **L0–L6, L7, M7, T1 e T2 concluídos**; kernel
 v1 (17 primitivas), tabela de primitivas, imports/módulos e a stdlib comum implementados.
 Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
 ([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; diagnósticos
 também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
-[ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). A próxima execução é o **pacote de
-ecossistema** (§0.2): CLI agent-friendly, docs/estilo/formatter e LSP, definidos nos
-[ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md) a
-[ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md). O status por nível é **gerado**
+[ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
+também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)); a
+próxima execução é **docs/estilo/formatter** e **LSP** (§0.2), com `fixes[]`/`W1002`
+pendentes. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -55,10 +55,11 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
        (default 512 MiB + `--max-heap` de build).
 5. [x] **Diagnósticos**: fonte de módulo no checker e stack trace de runtime (frames +
        `R1015` com posição) implementados ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
-6. [ ] **CLI agent-friendly + warnings** (`P1`): subcomandos aditivos,
+6. [x] **CLI agent-friendly (core)** (`P1`): subcomandos aditivos,
        `capabilities`/`explain`, `--stdin`, `--timeout` (124 + `C0001`), JSONL/`--watch`
-       restrito a `check`, warnings `W1xxx` + `-Werror` e protocolo de reparo
+       restrito a `check` e warnings `W1001` + `-Werror`
        ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+       - [ ] `fixes[]` + `lox fix` (schema/loop definidos; produtores pendentes) e `W1002`.
 7. [ ] **Docs e estilo** (`P1`/`P2`, pode andar em paralelo): doc comments `///`, `lox doc`
        Markdown/JSON, guia de estilo e formatter Python
        ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md),
@@ -94,13 +95,13 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 - [ ] **`fixes[]`** (`P2`): `applicability` + `edits[]` por span; o schema e o loop de
       reparo estão definidos no [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md),
       mas **nenhum produtor** existe; só entra edição confiável.
-- [ ] **`lox explain <code>`** e **`lox capabilities --json`** (`P1`): dependem dos
-      subcomandos ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] **`--json-lines`** e `--timeout` (`P1`): contrato no
-      [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md); `--watch` restrito a
-      `check`.
-- [ ] **Warnings** e `-Werror` (`P1`): o modelo tem `severity`, mas nenhum produtor ainda;
-      família mínima e política no [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md).
+- [x] **`lox explain <code>`** e **`lox capabilities --json`**: implementados
+      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [x] **`--json-lines`** e `--timeout` (`P1`): implementados; `--watch` restrito a
+      `check` ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [x] **Warnings** e `-Werror`: `W1001` (local não lido) em `check`/`build`, nunca em
+      `run`; `W1002` (import não usado) fica pendente
+      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] **LSP** (`P2`): reusar o mesmo `Diagnostic` em `textDocument/publishDiagnostics`;
       fases, hospedagem e mapeamento no [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md).
 
@@ -156,11 +157,14 @@ uv run pytest tests/test_backend.py -q
 ## 7. Tooling e qualidade
 
 - [x] `P2` testes diferenciais interpretador × LLVM no corpus anotado (`LEVELS`; PENDING 0).
-- [ ] `P1` CLI agent-friendly: subcomandos + `capabilities`/`explain`, `--stdin`,
-      `--timeout`, `--json` e `--json-lines`/`--watch` (restrito a `check`), sem prompt
-      interativo e exit codes estáveis ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] `P1` warnings: família mínima (local/import não usado) em `check`/`build`, `-Werror`,
-      nunca em `run` ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [x] `P1` CLI agent-friendly: subcomandos + `capabilities`/`explain`, `--stdin`,
+      `--timeout`, `--json` e `--json-lines`/`--watch` (restrito a `check`), exit codes
+      estáveis ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [x] `P1` warnings: `W1001` (local não lido) em `check`/`build`, `-Werror`, nunca em
+      `run`; `W1002` (import não usado) pendente
+      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] `P2` `fixes[]` + `lox fix`: produtores confiáveis e aplicação atômica
+      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] `P1` `lox doc`: doc comments `///` + geração Markdown/JSON e docs da stdlib/builtins
       ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
 - [ ] `P1` `lox fmt`: formatter Python idempotente, `--check`, depois dogfood em Lox após a

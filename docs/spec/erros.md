@@ -39,17 +39,24 @@ exemplo.lx:3:7: error[E2001]: Already a variable with this name in this scope.
 | resolver | `arquivo:linha:col: error[E2xxx]: mensagem` + caret | 65 |
 | checker (`--check`) | `arquivo:linha:col: error[E3xxx]: mensagem` + caret | 65 |
 | backend | `arquivo:linha: error[E4xxx]: mensagem` (sem coluna/caret) | 65 |
+| runtime | `arquivo:linha:col: error[R1xxx]: mensagem` (sem caret) | 70 |
+| CLI/timeout | `error[C0001]: mensagem` (sem localização) | 124 |
+| arquivo ausente | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |
 
 Erros internos do backend (`E4002`) são prefixados com `internal lowering error:` ou
 `internal error:`; `E4001` é reservado para lacunas declaradas (`... is not supported by
 the backend yet.`). Falhas do compilador C são sanitizadas para não vazar caminhos
 temporários.
-| runtime | `arquivo:linha:col: error[R1xxx]: mensagem` (sem caret) | 70 |
-| arquivo ausente | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |
 
 - `human` (padrão) mostra cabeçalho + trecho; `short` mostra só o cabeçalho; `json` mostra
-  o envelope v1. Flags: `--error-format=human|short|json`, `--color=auto|always|never`
-  (respeita `NO_COLOR`) e `--max-errors N` (default 20; `0` = ilimitado).
+  o envelope v1; `--json-lines` emite `start`/`diagnostic`/`summary` por linha. Flags:
+  `--error-format=human|short|json`, `--json`, `--color=auto|always|never` (respeita
+  `NO_COLOR`) e `--max-errors N` (default 20; `0` = ilimitado).
+- **Warnings** (`W1xxx`, hoje `W1001` local nunca lido) têm `severity: warning`, exit 0 e
+  aparecem no `summary`; `-Werror` os transforma em erro (exit 65) só em `check`/`build`.
+  `run` não emite warnings para preservar o I1 (o binário não os tem).
+- `--timeout=MS` vale para `run`/`check`; o estouro é `C0001` + exit 124. `--watch` só em
+  `check`; mudanças reemitem diagnósticos com `revision` incremental.
 - Erros de compilação vão para **stderr** (JSON de `check` vai para stdout). Em `run`, o
   stdout é do programa; em `build --emit=ll`, o stdout é do IR — por isso o JSON desses
   comandos fica em stderr.
@@ -229,6 +236,7 @@ partir de `loxia_core/diagnostics/codes.py` (`make codes`); não edite à mão.
 | `E2007` | conflito de campo (duplicado ou com método) |
 | `E2008` | leitura de local no próprio inicializador |
 | `E2009` | atribuição a campo `val` |
+| `W1001` | local declarado e nunca lido (warning) |
 
 ### Checker
 
@@ -283,6 +291,12 @@ partir de `loxia_core/diagnostics/codes.py` (`make codes`); não edite à mão.
 | `R1013` | campo não inicializado |
 | `R1014` | valor inválido (chave de mapa, superclasse, …) |
 | `R1015` | profundidade de chamadas acima do limite |
+
+### CLI
+
+| Código | Família |
+| --- | --- |
+| `C0001` | tempo limite de execução excedido |
 
 <!-- codes:end -->
 

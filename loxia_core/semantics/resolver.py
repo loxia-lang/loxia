@@ -79,14 +79,24 @@ class _VariableInfo:
     defined: bool
     mutable: bool
     declaration: Token | None = None
+    used: bool = False
+    parameter: bool = False
+    warn: bool = True
 
 
 class Resolver(ExprVisitor[None], StmtVisitor[None]):
     """Resolve escopos léxicos e grava no interpretador a distância de cada variável."""
 
-    def __init__(self, interpreter: Interpreter, reporter: ErrorReporter) -> None:
+    def __init__(
+        self,
+        interpreter: Interpreter,
+        reporter: ErrorReporter,
+        *,
+        warn_unused: bool = True,
+    ) -> None:
         self._interpreter = interpreter
         self._reporter = reporter
+        self._warn_unused = warn_unused
         self._scopes: list[dict[str, _VariableInfo]] = []
         self._current_function: FunctionType = FunctionType.NONE
         self._current_class: ClassType = ClassType.NONE
@@ -110,9 +120,31 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._scopes.append({})
 
     def _end_scope(self) -> None:
-        self._scopes.pop()
+        scope = self._scopes.pop()
+        if not self._warn_unused or self._reporter.had_error:
+            return
+        for name, info in scope.items():
+            if (
+                info.warn
+                and not info.used
+                and not info.parameter
+                and not name.startswith("_")
+                and info.declaration is not None
+            ):
+                self._reporter.warning(
+                    info.declaration,
+                    f"Local '{name}' is never used.",
+                    code=Code.UNUSED_LOCAL,
+                )
 
-    def _declare(self, name: Token, mutable: bool) -> None:
+    def _declare(
+        self,
+        name: Token,
+        mutable: bool,
+        *,
+        parameter: bool = False,
+        warn: bool = True,
+    ) -> None:
         if not self._scopes:
             return
 
@@ -131,7 +163,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             )
 
         scope[name.lexeme] = _VariableInfo(
-            defined=False, mutable=mutable, declaration=name
+            defined=False,
+            mutable=mutable,
+            declaration=name,
+            parameter=parameter,
+            warn=warn,
         )
 
     def _define(self, name: Token) -> None:
@@ -141,12 +177,14 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._scopes[-1][name.lexeme].defined = True
 
     def _resolve_local(
-        self, expr: Expr, name: Token
+        self, expr: Expr, name: Token, *, read: bool = True
     ) -> tuple[_VariableInfo, int] | None:
         for i in range(len(self._scopes) - 1, -1, -1):
             info = self._scopes[i].get(name.lexeme)
             if info is not None:
                 self._interpreter.resolve(expr, len(self._scopes) - 1 - i)
+                if read:
+                    info.used = True
                 return info, i
 
         return None
@@ -161,7 +199,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._function_starts.append(len(self._scopes) - 1)
         try:
             for param in function.params:
-                self._declare(param.name, param.mutable)
+                self._declare(param.name, param.mutable, parameter=True, warn=False)
                 self._define(param.name)
 
             self.resolve(function.body)
@@ -201,7 +239,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         if stmt.superclass is not None:
             self._begin_scope()
-            self._scopes[-1]["super"] = _VariableInfo(defined=True, mutable=False)
+            self._scopes[-1]["super"] = _VariableInfo(
+            defined=True, mutable=False, warn=False
+        )
 
         inherited: dict[str, bool] = {}
         if stmt.superclass is not None:
@@ -233,7 +273,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_fields = fields
 
         self._begin_scope()
-        self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False)
+        self._scopes[-1]["this"] = _VariableInfo(
+            defined=True, mutable=False, warn=False
+        )
 
         for method in stmt.methods:
             declaration = FunctionType.METHOD
@@ -279,7 +321,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_class = ClassType.INTERFACE
 
         self._begin_scope()
-        self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False)
+        self._scopes[-1]["this"] = _VariableInfo(
+            defined=True, mutable=False, warn=False
+        )
         for method in stmt.methods:
             if method.abstract:
                 continue
@@ -381,7 +425,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_assign_expr(self, expr: Assign) -> None:
         self._resolve_expr(expr.value)
-        resolved = self._resolve_local(expr, expr.name)
+        resolved = self._resolve_local(expr, expr.name, read=False)
         if resolved is not None:
             info, scope_index = resolved
             if not info.mutable:

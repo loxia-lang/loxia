@@ -331,3 +331,249 @@ def test_parse_heap_size_rejects_invalid_values() -> None:
         parse_heap_size("9G")
     with pytest.raises(argparse.ArgumentTypeError):
         parse_heap_size("muito")
+
+
+# -- subcomandos, agent-friendly e warnings (ADR-0093) --------------------
+
+
+def test_subcommand_run_executes(tmp_path: Path) -> None:
+    script = tmp_path / "run.lx"
+    script.write_text("print(1 + 2)\n", encoding="utf-8")
+
+    result = run_cli("run", str(script))
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "3"
+
+
+def test_subcommand_check_matches_legacy(tmp_path: Path) -> None:
+    script = tmp_path / "check.lx"
+    script.write_text('val x: Int = "a"\n', encoding="utf-8")
+
+    subcommand = run_cli("check", str(script))
+    legacy = run_cli("--check", str(script))
+
+    assert subcommand.returncode == legacy.returncode == 65
+    assert subcommand.stderr == legacy.stderr
+
+
+def test_subcommand_ast_matches_dump_ast(tmp_path: Path) -> None:
+    script = tmp_path / "ast.lx"
+    script.write_text("print(1 + 2)\n", encoding="utf-8")
+
+    subcommand = run_cli("ast", str(script))
+    legacy = run_cli("--dump-ast", str(script))
+
+    assert subcommand.returncode == legacy.returncode == 0
+    assert subcommand.stdout == legacy.stdout
+
+
+def test_subcommand_build_emits_ir(tmp_path: Path) -> None:
+    script = tmp_path / "build.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = run_cli("build", str(script), "--emit=ll")
+
+    assert result.returncode == 0
+    assert "ModuleID" in result.stdout
+
+
+def test_json_is_alias_of_error_format_json(tmp_path: Path) -> None:
+    script = tmp_path / "json.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = run_cli("check", str(script), "--json")
+
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["success"] is True
+
+
+def test_capabilities_json_is_deterministic() -> None:
+    first = run_cli("capabilities", "--json")
+    second = run_cli("capabilities", "--json")
+
+    assert first.returncode == second.returncode == 0
+    assert first.stdout == second.stdout
+    payload = json.loads(first.stdout)
+    assert payload["schema_version"] == 1
+    assert payload["program"] == "loxia"
+    assert {"C0001", "W1001"} <= {item["code"] for item in payload["codes"]}
+    assert payload["warnings"] == {"codes": ["W1001"], "werror": True}
+    assert payload["fixes"]["implemented"] is False
+
+
+def test_explain_known_and_unknown_code() -> None:
+    known = run_cli("explain", "E2001")
+    warning = run_cli("explain", "W1001")
+    unknown = run_cli("explain", "NOPE")
+
+    assert known.returncode == warning.returncode == 0
+    assert "E2001" in known.stdout
+    assert "warning" in warning.stdout or "W1001" in warning.stdout
+    assert unknown.returncode == 2
+
+
+def test_stdin_run_and_check_use_file_name(tmp_path: Path) -> None:
+    run_result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "run", "--stdin"],
+        cwd=ROOT,
+        input="print(40 + 2)\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    check_result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "check", "--stdin", "--file-name", "entrada.lx"],
+        cwd=ROOT,
+        input="print(1 + )\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert run_result.returncode == 0
+    assert run_result.stdout.strip() == "42"
+    assert check_result.returncode == 65
+    assert "entrada.lx:1:11" in check_result.stderr
+
+
+def test_json_lines_check_has_start_diagnostic_summary(tmp_path: Path) -> None:
+    script = tmp_path / "linhas.lx"
+    script.write_text("print(1 + )\n", encoding="utf-8")
+
+    result = run_cli("check", str(script), "--json-lines")
+
+    assert result.returncode == 65
+    events = [json.loads(line) for line in result.stdout.splitlines()]
+    assert [event["event"] for event in events] == [
+        "start",
+        "diagnostic",
+        "summary",
+    ]
+    assert events[1]["code"] == "E1001"
+    assert events[2]["revision"] == 0
+
+
+def test_json_lines_conflicts_with_error_format(tmp_path: Path) -> None:
+    script = tmp_path / "linhas.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = run_cli(
+        "check", str(script), "--json-lines", "--error-format=short"
+    )
+
+    assert result.returncode == 2
+
+
+def test_timeout_exits_124_with_c0001(tmp_path: Path) -> None:
+    script = tmp_path / "loop.lx"
+    script.write_text("while (true) {\n}\n", encoding="utf-8")
+
+    result = run_cli("run", str(script), "--timeout=50", "--json")
+
+    assert result.returncode == 124
+    payload = json.loads(result.stderr)
+    assert payload["exit_code"] == 124
+    assert payload["diagnostics"][0]["code"] == "C0001"
+
+
+def test_timeout_json_lines_emits_c0001(tmp_path: Path) -> None:
+    script = tmp_path / "loop.lx"
+    script.write_text("while (true) {\n}\n", encoding="utf-8")
+
+    result = run_cli("run", str(script), "--timeout=50", "--json-lines")
+
+    assert result.returncode == 124
+    events = [json.loads(line) for line in result.stderr.splitlines()]
+    assert [event["event"] for event in events] == [
+        "start",
+        "diagnostic",
+        "summary",
+    ]
+    assert events[1]["code"] == "C0001"
+
+
+def test_watch_is_restricted_to_check(tmp_path: Path) -> None:
+    script = tmp_path / "w.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    with_timeout = run_cli("check", str(script), "--watch", "--timeout=10")
+    run_watch = run_cli("run", str(script), "--watch")
+
+    assert with_timeout.returncode == 2
+    assert run_watch.returncode == 2
+
+
+def test_unused_local_warns_but_does_not_fail(tmp_path: Path) -> None:
+    script = tmp_path / "warn.lx"
+    script.write_text(
+        "fn f() -> Int {\n  val x = 1\n  return 2\n}\nprint(f())\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("check", str(script))
+
+    assert result.returncode == 0
+    assert "warning[W1001]" in result.stderr
+
+
+def test_werror_turns_warning_into_error(tmp_path: Path) -> None:
+    script = tmp_path / "warn.lx"
+    script.write_text(
+        "fn f() -> Int {\n  val x = 1\n  return 2\n}\nprint(f())\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("check", str(script), "-Werror")
+
+    assert result.returncode == 65
+    assert "error[W1001]" in result.stderr
+
+
+def test_run_never_emits_warnings(tmp_path: Path) -> None:
+    script = tmp_path / "warn.lx"
+    script.write_text(
+        "fn f() -> Int {\n  val x = 1\n  return 2\n}\nprint(f())\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("run", str(script))
+
+    assert result.returncode == 0
+    assert "W1001" not in result.stderr
+
+
+def test_watch_emits_initial_snapshot_and_can_be_stopped(tmp_path: Path) -> None:
+    script = tmp_path / "watch.lx"
+    script.write_text("print(1 + )\n", encoding="utf-8")
+
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "check",
+            str(script),
+            "--watch",
+            "--json-lines",
+        ],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert process.stdout is not None
+        events = [json.loads(process.stdout.readline()) for _ in range(3)]
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+
+    assert [event["event"] for event in events] == [
+        "start",
+        "diagnostic",
+        "summary",
+    ]
+    assert events[1]["code"] == "E1001"
+    assert events[2]["revision"] == 0

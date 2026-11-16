@@ -40,6 +40,7 @@ PHASES: tuple[Phase, ...] = (
     Phase.CHECKER,
     Phase.BACKEND,
     Phase.RUNTIME,
+    Phase.CLI,
 )
 
 HEADINGS = {
@@ -49,6 +50,7 @@ HEADINGS = {
     Phase.CHECKER: "### Checker",
     Phase.BACKEND: "### Backend",
     Phase.RUNTIME: "### Runtime",
+    Phase.CLI: "### CLI",
 }
 
 

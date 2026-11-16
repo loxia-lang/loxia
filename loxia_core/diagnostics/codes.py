@@ -14,6 +14,8 @@ Faixas:
 - `E3xxx` checker (`--check`)
 - `E4xxx` backend nativo
 - `R1xxx` runtime
+- `C0xxx` CLI/execução (ex.: timeout)
+- `W1xxx` warnings (não falham por padrão)
 """
 
 from __future__ import annotations
@@ -98,6 +100,12 @@ class Code(StrEnum):
     INVALID_VALUE = "R1014"
     RUNTIME_STACK_OVERFLOW = "R1015"
 
+    # CLI/execução
+    CLI_TIMEOUT = "C0001"
+
+    # Warnings
+    UNUSED_LOCAL = "W1001"
+
 
 CODE_PHASE: dict[Code, Phase] = {
     Code.UNEXPECTED_CHARACTER: Phase.LEXER,
@@ -162,6 +170,8 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.FIELD_NOT_INITIALIZED: Phase.RUNTIME,
     Code.INVALID_VALUE: Phase.RUNTIME,
     Code.RUNTIME_STACK_OVERFLOW: Phase.RUNTIME,
+    Code.CLI_TIMEOUT: Phase.CLI,
+    Code.UNUSED_LOCAL: Phase.RESOLVER,
 }
 
 
@@ -230,4 +240,6 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.FIELD_NOT_INITIALIZED: "campo não inicializado",
     Code.INVALID_VALUE: "valor inválido (chave de mapa, superclasse, …)",
     Code.RUNTIME_STACK_OVERFLOW: "profundidade de chamadas acima do limite",
+    Code.CLI_TIMEOUT: "tempo limite de execução excedido",
+    Code.UNUSED_LOCAL: "local declarado e nunca lido (warning)",
 }

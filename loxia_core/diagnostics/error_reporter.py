@@ -55,8 +55,11 @@ def _end_position(start: Position, lexeme: str) -> Position:
 
 
 class ErrorReporter:
-    def __init__(self, *, max_errors: int = 20) -> None:
+    def __init__(
+        self, *, max_errors: int = 20, werror: bool = False
+    ) -> None:
         self.max_errors = max_errors
+        self.werror = werror
         self.file: str = "<stdin>"
         self.had_error: bool = False
         self.had_fatal_error: bool = False
@@ -129,6 +132,43 @@ class ErrorReporter:
             help=help,
         )
 
+    def warning(
+        self,
+        target: Token | int,
+        message: str,
+        *,
+        code: Code,
+        notes: tuple[str, ...] = (),
+        help: str | None = None,
+        label_tokens: tuple[tuple[Token, str], ...] = (),
+    ) -> None:
+        """Registra um warning (ou erro, com `-Werror`); não falha por padrão."""
+        span = (
+            self._span_of_token(target)
+            if isinstance(target, Token)
+            else self._span_of_line(target)
+        )
+        labels = tuple(
+            Label(self._span_of_token(token), text)
+            for token, text in label_tokens
+        )
+        severity = Severity.ERROR if self.werror else Severity.WARNING
+        if self.werror:
+            self.had_error = True
+            self.had_fatal_error = True
+        self._diagnostics.append(
+            Diagnostic(
+                code=code,
+                phase=CODE_PHASE[code],
+                severity=severity,
+                message=message,
+                span=span,
+                labels=labels,
+                notes=notes,
+                help=help,
+            )
+        )
+
     def runtime_error(self, error: LoxRuntimeError) -> None:
         """Erro de runtime; o trace é capturado pelo interpretador no ponto mais interno."""
         self.had_runtime_error = True
@@ -163,6 +203,19 @@ class ErrorReporter:
                 severity=Severity.ERROR,
                 message=message,
                 span=span,
+            )
+        )
+
+    def cli_error(
+        self, message: str, *, code: Code = Code.CLI_TIMEOUT
+    ) -> None:
+        """Erro do comando (fase CLI), como timeout; não conta como erro de compilação."""
+        self._diagnostics.append(
+            Diagnostic(
+                code=code,
+                phase=Phase.CLI,
+                severity=Severity.ERROR,
+                message=message,
             )
         )
 
