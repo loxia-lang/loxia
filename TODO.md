@@ -102,9 +102,12 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-1
       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [ ] **`fixes[]`** (`P2`): `applicability` + `edits[]` por span; o schema e o loop de
-      reparo estão definidos no [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md),
-      mas **nenhum produtor** existe; só entra edição confiável.
+- [x] **modelo `Fix`/`Edit`/`fixes[]`** (`P2`): `applicability`, `edits[]` por span e
+      envelope JSON; sem produtores ainda ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] **produtores de fix confiáveis** (`P2`): análise completa e lotes em
+      [`docs/tech/fixes.md`](docs/tech/fixes.md). Ordem: W1001 literal (`safe`),
+      E3003 did-you-mean (`unsafe`), W1002 com pureza de módulo (`safe`), depois
+      E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`).
 - [x] **`lox explain <code>`** e **`lox capabilities --json`**: implementados
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [x] **`--json-lines`** e `--timeout` (`P1`): implementados; `--watch` restrito a
@@ -173,7 +176,12 @@ uv run pytest tests/test_backend.py -q
 - [x] `P1` warnings: `W1001` (local não lido) em `check`/`build`, `-Werror`, nunca em
       `run`; `W1002` (import não usado) pendente
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] `P2` `fixes[]` + `lox fix`: produtores confiáveis e aplicação atômica
+- [x] `P2` modelo `Fix`/`Edit`/`fixes[]` no diagnóstico e no JSON
+      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] `P2` produtores de fix: W1001 literal (`safe`), E3003 (`unsafe`), W1002 com pureza
+      (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`) — critérios e
+      perguntas em [`docs/tech/fixes.md`](docs/tech/fixes.md).
+- [ ] `P2` `lox fix`/LSP: aplicar só `safe`, dry-run/apply, codeAction para `unsafe`
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [x] `P1` `lox doc` (core): doc comments `///` + geração Markdown/JSON para código de
       usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).

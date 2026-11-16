@@ -16,6 +16,7 @@ from loxia_core.diagnostics.codes import CODE_PHASE, Code
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     DiagnosticBatch,
+    Fix,
     Label,
     Phase,
     Position,
@@ -81,6 +82,7 @@ class ErrorReporter:
         notes: tuple[str, ...] = (),
         help: str | None = None,
         label_tokens: tuple[tuple[Token, str], ...] = (),
+        fixes: tuple[Fix, ...] = (),
     ) -> None:
         """Registra um erro de compilação.
 
@@ -109,6 +111,7 @@ class ErrorReporter:
             notes=notes,
             help=help,
             labels=labels,
+            fixes=fixes,
         )
 
     def error_at(
@@ -141,6 +144,7 @@ class ErrorReporter:
         notes: tuple[str, ...] = (),
         help: str | None = None,
         label_tokens: tuple[tuple[Token, str], ...] = (),
+        fixes: tuple[Fix, ...] = (),
     ) -> None:
         """Registra um warning (ou erro, com `-Werror`); não falha por padrão."""
         span = (
@@ -166,6 +170,7 @@ class ErrorReporter:
                 labels=labels,
                 notes=notes,
                 help=help,
+                fixes=fixes,
             )
         )
 
@@ -285,6 +290,7 @@ class ErrorReporter:
         notes: tuple[str, ...],
         help: str | None,
         labels: tuple[Label, ...] = (),
+        fixes: tuple[Fix, ...] = (),
     ) -> None:
         diagnostic = Diagnostic(
             code=code,
@@ -295,6 +301,7 @@ class ErrorReporter:
             labels=labels,
             notes=notes,
             help=help,
+            fixes=fixes,
         )
 
         if not lowerable:

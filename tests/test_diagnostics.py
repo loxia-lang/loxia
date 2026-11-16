@@ -5,8 +5,11 @@ from pathlib import Path
 
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import (
+    Applicability,
     Diagnostic,
     DiagnosticBatch,
+    Edit,
+    Fix,
     Frame,
     Label,
     Phase,
@@ -56,6 +59,7 @@ def _diagnostic(
     notes: tuple[str, ...] = (),
     help: str | None = None,
     trace: Trace | None = None,
+    fixes: tuple[Fix, ...] = (),
 ) -> Diagnostic:
     return Diagnostic(
         code=code,
@@ -67,6 +71,7 @@ def _diagnostic(
         notes=notes,
         help=help,
         trace=trace,
+        fixes=fixes,
     )
 
 
@@ -388,3 +393,55 @@ def test_render_json_is_byte_identical_across_calls() -> None:
     second = render_json(batch, command="run", success=False, exit_code=70)
 
     assert first == second
+
+
+def test_render_json_inclui_fixes_com_spans_e_texto() -> None:
+    span = _span(line=2, column=3, end_column=6, offset=10, end_offset=13)
+    diagnostic = _diagnostic(
+        span=span,
+        fixes=(
+            Fix(
+                applicability=Applicability.SAFE,
+                message="trocar por 'var'",
+                edits=(Edit(span=span, new_text="var"),),
+            ),
+            Fix(
+                applicability=Applicability.UNSAFE,
+                message="sugestão",
+                edits=(Edit(span=span, new_text="nome"),),
+            ),
+        ),
+    )
+
+    payload = json.loads(
+        render_json(
+            DiagnosticBatch((diagnostic,)),
+            command="check",
+            success=False,
+            exit_code=65,
+        )
+    )
+
+    fixes = payload["diagnostics"][0]["fixes"]
+    assert fixes[0]["applicability"] == "safe"
+    assert fixes[0]["edits"][0]["new_text"] == "var"
+    assert fixes[0]["edits"][0]["span"]["start"]["line"] == 2
+    assert fixes[1]["applicability"] == "unsafe"
+
+
+def test_reporter_aceita_fix_estruturado() -> None:
+    from loxia_core.diagnostics.error_reporter import ErrorReporter
+    from loxia_core.frontend.token_type import TokenType
+    from loxia_core.frontend.tokens import Token
+
+    token = Token(TokenType.IDENTIFIER, "x", None, 1, 1, 0)
+    fix = Fix(
+        applicability=Applicability.SAFE,
+        message="remover",
+        edits=(Edit(_span(), ""),),
+    )
+    reporter = ErrorReporter()
+    reporter.error(token, "boom", code=Code.SEMANTIC_ERROR, fixes=(fix,))
+
+    entry = reporter.batch().diagnostics[0]
+    assert entry.fixes == (fix,)

@@ -267,6 +267,20 @@ def diagnostic_json(diagnostic: Diagnostic) -> dict[str, object]:
         "notes": list(diagnostic.notes),
         "help": diagnostic.help,
         "trace": _trace_json(diagnostic.trace),
+        "fixes": [
+            {
+                "applicability": fix.applicability.value,
+                "message": fix.message,
+                "edits": [
+                    {
+                        "span": _span_json(edit.span),
+                        "new_text": edit.new_text,
+                    }
+                    for edit in fix.edits
+                ],
+            }
+            for fix in diagnostic.fixes
+        ],
     }
 
 

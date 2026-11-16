@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Modelo de fix estruturado** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
+  `Fix`/`Edit`/`Applicability` no `Diagnostic`, com `fixes[]` no envelope JSON
+  (`safe`/`unsafe`, `span` + `new_text`). **Nenhum produtor emite fixes ainda**; a análise
+  de quem pode produzir e com qual confiabilidade está em
+  [`docs/tech/fixes.md`](docs/tech/fixes.md).
 - **Docs da stdlib e builtins** ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)):
   doc comments `///` em toda a API pública de `std/*.lx`, registry de builtins em
   `loxia/builtins_docs.py` e `docs/stdlib/` gerado (índice, 15 módulos e builtins) por

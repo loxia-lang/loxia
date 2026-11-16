@@ -794,3 +794,14 @@ Intervalo: `HEAD`..working tree. Complementa o LSP com `completion` (global e po
   `docs/tech/arquitetura.md` — **updated**: status.
 
 <!-- triaged: 14cded2 -->
+
+## 2026-11-16 — modelo de fixes estruturados
+
+Intervalo: `HEAD`..working tree. Implementa o pré-requisito do ADR-0093: `Fix`, `Edit` e
+`Applicability` no `Diagnostic`, com `fixes[]` no JSON. Os produtores e a análise de
+confiabilidade ficam em [`tech/fixes.md`](tech/fixes.md) e no TODO.
+
+- `loxia_core/diagnostics/diagnostic.py`, `render.py`, `error_reporter.py` — **updated**.
+- `docs/spec/erros.md`, `docs/tech/fixes.md`, `docs/adr/0093`, `TODO.md`,
+  `CHANGELOG.md`, `README.md` — **updated**.
+- `tests/test_diagnostics.py` — **updated**: JSON e reporter com fixes.

@@ -163,12 +163,20 @@ diagnósticos cortados por `--max-errors`.
       "labels": [],
       "notes": [],
       "help": null,
-      "trace": null
+      "trace": null,
+      "fixes": []
     }
   ],
   "summary": { "errors": 1, "warnings": 0, "suppressed": 0 }
 }
 ```
+
+`fixes` é uma lista aditiva (pode ficar vazia): cada item tem `applicability`
+(`safe`/`unsafe`), `message` e `edits[]` com `span` + `new_text`. Hoje o modelo e o
+envelope existem, mas **nenhum produtor** emite fixes; `safe` só será aplicado
+automaticamente quando houver prova de preservação de comportamento
+([ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md), análise em
+[`tech/fixes.md`](../tech/fixes.md)).
 
 `trace` é `null` fora do runtime; num erro de runtime tem os frames já recortados:
 

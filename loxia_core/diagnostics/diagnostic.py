@@ -31,6 +31,13 @@ class Severity(StrEnum):
     WARNING = "warning"
 
 
+class Applicability(StrEnum):
+    """Se um fix pode ser aplicado automaticamente (ADR-0093)."""
+
+    SAFE = "safe"
+    UNSAFE = "unsafe"
+
+
 @dataclass(frozen=True)
 class Position:
     """Posição 1-based em code points; `offset` é 0-based em bytes UTF-8.
@@ -88,6 +95,23 @@ class Trace:
 
 
 @dataclass(frozen=True)
+class Edit:
+    """Substituição half-open de um trecho por outro texto."""
+
+    span: Span
+    new_text: str
+
+
+@dataclass(frozen=True)
+class Fix:
+    """Uma correção candidata; `safe` pode ser aplicada sem confirmação."""
+
+    applicability: Applicability
+    message: str
+    edits: tuple[Edit, ...]
+
+
+@dataclass(frozen=True)
 class Diagnostic:
     code: Code
     phase: Phase
@@ -98,6 +122,7 @@ class Diagnostic:
     notes: tuple[str, ...] = ()
     help: str | None = None
     trace: Trace | None = None
+    fixes: tuple[Fix, ...] = ()
 
 
 @dataclass(frozen=True)
