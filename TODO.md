@@ -397,7 +397,7 @@ Desde 2026-11-16 a tabela também gera a ABI: `runtime/gen_kernel.py` escreve
 `runtime/kernel_gen.h` com a assinatura C de cada primitiva (`site` incluso) e o
 `kernel.c` o inclui — divergência entre tabela e definição C quebra a compilação.
 `make primitives` regenera; `tests/test_primitives_gen.py` policia a frescura. O arquivo
-de dados em TOML do [`IDEIAS.md`](IDEIAS.md) I-12 não foi adotado (gatilho: >30 primitivas
+de dados em TOML do [`IDEIAS.md`](IDEIAS.md) §"Pendências" não foi adotado (gatilho: >30 primitivas
 ou um segundo gerador).
 
 ### 13.5 Imports — pendências
