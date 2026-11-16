@@ -1,6 +1,7 @@
-# Editores — destaque de sintaxe da Loxia
+# Editores — destaque de sintaxe e cliente LSP da Loxia
 
-Grammar **TextMate** (`syntaxes/loxia.tmLanguage.json`) + extensão de VS Code. O mesmo
+Grammar **TextMate** (`syntaxes/loxia.tmLanguage.json`) + extensão de VS Code com
+cliente LSP (diagnósticos, formatação, completion, code actions e rename). O mesmo
 arquivo serve Sublime Text, TextMate, VS Code e, quando a linguagem entrar no
 [linguist](https://github.com/github-linguist/linguist), o `github.com` — ele exige uma
 grammar TextMate vendorizada e 2.000+ arquivos `.lx` em repos públicos (ver `TODO.md` §14).
@@ -40,6 +41,13 @@ Development Host* com a extensão carregada.
    **workspace** (e não a raiz do repo).
 4. **Abriu o `.lx` antes de instalar?** Feche e reabra o arquivo: o modo de linguagem é
    decidido ao abrir, não é reavaliado na hora.
+
+## Cliente LSP (VS Code)
+
+A extensão inicia `loxia lsp` (configurável em `loxia.server.path`/`loxia.server.args`)
+e usa o mesmo contrato do CLI. Detalhes e configuração para rodar do checkout em
+[`vscode/README.md`](vscode/README.md); o cliente não tem dependências de npm e é
+candidato a repo próprio (`loxia-editors`) no futuro.
 
 ## Sublime Text / TextMate
 

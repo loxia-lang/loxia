@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Tooling de editor**: formatter com `fn` canônico em método e trailing comma
+  multiline (parser aceita; golden `trailing_comma`); `workspace/symbol` no LSP; cliente
+  VS Code sem dependências em `editors/vscode/` (diagnostics, hover, definition,
+  completion, signature, formatação, code actions, rename e símbolos).
 - **Fixes restantes**: E2001 (rename do binding duplicado + usos), E3016/E3018
   (default primitivo/opcional), E3002 (remoção de argumentos extras) e E3015
   (rename de método), todos `unsafe`.

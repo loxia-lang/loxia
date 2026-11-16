@@ -20,20 +20,21 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 
 ## 0. Fila única
 
-A fila ativa é curta: **dogfooding do `loxia fmt` em Lox**, **M8/M9** e a trilha de
-publicação (§14). LSP-2 e o lote de fixes estão fechados; o que resta deles está na §7.
+A fila ativa é curta: **M8/M9**, **tooling de editor** e a trilha de publicação (§14).
+LSP-2 e o lote de fixes estão fechados; dogfood/self-hosting ficam para depois do repo
+público e documentado ([`IDEIAS.md`](IDEIAS.md)).
 O status por nível é **gerado** em [`docs/spec/garantias.md`](docs/spec/garantias.md) a
 partir de [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
 
 ### 0.2 Ordem de execução
 
-1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `loxia fmt` para Lox com paridade
-       byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md), §13.7).
-2. [ ] **M8** (`P2`): performance restante; JIT no REPL é P3 e não bloqueia.
-3. [ ] **M9** (`P2`): ecossistema — cliente VS Code/`workspace/symbol`, site e playground
+1. [ ] **M8** (`P2`): performance restante; JIT no REPL é P3 e não bloqueia.
+2. [ ] **M9** (`P2`): ecossistema — site, playground e publicação do cliente de editor
        (ADRs 0090–0093; §7 e §14).
-4. [ ] **Publicação** (`P2`, paralela): §14 (repo público, site, MCP, distribuição).
+3. [ ] **Publicação** (`P2`, paralela): §14 (repo público, site, MCP, distribuição).
+4. [ ] **Depois do repo público:** dogfood/self-hosting do formatter e do front-end
+       (§13.7, [`IDEIAS.md`](IDEIAS.md)).
 
 > **Trilha paralela:** a §14 (publicação, distribuição, pacotes, corpus de conformidade e
 > docs de usuário) não bloqueia nenhum nível da linguagem/backend e pode andar junto com a
@@ -107,11 +108,6 @@ uv run pytest tests/test_backend.py -q
 
 - [ ] `P2` E3004 (anotação ausente) — critérios em
       [`docs/tech/fixes.md`](docs/tech/fixes.md).
-- [ ] `P2` `loxia fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
-      ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P2` LSP restante: `workspace/symbol` e cliente VS Code; `codeAction`, `rename`
-      (local e cross-file conservador) e `SourceIndex` já implementados
-      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
@@ -329,11 +325,11 @@ pendente nesses tiers. `std.test`/`loxia test`, `std.property`, `std.rand`, `std
 gerada. Fora da stdlib continuam os itens do topo da §13 (regex, cripto, rede, async,
 timezone DB, i18n, YAML/TOML, UUID, bigint) — [ADR-0072](docs/adr/0072-stdlib-batteries.md).
 
-### 13.7 Ordem de entrega
+### 13.7 Dogfood e self-hosting — adiados
 
-| # | Passo | Esforço | Depende de |
-| --- | --- | --- | --- |
-| 1 | **Dogfooding**: portar `loxia fmt` para Lox (T3 concluída), com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | — |
+Portar `loxia fmt`/front-end para Lox e comparar byte a byte com o Python fica **depois**
+do repo público e bem documentado; não é pré-requisito de M8/M9 nem da publicação do
+cliente de editor ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
 
 ### 13.8 Critério de pronto por módulo
 

@@ -11,7 +11,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, cast
 from urllib.parse import unquote, urlparse
 
 from loxia import __version__
@@ -274,6 +274,7 @@ class Server:
                             "textDocumentSync": 1,
                             "hoverProvider": True,
                             "definitionProvider": True,
+                            "workspaceSymbolProvider": True,
                             "renameProvider": {"prepareProvider": True},
                             "documentSymbolProvider": True,
                             "completionProvider": {
@@ -342,6 +343,13 @@ class Server:
         if method == "textDocument/formatting":
             _send(
                 self.stdout, _response(message_id, self._formatting(message))
+            )
+            return
+
+        if method == "workspace/symbol":
+            _send(
+                self.stdout,
+                _response(message_id, self._workspace_symbols(message)),
             )
             return
 
@@ -701,6 +709,63 @@ class Server:
             return None
         return {"changes": {document.uri: edits}}
 
+    def _workspace_symbols(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        params = message.get("params")
+        query = ""
+        if isinstance(params, dict):
+            raw_query = params.get("query")
+            if isinstance(raw_query, str):
+                query = raw_query.casefold()
+        found: list[dict[str, object]] = []
+        for path, text in self._workspace_files():
+            reporter = ErrorReporter(max_errors=0)
+            try:
+                statements = Parser(
+                    Scanner(text, reporter).scan_tokens(), reporter=reporter
+                ).parse()
+            except Exception:
+                continue
+            if reporter.had_error or statements is None:
+                continue
+            index = SymbolIndex(
+                statements,
+                source=text,
+                checker=None,
+                resolver=None,
+            )
+            uri = _path_to_uri(path)
+            for symbol in index.symbols:
+                if query and query not in symbol.name.casefold():
+                    continue
+                found.append(
+                    {
+                        "name": symbol.name,
+                        "kind": _symbol_kind(symbol.kind),
+                        "location": {
+                            "uri": uri,
+                            "range": _token_range(symbol.token, text),
+                        },
+                        **(
+                            {"containerName": symbol.container}
+                            if symbol.container
+                            else {}
+                        ),
+                    }
+                )
+        def sort_key(item: dict[str, object]) -> tuple[str, str, int, int]:
+            location = cast(dict[str, Any], item["location"])
+            range_ = cast(dict[str, Any], location["range"])
+            start_ = cast(dict[str, Any], range_["start"])
+            return (
+                str(item["name"]).casefold(),
+                str(location["uri"]),
+                int(start_["line"]),
+                int(start_["character"]),
+            )
+
+        found.sort(key=sort_key)
+        return found
+
     def _is_top_level(self, index: SymbolIndex, token: Token) -> bool:
         symbol = index.by_token.get(token_key(token))
         if symbol is None or symbol.container is not None:
@@ -708,13 +773,13 @@ class Server:
         return symbol.kind in {"function", "class", "enum", "interface", "type"}
 
     def _workspace_files(self) -> list[tuple[Path, str]]:
-        if self.root is None:
-            return []
         files: dict[Path, str] = {}
         for uri, document in self.documents.items():
             path = _uri_to_path(uri)
             if path is not None:
                 files[path] = document.text
+        if self.root is None:
+            return sorted(files.items())
         try:
             candidates = self.root.rglob("*.lx")
         except OSError:
@@ -736,6 +801,8 @@ class Server:
         self, document: Document, token: Token, new_name: str
     ) -> object:
         old = token.lexeme
+        if self.root is None:
+            return "Cross-file rename requires an initialized workspace root."
         files = self._workspace_files()
         if not files:
             return "Cross-file rename requires an initialized workspace root."
@@ -1543,3 +1610,18 @@ def _valid_name(name: str) -> bool:
         "nil", "not", "or", "raise", "return", "super", "this", "true", "try",
         "except", "finally", "type", "val", "var", "while",
     }
+
+
+def _symbol_kind(kind: str) -> int:
+    """Mapeia o kind do SymbolIndex para o SymbolKind do LSP."""
+    return {
+        "class": 5,
+        "method": 6,
+        "field": 8,
+        "enum": 10,
+        "interface": 11,
+        "function": 12,
+        "variable": 13,
+        "variant": 22,
+        "type": 26,
+    }.get(kind, 13)

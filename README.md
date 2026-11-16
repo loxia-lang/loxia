@@ -158,8 +158,9 @@ uv run main.py fix prog.lx --apply         # aplica só fixes safe (ADR-0093)
 timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibido e a raiz
 de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
 para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
-O LSP também expõe `textDocument/codeAction` (quickfixes) e `rename` de
-locais/parâmetros. `loxia fix` (ou `uv run main.py fix` no checkout) aplica apenas fixes `safe`
+O LSP também expõe `textDocument/codeAction` (quickfixes), `workspace/symbol` e
+`rename` de locais/parâmetros; a extensão de VS Code em `editors/vscode/` já fala com
+ele (sem dependências de npm). `loxia fix` (ou `uv run main.py fix` no checkout) aplica apenas fixes `safe`
 (W1001/W1002 por enquanto; E2001/E3016/E3018/E3002/E3015 são quickfix `unsafe`)
 com reparse/check a cada
 rodada; sem `--apply` é dry-run, `--max-iterations=N` limita as rodadas e `--json`

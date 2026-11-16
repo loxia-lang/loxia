@@ -195,6 +195,8 @@ class Function(Stmt):
     abstract: bool = False
     doc: str | None = None
     end: Token | None = None
+    fn_token: Token | None = None
+    params_end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)

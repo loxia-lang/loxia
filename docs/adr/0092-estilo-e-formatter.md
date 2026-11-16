@@ -1,11 +1,11 @@
 # ADR-0092 — Estilo e formatter: convenções, perfil e dogfood
 
-> **Implementação parcial (2026-11-16):** `docs/guia-estilo.md` e `loxia fmt` mínimo
-> (indentação de bloco, `;` de fim de linha, newline final, preservação de strings/
-> comentários), `fmt --check`/`--stdin` e testes de idempotência. Pendentes: inserir
-> `fn` em método, trailing comma, reflow, paridade Lox após a T3.
+> **Implementação (2026-11-16):** `docs/guia-estilo.md` e `loxia fmt` com indentação,
+> `;`, newline final, `fn` canônico em método e trailing comma multiline (params, call,
+> lista, mapa e tupla); `fmt --check`/`--stdin` e idempotência. O reflow não faz parte da
+> fase 1. O dogfood em Lox fica adiado até o repo público/estável.
 
-- **Status:** accepted (implementação parcial)
+- **Status:** accepted (fase 1 implementada; dogfood adiado)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0066](0066-orcamento-e-gate-sintatico.md) (forma canônica e gate),
@@ -16,8 +16,7 @@
   [`../../TODO.md`](../../TODO.md) §7, §10, §13.7
 - **Implementação:** `docs/guia-estilo.md`, `loxia/formatter.py` (referência Python),
   `loxia/cli.py` (`fmt`), `tests/test_formatter.py` (idempotência/check/stdin) e
-  `docs/spec/lexico.md`/grammar para doc comments. Pendentes: `fn`/trailing comma/
-  reflow e o dogfood Lox após a T3.
+  `docs/spec/lexico.md`/grammar para doc comments. O dogfood Lox segue adiado até o repo público.
 
 ## Contexto
 
@@ -108,7 +107,7 @@ renomeados** — isso é revisão e, no futuro, lint/aviso (ADR-0093).
 
 ### 3. Duas fases e dogfood
 
-1. **Python agora** (referência): em `loxia_core/fmt.py`, reusando o scanner (com
+1. **Python agora** (referência): em `loxia/formatter.py`, reusando o scanner (com
    comentários/doc preservados) e o parser/AST para estrutura. É o comando `loxia fmt`
    shipped. Golden pairs + idempotência + equivalência de execução.
 2. **Lox depois da T3**: parser + AST printer na própria linguagem (TODO §10/§13.7),

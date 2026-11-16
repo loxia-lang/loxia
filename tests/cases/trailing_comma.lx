@@ -1,0 +1,30 @@
+# trailing comma em params, call, lista, mapa e tupla (ADR-0092).
+fn f(
+  a: Int,
+  b: Int,
+) -> Int {
+  return a + b
+}
+
+val xs = [
+  1,
+  2,
+]
+val m = {
+  "a": 1,
+}
+val t = (
+  1,
+  2,
+)
+print(f(
+  1,
+  2,
+))
+print(xs)
+print(m)
+print(t)
+# expect: 3
+# expect: [1, 2]
+# expect: {"a": 1}
+# expect: (1, 2)

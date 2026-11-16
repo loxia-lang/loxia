@@ -16,6 +16,11 @@ uma função por nível de precedência.
 > destructuring aninhado, `"""` e raw strings já existem; `val`/`var` existem desde o
 > ADR-0005.
 
+
+Trailing comma é aceito (e canônico no formatter) em parâmetros, chamadas,
+listas, mapas e tuplas **quando a construção é multiline**; enums e `match` continuam
+sem vírgula final.
+
 ## Gramática (EBNF)
 
 ```ebnf
@@ -341,12 +346,13 @@ Consequências:
 - `a?.b = c` é erro (não há assignment opcional);
 - `xs[0]` indexa e `xs[0] = v` atribui; o `[` precisa estar na **mesma linha** da
   expressão anterior, como o `(` de chamada;
-- `(1, 2)` é literal de tupla (2+ elementos, sem `()` nem `(x,)` e sem vírgula final);
-  `(1)` continua agrupamento. `f(1, 2)` são dois argumentos; para uma tupla como argumento,
-  `f((1, 2))`. `val (a, b) = t` e `var (c, d) = t` desestruturam (anotação opcional); o padrão aninha em qualquer profundidade (`val (a, (b, c)) = t`), com anotação
-  recursiva `(Int, (String, Bool))` ([ADR-0069](../adr/0069-destructuring-aninhado.md)).
-- `[1, 2]` é literal de lista e `[]` é a lista vazia; não há vírgula final
-  (`[1,]` é erro).
+- `(1, 2)` é literal de tupla (2+ elementos; `(1)` continua agrupamento e `(1,)` é erro);
+  `(1, 2,)` aceita vírgula final. `f(1, 2)` são dois argumentos; para uma tupla como
+  argumento, `f((1, 2))`. `val (a, b) = t` e `var (c, d) = t` desestruturam (anotação
+  opcional); o padrão aninha em qualquer profundidade (`val (a, (b, c)) = t`), com
+  anotação recursiva `(Int, (String, Bool))` ([ADR-0069](../adr/0069-destructuring-aninhado.md)).
+- `[1, 2]` é literal de lista e `[]` é a lista vazia; vírgula final (`[1,]`, `[1, 2,]`)
+  é aceita, e o formatter só a insere em construções multiline.
 
 `<` é **só** comparação. Herança usa parênteses após o nome da classe
 (`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe. A superclasse

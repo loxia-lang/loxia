@@ -701,6 +701,7 @@ class Parser:
         type_params, type_param_bounds = self._type_parameters()
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
         parameters = self._parameters()
+        params_end = self._previous()
 
         return_type: Ty | None = None
         if self._match(TokenType.ARROW):
@@ -717,6 +718,8 @@ class Parser:
                 type_param_bounds=type_param_bounds,
                 abstract=True,
                 doc=doc,
+                fn_token=fn_token,
+                params_end=params_end,
             )
 
         self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
@@ -732,6 +735,8 @@ class Parser:
             type_param_bounds=type_param_bounds,
             doc=doc,
             end=end,
+            fn_token=fn_token,
+            params_end=params_end,
         )
 
     def _type_parameters(
@@ -835,6 +840,8 @@ class Parser:
                 )
 
                 if not self._match(TokenType.COMMA):
+                    break
+                if self._check(TokenType.RIGHT_PAREN):
                     break
 
         self._consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
@@ -1340,6 +1347,8 @@ class Parser:
                     if not self._match(TokenType.COMMA):
                         break
                     commas.append(self._previous())
+                    if self._check(TokenType.RIGHT_PAREN):
+                        break
 
             paren = self._consume(
                 TokenType.RIGHT_PAREN, "Expect ')' after arguments."
@@ -1382,6 +1391,8 @@ class Parser:
                     entries.append((key, value))
 
                     if not self._match(TokenType.COMMA):
+                        break
+                    if self._check(TokenType.RIGHT_BRACE):
                         break
 
             self._consume(TokenType.RIGHT_BRACE, "Expect '}' after map entries.")
@@ -1432,6 +1443,8 @@ class Parser:
 
                         if not self._match(TokenType.COMMA):
                             break
+                        if self._check(TokenType.RIGHT_BRACKET):
+                            break
 
                 self._consume(
                     TokenType.RIGHT_BRACKET, "Expect ']' after list elements."
@@ -1454,6 +1467,11 @@ class Parser:
                     while True:
                         elements.append(self._expression())
                         if not self._match(TokenType.COMMA):
+                            break
+                        if (
+                            len(elements) >= 2
+                            and self._check(TokenType.RIGHT_PAREN)
+                        ):
                             break
 
                     self._consume(

@@ -552,7 +552,6 @@ def test_nested_destructuring_shape() -> None:
         "(1,)",
         "()",
         "val (a) = (1, 2);",
-        "val (a, b) = (1, 2,);",
     ],
 )
 def test_tuple_parse_errors(source: str) -> None:

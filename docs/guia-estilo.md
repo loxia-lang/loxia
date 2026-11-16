@@ -38,10 +38,10 @@ disso.
 ## Formatter
 
 `loxia fmt` normaliza, na fase 1: indentação de bloco, espaços no fim, `;` de fim de
-linha e newline final, preservando quebras, strings multilinha, comentários de bloco e o
-conteúdo de comentários. Não faz reflow, não renomeia, não reordena imports e não insere
-`fn` em método ainda; essas regras são norma até a fase seguinte. `loxia fmt --check`
-não escreve e retorna 1 se o arquivo mudaria.
+linha, newline final, `fn` canônico em método e trailing comma multiline (params,
+call, lista, mapa e tupla), preservando quebras, strings multilinha, comentários de
+bloco e o conteúdo de comentários. Não faz reflow, não renomeia e não reordena imports.
+`loxia fmt --check` não escreve e retorna 1 se o arquivo mudaria.
 
 O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md)); o
-dogfood em Lox entra depois da T3, com paridade byte a byte contra esta referência.
+dogfood em Lox fica adiado até o repo público/estável.

@@ -694,3 +694,42 @@ def test_lsp_rename_cross_file(tmp_path: Path) -> None:
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_lsp_workspace_symbol(tmp_path: Path) -> None:
+    (tmp_path / "mod.lx").write_text("fn foo() -> Int {\n  return 1\n}\n", encoding="utf-8")
+    (tmp_path / "other.lx").write_text("class Bar {\n}\n", encoding="utf-8")
+    process = start()
+    try:
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"rootUri": tmp_path.as_uri()},
+            },
+        )
+        initialized = read(process)
+        assert initialized["result"]["capabilities"]["workspaceSymbolProvider"] is True
+        send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "workspace/symbol",
+                "params": {"query": "fo"},
+            },
+        )
+        response = read(process)
+        symbols = response["result"]
+        assert [item["name"] for item in symbols] == ["foo"]
+        assert symbols[0]["kind"] == 12
+        assert symbols[0]["location"]["uri"] == (tmp_path / "mod.lx").as_uri()
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)

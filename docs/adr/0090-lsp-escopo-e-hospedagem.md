@@ -6,8 +6,9 @@
 > `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
 > variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
 > documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`),
-> `rename`/`prepareRename` (locais/parâmetros e top-level cross-file conservador) e um
-> `SourceIndex` de spans de expressão.
+> `rename`/`prepareRename` (locais/parâmetros e top-level cross-file conservador),
+> `workspace/symbol` e um `SourceIndex` de spans de expressão. O cliente VS Code vive em
+> `editors/vscode/` e está pronto para virar repo próprio.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -21,7 +22,7 @@
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
   `codeAction`, `rename` (locais/parâmetros e top-level cross-file) e
-  `loxia/source_index.py` já existem; o cliente VS Code ainda não.
+  `loxia/source_index.py` e o cliente em `editors/vscode/` já existem.
 
 ## Contexto
 
@@ -74,7 +75,7 @@ opcionalmente, entry point `loxia-lsp`). Ele reusa `Parser`, `Resolver`, `Checke
 | --- | --- | --- |
 | **LSP-0** | `initialize`/`shutdown`/`exit`, `didOpen`/`didChange`/`didSave`/`didClose` com **full sync**, `publishDiagnostics`, `documentSymbol` | `Diagnostic` atual; sem spans de expressão |
 | **LSP-1** | `hover` (tipo + doc), `textDocument/definition` | spans de expressão + `SymbolIndex` + mapa uso→declaração |
-| **LSP-2** | `completion`, `signatureHelp`, `documentFormatting` (formatter), `codeAction` (fixes), `semanticTokens`, `rename` | formatter, `fixes[]`, `SourceIndex`/índice de escopos |
+| **LSP-2** | `completion`, `signatureHelp`, `documentFormatting` (formatter), `codeAction` (fixes), `semanticTokens`, `rename`, `workspace/symbol` | formatter, `fixes[]`, `SourceIndex`/índice de escopos |
 
 LSP-0 é barato e já resolve o problema real (erros no editor). LSP-1 é o que dá a sensação
 de "linguagem de verdade", mas depende de:

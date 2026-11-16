@@ -101,3 +101,57 @@ def test_fmt_parse_error_exits_65() -> None:
     result = run_cli("fmt", "--stdin", input_text="fn (\n")
 
     assert result.returncode == 65
+
+
+def test_fmt_insere_fn_canonico_em_metodo() -> None:
+    source = "class C {\n  m() -> Int {\n    return 1\n  }\n}\n"
+
+    result = format_source(source)
+
+    assert result is not None
+    assert "  fn m() -> Int {" in result.text
+    again = format_source(result.text)
+    assert again is not None
+    assert again.text == result.text
+    assert again.changed is False
+
+
+def test_fmt_trailing_comma_multiline() -> None:
+    source = (
+        "fn f(\n  a: Int,\n  b: Int\n) -> Int {\n"
+        "  return g(\n    a,\n    b\n  )\n}\n"
+    )
+
+    result = format_source(source)
+
+    assert result is not None
+    assert "  b: Int,\n)" in result.text
+    assert "    b,\n  )" in result.text
+    again = format_source(result.text)
+    assert again is not None
+    assert again.text == result.text
+
+
+def test_fmt_trailing_comma_em_lista_mapa_tupla() -> None:
+    source = (
+        "val xs = [\n  1,\n  2\n]\n"
+        "val m = {\n  \"a\": 1,\n  \"b\": 2\n}\n"
+        "val t = (\n  1,\n  2\n)\n"
+    )
+
+    result = format_source(source)
+
+    assert result is not None
+    assert "  2,\n]" in result.text
+    assert '  "b": 2,\n}' in result.text
+    assert "  2,\n)" in result.text
+
+
+def test_fmt_nao_coloca_virgula_em_grouping_ou_linha_unica() -> None:
+    source = "val x = (\n  1 + 2\n)\nval y = f(1, 2)\n"
+
+    result = format_source(source)
+
+    assert result is not None
+    assert "  1 + 2\n)" in result.text
+    assert "f(1, 2)" in result.text

@@ -173,6 +173,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_rand.lx",
         "tests/cases/std_sets.lx",
         "tests/cases/std_utf8.lx",
+        "tests/cases/trailing_comma.lx",
     ),
     "t3": (
         "tests/cases/std_test.lx",
