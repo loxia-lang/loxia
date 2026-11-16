@@ -12,9 +12,9 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 **Legenda:** `P0` agora · `P1` próximo · `P2` depois · `P3` algum dia
 **Esforço:** `S` (horas) · `M` (dias) · `L` (semanas) · `XL` (meses)
 
-> Regra de ouro: fechar as definições que cada nível consome **antes** de codá-lo
-> (checklist na §0.1). Cada feature nova entra com teste; cada mudança de sintaxe entra
-> documentada no mesmo commit.
+> Regra de ouro: fechar as definições que cada nível consome **antes** de codá-lo.
+> Cada feature nova entra com teste; cada mudança de sintaxe entra documentada no
+> mesmo commit.
 
 ---
 
@@ -29,59 +29,26 @@ também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
 [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
 também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)), assim como
 `///` + `lox doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)) e o
-formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) e o **LSP-0**
-([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)). A próxima execução é o **LSP-1**
-(hover/definition) e as docs da stdlib/builtins; o dogfood Lox do formatter fica após a T3. O status por nível é **gerado**
+formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)), o **LSP** (0/1 e 2
+parcial) ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) e as docs da
+stdlib/builtins ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)). A próxima
+execução é **T3 + dogfooding** e o **LSP-2 restante**. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
-### 0.1 Definições que não podem faltar antes de cada nível
-
-| Antes de | O que precisa estar fechado | Estado |
-| --- | --- | --- |
-| **L6** | enums/`match`, exceções, `Any` e corpus completo | ✅ |
-| **L7** | `mod.verify()`, `-O2`, benchmark nativo, erros de codegen | ✅ (JIT no REPL é P3 separado) |
-| **M7** | GC Boehm + contrato de memória do [ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md) | ✅ implementado |
-| **T1** | `std.strings`, `std.lists`, `std.maps`, `std.numeric`, `std.asserts`, `std.results` sobre módulos/imports | ✅ concluído |
-| **T2** | `std.{json,fmt,paths,fs,io,cli,sets,csv,convert}` sobre o kernel T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)) | ✅ concluído |
 
 ### 0.2 Ordem de execução
 
-1. [x] **T1 — stdlib núcleo**: `std.strings`, `std.lists`, `std.maps`, `std.numeric`,
-       `std.asserts` e `std.results`; cada módulo com golden, `--check` e determinismo.
-2. [x] **T2 — stdlib comum**: `json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`,
-       `convert` ([ADR-0079](docs/adr/0079-stdlib-t2.md)).
-3. [x] **Limite de pilha**: [ADR-0077](docs/adr/0077-limite-de-pilha.md) implementado
-       (10.000 chamadas, orçamento de 64 MiB, `R1015`).
-4. [x] **Heap**: [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md) implementado
-       (default 512 MiB + `--max-heap` de build).
-5. [x] **Diagnósticos**: fonte de módulo no checker e stack trace de runtime (frames +
-       `R1015` com posição) implementados ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
-6. [x] **CLI agent-friendly (core)** (`P1`): subcomandos aditivos,
-       `capabilities`/`explain`, `--stdin`, `--timeout` (124 + `C0001`), JSONL/`--watch`
-       restrito a `check` e warnings `W1001` + `-Werror`
-       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-       - [ ] `fixes[]` + `lox fix` (schema/loop definidos; produtores pendentes) e `W1002`.
-7. [ ] **Docs e estilo** (`P1`/`P2`, pode andar em paralelo): doc comments `///`, `lox doc`
-       Markdown/JSON, guia de estilo e formatter Python
-       ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md),
-       [ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-       - [x] `///` + `lox doc` Markdown/JSON para código de usuário.
-       - [x] `docs/guia-estilo.md` e formatter Python mínimo (`fmt`/`--check`/`--stdin`).
-       - [x] docs públicas da stdlib/builtins, registry e `docs/stdlib/` gerado.
-       - [ ] `fn` em método, trailing comma/reflow e dogfood Lox (após T3).
-8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols implementado; depois spans de expressão
-       + `SymbolIndex` para hover/definition, e só então completion/format/code actions
-       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-       - [x] LSP-0 (`initialize`/sync/diagnostics/documentSymbol).
-       - [x] LSP-1 básico (`SymbolIndex` + `Resolver.references` → hover/definition).
-       - [x] LSP-2 parcial (completion, signatureHelp, formatting, semanticTokens).
-       - [ ] LSP-2 restante (codeAction/fixes, rename) e spans de expressão.
-9. [ ] **T3 + dogfooding** (`P2`/`L`): módulos T3 e formatter em Lox após a T3, com
+1. [ ] **T3 + dogfooding** (`P2`/`L`): módulos T3 e formatter em Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
-       §13.7 passo 7).
-10. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
-11. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
+       §13.7). Inclui o restante do formatter: `fn` em método, trailing comma/reflow.
+2. [ ] **Diagnósticos restantes** (`P2`): spans de expressão/`notes` de proveniência,
+       `W1002` (import não usado) e produtores de fix confiáveis
+       ([`docs/tech/fixes.md`](docs/tech/fixes.md)).
+3. [ ] **LSP-2 restante** (`P2`): codeAction/fixes e rename (o ADR-0090 ainda o deixa
+       fora) ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+4. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
+5. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
        itens de ecossistema agora têm ADR; M9 acompanha a fila acima.
 
 > **Trilha paralela:** a §14 (publicação, distribuição, pacotes, corpus de conformidade e
@@ -100,23 +67,12 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 ### 3.1 O que ainda falta
 
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
-      spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-1
-      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [x] **modelo `Fix`/`Edit`/`fixes[]`** (`P2`): `applicability`, `edits[]` por span e
-      envelope JSON; sem produtores ainda ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+      spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-2
+      restante ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] **produtores de fix confiáveis** (`P2`): análise completa e lotes em
       [`docs/tech/fixes.md`](docs/tech/fixes.md). Ordem: W1001 literal (`safe`),
       E3003 did-you-mean (`unsafe`), W1002 com pureza de módulo (`safe`), depois
       E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`).
-- [x] **`lox explain <code>`** e **`lox capabilities --json`**: implementados
-      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [x] **`--json-lines`** e `--timeout` (`P1`): implementados; `--watch` restrito a
-      `check` ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [x] **Warnings** e `-Werror`: `W1001` (local não lido) em `check`/`build`, nunca em
-      `run`; `W1002` (import não usado) fica pendente
-      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] **LSP** (`P2`): reusar o mesmo `Diagnostic` em `textDocument/publishDiagnostics`;
-      fases, hospedagem e mapeamento no [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md).
 
 **Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
 Python para validar código do usuário; não classificar código por prefixo de mensagem.
@@ -169,43 +125,18 @@ uv run pytest tests/test_backend.py -q
 
 ## 7. Tooling e qualidade
 
-- [x] `P2` testes diferenciais interpretador × LLVM no corpus anotado (`LEVELS`; PENDING 0).
-- [x] `P1` CLI agent-friendly: subcomandos + `capabilities`/`explain`, `--stdin`,
-      `--timeout`, `--json` e `--json-lines`/`--watch` (restrito a `check`), exit codes
-      estáveis ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [x] `P1` warnings: `W1001` (local não lido) em `check`/`build`, `-Werror`, nunca em
-      `run`; `W1002` (import não usado) pendente
-      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [x] `P2` modelo `Fix`/`Edit`/`fixes[]` no diagnóstico e no JSON
-      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] `P2` produtores de fix: W1001 literal (`safe`), E3003 (`unsafe`), W1002 com pureza
       (`safe`), E2001/E2002/E2009 e E3016/E3018/E3002/E3015 (`unsafe`) — critérios e
       perguntas em [`docs/tech/fixes.md`](docs/tech/fixes.md).
 - [ ] `P2` `lox fix`/LSP: aplicar só `safe`, dry-run/apply, codeAction para `unsafe`
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [x] `P1` `lox doc` (core): doc comments `///` + geração Markdown/JSON para código de
-      usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
-- [x] `P1` docs da stdlib/builtins e `docs/stdlib/` gerado
-      ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)); falta o site (§14.2).
-- [x] `P1` `lox fmt` (core): formatter Python mínimo idempotente, `--check`, `--stdin`
-      ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
 - [ ] `P2` `lox fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [x] `P1` `docs/guia-estilo.md`: nomes, formatação, imports e comentários
-      ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [x] `P2` LSP-0: `loxia lsp`, JSON-RPC stdio, diagnostics e documentSymbol
-      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [x] `P2` LSP-1 básico: `SymbolIndex` + `Resolver.references` → hover/definition
-      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [x] `P2` LSP-2 parcial: completion/signatureHelp/formatting/semanticTokens
-      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P2` LSP-2 restante: codeAction/fixes, rename e spans de expressão formais
       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
-- [x] `P3` grammar TextMate + extensão VS Code em `editors/`, gerada de `keywords.py`
-      (`make grammar`), com teste de drift.
 - [ ] `P3` site publicado a partir de `docs/` — ver §14.2 (stack, i18n e gate).
 - [ ] `P3` servidor MCP (`loxia-mcp`) — ver §14.3; depende do CLI agent-friendly acima.
 
@@ -215,18 +146,8 @@ uv run pytest tests/test_backend.py -q
 
 | Recurso | Status | Nota |
 | --- | --- | --- |
-| iterador de usuário no `for-in` | ✅ | protocolo estrutural `iter()` + `next() -> T?`, classe/interface/genérico; caso no diferencial ([ADR-0082](docs/adr/0082-iterador-de-usuario.md)) |
-| `print` como função | ✅ | `print(valor): Any -> Nil`, statement removido; corpus/suíte oficial exemplos migrados ([ADR-0085](docs/adr/0085-print-como-funcao.md)) |
-| variádicos `...args` | ✅ | `...xs: T` + spread final `f(...xs)`; `fmt.format` migrado ([ADR-0083](docs/adr/0083-variadicos.md)) |
-| `type` alias | ✅ | `type Nome = Tipo` transparente, não-genérico, módulos e backend ([ADR-0084](docs/adr/0084-type-alias.md)) |
-| generics + constraints | ✅ | funções T3b + `T: Ord + Num + Interface` ([ADR-0081](docs/adr/0081-constraints-generics.md)); constraints em classes seguem pós-MVP |
-| uniões + narrowing | ✅ | `T?`/`is`/`while`/campos/índices, merge de ramos e `var` capturado ([ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)); aliasing/CFG completo fora |
-| interfaces nominais + `implements` | ✅ | item "traits" do Lox2: tree-walk/checker + backend B2 (`itab`), dois casos no diferencial ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)) |
-| namespaces/import | ✅ | [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, `_` privado, `std.*` e `from`/`as` |
-| `try`/`raise` no backend | ✅ | tree-walk e backend L6 ([ADR-0042](docs/adr/0042-excecoes.md), [ADR-0062](docs/adr/0062-l6-excecoes-unwinding.md)) |
 | FFI com C | ⏸ | **não haverá FFI genérica**: kernel fixo de primitivas ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)); reavaliar só com dor demonstrada |
-| stdlib (`strings`, `lists`, `collections`) | 🟡 | kernel e imports prontos; T1/T2 na §13 ([ADR-0072](docs/adr/0072-stdlib-batteries.md)) |
-| `async`/`await` | ⏳ | direção no [ADR-0037](docs/adr/0037-async-direcao.md): colored, `Task[T]`, determinístico; só com I/O, pós-M7 |
+| `async`/`await` | ⏳ | ADR-0037 em revisão: `poll`/`proc` antes de async; colored/`Task[T]` só com caso que `poll` não resolva |
 
 Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e `Object` raiz — o LLVM
 cobre o codegen e o escopo humano manda.
@@ -243,15 +164,14 @@ M0–M7 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 | **M9** | Ecossistema | formatter, LSP, docs e playground — escopo definido nos [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md) a [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md) | 🟡 |
 
 **Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o
-nível afetado volta para a fila com caso diferencial. Interfaces nominais estão
-implementadas (ADR-0080), constraints de função também (ADR-0081) e iteradores de usuário
-no `for-in` (ADR-0082) — nenhum bloqueia nível.
+nível afetado volta para a fila com caso diferencial.
 
-**Async (ADR-0037):** a arquitetura (frames materializáveis, GC que enxergue frames
-suspensos) é preparada durante o L6; a feature entra **depois do M7**, junto com a stdlib
-de I/O, e **antes do M8**. Sem I/O não há o que esperar e a feature não passa no portão do
-ADR-0014. Paralelismo/multithread fica em avaliação no [`IDEIAS.md`](IDEIAS.md) — não é
-async.
+**Async (ADR-0037) — em revisão (2026-11-16):** a direção colored/`Task[T]` continua,
+mas a ordem mudou com a proposta de host capabilities
+([`IDEIAS.md`](IDEIAS.md) I-11): `poll`/`proc` resolvem I/O concorrente sem thread e devem
+vir antes de async. Async só entra com um caso que `poll` não resolva e deixa de ser
+pré-requisito de M8; revisar o ADR-0037 antes de codar. Paralelismo/multithread segue
+fora — não é async.
 
 ### 9.1 Divergências I1 conhecidas (fora do corpus)
 
@@ -298,7 +218,7 @@ com timeout. Sem esse modo incremental o bug volta — o runner atual não disti
 
 - [ ] **Compilar o próprio interpretador?** (self-hosting) — o *front-end* já é
       self-hostable hoje (lexer em Lox compila nativo e bate a saída); o compilador inteiro
-      depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 7). P3/XL.
+      depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 1). P3/XL.
 - [ ] **LSP em Loxia** (`P3`, `XL`, **não decidido**) — avaliado em 2026-11-16: o LSP local
       é stdio, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta
       de kernel é pouco (`io.readUtf8`, `io.flush` — ver §9.1 `R1` e §13.9) e o bloqueio
@@ -417,7 +337,7 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
 ## 13. Stdlib, kernel de primitivas e módulos
 
-> **Escopo:** pós-1.0; **não** bloqueia L6/L7 (§0.2). O kernel v1 vem **depois do GC**
+> **Escopo:** pós-1.0; **não** bloqueia L6/L7 (§0). O kernel v1 está concluído
 > ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)). Decisões:
 > [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (primitivas e complexidade),
 > [ADR-0072](docs/adr/0072-stdlib-batteries.md) (política de batteries) e
@@ -457,7 +377,7 @@ não repetir a tabela aqui.
 
 Tabela implementada para as primitivas monomórficas. Migrar `len`/`chars`/`str`/`repr`/
 `range` é **opcional**: não muda performance (são builtins especiais) e melhora a
-arquitetura só quando reduzir casos especiais no checker/lowering; não bloqueia T1.
+arquitetura só quando reduzir casos especiais no checker/lowering; não bloqueia T3.
 
 ### 13.5 Imports — pendências
 
@@ -465,39 +385,11 @@ Implementado em [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, p
 `_` privado, `from`/`as`, `std.` e desugar. Restam:
 
 - [ ] Imports com caminho que sai da raiz (`..`) — decisão futura.
-- [ ] Diagnóstico de checker com fonte do módulo (hoje aponta o entry).
 
 ### 13.6 Batteries — inventário
 
 Tiers do ADR-0072. `⬜` = a fazer; cada módulo entra com golden + `--check` + auditoria de
 determinismo.
-
-**T0 — kernel** (13.2): concluído; a base de tudo.
-
-**T1 — núcleo**
-
-| Módulo | Funções | Estado |
-| --- | --- | --- |
-| `std.strings` | ✅ base: `split`, `splitLines`, `lines`, `words`, `trim`, `ltrim`, `rtrim`, `upper`, `lower` (ASCII), `capitalize`, `startsWith`, `endsWith`, `contains`, `indexOf`, `lastIndexOf`, `replaceAll`, `replaceFirst`, `repeat`, `padStart`, `padEnd`, `reverse`, `slice` (clamp), `isBlank`, `count` | ✅ base completa |
-| `std.lists` | `map`, `filter`, `each`, `fold`, `reduce`, `find`, `findIndex`, `any`, `all`, `none`, `count`, `sum`, `min`, `max`, `sort`, `sortNatural`, `reverse`, `slice`, `take`, `drop`, `zip`, `flatten`, `unique`, `contains`, `indexOf`, `first`, `last`, `getOr`, `chunk`, `partition`, `flatMap` | ✅ base + sort/gaps; `min`/`max` são `[T: Ord]`, `sortNatural` é novo; `sortBy`/`groupBy` adiados ([ADR-0076](docs/adr/0076-std-lists-sort.md), [ADR-0081](docs/adr/0081-constraints-generics.md)) |
-| `std.maps` | `entries`, `fromEntries`, `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`, `hasValue`, `getOr`, `toList` | ✅ `Map[String, V]`; `invert` é `Map[String, String]` (constraints de chave genérica pós-MVP) |
-| `std.numeric` | `gcd`, `lcm`, `isPrime`, `primes`, `factorial`, `powMod`, `digitSum`, `isEven`, `isOdd`, `sign`, `mean`, `median`, `mode`, `variance`, `stddev`, `roundTo`, `toBase`, `fromBase` | ✅ estatísticas de `List[Int]`, vazio ⇒ `nil`; domínio inválido ⇒ `LoxRuntimeError` |
-| `std.asserts` | `assert`, `assertEq`, `assertNotNil`, `fail` | ✅ falha ⇒ `LoxRuntimeError` |
-| `std.results` | `map`, `mapErr`, `unwrapOr`, `andThen`, `isOk`, `isErr`, `toOptional` | ✅ `Result[T, E]` |
-
-**T2 — comum**
-
-| Módulo | Funções | Estado |
-| --- | --- | --- |
-| `std.json` | `parse`, `stringify`, `pretty` (ordem de inserção; `Int`/`Float` distintos) | ✅ |
-| `std.fmt` | `format(template, List[Any])`, `pad`, `commas`, `fixed`, `percent`, `bytes` | ✅ |
-| `std.paths` | `join`, `dirname`, `basename`, `ext`, `stem`, `normalize`, `isAbsolute`, `split` (POSIX) | ✅ |
-| `std.fs` | `readText`, `readLines`, `writeText`, `appendText`, `exists`, `listDir` | ✅ ambiente (pytest); `fs.open`/streaming: ver §10 |
-| `std.io` | `write`, `writeErr`, `readLine`, `readAll`, `prompt` | ✅ leitura ambiente (pytest) |
-| `std.cli` | `parse(args, spec)`, `flag`, `option`, `positional`, `usage` | ✅ spec em `List[String]` |
-| `std.sets` | `Set[T]` sobre `Map[Any, Bool]`: `add`, `has`, `remove`, `len`, `union`, `intersect`, `difference`, `toList`, `fromList` (classe em módulo) | ✅ (campo T em constraints pós-MVP) |
-| `std.csv` | `parse`, `stringify` (RFC 4180, determinístico) | ✅ |
-| `std.convert` | `toInt`, `toFloat`, `toBool`, `base64Encode`, `base64Decode`, `hexEncode`, `hexDecode` (texto UTF-8; sem tipo `Bytes`) | ✅ |
 
 **T3 — extra**
 
@@ -516,26 +408,15 @@ determinismo.
 
 | # | Passo | Esforço | Depende de |
 | --- | --- | --- | --- |
-| 0 | ✅ **GC Boehm + contrato de memória** ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)): allocator, roots, hard cap default 512 MiB + `--max-heap`, I1 até 64 MiB live | M | — |
-| 1 | ✅ **13.3** — cache de offsets + `substr`/`join`/`charCodeAt`/`fromCodePoint` + bench | M | 0 |
-| 2 | ✅ **13.4** — tabela única de primitivas | S | 1 |
-| 3 | ✅ **13.2** — kernel de SO: `args`, `io.*`, `os.*` + `main(argc, argv)` + exit code | M | 2 |
-| 4 | ✅ **13.5** — imports/módulos + `std/strings` + `std/lists` mínimos | M | 3 |
-| 5 | ✅ **T1** restante (`maps`, `numeric`, `asserts`, `results`) | M | 4 |
-| 6 | ✅ **T2** (`json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
-| 7 | **T3** + dogfooding: `lox fmt` em Lox depois da T3, com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | 6 |
-
-Os passos 0–6 estão feitos: GC, kernel, tabela de primitivas, imports/módulos, T1 e T2
-([ADR-0079](docs/adr/0079-stdlib-t2.md)). Pilha, heap e diagnósticos também estão fechados;
-o próximo é **T3 + dogfooding** (e o pacote de ecossistema da §0.2). O `main` gerado
-continua `i32 main(argc, argv)`; o ABI das funções Lox não mudou.
+| 1 | **T3** + dogfooding: `lox fmt` em Lox depois da T3, com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | — |
 
 ### 13.8 Critério de pronto por módulo
 
 - [ ] programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
 - [ ] golden em `tests/cases/std_<modulo>.lx` + `--check` limpo;
 - [ ] determinismo declarado (função ambiente ≠ corpus I1);
-- [ ] doc na spec quando o módulo estabilizar (e `sources:` válido);
+- [ ] doc pública em `std/*.lx` e página gerada em `docs/stdlib/` para cada módulo novo
+      (T1/T2 já têm);
 - [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
 - [ ] `make check` verde; `make bench` se tocar caminho quente.
 
@@ -604,7 +485,7 @@ consolidada antes do MCP, que a consome.
 | 1 | {@14.1} Repositório público | é o pré-requisito de URL, issues e release |
 | 2 | {@14.2} Documentação como site | depende do repo público e do CI |
 | 3 | {@14.3} Servidor MCP | depende da spec publicada e estável |
-| 4 | {@14.4} Distribuição, stdlib instalada e pacotes | **pré-requisito técnico** do release da §14.1: hoje o wheel não entrega comando nem `std/` |
+| 4 | {@14.4} Distribuição, stdlib instalada e pacotes | **pré-requisito técnico** do release da §14.1: resolução de módulos/pacotes e `uv build`/sdist; wheel e comando já prontos |
 | 5 | {@14.5} Corpus de conformidade como artefato | em paralelo; depende do manifesto estabilizado (já está) |
 | 6 | {@14.6} Primeiro programa real e docs de usuário | depende de 4 (instalar) e alimenta a §14.2 (tutorial/cookbook) |
 | 7 | {@14.7} CLI único e gerenciador de pacotes | fase 0 junto da 4; fases 1–2 depois do release; fase 3 só com demanda |
@@ -700,31 +581,27 @@ O contrato do CLI que o MCP consome é o do
 
 ### 14.4 Distribuição, stdlib instalada e pacotes externos
 
-**O buraco, em fatos.** O repo funciona; o **pacote** não existe:
+**O que ainda falta.** O item 1 fechou wheel, entry point, bundle de `std/`/`runtime/` e
+teste de instalação. O gap restante é **resolução de módulos e dependências**:
 
-- `pyproject.toml` não tem `[build-system]` nem `[project.scripts]` — `pip install loxia`
-  não produz o comando `loxia`;
-- `std/` está fora do pacote Python e `STD_ROOT` resolve por
-  `Path(__file__).parents[2] / "std"` (raiz do repo). Funciona no clone, **quebra no wheel**;
 - a raiz de módulos é o diretório do arquivo de entrada; `..` e caminho absoluto são erro
-  ([ADR-0073](docs/adr/0073-imports-modulos.md)). Consequência: um projeto **não consegue**
-  consumir código fora da própria pasta — nem dependência, nem monorepo, nem a stdlib se ela
-  não estiver no repo;
+  ([ADR-0073](docs/adr/0073-imports-modulos.md)). Um projeto ainda **não consegue** consumir
+  código fora da própria pasta — nem dependência, nem monorepo;
 - `std.*` é raiz reservada e resolve no bundle; o loader **inlina** os módulos em
-  compile-time, então tree-walk e backend usam a mesma resolução (bom: um caminho só).
+  compile-time, então tree-walk e backend usam a mesma resolução (bom: um caminho só);
+- `loxia.toml`/`[modules]` e `loxia.lock` ainda não existem no fluxo de pacotes.
 
-**O que isso custa hoje.** Quem quiser experimentar precisa clonar, instalar `uv`, `libgc` e
-`llvmlite`; e o primeiro usuário que tentar `import` de um pacote vai bater na regra do `..`.
-É o maior *gap* entre "projeto impressionante" e "ferramenta" — e é o único que depende de
-decisão de design, não de feature.
+**O que isso custa hoje.** Instalar já funciona; o primeiro usuário que tentar `import` de
+um pacote vai bater na regra do `..`. É o maior *gap* entre "projeto impressionante" e
+"ferramenta" — e depende de decisão de design, não de feature.
 
 **Item 1 — empacotar e instalar (sem decidir resolução ainda).**
 
 > Dívida do ADR-0088 **resolvida** em 2026-11-15: `src/` virou `loxia_core/`; o wheel
 > não instala mais um pacote top-level chamado `src`.
 
-- [x] `[build-system]` (hatchling) + `[project.scripts] loxia = "loxia.cli:main"`.
-      Falta: `loxia run|check|build` como subcomandos (fase 0 da §14.7).
+- [x] `[build-system]` (hatchling) + `[project.scripts] loxia = "loxia.cli:main"` e os
+      subcomandos `run|check|build|ast|fmt|doc|explain|capabilities|lsp` (fase 0 da §14.7).
 - [x] `std/` e `runtime/` viajam no wheel (`force-include` → `loxia_core/std`,
       `loxia_core/runtime`) e `loxia_core/bundle.py` resolve dev × instalado.
 - [x] Teste de instalação real (`tests/test_install.py`, `pytest -m install`): builda o wheel,
@@ -808,10 +685,9 @@ Objetivo: **um** comando (`loxia`) que roda, compila, testa e resolve pacotes �
 segundo nome. A análise completa (o que o `uv` resolve que a Loxia não tem, requisitos,
 não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 
-- [ ] **Fase 0 — CLI único** (junto da §14.4): `loxia run|check|build|ast|fmt|doc|explain|
-      capabilities|lsp|repl|version`; as flags atuais continuam aceitas
-      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)). Sem rede, sem config nova.
-      É só o entry point e o despacho.
+- [ ] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia test` e `loxia repl`
+      como subcomandos; `run|check|build|ast|fmt|doc|explain|capabilities|lsp` já existem
+      e as flags atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] **Fase 1 — manifest + lock** (`loxia.toml` já existe pelo [ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)):
       `[dependencies]`, `loxia.lock` com versão exata + `sha256`, `loxia lock`,
       `loxia fetch --offline` e cache local. Critério de pronto: dois manifests iguais com o
