@@ -780,3 +780,15 @@ comments `///` em toda a API pública de `std/*.lx`, registry de builtins e gera
 - `tests/test_stdlib_docs.py` — **new**: cobertura e drift.
 
 <!-- triaged: 43f76a2 -->
+
+## 2026-11-16 — LSP-2 parcial
+
+Intervalo: `HEAD`..working tree. Complementa o LSP com `completion` (global e por membro),
+`signatureHelp`, `documentFormatting` (reusa `loxia/formatter.py`) e
+`semanticTokens/full`; `codeAction`/fixes, rename e spans formais seguem pendentes.
+
+- `loxia/lsp.py` — **updated**: capabilities/handlers/helpers.
+- `loxia/cli.py` — **updated**: features em `capabilities`.
+- `tests/test_lsp.py` — **updated**: formatting, completion, signature e semantic tokens.
+- `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0090`, `docs/decisoes.md`,
+  `docs/tech/arquitetura.md` — **updated**: status.

@@ -54,7 +54,7 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcomandos, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restrito a `check`, warnings, `doc` e exit codes |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
-| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, full sync, diagnostics, documentSymbol, hover e definition |
+| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition e LSP-2 básico (completion/signature/formatting/semantic tokens) |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | docs English dos builtins/primitivas para `docs/stdlib/builtins.md` |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |

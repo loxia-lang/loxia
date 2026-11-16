@@ -4,8 +4,9 @@
 > stdio à mão): `initialize`/`shutdown`/`exit`, full sync, `publishDiagnostics` e
 > `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references` e
 > `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
-> variantes (sem spans de expressão formais). LSP-2 (completion/format/code actions)
-> fica pendente.
+> variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
+> documentFormatting e semanticTokens/full. `codeAction`/fixes, rename e spans de
+> expressão formais ficam pendentes.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -16,9 +17,9 @@
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (custo de superfície),
   [`../../TODO.md`](../../TODO.md) §3.1 e §14.8, [`../../IDEIAS.md`](../../IDEIAS.md) I-4
 - **Implementação:** `loxia/lsp.py` (servidor), `loxia/symbols.py` (índice),
-  `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`) e
-  `tests/test_lsp.py` (transcrições JSON-RPC). LSP-2 e o cliente VS Code ainda não
-  existem.
+  `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
+  `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
+  `codeAction`/fixes, rename e o cliente VS Code ainda não existem.
 
 ## Contexto
 

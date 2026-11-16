@@ -1055,7 +1055,16 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
-        {"name": "lsp", "features": ["stdio", "hover", "definition", "documentSymbol"]},
+        {"name": "lsp", "features": [
+            "stdio",
+            "hover",
+            "definition",
+            "documentSymbol",
+            "completion",
+            "signatureHelp",
+            "formatting",
+            "semanticTokens",
+        ]},
     ]
     codes = [
         {

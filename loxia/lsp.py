@@ -1,12 +1,13 @@
 """Servidor LSP mínimo (ADR-0090), JSON-RPC sobre stdio, sem dependências.
 
-LSP-0: full sync, `publishDiagnostics` e `documentSymbol`. Hover/definition/completion
-dependem de spans de expressão/SymbolIndex (LSP-1) e ainda não existem.
+LSP-0: full sync, diagnostics e documentSymbol. LSP-1: hover/definition via
+`SymbolIndex`. LSP-2 parcial: completion, signatureHelp, formatting e semantic tokens.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,8 +15,10 @@ from typing import IO, Any
 from urllib.parse import unquote, urlparse
 
 from loxia import __version__
+from loxia.builtins_docs import BUILTIN_DOCS
 from loxia.cli import Loxia
-from loxia.symbols import SymbolIndex
+from loxia.formatter import format_source
+from loxia.symbols import Symbol, SymbolIndex
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
@@ -23,6 +26,7 @@ from loxia_core.diagnostics.diagnostic import (
 )
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.source import display_path
+from loxia_core.frontend.keywords import KEYWORDS
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.stmt import (
@@ -36,12 +40,74 @@ from loxia_core.frontend.stmt import (
 )
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.ty import display
+from loxia_core.frontend.ty import ClassTy, EnumObjectTy, InterfaceTy, display
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
 
 # DocumentSymbolKind da LSP.
+LSP_SYMBOL_KINDS = {
+    "class": 7,
+    "method": 2,
+    "field": 5,
+    "enum": 13,
+    "interface": 8,
+    "function": 3,
+    "variable": 6,
+    "type": 25,
+    "variant": 20,
+}
+
+SEMANTIC_TOKEN_TYPES = (
+    "keyword",
+    "type",
+    "class",
+    "enum",
+    "interface",
+    "function",
+    "method",
+    "variable",
+    "property",
+    "string",
+    "number",
+    "operator",
+)
+
+_OPERATOR_TYPES = frozenset(
+    name
+    for name in dir(TokenType)
+    if name
+    in {
+        "PLUS",
+        "MINUS",
+        "STAR",
+        "SLASH",
+        "SLASH_SLASH",
+        "PERCENT",
+        "STAR_STAR",
+        "EQUAL",
+        "EQUAL_EQUAL",
+        "BANG_EQUAL",
+        "LESS",
+        "LESS_EQUAL",
+        "GREATER",
+        "GREATER_EQUAL",
+        "AND",
+        "OR",
+        "PIPE",
+        "AMPERSAND",
+        "CARET",
+        "TILDE",
+        "LESS_LESS",
+        "GREATER_GREATER",
+        "GREATER_GREATER_GREATER",
+        "QUESTION_QUESTION",
+        "QUESTION_DOT",
+        "ARROW",
+        "DOT_DOT",
+    }
+)
+
 SYMBOL_KINDS = {
     "class": 5,
     "method": 6,
@@ -208,6 +274,21 @@ class Server:
                             "hoverProvider": True,
                             "definitionProvider": True,
                             "documentSymbolProvider": True,
+                            "completionProvider": {
+                                "triggerCharacters": [".", ":"],
+                                "resolveProvider": False,
+                            },
+                            "signatureHelpProvider": {
+                                "triggerCharacters": ["(", ","]
+                            },
+                            "documentFormattingProvider": True,
+                            "semanticTokensProvider": {
+                                "legend": {
+                                    "tokenTypes": list(SEMANTIC_TOKEN_TYPES),
+                                    "tokenModifiers": [],
+                                },
+                                "full": True,
+                            },
                             "diagnosticProvider": {
                                 "interFileDependencies": False,
                                 "workspaceDiagnostics": False,
@@ -241,6 +322,30 @@ class Server:
         if method == "textDocument/definition":
             _send(
                 self.stdout, _response(message_id, self._definition(message))
+            )
+            return
+
+        if method == "textDocument/completion":
+            _send(self.stdout, _response(message_id, self._completion(message)))
+            return
+
+        if method == "textDocument/signatureHelp":
+            _send(
+                self.stdout,
+                _response(message_id, self._signature_help(message)),
+            )
+            return
+
+        if method == "textDocument/formatting":
+            _send(
+                self.stdout, _response(message_id, self._formatting(message))
+            )
+            return
+
+        if method == "textDocument/semanticTokens/full":
+            _send(
+                self.stdout,
+                _response(message_id, self._semantic_tokens(message)),
             )
             return
 
@@ -573,6 +678,289 @@ class Server:
             "range": _token_range(symbol.token, target_source),
         }
 
+    # -- completion/signature/format/semantic ----------------------------
+
+    def _line_text(self, document: Document, line: int) -> str | None:
+        lines = document.text.splitlines()
+        if 0 <= line < len(lines):
+            return lines[line]
+        return None
+
+    def _character_to_column(self, line_text: str, character: int) -> int:
+        units = 0
+        column = 1
+        for char in line_text:
+            width = len(char.encode("utf-16-le")) // 2
+            if units >= character:
+                break
+            units += width
+            column += 1
+        return column
+
+    def _property_receiver(
+        self, document: Document, position: object
+    ) -> Token | None:
+        if not isinstance(position, dict):
+            return None
+        line = position.get("line")
+        character = position.get("character")
+        if not isinstance(line, int) or not isinstance(character, int):
+            return None
+        line_text = self._line_text(document, line)
+        if line_text is None:
+            return None
+        column = self._character_to_column(line_text, character)
+        prefix = line_text[: max(0, column - 1)]
+        match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*[A-Za-z0-9_]*$", prefix)
+        if match is None:
+            return None
+        start = match.start(1)
+        receiver_character = len(prefix[:start].encode("utf-16-le")) // 2
+        return self._token_at(
+            document, {"line": line, "character": receiver_character}
+        )
+
+    def _completion_item(
+        self,
+        *,
+        name: str,
+        kind: int,
+        signature: str,
+        doc: str | None,
+    ) -> dict[str, object]:
+        item: dict[str, object] = {
+            "label": name,
+            "kind": kind,
+            "detail": signature,
+            "insertText": name,
+        }
+        if doc:
+            item["documentation"] = {"kind": "markdown", "value": doc}
+        return item
+
+    def _completion(self, message: dict[str, Any]) -> dict[str, object]:
+        empty: dict[str, object] = {"isIncomplete": False, "items": []}
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return empty
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return empty
+        uri = document_info.get("uri")
+        if not isinstance(uri, str):
+            return empty
+        document = self.documents.get(uri)
+        if document is None:
+            return empty
+        index = self._index_for(uri)
+        if index is None:
+            return empty
+
+        items: dict[str, dict[str, object]] = {}
+        receiver = self._property_receiver(document, params.get("position"))
+        if receiver is not None:
+            ty = index.type_at(receiver)
+            members: dict[str, Symbol] = {}
+            if isinstance(ty, (ClassTy, InterfaceTy, EnumObjectTy)):
+                members = dict(index.by_container.get(ty.name, {}))
+            for symbol in members.values():
+                item = self._completion_item(
+                    name=symbol.name,
+                    kind=LSP_SYMBOL_KINDS.get(symbol.kind, 6),
+                    signature=symbol.signature,
+                    doc=symbol.doc,
+                )
+                items.setdefault(symbol.name, item)
+        else:
+            for symbol in index.symbols:
+                item = self._completion_item(
+                    name=symbol.name,
+                    kind=LSP_SYMBOL_KINDS.get(symbol.kind, 6),
+                    signature=symbol.signature,
+                    doc=symbol.doc,
+                )
+                items.setdefault(symbol.name, item)
+            for builtin in BUILTIN_DOCS:
+                if "." in builtin.name:
+                    continue
+                item = self._completion_item(
+                    name=builtin.name,
+                    kind=14 if builtin.kind == "module" else 3,
+                    signature=builtin.signature,
+                    doc=builtin.doc,
+                )
+                items.setdefault(builtin.name, item)
+            for keyword in KEYWORDS:
+                item = self._completion_item(
+                    name=keyword,
+                    kind=14,
+                    signature=keyword,
+                    doc=None,
+                )
+                items.setdefault(keyword, item)
+
+        return {
+            "isIncomplete": False,
+            "items": [items[key] for key in sorted(items)],
+        }
+
+    def _signature_help(
+        self, message: dict[str, Any]
+    ) -> dict[str, object] | None:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return None
+        uri = document_info.get("uri")
+        position = params.get("position")
+        if not isinstance(uri, str) or not isinstance(position, dict):
+            return None
+        document = self.documents.get(uri)
+        if document is None:
+            return None
+        line = position.get("line")
+        character = position.get("character")
+        if not isinstance(line, int) or not isinstance(character, int):
+            return None
+        line_text = self._line_text(document, line)
+        if line_text is None:
+            return None
+        column = self._character_to_column(line_text, character)
+        prefix = line_text[: max(0, column - 1)]
+        open_paren = prefix.rfind("(")
+        if open_paren < 0:
+            return None
+        before = prefix[:open_paren]
+        match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*$", before)
+        if match is None:
+            return None
+        name = match.group(1)
+        start = match.start(1)
+        token_character = len(before[:start].encode("utf-16-le")) // 2
+        token = self._token_at(
+            document, {"line": line, "character": token_character}
+        )
+        if token is None:
+            return None
+        index = self._index_for(uri)
+        if index is None:
+            return None
+        symbol = index.symbol_at(token)
+        signature = symbol.signature if symbol is not None else None
+        if signature is None:
+            builtin = next(
+                (item for item in BUILTIN_DOCS if item.name == name), None
+            )
+            if builtin is None:
+                return None
+            signature = builtin.signature
+
+        start_paren = signature.find("(")
+        end_paren = signature.rfind(")")
+        if start_paren < 0 or end_paren <= start_paren:
+            return None
+        parameters = _split_parameters(signature[start_paren + 1 : end_paren])
+        active = prefix[open_paren + 1 :].count(",")
+        active = min(active, max(0, len(parameters) - 1))
+        return {
+            "signatures": [
+                {
+                    "label": signature,
+                    "parameters": [{"label": item} for item in parameters],
+                }
+            ],
+            "activeSignature": 0,
+            "activeParameter": active,
+        }
+
+    def _formatting(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return []
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return []
+        uri = document_info.get("uri")
+        if not isinstance(uri, str):
+            return []
+        document = self.documents.get(uri)
+        if document is None:
+            return []
+        result = format_source(document.text, reporter=ErrorReporter(max_errors=0))
+        if result is None:
+            return []
+        lines = document.text.splitlines() or [""]
+        last_line = len(lines) - 1
+        last_text = lines[last_line]
+        last_character = len(last_text.encode("utf-16-le")) // 2
+        return [
+            {
+                "range": {
+                    "start": {"line": 0, "character": 0},
+                    "end": {
+                        "line": last_line,
+                        "character": last_character,
+                    },
+                },
+                "newText": result.text,
+            }
+        ]
+
+    def _semantic_tokens(
+        self, message: dict[str, Any]
+    ) -> dict[str, object]:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return {"data": []}
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return {"data": []}
+        uri = document_info.get("uri")
+        if not isinstance(uri, str):
+            return {"data": []}
+        document = self.documents.get(uri)
+        if document is None:
+            return {"data": []}
+        index = self._index_for(uri)
+        if index is None:
+            return {"data": []}
+        tokens = Scanner(document.text, ErrorReporter(max_errors=0)).scan_tokens()
+        data: list[int] = []
+        previous_line = 0
+        previous_character = 0
+        for token in tokens:
+            if token.type is TokenType.EOF or "\n" in token.lexeme:
+                continue
+            semantic = _semantic_type(token, index)
+            if semantic is None or not token.lexeme:
+                continue
+            line = token.line - 1
+            line_text = self._line_text(document, line) or ""
+            character = _utf16_column(line_text, token.column)
+            length = len(token.lexeme.encode("utf-16-le")) // 2
+            if line < previous_line or (
+                line == previous_line and character < previous_character
+            ):
+                continue
+            delta_line = line - previous_line
+            delta_character = (
+                character if delta_line else character - previous_character
+            )
+            data.extend(
+                [
+                    delta_line,
+                    delta_character,
+                    length,
+                    SEMANTIC_TOKEN_TYPES.index(semantic),
+                    0,
+                ]
+            )
+            previous_line = line
+            previous_character = character
+        return {"data": data}
+
     def _uri_for_token(self, token: Token, document: Document) -> str:
         if not token.file or document.path is None:
             return document.uri
@@ -610,6 +998,54 @@ class Server:
             for statement in statements
             for symbol in _symbols_for(statement, current.text)
         ]
+
+
+def _split_parameters(text: str) -> list[str]:
+    parts: list[str] = []
+    depth = 0
+    start = 0
+    for index, char in enumerate(text):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth = max(0, depth - 1)
+        elif char == "," and depth == 0:
+            parts.append(text[start:index].strip())
+            start = index + 1
+    tail = text[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def _semantic_type(token: Token, index: SymbolIndex) -> str | None:
+    if token.lexeme in KEYWORDS:
+        return "keyword"
+    if token.type in (TokenType.STRING, TokenType.INTERPOLATED_STRING):
+        return "string"
+    if token.type is TokenType.NUMBER:
+        return "number"
+    if token.type.name in _OPERATOR_TYPES:
+        return "operator"
+    if token.type in (TokenType.THIS, TokenType.SUPER):
+        return "keyword"
+    if token.type is not TokenType.IDENTIFIER:
+        return None
+
+    symbol = index.symbol_at(token)
+    if symbol is None:
+        return "variable"
+    return {
+        "class": "class",
+        "interface": "interface",
+        "enum": "enum",
+        "variant": "enum",
+        "function": "function",
+        "method": "method",
+        "field": "property",
+        "variable": "variable",
+        "type": "type",
+    }.get(symbol.kind, "variable")
 
 
 def _source_for(sources: object, file: str, fallback: str) -> str:

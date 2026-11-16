@@ -75,7 +75,8 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
        ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
        - [x] LSP-0 (`initialize`/sync/diagnostics/documentSymbol).
        - [x] LSP-1 básico (`SymbolIndex` + `Resolver.references` → hover/definition).
-       - [ ] LSP-2 (completion/format/code actions).
+       - [x] LSP-2 parcial (completion, signatureHelp, formatting, semanticTokens).
+       - [ ] LSP-2 restante (codeAction/fixes, rename) e spans de expressão.
 9. [ ] **T3 + dogfooding** (`P2`/`L`): módulos T3 e formatter em Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
        §13.7 passo 7).
@@ -188,7 +189,9 @@ uv run pytest tests/test_backend.py -q
       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [x] `P2` LSP-1 básico: `SymbolIndex` + `Resolver.references` → hover/definition
       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [ ] `P2` LSP-2: completion/format/code actions e spans formais
+- [x] `P2` LSP-2 parcial: completion/signatureHelp/formatting/semanticTokens
+      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] `P2` LSP-2 restante: codeAction/fixes, rename e spans de expressão formais
       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.

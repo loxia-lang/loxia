@@ -319,3 +319,182 @@ def test_lsp_hover_field_via_class_type(tmp_path: Path) -> None:
         if process.poll() is None:
             process.kill()
             process.wait(timeout=5)
+
+
+def test_lsp_formatting_returns_full_document_edit(tmp_path: Path) -> None:
+    uri = (tmp_path / "fmt.lx").as_uri()
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": "fn f() -> Int {\n    return 1;\n}\n",
+                    }
+                },
+            },
+        )
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/formatting",
+                "params": {"textDocument": {"uri": uri}, "options": {}},
+            },
+        )
+        edits = read(process)["result"]
+        assert edits[0]["newText"] == "fn f() -> Int {\n  return 1\n}\n"
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_lsp_completion_global_and_property(tmp_path: Path) -> None:
+    uri = (tmp_path / "comp.lx").as_uri()
+    text = (
+        "class Point {\n"
+        "  val x: Int\n"
+        "  init(x: Int) { this.x = x }\n"
+        "}\n"
+        "val p = Point(1)\n"
+        "val n = 1\n"
+        "print(p.x)\n"
+    )
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": text,
+                    }
+                },
+            },
+        )
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 5, "character": 9},
+                },
+            },
+        )
+        labels = {item["label"] for item in read(process)["result"]["items"]}
+        assert {"Point", "p", "n", "add"} <= labels or {"Point", "p", "n"} <= labels
+        assert {"print", "len", "fn"} <= labels
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 6, "character": 8},
+                },
+            },
+        )
+        property_labels = {
+            item["label"] for item in read(process)["result"]["items"]
+        }
+        assert {"x", "init"} <= property_labels
+
+        send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_lsp_signature_help_and_semantic_tokens(tmp_path: Path) -> None:
+    uri = (tmp_path / "sig.lx").as_uri()
+    text = "fn add(a: Int, b: Int) -> Int { return a + b }\nprint(add(1, 2))\n"
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": text,
+                    }
+                },
+            },
+        )
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/signatureHelp",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 1, "character": 13},
+                },
+            },
+        )
+        signature = read(process)["result"]
+        assert "fn add(a: Int, b: Int) -> Int" in signature["signatures"][0]["label"]
+        assert signature["activeParameter"] == 1
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "textDocument/semanticTokens/full",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        data = read(process)["result"]["data"]
+        assert data
+        assert len(data) % 5 == 0
+
+        send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)

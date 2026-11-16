@@ -17,8 +17,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   relatedInformation/help/trace e `documentSymbol` (classes, métodos, campos, enums,
   variantes, interfaces, funções e variáveis). **LSP-1 básico**: `SymbolIndex` +
   `Resolver.references` para `hover` (assinatura/tipo/doc) e `textDocument/definition`
-  de variáveis, funções, classes, campos/métodos e variantes. Completion/format/code
-  actions (LSP-2) ficam pendentes.
+  de variáveis, funções, classes, campos/métodos e variantes. **LSP-2 parcial**:
+  completion (global e por membro), signatureHelp, documentFormatting (via `lox fmt`)
+  e semanticTokens/full. Code actions/fixes, rename e spans formais ficam pendentes.
 - **Estilo e formatter mínimo** ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)):
   `docs/guia-estilo.md` normativo e `lox fmt` Python (indentação de bloco, `;` de fim de
   linha, newline final, preservação de strings/comentários), com `fmt --check` (exit 1 se
