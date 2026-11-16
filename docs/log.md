@@ -805,3 +805,5 @@ confiabilidade ficam em [`tech/fixes.md`](tech/fixes.md) e no TODO.
 - `docs/spec/erros.md`, `docs/tech/fixes.md`, `docs/adr/0093`, `TODO.md`,
   `CHANGELOG.md`, `README.md` — **updated**.
 - `tests/test_diagnostics.py` — **updated**: JSON e reporter com fixes.
+
+<!-- triaged: fbe7f8e -->
