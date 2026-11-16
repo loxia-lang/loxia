@@ -19,25 +19,21 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ---
 
 ## 0. Fila única
-A próxima
-execução é o **dogfooding do `loxia fmt` em Lox** e o **LSP-2 restante**. O status por nível é **gerado**
-em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
-[`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
+
+A fila ativa é curta: **dogfooding do `loxia fmt` em Lox**, **M8/M9** e a trilha de
+publicação (§14). LSP-2 e o lote de fixes estão fechados; o que resta deles está na §7.
+O status por nível é **gerado** em [`docs/spec/garantias.md`](docs/spec/garantias.md) a
+partir de [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
 
 ### 0.2 Ordem de execução
 
-1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `loxia fmt` para Lox após a T3, com
-       paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
-       §13.7). Inclui `fn` em método, trailing comma/reflow.
-2. [ ] **Diagnósticos restantes** (`P2`): `notes` de proveniência e `E3004`
-       ([`docs/tech/fixes.md`](docs/tech/fixes.md)).
-3. [ ] **LSP-2 restante** (`P2`): `SourceIndex` de spans de expressão e `rename`
-       cross-file conservador implementados; falta o cliente VS Code e `workspace/symbol`
-       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-4. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
-5. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
-       itens de ecossistema agora têm ADR; M9 acompanha a fila acima.
+1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `loxia fmt` para Lox com paridade
+       byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md), §13.7).
+2. [ ] **M8** (`P2`): performance restante; JIT no REPL é P3 e não bloqueia.
+3. [ ] **M9** (`P2`): ecossistema — cliente VS Code/`workspace/symbol`, site e playground
+       (ADRs 0090–0093; §7 e §14).
+4. [ ] **Publicação** (`P2`, paralela): §14 (repo público, site, MCP, distribuição).
 
 > **Trilha paralela:** a §14 (publicação, distribuição, pacotes, corpus de conformidade e
 > docs de usuário) não bloqueia nenhum nível da linguagem/backend e pode andar junto com a
@@ -54,11 +50,9 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 
 ### 3.1 O que ainda falta
 
-- [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
-      spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-2
-      restante ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [ ] **E2001** e **E3016/E3018/E3002/E3015** (`unsafe`):
-      [`docs/tech/fixes.md`](docs/tech/fixes.md).
+- [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)".
+      O `SourceIndex` de spans de expressão já existe; falta o checker consumi-lo para
+      produzir as `notes` ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 
 **Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
 Python para validar código do usuário; não classificar código por prefixo de mensagem.
@@ -69,13 +63,13 @@ Python para validar código do usuário; não classificar código por prefixo de
 loxia run script.lx
 loxia check script.lx
 loxia build script.lx --emit=ll|obj|exe -o app
-lox ast script.lx
+loxia ast script.lx
 loxia fmt [--check] script.lx
 loxia doc std/strings.lx --json
 loxia explain E2001
 loxia capabilities --json
 loxia lsp
-lox repl                      # REPL, com :type, :ast
+loxia repl                    # REPL, com :type, :ast
 ```
 
 `--check`, `--emit` e `--dump-ast` continuam como aliases; `main.py` e a invocação atual
@@ -115,8 +109,8 @@ uv run pytest tests/test_backend.py -q
       [`docs/tech/fixes.md`](docs/tech/fixes.md).
 - [ ] `P2` `loxia fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P2` LSP-2 restante: `workspace/symbol`/cliente VS Code; `codeAction`, `rename`
-      (local e cross-file conservador) e `SourceIndex` implementados
+- [ ] `P2` LSP restante: `workspace/symbol` e cliente VS Code; `codeAction`, `rename`
+      (local e cross-file conservador) e `SourceIndex` já implementados
       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
@@ -159,25 +153,15 @@ fora — não é async.
 
 ### 9.1 Divergências I1 conhecidas (fora do corpus)
 
+No sentido estrito (bytes finais de stdout/stderr e exit code) **não há divergência
+conhecida fora do corpus**. Limite declarado (regra da linguagem, não do lowering):
+`is`/`as` com argumentos de tipo em classe/enum é recusado pelo checker (`E3000`) e o
+tree-walk levanta `R1014`.
+
 **Limitação de backend (E4001, não é divergência I1):** `fn listOf[T](...) -> Gen[List[T]]`
-passa no `--check` e o binário recusa com `Unbound type parameter 'T'` (classe genérica
-instanciada com `List[T]` dentro de função genérica). `std.property` expõe `listOfInt` e
-`listOfString` até o lowering substituir o TyVar antes de instanciar a classe.
-
-Achadas ao implementar o [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md) e
-corrigidas com regressão no diferencial de `tests/test_backend.py`. No sentido estrito
-(bytes finais de stdout/stderr e exit code) não há divergência conhecida fora do corpus.
-Limite declarado (regra da linguagem, não do lowering): `is`/`as` com argumentos de tipo
-em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
-
-#### `R1` — `io.write` sem flush no binário — ✅ resolvido ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md))
-
-
-#### `R2` — panic de primitiva antiga sem posição — ✅ resolvido (2026-11-16)
-
-#### `R3` — closure guardada em lista não é chamável no binário — ✅ resolvido (2026-11-16)
-
-#### `R4` — `except` de classe de módulo não casa no binário — ✅ resolvido (2026-11-16)
+passa no `--check` e o binário recusa com `Unbound type parameter 'T'`; `std.property`
+expõe `listOfInt` e `listOfString` até o lowering substituir o TyVar antes de instanciar a
+classe.
 
 ---
 
@@ -188,7 +172,7 @@ em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
       depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 1). P3/XL.
 - [ ] **LSP em Loxia** (`P3`, `XL`, **não decidido**) — avaliado em 2026-11-16: o LSP local
       é stdio, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta
-      de kernel é pouco (`io.readUtf8`, `io.flush` — ver §9.1 `R1` e §13.9) e o bloqueio
+      de kernel é pouco (`io.readUtf8`/`io.flush` já existem — §13.9) e o bloqueio
       real é não haver front-end/checker chamável de um programa Loxia. Caminho B (delegar
       a `loxia check --error-format=json` via `proc.spawn`) não duplica regra; caminho C
       (front-end em Loxia) cria duas verdades de diagnóstico (I4). Por ora o servidor fica
@@ -218,8 +202,6 @@ em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
         para CSV/logs grandes e para o `loxia fmt`/self-hosting.
 - [ ] **Playground WASM** (target `wasm32` do LLVM) rodando no navegador.
 - [ ] **REPL com `:type`** — mostra o tipo inferido de uma expressão antes de rodar.
-- [ ] **`loxia test`** — runner de testes embutido na linguagem (`#[test] fn ...`).
-- [ ] **Erros com sugestão** ("você quis dizer `println`?" via distância de edição).
 - [ ] **Debugger (DAP)** — breakpoints no tree-walk primeiro; no nativo depois.
 - [ ] **Hot reload** no REPL (redefinir funções sem perder estado).
 - [ ] **Benchmark suite pública** (fib, nbody, mandelbrot) para acompanhar regressões.
@@ -228,8 +210,6 @@ em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
 - [ ] **Dialeto embutido**: `lox` como linguagem de script de um app Python (via CFFI).
 - [ ] **Gerador de AST a partir de schema** (o livro faz à mão; um script evita erro
       quando a linguagem crescer).
-- [ ] **`loxia doc`** — doc comments `///` (Markdown) + geração Markdown/JSON para stdlib,
-      builtins e código de usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
 
 ### Generics pós-MVP — adiados (2026-11-13)
 
@@ -260,13 +240,15 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    backend ([ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md)); constraints
    de função estão implementadas ([ADR-0081](docs/adr/0081-constraints-generics.md)) e
    constraints em classes seguem pós-MVP.
-2. **Stdlib pós-1.0:** `io`, `string`, `collections`, `time` não determinístico;
-   transcendentais de `math` fora do I3.
+2. **Stdlib pós-1.0:** T1/T2/T3 concluídas. Restam `std.utf8` (`byteLen`/coluna UTF-16),
+   `fs.open` em streaming (§13.9) e as capacidades de host não aprovadas. `time`
+   não determinístico e transcendentais de `math` continuam fora do I3.
 3. **Interfaces genéricas e constraints em classes:** `interface I[T]` e
    `class C[T: I]` continuam em aberto; constraints de função já existem
    ([ADR-0081](docs/adr/0081-constraints-generics.md)).
-4. **Contratos e agentes:** `requires`/`ensures`/`invariant`, `--contracts` default e JSON
-   schema v1 com `fixes[]` — [`IDEIAS.md`](IDEIAS.md) I-4.
+4. **Contratos e agentes:** `requires`/`ensures`/`invariant` e `--contracts` default
+   continuam em aberto ([`IDEIAS.md`](IDEIAS.md) I-4); o schema JSON v1 com `fixes[]` já
+   está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 5. **`if`/bloco como expressão:** fora da 1.0; reavaliar quando houver dor real.
 6. **Paralelismo (multithread):** em avaliação no [`IDEIAS.md`](IDEIAS.md); async é
    concorrência single-thread ([ADR-0037](docs/adr/0037-async-direcao.md)), não paralelismo.
@@ -279,9 +261,8 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 8. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
    `raise` através de frames aninhados é dívida declarada, não bloqueia a stdlib.
-9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; resta `..`
-   fora da raiz. Fonte do módulo e stack trace estão feitos
-   ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
+9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; única pendência
+   é `..` fora da raiz (§13.5).
 
 ---
 
@@ -310,9 +291,9 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 > **Regra de ouro:** kernel = SO ou representação; tudo o mais é Lox. Nenhuma lógica de
 > negócio em primitiva, nenhuma primitiva que Lox faria em O(n).
 >
-> **Fora:** regex, cripto, rede, subprocesso, async, timezone DB, i18n, YAML/TOML, UUID, bigint.
-> **Em revisão (2026-11-16):** rede e subprocesso — proposta e desenho na §13.9, discussão
-> em [`IDEIAS.md`](IDEIAS.md) I-11. Nada decidido, nada implementado; o resto continua fora.
+> **Fora:** regex, cripto, rede, async, timezone DB, i18n, YAML/TOML, UUID, bigint.
+> `subprocesso` entrou via [ADR-0095](docs/adr/0095-processos-streams-poll.md); `rede`
+> segue em revisão na §13.9/[`IDEIAS.md`](IDEIAS.md) I-11 — nada decidido.
 
 ### 13.1 Camadas
 
@@ -329,30 +310,9 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)), para 19 com
 stdio por bytes ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)) e para 29 com
 processos/`poll` ([ADR-0095](docs/adr/0095-processos-streams-poll.md)) — o teto de ~30 foi
-atingido; o próximo crescimento exige tipo opaco de handle ou ADR que justifique a camada. `os.cwd` segue fora:
-`std.paths` é lexical e não precisou dele.
-Candidatas em avaliação na §13.9: `proc`/`poll`/`fs.open`/`net`, só com consumidor e ADR
-próprio.
-
-### 13.2–13.3 Kernel v1 e complexidade — concluídos
-
-Kernel de SO (13.2) e cache de code points/`substr`/`join`/`charCodeAt`/`fromCodePoint`
-(13.3) estão implementados e cobertos por `k0`, `tests/test_kernel.py` e
-`bench/cases/string_scan.lx`. O detalhe fica no [ADR-0071](docs/adr/0071-primitivas-de-runtime.md);
-não repetir a tabela aqui.
-
-### 13.4 Tabela única de primitivas
-
-Tabela implementada para as primitivas monomórficas. Migrar `len`/`chars`/`str`/`repr`/
-`range` é **opcional**: não muda performance (são builtins especiais) e melhora a
-arquitetura só quando reduzir casos especiais no checker/lowering; não bloqueia T3.
-
-Desde 2026-11-16 a tabela também gera a ABI: `runtime/gen_kernel.py` escreve
-`runtime/kernel_gen.h` com a assinatura C de cada primitiva (`site` incluso) e o
-`kernel.c` o inclui — divergência entre tabela e definição C quebra a compilação.
-`make primitives` regenera; `tests/test_primitives_gen.py` policia a frescura. O arquivo
-de dados em TOML do [`IDEIAS.md`](IDEIAS.md) §"Pendências" não foi adotado (gatilho: >30 primitivas
-ou um segundo gerador).
+atingido; o próximo crescimento exige tipo opaco de handle ou ADR que justifique a camada.
+`os.cwd` segue fora: `std.paths` é lexical e não precisou dele.
+Candidatas em avaliação na §13.9: `fs.open`/`net`, só com consumidor e ADR próprio.
 
 ### 13.5 Imports — pendências
 
@@ -361,18 +321,13 @@ Implementado em [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, p
 
 - [ ] Imports com caminho que sai da raiz (`..`) — decisão futura.
 
-### 13.6 Batteries — inventário
+### 13.6 Batteries — concluídas
 
-Tiers do ADR-0072. `⬜` = a fazer; cada módulo entra com golden + `--check` + auditoria de
-determinismo.
-
-**T3 — extra**
-
-| Módulo | Funções | Estado |
-| --- | --- | --- |
-| `std.test` | `Suite`/`describe`/`it`/`beforeEach`/`afterEach`/`expect`/`skip`/`report` + `loxia test` (glob, `--isolate=file|test`, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
-
-**Fora da stdlib:** a linha do topo da §13 (motivos no [ADR-0072](docs/adr/0072-stdlib-batteries.md)).
+T1, T2 e T3 foram entregues (catálogo em [`docs/stdlib/`](docs/stdlib/)); não há módulo
+pendente nesses tiers. `std.test`/`loxia test`, `std.property`, `std.rand`, `std.log`,
+`std.hash`, `std.collections`, `std.timex` e os módulos de T1/T2 têm golden e página
+gerada. Fora da stdlib continuam os itens do topo da §13 (regex, cripto, rede, async,
+timezone DB, i18n, YAML/TOML, UUID, bigint) — [ADR-0072](docs/adr/0072-stdlib-batteries.md).
 
 ### 13.7 Ordem de entrega
 
@@ -382,26 +337,27 @@ determinismo.
 
 ### 13.8 Critério de pronto por módulo
 
-- [ ] programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
-- [ ] golden em `tests/cases/std_<modulo>.lx` + `--check` limpo;
-- [ ] determinismo declarado (função ambiente ≠ corpus I1);
-- [ ] doc pública em `std/*.lx` e página gerada em `docs/stdlib/` para cada módulo novo
-      (T1/T2 já têm);
-- [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
-- [ ] `make check` verde; `make bench` se tocar caminho quente.
+Critério para qualquer módulo novo:
 
-### 13.9 Capacidades de host — P0 feito; o resto não decidido (2026-11-16)
+- programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
+- golden em `tests/cases/std_<modulo>.lx` + `--check` limpo;
+- determinismo declarado (função ambiente ≠ corpus I1);
+- doc pública em `std/*.lx` e página gerada em `docs/stdlib/`;
+- zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
+- `make check` verde; `make bench` se tocar caminho quente.
+
+### 13.9 Capacidades de host — `proc`/`poll` feitos; o resto não decidido
 
 Origem: a pergunta "por que o LSP não dá em Loxia?". Resposta curta: o LSP local é
 **stdio**, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta de
 kernel para isso é pequeno, e o bloqueio real é não haver front-end/checker chamável de um
-programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. **Só o P0 está
-aprovado e implementado** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md));
-`proc`/`poll`/`fs.open`/`net` continuam não aprovados, e o servidor LSP continua em Python.
-
+programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. `io.flush`/
+`readUtf8` e `proc`/`poll` estão implementados ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md),
+[ADR-0095](docs/adr/0095-processos-streams-poll.md)); `fs.open`/`net` seguem não
+aprovados, e o servidor LSP continua em Python.
 
 `byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) continuam **Lox
-puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos ainda.
+puro** a fazer em `std/utf8` — não precisam de kernel e ainda não foram escritos.
 
 **Candidatas depois (cada uma pede ADR próprio):**
 
@@ -416,21 +372,10 @@ puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos a
 lançar; sem FFI genérica (`extern fn` continua fora, ADR-0071); `net` v1 só com IP
 literal, sem DNS nem TLS.
 
-**Ordem sugerida:**  → `fs.open` (M) → `net`
-(L, só com dor). O servidor LSP continua em Python
+**Ordem sugerida:** `fs.open` (M) → `net` (L, só com dor). O servidor LSP continua em Python
 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
 
-**Tamanho do runtime — ✅ separado (2026-11-16).** `runtime/runtime.c` tinha 2.524 linhas,
-mas só ~200 eram kernel (a seção `Kernel 13.2`); o resto é representação (strings,
-containers, descritor de classe, exceções, GC, panic) que nenhum Lox implementa. A
-promessa "poucas primitivas" continua de pé; o arquivo é que estava grande. Agora são seis
-unidades — `core.c`, `objects.c`, `strings.c`, `containers.c`, `numeric.c`, `kernel.c` —
-com `lox_runtime.h` (tipos/limites) e `kernel_gen.h` (ABI gerada da tabela). O driver
-compila cada uma, cacheia em `runtime-<chave>/` com a chave sobre **todas** as fontes e
-headers, e linka os `.o`. Sem mudança de ABI nem de bytes gerados; `test_runtime_lista_todas_as_unidades`
-impede que um `.c` novo fique fora do build.
-
-**Orçamento de kernel:** 19 → 29 (feito, ADR-0095); ~30 é o teto, e crescer daqui pede tipo opaco de handle.
+**Orçamento de kernel:** 29 de ~30; crescer daqui pede tipo opaco de handle e ADR.
 
 ---
 
@@ -560,14 +505,12 @@ um pacote vai bater na regra do `..`. É o maior *gap* entre "projeto impression
 > Dívida do ADR-0088 **resolvida** em 2026-11-15: `src/` virou `loxia_core/`; o wheel
 > não instala mais um pacote top-level chamado `src`.
 
-- [x] `[build-system]` (hatchling) + `[project.scripts] loxia = "loxia.cli:main"` e os
-      subcomandos `run|check|build|ast|fmt|doc|explain|capabilities|lsp` (fase 0 da §14.7).
-- [x] `std/` e `runtime/` viajam no wheel (`force-include` → `loxia_core/std`,
-      `loxia_core/runtime`) e `loxia_core/bundle.py` resolve dev × instalado.
-- [x] Teste de instalação real (`tests/test_install.py`, `pytest -m install`): builda o wheel,
-      instala num venv fora do repo e roda `std.json`. Cobre também `--emit` com o runtime
-      empacotado (verificado manualmente).
-- [ ] `uv build` e sdist sem `std/` duplicado; `CHANGELOG`/README com o comando de instalação.
+Empacotamento e instalação já funcionam: wheel com `std/`/`runtime/`, entry point
+`loxia`, subcomandos `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` e
+`tests/test_install.py` (wheel em venv fora do repo). Resta:
+
+- [ ] `uv build` e sdist sem `std/` duplicado; `CHANGELOG`/README com o comando de
+      instalação.
 
 **Item 2 — resolução de módulos e pacotes (decidido no
 [ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md); desenho e opções em
@@ -645,9 +588,9 @@ Objetivo: **um** comando (`loxia`) que roda, compila, testa e resolve pacotes �
 segundo nome. A análise completa (o que o `uv` resolve que a Loxia não tem, requisitos,
 não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 
-- [ ] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia test` e `loxia repl`
-      como subcomandos; `run|check|build|ast|fmt|doc|explain|capabilities|lsp` já existem
-      e as flags atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia repl` como subcomando;
+      `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` já existem e as flags
+      atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] **Fase 1 — manifest + lock** (`loxia.toml` já existe pelo [ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)):
       `[dependencies]`, `loxia.lock` com versão exata + `sha256`, `loxia lock`,
       `loxia fetch --offline` e cache local. Critério de pronto: dois manifests iguais com o
