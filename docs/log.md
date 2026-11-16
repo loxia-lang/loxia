@@ -677,3 +677,5 @@ tudo é **plano** (implementação pendente), então nenhuma página de `docs/sp
 - `docs/spec/semantica.md` — **no-change**: `///`, `lox doc`, CLI/LSP ainda não são
   comportamento implementado; a spec continua descrevendo o estado atual.
 
+
+<!-- triaged: 3cacb66 -->
