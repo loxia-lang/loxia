@@ -778,3 +778,5 @@ comments `///` em toda a API pública de `std/*.lx`, registry de builtins e gera
 - `Makefile`, `README.md`, `docs/spec/semantica.md`, `CHANGELOG.md`, `TODO.md`,
   `docs/adr/0091`, `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**.
 - `tests/test_stdlib_docs.py` — **new**: cobertura e drift.
+
+<!-- triaged: 43f76a2 -->
