@@ -762,3 +762,5 @@ funções, classes, campos/métodos, enums e variantes. LSP-2 segue pendente.
   `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**: status.
 - `docs/spec/erros.md` — **no-change**: `Resolver.references` é estado interno do LSP;
   catálogo, spans e exit codes de erro não mudaram.
+
+<!-- triaged: fab93f6 -->
