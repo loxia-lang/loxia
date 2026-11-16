@@ -822,3 +822,21 @@ Intervalo: `30d0275`..`055fd49`. Fecha os produtores de fix restantes, adiciona
   internos do AST/parser.
 
 <!-- triaged: 055fd49 -->
+
+## 2026-11-16 — tooling de editor
+
+Intervalo: `3fbf12f`..`fb48480`. Fecha o formatter fase 1, `workspace/symbol` e o cliente
+VS Code.
+
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md` — **updated**: `workspace/symbol` e cliente.
+- `docs/adr/0092-estilo-e-formatter.md` — **updated**: fase 1 implementada; dogfood adiado.
+- `docs/guia-estilo.md` — **updated**: `fn`/trailing comma no formatter.
+- `docs/spec/sintaxe.md` — **updated**: trailing comma aceito.
+- `docs/spec/garantias.md` — **updated**: contagem do corpus (`trailing_comma`).
+- `TODO.md`, `README.md`, `CHANGELOG.md`, `docs/tech/arquitetura.md`, `editors/README.md` —
+  **updated**: fila, comandos, capacidades e instruções.
+- `docs/decisoes.md` — **no-change**: nenhuma decisão nova; formatter/LSP já estão nos
+  ADR-0090/0092.
+- `docs/spec/erros.md` — **no-change**: nenhum código de diagnóstico mudou.
+
+<!-- triaged: fb48480 -->
