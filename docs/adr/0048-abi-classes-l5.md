@@ -9,7 +9,7 @@
   [ADR-0045](0045-narrowing-representacao.md), [ADR-0046](0046-closures-celulas-l4.md),
   [ADR-0047](0047-optionais-escalares-l2-5.md), [`../../TODO.md`](../../TODO.md) §6.6
 - **Implementação:** `loxia_core/backend/lower.py`, `loxia_core/backend/classes.py`,
-  `runtime/runtime.c`, `tests/test_backend.py`, `tests/corpus_manifest.py`
+  `runtime/objects.c`, `tests/test_backend.py`, `tests/corpus_manifest.py`
 
 ## Contexto
 

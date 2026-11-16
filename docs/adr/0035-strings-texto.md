@@ -13,7 +13,7 @@
   [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
   [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py),
   [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py),
-  [`runtime/runtime.c`](../../runtime/runtime.c),
+  [`runtime/strings.c`](../../runtime/strings.c),
   [`tests/test_checker.py`](../../tests/test_checker.py),
   [`tests/test_backend.py`](../../tests/test_backend.py)
 

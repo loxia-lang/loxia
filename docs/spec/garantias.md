@@ -4,7 +4,7 @@ sources:
   - tests/test_backend.py
   - tests/test_determinism.py
   - loxia_core/backend/**
-  - runtime/runtime.c
+  - runtime/**
   - loxia_core/semantics/checker.py
 ---
 
@@ -143,6 +143,14 @@ O prelúdio da 1.0 não lê o relógio nem outras entradas ambiente: `clock` foi
 explicitamente **fora** desta garantia e do corpus diferencial; têm teste próprio com
 entrada fixa. `std.fs.listDir` ordena as entradas por byte justamente para não vazar a
 ordem do diretório.
+
+**Streaming (não é I3, é contrato de I/O):** `io.write`/`io.writeErr` fazem flush a cada
+chamada nos dois motores, e `io.flush()` força os dois canais. `print` segue o buffer do
+stdio (bloco em pipe, linha em tty) — como no oráculo. Sem o flush, um processo que lê a
+saída de outro (pipe, JSONL, MCP, LSP) trava esperando bytes que ficam no buffer
+([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)); o teste
+`test_io_write_flush_antes_de_bloquear_no_stdin` policia isso, porque a comparação de
+bytes no fim do processo não distingue "flushou" de "flushou no exit".
 
 `math.*` implementado é determinístico: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,
 `round`, `trunc` e `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` e `pow` dependem da libm e

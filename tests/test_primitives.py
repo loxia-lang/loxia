@@ -22,6 +22,8 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "io.writeErr",
         "io.writeFile",
         "io.readLine",
+        "io.readUtf8",
+        "io.flush",
         "fs.exists",
         "fs.listDir",
         "os.exit",

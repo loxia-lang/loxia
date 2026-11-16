@@ -13,7 +13,7 @@
   [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
   [`loxia_core/execution/limits.py`](../../loxia_core/execution/limits.py),
   [`loxia_core/backend/`](../../loxia_core/backend/),
-  [`runtime/runtime.c`](../../runtime/runtime.c),
+  [`runtime/core.c`](../../runtime/core.c),
   [`tests/test_diagnostics.py`](../../tests/test_diagnostics.py),
   [`tests/cases/`](../../tests/cases/),
   [`tests/test_backend.py`](../../tests/test_backend.py)

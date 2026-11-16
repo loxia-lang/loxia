@@ -13,7 +13,7 @@
   [ADR-0060](0060-orcamento-de-memoria.md) (memória),
   [ADR-0072](0072-stdlib-batteries.md) (stdlib),
   [ADR-0073](0073-imports-modulos.md) (imports), [`../../TODO.md`](../../TODO.md) §13
-- **Implementação:** `runtime/runtime.c`, `loxia_core/execution/primitives.py` (novo),
+- **Implementação:** `runtime/kernel.c`, `loxia_core/execution/primitives.py` (novo),
   `loxia_core/execution/natives/`, `loxia_core/backend/lower_*.py`, `tests/cases/kernel/`,
   `bench/cases/string_scan.lox`
 
@@ -25,7 +25,7 @@ Hoje uma função nativa tem até **quatro definições independentes**:
 2. a assinatura no checker (`_define_builtins` e `_native_modules` em
    [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py));
 3. o caso especial de lowering no backend ([`../../loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py));
-4. o símbolo e o corpo em C ([`../../runtime/runtime.c`](../../runtime/runtime.c)).
+4. o símbolo e o corpo em C ([`../../runtime/kernel.c`](../../runtime/kernel.c)).
 
 `math.*` são nove funções definidas nesses quatro lugares, sem nenhum teste que compare
 as quatro. A divergência não aparece como falha de build: aparece como `miscompile`, como
@@ -33,10 +33,10 @@ aridade diferente ou como resultado diferente entre motores.
 
 Além disso, o runtime nativo é **quadrático em strings**, e isso não é hipótese:
 
-- `lox_str_char_at` ([`runtime.c:724`](../../runtime/runtime.c#L724)) varre o UTF-8 desde
+- `lox_str_char_at` ([`runtime/strings.c`](../../runtime/strings.c)) varre o UTF-8 desde
   o byte 0 a cada acesso. `chars` chama por índice e `for c in s` no backend
   ([`lower_range.py:204`](../../loxia_core/backend/lower_range.py#L204)) idem: **n²/2 passos**.
-- `lox_str_concat` ([`runtime.c:155`](../../runtime/runtime.c#L155)) copia os dois lados.
+- `lox_str_concat` ([`runtime/strings.c`](../../runtime/strings.c)) copia os dois lados.
   Construir uma string de *m* caracteres com `+` custa **m²/2 bytes** na arena, que não
   tem `free`.
 - Kernel 13.2 implementado: `args`, `io.*`, `os.*` e `time.*`, com `main(argc, argv)` e

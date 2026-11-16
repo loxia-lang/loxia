@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md),
   [ADR-0031](0031-backend-nativo.md), [ADR-0051](0051-l6-range-for-in-escalares.md),
   [`../../docs/spec/garantias.md`](../spec/garantias.md), [`../../TODO.md`](../../TODO.md) §6.5
-- **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c) (`LOX_HEAP_BYTES`,
+- **Implementação:** [`runtime/core.c`](../../runtime/core.c) (`LOX_HEAP_BYTES`,
   `lox_alloc`), [`tests/test_backend.py`](../../tests/test_backend.py)
   (`test_orcamento_de_memoria_...`)
 
@@ -18,7 +18,7 @@
 ## Contexto
 
 O I1 promete "mesmo programa, mesmo resultado" entre interpretador e binário. O backend
-aloca em uma **arena de 64 MiB, sem `free`** (`LOX_HEAP_BYTES` em `runtime/runtime.c`),
+aloca em uma **arena de 64 MiB, sem `free`** (`LOX_HEAP_BYTES` em `runtime/core.c`),
 enquanto o tree-walk roda sobre o GC do Python, sem teto explícito.
 
 Consequência: um programa que aloca em laço (concatenar strings, `push` em lista, criar

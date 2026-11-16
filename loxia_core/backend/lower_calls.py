@@ -45,14 +45,25 @@ class CallLowering(LoweringBase):
             for argument, desc in zip(expr.arguments, params, strict=True)
         ]
         result = self._type_desc(primitive.result, expr.paren.line)
+        param_types = [
+            self._storage_llvm_type(desc) for desc in params
+        ]
+        call_arguments = [argument.llvm for argument in arguments]
+        if primitive.site:
+            # Primitivas que podem falhar recebem o call site para o panic.
+            param_types.extend([_I32, _I32])
+            call_arguments.extend(
+                [
+                    llvm_ir.constant(_I32, expr.paren.line),
+                    llvm_ir.constant(_I32, expr.paren.column),
+                ]
+            )
         function = self._function(
             primitive.c_symbol,
             self._storage_llvm_type(result),
-            [self._storage_llvm_type(desc) for desc in params],
+            param_types,
         )
-        call = self.builder.call(
-            function, [argument.llvm for argument in arguments]
-        )
+        call = self.builder.call(function, call_arguments)
         return Value(
             result.ty,
             call,

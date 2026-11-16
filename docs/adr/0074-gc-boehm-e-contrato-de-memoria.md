@@ -14,7 +14,7 @@
   [ADR-0071](0071-primitivas-de-runtime.md) (kernel e cache de strings),
   [ADR-0037](0037-async-direcao.md) (frames e GC),
   [`../../TODO.md`](../../TODO.md) §9/§13, [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c) (`lox_alloc`,
+- **Implementação:** [`runtime/core.c`](../../runtime/core.c) (`lox_alloc`,
   `lox_init`, OOM), [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) (link,
   `mod.verify`), [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) (verificação),
   [`tests/test_backend.py`](../../tests/test_backend.py),
@@ -23,7 +23,7 @@
 ## Contexto
 
 O backend nativo aloca em uma arena de 64 MiB, sem `free`
-([`runtime.c`](../../runtime/runtime.c)), com um único ponto bruto de alocação
+([`runtime/core.c`](../../runtime/core.c)), com um único ponto bruto de alocação
 (`lox_alloc`) e quatro wrappers (`cell`, `env`, `closure`, `bytes`). O L6 fechou e o
 corpus declarado compila; a limitação que resta não é de linguagem, é de **memória**:
 programas que alocam em laço (concatenar strings, `push` em lista, criar closures)
@@ -87,7 +87,7 @@ shadow stack. Os pontos que o coletor precisa enxergar são cobertos assim:
 
 A ordem do [TODO §13.7](../../TODO.md) passa a ser: **GC** (este ADR) → 13.3 (cache,
 `substr`, `join`, `charCodeAt`, `fromCodePoint`) → 13.4 (tabela única) → 13.2 (kernel de
-SO). O 13.4 pode andar em paralelo; 13.3 e 13.2 tocam `LoxStr`, `main` e `runtime.c` e
+SO). O 13.4 pode andar em paralelo; 13.3 e 13.2 tocam `LoxStr`, `main` e `runtime/core.c` e
 não entram no mesmo commit do GC.
 
 O cache de `LoxStr` do [ADR-0071](0071-primitivas-de-runtime.md) passa a ser alocado no

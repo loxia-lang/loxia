@@ -769,8 +769,10 @@ problema de comunidade, não de código.
 
 ## I-11 — Capacidades de host: stdio binário, processo, `poll` e rede
 
-**Status:** `em avaliação` — desenho aberto, nada implementado; o servidor LSP continua em
-Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+**Status:** `em avaliação` — **P0 implementado** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)):
+`io.flush` + `io.readUtf8` + flush por escrita; `proc`/`poll`/`fs.open`/`net` continuam em
+avaliação. O servidor LSP continua em Python
+([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 **Origem:** 2026-11-16 — "o LSP não deu em Loxia por falta de stdlib de processo/rede?".
 **Relacionados:** [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (kernel, sem FFI
 genérica), [ADR-0072](docs/adr/0072-stdlib-batteries.md) (`ambient`),
@@ -795,20 +797,25 @@ capacidade de compilador. Rede, para o LSP, é zero.
 
 - kernel: 17 primitivas (`args`, `io.*`, `fs.exists/listDir`, `os.*`, `time.*`, `substr`,
   `join`, `charCodeAt`, `fromCodePoint`) em `loxia_core/execution/primitives.py` — tabela
-  única com `c_symbol`, corpo Python e `ambient`;
+  única com `c_symbol`, corpo Python e `ambient`; **19 desde 2026-11-16** (`io.flush`,
+  `io.readUtf8` — [ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md));
 - `std/`: T1 + T2 prontos (`json`, `io`, `fs`, `paths`, `convert` com base64/hex **sobre
   texto**, sem `Bytes`);
-- `runtime/runtime.c`: 2.524 linhas, das quais ~200 são kernel; o resto é representação
-  (strings, `List`/`Map`/tupla/enum, descritor de classe, exceções, GC, panic);
-- `io.write` no binário não faz flush; no oráculo faz — ver [`TODO.md`](TODO.md) §9.1
-  `R1` (o bug latente mais concreto desta análise);
+- runtime C: 6 unidades por domínio (`core`, `objects`, `strings`, `containers`,
+  `numeric`, `kernel`) + `lox_runtime.h`, separadas em 2026-11-16; antes era um
+  `runtime.c` de 2.524 linhas, das quais ~200 kernel. `runtime/kernel_gen.h` é gerado da
+  tabela de primitivas e o `kernel.c` o inclui (ABI não diverge em silêncio);
+- `io.write` no binário não fazia flush; no oráculo fazia — `R1` do
+  [`TODO.md`](TODO.md) §9.1, **corrigido** no ADR-0094 (o I1 não pegava porque só compara
+  os bytes do fim do processo);
 - LSP local = stdio ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 
 ### O que um LSP em Loxia exigiria
 
 1. `io.readUtf8(n) -> String?` — `Content-Length` conta **bytes** UTF-8; `readLine` e
-   `readAll` não servem;
-2. `io.flush() -> Nil` — o binário bufferiza;
+   `readAll` não servem — **✅ implementado** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md));
+2. `io.flush() -> Nil` — o binário bufferiza — **✅ implementado** (e `io.write` já
+   flusha sozinho);
 3. `byteLen(s)` e largura UTF-16 — **Lox puro** (`std/utf8`); são duas unidades diferentes
    no mesmo arquivo, e é a fonte clássica de bug de posição;
 4. framing + JSON-RPC + dispatch — **Lox puro** (`std/lsp` + `std.json`).
@@ -833,8 +840,8 @@ self-hosting do front-end — e aí o trabalho é de compilador, não de stdlib.
 
 | Camada | Superfície | Esforço | Demanda hoje |
 | --- | --- | --- | --- |
-| kernel #18 | `io.flush()` | S | `prompt`, JSONL, qualquer pipe |
-| kernel #19 | `io.readUtf8(n) -> String?` | S | framing de protocolo |
+| kernel #18 | `io.flush()` | S | ✅ feito (ADR-0094) |
+| kernel #19 | `io.readUtf8(n) -> String?` | S | ✅ feito (ADR-0094) |
 | kernel #20–26 (ilustrativo) | `proc.spawn(argv, opts) -> Process`; `Process.{stdin, stdout, stderr, wait() -> Int, tryWait() -> Int?, kill(sig)}` | M | B, `lox fmt`, `lox test` |
 | kernel #27 | `poll(handles, timeoutMs) -> List[Int]` (índices prontos) | M | `spawn` com dois pipes; I/O concorrente |
 | kernel #28–31 | `net.tcpListen`/`tcpConnect`; `Socket.{read, write, close}`; `net.unix*` | M | nenhum (LSP não usa) |
@@ -880,8 +887,9 @@ self-hosting do front-end — e aí o trabalho é de compilador, não de stdlib.
 
 ### Recomendação provisória
 
-1. P0: `io.flush` (com o fix do `R1`) e `io.readUtf8`, `std/utf8` em Lox; regressão em modo
-   streaming.
+1. P0 ✅ (`io.flush`, `io.readUtf8`, regressão em modo streaming —
+   [ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)); `std/utf8` em Lox continua
+   pendente.
 2. P1: `std/lsp` de framing (sem servidor) — é determinístico e testável por transcrição.
 3. P2: `proc` + `poll` quando `lox fmt`/`lox test`/caminho B precisarem.
 4. P3: `fs.open`; `net` só com consumidor real.
@@ -908,7 +916,11 @@ self-hosting do front-end — e aí o trabalho é de compilador, não de stdlib.
 
 ## I-12 — Tabela de binding declarativa (bindgen interno)
 
-**Status:** `em avaliação` — ideia; só vale se o kernel crescer.
+**Status:** `implementado na versão barata` (2026-11-16) — `runtime/gen_kernel.py` gera
+`runtime/kernel_gen.h` da tabela `Primitive` e o `kernel.c` o inclui; `make primitives`
+regenera e `tests/test_primitives_gen.py` falha se o gerado ficar velho. O arquivo de
+dados em TOML continua **não adotado** (o gatilho segue: >30 primitivas ou um segundo
+gerador).
 **Relacionados:** [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (a tabela `Primitive`
 já é a fonte única), [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md) (nada de
 sintaxe), `make grammar` + `tests/test_editor_grammar.py` (precedente de artefato gerado).
@@ -969,12 +981,13 @@ Gerado por `make primitives`:
 - risco de "gerou, logo está pronto" — a primitiva só está pronta com spec + golden +
   diferencial.
 
-### Alternativa mais barata (recomendada)
+### Alternativa mais barata — ✅ implementada (2026-11-16)
 
-A tabela `Primitive` **já é dados**: gerar só o `kernel_gen.h` e o esqueleto de teste a
-partir dela, sem formato novo e sem mover a tabela para TOML. Ganha-se o check de ABI e a
-sincronia do teste, que são os dois buracos reais; a tabela continua Python (tipada,
-`mypy strict`, refactorável).
+A tabela `Primitive` **já é dados**: gerar só o `kernel_gen.h` a partir dela, sem formato
+novo e sem mover a tabela para TOML. Ganha-se o check de ABI; a tabela continua Python
+(tipada, `mypy strict`, refactorável). O esqueleto de teste automático ficou de fora: os
+casos novos continuam escritos à mão (o gerador não sabe a expectativa), e o que faltava
+de verdade era o check de assinatura. Ver `runtime/gen_kernel.py`.
 
 ### Recomendação provisória
 

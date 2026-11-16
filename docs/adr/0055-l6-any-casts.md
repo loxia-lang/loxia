@@ -5,7 +5,7 @@
 - **Relacionados:** [ADR-0049](0049-any-boxeado-spike-l6.md), [ADR-0054](0054-l6-tuplas.md)
 - **Implementação:** [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py),
   [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py),
-  [`runtime/runtime.c`](../../runtime/runtime.c)
+  [`runtime/objects.c`](../../runtime/objects.c)
 
 ## Decisão
 

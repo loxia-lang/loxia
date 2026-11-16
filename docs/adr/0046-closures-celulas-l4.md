@@ -11,7 +11,7 @@
   [ADR-0033](0033-inferencia-t3c-t4.md) (T4), [ADR-0034](0034-t3c-revertido.md),
   [`../../TODO.md`](../../TODO.md) §0.1/§6, [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `loxia_core/backend/captures.py`, `loxia_core/backend/lower.py`,
-  `loxia_core/backend/llvm_ir.py`, `runtime/runtime.c`, `tests/test_backend.py`,
+  `loxia_core/backend/llvm_ir.py`, `runtime/core.c`, `tests/test_backend.py`,
   `tests/test_captures.py`, `tests/corpus_manifest.py`
 
 ## Contexto

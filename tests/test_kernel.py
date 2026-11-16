@@ -99,3 +99,61 @@ def test_read_file_preserva_crlf(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == '6\n"a\\r\\nb\\r\\n"\n'
+
+
+def _run_bytes(path: Path, data: bytes) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        [sys.executable, str(ENTRYPOINT), str(path)],
+        cwd=ROOT,
+        input=data,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_read_utf8_le_exatamente_n_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "utf8.lx"
+    path.write_text(
+        "print(io.readUtf8(3))\n"
+        "print(io.readUtf8(0))\n"
+        "print(io.readUtf8(3))\n"
+        "print(io.readUtf8(1))\n",
+        encoding="utf-8",
+    )
+
+    result = _run_bytes(path, b"abcdef")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == b"abc\n\ndef\nnil\n"
+
+
+def test_read_utf8_decodifica_multibyte(tmp_path: Path) -> None:
+    path = tmp_path / "utf8.lx"
+    path.write_text("print(io.readUtf8(6))\n", encoding="utf-8")
+
+    result = _run_bytes(path, "ação".encode())
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "ação\n".encode()
+
+
+def test_read_utf8_rejeita_truncado(tmp_path: Path) -> None:
+    path = tmp_path / "utf8.lx"
+    path.write_text("print(io.readUtf8(5))\n", encoding="utf-8")
+
+    result = _run_bytes(path, b"abc")
+
+    assert result.returncode == 70
+    assert b"error[R1000]: io.readUtf8() expects exactly 5 bytes." in result.stderr
+    assert b"Traceback" not in result.stderr
+
+
+def test_read_utf8_rejeita_bytes_invalidos(tmp_path: Path) -> None:
+    path = tmp_path / "utf8.lx"
+    path.write_text("print(io.readUtf8(1))\n", encoding="utf-8")
+
+    result = _run_bytes(path, b"\xff")
+
+    assert result.returncode == 70
+    assert b"error[R1000]: io.readUtf8() expects UTF-8 input." in result.stderr
+    assert b"Traceback" not in result.stderr

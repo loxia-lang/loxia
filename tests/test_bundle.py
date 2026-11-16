@@ -11,7 +11,18 @@ from loxia_core import bundle
 
 def test_std_e_runtime_resolvem_no_repo() -> None:
     assert (bundle.bundle_dir("std") / "json.lx").is_file()
-    assert bundle.bundle_file("runtime", "runtime.c").is_file()
+    assert bundle.bundle_file("runtime", "lox_runtime.h").is_file()
+    assert bundle.bundle_file("runtime", "kernel.c").is_file()
+
+
+def test_runtime_lista_todas_as_unidades() -> None:
+    """Arquivo `.c` novo no runtime não pode ficar fora do build (lista explícita)."""
+    from loxia_core.backend.driver import RUNTIME_NAMES, RUNTIME_SOURCES
+
+    on_disk = {path.name for path in bundle.bundle_dir("runtime").glob("*.c")}
+
+    assert set(RUNTIME_NAMES) == on_disk
+    assert all(path.is_file() for path in RUNTIME_SOURCES)
 
 
 def test_bundle_cai_para_o_pacote_quando_o_repo_nao_tem(

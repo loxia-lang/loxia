@@ -19,7 +19,7 @@
   (exceções/unwinding), [ADR-0074](0074-gc-boehm-e-contrato-de-memoria.md) e
   [ADR-0087](0087-heap-cap-e-self-hosting.md) (memória), [`../../TODO.md`](../../TODO.md)
   §3.1, [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c),
+- **Implementação:** [`runtime/core.c`](../../runtime/core.c),
   [`loxia_core/backend/lower_functions.py`](../../loxia_core/backend/lower_functions.py),
   [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py),
   [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py),
@@ -105,7 +105,7 @@ contrato (ADR novo + `garantias.md` + corpus).
 
 ### 4. Backend: contador no runtime e restauração no unwinding
 
-- `runtime.c` ganha `lox_call_depth` e:
+- `runtime/core.c` ganha `lox_call_depth` e:
   - `lox_stack_enter()`: se `depth >= LOX_MAX_CALL_DEPTH`,
     `lox_panic(0, 0, "R1015", "Stack overflow.")`; senão `depth += 1`;
   - `lox_stack_leave()`: `depth -= 1`.

@@ -9,7 +9,7 @@ sources:
   - loxia_core/semantics/resolver.py
   - loxia_core/semantics/checker.py
   - loxia_core/loader/loader.py
-  - runtime/runtime.c
+  - runtime/**
   - loxia/cli.py
   - tests/test_diagnostics.py
 ---

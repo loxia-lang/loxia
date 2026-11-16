@@ -18,7 +18,7 @@ from typing import Any, Literal
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower import BackendError, lower_program
-from loxia_core.bundle import bundle_file
+from loxia_core.bundle import bundle_dir
 from loxia_core.execution.limits import (
     DEFAULT_HEAP_BYTES,
     MAX_CALL_DEPTH,
@@ -32,9 +32,21 @@ from loxia_core.frontend.ty import Ty
 
 Emit = Literal["ll", "obj", "exe"]
 
-RUNTIME_SOURCE = bundle_file("runtime", "runtime.c")
+# O runtime é dividido por domínio; a lista é explícita para um arquivo novo não
+# entrar no build por acidente (o teste `test_runtime_sources` cobre isso).
+RUNTIME_DIR = bundle_dir("runtime")
+RUNTIME_NAMES = (
+    "core.c",
+    "objects.c",
+    "strings.c",
+    "containers.c",
+    "numeric.c",
+    "kernel.c",
+)
+RUNTIME_SOURCES = tuple(RUNTIME_DIR / name for name in RUNTIME_NAMES)
+RUNTIME_HEADERS = tuple(sorted(RUNTIME_DIR.glob("*.h")))
 
-# Flags base do `runtime.c`; o cap de heap e o teto de pilha entram por build.
+# Flags base do runtime; o cap de heap e o teto de pilha entram por build.
 RUNTIME_FLAGS = ("-O2", "-std=c11")
 
 
@@ -131,14 +143,14 @@ def _link(object_bytes: bytes, target: Path, heap_bytes: int) -> None:
         build_dir = Path(directory)
         program_object = build_dir / "program.o"
         program_object.write_bytes(object_bytes)
-        runtime_object = _runtime_object(compiler, build_dir, heap_bytes)
+        runtime_objects = _runtime_objects(compiler, build_dir, heap_bytes)
 
         try:
             _run(
                 [
                     compiler,
                     str(program_object),
-                    str(runtime_object),
+                    *(str(object_) for object_ in runtime_objects),
                     "-o",
                     str(target),
                     "-lm",
@@ -149,36 +161,62 @@ def _link(object_bytes: bytes, target: Path, heap_bytes: int) -> None:
             raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
 
 
-def _runtime_object(compiler: str, build_dir: Path, heap_bytes: int) -> Path:
-    """Compila `runtime.c` uma vez por (fonte, compilador, flags) e reusa o `.o`.
+def _runtime_objects(
+    compiler: str, build_dir: Path, heap_bytes: int
+) -> tuple[Path, ...]:
+    """Compila as unidades do runtime uma vez por (fontes, compilador, flags).
 
-    O `runtime.c` não depende do programa do usuário; recompilá-lo a cada `--emit=exe`
-    custava ~0,4 s por build (a maior parte da suíte de testes). O cache é só de
-    desempenho: nenhum caminho dele aparece na saída e qualquer falha cai no caminho
-    antigo (compilar dentro do diretório temporário do build).
+    O runtime não depende do programa do usuário; recompilá-lo a cada `--emit=exe`
+    custava a maior parte da suíte de testes. O cache é só de desempenho: nenhum
+    caminho dele aparece na saída e qualquer falha cai no caminho antigo (compilar
+    dentro do diretório temporário do build).
     """
     cache = _runtime_cache_dir()
     if cache is not None:
         key = _runtime_key(compiler, heap_bytes)
-        cached = cache / f"runtime-{key}.o"
-        if cached.exists() and cached.stat().st_size > 0:
-            return cached
+        directory = cache / f"runtime-{key}"
+        objects = tuple(
+            directory / f"{source.stem}.o" for source in RUNTIME_SOURCES
+        )
+        if all(
+            object_.is_file() and object_.stat().st_size > 0
+            for object_ in objects
+        ):
+            return objects
 
-        temporary = cache / f"runtime-{key}.{os.getpid()}.tmp.o"
         try:
-            _compile_runtime(compiler, temporary, cache, heap_bytes)
-            os.replace(temporary, cached)
-            return cached
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            for source, object_ in zip(RUNTIME_SOURCES, objects, strict=True):
+                if object_.is_file() and object_.stat().st_size > 0:
+                    continue
+                temporary = directory / f"{source.stem}.{os.getpid()}.tmp.o"
+                try:
+                    _compile_runtime_unit(
+                        compiler, source, temporary, directory, heap_bytes
+                    )
+                    os.replace(temporary, object_)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            return objects
         except (BackendError, OSError):
-            temporary.unlink(missing_ok=True)
+            pass
 
-    fallback = build_dir / "runtime.o"
-    _compile_runtime(compiler, fallback, build_dir, heap_bytes)
-    return fallback
+    fallback: list[Path] = []
+    for source in RUNTIME_SOURCES:
+        object_ = build_dir / f"runtime_{source.stem}.o"
+        _compile_runtime_unit(
+            compiler, source, object_, build_dir, heap_bytes
+        )
+        fallback.append(object_)
+    return tuple(fallback)
 
 
-def _compile_runtime(
-    compiler: str, output: Path, sanitized_dir: Path, heap_bytes: int
+def _compile_runtime_unit(
+    compiler: str,
+    source: Path,
+    output: Path,
+    sanitized_dir: Path,
+    heap_bytes: int,
 ) -> None:
     try:
         _run(
@@ -186,7 +224,7 @@ def _compile_runtime(
                 compiler,
                 *_runtime_flags(heap_bytes),
                 "-c",
-                str(RUNTIME_SOURCE),
+                str(source),
                 "-o",
                 str(output),
             ]
@@ -198,14 +236,17 @@ def _compile_runtime(
 
 
 def _runtime_key(compiler: str, heap_bytes: int) -> str:
-    try:
-        source = RUNTIME_SOURCE.read_bytes()
-    except OSError as error:
-        raise BackendError(
-            f"internal error: can't read runtime source: {error}"
-        ) from error
     digest = hashlib.sha256()
-    digest.update(source)
+    for path in (*RUNTIME_SOURCES, *RUNTIME_HEADERS):
+        try:
+            source = path.read_bytes()
+        except OSError as error:
+            raise BackendError(
+                f"internal error: can't read runtime source: {error}"
+            ) from error
+        # O nome entra na chave: renomear/remover arquivo muda o build.
+        digest.update(path.name.encode("utf-8"))
+        digest.update(source)
     digest.update(compiler.encode("utf-8"))
     digest.update(_compiler_version(compiler).encode("utf-8"))
     digest.update(" ".join(_runtime_flags(heap_bytes)).encode("utf-8"))
@@ -253,8 +294,10 @@ def _sanitize_compiler_error(
         # O nome do `.o` da cache carrega o PID do processo; nunca pode vazar.
         message = message.replace(str(output), "<build>/runtime.o")
     message = message.replace(str(build_dir), "<build>")
-    message = message.replace(str(RUNTIME_SOURCE), "runtime/runtime.c")
-    message = message.replace(str(RUNTIME_SOURCE.parent.parent), "<repo>")
+    for source in RUNTIME_SOURCES:
+        message = message.replace(str(source), f"runtime/{source.name}")
+    message = message.replace(str(RUNTIME_DIR), "runtime")
+    message = message.replace(str(RUNTIME_DIR.parent), "<repo>")
     return BackendError(message, error.line, code=error.code)
 
 

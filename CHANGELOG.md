@@ -7,6 +7,20 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Runtime C em unidades + ABI gerada** ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)):
+  `runtime/runtime.c` virou `core`, `objects`, `strings`, `containers`, `numeric` e
+  `kernel` com um header comum (`lox_runtime.h`); o driver compila cada unidade e
+  cacheia os `.o` por chave de todas as fontes/headers. Nenhum byte gerado muda.
+  `runtime/kernel_gen.h` é gerado de `primitives.py` (`make primitives`) e incluído pelo
+  `kernel.c`: a assinatura C de uma primitiva não diverge mais da tabela em silêncio.
+- **Kernel de stdio por bytes** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)):
+  `io.flush()` (força stdout/stderr) e `io.readUtf8(n)` lê exatamente `n` bytes de stdin em
+  UTF-8 estrito (`""` para `n == 0`, `nil` só no EOF imediato, `RuntimeError` com a posição
+  da chamada para `n < 0`, EOF no meio ou bytes inválidos). Kernel vai de 17 para 19
+  primitivas. A tabela ganhou `site`: primitivas falíveis recebem `(line, column)` no
+  símbolo C, então o panic do binário aponta a chamada. Habilita framing de protocolo por
+  stdio (LSP/JSONL/MCP) em Loxia.
+
 - **Modelo de fix estruturado** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
   `Fix`/`Edit`/`Applicability` no `Diagnostic`, com `fixes[]` no envelope JSON
   (`safe`/`unsafe`, `span` + `new_text`). **Nenhum produtor emite fixes ainda**; a análise
@@ -305,6 +319,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Corrigido
 
+- **`io.write`/`io.writeErr` sem flush no binário** (`R1`, [ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)):
+  o oráculo flushava por chamada e o binário não, então `std.io.prompt` nunca mostrava a
+  mensagem e qualquer consumidor de stdout em pipe (JSONL, MCP, LSP) travava. A comparação
+  de bytes no fim do processo não pegava; o novo teste
+  `test_io_write_flush_antes_de_bloquear_no_stdin` entrega o stdin só depois de ler a saída.
 - **`return` dentro de `try`**: o frame de `try` é desempilhado em toda saída, o valor
   é avaliado antes do `finally`, o `finally` roda uma vez e funções locais/lambdas
   isolam os cleanups. `except ... as e` materializa `LoxRuntimeError` para que

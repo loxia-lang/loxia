@@ -3,7 +3,7 @@
 
 FILE ?=
 
-.PHONY: help run test test-fast case lint type fmt check check-fast docs-sync stdlib-docs codes grammar docs-fresh hooks bench bench-native baseline
+.PHONY: help run test test-fast case lint type fmt check check-fast docs-sync stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
@@ -18,6 +18,7 @@ help:
 	@echo "make docs-sync                 regenera níveis, catálogo e stdlib"
 	@echo "make stdlib-docs               regenera docs/stdlib/"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
+	@echo "make primitives                regenera runtime/kernel_gen.h da tabela"
 	@echo "make grammar                   regenera a grammar TextMate de editors/"
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
@@ -60,6 +61,9 @@ stdlib-docs:
 
 codes:
 	uv run python docs/_hooks/codes.py --write
+
+primitives:
+	uv run python runtime/gen_kernel.py --write
 
 grammar:
 	uv run python editors/build_grammar.py --write

@@ -10,7 +10,7 @@
   [`../../TODO.md`](../../TODO.md) §14 (publicação), [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** `loxia/` (pacote do CLI), `loxia_core/loader/loader.py` (`SOURCE_SUFFIX`),
   `loxia_core/execution/prelude.py`, `loxia_core/semantics/checker.py`,
-  `runtime/runtime.c` (`lox_throw`), `tests/cases/*.lx`
+  `runtime/core.c` (`lox_throw`), `tests/cases/*.lx`
 
 ## Contexto
 

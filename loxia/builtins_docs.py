@@ -51,6 +51,8 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
     BuiltinDoc("io.writeErr", "io.writeErr(text: String) -> Nil", "Writes to standard error."),
     BuiltinDoc("io.writeFile", "io.writeFile(path: String, text: String) -> Bool", "Writes a UTF-8 file.", ambient=True),
     BuiltinDoc("io.readLine", "io.readLine() -> String?", "Reads one line from standard input.", ambient=True),
+    BuiltinDoc("io.readUtf8", "io.readUtf8(n: Int) -> String?", "Reads exactly `n` bytes of standard input as strict UTF-8; `nil` only at immediate end of input.", ambient=True),
+    BuiltinDoc("io.flush", "io.flush() -> Nil", "Flushes standard output and standard error."),
     BuiltinDoc("fs", "fs", "Filesystem namespace.", kind="module"),
     BuiltinDoc("fs.exists", "fs.exists(path: String) -> Bool", "Returns whether the path exists.", ambient=True),
     BuiltinDoc("fs.listDir", "fs.listDir(path: String) -> List[String]?", "Lists directory entries, or `nil` when unreadable.", ambient=True),

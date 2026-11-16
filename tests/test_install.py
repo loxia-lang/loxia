@@ -35,7 +35,8 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
         names = archive.namelist()
 
     assert any(name.endswith("loxia_core/std/json.lx") for name in names)
-    assert any(name.endswith("loxia_core/runtime/runtime.c") for name in names)
+    assert any(name.endswith("loxia_core/runtime/lox_runtime.h") for name in names)
+    assert any(name.endswith("loxia_core/runtime/kernel.c") for name in names)
 
     venv = tmp_path / "venv"
     _run("uv", "venv", str(venv), "--python", "3.13", cwd=tmp_path)

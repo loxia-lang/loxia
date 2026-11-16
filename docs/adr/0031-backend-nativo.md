@@ -8,7 +8,7 @@
   (anotações), [ADR-0026](0026-freeze-1.0.md) (`Any` fora do backend),
   [ADR-0027](0027-generics-t3b.md), [ADR-0028](0028-overflow-debug.md),
   [`../../TODO.md`](../../TODO.md) §6, [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** `loxia_core/backend/`, `runtime/runtime.c`, `--emit=ll|obj|exe`,
+- **Implementação:** `loxia_core/backend/`, `runtime/`, `--emit=ll|obj|exe`,
   `tests/test_backend.py`
 
 ## Contexto

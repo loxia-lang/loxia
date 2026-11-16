@@ -1,4 +1,5 @@
-# Kernel 13.2: io.write não adiciona newline; print adiciona.
+# Kernel 13.2: io.write não adiciona newline; print adiciona. io.flush é idempotente.
 io.write("A")
+io.flush()
 print("B")
 # expect: AB

@@ -5,7 +5,7 @@
 - **Relacionados:** [ADR-0031](0031-backend-nativo.md), [ADR-0045](0045-narrowing-representacao.md),
   [ADR-0048](0048-abi-classes-l5.md), [`../../TODO.md`](../../TODO.md) §0.2
 - **Implementação:** `loxia_core/backend/lower_model.py`, `lower_optionals.py`, `lower.py`,
-  `runtime/runtime.c`, `tests/cases/any_box.lox`, `tests/cases/nil_aware.lox`
+  `runtime/strings.c`, `tests/cases/any_box.lox`, `tests/cases/nil_aware.lox`
 
 ## Contexto
 

@@ -17,7 +17,7 @@
   [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py),
   [`loxia_core/backend/lower_strings.py`](../../loxia_core/backend/lower_strings.py),
   [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py),
-  [`runtime/runtime.c`](../../runtime/runtime.c),
+  [`runtime/kernel.c`](../../runtime/kernel.c),
   `tests/cases/std_*.lx`, [`tests/test_std_t2.py`](../../tests/test_std_t2.py)
 
 ## Contexto

@@ -466,6 +466,15 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   `io.readFile(path)`, `io.write(text)`, `io.writeErr(text)`, `io.writeFile(path, text)`,
   `io.readLine()` e `os.getenv(name)` são ambiente (entrada/FS); `os.exit(code)` encerra
   com 0..255; `time.now()`/`time.sleep(ms)` são ambiente.
+- `io.write`/`io.writeErr` fazem flush a cada chamada (nos dois motores) e `io.flush()`
+  força stdout e stderr: um processo consegue ler a saída antes do EOF
+  ([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)).
+- `io.readUtf8(n)` lê **exatamente** `n` bytes de stdin (0..n-1 e decodifica UTF-8
+  estrito): `n < 0` é erro; `n == 0` devolve `""` sem tocar no stdin; EOF imediato
+  devolve `nil`; EOF no meio ou bytes inválidos são `RuntimeError` (`R1000`) com a posição
+  da chamada. Misturar `io.readUtf8` com `io.readLine`/`io.readAll` no interpretador é
+  indefinido (camadas de buffer distintas); use um estilo só
+  ([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)).
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são

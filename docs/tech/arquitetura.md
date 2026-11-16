@@ -78,7 +78,14 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py) | leitura/escrita de campos, bitmap e `get`/`set` |
 | [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
 | [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
-| [`runtime/runtime.c`](../../runtime/runtime.c) | runtime C: `lox_print_*`, `lox_panic`, guardas de `//` e `%`, matcher recursivo de `is`/`as` (`lox_type_matches_str`) |
+| [`runtime/lox_runtime.h`](../../runtime/lox_runtime.h) | tipos, limites e protótipos internos do runtime C (um header comum às unidades) |
+| [`runtime/core.c`](../../runtime/core.c) | inicialização, GC Boehm, pilha, panic e exceções |
+| [`runtime/objects.c`](../../runtime/objects.c) | descritores de classe/tipo, interfaces e matcher de `is`/`as` |
+| [`runtime/strings.c`](../../runtime/strings.c) | `LoxStr`, UTF-8, formatação de `Float` e `lox_print_*` |
+| [`runtime/containers.c`](../../runtime/containers.c) | `Range`, `List`, `Map`, tupla, enum e igualdade |
+| [`runtime/numeric.c`](../../runtime/numeric.c) | guardas de `//`/`%`/divisão, `**`, shifts, `math.*` e parse |
+| [`runtime/kernel.c`](../../runtime/kernel.c) | kernel 13.2 (ADR-0071): `args`, `io.*`, `fs.*`, `os.*`, `time.*` |
+| [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | ABI das primitivas, **gerado** de `primitives.py` por `runtime/gen_kernel.py` |
 | [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
 | [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
 | [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py) | escopos encadeados (`values` + `enclosing`) |
@@ -418,12 +425,17 @@ do LLVM (`mod.verify`); IR inválido vira `BackendError` (exit 65), nunca binár
 `--emit=ll` é artefato de inspeção: o build emite object file com o mesmo LLVM que
 construiu o módulo e linka com `cc`, sem depender da versão do LLVM do sistema.
 
-O `runtime.c` é compilado uma vez por (conteúdo da fonte, compilador, versão, flags e
-`CPATH`) e o `.o` fica em `$TMPDIR/loxia-build-<uid>/`; `LOX_BUILD_CACHE=<dir>` isola o
-cache. Builds seguintes reusam o objeto e pagam só o link — antes, cada `--emit=exe`
-recompilava o runtime (`cc -O2`, ~0,4 s), o que dominava a suíte de testes. O cache é só
-desempenho: não muda bytes gerados, não entra na saída e caminhos de erro são sanitizados
-para `<build>`.
+O runtime é dividido por domínio em seis unidades (`core`, `objects`, `strings`,
+`containers`, `numeric`, `kernel`) com um header comum. Elas são compiladas uma vez por
+(conteúdo de **todas** as fontes e headers, compilador, versão, flags e `CPATH`) e os `.o`
+ficam em `$TMPDIR/loxia-build-<uid>/runtime-<chave>/`; `LOX_BUILD_CACHE=<dir>` isola o
+cache. Builds seguintes reusam os objetos e pagam só o link. O cache é só desempenho: não
+muda bytes gerados, não entra na saída e caminhos de erro são sanitizados para `<build>`.
+
+`runtime/kernel_gen.h` é gerado da tabela de `primitives.py` (`make primitives`,
+`runtime/gen_kernel.py`) e incluído por `kernel.c`: tabela e definição C divergentes
+quebram a compilação, não o teste. `tests/test_primitives_gen.py` policia a frescura do
+arquivo gerado.
 
 O teste diferencial (`tests/test_backend.py`) compila, executa e compara stdout, stderr e
 exit code com o interpretador — o oráculo é sempre o tree-walk.

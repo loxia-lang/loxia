@@ -181,35 +181,33 @@ corrigidas com regressão no diferencial de `tests/test_backend.py`. No sentido 
 Limite declarado (regra da linguagem, não do lowering): `is`/`as` com argumentos de tipo
 em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
 
-#### `R1` — `io.write` não faz flush no binário (latente; achado em 2026-11-16, `P1`)
+#### `R1` — `io.write` sem flush no binário — ✅ resolvido ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md))
 
-| | oráculo (tree-walk) | binário |
+Achado em 2026-11-16: o oráculo fazia `flush()` em toda escrita e o binário não, então
+`std.io.prompt` nunca aparecia e qualquer protocolo por stdio travava. O I1 não pegava
+porque compara só os bytes do fim do processo. Correção: `fflush` em
+`lox_io_write`/`lox_io_write_err`, primitiva `io.flush` e o teste de streaming
+`test_io_write_flush_antes_de_bloquear_no_stdin` (entrega o stdin só depois de ler a
+saída). Alternativas e custos ficam no ADR-0094.
+
+#### `R2` — panic de primitiva antiga sem posição e com código/mensagem divergentes (`P1`)
+
+As primitivas que falham antes do `site` ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md))
+chamam `lox_panic(0, 0, ...)`, então o binário imprime `error[R1006]: ...` sem
+`arquivo:linha:col`, enquanto o oráculo imprime `arquivo:linha:col: error[R1000]: ...`.
+Código e mensagem também divergem em casos concretos:
+
+| Chamada | oráculo | binário |
 | --- | --- | --- |
-| `io.write`/`io.writeErr` | `sys.stdout.write` **+ `flush()`** por chamada (`primitives.py::_write/_write_err`) | `fwrite` **sem `fflush`** (`runtime.c::lox_io_write/lox_io_write_err`) |
-| `print` | `print()` do Python (buffer de bloco em pipe; linha em tty) | `printf`/`fputs` (idem) |
-| panic/`os.exit` | — | `fflush` nos dois (ok) |
+| `substr("a", 0, 9)` | `R1000: substr() index out of bounds.` em `1:23` | `R1007: String index out of bounds.` sem posição |
+| `fromCodePoint(-1)` | `R1000: fromCodePoint() expects a valid Unicode code point.` | `R1006: Invalid Unicode code point.` |
 
-**Por que o I1 não pega:** o contrato compara os bytes do processo inteiro; no `exit` o
-buffer sai. Os bytes finais são iguais — o que difere é **quando** cada um aparece. Só é
-observável com stdout em pipe lido por outro processo, e o runner de teste captura tudo no
-fim.
-
-**Dois bugs reais, uma causa:**
-1. `std.io.prompt` **nunca mostra a mensagem** no binário: `io.write` sem `\n` não é
-   flushado (tty é *line-buffered*; sem newline não sai nada) e o processo bloqueia em
-   `fgetc(stdin)`. `tests/test_backend.py` cobre `prompt` e passa porque só compara os
-   bytes no fim.
-2. qualquer protocolo por stdio (JSONL/`--watch`, MCP, LSP, um `| leitor`) **trava** ao
-   encher o buffer do stdio: o escritor para, o leitor espera uma mensagem que não chega.
-
-**Correção mínima:** `fflush(stdout/stderr)` em `lox_io_write`/`lox_io_write_err` e
-primitiva `io.flush` explícita (idempotente). Decidir junto se `lox_print_*` também
-flusham: hoje os dois motores bufferizam `print` (simétrico), mas uniformizar exige mexer
-no oráculo e custa em laço com `print` — medir antes.
-**Regressão:** caso diferencial em modo *streaming*: o programa escreve (ou `io.prompt`) e
-depois bloqueia em `io.readLine`; o harness só entrega a linha **depois** de ler a saída,
-com timeout. Sem esse modo incremental o bug volta — o runner atual não distingue
-"flushou" de "flushou no exit".
+É I1 real (determinístico), mas nenhum caso do corpus deixa o erro escapar — os testes
+capturam com `try` e imprimem a mensagem, que nesses dois casos coincide com a do
+oráculo. `charCodeAt` já usa `R1000`, mas também não tem posição. **Correção:** marcar
+`site=True` em `substr`/`fromCodePoint`/`charCodeAt` (e em `os.exit`/`time.sleep`, que
+também falham), alinhar mensagem/código e adicionar um caso diferencial com erro **não
+capturado**. O mecanismo já está no lowering; falta a migração das entradas da tabela.
 
 
 ---
@@ -354,17 +352,19 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 
 | Camada | O que entra | Implementações | Onde |
 | --- | --- | --- | --- |
-| kernel | syscalls e representação | Python (oráculo) + C (binário) | `loxia_core/execution/primitives.py`, `runtime/runtime.c` |
+| kernel | syscalls e representação | Python (oráculo) + C (binário) | `loxia_core/execution/primitives.py`, `runtime/kernel.c` (+ `kernel_gen.h` gerado) |
 | std | biblioteca | **uma** (Lox) | `std/*.lx` |
 | módulos | nomeação e carga | loader/desugar, sem lógica | `loxia_core/loader/` |
 
-**Kernel concluído** com **17** primitivas: `args`, `io.*` (incluindo `readAll`), `fs.*`
-(`exists`, `listDir`), `os.*`, `time.*`, `substr`, `join`, `charCodeAt`, `fromCodePoint`.
-O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)); o critério
-continua sendo SO ou representação, e qualquer crescimento novo exige ADR. `os.cwd`
-segue fora: `std.paths` é lexical e não precisou dele.
-Candidatas em avaliação na §13.9: `io.flush` e `io.readUtf8` (18–19); `proc`/`poll`/`net`
-só com consumidor e ADR próprio.
+**Kernel concluído** com **19** primitivas: `args`, `io.*` (incluindo `readAll`,
+`readUtf8` e `flush`), `fs.*` (`exists`, `listDir`), `os.*`, `time.*`, `substr`, `join`,
+`charCodeAt`, `fromCodePoint`.
+O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)) e para 19 em
+2026-11-16 ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md)); o critério continua
+sendo SO ou representação, e qualquer crescimento novo exige ADR. `os.cwd` segue fora:
+`std.paths` é lexical e não precisou dele.
+Candidatas em avaliação na §13.9: `proc`/`poll`/`fs.open`/`net`, só com consumidor e ADR
+próprio.
 
 ### 13.2–13.3 Kernel v1 e complexidade — concluídos
 
@@ -378,6 +378,13 @@ não repetir a tabela aqui.
 Tabela implementada para as primitivas monomórficas. Migrar `len`/`chars`/`str`/`repr`/
 `range` é **opcional**: não muda performance (são builtins especiais) e melhora a
 arquitetura só quando reduzir casos especiais no checker/lowering; não bloqueia T3.
+
+Desde 2026-11-16 a tabela também gera a ABI: `runtime/gen_kernel.py` escreve
+`runtime/kernel_gen.h` com a assinatura C de cada primitiva (`site` incluso) e o
+`kernel.c` o inclui — divergência entre tabela e definição C quebra a compilação.
+`make primitives` regenera; `tests/test_primitives_gen.py` policia a frescura. O arquivo
+de dados em TOML do [`IDEIAS.md`](IDEIAS.md) I-12 não foi adotado (gatilho: >30 primitivas
+ou um segundo gerador).
 
 ### 13.5 Imports — pendências
 
@@ -420,26 +427,28 @@ determinismo.
 - [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
 - [ ] `make check` verde; `make bench` se tocar caminho quente.
 
-### 13.9 Capacidades de host — proposta (não decidida, 2026-11-16)
+### 13.9 Capacidades de host — P0 feito; o resto não decidido (2026-11-16)
 
 Origem: a pergunta "por que o LSP não dá em Loxia?". Resposta curta: o LSP local é
 **stdio**, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta de
 kernel para isso é pequeno, e o bloqueio real é não haver front-end/checker chamável de um
-programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. **Nada aqui está
-aprovado**; o servidor LSP continua em Python.
+programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. **Só o P0 está
+aprovado e implementado** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md));
+`proc`/`poll`/`fs.open`/`net` continuam não aprovados, e o servidor LSP continua em Python.
 
 **O que já cobre um LSP:** `std.json` (parse/stringify), `io.readLine` (headers, já tira
-`\r`), `io.readFile`/`fs.readText`, `Map[String, Any]`, `Result`, `try/finally`.
+`\r`), `io.readUtf8` (corpo por bytes), `io.flush`, `io.readFile`/`fs.readText`,
+`Map[String, Any]`, `Result`, `try/finally`.
 
-**O que falta (P0; ADR curto de kernel, sem abrir escopo de rede):**
+**Feito (P0, kernel 18–19):**
 
 | # | Primitiva | Assinatura | Por quê |
 | --- | --- | --- | --- |
-| 18 | `io.flush` | `() -> Nil` | fecha o `R1` (§9.1) e destrava `prompt`/protocolos |
-| 19 | `io.readUtf8` | `(n: Int) -> String?` | `Content-Length` conta **bytes**: ler N bytes UTF-8 estrito, `nil` = EOF |
+| 18 | `io.flush` | `() -> Nil` | ✅ fecha o `R1` (§9.1) e destrava `prompt`/protocolos |
+| 19 | `io.readUtf8` | `(n: Int) -> String?` | ✅ `Content-Length` conta **bytes**: lê N bytes UTF-8 estrito, `nil` só no EOF imediato |
 
-`byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) são **Lox puro** em
-`std/utf8` — não precisam de kernel.
+`byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) continuam **Lox
+puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos ainda.
 
 **Candidatas depois (cada uma pede ADR próprio):**
 
@@ -460,17 +469,17 @@ literal, sem DNS nem TLS.
 servidor) → `proc`+`poll` (M) → `fs.open` (M) → `net` (L, só com dor). O servidor LSP
 continua em Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
 
-**Tamanho do runtime.** `runtime/runtime.c` tem 2.524 linhas, mas só ~200 são kernel (a
-seção marcada `Kernel 13.2 (ADR-0071)`); o resto é representação (strings, containers,
-descritor de classe, exceções, GC, panic) que nenhum Lox implementa. A promessa "poucas
-primitivas" está de pé; o arquivo é que ficou grande. Antes de `proc`/`net`, separar por
-domínio (`runtime/strings.c`, `containers.c`, `classes.c`, `exceptions.c`, `panic.c`,
-`kernel.c` + um `.h` comum). Custo: o driver compila **um** `runtime.c` e cacheia o `.o`
-por fonte+flags, então o split exige bundle dos N arquivos, `.o` por arquivo e chave de
-cache sobre todos — mudança pequena e sem ABI. Alternativa de custo zero: `#include` de
-`.inc` por domínio num único TU, que preserva o cache mas não acelera compilação.
+**Tamanho do runtime — ✅ separado (2026-11-16).** `runtime/runtime.c` tinha 2.524 linhas,
+mas só ~200 eram kernel (a seção `Kernel 13.2`); o resto é representação (strings,
+containers, descritor de classe, exceções, GC, panic) que nenhum Lox implementa. A
+promessa "poucas primitivas" continua de pé; o arquivo é que estava grande. Agora são seis
+unidades — `core.c`, `objects.c`, `strings.c`, `containers.c`, `numeric.c`, `kernel.c` —
+com `lox_runtime.h` (tipos/limites) e `kernel_gen.h` (ABI gerada da tabela). O driver
+compila cada uma, cacheia em `runtime-<chave>/` com a chave sobre **todas** as fontes e
+headers, e linka os `.o`. Sem mudança de ABI nem de bytes gerados; `test_runtime_lista_todas_as_unidades`
+impede que um `.c` novo fique fora do build.
 
-**Orçamento de kernel:** 17 → 19 no P0; acima de ~30 é sinal de camada errada.
+**Orçamento de kernel:** 17 → 19 (feito, ADR-0094); acima de ~30 é sinal de camada errada.
 
 ---
 
@@ -508,7 +517,7 @@ público e a automação de suprimentos.
   agrupado semanal; ignorar major de `llvmlite` (acoplado ao LLVM).
 - **Endurecer CI:** `permissions: read-all` no topo do workflow, `contents: write` só no job
   de release, ações pinadas por SHA (cadeia de suprimentos) e CodeQL para Python (CLI/interpretador)
-  e C (`runtime/runtime.c`); o código gerado não entra.
+  e C (`runtime/*.c`, header comum `runtime/lox_runtime.h`); o código gerado não entra.
 - **Release:** workflow em tag `v*` → `uv build`, anexar wheel/sdist no GitHub Release e
   publicar no PyPI via **Trusted Publishing** (OIDC, sem token). Depende de reservar `loxia`
   no PyPI (hoje livre).
@@ -712,7 +721,7 @@ real, scripts de build em pacote (risco de supply chain), pacote binário, mirro
 | Fica no repo principal | Por quê |
 | --- | --- |
 | `loxia_core/` + `loxia/` | são o produto; I1/I3 e a spec vivem aqui |
-| `runtime/runtime.c` | ABI do backend; `driver.py` compila junto com o código gerado |
+| `runtime/*.c` | ABI do backend (6 unidades por domínio + header); `driver.py` compila e linka junto |
 | `std/` | package data, versão = versão do compilador, resolvida pelo loader |
 | `docs/spec/`, ADRs, `docs/_hooks/` | frescor (`sources:`) e links apontam para o código |
 | `tests/` (casos + manifesto + diferencial) | é o corpus do I1; teste não pode depender de fetch |
@@ -755,5 +764,5 @@ real, scripts de build em pacote (risco de supply chain), pacote binário, mirro
   mantenedor. Até lá, separar só paga o custo de sincronizar dois relógios.
 
 **Não fazer:** abrir 6 repositórios antes do primeiro release (custo de CI/versão/
-sincronização sem consumidor); mover `std/` ou `runtime.c` para fora (drift de ABI/versão);
+sincronização sem consumidor); mover `std/` ou `runtime/` para fora (drift de ABI/versão);
 duplicar a spec; separar o LSP para "ficar organizado" sem consumidor próprio.

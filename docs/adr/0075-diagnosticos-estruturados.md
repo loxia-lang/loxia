@@ -17,7 +17,7 @@
   [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py),
   [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py),
   [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
-  [`loxia/cli.py`](../../loxia/cli.py), [`runtime/runtime.c`](../../runtime/runtime.c),
+  [`loxia/cli.py`](../../loxia/cli.py), [`runtime/core.c`](../../runtime/core.c),
   [`tests/test_diagnostics.py`](../../tests/test_diagnostics.py),
   [`tests/test_determinism.py`](../../tests/test_determinism.py)
 

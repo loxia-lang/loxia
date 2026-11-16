@@ -92,6 +92,31 @@ def _read_all() -> str:
         raise NativeError("io.readAll() expects UTF-8 input.") from None
 
 
+def _read_utf8(count: int) -> str | None:
+    """Lê exatamente `count` bytes UTF-8 de stdin; `nil` só no EOF imediato."""
+    if count < 0:
+        raise NativeError("io.readUtf8() expects a non-negative count.")
+    if count == 0:
+        return ""
+    stream = getattr(sys.stdin, "buffer", None)
+    if stream is None:
+        raise NativeError("io.readUtf8() requires binary standard input.")
+    data: bytes = stream.read(count)
+    if not data:
+        return None
+    if len(data) < count:
+        raise NativeError(f"io.readUtf8() expects exactly {count} bytes.")
+    try:
+        return data.decode("utf-8")
+    except UnicodeError:
+        raise NativeError("io.readUtf8() expects UTF-8 input.") from None
+
+
+def _flush() -> None:
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+
 def _exists(path: str) -> bool:
     return os.path.exists(path)
 
@@ -143,6 +168,8 @@ class Primitive:
     py: Callable[..., object]
     ambient: bool = False
     needs_interpreter: bool = False
+    # O símbolo C recebe `(line, column)` no fim, para o panic apontar a chamada.
+    site: bool = False
 
 
 PRIMITIVES: tuple[Primitive, ...] = (
@@ -170,6 +197,9 @@ PRIMITIVES: tuple[Primitive, ...] = (
               _write_file, ambient=True),
     Primitive("io.readLine", "lox_io_read_line", (), union(STRING, NIL),
               _read_line, ambient=True),
+    Primitive("io.readUtf8", "lox_io_read_utf8", (INT,), union(STRING, NIL),
+              _read_utf8, ambient=True, site=True),
+    Primitive("io.flush", "lox_io_flush", (), NIL, _flush),
     Primitive("fs.exists", "lox_fs_exists", (STRING,), BOOL, _exists,
               ambient=True),
     Primitive("fs.listDir", "lox_fs_list_dir", (STRING,),

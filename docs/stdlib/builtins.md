@@ -167,6 +167,14 @@ Writes a UTF-8 file.
 
 Reads one line from standard input.
 
+### `io.readUtf8(n: Int) -> String?`
+
+Reads exactly `n` bytes of standard input as strict UTF-8; `nil` only at immediate end of input.
+
+### `io.flush() -> Nil`
+
+Flushes standard output and standard error.
+
 ### `fs.exists(path: String) -> Bool`
 
 Returns whether the path exists.

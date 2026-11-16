@@ -9,7 +9,7 @@
   [ADR-0077](0077-limite-de-pilha.md) (pilha), [`../../TODO.md`](../../TODO.md)
   §3/§10/§13.7,
   [`../spec/garantias.md`](../spec/garantias.md)
-- **Implementação:** [`runtime/runtime.c`](../../runtime/runtime.c) (`LOX_GC_MAX_HEAP_BYTES`),
+- **Implementação:** [`runtime/core.c`](../../runtime/core.c) (`LOX_GC_MAX_HEAP_BYTES`),
   [`loxia_core/execution/limits.py`](../../loxia_core/execution/limits.py),
   [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py),
   [`loxia/cli.py`](../../loxia/cli.py), [`tests/test_backend.py`](../../tests/test_backend.py)
@@ -70,7 +70,7 @@ como decisão deste ADR.
 ### 1. Default de 512 MiB
 
 O hard cap default do binário sobe de **128 MiB para 512 MiB**
-(`DEFAULT_HEAP_BYTES` em `loxia_core/execution/limits.py`; fallback em `runtime.c`). O runtime
+(`DEFAULT_HEAP_BYTES` em `loxia_core/execution/limits.py`; fallback em `runtime/core.c`). O runtime
 recebe o valor por `-DLOX_GC_MAX_HEAP_BYTES=...ull` na compilação do `runtime.o`; o
 driver sempre passa o valor, então fonte C e Python não divergem.
 

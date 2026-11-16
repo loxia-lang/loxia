@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import select
 import shutil
 import subprocess
 import sys
@@ -757,7 +758,7 @@ def test_formatacao_de_float_igual_ao_repr(tmp_path: Path) -> None:
 #include <stdio.h>
 #include <string.h>
 
-#include "runtime/runtime.c"
+#include "runtime/lox_runtime.h"
 
 int main(void) {
     char line[64];
@@ -774,6 +775,9 @@ int main(void) {
     )
     compiler = shutil.which("cc") or shutil.which("clang") or shutil.which("gcc")
     assert compiler is not None
+    # Import tardio: `llvmlite` é opcional e o módulo só é coletado com o extra.
+    from loxia_core.backend.driver import RUNTIME_SOURCES
+
     helper = tmp_path / "helper"
     compiled = subprocess.run(
         [
@@ -783,6 +787,7 @@ int main(void) {
             "-I",
             str(ROOT),
             str(helper_source),
+            *(str(source) for source in RUNTIME_SOURCES),
             "-o",
             str(helper),
             "-lm",
@@ -1024,7 +1029,7 @@ def test_kernel_args_nativo(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_cache_do_runtime_objeto(tmp_path: Path) -> None:
-    """O `runtime.o` é compilado uma vez e reusado entre programas (só desempenho)."""
+    """O runtime é compilado uma vez e reusado entre programas (só desempenho)."""
     cache = tmp_path / "cache"
     env = {**os.environ, "LOX_BUILD_CACHE": str(cache)}
 
@@ -1056,7 +1061,12 @@ def test_cache_do_runtime_objeto(tmp_path: Path) -> None:
     second = build("""print("dois")
 """, "dois.lx")
 
-    assert len(list(cache.glob("runtime-*.o"))) == 1
+    from loxia_core.backend.driver import RUNTIME_SOURCES
+
+    directories = list(cache.glob("runtime-*"))
+    assert len(directories) == 1
+    objects = list(directories[0].glob("*.o"))
+    assert len(objects) == len(RUNTIME_SOURCES)
     assert _run([str(first)]).stdout == "um\n"
     assert _run([str(second)]).stdout == "dois\n"
 
@@ -1228,3 +1238,106 @@ print(dobro(21))
     native = _run([str(binary)])
     assert native.returncode == 0, native.stderr
     assert native.stdout == "42\n"
+
+
+def _run_bytes(
+    arguments: list[str], data: bytes
+) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        arguments,
+        cwd=ROOT,
+        input=data,
+        capture_output=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+
+
+@pytest.mark.backend
+def test_io_read_utf8_nativo(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "print(io.readUtf8(6))\n"
+        "print(io.readUtf8(1))\n",
+    )
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    payload = "ação".encode()
+    native = _run_bytes([str(binary)], payload)
+    interpreted = _run_bytes(
+        [sys.executable, str(ENTRYPOINT), str(path)], payload
+    )
+    assert native.returncode == interpreted.returncode, native.stderr
+    assert native.stdout == interpreted.stdout
+    assert native.stderr == interpreted.stderr
+
+    # Bytes inválidos: mesma mensagem, código e posição nos dois motores.
+    invalid = _write(tmp_path, "print(io.readUtf8(2))\n", name="invalido.lx")
+    result, binary = _build(invalid, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    native = _run_bytes([str(binary)], b"\xff\xfe")
+    interpreted = _run_bytes(
+        [sys.executable, str(ENTRYPOINT), str(invalid)], b"\xff\xfe"
+    )
+    assert native.returncode == 70
+    assert native.returncode == interpreted.returncode
+    assert native.stderr == interpreted.stderr
+    assert b"io.readUtf8() expects UTF-8 input." in native.stderr
+
+
+@pytest.mark.backend
+def test_io_write_flush_antes_de_bloquear_no_stdin(tmp_path: Path) -> None:
+    """Regressão do R1: `io.write` tem que chegar ao pipe antes do `readLine`.
+
+    O runner normal compara bytes no fim, então não distingue "flushou" de "flushou no
+    exit". Aqui o processo escreve, bloqueia no stdin e o teste só entrega a linha
+    **depois** de ler a saída — sem o flush, o `select` estoura o timeout.
+    """
+    if os.name == "nt":
+        pytest.skip("select em pipe não é portátil no Windows")
+
+    path = _write(
+        tmp_path,
+        'io.write("pronto")\n'
+        "val line = io.readLine()\n"
+        'print(line or "nil")\n',
+    )
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    commands = [
+        [sys.executable, str(ENTRYPOINT), str(path)],
+        [str(binary)],
+    ]
+    for command in commands:
+        process = subprocess.Popen(
+            command,
+            cwd=ROOT,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            assert process.stdout is not None
+            ready, _, _ = select.select([process.stdout], [], [], 5.0)
+            assert ready, (
+                "stdout não foi flushado antes de bloquear no stdin: "
+                f"{command}"
+            )
+            assert process.stdout.read(6) == b"pronto"
+            assert process.stdin is not None
+            process.stdin.write(b"ok\n")
+            process.stdin.flush()
+            rest, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
+            assert rest == b"ok\n", stderr
+            assert process.returncode == 0, stderr
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=TIMEOUT_SECONDS)
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream is not None:
+                    stream.close()

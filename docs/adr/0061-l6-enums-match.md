@@ -6,7 +6,7 @@
 - **Relacionados:** [ADR-0041](0041-enums-match.md), [ADR-0054](0054-l6-tuplas.md),
   [ADR-0062](0062-l6-excecoes-unwinding.md), [`../../TODO.md`](../../TODO.md) §0/§6
 - **Implementação:** [`loxia_core/backend/lower_enums.py`](../../loxia_core/backend/lower_enums.py),
-  [`runtime/runtime.c`](../../runtime/runtime.c), `tests/cases/enums.lox`,
+  [`runtime/containers.c`](../../runtime/containers.c), `tests/cases/enums.lox`,
   `tests/cases/result.lox`
 
 ## Contexto
