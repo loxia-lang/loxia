@@ -807,3 +807,18 @@ confiabilidade ficam em [`tech/fixes.md`](tech/fixes.md) e no TODO.
 - `tests/test_diagnostics.py` — **updated**: JSON e reporter com fixes.
 
 <!-- triaged: fbe7f8e -->
+
+## 2026-11-16 — fixes restantes, spans e rename cross-file
+
+Intervalo: `30d0275`..`055fd49`. Fecha os produtores de fix restantes, adiciona
+`loxia/source_index.py` e rename cross-file conservador no LSP.
+
+- `docs/decisoes.md` — **updated**: linha de property-based (ADR-0098).
+- `docs/spec/erros.md` — **updated**: bloco gerado de códigos (W1002 incluso).
+- `docs/spec/garantias.md` — **updated**: contagens/status do corpus gerados.
+- `docs/spec/semantica.md` — **updated**: pureza de módulo/W1002 e `std.property`.
+- `docs/spec/sintaxe.md` — **no-change**: nenhuma sintaxe nova; os campos de token
+  (`Import.start/end`, `Var.keyword`, `Field.end`, `Function.end`, `Call.commas`) são
+  internos do AST/parser.
+
+<!-- triaged: 055fd49 -->
