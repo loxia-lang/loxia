@@ -8,6 +8,7 @@ from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     DiagnosticBatch,
     Frame,
+    Label,
     Phase,
     Position,
     Severity,
@@ -51,6 +52,9 @@ def _diagnostic(
     phase: Phase = Phase.CHECKER,
     message: str = "boom",
     span: Span | None = None,
+    labels: tuple[Label, ...] = (),
+    notes: tuple[str, ...] = (),
+    help: str | None = None,
     trace: Trace | None = None,
 ) -> Diagnostic:
     return Diagnostic(
@@ -59,6 +63,9 @@ def _diagnostic(
         severity=Severity.ERROR,
         message=message,
         span=span,
+        labels=labels,
+        notes=notes,
+        help=help,
         trace=trace,
     )
 
@@ -175,6 +182,42 @@ def test_render_human_colorizes_label_and_caret() -> None:
     assert "\x1b[1;31merror[E3000]\x1b[0m" in text
     assert "\x1b[31m^^^^\x1b[0m" in text
     assert "\x1b[34m1\x1b[0m" in text
+
+
+def test_render_human_mostra_label_nota_e_help() -> None:
+    sources = SourceMap()
+    sources.add("x.lx", "val a = 1\nval a = 2\n")
+    diagnostic = _diagnostic(
+        span=_span(line=2, column=5, end_column=6, offset=14, end_offset=15),
+        labels=(
+            Label(
+                _span(line=1, column=5, end_column=6, offset=4, end_offset=5),
+                "first declared here",
+            ),
+        ),
+        notes=("o valor anterior foi mantido",),
+        help="did you mean 'b'?",
+    )
+
+    text = render_human(diagnostic, sources)
+
+    assert "2 | val a = 2\n" in text
+    assert "  |     ^\n" in text
+    assert "1 | val a = 1\n" in text
+    assert "  |     - first declared here\n" in text
+    assert "note: o valor anterior foi mantido\n" in text
+    assert "help: did you mean 'b'?\n" in text
+
+
+def test_render_human_label_sem_fonte_vira_nota() -> None:
+    diagnostic = _diagnostic(
+        span=_span(line=1, column=1),
+        labels=(Label(_span(line=3, column=2), "declarado aqui"),),
+    )
+
+    text = render_human(diagnostic, SourceMap())
+
+    assert "note: x.lx:3:2: declarado aqui\n" in text
 
 
 def test_render_short_is_one_line() -> None:

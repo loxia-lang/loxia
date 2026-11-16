@@ -118,10 +118,16 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         scope = self._scopes[-1]
         if name.lexeme in scope:
+            previous = scope[name.lexeme].declaration
             self._reporter.error(
                 name,
                 "Already a variable with this name in this scope.",
                 code=Code.DUPLICATE_VARIABLE,
+                label_tokens=(
+                    ((previous, "first declared here"),)
+                    if previous is not None
+                    else ()
+                ),
             )
 
         scope[name.lexeme] = _VariableInfo(
@@ -383,6 +389,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                     expr.name,
                     immutable_assignment_message(expr.name.lexeme),
                     code=Code.IMMUTABLE_ASSIGNMENT,
+                    label_tokens=(
+                        ((info.declaration, "declared here"),)
+                        if info.declaration is not None
+                        else ()
+                    ),
                 )
             elif (
                 self._function_starts

@@ -6,6 +6,7 @@ retorno anotados. Tipos são apagados: o interpretador continua dinâmico.
 
 from __future__ import annotations
 
+import difflib
 from dataclasses import dataclass, field
 
 from loxia_core.diagnostics.codes import Code
@@ -591,6 +592,27 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return None
 
+    def _suggest(self, name: str) -> str | None:
+        """Nome visível mais próximo, determinístico (candidatos ordenados).
+
+        Nomes mangled de módulo (`std$strings$trim`) ficam de fora: sugerir o símbolo
+        interno seria pior do que não sugerir.
+        """
+        candidates: set[str] = set()
+        for scope in self._scopes:
+            candidates.update(key for key in scope if "$" not in key)
+        candidates.update(
+            key for key in self._predeclared_by_name if "$" not in key
+        )
+        matches = difflib.get_close_matches(
+            name, sorted(candidates), n=1, cutoff=0.7
+        )
+        return matches[0] if matches else None
+
+    def _undefined_help(self, name: str) -> str | None:
+        suggestion = self._suggest(name)
+        return f"did you mean '{suggestion}'?" if suggestion else None
+
     def _lookup(self, name: Token) -> Ty:
         found = self._find_decl(name.lexeme)
         if found is None:
@@ -603,6 +625,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Undefined variable '{name.lexeme}'.",
                 code=Code.UNDEFINED_NAME,
                 lowerable=True,
+                help=self._undefined_help(name.lexeme),
             )
             return ERROR
 
@@ -618,6 +641,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Undefined variable '{name.lexeme}'.",
                 code=Code.UNDEFINED_NAME,
                 lowerable=True,
+                help=self._undefined_help(name.lexeme),
             )
             return ERROR
 
@@ -693,13 +717,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         *,
         code: Code = Code.SEMANTIC_ERROR,
         lowerable: bool = False,
+        notes: tuple[str, ...] = (),
+        help: str | None = None,
+        label_tokens: tuple[tuple[Token, str], ...] = (),
     ) -> None:
         """Reporta erro de tipo.
 
         `lowerable=True` para os erros que o interpretador também levantaria em runtime
         (operandos de tipo errado): o backend os rebaixa a panic site (ADR-0031).
         """
-        self._reporter.error(token, message, code=code, lowerable=lowerable)
+        self._reporter.error(
+            token,
+            message,
+            code=code,
+            lowerable=lowerable,
+            notes=notes,
+            help=help,
+            label_tokens=label_tokens,
+        )
 
     def _mismatch_message(self, expected: Ty, actual: Ty) -> str:
         if (

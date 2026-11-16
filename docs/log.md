@@ -644,3 +644,14 @@ que fechar o lote.
   "um arquivo `.lx` é um programa"; agora reflete arquivo=módulo (ADR-0073). O resto da
   página (regras léxicas) não mudou com `Token.file`, então não foi tocado.
 
+## 2026-11-15 — labels, notas e sugestão nos diagnósticos
+
+Intervalo: `HEAD`..working tree. O modelo já tinha `labels`/`notes`/`help`; esta rodada
+adiciona produtores (E2001/E2002/E3003) e o render humano do segundo trecho. Sem ADR: é o
+uso do contrato do ADR-0075, não uma decisão nova.
+
+- `docs/spec/erros.md` — **updated**: seção de labels/notas/ajuda com exemplos e a regra
+  do `short`/JSON; catálogo de códigos não mudou.
+- `CHANGELOG.md` — **updated**: item de diagnóstico com labels/sugestão.
+- `docs/log.md` — **updated**: esta triagem.
+

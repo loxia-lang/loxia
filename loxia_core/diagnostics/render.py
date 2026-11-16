@@ -10,6 +10,7 @@ import json
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     DiagnosticBatch,
+    Label,
     Phase,
     Position,
     Span,
@@ -58,10 +59,19 @@ def render_human(
     *,
     color: bool = False,
 ) -> str:
-    """Cabeçalho + trecho da fonte com caret. Sem fonte, degrada para `short`."""
+    """Cabeçalho + trecho da fonte com caret, labels, notas e ajuda.
+
+    Sem fonte, degrada para `short` (o caret some, mas labels/notas/ajuda continuam).
+    """
     text = _header(diagnostic, color=color)
-    snippet = _snippet(diagnostic, sources, color=color)
-    return text + snippet
+    text += _snippet(diagnostic, sources, color=color)
+    for label in diagnostic.labels:
+        text += _label_block(label, sources, color=color)
+    for note in diagnostic.notes:
+        text += f"note: {note}\n"
+    if diagnostic.help is not None:
+        text += f"help: {diagnostic.help}\n"
+    return text
 
 
 def render_runtime(diagnostic: Diagnostic) -> str:
@@ -110,7 +120,48 @@ def _snippet(
     return _caret_block(line_text, span, color=color)
 
 
-def _caret_block(line_text: str, span: Span, *, color: bool) -> str:
+def _label_block(label: Label, sources: SourceMap, *, color: bool) -> str:
+    """Trecho secundário de um label (`-` em vez de `^`) ou nota sem fonte."""
+    span = label.span
+    location = f"{span.file}:{span.start.line}"
+    if span.start.column is not None:
+        location += f":{span.start.column}"
+
+    if span.start.column is None:
+        return _label_note(label, location)
+
+    source = sources.get(span.file)
+    line_text = source.line(span.start.line) if source is not None else None
+    if line_text is None:
+        return _label_note(label, location)
+
+    return _caret_block(
+        line_text,
+        span,
+        color=color,
+        marker="-",
+        message=label.message,
+        marker_color=_BLUE,
+    )
+
+
+def _label_note(label: Label, location: str) -> str:
+    text = f"note: {location}"
+    if label.message:
+        text += f": {label.message}"
+    return text + "\n"
+
+
+def _caret_block(
+    line_text: str,
+    span: Span,
+    *,
+    color: bool,
+    marker: str = "^",
+    message: str | None = None,
+    marker_color: str = _RED,
+    separator: bool = True,
+) -> str:
     assert span.start.column is not None  # garantido pelo chamador
     column = span.start.column
     width = len(str(span.start.line))
@@ -126,18 +177,20 @@ def _caret_block(line_text: str, span: Span, *, color: bool) -> str:
     else:
         caret_width = display_text(line_text[column - 1 :])[1]
 
-    carets = "^" * max(1, caret_width)
+    marks = marker * max(1, caret_width)
     if color:
-        carets = f"{_RED}{carets}{_RESET}"
+        marks = f"{marker_color}{marks}{_RESET}"
 
     line_number = f"{span.start.line:>{width}}"
     if color:
         line_number = f"{_BLUE}{line_number}{_RESET}"
 
+    suffix = f" {message}" if message else ""
+    leading = f"{gutter} |\n" if separator else ""
     return (
-        f"{gutter} |\n"
+        f"{leading}"
         f"{line_number} | {display_line}\n"
-        f"{gutter} | {' ' * prefix_width}{carets}\n"
+        f"{gutter} | {' ' * prefix_width}{marks}{suffix}\n"
     )
 
 

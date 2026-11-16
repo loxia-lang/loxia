@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Diagnósticos com labels e sugestão**: `E2001`/`E2002` apontam a declaração anterior
+  (`- first declared here`) e `E3003` ganha `help: did you mean '…'?` com candidatos
+  visíveis ordenados. `human` renderiza o segundo trecho, `note:` e `help:`; `short`
+  continua uma linha; JSON já expunha os campos.
 - **Diagnósticos: fonte do módulo e stack trace de runtime** ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)):
   erro de compilação e de runtime em módulo aponta o arquivo do módulo (`Token.file`), e
   todo erro de runtime não capturado imprime frames default-on no formato

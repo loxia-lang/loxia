@@ -118,6 +118,31 @@ def test_check_requires_script() -> None:
     assert result.returncode == 2
 
 
+def test_check_mostra_label_da_declaracao_anterior(tmp_path: Path) -> None:
+    script = tmp_path / "dup.lx"
+    script.write_text(
+        "fn f() {\n  val a = 1\n  val a = 2\n}\n", encoding="utf-8"
+    )
+
+    result = run_cli("--check", str(script))
+
+    assert result.returncode == 65
+    assert "error[E2001]" in result.stderr
+    assert "2 |   val a = 1\n" in result.stderr
+    assert "  |       - first declared here\n" in result.stderr
+
+
+def test_check_sugere_nome_proximo(tmp_path: Path) -> None:
+    script = tmp_path / "sug.lx"
+    script.write_text("val nome = 1\nprint(nom)\n", encoding="utf-8")
+
+    result = run_cli("--check", str(script))
+
+    assert result.returncode == 65
+    assert "error[E3003]: Undefined variable 'nom'." in result.stderr
+    assert "help: did you mean 'nome'?\n" in result.stderr
+
+
 def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
     script = tmp_path / "x.lx"
     script.write_text("""print(1);

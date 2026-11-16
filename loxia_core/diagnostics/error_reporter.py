@@ -16,6 +16,7 @@ from loxia_core.diagnostics.codes import CODE_PHASE, Code
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     DiagnosticBatch,
+    Label,
     Phase,
     Position,
     Severity,
@@ -76,17 +77,25 @@ class ErrorReporter:
         lowerable: bool = False,
         notes: tuple[str, ...] = (),
         help: str | None = None,
+        label_tokens: tuple[tuple[Token, str], ...] = (),
     ) -> None:
         """Registra um erro de compilação.
 
         `lowerable=True` marca o erro que o interpretador só levantaria em runtime (ex.:
         operandos de tipo errado). No build ele vira `lox_panic` e não bloqueia o código
         gerado (ADR-0031, decisão 9).
+
+        `label_tokens` são spans secundários (ex.: "first declared here"); o reporter
+        resolve cada token para o arquivo/coluna reais do módulo, como no span principal.
         """
         span = (
             self._span_of_token(target)
             if isinstance(target, Token)
             else self._span_of_line(target)
+        )
+        labels = tuple(
+            Label(self._span_of_token(token), text)
+            for token, text in label_tokens
         )
         self._record(
             code=code,
@@ -96,6 +105,7 @@ class ErrorReporter:
             lowerable=lowerable,
             notes=notes,
             help=help,
+            labels=labels,
         )
 
     def error_at(
@@ -221,6 +231,7 @@ class ErrorReporter:
         lowerable: bool,
         notes: tuple[str, ...],
         help: str | None,
+        labels: tuple[Label, ...] = (),
     ) -> None:
         diagnostic = Diagnostic(
             code=code,
@@ -228,6 +239,7 @@ class ErrorReporter:
             severity=Severity.ERROR,
             message=message,
             span=span,
+            labels=labels,
             notes=notes,
             help=help,
         )

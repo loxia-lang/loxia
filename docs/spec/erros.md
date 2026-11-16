@@ -100,6 +100,36 @@ mod.lx:2:12: error[R1002]: Division by zero not allowed
   ([ADR-0089](../adr/0089-stack-trace-de-runtime.md), que revisita o
   [ADR-0077](../adr/0077-limite-de-pilha.md)).
 
+### Labels, notas e ajuda
+
+O modelo já tinha `labels`, `notes` e `help`; agora eles têm produtores nos erros de
+resolução/checker. `E2001` (variável duplicada) e `E2002` (atribuição a `val`) apontam a
+declaração anterior com um segundo trecho (`-`):
+
+```text
+dup.lx:3:7: error[E2001]: Already a variable with this name in this scope.
+  |
+3 |   val a = 2
+  |       ^
+  |
+2 |   val a = 1
+  |       - first declared here
+```
+
+`E3003` (nome indefinido) ganha `help` quando há um nome visível próximo — a sugestão é
+determinística (candidatos ordenados) e ignora símbolos mangled de módulo:
+
+```text
+sug.lx:2:7: error[E3003]: Undefined variable 'nom'.
+  |
+2 | print(nom)
+  |       ^^^
+help: did you mean 'nome'?
+```
+
+`--error-format=short` continua uma linha (sem labels/notas/ajuda); `json` sempre inclui
+os três. Um label sem fonte carregada degrada para `note: arquivo:linha:col: mensagem`.
+
 ### Envelope JSON (v1)
 
 `schema_version` é inteiro e muda só em ruptura. `span.start`/`end` são half-open; `column`
