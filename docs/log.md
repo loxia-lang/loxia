@@ -792,3 +792,5 @@ Intervalo: `HEAD`..working tree. Complementa o LSP com `completion` (global e po
 - `tests/test_lsp.py` — **updated**: formatting, completion, signature e semantic tokens.
 - `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0090`, `docs/decisoes.md`,
   `docs/tech/arquitetura.md` — **updated**: status.
+
+<!-- triaged: 14cded2 -->
