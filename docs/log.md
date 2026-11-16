@@ -764,3 +764,17 @@ funções, classes, campos/métodos, enums e variantes. LSP-2 segue pendente.
   catálogo, spans e exit codes de erro não mudaram.
 
 <!-- triaged: fab93f6 -->
+
+## 2026-11-16 — docs da stdlib e builtins
+
+Intervalo: `HEAD`..working tree. Implementa a fatia de documentação do ADR-0091: doc
+comments `///` em toda a API pública de `std/*.lx`, registry de builtins e geração de
+`docs/stdlib/` (índice + 15 módulos + builtins) por `docs/_hooks/stdlib.py`, com
+`make stdlib-docs` e teste de cobertura.
+
+- `std/*.lx` — **updated**: doc comments English da API pública.
+- `loxia/builtins_docs.py` — **new**: registry de builtins.
+- `docs/_hooks/stdlib.py`, `docs/stdlib/*` — **new/updated**: geração e páginas.
+- `Makefile`, `README.md`, `docs/spec/semantica.md`, `CHANGELOG.md`, `TODO.md`,
+  `docs/adr/0091`, `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**.
+- `tests/test_stdlib_docs.py` — **new**: cobertura e drift.

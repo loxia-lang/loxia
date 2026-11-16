@@ -2,22 +2,27 @@
 # `write`/`writeErr` são determinísticos; `readLine`/`readAll`/`prompt` são ambiente
 # (ADR-0072) e só entram em teste com entrada fixa, nunca no corpus I1.
 
+/// Writes text to stdout without a trailing newline.
 fn write(text: String) -> Nil {
   io.write(text)
 }
 
+/// Writes text to stderr without a trailing newline.
 fn writeErr(text: String) -> Nil {
   io.writeErr(text)
 }
 
+/// Reads one line from stdin, returning `nil` at end of input.
 fn readLine() -> String? {
   return io.readLine()
 }
 
+/// Reads all remaining stdin as text.
 fn readAll() -> String {
   return io.readAll()
 }
 
+/// Writes `message` and reads one line from stdin.
 fn prompt(message: String) -> String? {
   io.write(message)
   return io.readLine()

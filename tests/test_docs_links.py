@@ -11,6 +11,10 @@ LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 def relative_targets(text: str) -> list[str]:
     targets: list[str] = []
 
+    # Links dentro de código (assinaturas com `[T]`, exemplos) não são links.
+    text = re.sub(r"```.*?```", "", text, flags=re.S)
+    text = re.sub(r"`[^`\n]*`", "", text)
+
     for raw in LINK.findall(text):
         target = raw.strip()
         if target.startswith(("http://", "https://", "mailto:", "#")):

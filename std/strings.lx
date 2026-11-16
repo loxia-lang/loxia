@@ -1,6 +1,7 @@
 # std.strings — texto UTF-8, operações em code points (T1).
 # Tudo aqui é Lox puro sobre substr/join/charCodeAt/fromCodePoint.
 
+/// Returns true when the string has no characters.
 fn isEmpty(s: String) -> Bool {
   return len(s) == 0
 }
@@ -9,6 +10,7 @@ fn _isSpace(c: Int) -> Bool {
   return c == 32 or c == 9 or c == 10 or c == 13
 }
 
+/// Returns true when the string is empty or only whitespace.
 fn isBlank(s: String) -> Bool {
   var i = 0
   while (i < len(s)) {
@@ -20,6 +22,7 @@ fn isBlank(s: String) -> Bool {
   return true
 }
 
+/// Removes leading whitespace.
 fn ltrim(s: String) -> String {
   var i = 0
   while (i < len(s) and _isSpace(charCodeAt(s, i))) {
@@ -28,6 +31,7 @@ fn ltrim(s: String) -> String {
   return substr(s, i, len(s))
 }
 
+/// Removes trailing whitespace.
 fn rtrim(s: String) -> String {
   var i = len(s)
   while (i > 0 and _isSpace(charCodeAt(s, i - 1))) {
@@ -36,10 +40,12 @@ fn rtrim(s: String) -> String {
   return substr(s, 0, i)
 }
 
+/// Removes leading and trailing whitespace.
 fn trim(s: String) -> String {
   return ltrim(rtrim(s))
 }
 
+/// Returns whether the string starts with `prefix`.
 fn startsWith(s: String, prefix: String) -> Bool {
   if (len(prefix) > len(s)) {
     return false
@@ -47,6 +53,7 @@ fn startsWith(s: String, prefix: String) -> Bool {
   return substr(s, 0, len(prefix)) == prefix
 }
 
+/// Returns whether the string ends with `suffix`.
 fn endsWith(s: String, suffix: String) -> Bool {
   if (len(suffix) > len(s)) {
     return false
@@ -54,6 +61,7 @@ fn endsWith(s: String, suffix: String) -> Bool {
   return substr(s, len(s) - len(suffix), len(s)) == suffix
 }
 
+/// Returns the first code-point index of `needle`, or -1.
 fn indexOf(s: String, needle: String) -> Int {
   if (len(needle) == 0) {
     return 0
@@ -71,6 +79,7 @@ fn indexOf(s: String, needle: String) -> Int {
   return -1
 }
 
+/// Returns the last code-point index of `needle`, or -1.
 fn lastIndexOf(s: String, needle: String) -> Int {
   if (len(needle) == 0) {
     return len(s)
@@ -88,10 +97,12 @@ fn lastIndexOf(s: String, needle: String) -> Int {
   return -1
 }
 
+/// Returns whether the string contains `needle`.
 fn contains(s: String, needle: String) -> Bool {
   return indexOf(s, needle) >= 0
 }
 
+/// Splits on a separator.
 fn split(s: String, separator: String) -> List[String] {
   if (len(separator) == 0) {
     return chars(s)
@@ -111,6 +122,7 @@ fn split(s: String, separator: String) -> List[String] {
   return parts
 }
 
+/// Splits into lines, accepting LF, CRLF and CR.
 fn splitLines(s: String) -> List[String] {
   val raw = split(s, "\n")
   val result: List[String] = []
@@ -124,10 +136,12 @@ fn splitLines(s: String) -> List[String] {
   return result
 }
 
+/// Splits into lines, accepting LF, CRLF and CR.
 fn lines(s: String) -> List[String] {
   return splitLines(s)
 }
 
+/// Splits on whitespace, ignoring empty fields.
 fn words(s: String) -> List[String] {
   val result: List[String] = []
   var i = 0
@@ -146,6 +160,7 @@ fn words(s: String) -> List[String] {
   return result
 }
 
+/// Repeats the string `count` times.
 fn repeat(s: String, count: Int) -> String {
   if (count <= 0) {
     return ""
@@ -159,6 +174,7 @@ fn repeat(s: String, count: Int) -> String {
   return join(parts, "")
 }
 
+/// Returns an uppercase copy.
 fn upper(s: String) -> String {
   val parts: List[String] = []
   var i = 0
@@ -174,6 +190,7 @@ fn upper(s: String) -> String {
   return join(parts, "")
 }
 
+/// Returns a lowercase copy.
 fn lower(s: String) -> String {
   val parts: List[String] = []
   var i = 0
@@ -189,6 +206,7 @@ fn lower(s: String) -> String {
   return join(parts, "")
 }
 
+/// Uppercases the first character and lowercases the rest.
 fn capitalize(s: String) -> String {
   if (len(s) == 0) {
     return ""
@@ -196,6 +214,7 @@ fn capitalize(s: String) -> String {
   return upper(substr(s, 0, 1)) + lower(substr(s, 1, len(s)))
 }
 
+/// Reverses by code points.
 fn reverse(s: String) -> String {
   val parts: List[String] = []
   var i = len(s)
@@ -206,6 +225,7 @@ fn reverse(s: String) -> String {
   return join(parts, "")
 }
 
+/// Counts non-overlapping occurrences of `needle`.
 fn count(s: String, needle: String) -> Int {
   if (len(needle) == 0) {
     return 0
@@ -224,6 +244,7 @@ fn count(s: String, needle: String) -> Int {
   return total
 }
 
+/// Replaces the first occurrence of `old`.
 fn replaceFirst(s: String, old: String, new: String) -> String {
   val found = indexOf(s, old)
   if (found < 0) {
@@ -232,6 +253,7 @@ fn replaceFirst(s: String, old: String, new: String) -> String {
   return substr(s, 0, found) + new + substr(s, found + len(old), len(s))
 }
 
+/// Replaces every occurrence of `old`.
 fn replaceAll(s: String, old: String, new: String) -> String {
   if (len(old) == 0) {
     return s
@@ -239,6 +261,7 @@ fn replaceAll(s: String, old: String, new: String) -> String {
   return join(split(s, old), new)
 }
 
+/// Returns the half-open range `[start, end)`.
 fn slice(s: String, start: Int, end: Int) -> String {
   var begin = start
   var finish = end
@@ -249,6 +272,7 @@ fn slice(s: String, start: Int, end: Int) -> String {
   return substr(s, begin, finish)
 }
 
+/// Pads on the left to `width` using `fill`.
 fn padStart(s: String, width: Int, fill: String) -> String {
   if (len(s) >= width or len(fill) == 0) {
     return s
@@ -257,6 +281,7 @@ fn padStart(s: String, width: Int, fill: String) -> String {
   return slice(padding + s, len(padding) - (width - len(s)), len(padding) + len(s))
 }
 
+/// Pads on the right to `width` using `fill`.
 fn padEnd(s: String, width: Int, fill: String) -> String {
   if (len(s) >= width or len(fill) == 0) {
     return s

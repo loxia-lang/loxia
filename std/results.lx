@@ -12,6 +12,7 @@ fn _err[U, E](error: E) -> Result[U, E] {
   return Result.Err(error)
 }
 
+/// Returns true for `Result.Ok`.
 fn isOk[T, E](result: Result[T, E]) -> Bool {
   return match result {
     Result.Ok(_) => true
@@ -19,6 +20,7 @@ fn isOk[T, E](result: Result[T, E]) -> Bool {
   }
 }
 
+/// Returns true for `Result.Err`.
 fn isErr[T, E](result: Result[T, E]) -> Bool {
   return match result {
     Result.Ok(_) => false
@@ -26,6 +28,7 @@ fn isErr[T, E](result: Result[T, E]) -> Bool {
   }
 }
 
+/// Transforms the success value.
 fn map[T, U, E](
   result: Result[T, E],
   transform: fn(T) -> U
@@ -38,6 +41,7 @@ fn map[T, U, E](
   return out
 }
 
+/// Transforms the error value.
 fn mapErr[T, E, F](
   result: Result[T, E],
   transform: fn(E) -> F
@@ -50,6 +54,7 @@ fn mapErr[T, E, F](
   return out
 }
 
+/// Returns the success value, or `fallback` for an error.
 fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T {
   return match result {
     Result.Ok(value) => value
@@ -57,6 +62,7 @@ fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T {
   }
 }
 
+/// Chains a computation that returns another `Result`.
 fn andThen[T, U, E](
   result: Result[T, E],
   transform: fn(T) -> Result[U, E]
@@ -69,6 +75,7 @@ fn andThen[T, U, E](
   return out
 }
 
+/// Returns the success value or `nil`.
 fn toOptional[T, E](result: Result[T, E]) -> T? {
   return match result {
     Result.Ok(value) => value

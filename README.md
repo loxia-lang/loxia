@@ -332,6 +332,7 @@ grammar no formato que ele consome — também gerado por `make grammar`.
   [léxico](docs/spec/lexico.md), [sintaxe](docs/spec/sintaxe.md),
   [semântica](docs/spec/semantica.md), [erros](docs/spec/erros.md).
 - **Documentação técnica**: [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
+- **Biblioteca padrão**: [`docs/stdlib/`](docs/stdlib/) (gerada de `std/*.lx` e builtins).
 - **Estilo**: [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Decisões de design (ADRs)**: [`docs/adr/`](docs/adr/).
 - **Roadmap**: [`TODO.md`](TODO.md) · **tipos**: [`TIPOS.md`](TIPOS.md) ·

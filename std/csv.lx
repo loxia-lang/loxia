@@ -87,6 +87,7 @@ class _Parser {
   }
 }
 
+/// Parses RFC 4180 CSV text into rows, returning `nil` on malformed input.
 fn parse(text: String) -> List[List[String]]? {
   if (len(text) == 0) {
     return []
@@ -134,6 +135,7 @@ fn _quoteField(field: String) -> String {
   return join(parts, "")
 }
 
+/// Serializes rows as RFC 4180 CSV, quoting fields when needed.
 fn stringify(rows: List[List[String]]) -> String {
   if (len(rows) == 0) {
     return ""

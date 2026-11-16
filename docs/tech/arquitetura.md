@@ -56,6 +56,7 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, full sync, diagnostics, documentSymbol, hover e definition |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
+| [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | docs English dos builtins/primitivas para `docs/stdlib/builtins.md` |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
 | [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
 | [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |

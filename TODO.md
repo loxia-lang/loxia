@@ -68,7 +68,7 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
        [ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
        - [x] `///` + `lox doc` Markdown/JSON para código de usuário.
        - [x] `docs/guia-estilo.md` e formatter Python mínimo (`fmt`/`--check`/`--stdin`).
-       - [ ] docs públicas obrigatórias da stdlib, registry de builtins e `docs/stdlib/`.
+       - [x] docs públicas da stdlib/builtins, registry e `docs/stdlib/` gerado.
        - [ ] `fn` em método, trailing comma/reflow e dogfood Lox (após T3).
 8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols implementado; depois spans de expressão
        + `SymbolIndex` para hover/definition, e só então completion/format/code actions
@@ -176,8 +176,8 @@ uv run pytest tests/test_backend.py -q
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [x] `P1` `lox doc` (core): doc comments `///` + geração Markdown/JSON para código de
       usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
-- [ ] `P1` docs da stdlib/builtins e `docs/stdlib/` gerado
-      ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
+- [x] `P1` docs da stdlib/builtins e `docs/stdlib/` gerado
+      ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)); falta o site (§14.2).
 - [x] `P1` `lox fmt` (core): formatter Python mínimo idempotente, `--check`, `--stdin`
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
 - [ ] `P2` `lox fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3

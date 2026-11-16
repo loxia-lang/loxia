@@ -934,6 +934,9 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 
 ### stdlib T1
 
+> Referência por módulo, gerada das assinaturas/doc comments e do registry de
+> builtins: [`../stdlib/`](../stdlib/).
+
 - `std.strings`: `isEmpty`, `isBlank`, `trim`/`ltrim`/`rtrim`, `startsWith`/`endsWith`,
   `contains`/`indexOf`/`lastIndexOf`, `split`/`splitLines`/`lines`/`words`,
   `repeat`, `upper`/`lower`/`capitalize`, `reverse`, `count`, `replaceFirst`/`replaceAll`,

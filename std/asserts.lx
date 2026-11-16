@@ -1,12 +1,14 @@
 # std.asserts — falhas explícitas para testes e contratos (T1).
 # A falha é RuntimeError: capturável por `except RuntimeError as e`.
 
+/// Raises `RuntimeError` with `message` when `condition` is false.
 fn assert(condition: Bool, message: String = "assertion failed") -> Nil {
   if (not condition) {
     raise RuntimeError(message)
   }
 }
 
+/// Raises `RuntimeError` when the two values differ; returns `Nil` on success.
 fn assertEq[T](
   actual: T,
   expected: T,
@@ -19,6 +21,7 @@ fn assertEq[T](
   }
 }
 
+/// Returns the value narrowed to a non-nil type, or raises `RuntimeError`.
 fn assertNotNil[T](
   value: T?,
   message: String = "expected a non-nil value"
@@ -29,6 +32,7 @@ fn assertNotNil[T](
   return value
 }
 
+/// Raises `RuntimeError` with `message` unconditionally.
 fn fail(message: String) -> Nil {
   raise RuntimeError(message)
 }

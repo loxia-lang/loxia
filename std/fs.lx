@@ -5,10 +5,12 @@
 
 import std.strings as strings
 
+/// Reads a UTF-8 file, returning `nil` when unreadable.
 fn readText(path: String) -> String? {
   return io.readFile(path)
 }
 
+/// Reads a UTF-8 file as lines, returning `nil` when unreadable.
 fn readLines(path: String) -> List[String]? {
   val text = io.readFile(path)
   if (text == nil) {
@@ -21,10 +23,12 @@ fn readLines(path: String) -> List[String]? {
   return lines
 }
 
+/// Writes UTF-8 text, returning whether the write succeeded.
 fn writeText(path: String, text: String) -> Bool {
   return io.writeFile(path, text)
 }
 
+/// Appends UTF-8 text, returning whether the write succeeded.
 fn appendText(path: String, text: String) -> Bool {
   val existing = io.readFile(path)
   if (existing == nil) {
@@ -33,10 +37,12 @@ fn appendText(path: String, text: String) -> Bool {
   return io.writeFile(path, existing + text)
 }
 
+/// Returns whether the path exists.
 fn exists(path: String) -> Bool {
   return fs.exists(path)
 }
 
+/// Lists directory entries, returning `nil` when unreadable.
 fn listDir(path: String) -> List[String]? {
   return fs.listDir(path)
 }

@@ -14,6 +14,7 @@ fn _splitSpec(item: String) -> (String, String) {
   return (substr(item, 0, separator), substr(item, separator + 1, len(item)))
 }
 
+/// Parses command-line arguments against a declarative spec into a map.
 fn parse(args: List[String], spec: List[String]) -> Map[String, Any] {
   val kinds: Map[String, String] = {}
   val positionals: List[String] = []
@@ -92,6 +93,7 @@ fn parse(args: List[String], spec: List[String]) -> Map[String, Any] {
   return result
 }
 
+/// Returns whether a boolean flag was present.
 fn flag(parsed: Map[String, Any], name: String) -> Bool {
   if (not parsed.has(name)) {
     return false
@@ -103,6 +105,7 @@ fn flag(parsed: Map[String, Any], name: String) -> Bool {
   return false
 }
 
+/// Returns the value of an option, or `nil` when absent.
 fn option(parsed: Map[String, Any], name: String) -> String? {
   if (not parsed.has(name)) {
     return nil
@@ -114,10 +117,12 @@ fn option(parsed: Map[String, Any], name: String) -> String? {
   return nil
 }
 
+/// Returns a positional argument, or `nil` when absent.
 fn positional(parsed: Map[String, Any], name: String) -> String? {
   return option(parsed, name)
 }
 
+/// Renders a usage line from the declared spec.
 fn usage(program: String, spec: List[String]) -> String {
   val parts: List[String] = []
   var header = "Usage: " + program + " [options]"

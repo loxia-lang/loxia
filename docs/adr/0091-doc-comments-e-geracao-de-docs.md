@@ -1,9 +1,9 @@
 # ADR-0091 — Documentação: doc comments `///`, formato e geração
 
 > **Implementação parcial (2026-11-16):** `///` no scanner/AST/parser, doc em
-> função/método/classe/interface/enum/variante/campo/type alias/`val`/`var` e
-> `lox doc` Markdown/JSON (stdin incluído). Pendentes: docs públicas obrigatórias da
-> stdlib, registry de builtins, geração de `docs/stdlib/` e integração com o site.
+> função/método/classe/interface/enum/variante/campo/type alias/`val`/`var`,
+> `lox doc` Markdown/JSON, registry de builtins e `docs/stdlib/` gerado (15 módulos +
+> builtins) com teste de cobertura. Pendente: integração do site (§14.2).
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15

@@ -21,6 +21,7 @@ fn _compareInt(left: Int, right: Int) -> Int {
   return 0
 }
 
+/// Returns the non-negative greatest common divisor.
 fn gcd(left: Int, right: Int) -> Int {
   var a = _abs(left)
   var b = _abs(right)
@@ -32,6 +33,7 @@ fn gcd(left: Int, right: Int) -> Int {
   return a
 }
 
+/// Returns the non-negative least common multiple.
 fn lcm(left: Int, right: Int) -> Int {
   if (left == 0 or right == 0) {
     return 0
@@ -40,6 +42,7 @@ fn lcm(left: Int, right: Int) -> Int {
   return _abs((left // divisor) * right)
 }
 
+/// Returns whether an integer is prime.
 fn isPrime(value: Int) -> Bool {
   if (value < 2) {
     return false
@@ -60,6 +63,7 @@ fn isPrime(value: Int) -> Bool {
   return true
 }
 
+/// Returns all primes up to `limit`.
 fn primes(limit: Int) -> List[Int] {
   val result: List[Int] = []
   var value = 2
@@ -72,6 +76,7 @@ fn primes(limit: Int) -> List[Int] {
   return result
 }
 
+/// Returns `value!`; negative input raises `RuntimeError`.
 fn factorial(value: Int) -> Int {
   if (value < 0) {
     raise RuntimeError("factorial() expects a non-negative integer.")
@@ -85,6 +90,7 @@ fn factorial(value: Int) -> Int {
   return result
 }
 
+/// Returns `base ** exponent (mod modulus)`.
 fn powMod(base: Int, exponent: Int, modulus: Int) -> Int {
   if (modulus <= 0) {
     raise RuntimeError("powMod() expects a positive modulus.")
@@ -105,6 +111,7 @@ fn powMod(base: Int, exponent: Int, modulus: Int) -> Int {
   return result
 }
 
+/// Returns the sum of decimal digits.
 fn digitSum(value: Int) -> Int {
   var rest = value
   var total = 0
@@ -119,14 +126,17 @@ fn digitSum(value: Int) -> Int {
   return total
 }
 
+/// Returns whether the integer is even.
 fn isEven(value: Int) -> Bool {
   return value % 2 == 0
 }
 
+/// Returns whether the integer is odd.
 fn isOdd(value: Int) -> Bool {
   return value % 2 != 0
 }
 
+/// Returns -1, 0 or 1 according to the sign.
 fn sign(value: Int) -> Int {
   if (value < 0) {
     return -1
@@ -137,6 +147,7 @@ fn sign(value: Int) -> Int {
   return 0
 }
 
+/// Returns the arithmetic mean, or `nil` for an empty list.
 fn mean(values: List[Int]) -> Float? {
   if (len(values) == 0) {
     return nil
@@ -148,6 +159,7 @@ fn mean(values: List[Int]) -> Float? {
   return total / len(values)
 }
 
+/// Returns the median, or `nil` for an empty list.
 fn median(values: List[Int]) -> Float? {
   if (len(values) == 0) {
     return nil
@@ -161,6 +173,7 @@ fn median(values: List[Int]) -> Float? {
   return ((sorted[middle - 1] as Float) + (sorted[middle] as Float)) / 2.0
 }
 
+/// Returns the most frequent value, or `nil` for an empty list.
 fn mode(values: List[Int]) -> Int? {
   if (len(values) == 0) {
     return nil
@@ -182,6 +195,7 @@ fn mode(values: List[Int]) -> Int? {
   return best
 }
 
+/// Returns the population variance, or `nil` for an empty list.
 fn variance(values: List[Int]) -> Float? {
   val average = mean(values)
   if (average == nil) {
@@ -195,6 +209,7 @@ fn variance(values: List[Int]) -> Float? {
   return total / len(values)
 }
 
+/// Returns the population standard deviation, or `nil` for an empty list.
 fn stddev(values: List[Int]) -> Float? {
   val spread = variance(values)
   if (spread == nil) {
@@ -203,6 +218,7 @@ fn stddev(values: List[Int]) -> Float? {
   return math.sqrt(spread)
 }
 
+/// Rounds to `digits` decimal places.
 fn roundTo(value: Float, digits: Int) -> Float {
   val factor = 10.0 ** digits
   return (math.round(value * factor) as Float) / factor
@@ -212,6 +228,7 @@ fn _digitChar(digit: Int) -> String {
   return substr("0123456789abcdefghijklmnopqrstuvwxyz", digit, digit + 1)
 }
 
+/// Formats an integer in base 2..36.
 fn toBase(value: Int, base: Int) -> String {
   if (base < 2 or base > 36) {
     raise RuntimeError("toBase() expects a base between 2 and 36.")
@@ -249,6 +266,7 @@ fn _digitValue(code: Int) -> Int {
   return -1
 }
 
+/// Parses an integer in base 2..36, returning `nil` when invalid.
 fn fromBase(text: String, base: Int) -> Int? {
   if (base < 2 or base > 36) {
     raise RuntimeError("fromBase() expects a base between 2 and 36.")

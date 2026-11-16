@@ -2,6 +2,7 @@
 # Sem locale: `fixed`/`commas`/`bytes` produzem os mesmos bytes em qualquer ambiente.
 # Variádico desde o ADR-0083: `format(template, ...values: Any)`.
 
+/// Replaces `{}` placeholders in `template` with successive values.
 fn format(template: String, ...values: Any) -> String {
   val parts: List[String] = []
   var index = 0
@@ -41,6 +42,7 @@ fn format(template: String, ...values: Any) -> String {
   return join(parts, "")
 }
 
+/// Pads `text` to `width` using `fill` (one character).
 fn pad(text: String, width: Int, fill: String = " ") -> String {
   if (width < 0) {
     raise RuntimeError("pad() expects a non-negative width.")
@@ -61,6 +63,7 @@ fn pad(text: String, width: Int, fill: String = " ") -> String {
   return join(parts, "")
 }
 
+/// Formats an integer with thousands separators.
 fn commas(value: Int) -> String {
   val negative = value < 0
   var rest = value
@@ -105,6 +108,7 @@ fn _isFinite(value: Float) -> Bool {
   return value <= 1.7976931348623157e308 and value >= -1.7976931348623157e308
 }
 
+/// Formats a finite float with exactly `digits` decimal places.
 fn fixed(value: Float, digits: Int) -> String {
   if (digits < 0 or digits > 15) {
     raise RuntimeError("fixed() expects digits between 0 and 15.")
@@ -142,10 +146,12 @@ fn fixed(value: Float, digits: Int) -> String {
   return str(whole) + "." + fractionText
 }
 
+/// Formats a float as a percentage with `digits` decimal places.
 fn percent(value: Float, digits: Int = 0) -> String {
   return fixed(value * 100.0, digits) + "%"
 }
 
+/// Formats a byte count with a binary unit (B, KiB, MiB, ...).
 fn bytes(value: Int) -> String {
   if (value < 0) {
     raise RuntimeError("bytes() expects a non-negative size.")

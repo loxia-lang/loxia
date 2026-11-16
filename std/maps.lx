@@ -2,6 +2,7 @@
 # Chaves String: o checker ainda não expressa "K é String, Int ou Bool" em função
 # genérica (constraints são pós-MVP), então a API fixa String e generaliza só o valor.
 
+/// Returns the key/value pairs in insertion order.
 fn entries[V](m: Map[String, V]) -> List[(String, V)] {
   val result: List[(String, V)] = []
   for key in m {
@@ -10,10 +11,12 @@ fn entries[V](m: Map[String, V]) -> List[(String, V)] {
   return result
 }
 
+/// Returns the key/value pairs in insertion order.
 fn toList[V](m: Map[String, V]) -> List[(String, V)] {
   return entries(m)
 }
 
+/// Builds a map from key/value pairs; later keys win.
 fn fromEntries[V](items: List[(String, V)]) -> Map[String, V] {
   val result: Map[String, V] = {}
   for item in items {
@@ -22,6 +25,7 @@ fn fromEntries[V](items: List[(String, V)]) -> Map[String, V] {
   return result
 }
 
+/// Merges two maps; the right-hand value wins.
 fn merge[V](left: Map[String, V], right: Map[String, V]) -> Map[String, V] {
   val result: Map[String, V] = {}
   for key in left {
@@ -33,6 +37,7 @@ fn merge[V](left: Map[String, V], right: Map[String, V]) -> Map[String, V] {
   return result
 }
 
+/// Returns a map containing only the given keys.
 fn pick[V](m: Map[String, V], keys: List[String]) -> Map[String, V] {
   val result: Map[String, V] = {}
   for key in keys {
@@ -52,6 +57,7 @@ fn _contains(keys: List[String], needle: String) -> Bool {
   return false
 }
 
+/// Returns a map without the given keys.
 fn omit[V](m: Map[String, V], keys: List[String]) -> Map[String, V] {
   val result: Map[String, V] = {}
   for key in m {
@@ -62,6 +68,7 @@ fn omit[V](m: Map[String, V], keys: List[String]) -> Map[String, V] {
   return result
 }
 
+/// Transforms each value, preserving keys and order.
 fn mapValues[V, U](m: Map[String, V], f: fn(V) -> U) -> Map[String, U] {
   val result: Map[String, U] = {}
   for key in m {
@@ -70,6 +77,7 @@ fn mapValues[V, U](m: Map[String, V], f: fn(V) -> U) -> Map[String, U] {
   return result
 }
 
+/// Keeps entries whose key satisfies `predicate`.
 fn filterKeys[V](
   m: Map[String, V],
   predicate: fn(String) -> Bool
@@ -83,6 +91,7 @@ fn filterKeys[V](
   return result
 }
 
+/// Keeps entries whose value satisfies `predicate`.
 fn filterValues[V](
   m: Map[String, V],
   predicate: fn(V) -> Bool
@@ -96,6 +105,7 @@ fn filterValues[V](
   return result
 }
 
+/// Swaps keys and values; later collisions win.
 fn invert(m: Map[String, String]) -> Map[String, String] {
   val result: Map[String, String] = {}
   for key in m {
@@ -104,6 +114,7 @@ fn invert(m: Map[String, String]) -> Map[String, String] {
   return result
 }
 
+/// Returns whether any value equals `value`.
 fn hasValue[V](m: Map[String, V], value: V) -> Bool {
   for key in m {
     if (m[key] == value) {
@@ -113,6 +124,7 @@ fn hasValue[V](m: Map[String, V], value: V) -> Bool {
   return false
 }
 
+/// Returns the value for `key`, or `fallback` when absent.
 fn getOr[V](m: Map[String, V], key: String, fallback: V) -> V {
   if (m.has(key)) {
     return m[key]

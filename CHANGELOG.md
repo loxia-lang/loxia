@@ -7,6 +7,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Docs da stdlib e builtins** ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)):
+  doc comments `///` em toda a API pública de `std/*.lx`, registry de builtins em
+  `loxia/builtins_docs.py` e `docs/stdlib/` gerado (índice, 15 módulos e builtins) por
+  `docs/_hooks/stdlib.py`; `make stdlib-docs`/`docs-sync` e teste de cobertura.
 - **LSP-0** ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)): `loxia lsp` em Python,
   JSON-RPC sobre stdio sem dependências, `initialize`/`shutdown`/`exit`, full sync
   `didOpen`/`didChange`/`didClose`, `publishDiagnostics` com code/severity/range/

@@ -378,6 +378,7 @@ fn _spaces(count: Int) -> String {
   return join(parts, "")
 }
 
+/// Parses JSON text into Loxia values, returning `nil` for invalid input.
 fn parse(text: String) -> Any {
   try {
     val parser = _Parser(text)
@@ -392,6 +393,7 @@ fn parse(text: String) -> Any {
   }
 }
 
+/// Serializes a Loxia value as compact JSON.
 fn stringify(value: Any) -> String {
   if (value == nil) {
     return "null"
@@ -464,6 +466,7 @@ fn _pretty(value: Any, indent: Int, level: Int) -> String {
   return stringify(value)
 }
 
+/// Serializes a Loxia value as JSON with `indent` spaces.
 fn pretty(value: Any, indent: Int = 2) -> String {
   if (indent <= 0) {
     return stringify(value)
