@@ -19,19 +19,7 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 ---
 
 ## 0. Fila única
-
-Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se houver conflito,
-vale o que está aqui. Estado em 2026-11-16: **L0–L6, L7, M7, T1, T2 e T3 concluídos**; kernel
-v1 (17 primitivas), tabela de primitivas, imports/módulos e a stdlib comum implementados.
-Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
-([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; diagnósticos
-também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
-[ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
-também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)), assim como
-`///` + `loxia doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)) e o
-formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)), o **LSP** (0/1 e 2
-parcial) ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) e as docs da
-stdlib/builtins ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)). A próxima
+A próxima
 execução é o **dogfooding do `loxia fmt` em Lox** e o **LSP-2 restante**. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
@@ -42,11 +30,10 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 1. [ ] **Dogfooding do formatter** (`P2`/`L`): portar `loxia fmt` para Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
        §13.7). Inclui `fn` em método, trailing comma/reflow.
-2. [ ] **Diagnósticos restantes** (`P2`): spans de expressão/`notes` de proveniência e
-       os produtores `E2001`/`E3016`/`E3018`/`E3002`/`E3015`
+2. [ ] **Diagnósticos restantes** (`P2`): `notes` de proveniência e `E3004`
        ([`docs/tech/fixes.md`](docs/tech/fixes.md)).
-3. [ ] **LSP-2 restante** (`P2`): spans de expressão formais; `codeAction`/fixes e
-       `rename` de locais/parâmetros já estão implementados
+3. [ ] **LSP-2 restante** (`P2`): `SourceIndex` de spans de expressão e `rename`
+       cross-file conservador implementados; falta o cliente VS Code e `workspace/symbol`
        ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 4. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
 5. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
@@ -70,7 +57,6 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
       spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-2
       restante ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-- [x] **W1001/W1002/E3003/E2002/E2009** e `loxia fix` (2026-11-16).
 - [ ] **E2001** e **E3016/E3018/E3002/E3015** (`unsafe`):
       [`docs/tech/fixes.md`](docs/tech/fixes.md).
 
@@ -125,14 +111,13 @@ uv run pytest tests/test_backend.py -q
 
 ## 7. Tooling e qualidade
 
-- [x] `P2` W1001 (`safe`), E3003 (`unsafe`), `loxia fix` (`--apply`/dry-run) e
-      `codeAction` no LSP (2026-11-16).
-- [ ] `P2` E2001 e E3016/E3018/E3002/E3015 (`unsafe`) — critérios e perguntas em
+- [ ] `P2` E3004 (anotação ausente) — critérios em
       [`docs/tech/fixes.md`](docs/tech/fixes.md).
 - [ ] `P2` `loxia fmt`: `fn` em método, trailing comma/reflow e dogfood em Lox após a T3
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P2` LSP-2 restante: spans de expressão formais; `codeAction`/fixes e `rename`
-      de locais/parâmetros implementados ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] `P2` LSP-2 restante: `workspace/symbol`/cliente VS Code; `codeAction`, `rename`
+      (local e cross-file conservador) e `SourceIndex` implementados
+      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
@@ -187,44 +172,12 @@ em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
 
 #### `R1` — `io.write` sem flush no binário — ✅ resolvido ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md))
 
-Achado em 2026-11-16: o oráculo fazia `flush()` em toda escrita e o binário não, então
-`std.io.prompt` nunca aparecia e qualquer protocolo por stdio travava. O I1 não pegava
-porque compara só os bytes do fim do processo. Correção: `fflush` em
-`lox_io_write`/`lox_io_write_err`, primitiva `io.flush` e o teste de streaming
-`test_io_write_flush_antes_de_bloquear_no_stdin` (entrega o stdin só depois de ler a
-saída). Alternativas e custos ficam no ADR-0094.
 
 #### `R2` — panic de primitiva antiga sem posição — ✅ resolvido (2026-11-16)
 
-`substr`, `join`, `charCodeAt`, `fromCodePoint`, `os.exit` e `time.sleep` chamavam
-`lox_panic(0, 0, ...)`: o binário saía sem `arquivo:linha:col`, com `R1007`/`R1006` em vez
-de `R1000` e, em `substr`/`fromCodePoint`, com mensagem diferente (e `substr` nem checava
-`end > len`). Todas passaram a declarar `site` e a usar `R1000` com a mensagem do oráculo;
-`test_panic_de_primitiva_bate_com_oraculo` cobre os seis casos com erro **não capturado**,
-comparando stderr byte a byte. Mecanismo e contexto no
-[ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md).
-
 #### `R3` — closure guardada em lista não é chamável no binário — ✅ resolvido (2026-11-16)
 
-`val tests: List[fn() -> Nil] = []` + `tests.push(fn() { ... })` + `tests[0]()` funciona
-no interpretador e falha no binário com `R1001: Can only call functions and classes.` O
-elemento guarda o payload da função, mas o call path genérico não reconstrói a ABI de
-closure (`{fnptr, env, display}`). Consequência: registry de testes e tabela de callbacks
-em geral só funcionam no oráculo. Causa: `_for_bind` não copiava `sig=desc.fn` para o
-`Binding`, então a variável do laço virava `fn` sem assinatura. Corrigido em
-`lower_range.py`; golden `tests/cases/closure_in_list.lx` (`l4`) cobre índice, for-in e
-captura. Hooks aninhados e registries agora são portáveis.
-
 #### `R4` — `except` de classe de módulo não casa no binário — ✅ resolvido (2026-11-16)
-
-`class MyError(Exception)` em `lib.lx`, `raise MyError(...)` e `try { ... } except MyError`
-dentro do próprio módulo: o interpretador casa a classe, o binário cai no
-`except Exception` genérico. O loader reescreve o nome no `except` para `lib$MyError`, mas
-o descritor da classe guarda `MyError`; `lox_exception_matches` compara strings. Regressão
-em `tests/test_module_exceptions.py` (backend). Correção: `lox_exception_matches` ganhou
-o parâmetro `expected` e compara o **ponteiro do descritor** (preservando o nome de
-exibição); `std.test` voltou a usar `except Skip` tipado.
-
 
 ---
 
@@ -330,9 +283,6 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    fora da raiz. Fonte do módulo e stack trace estão feitos
    ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 
-> Nome e extensão saíram daqui: **Loxia** e `.lx`, decididos no
-> [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md).
-
 ---
 
 ## 12. Referências
@@ -420,12 +370,6 @@ determinismo.
 
 | Módulo | Funções | Estado |
 | --- | --- | --- |
-| `std.timex` | `iso`, `parseIso`, `daysFromCivil`, `civilFromDays`, `addDays`, `parts` (**UTC-only**) | ✅ |
-| `std.rand` | `Rand(seed)`, `nextInt`, `int`, `float`, `bool`, `shuffle` (xorshift64*, determinístico) | ✅ |
-| `std.hash` | `fnv1a32`, `fnv1a64`, `djb2` (bytes UTF-8; não é cripto) | ✅ |
-| `std.collections` | `Stack`, `Queue`, `Deque`, `PriorityQueue` (classes em módulo) | ✅ |
-| `std.log` | níveis, `writeErr`, sem timestamp por padrão | ✅ |
-| `std.property` | `Gen[T]`, `forAll`, `int`/`intRange`/`bool`/`float`/`stringOf`/`listOfInt`/`listOfString`/`oneOf`, shrinking e seed — [ADR-0098](docs/adr/0098-property-based-testing.md) | ✅ |
 | `std.test` | `Suite`/`describe`/`it`/`beforeEach`/`afterEach`/`expect`/`skip`/`report` + `loxia test` (glob, `--isolate=file|test`, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
 
 **Fora da stdlib:** a linha do topo da §13 (motivos no [ADR-0072](docs/adr/0072-stdlib-batteries.md)).
@@ -455,16 +399,6 @@ programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. **Só o P0 e
 aprovado e implementado** ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md));
 `proc`/`poll`/`fs.open`/`net` continuam não aprovados, e o servidor LSP continua em Python.
 
-**O que já cobre um LSP:** `std.json` (parse/stringify), `io.readLine` (headers, já tira
-`\r`), `io.readUtf8` (corpo por bytes), `io.flush`, `io.readFile`/`fs.readText`,
-`Map[String, Any]`, `Result`, `try/finally`.
-
-**Feito (P0, kernel 18–19):**
-
-| # | Primitiva | Assinatura | Por quê |
-| --- | --- | --- | --- |
-| 18 | `io.flush` | `() -> Nil` | ✅ fecha o `R1` (§9.1) e destrava `prompt`/protocolos |
-| 19 | `io.readUtf8` | `(n: Int) -> String?` | ✅ `Content-Length` conta **bytes**: lê N bytes UTF-8 estrito, `nil` só no EOF imediato |
 
 `byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) continuam **Lox
 puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos ainda.
@@ -473,8 +407,6 @@ puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos a
 
 | Camada | Superfície | Consumidor | Esforço |
 | --- | --- | --- | --- |
-| `proc` ✅ | `process.*` + `std.proc` (`Stream`/`Process`/`Output`, `spawn`, `run`) | caminho B do LSP, `loxia fmt`, `loxia test` | feito (ADR-0095) |
-| `poll` ✅ | `process.poll(handles, timeoutMs) -> List[Int]` | `spawn` com dois pipes; I/O concorrente sem thread | feito (ADR-0095) |
 | `fs.open` | `open(path, mode) -> File` (streaming, §10) | arquivos grandes, CSV/log | M |
 | `net` | `tcpListen`/`tcpConnect`/`accept`/`close` (+ unix) | só com consumidor (HTTP client, debugger remoto) | M |
 
@@ -484,7 +416,7 @@ puro** a fazer em `std/utf8` — não precisam de kernel e não foram escritos a
 lançar; sem FFI genérica (`extern fn` continua fora, ADR-0071); `net` v1 só com IP
 literal, sem DNS nem TLS.
 
-**Ordem sugerida:** 18–19 ✅ → `std/utf8` ✅ → `proc`+`poll` ✅ → `fs.open` (M) → `net`
+**Ordem sugerida:**  → `fs.open` (M) → `net`
 (L, só com dor). O servidor LSP continua em Python
 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
 

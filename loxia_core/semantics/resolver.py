@@ -105,6 +105,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._reporter = reporter
         self._warn_unused = warn_unused
         self._scopes: list[dict[str, _VariableInfo]] = []
+        self._scope_duplicates: list[
+            list[tuple[Token, Token | None, _VariableInfo]]
+        ] = []
         self._current_field_keywords: dict[str, Token] | None = None
         self._class_field_keywords: dict[str, dict[str, Token]] = {}
         self._current_function: FunctionType = FunctionType.NONE
@@ -129,9 +132,13 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def _begin_scope(self) -> None:
         self._scopes.append({})
+        self._scope_duplicates.append([])
 
     def _end_scope(self) -> None:
         scope = self._scopes.pop()
+        duplicates = self._scope_duplicates.pop()
+        for token, previous, info in duplicates:
+            self._emit_duplicate(token, previous, info)
         if not self._warn_unused or self._reporter.had_error:
             return
         for name, info in scope.items():
@@ -163,6 +170,55 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                     ),
                 )
 
+    def _emit_duplicate(
+        self, token: Token, previous: Token | None, info: _VariableInfo
+    ) -> None:
+        replacement = self._unique_name(token, "_dup_")
+        edits: list[Edit] = [
+            Edit(span_of_token(token, self._reporter.file), replacement)
+        ]
+        for use, declaration in self.references.items():
+            if declaration is info.declaration:
+                edits.append(
+                    Edit(
+                        span_of_token(use, self._reporter.file),
+                        replacement,
+                    )
+                )
+        self._reporter.error(
+            token,
+            "Already a variable with this name in this scope.",
+            code=Code.DUPLICATE_VARIABLE,
+            label_tokens=(
+                ((previous, "first declared here"),)
+                if previous is not None
+                else ()
+            ),
+            fixes=(
+                Fix(
+                    Applicability.UNSAFE,
+                    f"Rename the second binding to '{replacement}'.",
+                    tuple(edits),
+                ),
+            ),
+        )
+
+    def _unique_name(self, token: Token, prefix: str) -> str:
+        taken: set[str] = set()
+        for scope in self._scopes:
+            taken.update(scope)
+        taken.update(declaration.lexeme for declaration in self.references.values())
+        globals_env = getattr(self._interpreter, "globals", None)
+        values = getattr(globals_env, "values", None)
+        if isinstance(values, dict):
+            taken.update(values)
+        index = token.offset or 0
+        candidate = f"{prefix}{index}"
+        while candidate in taken:
+            index += 1
+            candidate = f"{prefix}{index}"
+        return candidate
+
     def _unused_name(self, token: Token) -> str:
         taken: set[str] = set()
         for scope in self._scopes:
@@ -192,20 +248,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             return
 
         scope = self._scopes[-1]
-        if name.lexeme in scope:
-            previous = scope[name.lexeme].declaration
-            self._reporter.error(
-                name,
-                "Already a variable with this name in this scope.",
-                code=Code.DUPLICATE_VARIABLE,
-                label_tokens=(
-                    ((previous, "first declared here"),)
-                    if previous is not None
-                    else ()
-                ),
-            )
+        previous = (
+            scope[name.lexeme].declaration if name.lexeme in scope else None
+        )
 
-        scope[name.lexeme] = _VariableInfo(
+        info = _VariableInfo(
             defined=False,
             mutable=mutable,
             declaration=name,
@@ -213,6 +260,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             warn=warn,
             keyword=keyword,
         )
+        scope[name.lexeme] = info
+        if previous is not None:
+            self._scope_duplicates[-1].append((name, previous, info))
 
     def _define(self, name: Token) -> None:
         if not self._scopes:

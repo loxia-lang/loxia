@@ -61,6 +61,8 @@ class Binary(Expr):
 @dataclass(frozen=True, eq=False)
 class Grouping(Expr):
     expression: Expr
+    start: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_grouping_expr(self)
@@ -89,6 +91,7 @@ class As(Expr):
 @dataclass(frozen=True, eq=False)
 class Literal(Expr):
     value: object
+    token: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_literal_expr(self)
@@ -231,6 +234,8 @@ class Call(Expr):
     arguments: list[Expr]
     optional: bool = False
     spread: bool = False
+    commas: tuple[Token, ...] = ()
+    arg_ends: tuple[Token, ...] = ()
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_call_expr(self)

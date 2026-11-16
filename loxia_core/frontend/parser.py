@@ -399,8 +399,7 @@ class Parser:
                     Code.INVALID_DECLARATION,
                 )
 
-        self._end_statement("Expect ';' after field declaration.")
-
+        end = self._end_statement("Expect ';' after field declaration.") or self._previous()
         return Field(
             name,
             initializer,
@@ -408,6 +407,7 @@ class Parser:
             type_annotation,
             doc=keyword.doc,
             keyword=keyword,
+            end=end,
         )
 
     def _destructure(self, mutable: bool) -> Stmt:
@@ -722,6 +722,7 @@ class Parser:
         self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
 
         body = self._block()
+        end = self._previous()
         return Function(
             name,
             parameters,
@@ -730,6 +731,7 @@ class Parser:
             type_params,
             type_param_bounds=type_param_bounds,
             doc=doc,
+            end=end,
         )
 
     def _type_parameters(
@@ -1309,6 +1311,8 @@ class Parser:
     def _finish_call(self, callee: Expr, *, optional: bool = False) -> Expr:
         with self._in_brackets():
             arguments: list[Expr] = []
+            commas: list[Token] = []
+            arg_ends: list[Token] = []
             spread = False
             if not self._check(TokenType.RIGHT_PAREN):
                 while True:
@@ -1331,14 +1335,24 @@ class Parser:
                         break
 
                     arguments.append(self._expression())
+                    arg_ends.append(self._previous())
 
                     if not self._match(TokenType.COMMA):
                         break
+                    commas.append(self._previous())
 
             paren = self._consume(
                 TokenType.RIGHT_PAREN, "Expect ')' after arguments."
             )
-            return Call(callee, paren, arguments, optional, spread)
+            return Call(
+                callee,
+                paren,
+                arguments,
+                optional,
+                spread,
+                tuple(commas),
+                tuple(arg_ends),
+            )
 
     def _interpolated_string(self, token: Token) -> Expr:
         raw_parts = cast(list[str | list[Token]], token.literal)
@@ -1379,19 +1393,19 @@ class Parser:
             return self._lambda(self._previous())
 
         if self._match(TokenType.FALSE):
-            return Literal(False)
+            return Literal(False, self._previous())
 
         if self._match(TokenType.TRUE):
-            return Literal(True)
+            return Literal(True, self._previous())
 
         if self._match(TokenType.NIL):
-            return Literal(None)
+            return Literal(None, self._previous())
 
         if self._match(TokenType.INTERPOLATED_STRING):
             return self._interpolated_string(self._previous())
 
         if self._match(TokenType.NUMBER, TokenType.STRING):
-            return Literal(self._previous().literal)
+            return Literal(self._previous().literal, self._previous())
 
         if self._match(TokenType.SUPER):
             keyword = self._previous()
@@ -1450,7 +1464,7 @@ class Parser:
                 self._consume(
                     TokenType.RIGHT_PAREN, "Expect ')' after expression."
                 )
-                return Grouping(first)
+                return Grouping(first, paren, self._previous())
 
         if self._check(TokenType.SLASH_SLASH):
             raise self._error(

@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Fixes restantes**: E2001 (rename do binding duplicado + usos), E3016/E3018
+  (default primitivo/opcional), E3002 (remoção de argumentos extras) e E3015
+  (rename de método), todos `unsafe`.
+- **Spans de expressão**: `loxia/source_index.py` (offset → menor expressão) e
+  rename cross-file conservador no LSP para declarações top-level.
 - **LSP rename**: `textDocument/prepareRename` e `textDocument/rename` para variáveis
   locais/parâmetros (mesmo arquivo, via `SymbolIndex.references`); cross-file/globais
   continuam fora.

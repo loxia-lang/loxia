@@ -55,7 +55,8 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | runner `loxia test` (ADR-0096): descobre `*_test.lx`, um subprocesso por arquivo, agrega TAP e `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
-| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition e LSP-2 básico (completion/signature/formatting/semantic tokens) |
+| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/formatting/semantic tokens, codeAction e rename |
+| [`loxia/source_index.py`](../../loxia/source_index.py) | índice de spans de expressão (offset → menor nó) para LSP/diagnósticos |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | docs English dos builtins/primitivas para `docs/stdlib/builtins.md` |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |

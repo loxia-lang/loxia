@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -170,3 +171,62 @@ def test_e2002_e_e2009_nao_sao_aplicados(tmp_path: Path) -> None:
         assert result.returncode == 1
         assert "unsafe" in result.stderr
         assert "val " in path.read_text(encoding="utf-8")
+
+
+def _apply_fix_edits(source: str, fix: dict[str, object]) -> str:
+    data = source.encode("utf-8")
+    edits = cast(list[dict[str, Any]], fix["edits"])
+    for edit in sorted(
+        edits,
+        key=lambda item: cast(dict[str, Any], item["span"])["start"]["offset"],
+        reverse=True,
+    ):
+        span = cast(dict[str, Any], edit["span"])
+        start = span["start"]["offset"]
+        end = span["end"]["offset"]
+        data = data[:start] + cast(str, edit["new_text"]).encode() + data[end:]
+    return data.decode("utf-8")
+
+
+def test_fixes_unsafe_produzem_codigo_valido(tmp_path: Path) -> None:
+    cases = {
+        "duplicate": (
+            "fn f() -> Int {\n  val x = 1\n  val x = 2\n  return x\n}\n",
+            "E2001",
+        ),
+        "field": ("class C {\n  val x: Int\n}\n", "E3016"),
+        "return": (
+            "fn f() -> Int {\n  if (true) {\n    return 1\n  }\n}\n",
+            "E3018",
+        ),
+        "arity": ("fn f(a: Int) -> Int { return a }\nprint(f(1, 2, 3))\n", "E3002"),
+        "override": (
+            "class A {\n  fn m(x: Int) -> Int { return x }\n}\n"
+            "class B(A) {\n  fn m() -> Int { return 1 }\n}\n",
+            "E3015",
+        ),
+    }
+    for name, (source, code) in cases.items():
+        path = tmp_path / f"{name}.lx"
+        path.write_text(source, encoding="utf-8")
+        checked = subprocess.run(
+            [sys.executable, "-m", "loxia", "check", "--json", str(path)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        payload = json.loads(checked.stdout)
+        diagnostic = next(
+            item for item in payload["diagnostics"] if item["code"] == code
+        )
+        fixed = _apply_fix_edits(source, diagnostic["fixes"][0])
+        path.write_text(fixed, encoding="utf-8")
+        after = subprocess.run(
+            [sys.executable, "-m", "loxia", "check", str(path)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert after.returncode == 0, (name, fixed, after.stdout)

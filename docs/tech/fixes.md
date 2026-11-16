@@ -1,7 +1,8 @@
 # Fixes confiáveis: quem produz, o que é seguro e o que fica para depois
 
-**Status:** `W1001`/`W1002` (`safe`), `E3003`/`E2002`/`E2009` (`unsafe`), `loxia fix`
-(safe-only) e `codeAction` implementados (2026-11-16); os demais produtores pendentes.
+**Status:** `W1001`/`W1002` (`safe`); `E2001`/`E2002`/`E2009`/`E3002`/`E3003`/
+`E3015`/`E3016`/`E3018` (`unsafe`); `loxia fix` (safe-only) e `codeAction`
+implementados (2026-11-16). Pendente: `E3004` (anotação ausente).
 **Decisão:** [ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md) (schema e protocolo de
 reparo), [ADR-0075](../adr/0075-diagnosticos-estruturados.md) (diagnóstico),
 [ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md) (LSP consumidor).
@@ -67,13 +68,13 @@ conservador (valor + anotação de tipo).
 | Código | Fix possível | Por que não é safe |
 | --- | --- | --- |
 | **E3003** nome indefinido | trocar pelo `did you mean 'x'?` | pode ser uma variável nova, não um typo; sugestão fuzzy |
-| **E2001** variável duplicada | remover/renomear a segunda | muda qual binding cada uso resolve |
+| **E2001** variável duplicada | renomear a segunda + todos os usos (implementado) | muda qual binding cada uso resolve |
 | **E2002** atribuição a `val` | trocar `val`→`var` (implementado) | muda captura/mutabilidade e comportamento |
 | **E2009** campo imutável | trocar `val`→`var` no campo (implementado) | muda API e semântica de captura |
-| **E3016** campo não inicializado | adicionar `= <default>` | não há default único; `nil` pode não ser do tipo |
-| **E3018** return path | adicionar `return` | valor e ponto de retorno são intenção do autor |
-| **E3002** aridade | adicionar/remover argumento | não se sabe qual argumento falta/sobra |
-| **E3015** override inválido | renomear método | pode ser override intencional com assinatura errada |
+| **E3016** campo não inicializado | adicionar `= <default>` (implementado p/ primitivos/opcionais) | default é escolha; sem default único para classes |
+| **E3018** return path | adicionar `return <default>` (implementado p/ primitivos/opcionais) | valor é intenção do autor |
+| **E3002** aridade | remover argumentos extras (implementado; faltando não tem fix) | não se sabe qual argumento sobra |
+| **E3015** override inválido | renomear método (implementado) | pode ser override intencional com assinatura errada |
 
 ### Sem fix confiável
 
@@ -82,7 +83,7 @@ conservador (valor + anotação de tipo).
 - `E4001` backend não suportado: não é erro do programa.
 - `R1xxx`: runtime; depende de entrada/estado, não de edição de fonte.
 - `C0001`: timeout; não é fonte.
-- E2001 (duplicado): remover/renomear exigiria reescrever todos os usos do segundo binding.
+- E2001 com usos fora do escopo ou colisão de nome: o fix só cobre o binding local e seus usos resolvidos.
 
 ## Lote inicial
 
@@ -90,7 +91,8 @@ conservador (valor + anotação de tipo).
 2. ✅ **E3003 `unsafe`**: troca o token pelo candidato de `help`; `isPreferred: false`.
 3. ✅ **W1002 `safe`**: remove a linha de import não usada; pureza estrutural do loader.
 4. ✅ **E2002/E2009 `unsafe`**: troca `val`→`var` no local/campo; nunca auto-aplicado.
-5. ⬜ **E2001/E3016/E3018/E3002/E3015**: desenho específico por código.
+5. ✅ **E2001/E3016/E3018/E3002/E3015**: rename com usos, default primitivo, return
+   default, remoção de argumentos extras e rename de método.
 
 ## Aplicação
 

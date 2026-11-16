@@ -72,6 +72,7 @@ class Field:
     type_annotation: Ty | None = None
     doc: str | None = None
     keyword: Token | None = None
+    end: Token | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -193,6 +194,7 @@ class Function(Stmt):
     display_name: str | None = None
     abstract: bool = False
     doc: str | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)

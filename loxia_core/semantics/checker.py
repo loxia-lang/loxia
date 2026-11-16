@@ -14,6 +14,7 @@ from loxia_core.diagnostics.diagnostic import (
     Applicability,
     Edit,
     Fix,
+    Span,
 )
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.prelude import BUILTIN_NAMES
@@ -61,6 +62,7 @@ from loxia_core.frontend.stmt import (
     Destructure,
     EnumDecl,
     Expression,
+    Field,
     ForIn,
     Function,
     If,
@@ -1770,13 +1772,61 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     continue
                 if not self._assignable(superclass_signature, signature):
                     token = info.method_tokens[name]
+                    replacement = f"{name}_impl"
+                    fix = Fix(
+                        Applicability.UNSAFE,
+                        f"Rename the method to '{replacement}'.",
+                        (
+                            Edit(
+                                span_of_token(token, self._reporter.file),
+                                replacement,
+                            ),
+                        ),
+                    )
                     self._error(
                         token,
                         f"Method '{name}' is incompatible with the superclass "
                         f"method: expected {display(superclass_signature)}, "
                         f"found {display(signature)}.",
                         code=Code.INVALID_OVERRIDE,
+                        fixes=(fix,),
                     )
+
+    def _default_value(self, ty: Ty | None) -> str | None:
+        if ty is None:
+            return None
+        if is_nilable(ty):
+            return "nil"
+        if ty is INT:
+            return "0"
+        if ty is FLOAT:
+            return "0.0"
+        if ty is BOOL:
+            return "false"
+        if ty is STRING:
+            return '""'
+        if isinstance(ty, ListTy):
+            return "[]"
+        if isinstance(ty, MapTy):
+            return "{}"
+        return None
+
+    def _initialization_fixes(self, field: Field) -> tuple[Fix, ...]:
+        if field.end is None:
+            return ()
+        default = self._default_value(field.type_annotation)
+        if default is None:
+            return ()
+        span = span_of_token(field.end, self._reporter.file)
+        point = span.start if field.end.lexeme == ";" else span.end
+        at = Span(span.file, point, point)
+        return (
+            Fix(
+                Applicability.UNSAFE,
+                f"Initialize with '{default}'.",
+                (Edit(at, f" = {default}"),),
+            ),
+        )
 
     def _check_field_initialization(self, stmt: Class, info: ClassInfo) -> None:
         required = {
@@ -1798,6 +1848,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         field.name,
                         f"Field '{field.name.lexeme}' must be initialized.",
                         code=Code.MISSING_INITIALIZATION,
+                        fixes=self._initialization_fixes(field),
                     )
             return
 
@@ -1821,6 +1872,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     field.name,
                     f"Field '{field.name.lexeme}' must be initialized.",
                     code=Code.MISSING_INITIALIZATION,
+                    fixes=self._initialization_fixes(field),
                 )
 
     def _init_flow(
@@ -2219,11 +2271,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     if class_info is not None or interface_info is not None
                     else "Function"
                 )
+                default = self._default_value(signature.ret)
+                fixes: tuple[Fix, ...] = ()
+                if default is not None and stmt.end is not None:
+                    span = span_of_token(stmt.end, self._reporter.file)
+                    at = Span(span.file, span.start, span.start)
+                    fixes = (
+                        Fix(
+                            Applicability.UNSAFE,
+                            f"Add 'return {default}' at the end.",
+                            (Edit(at, f"\n  return {default}\n"),),
+                        ),
+                    )
                 self._error(
                     stmt.name,
                     f"{kind} '{stmt.name.lexeme}' must return "
                     f"{display(signature.ret)} on all paths.",
                     code=Code.RETURN_PATH,
+                    fixes=fixes,
                 )
 
             self._end_scope()
@@ -3506,12 +3571,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 (), ClassTy(callable_ty.name), 0
             )
             self._check_call(
-                expr.paren, signature, arguments, expr.spread
+                expr.paren, signature, arguments, expr.spread, expr
             )
             result = ClassTy(callable_ty.name)
         elif isinstance(callable_ty, FnTy):
             self._check_call(
-                expr.paren, callable_ty, arguments, expr.spread
+                expr.paren, callable_ty, arguments, expr.spread, expr
             )
             result = callable_ty.ret
         elif isinstance(callable_ty, NativeFnTy):
@@ -3686,6 +3751,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         signature: FnTy,
         arguments: list[Ty],
         spread: bool = False,
+        expr: Call | None = None,
     ) -> None:
         fixed = signature.fixed_params
         minimum = signature.min_params
@@ -3762,8 +3828,41 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 message = f"Expected at least {minimum} arguments but got {count}."
             else:
                 message = f"Expected {minimum} to {maximum} arguments but got {count}."
+            fixes: tuple[Fix, ...] = ()
+            if (
+                count > maximum
+                and not spread
+                and expr is not None
+                and expr.arg_ends
+                and maximum > 0
+                and len(expr.commas) >= maximum
+            ):
+                start = expr.commas[maximum - 1]
+                end = expr.arg_ends[-1]
+                start_span = span_of_token(start, self._reporter.file)
+                end_span = span_of_token(end, self._reporter.file)
+                fixes = (
+                    Fix(
+                        Applicability.UNSAFE,
+                        "Remove the extra arguments.",
+                        (
+                            Edit(
+                                Span(
+                                    start_span.file,
+                                    start_span.start,
+                                    end_span.end,
+                                ),
+                                "",
+                            ),
+                        ),
+                    ),
+                )
             self._error(
-                token, message, code=Code.ARITY_MISMATCH, lowerable=True
+                token,
+                message,
+                code=Code.ARITY_MISMATCH,
+                lowerable=True,
+                fixes=fixes,
             )
             return
 

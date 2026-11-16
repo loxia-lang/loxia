@@ -5,9 +5,9 @@
 > `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references` e
 > `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
 > variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
-> documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`)
-> e `rename`/`prepareRename` para locais/parâmetros. Spans de expressão formais
-> continuam pendentes.
+> documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`),
+> `rename`/`prepareRename` (locais/parâmetros e top-level cross-file conservador) e um
+> `SourceIndex` de spans de expressão.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -20,7 +20,8 @@
 - **Implementação:** `loxia/lsp.py` (servidor), `loxia/symbols.py` (índice),
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
-  `codeAction` e `rename` (locais/parâmetros) já existem; o cliente VS Code ainda não.
+  `codeAction`, `rename` (locais/parâmetros e top-level cross-file) e
+  `loxia/source_index.py` já existem; o cliente VS Code ainda não.
 
 ## Contexto
 
@@ -73,7 +74,7 @@ opcionalmente, entry point `loxia-lsp`). Ele reusa `Parser`, `Resolver`, `Checke
 | --- | --- | --- |
 | **LSP-0** | `initialize`/`shutdown`/`exit`, `didOpen`/`didChange`/`didSave`/`didClose` com **full sync**, `publishDiagnostics`, `documentSymbol` | `Diagnostic` atual; sem spans de expressão |
 | **LSP-1** | `hover` (tipo + doc), `textDocument/definition` | spans de expressão + `SymbolIndex` + mapa uso→declaração |
-| **LSP-2** | `completion`, `signatureHelp`, `documentFormatting` (formatter), `codeAction` (fixes), `semanticTokens` | formatter, `fixes[]`, índice de escopos |
+| **LSP-2** | `completion`, `signatureHelp`, `documentFormatting` (formatter), `codeAction` (fixes), `semanticTokens`, `rename` | formatter, `fixes[]`, `SourceIndex`/índice de escopos |
 
 LSP-0 é barato e já resolve o problema real (erros no editor). LSP-1 é o que dá a sensação
 de "linguagem de verdade", mas depende de:
@@ -87,8 +88,9 @@ Esse índice também serve às `notes` de proveniência e ao `loxia doc`; é tra
 compilador, não de LSP.
 
 LSP-2 é incremental e não é prometido junto do MVP. `codeAction`/fixes e `rename`
-de locais/parâmetros entraram (2026-11-16); `workspace/symbol`, `inlayHint`, DAP e
-rename cross-file ficam fora por enquanto.
+entraram (2026-11-16); rename cross-file é conservador (recusa nomes que também são
+locais/campos/métodos em qualquer arquivo). `workspace/symbol`, `inlayHint` e DAP
+ficam fora por enquanto.
 
 ### 3. Mapeamento do diagnóstico
 

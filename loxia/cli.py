@@ -109,6 +109,7 @@ class Loxia:
         self._revision = 0
         # Estado da última análise, consumido pelo LSP (hover/definition).
         self.last_statements: list[Stmt] | None = None
+        self.last_source_index: object | None = None
         self.last_resolver: Resolver | None = None
         self.last_checker: Checker | None = None
 
@@ -146,6 +147,9 @@ class Loxia:
             statements = loaded
 
         self.last_statements = statements
+        from loxia.source_index import SourceIndex
+
+        self.last_source_index = SourceIndex(statements, source)
         return statements
 
     def _execute(self, statements: list[Stmt]) -> None:

@@ -33,6 +33,7 @@ from loxia_core.frontend.stmt import (
     Class,
     EnumDecl,
     Function,
+    Import,
     Interface,
     Stmt,
     TypeAlias,
@@ -653,7 +654,9 @@ class Server:
         index = self._index_for(document.uri)
         if index is None:
             return None
-        if self._rename_target(index, token) is None:
+        if self._rename_target(index, token) is None and not self._is_top_level(
+            index, token
+        ):
             return None
         return {
             "range": _token_range(token, document.text),
@@ -678,7 +681,9 @@ class Server:
             return None
         target = self._rename_target(index, token)
         if target is None:
-            return "Rename is only supported for local variables and parameters."
+            if self._is_top_level(index, token):
+                return self._workspace_rename(document, token, new_name)
+            return "Rename is only supported for local variables, parameters and top-level declarations."
         _declaration, occurrences = target
         tokens = self._tokens_by_key(document.text)
         edits: list[dict[str, object]] = []
@@ -695,6 +700,102 @@ class Server:
         if not edits:
             return None
         return {"changes": {document.uri: edits}}
+
+    def _is_top_level(self, index: SymbolIndex, token: Token) -> bool:
+        symbol = index.by_token.get(token_key(token))
+        if symbol is None or symbol.container is not None:
+            return False
+        return symbol.kind in {"function", "class", "enum", "interface", "type"}
+
+    def _workspace_files(self) -> list[tuple[Path, str]]:
+        if self.root is None:
+            return []
+        files: dict[Path, str] = {}
+        for uri, document in self.documents.items():
+            path = _uri_to_path(uri)
+            if path is not None:
+                files[path] = document.text
+        try:
+            candidates = self.root.rglob("*.lx")
+        except OSError:
+            candidates = iter(())
+        for path in candidates:
+            if any(
+                part.startswith(".") or part in {"node_modules"}
+                for part in path.parts
+            ):
+                continue
+            if path not in files:
+                try:
+                    files[path] = path.read_text(encoding="utf-8")
+                except OSError:
+                    continue
+        return sorted(files.items())
+
+    def _workspace_rename(
+        self, document: Document, token: Token, new_name: str
+    ) -> object:
+        old = token.lexeme
+        files = self._workspace_files()
+        if not files:
+            return "Cross-file rename requires an initialized workspace root."
+        target_key = token_key(token)
+        declarations = 0
+        parsed: list[tuple[Path, str, list[Stmt], SymbolIndex]] = []
+        for path, text in files:
+            reporter = ErrorReporter(max_errors=0)
+            parser = Parser(Scanner(text, reporter).scan_tokens(), reporter=reporter)
+            statements = parser.parse()
+            if reporter.had_error or statements is None:
+                return f"Can't rename across files: parse error in {path.name}."
+            index = SymbolIndex(
+                statements,
+                source=text,
+                checker=None,
+                resolver=None,
+            )
+            for symbol in index.symbols:
+                if symbol.name != old:
+                    continue
+                if (
+                    symbol.container is None
+                    and symbol.kind
+                    in {"function", "class", "enum", "interface", "type"}
+                ):
+                    declarations += 1
+                    if token_key(symbol.token) != target_key or path != document.path:
+                        continue
+                else:
+                    return (
+                        f"Can't rename '{old}' across files: the name is also a "
+                        f"{symbol.kind} in {path.name}."
+                    )
+            parsed.append((path, text, statements, index))
+        if declarations != 1:
+            return f"Can't rename '{old}' across files: ambiguous declaration."
+        changes: dict[str, list[dict[str, object]]] = {}
+        for path, text, statements, _index in parsed:
+            skip: set[tuple[int, int, int]] = set()
+            for statement in statements:
+                if isinstance(statement, Import):
+                    for part in statement.path:
+                        skip.add(token_key(part))
+            reporter = ErrorReporter(max_errors=0)
+            edits: list[dict[str, object]] = [
+                {
+                    "range": _token_range(found, text),
+                    "newText": new_name,
+                }
+                for found in Scanner(text, reporter).scan_tokens()
+                if found.type is TokenType.IDENTIFIER
+                and found.lexeme == old
+                and token_key(found) not in skip
+            ]
+            if edits:
+                changes[_path_to_uri(path)] = edits
+        if not changes:
+            return None
+        return {"changes": changes}
 
     def _document(self, params: dict[str, Any]) -> Document | None:
         text_document = params.get("textDocument")

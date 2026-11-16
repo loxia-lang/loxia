@@ -160,7 +160,8 @@ de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--wat
 para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
 O LSP também expõe `textDocument/codeAction` (quickfixes) e `rename` de
 locais/parâmetros. `loxia fix` (ou `uv run main.py fix` no checkout) aplica apenas fixes `safe`
-(W1001/E3003 por enquanto) com reparse/check a cada
+(W1001/W1002 por enquanto; E2001/E3016/E3018/E3002/E3015 são quickfix `unsafe`)
+com reparse/check a cada
 rodada; sem `--apply` é dry-run, `--max-iterations=N` limita as rodadas e `--json`
 resume o que mudou. `test` descobre `tests/**/*_test.lx` (ou os caminhos passados), roda cada unidade em
 subprocesso (isolando `os.exit`/panic) e agrega TAP; `--isolate=file|test` escolhe um

@@ -629,3 +629,68 @@ def test_lsp_rename_local(tmp_path: Path) -> None:
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_lsp_rename_cross_file(tmp_path: Path) -> None:
+    module = tmp_path / "mod.lx"
+    module.write_text("fn foo() -> Int {\n  return 1\n}\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
+    main.write_text("from mod import foo\nprint(foo())\n", encoding="utf-8")
+    uri = module.as_uri()
+    process = start()
+    try:
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"rootUri": tmp_path.as_uri()},
+            },
+        )
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": module.read_text(encoding="utf-8"),
+                    }
+                },
+            },
+        )
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 0, "character": 4},
+                    "newName": "bar",
+                },
+            },
+        )
+        response = read(process)
+        changes = response["result"]["changes"]
+        assert set(changes) == {module.as_uri(), main.as_uri()}
+        assert all(
+            edit["newText"] == "bar"
+            for edits in changes.values()
+            for edit in edits
+        )
+        assert len(changes[main.as_uri()]) == 2
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
