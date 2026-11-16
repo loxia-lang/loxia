@@ -548,15 +548,13 @@ decisão de design, não de feature.
 > Dívida do ADR-0088 **resolvida** em 2026-11-15: `src/` virou `loxia_core/`; o wheel
 > não instala mais um pacote top-level chamado `src`.
 
-- [ ] `[build-system]` (uv_build ou hatchling) + `[project.scripts] loxia = "loxia.cli:main"`;
-      `loxia run|check|build` como subcomandos, alinhados ao alvo da §6.9 (flags antigas
-      continuam valendo por compatibilidade).
-- [ ] Mover `std/` para dentro do pacote (`loxia/std/`) **ou** incluí-lo como *package data*;
-      `STD_ROOT` passa a resolver por `importlib.resources` (`files("loxia") / "std"`), com
-      fallback para o repo em dev. Fonte única, sem `parents[2]`.
-- [ ] Teste de instalação real: `uv build` → instalar o wheel num venv **fora do repo** →
-      `loxia --version` e um programa que importa `std.json` (hoje nenhum teste cobre o
-      layout instalado; é o único jeito de não descobrir isso na primeira release).
+- [x] `[build-system]` (hatchling) + `[project.scripts] loxia = "loxia.cli:main"`.
+      Falta: `loxia run|check|build` como subcomandos (fase 0 da §14.7).
+- [x] `std/` e `runtime/` viajam no wheel (`force-include` → `loxia_core/std`,
+      `loxia_core/runtime`) e `loxia_core/bundle.py` resolve dev × instalado.
+- [x] Teste de instalação real (`tests/test_install.py`, `pytest -m install`): builda o wheel,
+      instala num venv fora do repo e roda `std.json`. Cobre também `--emit` com o runtime
+      empacotado (verificado manualmente).
 - [ ] `uv build` e sdist sem `std/` duplicado; `CHANGELOG`/README com o comando de instalação.
 
 **Item 2 — resolução de módulos e pacotes (decidido no
@@ -654,3 +652,52 @@ não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 
 **Não fazer:** registry antes de demanda, semver completo com backtracking antes de pacote
 real, scripts de build em pacote (risco de supply chain), pacote binário, mirrors.
+
+### 14.8 Divisão de repositórios (organização `loxia-lang`)
+
+**Regra:** separa quem **consome artefato**; não separa quem **compartilha invariante**.
+
+| Fica no repo principal | Por quê |
+| --- | --- |
+| `loxia_core/` + `loxia/` | são o produto; I1/I3 e a spec vivem aqui |
+| `runtime/runtime.c` | ABI do backend; `driver.py` compila junto com o código gerado |
+| `std/` | package data, versão = versão do compilador, resolvida pelo loader |
+| `docs/spec/`, ADRs, `docs/_hooks/` | frescor (`sources:`) e links apontam para o código |
+| `tests/` (casos + manifesto + diferencial) | é o corpus do I1; teste não pode depender de fetch |
+| `exemplos/`, `bench/` | rodam na suíte |
+
+| Repo próprio | Quando | Dependência |
+| --- | --- | --- |
+| `loxia-editors` (VS Code + Shiki) | ao publicar no Marketplace | **cliente**: grammar gerada no principal + empacotamento da extensão; sem semântica |
+| `loxia-lsp` | **não separar agora** — ver abaixo | consome `Checker`/`AST`/`SourceMap` direto; contrato de diagnóstico versiona junto |
+| `loxia-mcp` | quando o MCP existir (§14.3) | CLI como caixa-preta, versão pinada |
+| `loxia-conformance` | no primeiro release público | **espelho gerado** do corpus, nunca fonte de verdade |
+| `loxia-site` | quando o site virar build próprio (§14.2) | consome `docs/` do principal |
+| `loxia-playground` | com o alvo WASM (§6.10) | compilador como artefato |
+| `loxia-bench` | só se a suíte virar pública | baseline acoplado à versão |
+
+- [ ] Criar `loxia` (principal) na org e mover o repo antes de qualquer split.
+- [ ] `.github` da org com README/perfil, templates e política de segurança comuns.
+- [ ] Extrair `loxia-editors` com `git subtree split -P editors` (preserva histórico).
+- [ ] CI do principal publica `syntaxes/loxia.tmLanguage.json` como release asset; o repo de
+      editores consome (nunca copiar à mão).
+- [ ] `loxia-conformance` gerado por script a partir de `tests/cases` + manifesto.
+- [ ] Tap do Homebrew (`homebrew-loxia`) só quando houver binário de release.
+
+**LSP: cliente × servidor.** A assimetria com o MCP é o critério:
+
+- **MCP** é cliente do **CLI** (caixa-preta, `--error-format=json`): pode morar fora.
+- **LSP** é consumidor dos **internos** (AST, checker, spans, `SourceMap`): fica no
+  principal, como `loxia lsp` (ou entry point `loxia-lsp`). O trabalho real do LSP é o
+  modelo de diagnóstico do [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md), que
+  versiona junto com o compilador; separar criaria duas releases por mudança de span/código.
+- O repo `loxia-editors` fica só com o **cliente** (extension manifest, grammar, packaging).
+- Contrato: o servidor responde em processo, mas o mesmo resultado tem que sair de
+  `loxia check --error-format=json` — teste de paridade, como no MCP.
+- **Gatilhos para separar:** dependência própria (`pygls`/`lsprotocol`) que o runtime não
+  deve ter, cadência de release dirigida por clientes de editor, ou um segundo mantenedor.
+  Até lá, separar só paga o custo de sincronizar dois relógios.
+
+**Não fazer:** abrir 6 repositórios antes do primeiro release (custo de CI/versão/
+sincronização sem consumidor); mover `std/` ou `runtime.c` para fora (drift de ABI/versão);
+duplicar a spec; separar o LSP para "ficar organizado" sem consumidor próprio.

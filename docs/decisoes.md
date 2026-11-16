@@ -144,6 +144,8 @@ Distribuição fechada no [ADR-0088](adr/0088-distribuicao-e-raizes-de-modulo.md
 (`loxia/std`, nome reservado, versão = versão do compilador), `loxia.toml` declara raízes
 (`[modules] paths`) com ordem fixa **projeto → declaradas → std**, ambiguidade é erro,
 `..` continua proibido no `import` (só como raiz declarada) e sem manifest o comportamento
-atual permanece. Implementação pendente ([`../TODO.md`](../TODO.md) §14.4).
+atual permanece. **Empacotamento entregue** em 2026-11-15 (wheel com comando `loxia`,
+`std/` e `runtime.c`; `tests/test_install.py`); faltam `loxia.toml` e subcomandos
+([`../TODO.md`](../TODO.md) §14.4).
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

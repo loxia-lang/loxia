@@ -25,6 +25,7 @@ Uso:
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -36,6 +37,8 @@ DOCS = ROOT / "docs"
 # ADRs são imutáveis por regra; o índice (`adr/README.md`) não declara fontes.
 IMMUTABLE = ROOT / "docs" / "adr"
 LEDGER = "docs/log.md"
+# Marca no ledger até onde a triagem já foi feita: `<!-- triaged: <sha> -->`.
+TRIAGED = re.compile(r"<!--\s*triaged:\s*([0-9a-f]{6,40})\s*-->")
 
 
 @dataclass(frozen=True)
@@ -130,6 +133,18 @@ def _dirty(files: list[str]) -> list[str]:
     return [line for line in status.splitlines() if line.strip()]
 
 
+def _triaged_floor() -> int:
+    """Timestamp do último commit triado (marcador no ledger), ou 0."""
+    ledger = ROOT / LEDGER
+    if not ledger.exists():
+        return 0
+    matches = TRIAGED.findall(ledger.read_text(encoding="utf-8"))
+    if not matches:
+        return 0
+    stamp = _git("show", "-s", "--format=%ct", matches[-1])
+    return int(stamp) if stamp.isdigit() else 0
+
+
 def _date(timestamp: int) -> str:
     if timestamp == 0:
         return "sem commit"
@@ -155,18 +170,14 @@ def report(page: Page, *, show_all: bool) -> tuple[bool, str]:
     if page_stamp == 0:
         return False, f"{name:<34} novo (não versionado ainda)"
 
+    # Mudança não commitada ainda não é fato: o commit entra no relatório e a
+    # triagem (marcador no ledger) fecha o intervalo.
+    page_stamp = max(page_stamp, _triaged_floor())
     source_stamp = _last_commit(files)
-    dirty = _dirty(files)
 
-    if source_stamp > page_stamp or dirty:
+    if source_stamp > page_stamp:
         commits = _commits_since(files, page_stamp)
-        if dirty and not commits:
-            detail = f"{len(dirty)} arquivo(s) não commitado(s)"
-        else:
-            detail = f"{len(commits)} commit(s) depois da página"
-            if dirty:
-                detail += f", {len(dirty)} arquivo(s) não commitado(s)"
-        return True, f"{name:<34} stale — {detail}"
+        return True, f"{name:<34} stale — {len(commits)} commit(s) depois da página"
 
     if show_all:
         return False, f"{name:<34} ok — fontes de {_date(source_stamp)}"

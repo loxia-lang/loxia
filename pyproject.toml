@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
 [project]
 name = "loxia"
 version = "1.0.0"
@@ -5,6 +9,24 @@ description = "Loxia: dialeto de Lox com interpretador tree-walk em Python e bac
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
+authors = [{ name = "Cassio Dalla" }]
+keywords = ["language", "interpreter", "compiler", "llvm", "lox", "loxia"]
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Interpreters",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/loxia-lang/loxia"
+Repository = "https://github.com/loxia-lang/loxia"
+Issues = "https://github.com/loxia-lang/loxia/issues"
+Changelog = "https://github.com/loxia-lang/loxia/blob/main/CHANGELOG.md"
+
+[project.scripts]
+loxia = "loxia.cli:main"
 
 [project.optional-dependencies]
 # Backend nativo (ADR-0031). O interpretador continua sem dependências: `uv sync`
@@ -21,10 +43,11 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers -m 'not install'"
 markers = [
     "bench: benchmarks lentos, não rodam na suíte padrão",
     "backend: compila e executa binários nativos (precisa de llvmlite, cc e libgc)",
+    "install: builda o wheel e instala num venv fora do repo (lento; rode com `pytest -m install`)",
 ]
 
 [tool.ruff]
@@ -51,3 +74,25 @@ module = ["tests.*", "bench.*"]
 # Testes e benchmarks podem ter helpers sem anotação; o código de produção não.
 disallow_untyped_defs = false
 disallow_untyped_calls = false
+
+[tool.hatch.build.targets.wheel]
+packages = ["loxia", "loxia_core"]
+
+# O wheel precisa levar a stdlib e o runtime C: eles são resolvidos por
+# `loxia_core.bundle` (dev: raiz do repo; instalado: dentro do pacote). ADR-0088.
+[tool.hatch.build.targets.wheel.force-include]
+"std" = "loxia_core/std"
+"runtime" = "loxia_core/runtime"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "loxia",
+    "loxia_core",
+    "std",
+    "runtime",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]

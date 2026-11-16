@@ -39,7 +39,9 @@ não julgamento de prosa.
    `docs/spec/` no **mesmo commit** — é regra do `AGENTS.md` §4.
 5. **Rode os gates:** `make check` (inclui cobertura de docs + suíte) e, se mexeu em
    backend, `make bench`.
-6. **Registre** em [`docs/log.md`](../../log.md): data, intervalo e uma linha por página.
+6. **Registre** em [`docs/log.md`](../../log.md): data, intervalo e uma linha por página;
+   feche com `<!-- triaged: <sha> -->` (o relatório ignora tudo até esse commit e ignora
+   mudanças não commitadas).
 
 ## Quando o gate de cobertura falha
 

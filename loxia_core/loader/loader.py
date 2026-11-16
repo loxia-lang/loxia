@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from loxia_core.bundle import bundle_dir
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.source import SourceMap
@@ -75,7 +76,7 @@ from loxia_core.frontend.ty import (
     UnionTy,
 )
 
-STD_ROOT = Path(__file__).resolve().parents[2] / "std"
+STD_ROOT = bundle_dir("std")
 
 # Extensão canônica dos fontes da linguagem (ADR-0078). Um só lugar: o loader é quem
 # transforma `import a.b` no caminho `a/b.lx`.

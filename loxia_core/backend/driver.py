@@ -18,6 +18,7 @@ from typing import Any, Literal
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower import BackendError, lower_program
+from loxia_core.bundle import bundle_file
 from loxia_core.execution.limits import (
     DEFAULT_HEAP_BYTES,
     MAX_CALL_DEPTH,
@@ -29,7 +30,7 @@ from loxia_core.frontend.ty import Ty
 
 Emit = Literal["ll", "obj", "exe"]
 
-RUNTIME_SOURCE = Path(__file__).resolve().parents[2] / "runtime" / "runtime.c"
+RUNTIME_SOURCE = bundle_file("runtime", "runtime.c")
 
 # Flags base do `runtime.c`; o cap de heap e o teto de pilha entram por build.
 RUNTIME_FLAGS = ("-O2", "-std=c11")

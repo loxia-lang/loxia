@@ -1,7 +1,8 @@
 # ADR-0088 — Distribuição: `loxia` como comando, stdlib embutida e raízes de módulo declaradas
 
-- **Status:** accepted (decisão fechada; implementação pendente — rename `src` →
-  `loxia_core` **executado** em 2026-11-15 — ver
+- **Status:** accepted — **empacotamento entregue** em 2026-11-15 (wheel com `loxia`,
+  `std/` e `runtime.c`; rename `src` → `loxia_core` feito). Faltam `loxia.toml` e os
+  subcomandos — ver
   [`../../TODO.md`](../../TODO.md) §14.4)
 - **Data:** 2026-11-15
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
@@ -10,9 +11,12 @@
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (nada de sintaxe nova aqui),
   [ADR-0014](0014-identidade-e-invariantes.md) (I1/I3),
   [`../../IDEIAS.md`](../../IDEIAS.md) I-9 (opções), [`../../TODO.md`](../../TODO.md) §14
-- **Implementação (pendente):** [`pyproject.toml`](../../pyproject.toml),
-  [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py), [`loxia/cli.py`](../../loxia/cli.py);
-  a criar: `loxia/std/` (package data) e `tests/test_install.py`
+- **Implementação:** [`pyproject.toml`](../../pyproject.toml) (hatchling, `[project.scripts]`,
+  force-include), [`loxia_core/bundle.py`](../../loxia_core/bundle.py),
+  [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py),
+  [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py),
+  [`tests/test_install.py`](../../tests/test_install.py),
+  [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
 
 ## Contexto
 

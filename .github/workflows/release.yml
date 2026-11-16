@@ -1,0 +1,60 @@
+name: Release
+
+# Publica no PyPI via Trusted Publishing (OIDC): sem token, sem upload manual.
+# Requer um "pending publisher" configurado em
+# https://pypi.org/manage/account/publishing/ com:
+#   projeto: loxia · owner: loxia-lang · repo: loxia · workflow: release.yml · env: pypi
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Conferir tag × versão do pyproject
+        run: |
+          python3 - <<'PY'
+          import os, tomllib
+          version = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected = f"v{version}"
+          if tag != expected:
+              raise SystemExit(f"tag {tag!r} não bate com a versão {expected!r}")
+          print(f"ok: {tag}")
+          PY
+
+      - name: Build (wheel + sdist)
+        run: uv build
+
+      - name: Guardar artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/loxia
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publicar no PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

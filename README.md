@@ -81,6 +81,19 @@ que se promete e se verifica em CI ([ADR-0014](docs/adr/0014-identidade-e-invari
 
 Detalhes e o que **não** é prometido: [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
+## Instalar
+
+```bash
+uv tool install loxia       # comando `loxia` isolado
+# ou
+pip install loxia           # em um ambiente qualquer (Python >= 3.13)
+loxia --version             # loxia 1.0.0
+```
+
+O wheel leva a linguagem, o CLI, a **stdlib** e o `runtime.c` — não é preciso clonar o
+repo. Para o backend nativo, instale o extra `llvm` (`pip install "loxia[llvm]"`) mais um
+compilador C e a `libgc` (Boehm); o interpretador não precisa de nada disso.
+
 ## Rodar
 
 Requisitos: Python 3.13 e [`uv`](https://docs.astral.sh/uv/). O backend nativo (`--emit`)

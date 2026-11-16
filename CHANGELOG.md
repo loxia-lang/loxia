@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Distribuição**: `pip install loxia` / `uv tool install loxia` entrega o comando `loxia`,
+  a stdlib e o `runtime.c` no wheel (hatchling, `force-include`; resolução em
+  `loxia_core/bundle.py`). `tests/test_install.py` (`pytest -m install`) prova o layout
+  instalado fora do repo; release no PyPI via Trusted Publishing
+  ([ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)).
+
 - **Limite de pilha** ([ADR-0077](docs/adr/0077-limite-de-pilha.md)): 10.000 chamadas
   Lox ativas nos dois motores, erro `R1015`/`Stack overflow.` capturável por
   `try`/`except RuntimeError`, restauração da profundidade em `try`/`finally` e reserva de
