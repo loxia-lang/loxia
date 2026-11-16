@@ -840,3 +840,16 @@ VS Code.
 - `docs/spec/erros.md` — **no-change**: nenhum código de diagnóstico mudou.
 
 <!-- triaged: fb48480 -->
+
+## 2026-11-16 — completion do LSP por escopo
+
+Intervalo: `abbd3a3`..`64dfea4`. A completion deixa a AST reescrita e passa a usar a AST
+original: escopo, imports, módulos, `this`/`super`, enums e membros nativos.
+
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md` — **updated**: completion por escopo/imports.
+- `docs/tech/arquitetura.md` — **updated**: `loxia/completion.py`.
+- `editors/vscode/README.md` — **updated**: completion.
+- `docs/decisoes.md` — **no-change**: nenhuma decisão nova; é refinamento do LSP-2 já
+  registrado no ADR-0090.
+
+<!-- triaged: 64dfea4 -->
