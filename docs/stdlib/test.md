@@ -61,9 +61,17 @@ Filtro de `--filter=` vindo dos argumentos do script.
 
 Nome exato de `--only=` vindo dos argumentos do script.
 
-#### `var skipRequested: Bool`
+#### `var beforeHooks: List[fn() -> Nil]`
 
-Marca que `skip` foi chamado no teste atual.
+Hooks executados antes de cada `it`, na ordem de registro.
+
+#### `var afterHooks: List[fn() -> Nil]`
+
+Hooks executados depois de cada `it`, na ordem inversa.
+
+#### `var listMode: Bool`
+
+`--list`: só imprime `# test <nome>`, sem executar (isolamento por teste).
 
 #### `fn init()`
 
@@ -71,7 +79,15 @@ Cria uma suite vazia e lê `--filter=`/`--only=` de `args()`.
 
 #### `fn describe(name: String, body: fn() -> Nil) -> Nil`
 
-Abre um grupo; o nome entra no nome de cada `it`.
+Abre um grupo; o nome entra no nome de cada `it` e os hooks valem só aqui.
+
+#### `fn beforeEach(body: fn() -> Nil) -> Nil`
+
+Registra um hook executado antes de cada `it` deste `describe`.
+
+#### `fn afterEach(body: fn() -> Nil) -> Nil`
+
+Registra um hook executado depois de cada `it` deste `describe`.
 
 #### `fn it(name: String, body: fn() -> Nil) -> Nil`
 

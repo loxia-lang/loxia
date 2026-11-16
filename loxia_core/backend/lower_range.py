@@ -397,6 +397,7 @@ class RangeLowering(LoweringBase):
                 binding = Binding(
                     cell,
                     desc.ty,
+                    sig=desc.fn,
                     optional=desc.optional,
                     cell=True,
                     class_name=desc.class_name,
@@ -410,6 +411,7 @@ class RangeLowering(LoweringBase):
                 binding = Binding(
                     slot,
                     desc.ty,
+                    sig=desc.fn,
                     optional=desc.optional,
                     class_name=desc.class_name,
                     interface_name=desc.interface_name,

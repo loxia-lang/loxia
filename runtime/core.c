@@ -226,22 +226,29 @@ const char *lox_exception_message(const void *pointer) {
     return ((const LoxException *)pointer)->message;
 }
 
-int32_t lox_exception_matches(const void *pointer, const char *type_name) {
+int32_t lox_exception_matches(const void *pointer, const void *expected,
+                              const char *type_name) {
     const LoxException *exception = pointer;
     if (exception->instance != NULL) {
         void *descriptor = *(void **)exception->instance;
         while (descriptor != NULL) {
-            const LoxStr *name = ((const LoxStr **)descriptor)[2];
-            size_t length = strlen(type_name);
-            if (name->byte_len == (int64_t)length &&
-                memcmp(name->data, type_name, length) == 0) {
-                return 1;
+            if (expected != NULL) {
+                if (descriptor == expected) {
+                    return 1;
+                }
+            } else if (type_name != NULL) {
+                const LoxStr *name = ((const LoxStr **)descriptor)[2];
+                size_t length = strlen(type_name);
+                if (name->byte_len == (int64_t)length &&
+                    memcmp(name->data, type_name, length) == 0) {
+                    return 1;
+                }
             }
             descriptor = *(void **)descriptor;
         }
         return 0;
     }
-    if (exception->type_name == NULL) {
+    if (exception->type_name == NULL || type_name == NULL) {
         return 0;
     }
     if (strcmp(exception->type_name, type_name) == 0) {

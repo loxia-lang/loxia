@@ -7,6 +7,15 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Hooks e isolamento por teste** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
+  `std.test` ganhou `beforeEach`/`afterEach` escopados ao `describe` (ordem externa→interna
+  e inversa no `after`, mesmo em falha) e `--list` (só nomes); o runner ganhou
+  `--isolate=test`, que descobre nomes com `--list` e roda um subprocesso por teste
+  (`--only`), com `--jobs` processos em paralelo e timeout por teste.
+- **R3 e R4 corrigidos**: a variável do `for-in` preserva a assinatura de função
+  (closure em lista chamável no binário) e `except` de classe de módulo compara o
+  ponteiro do descritor, casando nos dois motores; golden `closure_in_list.lx` (`l4`)
+  e regressão em `tests/test_module_exceptions.py`.
 - **Testes** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)): `std.test`
   (`Suite` com `describe`/`it`/`skip`/`report`/`done`, matchers híbridos, `Recorder`,
   TAP determinístico) e `lox test` (descoberta de `tests/**/*_test.lx`, um subprocesso

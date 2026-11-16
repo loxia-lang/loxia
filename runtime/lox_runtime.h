@@ -315,7 +315,8 @@ extern void lox_try_pop (void *pointer);
 extern void *lox_try_exception (void *pointer);
 extern void *lox_exception_instance (const void *pointer);
 extern const char *lox_exception_message (const void *pointer);
-extern int32_t lox_exception_matches (const void *pointer, const char *type_name);
+extern int32_t lox_exception_matches (const void *pointer, const void *expected,
+                                     const char *type_name);
 extern void lox_print_prefix_at (const char *file, int32_t line, int32_t column, const char *code);
 extern void lox_throw_internal_at (const char *file, const char *code, void *instance, const char *type_name, const char *message, int32_t line, int32_t column, int64_t trace_depth);
 extern void lox_throw_internal (const char *code, void *instance, const char *type_name, const char *message, int32_t line, int32_t column);

@@ -200,25 +200,26 @@ de `R1000` e, em `substr`/`fromCodePoint`, com mensagem diferente (e `substr` ne
 comparando stderr byte a byte. Mecanismo e contexto no
 [ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md).
 
-#### `R3` — closure guardada em lista não é chamável no binário (`P2`)
+#### `R3` — closure guardada em lista não é chamável no binário — ✅ resolvido (2026-11-16)
 
 `val tests: List[fn() -> Nil] = []` + `tests.push(fn() { ... })` + `tests[0]()` funciona
 no interpretador e falha no binário com `R1001: Can only call functions and classes.` O
 elemento guarda o payload da função, mas o call path genérico não reconstrói a ABI de
 closure (`{fnptr, env, display}`). Consequência: registry de testes e tabela de callbacks
-em geral só funcionam no oráculo. O desenho do `std.test` (I-13) evita o caso executando
-`it` na hora; corrigir o lowering destrava hooks aninhados e registries, mas fica fora do
-MVP do runner.
+em geral só funcionam no oráculo. Causa: `_for_bind` não copiava `sig=desc.fn` para o
+`Binding`, então a variável do laço virava `fn` sem assinatura. Corrigido em
+`lower_range.py`; golden `tests/cases/closure_in_list.lx` (`l4`) cobre índice, for-in e
+captura. Hooks aninhados e registries agora são portáveis.
 
-#### `R4` — `except` de classe de módulo não casa no binário (`P2`)
+#### `R4` — `except` de classe de módulo não casa no binário — ✅ resolvido (2026-11-16)
 
 `class MyError(Exception)` em `lib.lx`, `raise MyError(...)` e `try { ... } except MyError`
 dentro do próprio módulo: o interpretador casa a classe, o binário cai no
 `except Exception` genérico. O loader reescreve o nome no `except` para `lib$MyError`, mas
 o descritor da classe guarda `MyError`; `lox_exception_matches` compara strings. Regressão
-em `tests/test_module_exceptions.py` (`xfail` estrito, backend). Correção: comparar o
-descritor (ponteiro) em vez do nome, preservando o nome de exibição. `std.test` contorna
-com `skipRequested` para não depender do match tipado.
+em `tests/test_module_exceptions.py` (backend). Correção: `lox_exception_matches` ganhou
+o parâmetro `expected` e compara o **ponteiro do descritor** (preservando o nome de
+exibição); `std.test` voltou a usar `except Skip` tipado.
 
 
 ---
@@ -420,7 +421,7 @@ determinismo.
 | `std.hash` | `fnv1a32`, `fnv1a64`, `djb2` (sobre `String`; não é cripto) | ⬜ |
 | `std.collections` | `Stack`, `Queue`, `Deque`, `PriorityQueue` (classes em módulo) | ⬜ |
 | `std.log` | níveis, `writeErr`, sem timestamp por padrão | ⬜ |
-| `std.test` | `Suite`/`describe`/`it`/`expect`/`skip`/`report` + `lox test` (glob, subprocesso, TAP, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
+| `std.test` | `Suite`/`describe`/`it`/`beforeEach`/`afterEach`/`expect`/`skip`/`report` + `lox test` (glob, `--isolate=file|test`, `--filter`/`--only`/`--jobs`/`--timeout`/`--json`/`--native`/`--fail-fast`) — [ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md) | ✅ |
 
 **Fora da stdlib:** a linha do topo da §13 (motivos no [ADR-0072](docs/adr/0072-stdlib-batteries.md)).
 

@@ -772,6 +772,12 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             "--json", action="store_true", help="relatório em JSON"
         )
         parser.add_argument(
+            "--isolate",
+            choices=("file", "test"),
+            default="file",
+            help="processo por arquivo (default) ou por teste",
+        )
+        parser.add_argument(
             "--fail-fast", action="store_true", help="para no primeiro arquivo com falha"
         )
         parser.add_argument(
@@ -1089,7 +1095,16 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "fmt", "features": ["check", "stdin"]},
         {
             "name": "test",
-            "features": ["json", "filter", "jobs", "fail-fast", "native", "timeout"],
+            "features": [
+                "json",
+                "filter",
+                "only",
+                "jobs",
+                "isolate",
+                "fail-fast",
+                "native",
+                "timeout",
+            ],
         },
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},

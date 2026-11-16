@@ -38,8 +38,12 @@ class Suite {
   var filter: String
   /// Nome exato de `--only=` vindo dos argumentos do script.
   var only: String
-  /// Marca que `skip` foi chamado no teste atual.
-  var skipRequested: Bool
+  /// Hooks executados antes de cada `it`, na ordem de registro.
+  var beforeHooks: List[fn() -> Nil]
+  /// Hooks executados depois de cada `it`, na ordem inversa.
+  var afterHooks: List[fn() -> Nil]
+  /// `--list`: só imprime `# test <nome>`, sem executar (isolamento por teste).
+  var listMode: Bool
 
   /// Cria uma suite vazia e lê `--filter=`/`--only=` de `args()`.
   init() {
@@ -50,7 +54,14 @@ class Suite {
     this.prefixes = []
     this.filter = ""
     this.only = ""
-    this.skipRequested = false
+    this.beforeHooks = []
+    this.afterHooks = []
+    this.listMode = false
+    for argument in args() {
+      if (argument == "--list") {
+        this.listMode = true
+      }
+    }
     for argument in args() {
       if (strings.startsWith(argument, "--filter=")) {
         this.filter = strings.slice(argument, 9, len(argument))
@@ -60,14 +71,28 @@ class Suite {
     }
   }
 
-  /// Abre um grupo; o nome entra no nome de cada `it`.
+  /// Abre um grupo; o nome entra no nome de cada `it` e os hooks valem só aqui.
   fn describe(name: String, body: fn() -> Nil) -> Nil {
     this.prefixes.push(name)
+    val beforeMark = len(this.beforeHooks)
+    val afterMark = len(this.afterHooks)
     try {
       body()
     } finally {
       this.prefixes.pop()
+      _truncate(this.beforeHooks, beforeMark)
+      _truncate(this.afterHooks, afterMark)
     }
+  }
+
+  /// Registra um hook executado antes de cada `it` deste `describe`.
+  fn beforeEach(body: fn() -> Nil) -> Nil {
+    this.beforeHooks.push(body)
+  }
+
+  /// Registra um hook executado depois de cada `it` deste `describe`.
+  fn afterEach(body: fn() -> Nil) -> Nil {
+    this.afterHooks.push(body)
   }
 
   /// Executa um teste agora e imprime `ok`/`not ok` em TAP.
@@ -76,26 +101,62 @@ class Suite {
     if (not this._selected(full)) {
       return
     }
+    if (this.listMode) {
+      print("# test ${full}")
+      return
+    }
     this.total = this.total + 1
-    this.skipRequested = false
+    var message = ""
+    var skipped = false
+    var skipReason = ""
+    var beforeFailed = false
     try {
-      body()
+      this._runBefore()
+    } except Skip as e {
+      skipped = true
+      skipReason = e.message
+    } except Exception as e {
+      message = "beforeEach: " + e.message
+      beforeFailed = true
+    }
+    if (not beforeFailed and not skipped) {
+      try {
+        body()
+      } except Skip as e {
+        skipped = true
+        skipReason = e.message
+      } except Exception as e {
+        message = e.message
+      }
+    }
+    try {
+      this._runAfter()
+    } except Skip as e {
+      if (not skipped) {
+        skipped = true
+        skipReason = e.message
+      }
+    } except Exception as e {
+      if (message == "") {
+        message = "afterEach: " + e.message
+      } else {
+        message = message + "\nafterEach: " + e.message
+      }
+    }
+    if (skipped) {
+      this.skipped = this.skipped + 1
+      print("ok ${this.total} - ${full} # SKIP ${skipReason}")
+    } else if (message == "") {
       this.passed = this.passed + 1
       print("ok ${this.total} - ${full}")
-    } except Exception as e {
-      if (this.skipRequested) {
-        this.skipped = this.skipped + 1
-        print("ok ${this.total} - ${full} # SKIP ${e.message}")
-      } else {
-        this.failed = this.failed + 1
-        this._reportFailure(this.total, full, e.message)
-      }
+    } else {
+      this.failed = this.failed + 1
+      this._reportFailure(this.total, full, message)
     }
   }
 
   /// Pula o teste atual com `reason` (o `it` conta como skip, não falha).
   fn skip(reason: String) -> Nil {
-    this.skipRequested = true
     raise Skip(reason)
   }
 
@@ -114,7 +175,24 @@ class Suite {
 
   /// Atalho de `report()` que encerra o processo com o código de saída.
   fn done() -> Nil {
+    if (this.listMode) {
+      os.exit(0)
+    }
     os.exit(this.report())
+  }
+
+  fn _runBefore() -> Nil {
+    for hook in this.beforeHooks {
+      hook()
+    }
+  }
+
+  fn _runAfter() -> Nil {
+    var index = len(this.afterHooks) - 1
+    while (index >= 0) {
+      this.afterHooks[index]()
+      index = index - 1
+    }
   }
 
   fn _fullName(name: String) -> String {
@@ -139,6 +217,12 @@ class Suite {
     for line in strings.splitLines(message) {
       print("  # ${line}")
     }
+  }
+}
+
+fn _truncate[T](items: List[T], size: Int) -> Nil {
+  while (len(items) > size) {
+    items.pop()
   }
 }
 

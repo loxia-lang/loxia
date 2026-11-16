@@ -52,11 +52,18 @@ import std.test as t
 
 val suite = t.Suite()
 suite.describe("soma", fn() {
+  suite.beforeEach(fn() { /* setup */ })
+  suite.afterEach(fn() { /* cleanup */ })
   suite.it("inteiros", fn() { t.expect(1 + 1).toBe(2) })
   suite.it("skip", fn() { suite.skip("sem rede") })
 })
 suite.done()
 ```
+
+`beforeEach`/`afterEach` são escopados ao `describe` (o `finally` trunca os hooks ao
+sair); os `beforeEach` rodam na ordem de registro (externo→interno) e os `afterEach` na
+inversa (interno→externo), mesmo quando o corpo falha. `--list` faz `it` só imprimir
+`# test <nome>` (sem executar), o que o runner usa para o isolamento por teste.
 
 ```
 ok 1 - soma inteiros
@@ -88,12 +95,13 @@ Sem matcher fluente completo (uma classe por tipo); sem `.not` (keyword).
 `lox test [paths]` em Python (stdlib só), com:
 
 - descoberta: `tests/**/*_test.lx` (ou os caminhos passados) — **só** esse padrão;
-- **um subprocesso por arquivo** (`loxia run <file> -- <flags>`): `os.exit`, panic ou
-  stack overflow de um teste não matam a suíte; `--timeout` é por arquivo;
+- **um subprocesso por arquivo** (`--isolate=file`, padrão) ou **um por teste**
+  (`--isolate=test`, via `--list` + `--only`): `os.exit`, panic ou stack overflow de um
+  teste não matam a suíte; `--timeout` é por unidade (arquivo ou teste);
 - `--filter SUB` e `--only NAME` repassados como `-- --filter=...`; a lib ignora o que não
   casa;
-- `--jobs N` (arquivos em paralelo), `--fail-fast`, `--json`, `--native` (compila e roda o
-  binário);
+- `--jobs N` (unidades em paralelo; no isolamento por teste são N processos), `--fail-fast`,
+  `--json`, `--native` (compila uma vez por arquivo e roda o binário);
 - `--json`: envelope estável (`schema_version`, `tests[]` com `file`, `name`, `status`,
   `message`), **sem duração/timestamp** por padrão (I3);
 - exit code: 0 se todos passaram, 1 se algum falhou, 2 para erro do runner (path inválido).
@@ -130,14 +138,17 @@ exposto à linguagem: exceção capturada só tem `message`. No MVP o relatório
 é feature própria — mexe no checker (campos em `Exception`), no tree-walk e no backend —
 e entra depois, quando a linha do `expect` doer de verdade.
 
-## Nota de implementação: exceção de classe de módulo
+## Correções de backend feitas junto (R3 e R4)
 
-O `suite.skip` usa um campo (`skipRequested`) em vez de `except Skip` porque o backend
-**não casa** `except` de uma classe definida em módulo: o loader reescreve o nome para
-`modulo$Classe` e o descritor guarda o nome simples, então `lox_exception_matches` compara
-strings diferentes (o interpretador casa por objeto). O bug é anterior a este ADR e está
-registrado como `R4` no [`../../TODO.md`](../../TODO.md) §9.1, com teste `xfail`; quando
-for corrigido, `suite.skip` pode voltar a ser um `except Skip` normal.
+- **R3** — a variável do `for-in` perdia a assinatura de função ao virar `Binding`
+  (`sig=desc.fn` não era passado), então `t()` de uma closure guardada em lista dava
+  `R1001` no binário. Corrigido em `lower_range.py`; golden `closure_in_list.lx` no `l4`.
+- **R4** — `except` de classe de módulo comparava o nome mangled (`lib$MyError`) com o
+  nome de exibição do descritor (`MyError`). O matcher passou a comparar o **ponteiro do
+  descritor** (`lox_exception_matches` ganhou o parâmetro `expected`); o interpretador já
+  casava por objeto. Regressão em `tests/test_module_exceptions.py`.
+
+Com isso `suite.skip` volta a ser um `except Skip` normal (sem flag de contorno).
 
 ## Consequências
 
@@ -150,10 +161,11 @@ for corrigido, `suite.skip` pode voltar a ser um `except Skip` normal.
 
 ### Negativas / custos
 
-- Sem `beforeEach`/`afterEach` aninhados (R3); no MVP, no máximo um hook global.
 - Sem localização de linha no relatório até expor trace; o nome do teste é o elo.
-- Um processo por arquivo: arquivo com muitos testes paga o boot uma vez; isolamento por
-  teste só com `--only` + N processos (depois).
+- `--isolate=test` paga o boot do interpretador por teste (N processos) e o `--only`
+  reexecuta o topo do arquivo; `--jobs` limita o custo.
+- `--list` executa o topo do arquivo (e os `describe`) para descobrir nomes; hooks só
+  rodam no teste efetivo.
 - `std.test` vira API pública com regras próprias (`TestFailure`/`Skip`) que precisam de
   doc e teste de compatibilidade.
 - Matchers de ordem em funções livres: menos "bonito" que `expect(3).toBeGreaterThan(2)`.
@@ -180,8 +192,9 @@ for corrigido, `suite.skip` pode voltar a ser um `except Skip` normal.
 
 - `uv run pytest tests/test_std_test.py` — `Suite`/`describe`/`it`/matchers/skip/`report`
   em interpretador e binário; TAP byte a byte.
-- `uv run pytest tests/test_test_runner.py` — descoberta, isolamento (`os.exit`), timeout,
-  filtro, `--jobs`, `--json`; projeto temporário.
+- `uv run pytest tests/test_test_runner.py` — descoberta, isolamento (`os.exit`),
+  `--isolate=test`, timeout, filtro, `--jobs`, `--json` e `--native`; projeto temporário.
+- `tests/cases/std_test_hooks.lx` (`t3`) cobre ordem de hooks aninhados e `--list`.
 - `tests/cases/std_test.lx` no corpus `t3` (subconjunto determinístico), já no
   diferencial (`pytest tests/test_backend.py -k std_test`).
 - `make check` verde; `make bench` se o runner entrar em caminho quente (não entra).

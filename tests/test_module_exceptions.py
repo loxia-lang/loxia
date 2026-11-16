@@ -1,8 +1,7 @@
-"""Regressão de `except` com classe de exceção definida em módulo (TODO §9.1 `R4`).
+"""Regressão de `except` com classe de exceção definida em módulo (`R4`, corrigido).
 
-O interpretador casa a classe; o binário cai no `except Exception` porque o loader
-reescreve o nome do `except` para `modulo$Classe` e o descritor guarda o nome simples.
-`xfail` estrito: quando a correção entrar, este teste vira XPASS e pede remoção.
+O loader reescreve o nome do `except` para `modulo$Classe`, mas o descritor guarda o
+nome de exibição simples; o matcher do backend passou a comparar o ponteiro do descritor.
 """
 
 from __future__ import annotations
@@ -17,10 +16,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.mark.backend
-@pytest.mark.xfail(
-    strict=True,
-    reason="R4: loader mangles except name; descriptor keeps the simple name",
-)
 def test_excecao_de_classe_de_modulo_casa(tmp_path: Path) -> None:
     (tmp_path / "lib.lx").write_text(
         "class MyError(Exception) {\n"

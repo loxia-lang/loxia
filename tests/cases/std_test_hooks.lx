@@ -1,0 +1,31 @@
+# std.test: beforeEach/afterEach (ordem externa→interna e inversa) + --list.
+import std.test as t
+
+val log = t.Recorder()
+val suite = t.Suite()
+
+suite.describe("hooks", fn() {
+  suite.beforeEach(fn() { log.record("before") })
+  suite.afterEach(fn() { log.record("after") })
+  suite.it("ordem", fn() { log.record("it") })
+  suite.describe("aninhado", fn() {
+    suite.beforeEach(fn() { log.record("inner") })
+    suite.afterEach(fn() { log.record("innerAfter") })
+    suite.it("herda", fn() { log.record("corpo") })
+  })
+})
+
+suite.it("log", fn() {
+  t.expect(log.order()).toBe(
+    ["before", "it", "after", "before", "inner", "corpo", "innerAfter", "after"]
+  )
+})
+suite.done()
+# expect: ok 1 - hooks / ordem
+# expect: ok 2 - hooks / aninhado / herda
+# expect: ok 3 - log
+# expect: 1..3
+# expect: # tests 3
+# expect: # pass 3
+# expect: # fail 0
+# expect: # skip 0

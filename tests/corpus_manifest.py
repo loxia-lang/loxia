@@ -136,6 +136,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/stack_ctor.lx",
     ),
     "l4": (
+        "tests/cases/closure_in_list.lx",
         "tests/cases/closure_reassign.lx",
         "tests/cases/closure_static_scope.lx",
         "tests/cases/closures.lx",
@@ -168,6 +169,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
     ),
     "t3": (
         "tests/cases/std_test.lx",
+        "tests/cases/std_test_hooks.lx",
     ),
     "k0": (
         "tests/cases/kernel_io.lx",

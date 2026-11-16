@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 
 PASS = """
@@ -108,3 +110,43 @@ def test_sem_arquivos_sai_dois(tmp_path: Path) -> None:
     result = run_test(str(empty))
     assert result.returncode == 2
     assert "nenhum arquivo" in result.stderr
+
+
+EXIT_SOURCE = """
+import std.test as t
+val suite = t.Suite()
+suite.it("estoura", fn() { os.exit(7) })
+suite.it("sobrevive", fn() { t.expect(1 + 1).toBe(2) })
+suite.done()
+"""
+
+
+def test_isolamento_por_teste_sobrevive_a_exit(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "a_test.lx").write_text(EXIT_SOURCE, encoding="utf-8")
+    result = run_test(str(tests), "--isolate", "test", "--jobs", "2")
+    assert result.returncode == 1
+    assert "not ok 1 - estoura" in result.stdout
+    assert "ok 2 - sobrevive" in result.stdout
+
+
+def test_isolamento_por_teste_em_json(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "a_test.lx").write_text(EXIT_SOURCE, encoding="utf-8")
+    result = run_test(str(tests), "--isolate", "test", "--json")
+    payload = json.loads(result.stdout)
+    statuses = {item["name"]: item["status"] for item in payload["tests"]}
+    assert statuses == {"estoura": "fail", "sobrevive": "pass"}
+
+
+@pytest.mark.backend
+def test_isolamento_por_teste_nativo(tmp_path: Path) -> None:
+    pytest.importorskip("llvmlite")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "a_test.lx").write_text(PASS, encoding="utf-8")
+    result = run_test(str(tests), "--native", "--isolate", "test")
+    assert result.returncode == 0, result.stderr
+    assert "ok 1 - passa" in result.stdout

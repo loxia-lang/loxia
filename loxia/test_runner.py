@@ -1,8 +1,9 @@
-"""Runner `lox test`: descobre `*_test.lx`, roda cada arquivo e agrega TAP (ADR-0096).
+"""Runner `lox test`: descobre `*_test.lx`, roda cada unidade e agrega TAP (ADR-0096).
 
-Um subprocesso por arquivo isola `os.exit`, panic e stack overflow; o timeout é por
-arquivo (não há preempção dentro do processo). O relatório humano é TAP com numeração
-global; `--json` emite o mesmo conteúdo em envelope estável, sem duração/timestamp (I3).
+`--isolate=file` (padrão) roda um subprocesso por arquivo; `--isolate=test` lista os
+nomes (`--list`) e roda um subprocesso por teste (`--only`), com `--jobs` processos em
+paralelo. O relatório humano é TAP com numeração global; `--json` emite o mesmo conteúdo
+em envelope estável, sem duração/timestamp (I3).
 """
 
 from __future__ import annotations
@@ -50,15 +51,20 @@ class TestResult:
 
 @dataclass
 class FileRun:
-    """Resultado bruto da execução de um arquivo (ou do build nativo)."""
+    """Resultados de um arquivo (uma unidade ou o agregado do isolamento por teste)."""
 
     path: Path
-    returncode: int = 0
-    stdout: str = ""
-    stderr: str = ""
-    timed_out: bool = False
-    build_error: str | None = None
     results: list[TestResult] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class Invocation:
+    """Saída bruta de um subprocesso."""
+
+    returncode: int
+    stdout: str
+    stderr: str
+    timed_out: bool = False
 
 
 def _display(path: Path) -> str:
@@ -128,69 +134,34 @@ def _parse_tap(path: Path, stdout: str, returncode: int) -> list[TestResult]:
     return results
 
 
-def _run_file(
+def _last_line(text: str) -> str:
+    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def _invoke(
     path: Path,
-    *,
-    filter_text: str | None,
-    only: str | None,
+    script_args: list[str],
+    binary: str | None,
     timeout_s: float | None,
-    native: bool,
-) -> FileRun:
-    script_args = [f"--filter={filter_text}"] if filter_text else []
-    if only:
-        script_args.append(f"--only={only}")
-    run = FileRun(path=path)
-    with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
-        if native:
-            binary = Path(directory) / path.stem
-            build = subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "loxia",
-                    "build",
-                    str(path),
-                    "-o",
-                    str(binary),
-                    "--emit=exe",
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if build.returncode != 0:
-                run.build_error = (build.stderr or build.stdout).strip()
-                run.returncode = build.returncode
-                return run
-            command = [str(binary), *script_args]
-        else:
-            command = [
-                sys.executable,
-                "-m",
-                "loxia",
-                "run",
-                str(path),
-                "--",
-                *script_args,
-            ]
-        try:
-            completed = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=timeout_s,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as expired:
-            run.timed_out = True
-            run.returncode = 124
-            run.stdout = _text(expired.stdout)
-            run.stderr = _text(expired.stderr)
-            return run
-    run.returncode = completed.returncode
-    run.stdout = completed.stdout
-    run.stderr = completed.stderr
-    return run
+) -> Invocation:
+    command = (
+        [binary]
+        if binary is not None
+        else [sys.executable, "-m", "loxia", "run", str(path), "--"]
+    )
+    command = [*command, *script_args]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as expired:
+        return Invocation(124, _text(expired.stdout), _text(expired.stderr), True)
+    return Invocation(completed.returncode, completed.stdout, completed.stderr)
 
 
 def _text(value: str | bytes | None) -> str:
@@ -201,33 +172,205 @@ def _text(value: str | bytes | None) -> str:
     return value
 
 
-def _native_missing(build_error: str | None) -> str:
-    text = (build_error or "").strip()
-    if not text:
-        return "native build failed"
-    return text.splitlines()[-1]
+def _build(path: Path, binary: Path) -> str | None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "loxia",
+            "build",
+            str(path),
+            "-o",
+            str(binary),
+            "--emit=exe",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return None
+    return _last_line(completed.stderr or completed.stdout) or "native build failed"
 
 
-def _file_failure(run: FileRun) -> None:
-    """Troca o resultado parseado por uma falha de arquivo (build/timeout)."""
-    if run.build_error is not None:
-        run.results = [
-            TestResult(
-                _display(run.path),
-                f"<{_display(run.path)}>",
-                "fail",
-                _native_missing(run.build_error),
+def _file_failure(path: Path, reason: str) -> FileRun:
+    display = _display(path)
+    return FileRun(path, [TestResult(display, f"<{display}>", "fail", reason)])
+
+
+def _run_file_unit(
+    path: Path,
+    binary: str | None,
+    build_error: str | None,
+    script_args: list[str],
+    timeout_s: float | None,
+) -> FileRun:
+    if build_error is not None:
+        return _file_failure(path, build_error)
+    invocation = _invoke(path, script_args, binary, timeout_s)
+    if invocation.timed_out:
+        return _file_failure(path, "timeout")
+    return FileRun(path, _parse_tap(path, invocation.stdout, invocation.returncode))
+
+
+def _list_names(
+    path: Path,
+    binary: str | None,
+    build_error: str | None,
+    script_args: list[str],
+    timeout_s: float | None,
+) -> tuple[list[str], str | None]:
+    if build_error is not None:
+        return [], build_error
+    invocation = _invoke(path, ["--list", *script_args], binary, timeout_s)
+    if invocation.timed_out:
+        return [], "timeout"
+    if invocation.returncode != 0:
+        return [], _last_line(invocation.stderr) or f"exit {invocation.returncode}"
+    names = [
+        line[len("# test ") :]
+        for line in invocation.stdout.splitlines()
+        if line.startswith("# test ")
+    ]
+    return names, None
+
+
+def _run_single_test(
+    path: Path,
+    name: str,
+    binary: str | None,
+    timeout_s: float | None,
+) -> TestResult:
+    invocation = _invoke(path, [f"--only={name}"], binary, timeout_s)
+    display = _display(path)
+    if invocation.timed_out:
+        return TestResult(display, name, "fail", "timeout")
+    for result in _parse_tap(path, invocation.stdout, invocation.returncode):
+        if result.name == name:
+            return result
+    reason = f"exit {invocation.returncode}" if invocation.returncode else "no output"
+    return TestResult(display, name, "fail", reason)
+
+
+def _run_files(
+    files: list[Path],
+    binaries: dict[Path, str | None],
+    build_errors: dict[Path, str],
+    script_args: list[str],
+    timeout_s: float | None,
+    jobs: int,
+    fail_fast: bool,
+) -> list[FileRun]:
+    runs: list[FileRun] = []
+    if jobs == 1:
+        for path in files:
+            run = _run_file_unit(
+                path,
+                binaries[path],
+                build_errors.get(path),
+                script_args,
+                timeout_s,
             )
-        ]
-    elif run.timed_out:
-        run.results = [
-            TestResult(
-                _display(run.path),
-                f"<{_display(run.path)}>",
-                "fail",
-                "timeout",
+            runs.append(run)
+            if fail_fast and any(item.status == "fail" for item in run.results):
+                break
+        return runs
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        futures = [
+            pool.submit(
+                _run_file_unit,
+                path,
+                binaries[path],
+                build_errors.get(path),
+                script_args,
+                timeout_s,
             )
+            for path in files
         ]
+        return [future.result() for future in futures]
+
+
+def _collect_names(
+    files: list[Path],
+    binaries: dict[Path, str | None],
+    build_errors: dict[Path, str],
+    script_args: list[str],
+    timeout_s: float | None,
+    jobs: int,
+) -> tuple[dict[Path, list[str]], dict[Path, str]]:
+    names: dict[Path, list[str]] = {}
+    errors: dict[Path, str] = {}
+
+    def list_unit(path: Path) -> tuple[list[str], str | None]:
+        return _list_names(
+            path,
+            binaries[path],
+            build_errors.get(path),
+            script_args,
+            timeout_s,
+        )
+
+    if jobs == 1:
+        for path in files:
+            listed, error = list_unit(path)
+            names[path] = listed
+            if error is not None:
+                errors[path] = error
+        return names, errors
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        futures = [pool.submit(list_unit, path) for path in files]
+        for path, future in zip(files, futures, strict=True):
+            listed, error = future.result()
+            names[path] = listed
+            if error is not None:
+                errors[path] = error
+    return names, errors
+
+
+def _run_isolated(
+    files: list[Path],
+    binaries: dict[Path, str | None],
+    build_errors: dict[Path, str],
+    script_args: list[str],
+    timeout_s: float | None,
+    jobs: int,
+    fail_fast: bool,
+) -> list[FileRun]:
+    names, errors = _collect_names(
+        files, binaries, build_errors, script_args, timeout_s, jobs
+    )
+    units = [
+        (path, name)
+        for path in files
+        for name in names.get(path, [])
+        if path not in errors
+    ]
+    results: list[TestResult] = []
+    if jobs == 1:
+        for path, name in units:
+            result = _run_single_test(path, name, binaries[path], timeout_s)
+            results.append(result)
+            if fail_fast and result.status == "fail":
+                break
+    else:
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            futures = [
+                pool.submit(
+                    _run_single_test, path, name, binaries[path], timeout_s
+                )
+                for path, name in units
+            ]
+            results = [future.result() for future in futures]
+    grouped: dict[Path, list[TestResult]] = {path: [] for path in files}
+    for (path, _name), result in zip(units, results, strict=False):
+        grouped[path].append(result)
+    runs: list[FileRun] = []
+    for path in files:
+        if path in errors:
+            runs.append(_file_failure(path, errors[path]))
+        else:
+            runs.append(FileRun(path, grouped.get(path, [])))
+    return runs
 
 
 def _render_human(runs: list[FileRun]) -> tuple[str, int]:
@@ -257,15 +400,8 @@ def _render_human(runs: list[FileRun]) -> tuple[str, int]:
     return "\n".join(lines), failed
 
 
-def _collect(runs: list[FileRun]) -> list[TestResult]:
-    results: list[TestResult] = []
-    for run in runs:
-        results.extend(run.results)
-    return results
-
-
 def _payload(runs: list[FileRun]) -> dict[str, object]:
-    results = _collect(runs)
+    results = [result for run in runs for result in run.results]
     return {
         "schema_version": 1,
         "tests": [
@@ -294,52 +430,56 @@ def run_tests(args: argparse.Namespace) -> int:
     )
     try:
         files = discover(paths)
-    except FileNotFoundError as error:
-        print(f"Erro: caminho não encontrado: {error.args[0]}", file=sys.stderr)
+    except FileNotFoundError as missing:
+        print(f"Erro: caminho não encontrado: {missing.args[0]}", file=sys.stderr)
         return 2
     if not files:
         print("Erro: nenhum arquivo *_test.lx encontrado.", file=sys.stderr)
         return 2
     timeout_s = args.timeout / 1000 if args.timeout else None
     jobs = 1 if args.fail_fast else max(1, args.jobs)
-    runs: list[FileRun] = []
-    if jobs == 1:
-        for path in files:
-            run = _run_file(
-                path,
-                filter_text=args.filter,
-                only=args.only,
-                timeout_s=timeout_s,
-                native=args.native,
+    script_args: list[str] = []
+    if args.filter:
+        script_args.append(f"--filter={args.filter}")
+    if args.only:
+        script_args.append(f"--only={args.only}")
+    with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
+        binaries: dict[Path, str | None] = {path: None for path in files}
+        build_errors: dict[Path, str] = {}
+        if args.native:
+            for index, path in enumerate(files):
+                binary = Path(directory) / f"{index}-{path.stem}"
+                error = _build(path, binary)
+                if error is None:
+                    binaries[path] = str(binary)
+                else:
+                    build_errors[path] = error
+        if args.isolate == "test":
+            runs = _run_isolated(
+                files,
+                binaries,
+                build_errors,
+                script_args,
+                timeout_s,
+                jobs,
+                args.fail_fast,
             )
-            run.results = _parse_tap(path, run.stdout, run.returncode)
-            _file_failure(run)
-            runs.append(run)
-            if args.fail_fast and any(
-                result.status == "fail" for result in run.results
-            ):
-                break
-    else:
-        with ThreadPoolExecutor(max_workers=jobs) as pool:
-            futures = [
-                pool.submit(
-                    _run_file,
-                    path,
-                    filter_text=args.filter,
-                    only=args.only,
-                    timeout_s=timeout_s,
-                    native=args.native,
-                )
-                for path in files
-            ]
-            runs = [future.result() for future in futures]
-        for run in runs:
-            run.results = _parse_tap(run.path, run.stdout, run.returncode)
-            _file_failure(run)
+        else:
+            runs = _run_files(
+                files,
+                binaries,
+                build_errors,
+                script_args,
+                timeout_s,
+                jobs,
+                args.fail_fast,
+            )
     if args.json:
         print(json.dumps(_payload(runs), ensure_ascii=False, indent=2))
     else:
         text, _failed = _render_human(runs)
         print(text)
-    failed = sum(1 for run in runs for item in run.results if item.status == "fail")
-    return 1 if failed or any(run.build_error for run in runs) else 0
+    failed = sum(
+        1 for run in runs for result in run.results if result.status == "fail"
+    )
+    return 1 if failed else 0

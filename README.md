@@ -153,9 +153,11 @@ uv run main.py test tests                  # roda tests/**/*_test.lx (ADR-0096)
 timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibido e a raiz
 de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
 para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
-`test` descobre `tests/**/*_test.lx` (ou os caminhos passados), roda cada arquivo em
-subprocesso (isolando `os.exit`/panic) e agrega TAP; `--filter=SUB`, `--only=NOME`,
-`--jobs=N`, `--timeout=MS`, `--fail-fast`, `--native` e `--json` são suportados.
+`test` descobre `tests/**/*_test.lx` (ou os caminhos passados), roda cada unidade em
+subprocesso (isolando `os.exit`/panic) e agrega TAP; `--isolate=file|test` escolhe um
+processo por arquivo (padrão) ou por teste, com `--jobs=N` processos em paralelo.
+`--filter=SUB`, `--only=NOME`, `--timeout=MS`, `--fail-fast`, `--native` e `--json`
+também são suportados; `std.test` tem `beforeEach`/`afterEach` por `describe`.
 `--no-progress` é aceito e hoje é no-op. `-Werror` transforma warnings em erros (só
 `check`/`build`; `run` nunca emite warnings). `doc` gera Markdown (padrão) ou JSON a
 partir dos comentários `///` de funções, classes, interfaces, enums, variantes, campos,

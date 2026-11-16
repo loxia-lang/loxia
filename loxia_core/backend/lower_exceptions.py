@@ -167,11 +167,28 @@ class ExceptionLowering(LoweringBase):
         )
         handler_blocks = []
         for clause in stmt.handlers:
+            layout = self._classes.get(clause.type_name.lexeme)
+            if layout is None:
+                layout = self._classes.get(
+                    clause.type_name.lexeme.rsplit("$", 1)[-1]
+                )
+            global_binding = (
+                self._globals.get(layout.name) if layout is not None else None
+            )
+            expected = (
+                self.builder.load(global_binding.storage)
+                if global_binding is not None
+                else llvm_ir.null_pointer()
+            )
             match = self.builder.call(
                 self._function(
-                    "lox_exception_matches", _I32, [_I8_PTR, _I8_PTR]
+                    "lox_exception_matches", _I32, [_I8_PTR, _I8_PTR, _I8_PTR]
                 ),
-                [exception, self._cstring_pointer(clause.type_name.lexeme)],
+                [
+                    exception,
+                    expected,
+                    self._cstring_pointer(clause.type_name.lexeme),
+                ],
             )
             matched = self.builder.icmp_signed(
                 "!=", match, llvm_ir.constant(_I32, 0)

@@ -1,0 +1,25 @@
+# Closure guardada em lista: chamada por índice e pela variável do for-in (R3).
+fn make(n: Int) -> fn() -> Int {
+  return fn() -> Int { return n }
+}
+
+val fns: List[fn() -> Int] = []
+fns.push(make(1))
+fns.push(make(2))
+print(fns[0]())
+for f in fns {
+  print(f())
+}
+
+val captured: List[fn() -> Int] = []
+for i in [3, 4] {
+  captured.push(fn() -> Int { return i })
+}
+for f in captured {
+  print(f())
+}
+# expect: 1
+# expect: 1
+# expect: 2
+# expect: 3
+# expect: 4

@@ -1006,7 +1006,8 @@ alternativa barata; TOML só se a tabela virar fonte de mais de um gerador.
 ## I-13 — Testes: `std.test` (biblioteca) + `lox test` (runner) e mocks
 
 **Status:** `implementado` ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md),
-2026-11-16) — `std/test.lx` + `lox test`; os probes de viabilidade ficam abaixo.
+2026-11-16) — `std/test.lx` + `lox test`, com hooks e `--isolate=test`; os probes de
+viabilidade ficam abaixo.
 **Relacionados:** [ADR-0092](docs/adr/0092-estilo-e-formatter.md) (estilo),
 [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md) (CLI e JSON),
 [ADR-0095](docs/adr/0095-processos-streams-poll.md) (`proc`/`poll` para o runner),
@@ -1171,13 +1172,14 @@ corpus I1).
 - Descoberta só `tests/**/*_test.lx`; um subprocesso por arquivo.
 - `report() -> Int` + `done()` com `os.exit`.
 - Localização (trace) fica para depois; MVP aponta arquivo + nome do teste.
+- `beforeEach`/`afterEach` escopados ao `describe`, com ordem externa→interna e
+  `afterEach` inversa; `--list` + `--only` dão isolamento por teste com `--jobs`.
 
 ### Ainda em aberto
 
-- [ ] Hooks (`beforeEach`/`afterEach`) no MVP ou só depois de `R3`?
 - [ ] Detalhes do `--json` (schema exato, `tests[]` plano ou por arquivo).
-- [ ] Isolamento por teste (`--only` + N processos) — quando a dor aparecer.
 - [ ] Cobertura/snapshot/property-based: cada um é feature própria, fora do MVP.
+- [ ] Expor `e.trace`/linha do `expect` (feature de linguagem, não do runner).
 
 ### Gatilhos para revisitar
 
