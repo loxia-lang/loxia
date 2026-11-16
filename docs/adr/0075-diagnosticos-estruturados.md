@@ -1,5 +1,10 @@
 # ADR-0075 — Diagnósticos estruturados: modelo, códigos e renderizadores
 
+> **Atualizado por** [ADR-0089](0089-stack-trace-de-runtime.md) (stack trace e
+> `R1015` com posição) e [ADR-0093](0093-cli-agent-friendly-e-reparo.md) (schema de
+> `fixes[]`, loop de reparo, `C0001`/`W1xxx`, JSONL/watch). Os produtores de `fixes[]` e
+> warnings continuam pendentes; o modelo e o envelope v1 não mudam.
+
 - **Status:** accepted
 - **Data:** 2026-11-14
 - **Decisores:** Cássio + agente (DSH)
@@ -146,6 +151,10 @@ sintética (campo interno como `message` da classe `Exception`), o cabeçalho de
 runtime, proveniência em `notes` (ex.: "o valor vem de `pessoa.nome`"), warnings/`-Werror`
 e LSP. O modelo tem espaço para eles; o contrato só nasce quando houver produtor confiável.
 Um `fix` errado é pior do que nenhum.
+
+> **Nota (ADR-0090/0093):** o LSP, o JSONL/watch, o timeout e os warnings ganharam
+> contrato próprio; `fixes[]` tem schema/loop definidos no ADR-0093, mas **nenhum produtor**
+> ainda. Esta seção continua valendo para o que não tem produtor.
 
 ## Consequências
 

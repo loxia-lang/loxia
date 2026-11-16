@@ -24,9 +24,13 @@ Esta é a **ordem oficial**. As seções 1–12 são o catálogo de detalhes; se
 vale o que está aqui. Estado em 2026-11-15: **L0–L6, L7, M7, T1 e T2 concluídos**; kernel
 v1 (17 primitivas), tabela de primitivas, imports/módulos e a stdlib comum implementados.
 Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
-([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; a próxima execução
-é **diagnósticos** (§0.2). O status por nível é **gerado** em
-[`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
+([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; diagnósticos
+também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
+[ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). A próxima execução é o **pacote de
+ecossistema** (§0.2): CLI agent-friendly, docs/estilo/formatter e LSP, definidos nos
+[ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md) a
+[ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md). O status por nível é **gerado**
+em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
 ### 0.1 Definições que não podem faltar antes de cada nível
@@ -51,8 +55,23 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
        (default 512 MiB + `--max-heap` de build).
 5. [x] **Diagnósticos**: fonte de módulo no checker e stack trace de runtime (frames +
        `R1015` com posição) implementados ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
-6. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
-7. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground).
+6. [ ] **CLI agent-friendly + warnings** (`P1`): subcomandos aditivos,
+       `capabilities`/`explain`, `--stdin`, `--timeout` (124 + `C0001`), JSONL/`--watch`
+       restrito a `check`, warnings `W1xxx` + `-Werror` e protocolo de reparo
+       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+7. [ ] **Docs e estilo** (`P1`/`P2`, pode andar em paralelo): doc comments `///`, `lox doc`
+       Markdown/JSON, guia de estilo e formatter Python
+       ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md),
+       [ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
+8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols, depois spans de expressão + `SymbolIndex`
+       para hover/definition, e só então completion/format/code actions
+       ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+9. [ ] **T3 + dogfooding** (`P2`/`L`): módulos T3 e formatter em Lox após a T3, com
+       paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
+       §13.7 passo 7).
+10. [ ] **JIT no REPL** (`P3`): desenho próprio antes de codar; não bloqueia stdlib.
+11. [ ] **M8/M9**: performance restante e ecossistema (formatter, LSP, playground) — os
+       itens de ecossistema agora têm ADR; M9 acompanha a fila acima.
 
 > **Trilha paralela:** a §14 (publicação, distribuição, pacotes, corpus de conformidade e
 > docs de usuário) não bloqueia nenhum nível da linguagem/backend e pode andar junto com a
@@ -70,14 +89,20 @@ ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
 ### 3.1 O que ainda falta
 
 - [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)" exige
-      spans de expressão no checker, não só o token.
-- [ ] **`fixes[]`** (`P3`): `applicability` + `edits[]` por span; só quando houver edição
-      confiável (um `fix` errado é pior que nenhum).
-- [ ] **`lox explain <code>`** e **`lox capabilities --json`** (`P3`): dependem de
-      subcomandos no CLI.
-- [ ] **`--json-lines`** (`P3`) e `--timeout` para execução.
-- [ ] **Warnings** e `-Werror` (`P3`): o modelo tem `severity`, mas nenhum produtor ainda.
-- [ ] **LSP** (`P3`): reusar o mesmo `Diagnostic` em `textDocument/publishDiagnostics`.
+      spans de expressão no checker, não só o token. É o mesmo pré-requisito do LSP-1
+      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] **`fixes[]`** (`P2`): `applicability` + `edits[]` por span; o schema e o loop de
+      reparo estão definidos no [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md),
+      mas **nenhum produtor** existe; só entra edição confiável.
+- [ ] **`lox explain <code>`** e **`lox capabilities --json`** (`P1`): dependem dos
+      subcomandos ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] **`--json-lines`** e `--timeout` (`P1`): contrato no
+      [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md); `--watch` restrito a
+      `check`.
+- [ ] **Warnings** e `-Werror` (`P1`): o modelo tem `severity`, mas nenhum produtor ainda;
+      família mínima e política no [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md).
+- [ ] **LSP** (`P2`): reusar o mesmo `Diagnostic` em `textDocument/publishDiagnostics`;
+      fases, hospedagem e mapeamento no [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md).
 
 **Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
 Python para validar código do usuário; não classificar código por prefixo de mensagem.
@@ -85,17 +110,20 @@ Python para validar código do usuário; não classificar código por prefixo de
 ### 6.9 CLI alvo
 
 ```bash
-lox run script.lx            # interpretador (hoje: main.py script.lx)
-lox check script.lx          # só typecheck/resolver (hoje: --check)
-uv run main.py --emit=ll  script.lx  # inspecionar LLVM IR (hoje)
-uv run main.py --emit=obj script.lx  # .o para linkar (hoje)
-uv run main.py --emit=exe -o app script.lx  # nativo (hoje)
-lox build script.lx -o app   # nativo (quando o CLI ganhar subcomandos)
-lox build script.lx --emit=ll        # equivalente futuro
-lox jit script.lx            # MCJIT, sem arquivo intermediário
-lox fmt script.lx            # formatador (dogfooding do parser)
+lox run script.lx
+lox check script.lx
+lox build script.lx --emit=ll|obj|exe -o app
+lox ast script.lx
+lox fmt [--check] script.lx
+lox doc std/strings.lx --json
+lox explain E2001
+lox capabilities --json
+lox lsp
 lox repl                      # REPL, com :type, :ast
 ```
+
+`--check`, `--emit` e `--dump-ast` continuam como aliases; `main.py` e a invocação atual
+não quebram ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 
 ### 6.10 Bônus: WebAssembly
 
@@ -128,15 +156,24 @@ uv run pytest tests/test_backend.py -q
 ## 7. Tooling e qualidade
 
 - [x] `P2` testes diferenciais interpretador × LLVM no corpus anotado (`LEVELS`; PENDING 0).
-- [ ] `P2` CLI agent-friendly: `--json` em `check`/`ast`/`types`/`fmt`, `--no-progress`,
-      `--timeout`, sem prompt interativo, exit codes estáveis (checklist em
-      [`IDEIAS.md`](IDEIAS.md) I-4).
+- [ ] `P1` CLI agent-friendly: subcomandos + `capabilities`/`explain`, `--stdin`,
+      `--timeout`, `--json` e `--json-lines`/`--watch` (restrito a `check`), sem prompt
+      interativo e exit codes estáveis ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] `P1` warnings: família mínima (local/import não usado) em `check`/`build`, `-Werror`,
+      nunca em `run` ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
+- [ ] `P1` `lox doc`: doc comments `///` + geração Markdown/JSON e docs da stdlib/builtins
+      ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
+- [ ] `P1` `lox fmt`: formatter Python idempotente, `--check`, depois dogfood em Lox após a
+      T3 ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
+- [ ] `P1` `docs/guia-estilo.md`: nomes, formatação, imports e comentários
+      ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
+- [ ] `P2` LSP: LSP-0 (diagnostics/documentSymbol), LSP-1 (spans + `SymbolIndex` →
+      hover/definition) e LSP-2 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
 - [x] `P3` grammar TextMate + extensão VS Code em `editors/`, gerada de `keywords.py`
       (`make grammar`), com teste de drift.
-- [ ] `P3` tree-sitter grammar + LSP mínimo (diagnostics/hover).
-- [ ] `P3` `lox fmt` e teste de idempotência.
 - [ ] `P3` site publicado a partir de `docs/` — ver §14.2 (stack, i18n e gate).
 - [ ] `P3` servidor MCP (`loxia-mcp`) — ver §14.3; depende do CLI agent-friendly acima.
 
@@ -171,7 +208,7 @@ M0–M7 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
 | **M8** | Performance | `-O2` e benchmarks feitos; JIT no REPL é P3 e não bloqueia | 🟡 |
-| **M9** | Ecossistema | formatter, LSP, docs e playground | ⬜ |
+| **M9** | Ecossistema | formatter, LSP, docs e playground — escopo definido nos [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md) a [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md) | 🟡 |
 
 **Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o
 nível afetado volta para a fila com caso diferencial. Interfaces nominais estão
@@ -199,8 +236,9 @@ linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é
 - [ ] **Compilar o próprio interpretador?** (self-hosting) — o *front-end* já é
       self-hostable hoje (lexer em Lox compila nativo e bate a saída); o compilador inteiro
       depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 7). P3/XL.
-- [ ] **`lox fmt` em Lox** — primeiro exercício de dogfooding depois do kernel: parser +
-      AST printer na própria linguagem, validado contra o `--dump-ast` do Python (§13.7).
+- [ ] **`lox fmt`** — o formatter shipped começa em Python (referência, idempotente); o
+      exercício de dogfooding em Lox (parser + AST printer) entra depois da T3, com
+      paridade byte a byte ([ADR-0092](docs/adr/0092-estilo-e-formatter.md), §13.7).
 - [ ] **`fs.open` + leitura/escrita em streaming** (`P2`, `M`) — handle de arquivo
       explícito, no espírito do `open()` do Python, para não materializar arquivos grandes
       em `String`/`List[String]` (o `readLines` atual lê o arquivo inteiro). Ideias:
@@ -233,7 +271,8 @@ linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é
 - [ ] **Dialeto embutido**: `lox` como linguagem de script de um app Python (via CFFI).
 - [ ] **Gerador de AST a partir de schema** (o livro faz à mão; um script evita erro
       quando a linguagem crescer).
-- [ ] **`lox doc`** — gera docs a partir de comentários de documentação (ex.: `##`).
+- [ ] **`lox doc`** — doc comments `///` (Markdown) + geração Markdown/JSON para stdlib,
+      builtins e código de usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
 
 ### Generics pós-MVP — adiados (2026-11-13)
 
@@ -410,12 +449,12 @@ determinismo.
 | 4 | ✅ **13.5** — imports/módulos + `std/strings` + `std/lists` mínimos | M | 3 |
 | 5 | ✅ **T1** restante (`maps`, `numeric`, `asserts`, `results`) | M | 4 |
 | 6 | ✅ **T2** (`json`, `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`) | M | 5 |
-| 7 | **T3** + dogfooding: `lox fmt` em Lox, depois front-end self-hosted (§10) | L/XL | 6 |
+| 7 | **T3** + dogfooding: `lox fmt` em Lox depois da T3, com paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) | L/XL | 6 |
 
 Os passos 0–6 estão feitos: GC, kernel, tabela de primitivas, imports/módulos, T1 e T2
-([ADR-0079](docs/adr/0079-stdlib-t2.md)). O próximo é o **limite de pilha**
-([ADR-0077](docs/adr/0077-limite-de-pilha.md)). O `main` gerado agora é
-`i32 main(argc, argv)`; o ABI das funções Lox não mudou.
+([ADR-0079](docs/adr/0079-stdlib-t2.md)). Pilha, heap e diagnósticos também estão fechados;
+o próximo é **T3 + dogfooding** (e o pacote de ecossistema da §0.2). O `main` gerado
+continua `i32 main(argc, argv)`; o ABI das funções Lox não mudou.
 
 ### 13.8 Critério de pronto por módulo
 
@@ -487,8 +526,14 @@ página declara "verificado no commit X", reusando `docs/_hooks/freshness.py`.
   `/cookbook` (de `exemplos/`), `/why` (I1–I4 em uma página) e `/changelog`. ADRs ficam fora
   do site — são registro interno; linkar só o índice.
 - **i18n:** a spec e os ADRs são pt-BR. Recomendação: pt-BR é a fonte; en-US traduz apenas
-  *learn* e *reference*; ADRs não são traduzidos. Tradução congela texto, então cada página
-  traduzida precisa do mesmo mecanismo de frescor, senão o inglês apodrece primeiro.
+  *learn* e *reference*; ADRs não são traduzidos. A **API pública** (stdlib/builtins) tem
+  doc em inglês ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)); o site marca
+  `/stdlib` como inglês e o resto como pt-BR até a tradução. Tradução congela texto, então
+  cada página traduzida precisa do mesmo mecanismo de frescor, senão o inglês apodrece
+  primeiro.
+- **`/stdlib` e builtins gerados:** `lox doc` (ADR-0091) gera Markdown/JSON a partir de
+  `///` e do registry de primitivas; o site **consome** o gerado, não edita à mão. O build
+  falha se a referência estiver defasada.
 - **Playground:** o alvo é WASM (§6.10). Até lá, ou playground server-side (`run`/`--check`
   com timeout e sem rede), ou nenhum — não vale um serviço só para enfeite.
 - **Gate:** `make docs-build` no CI (links quebrados, front matter inválido, página sem par
@@ -500,6 +545,10 @@ Objetivo: um agente (Claude/Codex/DSH) escrever Loxia **que compila** e ler a sp
 alucinar. O projeto está pronto de um jeito incomum: `--error-format=json` já devolve
 envelope versionado (`schema_version`, `code`, `phase`, `span`) e o I3 garante os mesmos
 bytes — diagnóstico determinístico é exatamente o que tool de agente precisa.
+
+O contrato do CLI que o MCP consome é o do
+[ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md): subcomandos, `capabilities`,
+`explain`, JSONL/watch e exit codes estáveis. O MCP não reimplementa diagnóstico.
 
 - **Tools:** `loxia_check(source)` → diagnósticos; `loxia_run(source, args, timeout_ms)` →
   stdout/stderr/exit; `loxia_ast(source)` → S-expression; `loxia_spec(query)` → trechos de
@@ -633,9 +682,10 @@ Objetivo: **um** comando (`loxia`) que roda, compila, testa e resolve pacotes �
 segundo nome. A análise completa (o que o `uv` resolve que a Loxia não tem, requisitos,
 não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 
-- [ ] **Fase 0 — CLI único** (junto da §14.4): `loxia run|check|build|fmt|test|repl|version`;
-      as flags atuais continuam aceitas. Sem rede, sem config nova. É só o entry point e o
-      despacho.
+- [ ] **Fase 0 — CLI único** (junto da §14.4): `loxia run|check|build|ast|fmt|doc|explain|
+      capabilities|lsp|repl|version`; as flags atuais continuam aceitas
+      ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)). Sem rede, sem config nova.
+      É só o entry point e o despacho.
 - [ ] **Fase 1 — manifest + lock** (`loxia.toml` já existe pelo [ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)):
       `[dependencies]`, `loxia.lock` com versão exata + `sha256`, `loxia lock`,
       `loxia fetch --offline` e cache local. Critério de pronto: dois manifests iguais com o
@@ -688,15 +738,19 @@ real, scripts de build em pacote (risco de supply chain), pacote binário, mirro
 
 - **MCP** é cliente do **CLI** (caixa-preta, `--error-format=json`): pode morar fora.
 - **LSP** é consumidor dos **internos** (AST, checker, spans, `SourceMap`): fica no
-  principal, como `loxia lsp` (ou entry point `loxia-lsp`). O trabalho real do LSP é o
+  principal, como `loxia lsp` (ou entry point `loxia-lsp`), em **Python com JSON-RPC à mão**
+  ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)). O trabalho real do LSP é o
   modelo de diagnóstico do [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md), que
   versiona junto com o compilador; separar criaria duas releases por mudança de span/código.
+  O LSP não é escrito em Loxia: não há processo/servidor nem front-end self-hosted que o
+  programa Loxia possa consultar.
 - O repo `loxia-editors` fica só com o **cliente** (extension manifest, grammar, packaging).
 - Contrato: o servidor responde em processo, mas o mesmo resultado tem que sair de
   `loxia check --error-format=json` — teste de paridade, como no MCP.
-- **Gatilhos para separar:** dependência própria (`pygls`/`lsprotocol`) que o runtime não
-  deve ter, cadência de release dirigida por clientes de editor, ou um segundo mantenedor.
-  Até lá, separar só paga o custo de sincronizar dois relógios.
+- **Gatilhos para separar:** dependência própria (se algum dia adotada; hoje o
+  [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md) decide JSON-RPC à mão, sem
+  `pygls`/`lsprotocol`), cadência de release dirigida por clientes de editor, ou um segundo
+  mantenedor. Até lá, separar só paga o custo de sincronizar dois relógios.
 
 **Não fazer:** abrir 6 repositórios antes do primeiro release (custo de CI/versão/
 sincronização sem consumidor); mover `std/` ou `runtime.c` para fora (drift de ABI/versão);

@@ -655,3 +655,25 @@ uso do contrato do ADR-0075, não uma decisão nova.
 - `CHANGELOG.md` — **updated**: item de diagnóstico com labels/sugestão.
 - `docs/log.md` — **updated**: esta triagem.
 
+## 2026-11-15 — ADRs de ecossistema: LSP, docs, estilo/formatter e CLI
+
+Intervalo: `HEAD`..working tree. Decisões de ecossistema fechadas com o dono do projeto;
+tudo é **plano** (implementação pendente), então nenhuma página de `docs/spec/` mudou.
+
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md` — **new**: LSP em Python no repo, JSON-RPC à
+  mão, fases LSP-0/1/2, mapeamento e paridade.
+- `docs/adr/0091-doc-comments-e-geracao-de-docs.md` — **new**: `///`, Markdown, anexação,
+  API em inglês, `lox doc`, registry de builtins e política da stdlib.
+- `docs/adr/0092-estilo-e-formatter.md` — **new**: nomes, perfil 2/100/K&R/`;`/`fn`, escopo
+  minimal, fases Python → Lox e dogfood após T3.
+- `docs/adr/0093-cli-agent-friendly-e-reparo.md` — **new**: subcomandos, JSONL/watch,
+  timeout `C0001`, warnings `W1xxx`/`-Werror` e schema/loop de `fixes[]`.
+- `docs/adr/0066`, `docs/adr/0075` — **updated**: notas de atualização (doc comment e
+  fixes/C/W).
+- `docs/adr/README.md`, `docs/decisoes.md`, `TODO.md` — **updated**: índice, resumo e fila
+  §0.2/§7/§10/§13.7/§14.
+- `docs/spec/garantias.md` — **no-change**: os ADRs 0090–0093 são planos; I1–I4 e os
+  orçamentos atuais não mudam até a implementação.
+- `docs/spec/semantica.md` — **no-change**: `///`, `lox doc`, CLI/LSP ainda não são
+  comportamento implementado; a spec continua descrevendo o estado atual.
+

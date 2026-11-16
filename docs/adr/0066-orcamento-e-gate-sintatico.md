@@ -1,5 +1,11 @@
 # ADR-0066 — Orçamento e gate sintático
 
+> **Atualizado por** [ADR-0091](0091-doc-comments-e-geracao-de-docs.md) (2026-11-15):
+> `///` foi aprovado como doc comment — uma forma **lexical** nova, com as quatro
+> respostas registradas no ADR-0091. Keywords, precedência, formas de statement/declaração
+> e construções sensíveis a newline não mudam; a quinta resposta (forma canônica) é
+> `///` para doc, `#` para comentário livre, sem `/** */` de doc.
+
 - **Status:** accepted
 - **Data:** 2026-11-13
 - **Decisores:** Cassio Dalla (dono do projeto) e agente

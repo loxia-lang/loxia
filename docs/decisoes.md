@@ -129,6 +129,10 @@ decisão.
 | Stack trace de runtime | Erro não capturado imprime frames default-on (nome exibível + call site), default 5 internos + 5 externos + elisão; `R1015` ganha a posição da declaração; o binário reproduz byte a byte (I1). | [ADR-0089](adr/0089-stack-trace-de-runtime.md) |
 | Nome e extensão | A linguagem é **Loxia** e a extensão canônica é `.lx`; "Lox" fica como nome do dialeto do livro; o prelúdio embutido usa `Exception`/`RuntimeError` (sem a marca), e `Lox*`/`lox.` no código são herança declarada. | [ADR-0078](adr/0078-nome-loxia-extensao-lx.md) |
 | Gate e orçamento sintático | Sintaxe nova passa por quatro perguntas (substituição, decidibilidade local, precedência, forma canônica), tetos de superfície e lista de não-objetivos; o agente pergunta antes de adicionar sintaxe. | [ADR-0066](adr/0066-orcamento-e-gate-sintatico.md) |
+| LSP | Servidor Python no repo principal (`loxia lsp`), JSON-RPC stdio à mão, sem dependência; LSP-0 diagnostics/symbols, LSP-1 spans+SymbolIndex para hover/definition, LSP-2 completion/format/code actions; não em Loxia. | [ADR-0090](adr/0090-lsp-escopo-e-hospedagem.md) |
+| Documentação | `///` como doc comment (Markdown, anexada à declaração), API pública da stdlib/builtins em inglês e obrigatória; `lox doc` gera Markdown/JSON e o site consome. | [ADR-0091](adr/0091-doc-comments-e-geracao-de-docs.md) |
+| Estilo e formatter | Tipos `PascalCase`, funções/vars/campos `camelCase`; enum constante `UPPER_SNAKE`, enum soma `PascalCase`; 2 espaços/100 col, `;` omitido, `fn` mantido em método; formatter Python agora e dogfood Lox após T3 com paridade. | [ADR-0092](adr/0092-estilo-e-formatter.md) |
+| CLI agent-friendly | Subcomandos aditivos, `capabilities`/`explain`, JSONL/watch restrito a `check`, `--stdin`, `--timeout` (124 + `C0001`), warnings `W1xxx` com `-Werror` e protocolo de reparo com `fixes[]` safe/unsafe. | [ADR-0093](adr/0093-cli-agent-friendly-e-reparo.md) |
 
 ## O que ainda não está aqui
 
