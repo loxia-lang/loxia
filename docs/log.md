@@ -715,3 +715,5 @@ Docs obrigatórias da stdlib/builtins e a geração de `docs/stdlib/` continuam 
 - `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0091`, `docs/adr/README.md`,
   `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**: contrato/status.
 - `tests/test_cli.py` — **updated**: cobertura de doc/Markdown/JSON/anexação.
+
+<!-- triaged: ed30798 -->
