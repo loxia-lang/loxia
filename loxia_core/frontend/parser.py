@@ -1165,10 +1165,17 @@ class Parser:
     def _range(self) -> Expr:
         expr: Expr = self._shift()
 
-        while self._match_infix(TokenType.DOT_DOT):
+        while self._match_infix(
+            TokenType.DOT_DOT, TokenType.DOT_DOT_EQUAL
+        ):
             operator: Token = self._previous()
             end: Expr = self._shift()
-            expr = Range(expr, end, operator)
+            expr = Range(
+                expr,
+                end,
+                operator,
+                inclusive=operator.type is TokenType.DOT_DOT_EQUAL,
+            )
 
         return expr
 

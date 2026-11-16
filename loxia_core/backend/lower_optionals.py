@@ -130,7 +130,10 @@ class OptionalLowering(LoweringBase):
                     tuple(self._subst_ty(arg) for arg in ty.args),
                     line,
                 )
-            if self._class_layout_for_type(ty.name) is None:
+            if (
+                self._class_layout_for_type(ty.name) is None
+                and ty.name not in self._class_names
+            ):
                 raise _unsupported(f"Class '{ty.name}'", line)
             return TypeDesc(ValueType.INSTANCE, class_name=ty.name)
         if isinstance(ty, ClassObjectTy):

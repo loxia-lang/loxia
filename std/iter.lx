@@ -1,0 +1,88 @@
+# std.iter — utilitários de iteração (T2), em Lox puro.
+
+/// Envelope para iterar elementos que podem ser `nil`: `next() -> Step[T]?` e
+/// `match step { Step.Item(value) => ... }`; `nil` continua encerrando a iteração.
+enum Step[T] {
+  /// Um elemento; `value` pode ser `nil` quando `T` é opcional.
+  Item(T)
+}
+
+/// Pares `(índice, elemento)` na ordem da lista.
+fn enumerate[T](items: List[T]) -> List[(Int, T)] {
+  val result: List[(Int, T)] = []
+  var index = 0
+  while (index < len(items)) {
+    result.push((index, items[index]))
+    index = index + 1
+  }
+  return result
+}
+
+/// Pares dos elementos de `left` e `right`, até a menor das duas listas.
+fn zip[A, B](left: List[A], right: List[B]) -> List[(A, B)] {
+  val result: List[(A, B)] = []
+  var index = 0
+  while (index < len(left) and index < len(right)) {
+    result.push((left[index], right[index]))
+    index = index + 1
+  }
+  return result
+}
+
+/// Soma de inteiros; lista vazia devolve `0`.
+fn sum(items: List[Int]) -> Int {
+  var total = 0
+  for item in items {
+    total = total + item
+  }
+  return total
+}
+
+/// Soma de floats; lista vazia devolve `0.0`.
+fn sumFloat(items: List[Float]) -> Float {
+  var total = 0.0
+  for item in items {
+    total = total + item
+  }
+  return total
+}
+
+/// `true` quando `item` está na lista (igualdade estrutural).
+fn contains[T](items: List[T], item: T) -> Bool {
+  for current in items {
+    if (current == item) {
+      return true
+    }
+  }
+  return false
+}
+
+/// `true` quando algum elemento satisfaz `predicate`.
+fn any[T](items: List[T], predicate: fn(T) -> Bool) -> Bool {
+  for item in items {
+    if (predicate(item)) {
+      return true
+    }
+  }
+  return false
+}
+
+/// `true` quando todos os elementos satisfazem `predicate`.
+fn all[T](items: List[T], predicate: fn(T) -> Bool) -> Bool {
+  for item in items {
+    if (not predicate(item)) {
+      return false
+    }
+  }
+  return true
+}
+
+/// Primeiro elemento que satisfaz `predicate`, ou `nil`.
+fn find[T](items: List[T], predicate: fn(T) -> Bool) -> T? {
+  for item in items {
+    if (predicate(item)) {
+      return item
+    }
+  }
+  return nil
+}

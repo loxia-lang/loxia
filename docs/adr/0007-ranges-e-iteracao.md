@@ -38,7 +38,7 @@ futuros sem exigir OO?**
 
 3. **Passo explícito vem da nativa `range(a, b, step)`**, com aridade fixa 3 (não há
    defaults ainda). Passo 0 é erro de runtime; `a..b` equivale a `range(a, b, 1)`.
-   `..=` (inclusivo) fica **adiado** até existir um caso real.
+   `..=` (inclusivo) entrou depois, no [ADR-0097](0097-ranges-inclusivos.md).
 
 4. **O que cada fonte produz:** `Range` → `Int`; `String` → `String` de 1 code point
    (consistente com `len` em code points, `D-13`); `List[T]` → `T` em ordem; `Map[K, V]` →
@@ -69,8 +69,8 @@ futuros sem exigir OO?**
 
 ### Negativas / custos
 
-- Sem `..=` não há range inclusivo; o usuário escreve `a..b + 1` (cuidado com overflow no
-  futuro codegen).
+- Range inclusivo só com `..=` ([ADR-0097](0097-ranges-inclusivos.md)), sem passo;
+  `range(a, b, step)` continua exclusivo.
 - `range` de 3 argumentos é menos ergonômico que o do Python; `range(10)` só quando
   defaults entrarem ([ADR-0009](0009-defaults-e-campos.md), P3).
 - `map`/`filter` eager podem alocar; um `Iter` lazy fica para depois, se houver dor.
@@ -93,7 +93,7 @@ futuros sem exigir OO?**
 | Só `..`, sem `range(a,b,step)` | sem passo/descendente sem inventar segundo operador |
 | Range eager (List) | `0..1_000_000_000` alocaria; perde o caso de uso principal |
 | `for-in` desaçucarado para C-style no parser | perde diagnóstico “não iterável” e o codegen precisa do nó |
-| `..=` já agora | superfície sem caso de uso; pode entrar depois |
+| `..=` já agora | adiado na época; entrou no [ADR-0097](0097-ranges-inclusivos.md) |
 | Iterável exigindo classe/interface desde já | precisaria de `Option`/traits e exporia `next()` cedo demais |
 | `for` sobre instância com método `iter()` (duck typing) | sem sentinela de fim (Option) vira protocolo torto |
 | `in` como operador de pertinência | mais um uso para a palavra; `contains` tipa e compila melhor |
@@ -110,4 +110,4 @@ futuros sem exigir OO?**
 - `make check`.
 
 Critério para revisar: quando List/Map chegarem (fonte de iteração), quando `Option`
-permitir o protocolo `Iterable` de usuário, ou se `..=`/passo virarem necessidade real.
+permitir o protocolo `Iterable` de usuário, ou se o passo precisar de mais formas.

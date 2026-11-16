@@ -59,8 +59,9 @@ Como o código-fonte é dividido em tokens. Implementação: [`loxia_core/fronte
 ?    ??          ?.
 ```
 
-`//` é divisão inteira; `/` sozinho é divisão `Float`. `..` é o operador de range
-(`0..10`) e `...` é o prefixo de variádico/spread (`...xs`, `f(...xs)`); não existe `..=`.
+`//` é divisão inteira; `/` sozinho é divisão `Float`. `..` é o range half-open
+(`0..10`), `..=` é o range inclusivo (`0..=10`) e `...` é o prefixo de
+variádico/spread (`...xs`, `f(...xs)`).
 `?` é o sufixo de tipo opcional; `??` é coalescência e `?.` é optional chaining. `#` e
 `/*` iniciam comentários, não tokens.
 

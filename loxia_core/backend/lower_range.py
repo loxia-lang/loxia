@@ -29,8 +29,15 @@ class RangeLowering(LoweringBase):
         start = self._coerce(self._expr(expr.start), self._int_desc(), expr.operator.line)
         end = self._coerce(self._expr(expr.end), self._int_desc(), expr.operator.line)
         raw = self.builder.call(
-            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT]),
-            [start.llvm, end.llvm, llvm_ir.constant(_INT, 1)],
+            self._function(
+                "lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]
+            ),
+            [
+                start.llvm,
+                end.llvm,
+                llvm_ir.constant(_INT, 1),
+                llvm_ir.constant(_I32, 1 if expr.inclusive else 0),
+            ],
         )
         return Value(ValueType.RANGE, raw)
 
@@ -48,8 +55,10 @@ class RangeLowering(LoweringBase):
             for argument in arguments
         ]
         raw = self.builder.call(
-            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT]),
-            [value.llvm for value in coerced],
+            self._function(
+                "lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]
+            ),
+            [*[value.llvm for value in coerced], llvm_ir.constant(_I32, 0)],
         )
         return Value(ValueType.RANGE, raw)
 
@@ -308,24 +317,58 @@ class RangeLowering(LoweringBase):
         step = self.builder.call(
             self._function("lox_range_step", _INT, [_I8_PTR]), [iterable.llvm]
         )
+        inclusive = self.builder.call(
+            self._function("lox_range_inclusive", _I32, [_I8_PTR]),
+            [iterable.llvm],
+        )
         index = self.builder.alloca(_INT, name="for.range")
         self.builder.store(start, index)
         negative = self.builder.icmp_signed(
             "<", step, llvm_ir.constant(_INT, 0)
         )
+
+        def advance() -> Any:
+            current = self.builder.load(index)
+            self.builder.store(
+                self.builder.add(current, step), index
+            )
+            keep = self.builder.icmp_signed("!=", current, end)
+            return self.builder.select(
+                self.builder.icmp_signed(
+                    "!=", inclusive, llvm_ir.constant(_I32, 0)
+                ),
+                keep,
+                llvm_ir.constant(_BOOL, 1),
+            )
+
         self._for_loop(
             stmt,
             TypeDesc(ValueType.INT),
-            condition=lambda: self._range_condition(index, end, step, negative),
-            load=lambda: self.builder.load(index),
-            advance=lambda: self.builder.store(
-                self.builder.add(self.builder.load(index), step), index
+            condition=lambda: self._range_condition(
+                index, end, step, negative, inclusive
             ),
+            load=lambda: self.builder.load(index),
+            advance=advance,
         )
 
-    def _range_condition(self, index: Any, end: Any, step: Any, negative: Any) -> Any:
-        below = self.builder.icmp_signed("<", self.builder.load(index), end)
-        above = self.builder.icmp_signed(">", self.builder.load(index), end)
+    def _range_condition(
+        self,
+        index: Any,
+        end: Any,
+        step: Any,
+        negative: Any,
+        inclusive: Any,
+    ) -> Any:
+        current = self.builder.load(index)
+        below = self.builder.icmp_signed("<", current, end)
+        above = self.builder.icmp_signed(">", current, end)
+        below_in = self.builder.icmp_signed("<=", current, end)
+        above_in = self.builder.icmp_signed(">=", current, end)
+        flag = self.builder.icmp_signed(
+            "!=", inclusive, llvm_ir.constant(_I32, 0)
+        )
+        below = self.builder.select(flag, below_in, below)
+        above = self.builder.select(flag, above_in, above)
         return self.builder.select(negative, above, below)
 
     def _for_string(self, stmt: ForIn, iterable: Value) -> None:
@@ -380,8 +423,11 @@ class RangeLowering(LoweringBase):
         )
         self._for_bind(stmt, desc, load)
         if not self.builder.block.is_terminated:
-            advance()
-            self.builder.branch(header)
+            keep = advance()
+            if keep is None:
+                self.builder.branch(header)
+            else:
+                self.builder.cbranch(keep, header, end)
 
         self.builder = llvm_ir.builder(end)
 

@@ -1436,3 +1436,17 @@ def test_io_write_flush_antes_de_bloquear_no_stdin(tmp_path: Path) -> None:
             for stream in (process.stdin, process.stdout, process.stderr):
                 if stream is not None:
                     stream.close()
+
+@pytest.mark.backend
+def test_build_nao_escreve_no_stdout(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "enum E { A }\n"
+        "val x = match E.A { E.A => 1 }\n"
+        "print(x)\n",
+    )
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    run = _run([str(binary)])
+    assert run.stdout == "1\n"

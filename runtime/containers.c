@@ -3,7 +3,8 @@
 #include "lox_runtime.h"
 
 
-void *lox_range_new(int64_t start, int64_t end, int64_t step) {
+void *lox_range_new(int64_t start, int64_t end, int64_t step,
+                    int32_t inclusive) {
     if (step == 0) {
         lox_panic(0, 0, "R1014", "range() step can't be zero.");
     }
@@ -11,6 +12,7 @@ void *lox_range_new(int64_t start, int64_t end, int64_t step) {
     range->start = start;
     range->end = end;
     range->step = step;
+    range->inclusive = inclusive != 0 ? 1 : 0;
     return range;
 }
 
@@ -26,21 +28,26 @@ int64_t lox_range_step(const void *pointer) {
     return ((const LoxRange *)pointer)->step;
 }
 
+int32_t lox_range_inclusive(const void *pointer) {
+    return ((const LoxRange *)pointer)->inclusive;
+}
+
 int32_t lox_range_equal(const void *left_pointer, const void *right_pointer) {
     const LoxRange *left = left_pointer;
     const LoxRange *right = right_pointer;
     return left->start == right->start && left->end == right->end &&
-           left->step == right->step;
+           left->step == right->step && left->inclusive == right->inclusive;
 }
 
 void lox_print_range(const void *pointer) {
     const LoxRange *range = pointer;
+    const char *operator = range->inclusive ? "..=" : "..";
     if (range->step == 1) {
-        printf("<range %" PRId64 "..%" PRId64 ">\n", range->start,
+        printf("<range %" PRId64 "%s%" PRId64 ">\n", range->start, operator,
                range->end);
     } else {
-        printf("<range %" PRId64 "..%" PRId64 " step %" PRId64 ">\n",
-               range->start, range->end, range->step);
+        printf("<range %" PRId64 "%s%" PRId64 " step %" PRId64 ">\n",
+               range->start, operator, range->end, range->step);
     }
 }
 

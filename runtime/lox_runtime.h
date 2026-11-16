@@ -111,6 +111,7 @@ typedef struct {
     int64_t start;
     int64_t end;
     int64_t step;
+    int32_t inclusive;
 } LoxRange;
 
 /* List do L6: elementos boxeados `LoxValue{tag,payload}`, ordem de inserção. */
@@ -243,10 +244,12 @@ extern int64_t lox_str_len (const void *pointer);
 extern int32_t lox_str_compare (const void *left_pointer, const void *right_pointer);
 extern int32_t lox_str_equal (const void *left_pointer, const void *right_pointer);
 extern void *lox_str_concat (const void *left_pointer, const void *right_pointer);
-extern void *lox_range_new (int64_t start, int64_t end, int64_t step);
+extern void *lox_range_new (int64_t start, int64_t end, int64_t step,
+                            int32_t inclusive);
 extern int64_t lox_range_start (const void *pointer);
 extern int64_t lox_range_end (const void *pointer);
 extern int64_t lox_range_step (const void *pointer);
+extern int32_t lox_range_inclusive (const void *pointer);
 extern int32_t lox_range_equal (const void *left_pointer, const void *right_pointer);
 extern void lox_print_range (const void *pointer);
 extern void *lox_str_from_range (const void *pointer);

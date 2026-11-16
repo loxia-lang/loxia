@@ -110,11 +110,12 @@ class Scanner:
                     self._advance()
             case ".":
                 if self._match("."):
-                    self._add_token(
-                        TokenType.ELLIPSIS
-                        if self._match(".")
-                        else TokenType.DOT_DOT
-                    )
+                    if self._match("="):
+                        self._add_token(TokenType.DOT_DOT_EQUAL)
+                    elif self._match("."):
+                        self._add_token(TokenType.ELLIPSIS)
+                    else:
+                        self._add_token(TokenType.DOT_DOT)
                 else:
                     self._add_token(TokenType.DOT)
             case "-":

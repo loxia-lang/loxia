@@ -1,0 +1,26 @@
+# Ranges inclusivos `..=`: fim incluído, vazio quando start > end, igualdade distinta.
+print(1..=3)
+for i in 1..=3 {
+  print(i)
+}
+for i in 3..=1 {
+  print(i)
+}
+for i in 5..=5 {
+  print(i)
+}
+print((1..=2) == (1..=2))
+print((1..2) == (1..=2))
+for i in 9223372036854775807..=9223372036854775807 {
+  print(i)
+}
+print(range(1, 3, 1))
+# expect: <range 1..=3>
+# expect: 1
+# expect: 2
+# expect: 3
+# expect: 5
+# expect: true
+# expect: false
+# expect: 9223372036854775807
+# expect: <range 1..3>

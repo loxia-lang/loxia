@@ -175,7 +175,9 @@ class AstPrinter:
         return self._parenthesize(expr.operator.lexeme, expr.left, expr.right)
 
     def visit_range_expr(self, expr: Range) -> str:
-        return self._parenthesize("..", expr.start, expr.end)
+        return self._parenthesize(
+            "..=" if expr.inclusive else "..", expr.start, expr.end
+        )
 
     def visit_assign_expr(self, expr: Assign) -> str:
         return self._parenthesize(f"= {expr.name.lexeme}", expr.value)

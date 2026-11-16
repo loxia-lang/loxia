@@ -228,7 +228,6 @@ class EnumLowering(LoweringBase):
         if enum_ty is None:
             raise _unsupported("match enum type", expr.keyword.line)
         layout = self._enum_layouts.get(enum_ty.name)
-        print("DEBUG match", enum_ty, self.types.get(expr.scrutinee))
         if layout is None:
             raise _unsupported(f"Enum '{enum_ty.name}'", expr.keyword.line)
 

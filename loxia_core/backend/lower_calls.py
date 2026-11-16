@@ -122,7 +122,16 @@ class CallLowering(LoweringBase):
         ):
             return self._enum_construct(expr)
 
-        if isinstance(expr.callee, Get):
+        precomputed: Value | None = None
+        if isinstance(expr.callee, Get) and not expr.callee.optional:
+            # Avalia o receptor uma vez só: cadeias como `a.m().m()` não podem
+            # executar `a.m()` de novo no despacho de lista/mapa.
+            precomputed = self._expr(expr.callee.object)
+            if precomputed.ty is ValueType.LIST:
+                return self._call_list_method(expr, precomputed)
+            if precomputed.ty is ValueType.MAP:
+                return self._call_map_method(expr, precomputed)
+        elif isinstance(expr.callee, Get):
             receiver = self._expr(expr.callee.object)
             if receiver.ty is ValueType.LIST:
                 return self._call_list_method(expr, receiver)
@@ -176,6 +185,8 @@ class CallLowering(LoweringBase):
                 expr.callee.name.line,
                 expr.callee.name.column,
             )
+        elif isinstance(expr.callee, Get) and precomputed is not None:
+            callee = self._get_instance(precomputed, expr.callee)
         else:
             callee = self._expr(expr.callee)
 

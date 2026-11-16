@@ -28,6 +28,7 @@ MODULES = {
     "fmt": "Formatting helpers (templates, padding, numbers, byte sizes).",
     "fs": "File reading/writing (ambient: outside I1).",
     "io": "Standard input/output (ambient where it blocks).",
+    "iter": "Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`).",
     "json": "RFC 8259 JSON with insertion-ordered objects.",
     "lists": "Generic list combinators.",
     "maps": "Helpers for `Map[String, V]`.",

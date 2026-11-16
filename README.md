@@ -43,7 +43,8 @@
   com identificadores ASCII, `print` como função `Any -> Nil` e escopo single-file. O mapa
   **1.0 × pós-1.0** está em [`ESCOPO.md`](ESCOPO.md).
 - 📐 A stdlib **T2** está completa ([ADR-0079](docs/adr/0079-stdlib-t2.md)): `json`,
-  `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`, `utf8` e `proc`, além da T1
+  `fmt`, `paths`, `fs`, `io`, `cli`, `sets`, `csv`, `convert`, `utf8`, `proc` e `iter`,
+  além da T1
   (`strings`, `lists`, `maps`, `numeric`, `asserts`, `results`). Os casos determinísticos
   entram no corpus `t2`; `fs`, leitura de `io` e `proc` são ambiente e têm teste próprio.
 - 🧪 **Testes de usuário** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):

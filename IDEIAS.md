@@ -14,8 +14,6 @@ viram ADR + [`docs/decisoes.md`](docs/decisoes.md); o que já foi implementado s
   declarada continuam adiados ([TODO.md](TODO.md) §10).
 - **Math:** `log`, `exp`, `sin`, `cos`, `tan`, `pow` e constantes (`math.pi`) dependem da
   libm; ficam fora do I3 até existir uma biblioteca determinística.
-- **Iteráveis:** `..=`, `enumerate`/utilitários e `Option`/enum como sentinela para `nil`
-  (I-6).
 - **Bindgen:** reavaliar a tabela de primitivas em TOML só se o kernel passar de ~30
   primitivas ou surgir um segundo gerador.
 - **Host:** `std/lsp` (framing), `fs.open` (streaming) e `net` (com consumidor) — I-11.
@@ -163,17 +161,6 @@ Contra:
 - Python `icontract`: <https://github.com/Parquery/icontract> · `deal`:
   <https://deal.readthedocs.io/>
 - Property-based testing: <https://hypothesis.readthedocs.io/>
-
----
-
-## I-6 — Iteráveis: o que ainda falta no `for x in`
-
-`for-in` cobre `Range`, `String`, `List`, `Map`, tupla e iterador de usuário
-(`iter()` + `next() -> T?`, [ADR-0082](docs/adr/0082-iterador-de-usuario.md)). Resta:
-
-- `..=` e ranges inclusivos.
-- `enumerate`, `zip`, `sum`, `contains` e outros utilitários de iteração na stdlib.
-- `Option`/enum como sentinela para permitir `nil` como elemento (hoje `nil` encerra).
 
 ---
 

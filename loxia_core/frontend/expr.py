@@ -200,6 +200,7 @@ class Range(Expr):
     start: Expr
     end: Expr
     operator: Token
+    inclusive: bool = False
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_range_expr(self)

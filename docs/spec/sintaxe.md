@@ -100,7 +100,7 @@ comparison     → bitwise_or ( ( ">" | ">=" | "<" | "<=" ) bitwise_or | "is" po
 bitwise_or     → bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    → bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    → range ( "&" range )* ;
-range          → shift ( ".." shift )* ;
+range          → shift ( ( ".." | "..=" ) shift )* ;
 shift          → term ( ( "<<" | ">>" | ">>>" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "*" | "/" | "//" | "%" ) unary )* ;
@@ -307,7 +307,7 @@ Do menor para o maior:
 | or de bits | `\|` | esquerda |
 | xor de bits | `^` | esquerda |
 | and de bits | `&` | esquerda |
-| range | `..` | esquerda |
+| range | `..`, `..=` | esquerda |
 | shift | `<<` `>>` `>>>` | esquerda |
 | termo | `+` `-` | esquerda |
 | fator | `*` `/` `//` `%` | esquerda |
@@ -332,7 +332,8 @@ Consequências:
 - `a = b = c` atribui da direita para a esquerda;
 - `a or b and c` = `a or (b and c)`;
 - `not a == b` = `(not a) == b` — `not` liga mais forte que `==` (ADR-0068);
-- `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range;
+- `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range; `..=` tem a mesma
+  precedência de `..`;
 - `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação;
 - `a ?? b or c` = `a ?? (b or c)`;
 - `a ?? b if c else d` = `(a ?? b) if c else d`;

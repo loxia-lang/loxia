@@ -356,7 +356,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     ) -> bool:
         if a is b:
             return True
-        if a.enum != b.enum or a.variant != b.variant:
+        if (
+            a.enum != b.enum
+            or a.key != b.key
+            or a.variant != b.variant
+        ):
             return False
         if len(a.payload) != len(b.payload):
             return False
@@ -710,7 +714,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 expr.operator, "Range bounds must be integers.", code=Code.RUNTIME_OPERANDS
             )
 
-        return LoxRange(start, end)
+        return LoxRange(start, end, inclusive=expr.inclusive)
 
     def visit_unary_expr(self, expr: Unary) -> object:
         right = self._evaluate(expr.right)
@@ -996,7 +1000,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         }
         self.environment.define(
             stmt.name.lexeme,
-            LoxEnumObject(stmt.display_name or stmt.name.lexeme, variants),
+            LoxEnumObject(
+                stmt.display_name or stmt.name.lexeme,
+                variants,
+                key=stmt.name.lexeme,
+            ),
             mutable=False,
         )
 
@@ -1015,7 +1023,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 return self._evaluate(arm.body)
             assert isinstance(pattern, VariantPattern)
             if (
-                value.enum != pattern.enum.lexeme
+                value.key != pattern.enum.lexeme
                 or value.variant != pattern.variant.lexeme
             ):
                 continue
@@ -1236,7 +1244,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def _iterate(self, name: Token, iterable: object) -> Iterator[object]:
         if isinstance(iterable, LoxRange):
-            return iter(range(iterable.start, iterable.end, iterable.step))
+            if iterable.inclusive:
+                stop = (
+                    iterable.end + 1
+                    if iterable.step > 0
+                    else iterable.end - 1
+                )
+            else:
+                stop = iterable.end
+            return iter(range(iterable.start, stop, iterable.step))
         if isinstance(iterable, str):
             return iter(iterable)
         if isinstance(iterable, LoxList):

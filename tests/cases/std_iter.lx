@@ -1,0 +1,64 @@
+# std.iter: enumerate/zip/sum/sumFloat/contains/any/all/find + Step para nil.
+from std.iter import Step, enumerate, zip, sum, sumFloat, contains, any, all, find
+
+print(sum([1, 2, 3]))
+print(sum([]))
+print(sumFloat([1.5, 2.5]))
+print(contains([1, 2], 2))
+print(contains(["a"], "b"))
+print(any([1, 2, 3], fn(x) => x > 2))
+print(all([1, 2, 3], fn(x) => x > 0))
+print(find([1, 2, 3], fn(x) => x > 1) ?? -1)
+print(find([1], fn(x) => x > 9) ?? -1)
+
+for pair in enumerate(["a", "b"]) {
+  print(pair[0])
+  print(pair[1])
+}
+for pair in zip([1, 2], ["a", "b", "c"]) {
+  print(pair[0])
+  print(pair[1])
+}
+
+class MaybeRows {
+  var index: Int
+  val rows: List[Int?]
+  init(rows: List[Int?]) {
+    this.index = 0
+    this.rows = rows
+  }
+  fn iter() -> MaybeRows { return this }
+  fn next() -> Step[Int?]? {
+    if (this.index >= len(this.rows)) {
+      return nil
+    }
+    val value = this.rows[this.index]
+    this.index = this.index + 1
+    return Step.Item(value)
+  }
+}
+
+for step in MaybeRows([nil, 7]) {
+  match step {
+    Step.Item(value) => print(value ?? -1)
+  }
+}
+# expect: 6
+# expect: 0
+# expect: 4.0
+# expect: true
+# expect: false
+# expect: true
+# expect: true
+# expect: 2
+# expect: -1
+# expect: 0
+# expect: a
+# expect: 1
+# expect: b
+# expect: 1
+# expect: a
+# expect: 2
+# expect: b
+# expect: -1
+# expect: 7

@@ -44,7 +44,7 @@ Uma expressão pura como `1 + 1` é embrulhada em `print(1 + 1)` e mostra `2`; d
 | `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
 | `List` | literal `[...]` | `[1, 2, 3]` (strings citadas dentro da lista) |
 | `Map` | literal `{...}` | `{"a": 1, "b": 2}` (ordem de inserção) |
-| `Range` | `a..b`, `range(a, b, step)` | `<range 0..10>` |
+| `Range` | `a..b`, `a..=b`, `range(a, b, step)` | `<range 0..10>`, `<range 0..=10>` |
 | string | literais, `+`, interpolação | conteúdo |
 | função | `fn` | `<fn nome>` |
 | função nativa | `len` | `<native fn>` |
@@ -67,7 +67,8 @@ Só `nil` e `false` são falsos. `0`, `0.0`, `""`, listas e mapas (inclusive vaz
 - `Int` e `Float` comparam por valor numérico, com promoção: `1 == 1.0` → `true` (o `Int`
   é convertido para `Float`; acima de `2^53` a conversão pode perder precisão, como no
   LLVM);
-- `Range` compara **estruturalmente** (`start`, `end`, `step`): `(0..3) == (0..3)` → `true`;
+- `Range` compara **estruturalmente** (`start`, `end`, `step`, `inclusive`):
+  `(0..3) == (0..3)` → `true` e `(0..2) != (0..=2)`;
 - `List` compara **estruturalmente**, elemento a elemento, inclusive aninhada e com
   igualdade numérica (`[1, 2] == [1, 2.0]` → `true`). Comprimentos diferentes são
   `false`; ciclos são tratados com um conjunto de pares visitados;
@@ -369,12 +370,14 @@ for nome in idades { print(nome) }   # Ana, Bia (ordem de inserção)
 
 ## Ranges e `for-in`
 
-`a..b` cria um `Range` **half-open** (`a` incluso, `b` exclusivo), só com bounds `Int`;
+`a..b` cria um `Range` **half-open** (`a` incluso, `b` exclusivo) e `a..=b` um range
+**inclusivo** (`b` incluso), só com bounds `Int`;
 `range(a, b, step)` faz o mesmo com passo explícito (inclusive negativo). Range é um valor
 lazy e reutilizável: não materializa elementos e cada `for` cria a sua própria iteração.
 
 ```lox
-for i in 0..4 { print(i); }        // 0 1 2 3
+for i in 0..4 { print(i); }       // 0 1 2 3
+for i in 0..=4 { print(i); }      // 0 1 2 3 4
 for i in range(5, 0, -2) { ... }  // 5 3 1
 for i in 5..2 { ... }             // vazio
 ```
@@ -1030,6 +1033,10 @@ com entrada fixa.
   `run(argv, stdin = "", timeoutMs = 0) -> Output?`. Sem shell; `run` drena stdout/stderr
   com `poll`, mata no timeout e devolve `nil`; `stdin` tem o limite prático do buffer do
   pipe (~64 KiB). Fora do corpus I1/I3.
+- `std.iter`: `enumerate(items)`, `zip(left, right)`, `sum(List[Int])`,
+  `sumFloat(List[Float])`, `contains`, `any`, `all` e `find` (primeiro que casa ou `nil`).
+  O enum `Step[T]` (`Step.Item(value)`) permite iterar elementos `nil`:
+  `next() -> Step[T]?` encerra em `nil` e o corpo casa `Step.Item(value)`.
 - `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (estado
   explícito, porque módulo não aceita `var` top-level) com `describe`, `it` (executa na
   hora), `beforeEach`/`afterEach` (escopados ao `describe`; `before` externo→interno,

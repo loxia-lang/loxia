@@ -93,6 +93,7 @@ OPERATORS: dict[TokenType, str] = {
     TokenType.GREATER_GREATER: ">>",
     TokenType.GREATER_GREATER_GREATER: ">>>",
     TokenType.DOT_DOT: "..",
+    TokenType.DOT_DOT_EQUAL: "..=",
     TokenType.ELLIPSIS: "...",
     TokenType.ARROW: "->",
     TokenType.FAT_ARROW: "=>",

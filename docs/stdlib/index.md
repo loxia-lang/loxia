@@ -20,6 +20,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.fmt`](fmt.md) | Formatting helpers (templates, padding, numbers, byte sizes). |
 | [`std.fs`](fs.md) | File reading/writing (ambient: outside I1). |
 | [`std.io`](io.md) | Standard input/output (ambient where it blocks). |
+| [`std.iter`](iter.md) | Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`). |
 | [`std.json`](json.md) | RFC 8259 JSON with insertion-ordered objects. |
 | [`std.lists`](lists.md) | Generic list combinators. |
 | [`std.maps`](maps.md) | Helpers for `Map[String, V]`. |

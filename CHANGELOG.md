@@ -7,6 +7,14 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Ranges inclusivos `..=`** ([ADR-0097](docs/adr/0097-ranges-inclusivos.md)):
+  `a..=b` inclui o fim, com a mesma precedência de `..`, sem passo; `Range` compara e
+  imprime `inclusive`, e `INT_MAX..=INT_MAX` roda uma vez sem wrap.
+- **`std.iter`**: `enumerate`, `zip`, `sum`/`sumFloat`, `contains`, `any`, `all`,
+  `find` e o enum `Step[T]` para iterar elementos `nil` via `next() -> Step[T]?`.
+- **Backend**: método que retorna a própria classe (padrão `iter() -> Self`) e cadeia
+  de métodos não avaliam o receptor duas vezes; `print("DEBUG match")` removido do
+  lowering de enums.
 - **Hooks e isolamento por teste** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
   `std.test` ganhou `beforeEach`/`afterEach` escopados ao `describe` (ordem externa→interna
   e inversa no `after`, mesmo em falha) e `--list` (só nomes); o runner ganhou
