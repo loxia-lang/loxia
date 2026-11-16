@@ -27,9 +27,10 @@ Pilha ([ADR-0077](docs/adr/0077-limite-de-pilha.md)) e heap
 ([ADR-0087](docs/adr/0087-heap-cap-e-self-hosting.md)) estão fechados; diagnósticos
 também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
 [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
-também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)); a
-próxima execução é **docs/estilo/formatter** e **LSP** (§0.2), com `fixes[]`/`W1002`
-pendentes. O status por nível é **gerado**
+também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)), assim como
+`///` + `lox doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)). A próxima
+execução é **estilo/formatter** e **LSP** (§0.2); docs da stdlib/builtins, `fixes[]` e
+`W1002` ficam pendentes. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -64,6 +65,9 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
        Markdown/JSON, guia de estilo e formatter Python
        ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md),
        [ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
+       - [x] `///` + `lox doc` Markdown/JSON para código de usuário.
+       - [ ] docs públicas obrigatórias da stdlib, registry de builtins e `docs/stdlib/`.
+       - [ ] `docs/guia-estilo.md` e formatter Python.
 8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols, depois spans de expressão + `SymbolIndex`
        para hover/definition, e só então completion/format/code actions
        ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
@@ -165,7 +169,9 @@ uv run pytest tests/test_backend.py -q
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] `P2` `fixes[]` + `lox fix`: produtores confiáveis e aplicação atômica
       ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] `P1` `lox doc`: doc comments `///` + geração Markdown/JSON e docs da stdlib/builtins
+- [x] `P1` `lox doc` (core): doc comments `///` + geração Markdown/JSON para código de
+      usuário ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
+- [ ] `P1` docs da stdlib/builtins e `docs/stdlib/` gerado
       ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)).
 - [ ] `P1` `lox fmt`: formatter Python idempotente, `--check`, depois dogfood em Lox após a
       T3 ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).

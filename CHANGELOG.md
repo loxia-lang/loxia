@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Doc comments `///` e `lox doc`** ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)):
+  doc Markdown anexada a funções/métodos, classes, interfaces, enums/variantes, campos,
+  type alias e `val`/`var`; `lox doc arquivo [--json]` gera a referência sem executar o
+  programa. A grammar TextMate ganhou o scope de doc; a spec léxica documenta o vínculo
+  (linha em branco quebra). Docs obrigatórias da stdlib/builtins e geração do site ficam
+  pendentes.
 - **CLI agent-friendly (core)** ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)):
   subcomandos `run`/`check`/`build`/`ast`/`explain`/`capabilities` (flags antigas
   preservadas), `--json`/`--json-lines` (`start`/`diagnostic`/`summary`), `--stdin` +

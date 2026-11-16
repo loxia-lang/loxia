@@ -27,6 +27,11 @@ Como o código-fonte é dividido em tokens. Implementação: [`loxia_core/fronte
 - Ignorados: espaço, `\t`, `\r`.
 - `\n` encerra a linha e incrementa o contador (linhas começam em **1**).
 - Comentário de linha: `#` até o fim da linha.
+- Comentário de documentação: `///` no início da linha (depois de espaços), uma ou mais
+  linhas consecutivas imediatamente antes de uma declaração. O texto é Markdown; a
+  primeira linha é o resumo. Linha em branco ou outro comentário quebra o vínculo; a doc
+  é guardada na AST (`doc`) e **não** vira token nem chega ao runtime ([ADR-0091](../adr/0091-doc-comments-e-geracao-de-docs.md)).
+  `///` só é doc no início da linha; `//` continua sendo divisão inteira.
 - Comentário de bloco: `/* ... */`, **aninhado** (`/* /* */ */`); bloco não fechado é
   `Unterminated block comment.` e conta as linhas internas.
 - Comentários aparecem em qualquer lugar entre tokens (inclusive no fim de linha); `#`

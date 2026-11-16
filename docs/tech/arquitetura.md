@@ -51,7 +51,8 @@ Pacotes por fase (dependência só para baixo):
 | Módulo | Responsabilidade |
 | --- | --- |
 | [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
-| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcomandos, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restrito a `check`, warnings e exit codes |
+| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcomandos, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restrito a `check`, warnings, `doc` e exit codes |
+| [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
 | [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
 | [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |

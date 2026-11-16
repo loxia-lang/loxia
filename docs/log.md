@@ -698,3 +698,20 @@ aditivos, `capabilities`/`explain`, `--json`/`--json-lines`, `--stdin`, `--timeo
 - `tests/test_cli.py`, `tests/test_docs_consistency.py` — **updated**: cobertura nova.
 
 <!-- triaged: 20de298 -->
+
+## 2026-11-16 — doc comments `///` e `lox doc`
+
+Intervalo: `HEAD`..working tree. Implementa a primeira fatia do ADR-0091: doc comments
+`///` no scanner/AST/parser, `lox doc` Markdown/JSON e scope de documentação na grammar.
+Docs obrigatórias da stdlib/builtins e a geração de `docs/stdlib/` continuam pendentes.
+
+- `loxia_core/frontend/tokens.py`, `scanner.py`, `parser.py`, `stmt.py` — **updated**:
+  `doc` no token/AST e anexação por linha imediatamente anterior.
+- `loxia/docgen.py` — **new**: extração e render Markdown/JSON.
+- `loxia/cli.py` — **updated**: subcomando `doc` (`--stdin`, `--json`).
+- `editors/build_grammar.py` e artefatos gerados — **updated**: scope
+  `comment.line.documentation.loxia`; `tests/test_editor_grammar.py` ajustado.
+- `docs/spec/lexico.md` — **updated**: `///` e regra de vínculo.
+- `README.md`, `CHANGELOG.md`, `TODO.md`, `docs/adr/0091`, `docs/adr/README.md`,
+  `docs/decisoes.md`, `docs/tech/arquitetura.md` — **updated**: contrato/status.
+- `tests/test_cli.py` — **updated**: cobertura de doc/Markdown/JSON/anexação.

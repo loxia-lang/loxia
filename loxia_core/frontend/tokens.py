@@ -17,6 +17,8 @@ class Token:
     # reporter cai no arquivo da execução. É o que permite checker/resolver apontarem
     # o módulo certo depois que o loader devolve a entrada (ADR-0075).
     file: str = ""
+    # Doc comment `///` imediatamente antes deste token (normalizada; ADR-0091).
+    doc: str | None = None
 
     def __str__(self) -> str:
         return f"{self.type.name} {self.lexeme} {self.literal}"

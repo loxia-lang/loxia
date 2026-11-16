@@ -188,6 +188,10 @@ def build() -> dict[str, Any]:
     classes, others = _builtin_groups()
 
     repository: dict[str, Any] = {
+        "doc-comment": {
+            "match": r"^\s*///.*$",
+            "name": "comment.line.documentation.loxia",
+        },
         "line-comment": {
             "match": "#.*$",
             "name": "comment.line.number-sign.loxia",
@@ -302,6 +306,7 @@ def build() -> dict[str, Any]:
         repository[key] = {"match": _word_alternation(words), "name": scope}
 
     patterns: list[dict[str, Any]] = [
+        {"include": "#doc-comment"},
         {"include": "#line-comment"},
         {"include": "#block-comment-0"},
         {"include": "#declarations"},

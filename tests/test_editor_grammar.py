@@ -103,14 +103,15 @@ def test_barra_barra_e_divisao_nao_comentario() -> None:
     repository = _grammar()["repository"]
     comments = [
         value
-        for rule in repository.values()
-        if "comment" in rule.get("name", "")
+        for name, rule in repository.items()
+        if name != "doc-comment" and "comment" in rule.get("name", "")
         for value in (rule.get("match"), rule.get("begin"), rule.get("end"))
         if isinstance(value, str)
     ]
 
     assert comments, "a grammar não tem regra de comentário"
     assert not any("//" in pattern for pattern in comments)
+    assert "///" in repository["doc-comment"]["match"]
     assert "//" in repository["operators"]["match"]
 
 

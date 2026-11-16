@@ -25,6 +25,10 @@ class Scanner:
         # Snapshot do arquivo de exibição: o loader troca `reporter.file` por módulo.
         # Sem reporter explícito o scanner não conhece a origem (tokens sintéticos).
         self._file: str = reporter.file if reporter is not None else ""
+        # Doc comments `///` (ADR-0091): linhas consecutivas no início da linha.
+        self._doc_lines: list[str] = []
+        self._last_doc_line: int = 0
+        self._line_has_code: bool = False
 
     def scan_tokens(self) -> list[Token]:
 
@@ -97,6 +101,8 @@ class Scanner:
             case "~":
                 self._add_token(TokenType.TILDE)
             case "#":
+                self._doc_lines = []
+                self._last_doc_line = 0
                 while self._peek() != "\n" and not self._is_at_end():
                     self._advance()
             case ".":
@@ -160,7 +166,9 @@ class Scanner:
                     )
 
             case "/":
-                if self._match("*"):
+                if not self._line_has_code and self._is_doc_comment():
+                    self._scan_doc_line()
+                elif self._match("*"):
                     self._block_comment()
                 elif self._match("/"):
                     self._add_token(TokenType.SLASH_SLASH)
@@ -192,6 +200,8 @@ class Scanner:
 
         while depth > 0 and not self._is_at_end():
             if self._peek() == "/" and self._peek_next() == "*":
+                self._doc_lines = []
+                self._last_doc_line = 0
                 self._advance()
                 self._advance()
                 depth += 1
@@ -219,12 +229,14 @@ class Scanner:
         if c == "\n":
             self._line += 1
             self._column = 1
+            self._line_has_code = False
         else:
             self._column += 1
         return c
 
     def _add_token(self, type: TokenType, literal: object = None) -> None:
         text = self._source[self._start : self._current]
+        doc = self._take_doc()
         self._tokens.append(
             Token(
                 type,
@@ -234,8 +246,40 @@ class Scanner:
                 self._start_column,
                 self._start_offset,
                 file=self._file,
+                doc=doc,
             )
         )
+        self._line_has_code = True
+
+    def _is_doc_comment(self) -> bool:
+        return self._peek() == "/" and self._peek_next() == "/"
+
+    def _scan_doc_line(self) -> None:
+        if (
+            self._doc_lines
+            and self._start_line != self._last_doc_line + 1
+        ):
+            self._doc_lines = []
+        self._advance()
+        self._advance()
+        start = self._current
+        while self._peek() != "\n" and not self._is_at_end():
+            self._advance()
+        text = self._source[start : self._current]
+        if text.startswith(" "):
+            text = text[1:]
+        self._doc_lines.append(text.rstrip())
+        self._last_doc_line = self._start_line
+
+    def _take_doc(self) -> str | None:
+        if not self._doc_lines or self._start_line != self._last_doc_line + 1:
+            self._doc_lines = []
+            self._last_doc_line = 0
+            return None
+        doc = "\n".join(self._doc_lines).strip("\n")
+        self._doc_lines = []
+        self._last_doc_line = 0
+        return doc or None
 
     def _match(self, expected: str) -> bool:
         if self._is_at_end():

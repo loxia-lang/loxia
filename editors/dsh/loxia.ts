@@ -13,6 +13,9 @@ const grammar = {
   ],
   "patterns": [
     {
+      "include": "#doc-comment"
+    },
+    {
       "include": "#line-comment"
     },
     {
@@ -71,6 +74,10 @@ const grammar = {
     }
   ],
   "repository": {
+    "doc-comment": {
+      "match": "^\\s*///.*$",
+      "name": "comment.line.documentation.loxia"
+    },
     "line-comment": {
       "match": "#.*$",
       "name": "comment.line.number-sign.loxia"

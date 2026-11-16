@@ -162,13 +162,13 @@ class Parser:
             if self._is_type_alias_declaration():
                 return self._type_alias_declaration()
             if self._match(TokenType.CLASS):
-                return self._class_declaration()
+                return self._class_declaration(self._previous())
 
             if self._match(TokenType.INTERFACE):
-                return self._interface_declaration()
+                return self._interface_declaration(self._previous())
 
             if self._match(TokenType.ENUM):
-                return self._enum_declaration()
+                return self._enum_declaration(self._previous())
 
             if self._match(TokenType.FN):
                 if self._check(TokenType.LEFT_PAREN):
@@ -176,13 +176,17 @@ class Parser:
                     self._end_statement("Expect ';' after expression.")
                     return Expression(expression)
 
-                return self._function("function")
+                return self._function("function", fn_token=self._previous())
 
             if self._match(TokenType.VAL):
-                return self._var_declaration(mutable=False)
+                return self._var_declaration(
+                    mutable=False, keyword=self._previous()
+                )
 
             if self._match(TokenType.VAR):
-                return self._var_declaration(mutable=True)
+                return self._var_declaration(
+                    mutable=True, keyword=self._previous()
+                )
 
             return self._statement()
         except ParseError:
@@ -212,7 +216,7 @@ class Parser:
         self._consume(TokenType.EQUAL, "Expect '=' after type alias name.")
         target = self._type()
         self._end_statement("Expect ';' after type alias.")
-        return TypeAlias(keyword, name, target)
+        return TypeAlias(keyword, name, target, doc=keyword.doc)
 
     def _module_path(self) -> tuple[Token, ...]:
         path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
@@ -245,7 +249,7 @@ class Parser:
         self._end_statement("Expect ';' after import.")
         return Import(path=path, names=tuple(names), from_import=True)
 
-    def _class_declaration(self) -> Stmt:
+    def _class_declaration(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect class name.")
         type_params, type_param_bounds = self._type_parameters()
         self._reject_type_param_bounds(type_param_bounds, "class")
@@ -277,21 +281,35 @@ class Parser:
         methods: list[Function] = []
         while not self._check(TokenType.RIGHT_BRACE) and not self._is_at_end():
             if self._match(TokenType.VAL):
-                fields.append(self._field_declaration(mutable=False))
+                fields.append(
+                    self._field_declaration(
+                        mutable=False, keyword=self._previous()
+                    )
+                )
             elif self._match(TokenType.VAR):
-                fields.append(self._field_declaration(mutable=True))
+                fields.append(
+                    self._field_declaration(
+                        mutable=True, keyword=self._previous()
+                    )
+                )
             else:
                 # `fn` é opcional em método: o corpo da classe já marca a declaração.
-                self._match(TokenType.FN)
-                methods.append(self._function("method"))
+                fn_token = self._previous() if self._match(TokenType.FN) else None
+                methods.append(self._function("method", fn_token=fn_token))
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
 
         return Class(
-            name, superclass, fields, methods, type_params, implements=implements
+            name,
+            superclass,
+            fields,
+            methods,
+            type_params,
+            implements=implements,
+            doc=keyword.doc,
         )
 
-    def _interface_declaration(self) -> Stmt:
+    def _interface_declaration(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect interface name.")
         if self._check(TokenType.LEFT_BRACKET):
             raise self._error(
@@ -310,13 +328,17 @@ class Parser:
                     Code.INVALID_DECLARATION,
                 )
             # `fn` é opcional, como em método (ADR-0067).
-            self._match(TokenType.FN)
-            methods.append(self._function("method", allow_abstract=True))
+            fn_token = self._previous() if self._match(TokenType.FN) else None
+            methods.append(
+                self._function(
+                    "method", allow_abstract=True, fn_token=fn_token
+                )
+            )
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after interface body.")
-        return Interface(name, methods)
+        return Interface(name, methods, doc=keyword.doc)
 
-    def _enum_declaration(self) -> Stmt:
+    def _enum_declaration(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect enum name.")
         type_params, type_param_bounds = self._type_parameters()
         self._reject_type_param_bounds(type_param_bounds, "enum")
@@ -339,14 +361,16 @@ class Parser:
                         "Expect ')' after variant payload.",
                     )
 
-                variants.append(EnumVariant(variant, payload))
+                variants.append(
+                    EnumVariant(variant, payload, doc=variant.doc)
+                )
                 if not self._match(TokenType.COMMA):
                     break
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after enum variants.")
-        return EnumDecl(name, type_params, variants)
+        return EnumDecl(name, type_params, variants, doc=keyword.doc)
 
-    def _field_declaration(self, mutable: bool) -> Field:
+    def _field_declaration(self, mutable: bool, *, keyword: Token) -> Field:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
 
         type_annotation: Ty | None = None
@@ -365,7 +389,13 @@ class Parser:
 
         self._end_statement("Expect ';' after field declaration.")
 
-        return Field(name, initializer, mutable, type_annotation)
+        return Field(
+            name,
+            initializer,
+            mutable,
+            type_annotation,
+            doc=keyword.doc,
+        )
 
     def _destructure(self, mutable: bool) -> Stmt:
         pattern = self._destructure_pattern()
@@ -400,7 +430,7 @@ class Parser:
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
         return NamePattern(name)
 
-    def _var_declaration(self, mutable: bool) -> Stmt:
+    def _var_declaration(self, mutable: bool, *, keyword: Token) -> Stmt:
         if self._check(TokenType.LEFT_PAREN):
             return self._destructure(mutable)
 
@@ -423,7 +453,13 @@ class Parser:
 
         self._end_statement("Expect ';' after variable declaration.")
 
-        return Var(name, initializer, mutable, type_annotation)
+        return Var(
+            name,
+            initializer,
+            mutable,
+            type_annotation,
+            doc=keyword.doc,
+        )
 
     def _statement(self) -> Stmt:
         if self._match(TokenType.FOR):
@@ -518,9 +554,13 @@ class Parser:
         if self._match(TokenType.SEMICOLON):
             initializer = None
         elif self._match(TokenType.VAL):
-            initializer = self._var_declaration(mutable=False)
+            initializer = self._var_declaration(
+                mutable=False, keyword=self._previous()
+            )
         elif self._match(TokenType.VAR):
-            initializer = self._var_declaration(mutable=True)
+            initializer = self._var_declaration(
+                mutable=True, keyword=self._previous()
+            )
         else:
             initializer = self._expression_statement()
 
@@ -635,8 +675,15 @@ class Parser:
 
         raise self._error(self._peek(), message)
 
-    def _function(self, kind: str, *, allow_abstract: bool = False) -> Function:
+    def _function(
+        self,
+        kind: str,
+        *,
+        allow_abstract: bool = False,
+        fn_token: Token | None = None,
+    ) -> Function:
         name = self._consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
+        doc = name.doc or (fn_token.doc if fn_token is not None else None)
         type_params, type_param_bounds = self._type_parameters()
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after {kind} name.")
         parameters = self._parameters()
@@ -655,6 +702,7 @@ class Parser:
                 type_params,
                 type_param_bounds=type_param_bounds,
                 abstract=True,
+                doc=doc,
             )
 
         self._consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
@@ -667,6 +715,7 @@ class Parser:
             return_type,
             type_params,
             type_param_bounds=type_param_bounds,
+            doc=doc,
         )
 
     def _type_parameters(

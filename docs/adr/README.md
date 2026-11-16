@@ -136,7 +136,7 @@ Crie quando a decisão:
 | [0088](0088-distribuicao-e-raizes-de-modulo.md) | Distribuição: comando `loxia`, stdlib embutida e raízes de módulo declaradas | accepted (implementação pendente) | 2026-11-15 |
 | [0089](0089-stack-trace-de-runtime.md) | Stack trace de runtime: frames, call site e posição do R1015 | accepted (implementado) | 2026-11-15 |
 | [0090](0090-lsp-escopo-e-hospedagem.md) | LSP: Python no repo, JSON-RPC, diagnóstico e fases | accepted (plano; implementação pendente) | 2026-11-15 |
-| [0091](0091-doc-comments-e-geracao-de-docs.md) | Documentação: doc comments `///`, Markdown e geração | accepted (plano; implementação pendente) | 2026-11-15 |
+| [0091](0091-doc-comments-e-geracao-de-docs.md) | Documentação: doc comments `///`, Markdown e geração | accepted (implementação parcial) | 2026-11-16 |
 | [0092](0092-estilo-e-formatter.md) | Estilo e formatter: nomes, perfil e dogfood em Lox | accepted (plano; implementação pendente) | 2026-11-15 |
 | [0093](0093-cli-agent-friendly-e-reparo.md) | CLI agent-friendly: subcomandos, JSONL/watch, timeout, warnings e reparo | accepted (implementação parcial) | 2026-11-16 |
 

@@ -577,3 +577,150 @@ def test_watch_emits_initial_snapshot_and_can_be_stopped(tmp_path: Path) -> None
     ]
     assert events[1]["code"] == "E1001"
     assert events[2]["revision"] == 0
+
+
+# -- doc comments e lox doc (ADR-0091) ------------------------------------
+
+
+def test_doc_json_from_stdin_has_signature_and_docs() -> None:
+    source = '''/// Adds two ints.
+fn add(a: Int, b: Int) -> Int {
+  return a + b
+}
+
+/// A point.
+class Point {
+  /// x coordinate.
+  val x: Int
+}
+'''
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "doc",
+            "--stdin",
+            "--file-name",
+            "api.lx",
+            "--json",
+        ],
+        cwd=ROOT,
+        input=source,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == 1
+    assert payload["source"] == "api.lx"
+    symbols = {item["name"]: item for item in payload["symbols"]}
+    assert symbols["add"]["signature"] == "fn add(a: Int, b: Int) -> Int"
+    assert symbols["add"]["doc"] == "Adds two ints."
+    assert symbols["Point"]["doc"] == "A point."
+    assert symbols["x"]["doc"] == "x coordinate."
+    assert symbols["x"]["container"] == "Point"
+
+
+def test_doc_does_not_execute_or_include_imported_modules(tmp_path: Path) -> None:
+    script = tmp_path / "api.lx"
+    script.write_text(
+        "/// Main.\nfn main() {\n  print(1)\n}\n", encoding="utf-8"
+    )
+
+    result = run_cli("doc", str(script))
+
+    assert result.returncode == 0
+    assert "fn main()" in result.stdout
+    assert "1\n" not in result.stdout
+
+
+def test_doc_syntax_error_exits_65(tmp_path: Path) -> None:
+    script = tmp_path / "quebrado.lx"
+    script.write_text("/// quebrado\nfn (\n", encoding="utf-8")
+
+    result = run_cli("doc", str(script))
+
+    assert result.returncode == 65
+
+
+def test_doc_requires_script_or_stdin() -> None:
+    result = run_cli("doc")
+
+    assert result.returncode == 2
+
+
+def test_doc_comment_blank_line_breaks_attachment(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.error_reporter import ErrorReporter
+    from loxia_core.frontend.parser import Parser
+    from loxia_core.frontend.scanner import Scanner
+    from loxia_core.frontend.stmt import Function
+
+    source = """/// orphan
+
+fn f() -> Int {
+  return 1
+}
+"""
+    reporter = ErrorReporter()
+    tokens = Scanner(source, reporter).scan_tokens()
+    statements = Parser(tokens, reporter=reporter).parse()
+
+    assert statements is not None
+    assert len(statements) == 1
+    assert isinstance(statements[0], Function)
+    assert statements[0].doc is None
+
+
+def test_doc_covers_interface_enum_type_alias_and_method() -> None:
+    source = '''/// A shape.
+interface Shape {
+  /// Area.
+  fn area() -> Float
+}
+
+/// Colors.
+enum Cor {
+  /// Yellow.
+  AMARELO
+}
+
+/// A name.
+type Nome = String
+
+/// A box.
+class Box {
+  /// The value.
+  var value: Int
+}
+'''
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "doc",
+            "--stdin",
+            "--file-name",
+            "api.lx",
+            "--json",
+        ],
+        cwd=ROOT,
+        input=source,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    symbols = {item["name"]: item for item in payload["symbols"]}
+    assert symbols["Shape"]["doc"] == "A shape."
+    assert symbols["area"]["doc"] == "Area."
+    assert symbols["area"]["container"] == "Shape"
+    assert symbols["Cor"]["doc"] == "Colors."
+    assert symbols["AMARELO"]["doc"] == "Yellow."
+    assert symbols["Nome"]["kind"] == "type"
+    assert symbols["value"]["container"] == "Box"

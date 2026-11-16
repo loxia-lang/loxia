@@ -68,6 +68,7 @@ class Field:
     initializer: Expr | None
     mutable: bool
     type_annotation: Ty | None = None
+    doc: str | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -79,6 +80,7 @@ class Class(Stmt):
     type_params: list[Token] = field(default_factory=list)
     display_name: str | None = None
     implements: list[Token] = field(default_factory=list)
+    doc: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)
@@ -91,6 +93,7 @@ class TypeAlias(Stmt):
     keyword: Token
     name: Token
     target: Ty
+    doc: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_type_alias_stmt(self)
@@ -107,6 +110,7 @@ class Interface(Stmt):
     name: Token
     methods: list[Function]
     display_name: str | None = None
+    doc: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_interface_stmt(self)
@@ -116,6 +120,7 @@ class Interface(Stmt):
 class EnumVariant:
     name: Token
     payload: list[Ty]
+    doc: str | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -124,6 +129,7 @@ class EnumDecl(Stmt):
     type_params: list[Token]
     variants: list[EnumVariant]
     display_name: str | None = None
+    doc: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_enum_stmt(self)
@@ -183,6 +189,7 @@ class Function(Stmt):
     type_param_bounds: list[tuple[Token, ...]] = field(default_factory=list)
     display_name: str | None = None
     abstract: bool = False
+    doc: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)
@@ -223,6 +230,7 @@ class Var(Stmt):
     initializer: Expr | None
     mutable: bool
     type_annotation: Ty | None = None
+    doc: str | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)

@@ -1,6 +1,11 @@
 # ADR-0091 — Documentação: doc comments `///`, formato e geração
 
-- **Status:** accepted (plano; implementação pendente)
+> **Implementação parcial (2026-11-16):** `///` no scanner/AST/parser, doc em
+> função/método/classe/interface/enum/variante/campo/type alias/`val`/`var` e
+> `lox doc` Markdown/JSON (stdin incluído). Pendentes: docs públicas obrigatórias da
+> stdlib, registry de builtins, geração de `docs/stdlib/` e integração com o site.
+
+- **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0066](0066-orcamento-e-gate-sintatico.md) (gate sintático),
@@ -8,10 +13,11 @@
   [ADR-0090](0090-lsp-escopo-e-hospedagem.md) (hover), [ADR-0016](0016-api-stdlib-hibrida.md)
   (API da stdlib), [ADR-0072](0072-stdlib-batteries.md) (batteries),
   [`../../TODO.md`](../../TODO.md) §10 e §14.2, [`../../IDEIAS.md`](../../IDEIAS.md) I-4
-- **Implementação (a criar):** `loxia_core/frontend/scanner.py` (doc comments),
-  `loxia_core/frontend/parser.py` e nós de AST (`doc`), `loxia_core/frontend/ast_printer.py`,
-  `loxia/cli.py` (`doc`), `docs/stdlib/` gerado, `editors/` (grammar), `tests/test_docs.py`.
-  Nada implementado neste ADR.
+- **Implementação:** `loxia_core/frontend/scanner.py` e `tokens.py` (doc comments),
+  `parser.py`/`stmt.py` (`doc`), `loxia/docgen.py`, `loxia/cli.py` (`doc`),
+  `editors/build_grammar.py` (scope de doc), `docs/spec/lexico.md` e
+  `tests/test_cli.py`/`tests/test_editor_grammar.py`. Pendentes: stdlib/builtins,
+  `docs/stdlib/` e site.
 
 ## Contexto
 

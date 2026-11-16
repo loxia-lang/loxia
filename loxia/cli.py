@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 # Comandos de inspeção: o JSON vai para stdout (não há saída de programa). `build` e
 # `run` podem escrever IR/programa em stdout, então o JSON deles vai para stderr.
 JSON_ON_STDOUT = frozenset({"check"})
-COMMANDS = ("run", "check", "build", "ast", "explain", "capabilities")
+COMMANDS = ("run", "check", "build", "ast", "doc", "explain", "capabilities")
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
 _WATCH_INTERVAL_SECONDS = 0.25
 
@@ -159,6 +159,31 @@ class Loxia:
             print(AstPrinter().print_program(statements))
 
         self._flush("ast", exit_code=self._exit_code())
+
+    def document(self, source: str, *, json_output: bool = False) -> bool:
+        """Gera a referência de um arquivo a partir de `///` (não executa)."""
+        from loxia import docgen
+
+        self.reporter.reset()
+        self.reporter.file = self._file
+        self._sources.add(self._file, source)
+
+        scanner = Scanner(source, self.reporter)
+        tokens = scanner.scan_tokens()
+        parser = Parser(tokens, reporter=self.reporter)
+        statements = parser.parse()
+        if self.reporter.had_error or statements is None:
+            self._flush("doc", exit_code=65, always=True)
+            return False
+
+        symbols = docgen.extract(statements)
+        if json_output:
+            text = docgen.render_json(self._file, symbols)
+        else:
+            text = docgen.render_markdown(self._file, symbols)
+        sys.stdout.write(text)
+        sys.stdout.flush()
+        return True
 
     def check(self, source: str, *, emit: bool = True) -> int:
         statements = self._parse(source)
@@ -656,6 +681,34 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_common_options(parser)
         _add_stdin_options(parser)
         parser.add_argument("script", nargs="?", help="script Loxia")
+    elif command == "doc":
+        parser.add_argument("script", nargs="?", help="arquivo Loxia")
+        parser.add_argument("--stdin", action="store_true", help="lê de stdin")
+        parser.add_argument("--file-name", metavar="NOME", help="nome de exibição")
+        parser.add_argument(
+            "--json", action="store_true", help="referência em JSON"
+        )
+        parser.add_argument(
+            "--error-format",
+            choices=("human", "short", "json"),
+            default="human",
+            action=_ErrorFormatAction,
+            help="formato dos diagnósticos",
+        )
+        parser.add_argument(
+            "--color",
+            choices=("auto", "always", "never"),
+            default="auto",
+            help="cor nos diagnósticos",
+        )
+        parser.add_argument(
+            "--max-errors",
+            type=int,
+            default=20,
+            metavar="N",
+            help="limite de diagnósticos",
+        )
+        parser.set_defaults(error_format_explicit=False)
     elif command == "explain":
         parser.add_argument("code", help="código de diagnóstico (ex.: E2001)")
         parser.add_argument("--json", action="store_true", help="saída JSON")
@@ -819,6 +872,30 @@ def _run_source(
     sys.exit(lox.exit_code())
 
 
+def _run_doc(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.script and args.stdin:
+        parser.error("--stdin cannot be combined with a script")
+    if not args.script and not args.stdin:
+        parser.error("doc requires a script (or --stdin)")
+    if args.file_name is not None and not args.stdin:
+        parser.error("--file-name requires --stdin")
+    if args.max_errors < 0:
+        parser.error("--max-errors must be non-negative")
+    lox = Loxia(
+        error_format=args.error_format,
+        color=args.color,
+        max_errors=args.max_errors,
+    )
+    source = _set_source(
+        lox,
+        path=args.script,
+        stdin=args.stdin,
+        file_name=args.file_name,
+    )
+    if not lox.document(source, json_output=args.json):
+        sys.exit(65)
+
+
 def _run_build(lox: Loxia, args: argparse.Namespace) -> None:
     source = _set_source(
         lox,
@@ -892,6 +969,7 @@ def _capabilities_payload() -> dict[str, object]:
         },
         {"name": "build", "features": ["json", "json-lines"]},
         {"name": "ast", "features": ["json", "json-lines", "stdin"]},
+        {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
     ]
@@ -979,6 +1057,10 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
             _explain(args.code, args.json)
         else:
             _print_capabilities(args.json)
+        return
+
+    if command == "doc":
+        _run_doc(args, parser)
         return
 
     _validate(args, parser, command=command)

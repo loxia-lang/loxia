@@ -136,6 +136,7 @@ uv run main.py run prog.lx                 # executa
 uv run main.py check prog.lx               # checa (como --check)
 uv run main.py build prog.lx --emit=exe -o app
 uv run main.py ast prog.lx                 # como --dump-ast
+uv run main.py doc prog.lx --json          # doc comments /// (ADR-0091)
 uv run main.py explain E2001               # família do código
 uv run main.py capabilities --json         # versão, comandos, códigos e limites
 ```
@@ -146,7 +147,9 @@ timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibid
 de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
 para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
 `--no-progress` é aceito e hoje é no-op. `-Werror` transforma warnings em erros (só
-`check`/`build`; `run` nunca emite warnings).
+`check`/`build`; `run` nunca emite warnings). `doc` gera Markdown (padrão) ou JSON a
+partir dos comentários `///` de funções, classes, interfaces, enums, variantes, campos,
+tipos e `val`/`var`; não executa o programa.
 
 Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo ausente,
 `2` uso inválido, `124` timeout, `130` `--watch` interrompido. O binário gerado por
