@@ -311,6 +311,11 @@ de I/O e do M7.
 **Decidir até:** depois que async e a stdlib de I/O existirem, e antes de prometer
 performance multinúcleo.
 
+> **Nota (2026-11-16):** concorrência de **I/O** (spawn, servidor) não exige thread:
+> `poll` sobre handles resolve sem heap compartilhado e sem `async` (ver I-11). Thread
+> continua sendo só para CPU, e a primeira forma a tentar segue data-parallel
+> determinístico.
+
 ### A pergunta
 
 Async (ADR-0037) é **concorrência single-thread**: uma tarefa por vez, determinística.
@@ -759,3 +764,225 @@ problema de comunidade, não de código.
 - self-hosting do front-end (o resolver em Loxia vira exercício real);
 - se `loxia.toml` já existir com `[modules]`, a fase 1 é aditiva — só adiciona
   `[dependencies]`.
+
+---
+
+## I-11 — Capacidades de host: stdio binário, processo, `poll` e rede
+
+**Status:** `em avaliação` — desenho aberto, nada implementado; o servidor LSP continua em
+Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+**Origem:** 2026-11-16 — "o LSP não deu em Loxia por falta de stdlib de processo/rede?".
+**Relacionados:** [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (kernel, sem FFI
+genérica), [ADR-0072](docs/adr/0072-stdlib-batteries.md) (`ambient`),
+[ADR-0079](docs/adr/0079-stdlib-t2.md) (T2), [`TODO.md`](TODO.md) §9.1 (`R1`) e §13.9.
+
+### A pergunta
+
+O que exatamente falta de ferramental para processo/rede, em que forma entra (FFI genérica,
+shim C, primitiva tipada) e qual caso de uso paga a conta?
+
+### Resposta curta
+
+LSP **não** precisa de rede: é stdio com framing `Content-Length`. O que falta é ler **N
+bytes** e garantir **flush**; JSON-RPC, framing, dispatch e store de documentos são Lox
+puro sobre `std.json`. O bloqueio real é outro: **nenhum programa Loxia consegue analisar
+outro arquivo Loxia** — não há front-end self-hosted nem API de compilador exposta.
+
+Então "faltou stdlib de processo/rede" era o sintoma; a causa é a ausência de uma
+capacidade de compilador. Rede, para o LSP, é zero.
+
+### Fatos do código (2026-11-16)
+
+- kernel: 17 primitivas (`args`, `io.*`, `fs.exists/listDir`, `os.*`, `time.*`, `substr`,
+  `join`, `charCodeAt`, `fromCodePoint`) em `loxia_core/execution/primitives.py` — tabela
+  única com `c_symbol`, corpo Python e `ambient`;
+- `std/`: T1 + T2 prontos (`json`, `io`, `fs`, `paths`, `convert` com base64/hex **sobre
+  texto**, sem `Bytes`);
+- `runtime/runtime.c`: 2.524 linhas, das quais ~200 são kernel; o resto é representação
+  (strings, `List`/`Map`/tupla/enum, descritor de classe, exceções, GC, panic);
+- `io.write` no binário não faz flush; no oráculo faz — ver [`TODO.md`](TODO.md) §9.1
+  `R1` (o bug latente mais concreto desta análise);
+- LSP local = stdio ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+
+### O que um LSP em Loxia exigiria
+
+1. `io.readUtf8(n) -> String?` — `Content-Length` conta **bytes** UTF-8; `readLine` e
+   `readAll` não servem;
+2. `io.flush() -> Nil` — o binário bufferiza;
+3. `byteLen(s)` e largura UTF-16 — **Lox puro** (`std/utf8`); são duas unidades diferentes
+   no mesmo arquivo, e é a fonte clássica de bug de posição;
+4. framing + JSON-RPC + dispatch — **Lox puro** (`std/lsp` + `std.json`).
+
+**Não precisa de:** socket, thread, `stat`/mtime, file watching. O cliente empurra o texto
+(`didChange`, full sync) e módulo alterado se resolve relendo e comparando o conteúdo.
+
+### Quem analisa o documento (o bloqueio real)
+
+| Caminho | Precisa | Custo | Risco |
+| --- | --- | --- | --- |
+| **A. servidor em Python** | nada | S | nenhum; é a decisão atual |
+| **B. Loxia delegando ao CLI** | `proc.spawn` + `poll` | M | ~40–100 ms de boot por mudança; debounce resolve |
+| **C. Loxia com front-end próprio** | portar parser+checker | XL | **duas verdades** de diagnóstico (`check` × servidor); I4 |
+
+B é o único caminho de dogfooding que não duplica regra: `proc.spawn("loxia", ["check",
+"--error-format=json", ...])` + `std.json` no stdout já dá diagnóstico, span e trace; a
+tradução span→range (code point → UTF-16) é a única lógica nova. C só depois do
+self-hosting do front-end — e aí o trabalho é de compilador, não de stdlib.
+
+### Catálogo por camada
+
+| Camada | Superfície | Esforço | Demanda hoje |
+| --- | --- | --- | --- |
+| kernel #18 | `io.flush()` | S | `prompt`, JSONL, qualquer pipe |
+| kernel #19 | `io.readUtf8(n) -> String?` | S | framing de protocolo |
+| kernel #20–26 (ilustrativo) | `proc.spawn(argv, opts) -> Process`; `Process.{stdin, stdout, stderr, wait() -> Int, tryWait() -> Int?, kill(sig)}` | M | B, `lox fmt`, `lox test` |
+| kernel #27 | `poll(handles, timeoutMs) -> List[Int]` (índices prontos) | M | `spawn` com dois pipes; I/O concorrente |
+| kernel #28–31 | `net.tcpListen`/`tcpConnect`; `Socket.{read, write, close}`; `net.unix*` | M | nenhum (LSP não usa) |
+| kernel #32 | `fs.open(path, mode) -> File` (streaming) | M | arquivos grandes (§10 do TODO) |
+| std | `utf8`: `byteLen`, `utf16Width`, decode estrito | S | LSP/qualquer protocolo |
+| std | `lsp`: framing, JSON-RPC, `DocumentStore` | M | dogfooding |
+| std | `process`: `run(argv) -> Result[Output, OsError]` | S | açúcar sobre `proc` |
+| std | `http`: request/response sobre `net` | L | sem consumidor |
+| **fora** | TLS, DNS, HTTP/2, threads, async/await, libuv, FFI genérica | — | não |
+
+### Desenho (regras que valem mais que a lista)
+
+- **`ambient: true` em tudo.** Fora do corpus I1/I3, como `fs.exists`/`time.now`.
+  `io.write`/`io.flush` continuam determinísticos e entram no corpus.
+- **Erro de host é `Result[T, OsError]`, não `T?`.** `nil` apaga `errno`; o ADR-0079 já
+  admitiu que "arquivo ilegível ≠ inexistente" é dor. `OsError` é enum com `NotFound`,
+  `Permission`, `IsDir`, `Busy`, `Timeout`, `Other(Int)`; `T?` fica só nas APIs antigas
+  (assimetria documentada na spec).
+- **Handle opaco, `close()` explícito, sem finalizer.** Boehm não é determinístico (mesma
+  decisão do `fs.open` no TODO §10); `try/finally` é o cleanup. Usar handle fechado é
+  `RuntimeError`; `close()` idempotente.
+- **`poll` antes de thread.** É a concorrência que este runtime paga: sem heap
+  compartilhado, sem data race, sem sintaxe de `async`. `spawn` com dois pipes **exige**
+  `poll`, senão `stderr` enche e deadlocka.
+- **Nenhum callback C→Lox que possa lançar.** `accept(handler)`/`listen(fn)` fazem unwind
+  de exceção Lox através de frame C — UB na prática; a API é *pull*.
+- **`proc.spawn` sem shell.** `argv` é lista; `cwd`/`env` explícitos; nunca interpolar
+  string em shell.
+- **`net` v1 sem DNS e sem TLS.** DNS é o primeiro passo para não-determinismo de rede (e
+  teste em loopback não precisa dele); TLS é árvore de dependência (cert store, relógio,
+  SNI) e não passa no portão do ADR-0014 hoje.
+- **Sem FFI genérica.** O sistema de tipos não expressa ponteiro/struct/varargs/callback;
+  I1 morre (o oráculo teria que usar `ctypes`, proibido no ADR-0071); ownership indefinido;
+  Boehm não vê `malloc`. O shim C **é** o caminho — como primitiva tipada da tabela
+  (ADR-0071), não como `dlopen` para o usuário. Ver I-12.
+
+### Por que não agora
+
+- O LSP em Python (ADR-0090) é a decisão certa de produto e não bloqueia nada.
+- `proc`/`net` sem consumidor é superfície paga pelo codegen (portão do ADR-0014).
+- `io.flush` + `io.readUtf8` são exceção: o primeiro **corrige bug**, o segundo é barato e
+  fecha a lacuna de qualquer protocolo por stdio — não dependem de rede.
+
+### Recomendação provisória
+
+1. P0: `io.flush` (com o fix do `R1`) e `io.readUtf8`, `std/utf8` em Lox; regressão em modo
+   streaming.
+2. P1: `std/lsp` de framing (sem servidor) — é determinístico e testável por transcrição.
+3. P2: `proc` + `poll` quando `lox fmt`/`lox test`/caminho B precisarem.
+4. P3: `fs.open`; `net` só com consumidor real.
+
+### Perguntas abertas
+
+- [ ] `Bytes` entra antes ou depois de `net`? (LSP não precisa; HTTP binário precisa.)
+- [ ] Migrar `T?` antigo para `Result`/`OsError` ou conviver com a assimetria?
+- [ ] `poll` por handle ou por `Reader`/`Writer`? (Hoje não há método nativo em tipo
+      embutido; handle concreto + adapter em Lox evita `NativeClassTy` completo.)
+- [ ] `posix_spawn` (portável, sem fork) ou `fork`+`exec`? `posix_spawn` evita fork com GC.
+- [ ] Buffering: flush por escrita (igual ao oráculo; custo em laço com `print`) ou
+      `io.flush` explícito com oráculo bufferizado?
+- [ ] Limite de handles por processo: tabela fixa ou dinâmica?
+
+### Gatilhos para revisitar
+
+- `io.flush`/`readUtf8`: já justificados (`R1`, `prompt`, JSONL).
+- `proc`: quando o primeiro fluxo real precisar rodar algo (formatter, test runner, B).
+- `net`: com consumidor real, teste em loopback, IP literal; DNS/TLS em ADR separado.
+- kernel > ~30 primitivas: sinal de camada errada.
+
+---
+
+## I-12 — Tabela de binding declarativa (bindgen interno)
+
+**Status:** `em avaliação` — ideia; só vale se o kernel crescer.
+**Relacionados:** [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (a tabela `Primitive`
+já é a fonte única), [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md) (nada de
+sintaxe), `make grammar` + `tests/test_editor_grammar.py` (precedente de artefato gerado).
+
+### A pergunta
+
+Adicionar uma primitiva hoje é editar a mesma assinatura em quatro lugares (tabela Python,
+protótipo C, teste, spec). Dá para gerar três deles de um arquivo só? Isso é FFI
+disfarçada?
+
+### O que é
+
+Um arquivo de dados que declara cada primitiva, e um gerador que emite o resto:
+
+```toml
+[[primitive]]
+lox = "io.readUtf8"
+c = "lox_io_read_utf8"
+params = ["Int"]
+result = "String?"
+ambient = true
+platform = "any"
+spec = "io.md#readutf8"
+```
+
+Gerado por `make primitives`:
+1. `loxia_core/execution/primitives_gen.py` — a tabela `Primitive` (o corpo Python continua
+   escrito à mão em `primitives_bodies.py`);
+2. `runtime/kernel_gen.h` — protótipos C com a assinatura exata que o lowering espera;
+3. `tests/cases/kernel/<lox>.lx` esqueleto + entrada no manifesto;
+4. checagem de que a âncora da spec existe.
+
+`tests/test_primitives_gen.py` falha se o gerado estiver desatualizado — mesmo padrão do
+`make grammar`: o artefato é gerado e editar à mão não passa.
+
+### O que isso **não** é
+
+- **não é FFI de usuário:** nenhum `extern fn`, nenhum `dlopen`, nenhum header lido em
+  runtime; o conjunto é fechado e versionado com o compilador;
+- **não gera semântica:** os corpos Python e C continuam manuais — é o pedaço que pode
+  divergir, e o gerador não o protege (só teste diferencial protege);
+- **não cobre tipo novo:** `Process`/`Socket`/`File` exigem checker + backend + spec; é aí
+  que mora o custo real, e o gerador não ajuda.
+
+### Por que pode valer
+
+- o custo de hoje não é escrever a função, é **sincronizar quatro arquivos** e o teste que
+  falta quando alguém esquece um;
+- o protótipo C gerado pega drift de ABI em compilação, não em teste;
+- `ambient`, `platform` e `deprecated` viram dados, não `if` espalhado.
+
+### Por que pode não valer
+
+- são ~20 primitivas; o gerador custa mais que 20 edições manuais até o kernel crescer
+  (gatilho natural: ~30 ou o primeiro drift real);
+- formato novo no núcleo (`tomllib` é stdlib no 3.13, mas ainda é mais um formato para o
+  projeto ler);
+- risco de "gerou, logo está pronto" — a primitiva só está pronta com spec + golden +
+  diferencial.
+
+### Alternativa mais barata (recomendada)
+
+A tabela `Primitive` **já é dados**: gerar só o `kernel_gen.h` e o esqueleto de teste a
+partir dela, sem formato novo e sem mover a tabela para TOML. Ganha-se o check de ABI e a
+sincronia do teste, que são os dois buracos reais; a tabela continua Python (tipada,
+`mypy strict`, refactorável).
+
+### Recomendação provisória
+
+Não agora. Se `proc`+`poll` entrarem (I-11), fazer **antes** do `net`. Começar pela
+alternativa barata; TOML só se a tabela virar fonte de mais de um gerador.
+
+### Gatilhos para revisitar
+
+- kernel passando de ~30 primitivas;
+- primeiro drift de assinatura entre tabela e C que só apareceu em teste;
+- se o gerador de protótipo C pegar um drift real, o resto se paga sozinho.

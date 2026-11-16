@@ -29,9 +29,9 @@ também ([ADR-0075](docs/adr/0075-diagnosticos-estruturados.md),
 [ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)). O **CLI agent-friendly (core)**
 também está implementado ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)), assim como
 `///` + `lox doc` ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)) e o
-formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)). A próxima execução é
-**LSP** e o dogfood Lox do formatter (§0.2); docs da stdlib/builtins, `fixes[]` e `W1002`
-ficam pendentes. O status por nível é **gerado**
+formatter mínimo ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)) e o **LSP-0**
+([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)). A próxima execução é o **LSP-1**
+(hover/definition) e as docs da stdlib/builtins; o dogfood Lox do formatter fica após a T3. O status por nível é **gerado**
 em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
 [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie números para cá.
 
@@ -70,9 +70,11 @@ em [`docs/spec/garantias.md`](docs/spec/garantias.md) a partir de
        - [x] `docs/guia-estilo.md` e formatter Python mínimo (`fmt`/`--check`/`--stdin`).
        - [ ] docs públicas obrigatórias da stdlib, registry de builtins e `docs/stdlib/`.
        - [ ] `fn` em método, trailing comma/reflow e dogfood Lox (após T3).
-8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols, depois spans de expressão + `SymbolIndex`
-       para hover/definition, e só então completion/format/code actions
+8. [ ] **LSP** (`P2`): LSP-0 diagnostics/symbols implementado; depois spans de expressão
+       + `SymbolIndex` para hover/definition, e só então completion/format/code actions
        ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+       - [x] LSP-0 (`initialize`/sync/diagnostics/documentSymbol).
+       - [ ] LSP-1 (spans + `SymbolIndex` → hover/definition).
 9. [ ] **T3 + dogfooding** (`P2`/`L`): módulos T3 e formatter em Lox após a T3, com
        paridade byte a byte contra o Python ([ADR-0092](docs/adr/0092-estilo-e-formatter.md),
        §13.7 passo 7).
@@ -181,8 +183,10 @@ uv run pytest tests/test_backend.py -q
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
 - [x] `P1` `docs/guia-estilo.md`: nomes, formatação, imports e comentários
       ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
-- [ ] `P2` LSP: LSP-0 (diagnostics/documentSymbol), LSP-1 (spans + `SymbolIndex` →
-      hover/definition) e LSP-2 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [x] `P2` LSP-0: `loxia lsp`, JSON-RPC stdio, diagnostics e documentSymbol
+      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
+- [ ] `P2` LSP-1: spans + `SymbolIndex` → hover/definition; LSP-2 depois
+      ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
@@ -238,9 +242,40 @@ async.
 ### 9.1 Divergências I1 conhecidas (fora do corpus)
 
 Achadas ao implementar o [ADR-0075](docs/adr/0075-diagnosticos-estruturados.md) e
-corrigidas com regressão no diferencial de `tests/test_backend.py`. Hoje não há
-divergência I1 conhecida fora do corpus. Limite declarado (regra da
-linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
+corrigidas com regressão no diferencial de `tests/test_backend.py`. No sentido estrito
+(bytes finais de stdout/stderr e exit code) não há divergência conhecida fora do corpus.
+Limite declarado (regra da linguagem, não do lowering): `is`/`as` com argumentos de tipo
+em classe/enum é recusado pelo checker (`E3000`) e o tree-walk levanta `R1014`.
+
+#### `R1` — `io.write` não faz flush no binário (latente; achado em 2026-11-16, `P1`)
+
+| | oráculo (tree-walk) | binário |
+| --- | --- | --- |
+| `io.write`/`io.writeErr` | `sys.stdout.write` **+ `flush()`** por chamada (`primitives.py::_write/_write_err`) | `fwrite` **sem `fflush`** (`runtime.c::lox_io_write/lox_io_write_err`) |
+| `print` | `print()` do Python (buffer de bloco em pipe; linha em tty) | `printf`/`fputs` (idem) |
+| panic/`os.exit` | — | `fflush` nos dois (ok) |
+
+**Por que o I1 não pega:** o contrato compara os bytes do processo inteiro; no `exit` o
+buffer sai. Os bytes finais são iguais — o que difere é **quando** cada um aparece. Só é
+observável com stdout em pipe lido por outro processo, e o runner de teste captura tudo no
+fim.
+
+**Dois bugs reais, uma causa:**
+1. `std.io.prompt` **nunca mostra a mensagem** no binário: `io.write` sem `\n` não é
+   flushado (tty é *line-buffered*; sem newline não sai nada) e o processo bloqueia em
+   `fgetc(stdin)`. `tests/test_backend.py` cobre `prompt` e passa porque só compara os
+   bytes no fim.
+2. qualquer protocolo por stdio (JSONL/`--watch`, MCP, LSP, um `| leitor`) **trava** ao
+   encher o buffer do stdio: o escritor para, o leitor espera uma mensagem que não chega.
+
+**Correção mínima:** `fflush(stdout/stderr)` em `lox_io_write`/`lox_io_write_err` e
+primitiva `io.flush` explícita (idempotente). Decidir junto se `lox_print_*` também
+flusham: hoje os dois motores bufferizam `print` (simétrico), mas uniformizar exige mexer
+no oráculo e custa em laço com `print` — medir antes.
+**Regressão:** caso diferencial em modo *streaming*: o programa escreve (ou `io.prompt`) e
+depois bloqueia em `io.readLine`; o harness só entrega a linha **depois** de ler a saída,
+com timeout. Sem esse modo incremental o bug volta — o runner atual não distingue
+"flushou" de "flushou no exit".
 
 
 ---
@@ -250,6 +285,13 @@ linguagem, não do lowering): `is`/`as` com argumentos de tipo em classe/enum é
 - [ ] **Compilar o próprio interpretador?** (self-hosting) — o *front-end* já é
       self-hostable hoje (lexer em Lox compila nativo e bate a saída); o compilador inteiro
       depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 7). P3/XL.
+- [ ] **LSP em Loxia** (`P3`, `XL`, **não decidido**) — avaliado em 2026-11-16: o LSP local
+      é stdio, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta
+      de kernel é pouco (`io.readUtf8`, `io.flush` — ver §9.1 `R1` e §13.9) e o bloqueio
+      real é não haver front-end/checker chamável de um programa Loxia. Caminho B (delegar
+      a `loxia check --error-format=json` via `proc.spawn`) não duplica regra; caminho C
+      (front-end em Loxia) cria duas verdades de diagnóstico (I4). Por ora o servidor fica
+      em Python; revisitar depois do self-hosting. Ver [`IDEIAS.md`](IDEIAS.md) I-11.
 - [ ] **`lox fmt`** — o formatter shipped começa em Python (referência, idempotente); o
       exercício de dogfooding em Lox (parser + AST printer) entra depois da T3, com
       paridade byte a byte ([ADR-0092](docs/adr/0092-estilo-e-formatter.md), §13.7).
@@ -371,6 +413,8 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 > negócio em primitiva, nenhuma primitiva que Lox faria em O(n).
 >
 > **Fora:** regex, cripto, rede, subprocesso, async, timezone DB, i18n, YAML/TOML, UUID, bigint.
+> **Em revisão (2026-11-16):** rede e subprocesso — proposta e desenho na §13.9, discussão
+> em [`IDEIAS.md`](IDEIAS.md) I-11. Nada decidido, nada implementado; o resto continua fora.
 
 ### 13.1 Camadas
 
@@ -385,6 +429,8 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
 O teto subiu de 15 para 17 na T2 ([ADR-0079](docs/adr/0079-stdlib-t2.md)); o critério
 continua sendo SO ou representação, e qualquer crescimento novo exige ADR. `os.cwd`
 segue fora: `std.paths` é lexical e não precisou dele.
+Candidatas em avaliação na §13.9: `io.flush` e `io.readUtf8` (18–19); `proc`/`poll`/`net`
+só com consumidor e ADR próprio.
 
 ### 13.2–13.3 Kernel v1 e complexidade — concluídos
 
@@ -478,6 +524,58 @@ continua `i32 main(argc, argv)`; o ABI das funções Lox não mudou.
 - [ ] doc na spec quando o módulo estabilizar (e `sources:` válido);
 - [ ] zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
 - [ ] `make check` verde; `make bench` se tocar caminho quente.
+
+### 13.9 Capacidades de host — proposta (não decidida, 2026-11-16)
+
+Origem: a pergunta "por que o LSP não dá em Loxia?". Resposta curta: o LSP local é
+**stdio**, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta de
+kernel para isso é pequeno, e o bloqueio real é não haver front-end/checker chamável de um
+programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. **Nada aqui está
+aprovado**; o servidor LSP continua em Python.
+
+**O que já cobre um LSP:** `std.json` (parse/stringify), `io.readLine` (headers, já tira
+`\r`), `io.readFile`/`fs.readText`, `Map[String, Any]`, `Result`, `try/finally`.
+
+**O que falta (P0; ADR curto de kernel, sem abrir escopo de rede):**
+
+| # | Primitiva | Assinatura | Por quê |
+| --- | --- | --- | --- |
+| 18 | `io.flush` | `() -> Nil` | fecha o `R1` (§9.1) e destrava `prompt`/protocolos |
+| 19 | `io.readUtf8` | `(n: Int) -> String?` | `Content-Length` conta **bytes**: ler N bytes UTF-8 estrito, `nil` = EOF |
+
+`byteLen(s)` e a coluna UTF-16 (o LSP conta UTF-16, não code points) são **Lox puro** em
+`std/utf8` — não precisam de kernel.
+
+**Candidatas depois (cada uma pede ADR próprio):**
+
+| Camada | Superfície | Consumidor | Esforço |
+| --- | --- | --- | --- |
+| `proc` | `spawn(argv, opts)`, `Process.{stdin, stdout, stderr, wait, tryWait, kill}` | caminho B do LSP, `lox fmt`, `lox test` | M |
+| `poll` | `poll(handles, timeoutMs) -> List[Int]` | `spawn` com dois pipes; I/O concorrente sem thread | M |
+| `fs.open` | `open(path, mode) -> File` (streaming, §10) | arquivos grandes, CSV/log | M |
+| `net` | `tcpListen`/`tcpConnect`/`accept`/`close` (+ unix) | só com consumidor (HTTP client, debugger remoto) | M |
+
+**Política mínima (se entrar):** tudo `ambient: true` (fora do I1/I3); erro de host em
+`Result[T, OsError]`, não `T?`; handle opaco com `close()` explícito e sem finalizer
+(Boehm não é determinístico); `poll` **antes** de thread; nenhum callback C→Lox que possa
+lançar; sem FFI genérica (`extern fn` continua fora, ADR-0071); `net` v1 só com IP
+literal, sem DNS nem TLS.
+
+**Ordem sugerida:** 18–19 (S) → `std/utf8` + `std/lsp` de framing (M, testável sem
+servidor) → `proc`+`poll` (M) → `fs.open` (M) → `net` (L, só com dor). O servidor LSP
+continua em Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
+
+**Tamanho do runtime.** `runtime/runtime.c` tem 2.524 linhas, mas só ~200 são kernel (a
+seção marcada `Kernel 13.2 (ADR-0071)`); o resto é representação (strings, containers,
+descritor de classe, exceções, GC, panic) que nenhum Lox implementa. A promessa "poucas
+primitivas" está de pé; o arquivo é que ficou grande. Antes de `proc`/`net`, separar por
+domínio (`runtime/strings.c`, `containers.c`, `classes.c`, `exceptions.c`, `panic.c`,
+`kernel.c` + um `.h` comum). Custo: o driver compila **um** `runtime.c` e cacheia o `.o`
+por fonte+flags, então o split exige bundle dos N arquivos, `.o` por arquivo e chave de
+cache sobre todos — mudança pequena e sem ABI. Alternativa de custo zero: `#include` de
+`.inc` por domínio num único TU, que preserva o cache mas não acelera compilação.
+
+**Orçamento de kernel:** 17 → 19 no P0; acima de ~30 é sinal de camada errada.
 
 ---
 
