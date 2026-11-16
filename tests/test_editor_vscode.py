@@ -46,6 +46,8 @@ def test_cliente_cobre_os_metodos_do_servidor() -> None:
     ):
         assert method in source
     assert "vscode-languageclient" not in source
+    assert "vscode.languages.registerWorkspaceSymbolProvider" in source
+    assert "vscode.workspace.registerWorkspaceSymbolProvider" not in source
 
 
 def test_cliente_tem_sintaxe_valida() -> None:

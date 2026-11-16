@@ -549,7 +549,7 @@ async function activate(context) {
         );
       },
     }),
-    vscode.workspace.registerWorkspaceSymbolProvider({
+    vscode.languages.registerWorkspaceSymbolProvider({
       provideWorkspaceSymbols: async (query) => {
         const result = await send("workspace/symbol", { query });
         return (result || []).map(
