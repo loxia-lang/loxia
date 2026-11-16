@@ -526,6 +526,8 @@ async function activate(context) {
           completion.detail = item.detail;
           completion.documentation = toMarkdown(item.documentation);
           completion.insertText = item.insertText;
+          completion.sortText = item.sortText;
+          completion.filterText = item.filterText;
           completion.range = range;
           return completion;
         });

@@ -17,8 +17,9 @@ from urllib.parse import unquote, urlparse
 from loxia import __version__
 from loxia.builtins_docs import BUILTIN_DOCS
 from loxia.cli import Loxia
+from loxia.completion import complete as completion_items
 from loxia.formatter import format_source
-from loxia.symbols import Symbol, SymbolIndex, token_key
+from loxia.symbols import SymbolIndex, token_key
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
@@ -41,23 +42,12 @@ from loxia_core.frontend.stmt import (
 )
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.ty import ClassTy, EnumObjectTy, InterfaceTy, display
+from loxia_core.frontend.ty import display
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
 
 # DocumentSymbolKind da LSP.
-LSP_SYMBOL_KINDS = {
-    "class": 7,
-    "method": 2,
-    "field": 5,
-    "enum": 13,
-    "interface": 8,
-    "function": 3,
-    "variable": 6,
-    "type": 25,
-    "variant": 20,
-}
 
 SEMANTIC_TOKEN_TYPES = (
     "keyword",
@@ -1080,46 +1070,13 @@ class Server:
             column += 1
         return column
 
-    def _property_receiver(
-        self, document: Document, position: object
-    ) -> Token | None:
-        if not isinstance(position, dict):
-            return None
-        line = position.get("line")
-        character = position.get("character")
-        if not isinstance(line, int) or not isinstance(character, int):
-            return None
-        line_text = self._line_text(document, line)
-        if line_text is None:
-            return None
-        column = self._character_to_column(line_text, character)
-        prefix = line_text[: max(0, column - 1)]
-        match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*[A-Za-z0-9_]*$", prefix)
-        if match is None:
-            return None
-        start = match.start(1)
-        receiver_character = len(prefix[:start].encode("utf-16-le")) // 2
-        return self._token_at(
-            document, {"line": line, "character": receiver_character}
-        )
-
-    def _completion_item(
-        self,
-        *,
-        name: str,
-        kind: int,
-        signature: str,
-        doc: str | None,
-    ) -> dict[str, object]:
-        item: dict[str, object] = {
-            "label": name,
-            "kind": kind,
-            "detail": signature,
-            "insertText": name,
-        }
-        if doc:
-            item["documentation"] = {"kind": "markdown", "value": doc}
-        return item
+    def _offset_at(self, text: str, line: int, character: int) -> int:
+        lines = text.split("\n")
+        if line < 0 or line >= len(lines):
+            return len(text.encode("utf-8"))
+        column = self._character_to_column(lines[line], character)
+        prefix = "\n".join(lines[:line]) + ("\n" if line else "")
+        return len((prefix + lines[line][: max(0, column - 1)]).encode("utf-8"))
 
     def _completion(self, message: dict[str, Any]) -> dict[str, object]:
         empty: dict[str, object] = {"isIncomplete": False, "items": []}
@@ -1127,64 +1084,28 @@ class Server:
         if not isinstance(params, dict):
             return empty
         document_info = params.get("textDocument")
-        if not isinstance(document_info, dict):
+        position = params.get("position")
+        if not isinstance(document_info, dict) or not isinstance(position, dict):
             return empty
         uri = document_info.get("uri")
-        if not isinstance(uri, str):
+        line = position.get("line")
+        character = position.get("character")
+        if (
+            not isinstance(uri, str)
+            or not isinstance(line, int)
+            or not isinstance(character, int)
+        ):
             return empty
         document = self.documents.get(uri)
         if document is None:
             return empty
         index = self._index_for(uri)
-        if index is None:
-            return empty
-
-        items: dict[str, dict[str, object]] = {}
-        receiver = self._property_receiver(document, params.get("position"))
-        if receiver is not None:
-            ty = index.type_at(receiver)
-            members: dict[str, Symbol] = {}
-            if isinstance(ty, (ClassTy, InterfaceTy, EnumObjectTy)):
-                members = dict(index.by_container.get(ty.name, {}))
-            for symbol in members.values():
-                item = self._completion_item(
-                    name=symbol.name,
-                    kind=LSP_SYMBOL_KINDS.get(symbol.kind, 6),
-                    signature=symbol.signature,
-                    doc=symbol.doc,
-                )
-                items.setdefault(symbol.name, item)
-        else:
-            for symbol in index.symbols:
-                item = self._completion_item(
-                    name=symbol.name,
-                    kind=LSP_SYMBOL_KINDS.get(symbol.kind, 6),
-                    signature=symbol.signature,
-                    doc=symbol.doc,
-                )
-                items.setdefault(symbol.name, item)
-            for builtin in BUILTIN_DOCS:
-                if "." in builtin.name:
-                    continue
-                item = self._completion_item(
-                    name=builtin.name,
-                    kind=14 if builtin.kind == "module" else 3,
-                    signature=builtin.signature,
-                    doc=builtin.doc,
-                )
-                items.setdefault(builtin.name, item)
-            for keyword in KEYWORDS:
-                item = self._completion_item(
-                    name=keyword,
-                    kind=14,
-                    signature=keyword,
-                    doc=None,
-                )
-                items.setdefault(keyword, item)
-
+        offset = self._offset_at(document.text, line, character)
         return {
             "isIncomplete": False,
-            "items": [items[key] for key in sorted(items)],
+            "items": completion_items(
+                document.text, document.path, offset, index
+            ),
         }
 
     def _signature_help(

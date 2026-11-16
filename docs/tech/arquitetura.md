@@ -56,6 +56,7 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/formatting/semantic tokens, codeAction, rename e workspace/symbol |
+| [`loxia/completion.py`](../../loxia/completion.py) | completion do LSP sobre a AST original: escopo, imports, módulos, `this`/`super`, enums e membros nativos |
 | [`loxia/source_index.py`](../../loxia/source_index.py) | índice de spans de expressão (offset → menor nó) para LSP/diagnósticos |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | docs English dos builtins/primitivas para `docs/stdlib/builtins.md` |

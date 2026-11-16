@@ -733,3 +733,53 @@ def test_lsp_workspace_symbol(tmp_path: Path) -> None:
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_lsp_completion_de_modulo_std(tmp_path: Path) -> None:
+    uri = (tmp_path / "comp.lx").as_uri()
+    source = "import std.strings as strings\nval x = strings.\n"
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": source,
+                    }
+                },
+            },
+        )
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 1, "character": 16},
+                },
+            },
+        )
+        labels = {item["label"] for item in read(process)["result"]["items"]}
+        assert "upper" in labels
+        assert all("$" not in label for label in labels)
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)

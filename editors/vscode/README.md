@@ -2,8 +2,8 @@
 
 Destaque de sintaxe + **cliente LSP** para `.lx`. O cliente é JSON-RPC sobre stdio, sem
 dependências de npm: ele inicia `loxia lsp` (ou o comando configurado) e expõe
-diagnósticos, hover, definição, completion, signatureHelp, formatação, code actions,
-rename e símbolos.
+diagnósticos, hover, definição, completion com escopo/imports/módulos, signatureHelp,
+formatação, code actions, rename e símbolos.
 
 ## Rodar do checkout
 

@@ -7,8 +7,9 @@
 > variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
 > documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`),
 > `rename`/`prepareRename` (locais/parâmetros e top-level cross-file conservador),
-> `workspace/symbol` e um `SourceIndex` de spans de expressão. O cliente VS Code vive em
-> `editors/vscode/` e está pronto para virar repo próprio.
+> `workspace/symbol`, completion com escopo/imports/módulos e um `SourceIndex` de spans
+> de expressão. O cliente VS Code vive em `editors/vscode/` e está pronto para virar
+> repo próprio.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15

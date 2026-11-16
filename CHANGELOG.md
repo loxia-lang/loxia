@@ -7,6 +7,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Completion do LSP**: AST original em vez da reescrita — locais/parâmetros do escopo,
+  imports (`import`/`from`), membros de módulos std/usuários, `this`/`super`, variantes
+  de enum, membros nativos (`Int.`/`math.`) e métodos de lista/mapa; sem nomes mangled.
 - **Tooling de editor**: formatter com `fn` canônico em método e trailing comma
   multiline (parser aceita; golden `trailing_comma`); `workspace/symbol` no LSP; cliente
   VS Code sem dependências em `editors/vscode/` (diagnostics, hover, definition,
