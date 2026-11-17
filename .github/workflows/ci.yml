@@ -4,31 +4,150 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  qualidade:
+  lint:
+    name: Lint and format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Instalar uv
-        uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv lock --check
+      - run: uv run pre-commit validate-config
 
-      - name: Sincronizar dependências (Python vem do .python-version)
-        run: uv sync --all-groups --extra llvm
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: uv run mypy
 
-      # O backend nativo usa Boehm (ADR-0074). O runner não traz libgc por padrão.
-      - name: Instalar libgc (Boehm)
+  unit:
+    name: Unit (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.13", "3.14"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: uv run pytest -m "not backend and not install"
+
+  backend:
+    name: Native backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - name: Install Boehm GC
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
-
-      # O backend nativo é opcional para quem usa, mas obrigatório no CI: se o
-      # llvmlite ou a libgc faltarem, os testes do backend falham em vez de pular.
-      - name: "Qualidade (pre-commit: ruff + mypy + pytest)"
+      - name: Cache the runtime build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/lox-build-cache
+          key: lox-runtime-${{ runner.os }}-${{ hashFiles('runtime/**', 'loxia_core/backend/**', 'pyproject.toml') }}
+          restore-keys: |
+            lox-runtime-${{ runner.os }}-
+      - run: uv sync --locked --all-groups --extra llvm
+      - name: Backend suite
         env:
           LOX_REQUIRE_LLVM: "1"
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+          LOX_BUILD_CACHE: ${{ runner.temp }}/lox-build-cache
+        run: uv run pytest -m backend
 
-# Benchmarks ficam fora do CI: tempo de runner é ruidoso demais para gate.
-# Rode `make bench` localmente antes de abrir PR que mexe em performance.
+  docs:
+    name: Docs and generated files
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: uv run python docs/_hooks/levels.py --check
+      - run: uv run python docs/_hooks/codes.py --check
+      - run: uv run python docs/_hooks/stdlib.py --check
+      - run: uv run python editors/build_grammar.py --write
+      - run: git diff --exit-code
+      - run: uv run pytest tests/test_docs_links.py tests/test_docs_consistency.py
+
+  package:
+    name: Build and install wheel
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: uv build
+      - run: uv run --with twine twine check dist/*
+      - run: uv venv /tmp/lox-venv
+      - run: uv pip install --python /tmp/lox-venv/bin/python dist/*.whl
+      - run: /tmp/lox-venv/bin/loxia --version
+      - run: /tmp/lox-venv/bin/python -c "import loxia, loxia_core; print(loxia.__version__)"
+
+  commits:
+    name: Commits and DCO
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Conventional PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python3 tools/check_pr_title.py
+      - name: Developer Certificate of Origin
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/check_dco.py
+
+  ci-success:
+    name: CI success
+    if: always()
+    needs: [lint, typecheck, unit, backend, docs, package, commits]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All required jobs passed or were skipped"
