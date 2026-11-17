@@ -338,6 +338,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 > **Status 2026-11-17:** desenho fechado no
 > [ADR-0103](docs/adr/0103-site-de-documentacao-e-versionamento.md). A implementação vai do
 > scaffold ao deploy em 7 PRs; o site é **build de `docs/`**, nunca fonte paralela.
+> PRs 1–7 implementados em 2026-11-17; o deploy fica condicionado ao flip público.
 
 Princípio: o site é uma projeção de `docs/` + `docs/i18n/` + `docs/versions/`, com busca,
 navegação e dark mode. O front matter `sources:` e o `freshness.py` continuam a fonte de
@@ -397,12 +398,17 @@ verdade por página; o build injeta “verificado no commit X” e valida links.
 **PRs**
 
 - [x] 1. ADR-0103 + este desenho no TODO.
-- [ ] 2. Scaffold `site/` Starlight + `tools/docs_site.py` + build local.
-- [ ] 3. Mapeamento da referência 1.1, stdlib, changelog e landing `/reference`.
-- [ ] 4. Versionamento 1.0/1.1 (snapshot congelado, banner/seletor).
-- [ ] 5. Home/Why/Learn em inglês + snippets testados.
-- [ ] 6. i18n/`translated_from`, job `site` no CI e workflow de deploy Pages.
-- [ ] 7. Cookbook, favicon/SEO/link check e polimento.
+- [x] 2. Scaffold `site/` Starlight + `tools/docs_site.py` + build local.
+- [x] 3. Mapeamento da referência 1.1, stdlib, changelog e landing `/reference`.
+- [x] 4. Versionamento 1.0/1.1 (snapshot congelado, banner/seletor).
+- [x] 5. Home/Why/Learn em inglês + snippets testados.
+- [x] 6. i18n/`translated_from`, job `site` no CI e workflow de deploy Pages.
+- [x] 7. Cookbook, favicon/SEO/link check e polimento.
+
+**Pendências do 14.2:** habilitar Pages no flip público (`docs.yml` está
+condicionado a `repository.visibility == public`), criar a issue de tradução EN da
+referência, trocar os rótulos 1.1 (next)/1.0 (stable) depois do PR 9 e revisar os
+`hreflang` de fallback do arquivo 1.0. O build do site já roda no CI.
 
 **Riscos:** duplicação/idade do snapshot 1.0; tradução EN da referência ser o caminho
 crítico; duas toolchains (Node + Python) e Dependabot npm; links absolutos quebrarem no

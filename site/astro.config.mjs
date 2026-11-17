@@ -1,14 +1,23 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
 
 const repository = 'https://github.com/loxia-lang/loxia';
+const base = '/loxia';
 
 export default defineConfig({
   site: 'https://loxia-lang.github.io',
-  base: '/loxia',
+  base,
   trailingSlash: 'always',
+  redirects: {
+    '/1.0/reference/lexicon': `${base}/pt/1.0/reference/lexicon/`,
+    '/1.0/reference/syntax': `${base}/pt/1.0/reference/syntax/`,
+    '/1.0/reference/semantics': `${base}/pt/1.0/reference/semantics/`,
+    '/1.0/reference/errors': `${base}/pt/1.0/reference/errors/`,
+    '/1.0/reference/guarantees': `${base}/pt/1.0/reference/guarantees/`,
+  },
   integrations: [
     starlight({
       title: 'Loxia',
@@ -35,22 +44,26 @@ export default defineConfig({
       sidebar: [
         {
           label: 'Start here',
+          translations: { 'pt-BR': 'Comece aqui' },
           items: [
-            { label: 'Why Loxia', link: '/why/' },
-            { label: 'Learn Loxia', items: [{ autogenerate: { directory: 'learn' } }] },
+            { label: 'Why Loxia', translations: { 'pt-BR': 'Por que Loxia?' }, link: '/why/' },
+            { label: 'Learn Loxia', translations: { 'pt-BR': 'Aprender Loxia' }, items: [{ autogenerate: { directory: 'learn' } }] },
           ],
         },
         {
           label: 'Reference',
+          translations: { 'pt-BR': 'Referência' },
           items: [
-            { label: 'Overview', link: '/reference/' },
+            { label: 'Overview', translations: { 'pt-BR': 'Visão geral' }, link: '/reference/' },
             {
               label: '1.1 (next, Portuguese)',
+              translations: { 'pt-BR': '1.1 (next, português)' },
               collapsed: true,
               items: [{ autogenerate: { directory: 'pt/reference' } }],
             },
             {
               label: '1.0 (stable, Portuguese)',
+              translations: { 'pt-BR': '1.0 (stable, português)' },
               collapsed: true,
               items: [{ autogenerate: { directory: 'pt/1.0/reference' } }],
             },
@@ -58,13 +71,15 @@ export default defineConfig({
         },
         {
           label: 'Standard library',
+          translations: { 'pt-BR': 'Biblioteca padrão' },
           items: [{ autogenerate: { directory: 'stdlib' } }],
         },
         {
           label: 'Cookbook',
+          translations: { 'pt-BR': 'Receitas' },
           items: [{ autogenerate: { directory: 'cookbook' } }],
         },
-        { label: 'Changelog', link: '/changelog/' },
+        { label: 'Changelog', translations: { 'pt-BR': 'Changelog' }, link: '/changelog/' },
       ],
       head: [
         { tag: 'meta', attrs: { property: 'og:site_name', content: 'Loxia' } },

@@ -25,7 +25,7 @@ currently in Portuguese; the English translation is tracked separately.
 
 `loxia build program.lx --emit=exe -o program` compiles with LLVM. The backend is tested
 against the interpreter for the declared corpus, byte for byte. See the
-[guarantees](../../pt/reference/guarantees/) for the exact contract.
+[guarantees](../../reference/) for the exact contract.
 
 ## Contributing
 

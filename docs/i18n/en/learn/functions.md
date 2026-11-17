@@ -81,4 +81,4 @@ print(next())
 print(next())
 ```
 
-Next: [collections](collections/).
+Next: [collections](../collections/).

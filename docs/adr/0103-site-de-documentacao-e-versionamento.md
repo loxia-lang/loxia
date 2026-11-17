@@ -1,6 +1,6 @@
 # ADR-0103 — Site de documentação: Starlight, staging e versão da referência
 
-- **Status:** accepted (implementação em andamento)
+- **Status:** accepted (implementado; deploy condicionado ao flip público)
 - **Data:** 2026-11-17
 - **Decisores:** Cassio Dalla (dono do projeto) e agente
 - **Relacionados:** [ADR-0091](0091-doc-comments-e-geracao-de-docs.md),

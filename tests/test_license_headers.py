@@ -22,7 +22,7 @@ EXCLUDED_FILES = {
     "editors/dsh/loxia.ts",
     "editors/shiki/loxia.mjs",
 }
-SOURCE_SUFFIXES = {".py", ".c", ".h", ".lx"}
+SOURCE_SUFFIXES = {".py", ".c", ".h", ".lx", ".mjs", ".ts", ".css"}
 EXTRA_SOURCES = {"editors/vscode/extension.js"}
 
 

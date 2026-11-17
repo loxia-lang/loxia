@@ -5,7 +5,7 @@ FILE ?=
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
@@ -20,6 +20,7 @@ help:
 	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
 	@echo "make docs-sync                 regenera níveis, catálogo e stdlib"
 	@echo "make docs-build                build do site Starlight em site/dist"
+	@echo "make docs-links                valida links internos do HTML gerado"
 	@echo "make docs-dev                  dev server do site (gera o conteúdo antes)"
 	@echo "make docs-version VERSION=1.0 TAG=v1.0.0  congela uma referência"
 	@echo "make docs-i18n-check          valida translated_from/source"
@@ -68,9 +69,13 @@ docs-sync:
 
 docs-build: docs-sync
 	npm --prefix site run build
+	uv run python tools/docs_links.py --strict
 
 docs-dev:
 	npm --prefix site run dev
+
+docs-links:
+	uv run python tools/docs_links.py --strict
 
 docs-version:
 	uv run python tools/docs_versions.py --version $(VERSION) --tag $(TAG)

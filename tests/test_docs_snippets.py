@@ -10,16 +10,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LEARN = ROOT / "docs" / "i18n" / "en" / "learn"
+COOKBOOK = ROOT / "docs" / "i18n" / "en" / "cookbook"
 RUNNABLE = re.compile(r"<!-- run -->\s*```lox\n(.*?)```", re.S)
 
 
 def test_learn_snippets_run(tmp_path: Path) -> None:
     snippets: list[tuple[Path, str]] = []
-    for page in sorted(LEARN.glob("*.md")):
-        text = page.read_text(encoding="utf-8")
-        snippets.extend((page, match.group(1)) for match in RUNNABLE.finditer(text))
+    for root in (LEARN, COOKBOOK):
+        for page in sorted(root.glob("*.md")):
+            text = page.read_text(encoding="utf-8")
+            snippets.extend((page, match.group(1)) for match in RUNNABLE.finditer(text))
 
-    assert snippets, "no <!-- run --> lox snippets found in docs/i18n/en/learn"
+    assert snippets, "no <!-- run --> lox snippets found in docs/i18n/en/{learn,cookbook}"
 
     for index, (page, source) in enumerate(snippets):
         path = tmp_path / f"learn_{index}.lx"

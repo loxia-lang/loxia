@@ -57,4 +57,4 @@ val (one, (two, three)) = nested
 print(one + two + three)
 ```
 
-Next: [classes, enums and match](classes/).
+Next: [classes, enums and match](../classes/).

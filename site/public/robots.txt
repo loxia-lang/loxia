@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://loxia-lang.github.io/loxia/sitemap-index.xml

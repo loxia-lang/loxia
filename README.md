@@ -145,6 +145,8 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
   [guarantees](docs/spec/garantias.md).
 - **Architecture:** [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
+- **Documentation site:** [`site/`](site/) — Starlight build from `docs/`; run
+  `make docs-dev`; publication follows the public flip.
 - **Style guide:** [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Design decisions:** [`docs/adr/`](docs/adr/).
 - **Roadmap:** [`TODO.md`](TODO.md) · **open ideas:** [`IDEIAS.md`](IDEIAS.md).

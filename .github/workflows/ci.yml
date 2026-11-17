@@ -119,6 +119,7 @@ jobs:
       - run: uv sync --locked --all-groups --extra llvm
       - run: npm ci --prefix site
       - run: npm run build --prefix site
+      - run: uv run python tools/docs_links.py --strict
       - run: uv run python tools/docs_i18n.py --strict
 
   package:

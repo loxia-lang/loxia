@@ -62,4 +62,4 @@ print(area(Shape.Rect(2.0, 3.0)))
 
 `match` is an expression and must be exhaustive. Enum equality is structural.
 
-Next: [errors and modules](errors-modules/).
+Next: [errors and modules](../errors-modules/).

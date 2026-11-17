@@ -65,4 +65,4 @@ uv run loxia build hello.lx --emit=exe -o hello
 ./hello
 ```
 
-Next: [values and bindings](values/).
+Next: [values and bindings](../values/).

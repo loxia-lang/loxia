@@ -29,3 +29,10 @@ Content sources:
 
 ADRs, `TODO.md`, `IDEIAS.md`, `TIPOS.md`, `ESCOPO.md` and `docs/log.md` are intentionally not
 published. See [ADR-0103](../docs/adr/0103-site-de-documentacao-e-versionamento.md).
+
+Additional checks:
+
+```bash
+make docs-links        # internal links in the built HTML
+make docs-i18n-check   # translated_from/source status
+```

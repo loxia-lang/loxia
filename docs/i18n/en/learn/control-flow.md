@@ -59,4 +59,4 @@ for ch in "aço" {
 `range(a, b, step)` adds a step and can count down. `for-in` also accepts `List`, `Map`
 (keys in insertion order), tuples and user types with `iter()` + `next() -> T?`.
 
-Next: [functions and closures](functions/).
+Next: [functions and closures](../functions/).

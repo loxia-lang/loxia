@@ -148,7 +148,7 @@ Crie quando a decisão:
 | [0100](0100-dependencias-path.md) | Dependências `path` e resolução por nome de pacote | accepted (implementado) | 2026-11-16 |
 | [0101](0101-licenca-dual-e-politica-de-contribuicao.md) | Licença dual MIT/Apache-2.0 e política de contribuição (DCO) | accepted (implementação parcial) | 2026-11-17 |
 | [0102](0102-ingles-na-vitrine-e-docs-pt-br.md) | Inglês na vitrine pública; docs internas em pt-BR até a tradução | accepted (primeira etapa) | 2026-11-17 |
-| [0103](0103-site-de-documentacao-e-versionamento.md) | Site de documentação: Starlight, staging e versão da referência | accepted (implementação em andamento) | 2026-11-17 |
+| [0103](0103-site-de-documentacao-e-versionamento.md) | Site de documentação: Starlight, staging e versão da referência | accepted (implementado; deploy no flip) | 2026-11-17 |
 
 
 ## Próximas decisões que pedem ADR

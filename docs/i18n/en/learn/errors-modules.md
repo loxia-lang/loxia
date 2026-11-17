@@ -53,4 +53,4 @@ fn divide(a: Int, b: Int) -> Result[Int, String] {
 }
 ```
 
-Next: [next steps](next-steps/).
+Next: [next steps](../next-steps/).
