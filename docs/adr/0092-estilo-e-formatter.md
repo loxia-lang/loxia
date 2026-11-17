@@ -111,7 +111,7 @@ renomeados** — isso é revisão e, no futuro, lint/aviso (ADR-0093).
    comentários/doc preservados) e o parser/AST para estrutura. É o comando `loxia fmt`
    shipped. Golden pairs + idempotência + equivalência de execução.
 2. **Lox depois da T3**: parser + AST printer na própria linguagem (TODO §10/§13.7),
-   produzindo **bytes idênticos** ao Python em `std/`, `tests/cases/` e `exemplos/`. O Lox
+   produzindo **bytes idênticos** ao Python em `std/`, `tests/cases/` e `examples/`. O Lox
    é dogfood/conformance; o Python continua o comando até a paridade. Depois disso, um
    ADR/flag decide o default (`--engine=py|lox` ou troca), com o Python como oráculo.
 3. O formatter Lox **não** é pré-requisito do formatter Python; não bloqueia T3 nem o CLI.
@@ -174,7 +174,7 @@ Python e a troca exige ADR próprio.
   doc preservados, `;`/`fn` canônicos, newline final, CRLF→LF.
 - Teste de equivalência: rodar o programa antes/depois no interpretador (stdout/stderr/
   exit idênticos); no backend quando o caso for compilável.
-- `uv run main.py fmt --check std/ exemplos/` limpo depois da migração; CI roda `--check`.
+- `uv run main.py fmt --check std/ examples/` limpo depois da migração; CI roda `--check`.
 - Dogfood Lox: `fmt --engine=lox` (ou ferramenta de conformance) comparado byte a byte com
   o Python no corpus.
 - `make check`; `make bench` não é necessário (formatter é offline), mas medir em `std/`.
@@ -184,6 +184,6 @@ Python e a troca exige ADR próprio.
 
 - [`../spec/sintaxe.md`](../spec/sintaxe.md) — sintaxe e formas opcionais.
 - [`../../std/`](../../std/) — estilo atual da stdlib.
-- [`../../exemplos/`](../../exemplos/) — exemplos com `;`/`fn` antigos.
+- [`../../examples/`](../../examples/) — exemplos com `;`/`fn` antigos.
 - [`../../TODO.md`](../../TODO.md) §7, §10, §13.7.
 - gofmt/rustfmt — formatter canônico, sem config, idempotente (inspiração).

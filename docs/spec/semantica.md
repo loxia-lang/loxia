@@ -6,125 +6,125 @@ sources:
   - std/**
 ---
 
-# Semântica
+# Semantics
 
-Comportamento observável do interpretador. Implementação: [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
+Observable behavior of the interpreter. Implementation: [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py),
 [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py), [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py),
 [`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py), [`loxia_core/execution/lox_class.py`](../../loxia_core/execution/lox_class.py),
 [`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py), [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py).
 
-## Execução
+## Execution
 
-Um programa é uma lista de declarações executadas **em ordem**. Um erro de compilação
-(léxico, sintaxe ou resolver) impede a execução inteira. Um erro de runtime interrompe o
-programa no ponto em que ocorreu; o que já foi impresso permanece. Desde o
-[ADR-0026](../adr/0026-freeze-1.0.md), erro de runtime **não capturado** é fatal (exit 70);
-`try`/`raise` ([ADR-0042](../adr/0042-excecoes.md)) capturam exceções explícitas e erros de
-runtime, e `Result` cobre erro esperado. Erros de tipo/sintaxe saem 65.
+A program is a list of declarations executed **in order**. A compile error
+(lexical, syntax or resolver) prevents the entire execution. A runtime error stops the
+program at the point where it occurred; whatever was already printed remains. Since
+[ADR-0026](../adr/0026-freeze-1.0.md), an **uncaught** runtime error is fatal (exit 70);
+`try`/`raise` ([ADR-0042](../adr/0042-excecoes.md)) capture explicit exceptions and runtime
+errors, and `Result` covers expected errors. Type/syntax errors exit 65.
 
-A profundidade de chamadas é limitada a **10.000 ativações Lox** (função, método, lambda,
-`init` e construtor); a próxima é `R1015` (`Stack overflow.`), exit 70, capturável por
-`try`/`except RuntimeError`, com posição e stack trace
+Call depth is limited to **10,000 Lox activations** (function, method, lambda,
+`init` and constructor); the next is `R1015` (`Stack overflow.`), exit 70, catchable by
+`try`/`except RuntimeError`, with position and stack trace
 ([ADR-0077](../adr/0077-limite-de-pilha.md),
-[ADR-0089](../adr/0089-stack-trace-de-runtime.md)). Chamadas nativas e construtores de
-`Exception`/`RuntimeError` não contam. Um `try`/`finally` que atravessa o estouro restaura
-a profundidade antes de o handler continuar.
+[ADR-0089](../adr/0089-stack-trace-de-runtime.md)). Native calls and `Exception`/`RuntimeError`
+constructors do not count. A `try`/`finally` that crosses the overflow restores
+the depth before the handler continues.
 
-O REPL executa uma linha por vez, **mantendo variáveis, funções e classes** entre linhas.
-Uma expressão pura como `1 + 1` é embrulhada em `print(1 + 1)` e mostra `2`; declarações
-(`var`, `fn`, `class`) não imprimem nada.
+The REPL executes one line at a time, **keeping variables, functions and classes** between lines.
+A pure expression such as `1 + 1` is wrapped in `print(1 + 1)` and shows `2`; declarations
+(`var`, `fn`, `class`) print nothing.
 
-## Valores
+## Values
 
-| Valor | Origem | `stringify` |
+| Value | Origin | `stringify` |
 | --- | --- | --- |
-| `nil` | `nil`, `var` sem inicializador, `return;` | `nil` |
-| `true`/`false` | literais, comparações | `true`/`false` |
-| `Int` | literais sem `.`/expoente, aritmética inteira | decimal (`42`, `-3`) |
-| `Float` | literais com `.`/expoente, `/`, mistura com `Float` | round-trip (`42.0`, `2.5`) |
-| `List` | literal `[...]` | `[1, 2, 3]` (strings citadas dentro da lista) |
-| `Map` | literal `{...}` | `{"a": 1, "b": 2}` (ordem de inserção) |
+| `nil` | `nil`, `var` without initializer, `return;` | `nil` |
+| `true`/`false` | literals, comparisons | `true`/`false` |
+| `Int` | literals without `.`/exponent, integer arithmetic | decimal (`42`, `-3`) |
+| `Float` | literals with `.`/exponent, `/`, mixing with `Float` | round-trip (`42.0`, `2.5`) |
+| `List` | `[...]` literal | `[1, 2, 3]` (strings quoted inside the list) |
+| `Map` | `{...}` literal | `{"a": 1, "b": 2}` (insertion order) |
 | `Range` | `a..b`, `a..=b`, `range(a, b, step)` | `<range 0..10>`, `<range 0..=10>` |
-| string | literais, `+`, interpolação | conteúdo |
-| função | `fn` | `<fn nome>` |
-| função nativa | `len` | `<native fn>` |
-| classe | `class` | nome da classe |
-| instância | chamada de classe | `Nome instance` |
+| string | literals, `+`, interpolation | contents |
+| function | `fn` | `<fn name>` |
+| native function | `len` | `<native fn>` |
+| class | `class` | class name |
+| instance | class call | `Name instance` |
 
-Números são **`Int` (i64) ou `Float` (f64)** — [ADR-0006](../adr/0006-int-float-separados.md).
-`print(3)` mostra `3` e `print(3.0)` mostra `3.0`: o tipo vem do literal. As regras
-completas estão neste documento e no
+Numbers are **`Int` (i64) or `Float` (f64)** — [ADR-0006](../adr/0006-int-float-separados.md).
+`print(3)` shows `3` and `print(3.0)` shows `3.0`: the type comes from the literal. The
+complete rules are in this document and in
 [ADR-0006](../adr/0006-int-float-separados.md).
 
 ### Truthiness
 
-Só `nil` e `false` são falsos. `0`, `0.0`, `""`, listas e mapas (inclusive vazios) são
-**verdadeiros**.
+Only `nil` and `false` are falsy. `0`, `0.0`, `""`, lists and maps (including empty ones) are
+**truthy**.
 
-### Igualdade (`==`, `!=`)
+### Equality (`==`, `!=`)
 
-- `nil == nil` → `true`; `nil` vs qualquer outro → `false`;
-- `Int` e `Float` comparam por valor numérico, com promoção: `1 == 1.0` → `true` (o `Int`
-  é convertido para `Float`; acima de `2^53` a conversão pode perder precisão, como no
+- `nil == nil` → `true`; `nil` vs anything else → `false`;
+- `Int` and `Float` compare by numeric value, with promotion: `1 == 1.0` → `true` (the `Int`
+  is converted to `Float`; above `2^53` the conversion may lose precision, as in
   LLVM);
-- `Range` compara **estruturalmente** (`start`, `end`, `step`, `inclusive`):
-  `(0..3) == (0..3)` → `true` e `(0..2) != (0..=2)`;
-- `List` compara **estruturalmente**, elemento a elemento, inclusive aninhada e com
-  igualdade numérica (`[1, 2] == [1, 2.0]` → `true`). Comprimentos diferentes são
-  `false`; ciclos são tratados com um conjunto de pares visitados;
-- `Map` compara **estruturalmente, independentemente da ordem de inserção**:
-  `{"a": 1, "b": 2} == {"b": 2, "a": 1}` → `true`; o número de entradas e a igualdade de
-  cada valor contam, com guarda de ciclo. `Map` não é hashável;
-- `true == 1` → `false` (booleano nunca é número);
-- strings comparam por conteúdo;
-- funções, classes e instâncias comparam por **identidade** (o mesmo objeto);
-- `NaN != NaN` (IEEE); nenhum literal produz `NaN` hoje.
+- `Range` compares **structurally** (`start`, `end`, `step`, `inclusive`):
+  `(0..3) == (0..3)` → `true` and `(0..2) != (0..=2)`;
+- `List` compares **structurally**, element by element, including nested lists and with
+  numeric equality (`[1, 2] == [1, 2.0]` → `true`). Different lengths are
+  `false`; cycles are handled with a set of visited pairs;
+- `Map` compares **structurally, regardless of insertion order**:
+  `{"a": 1, "b": 2} == {"b": 2, "a": 1}` → `true`; the number of entries and the equality of
+  each value count, with a cycle guard. `Map` is not hashable;
+- `true == 1` → `false` (a boolean is never a number);
+- strings compare by content;
+- functions, classes and instances compare by **identity** (the same object);
+- `NaN != NaN` (IEEE); no literal produces `NaN` today.
 
-### Formatação de números
+### Number formatting
 
-- `Int` → decimal, sem casas (`42`, `-3`);
-- `Float` → menor representação que volta ao mesmo `double`, **sempre** distinguindo de
-  `Int`: `2.0`, `-0.0`, `3.14`, `0.30000000000000004`;
-- notação científica do Python a partir da magnitude correspondente (`1e+20`, `1e-07`);
-- `NaN`, `inf` e `-inf` são os textos de `Float` não finitos; `inf` só aparece por
-  overflow de `Float` (divisão por zero é erro);
-- a formatação é contrato dos golden cases: `42` e `42.0` são saídas diferentes.
+- `Int` → decimal, no decimal places (`42`, `-3`);
+- `Float` → the shortest representation that round-trips to the same `double`, **always**
+  distinguished from `Int`: `2.0`, `-0.0`, `3.14`, `0.30000000000000004`;
+- Python scientific notation starting at the corresponding magnitude (`1e+20`, `1e-07`);
+- `NaN`, `inf` and `-inf` are the texts for non-finite `Float`; `inf` only appears through
+  `Float` overflow (division by zero is an error);
+- formatting is a golden-case contract: `42` and `42.0` are different outputs.
 
-Listas formatam como `[1, 2, 3]`; strings dentro de listas são citadas e escapadas
-(`["a\nb"]`); uma lista que contém a si mesma imprime `[[...]]`. Mapas formatam como
-`{"a": 1, "b": 2}` na ordem de inserção, com strings citadas/escapadas; um mapa que contém
-a si mesmo imprime `{"self": {...}}`. Fora de lista/mapa, string continua sem aspas.
+Lists format as `[1, 2, 3]`; strings inside lists are quoted and escaped
+(`["a\nb"]`); a list that contains itself prints `[[...]]`. Maps format as
+`{"a": 1, "b": 2}` in insertion order, with quoted/escaped strings; a map that contains
+itself prints `{"self": {...}}`. Outside a list/map, a string remains unquoted.
 
-## Variáveis, `val` e `var`
+## Variables, `val` and `var`
 
-- `val x = expr;` cria binding **imutável** e **exige inicializador**.
-- `var x;` cria binding mutável com `nil`; `var x = expr;` idem com valor.
-- No `--check`, todo binding é **monomórfico**: `var x = 1` é `Int` para sempre; `x = 2.0`
-  é erro. `var x = nil` sem anotação é erro (`Can't infer type of 'x' from nil; add an
-  annotation.`); use `var x: Int? = nil` ou `var x: Any = nil`. Campo mutável com
-  inicializador `nil` segue a mesma regra; `val x = nil` é permitido. Ver
+- `val x = expr;` creates an **immutable** binding and **requires an initializer**.
+- `var x;` creates a mutable binding with `nil`; `var x = expr;` does the same with a value.
+- Under `--check`, every binding is **monomorphic**: `var x = 1` is `Int` forever; `x = 2.0`
+  is an error. `var x = nil` without an annotation is an error (`Can't infer type of 'x' from nil; add an
+  annotation.`); use `var x: Int? = nil` or `var x: Any = nil`. A mutable field with a
+  `nil` initializer follows the same rule; `val x = nil` is allowed. See
   [ADR-0024](../adr/0024-mutacao-monomorfica.md).
-- A imutabilidade é do **nome**, não do valor: `val lista` ainda pode ter conteúdo mutável
-  (`lista.push(1)` é permitido).
-- Atribuir a `val` local (ou a parâmetro imutável) é **erro de compilação**:
+- Immutability belongs to the **name**, not the value: `val list` can still have mutable
+  contents (`list.push(1)` is allowed).
+- Assigning to a local `val` (or to an immutable parameter) is a **compile error**:
   `'x' is immutable; declare it with 'var' to allow assignment.`
-- Atribuir a `val` **global** é erro de **runtime** (mesma mensagem, exit 70): globais não
-  são rastreadas pelo resolver.
-- `val` global **não pode ser redeclarado** (`val x = 1; var x = 2;`): erro de runtime
-  `Can't redeclare immutable variable 'x'.` `var` global continua redeclarável; `var`
-  seguido de `val` é permitido e o nome passa a ser imutável.
-- Em escopo local (bloco, função, `for`), redeclarar o mesmo nome no mesmo escopo é erro de
-  compilação: `Already a variable with this name in this scope.` (vale para `val` e `var`).
-- Blocos aninhados podem **sombrear** nomes de escopos externos (inclusive `val`).
-- Ler variável local no próprio inicializador é erro:
-  `Can't read local variable in its own initializer.` (global vira
-  `Undefined variable` em runtime).
-- Declarações `fn` e `class` criam bindings **mutáveis** (decisão separada em aberto).
-- O resolver grava a **distância** de cada acesso local; variáveis globais continuam sendo
-  buscadas em runtime no ambiente global. Isso garante escopo léxico: uma closure lê a
-  variável do local onde foi **declarada**, não do local de onde é chamada.
+- Assigning to a **global** `val` is a **runtime** error (same message, exit 70): globals are
+  not tracked by the resolver.
+- A global `val` **cannot be redeclared** (`val x = 1; var x = 2;`): runtime error
+  `Can't redeclare immutable variable 'x'.` A global `var` remains redeclarable; `var`
+  followed by `val` is allowed and the name becomes immutable.
+- In a local scope (block, function, `for`), redeclaring the same name in the same scope is a
+  compile error: `Already a variable with this name in this scope.` (applies to `val` and `var`).
+- Nested blocks may **shadow** names from outer scopes (including `val`).
+- Reading a local variable in its own initializer is an error:
+  `Can't read local variable in its own initializer.` (a global becomes
+  `Undefined variable` at runtime).
+- `fn` and `class` declarations create **mutable** bindings (separate open decision).
+- The resolver records the **distance** of each local access; globals continue to be
+  looked up at runtime in the global environment. This guarantees lexical scope: a closure reads the
+  variable from where it was **declared**, not from where it is called.
 
-Exemplo canônico:
+Canonical example:
 
 ```lox
 var a = "global";
@@ -132,108 +132,108 @@ var a = "global";
   fn showA() { print(a); }
   showA();        // global
   var a = "block";
-  showA();        // global (não "block")
+  showA();        // global (not "block")
 }
 ```
 
-## Operadores
+## Operators
 
-| Operador | Tipos | Resultado |
+| Operator | Types | Result |
 | --- | --- | --- |
-| `not` | qualquer | nega a truthiness |
-| `-` | número | negação (em `Int`, com wrapping; debug checa overflow) |
-| `~` | `Int` | complemento de 64 bits (`~x == -x - 1`) |
-| `+` | dois números **ou** duas strings | soma com promoção / concatenação |
-| `-` `*` | dois números | aritmética com promoção; `Int` faz wrapping (debug checa) |
-| `/` | dois números | divisão **sempre `Float`** (`4 / 2` → `2.0`) |
-| `//` | `Int` | divisão inteira truncada; divisor zero é erro |
-| `%` | dois números | resto truncado (sinal do dividendo); `fmod` se houver `Float` |
-| `**` | números | `Int ** Int` → `Int`; qualquer `Float` → `Float`; direito-associativo |
-| `&` `\|` `^` | `Int` | operações bit a bit em 64 bits |
-| `<<` `>>` `>>>` | `Int` | shift; `>>` aritmético, `>>>` lógico; contagem `0..63` |
-| `<` `<=` `>` `>=` | dois números | booleano (promoção; com `NaN`, tudo `false`) |
-| `==` `!=` | qualquer | igualdade |
-| `and` `or` | qualquer | curto-circuito, devolve o operando |
-| `a if c else b` | condição qualquer | escolhe um ramo; só avalia o escolhido |
-| `a ?? b` | qualquer | devolve `a`, ou `b` se `a` for `nil` |
-| `a?.b` | objeto anulável | `nil` se `a` for nil; senão acessa `b` |
-| `a as T` | `Int`/`Float`/`Any`/classe/lista/mapa | cast explícito; falha em runtime se não converter |
+| `not` | any | negates truthiness |
+| `-` | number | negation (on `Int`, with wrapping; debug checks overflow) |
+| `~` | `Int` | 64-bit complement (`~x == -x - 1`) |
+| `+` | two numbers **or** two strings | addition with promotion / concatenation |
+| `-` `*` | two numbers | arithmetic with promotion; `Int` wraps (debug checks) |
+| `/` | two numbers | division **always `Float`** (`4 / 2` → `2.0`) |
+| `//` | `Int` | truncated integer division; zero divisor is an error |
+| `%` | two numbers | truncated remainder (sign of the dividend); `fmod` if a `Float` is involved |
+| `**` | numbers | `Int ** Int` → `Int`; any `Float` → `Float`; right-associative |
+| `&` `\|` `^` | `Int` | bitwise operations on 64 bits |
+| `<<` `>>` `>>>` | `Int` | shift; `>>` arithmetic, `>>>` logical; count `0..63` |
+| `<` `<=` `>` `>=` | two numbers | boolean (promotion; with `NaN`, everything is `false`) |
+| `==` `!=` | any | equality |
+| `and` `or` | any | short-circuit, returns the operand |
+| `a if c else b` | any condition | chooses one branch; evaluates only the chosen one |
+| `a ?? b` | any | returns `a`, or `b` if `a` is `nil` |
+| `a?.b` | nullable object | `nil` if `a` is nil; otherwise accesses `b` |
+| `a as T` | `Int`/`Float`/`Any`/class/list/map | explicit cast; fails at runtime if it cannot convert |
 
-- `Int op Float` promove o `Int` para `Float` (`1 + 2.0` → `3.0`); `Float → Int` nunca é
-  implícito.
-- **`--debug`** checa overflow de `Int` em `+ - * ** -`, `INT_MIN // -1` e `INT_MIN % -1`;
-  overflow é erro fatal (`Integer overflow.`, exit 70). Sem a flag, release faz wrapping.
-  Shifts continuam bitwise. Ver [ADR-0028](../adr/0028-overflow-debug.md).
-- `+` **não** mistura número e string: `Operands must be two numbers or two strings.`
-- Comparações relacionais são só numéricas: `Operands must be numbers.`
-- Divisão por zero é **erro de runtime** (`Division by zero not allowed`), para `Int` e
-  `Float` — decisão nossa, diferente do livro (que devolveria `inf`/`NaN`).
-- Resto por zero também é erro de runtime (`Modulo by zero not allowed`).
-- `%` segue C/LLVM: `-7 % 3` → `-1` (sinal do dividendo), não `2`.
-- `//` também é truncado (`-7 // 2` → `-3`); com `%`, vale
-  `a == (a // b) * b + (a % b)`. Overflow de `INT_MIN // -1` faz wrap; no `--debug` é
-  erro. `INT_MIN % -1` é `0` no release e erro no debug.
-- `**`: `2 ** 3` → `Int` 8; `2 ** -1` é erro (`Negative exponent not allowed for integer
-  power.`); use `2.0 ** -1` para `0.5`. `2 ** 63` faz wrap para `INT_MIN`; no `--debug`
-  cada multiplicação intermediária é checada. Expoente negativo em `Float` é permitido;
-  domínio/overflow inválido é erro.
-- `~`, `&`, `|`, `^` e shifts são **só `Int`**; `Bool` e `Float` são
-  `Operands must be integers.` (unário: `Operand must be an integer.`). `>>>` opera no
-  padrão unsigned de 64 bits (`-1 >>> 1 == INT_MAX`).
-- Shift fora de `0..63` é erro (`Shift count must be between 0 and 63.`), não máscara.
-- `and`/`or` devolvem o valor do operando, não um booleano:
+- `Int op Float` promotes the `Int` to `Float` (`1 + 2.0` → `3.0`); `Float → Int` is never
+  implicit.
+- **`--debug`** checks `Int` overflow in `+ - * ** -`, `INT_MIN // -1` and `INT_MIN % -1`;
+  overflow is a fatal error (`Integer overflow.`, exit 70). Without the flag, release wraps.
+  Shifts remain bitwise. See [ADR-0028](../adr/0028-overflow-debug.md).
+- `+` **does not** mix number and string: `Operands must be two numbers or two strings.`
+- Relational comparisons are numeric only: `Operands must be numbers.`
+- Division by zero is a **runtime error** (`Division by zero not allowed`), for `Int` and
+  `Float` — our decision, different from the book (which would return `inf`/`NaN`).
+- Remainder by zero is also a runtime error (`Modulo by zero not allowed`).
+- `%` follows C/LLVM: `-7 % 3` → `-1` (sign of the dividend), not `2`.
+- `//` is also truncated (`-7 // 2` → `-3`); with `%`, the identity
+  `a == (a // b) * b + (a % b)` holds. Overflow of `INT_MIN // -1` wraps; under `--debug` it is
+  an error. `INT_MIN % -1` is `0` in release and an error in debug.
+- `**`: `2 ** 3` → `Int` 8; `2 ** -1` is an error (`Negative exponent not allowed for integer
+  power.`); use `2.0 ** -1` for `0.5`. `2 ** 63` wraps to `INT_MIN`; under `--debug`
+  each intermediate multiplication is checked. A negative exponent on `Float` is allowed;
+  invalid domain/overflow is an error.
+- `~`, `&`, `|`, `^` and shifts are **`Int` only**; `Bool` and `Float` are
+  `Operands must be integers.` (unary: `Operand must be an integer.`). `>>>` operates on the
+  64-bit unsigned pattern (`-1 >>> 1 == INT_MAX`).
+- A shift outside `0..63` is an error (`Shift count must be between 0 and 63.`), not a mask.
+- `and`/`or` return the operand value, not a boolean:
   `nil or 2` → `2`; `false and 1` → `false`.
-- A ordem de avaliação é esquerda→direita; `and`/`or` só avaliam a direita se necessário.
-- `a if c else b`: condição usa truthiness; só um ramo é avaliado. Tipo é a união dos
-  ramos (`Int`/`Int` → `Int`); o `else` é associativo à direita.
-- `??` é **só nil**: `0 ?? 5` → `0`, `false ?? true` → `false`, `"" ?? "x"` → `""`;
-  `or` continua truthiness. O direito só é avaliado se o esquerdo for `nil`.
-- `?.` só protege `nil`: `nil?.x` → `nil`; `a?.b.c` não protege `b`; use `a?.b?.c`.
-  Em `a?.m()`, se `a` for nil, o método e os argumentos não são avaliados; se `a` não for
-  nil mas `m` não existir, continua erro. `a?.b = c` é inválido.
-- `a?.b ?? c` combina os dois: `?.` evita o acesso e `??` aplica o default quando o
-  resultado é nil. Sem `?.`, `a.b ?? c` ainda erra se `a` for nil.
-- `?:` elvis **não existe**; `??` é a única coalescência.
-- Strings: `"..."` é de uma linha; `"""..."""` é multilinha (aspas livres, sem dedent
-  nem remoção da primeira quebra de linha); `r"..."`/`r"""..."""` são raw (`\` literal,
-  `${...}` não interpola). As formas não-raw processam `\n`, `\t`, `\r`, `\"`, `\\`, `\0`,
-  `\$` e `\u{XXXX}`; escape desconhecido é erro. Ver
+- Evaluation order is left→right; `and`/`or` evaluate the right side only if necessary.
+- `a if c else b`: the condition uses truthiness; only one branch is evaluated. The type is the union of the
+  branches (`Int`/`Int` → `Int`); the `else` is right-associative.
+- `??` is **nil only**: `0 ?? 5` → `0`, `false ?? true` → `false`, `"" ?? "x"` → `""`;
+  `or` still uses truthiness. The right side is evaluated only if the left side is `nil`.
+- `?.` only protects against `nil`: `nil?.x` → `nil`; `a?.b.c` does not protect `b`; use `a?.b?.c`.
+  In `a?.m()`, if `a` is nil, the method and the arguments are not evaluated; if `a` is not
+  nil but `m` does not exist, it is still an error. `a?.b = c` is invalid.
+- `a?.b ?? c` combines both: `?.` avoids the access and `??` applies the default when the
+  result is nil. Without `?.`, `a.b ?? c` still errors if `a` is nil.
+- The `?:` elvis operator **does not exist**; `??` is the only coalescing operator.
+- Strings: `"..."` is single-line; `"""..."""` is multiline (quotes are free, with no dedent
+  and no removal of the first newline); `r"..."`/`r"""..."""` are raw (`\` is literal,
+  `${...}` does not interpolate). Non-raw forms process `\n`, `\t`, `\r`, `\"`, `\\`, `\0`,
+  `\$` and `\u{XXXX}`; an unknown escape is an error. See
   [ADR-0070](../adr/0070-strings-multilinha-e-raw.md).
-- Fonte e strings são UTF-8; `len(s)` conta **code points**, não bytes. `s[i]` em string
-  **não existe**: para acesso aleatório use `chars(s)` (`List[String]`, O(n) explícito);
-  `for c in s` itera code points sem alocar. Strings comparam por conteúdo (`==`/`!=`) e
-  ordenam por `< <= > >=` na ordem de code point (= ordem de bytes UTF-8); mistura com
-  número é erro. Não há normalização (`"é" != "e\u{301}"`). Identificadores são ASCII (sem
-  normalização Unicode); ver [ADR-0026](../adr/0026-freeze-1.0.md) e
+- Source and strings are UTF-8; `len(s)` counts **code points**, not bytes. `s[i]` on a string
+  **does not exist**: for random access use `chars(s)` (`List[String]`, explicit O(n));
+  `for c in s` iterates code points without allocating. Strings compare by content (`==`/`!=`) and
+  order by `< <= > >=` in code-point order (= UTF-8 byte order); mixing with a
+  number is an error. There is no normalization (`"é" != "e\u{301}"`). Identifiers are ASCII (no
+  Unicode normalization); see [ADR-0026](../adr/0026-freeze-1.0.md) and
   [ADR-0035](../adr/0035-strings-texto.md).
-- Comentários: `#` até o fim da linha; `/* ... */` de bloco, aninhado. `//` é operador,
-  não comentário.
+- Comments: `#` to the end of the line; `/* ... */` for blocks, nested. `//` is an operator,
+  not a comment.
 
-## Interpolação
+## Interpolation
 
-`"texto ${expressão} mais texto"` avalia cada expressão da esquerda para a direita e
-concatena os trechos. A conversão é a mesma `stringify` do `print`:
+`"text ${expression} more text"` evaluates each expression from left to right and
+concatenates the pieces. The conversion is the same `stringify` as `print`:
 
 ```lox
-val nome = "Ana"
-print("Oi, ${nome}!")        # Oi, Ana!
+val name = "Ana"
+print("Hi, ${name}!")        # Hi, Ana!
 print("1 + 2 = ${1 + 2}")    # 1 + 2 = 3
-print("mapa: ${{"a": 1}}")   # mapa: {"a": 1}
-print("escape: \${nome}")   # escape: ${nome}
-print("cifrão: $5")          # cifrão: $5
+print("map: ${{"a": 1}}")    # map: {"a": 1}
+print("escape: \${name}")   # escape: ${name}
+print("dollar: $5")          # dollar: $5
 ```
 
-- Qualquer expressão é aceita, inclusive chamada, índice, mapa/lista e outra string
-  interpolada; o resultado é sempre `String`.
-- `\$` e `\${` produzem `$`/`${` literais; fora de `${...}`, `$`, `{` e `}` são literais.
-- O checker checa cada expressão; erro dentro dela é erro normal do `--check`.
-- Vale em `"..."` e `"""..."""`; em raw (`r"..."`) `${...}` é texto literal
-  ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)). Sem format spec.
+- Any expression is accepted, including a call, an index, a map/list and another interpolated
+  string; the result is always `String`.
+- `\$` and `\${` produce literal `$`/`${`; outside `${...}`, `$`, `{` and `}` are literals.
+- The checker checks each expression; an error inside one is a normal `--check` error.
+- Valid in `"..."` and `"""..."""`; in raw strings (`r"..."`), `${...}` is literal text
+  ([ADR-0070](../adr/0070-strings-multilinha-e-raw.md)). No format spec.
 
-## Listas
+## Lists
 
-`List[T]` é a única sequência da linguagem: **homogênea no tipo**, **mutável in-place** e
-**invariante**. Ver [ADR-0015](../adr/0015-listas-tipadas.md).
+`List[T]` is the language's only sequence: **homogeneous in type**, **mutable in place** and
+**invariant**. See [ADR-0015](../adr/0015-listas-tipadas.md).
 
 ```lox
 val xs: List[Int] = [1, 2, 3]
@@ -245,44 +245,44 @@ print(xs.pop())       # 4
 for x in xs { print(x) }
 ```
 
-- **Literal**: `[a, b, c]`; `[]` é a lista vazia. O tipo é inferido por unificação dos
-  elementos: `[1, 2]` é `List[Int]`, `[1, 2.0]` é `List[Float]` (promoção). Mistura não
-  numérica (`[1, "a"]`) é erro no `--check`; heterogeneidade exige anotação explícita
-  (`List[Int | String]` ou `List[Any]`). Lista vazia sem tipo esperado é erro; com `Any`
-  explícito, vira `List[Any]`.
-- **Acesso**: `xs[i]`, com `i` `Int` e base zero. Índice negativo ou fora do intervalo é
-  erro de runtime; `xs[i]` em não-lista/não-mapa é `Only lists and maps can be indexed.`
-- **Atribuição**: `xs[i] = v` muta e devolve `v`; `v` precisa ser atribuível a `T` no
-  `--check`; os mesmos limites de índice valem em runtime.
-- **Métodos**: `xs.push(v)` adiciona ao fim e devolve `nil`; `xs.pop()` remove e devolve o
-  último, e lista vazia é erro (`Can't pop from an empty list.`). `xs.len()` não existe;
+- **Literal**: `[a, b, c]`; `[]` is the empty list. The type is inferred by unifying the
+  elements: `[1, 2]` is `List[Int]`, `[1, 2.0]` is `List[Float]` (promotion). Non-numeric
+  mixing (`[1, "a"]`) is an error under `--check`; heterogeneity requires an explicit annotation
+  (`List[Int | String]` or `List[Any]`). An empty list without an expected type is an error; with explicit
+  `Any`, it becomes `List[Any]`.
+- **Access**: `xs[i]`, with `i` an `Int` and zero-based. A negative or out-of-range index is a
+  runtime error; `xs[i]` on a non-list/non-map is `Only lists and maps can be indexed.`
+- **Assignment**: `xs[i] = v` mutates and returns `v`; `v` must be assignable to `T` under
+  `--check`; the same index bounds apply at runtime.
+- **Methods**: `xs.push(v)` appends to the end and returns `nil`; `xs.pop()` removes and returns the
+  last element, and an empty list is an error (`Can't pop from an empty list.`). `xs.len()` does not exist;
   use `len(xs)`.
-- **`len`**: `len(xs)` é O(1) e devolve `Int`; `len(s)` devolve o número de code points da
-  string, e `len(m)` o número de entradas do mapa. `len` de outro tipo é erro de runtime no
-  tree-walk e erro de tipo no `--check`.
-- **Iteração**: `for x in xs` percorre na ordem de inserção; mutar a lista durante o laço é
-  erro (`Can't modify a list while iterating over it.`), não snapshot silencioso.
-- **Igualdade**: estrutural (ver acima). **Stringify**: `[1, 2, 3]`, com strings citadas e
-  escapadas (`["a\nb"]`) e ciclos como `[[...]]`.
-- **Aliasing**: listas são referências. `val ys = xs` não copia; mutar `ys` é visível em
-  `xs`. `val` congela o binding, não o conteúdo.
-- **Opcional**: `List[T]?` e `xs?.push(...)`/`xs?.pop()` funcionam; `len(xs)` e `for` sobre
-  `List[T]?` exigem `if (xs != nil)` (narrowing) ou `??`/`?.`.
-- **Tipos apagados**: sem `--check`, a lista aceita qualquer elemento em runtime; a
-  homogeneidade é contrato estático. Não há checagem de tipo em `push` no runtime.
-  A promoção `Int → Float` também é só de checagem: `xs.push(1)` em `List[Float]` é aceito,
-  mas o valor continua `Int` em runtime (`print(xs)` → `[1, 2.0]`), como
+- **`len`**: `len(xs)` is O(1) and returns `Int`; `len(s)` returns the number of code points in the
+  string, and `len(m)` the number of map entries. `len` of another type is a runtime error in the
+  tree-walk and a type error under `--check`.
+- **Iteration**: `for x in xs` traverses in insertion order; mutating the list during the loop is an
+  error (`Can't modify a list while iterating over it.`), not a silent snapshot.
+- **Equality**: structural (see above). **Stringify**: `[1, 2, 3]`, with strings quoted and
+  escaped (`["a\nb"]`) and cycles as `[[...]]`.
+- **Aliasing**: lists are references. `val ys = xs` does not copy; mutating `ys` is visible in
+  `xs`. `val` freezes the binding, not the contents.
+- **Optional**: `List[T]?` and `xs?.push(...)`/`xs?.pop()` work; `len(xs)` and `for` over
+  `List[T]?` require `if (xs != nil)` (narrowing) or `??`/`?.`.
+- **Erased types**: without `--check`, the list accepts any element at runtime; homogeneity is a
+  static contract. There is no runtime type check in `push`.
+  The `Int → Float` promotion is also check-only: `xs.push(1)` on `List[Float]` is accepted,
+  but the value remains `Int` at runtime (`print(xs)` → `[1, 2.0]`), just like
   `val f: Float = 1`.
-- **Limites**: sem slice, `+` de listas, `map`/`filter`, `contains`, `sort` nem indexação de
-  string na v1. Lista literal não é default de parâmetro nem inicializador de campo; em
-  `init`, `this.xs = []` funciona.
+- **Limits**: no slice, list `+`, `map`/`filter`, `contains`, `sort` or string indexing in
+  v1. A list literal is not a parameter default or a field initializer; in
+  `init`, `this.xs = []` works.
 
-## Tuplas
+## Tuples
 
-`(1, "a")` é uma tupla de aridade 2; o tipo é `(Int, String)`. Tuplas têm **2+ elementos**
-(sem `()` e sem `(x,)`), são **imutáveis** e **covariantes por elemento**: `(Dog, Int)` é
-atribuível a `(Animal, Int)` e `(Int, String)` a `(Any, Any)`. Ver
-[ADR-0030](../adr/0030-tuplas.md) e [ADR-0036](../adr/0036-tuplas-implementacao.md).
+`(1, "a")` is a tuple of arity 2; the type is `(Int, String)`. Tuples have **2+ elements**
+(no `()` and no `(x,)`), are **immutable** and **covariant per element**: `(Dog, Int)` is
+assignable to `(Animal, Int)` and `(Int, String)` to `(Any, Any)`. See
+[ADR-0030](../adr/0030-tuplas.md) and [ADR-0036](../adr/0036-tuplas-implementacao.md).
 
 ```lox
 val par: (Int, String) = (1, "a")
@@ -292,236 +292,236 @@ print(s)                      # a
 print(len(par))               # 2
 ```
 
-- **Literal e tipo**: `(a, b)`; parênteses sem vírgula continuam agrupamento. O tipo
-  `(Int, String)` pode aninhar (`(Int, (String, Bool))`) e voltar de funções.
-- **Acesso**: `t[0]`, `t[1]`; índice precisa ser `Int`. Índice **literal** fora do range é
-  erro de `--check` (`Tuple index 2 out of bounds for length 2.`); índice **dinâmico**
-  tem tipo `Int | String` (união dos elementos) e bounds em runtime
-  (`Tuple index 5 out of bounds for length 2.`). Sem índice negativo.
-- **Destructuring**: `val (a, b) = t`, `var (c, d) = t` e anotação opcional
-  (`val (a, b): (Int, String) = t`). O padrão **aninha** (`val (a, (b, c)) = t`,
-  [ADR-0069](../adr/0069-destructuring-aninhado.md)); cada nível exige tupla (ou união de
-  tuplas da mesma aridade) e erra a aridade localmente. `Any` só com anotação;
-  nome duplicado em qualquer nível é erro.
-- **Igualdade**: estrutural, elemento a elemento (`(1, "a") == (1.0, "a")` → `true`).
-- **Stringify**: `(1, "a")`, com strings citadas/escapadas, recursivo; `(...)` se houver
-  ciclo via lista/mapa.
-- **Imutabilidade**: `t[0] = x` é erro (`Only lists and maps can be indexed.`).
-- **Iteração**: `for x in t` percorre os elementos; o tipo de `x` é a união dos itens
+- **Literal and type**: `(a, b)`; parentheses without a comma remain grouping. The type
+  `(Int, String)` can nest (`(Int, (String, Bool))`) and be returned from functions.
+- **Access**: `t[0]`, `t[1]`; the index must be an `Int`. A **literal** index outside the range is
+  a `--check` error (`Tuple index 2 out of bounds for length 2.`); a **dynamic** index
+  has type `Int | String` (union of the elements) and runtime bounds
+  (`Tuple index 5 out of bounds for length 2.`). No negative index.
+- **Destructuring**: `val (a, b) = t`, `var (c, d) = t` and an optional annotation
+  (`val (a, b): (Int, String) = t`). The pattern **nests** (`val (a, (b, c)) = t`,
+  [ADR-0069](../adr/0069-destructuring-aninhado.md)); each level requires a tuple (or a union of
+  tuples of the same arity) and reports the arity error locally. `Any` only with an annotation;
+  a duplicate name at any level is an error.
+- **Equality**: structural, element by element (`(1, "a") == (1.0, "a")` → `true`).
+- **Stringify**: `(1, "a")`, with quoted/escaped strings, recursively; `(...)` if there is a
+  cycle through a list/map.
+- **Immutability**: `t[0] = x` is an error (`Only lists and maps can be indexed.`).
+- **Iteration**: `for x in t` traverses the elements; the type of `x` is the union of the items
   (`(Int, String)` → `Int | String`).
-- **`is`/`as`**: `x is (A, B)` testa aridade e cada posição; `x as (A, B)` é cast
-  verificado (aceita `Any`; falha em runtime se a forma não bater).
-- **Fora da v1**: tuplas não são hasháveis nem chave de `Map`; o backend as cobre no L6.
+- **`is`/`as`**: `x is (A, B)` tests arity and each position; `x as (A, B)` is a checked cast
+  (accepts `Any`; fails at runtime if the shape does not match).
+- **Outside v1**: tuples are not hashable or `Map` keys; the backend covers them in L6.
 
-## Mapas
+## Maps
 
-`Map[K, V]` é a coleção associativa da linguagem: **homogênea**, **mutável in-place** e
-**invariante** em `K` e `V`. Ver [ADR-0017](../adr/0017-mapas-hash.md).
+`Map[K, V]` is the language's associative collection: **homogeneous**, **mutable in place** and
+**invariant** in `K` and `V`. See [ADR-0017](../adr/0017-mapas-hash.md).
 
 ```lox
-val idades: Map[String, Int] = {"Ana": 32}
-print(idades["Ana"])          # 32
-print(idades.get("Bia"))      # nil
-print(idades.get("Bia") ?? 0) # 0
-idades["Bia"] = 28
-print(idades.has("Bia"))      # true
-print(len(idades))            # 2
-for nome in idades { print(nome) }   # Ana, Bia (ordem de inserção)
+val ages: Map[String, Int] = {"Ana": 32}
+print(ages["Ana"])            # 32
+print(ages.get("Bia"))        # nil
+print(ages.get("Bia") ?? 0)   # 0
+ages["Bia"] = 28
+print(ages.has("Bia"))        # true
+print(len(ages))              # 2
+for name in ages { print(name) }     # Ana, Bia (insertion order)
 ```
 
-- **Literal**: `{ chave: valor, ... }`; `{}` é o mapa vazio em posição de expressão. As
-  chaves são **expressões**: `{ nome: 1 }` usa a variável `nome`; `{ "nome": 1 }` usa a
-  string. No início de um statement, `{` continua abrindo um bloco — para um mapa isolado,
-  use `val m = ...` ou parênteses. Chave repetida no literal é erro de runtime
-  (`Duplicate key in map literal.`); para atualizar use `m[k] = v`.
-- **Inferência**: sem anotação, as chaves e os valores precisam ter um tipo comum
-  (`{"a": 1, "b": 2.0}` → `Map[String, Float]`); mistura não numérica exige anotação
-  (`Map[String, Int | String]` ou `Map[String, Any]`). `{}` sem contexto é erro no
-  `--check`; com `Map[K, V]` esperado, é aceito.
-- **Chaves**: `String`, `Int`, `Bool` e uniões explícitas desses tipos. `Bool` é distinto de
-  `0`/`1` (`{true: "a", 1: "b"}` tem duas chaves). `Float` não é chave na v1 (a relação
-  `1 == 1.0` exigiria canonicalização); `nil`, `List`, `Map`, `Range`, classes e funções
-  também não. Sem `--check`, a restrição vale em runtime
-  (`Map keys must be strings, integers or booleans.`). **Hash consistente com `==`**: as
-  chaves aceitas comparam e fazem hash pela mesma noção — `Bool` tem tag própria (não
-  colide com `0`/`1`), `String` compara por conteúdo e `Int` por valor; como `Float` é
-  rejeitado na entrada, `1 == 1.0` nunca vira duas entradas nem quebra a busca.
-- **Acesso**: `m[k]` devolve `V` e é **erro** se a chave não existe
-  (`Key not found in map.`). `m.get(k)` devolve `V?` (`nil` se ausente); `m.has(k)` devolve
-  `Bool` e distingue ausente de valor `nil`. `m[k]` em não-mapa/não-lista é
+- **Literal**: `{ key: value, ... }`; `{}` is the empty map in expression position. The
+  keys are **expressions**: `{ name: 1 }` uses the variable `name`; `{ "name": 1 }` uses the
+  string. At the start of a statement, `{` still opens a block — for a standalone map,
+  use `val m = ...` or parentheses. A repeated key in the literal is a runtime error
+  (`Duplicate key in map literal.`); to update, use `m[k] = v`.
+- **Inference**: without an annotation, keys and values must have a common type
+  (`{"a": 1, "b": 2.0}` → `Map[String, Float]`); non-numeric mixing requires an annotation
+  (`Map[String, Int | String]` or `Map[String, Any]`). `{}` without context is an error under
+  `--check`; with an expected `Map[K, V]`, it is accepted.
+- **Keys**: `String`, `Int`, `Bool` and explicit unions of those types. `Bool` is distinct from
+  `0`/`1` (`{true: "a", 1: "b"}` has two keys). `Float` is not a key in v1 (the relation
+  `1 == 1.0` would require canonicalization); `nil`, `List`, `Map`, `Range`, classes and functions
+  are not either. Without `--check`, the restriction applies at runtime
+  (`Map keys must be strings, integers or booleans.`). **Hash consistent with `==`**: the
+  accepted keys compare and hash by the same notion — `Bool` has its own tag (it does not
+  collide with `0`/`1`), `String` compares by content and `Int` by value; since `Float` is
+  rejected on entry, `1 == 1.0` never becomes two entries or breaks lookup.
+- **Access**: `m[k]` returns `V` and is an **error** if the key does not exist
+  (`Key not found in map.`). `m.get(k)` returns `V?` (`nil` if absent); `m.has(k)` returns
+  `Bool` and distinguishes absent from a `nil` value. `m[k]` on a non-map/non-list is
   `Only lists and maps can be indexed.`
-- **Atribuição**: `m[k] = v` insere ou atualiza e devolve `v`; no `--check`, `k` precisa ser
-  atribuível a `K` e `v` a `V`.
-- **Métodos**: `m.remove(k)` remove e devolve `V` (chave ausente é erro);
-  `m.keys()`/`m.values()` devolvem `List[K]`/`List[V]` novas, em ordem de inserção (snapshot,
-  não view). `m.len()` não existe; use `len(m)`.
-- **Iteração**: `for k in m` percorre **chaves** na ordem de inserção; mutar o mapa durante o
-  laço é erro (`Can't modify a map while iterating over it.`), inclusive atualizar o valor de
-  uma chave existente. Pares `(k, v)` ainda não têm método (`entries`); `for k in m` dá as chaves.
-- **Igualdade**: estrutural e independente da ordem (ver acima). **Stringify**:
-  `{"a": 1, "b": 2}` com strings citadas/escapadas e ciclos como `{"self": {...}}`.
-- **Aliasing**: mapas são referências. `val n = m` não copia; mutar `n` é visível em `m`.
-  `val` congela o binding, não o conteúdo. Mapas **não** são hasháveis e não podem ser chave.
-- **Opcional**: `Map[K, V]?` e `m?.get(...)`/`m?.has(...)` funcionam; `len(m)` e `for` sobre
-  `Map[K, V]?` exigem `if (m != nil)` (narrowing) ou `??`/`?.`.
-- **Limites**: sem `clear`, `entries`, `map`/`filter`, `contains` nem `+` de mapas na v1.
-  Sem `--check`, os tipos são apagados: o runtime não valida `V` no `m[k] = v`, só o tipo da
-  chave; a homogeneidade é contrato estático.
+- **Assignment**: `m[k] = v` inserts or updates and returns `v`; under `--check`, `k` must be
+  assignable to `K` and `v` to `V`.
+- **Methods**: `m.remove(k)` removes and returns `V` (an absent key is an error);
+  `m.keys()`/`m.values()` return new `List[K]`/`List[V]`, in insertion order (a snapshot,
+  not a view). `m.len()` does not exist; use `len(m)`.
+- **Iteration**: `for k in m` traverses **keys** in insertion order; mutating the map during the
+  loop is an error (`Can't modify a map while iterating over it.`), including updating the value of
+  an existing key. `(k, v)` pairs do not have a method yet (`entries`); `for k in m` gives the keys.
+- **Equality**: structural and order-independent (see above). **Stringify**:
+  `{"a": 1, "b": 2}` with quoted/escaped strings and cycles as `{"self": {...}}`.
+- **Aliasing**: maps are references. `val n = m` does not copy; mutating `n` is visible in `m`.
+  `val` freezes the binding, not the contents. Maps **are not** hashable and cannot be keys.
+- **Optional**: `Map[K, V]?` and `m?.get(...)`/`m?.has(...)` work; `len(m)` and `for` over
+  `Map[K, V]?` require `if (m != nil)` (narrowing) or `??`/`?.`.
+- **Limits**: no `clear`, `entries`, `map`/`filter`, `contains` or map `+` in v1.
+  Without `--check`, types are erased: the runtime does not validate `V` in `m[k] = v`, only the
+  key type; homogeneity is a static contract.
 
-## Ranges e `for-in`
+## Ranges and for-in
 
-`a..b` cria um `Range` **half-open** (`a` incluso, `b` exclusivo) e `a..=b` um range
-**inclusivo** (`b` incluso), só com bounds `Int`;
-`range(a, b, step)` faz o mesmo com passo explícito (inclusive negativo). Range é um valor
-lazy e reutilizável: não materializa elementos e cada `for` cria a sua própria iteração.
+`a..b` creates a **half-open** `Range` (`a` included, `b` exclusive) and `a..=b` an
+**inclusive** range (`b` included), with `Int` bounds only;
+`range(a, b, step)` does the same with an explicit step (including negative). A Range is a
+lazy, reusable value: it does not materialize elements and each `for` creates its own iteration.
 
 ```lox
 for i in 0..4 { print(i); }       // 0 1 2 3
 for i in 0..=4 { print(i); }      // 0 1 2 3 4
 for i in range(5, 0, -2) { ... }  // 5 3 1
-for i in 5..2 { ... }             // vazio
+for i in 5..2 { ... }             // empty
 ```
 
-- Fontes aceitas hoje: `Range` (produz `Int`), `String` (produz `String` de 1 code point),
-  `List[T]` (produz `T`, na ordem de inserção), `Map[K, V]` (produz `K`, as chaves, na
-  ordem de inserção), tupla (produz a união dos elementos) e classes/interfaces com
+- Sources accepted today: `Range` (produces `Int`), `String` (produces a 1-code-point `String`),
+  `List[T]` (produces `T`, in insertion order), `Map[K, V]` (produces `K`, the keys, in
+  insertion order), a tuple (produces the union of the elements) and classes/interfaces with
   `iter()` + `next() -> T?`.
-- O iterável é avaliado **uma vez**, antes do binding do laço; bounds são avaliados uma vez
-  da esquerda para a direita.
-- A variável do laço é um **`val` novo por iteração**: reatribuí-la é erro de compilação e
-  closures capturam o valor daquela iteração.
-- Mutar a coleção durante a iteração é **proibido**: em `List`/`Map` é erro de runtime
+- The iterable is evaluated **once**, before the loop binding; bounds are evaluated once,
+  left to right.
+- The loop variable is a **new `val` per iteration**: reassigning it is a compile error and
+  closures capture the value of that iteration.
+- Mutating the collection during iteration is **forbidden**: on `List`/`Map` it is a runtime error
   (`Can't modify a list while iterating over it.` /
-  `Can't modify a map while iterating over it.`); `Range`/`String` são imutáveis.
-- Iterador de usuário: `for x in e` chama `e.iter()` **uma vez**; o resultado precisa ter
-  `next() -> T?`; `nil` encerra e qualquer outro valor vira `x` (tipo `T`). O protocolo é
-  estrutural (não exige `implements`); a classe do iterador pode ser genérica
+  `Can't modify a map while iterating over it.`); `Range`/`String` are immutable.
+- User iterator: `for x in e` calls `e.iter()` **once**; the result must have
+  `next() -> T?`; `nil` terminates and any other value becomes `x` (type `T`). The protocol is
+  structural (it does not require `implements`); the iterator class may be generic
   (`iter() -> BoxIter[T]`, `next() -> T?`). `next() -> Any?`, `next() -> Nil`, `iter()`/
-  `next()` com parâmetros e retorno que não seja iterador são erro de checker. `nil` como
-  elemento não é representável, porque é a sentinela de fim. Ver
+  `next()` with parameters and a return that is not an iterator are checker errors. `nil` as an
+  element is not representable, because it is the end sentinel. See
   [ADR-0082](../adr/0082-iterador-de-usuario.md).
-- `Range` é truthy, imprime como `<range a..b>` (ou `<range a..b step s>`) e compara
-  estruturalmente.
-- Erros de runtime: `Can only iterate over a range, a list, a map or a string.`,
+- `Range` is truthy, prints as `<range a..b>` (or `<range a..b step s>`) and compares
+  structurally.
+- Runtime errors: `Can only iterate over a range, a list, a map or a string.`,
   `iter() must return an instance with next() -> T?.`,
   `iter() must take no arguments.`, `next() must take no arguments.`,
   `Range bounds must be integers.`, `range() arguments must be integers.`,
-  `range() step can't be zero.`; aridade errada usa a mensagem padrão
+  `range() step can't be zero.`; wrong arity uses the standard message
   (`Expected 3 arguments but got N.`).
 
 ## Statements
 
-| Statement | Efeito |
+| Statement | Effect |
 | --- | --- |
-| `expr;` | avalia e descarta |
-| `{ … }` | novo escopo |
-| `if (c) s elif (c) s else s` | executa o ramo conforme truthiness; `elif` é `else if` |
-| `while (c) s` | repete enquanto truthy |
-| `for (init; cond; incr) s` | desaçucarado para bloco + `while` (ver sintaxe) |
-| `for x in e s` | itera `e` (Range/String/List/Map/Tuple hoje); `x` é `val` por iteração |
-| `return expr?;` | desempilha até a chamada da função |
+| `expr;` | evaluates and discards |
+| `{ … }` | new scope |
+| `if (c) s elif (c) s else s` | executes the branch according to truthiness; `elif` is `else if` |
+| `while (c) s` | repeats while truthy |
+| `for (init; cond; incr) s` | desugared to a block + `while` (see syntax) |
+| `for x in e s` | iterates `e` (Range/String/List/Map/Tuple today); `x` is `val` per iteration |
+| `return expr?;` | unwinds up to the function call |
 
-O `;` é opcional no fim da linha (ou EOF); duas instruções na mesma linha ainda precisam
-dele. Continuação de expressão exige o operador no **fim** da linha; operador no começo
-da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil`.
+The `;` is optional at the end of the line (or EOF); two statements on the same line still require
+it. Expression continuation requires the operator at the **end** of the line; an operator at the
+start of the next line begins another statement. A `return` alone on the line returns `nil`.
 
-## Funções
+## Functions
 
-- `print(valor)` é uma função builtin `Any -> Nil`: escreve `stringify(valor)` e uma
-  newline. Não é statement nem palavra-chave; pode ser aninhada (`print(print(1))`),
-  usada em `return` e como qualquer expressão. `print(a, b)` é erro de aridade
+- `print(value)` is a builtin function `Any -> Nil`: it writes `stringify(value)` and a
+  newline. It is not a statement or keyword; it can be nested (`print(print(1))`),
+  used in `return` and as any expression. `print(a, b)` is an arity error
   ([ADR-0085](../adr/0085-print-como-funcao.md)).
-- Declaração: `fn nome(params) { corpo }`; o nome é definido **antes** do corpo, então a
-  função pode ser recursiva; funções no mesmo escopo podem se chamar (resolução em runtime
-  para globais, distância para locais).
-- Parâmetros são **imutáveis por padrão** (`val` implícito). `fn f(var x)` permite
-  reatribuir `x`; sem `var`, a atribuição é erro de compilação.
-- Parâmetro pode ter **default constante**: `fn f(a, b = 10)`. Obrigatórios vêm antes dos
-  opcionais; depois de um default, todos os seguintes precisam de default.
-- Chamada: avalia o **callee** primeiro e os argumentos da esquerda para a direita; depois
-  verifica se é chamável e a aridade.
-- Não é chamável: `Can only call functions and classes.`
-- Aridade errada: aridade fixa usa `Expected N arguments but got M.`; com defaults,
-  `Expected at least N arguments but got M.` ou `Expected N to M arguments but got K.`
-- Closures: a função captura o ambiente onde foi **declarada** (por referência). Variáveis
-  capturadas continuam mutáveis.
-- `return;` devolve `nil`. `return` no topo do programa é erro de compilação:
-  `Can't return from top-level code.` Para retornar um valor, ele precisa estar na mesma
-  linha do `return`; `return` sozinho na linha devolve `nil`.
-- Parâmetros e locais do corpo compartilham o mesmo escopo: declarar `var a` quando existe
-  parâmetro `a` é erro (mesma mensagem de redeclaração).
-- `clock()` **não existe na 1.0**: tempo é entrada ambiente e violaria o I3. Um módulo
-  `time` explicitamente não determinístico fica para depois. O prelúdio determinístico é
+- Declaration: `fn name(params) { body }`; the name is defined **before** the body, so the
+  function can be recursive; functions in the same scope can call each other (runtime
+  resolution for globals, distance for locals).
+- Parameters are **immutable by default** (implicit `val`). `fn f(var x)` allows
+  reassigning `x`; without `var`, assignment is a compile error.
+- A parameter may have a **constant default**: `fn f(a, b = 10)`. Required parameters come before
+  optional ones; after a default, all following parameters need a default.
+- Call: evaluates the **callee** first and the arguments left to right; then
+  checks that it is callable and the arity.
+- Not callable: `Can only call functions and classes.`
+- Wrong arity: fixed arity uses `Expected N arguments but got M.`; with defaults,
+  `Expected at least N arguments but got M.` or `Expected N to M arguments but got K.`
+- Closures: the function captures the environment where it was **declared** (by reference). Captured
+  variables remain mutable.
+- `return;` returns `nil`. `return` at the top level of the program is a compile error:
+  `Can't return from top-level code.` To return a value, it must be on the same
+  line as `return`; a `return` alone on the line returns `nil`.
+- Parameters and body locals share the same scope: declaring `var a` when a
+  parameter `a` exists is an error (the same redeclaration message).
+- `clock()` **does not exist in 1.0**: time is ambient input and would violate I3. A
+  `time` module that is explicitly non-deterministic is left for later. The deterministic prelude is
   `args`, `chars`, `charCodeAt`, `fromCodePoint`, `join`, `len`, `str`, `repr`, `range`,
-  `substr`, `Int`, `Float`, `math`, `io`, `os` e `time`.
-- `len(x)` aceita `List`, `Map` ou `String`; devolve `Int` (O(1) para lista/mapa, code
-  points para string). Outro tipo é erro:
+  `substr`, `Int`, `Float`, `math`, `io`, `os` and `time`.
+- `len(x)` accepts `List`, `Map` or `String`; it returns `Int` (O(1) for list/map, code
+  points for string). Another type is an error:
   `len() expects a string, a list or a map.`
-- `chars(s)` exige `String` e devolve `List[String]` com os code points (cada um é uma
-  string de 1 cp); O(n) explícito. `chars("aço")` → `["a", "ç", "o"]`; outro tipo é erro.
-- `substr(s, start, end)` exige `String`/`Int`/`Int` e devolve a substring por code
-  points; `0 <= start <= end <= len(s)`, senão erro de runtime.
-- `join(parts, sep)` exige `List[String]` e `String` e devolve a concatenação linear.
-- `charCodeAt(s, index)` devolve o code point (`Int`) na posição; erro fora dos limites.
-- `fromCodePoint(codePoint)` exige `Int` válido (0..0x10FFFF, sem surrogates) e devolve
-  `String` de 1 code point.
-- Kernel de SO: `args()` devolve `List[String]` com os argumentos depois do script/binário;
+- `chars(s)` requires `String` and returns `List[String]` with the code points (each one is a
+  1-cp string); explicit O(n). `chars("café")` → `["c", "a", "f", "é"]`; another type is an error.
+- `substr(s, start, end)` requires `String`/`Int`/`Int` and returns the substring by code
+  points; `0 <= start <= end <= len(s)`, otherwise a runtime error.
+- `join(parts, sep)` requires `List[String]` and `String` and returns the linear concatenation.
+- `charCodeAt(s, index)` returns the code point (`Int`) at the position; out of bounds is an error.
+- `fromCodePoint(codePoint)` requires a valid `Int` (0..0x10FFFF, no surrogates) and returns
+  a 1-code-point `String`.
+- OS kernel: `args()` returns `List[String]` with the arguments after the script/binary;
   `io.readFile(path)`, `io.write(text)`, `io.writeErr(text)`, `io.writeFile(path, text)`,
-  `io.readLine()` e `os.getenv(name)` são ambiente (entrada/FS); `os.exit(code)` encerra
-  com 0..255; `time.now()`/`time.sleep(ms)` são ambiente.
-- `process.*` (POSIX, ambiente): `spawn(argv) -> Int` inicia sem shell (0 = falha);
-  `stdin/stdout/stderr(handle) -> Int`; `wait(handle) -> Int` (negativo = sinal);
-  `kill`/`close(handle)`; `read(handle, n) -> String?` (até `n` bytes, sempre em fronteira
-  UTF-8); `write(handle, text) -> Bool`; `poll(handles, timeoutMs) -> List[Int]` (streams
-  legíveis/EOF e processos já saídos; `timeout < 0` = infinito, `0` = não bloqueante).
+  `io.readLine()` and `os.getenv(name)` are ambient (input/FS); `os.exit(code)` exits
+  with 0..255; `time.now()`/`time.sleep(ms)` are ambient.
+- `process.*` (POSIX, ambient): `spawn(argv) -> Int` starts without a shell (0 = failure);
+  `stdin/stdout/stderr(handle) -> Int`; `wait(handle) -> Int` (negative = signal);
+  `kill`/`close(handle)`; `read(handle, n) -> String?` (up to `n` bytes, always on a UTF-8
+  boundary); `write(handle, text) -> Bool`; `poll(handles, timeoutMs) -> List[Int]` (readable
+  streams/EOF and exited processes; `timeout < 0` = infinite, `0` = non-blocking).
   Kernel 19 → 29 ([ADR-0095](../adr/0095-processos-streams-poll.md)).
-- `io.write`/`io.writeErr` fazem flush a cada chamada (nos dois motores) e `io.flush()`
-  força stdout e stderr: um processo consegue ler a saída antes do EOF
+- `io.write`/`io.writeErr` flush on every call (in both engines) and `io.flush()`
+  forces stdout and stderr: a process can read the output before EOF
   ([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)).
-- `io.readUtf8(n)` lê **exatamente** `n` bytes de stdin (0..n-1 e decodifica UTF-8
-  estrito): `n < 0` é erro; `n == 0` devolve `""` sem tocar no stdin; EOF imediato
-  devolve `nil`; EOF no meio ou bytes inválidos são `RuntimeError` (`R1000`) com a posição
-  da chamada. Misturar `io.readUtf8` com `io.readLine`/`io.readAll` no interpretador é
-  indefinido (camadas de buffer distintas); use um estilo só
+- `io.readUtf8(n)` reads **exactly** `n` bytes from stdin (0..n-1 and decodes strict
+  UTF-8): `n < 0` is an error; `n == 0` returns `""` without touching stdin; immediate EOF
+  returns `nil`; EOF in the middle or invalid bytes are a `RuntimeError` (`R1000`) with the call
+  position. Mixing `io.readUtf8` with `io.readLine`/`io.readAll` in the interpreter is
+  undefined (distinct buffer layers); use a single style
   ([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)).
-- `io.readLine`/`io.readAll` decodificam UTF-8 **estrito**, independente do locale:
-  bytes inválidos são `RuntimeError` com `expects UTF-8 input.`, nunca ecoados.
-- `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
-  de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
-  `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são
-  imutáveis: redefinir `chars`/`charCodeAt`/`fromCodePoint`/`join`/`len`/`str`/`repr`/
-  `range`/`substr`/`Int`/`Float`/`math` no escopo global é
-  erro; local e parâmetro podem sombrear. `clock` deixou de ser builtin; pode ser usado
-  como nome comum.
-- `range(start, end, step)` é nativa de aridade 3 e exige `Int`; devolve `Range`.
-### Conversões e `math`
+- `io.readLine`/`io.readAll` decode UTF-8 **strictly**, regardless of locale:
+  invalid bytes are a `RuntimeError` with `expects UTF-8 input.`, never echoed.
+- `str(x)` returns the display form (a top-level string without quotes); `repr(x)` returns the
+  debug form (quoted/escaped string). Both accept any value, have arity 1 and return
+  `String`; inside lists both use the same formatting today. Global builtins are
+  immutable: redefining `chars`/`charCodeAt`/`fromCodePoint`/`join`/`len`/`str`/`repr`/
+  `range`/`substr`/`Int`/`Float`/`math` in the global scope is
+  an error; a local and a parameter may shadow them. `clock` is no longer a builtin; it can be used
+  as an ordinary name.
+- `range(start, end, step)` is a native of arity 3 and requires `Int`; it returns `Range`.
+### Conversions and `math`
 
-Casts são explícitos com `as`; não há conversão implícita:
+Casts are explicit with `as`; there is no implicit conversion:
 
 ```lox
-val i = 3.9 as Int        # 3 (trunca em direção a zero)
+val i = 3.9 as Int        # 3 (truncates toward zero)
 val f = 3 as Float        # 3.0
-val d = anyValue as Dog   # checagem de runtime
+val d = anyValue as Dog   # runtime check
 ```
 
-- `Int as Float` arredonda para f64 (pode perder precisão acima de `2^53`).
-- `Float as Int` trunca em direção a zero; `NaN`, `Inf` ou fora de `[INT_MIN, INT_MAX]`
-  é erro fatal (`Can't cast this Float to Int.`).
-- `Any as T` checa o runtime: números convertem para `Int`/`Float`; classes, listas e
-  mapas usam a mesma checagem de `is`.
-- `T as T` é identidade; `as Any` devolve o valor. Target união (`Int?`, `Int | String`)
-  ainda não existe; use narrowing/`is`.
-- String não vira número por cast; use `parse`.
+- `Int as Float` rounds to f64 (may lose precision above `2^53`).
+- `Float as Int` truncates toward zero; `NaN`, `Inf` or outside `[INT_MIN, INT_MAX]`
+  is a fatal error (`Can't cast this Float to Int.`).
+- `Any as T` checks at runtime: numbers convert to `Int`/`Float`; classes, lists and
+  maps use the same check as `is`.
+- `T as T` is the identity; `as Any` returns the value. A union target (`Int?`, `Int | String`)
+  does not exist yet; use narrowing/`is`.
+- A string does not become a number through a cast; use `parse`.
 
 ```lox
-val n = Int.parse("42")      # Int? (nil se inválido)
+val n = Int.parse("42")      # Int? (nil if invalid)
 val f = Float.parse("3.14")  # Float?
 ```
 
-`Int.parse`/`Float.parse` são membros dos namespaces nativos `Int`/`Float`; texto inválido,
-vazio, com espaços ou fora do range devolve `nil`. Não existe `42.toString()`; use `str`.
+`Int.parse`/`Float.parse` are members of the native `Int`/`Float` namespaces; invalid text,
+empty text, text with spaces or out of range returns `nil`. There is no `42.toString()`; use `str`.
 
-`math` é um namespace nativo somente leitura:
+`math` is a read-only native namespace:
 
 ```lox
 math.abs(x)   math.min(a, b)   math.max(a, b)   math.clamp(x, lo, hi)
@@ -529,168 +529,168 @@ math.floor(x) math.ceil(x)     math.round(x)    math.trunc(x)
 math.sqrt(x)
 ```
 
-- `abs/min/max/clamp` aceitam `Int`/`Float` e promovem na mistura; `min/max` de dois
-  argumentos; `clamp` exige `low <= high`.
-- `floor/ceil/round/trunc` devolvem `Int`; exigem valor finito no range i64. `round`
-  arredonda metade para longe de zero.
-- `sqrt` devolve `Float`; negativo vira `NaN`.
-- `abs(INT_MIN)` é wrap no release e erro no `--debug`.
-- **Fora da 1.0**: `log`, `exp`, `sin`, `cos`, `tan`, `pow` e `math.pi`; dependem da libm
-  e ficam fora do I3. Ver [ADR-0029](../adr/0029-conversoes-math.md).
+- `abs/min/max/clamp` accept `Int`/`Float` and promote on mixing; `min/max` take two
+  arguments; `clamp` requires `low <= high`.
+- `floor/ceil/round/trunc` return `Int`; they require a finite value in the i64 range. `round`
+  rounds halfway away from zero.
+- `sqrt` returns `Float`; a negative value becomes `NaN`.
+- `abs(INT_MIN)` wraps in release and is an error under `--debug`.
+- **Outside 1.0**: `log`, `exp`, `sin`, `cos`, `tan`, `pow` and `math.pi`; they depend on libm
+  and are outside I3. See [ADR-0029](../adr/0029-conversoes-math.md).
 
-- Lambdas: `fn(x) => expr` (corpo de expressão, retorno implícito) e `fn(x) { ... }`
-  (bloco com `return`), com `-> Tipo` opcional antes do corpo. São closures sobre o
-  ambiente onde foram avaliadas; `this`/`super` são lexicais e `return` volta da lambda.
-  Parâmetros seguem as regras de funções, mas **defaults são erro**. `print` de lambda sai
-  `<lambda>`. A tipagem está em “Tipos e `--check`”. Ver
+- Lambdas: `fn(x) => expr` (expression body, implicit return) and `fn(x) { ... }`
+  (block with `return`), with an optional `-> Type` before the body. They are closures over the
+  environment where they were evaluated; `this`/`super` are lexical and `return` returns from the lambda.
+  Parameters follow the function rules, but **defaults are an error**. `print` of a lambda outputs
+  `<lambda>`. Typing is in “Types and `--check`”. See
   [ADR-0022](../adr/0022-lambdas.md).
 
-## Tipos e `--check`
+## Types and `--check`
 
-Anotações de tipo existem na AST, mas o **interpretador as ignora**: tipos são apagados em
-runtime. A checagem é opt-in pelo CLI (`--check`), que não executa o programa.
+Type annotations exist in the AST, but the **interpreter ignores them**: types are erased at
+runtime. Checking is opt-in via the CLI (`--check`), which does not execute the program.
 
 ```lox
-fn soma(a: Int, b: Int = 10) -> Int {
+fn sum(a: Int, b: Int = 10) -> Int {
   return a + b;
 }
 
-val x = soma(1);              // Int inferido, sem anotação
-val nome: String? = nil;      // String | Nil
-val rotulo = nome or "sem nome";  // String (truthy remove Nil)
+val x = sum(1);               // Int inferred, no annotation
+val name: String? = nil;      // String | Nil
+val label = name or "unnamed";  // String (truthy removes Nil)
 ```
 
-- No `--check`, funções e métodos precisam de anotação em **todos os parâmetros e no
-  retorno**; `init` não declara retorno. Parâmetro/campo sem anotação e sem inicializador
-  é erro; local sem inicializador também. Lambdas em `val` podem inferir parâmetros e
-  generalizar o esquema (T4); `fn` continua contrato explícito. Ver
-  [ADR-0033](../adr/0033-inferencia-t3c-t4.md) e [ADR-0034](../adr/0034-t3c-revertido.md).
-- Assinaturas de funções de topo são conhecidas **antes** dos corpos: uma função pode
-  chamar outra declarada depois, inclusive recursão mútua. O código de topo continua na
-  ordem dos statements: chamar uma função antes da declaração dela ainda é erro; métodos e
-  campos de classes seguem a ordem da classe. Ver
+- Under `--check`, functions and methods require annotations on **all parameters and on the
+  return type**; `init` does not declare a return. A parameter/field without an annotation and without an initializer
+  is an error; a local without an initializer too. Lambdas in `val` can infer parameters and
+  generalize the scheme (T4); `fn` remains an explicit contract. See
+  [ADR-0033](../adr/0033-inferencia-t3c-t4.md) and [ADR-0034](../adr/0034-t3c-revertido.md).
+- Top-level function signatures are known **before** the bodies: one function can
+  call another declared later, including mutual recursion. Top-level code still follows the
+  statement order: calling a function before its declaration is still an error; class methods and
+  fields follow the class order. See
   [ADR-0020](../adr/0020-assinaturas-explicitas.md).
-- Locais e expressões são inferidos: `val x = f()` não precisa de tipo.
-- Tipos: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
-  `List[T]`, `Map[K, V]`, tipos de função `fn(Int) -> Int`, uniões `A | B` e `T?`
-  (= `T | Nil`). `Int` é non-null. `List[T]` e `Map[K, V]` são invariantes:
-  `List[Int]` não é `List[Float]` nem `List[Any]`; `Map[String, Int]` não é
+- Locals and expressions are inferred: `val x = f()` does not need a type.
+- Types: `Int`, `Float`, `Bool`, `String`, `Nil`, `Any`, `Never`, `Range`, classes,
+  `List[T]`, `Map[K, V]`, function types `fn(Int) -> Int`, unions `A | B` and `T?`
+  (= `T | Nil`). `Int` is non-null. `List[T]` and `Map[K, V]` are invariant:
+  `List[Int]` is not `List[Float]` or `List[Any]`; `Map[String, Int]` is not
   `Map[String, Any]`.
-- Type alias: `type UserId = Int` é **transparente** e não-genérico; o nome expande para o
-  alvo em qualquer anotação, `List`/`Map`, tupla, união, `T?`, tipo de função, `is`/`as` e
-  bound de interface. Aliases são top-level, podem referenciar declarações posteriores e
-  outros aliases, e ciclos/colisões são erro. `UserId` e `Int` são o mesmo tipo: não há
-  tipo nominal, construtor nem distinção em runtime. `class C(Alias)` e
-  `class C implements Alias` continuam exigindo o nome real da classe/interface. Ver
-  [ADR-0039](../adr/0039-decisoes-tipos-pendentes.md) e
+- Type alias: `type UserId = Int` is **transparent** and non-generic; the name expands to the
+  target in any annotation, `List`/`Map`, tuple, union, `T?`, function type, `is`/`as` and
+  interface bound. Aliases are top-level, may reference later declarations and
+  other aliases, and cycles/collisions are errors. `UserId` and `Int` are the same type: there is no
+  nominal type, constructor or runtime distinction. `class C(Alias)` and
+  `class C implements Alias` still require the real class/interface name. See
+  [ADR-0039](../adr/0039-decisoes-tipos-pendentes.md) and
   [ADR-0084](../adr/0084-type-alias.md).
-- Tipos de função: parâmetros são **contravariantes** e o retorno é **covariante**;
-  defaults contam como intervalo de aridade. Uma classe (`Animal`) é atribuível à
-  assinatura do seu construtor (`fn(String) -> Animal`), mas uma instância (`: Animal`)
-  não é. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
-- Variádicos: o último parâmetro pode ser `...xs: T`; dentro do corpo `xs` é `List[T]`.
-  Vale em funções, métodos, interfaces e lambdas; `init` é recusado na v1. A chamada
-  aceita extras (`f(1, 2, 3)`) ou um **spread final** (`f(a, ...xs)`), que preenche
-  somente o rest e exige os fixos explícitos; `f(...xs)` só vale sem fixos. O tipo do
-  spread é `List[T]`; `f(...xs, 2)` e spread no meio são erro de parser. Defaults nos
-  fixos continuam valendo. Ver [ADR-0083](../adr/0083-variadicos.md).
-- Funções genéricas introduzem parâmetros de tipo (`T`, `U`) que podem aparecer em
-  `List[T]`, `Map[String, T]`, `fn(T) -> U`, uniões e `T?`. O checker cria uma variável de
-  tipo fresca por declaração e resolve a chamada por unificação: argumentos e tipo
-  esperado (retorno, `val` anotado, argumento de função) preenchem os `T`. Se sobrar algum
-  sem inferência, é erro (`Can't infer type argument(s) 'T'.`). Não há constraints,
-  variance declarada, type application explícita nem `T` em chave de `Map` sem constraint;
-  `Any` não infere `T`. `val f = fn(x) => x` é generalizado (T4); parâmetro de `fn` continua
-  exigindo anotação (T3c rejeitado). No runtime os tipos são apagados; o backend monomorfiza
+- Function types: parameters are **contravariant** and the return is **covariant**;
+  defaults count as an arity range. A class (`Animal`) is assignable to the
+  signature of its constructor (`fn(String) -> Animal`), but an instance (`: Animal`)
+  is not. See [ADR-0021](../adr/0021-tipos-de-funcao.md).
+- Variadics: the last parameter may be `...xs: T`; inside the body `xs` is `List[T]`.
+  Valid in functions, methods, interfaces and lambdas; `init` is rejected in v1. The call
+  accepts extras (`f(1, 2, 3)`) or a **final spread** (`f(a, ...xs)`), which fills
+  only the rest and requires the fixed parameters explicitly; `f(...xs)` is only valid without fixed parameters. The type of the
+  spread is `List[T]`; `f(...xs, 2)` and a spread in the middle are parser errors. Defaults on the
+  fixed parameters still apply. See [ADR-0083](../adr/0083-variadicos.md).
+- Generic functions introduce type parameters (`T`, `U`) that may appear in
+  `List[T]`, `Map[String, T]`, `fn(T) -> U`, unions and `T?`. The checker creates a fresh
+  type variable per declaration and resolves the call by unification: arguments and the expected
+  type (return, annotated `val`, function argument) fill in the `T`s. If any are left
+  without inference, it is an error (`Can't infer type argument(s) 'T'.`). There are no constraints,
+  declared variance, explicit type application or `T` in a `Map` key without a constraint;
+  `Any` does not infer `T`. `val f = fn(x) => x` is generalized (T4); a `fn` parameter still
+  requires an annotation (T3c rejected). At runtime types are erased; the backend monomorphizes
   ([ADR-0027](../adr/0027-generics-t3b.md), [ADR-0033](../adr/0033-inferencia-t3c-t4.md),
   [ADR-0034](../adr/0034-t3c-revertido.md)).
-- Lambdas: `fn(x) => expr` e `fn(x) { ... }`. O corpo de expressão vira retorno
-  implícito; o bloco exige `return`. O tipo esperado preenche parâmetros sem anotação
-  (`aplicar(fn(x) => x * 2, 3)`); sem contexto, em `val`, os parâmetros são inferidos como
-  variáveis de tipo e o esquema é generalizado (`val id = fn(x) => x` serve para `Int` e
-  `String`); `var` continua exigindo contexto. O retorno é inferido;
-  mistura de `return`s não-nil exige `-> T`; bloco que pode cair no fim acrescenta `Nil`,
-  e retorno declarado não-nil exige todos os caminhos. Defaults em parâmetro de lambda são
-  erro. `this`/`super` são lexicais e `return` volta da lambda. `print` de lambda sai
-  `<lambda>`. Ver [ADR-0022](../adr/0022-lambdas.md).
-- Funções genéricas: `fn id[T] (x: T) -> T { ... }`. Os parâmetros de tipo são declarados
-  entre o nome e `(` e valem nas anotações e no corpo (`T`, `List[T]`, `Map[String, T]`,
-  `fn(T) -> U`). O corpo é checado **uma vez**. Sem bounds, só operações universais valem
-  (`==`, `str`/`repr`, atribuir, listas/mapas, chamar funções passadas); `a + b` e
-  `len(x)` em `T` são erro até existir um bound. A chamada infere por unificação dos
-  argumentos e do tipo esperado; `id(1)` ⇒ `T = Int`. A inferência é da esquerda para a
-  direita: uma lambda antes do argumento que fixa `T` precisa de anotação. Não há
-  `id[Int] (1)` nem função genérica como valor (`val f = id` é erro); zero-arg exige
-  contexto (`val xs: List[Int] = empty();`). Recursão com os mesmos argumentos de tipo é
-  permitida; recursão polimórfica é recusada. Métodos genéricos ainda não existem.
-  O runtime apaga `T`; o backend monomorfiza (ADR-0027). Ver
+- Lambdas: `fn(x) => expr` and `fn(x) { ... }`. The expression body becomes an implicit
+  return; the block requires `return`. The expected type fills in unannotated parameters
+  (`aplicar(fn(x) => x * 2, 3)`); without context, in `val`, the parameters are inferred as
+  type variables and the scheme is generalized (`val id = fn(x) => x` works for `Int` and
+  `String`); `var` still requires context. The return is inferred;
+  mixing non-nil `return`s requires `-> T`; a block that may fall through adds `Nil`,
+  and a declared non-nil return requires all paths. Defaults in a lambda parameter are
+  an error. `this`/`super` are lexical and `return` returns from the lambda. `print` of a lambda outputs
+  `<lambda>`. See [ADR-0022](../adr/0022-lambdas.md).
+- Generic functions: `fn id[T] (x: T) -> T { ... }`. The type parameters are declared
+  between the name and `(` and are valid in annotations and in the body (`T`, `List[T]`, `Map[String, T]`,
+  `fn(T) -> U`). The body is checked **once**. Without bounds, only universal operations are valid
+  (`==`, `str`/`repr`, assignment, lists/maps, calling passed functions); `a + b` and
+  `len(x)` on `T` are errors until a bound exists. The call infers by unifying the
+  arguments and the expected type; `id(1)` ⇒ `T = Int`. Inference is left to right:
+  a lambda before the argument that fixes `T` needs an annotation. There is no
+  `id[Int] (1)` or generic function as a value (`val f = id` is an error); zero-arg requires
+  context (`val xs: List[Int] = empty();`). Recursion with the same type arguments is
+  allowed; polymorphic recursion is rejected. Generic methods do not exist yet.
+  The runtime erases `T`; the backend monomorphizes (ADR-0027). See
   [ADR-0027](../adr/0027-generics-t3b.md).
-- Constraints de função: `fn max[T: Ord]`, `fn soma[T: Ord + Num]`,
-  `fn juntas[T: A + B]`. `Ord` vale para `Int`/`Float`/`String` e libera
-  `< <= > >=` entre dois valores do mesmo `T`; `Num` vale para `Int`/`Float` e libera
-  `+ - * % **` e unário `-` (não `/`, `//` nem bits). Bound de interface libera os métodos
-  da interface em `x`; duas interfaces com o mesmo método de assinaturas diferentes são
-  ambiguidade. Na chamada, cada type argument concreto precisa satisfazer o bound (`Bool`,
-  `Any`, uniões e optionais não satisfazem); um `TyVar` de outro generic satisfaz só se
-  carregar o mesmo bound. Bounds só existem em **funções** na v1; classes/enums com
-  `[T: ...]` são erro de parser. O runtime apaga bounds; o backend monomorfiza igual a
-  T7. Ver [ADR-0081](../adr/0081-constraints-generics.md).
-- Listas: `[1, 2]` infere `List[Int]`; `[1, 2.0]` infere `List[Float]`; `[]` exige tipo
-  esperado; mistura não numérica exige anotação explícita. `push`/`xs[i] = v` checam o
-  elemento; `xs[i]` checa que o índice é `Int`; `len` checa lista/string/mapa. `xs.pop()` e
-  `xs[i]` devolvem `T`.
-- Mapas: `{"a": 1}` infere `Map[String, Int]`; chaves e valores precisam de tipo comum;
-  `{}` exige tipo esperado; `m[k]` checa `k` contra `K` e devolve `V`; `m[k] = v` checa
-  `v`; `m.get(k)` devolve `V?`; `m.has(k)` devolve `Bool`; `m.remove(k)` devolve `V`;
-  `m.keys()`/`m.values()` devolvem `List[K]`/`List[V]`; `for k in m` liga `k: K`; `len(m)`
-  é `Int`. Só `String`, `Int`, `Bool` (e uniões desses) são chaves válidas; `Map[Float, V]`
-  é erro de tipo.
-- Interpolação: cada expressão é checada normalmente e o resultado é `String`; qualquer
-  tipo é convertido por `stringify`.
-- Promoção só `Int → Float` na checagem; `Float → Int` exigirá cast explícito.
-- Funções e métodos com retorno **não-nil** precisam retornar em todos os caminhos no
-  `--check` (`Function 'f' must return Int on all paths.`); `return;` nesse caso é erro.
-  Tipos nilables, `Any`, `Never` e `<error>` ficam de fora. Ver
+- Function constraints: `fn max[T: Ord]`, `fn sum[T: Ord + Num]`,
+  `fn juntas[T: A + B]`. `Ord` applies to `Int`/`Float`/`String` and enables
+  `< <= > >=` between two values of the same `T`; `Num` applies to `Int`/`Float` and enables
+  `+ - * % **` and unary `-` (not `/`, `//` or bitwise). An interface bound enables the interface's
+  methods on `x`; two interfaces with the same method with different signatures are
+  ambiguous. At the call site, each concrete type argument must satisfy the bound (`Bool`,
+  `Any`, unions and optionals do not satisfy it); a `TyVar` from another generic satisfies it only if
+  it carries the same bound. Bounds exist only on **functions** in v1; classes/enums with
+  `[T: ...]` are parser errors. The runtime erases bounds; the backend monomorphizes like
+  T7. See [ADR-0081](../adr/0081-constraints-generics.md).
+- Lists: `[1, 2]` infers `List[Int]`; `[1, 2.0]` infers `List[Float]`; `[]` requires an expected
+  type; non-numeric mixing requires an explicit annotation. `push`/`xs[i] = v` check the
+  element; `xs[i]` checks that the index is `Int`; `len` checks list/string/map. `xs.pop()` and
+  `xs[i]` return `T`.
+- Maps: `{"a": 1}` infers `Map[String, Int]`; keys and values need a common type;
+  `{}` requires an expected type; `m[k]` checks `k` against `K` and returns `V`; `m[k] = v` checks
+  `v`; `m.get(k)` returns `V?`; `m.has(k)` returns `Bool`; `m.remove(k)` returns `V`;
+  `m.keys()`/`m.values()` return `List[K]`/`List[V]`; `for k in m` binds `k: K`; `len(m)`
+  is `Int`. Only `String`, `Int`, `Bool` (and unions of those) are valid keys; `Map[Float, V]`
+  is a type error.
+- Interpolation: each expression is checked normally and the result is `String`; any
+  type is converted by `stringify`.
+- Promotion is `Int → Float` only in checking; `Float → Int` will require an explicit cast.
+- Functions and methods with a **non-nil** return must return on all paths under
+  `--check` (`Function 'f' must return Int on all paths.`); `return;` in that case is an error.
+  Nilable types, `Any`, `Never` and `<error>` are excluded. See
   [ADR-0023](../adr/0023-soundness-do-checker.md).
-- Erro de chamada identifica o argumento: `Argument 2: Expected String, found Int.`
-  Passar a classe onde se espera uma instância é reportado como
+- A call error identifies the argument: `Argument 2: Expected String, found Int.`
+  Passing the class where an instance is expected is reported as
   `Expected an instance of Animal, found the class Animal.`
-- Condições usam **truthiness** (qualquer tipo); `and`/`or` devolvem o operando. O checker
-  tipa `or` como `truthy(A) | B` e `and` como `falsy(A) | B`; `not` devolve `Bool`.
-- `expr is T` devolve `Bool` e testa o valor em runtime: primitivos, classe/subclasse,
-  `List[T]`/`Map[K, V]` (elementos inclusos; O(n)) e uniões. Para classe, a identidade é o
-  **objeto de classe** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
-  é verdadeiro, mas uma classe local homônima não é a classe global. `Any` sempre
-  verdadeiro, `Never` sempre falso; tipos de função são recusados no `--check`. Uma classe
-  como valor não é instância (`Animal is Animal` é `false`). Na expressão, união no lado
-  direito exige parênteses (`x is (Int | String)`); ver
-  [ADR-0067](../adr/0067-desambiguacao-sintatica.md) e
+- Conditions use **truthiness** (any type); `and`/`or` return the operand. The checker
+  types `or` as `truthy(A) | B` and `and` as `falsy(A) | B`; `not` returns `Bool`.
+- `expr is T` returns `Bool` and tests the value at runtime: primitives, class/subclass,
+  `List[T]`/`Map[K, V]` (including elements; O(n)) and unions. For a class, the identity is the
+  **class object** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
+  is true, but a local class with the same name is not the global class. `Any` is always
+  true, `Never` always false; function types are rejected under `--check`. A class
+  as a value is not an instance (`Animal is Animal` is `false`). In the expression, a union on the
+  right side requires parentheses (`x is (Int | String)`); see
+  [ADR-0067](../adr/0067-desambiguacao-sintatica.md) and
   [ADR-0025](../adr/0025-is-e-narrowing.md).
-- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` e `not` em volta disso
-  refinam `x` no ramo; `if (x == nil) { return }` refina o resto do bloco. `and` no ramo
-  verdadeiro e `or` no ramo falso combinam refinamentos; `while` aplica o refinamento
-  verdadeiro ao corpo. `val` e `var` estreitam, mas uma atribuição invalida o refinamento.
-  Chamadas que podem executar código do usuário (função, método, construtor, valor de
-  função ou iterador de usuário) invalidam refinos de `var` mutável capturado por closure;
-  chamadas nativas puras (`print`, `len`, `str`, `repr`, `chars`, `range`, métodos de
-  `List`/`Map`) não. O corpo de uma função/lambda começa sem refinos do chamador. **Campos e índices literais** também refinam
-  (`p.nome`, `xs[0]`, `m["k"]`); mutar o caminho (`p.nome = ...`), a raiz (`p = ...`),
-  **qualquer chamada** ou atribuição a campo/índice invalida todos os refinos de
-  campo/índice (sem aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)), e a
-  saída normal de `while (x != nil)` refina o resto do bloco pelo falso.
-  `if`/`elif`/`else` juntam os ramos que caem no fim (interseção de chaves, união dos
-  tipos); ramo que sempre retorna não contribui. `while`/`for-in` juntam a entrada com a
-  saída do corpo (zero iterações) e `try` une corpo e handlers que caem no fim. Atribuir
-  atualiza o refino para o tipo atribuído. Índice dinâmico (`xs[i]`) não refina; aliasing e
-  CFG completo ficam fora; ver [ADR-0018](../adr/0018-narrowing.md),
+- Narrowing: `if (x != nil)`, `if (x == nil)`, `if (x)`, `if (x is T)` and `not` around them
+  refine `x` in the branch; `if (x == nil) { return }` refines the rest of the block. `and` in the true
+  branch and `or` in the false branch combine refinements; `while` applies the true refinement
+  to the body. `val` and `var` narrow, but an assignment invalidates the refinement.
+  Calls that may execute user code (function, method, constructor, function value
+  or user iterator) invalidate refinements of a mutable `var` captured by a closure;
+  pure native calls (`print`, `len`, `str`, `repr`, `chars`, `range`, `List`/`Map`
+  methods) do not. The body of a function/lambda starts without the caller's refinements. **Fields and literal indices** also narrow
+  (`p.name`, `xs[0]`, `m["k"]`); mutating the path (`p.name = ...`), the root (`p = ...`),
+  **any call** or an assignment to a field/index invalidates all field/index refinements
+  (no aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)), and the normal
+  exit of `while (x != nil)` refines the rest of the block through the false branch.
+  `if`/`elif`/`else` join the branches that fall through (intersection of keys, union of
+  types); a branch that always returns does not contribute. `while`/`for-in` join the entry with the
+  body exit (zero iterations) and `try` unions the body and the handlers that fall through.
+  Assignment updates the refinement to the assigned type. A dynamic index (`xs[i]`) does not narrow;
+  aliasing and full CFG are outside; see [ADR-0018](../adr/0018-narrowing.md),
   [ADR-0025](../adr/0025-is-e-narrowing.md), [ADR-0032](../adr/0032-narrowing-campos-indices.md)
-  e [ADR-0086](../adr/0086-narrowing-captura-e-merge.md).
-- Erros de tipo são de **compilação** e impedem a execução; exit code 65.
-- Limitações atuais: aliasing/efeitos completos, classes/métodos
-  genéricos, inferência de parâmetro sem anotação, tipos de função/casts de união em `is`,
-  e cast de união em `as`; lambdas existem, mas sem trailing closure, parâmetro único sem
-  parênteses ou retorno implícito de bloco. Anotar `Float` não converte o valor em runtime
-  (o tree-walk continua dinâmico).
+  and [ADR-0086](../adr/0086-narrowing-captura-e-merge.md).
+- Type errors are **compile** errors and prevent execution; exit code 65.
+- Current limitations: aliasing/complete effects, generic classes/methods,
+  parameter inference without an annotation, union function types/casts in `is`,
+  and union casts in `as`; lambdas exist, but without trailing closure, single parameter without
+  parentheses or implicit block return. Annotating `Float` does not convert the value at runtime
+  (the tree-walk remains dynamic).
 
 ## Classes
 
@@ -714,40 +714,40 @@ class ContaPoupanca(Conta) {
 }
 ```
 
-- `class Nome { campos e métodos }` cria a classe e a liga ao nome no escopo atual.
-- `class Nome(Super) { ... }` declara herança simples; `class Nome < Super` é erro.
-- Campos são **declarados** no corpo com `val`/`var`; não existem campos dinâmicos:
-  `obj.x = 1` em campo não declarado é erro (`Undefined field 'x'.`).
-- Todo campo declarado precisa estar inicializado: por inicializador constante
-  (`var idade = 0`) ou por atribuição no `init`. Ao fim do `init`, campo não inicializado é
-  erro de runtime (`Field 'x' must be initialized.`). No `--check`, todo campo sem
-  inicializador precisa ser atribuído em **todos os caminhos** do `init`; `if`/`else` usa
-  interseção, `return` antecipado exige os campos prontos e laços não contam como
-  atribuição definitiva. Ver [ADR-0023](../adr/0023-soundness-do-checker.md).
-- `val` campo só pode ser atribuído **dentro do `init`** (e uma vez); fora dele o resolver
-  reporta `Can't assign to immutable field 'x'.` e o runtime também recusa uma segunda
-  atribuição. `var` campo é mutável em qualquer método.
-- Campo e método com o mesmo nome, ou campo redeclarado (inclusive na subclasse), é erro de
-  compilação (`Field 'x' already declared.` / `Field 'x' conflicts with a method.`).
-- Classes podem ser declaradas em bloco/função (classes locais); o nome do tipo resolve no
-  escopo léxico e `is`/`as` comparam o objeto de classe ([ADR-0044](../adr/0044-identidade-classe.md)).
-- Inicializadores de campo são constantes na v1 e rodam na criação da instância, antes do
+- `class Name { fields and methods }` creates the class and binds it to the name in the current scope.
+- `class Name(Super) { ... }` declares single inheritance; `class Name < Super` is an error.
+- Fields are **declared** in the body with `val`/`var`; there are no dynamic fields:
+  `obj.x = 1` on an undeclared field is an error (`Undefined field 'x'.`).
+- Every declared field must be initialized: by a constant initializer
+  (`var age = 0`) or by an assignment in `init`. At the end of `init`, an uninitialized field is a
+  runtime error (`Field 'x' must be initialized.`). Under `--check`, every field without an
+  initializer must be assigned on **all paths** of `init`; `if`/`else` uses
+  intersection, an early `return` requires the fields to be ready and loops do not count as
+  definite assignment. See [ADR-0023](../adr/0023-soundness-do-checker.md).
+- A `val` field can only be assigned **inside `init`** (and once); outside it the resolver
+  reports `Can't assign to immutable field 'x'.` and the runtime also refuses a second
+  assignment. A `var` field is mutable in any method.
+- A field and a method with the same name, or a redeclared field (including in the subclass), is a
+  compile error (`Field 'x' already declared.` / `Field 'x' conflicts with a method.`).
+- Classes may be declared in a block/function (local classes); the type name resolves in the
+  lexical scope and `is`/`as` compare the class object ([ADR-0044](../adr/0044-identidade-classe.md)).
+- Field initializers are constants in v1 and run when the instance is created, before
   `init`.
-- Métodos **não** usam `fn`; são funções com `this` ligado.
-- `this` é **implícito**: métodos não recebem `self`.
-- `Nome(args)` cria instância, executa `init` (se existir) e devolve a instância.
-  A aridade da classe é o intervalo do `init` (0 se não houver).
-- `init` devolve sempre a instância: `return;` é permitido, `return valor;` é erro de
-  compilação (`Can't return a value from an initializer.`).
-- `this` só existe dentro de métodos; fora de classe é erro de compilação
+- Methods **do not** use `fn`; they are functions with `this` bound.
+- `this` is **implicit**: methods do not receive `self`.
+- `Name(args)` creates an instance, runs `init` (if it exists) and returns the instance.
+  The class arity is the `init` range (0 if there is none).
+- `init` always returns the instance: `return;` is allowed, `return value;` is a compile
+  error (`Can't return a value from an initializer.`).
+- `this` only exists inside methods; outside a class it is a compile error
   (`Can't use 'this' outside of a class.`).
-- Campos têm prioridade sobre métodos na leitura.
-- Ler propriedade que não é campo nem método: `Undefined property 'x'.`
-- `obj.campo = v` exige instância: `Only instances have fields.`
-- Ler propriedade de não-instância: `Only instances have properties.`
-- Método lido como valor continua ligado à instância (`var f = obj.m; f();`).
+- Fields take precedence over methods on read.
+- Reading a property that is neither a field nor a method: `Undefined property 'x'.`
+- `obj.field = v` requires an instance: `Only instances have fields.`
+- Reading a property of a non-instance: `Only instances have properties.`
+- A method read as a value remains bound to the instance (`var f = obj.m; f();`).
 
-### Classes genéricas
+### Generic classes
 
 ```lox
 class Box[T] {
@@ -756,100 +756,99 @@ class Box[T] {
   get() -> T { return this.value }
 }
 
-val b: Box[Int] = Box(1)   # Box(1) infere Box[Int]
+val b: Box[Int] = Box(1)   # Box(1) infers Box[Int]
 print(b.get())              # 1
 ```
 
-- `class Box[T]` e `class Pair[A, B]`: `T` vale em campos, métodos, `init` e `this`; o tipo
-  é `Box[Int]`, `Pair[Int, String]` etc. (`T?`, `List[T]` e aninhamento funcionam).
-- `Box(1)` infere os argumentos pelo `init`; com tipo esperado (`val b: Box[Int] = Box()`),
-  o esperado fixa os argumentos. Sem `init` e sem esperado, é erro pedindo anotação.
-  `Box` sem argumentos em posição de tipo é erro de aridade.
-- Os argumentos são **invariantes**: `Box[Int]` não é `Box[Any]` nem `Box[Float]`
-  (campos mutáveis tornariam a covariância unsound). `Any` como argumento de inferência
-  também é recusado: `Box(x)` com `x: Any` pede anotação.
-- `this` é `Box[T]` e `init` devolve `Box[T]`; o runtime apaga `T` (`print(Box(1))` →
+- `class Box[T]` and `class Pair[A, B]`: `T` is valid in fields, methods, `init` and `this`; the type
+  is `Box[Int]`, `Pair[Int, String]` etc. (`T?`, `List[T]` and nesting work).
+- `Box(1)` infers the arguments from `init`; with an expected type (`val b: Box[Int] = Box()`),
+  the expected type fixes the arguments. Without `init` and without an expected type, it is an error asking for an annotation.
+  `Box` without arguments in type position is an arity error.
+- The arguments are **invariant**: `Box[Int]` is not `Box[Any]` or `Box[Float]`
+  (mutable fields would make covariance unsound). `Any` as an inference argument
+  is also rejected: `Box(x)` with `x: Any` asks for an annotation.
+- `this` is `Box[T]` and `init` returns `Box[T]`; the runtime erases `T` (`print(Box(1))` →
   `Box instance`).
-- Fora do MVP: métodos genéricos (`fn map[U]`), herança de `Box[Int]`, constraints em
-  classes, type application explícita (aplicar argumentos à chamada) e `is`/`as Box[Int]`
-  (recusados com mensagem
-  explícita). Ver [ADR-0040](../adr/0040-generics-classes-desenho.md).
+- Outside the MVP: generic methods (`fn map[U]`), inheritance from `Box[Int]`, constraints on
+  classes, explicit type application (applying arguments to the call) and `is`/`as Box[Int]`
+  (rejected with an explicit message). See [ADR-0040](../adr/0040-generics-classes-desenho.md).
 
-### Herança
+### Inheritance
 
-- Sintaxe: `class B(A)` (herança simples; sem `extends`, `:` ou `<`).
-- Métodos e `init` são herdados; o método da subclasse **sobrescreve** o da superclasse
-  silenciosamente (não há keyword `override`). No `--check`, a assinatura do override é
-  comparada com a da superclasse: parâmetros contravariantes, retorno covariante e defaults
-  como intervalo de aridade; `init` fica de fora. Ver
+- Syntax: `class B(A)` (single inheritance; no `extends`, `:` or `<`).
+- Methods and `init` are inherited; the subclass method **overrides** the superclass one
+  silently (there is no `override` keyword). Under `--check`, the override signature is
+  compared with the superclass one: contravariant parameters, covariant return and defaults
+  as an arity range; `init` is excluded. See
   [ADR-0023](../adr/0023-soundness-do-checker.md).
-- Subclasse **sem** `init` herda o `init` da superclasse. Se a subclasse define `init`, ela
-  deve chamar `super.init(...)` explicitamente; não há chamada automática.
-- Campos são herdados; redeclarar um campo na subclasse é erro. `val` herdado não pode ser
-  reatribuído (nem no `init` da subclasse); `var` herdado pode.
-- Inicializadores de campo da superclasse rodam na criação da instância, antes do `init`.
-- `super.metodo(args)` busca `metodo` na superclasse e o liga ao `this` atual (não ao
-  "this da superclasse").
-- `super` só pode aparecer dentro de método de classe **com** superclasse:
-  - fora de classe → `Can't use 'super' outside of a class.`
-  - classe sem superclasse → `Can't use 'super' in a class with no superclass.`
-- Herdar de si mesma → erro de compilação: `A class can't inherit from itself.`
-- Superclasse precisa ser classe em runtime: `Superclass must be a class.`
-- `super.metodo` inexistente → `Undefined property 'metodo'.`
+- A subclass **without** `init` inherits the superclass `init`. If the subclass defines `init`, it
+  must call `super.init(...)` explicitly; there is no automatic call.
+- Fields are inherited; redeclaring a field in the subclass is an error. An inherited `val` cannot be
+  reassigned (not even in the subclass `init`); an inherited `var` can.
+- Superclass field initializers run when the instance is created, before `init`.
+- `super.method(args)` looks up `method` in the superclass and binds it to the current `this` (not to
+  the "superclass this").
+- `super` may only appear inside a class method **with** a superclass:
+  - outside a class → `Can't use 'super' outside of a class.`
+  - class without a superclass → `Can't use 'super' in a class with no superclass.`
+- Inheriting from itself → compile error: `A class can't inherit from itself.`
+- The superclass must be a class at runtime: `Superclass must be a class.`
+- Missing `super.method` → `Undefined property 'method'.`
 
 ### Interfaces
 
 ```lox
-interface Forma {
+interface Shape {
   area() -> Float
-  fn nome() -> String { return "forma" }
-  fn descricao() -> String { return "${this.nome()}:${this.area()}" }
+  fn name() -> String { return "shape" }
+  fn description() -> String { return "${this.name()}:${this.area()}" }
 }
 
-class Circulo implements Forma {
-  val raio: Float
-  init(raio: Float) { this.raio = raio }
-  area() -> Float { return 3.14159 * this.raio * this.raio }
+class Circle implements Shape {
+  val radius: Float
+  init(radius: Float) { this.radius = radius }
+  area() -> Float { return 3.14159 * this.radius * this.radius }
 }
 
-val f: Forma = Circulo(2.0)
-print(f.descricao())   # forma:12.56636
+val shape: Shape = Circle(2.0)
+print(shape.description())   # shape:12.56636
 ```
 
-- Interface é **nominal** ([ADR-0080](../adr/0080-interfaces-nominais-implementacao.md)):
-  a classe declara `implements`; ter os métodos certos **não** basta (diferente de
-  `Protocol`/Go). A interface precisa ser declarada **antes** da classe que a implementa.
-- Interface é **tipo, não valor**: `print(Forma)` é erro; `Forma` só aparece em anotação.
-- Um método é **abstrato** (sem corpo) ou **default** (com corpo). Default é checado uma
-  vez, com `this` do tipo da interface; pode chamar os outros métodos da interface (que
-  despacham na classe), mas **não** acessa campos, `super` nem `init`.
-- Conformidade:
-  - a classe precisa declarar cada método abstrato (ou herdar um default);
-  - assinatura **exata** com a da interface (parâmetros e retorno); a ABI do backend usa a
-    assinatura da interface no `itab`, então covariância/contravariância de representação
-    não é aceita na v1;
-  - método próprio ou herdado da superclasse **vence** o default;
-  - duas interfaces distintas com o mesmo método exigem override explícito da classe,
-    mesmo que os defaults sejam iguais;
-  - campo com o nome de um método da interface é erro.
-- Ordem de resolução em runtime: método da classe → superclasse → defaults das interfaces
-  na ordem de `implements`; é determinística.
-- Atribuibilidade: `Classe` é atribuível a `Interface` se implementa direta ou
-  transitivamente pela superclasse; `Interface` não é atribuível a `Classe`. `I?`,
-  `List[I]`, campo/parâmetro/retorno de interface valem; a instância concreta continua
-  sendo o valor em runtime.
-- `is`/`as` com interface ainda **não** existem: o checker recusa com diagnóstico
-  dirigido (`Interface types aren't supported in 'is' yet.`).
-- Interfaces não têm estado, genéricos nem herança na v1. No backend LLVM a feature é
-  compilada pela ABI B2 do
-  [ADR-0080](../adr/0080-interfaces-nominais-implementacao.md): `interface_id`
-  determinístico e tabela `{id, itab}` no descritor de classe; cada classe implementada
-  (inclusive por herança) ganha o `itab`, com default ou override por método.
+- An interface is **nominal** ([ADR-0080](../adr/0080-interfaces-nominais-implementacao.md)):
+  the class declares `implements`; having the right methods is **not** enough (unlike
+  `Protocol`/Go). The interface must be declared **before** the class that implements it.
+- An interface is a **type, not a value**: `print(Shape)` is an error; `Shape` only appears in an annotation.
+- A method is **abstract** (no body) or **default** (with a body). A default is checked
+  once, with `this` of the interface type; it can call the other interface methods (which
+  dispatch on the class), but it **does not** access fields, `super` or `init`.
+- Conformance:
+  - the class must declare every abstract method (or inherit a default);
+  - the signature must be **exact** with the interface one (parameters and return); the backend ABI uses the
+    interface signature in the `itab`, so representation covariance/contravariance
+    is not accepted in v1;
+  - an own or superclass-inherited method **wins** over the default;
+  - two distinct interfaces with the same method require an explicit class override,
+    even if the defaults are equal;
+  - a field with the name of an interface method is an error.
+- Runtime resolution order: class method → superclass → interface defaults in
+  `implements` order; it is deterministic.
+- Assignability: `Class` is assignable to `Interface` if it implements it directly or
+  transitively through the superclass; `Interface` is not assignable to `Class`. `I?`,
+  `List[I]`, an interface field/parameter/return are valid; the concrete instance remains
+  the value at runtime.
+- `is`/`as` with an interface do **not** exist yet: the checker rejects them with a targeted
+  diagnostic (`Interface types aren't supported in 'is' yet.`).
+- Interfaces have no state, generics or inheritance in v1. In the LLVM backend the feature is
+  compiled via ABI B2 from
+  [ADR-0080](../adr/0080-interfaces-nominais-implementacao.md): deterministic
+  `interface_id` and a `{id, itab}` table in the class descriptor; every implemented class
+  (including through inheritance) gets the `itab`, with a default or an override per method.
 
-## Enums e match
+## Enums and match
 
 ```lox
-enum Cor { Vermelho, Verde, Azul }
+enum Color { Red, Green, Blue }
 enum Shape { Circle(Float), Rect(Float, Float) }
 
 val s: Shape = Shape.Circle(2.0)
@@ -859,29 +858,29 @@ val area = match s {
 }
 ```
 
-- `enum Nome { Variante, Variante(Tipo, ...) }` declara um tipo fechado; variantes têm
-  payload **posicional** e são acessadas com namespace (`Cor.Verde`,
-  `Shape.Circle(1.0)`). Enums são declarados no topo do programa.
-- Enums podem ser genéricos (`enum Pair[A, B]`); `Result[T, E]` é embutido, com
-  `Result.Ok(T)`/`Result.Err(E)`, e não pode ser redefinido. `Option` continua sendo `T?`.
-- Tipo: `Shape`, `Result[Int, String]`; argumentos são invariantes. `is`/`as` aceitam enum
-  sem argumentos (`x is Cor`); com argumentos são recusados (runtime apaga `T`).
-- `match` é **expressão**: `match e { Padrão => expr ... }`. Padrões da v1:
-  `Nome.Variante`, `Nome.Variante(a, b)` (bindings posicionais) e `_`. Arms são separados
-  por linha, `;` ou `,`; usar `match` como statement é descartar o resultado.
-- Exaustividade é **obrigatória**: todas as variantes cobertas ou `_`; faltante é erro
-  (`Non-exhaustive match; missing Shape.Rect.`); variante duplicada/arm depois de `_` é
-  `Unreachable match arm.` O scrutinée precisa ser um enum (não `Any`/união).
-- Os bindings do padrão têm o tipo do payload (`Result.Ok(v)` → `v: T`); o tipo do `match`
-  é a união dos arms. Sem `--check`, um `match` sem arm que case é erro de runtime
+- `enum Name { Variant, Variant(Type, ...) }` declares a closed type; variants have a
+  **positional** payload and are accessed with a namespace (`Color.Green`,
+  `Shape.Circle(1.0)`). Enums are declared at the top of the program.
+- Enums may be generic (`enum Pair[A, B]`); `Result[T, E]` is built in, with
+  `Result.Ok(T)`/`Result.Err(E)`, and cannot be redefined. `Option` remains `T?`.
+- Type: `Shape`, `Result[Int, String]`; arguments are invariant. `is`/`as` accept an enum
+  without arguments (`x is Color`); with arguments they are rejected (the runtime erases `T`).
+- `match` is an **expression**: `match e { Pattern => expr ... }`. v1 patterns:
+  `Name.Variant`, `Name.Variant(a, b)` (positional bindings) and `_`. Arms are separated
+  by a line, `;` or `,`; using `match` as a statement discards the result.
+- Exhaustiveness is **mandatory**: all variants covered or `_`; a missing one is an error
+  (`Non-exhaustive match; missing Shape.Rect.`); a duplicate variant/arm after `_` is
+  `Unreachable match arm.` The scrutinee must be an enum (not `Any`/union).
+- Pattern bindings have the payload type (`Result.Ok(v)` → `v: T`); the type of `match`
+  is the union of the arms. Without `--check`, a `match` with no matching arm is a runtime error
   (`No match arm matched.`).
-- Igualdade é estrutural (enum, variante e payload); `print(Cor.Verde)` →
-  `Cor.Verde`, `print(Shape.Circle(1.0))` → `Shape.Circle(1.0)`. Enums não são iteráveis,
-  não têm `len` e não são chave de `Map`.
-- Fora da v1: padrões literais/`nil`, guards, aninhamento, `|`, `match` sobre uniões e
-  variantes nulas de enum genérico. O backend rejeita `enum`/`match` até o L6.
+- Equality is structural (enum, variant and payload); `print(Color.Green)` →
+  `Color.Green`, `print(Shape.Circle(1.0))` → `Shape.Circle(1.0)`. Enums are not iterable,
+  have no `len` and are not `Map` keys.
+- Outside v1: literal/`nil` patterns, guards, nesting, `|`, `match` on unions and
+  null variants of a generic enum. The backend rejects `enum`/`match` until L6.
 
-## Exceções
+## Exceptions
 
 ```lox
 class MyError(Exception) {
@@ -899,67 +898,67 @@ try {
 }
 ```
 
-- `Exception` é a base embutida; `RuntimeError` é subclasse embutida e representa
-  qualquer erro de runtime (divisão por zero, índice etc.). O usuário pode declarar
-  `class MyError(Exception)` com `message`.
-- `raise Expr` exige instância de `Exception`; `raise;` dentro de `except` relança a
-  exceção corrente. Fora de `except`, `raise;` é erro.
-- `try` é statement; `except Tipo as e` é tipado, múltiplo e avaliado em ordem;
-  `except Exception as e` é catch-all e precisa ser o último. Pelo menos um `except` ou
-  `finally` é obrigatório.
-- Erros de runtime são convertidos para `RuntimeError` no `try`; capturar tipos
-  específicos (`DivisionByZero`) fica para depois. `finally` sempre roda e seu
-  `return`/`raise` vence o fluxo anterior.
-- Exceção não capturada: `arquivo:linha:col: error[R1010]: Unhandled exception: <tipo>:
-  <msg>`, exit 70, seguida do stack trace ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
-  O backend L6 implementa `try`/`raise` com a mesma saída ([ADR-0062](../adr/0062-l6-excecoes-unwinding.md)).
+- `Exception` is the built-in base; `RuntimeError` is a built-in subclass and represents
+  any runtime error (division by zero, index, etc.). The user may declare
+  `class MyError(Exception)` with `message`.
+- `raise Expr` requires an `Exception` instance; `raise;` inside `except` re-raises the
+  current exception. Outside `except`, `raise;` is an error.
+- `try` is a statement; `except Type as e` is typed, multiple and evaluated in order;
+  `except Exception as e` is catch-all and must be last. At least one `except` or
+  `finally` is mandatory.
+- Runtime errors are converted to `RuntimeError` in `try`; catching specific types
+  (`DivisionByZero`) is left for later. `finally` always runs and its
+  `return`/`raise` wins over the previous flow.
+- Uncaught exception: `file:line:col: error[R1010]: Unhandled exception: <type>:
+  <msg>`, exit 70, followed by the stack trace ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
+  The L6 backend implements `try`/`raise` with the same output ([ADR-0062](../adr/0062-l6-excecoes-unwinding.md)).
 
-## Erros
+## Errors
 
-| Fase | Quando | Exit code (arquivo) |
+| Phase | When | Exit code (file) |
 | --- | --- | --- |
-| léxico/sintaxe/resolver | antes de executar | **65** |
-| runtime | durante a execução | **70** |
-| arquivo não encontrado | antes de tudo | **66** |
+| lexical/syntax/resolver | before executing | **65** |
+| runtime | during execution | **70** |
+| file not found | before everything | **66** |
 
-- Formato de compilação: `arquivo:linha:col: error[CODIGO]: mensagem` + trecho com caret
-  (`human`) ou só o cabeçalho (`short`); catálogo e envelope JSON em
+- Compilation format: `file:line:col: error[CODE]: message` + a snippet with a caret
+  (`human`) or only the header (`short`); catalog and JSON envelope in
   [`erros.md`](erros.md) ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
-- Formato de runtime: `arquivo:linha:col: error[CODIGO]: mensagem` (sem caret, igual ao binário).
-- Mensagens são em inglês (compatibilidade com o livro e testes).
-- Erros de compilação são **acumulados** (parser tenta se recuperar; resolver reporta
-  todos), ordenados por `(arquivo, offset, código)`, sem duplicatas e limitados por
-  `--max-errors`; erros de runtime param no primeiro.
-- Códigos de erro são estáveis; colunas, spans, JSON, stack trace, `fixes[]`, `notes` de
-  proveniência e LSP existem
+- Runtime format: `file:line:col: error[CODE]: message` (no caret, same as the binary).
+- Messages are in English (compatibility with the book and tests).
+- Compile errors are **accumulated** (the parser tries to recover; the resolver reports
+  all of them), ordered by `(file, offset, code)`, without duplicates and limited by
+  `--max-errors`; runtime errors stop at the first one.
+- Error codes are stable; columns, spans, JSON, stack trace, `fixes[]`, provenance
+  `notes` and LSP exist
   ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
   [ADR-0089](../adr/0089-stack-trace-de-runtime.md),
   [ADR-0099](../adr/0099-notas-de-proveniencia.md),
   [ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md)).
-- No REPL, cada linha começa com estado de erro limpo e o ambiente permanece.
+- In the REPL, each line starts with a clean error state and the environment remains.
 
-## Diferenças conscientes em relação ao livro
+## Deliberate differences from the book
 
-- Divisão por zero é erro (o livro devolve `inf`).
-- O REPL aceita `;` final opcional e imprime o valor de expressões.
-- `return` no topo é erro de compilação já no cap. 11 (no livro, o resolver faz isso).
-- Números são `Int` e `Float` separados (o livro usa só `float`); `/` é sempre `Float`,
-  `%` é truncado e `Int` faz wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
-- `val`/`var` não existem no livro (que só tem `var` mutável); ver [ADR-0005](../adr/0005-val-var-imutabilidade.md).
-- `for x in` e `Range` (`0..10`) não existem no livro; ver
+- Division by zero is an error (the book returns `inf`).
+- The REPL accepts an optional trailing `;` and prints the value of expressions.
+- `return` at the top level is a compile error as early as ch. 11 (in the book, the resolver does this).
+- Numbers are separate `Int` and `Float` (the book uses only `float`); `/` is always `Float`,
+  `%` is truncated and `Int` wraps — see [ADR-0006](../adr/0006-int-float-separados.md).
+- `val`/`var` do not exist in the book (which has only mutable `var`); see [ADR-0005](../adr/0005-val-var-imutabilidade.md).
+- `for x in` and `Range` (`0..10`) do not exist in the book; see
   [ADR-0007](../adr/0007-ranges-e-iteracao.md).
-- `List[T]` (literal, indexação, `push`/`pop`, `len` e igualdade estrutural) não existe no
-  livro; ver [ADR-0015](../adr/0015-listas-tipadas.md).
+- `List[T]` (literal, indexing, `push`/`pop`, `len` and structural equality) does not exist in the
+  book; see [ADR-0015](../adr/0015-listas-tipadas.md).
 
-Tudo o mais segue o jlox do livro, inclusive as mensagens.
+Everything else follows the book's jlox, including the messages.
 
 
-## Módulos
+## Modules
 
 ### stdlib T1
 
-> Referência por módulo, gerada das assinaturas/doc comments e do registry de
-> builtins: [`../stdlib/`](../stdlib/).
+> Per-module reference, generated from the signatures/doc comments and the builtins
+> registry: [`../stdlib/`](../stdlib/).
 
 - `std.strings`: `isEmpty`, `isBlank`, `trim`/`ltrim`/`rtrim`, `startsWith`/`endsWith`,
   `contains`/`indexOf`/`lastIndexOf`, `split`/`splitLines`/`lines`/`words`,
@@ -968,133 +967,133 @@ Tudo o mais segue o jlox do livro, inclusive as mensagens.
 - `std.lists`: `isEmpty`, `length`, `map`, `filter`, `each`, `fold`, `reduce`, `any`,
   `all`, `none`, `find`, `findIndex`, `contains`, `indexOf`, `reverse`, `take`, `drop`,
   `slice`, `sum`, `first`, `last`, `count`, `min`, `max`, `getOr`.
-- `std.maps`: `entries`/`toList` (pares `(String, V)`), `fromEntries`, `merge` (o da
-  direita vence), `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`
-  (`Map[String, String]`), `hasValue`, `getOr`. A API é `Map[String, V]`: o checker
-  ainda não expressa constraints de chave genérica (pós-MVP); chaves `Int`/`Bool` usam
-  os métodos da linguagem.
+- `std.maps`: `entries`/`toList` (`(String, V)` pairs), `fromEntries`, `merge` (the right
+  one wins), `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`
+  (`Map[String, String]`), `hasValue`, `getOr`. The API is `Map[String, V]`: the checker
+  does not yet express generic key constraints (post-MVP); `Int`/`Bool` keys use
+  the language methods.
 - `std.numeric`: `gcd`/`lcm`, `isPrime`/`primes`, `factorial`, `powMod`, `digitSum`,
-  `isEven`/`isOdd`/`sign`, `mean`/`median`/`mode`/`variance`/`stddev` (estatísticas de
-  `List[Int]`; lista vazia devolve `nil`; variância populacional) e
-  `roundTo`/`toBase`/`fromBase` (base 2..36). Domínio inválido (`factorial` negativo,
-  base fora do intervalo) levanta `RuntimeError`; `fromBase` inválido devolve `nil`.
-- `std.asserts`: `assert`, `assertEq`, `assertNotNil` (devolve o valor estreitado) e
-  `fail`; a falha é `RuntimeError`, capturável por `except RuntimeError as e`.
-- `std.results`: `isOk`/`isErr`, `map`/`mapErr`, `unwrapOr`, `andThen` e `toOptional`
-  para `Result[T, E]`. Como `andThen` recebe `fn(T) -> Result[U, E]`, uma lambda que
-  constrói `Result.Ok`/`Result.Err` ainda não infere o enum genérico; use função
-  nomeada com retorno anotado (lacuna do checker pós-MVP).
-- `lists.sort(xs, compare)` exige `compare: fn(T, T) -> Int` (negativo/zero/positivo),
-  é estável e devolve lista nova. `sortBy`/`groupBy` ainda não existem.
-- `lists.zip`, `flatten`, `flatMap`, `unique`, `chunk` e `partition` são genéricos;
-  `partition` devolve `(yes, no)`.
-- Essas funções são Lox puro sobre o kernel; são determinísticas e entram no corpus T1.
+  `isEven`/`isOdd`/`sign`, `mean`/`median`/`mode`/`variance`/`stddev` (statistics of
+  `List[Int]`; an empty list returns `nil`; population variance) and
+  `roundTo`/`toBase`/`fromBase` (base 2..36). An invalid domain (negative `factorial`,
+  base out of range) raises `RuntimeError`; invalid `fromBase` returns `nil`.
+- `std.asserts`: `assert`, `assertEq`, `assertNotNil` (returns the narrowed value) and
+  `fail`; the failure is a `RuntimeError`, catchable by `except RuntimeError as e`.
+- `std.results`: `isOk`/`isErr`, `map`/`mapErr`, `unwrapOr`, `andThen` and `toOptional`
+  for `Result[T, E]`. Since `andThen` receives `fn(T) -> Result[U, E]`, a lambda that
+  constructs `Result.Ok`/`Result.Err` does not infer the generic enum yet; use a named
+  function with an annotated return (post-MVP checker gap).
+- `lists.sort(xs, compare)` requires `compare: fn(T, T) -> Int` (negative/zero/positive),
+  is stable and returns a new list. `sortBy`/`groupBy` do not exist yet.
+- `lists.zip`, `flatten`, `flatMap`, `unique`, `chunk` and `partition` are generic;
+  `partition` returns `(yes, no)`.
+- These functions are pure Lox over the kernel; they are deterministic and enter the T1 corpus.
 
 ### stdlib T2
 
-Os onze módulos da T2 são Lox puro sobre o kernel e não adicionam sintaxe
-([ADR-0079](../adr/0079-stdlib-t2.md)). Os determinísticos entram no corpus `t2`; os
-**ambiente** ([ADR-0072](../adr/0072-stdlib-batteries.md) §5) ficam fora do I1 e têm teste
-com entrada fixa.
+The eleven T2 modules are pure Lox over the kernel and add no syntax
+([ADR-0079](../adr/0079-stdlib-t2.md)). The deterministic ones enter the `t2` corpus; the
+**ambient** ones ([ADR-0072](../adr/0072-stdlib-batteries.md) §5) are outside I1 and have tests
+with fixed input.
 
-- `std.json`: `parse(text) -> Any`, `stringify(value) -> String` e
-  `pretty(value, indent = 2) -> String`. Objetos viram `Map[String, Any]` (ordem de
-  inserção), arrays viram `List[Any]`, `Int`/`Float` são distintos e `null` vira `nil`.
-  JSON inválido também vira `nil`; aninhamento acima de 16 é inválido. `stringify`
-  levanta `RuntimeError` para `Float` não finito ou valor que não é JSON.
-- `std.fmt`: `format(template, List[Any])` com `{}` e `{{`/`}}`, `pad(text, width,
-  fill = " ")` (à esquerda), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`
-  e `bytes(n)` (B/KiB/MiB/GiB/TiB). Sem locale; argumentos a mais/menos e `fixed` fora de
-  0..15 levantam `RuntimeError`.
-- `std.paths` (POSIX, lexical, não toca no disco): `join` (absoluto no segundo vence,
-  sem normalizar), `dirname`, `basename`, `ext`/`stem` (ponto inicial não conta como
-  extensão), `normalize` (colapsa barras, resolve `.`/`..`), `isAbsolute` e `split`.
-- `std.fs` **ambiente**: `readText -> String?`, `readLines -> List[String]?` (descarta a
-  quebra final), `writeText -> Bool`, `appendText -> Bool` (relê e regrava; cria o
-  arquivo se ausente), `exists -> Bool` e `listDir -> List[String]?` (ordenado, sem
-  `.`/`..`, `nil` se não for diretório legível).
-- `std.io`: `write`/`writeErr` (determinísticos), `readLine -> String?`, `readAll ->
-  String` e `prompt(message) -> String?` (escreve e lê uma linha); leitura é ambiente.
-  Entrada que não é UTF-8 válido é `RuntimeError` (sem traceback), não texto corrompido.
-- `std.cli`: `parse(args, spec) -> Map[String, Any]` com `spec` em `List[String]` de
-  entradas `flag:NOME`, `option:NOME` e `positional:NOME`; aceita `--nome valor`,
-  `--nome=valor` e `--`; flags viram `Bool`, options/positionais viram `String` ou `nil`.
-  `flag`/`option`/`positional` leem o resultado e `usage(program, spec)` gera o texto.
-  Uso inválido (opção desconhecida, valor faltando, flag com valor) é `RuntimeError`.
-- `std.sets`: `Set[T]` com `add`, `has`, `remove` (devolve `Bool`, sem erro se ausente),
-  `len`, `toList` (ordem de inserção), `union`, `intersect`, `difference` e
-  `fromList(List[T])`. O campo interno é `Map[Any, Bool]`: `T` deve ser `String`, `Int`
-  ou `Bool` no runtime; `Set[Float].add` falha com o erro de chave do `Map` (constraints
-  genéricas são pós-MVP).
-- `std.csv`: `parse(text) -> List[List[String]]?` (RFC 4180; aceita CRLF/LF, aspas com
-  `""`, quebra dentro de campo; `nil` se malformado) e `stringify(rows) -> String` (CRLF,
-  quebra final, citação quando precisa; lista vazia gera texto vazio e linha vazia é
-  erro).
-- `std.utf8`: `byteLen(text) -> Int` (bytes UTF-8), `utf16Len(text) -> Int` e
-  `utf16Column(text, index) -> Int` (largura UTF-16 do prefixo de `index` code points,
-  limitado a `0..len(text)`). Lox puro sobre `charCodeAt`, determinístico, no corpus `t2`.
-- `std.proc` **ambiente** (POSIX, [ADR-0095](../adr/0095-processos-streams-poll.md)):
+- `std.json`: `parse(text) -> Any`, `stringify(value) -> String` and
+  `pretty(value, indent = 2) -> String`. Objects become `Map[String, Any]` (insertion
+  order), arrays become `List[Any]`, `Int`/`Float` are distinct and `null` becomes `nil`.
+  Invalid JSON also becomes `nil`; nesting above 16 is invalid. `stringify`
+  raises `RuntimeError` for a non-finite `Float` or a value that is not JSON.
+- `std.fmt`: `format(template, List[Any])` with `{}` and `{{`/`}}`, `pad(text, width,
+  fill = " ")` (on the left), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`
+  and `bytes(n)` (B/KiB/MiB/GiB/TiB). No locale; extra/missing arguments and `fixed` outside
+  0..15 raise `RuntimeError`.
+- `std.paths` (POSIX, lexical, does not touch the disk): `join` (an absolute second argument wins,
+  without normalizing), `dirname`, `basename`, `ext`/`stem` (a leading dot does not count as an
+  extension), `normalize` (collapses slashes, resolves `.`/`..`), `isAbsolute` and `split`.
+- `std.fs` **ambient**: `readText -> String?`, `readLines -> List[String]?` (drops the
+  final newline), `writeText -> Bool`, `appendText -> Bool` (reads and rewrites; creates the
+  file if absent), `exists -> Bool` and `listDir -> List[String]?` (sorted, without
+  `.`/`..`, `nil` if it is not a readable directory).
+- `std.io`: `write`/`writeErr` (deterministic), `readLine -> String?`, `readAll ->
+  String` and `prompt(message) -> String?` (writes and reads a line); reading is ambient.
+  Input that is not valid UTF-8 is a `RuntimeError` (without a traceback), not corrupted text.
+- `std.cli`: `parse(args, spec) -> Map[String, Any]` with `spec` as a `List[String]` of
+  `flag:NAME`, `option:NAME` and `positional:NAME` entries; accepts `--name value`,
+  `--name=value` and `--`; flags become `Bool`, options/positionals become `String` or `nil`.
+  `flag`/`option`/`positional` read the result and `usage(program, spec)` generates the text.
+  Invalid usage (unknown option, missing value, flag with a value) is a `RuntimeError`.
+- `std.sets`: `Set[T]` with `add`, `has`, `remove` (returns `Bool`, no error if absent),
+  `len`, `toList` (insertion order), `union`, `intersect`, `difference` and
+  `fromList(List[T])`. The internal field is `Map[Any, Bool]`: `T` must be `String`, `Int`
+  or `Bool` at runtime; `Set[Float].add` fails with the `Map` key error (generic
+  constraints are post-MVP).
+- `std.csv`: `parse(text) -> List[List[String]]?` (RFC 4180; accepts CRLF/LF, quotes with
+  `""`, newlines inside a field; `nil` if malformed) and `stringify(rows) -> String` (CRLF,
+  final newline, quoting when needed; an empty list generates empty text and an empty row is
+  an error).
+- `std.utf8`: `byteLen(text) -> Int` (UTF-8 bytes), `utf16Len(text) -> Int` and
+  `utf16Column(text, index) -> Int` (UTF-16 width of the prefix of `index` code points,
+  limited to `0..len(text)`). Pure Lox over `charCodeAt`, deterministic, in the `t2` corpus.
+- `std.proc` **ambient** (POSIX, [ADR-0095](../adr/0095-processos-streams-poll.md)):
   `Stream` (`read`, `write`, `close`), `Process` (`stdin`/`stdout`/`stderr`, `wait`,
-  `kill`, `close`), `Output` (`code`, `stdout`, `stderr`), `spawn(argv) -> Process?` e
-  `run(argv, stdin = "", timeoutMs = 0) -> Output?`. Sem shell; `run` drena stdout/stderr
-  com `poll`, mata no timeout e devolve `nil`; `stdin` tem o limite prático do buffer do
-  pipe (~64 KiB). Fora do corpus I1/I3.
+  `kill`, `close`), `Output` (`code`, `stdout`, `stderr`), `spawn(argv) -> Process?` and
+  `run(argv, stdin = "", timeoutMs = 0) -> Output?`. No shell; `run` drains stdout/stderr
+  with `poll`, kills on timeout and returns `nil`; `stdin` has the practical limit of the pipe
+  buffer (~64 KiB). Outside the I1/I3 corpus.
 - `std.iter`: `enumerate(items)`, `zip(left, right)`, `sum(List[Int])`,
-  `sumFloat(List[Float])`, `contains`, `any`, `all` e `find` (primeiro que casa ou `nil`).
-  O enum `Step[T]` (`Step.Item(value)`) permite iterar elementos `nil`:
-  `next() -> Step[T]?` encerra em `nil` e o corpo casa `Step.Item(value)`.
-- `std.rand`: `Rand(seed)` (xorshift64*), `nextInt`, `int(min, max)` inclusivo,
-  `float` em `[0, 1)`, `bool` e `shuffle(items, r)`; determinístico por semente.
-- `std.log` **ambiente**: enum `Level` (`Debug`/`Info`/`Warn`/`Error`) e `Logger`, que
-  escreve `[NÍVEL] mensagem` em stderr; sem timestamp.
-- `std.hash`: `fnv1a32`, `fnv1a64` e `djb2` sobre os **bytes UTF-8**; o 64 devolve o padrão
-  de bits em i64 (pode ser negativo). Não é criptográfico.
-- `std.collections`: `Stack`, `Queue`, `Deque` e `PriorityQueue` genéricos (heap com
-  comparador explícito `fn(T, T) -> Bool`).
-- `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (estrito,
-  devolve `Int?`), `addDays` e `parts`; sem timezone e sem relógio.
-- `std.property` ([ADR-0098](../adr/0098-property-based-testing.md)): `Gen[T]` com
-  `generate`/`shrink`, `forAll(gen, check, runs = 100, seed = 0)` e geradores
-  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOf[T]` (com
-  `listOfInt`/`listOfString` como aliases) e `oneOf`; falha reduz o contraexemplo e
-  reporta a seed.
-- `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (estado
-  explícito, porque módulo não aceita `var` top-level) com `describe`, `it` (executa na
-  hora), `beforeEach`/`afterEach` (escopados ao `describe`; `before` externo→interno,
-  `after` interno→externo, mesmo em falha), `skip`, `report` (TAP + 0/1) e `done`
+  `sumFloat(List[Float])`, `contains`, `any`, `all` and `find` (the first match or `nil`).
+  The `Step[T]` enum (`Step.Item(value)`) allows iterating `nil` elements:
+  `next() -> Step[T]?` terminates on `nil` and the body matches `Step.Item(value)`.
+- `std.rand`: `Rand(seed)` (xorshift64*), `nextInt`, `int(min, max)` inclusive,
+  `float` in `[0, 1)`, `bool` and `shuffle(items, r)`; deterministic by seed.
+- `std.log` **ambient**: `Level` enum (`Debug`/`Info`/`Warn`/`Error`) and `Logger`, which
+  writes `[LEVEL] message` to stderr; no timestamp.
+- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; the 64-bit one returns the bit
+  pattern in i64 (it may be negative). It is not cryptographic.
+- `std.collections`: generic `Stack`, `Queue`, `Deque` and `PriorityQueue` (heap with an
+  explicit comparator `fn(T, T) -> Bool`).
+- `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (strict,
+  returns `Int?`), `addDays` and `parts`; no timezone and no clock.
+- `std.property` ([ADR-0098](../adr/0098-property-based-testing.md)): `Gen[T]` with
+  `generate`/`shrink`, `forAll(gen, check, runs = 100, seed = 0)` and generators
+  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOf[T]` (with
+  `listOfInt`/`listOfString` as aliases) and `oneOf`; a failure shrinks the counterexample and
+  reports the seed.
+- `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (explicit state,
+  because a module does not accept top-level `var`) with `describe`, `it` (runs immediately),
+  `beforeEach`/`afterEach` (scoped to `describe`; outer→inner `before`,
+  inner→outer `after`, even on failure), `skip`, `report` (TAP + 0/1) and `done`
   (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`), `expectGt/Ge/Lt/Le`
   (`T: Ord`), `expectNil`/`expectNotNil`, `expectList`/`toContain`,
-  `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip` e `Recorder`. Sem
-  reflection/registry; `--filter=`/`--only=` e `--list` (só imprime `# test <nome>`) vêm
-  de `args()`. Corpo de teste é `fn() -> Nil`; exceção não tratada vira `not ok`.
+  `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip` and `Recorder`. No
+  reflection/registry; `--filter=`/`--only=` and `--list` (only prints `# test <name>`) come
+  from `args()`. The test body is `fn() -> Nil`; an unhandled exception becomes `not ok`.
 - `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`"true"`/`"false"`),
-  `base64Encode/Decode` e `hexEncode/Decode`. Sem tipo `Bytes`: operam sobre os bytes
-  UTF-8 do texto; decodificação de bytes que não são UTF-8 válido (ou texto malformado)
-  devolve `nil`. Hex é minúsculo.
+  `base64Encode/Decode` and `hexEncode/Decode`. No `Bytes` type: they operate on the UTF-8
+  bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)
+  returns `nil`. Hex is lowercase.
 
-Campos de instância podem ter tipo-container (`List`, `Map`, tupla, `Range`, enum) desde
-o ADR-0079; `Any` como campo ainda não é suportado pelo backend.
+Instance fields may have a container type (`List`, `Map`, tuple, `Range`, enum) since
+ADR-0079; `Any` as a field is not yet supported by the backend.
 
 
-- Módulo é um arquivo `.lx`; pasta é namespace de caminho, não módulo.
-- Módulos contêm apenas imports, `fn`, `class` e `enum`; sem `val`/`var` ou statement de
-  topo. Import é estático, sem ordem de inicialização.
-- `import m`/`import m as x` cria namespace; `from m import nome [as y]` liga públicos.
-- Nome de topo que começa com `_` é privado do módulo; fora dele `_x` é erro, inclusive
-  via namespace (`m._x`).
-- `std.` resolve no bundle; módulos do usuário são relativos à raiz do projeto.
-- Sem `loxia.toml`, a raiz é o diretório do entry. Com manifest, a raiz é a pasta do
-  manifest e a ordem é: projeto → dependências → `[modules].paths` → `--module-path` →
+- A module is a `.lx` file; a folder is a path namespace, not a module.
+- Modules contain only imports, `fn`, `class` and `enum`; no `val`/`var` or top-level
+  statement. Import is static, with no initialization order.
+- `import m`/`import m as x` creates a namespace; `from m import name [as y]` binds public names.
+- A top-level name starting with `_` is private to the module; outside it `_x` is an error, including
+  through the namespace (`m._x`).
+- `std.` resolves in the bundle; user modules are relative to the project root.
+- Without `loxia.toml`, the root is the entry's directory. With a manifest, the root is the manifest
+  folder and the order is: project → dependencies → `[modules].paths` → `--module-path` →
   `std` ([ADR-0100](../adr/0100-dependencias-path.md)).
-- `[dependencies] acme = { path = "../acme" }` faz `import acme.foo` procurar
-  `../acme/foo.lx` (o nome do pacote não é o nome do diretório). O caminho é relativo ao
-  manifest e precisa existir; `std` é nome reservado e `import acme` sozinho é erro.
-- Dependência importa seu próprio pacote por nome (`acme.base`) ou outra dependência
-  declarada; não enxerga o projeto nem `[modules].paths`. `[modules].paths` são raízes
-  soltas (vendor/monorepo): `import shared.util` resolve `<root>/shared/util.lx`.
-- `..` e caminho absoluto continuam proibidos no `import`; só aparecem no `path` do
-  manifest ou em `--module-path`. O mesmo módulo em duas raízes é **erro de ambiguidade**
-  (nunca “primeira vence”), com caminhos relativos no diagnóstico.
-- Sem `*`, sem reexportação e sem módulo como valor.
-- Módulo é **puro por construção**: só declarações no topo, então importar não executa
-  efeito; import não usado é `W1002` e a remoção da linha é `safe` (fix).
+- `[dependencies] acme = { path = "../acme" }` makes `import acme.foo` look for
+  `../acme/foo.lx` (the package name is not the directory name). The path is relative to the
+  manifest and must exist; `std` is a reserved name and `import acme` alone is an error.
+- A dependency imports its own package by name (`acme.base`) or another declared
+  dependency; it does not see the project or `[modules].paths`. `[modules].paths` are loose
+  roots (vendor/monorepo): `import shared.util` resolves `<root>/shared/util.lx`.
+- `..` and absolute paths remain forbidden in `import`; they only appear in the manifest
+  `path` or in `--module-path`. The same module in two roots is an **ambiguity error**
+  (never “first wins”), with relative paths in the diagnostic.
+- No `*`, no re-export and no module as a value.
+- A module is **pure by construction**: only top-level declarations, so importing executes no
+  effect; an unused import is `W1002` and removing the line is `safe` (fix).

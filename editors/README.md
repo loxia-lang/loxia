@@ -1,119 +1,122 @@
-# Editores — destaque de sintaxe e cliente LSP da Loxia
+# Editors — syntax highlighting and the Loxia LSP client
 
-Grammar **TextMate** (`syntaxes/loxia.tmLanguage.json`) + extensão de VS Code com
-cliente LSP (diagnósticos, formatação, completion, code actions e rename). O mesmo
-arquivo serve Sublime Text, TextMate, VS Code e, quando a linguagem entrar no
-[linguist](https://github.com/github-linguist/linguist), o `github.com` — ele exige uma
-grammar TextMate vendorizada e 2.000+ arquivos `.lx` em repos públicos (ver `TODO.md` §14).
+**TextMate** grammar (`syntaxes/loxia.tmLanguage.json`) + a VS Code extension with an LSP
+client (diagnostics, formatting, completion, code actions and rename). The same file works
+in Sublime Text, TextMate, VS Code and, once the language lands in
+[linguist](https://github.com/github-linguist/linguist), on `github.com` — linguist requires
+a vendored TextMate grammar and 2,000+ `.lx` files in public repos (see `TODO.md` §14).
 
-## Instalar no VS Code
+## Install in VS Code
 
-**Jeito rápido (uma linha, sem instalar nada):**
+**Quick way (one line, nothing installed):**
 
 ```bash
 code --extensionDevelopmentPath="$PWD/editors/vscode" .
 ```
 
-O VS Code abre com a extensão carregada em modo desenvolvimento. Abra um `.lx` e o rodapé
-direito deve mostrar **Loxia** (não "Plain Text") — dali em diante o tema colore.
+VS Code opens with the extension loaded in development mode. Open an `.lx` file and the
+status bar should show **Loxia** (not "Plain Text") — from there the theme highlights it.
 
-**Jeito "instalada" (some do modo dev):**
+**"Installed" way (leaves development mode):**
 
 ```bash
 ln -s "$PWD/editors/vscode" ~/.vscode/extensions/loxia-1.0.0
 ```
 
-e recarregue a janela (`Developer: Reload Window` / `Ctrl+Shift+P`). Ou, dentro de
-`editors/vscode`, aperte `F5` — o `.vscode/launch.json` já está lá e abre o *Extension
-Development Host* com a extensão carregada.
+and reload the window (`Developer: Reload Window` / `Ctrl+Shift+P`). Or, inside
+`editors/vscode`, press `F5` — `.vscode/launch.json` is already there and opens the
+*Extension Development Host* with the extension loaded.
 
-### Não apareceu cor? Nesta ordem
+### No colors? Check these in order
 
-1. **Rodapé diz "Plain Text"?** A extensão não foi carregada: o `.lx` não é reconhecido.
-   Confira `~/.vscode/extensions | grep loxia` e recarregue a janela; `F5` **sem** o
-   `launch.json` só abre o diálogo "Select environment" e não carrega nada.
-2. **Rodapé diz "Loxia" mas está tudo cinza?** O arquivo está sendo lido como `loxia`, mas
-   o tema não mapeia os scopes. `Ctrl+Shift+P` → **Developer: Inspect Editor Tokens and
-   Scopes** e clique numa keyword: os scopes devem listar `keyword.control.loxia` etc. Se
-   listar, é o tema (troque para Dark+ para testar); se não listar, é a grammar.
-3. **`F5` reclama de "Select environment"?** Falta o `launch.json` — ele existe neste
-   diretório desde a versão 1.0.0 do editor; garanta que você abriu `editors/vscode` como
-   **workspace** (e não a raiz do repo).
-4. **Abriu o `.lx` antes de instalar?** Feche e reabra o arquivo: o modo de linguagem é
-   decidido ao abrir, não é reavaliado na hora.
+1. **Status bar says "Plain Text"?** The extension was not loaded: `.lx` is not recognized.
+   Check `~/.vscode/extensions | grep loxia` and reload the window; `F5` **without** the
+   `launch.json` only opens the "Select environment" dialog and loads nothing.
+2. **Status bar says "Loxia" but everything is gray?** The file is being read as `loxia`
+   but the theme does not map the scopes. `Ctrl+Shift+P` → **Developer: Inspect Editor
+   Tokens and Scopes** and click a keyword: the scopes should list
+   `keyword.control.loxia` etc. If they do, it is the theme (switch to Dark+ to test); if
+   not, it is the grammar.
+3. **`F5` complains about "Select environment"?** The `launch.json` is missing — it has
+   existed in this directory since editor 1.0.0; make sure you opened `editors/vscode` as
+   the **workspace** (not the repo root).
+4. **Did you open the `.lx` before installing?** Close and reopen the file: the language
+   mode is decided when the file opens and is not re-evaluated immediately.
 
-## Cliente LSP (VS Code)
+## LSP client (VS Code)
 
-A extensão inicia `loxia lsp` (configurável em `loxia.server.path`/`loxia.server.args`)
-e usa o mesmo contrato do CLI. Detalhes e configuração para rodar do checkout em
-[`vscode/README.md`](vscode/README.md); o cliente não tem dependências de npm e é
-candidato a repo próprio (`loxia-editors`) no futuro.
+The extension starts `loxia lsp` (configurable through `loxia.server.path` /
+`loxia.server.args`) and uses the same contract as the CLI. Details and configuration for
+running from the checkout are in [`vscode/README.md`](vscode/README.md); the client has no
+npm dependencies and is a candidate for its own repo (`loxia-editors`) in the future.
 
 ## Sublime Text / TextMate
 
-Copie `vscode/syntaxes/loxia.tmLanguage.json` para o pacote do editor (no Sublime, um
-diretório em `Packages/`; no TextMate, `~/Library/Application Support/TextMate/Bundles`).
+Copy `vscode/syntaxes/loxia.tmLanguage.json` into the editor's package directory (on
+Sublime, a directory under `Packages/`; on TextMate,
+`~/Library/Application Support/TextMate/Bundles`).
 
-## A grammar é gerada — não edite o JSON
+## The grammar is generated — do not edit the JSON
 
-`editors/build_grammar.py` monta o JSON a partir de:
+`editors/build_grammar.py` builds the JSON from:
 
-| Fonte | O que entra |
+| Source | What it contributes |
 | --- | --- |
-| `loxia_core/frontend/keywords.py` (`KEYWORDS`) | todos os 32 keywords, agrupados por scope |
-| `loxia_core/frontend/token_type.py` (`TokenType`) | operadores (`**`, `??`, `?.`, `..`, `>>>`…) e pontuação |
+| `loxia_core/frontend/keywords.py` (`KEYWORDS`) | all 32 keywords, grouped by scope |
+| `loxia_core/frontend/token_type.py` (`TokenType`) | operators (`**`, `??`, `?.`, `..`, `>>>`…) and punctuation |
 | `loxia_core/execution/prelude.py` (`BUILTIN_NAMES`) | `Int`, `Result`, `RuntimeError`, `len`, `math`… |
 
 ```bash
 make grammar       # uv run python editors/build_grammar.py --write
-uv run python editors/build_grammar.py --check   # exit 1 se o JSON estiver defasado
+uv run python editors/build_grammar.py --check   # exit 1 if the JSON is stale
 ```
 
-`tests/test_editor_grammar.py` roda o `--check` no `make check`, então keyword/operador
-novo sem `make grammar` quebra o build — o destaque não apodrece.
+`tests/test_editor_grammar.py` runs the `--check` in `make check`, so a new
+keyword/operator without `make grammar` breaks the build — highlighting never rots.
 
-Categorizar keyword nova é decisão humana: `KEYWORD_GROUPS` em `build_grammar.py` tem que
-cobrir `KEYWORDS` exatamente, e o gerador falha de propósito se sobrar ou faltar uma.
+Categorizing a new keyword is a human decision: `KEYWORD_GROUPS` in `build_grammar.py`
+must cover `KEYWORDS` exactly, and the generator deliberately fails if one is missing or
+extra.
 
-## Shiki (site de docs e viewer do harness)
+## Shiki (docs site and harness viewer)
 
-`editors/shiki/loxia.mjs` entrega a **mesma** grammar (o mesmo JSON, sem cópia) no formato
-que o Shiki consome — `LanguageRegistration[]` com `name: 'loxia'` e alias `lx`. Ele é
-gerado junto com o JSON (`make grammar`), então não descola.
+`editors/shiki/loxia.mjs` exposes the **same** grammar (the same JSON, no copy) in the
+format Shiki consumes — `LanguageRegistration[]` with `name: 'loxia'` and alias `lx`. It
+is generated together with the JSON (`make grammar`), so it cannot drift.
 
 ```js
 import loxia from './editors/shiki/loxia.mjs'
 // shiki: createHighlighterCoreSync({ langs: [loxia], ... }) → codeToTokens(..., { lang: 'loxia' })
 ```
 
-### Viewer do DeepSeek Harness
+### DeepSeek Harness viewer
 
-O viewer usa o mesmo Shiki, mas com **allowlist explícita**: idioma fora da tabela renderiza
-texto puro, e não existe hook de plugin para registrar gramática. Fazer `.lx` aparecer lá é
-um patch de **3 pontos + 1 arquivo** no checkout do harness:
+The viewer also uses Shiki, but with an **explicit allowlist**: a language outside the
+table renders as plain text, and there is no plugin hook for registering a grammar. Making
+`.lx` appear there is a **3-point + 1-file** patch in the harness checkout:
 
-1. copie `editors/dsh/loxia.ts` para
-   `packages/client/ui-primitives/loxia_core/markdown/grammars/loxia.ts` (autocontido, sem dependência
-   deste repo);
-2. `packages/util/code-language/loxia_core/index.ts`, na tabela `LANGUAGE_EXTENSIONS`:
-   `loxia: ['lx'],`
-3. `packages/client/ui-primitives/loxia_core/markdown/highlight.ts`:
-   - no fim do `LAZY_GRAMMARS`: `['loxia', () => import('./grammars/loxia')],`
-   - no `LANG_ALIASES`: `['loxia', 'loxia'], ['lx', 'loxia'],`
+1. copy `editors/dsh/loxia.ts` to
+   `packages/client/ui-primitives/loxia_core/markdown/grammars/loxia.ts` (self-contained,
+   with no dependency on this repo);
+2. in `packages/util/code-language/loxia_core/index.ts`, in the `LANGUAGE_EXTENSIONS`
+   table: `loxia: ['lx'],`
+3. in `packages/client/ui-primitives/loxia_core/markdown/highlight.ts`:
+   - at the end of `LAZY_GRAMMARS`: `['loxia', () => import('./grammars/loxia')],`
+   - in `LANG_ALIASES`: `['loxia', 'loxia'], ['lx', 'loxia'],`
 
-Depois recompilar/recarregar o harness (`make check` ou `pnpm -r test` no checkout dele). O
-`loxia.ts` é gerado aqui por `make grammar`, então atualizar a grammar exige regerar e
-recopiar — o drift entre os dois repos é manual de propósito: o harness não depende deste
-repo (e este não depende do harness).
+Then rebuild/reload the harness (`make check` or `pnpm -r test` in its checkout). The
+`loxia.ts` file is generated here by `make grammar`, so updating the grammar requires
+regenerating and recopying — the drift between the two repos is intentional: the harness
+does not depend on this repo (and this repo does not depend on the harness).
 
-## Limitações declaradas
+## Declared limitations
 
-- **`/* */` aninhado** funciona até 3 níveis (`NESTING`); depois fecha no primeiro `*/`.
-  É o mesmo hack que grammars de C/JS usam — o TextMate não tem recursão real.
-- **Sem análise semântica**: `Foo` capitalizado vira `entity.name.type` mesmo quando é
-  variável; campo depois de `.` não é refinado.
-- **`//` é divisão**, não comentário (ADR-0012). Nenhuma regra de comentário pode usar
-  `//` — há teste para isso.
-- Destaque no `github.com` continua sem cor até a linguagem entrar no linguist; o
-  `.gitattributes` da raiz mantém os `.lx` fora das estatísticas do repo
-  (`linguist-detectable=false`) em vez de marcá-los como outra linguagem.
+- **Nested `/* */`** works up to 3 levels (`NESTING`); after that it closes at the first
+  `*/`. This is the same hack C/JS grammars use — TextMate has no real recursion.
+- **No semantic analysis**: a capitalized `Foo` becomes `entity.name.type` even when it is
+  a variable; a field after `.` is not refined.
+- **`//` is division**, not a comment (ADR-0012). No comment rule may use `//` — there is a
+  test for that.
+- Highlighting on `github.com` stays colorless until the language lands in linguist; the
+  root `.gitattributes` keeps `.lx` files out of the repo's statistics
+  (`linguist-detectable=false`) instead of marking them as another language.

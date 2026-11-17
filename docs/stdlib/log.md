@@ -15,58 +15,62 @@ Leveled logging to stderr, without timestamps.
 
 ### `class Logger`
 
-Logger que escreve em stderr; `minimum` filtra os níveis mais baixos.
+Logger that writes to stderr and filters out levels below `minimum`.
 
 #### `var minimum: Level`
 
-Menor nível que será escrito.
+Lowest level that will be written.
 
 #### `fn init(minimum: Level | Nil = ...)`
 
-Cria o logger; sem argumento, o mínimo é `Level.Info`.
+Creates a logger; without an argument the minimum is `Level.Info`.
+
+Passing `nil` selects the same default.
 
 #### `fn setMinimum(level: Level) -> Nil`
 
-Troca o nível mínimo.
+Changes the minimum level; lower levels are suppressed from then on.
 
 #### `fn log(level: Level, message: String) -> Nil`
 
-Escreve `[NÍVEL] mensagem` em stderr se `level >= minimum`.
+Writes `[LEVEL] message` to stderr when `level >= minimum`.
+
+Filtering never raises and does not affect stdout or the exit code.
 
 #### `fn debug(message: String) -> Nil`
 
-Loga em `Debug`.
+Logs at `Debug`.
 
 #### `fn info(message: String) -> Nil`
 
-Loga em `Info`.
+Logs at `Info`.
 
 #### `fn warn(message: String) -> Nil`
 
-Loga em `Warn`.
+Logs at `Warn`.
 
 #### `fn error(message: String) -> Nil`
 
-Loga em `Error`.
+Logs at `Error`.
 
 ## Enums
 
 ### `enum Level`
 
-Nível de log; a ordem é `Debug < Info < Warn < Error`.
+Log level; the order is `Debug < Info < Warn < Error`.
 
 #### `Debug`
 
-Detalhe de diagnóstico.
+Diagnostic detail.
 
 #### `Info`
 
-Evento normal.
+Normal event.
 
 #### `Warn`
 
-Situação suspeita.
+Suspicious situation.
 
 #### `Error`
 
-Falha.
+Failure.

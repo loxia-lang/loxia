@@ -84,7 +84,7 @@ pertence a um pacote externo futuro.
 
 Um módulo só entra se tiver **todos**:
 
-1. um programa real (em `exemplos/` ou caso golden) que o use — não simetria com outra
+1. um programa real (em `examples/` ou caso golden) que o use — não simetria com outra
    linguagem;
 2. funções marcadas como determinísticas ou ambientes (ver §5);
 3. casos golden em `tests/cases/std/<modulo>/` e checagem em `--check`;

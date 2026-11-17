@@ -1,38 +1,38 @@
-# Fixes confiáveis: quem produz, o que é seguro e o que fica para depois
+# Reliable fixes: who produces them, what is safe, and what is left for later
 
 **Status:** `W1001`/`W1002` (`safe`); `E2001`/`E2002`/`E2009`/`E3002`/`E3003`/
-`E3015`/`E3016`/`E3018` (`unsafe`); `E3004` (`safe` em função local/lambda, `unsafe` em
-API pública); `loxia fix` (safe-only) e `codeAction` implementados (2026-11-16).
-**Decisão:** [ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md) (schema e protocolo de
-reparo), [ADR-0075](../adr/0075-diagnosticos-estruturados.md) (diagnóstico),
-[ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md) (LSP consumidor).
+`E3015`/`E3016`/`E3018` (`unsafe`); `E3004` (`safe` in a local function/lambda, `unsafe` in
+the public API); `loxia fix` (safe-only) and `codeAction` implemented (2026-11-16).
+**Decision:** [ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md) (repair schema and
+protocol), [ADR-0075](../adr/0075-diagnosticos-estruturados.md) (diagnostics),
+[ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md) (consumer LSP).
 
-## Regra de ouro
+## Golden rule
 
-Fix não é heurística do editor. O produtor tem que ser a **fase que possui a prova
-semântica**:
+A fix is not an editor heuristic. The producer has to be the **phase that owns the semantic
+proof**:
 
-| Camada | Papel |
+| Layer | Role |
 | --- | --- |
-| Resolver | escopo, declaração, captura, mutabilidade |
-| Checker | tipo, inferência, fluxo |
-| Parser | erro sintático (quase nunca tem edição local inequívoca) |
-| Loader | import/módulo (precisa provar pureza) |
-| **LSP / CLI / MCP / agente** | **consumidor**: aplica/renderiza, não inventa `safe` |
-| `loxia fmt` | formatação, não é `fixes[]` |
+| Resolver | scope, declaration, capture, mutability |
+| Checker | type, inference, flow |
+| Parser | syntax error (almost never has an unambiguous local edit) |
+| Loader | import/module (needs to prove purity) |
+| **LSP / CLI / MCP / agent** | **consumer**: applies/renders, does not invent `safe` |
+| `loxia fmt` | formatting, not `fixes[]` |
 
-Um fix só é `safe` quando o produtor consegue provar que a edição:
+A fix is only `safe` when the producer can prove that the edit:
 
-1. preserva comportamento (sem efeito colateral, sem remover exceção possível);
-2. não muda resolução de nome (escopo/shadowing/captura);
-3. não muda tipo nem API pública;
-4. é atômica, determinística e idempotente;
-5. passa no teste aplicar → reparsear → `--check` → executar antes/depois (I1).
+1. preserves behavior (no side effect, no removal of a possible exception);
+2. does not change name resolution (scope/shadowing/capture);
+3. does not change the type or the public API;
+4. is atomic, deterministic and idempotent;
+5. passes the test apply → reparse → `--check` → run before/after (I1).
 
-Sem prova, o máximo é `unsafe`: útil como quickfix de editor, nunca aplicado pelo
-`loxia fix` nem por um agente sem confirmação.
+Without proof, the most it can be is `unsafe`: useful as an editor quickfix, never applied by
+`loxia fix` nor by an agent without confirmation.
 
-## Modelo atual
+## Current model
 
 `loxia_core/diagnostics/diagnostic.py`:
 
@@ -43,76 +43,76 @@ Fix(applicability, message, edits[])
 Diagnostic(..., fixes=(Fix, ...))
 ```
 
-O envelope JSON expõe `diagnostics[].fixes[]`; `span` é half-open com `offset` em bytes
-UTF-8. O schema é aditivo (v1): `fixes: []` quando não há candidato.
+The JSON envelope exposes `diagnostics[].fixes[]`; `span` is half-open with `offset` in UTF-8
+bytes. The schema is additive (v1): `fixes: []` when there is no candidate.
 
-## Quem pode ser produtor
+## Who can be a producer
 
-### `safe` (poucos e condicionais)
+### `safe` (few and conditional)
 
-| Código | Fase | Condição para `safe` | Risco se ignorar |
+| Code | Phase | Condition for `safe` | Risk if ignored |
 | --- | --- | --- | --- |
-| **W1002** import não usado | Resolver/Loader | módulos só têm declarações (loader recusa statement executável) e imports **não são re-exportados**; sem uso em valor/tipo, remover a linha é seguro | remover import usado em tipo/valor ou re-exportado |
-| **W1001** local não lido | Resolver | renomeia a declaração para `_unused_N` único (não remove); o inicializador continua executando | nome novo colidir ou mudar shadowing (mitigado pelo conjunto de nomes) |
-| **E3004** anotação ausente | Checker | tipo **exato** de default literal ou de `return` literais iguais, em função local/lambda (não muda API pública); sem `<error>`/type var | anotar `Any`/tipo inferido errado muda a checagem |
+| **W1002** unused import | Resolver/Loader | modules only have declarations (the loader rejects an executable statement) and imports are **not re-exported**; with no use as a value/type, removing the line is safe | removing an import used as a type/value or re-exported |
+| **W1001** unread local | Resolver | renames the declaration to a unique `_unused_N` (does not remove it); the initializer keeps running | the new name colliding or changing shadowing (mitigated by the name set) |
+| **E3004** missing annotation | Checker | **exact** type of a literal default or of equal literal `return`s, in a local function/lambda (does not change the public API); no `<error>`/type var | annotating `Any`/a wrong inferred type changes the check |
 
-Implementados: **W1001** (rename), **W1002** (remove import; pureza estrutural: o loader
-só aceita declarações em módulo e imports não são re-exportados), **E3003**
-(did-you-mean), **E2002** (`val`→`var` local), **E2009** (`val`→`var` campo) e **E3004**
-(anotação exata; `safe` só em função local/lambda).
-A pureza de módulo **já é garantida pelo loader**: não há como um import executar
-statement no topo, então o risco residual é só uso/re-export, coberto pelo scan
-conservador (valor + anotação de tipo).
+Implemented: **W1001** (rename), **W1002** (remove import; structural purity: the loader
+only accepts declarations in a module and imports are not re-exported), **E3003**
+(did-you-mean), **E2002** (local `val`→`var`), **E2009** (field `val`→`var`) and **E3004**
+(exact annotation; `safe` only in a local function/lambda).
+Module purity **is already guaranteed by the loader**: there is no way for an import to run a
+top-level statement, so the residual risk is only use/re-export, covered by the conservative
+scan (value + type annotation).
 
-### `unsafe` (quickfix, nunca automático)
+### `unsafe` (quickfix, never automatic)
 
-| Código | Fix possível | Por que não é safe |
+| Code | Possible fix | Why it is not safe |
 | --- | --- | --- |
-| **E3003** nome indefinido | trocar pelo `did you mean 'x'?` | pode ser uma variável nova, não um typo; sugestão fuzzy |
-| **E2001** variável duplicada | renomear a segunda + todos os usos (implementado) | muda qual binding cada uso resolve |
-| **E2002** atribuição a `val` | trocar `val`→`var` (implementado) | muda captura/mutabilidade e comportamento |
-| **E2009** campo imutável | trocar `val`→`var` no campo (implementado) | muda API e semântica de captura |
-| **E3016** campo não inicializado | adicionar `= <default>` (implementado p/ primitivos/opcionais) | default é escolha; sem default único para classes |
-| **E3018** return path | adicionar `return <default>` (implementado p/ primitivos/opcionais) | valor é intenção do autor |
-| **E3002** aridade | remover argumentos extras (implementado; faltando não tem fix) | não se sabe qual argumento sobra |
-| **E3015** override inválido | renomear método (implementado) | pode ser override intencional com assinatura errada |
-| **E3004** anotação em API pública | anotar com o tipo exato (implementado) | adiciona tipo à assinatura pública; o autor pode querer outro tipo |
+| **E3003** undefined name | replace with `did you mean 'x'?` | it may be a new variable, not a typo; fuzzy suggestion |
+| **E2001** duplicate variable | rename the second one + all uses (implemented) | changes which binding each use resolves to |
+| **E2002** assignment to `val` | change `val`→`var` (implemented) | changes capture/mutability and behavior |
+| **E2009** immutable field | change `val`→`var` on the field (implemented) | changes the API and capture semantics |
+| **E3016** uninitialized field | add `= <default>` (implemented for primitives/optionals) | the default is a choice; no single default for classes |
+| **E3018** return path | add `return <default>` (implemented for primitives/optionals) | the value is the author's intent |
+| **E3002** arity | remove extra arguments (implemented; missing ones have no fix) | it is not known which argument is left over |
+| **E3015** invalid override | rename the method (implemented) | it may be an intentional override with the wrong signature |
+| **E3004** annotation in the public API | annotate with the exact type (implemented) | adds a type to the public signature; the author may want another type |
 
-### Sem fix confiável
+### No reliable fix
 
-- `E3001`/`E3007` type mismatch/operandos: não há edição local que preserve a intenção.
-- `E1001`–`E1007`: sintaxe; o formatter resolve espaçamento, não erro estrutural.
-- `E4001` backend não suportado: não é erro do programa.
-- `R1xxx`: runtime; depende de entrada/estado, não de edição de fonte.
-- `C0001`: timeout; não é fonte.
-- E2001 com usos fora do escopo ou colisão de nome: o fix só cobre o binding local e seus usos resolvidos.
-- E3004 sem tipo exato (parâmetro sem default, campo sem inicializador, `return` não literal ou tipos discordantes): a anotação seria um chute.
+- `E3001`/`E3007` type mismatch/operands: there is no local edit that preserves the intent.
+- `E1001`–`E1007`: syntax; the formatter fixes spacing, not a structural error.
+- `E4001` unsupported backend: it is not a program error.
+- `R1xxx`: runtime; it depends on input/state, not on a source edit.
+- `C0001`: timeout; it is not source.
+- E2001 with uses outside the scope or a name collision: the fix only covers the local binding and its resolved uses.
+- E3004 without an exact type (parameter without a default, field without an initializer, non-literal `return` or discordant types): the annotation would be a guess.
 
-## Lote inicial
+## Initial batch
 
-1. ✅ **W1001 `safe`**: renomeia a declaração para `_unused_N` (preserva o inicializador).
-2. ✅ **E3003 `unsafe`**: troca o token pelo candidato de `help`; `isPreferred: false`.
-3. ✅ **W1002 `safe`**: remove a linha de import não usada; pureza estrutural do loader.
-4. ✅ **E2002/E2009 `unsafe`**: troca `val`→`var` no local/campo; nunca auto-aplicado.
-5. ✅ **E2001/E3016/E3018/E3002/E3015**: rename com usos, default primitivo, return
-   default, remoção de argumentos extras e rename de método.
-6. ✅ **E3004**: anota `safe` em função local/lambda e `unsafe` em API pública; só com
-   default literal ou `return` literais iguais. Sem tipo exato, não emite fix.
+1. ✅ **W1001 `safe`**: renames the declaration to `_unused_N` (preserves the initializer).
+2. ✅ **E3003 `unsafe`**: replaces the token with the candidate from `help`; `isPreferred: false`.
+3. ✅ **W1002 `safe`**: removes the unused import line; structural purity of the loader.
+4. ✅ **E2002/E2009 `unsafe`**: changes `val`→`var` in the local/field; never auto-applied.
+5. ✅ **E2001/E3016/E3018/E3002/E3015**: rename with uses, primitive default, default
+   return, removal of extra arguments and method rename.
+6. ✅ **E3004**: marks `safe` in a local function/lambda and `unsafe` in the public API; only
+   with a literal default or equal literal `return`s. Without an exact type, it emits no fix.
 
-## Aplicação
+## Application
 
-- `loxia fix` (implementado): aplica só `safe`, `--apply` (padrão dry-run), limite de 10 iterações,
-  aplicação atômica por fix, detecção de conflito e `no-progress`.
-- LSP `codeAction`: mostra `unsafe` como quickfix; `safe` pode ser `isPreferred`.
-- MCP: expõe `fixes[]`; agente pode propor edits, mas `safe` só o compilador marca.
-- Nunca: auto-aplicar `unsafe`, gerar fix a partir de mensagem/`help` sem estrutura,
-  editar múltiplos arquivos sem mapa de módulos.
+- `loxia fix` (implemented): applies only `safe`, `--apply` (dry-run by default), limit of 10 iterations,
+  atomic application per fix, conflict detection and `no-progress`.
+- LSP `codeAction`: shows `unsafe` as a quickfix; `safe` may be `isPreferred`.
+- MCP: exposes `fixes[]`; an agent may propose edits, but only the compiler marks `safe`.
+- Never: auto-apply `unsafe`, generate a fix from a message/`help` without structure,
+  edit multiple files without a module map.
 
-## Perguntas abertas
+## Open questions
 
-- Pureza de inicializador não é mais necessária para W1001: renomear preserva a execução.
-- Módulos **não** têm statements executáveis (loader recusa); W1002 é estruturalmente seguro.
-- `fixes[]` fica no `Diagnostic` (sim, decisão atual) ou em um catálogo separado por
-  código? O modelo atual evita uma segunda fonte.
-- Fix multi-arquivo (renomear símbolo de módulo) fica fora até existir `loxia fix` e
-  `WorkspaceEdit` com mapa de módulos.
+- Initializer purity is no longer needed for W1001: renaming preserves execution.
+- Modules do **not** have executable statements (the loader rejects them); W1002 is structurally safe.
+- Does `fixes[]` live in the `Diagnostic` (yes, current decision) or in a separate catalog by
+  code? The current model avoids a second source.
+- Multi-file fix (renaming a module symbol) stays out until `loxia fix` and
+  `WorkspaceEdit` with a module map exist.

@@ -4,6 +4,9 @@
 Cada entrada liga a assinatura Lox (`lox`), o símbolo C (`c_symbol`), os tipos da
 tabela e o corpo Python que serve de oráculo. O checker, o interpretador e o backend
 consomem esta tabela; não há regra de tipo duplicada por nome.
+
+A documentação pública destas primitivas mora em `loxia/builtins_docs.py` (fonte da
+página `docs/stdlib/builtins.md`); este módulo guarda a implementação/oráculo.
 """
 
 from __future__ import annotations

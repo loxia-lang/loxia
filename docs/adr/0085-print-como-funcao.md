@@ -61,7 +61,7 @@ envelopado de novo (evita imprimir `nil` extra). Statements continuam statements
 
 ### 4. Migração e orçamento
 
-- Todos os `.lx` do corpus, da suíte oficial, de `exemplos/`, `std/` e `bench/` foram
+- Todos os `.lx` do corpus, da suíte oficial, de `examples/`, `std/` e `bench/` foram
   migrados mecanicamente de `print expr` para `print(expr)`; nenhuma expectativa de
   stdout/exit foi alterada.
 - `print` sai de `KEYWORDS` e do grupo de controle da grammar; o placar do ADR-0066 passa

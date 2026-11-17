@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.cli — parsing declarativo de argumentos (T2), em Lox puro.
-# `spec` é `List[String]` com entradas `flag:NOME`, `option:NOME` e `positional:NOME`.
-# Resultado é `Map[String, Any]`: flags viram Bool, options/positionais viram String
-# (ou `nil` quando ausentes). `--` encerra as opções; `--nome=valor` é aceito.
-# Erros de uso (opção desconhecida, valor faltando) levantam RuntimeError.
+# std.cli — declarative argument parsing (T2), pure Lox.
+#
+# A spec is a `List[String]` of `flag:NAME`, `option:NAME` and `positional:NAME`
+# entries. `parse` returns `Map[String, Any]`: flags become `Bool`, options and
+# positionals become `String` (or `nil` when absent). `--` ends option parsing and
+# `--name=value` is accepted. Usage errors (unknown option, missing value, duplicate
+# spec name) raise `RuntimeError`.
 
 import std.strings as strings
 
@@ -16,6 +18,15 @@ fn _splitSpec(item: String) -> (String, String) {
 }
 
 /// Parses command-line arguments against a declarative spec into a map.
+///
+/// `args` is the raw argument list without the program name. `spec` lists
+/// `flag:NAME`, `option:NAME` and `positional:NAME` entries; the result contains one
+/// key per name. Missing flags are `false`, missing options and positionals are `nil`.
+/// Options accept `--name value` and `--name=value`, and `--` switches to
+/// positional-only parsing.
+///
+/// Raises `RuntimeError` for an invalid or duplicate spec entry, an unknown option, a
+/// missing option value, or a positional argument that the spec does not declare.
 fn parse(args: List[String], spec: List[String]) -> Map[String, Any] {
   val kinds: Map[String, String] = {}
   val positionals: List[String] = []
@@ -95,6 +106,9 @@ fn parse(args: List[String], spec: List[String]) -> Map[String, Any] {
 }
 
 /// Returns whether a boolean flag was present.
+///
+/// Returns `false` when `name` is absent or does not hold a `Bool`, so a value from a
+/// mismatched spec never raises.
 fn flag(parsed: Map[String, Any], name: String) -> Bool {
   if (not parsed.has(name)) {
     return false
@@ -107,6 +121,8 @@ fn flag(parsed: Map[String, Any], name: String) -> Bool {
 }
 
 /// Returns the value of an option, or `nil` when absent.
+///
+/// Also returns `nil` when `name` is absent or does not hold a `String`.
 fn option(parsed: Map[String, Any], name: String) -> String? {
   if (not parsed.has(name)) {
     return nil
@@ -119,11 +135,16 @@ fn option(parsed: Map[String, Any], name: String) -> String? {
 }
 
 /// Returns a positional argument, or `nil` when absent.
+///
+/// Positionals are stored as `String` values, so this is equivalent to `option`.
 fn positional(parsed: Map[String, Any], name: String) -> String? {
   return option(parsed, name)
 }
 
-/// Renders a usage line from the declared spec.
+/// Renders a deterministic usage block from the declared spec.
+///
+/// The first line is `Usage: <program> [options] <positional>...`; one detail line per
+/// spec entry follows, using `--name` for flags and `--name <value>` for options.
 fn usage(program: String, spec: List[String]) -> String {
   val parts: List[String] = []
   var header = "Usage: " + program + " [options]"

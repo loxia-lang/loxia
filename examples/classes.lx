@@ -1,0 +1,31 @@
+# Classes, `class B(A)` inheritance, `super.init(...)`, implicit `this` and a
+# field that does not come from a parameter.
+class Animal {
+  var name: String;
+  var sex: String;
+  init(name: String) {
+    this.name = name;
+    this.sex = "M";
+  }
+
+  speak() -> Nil {
+    print(this.name + " makes a sound.");
+  }
+}
+
+class Dog(Animal) {
+  var breed: String;
+  init(name: String, breed: String) {
+    super.init(name);
+    this.breed = breed;
+  }
+
+  speak() -> Nil {
+    print(this.name + " barks.");
+  }
+}
+
+var rex = Dog("Rex", "mixed-breed");
+rex.speak();
+print(rex.breed);
+print(rex.sex);

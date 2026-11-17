@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
+"""`repr`: debug representation (docs: loxia/builtins_docs.py)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,7 +12,10 @@ if TYPE_CHECKING:
 
 
 class Repr:
-    """`repr(valor)` — representação de debug; string sai citada/escapada."""
+    """Returns the debug representation.
+
+    Strings are quoted and escaped; other values match `str`.
+    """
 
     def min_arity(self) -> int:
         return 1

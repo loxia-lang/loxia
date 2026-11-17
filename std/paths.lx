@@ -1,17 +1,24 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.paths — caminhos POSIX (T2), em Lox puro.
-# Não toca no sistema de arquivos: só manipulação lexical. Separador é `/`.
-# `join` não normaliza (use `normalize`); `normalize` colapsa barras e resolve
-# `.`/`..` lexicamente, sem consultar o disco.
+# std.paths — lexical POSIX path helpers (T2), pure Lox.
+#
+# Text-only: these functions never touch the filesystem and always use `/` as the
+# separator. `joinPath` only concatenates components; call `normalize` to collapse
+# repeated separators and resolve `.`/`..` lexically. Operations are deterministic:
+# the same input produces the same output in the tree-walk and the native backend.
 
 import std.strings as strings
 
 /// Returns whether the POSIX path is absolute.
+///
+/// A path is absolute when its first code point is `/`; the empty string is relative.
 fn isAbsolute(path: String) -> Bool {
   return len(path) > 0 and charCodeAt(path, 0) == 47
 }
 
 /// Splits a POSIX path into components.
+///
+/// Splits on `/` and drops empty components, so repeated and leading/trailing
+/// separators disappear: `split("/a//b/")` is `["a", "b"]` and `split("")` is `[]`.
 fn split(path: String) -> List[String] {
   val result: List[String] = []
   for part in strings.split(path, "/") {
@@ -22,8 +29,12 @@ fn split(path: String) -> List[String] {
   return result
 }
 
-/// Joins a base path and a child path, normalizing separators.
-fn join(base: String, child: String) -> String {
+/// Joins a base path and a child path with a single `/` separator.
+///
+/// An absolute `child` (or an empty `base`) wins and is returned unchanged. An empty
+/// `child` returns `base`. This is a lexical join: `.` and `..` are not resolved and
+/// separators already present in `child` are preserved.
+fn joinPath(base: String, child: String) -> String {
   if (len(child) == 0) {
     return base
   }
@@ -58,6 +69,9 @@ fn _joinParts(parts: List[String]) -> String {
 }
 
 /// Returns the final path component.
+///
+/// Trailing separators are ignored. `/` is its own basename and the empty path maps
+/// to `.`; `basename("a/b/")` is `"b"`.
 fn basename(path: String) -> String {
   if (len(path) == 0) {
     return "."
@@ -76,7 +90,10 @@ fn basename(path: String) -> String {
   return trimmed
 }
 
-/// Returns the parent path.
+/// Returns the parent path without a trailing separator.
+///
+/// `dirname("/a")` is `/`, `dirname("a")` and the empty path are `.`. The result is
+/// lexical: no filesystem lookup or symlink resolution happens.
 fn dirname(path: String) -> String {
   if (len(path) == 0) {
     return "."
@@ -95,7 +112,10 @@ fn dirname(path: String) -> String {
   return "."
 }
 
-/// Returns the file extension including the dot, or the empty string.
+/// Returns the file extension of the final component, without the leading dot.
+///
+/// `ext("a/b.tar.gz")` is `"gz"`; a dotfile such as `.bashrc` has no extension, and a
+/// missing extension returns `""`.
 fn ext(path: String) -> String {
   val name = basename(path)
   var index = len(name) - 1
@@ -108,7 +128,10 @@ fn ext(path: String) -> String {
   return ""
 }
 
-/// Returns the filename without its extension.
+/// Returns the final component without its extension.
+///
+/// `stem("a/b.tar.gz")` is `"b.tar"`; a name without an extension is returned
+/// unchanged, and dotfiles such as `.bashrc` keep their leading dot.
 fn stem(path: String) -> String {
   val name = basename(path)
   val suffix = ext(name)
@@ -118,7 +141,11 @@ fn stem(path: String) -> String {
   return substr(name, 0, len(name) - len(suffix) - 1)
 }
 
-/// Resolves `.` and `..` lexically.
+/// Resolves `.` and `..` lexically, collapsing repeated separators.
+///
+/// Absolute paths keep their leading `/`; `..` above a relative root is preserved, so
+/// `normalize("a/../..")` is `".."`. The empty path normalizes to `.`. No filesystem
+/// access and no symlink resolution: the result depends only on the input text.
 fn normalize(path: String) -> String {
   if (len(path) == 0) {
     return "."

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.json — JSON (RFC 8259) em Lox puro (T2).
-# Determinístico: objetos preservam a ordem de inserção, `Int`/`Float` são distintos
-# e nada depende de locale. `parse` devolve `nil` tanto para JSON `null` quanto para
-# entrada inválida (o chamador que precisa distinguir use `std.convert`).
-# Aninhamento máximo: 16 níveis; acima disso `parse` devolve `nil` em vez de estourar
-# a pilha do interpretador (ADR-0077 ainda não fixou o limite de chamadas).
+# std.json — RFC 8259 JSON (T2), pure Lox.
+#
+# Deterministic: objects keep insertion order, `Int` and `Float` stay distinct, and no
+# locale is consulted. `parse` returns `nil` both for JSON `null` and for invalid input;
+# there is no separate null sentinel. Nesting is capped at 16 levels (`parse` returns
+# `nil` above that) to keep recursion bounded (ADR-0077).
 
 class _Parser {
   val text: String
@@ -379,7 +379,13 @@ fn _spaces(count: Int) -> String {
   return join(parts, "")
 }
 
-/// Parses JSON text into Loxia values, returning `nil` for invalid input.
+/// Parses RFC 8259 JSON text into Loxia values.
+///
+/// Accepts `null`, booleans, numbers, strings, arrays and objects. A number without a
+/// fraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;
+/// non-finite values are rejected. Objects preserve key order and a repeated key keeps
+/// the last value. Invalid input (bad escapes, trailing characters, nesting deeper than
+/// 16) returns `nil`; a valid JSON `null` also returns `nil`.
 fn parse(text: String) -> Any {
   try {
     val parser = _Parser(text)
@@ -389,12 +395,17 @@ fn parse(text: String) -> Any {
       raise RuntimeError("Invalid JSON: trailing characters.")
     }
     return value
-  } except RuntimeError as error {
+  } except RuntimeError as _error {
     return nil
   }
 }
 
 /// Serializes a Loxia value as compact JSON.
+///
+/// Supports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and
+/// `Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;
+/// a non-finite float raises `RuntimeError`. Object keys keep insertion order, and any
+/// other type raises `RuntimeError`.
 fn stringify(value: Any) -> String {
   if (value == nil) {
     return "null"
@@ -467,7 +478,11 @@ fn _pretty(value: Any, indent: Int, level: Int) -> String {
   return stringify(value)
 }
 
-/// Serializes a Loxia value as JSON with `indent` spaces.
+/// Serializes a Loxia value as indented JSON.
+///
+/// Uses `indent` spaces per nesting level and the same value rules as `stringify`.
+/// `indent <= 0` falls back to compact output. Non-empty containers are always broken
+/// across lines; empty ones render as `[]` or `{}`.
 fn pretty(value: Any, indent: Int = 2) -> String {
   if (indent <= 0) {
     return stringify(value)

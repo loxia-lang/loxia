@@ -7,7 +7,7 @@ sources:
 
 # std.timex
 
-UTC date/time helpers (no timezone).
+UTC date/time helpers over integer epoch seconds; no timezones.
 
 ## API
 
@@ -15,24 +15,40 @@ UTC date/time helpers (no timezone).
 
 ### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`
 
-Dias desde 1970-01-01 para a data civil (algoritmo de Howard Hinnant).
+Returns days since 1970-01-01 for a civil date.
+
+Uses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is
+1..31; invalid combinations are not rejected here.
 
 ### `fn civilFromDays(days: Int) -> (Int, Int, Int)`
 
-Data civil `(ano, mês, dia)` para dias desde 1970-01-01.
+Returns `(year, month, day)` for days since 1970-01-01.
+
+Inverse of `daysFromCivil` and likewise proleptic Gregorian.
 
 ### `fn iso(seconds: Int) -> String`
 
-Formata o instante (segundos desde a época) como `YYYY-MM-DDTHH:MM:SSZ`.
+Formats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.
+
+Raises `RuntimeError` when the year falls outside 0..9999. The instant is floored
+into its civil day, so pre-epoch values still format consistently.
 
 ### `fn parseIso(text: String) -> Int | Nil`
 
-Lê `YYYY-MM-DDTHH:MM:SSZ` estrito; devolve `nil` se inválido.
+Parses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.
+
+Returns `nil` when the length, separators, digits, field ranges or calendar date are
+invalid. Leap seconds are not accepted: `second` must be 0..59.
 
 ### `fn addDays(seconds: Int, days: Int) -> Int`
 
-Soma `days` dias ao instante `seconds`, devolvendo o novo instante.
+Adds `days` days to the instant `seconds` and returns the new instant.
+
+Days are exactly 86400 seconds and there is no DST handling because the module is
+UTC-only.
 
 ### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`
 
-Decompõe o instante em `(ano, mês, dia, hora, minuto, segundo)` UTC.
+Splits an instant into `(year, month, day, hour, minute, second)` UTC.
+
+Uses floor division, so instants before the epoch still produce a valid civil date.

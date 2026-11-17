@@ -136,7 +136,7 @@ def _refresh_for(sources: tuple[str, ...], ref: str | None) -> str:
     commit, date = _source_commit(files, ref)
     if commit == "unknown":
         return ""
-    return f"> Verificado contra o commit [`{commit}`]({_commit_link(commit)}) em {date}.\n"
+    return f"> Verified against commit [`{commit}`]({_commit_link(commit)}) on {date}.\n"
 
 
 def _github_path(target: str, ref: str | None) -> str:
@@ -201,17 +201,17 @@ def _write_spec_current() -> int:
         title = _title(document.body, path.stem)
         body = _strip_h1(document.body)
         body = _rewrite_links(body, partial(_spec_link, slug=slug, ref=None))
-        banner = f"> **1.1 (next).** [Arquivo 1.0](../../1.0/reference/{slug}/)\n"
+        banner = f"> **1.1 (next).** [1.0 archive](../../pt/1.0/reference/{slug}/)\n"
         freshness = _refresh_for(_sources(document.front_matter), None)
         text = (
-            _front_matter(title, "Referência normativa da linguagem Loxia (1.1).", order)
+            _front_matter(title, "Normative reference for the Loxia language (1.1).", order)
             + banner
             + "\n"
             + body
             + "\n\n"
             + freshness
         )
-        target = CONTENT / "pt" / "reference" / f"{slug}.md"
+        target = CONTENT / "reference" / f"{slug}.md"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text.rstrip() + "\n", encoding="utf-8")
         count += 1
@@ -237,7 +237,7 @@ def _write_spec_archive(version: str) -> int:
             document.body, path.stem
         )
         body = _strip_h1(document.body)
-        banner = f"> **1.0 (stable, arquivado).** [Ver 1.1](../../../reference/{slug}/)\n"
+        banner = f"> **1.0 (stable, arquivado).** [Ver 1.1](../../../../reference/{slug}/)\n"
         if commit:
             freshness = (
                 f"> Congelado de [`{tag}`]({REPOSITORY}/releases/tag/{tag}) "

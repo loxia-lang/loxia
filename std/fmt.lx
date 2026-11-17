@@ -1,9 +1,16 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.fmt — formatação textual determinística (T2).
-# Sem locale: `fixed`/`commas`/`bytes` produzem os mesmos bytes em qualquer ambiente.
-# Variádico desde o ADR-0083: `format(template, ...values: Any)`.
+# std.fmt — deterministic text formatting (T2), pure Lox.
+#
+# No locale is consulted: `fixed`, `commas` and `bytes` produce the same bytes in every
+# environment. `format` is variadic (`format(template, ...values: Any)`, ADR-0083) and
+# raises on placeholder/argument mismatches. Invalid domains (negative width, non-finite
+# floats) raise `RuntimeError`.
 
-/// Replaces `{}` placeholders in `template` with successive values.
+/// Replaces each `{}` placeholder with the next value rendered by `str`.
+///
+/// `{{` and `}}` produce literal braces. Raises `RuntimeError` for a malformed
+/// placeholder (such as a lone `{` or `}`) or when the number of values does not match
+/// the number of placeholders.
 fn format(template: String, ...values: Any) -> String {
   val parts: List[String] = []
   var index = 0
@@ -43,7 +50,10 @@ fn format(template: String, ...values: Any) -> String {
   return join(parts, "")
 }
 
-/// Pads `text` to `width` using `fill` (one character).
+/// Left-pads `text` to `width` using repeated `fill`.
+///
+/// `fill` must be exactly one code point. Text that is already at least `width` long is
+/// returned unchanged. A negative width or a multi-character fill raises `RuntimeError`.
 fn pad(text: String, width: Int, fill: String = " ") -> String {
   if (width < 0) {
     raise RuntimeError("pad() expects a non-negative width.")
@@ -64,7 +74,10 @@ fn pad(text: String, width: Int, fill: String = " ") -> String {
   return join(parts, "")
 }
 
-/// Formats an integer with thousands separators.
+/// Formats an integer with `,` thousands separators.
+///
+/// Negative values keep a leading `-`; the sign itself is never grouped. `commas(0)` is
+/// `"0"` and the output is independent of locale.
 fn commas(value: Int) -> String {
   val negative = value < 0
   var rest = value
@@ -109,7 +122,11 @@ fn _isFinite(value: Float) -> Bool {
   return value <= 1.7976931348623157e308 and value >= -1.7976931348623157e308
 }
 
-/// Formats a finite float with exactly `digits` decimal places.
+/// Formats a finite `Float` with exactly `digits` decimal places.
+///
+/// Rounds with `math.round` and pads the fraction with zeros. `digits` must be in
+/// 0..15 and the value must be finite; otherwise `RuntimeError` is raised. With
+/// `digits == 0` the result has no decimal point.
 fn fixed(value: Float, digits: Int) -> String {
   if (digits < 0 or digits > 15) {
     raise RuntimeError("fixed() expects digits between 0 and 15.")
@@ -147,12 +164,18 @@ fn fixed(value: Float, digits: Int) -> String {
   return str(whole) + "." + fractionText
 }
 
-/// Formats a float as a percentage with `digits` decimal places.
+/// Formats a value as a percentage with `digits` decimal places.
+///
+/// Multiplies by 100, formats with `fixed` and appends `%`, so the same digit and
+/// finiteness rules apply.
 fn percent(value: Float, digits: Int = 0) -> String {
   return fixed(value * 100.0, digits) + "%"
 }
 
-/// Formats a byte count with a binary unit (B, KiB, MiB, ...).
+/// Formats a byte count with a binary unit (`B`, `KiB`, `MiB`, `GiB` or `TiB`).
+///
+/// Scales by 1024 and uses one decimal place above `B`. Negative input raises
+/// `RuntimeError`; `bytes(0)` is `"0 B"`.
 fn bytes(value: Int) -> String {
   if (value < 0) {
     raise RuntimeError("bytes() expects a non-negative size.")

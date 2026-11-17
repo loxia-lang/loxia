@@ -1,20 +1,20 @@
-# Extensão VS Code da Loxia
+# Loxia VS Code extension
 
-Destaque de sintaxe + **cliente LSP** para `.lx`. O cliente é JSON-RPC sobre stdio, sem
-dependências de npm: ele inicia `loxia lsp` (ou o comando configurado) e expõe
-diagnósticos, hover, definição, completion com escopo/imports/módulos, signatureHelp,
-formatação, code actions, rename e símbolos.
+Syntax highlighting + an **LSP client** for `.lx`. The client is JSON-RPC over stdio with
+no npm dependencies: it starts `loxia lsp` (or the configured command) and exposes
+diagnostics, hover, definition, completion with scope/imports/modules, signatureHelp,
+formatting, code actions, rename and symbols.
 
-## Rodar do checkout
+## Run from the checkout
 
 ```bash
 code --extensionDevelopmentPath="$PWD/editors/vscode" .
 ```
 
-Com o CLI instalado (`loxia` no `PATH`), o padrão já funciona. Sem instalar, o cliente
-tenta automaticamente, nesta ordem: `loxia lsp`, `python3 -m loxia lsp`,
-`python -m loxia lsp` e `uv run python -m loxia lsp` (com o workspace na raiz do repo).
-Para fixar um comando:
+With the CLI installed (`loxia` on `PATH`), the default works. Without installing it, the
+client tries the following automatically, in order: `loxia lsp`,
+`python3 -m loxia lsp`, `python -m loxia lsp` and `uv run python -m loxia lsp` (with the
+workspace at the repo root). To pin a command:
 
 ```json
 {
@@ -23,15 +23,15 @@ Para fixar um comando:
 }
 ```
 
-`Loxia: reiniciar servidor LSP` recarrega o processo depois de mudar a configuração.
-Se nenhum comando iniciar, a mensagem mostra o erro e o canal **Loxia** registra cada
- tentativa; `loxia.server.path` vazio significa autodetecção. O `cwd` padrão é a raiz do
-workspace; abra o repo principal (ou ajuste `loxia.server.cwd`).
+The `loxia.restartServer` command reloads the process after changing the configuration. If no
+command starts, the message shows the error and the **Loxia** channel records each
+attempt; an empty `loxia.server.path` means autodetection. The default `cwd` is the
+workspace root; open the main repo (or adjust `loxia.server.cwd`).
 
-## Publicar (quando separar o repo)
+## Publish (when the repo is split)
 
-O cliente é autocontido: `extension.js`, `package.json`, `language-configuration.json`,
-`syntaxes/` e este README. A grammar é **gerada** por `make grammar` no repo principal e
-copiada no release; não edite o JSON à mão. O servidor não é embutido — a extensão só
-aponta para `loxia lsp`, então o repo de editores pode versionar separado sem duplicar o
-compilador.
+The client is self-contained: `extension.js`, `package.json`, `language-configuration.json`,
+`syntaxes/` and this README. The grammar is **generated** by `make grammar` in the main repo
+and copied at release time; do not edit the JSON by hand. The server is not bundled — the
+extension only points at `loxia lsp`, so the editors repo can be versioned separately
+without duplicating the compiler.

@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
+"""`print`: display form plus newline (docs: loxia/builtins_docs.py)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,7 +12,11 @@ if TYPE_CHECKING:
 
 
 class Print:
-    """`print(valor)` — escreve a representação de exibição e uma newline; devolve nil."""
+    """Writes the display form and a newline, then returns `nil`.
+
+    Uses the same `stringify` as interpolation, so strings print without quotes
+    and container elements are formatted consistently.
+    """
 
     def min_arity(self) -> int:
         return 1

@@ -1,9 +1,23 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /*
- * Runtime do backend nativo: tipos, limites e contrato interno compartilhado.
+ * Native backend runtime: shared types, limits and internal contract.
  *
- * O runtime é compilado como várias unidades (core, objects, strings, containers,
- * numeric, kernel); este header é o único lugar com tipos e protótipos comuns.
+ * The runtime is compiled as several units (core, objects, strings, containers,
+ * numeric, kernel, proc); this header is the single place for shared types and
+ * prototypes.
+ *
+ * Unit map (details in runtime/README.md):
+ *   core.c        lox_init, lox_stack_*, lox_panic*, lox_throw*, lox_alloc*
+ *   objects.c     lox_interface_method, lox_is_instance, lox_type_*
+ *   strings.c     lox_str_*, lox_print_*, format_*, buffer_*
+ *   containers.c  lox_range_*, lox_list_*, lox_map_*, lox_tuple_*, lox_enum_*
+ *   numeric.c     lox_math_*, lox_parse_*, lox_int_*, lox_float_*, lox_shift
+ *   kernel.c      lox_substr/join/charCodeAt/fromCodePoint, lox_io_*, lox_fs_*,
+ *                 lox_os_*, lox_time_*, lox_args
+ *   proc.c        lox_proc_*
+ *
+ * Generated code and the C runtime agree on the layouts below; the lowering
+ * mirrors them in loxia_core/backend/lower_model.py.
  */
 #ifndef LOX_RUNTIME_H
 #define LOX_RUNTIME_H
@@ -30,12 +44,12 @@
 #include <unistd.h>
 #include <time.h>
 
-/* Hard cap do heap coletado (ADR-0087); o driver passa o valor do build. */
+/* Collected-heap hard cap (ADR-0087); the driver passes the build value. */
 #ifndef LOX_GC_MAX_HEAP_BYTES
 #define LOX_GC_MAX_HEAP_BYTES (512ull * 1024ull * 1024ull)
 #endif
 
-/* Contrato de pilha (ADR-0077); o driver passa o valor do build. */
+/* Stack contract (ADR-0077); the driver passes the build value. */
 #ifndef LOX_MAX_CALL_DEPTH
 #define LOX_MAX_CALL_DEPTH 10000
 #endif
@@ -43,7 +57,7 @@
 #define LOX_STACK_RESERVE_BYTES (128ull * 1024ull * 1024ull)
 #endif
 
-/* Stack trace (ADR-0089): mesmos números de execution/limits.py, via driver. */
+/* Stack trace (ADR-0089): same numbers as execution/limits.py, via the driver. */
 #ifndef LOX_TRACE_HEAD
 #define LOX_TRACE_HEAD 5
 #endif
@@ -52,23 +66,24 @@
 #endif
 
 /*
- * String imutável: bytes UTF-8 + contagem de code points (ADR-0031, decisão 6).
- * O IR usa `i8*` para o ponteiro; o layout é este struct.
+ * Immutable String: UTF-8 bytes + code-point count (ADR-0031, decision 6).
+ * The IR uses `i8*` for the pointer; this struct is the layout.
  */
 typedef struct {
     int64_t byte_len;
     int64_t cp_len;
     const char *data;
-    int32_t *cp_offsets; /* cache preguiçoso; NULL até o primeiro acesso aleatório */
+    int32_t *cp_offsets; /* lazy cache; NULL until the first random access */
 } LoxStr;
 
 /*
- * Pilha de chamadas (ADR-0077): o contador é o contrato; a reserva de SO é
- * orçamento interno para frames gordos. Chamadas nativas não entram no contador.
+ * Call stack (ADR-0077): the counter is the contract; the OS reserve is an
+ * internal budget for fat frames. Native calls do not enter the counter.
  *
- * ADR-0089: o mesmo array carrega o stack trace. `file` é a função atual (cabeçalho
- * de panic); `call_*` é onde ela foi chamada (linha do frame). O call site chega
- * pelos globais abaixo, gravados pelo lowering imediatamente antes da chamada.
+ * ADR-0089: the same array carries the stack trace. `file` is the current
+ * function (panic header); `call_*` is where it was called from (the frame's
+ * line). The call site arrives through the globals below, written by the
+ * lowering immediately before the call.
  */
 typedef struct {
     const char *name;
@@ -79,8 +94,9 @@ typedef struct {
 } LoxFrame;
 
 /*
- * Closure do L4 (ADR-0046): `{ fnptr, env, display }`. O IR aloca via estes wrappers;
- * `display` é uma string C determinística (`<fn f>`/`<lambda>`), nunca um endereço.
+ * L4 closure (ADR-0046): `{ fnptr, env, display }`. The IR allocates through the
+ * wrappers; `display` is a deterministic C string (`<fn f>`/`<lambda>`), never an
+ * address.
  */
 typedef struct {
     void *fn;
@@ -88,7 +104,7 @@ typedef struct {
     const char *display;
 } LoxClosure;
 
-/* Layout espelhado de `_CLASS_DESC`/`_INTERFACE_ENTRY` (ADR-0080, fase B2). */
+/* Mirrored layout of `_CLASS_DESC`/`_INTERFACE_ENTRY` (ADR-0080, phase B2). */
 typedef struct {
     void *super;
     int64_t id;
@@ -107,7 +123,7 @@ typedef struct {
     void *itab;
 } LoxInterfaceEntryRuntime;
 
-/* Range do L6: valor imutável, ponteiro para `{start, end, step}`. */
+/* L6 Range: immutable value, pointer to `{start, end, step}`. */
 typedef struct {
     int64_t start;
     int64_t end;
@@ -115,7 +131,15 @@ typedef struct {
     int32_t inclusive;
 } LoxRange;
 
-/* List do L6: elementos boxeados `LoxValue{tag,payload}`, ordem de inserção. */
+/* L6 List: boxed `LoxValue{tag,payload}` elements, insertion order. */
+/*
+ * Boxed value used by the dynamic path and containers. Tag table (keep in sync
+ * with strings.c, objects.c and containers.c):
+ *   0 nil, 1 Int, 2 Float, 3 Bool, 4 String, 5 Class, 6 Instance,
+ *   7 Function, 8 Range, 9 List, 10 Map, 11 Tuple, 12 Enum.
+ * Float stores its bit pattern in `payload`; tags 0..3 carry immediates, tag 4
+ * carries a LoxStr pointer, and tags 5..12 carry object/container pointers.
+ */
 typedef struct {
     int64_t tag;
     int64_t payload;
@@ -128,7 +152,7 @@ typedef struct {
     int64_t version;
 } LoxList;
 
-/* Map do L6: entradas boxeadas em ordem de inserção. */
+/* L6 Map: boxed entries in insertion order. */
 typedef struct {
     LoxValue key;
     LoxValue value;
@@ -141,13 +165,13 @@ typedef struct {
     int64_t version;
 } LoxMap;
 
-/* Tupla do L6: elementos boxeados, aridade fixa e imutável. */
+/* L6 Tuple: boxed elements, fixed arity, immutable. */
 typedef struct {
     int64_t count;
     LoxValue *items;
 } LoxTuple;
 
-/* Enum do L6: identidade + variante + payload boxeado. */
+/* L6 Enum: identity + variant + boxed payload. */
 typedef struct {
     int64_t enum_id;
     const char *enum_name;
@@ -156,15 +180,15 @@ typedef struct {
     LoxValue *payload;
 } LoxEnumValue;
 
-/* Checagem de tipo de runtime para `is`/`as` (ADR-0075).
+/* Runtime type check for `is`/`as` (ADR-0025, ADR-0029).
  *
- * O lowering serializa o tipo alvo numa string compacta e o matcher percorre
- * listas, mapas e tuplas com os mesmos acessores do runtime. A árvore é
- * cacheada por ponteiro de string (o global de cada sítio de `is`/`as`).
+ * The lowering serializes the target type into a compact string and the matcher
+ * walks lists, maps and tuples with the same runtime accessors. The tree is
+ * cached by string pointer (the global owned by each `is`/`as` site).
  *
- * Gramática: A=Any, X=never, N=nil, B=Bool, I=Int, F=Float, S=String,
+ * Grammar: A=Any, X=never, N=nil, B=Bool, I=Int, F=Float, S=String,
  * R=Range, L<T>=List, M<K,V>=Map, T<T1,...>=Tuple, U<T1|...>=Union,
- * E<id>=enum, C<id>=classe.
+ * E<id>=enum, C<id>=class.
  */
 typedef struct LoxTypeDesc {
     int64_t kind;
@@ -180,16 +204,16 @@ typedef struct LoxTypeCache {
     struct LoxTypeCache *next;
 } LoxTypeCache;
 
-/* Exceções do L6j: frames de try, throw e cleanup mínimo (ADR-0062). */
+/* L6 exceptions: try frames, throw and minimal cleanup (ADR-0062). */
 typedef struct {
     const char *type_name;
     void *instance;
     const char *message;
-    const char *code; /* R1xxx quando o throw veio de um panic; NULL em exceção de usuário */
-    const char *file; /* origem do throw (ADR-0089; módulo no cabeçalho) */
+    const char *code; /* R1xxx when the throw came from a panic; NULL for user exceptions */
+    const char *file; /* throw origin (ADR-0089; module in the header) */
     int32_t line;
     int32_t column;
-    int64_t trace_depth; /* frames vivos no throw: o unwinding não os apaga */
+    int64_t trace_depth; /* live frames at throw time: unwinding does not erase them */
 } LoxException;
 
 typedef struct LoxTryFrame {
@@ -208,7 +232,10 @@ typedef struct {
     int active_depth;
 } LoxBuffer;
 
-/* Estado do processo, definido em core.c e objects.c. */
+/* ---------------------------------------------------------------------------
+ * Process state (defined in core.c and objects.c)
+ * --------------------------------------------------------------------------- */
+
 extern const char *lox_source_path;
 extern int32_t lox_argc;
 extern char **lox_argv;
@@ -220,7 +247,12 @@ extern int32_t lox_call_column;
 extern LoxTypeCache *lox_type_cache;
 extern LoxTryFrame *lox_current_try;
 
-/* Superfície ABI do código gerado e helpers internos compartilhados. */
+/* ---------------------------------------------------------------------------
+ * ABI surface: initialization, stack, allocation and panic
+ *
+ * Everything below is called by generated code or shared between runtime units.
+ * --------------------------------------------------------------------------- */
+
 extern void lox_init (const char *source_path, int32_t argc, char **argv);
 extern const char *lox_current_file (void);
 extern void lox_stack_enter (const char *name, const char *file, int32_t decl_line, int32_t decl_column);
@@ -239,12 +271,20 @@ extern void *lox_alloc_bytes (int64_t size);
 extern void *lox_interface_method (const void *instance, int64_t interface_id, int64_t method_index);
 extern int lox_is_instance (void *descriptor, void *target);
 extern void lox_print_function (const void *pointer);
+/* ---------------------------------------------------------------------------
+ * Strings, printing and value formatting
+ * --------------------------------------------------------------------------- */
+
 extern void *lox_str_from_function (const void *pointer);
 extern void lox_print_str (const void *pointer);
 extern int64_t lox_str_len (const void *pointer);
 extern int32_t lox_str_compare (const void *left_pointer, const void *right_pointer);
 extern int32_t lox_str_equal (const void *left_pointer, const void *right_pointer);
 extern void *lox_str_concat (const void *left_pointer, const void *right_pointer);
+/* ---------------------------------------------------------------------------
+ * Containers: Range, List, Map, Tuple, Enum
+ * --------------------------------------------------------------------------- */
+
 extern void *lox_range_new (int64_t start, int64_t end, int64_t step,
                             int32_t inclusive);
 extern int64_t lox_range_start (const void *pointer);
@@ -301,6 +341,10 @@ extern LoxValue lox_enum_payload (const void *pointer, int64_t index, int32_t li
 extern int64_t lox_enum_variant (const void *pointer);
 extern int64_t lox_enum_variant_index (const void *pointer, const char *name);
 extern int lox_enum_equal (const void *left_pointer, const void *right_pointer);
+/* ---------------------------------------------------------------------------
+ * Runtime type descriptors (`is`/`as`)
+ * --------------------------------------------------------------------------- */
+
 extern LoxTypeDesc *lox_type_desc_new (void);
 extern const char *lox_parse_type (const char *cursor, LoxTypeDesc *desc);
 extern LoxTypeDesc *lox_type_parse_cached (const char *text);
@@ -313,6 +357,10 @@ extern int64_t utf8_decode (const unsigned char *data, size_t *length);
 extern int64_t lox_int_pow (int64_t base, int64_t exponent, int32_t line, int32_t column);
 extern int64_t lox_shift (int64_t value, int64_t count, int32_t kind, int32_t line, int32_t column);
 extern int64_t lox_float_to_int (double value, int32_t line, int32_t column);
+/* ---------------------------------------------------------------------------
+ * Exceptions and try frames
+ * --------------------------------------------------------------------------- */
+
 extern void *lox_try_push (void);
 extern void *lox_try_buffer (void *pointer);
 extern void lox_try_pop (void *pointer);
@@ -321,6 +369,10 @@ extern void *lox_exception_instance (const void *pointer);
 extern const char *lox_exception_message (const void *pointer);
 extern int32_t lox_exception_matches (const void *pointer, const void *expected,
                                      const char *type_name);
+/* ---------------------------------------------------------------------------
+ * Runtime diagnostics and panic
+ * --------------------------------------------------------------------------- */
+
 extern void lox_print_prefix_at (const char *file, int32_t line, int32_t column, const char *code);
 extern void lox_throw_internal_at (const char *file, const char *code, void *instance, const char *type_name, const char *message, int32_t line, int32_t column, int64_t trace_depth);
 extern void lox_throw_internal (const char *code, void *instance, const char *type_name, const char *message, int32_t line, int32_t column);
@@ -329,6 +381,10 @@ extern void lox_rethrow (void *exception_pointer, int32_t line, int32_t column);
 extern void lox_raise_current (int32_t line, int32_t column);
 extern void lox_panic_at (const char *file, int32_t line, int32_t column, const char *code, const char *message);
 extern void lox_panic (int32_t line, int32_t column, const char *code, const char *message);
+/* ---------------------------------------------------------------------------
+ * Scalar printing and UTF-8 helpers
+ * --------------------------------------------------------------------------- */
+
 extern void lox_print_int (int64_t value);
 extern void lox_print_bool (int32_t value);
 extern void lox_print_nil (void);
@@ -363,6 +419,10 @@ extern void *lox_str_from_tuple (const void *pointer);
 extern void *lox_str_from_map (const void *pointer);
 extern void *lox_str_from_list (const void *pointer);
 extern void *lox_str_from_any (int64_t tag, int64_t payload);
+/* ---------------------------------------------------------------------------
+ * Arithmetic guards and dynamic Any printing
+ * --------------------------------------------------------------------------- */
+
 extern int64_t lox_int_div (int64_t left, int64_t right, int32_t line, int32_t column);
 extern double lox_float_div (double left, double right, int32_t line, int32_t column);
 extern double lox_float_mod (double left, double right, int32_t line, int32_t column);

@@ -7,7 +7,7 @@ sources:
 
 # std.property
 
-Property-based testing with generators, shrinking and seeds.
+Deterministic property-based testing with generators, shrinking and seeds.
 
 ## API
 
@@ -15,66 +15,76 @@ Property-based testing with generators, shrinking and seeds.
 
 ### `class Gen[T]`
 
-Gerador de valores com estratégia de geração e de redução (shrinking).
+Value generator with a generation strategy and a shrink strategy.
 
 #### `val generate: fn(Rand) -> T`
 
-Produz um valor a partir do gerador aleatório.
+Produces a value from the random generator.
 
 #### `val shrink: fn(T) -> List[T]`
 
-Candidatos menores que `value` (lista vazia = não reduz).
+Smaller candidates for `value` (an empty list means no shrinking).
 
 #### `fn init(generate: fn(Rand) -> T, shrink: fn(T) -> List[T])`
 
-Cria o gerador com as duas funções.
+Creates the generator from its two functions.
 
 #### `fn sample(random: Rand) -> T`
 
-Amostra um valor.
+Samples one value using `random`.
 
 #### `fn smaller(value: T) -> List[T]`
 
-Candidatos menores para o shrinking.
+Returns the shrink candidates for `value`.
 
 ## Functions
 
 ### `fn forAll[T](generator: Gen[T], check: fn(T) -> Nil, runs: Int = ..., seed: Int = ...) -> Nil`
 
-Executa `check` com `runs` valores; falha com contraexemplo reduzido e seed.
+Runs `check` with `runs` generated values; on failure shrinks and raises.
+
+Stops at the first failure and raises `TestFailure` with the run number, seed,
+original counterexample and shrunk value. `Skip` propagates unchanged. `seed` is
+explicit, so a failing run is reproducible.
 
 ### `fn int() -> Gen[Int]`
 
-Inteiro de 64 bits; reduz para 0 e para a metade.
+64-bit integer generator; shrinks toward 0 and then toward the halfway point.
 
 ### `fn intRange(min: Int, max: Int) -> Gen[Int]`
 
-Inteiro em `[min, max]`; reduz na direção de `min`.
+Integer generator in `[min, max]`; shrinks toward `min`.
 
 ### `fn bool() -> Gen[Bool]`
 
-`Bool`; reduz `true` para `false`.
+`Bool` generator; shrinks `true` to `false`.
 
 ### `fn float() -> Gen[Float]`
 
-`Float` em `[0.0, 1.0)`; reduz para `0.0`.
+`Float` generator in `[0.0, 1.0)`; shrinks to `0.0`.
 
 ### `fn listOf[T](element: Gen[T], maxLength: Int = ...) -> Gen[List[T]]`
 
-Lista de `T` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+List generator with length in `[0, maxLength]`; shrinks by removing elements.
+
+Elements are drawn from `element`; shrunk lists are not shrunk element-wise.
 
 ### `fn listOfInt(element: Gen[Int], maxLength: Int = ...) -> Gen[List[Int]]`
 
-Lista de `Int`; alias de `listOf` mantido para compatibilidade.
+List of `Int`; compatibility alias of `listOf`.
 
 ### `fn listOfString(element: Gen[String], maxLength: Int = ...) -> Gen[List[String]]`
 
-Lista de `String`; alias de `listOf` mantido para compatibilidade.
+List of `String`; compatibility alias of `listOf`.
 
 ### `fn stringOf(maxLength: Int = ...) -> Gen[String]`
 
-String de `[a-z0-9]` com tamanho em `[0, maxLength]`; reduz removendo caracteres.
+String generator over `[a-z0-9]` with length in `[0, maxLength]`.
+
+Shrinks by deleting one character per candidate.
 
 ### `fn oneOf[T](options: List[T]) -> Gen[T]`
 
-Escolhe um dos valores de `options` (não vazio); reduz para o primeiro.
+Chooses one value from `options`; shrinks toward the first element.
+
+Raises `RuntimeError` when `options` is empty.

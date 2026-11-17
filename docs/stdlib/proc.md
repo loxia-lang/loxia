@@ -7,7 +7,7 @@ sources:
 
 # std.proc
 
-Processes, streams and `poll` (POSIX, ambient).
+Processes, streams and `poll` (POSIX, ambient: outside I1/I3).
 
 ## API
 
@@ -15,94 +15,107 @@ Processes, streams and `poll` (POSIX, ambient).
 
 ### `class Stream`
 
-Fluxo de bytes de um processo (`stdin`, `stdout` ou `stderr`).
+Byte stream of a child process (`stdin`, `stdout` or `stderr`).
 
 #### `val id: Int`
 
-Handle do stream em `proc.*`.
+Stream handle used by `proc.*`.
 
 #### `fn init(id: Int)`
 
-Cria a casca em volta de um handle já existente.
+Wraps an existing stream handle.
 
 #### `fn read(n: Int) -> String | Nil`
 
-Lê até `n` bytes; `nil` no fim do stream. Sempre em fronteira de UTF-8.
+Reads up to `n` bytes, or `nil` at end of stream.
+
+Reading stops at a UTF-8 boundary, so the returned text is always valid even when
+`n` lands inside a multi-byte code point.
 
 #### `fn write(text: String) -> Bool`
 
-Escreve todo o texto; `false` se o outro lado fechou.
+Writes all text, returning `false` when the other side closed the pipe.
 
 #### `fn close() -> Nil`
 
-Fecha o descritor; usar o stream depois disso é erro.
+Closes the descriptor; using the stream afterwards is an error.
+
+Close each handle once: a second close raises for an unknown handle.
 
 ### `class Process`
 
-Processo filho com os três canais em pipes.
+Child process with its three channels connected to pipes.
 
 #### `val id: Int`
 
-Handle do processo em `proc.*`.
+Process handle used by `proc.*`.
 
 #### `val stdin: Stream`
 
-Canal de entrada do filho.
+Child's standard input.
 
 #### `val stdout: Stream`
 
-Canal de saída do filho.
+Child's standard output.
 
 #### `val stderr: Stream`
 
-Canal de erro do filho.
+Child's standard error.
 
 #### `fn init(id: Int)`
 
-Cria a casca em volta de um processo já iniciado.
+Wraps an already-started process handle; prefer `spawn`.
 
 #### `fn wait() -> Int`
 
-Espera o processo terminar; código negativo significa sinal.
+Waits for the process to exit and returns its status.
+
+A negative status means the child was terminated by a signal.
 
 #### `fn kill() -> Bool`
 
-Mata com `SIGKILL`; `false` se o processo já tinha saído.
+Sends `SIGKILL`, returning `false` when the process already exited.
 
 #### `fn close() -> Nil`
 
-Fecha os canais e libera o handle (não mata um processo em execução).
+Closes the channels and releases the handle.
+
+Does not kill a process that is still running; call `kill` first if needed.
 
 ### `class Output`
 
-Saída capturada por `run`.
+Captured output of a finished `run`.
 
 #### `val code: Int`
 
-Código de saída (negativo quando o filho morreu por sinal).
+Exit code (negative when the child died from a signal).
 
 #### `val stdout: String`
 
-Tudo o que o filho escreveu em stdout.
+Everything the child wrote to stdout.
 
 #### `val stderr: String`
 
-Tudo o que o filho escreveu em stderr.
+Everything the child wrote to stderr.
 
 #### `fn init(code: Int, stdout: String, stderr: String)`
 
-Monta o resultado de uma execução.
+Builds the result of a finished run.
 
 ## Functions
 
 ### `fn spawn(argv: List[String]) -> Process | Nil`
 
-Inicia `argv` (sem shell) com pipes nos três canais; `nil` se não conseguiu.
+Starts `argv` without a shell, with pipes on all three channels.
+
+Returns `nil` when the process cannot be started. `argv[0]` is resolved by the OS,
+not by a shell, so no quoting or command interpolation happens.
 
 ### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Output | Nil`
 
-Roda `argv` até o fim e devolve código e saída; `nil` em falha ou timeout.
+Runs `argv` to completion and returns its exit code and captured output.
 
-`stdin` é escrito antes do primeiro `poll` (limite prático: o buffer do pipe,
-~64 KiB; texto maior pode bloquear se o filho não ler). `timeoutMs > 0` mata o
-processo e devolve `nil`. Sem shell e sem interpolação de comando.
+`stdin` is written before the first `poll` (practical limit: the pipe buffer,
+~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the
+process and returns `nil`. There is no shell and no command interpolation; `nil` also
+means the process could not be started.

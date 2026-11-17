@@ -7,7 +7,7 @@ sources:
 
 # std.sets
 
-`Set[T]` backed by `Map[Any, Bool]`.
+`Set[T]` backed by `Map[Any, Bool]`, preserving insertion order.
 
 ## API
 
@@ -15,11 +15,11 @@ sources:
 
 ### `class Set[T]`
 
-A mutable set backed by `Map[Any, Bool]`.
+Mutable set backed by `Map[Any, Bool]`.
 
 #### `val items: Map[Any, Bool]`
 
-The backing map of elements.
+Backing map; keys are elements and every value is `true`.
 
 #### `fn init()`
 
@@ -27,15 +27,15 @@ Creates an empty set.
 
 #### `fn add(value: T) -> Nil`
 
-Adds a value to the set.
+Adds `value`; adding an existing value is a no-op that keeps its position.
 
 #### `fn has(value: T) -> Bool`
 
-Returns whether the set contains a value.
+Returns whether `value` is in the set.
 
 #### `fn remove(value: T) -> Bool`
 
-Removes a value, returning whether it was present.
+Removes `value`, returning whether it was present.
 
 #### `fn len() -> Int`
 
@@ -49,16 +49,22 @@ Returns the elements as a list in insertion order.
 
 Returns a new set with the elements of both sets.
 
+Elements of `this` come first, followed by new elements of `other`.
+
 #### `fn intersect(other: Set[T]) -> Set[T]`
 
-Returns a new set with the common elements.
+Returns a new set with the elements present in both sets.
+
+Order follows `this`.
 
 #### `fn difference(other: Set[T]) -> Set[T]`
 
-Returns a new set with elements not in `other`.
+Returns a new set with the elements of `this` that are not in `other`.
+
+Order follows `this`.
 
 ## Functions
 
 ### `fn fromList[T](values: List[T]) -> Set[T]`
 
-Builds a set from a list, deduplicating values.
+Builds a set from `values`, deduplicating in first-occurrence order.

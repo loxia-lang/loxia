@@ -1,13 +1,34 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-/* LoxStr, UTF-8, formatação de valor e impressão (ADR-0031, ADR-0035). */
+/*
+ * strings.c — `String` representation, UTF-8, `print`/`str`/`repr` and the
+ * boxed-value formatting used by `Any` and containers.
+ *
+ * Who calls it: the string/interpolation lowering (lower_strings.py), the
+ * `format_value` from containers.c and `lox_print_any` on the dynamic path. The
+ * `LoxStr` layout lives in lox_runtime.h.
+ *
+ * Invariants:
+ *  - `LoxStr` content is immutable; `cp_offsets` is a lazy cache;
+ *  - public indices and lengths count code points, not bytes;
+ *  - `format_double` must reproduce Python `repr` bit for bit (I1);
+ *  - list/map formatting is deterministic and cuts cycles with `{...}`.
+ *
+ * ADRs: 0031 (IR/str), 0035 (strings), 0041 (enums), 0049 (Any).
+ */
 #include "lox_runtime.h"
 
+/* ---------------------------------------------------------------------------
+ * Functions and closures
+ * --------------------------------------------------------------------------- */
+
+/* `print(f)`: writes the closure's deterministic display + newline. */
 void lox_print_function(const void *pointer) {
     const LoxClosure *closure = pointer;
     fputs(closure->display, stdout);
     fputc('\n', stdout);
 }
 
+/* `str(f)`/interpolation: materializes the display as an ASCII LoxStr. */
 void *lox_str_from_function(const void *pointer) {
     const LoxClosure *closure = pointer;
     const char *display = closure->display;
@@ -24,16 +45,23 @@ void *lox_str_from_function(const void *pointer) {
     return result;
 }
 
+/* ---------------------------------------------------------------------------
+ * LoxStr: length, ordering, equality and concatenation
+ * --------------------------------------------------------------------------- */
+
+/* `print(s)`: raw UTF-8 bytes + newline (no quotes). */
 void lox_print_str(const void *pointer) {
     const LoxStr *string = pointer;
     fwrite(string->data, 1, (size_t)string->byte_len, stdout);
     fputc('\n', stdout);
 }
 
+/* `len(s)`: number of code points. */
 int64_t lox_str_len(const void *pointer) {
     return ((const LoxStr *)pointer)->cp_len;
 }
 
+/* Lexicographic order by UTF-8 bytes; equivalent to code-point order. */
 int32_t lox_str_compare(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
     const LoxStr *right = right_pointer;
@@ -49,6 +77,7 @@ int32_t lox_str_compare(const void *left_pointer, const void *right_pointer) {
     return left->byte_len < right->byte_len ? -1 : 1;
 }
 
+/* Equality by content (`memcmp`), not by identity. */
 int32_t lox_str_equal(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
     const LoxStr *right = right_pointer;
@@ -58,6 +87,7 @@ int32_t lox_str_equal(const void *left_pointer, const void *right_pointer) {
     return memcmp(left->data, right->data, (size_t)left->byte_len) == 0;
 }
 
+/* String `+`: allocates a new LoxStr and adds `cp_len`. */
 void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
     const LoxStr *right = right_pointer;
@@ -77,6 +107,11 @@ void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
 }
 
 
+/* ---------------------------------------------------------------------------
+ * Code points and UTF-8
+ * --------------------------------------------------------------------------- */
+
+/* `chars(s)`: list of one-code-point strings, in text order. */
 void *lox_chars(const void *pointer) {
     const LoxStr *string = pointer;
     void *list = lox_list_new();
@@ -89,6 +124,10 @@ void *lox_chars(const void *pointer) {
 
 
 
+/* Converts a code-point index to the corresponding byte offset.
+ *
+ * Strings with >= 64 code points materialize `cp_offsets` on the first random
+ * access; below that, it scans linearly. `index` outside 0..cp_len is R1007. */
 int64_t utf8_cp_offset(const LoxStr *string, int64_t index) {
     if (index < 0 || index > string->cp_len) {
         lox_panic(0, 0, "R1007", "String index out of bounds.");
@@ -122,6 +161,7 @@ int64_t utf8_cp_offset(const LoxStr *string, int64_t index) {
     return (int64_t)offset;
 }
 
+/* Returns code point `index` as a one-character LoxStr. */
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;
     int64_t offset = utf8_cp_offset(string, index);
@@ -133,6 +173,8 @@ void *lox_str_char_at(const void *pointer, int64_t index) {
 }
 
 
+/* Decodes the first code point of `data` and stores its byte length (1..4) in
+ * `length`. Assumes a valid UTF-8 sequence (the caller has validated it). */
 int64_t utf8_decode(const unsigned char *data, size_t *length) {
     unsigned char byte = data[0];
     if (byte < 0x80) {
@@ -155,26 +197,37 @@ int64_t utf8_decode(const unsigned char *data, size_t *length) {
 }
 
 
+/* ---------------------------------------------------------------------------
+ * Scalar printing
+ * --------------------------------------------------------------------------- */
+
+/* `print(Int)`: decimal + newline. */
 void lox_print_int(int64_t value) {
     printf("%" PRId64 "\n", value);
 }
 
+/* `print(Bool)`: `true`/`false` + newline. */
 void lox_print_bool(int32_t value) {
     fputs(value ? "true\n" : "false\n", stdout);
 }
 
+/* `print(nil)`: `nil` + newline. */
 void lox_print_nil(void) {
     fputs("nil\n", stdout);
 }
 
+/* ---------------------------------------------------------------------------
+ * Float formatting (repr parity)
+ * --------------------------------------------------------------------------- */
+
 /*
- * Formata `double` como o `repr` do Python: menor quantidade de dígitos que reconstrói
- * o mesmo bit pattern, com as convenções do CPython (`1.0`, `-0.0`, `1e-05`, `1e+16`).
+ * Formats a `double` like Python `repr`: the fewest digits that reconstruct the
+ * same bit pattern, with CPython conventions (`1.0`, `-0.0`, `1e-05`, `1e+16`).
  *
- * Estratégia: tenta `%.{p}e` para p = 1..17 e usa o primeiro que `strtod` reconstrói.
- * É O(17) conversões, não um algoritmo de shortest-repr dedicado (Ryu); para o L1 a
- * diferença é de microssegundos por print impresso. O contrato é validado por fuzz
- * contra `repr` em `tests/test_backend.py`.
+ * Strategy: try `%.{p}e` for p = 1..17 and use the first one that `strtod`
+ * reconstructs. It is O(17) conversions, not a dedicated shortest-repr algorithm
+ * (Ryu); for L1 the cost is microseconds per printed value. The contract is
+ * fuzz-tested against `repr` in `tests/test_backend.py`.
  */
 void format_double(double value, char *out, size_t size) {
     if (value == 0.0) {
@@ -233,7 +286,7 @@ void format_double(double value, char *out, size_t size) {
 
     size_t used = 0;
     if (decpt <= 0) {
-        /* 0.000ddd: `decpt` zeros antes dos dígitos. */
+        /* 0.000ddd: `decpt` zeros before the digits. */
         if (used + 2 < remaining) {
             write[used++] = '0';
             write[used++] = '.';
@@ -245,7 +298,7 @@ void format_double(double value, char *out, size_t size) {
             write[used++] = digits[index];
         }
     } else if ((size_t)decpt >= count) {
-        /* ddd000.0: dígitos e zeros até a casa decimal. */
+        /* ddd000.0: digits and zeros up to the decimal point. */
         size_t index;
         for (index = 0; index < count && used + 1 < remaining; index++) {
             write[used++] = digits[index];
@@ -258,7 +311,7 @@ void format_double(double value, char *out, size_t size) {
             write[used++] = '0';
         }
     } else {
-        /* dd.ddd: ponto decimal no meio dos dígitos. */
+        /* dd.ddd: decimal point in the middle of the digits. */
         for (size_t index = 0; index < (size_t)decpt && used + 1 < remaining;
              index++) {
             write[used++] = digits[index];
@@ -274,6 +327,7 @@ void format_double(double value, char *out, size_t size) {
     write[used] = '\0';
 }
 
+/* Renders NaN/inf and delegates finite values to `format_double`. */
 void format_float_value(double value, char *out, size_t size) {
     if (isnan(value)) {
         snprintf(out, size, "NaN");
@@ -286,6 +340,7 @@ void format_float_value(double value, char *out, size_t size) {
     format_double(value, out, size);
 }
 
+/* `print(Float)`: canonical representation + newline. */
 void lox_print_float(double value) {
     char buffer[64];
     format_float_value(value, buffer, sizeof buffer);
@@ -293,11 +348,17 @@ void lox_print_float(double value) {
     fputc('\n', stdout);
 }
 
-/* Aloca uma LoxStr ASCII (números, booleanos, "nil") dentro da arena. */
+/* ---------------------------------------------------------------------------
+ * Building LoxStr
+ * --------------------------------------------------------------------------- */
+
+/* Allocates an ASCII LoxStr (numbers, booleans, "nil") on the collected heap. */
 LoxStr *string_from_ascii(const char *data, size_t length) {
     return string_from_bytes(data, length, (int64_t)length);
 }
 
+/* Copies `length` bytes and stores `code_points` as `cp_len`. The caller ensures
+ * the count is correct; the copy is NUL-terminated for internal C use. */
 LoxStr *string_from_bytes(const char *data, size_t length,
                                  int64_t code_points) {
     LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
@@ -311,32 +372,37 @@ LoxStr *string_from_bytes(const char *data, size_t length,
     return result;
 }
 
+/* Pointer to the bytes (valid while the LoxStr lives; the GC keeps it alive). */
 const char *lox_str_data(const void *pointer) {
     return ((const LoxStr *)pointer)->data;
 }
 
+/* `str(Int)`/Int interpolation. */
 void *lox_str_from_int(int64_t value) {
     char buffer[32];
     int length = snprintf(buffer, sizeof buffer, "%" PRId64, value);
     return string_from_ascii(buffer, (size_t)length);
 }
 
+/* `str(Float)`/Float interpolation. */
 void *lox_str_from_double(double value) {
     char buffer[64];
     format_float_value(value, buffer, sizeof buffer);
     return string_from_ascii(buffer, strlen(buffer));
 }
 
+/* `str(Bool)`/Bool interpolation. */
 void *lox_str_from_bool(int32_t value) {
     return value ? string_from_ascii("true", 4)
                  : string_from_ascii("false", 5);
 }
 
+/* `str(nil)`/nil interpolation. */
 void *lox_str_nil(void) {
     return string_from_ascii("nil", 3);
 }
 
-/* Materializa a mensagem C de um panic como LoxStr para `except ... as e`. */
+/* Materializes a panic C message as a LoxStr for `except ... as e`. */
 void *lox_str_from_cstr(const char *data) {
     if (data == NULL) {
         return lox_str_nil();
@@ -344,7 +410,7 @@ void *lox_str_from_cstr(const char *data) {
     return string_from_ascii(data, strlen(data));
 }
 
-/* `repr` de string: aspas + escapes, como `values._quote` do interpretador. */
+/* String `repr`: quotes + escapes for `\\`, `"`, LF, CR, TAB and NUL. */
 void *lox_str_quote(const void *pointer) {
     const LoxStr *source = pointer;
     size_t bytes = (size_t)source->byte_len;
@@ -398,6 +464,14 @@ void *lox_str_quote(const void *pointer) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * LoxBuffer: dynamic formatting buffer (atomic GC)
+ *
+ * The buffer is NOT NUL-terminated: use `length` when consuming it. Bytes are
+ * allocated with `lox_alloc_atomic` because they contain no pointers.
+ * --------------------------------------------------------------------------- */
+
+/* Initial capacity of 64 bytes. */
 void buffer_init(LoxBuffer *buffer) {
     buffer->capacity = 64;
     buffer->data = lox_alloc_atomic(buffer->capacity);
@@ -405,6 +479,7 @@ void buffer_init(LoxBuffer *buffer) {
     buffer->active_depth = 0;
 }
 
+/* Ensures room for `extra` bytes, doubling capacity and copying the old data. */
 void buffer_need(LoxBuffer *buffer, size_t extra) {
     if (buffer->length + extra <= buffer->capacity) {
         return;
@@ -419,11 +494,13 @@ void buffer_need(LoxBuffer *buffer, size_t extra) {
     buffer->capacity = capacity;
 }
 
+/* Appends one byte. */
 void buffer_char(LoxBuffer *buffer, char byte) {
     buffer_need(buffer, 1);
     buffer->data[buffer->length++] = byte;
 }
 
+/* Appends a NUL-terminated C string. */
 void buffer_text(LoxBuffer *buffer, const char *text) {
     size_t length = strlen(text);
     buffer_need(buffer, length);
@@ -431,6 +508,7 @@ void buffer_text(LoxBuffer *buffer, const char *text) {
     buffer->length += length;
 }
 
+/* Appends `length` raw bytes. */
 void buffer_bytes(LoxBuffer *buffer, const char *data, size_t length) {
     buffer_need(buffer, length);
     memcpy(buffer->data + buffer->length, data, length);
@@ -438,6 +516,14 @@ void buffer_bytes(LoxBuffer *buffer, const char *data, size_t length) {
 }
 
 
+/* ---------------------------------------------------------------------------
+ * Container and boxed-value formatting
+ *
+ * Lists and maps keep `active[]` to cut cycles (`[...]`/`{...}`) and cap depth at
+ * 64. Output matches the tree-walk `stringify`/`repr` byte for byte (I1).
+ * --------------------------------------------------------------------------- */
+
+/* `Enum.Variant(payload...)`; without a payload, just `Enum.Variant`. */
 void format_enum(LoxBuffer *buffer, const LoxEnumValue *value) {
     buffer_text(buffer, value->enum_name);
     buffer_char(buffer, '.');
@@ -454,6 +540,7 @@ void format_enum(LoxBuffer *buffer, const LoxEnumValue *value) {
     }
 }
 
+/* `(a, b, ...)`; tuples have fixed arity. */
 void format_tuple(LoxBuffer *buffer, const LoxTuple *tuple) {
     buffer_char(buffer, '(');
     for (int64_t index = 0; index < tuple->count; index++) {
@@ -465,6 +552,7 @@ void format_tuple(LoxBuffer *buffer, const LoxTuple *tuple) {
     buffer_char(buffer, ')');
 }
 
+/* `{k: v, ...}` in insertion order, with a cycle guard. */
 void format_map(LoxBuffer *buffer, const LoxMap *map) {
     for (int index = 0; index < buffer->active_depth; index++) {
         if (buffer->active[index] == map) {
@@ -490,6 +578,7 @@ void format_map(LoxBuffer *buffer, const LoxMap *map) {
     buffer->active_depth -= 1;
 }
 
+/* `[a, b, ...]` in insertion order, with a cycle guard. */
 void format_list(LoxBuffer *buffer, const LoxList *list) {
     for (int index = 0; index < buffer->active_depth; index++) {
         if (buffer->active[index] == list) {
@@ -513,6 +602,8 @@ void format_list(LoxBuffer *buffer, const LoxList *list) {
     buffer->active_depth -= 1;
 }
 
+/* Dispatches formatting by `LoxValue` tag. Strings use `repr` (quoted); Float
+ * goes through `memcpy` because the payload is the bit pattern. */
 void format_value(LoxBuffer *buffer, LoxValue value) {
     switch (value.tag) {
         case 0:
@@ -593,6 +684,7 @@ void format_value(LoxBuffer *buffer, LoxValue value) {
     }
 }
 
+/* `print(List)`: formats and writes + newline. */
 void lox_print_list(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -601,6 +693,7 @@ void lox_print_list(const void *pointer) {
     fputc('\n', stdout);
 }
 
+/* `print(Map)`: formats and writes + newline. */
 void lox_print_map(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -609,6 +702,7 @@ void lox_print_map(const void *pointer) {
     fputc('\n', stdout);
 }
 
+/* `print(Enum)`: formats and writes + newline. */
 void lox_print_enum(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -617,6 +711,7 @@ void lox_print_enum(const void *pointer) {
     fputc('\n', stdout);
 }
 
+/* `str(Enum)`: formats without a newline. */
 void *lox_str_from_enum(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -624,6 +719,7 @@ void *lox_str_from_enum(const void *pointer) {
     return string_from_ascii(buffer.data, buffer.length);
 }
 
+/* `print(Tuple)`: formats and writes + newline. */
 void lox_print_tuple(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -632,6 +728,7 @@ void lox_print_tuple(const void *pointer) {
     fputc('\n', stdout);
 }
 
+/* `str(Tuple)`: formats without a newline. */
 void *lox_str_from_tuple(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -639,6 +736,7 @@ void *lox_str_from_tuple(const void *pointer) {
     return string_from_ascii(buffer.data, buffer.length);
 }
 
+/* `str(Map)`: formats without a newline. */
 void *lox_str_from_map(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -646,6 +744,7 @@ void *lox_str_from_map(const void *pointer) {
     return string_from_ascii(buffer.data, buffer.length);
 }
 
+/* `str(List)`: formats without a newline. */
 void *lox_str_from_list(const void *pointer) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -653,7 +752,12 @@ void *lox_str_from_list(const void *pointer) {
     return string_from_ascii(buffer.data, buffer.length);
 }
 
-/* `str`/interpolação de valor boxeado `Any`: mesma formatação de `print` dinâmico. */
+/* ---------------------------------------------------------------------------
+ * Dynamic path (`Any`, L6)
+ * --------------------------------------------------------------------------- */
+
+/* `str`/interpolation of a boxed `Any`: same formatting as dynamic `print`.
+ * String is the only case that does not allocate (it returns the LoxStr itself). */
 void *lox_str_from_any(int64_t tag, int64_t payload) {
     if (tag == 4) {
         return (void *)payload;
@@ -668,7 +772,8 @@ void *lox_str_from_any(int64_t tag, int64_t payload) {
 }
 
 
-/* Impressão de valor boxeado `Any` (spike L6): tag + payload de 64 bits. */
+/* `print` of a boxed value: `{tag, payload}` of 64 bits. Tags are the same as in
+ * format_value/LoxValue; an unknown tag is R1000. */
 void lox_print_any(int64_t tag, int64_t payload) {
     switch (tag) {
         case 0:

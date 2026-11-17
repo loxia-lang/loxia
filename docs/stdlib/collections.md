@@ -7,7 +7,7 @@ sources:
 
 # std.collections
 
-Stack, Queue, Deque and PriorityQueue.
+Stack, Queue, Deque and PriorityQueue, backed by lists.
 
 ## API
 
@@ -15,184 +15,184 @@ Stack, Queue, Deque and PriorityQueue.
 
 ### `class Stack[T]`
 
-Pilha LIFO genérica.
+Generic LIFO stack backed by a list.
 
 #### `var items: List[T]`
 
-Elementos do topo para a base.
+Elements from bottom to top.
 
 #### `fn init()`
 
-Cria uma pilha vazia.
+Creates an empty stack.
 
 #### `fn push(value: T) -> Nil`
 
-Empilha `value`.
+Pushes `value` onto the top.
 
 #### `fn pop() -> T | Nil`
 
-Desempilha o topo, ou `nil` se vazia.
+Removes and returns the top, or `nil` when the stack is empty.
 
 #### `fn peek() -> T | Nil`
 
-Espia o topo sem desempilhar.
+Returns the top without removing it, or `nil` when the stack is empty.
 
 #### `fn len() -> Int`
 
-Número de elementos.
+Returns the number of elements.
 
 #### `fn isEmpty() -> Bool`
 
-`true` quando vazia.
+Returns `true` when the stack has no elements.
 
 #### `fn toList() -> List[T]`
 
-Cópia dos elementos do topo para a base.
+Returns a copy of the elements from top to bottom.
 
 #### `fn clear() -> Nil`
 
-Remove todos os elementos.
+Removes every element.
 
 ### `class Queue[T]`
 
-Fila FIFO genérica.
+Generic FIFO queue backed by a list and a moving head index.
 
 #### `var items: List[T]`
 
-Elementos na ordem de chegada (com lixo antes de `head`).
+Elements in arrival order; slots before `head` are already consumed.
 
 #### `var head: Int`
 
-Índice do próximo elemento a sair.
+Index of the next element to dequeue.
 
 #### `fn init()`
 
-Cria uma fila vazia.
+Creates an empty queue.
 
 #### `fn enqueue(value: T) -> Nil`
 
-Enfileira `value`.
+Adds `value` at the back of the queue.
 
 #### `fn dequeue() -> T | Nil`
 
-Desenfileira o mais antigo, ou `nil` se vazia.
+Removes and returns the oldest element, or `nil` when the queue is empty.
 
 #### `fn peek() -> T | Nil`
 
-Espia o próximo sem remover.
+Returns the oldest element without removing it, or `nil` when empty.
 
 #### `fn len() -> Int`
 
-Número de elementos vivos.
+Returns the number of live elements; consumed slots are not counted.
 
 #### `fn isEmpty() -> Bool`
 
-`true` quando vazia.
+Returns `true` when the queue has no elements.
 
 #### `fn toList() -> List[T]`
 
-Cópia dos elementos na ordem de saída.
+Returns a copy of the elements in dequeue order.
 
 #### `fn clear() -> Nil`
 
-Remove todos os elementos.
+Removes every element.
 
 ### `class Deque[T]`
 
-Deque (fila de duas pontas) genérica.
+Generic double-ended queue backed by two lists.
 
 #### `var front: List[T]`
 
-Metade da frente, com o topo no fim.
+Front half, with the front element at the end of the list.
 
 #### `var back: List[T]`
 
-Metade de trás, com o topo no fim.
+Back half, with the back element at the end of the list.
 
 #### `fn init()`
 
-Cria um deque vazio.
+Creates an empty deque.
 
 #### `fn pushFront(value: T) -> Nil`
 
-Insere no início.
+Inserts `value` at the front.
 
 #### `fn pushBack(value: T) -> Nil`
 
-Insere no fim.
+Inserts `value` at the back.
 
 #### `fn popFront() -> T | Nil`
 
-Remove do início, ou `nil` se vazio.
+Removes and returns the front element, or `nil` when empty.
 
 #### `fn popBack() -> T | Nil`
 
-Remove do fim, ou `nil` se vazio.
+Removes and returns the back element, or `nil` when empty.
 
 #### `fn peekFront() -> T | Nil`
 
-Espia o início.
+Returns the front element without removing it, or `nil` when empty.
 
 #### `fn peekBack() -> T | Nil`
 
-Espia o fim.
+Returns the back element without removing it, or `nil` when empty.
 
 #### `fn len() -> Int`
 
-Número de elementos.
+Returns the number of elements.
 
 #### `fn isEmpty() -> Bool`
 
-`true` quando vazio.
+Returns `true` when the deque has no elements.
 
 #### `fn toList() -> List[T]`
 
-Cópia na ordem do início para o fim.
+Returns a copy from front to back.
 
 #### `fn clear() -> Nil`
 
-Remove todos os elementos.
+Removes every element.
 
 ### `class PriorityQueue[T]`
 
-Fila de prioridade (min-heap) com comparador explícito.
+Min-priority queue backed by a binary heap and an explicit comparator.
 
 #### `var items: List[T]`
 
-Heap em ordem parcial.
+Heap array in partial order.
 
 #### `val less: fn(T, T) -> Bool`
 
-`true` quando `a` deve sair antes de `b`.
+Comparator: returns `true` when `a` must leave before `b`.
 
 #### `fn init(less: fn(T, T) -> Bool)`
 
-Cria a fila vazia com o comparador `less`.
+Creates an empty queue; `less` defines the priority order.
 
 #### `fn push(value: T) -> Nil`
 
-Insere `value`.
+Inserts `value` and restores the heap order.
 
 #### `fn pop() -> T | Nil`
 
-Remove o menor, ou `nil` se vazia.
+Removes and returns the highest-priority (least) element, or `nil` when empty.
 
 #### `fn peek() -> T | Nil`
 
-Espia o menor sem remover.
+Returns the highest-priority element without removing it, or `nil` when empty.
 
 #### `fn len() -> Int`
 
-Número de elementos.
+Returns the number of elements.
 
 #### `fn isEmpty() -> Bool`
 
-`true` quando vazia.
+Returns `true` when the priority queue has no elements.
 
 #### `fn toList() -> List[T]`
 
-Cópia ordenada do menor para o maior.
+Returns a copy in priority order without modifying the queue.
 
 #### `fn clear() -> Nil`
 
-Remove todos os elementos.
+Removes every element.

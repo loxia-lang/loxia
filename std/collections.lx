@@ -1,27 +1,31 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.collections — Stack, Queue, Deque e PriorityQueue (T3), em Lox puro.
+# std.collections — Stack, Queue, Deque and PriorityQueue (T3), pure Lox.
+#
+# Mutable generic containers built from plain lists. Operations are deterministic and
+# preserve the order documented on each method; the "pop" methods return `nil` on an
+# empty container instead of raising.
 
-/// Pilha LIFO genérica.
+/// Generic LIFO stack backed by a list.
 class Stack[T] {
-  /// Elementos do topo para a base.
+  /// Elements from bottom to top.
   var items: List[T]
 
-  /// Cria uma pilha vazia.
+  /// Creates an empty stack.
   init() {
     this.items = []
   }
 
-  /// Empilha `value`.
+  /// Pushes `value` onto the top.
   fn push(value: T) -> Nil {
     this.items.push(value)
   }
 
-  /// Desempilha o topo, ou `nil` se vazia.
+  /// Removes and returns the top, or `nil` when the stack is empty.
   fn pop() -> T? {
     return this.items.pop()
   }
 
-  /// Espia o topo sem desempilhar.
+  /// Returns the top without removing it, or `nil` when the stack is empty.
   fn peek() -> T? {
     if (len(this.items) == 0) {
       return nil
@@ -29,17 +33,17 @@ class Stack[T] {
     return this.items[len(this.items) - 1]
   }
 
-  /// Número de elementos.
+  /// Returns the number of elements.
   fn len() -> Int {
     return len(this.items)
   }
 
-  /// `true` quando vazia.
+  /// Returns `true` when the stack has no elements.
   fn isEmpty() -> Bool {
     return len(this.items) == 0
   }
 
-  /// Cópia dos elementos do topo para a base.
+  /// Returns a copy of the elements from top to bottom.
   fn toList() -> List[T] {
     val copy: List[T] = []
     var index = len(this.items) - 1
@@ -50,7 +54,7 @@ class Stack[T] {
     return copy
   }
 
-  /// Remove todos os elementos.
+  /// Removes every element.
   fn clear() -> Nil {
     while (len(this.items) > 0) {
       this.items.pop()
@@ -58,25 +62,25 @@ class Stack[T] {
   }
 }
 
-/// Fila FIFO genérica.
+/// Generic FIFO queue backed by a list and a moving head index.
 class Queue[T] {
-  /// Elementos na ordem de chegada (com lixo antes de `head`).
+  /// Elements in arrival order; slots before `head` are already consumed.
   var items: List[T]
-  /// Índice do próximo elemento a sair.
+  /// Index of the next element to dequeue.
   var head: Int
 
-  /// Cria uma fila vazia.
+  /// Creates an empty queue.
   init() {
     this.items = []
     this.head = 0
   }
 
-  /// Enfileira `value`.
+  /// Adds `value` at the back of the queue.
   fn enqueue(value: T) -> Nil {
     this.items.push(value)
   }
 
-  /// Desenfileira o mais antigo, ou `nil` se vazia.
+  /// Removes and returns the oldest element, or `nil` when the queue is empty.
   fn dequeue() -> T? {
     if (this.head >= len(this.items)) {
       return nil
@@ -86,7 +90,7 @@ class Queue[T] {
     return value
   }
 
-  /// Espia o próximo sem remover.
+  /// Returns the oldest element without removing it, or `nil` when empty.
   fn peek() -> T? {
     if (this.head >= len(this.items)) {
       return nil
@@ -94,17 +98,17 @@ class Queue[T] {
     return this.items[this.head]
   }
 
-  /// Número de elementos vivos.
+  /// Returns the number of live elements; consumed slots are not counted.
   fn len() -> Int {
     return len(this.items) - this.head
   }
 
-  /// `true` quando vazia.
+  /// Returns `true` when the queue has no elements.
   fn isEmpty() -> Bool {
     return this.head >= len(this.items)
   }
 
-  /// Cópia dos elementos na ordem de saída.
+  /// Returns a copy of the elements in dequeue order.
   fn toList() -> List[T] {
     val copy: List[T] = []
     var index = this.head
@@ -115,37 +119,37 @@ class Queue[T] {
     return copy
   }
 
-  /// Remove todos os elementos.
+  /// Removes every element.
   fn clear() -> Nil {
     this.items = []
     this.head = 0
   }
 }
 
-/// Deque (fila de duas pontas) genérica.
+/// Generic double-ended queue backed by two lists.
 class Deque[T] {
-  /// Metade da frente, com o topo no fim.
+  /// Front half, with the front element at the end of the list.
   var front: List[T]
-  /// Metade de trás, com o topo no fim.
+  /// Back half, with the back element at the end of the list.
   var back: List[T]
 
-  /// Cria um deque vazio.
+  /// Creates an empty deque.
   init() {
     this.front = []
     this.back = []
   }
 
-  /// Insere no início.
+  /// Inserts `value` at the front.
   fn pushFront(value: T) -> Nil {
     this.front.push(value)
   }
 
-  /// Insere no fim.
+  /// Inserts `value` at the back.
   fn pushBack(value: T) -> Nil {
     this.back.push(value)
   }
 
-  /// Remove do início, ou `nil` se vazio.
+  /// Removes and returns the front element, or `nil` when empty.
   fn popFront() -> T? {
     if (len(this.front) > 0) {
       return this.front.pop()
@@ -159,7 +163,7 @@ class Deque[T] {
     return this.front.pop()
   }
 
-  /// Remove do fim, ou `nil` se vazio.
+  /// Removes and returns the back element, or `nil` when empty.
   fn popBack() -> T? {
     if (len(this.back) > 0) {
       return this.back.pop()
@@ -173,7 +177,7 @@ class Deque[T] {
     return this.back.pop()
   }
 
-  /// Espia o início.
+  /// Returns the front element without removing it, or `nil` when empty.
   fn peekFront() -> T? {
     if (len(this.front) > 0) {
       return this.front[len(this.front) - 1]
@@ -184,7 +188,7 @@ class Deque[T] {
     return this.back[0]
   }
 
-  /// Espia o fim.
+  /// Returns the back element without removing it, or `nil` when empty.
   fn peekBack() -> T? {
     if (len(this.back) > 0) {
       return this.back[len(this.back) - 1]
@@ -195,17 +199,17 @@ class Deque[T] {
     return this.front[0]
   }
 
-  /// Número de elementos.
+  /// Returns the number of elements.
   fn len() -> Int {
     return len(this.front) + len(this.back)
   }
 
-  /// `true` quando vazio.
+  /// Returns `true` when the deque has no elements.
   fn isEmpty() -> Bool {
     return this.len() == 0
   }
 
-  /// Cópia na ordem do início para o fim.
+  /// Returns a copy from front to back.
   fn toList() -> List[T] {
     val copy: List[T] = []
     var index = len(this.front) - 1
@@ -219,33 +223,33 @@ class Deque[T] {
     return copy
   }
 
-  /// Remove todos os elementos.
+  /// Removes every element.
   fn clear() -> Nil {
     this.front = []
     this.back = []
   }
 }
 
-/// Fila de prioridade (min-heap) com comparador explícito.
+/// Min-priority queue backed by a binary heap and an explicit comparator.
 class PriorityQueue[T] {
-  /// Heap em ordem parcial.
+  /// Heap array in partial order.
   var items: List[T]
-  /// `true` quando `a` deve sair antes de `b`.
+  /// Comparator: returns `true` when `a` must leave before `b`.
   val less: fn(T, T) -> Bool
 
-  /// Cria a fila vazia com o comparador `less`.
+  /// Creates an empty queue; `less` defines the priority order.
   init(less: fn(T, T) -> Bool) {
     this.items = []
     this.less = less
   }
 
-  /// Insere `value`.
+  /// Inserts `value` and restores the heap order.
   fn push(value: T) -> Nil {
     this.items.push(value)
     this._siftUp(len(this.items) - 1)
   }
 
-  /// Remove o menor, ou `nil` se vazia.
+  /// Removes and returns the highest-priority (least) element, or `nil` when empty.
   fn pop() -> T? {
     if (len(this.items) == 0) {
       return nil
@@ -263,7 +267,7 @@ class PriorityQueue[T] {
     return root
   }
 
-  /// Espia o menor sem remover.
+  /// Returns the highest-priority element without removing it, or `nil` when empty.
   fn peek() -> T? {
     if (len(this.items) == 0) {
       return nil
@@ -271,17 +275,17 @@ class PriorityQueue[T] {
     return this.items[0]
   }
 
-  /// Número de elementos.
+  /// Returns the number of elements.
   fn len() -> Int {
     return len(this.items)
   }
 
-  /// `true` quando vazia.
+  /// Returns `true` when the priority queue has no elements.
   fn isEmpty() -> Bool {
     return len(this.items) == 0
   }
 
-  /// Cópia ordenada do menor para o maior.
+  /// Returns a copy in priority order without modifying the queue.
   fn toList() -> List[T] {
     val result: List[T] = []
     for item in this.items {
@@ -301,7 +305,7 @@ class PriorityQueue[T] {
     return result
   }
 
-  /// Remove todos os elementos.
+  /// Removes every element.
   fn clear() -> Nil {
     while (len(this.items) > 0) {
       this.items.pop()

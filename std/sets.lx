@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.sets — conjunto sobre `Map[Any, Bool]` (T2).
-# A ordem de `toList` é a de inserção (determinística). `T` deve ser `String`, `Int`
-# ou `Bool` no runtime: chaves de outro tipo são erro de runtime, porque constraints
-# de chave genérica são pós-MVP (o campo é `Map[Any, Bool]`, a API pública é `Set[T]`).
+# std.sets — mutable set backed by `Map[Any, Bool]` (T2), pure Lox.
+#
+# `toList` follows insertion order (deterministic). Runtime keys must be `String`, `Int`
+# or `Bool`: other key types raise because generic key constraints are post-MVP (the
+# field is `Map[Any, Bool]`, while the public API is `Set[T]`).
 
-/// A mutable set backed by `Map[Any, Bool]`.
+/// Mutable set backed by `Map[Any, Bool]`.
 class Set[T] {
-  /// The backing map of elements.
+  /// Backing map; keys are elements and every value is `true`.
   val items: Map[Any, Bool]
 
   /// Creates an empty set.
@@ -14,17 +15,17 @@ class Set[T] {
     this.items = {}
   }
 
-  /// Adds a value to the set.
+  /// Adds `value`; adding an existing value is a no-op that keeps its position.
   fn add(value: T) -> Nil {
     this.items[value] = true
   }
 
-  /// Returns whether the set contains a value.
+  /// Returns whether `value` is in the set.
   fn has(value: T) -> Bool {
     return this.items.has(value)
   }
 
-  /// Removes a value, returning whether it was present.
+  /// Removes `value`, returning whether it was present.
   fn remove(value: T) -> Bool {
     if (not this.items.has(value)) {
       return false
@@ -48,6 +49,8 @@ class Set[T] {
   }
 
   /// Returns a new set with the elements of both sets.
+  ///
+  /// Elements of `this` come first, followed by new elements of `other`.
   fn union(other: Set[T]) -> Set[T] {
     val result: Set[T] = Set()
     for value in this.toList() {
@@ -59,7 +62,9 @@ class Set[T] {
     return result
   }
 
-  /// Returns a new set with the common elements.
+  /// Returns a new set with the elements present in both sets.
+  ///
+  /// Order follows `this`.
   fn intersect(other: Set[T]) -> Set[T] {
     val result: Set[T] = Set()
     for value in this.toList() {
@@ -70,7 +75,9 @@ class Set[T] {
     return result
   }
 
-  /// Returns a new set with elements not in `other`.
+  /// Returns a new set with the elements of `this` that are not in `other`.
+  ///
+  /// Order follows `this`.
   fn difference(other: Set[T]) -> Set[T] {
     val result: Set[T] = Set()
     for value in this.toList() {
@@ -82,7 +89,7 @@ class Set[T] {
   }
 }
 
-/// Builds a set from a list, deduplicating values.
+/// Builds a set from `values`, deduplicating in first-occurrence order.
 fn fromList[T](values: List[T]) -> Set[T] {
   val result: Set[T] = Set()
   for value in values {

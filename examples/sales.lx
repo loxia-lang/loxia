@@ -1,0 +1,99 @@
+# Sales report: CSV → aggregation → formatted table → JSON.
+# Stdlib T2 example (csv, lists, sets, fmt, json, cli, paths, convert).
+import std.cli as cli
+import std.convert as convert
+import std.csv as csv
+import std.fmt as fmt
+import std.json as json
+import std.lists as lists
+import std.paths as paths
+from std.sets import Set
+import std.strings as strings
+
+val spec = ["flag:verbose", "option:output", "positional:input"]
+val options = cli.parse(["--verbose", "--output", "report.json", "sales.csv"], spec)
+
+print(cli.usage("report", spec))
+print("")
+print("input:  " + (cli.positional(options, "input") or "?"))
+print("output: " + (cli.option(options, "output") or "?"))
+print("ext:    " + paths.ext(cli.option(options, "output") or ""))
+
+val lines = csv.parse(
+  "product,category,quantity,price\n"
+    + "pen,stationery,10,2.50\n"
+    + "notebook,stationery,3,18.00\n"
+    + "coffee,food,2,15.75\n"
+    + "coffee,food,1,15.75\n"
+)
+if (lines == nil) {
+  raise RuntimeError("Invalid CSV.")
+}
+val records = lines
+val header = records[0]
+print("columns: " + join(header, " | "))
+
+val categories: Set[String] = Set()
+val totals: Map[String, Float] = {}
+val products: List[String] = []
+var total = 0.0
+var quantity = 0
+var index = 1
+while (index < len(records)) {
+  val line = records[index]
+  val product = line[0]
+  val category = line[1]
+  val units = convert.toInt(line[2]) or 0
+  val price = convert.toFloat(line[3]) or 0.0
+  val subtotal = (units as Float) * price
+  categories.add(category)
+  if (not lists.contains(products, product)) {
+    products.push(product)
+  }
+  if (totals.has(category)) {
+    totals[category] = totals[category] + subtotal
+  } else {
+    totals[category] = subtotal
+  }
+  total = total + subtotal
+  quantity = quantity + units
+  index = index + 1
+}
+
+fn compareText(a: String, b: String) -> Int {
+  if (a < b) {
+    return -1
+  }
+  if (a > b) {
+    return 1
+  }
+  return 0
+}
+
+print("")
+print(fmt.pad("category", 14) + fmt.pad("total", 10) + "  share")
+for category in lists.sort(categories.toList(), compareText) {
+  val value = totals[category]
+  print((
+    fmt.pad(category, 14)
+      + fmt.pad(fmt.fixed(value, 2), 10)
+      + "  "
+      + fmt.pad(fmt.percent(value / total, 1), 8)
+  ))
+}
+
+print("")
+print("products: " + join(lists.sort(products, compareText), ", "))
+print("items: " + fmt.commas(quantity))
+print("total: " + fmt.fixed(total, 2))
+print("average: " + fmt.fixed(total / (quantity as Float), 2))
+
+val summary: Map[String, Any] = {}
+summary["file"] = cli.positional(options, "input")
+summary["categories"] = categories.toList()
+summary["items"] = quantity
+summary["total"] = total
+summary["verbose"] = cli.flag(options, "verbose")
+print("")
+print(json.pretty(summary, 2))
+print("signature: " + convert.hexEncode(strings.upper("sales")))

@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Núcleo determinístico de `math.*`."""
+"""Deterministic `math.*` builtins (public docs: loxia/builtins_docs.py).
+
+`_number` validates the argument type and `_to_int` enforces the finite/i64-range
+contract shared by `floor`, `ceil`, `round` and `trunc`. None of these functions
+consult locale or host state.
+"""
 
 from __future__ import annotations
 
@@ -31,6 +36,8 @@ def _to_int(value: float, name: str) -> int:
 
 
 class MathAbs:
+    """`math.abs` — keeps Int/Float; Int negation honors `--debug` overflow."""
+
     def min_arity(self) -> int:
         return 1
 
@@ -50,6 +57,8 @@ class MathAbs:
 
 
 class MathMin:
+    """`math.min` — promotes to Float and propagates NaN."""
+
     def min_arity(self) -> int:
         return 2
 
@@ -71,6 +80,8 @@ class MathMin:
 
 
 class MathMax:
+    """`math.max` — promotes to Float and propagates NaN."""
+
     def min_arity(self) -> int:
         return 2
 
@@ -92,6 +103,8 @@ class MathMax:
 
 
 class MathClamp:
+    """`math.clamp` — requires `low <= high`; promotes and propagates NaN."""
+
     def min_arity(self) -> int:
         return 3
 
@@ -117,6 +130,8 @@ class MathClamp:
 
 
 class MathFloor:
+    """`math.floor` — Int unchanged; Float must be finite and fit in i64."""
+
     def min_arity(self) -> int:
         return 1
 
@@ -136,6 +151,8 @@ class MathFloor:
 
 
 class MathCeil:
+    """`math.ceil` — Int unchanged; Float must be finite and fit in i64."""
+
     def min_arity(self) -> int:
         return 1
 
@@ -155,6 +172,8 @@ class MathCeil:
 
 
 class MathRound:
+    """`math.round` — ties away from zero; Float must be finite and fit in i64."""
+
     def min_arity(self) -> int:
         return 1
 
@@ -175,6 +194,8 @@ class MathRound:
 
 
 class MathTrunc:
+    """`math.trunc` — toward zero; Float must be finite and fit in i64."""
+
     def min_arity(self) -> int:
         return 1
 
@@ -192,6 +213,8 @@ class MathTrunc:
 
 
 class MathSqrt:
+    """`math.sqrt` — promotes Int to Float; negative input returns NaN."""
+
     def min_arity(self) -> int:
         return 1
 

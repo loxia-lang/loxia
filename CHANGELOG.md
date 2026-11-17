@@ -174,7 +174,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `t2`. Kernel ganhou `io.readAll`, `fs.exists` e `fs.listDir` (teto 15 → 17, todos
   `ambient`); classes passam a aceitar campos `List`/`Map`/tupla/`Range`/enum, `str(Any)`
   funciona no backend e o runtime C valida chave de `Map` (`R1014`) como o interpretador.
-  Exemplo novo: [`exemplos/vendas.lx`](exemplos/vendas.lx).
+  Exemplo novo: [`examples/sales.lx`](examples/sales.lx).
 - **Stdlib T1 completa**: `std.maps` (`Map[String, V]`: `entries`, `fromEntries`,
   `merge`, `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`,
   `hasValue`, `getOr`, `toList`), `std.numeric`, `std.asserts` e `std.results`, com
@@ -340,7 +340,7 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   `repr` do Python, validada por fuzz contra `repr()` (400 bit patterns + especiais) e
   independente de locale (`lox_init` fixa `LC_NUMERIC=C`).
 - Manifesto do corpus diferencial (`tests/corpus_manifest.py`) com os níveis `l0` e `l1`.
-- 15 golden cases de `tests/cases` e 3 de `exemplos/` anotados (54 de 78 em `tests/cases`
+- 15 golden cases de `tests/cases` e 3 de `examples/` anotados (54 de 78 em `tests/cases`
   passam no `--check` agora; antes eram 39).
 - Backend L2 (variáveis): `val`/`var` com `alloca` local e global para o topo, atribuição,
   escopo de bloco e sombreamento; o `for` C-style (desaçucarado pelo parser) já compila.
@@ -360,6 +360,17 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Mudado
 
+- **`exemplos/` virou `examples/`**: a pasta, os arquivos em português
+  (`primos.lx`→`primes.lx`, `vendas.lx`→`sales.lx`) e os identificadores dos programas
+  passaram para inglês; o README foi reescrito e as referências em testes, docs,
+  `Makefile` e skills foram atualizadas. Os READMEs de `editors/` também estão em inglês.
+- **`std.paths.join` virou `joinPath`**: `join` colidia com o builtin global
+  `join(List[String], String)` e o módulo não passava em `--check` sozinho
+  (`E3014 — Can't redefine builtin`). Atualize as chamadas para
+  `paths.joinPath(base, child)`; o comportamento é o mesmo. Todos os módulos de `std/`
+  agora passam em `--check` sem avisos.
+- **Documentação da stdlib**: cabeçalhos de módulo em inglês e comentários `///`
+  expandidos com contrato, casos de borda e determinismo; `docs/stdlib/` regenerado.
 - **Licença dual MIT/Apache-2.0** ([ADR-0101](docs/adr/0101-licenca-dual-e-politica-de-contribuicao.md)):
   o projeto passa a ser distribuído sob `MIT OR Apache-2.0`, com `LICENSE-MIT`,
   `LICENSE-APACHE` e `NOTICE`; o metadado PEP 639 declara a expressão SPDX. Contribuições
@@ -408,6 +419,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Corrigido
 
+- **Avisos de local não usado na stdlib**: `std.csv` e `std.json` capturavam
+  `except RuntimeError as error` sem usar o binding; virou `_error`, eliminando o
+  `W1001` ao checar os módulos.
 - **stdin não-UTF-8 dependia do locale**: `io.readAll`/`io.readLine` agora leem bytes e
   decodificam UTF-8 estrito; no locale C o `surrogateescape` ecoava os bytes inválidos com
   exit 0. Os testes forçam `LC_ALL=C` e cobrem `readLine`.

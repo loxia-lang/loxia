@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
+"""`len`: length of a string, list, map or tuple (docs: loxia/builtins_docs.py)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -13,7 +15,11 @@ if TYPE_CHECKING:
 
 
 class Len:
-    """`len(valor)` — tamanho de uma lista, de um mapa ou de uma string (code points)."""
+    """Returns the length of a string, list, map or tuple.
+
+    Strings count code points; maps count entries; tuples count positions. Any
+    other value raises `NativeError`.
+    """
 
     def min_arity(self) -> int:
         return 1

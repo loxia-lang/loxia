@@ -7,7 +7,7 @@ sources:
 
 # std.test
 
-Mini-harness de testes (TAP, `Suite`, matchers, `Recorder`).
+Mini test harness with TAP output, hooks, matchers and a recorder.
 
 ## API
 
@@ -15,219 +15,235 @@ Mini-harness de testes (TAP, `Suite`, matchers, `Recorder`).
 
 ### `class TestFailure(Exception)`
 
-Falha de teste (separada de `RuntimeError`, que é bug de infraestrutura).
+Test failure (distinct from `RuntimeError`, which is an infrastructure bug).
 
 #### `fn init(message: String)`
 
-Cria a falha com a mensagem exibida no relatório.
+Creates the failure with the message shown in the report.
 
 ### `class Skip(Exception)`
 
-Teste pulado de propósito; o runner conta como `skip`, não como falha.
+Test skipped on purpose; the runner counts it as `skip`, not as a failure.
 
 #### `fn init(reason: String)`
 
-Cria o skip com o motivo.
+Creates the skip with the given reason.
 
 ### `class Suite`
 
-Suite de testes: `describe`, `it`, `report` e `done`.
+Test suite: `describe`, `it`, `report` and `done`.
 
 #### `var total: Int`
 
-Total de testes executados (filtrados não contam).
+Number of tests executed (filtered-out tests do not count).
 
 #### `var passed: Int`
 
-Testes que passaram.
+Tests that passed.
 
 #### `var failed: Int`
 
-Testes que falharam.
+Tests that failed.
 
 #### `var skipped: Int`
 
-Testes pulados com `skip`.
+Tests skipped with `skip`.
 
 #### `var prefixes: List[String]`
 
-Prefixos abertos por `describe`.
+Group names opened by `describe`, innermost last.
 
 #### `var filter: String`
 
-Filtro de `--filter=` vindo dos argumentos do script.
+Substring filter read from `--filter=` in the script arguments.
 
 #### `var only: String`
 
-Nome exato de `--only=` vindo dos argumentos do script.
+Exact test name read from `--only=` in the script arguments.
 
 #### `var beforeHooks: List[fn() -> Nil]`
 
-Hooks executados antes de cada `it`, na ordem de registro.
+Hooks run before each `it`, in registration order.
 
 #### `var afterHooks: List[fn() -> Nil]`
 
-Hooks executados depois de cada `it`, na ordem inversa.
+Hooks run after each `it`, in reverse registration order.
 
 #### `var listMode: Bool`
 
-`--list`: só imprime `# test <nome>`, sem executar (isolamento por teste).
+`--list`: print `# test <name>` only, without executing (per-test isolation).
 
 #### `fn init()`
 
-Cria uma suite vazia e lê `--filter=`/`--only=` de `args()`.
+Creates an empty suite and reads `--filter=`/`--only=` from `args()`.
+
+Also detects `--list` and enables list mode.
 
 #### `fn describe(name: String, body: fn() -> Nil) -> Nil`
 
-Abre um grupo; o nome entra no nome de cada `it` e os hooks valem só aqui.
+Opens a group; its name prefixes every `it` and its hooks apply only here.
+
+Hooks registered inside the body are removed when the body returns.
 
 #### `fn beforeEach(body: fn() -> Nil) -> Nil`
 
-Registra um hook executado antes de cada `it` deste `describe`.
+Registers a hook run before each `it` in this `describe`.
 
 #### `fn afterEach(body: fn() -> Nil) -> Nil`
 
-Registra um hook executado depois de cada `it` deste `describe`.
+Registers a hook run after each `it` in this `describe`.
 
 #### `fn it(name: String, body: fn() -> Nil) -> Nil`
 
-Executa um teste agora e imprime `ok`/`not ok` em TAP.
+Runs a test immediately and prints `ok`/`not ok` in TAP.
+
+Filtered tests do not run or count. A skipped test still counts in `total` but not
+as passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test
+failure.
 
 #### `fn skip(reason: String) -> Nil`
 
-Pula o teste atual com `reason` (o `it` conta como skip, não falha).
+Skips the current test with `reason`.
+
+Raises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.
 
 #### `fn report() -> Int`
 
-Imprime plano e resumo em TAP; devolve 0 (tudo ok) ou 1 (alguma falha).
+Prints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).
 
 #### `fn done() -> Nil`
 
-Atalho de `report()` que encerra o processo com o código de saída.
+Calls `report()` and exits the process with its code.
+
+In `--list` mode it exits 0 immediately.
 
 ### `class Expectation[T]`
 
-Asserção de igualdade para um valor concreto (escalar, string, lista, mapa, tupla).
+Equality assertion for a concrete value (scalar, string, list, map or tuple).
 
 #### `val value: T`
 
-Valor observado.
+Observed value.
 
 #### `fn init(value: T)`
 
-Envolve o valor observado.
+Wraps the observed value.
 
 #### `fn toBe(other: T) -> Nil`
 
-Falha quando `value != other`.
+Fails when `value != other`.
 
 #### `fn notToBe(other: T) -> Nil`
 
-Falha quando `value == other`.
+Fails when `value == other`.
 
 ### `class ListExpectation[T]`
 
-Asserção sobre os elementos de uma lista.
+Assertion over the elements of a list.
 
 #### `val items: List[T]`
 
-Lista observada.
+Observed list.
 
 #### `fn init(items: List[T])`
 
-Envolve a lista observada.
+Wraps the observed list.
 
 #### `fn toContain(item: T) -> Nil`
 
-Falha quando `item` não está na lista (igualdade estrutural).
+Fails when `item` is not in the list (structural equality).
 
 ### `class StringExpectation`
 
-Asserção sobre o conteúdo de uma string.
+Assertion over the contents of a string.
 
 #### `val text: String`
 
-Texto observado.
+Observed text.
 
 #### `fn init(text: String)`
 
-Envolve o texto observado.
+Wraps the observed text.
 
 #### `fn contains(needle: String) -> Nil`
 
-Falha quando `text` não contém `needle`.
+Fails when `text` does not contain `needle`.
 
 ### `class Recorder`
 
-Registra chamadas de um spy/fake: `record`, `count`, `order`, `clear`.
+Records calls of a spy/fake: `record`, `count`, `order` and `clear`.
 
 #### `val calls: List[String]`
 
-Chamadas na ordem em que foram registradas.
+Calls in registration order.
 
 #### `fn init()`
 
-Cria um gravador vazio.
+Creates an empty recorder.
 
 #### `fn record(name: String) -> Nil`
 
-Registra uma chamada pelo nome.
+Records one call by name.
 
 #### `fn count(name: String) -> Int`
 
-Quantas vezes `name` foi registrado.
+Returns how many times `name` was recorded.
 
 #### `fn order() -> List[String]`
 
-Cópia das chamadas na ordem registrada.
+Returns a copy of the calls in registration order.
 
 #### `fn clear() -> Nil`
 
-Esvazia o registro.
+Empties the record.
 
 ## Functions
 
 ### `fn fail(message: String) -> Nil`
 
-Falha o teste atual com `message`.
+Fails the current test with `message`.
 
 ### `fn expect[T](value: T) -> Expectation[T]`
 
-Envolve um valor concreto para `toBe`/`notToBe`.
+Wraps a concrete value for `toBe`/`notToBe`.
 
 ### `fn expectGt[T](actual: T, expected: T) -> Nil`
 
-Falha quando `actual <= expected` (ordem natural de `T: Ord`).
+Fails when `actual <= expected` (natural order of `T: Ord`).
 
 ### `fn expectGe[T](actual: T, expected: T) -> Nil`
 
-Falha quando `actual < expected`.
+Fails when `actual < expected`.
 
 ### `fn expectLt[T](actual: T, expected: T) -> Nil`
 
-Falha quando `actual >= expected`.
+Fails when `actual >= expected`.
 
 ### `fn expectLe[T](actual: T, expected: T) -> Nil`
 
-Falha quando `actual > expected`.
+Fails when `actual > expected`.
 
 ### `fn expectNil[T](value: T | Nil) -> Nil`
 
-Falha quando `value` não é `nil`. Passe um opcional tipado (`val x: Int? = nil`);
-`expectNil(nil)` é opcional aninhado e o backend recusa.
+Fails when `value` is not `nil`.
+
+Pass a typed optional (`val x: Int? = nil`): `expectNil(nil)` is a nested optional and
+the backend rejects it.
 
 ### `fn expectNotNil[T](value: T | Nil) -> T`
 
-Falha quando `value` é `nil`; devolve o valor estreitado.
+Fails when `value` is `nil`; returns the narrowed value.
 
 ### `fn expectList[T](items: List[T]) -> ListExpectation[T]`
 
-Envolve uma lista para `toContain`.
+Wraps a list for `toContain`.
 
 ### `fn expectString(text: String) -> StringExpectation`
 
-Envolve uma string para `contains`.
+Wraps a string for `contains`.
 
 ### `fn expectRaise(body: fn() -> Nil) -> String`
 
-Executa `body` e devolve a mensagem da exceção; falha se nada foi lançado.
+Runs `body` and returns the exception message; fails when nothing is raised.
+
+Catches any `Exception`, including `Skip` and `TestFailure`.

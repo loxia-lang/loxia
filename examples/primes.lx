@@ -1,5 +1,5 @@
-# Primos com funções, for-in e return antecipado.
-fn ehPrimo(n: Int) -> Bool {
+# Primes with functions, for-in and early return.
+fn isPrime(n: Int) -> Bool {
   if (n < 2) {
     return false;
   }
@@ -14,7 +14,7 @@ fn ehPrimo(n: Int) -> Bool {
 }
 
 for n in 0..50 {
-  if (ehPrimo(n)) {
+  if (isPrime(n)) {
     print(n);
   }
 }

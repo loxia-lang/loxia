@@ -8,7 +8,7 @@ TAG ?= v1.0.0
 .PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
 
 help:
-	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
+	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
 	@echo "make test                      pytest (suite completa)"
 	@echo "make test-fast                 pytest sem os testes nativos (loop local)"
 	@echo "make case                      runner golden, sem pytest"

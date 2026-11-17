@@ -639,7 +639,7 @@ def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
 
 def _checkable_sources() -> list[tuple[str, str]]:
     """Casos do corpus que podem passar no `--check` (sem `errors/`)."""
-    paths = sorted(CASES_DIR.glob("*.lx")) + sorted((ROOT / "exemplos").glob("*.lx"))
+    paths = sorted(CASES_DIR.glob("*.lx")) + sorted((ROOT / "examples").glob("*.lx"))
     return [(path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8")) for path in paths]
 
 

@@ -1,34 +1,42 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.log — log em stderr com níveis, sem timestamp (T3), em Lox puro.
+# std.log — leveled logging to stderr, without timestamps (T3), pure Lox.
+#
+# Output is `[LEVEL] message` on stderr and is deterministic: no timestamps, paths or
+# locale-dependent names. Each `Logger` owns its minimum level, so several loggers can
+# coexist in one program.
 
-/// Nível de log; a ordem é `Debug < Info < Warn < Error`.
+/// Log level; the order is `Debug < Info < Warn < Error`.
 enum Level {
-  /// Detalhe de diagnóstico.
+  /// Diagnostic detail.
   Debug,
-  /// Evento normal.
+  /// Normal event.
   Info,
-  /// Situação suspeita.
+  /// Suspicious situation.
   Warn,
-  /// Falha.
+  /// Failure.
   Error
 }
 
-/// Logger que escreve em stderr; `minimum` filtra os níveis mais baixos.
+/// Logger that writes to stderr and filters out levels below `minimum`.
 class Logger {
-  /// Menor nível que será escrito.
+  /// Lowest level that will be written.
   var minimum: Level
 
-  /// Cria o logger; sem argumento, o mínimo é `Level.Info`.
+  /// Creates a logger; without an argument the minimum is `Level.Info`.
+  ///
+  /// Passing `nil` selects the same default.
   init(minimum: Level? = nil) {
     this.minimum = minimum ?? Level.Info
   }
 
-  /// Troca o nível mínimo.
+  /// Changes the minimum level; lower levels are suppressed from then on.
   fn setMinimum(level: Level) -> Nil {
     this.minimum = level
   }
 
-  /// Escreve `[NÍVEL] mensagem` em stderr se `level >= minimum`.
+  /// Writes `[LEVEL] message` to stderr when `level >= minimum`.
+  ///
+  /// Filtering never raises and does not affect stdout or the exit code.
   fn log(level: Level, message: String) -> Nil {
     if (_rank(level) < _rank(this.minimum)) {
       return
@@ -36,22 +44,22 @@ class Logger {
     io.writeErr("[${_name(level)}] ${message}\n")
   }
 
-  /// Loga em `Debug`.
+  /// Logs at `Debug`.
   fn debug(message: String) -> Nil {
     this.log(Level.Debug, message)
   }
 
-  /// Loga em `Info`.
+  /// Logs at `Info`.
   fn info(message: String) -> Nil {
     this.log(Level.Info, message)
   }
 
-  /// Loga em `Warn`.
+  /// Logs at `Warn`.
   fn warn(message: String) -> Nil {
     this.log(Level.Warn, message)
   }
 
-  /// Loga em `Error`.
+  /// Logs at `Error`.
   fn error(message: String) -> Nil {
     this.log(Level.Error, message)
   }

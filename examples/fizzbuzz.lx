@@ -1,4 +1,4 @@
-# FizzBuzz com for-in, % e else-if aninhado.
+# FizzBuzz with for-in, % and nested else-if.
 for i in 1..101 {
   if (i % 15 == 0) {
     print("FizzBuzz");

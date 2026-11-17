@@ -1,34 +1,43 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.property — property-based testing determinístico (T3), em Lox puro.
+# std.property — deterministic property-based testing (T3), pure Lox.
+#
+# A `Gen[T]` pairs a generator with a shrinker. `forAll` samples values and, on failure,
+# shrinks the counterexample and reports the run number and seed, so failures are
+# reproducible. The random source is `std.rand.Rand`, never the host RNG.
+
 import std.strings as strings
 from std.rand import Rand
 from std.test import Skip, TestFailure
 
-/// Gerador de valores com estratégia de geração e de redução (shrinking).
+/// Value generator with a generation strategy and a shrink strategy.
 class Gen[T] {
-  /// Produz um valor a partir do gerador aleatório.
+  /// Produces a value from the random generator.
   val generate: fn(Rand) -> T
-  /// Candidatos menores que `value` (lista vazia = não reduz).
+  /// Smaller candidates for `value` (an empty list means no shrinking).
   val shrink: fn(T) -> List[T]
 
-  /// Cria o gerador com as duas funções.
+  /// Creates the generator from its two functions.
   init(generate: fn(Rand) -> T, shrink: fn(T) -> List[T]) {
     this.generate = generate
     this.shrink = shrink
   }
 
-  /// Amostra um valor.
+  /// Samples one value using `random`.
   fn sample(random: Rand) -> T {
     return this.generate(random)
   }
 
-  /// Candidatos menores para o shrinking.
+  /// Returns the shrink candidates for `value`.
   fn smaller(value: T) -> List[T] {
     return this.shrink(value)
   }
 }
 
-/// Executa `check` com `runs` valores; falha com contraexemplo reduzido e seed.
+/// Runs `check` with `runs` generated values; on failure shrinks and raises.
+///
+/// Stops at the first failure and raises `TestFailure` with the run number, seed,
+/// original counterexample and shrunk value. `Skip` propagates unchanged. `seed` is
+/// explicit, so a failing run is reproducible.
 fn forAll[T](
   generator: Gen[T],
   check: fn(T) -> Nil,
@@ -66,7 +75,7 @@ fn forAll[T](
   }
 }
 
-/// Inteiro de 64 bits; reduz para 0 e para a metade.
+/// 64-bit integer generator; shrinks toward 0 and then toward the halfway point.
 fn int() -> Gen[Int] {
   return Gen(
     fn(random: Rand) -> Int { return random.nextInt() },
@@ -82,7 +91,7 @@ fn int() -> Gen[Int] {
   )
 }
 
-/// Inteiro em `[min, max]`; reduz na direção de `min`.
+/// Integer generator in `[min, max]`; shrinks toward `min`.
 fn intRange(min: Int, max: Int) -> Gen[Int] {
   return Gen(
     fn(random: Rand) -> Int { return random.int(min, max) },
@@ -98,7 +107,7 @@ fn intRange(min: Int, max: Int) -> Gen[Int] {
   )
 }
 
-/// `Bool`; reduz `true` para `false`.
+/// `Bool` generator; shrinks `true` to `false`.
 fn bool() -> Gen[Bool] {
   return Gen(
     fn(random: Rand) -> Bool { return random.bool() },
@@ -109,7 +118,7 @@ fn bool() -> Gen[Bool] {
   )
 }
 
-/// `Float` em `[0.0, 1.0)`; reduz para `0.0`.
+/// `Float` generator in `[0.0, 1.0)`; shrinks to `0.0`.
 fn float() -> Gen[Float] {
   return Gen(
     fn(random: Rand) -> Float { return random.float() },
@@ -120,7 +129,9 @@ fn float() -> Gen[Float] {
   )
 }
 
-/// Lista de `T` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+/// List generator with length in `[0, maxLength]`; shrinks by removing elements.
+///
+/// Elements are drawn from `element`; shrunk lists are not shrunk element-wise.
 fn listOf[T](element: Gen[T], maxLength: Int = 5) -> Gen[List[T]] {
   return Gen(
     fn(random: Rand) -> List[T] {
@@ -153,17 +164,19 @@ fn listOf[T](element: Gen[T], maxLength: Int = 5) -> Gen[List[T]] {
   )
 }
 
-/// Lista de `Int`; alias de `listOf` mantido para compatibilidade.
+/// List of `Int`; compatibility alias of `listOf`.
 fn listOfInt(element: Gen[Int], maxLength: Int = 5) -> Gen[List[Int]] {
   return listOf(element, maxLength)
 }
 
-/// Lista de `String`; alias de `listOf` mantido para compatibilidade.
+/// List of `String`; compatibility alias of `listOf`.
 fn listOfString(element: Gen[String], maxLength: Int = 5) -> Gen[List[String]] {
   return listOf(element, maxLength)
 }
 
-/// String de `[a-z0-9]` com tamanho em `[0, maxLength]`; reduz removendo caracteres.
+/// String generator over `[a-z0-9]` with length in `[0, maxLength]`.
+///
+/// Shrinks by deleting one character per candidate.
 fn stringOf(maxLength: Int = 8) -> Gen[String] {
   val alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
   return Gen(
@@ -193,7 +206,9 @@ fn stringOf(maxLength: Int = 8) -> Gen[String] {
   )
 }
 
-/// Escolhe um dos valores de `options` (não vazio); reduz para o primeiro.
+/// Chooses one value from `options`; shrinks toward the first element.
+///
+/// Raises `RuntimeError` when `options` is empty.
 fn oneOf[T](options: List[T]) -> Gen[T] {
   if (len(options) == 0) {
     raise RuntimeError("property.oneOf() expects a non-empty list.")

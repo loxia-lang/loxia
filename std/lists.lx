@@ -1,17 +1,23 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.lists — operações funcionais básicas (T1), em Lox puro.
+# std.lists — basic functional list operations (T1), pure Lox.
+#
+# Every function reads its input list and returns a new list (or a value) without
+# mutating it. Callbacks run in list order, and functions that have no result for an
+# empty list return `nil` instead of raising.
 
-/// Returns true when the list has no elements.
+/// Returns `true` when the list has no elements.
 fn isEmpty(xs: List[Any]) -> Bool {
   return len(xs) == 0
 }
 
-/// Returns the number of elements.
+/// Returns the number of elements; equivalent to `len(xs)`.
 fn length(xs: List[Any]) -> Int {
   return len(xs)
 }
 
-/// Applies `f` to each element and returns the results.
+/// Applies `f` to each element and returns the results in order.
+///
+/// The result has the same length as `xs`; the input list is not modified.
 fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] {
   val result: List[U] = []
   var i = 0
@@ -23,6 +29,8 @@ fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] {
 }
 
 /// Returns the elements for which `predicate` is true.
+///
+/// Preserves the original order and calls `predicate` once per element.
 fn filter[T](xs: List[T], predicate: fn(T) -> Bool) -> List[T] {
   val result: List[T] = []
   var i = 0
@@ -35,7 +43,9 @@ fn filter[T](xs: List[T], predicate: fn(T) -> Bool) -> List[T] {
   return result
 }
 
-/// Calls `action` for each element and returns `Nil`.
+/// Calls `action` for each element in order and returns `nil`.
+///
+/// Intended for side effects; the input list is not modified.
 fn each[T](xs: List[T], action: fn(T) -> Nil) -> Nil {
   var i = 0
   while (i < len(xs)) {
@@ -44,7 +54,9 @@ fn each[T](xs: List[T], action: fn(T) -> Nil) -> Nil {
   }
 }
 
-/// Folds the list left-to-right starting from `initial`.
+/// Folds the list left to right starting from `initial`.
+///
+/// The accumulator type `U` may differ from the element type `T`.
 fn fold[T, U](xs: List[T], initial: U, f: fn(U, T) -> U) -> U {
   var acc = initial
   var i = 0
@@ -56,6 +68,8 @@ fn fold[T, U](xs: List[T], initial: U, f: fn(U, T) -> U) -> U {
 }
 
 /// Returns true when at least one element satisfies `predicate`.
+///
+/// Stops at the first match; an empty list returns `false`.
 fn any[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
   var i = 0
   while (i < len(xs)) {
@@ -68,6 +82,8 @@ fn any[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
 }
 
 /// Returns true when every element satisfies `predicate`.
+///
+/// Stops at the first mismatch; an empty list satisfies it vacuously.
 fn all[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
   var i = 0
   while (i < len(xs)) {
@@ -80,11 +96,13 @@ fn all[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
 }
 
 /// Returns true when no element satisfies `predicate`.
+///
+/// Equivalent to `not any(xs, predicate)`.
 fn none[T](xs: List[T], predicate: fn(T) -> Bool) -> Bool {
   return not any(xs, predicate)
 }
 
-/// Returns the first matching index, or -1.
+/// Returns the index of the first element satisfying `predicate`, or -1.
 fn findIndex[T](xs: List[T], predicate: fn(T) -> Bool) -> Int {
   var i = 0
   while (i < len(xs)) {
@@ -97,6 +115,8 @@ fn findIndex[T](xs: List[T], predicate: fn(T) -> Bool) -> Int {
 }
 
 /// Returns whether the list contains `value`.
+///
+/// Uses `==`, so lists, maps and tuples compare structurally.
 fn contains[T](xs: List[T], value: T) -> Bool {
   var i = 0
   while (i < len(xs)) {
@@ -108,7 +128,7 @@ fn contains[T](xs: List[T], value: T) -> Bool {
   return false
 }
 
-/// Returns the first index of `value`, or -1.
+/// Returns the first index where `value` occurs, or -1.
 fn indexOf[T](xs: List[T], value: T) -> Int {
   var i = 0
   while (i < len(xs)) {
@@ -120,7 +140,7 @@ fn indexOf[T](xs: List[T], value: T) -> Int {
   return -1
 }
 
-/// Returns a new list in reverse order.
+/// Returns a new list in reverse order without modifying the input.
 fn reverse[T](xs: List[T]) -> List[T] {
   val result: List[T] = []
   var i = len(xs)
@@ -131,7 +151,10 @@ fn reverse[T](xs: List[T]) -> List[T] {
   return result
 }
 
-/// Returns the first `count` elements.
+/// Returns up to `count` elements from the start.
+///
+/// A zero or negative `count` yields `[]`; a `count` larger than the list yields a copy
+/// of the whole list.
 fn take[T](xs: List[T], count: Int) -> List[T] {
   val result: List[T] = []
   var i = 0
@@ -143,6 +166,8 @@ fn take[T](xs: List[T], count: Int) -> List[T] {
 }
 
 /// Returns the list without its first `count` elements.
+///
+/// A negative `count` is treated as 0, so the whole list is returned.
 fn drop[T](xs: List[T], count: Int) -> List[T] {
   val result: List[T] = []
   var i = count
@@ -155,6 +180,9 @@ fn drop[T](xs: List[T], count: Int) -> List[T] {
 }
 
 /// Returns the half-open range `[start, end)`.
+///
+/// Indices are clamped: negatives become 0, `end < start` yields `[]`, and `end` beyond
+/// the list length is clamped to `len(xs)`.
 fn slice[T](xs: List[T], start: Int, end: Int) -> List[T] {
   val result: List[T] = []
   var begin = start
@@ -171,7 +199,7 @@ fn slice[T](xs: List[T], start: Int, end: Int) -> List[T] {
   return result
 }
 
-/// Returns the sum of all integers.
+/// Returns the sum of all integers, or 0 for an empty list.
 fn sum(xs: List[Int]) -> Int {
   var total = 0
   var i = 0
@@ -198,7 +226,7 @@ fn last[T](xs: List[T]) -> T? {
   return xs[len(xs) - 1]
 }
 
-/// Returns the first matching element, or `nil`.
+/// Returns the first element that satisfies `predicate`, or `nil` when none matches.
 fn find[T](xs: List[T], predicate: fn(T) -> Bool) -> T? {
   var i = 0
   while (i < len(xs)) {
@@ -210,7 +238,9 @@ fn find[T](xs: List[T], predicate: fn(T) -> Bool) -> T? {
   return nil
 }
 
-/// Reduces the list with `f`, returning `nil` when empty.
+/// Reduces the list left to right using the first element as the accumulator.
+///
+/// Returns `nil` for an empty list. `f` receives `(accumulator, next)`.
 fn reduce[T](xs: List[T], f: fn(T, T) -> T) -> T? {
   if (len(xs) == 0) {
     return nil
@@ -237,7 +267,7 @@ fn count[T](xs: List[T], predicate: fn(T) -> Bool) -> Int {
   return total
 }
 
-/// Returns the smallest element, or `nil` when empty.
+/// Returns the smallest element using `<`, or `nil` when empty.
 fn min[T: Ord](xs: List[T]) -> T? {
   if (len(xs) == 0) {
     return nil
@@ -253,7 +283,7 @@ fn min[T: Ord](xs: List[T]) -> T? {
   return result
 }
 
-/// Returns the largest element, or `nil` when empty.
+/// Returns the largest element using `>`, or `nil` when empty.
 fn max[T: Ord](xs: List[T]) -> T? {
   if (len(xs) == 0) {
     return nil
@@ -270,6 +300,8 @@ fn max[T: Ord](xs: List[T]) -> T? {
 }
 
 /// Returns the element at `index`, or `fallback` when out of range.
+///
+/// Negative indices are out of range; there is no wrap-around.
 fn getOr[T](xs: List[T], index: Int, fallback: T) -> T {
   if (index < 0 or index >= len(xs)) {
     return fallback
@@ -277,7 +309,10 @@ fn getOr[T](xs: List[T], index: Int, fallback: T) -> T {
   return xs[index]
 }
 
-/// Returns a new list sorted by the comparator.
+/// Returns a new list sorted by `compare`.
+///
+/// `compare(a, b)` returns a negative number when `a` comes first, zero for ties and a
+/// positive number otherwise. The merge sort is stable and does not mutate the input.
 fn sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
   if (len(xs) <= 1) {
     return slice(xs, 0, len(xs))
@@ -308,7 +343,9 @@ fn sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
   return result
 }
 
-/// Returns a new list sorted by natural ordering.
+/// Returns a new list sorted by natural ordering (`<=`).
+///
+/// Stable merge sort requiring `T: Ord`; the input list is not modified.
 fn sortNatural[T: Ord](xs: List[T]) -> List[T] {
   if (len(xs) <= 1) {
     return slice(xs, 0, len(xs))
@@ -350,7 +387,7 @@ fn zip[T, U](xs: List[T], ys: List[U]) -> List[(T, U)] {
   return result
 }
 
-/// Concatenates a list of lists.
+/// Concatenates a list of lists into a new flat list, preserving order.
 fn flatten[T](xs: List[List[T]]) -> List[T] {
   val result: List[T] = []
   for inner in xs {
@@ -361,7 +398,7 @@ fn flatten[T](xs: List[List[T]]) -> List[T] {
   return result
 }
 
-/// Maps each element to a list and concatenates the results.
+/// Maps each element to a list with `f` and concatenates the results.
 fn flatMap[T, U](xs: List[T], f: fn(T) -> List[U]) -> List[U] {
   val result: List[U] = []
   var i = 0
@@ -374,7 +411,9 @@ fn flatMap[T, U](xs: List[T], f: fn(T) -> List[U]) -> List[U] {
   return result
 }
 
-/// Returns the elements without duplicates, preserving order.
+/// Returns the elements without duplicates, preserving first-occurrence order.
+///
+/// Uses structural equality and does not mutate the input.
 fn unique[T](xs: List[T]) -> List[T] {
   val result: List[T] = []
   for item in xs {
@@ -385,7 +424,10 @@ fn unique[T](xs: List[T]) -> List[T] {
   return result
 }
 
-/// Splits the list into chunks of at most `size` elements.
+/// Splits the list into consecutive chunks of at most `size` elements.
+///
+/// The last chunk may be shorter. A `size` of 0 or less returns `[]`; each chunk is a
+/// new list.
 fn chunk[T](xs: List[T], size: Int) -> List[List[T]] {
   val result: List[List[T]] = []
   if (size <= 0) {
@@ -400,6 +442,8 @@ fn chunk[T](xs: List[T], size: Int) -> List[List[T]] {
 }
 
 /// Splits the list into `(matching, rest)`.
+///
+/// Both lists preserve the original order, and `predicate` is called once per element.
 fn partition[T](xs: List[T], predicate: fn(T) -> Bool) -> (List[T], List[T]) {
   val yes: List[T] = []
   val no: List[T] = []

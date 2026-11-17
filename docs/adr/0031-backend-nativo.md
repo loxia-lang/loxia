@@ -127,7 +127,7 @@ uma vez. HIR completa (slots, SSA leve, células) só quando closures e classes 
 
 ### 11. Corpus e I1
 
-O corpus diferencial é o **corpus inteiro anotado**: `tests/cases`, `exemplos/` e
+O corpus diferencial é o **corpus inteiro anotado**: `tests/cases`, `examples/` e
 `tests/official/cases`. Hoje a suíte do livro é código cru do Crafting Interpreters
 (`fun`, `//`, nenhuma anotação) e não compila — anotá-la é pré-requisito do **critério de
 saída do L1**, não do L0 (que não depende de corpus).
@@ -154,7 +154,7 @@ Regras de operação do harness:
 | 8. Monomorfização | L6 (até lá, função genérica é rejeitada) | ⬜ |
 | 9. Erro estático → panic site | L0 para operandos; L2/L5 para aridade e nomes | 🟡 |
 | 10. Normalização leve | L2b: ternário/`and`/`or`/`??` ✅; `for-in` depende de `Range` | 🟡 |
-| 11. Corpus anotado | bloqueia o L2 (corpus do nível) | 🟡 (54 de 78 `tests/cases` e 4 de 5 `exemplos/` passam no `--check`) |
+| 11. Corpus anotado | bloqueia o L2 (corpus do nível) | 🟡 (54 de 78 `tests/cases` e 4 de 5 `examples/` passam no `--check`) |
 
 ## Consequências
 
@@ -167,7 +167,7 @@ Regras de operação do harness:
 
 ### Negativas / custos
 
-- 203 arquivos precisam de anotação (78 de `tests/cases` + 5 de `exemplos/` + 120 da
+- 203 arquivos precisam de anotação (78 de `tests/cases` + 5 de `examples/` + 120 da
   suíte oficial) antes do L1.
 - `ErrorReporter` deixa de ser binário (teve erro/não teve) e passa a classificar.
 - O backend rejeita `Any`, `List` cru, `Float` e `String` até os níveis correspondentes;

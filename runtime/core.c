@@ -1,9 +1,26 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-/* Núcleo do runtime: inicialização, GC, pilha, panic e exceções (ADR-0074,
- * ADR-0077, ADR-0089). */
+/*
+ * core.c — process startup, allocator/GC, call stack, panics and exceptions for
+ * the native backend.
+ *
+ * Who calls it: the generated `main` calls `lox_init`; the lowering emits
+ * `lox_stack_enter`/`lox_stack_leave` in every function, `lox_alloc*` for heap
+ * objects and `lox_panic`/`lox_throw*` at error sites. `lox_print_frames` is
+ * used by panics and by the uncaught-exception path.
+ *
+ * Invariants:
+ *  - the heap is Boehm-only (`GC_MALLOC`/`GC_MALLOC_ATOMIC`); never call `free`;
+ *  - `lox_call_depth` never exceeds `LOX_MAX_CALL_DEPTH` (R1015);
+ *  - try frames form a LIFO stack rooted at `lox_current_try`;
+ *  - stdout is flushed before stderr/exit (observable order for I1);
+ *  - no output may contain an address, PID or timestamp (I3).
+ *
+ * ADRs: 0074 (GC), 0077 (stack), 0087 (heap cap), 0089 (stack trace), 0062
+ * (exceptions), 0075 (diagnostics).
+ */
 #include "lox_runtime.h"
 
-/* Estado do processo (uma execução por binário). */
+/* Process state (one execution per binary). */
 const char *lox_source_path = "<lox>";
 int32_t lox_argc = 0;
 char **lox_argv = NULL;
@@ -12,12 +29,18 @@ LoxFrame lox_frames[LOX_MAX_CALL_DEPTH];
 int64_t lox_call_depth = 0;
 LoxTryFrame *lox_current_try = NULL;
 
+/* ---------------------------------------------------------------------------
+ * Startup
+ * --------------------------------------------------------------------------- */
+
+/* Binary entry point: pins locale/SIGPIPE, reserves the stack and configures
+ * Boehm (interior pointers, heap cap and OOM callback). */
 void lox_init(const char *source_path, int32_t argc, char **argv) {
     lox_source_path = source_path;
     lox_argc = argc;
     lox_argv = argv;
     setlocale(LC_NUMERIC, "C");
-    /* `proc.write` em pipe fechado deve devolver EPIPE, não matar o processo. */
+    /* `proc.write` on a closed pipe must return EPIPE, not kill the process. */
     signal(SIGPIPE, SIG_IGN);
     lox_reserve_stack();
     GC_set_all_interior_pointers(1);
@@ -27,23 +50,24 @@ void lox_init(const char *source_path, int32_t argc, char **argv) {
     GC_set_oom_fn(lox_oom);
 }
 
-/*
- * String imutável: bytes UTF-8 + contagem de code points (ADR-0031, decisão 6).
- * O IR usa `i8*` para o ponteiro; o layout é este struct.
- */
-/*
- * Pilha de chamadas (ADR-0077): o contador é o contrato; a reserva de SO é
- * orçamento interno para frames gordos. Chamadas nativas não entram no contador.
+/* ---------------------------------------------------------------------------
+ * Call stack and stack trace
  *
- * ADR-0089: o mesmo array carrega o stack trace. `file` é a função atual (cabeçalho
- * de panic); `call_*` é onde ela foi chamada (linha do frame). O call site chega
- * pelos globais abaixo, gravados pelo lowering imediatamente antes da chamada.
- */
+ * ADR-0077: the counter is the contract; the OS reserve is an internal budget for
+ * fat frames. Native calls do not enter the counter.
+ *
+ * ADR-0089: `lox_frames` also carries the stack trace. `file` is the current
+ * function (panic header); `call_*` is where it was called from (the frame's
+ * line). The call site arrives through the globals below, written by the
+ * lowering immediately before the call.
+ * --------------------------------------------------------------------------- */
 
+/* Call site of the next call, restored by `lox_call_site_restore`. */
 const char *lox_call_file = NULL;
 int32_t lox_call_line = 0;
 int32_t lox_call_column = 0;
 
+/* Source file of the current frame; without frames, the main script. */
 const char *lox_current_file(void) {
     if (lox_call_depth <= 0) {
         return lox_source_path;
@@ -51,6 +75,8 @@ const char *lox_current_file(void) {
     return lox_frames[lox_call_depth - 1].file;
 }
 
+/* Enters a user function. Raises R1015 before recording the frame; `decl_*` is
+ * the declaration position used by the overflow diagnostic. */
 void lox_stack_enter(const char *name, const char *file, int32_t decl_line,
                      int32_t decl_column) {
     if (lox_call_depth >= LOX_MAX_CALL_DEPTH) {
@@ -67,13 +93,14 @@ void lox_stack_enter(const char *name, const char *file, int32_t decl_line,
     lox_call_depth += 1;
 }
 
+/* Leaves the current function; never goes below 0. */
 void lox_stack_leave(void) {
     if (lox_call_depth > 0) {
         lox_call_depth -= 1;
     }
 }
 
-/* Devolve o call site do frame atual (ctor → init após inicializadores). */
+/* Restores the current frame call site (ctor → init after initializers). */
 void lox_call_site_restore(void) {
     if (lox_call_depth <= 0) {
         return;
@@ -89,6 +116,9 @@ void lox_print_frame(const LoxFrame *frame) {
             frame->call_file, frame->call_line, frame->call_column);
 }
 
+/* Prints up to LOX_TRACE_HEAD frames from the top and LOX_TRACE_TAIL from the
+ * bottom, eliding the middle. `depth` is the value frozen at throw time (the
+ * longjmp unwinds the counter, but the frames remain in the array). */
 void lox_print_frames(int64_t depth) {
     if (depth <= 0) {
         return;
@@ -115,7 +145,11 @@ void lox_print_frames(int64_t depth) {
     }
 }
 
-/* Sobe o soft limit da pilha da thread principal; virtual, commit sob demanda. */
+/* ---------------------------------------------------------------------------
+ * OS stack reserve
+ * --------------------------------------------------------------------------- */
+
+/* Raises the main thread stack soft limit; virtual memory, committed on demand. */
 void lox_reserve_stack(void) {
     struct rlimit limit;
     if (getrlimit(RLIMIT_STACK, &limit) != 0) {
@@ -132,7 +166,15 @@ void lox_reserve_stack(void) {
     (void)setrlimit(RLIMIT_STACK, &limit);
 }
 
-/* Heap coletado (ADR-0074): o Boehm é o único alocador; sem free manual. */
+/* ---------------------------------------------------------------------------
+ * Collected allocator (Boehm GC, ADR-0074)
+ *
+ * Boehm is the only allocator; there is no `free`. Use `lox_alloc` for blocks
+ * with pointers and `lox_alloc_atomic` for pure bytes (string data, buffers).
+ * --------------------------------------------------------------------------- */
+
+/* Boehm OOM callback: fixed message and exit 70. */
+
 void *lox_oom(size_t size) {
     (void)size;
     lox_panic(0, 0, "R1000", "Out of memory.");
@@ -147,7 +189,7 @@ void *lox_alloc(size_t size) {
     return pointer;
 }
 
-/* Bloco sem ponteiros (bytes de string, buffers de formatação). */
+/* Pointer-free block (string bytes, formatting buffers). */
 void *lox_alloc_atomic(size_t size) {
     void *pointer = GC_MALLOC_ATOMIC(size > 0 ? size : 1u);
     if (pointer == NULL) {
@@ -156,32 +198,47 @@ void *lox_alloc_atomic(size_t size) {
     return pointer;
 }
 
-/*
- * Closure do L4 (ADR-0046): `{ fnptr, env, display }`. O IR aloca via estes wrappers;
- * `display` é uma string C determinística (`<fn f>`/`<lambda>`), nunca um endereço.
- */
+/* ---------------------------------------------------------------------------
+ * Lowering allocation wrappers (L4 closures/cells, ADR-0046)
+ *
+ * A closure is `{fnptr, env, display}`; `display` is a deterministic C string
+ * (`<fn f>`/`<lambda>`), never an address. A capture cell is a 16-byte block
+ * holding `{i64, tag}` or `{double, tag}`.
+ * --------------------------------------------------------------------------- */
 
+/* Captured-variable cell: 2 words (scalar + tag). */
 void *lox_alloc_cell(void) {
-    /* Cabe o maior valor escalar: `{i1, i64}`/`{i1, double}` (16 bytes). */
+    /* Fits the largest scalar value: `{i1, i64}`/`{i1, double}` (16 bytes). */
     return lox_alloc(2 * sizeof(int64_t));
 }
 
+/* Closure environment: array of `count` pointers (cells or values). */
 void *lox_alloc_env(int64_t count) {
     size_t entries = count > 0 ? (size_t)count : 1u;
     return lox_alloc(entries * sizeof(void *));
 }
 
+/* L4 closure: `{fnptr, env, display}`. */
 void *lox_alloc_closure(void) {
     return lox_alloc(sizeof(LoxClosure));
 }
 
+/* Untagged byte buffer (internal to the lowering/kernel). */
 void *lox_alloc_bytes(int64_t size) {
     return lox_alloc(size > 0 ? (size_t)size : 1u);
 }
 
 
-/* Exceções do L6j: frames de try, throw e cleanup mínimo (ADR-0062). */
+/* ---------------------------------------------------------------------------
+ * Exceptions: try, throw and cleanup (ADR-0062)
+ *
+ * The lowering pushes a LoxTryFrame before the `try` body, calls `setjmp` on the
+ * buffer returned by `lox_try_buffer` and pops in `lox_try_pop`. A `throw` does a
+ * longjmp to the current frame; abandoned frames are restored by the `depth`
+ * recorded on entry.
+ * --------------------------------------------------------------------------- */
 
+/* Pushes a try frame and returns its address (the setjmp buffer base). */
 void *lox_try_push(void) {
     LoxTryFrame *frame = lox_alloc(sizeof(LoxTryFrame));
     frame->previous = lox_current_try;
@@ -199,15 +256,18 @@ void *lox_try_push(void) {
     return frame;
 }
 
+/* The frame setjmp/longjmp buffer. */
 void *lox_try_buffer(void *pointer) {
     return &((LoxTryFrame *)pointer)->env;
 }
 
+/* Deactivates the frame and restores `lox_call_depth` to its value on try
+ * entry (the longjmp abandoned frames of functions that were in flight). */
 void lox_try_pop(void *pointer) {
     LoxTryFrame *frame = pointer;
     if (frame->active) {
         frame->active = 0;
-        /* Desfaz o contador das funções abandonadas pelo longjmp (ADR-0077). */
+        /* Undoes the counter for functions abandoned by the longjmp (ADR-0077). */
         lox_call_depth = frame->depth;
     }
     if (lox_current_try == frame) {
@@ -215,18 +275,24 @@ void lox_try_pop(void *pointer) {
     }
 }
 
+/* Exception captured by the frame (valid after the longjmp). */
 void *lox_try_exception(void *pointer) {
     return &((LoxTryFrame *)pointer)->exception;
 }
 
+/* User exception instance, or NULL for runtime panics. */
 void *lox_exception_instance(const void *pointer) {
     return ((const LoxException *)pointer)->instance;
 }
 
+/* Already-materialized message (panics) or the instance `message` field. */
 const char *lox_exception_message(const void *pointer) {
     return ((const LoxException *)pointer)->message;
 }
 
+/* Matches the exception against a descriptor (`expected`) or a type name.
+ * Instances walk the `super` chain; `Exception` is the root. Panics have no
+ * instance and match by name only (`RuntimeError`). */
 int32_t lox_exception_matches(const void *pointer, const void *expected,
                               const char *type_name) {
     const LoxException *exception = pointer;
@@ -258,6 +324,11 @@ int32_t lox_exception_matches(const void *pointer, const void *expected,
     return strcmp(type_name, "Exception") == 0;
 }
 
+/* ---------------------------------------------------------------------------
+ * Runtime diagnostics and panic
+ * --------------------------------------------------------------------------- */
+
+/* `file:line:col: error[CODE]:` header; without a position, omits the prefix. */
 void lox_print_prefix_at(const char *file, int32_t line, int32_t column,
                                 const char *code) {
     const char *origin = file != NULL ? file : lox_source_path;
@@ -272,12 +343,12 @@ void lox_print_prefix_at(const char *file, int32_t line, int32_t column,
 }
 
 /*
- * `code != NULL` marca um panic de runtime convertido em exceção para um `try`.
- * Se ele não for capturado, o topo imprime o código original (ex.: R1015), como o
- * tree-walk; sem `code`, é uma exceção de usuário (R1010 unhandled).
+ * `code != NULL` marks a runtime panic converted into an exception for a `try`.
+ * If it is not caught, top level prints the original code (e.g. R1015), like the
+ * tree-walk; without `code`, it is a user exception (R1010 unhandled).
  *
- * `file`/`trace_depth` são os do ponto do throw: o longjmp desempilha os frames, mas
- * os do array continuam válidos para o trace (ADR-0089).
+ * `file`/`trace_depth` are from the throw point: the longjmp unwinds frames, but
+ * the ones in the array remain valid for the trace (ADR-0089).
  */
 void lox_throw_internal_at(const char *file, const char *code,
                                   void *instance, const char *type_name,
@@ -345,13 +416,15 @@ void lox_raise_current(int32_t line, int32_t column) {
     if (frame == NULL) {
         lox_panic(line, column, "R1014", "No exception to re-raise.");
     }
-    /* `raise;` reemite como exceção de usuário; o código do panic não sobrevive. */
+    /* `raise;` re-emits as a user exception; the panic code does not survive. */
     lox_throw_internal_at(lox_current_file(), NULL, frame->exception.instance,
                           frame->exception.type_name,
                           frame->exception.message, line, column,
                           lox_call_depth);
 }
 
+/* Runtime panic: with an active try it becomes a catchable `RuntimeError`;
+ * otherwise it prints the header + trace and exits 70. Never returns. */
 void lox_panic_at(const char *file, int32_t line, int32_t column,
                          const char *code, const char *message) {
     if (lox_current_try != NULL) {
@@ -366,6 +439,7 @@ void lox_panic_at(const char *file, int32_t line, int32_t column,
     exit(70);
 }
 
+/* `lox_panic_at` shortcut using the current frame file. */
 void lox_panic(int32_t line, int32_t column, const char *code,
                const char *message) {
     lox_panic_at(lox_current_file(), line, column, code, message);

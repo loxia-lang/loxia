@@ -1,8 +1,32 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-/* Kernel 13.2 (ADR-0071): SO, stdio por bytes e representação (ADR-0094). */
+/*
+ * kernel.c — kernel 13.2 host primitives: strings, UTF-8, stdin/stdout, files,
+ * environment, `os.exit`, `time.*` and `args`.
+ *
+ * Who calls it: generated code calls these symbols directly; the signatures come
+ * from `kernel_gen.h`, generated from `loxia_core/execution/primitives.py`. The
+ * stdlib (`std/fs.lx`, `std/io.lx`) is a thin shell over them.
+ *
+ * Invariants:
+ *  - `site: true` in `primitives.py` appends `(line, column)` to the signature;
+ *    pass them to `lox_panic` so errors point at the call;
+ *  - ambient operations (files, stdin, env, clock) stay outside the I1 corpus;
+ *  - `fs.listDir` order is byte-sorted (I3);
+ *  - `io.readUtf8` validates strict UTF-8; `io.write*` flushes for observable
+ *    ordering with stderr;
+ *  - paths and values handed to the OS are copied into C strings.
+ *
+ * ADRs: 0071 (primitives), 0094 (io flush/readUtf8), 0095 (processes).
+ */
 #include "lox_runtime.h"
 #include "kernel_gen.h"
 
+/* ---------------------------------------------------------------------------
+ * Kernel strings
+ * --------------------------------------------------------------------------- */
+
+/* `substr(s, start, end)` with code-point indices. `start < 0`, `end < start`
+ * or `end > cp_len` is R1000. */
 void *lox_substr(const void *pointer, int64_t start, int64_t end,
                  int32_t line, int32_t column) {
     const LoxStr *string = pointer;
@@ -24,6 +48,7 @@ void *lox_substr(const void *pointer, int64_t start, int64_t end,
     return result;
 }
 
+/* `join(parts, separator)`; any element that is not a String is R1000. */
 void *lox_join(const void *parts_pointer, const void *separator_pointer,
                int32_t line, int32_t column) {
     const LoxList *parts = parts_pointer;
@@ -66,6 +91,8 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
 }
 
 
+/* `charCodeAt(s, i)`: Unicode code point at a code-point index; R1000 when out
+ * of bounds. */
 int64_t lox_char_code_at(const void *pointer, int64_t index, int32_t line,
                          int32_t column) {
     const LoxStr *string = pointer;
@@ -77,6 +104,8 @@ int64_t lox_char_code_at(const void *pointer, int64_t index, int32_t line,
     return utf8_decode((const unsigned char *)string->data + offset, &length);
 }
 
+/* `fromCodePoint`: builds a one-code-point String; rejects surrogates and values
+ * above U+10FFFF with R1000. */
 void *lox_from_code_point(int64_t code_point, int32_t line, int32_t column) {
     if (code_point < 0 || code_point > 0x10FFFF ||
         (code_point >= 0xD800 && code_point <= 0xDFFF)) {
@@ -117,7 +146,11 @@ void *lox_from_code_point(int64_t code_point, int32_t line, int32_t column) {
 
 
 
-/* Kernel 13.2 (ADR-0071): SO e representação. */
+/* ---------------------------------------------------------------------------
+ * UTF-8 helpers and `args`
+ * --------------------------------------------------------------------------- */
+
+/* Counts leading bytes (code points); it does not validate the sequence. */
 int64_t utf8_code_points(const char *data, size_t length) {
     int64_t count = 0;
     for (size_t index = 0; index < length; index++) {
@@ -130,8 +163,8 @@ int64_t utf8_code_points(const char *data, size_t length) {
 }
 
 /*
- * UTF-8 estrito: rejeita overlong, surrogates, > U+10FFFF e sequência truncada.
- * Espelha `bytes.decode("utf-8")` do oráculo (io.readUtf8).
+ * Strict UTF-8: rejects overlong encodings, surrogates, values above U+10FFFF and
+ * truncated sequences. Mirrors the oracle's `bytes.decode("utf-8")` (io.readUtf8).
  */
 int utf8_valid(const unsigned char *data, size_t length) {
     size_t index = 0;
@@ -180,6 +213,7 @@ int utf8_valid(const unsigned char *data, size_t length) {
     return 1;
 }
 
+/* `args()`: argv without argv[0], each entry as a String. */
 void *lox_args(void) {
     void *list = lox_list_new();
     for (int32_t index = 1; index < lox_argc; index++) {
@@ -191,27 +225,34 @@ void *lox_args(void) {
     return list;
 }
 
+/* ---------------------------------------------------------------------------
+ * Standard I/O
+ * --------------------------------------------------------------------------- */
+
+/* `io.write`: raw bytes + immediate flush (ordering with stderr matters). */
 void lox_io_write(const void *pointer) {
     const LoxStr *text = pointer;
     fwrite(text->data, 1, (size_t)text->byte_len, stdout);
     fflush(stdout);
 }
 
+/* `io.writeErr`: raw bytes to stderr + immediate flush. */
 void lox_io_write_err(const void *pointer) {
     const LoxStr *text = pointer;
     fwrite(text->data, 1, (size_t)text->byte_len, stderr);
     fflush(stderr);
 }
 
+/* `io.flush`: flushes stdout and stderr. */
 void lox_io_flush(void) {
     fflush(stdout);
     fflush(stderr);
 }
 
 /*
- * Lê exatamente `count` bytes de stdin e decodifica UTF-8 estrito. `NULL` só no EOF
- * imediato (nenhum byte); EOF no meio ou bytes inválidos são erro com o call site,
- * como o `NativeError` do oráculo.
+ * Reads exactly `count` bytes from stdin and decodes strict UTF-8. `NULL` only on
+ * immediate EOF (no bytes); mid-stream EOF or invalid bytes are an error at the
+ * call site, like the oracle's `NativeError`.
  */
 void *lox_io_read_utf8(int64_t count, int32_t line, int32_t column) {
     if (count < 0) {
@@ -255,6 +296,10 @@ void *lox_io_read_utf8(int64_t count, int32_t line, int32_t column) {
                              utf8_code_points(buffer.data, buffer.length));
 }
 
+/* `io.readFile`: whole file as a String, or NULL when `fopen` fails.
+ *
+ * NOTE: unlike the tree-walk, this path does not validate UTF-8; `code_points`
+ * is a best-effort count. See `io.readUtf8` for the validating reader. */
 void *lox_io_read_file(const void *pointer) {
     const LoxStr *path = pointer;
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
@@ -276,6 +321,8 @@ void *lox_io_read_file(const void *pointer) {
                              utf8_code_points(buffer.data, buffer.length));
 }
 
+/* `io.writeFile`: truncates/creates the file and writes all bytes; 1 on success,
+ * 0 on any I/O error. */
 int32_t lox_io_write_file(const void *path_pointer, const void *text_pointer) {
     const LoxStr *path = path_pointer;
     const LoxStr *text = text_pointer;
@@ -294,6 +341,9 @@ int32_t lox_io_write_file(const void *path_pointer, const void *text_pointer) {
     return ok ? 1 : 0;
 }
 
+/* `io.readLine`: one line, stripping LF and a trailing CR; NULL at immediate EOF.
+ *
+ * NOTE: no UTF-8 validation here (the tree-walk raises on invalid input). */
 void *lox_io_read_line(void) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -311,6 +361,7 @@ void *lox_io_read_line(void) {
                              utf8_code_points(buffer.data, buffer.length));
 }
 
+/* `io.readAll`: all remaining stdin. No UTF-8 validation on this path. */
 void *lox_io_read_all(void) {
     LoxBuffer buffer;
     buffer_init(&buffer);
@@ -323,6 +374,11 @@ void *lox_io_read_all(void) {
                              utf8_code_points(buffer.data, buffer.length));
 }
 
+/* ---------------------------------------------------------------------------
+ * Filesystem
+ * --------------------------------------------------------------------------- */
+
+/* `fs.exists`: `stat`-based check for any file, directory or other entry. */
 int32_t lox_fs_exists(const void *path_pointer) {
     const LoxStr *path = path_pointer;
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
@@ -332,6 +388,7 @@ int32_t lox_fs_exists(const void *path_pointer) {
     return stat(path_copy, &info) == 0 ? 1 : 0;
 }
 
+/* `qsort` comparator: byte order (equivalent to code-point order in UTF-8). */
 int compare_dir_names(const void *left, const void *right) {
     const char *a = *(const char *const *)left;
     const char *b = *(const char *const *)right;
@@ -339,9 +396,9 @@ int compare_dir_names(const void *left, const void *right) {
 }
 
 /*
- * Lista ordenada por byte (equivale à ordem de code point em UTF-8), sem "." e "..",
- * para não vazar a ordem do diretório (I3). Devolve NULL quando não é um diretório
- * legível — a stdlib traduz para nil.
+ * Lists in byte order (equivalent to code-point order in UTF-8), excluding "." and
+ * "..", so the directory order never leaks (I3). Returns NULL when the path is not
+ * a readable directory; the stdlib translates that to nil.
  */
 void *lox_fs_list_dir(const void *path_pointer) {
     const LoxStr *path = path_pointer;
@@ -385,6 +442,11 @@ void *lox_fs_list_dir(const void *path_pointer) {
     return list;
 }
 
+/* ---------------------------------------------------------------------------
+ * OS and environment
+ * --------------------------------------------------------------------------- */
+
+/* `os.exit`: flushes both streams and exits; a code outside 0..255 is R1000. */
 void lox_os_exit(int64_t code, int32_t line, int32_t column) {
     if (code < 0 || code > 255) {
         lox_panic(line, column, "R1000",
@@ -395,6 +457,7 @@ void lox_os_exit(int64_t code, int32_t line, int32_t column) {
     exit((int)code);
 }
 
+/* `os.getenv`: NULL becomes nil; the value is copied into a LoxStr. */
 void *lox_os_getenv(const void *name_pointer) {
     const LoxStr *name = name_pointer;
     char *name_copy = lox_alloc_atomic((size_t)name->byte_len + 1);
@@ -408,6 +471,11 @@ void *lox_os_getenv(const void *name_pointer) {
     return string_from_bytes(value, length, utf8_code_points(value, length));
 }
 
+/* ---------------------------------------------------------------------------
+ * Time (ambient)
+ * --------------------------------------------------------------------------- */
+
+/* `time.now`: milliseconds since the Unix epoch. */
 int64_t lox_time_now(void) {
     struct timespec timestamp;
     timespec_get(&timestamp, TIME_UTC);
@@ -415,6 +483,8 @@ int64_t lox_time_now(void) {
            (int64_t)(timestamp.tv_nsec / 1000000);
 }
 
+/* `time.sleep`: no-op for 0, loops over `nanosleep` after EINTR; a negative
+ * duration is R1000. */
 void lox_time_sleep(int64_t milliseconds, int32_t line, int32_t column) {
     if (milliseconds < 0) {
         lox_panic(line, column, "R1000",
@@ -424,6 +494,6 @@ void lox_time_sleep(int64_t milliseconds, int32_t line, int32_t column) {
     duration.tv_sec = (time_t)(milliseconds / 1000);
     duration.tv_nsec = (long)((milliseconds % 1000) * 1000000);
     while (nanosleep(&duration, &duration) == -1) {
-        /* interrupção por sinal: continua o restante */
+        /* interrupted by a signal: continue with the remaining time */
     }
 }

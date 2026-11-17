@@ -1,14 +1,14 @@
-# std.paths (T2): caminhos POSIX, manipulação lexical (sem tocar no disco).
+# std.paths (T2): lexical POSIX paths, no filesystem access.
 import std.paths as paths
 
 print(paths.isAbsolute("/a"))
 print(paths.isAbsolute("a"))
 print(paths.split("/a//b/./c"))
 print(paths.split(""))
-print(paths.join("a", "b"))
-print(paths.join("a/", "b"))
-print(paths.join("/a", "/b"))
-print(paths.join("a", ""))
+print(paths.joinPath("a", "b"))
+print(paths.joinPath("a/", "b"))
+print(paths.joinPath("/a", "/b"))
+print(paths.joinPath("a", ""))
 print(repr(paths.basename("/a/b/")))
 print(paths.basename("/"))
 print(paths.basename(""))

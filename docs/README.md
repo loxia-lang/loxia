@@ -1,56 +1,56 @@
-# Documentação da linguagem
+# Language documentation
 
-Portal da documentação técnica, sintática e das decisões de design.
+Portal to the technical and syntax documentation and to the design decisions.
 
-> **Idioma:** a vitrine pública (README, CONTRIBUTING, SECURITY, Code of Conduct,
-> templates, CI e commits) é em inglês. A especificação, os ADRs e o roadmap ainda estão
-> em português; a tradução está em [`../TODO.md`](../TODO.md) §14.2
+> **Language:** the public showcase (README, CONTRIBUTING, SECURITY, Code of Conduct,
+> templates, CI and commits) is in English. The specification and the technical docs are
+> now in English; the 1.0 archive and the existing ADRs remain in Portuguese
 > ([ADR-0102](adr/0102-ingles-na-vitrine-e-docs-pt-br.md)).
 
-> **Estado:** a especificação descreve o interpretador **como ele existe hoje** (Lox da
-> Parte II do livro + `fn`, `elif`, `;` opcional, `val`/`var`, `?.`/`??`, ternário,
-> escapes, listas `List[T]`, API híbrida `len`/`str`/`repr` + métodos e checker
-> `--check`). O que ainda é plano está em [`../TODO.md`](../TODO.md) §1/§2,
-> [`../IDEIAS.md`](../IDEIAS.md) e [`../TIPOS.md`](../TIPOS.md), e **não** vale para o
-> código atual.
+> **Status:** the specification describes the interpreter **as it exists today** (the Lox
+> from Part II of the book + `fn`, `elif`, optional `;`, `val`/`var`, `?.`/`??`, ternary,
+> escapes, `List[T]` lists, the hybrid `len`/`str`/`repr` API + methods and the `--check`
+> checker). What is still a plan lives in [`../TODO.md`](../TODO.md) §1/§2,
+> [`../IDEIAS.md`](../IDEIAS.md) and [`../TIPOS.md`](../TIPOS.md), and does **not** apply to
+> the current code.
 
-## Fontes de verdade
+## Sources of truth
 
-| Pergunta | Onde |
+| Question | Where |
 | --- | --- |
-| O que a linguagem faz hoje? | [`spec/`](spec/) — léxico, sintaxe, semântica, erros |
-| Como funciona por dentro? | [`tech/arquitetura.md`](tech/arquitetura.md) |
-| Por que decidimos X? | [`adr/`](adr/) — Architecture Decision Records |
-| Quais decisões já foram tomadas? | [`decisoes.md`](decisoes.md) — resumo executivo + links |
-| O que é 1.0 e o que é depois? | [`../ESCOPO.md`](../ESCOPO.md) |
-| O que ainda está em aberto? | [`../TODO.md`](../TODO.md) §11 |
-| O que queremos fazer depois? | [`../TODO.md`](../TODO.md), [`../IDEIAS.md`](../IDEIAS.md) |
-| Pendências de tipos | [`../TIPOS.md`](../TIPOS.md) |
-| Regras para agentes/devs | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) e `.dsh/skills/` |
+| What does the language do today? | [`spec/`](spec/) — lexicon, syntax, semantics, errors |
+| How does it work inside? | [`tech/arquitetura.md`](tech/arquitetura.md) |
+| Why did we decide X? | [`adr/`](adr/) — Architecture Decision Records |
+| Which decisions have already been made? | [`decisoes.md`](decisoes.md) — executive summary + links |
+| What is 1.0 and what comes after? | [`../ESCOPO.md`](../ESCOPO.md) |
+| What is still open? | [`../TODO.md`](../TODO.md) §11 |
+| What do we want to do later? | [`../TODO.md`](../TODO.md), [`../IDEIAS.md`](../IDEIAS.md) |
+| Pending type issues | [`../TIPOS.md`](../TIPOS.md) |
+| Rules for agents/devs | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) and `.dsh/skills/` |
 
-Regra de manutenção: **mudou comportamento → muda `spec/` no mesmo commit**. Decisão difícil
-de reverter → novo ADR. Discussão ainda aberta → `IDEIAS.md`/`TODO.md`, não `spec/`.
+Maintenance rule: **behavior changed → `spec/` changes in the same commit**. A decision that
+is hard to reverse → a new ADR. Discussion still open → `IDEIAS.md`/`TODO.md`, not `spec/`.
 
-## Especificação
+## Specification
 
-1. [Léxico](spec/lexico.md) — arquivos, comentários, tokens, literais, palavras-chave.
-2. [Sintaxe](spec/sintaxe.md) — gramática EBNF, precedência, desugaring do `for`.
-3. [Semântica](spec/semantica.md) — valores, escopos, funções, classes, herança, erros.
-4. [Erros](spec/erros.md) — mensagens, fases, exit codes.
+1. [Lexicon](spec/lexico.md) — files, comments, tokens, literals, keywords.
+2. [Syntax](spec/sintaxe.md) — EBNF grammar, precedence, `for` desugaring.
+3. [Semantics](spec/semantica.md) — values, scopes, functions, classes, inheritance, errors.
+4. [Errors](spec/erros.md) — messages, phases, exit codes.
 
-## Técnica
+## Technical
 
-- [Arquitetura](tech/arquitetura.md) — pipeline, módulos, visitor, environments, resolver.
+- [Architecture](tech/arquitetura.md) — pipeline, modules, visitor, environments, resolver.
 
 ## Design
 
-- [Decisões já tomadas](decisoes.md) — resumo executivo; a fonte de verdade são os ADRs.
-- [ADRs](adr/README.md) — processo, template e índice.
-  - [ADR-0001](adr/0001-registrar-decisoes-em-adrs.md) — registrar decisões em ADRs.
-  - [ADR-0002](adr/0002-tree-walk-como-oraculo.md) — tree-walk é a especificação executável.
-  - [ADR-0003](adr/0003-diagnosticos-por-execucao.md) — diagnósticos por execução.
-  - [ADR-0004](adr/0004-identidade-dos-nos-de-ast.md) — nós de AST têm identidade.
-  - [ADR-0005](adr/0005-val-var-imutabilidade.md) — `val`/`var` e imutabilidade.
-  - [ADR-0015](adr/0015-listas-tipadas.md) — listas `List[T]`.
-  - [ADR-0016](adr/0016-api-stdlib-hibrida.md) — API híbrida da stdlib.
-- [Glossário](glossario.md)
+- [Decisions already made](decisoes.md) — executive summary; the source of truth is the ADRs.
+- [ADRs](adr/README.md) — process, template and index.
+  - [ADR-0001](adr/0001-registrar-decisoes-em-adrs.md) — recording decisions in ADRs.
+  - [ADR-0002](adr/0002-tree-walk-como-oraculo.md) — the tree-walk is the executable specification.
+  - [ADR-0003](adr/0003-diagnosticos-por-execucao.md) — per-run diagnostics.
+  - [ADR-0004](adr/0004-identidade-dos-nos-de-ast.md) — AST nodes have identity.
+  - [ADR-0005](adr/0005-val-var-imutabilidade.md) — `val`/`var` and immutability.
+  - [ADR-0015](adr/0015-listas-tipadas.md) — `List[T]` lists.
+  - [ADR-0016](adr/0016-api-stdlib-hibrida.md) — hybrid stdlib API.
+- [Glossary](glossario.md)

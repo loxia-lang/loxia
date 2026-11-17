@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.numeric — inteiros e estatísticas (T1), em Lox puro.
-# Funções de domínio inválido levantam RuntimeError; estatísticas devolvem nil
-# para lista vazia. A variância é populacional (divide por n).
+# std.numeric — integers and statistics (T1), pure Lox.
+#
+# Invalid domains raise `RuntimeError`; statistics return `nil` for an empty list. The
+# variance is population variance (divides by n). Integer arithmetic follows the language
+# rules, so `Int` products wrap on overflow outside `--debug`.
 
 import std.lists as lists
 
@@ -23,6 +25,8 @@ fn _compareInt(left: Int, right: Int) -> Int {
 }
 
 /// Returns the non-negative greatest common divisor.
+///
+/// Signs are ignored and `gcd(0, 0)` is 0.
 fn gcd(left: Int, right: Int) -> Int {
   var a = _abs(left)
   var b = _abs(right)
@@ -35,6 +39,8 @@ fn gcd(left: Int, right: Int) -> Int {
 }
 
 /// Returns the non-negative least common multiple.
+///
+/// Returns 0 when either argument is 0; a large product can wrap like any `Int` product.
 fn lcm(left: Int, right: Int) -> Int {
   if (left == 0 or right == 0) {
     return 0
@@ -43,7 +49,9 @@ fn lcm(left: Int, right: Int) -> Int {
   return _abs((left // divisor) * right)
 }
 
-/// Returns whether an integer is prime.
+/// Returns whether the integer is prime.
+///
+/// Values below 2 are not prime; 2 is prime and larger even numbers are rejected early.
 fn isPrime(value: Int) -> Bool {
   if (value < 2) {
     return false
@@ -64,7 +72,9 @@ fn isPrime(value: Int) -> Bool {
   return true
 }
 
-/// Returns all primes up to `limit`.
+/// Returns all primes up to and including `limit`, in ascending order.
+///
+/// `limit < 2` yields `[]`.
 fn primes(limit: Int) -> List[Int] {
   val result: List[Int] = []
   var value = 2
@@ -77,7 +87,10 @@ fn primes(limit: Int) -> List[Int] {
   return result
 }
 
-/// Returns `value!`; negative input raises `RuntimeError`.
+/// Returns `value!`.
+///
+/// Negative input raises `RuntimeError`; an overflowing result wraps like any `Int`
+/// product.
 fn factorial(value: Int) -> Int {
   if (value < 0) {
     raise RuntimeError("factorial() expects a non-negative integer.")
@@ -91,7 +104,10 @@ fn factorial(value: Int) -> Int {
   return result
 }
 
-/// Returns `base ** exponent (mod modulus)`.
+/// Returns `base ** exponent` modulo `modulus`.
+///
+/// `modulus` must be positive and `exponent` non-negative, otherwise `RuntimeError` is
+/// raised. A negative `base` is normalized before the modular arithmetic.
 fn powMod(base: Int, exponent: Int, modulus: Int) -> Int {
   if (modulus <= 0) {
     raise RuntimeError("powMod() expects a positive modulus.")
@@ -112,7 +128,9 @@ fn powMod(base: Int, exponent: Int, modulus: Int) -> Int {
   return result
 }
 
-/// Returns the sum of decimal digits.
+/// Returns the sum of the decimal digits.
+///
+/// The sign is ignored, so `digitSum(-42)` is 6; `digitSum(0)` is 0.
 fn digitSum(value: Int) -> Int {
   var rest = value
   var total = 0
@@ -127,12 +145,12 @@ fn digitSum(value: Int) -> Int {
   return total
 }
 
-/// Returns whether the integer is even.
+/// Returns whether the integer is even. Negative values follow the same parity rule.
 fn isEven(value: Int) -> Bool {
   return value % 2 == 0
 }
 
-/// Returns whether the integer is odd.
+/// Returns whether the integer is odd. Negative values follow the same parity rule.
 fn isOdd(value: Int) -> Bool {
   return value % 2 != 0
 }
@@ -148,7 +166,7 @@ fn sign(value: Int) -> Int {
   return 0
 }
 
-/// Returns the arithmetic mean, or `nil` for an empty list.
+/// Returns the arithmetic mean as `Float`, or `nil` for an empty list.
 fn mean(values: List[Int]) -> Float? {
   if (len(values) == 0) {
     return nil
@@ -160,7 +178,10 @@ fn mean(values: List[Int]) -> Float? {
   return total / len(values)
 }
 
-/// Returns the median, or `nil` for an empty list.
+/// Returns the median as `Float`, or `nil` for an empty list.
+///
+/// A copy is sorted, so the input list is not modified. For an even length the two
+/// middle values are averaged.
 fn median(values: List[Int]) -> Float? {
   if (len(values) == 0) {
     return nil
@@ -175,6 +196,8 @@ fn median(values: List[Int]) -> Float? {
 }
 
 /// Returns the most frequent value, or `nil` for an empty list.
+///
+/// Ties keep the value that first reaches the highest count in list order.
 fn mode(values: List[Int]) -> Int? {
   if (len(values) == 0) {
     return nil
@@ -197,6 +220,8 @@ fn mode(values: List[Int]) -> Int? {
 }
 
 /// Returns the population variance, or `nil` for an empty list.
+///
+/// Divides by n, not by n-1.
 fn variance(values: List[Int]) -> Float? {
   val average = mean(values)
   if (average == nil) {
@@ -211,6 +236,8 @@ fn variance(values: List[Int]) -> Float? {
 }
 
 /// Returns the population standard deviation, or `nil` for an empty list.
+///
+/// Square root of `variance`.
 fn stddev(values: List[Int]) -> Float? {
   val spread = variance(values)
   if (spread == nil) {
@@ -220,6 +247,9 @@ fn stddev(values: List[Int]) -> Float? {
 }
 
 /// Rounds to `digits` decimal places.
+///
+/// Negative digits are allowed and round to tens, hundreds and so on, because the scale
+/// is `10.0 ** digits`.
 fn roundTo(value: Float, digits: Int) -> Float {
   val factor = 10.0 ** digits
   return (math.round(value * factor) as Float) / factor
@@ -229,7 +259,9 @@ fn _digitChar(digit: Int) -> String {
   return substr("0123456789abcdefghijklmnopqrstuvwxyz", digit, digit + 1)
 }
 
-/// Formats an integer in base 2..36.
+/// Formats an integer in base 2..36 using lowercase digits.
+///
+/// Negative values keep a leading `-`; an invalid base raises `RuntimeError`.
 fn toBase(value: Int, base: Int) -> String {
   if (base < 2 or base > 36) {
     raise RuntimeError("toBase() expects a base between 2 and 36.")
@@ -268,6 +300,9 @@ fn _digitValue(code: Int) -> Int {
 }
 
 /// Parses an integer in base 2..36, returning `nil` when invalid.
+///
+/// Accepts an optional `+`/`-` and lowercase or uppercase digits. An invalid base raises
+/// `RuntimeError`; invalid digits or an empty string return `nil`.
 fn fromBase(text: String, base: Int) -> Int? {
   if (base < 2 or base > 36) {
     raise RuntimeError("fromBase() expects a base between 2 and 36.")

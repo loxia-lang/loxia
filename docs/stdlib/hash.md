@@ -15,12 +15,19 @@ Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes.
 
 ### `fn fnv1a32(text: String) -> Int`
 
-FNV-1a de 32 bits (0..4294967295) dos bytes UTF-8 de `text`.
+Returns the 32-bit FNV-1a hash of the UTF-8 bytes of `text`.
+
+The result is masked to 0..4294967295, so it is never negative.
 
 ### `fn fnv1a64(text: String) -> Int`
 
-FNV-1a de 64 bits dos bytes UTF-8; devolve o padrão de bits em i64 (pode negar).
+Returns the 64-bit FNV-1a hash of the UTF-8 bytes of `text`.
+
+The result is the i64 bit pattern and may be negative; compare it as an `Int`, not
+as an unsigned value.
 
 ### `fn djb2(text: String) -> Int`
 
-djb2 de 32 bits (0..4294967295) dos bytes UTF-8 de `text`.
+Returns the 32-bit djb2 hash of the UTF-8 bytes of `text`.
+
+The result is masked to 0..4294967295, so it is never negative.

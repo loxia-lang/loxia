@@ -1,20 +1,35 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /*
- * Processos e streams do kernel (ADR-0095): `posix_spawnp`, pipes e `poll(2)`.
+ * proc.c — kernel processes and streams (ADR-0095): `posix_spawnp`, pipes and
+ * `poll(2)`.
  *
- * Sem shell e sem thread: argv é lista, os três canais são pipes e a concorrência é
- * `poll`. Handles são ids 1-based numa tabela fixa; 0 nunca é válido. O estado e as
- * mensagens de erro são idênticos aos do oráculo (`proc_runtime.py`).
+ * Who calls it: `std/proc.lx` through the `process.*` primitives (kernel_gen.h).
+ * The interpreter uses `proc_runtime.py`; messages and semantics must match.
+ *
+ * Invariants:
+ *  - no shell, no threads: argv is a `List[String]` and concurrency is `poll`;
+ *  - handles are 1-based ids in `lox_proc_handles`; 0 is never valid;
+ *  - a process owns three streams (stdin/stdout/stderr); `close` frees them all;
+ *  - `read` only returns complete UTF-8 prefixes and keeps up to 3 pending bytes;
+ *  - SIGPIPE is ignored in core.c so `write` returns EPIPE/false.
+ *
+ * ADRs: 0095 (processes), 0071 (kernel).
  */
 #include "lox_runtime.h"
 #include "kernel_gen.h"
 
 extern char **environ;
 
+/* ---------------------------------------------------------------------------
+ * Handle table
+ * --------------------------------------------------------------------------- */
+
 #define LOX_MAX_PROC_HANDLES 256
 
+/* One slot of the fixed handle table. `kind` 0 is free, 1 stream, 2 process.
+ * `pending` keeps up to 3 bytes of an incomplete UTF-8 sequence. */
 typedef struct {
-    int kind; /* 0 livre, 1 stream, 2 processo */
+    int kind; /* 0 free, 1 stream, 2 process */
     int fd;
     pid_t pid;
     int status;
@@ -24,8 +39,10 @@ typedef struct {
     size_t pending_len;
 } LoxProcHandle;
 
+/* Fixed table; ids are 1-based indexes into this array. */
 static LoxProcHandle lox_proc_handles[LOX_MAX_PROC_HANDLES];
 
+/* Validates an id and returns its slot; R1000 for a zero/out-of-range/free id. */
 static LoxProcHandle *proc_handle_at(int64_t id, int32_t line, int32_t column) {
     if (id < 1 || id > LOX_MAX_PROC_HANDLES) {
         lox_panic(line, column, "R1000", "proc: invalid handle.");
@@ -39,6 +56,8 @@ static LoxProcHandle *proc_handle_at(int64_t id, int32_t line, int32_t column) {
     return handle;
 }
 
+/* Like `proc_handle_at`, but also checks the expected kind and reports a
+ * primitive-specific message. */
 static LoxProcHandle *proc_require(int64_t id, int kind, const char *name,
                                    int32_t line, int32_t column) {
     LoxProcHandle *handle = proc_handle_at(id, line, column);
@@ -55,6 +74,7 @@ static LoxProcHandle *proc_require(int64_t id, int kind, const char *name,
     return handle;
 }
 
+/* Finds a free slot and initializes it; 0 when the table is full. */
 static int64_t proc_new(int kind) {
     for (int index = 0; index < LOX_MAX_PROC_HANDLES; index++) {
         if (lox_proc_handles[index].kind == 0) {
@@ -68,6 +88,7 @@ static int64_t proc_new(int kind) {
     return 0;
 }
 
+/* Stores the wait status: exit code, or the negated signal number. */
 static void proc_record_status(LoxProcHandle *process, int status) {
     process->has_status = 1;
     process->status = WIFEXITED(status) ? WEXITSTATUS(status)
@@ -75,6 +96,12 @@ static void proc_record_status(LoxProcHandle *process, int status) {
                                             : -1;
 }
 
+/* ---------------------------------------------------------------------------
+ * Spawn and channels
+ * --------------------------------------------------------------------------- */
+
+/* Creates three pipes, dup2s them into the child and spawns without a shell.
+ * Returns the process id, or 0 on failure (closing every opened fd and slot). */
 int64_t lox_proc_spawn(const void *argv_pointer) {
     const LoxList *argv = argv_pointer;
     if (argv->count < 1) {
@@ -181,21 +208,25 @@ int64_t lox_proc_spawn(const void *argv_pointer) {
     return process_id;
 }
 
+/* `process.stdin`: stream id of the child's stdin pipe. */
 int64_t lox_proc_stdin(int64_t id, int32_t line, int32_t column) {
     LoxProcHandle *process = proc_require(id, 2, "process.stdin", line, column);
     return process == NULL ? 0 : process->streams[0];
 }
 
+/* `process.stdout`: stream id of the child's stdout pipe. */
 int64_t lox_proc_stdout(int64_t id, int32_t line, int32_t column) {
     LoxProcHandle *process = proc_require(id, 2, "process.stdout", line, column);
     return process == NULL ? 0 : process->streams[1];
 }
 
+/* `process.stderr`: stream id of the child's stderr pipe. */
 int64_t lox_proc_stderr(int64_t id, int32_t line, int32_t column) {
     LoxProcHandle *process = proc_require(id, 2, "process.stderr", line, column);
     return process == NULL ? 0 : process->streams[2];
 }
 
+/* `process.wait`: waits once (retrying EINTR), records and caches the status. */
 int64_t lox_proc_wait(int64_t id, int32_t line, int32_t column) {
     LoxProcHandle *process = proc_require(id, 2, "process.wait", line, column);
     if (process == NULL) {
@@ -216,6 +247,8 @@ int64_t lox_proc_wait(int64_t id, int32_t line, int32_t column) {
     return process->status;
 }
 
+/* `process.kill`: returns 0 when the child was already reaped; otherwise sends
+ * SIGKILL and reports whether the signal was delivered. */
 int32_t lox_proc_kill(int64_t id, int32_t line, int32_t column) {
     LoxProcHandle *process = proc_require(id, 2, "process.kill", line, column);
     if (process == NULL || process->has_status) {
@@ -230,6 +263,8 @@ int32_t lox_proc_kill(int64_t id, int32_t line, int32_t column) {
     return kill(process->pid, SIGKILL) == 0 ? 1 : 0;
 }
 
+/* `process.close`: closes the stream fd, or all three child streams, and frees
+ * the slot. It does not kill a running child. */
 void lox_proc_close(int64_t id, int32_t line, int32_t column) {
     LoxProcHandle *handle = proc_handle_at(id, line, column);
     if (handle == NULL) {
@@ -252,7 +287,11 @@ void lox_proc_close(int64_t id, int32_t line, int32_t column) {
     memset(handle, 0, sizeof *handle);
 }
 
-/* Maior prefixo que termina em fronteira de caractere UTF-8 (ver proc_runtime.py). */
+/* ---------------------------------------------------------------------------
+ * Stream reads and writes
+ * --------------------------------------------------------------------------- */
+
+/* Longest prefix that ends on a UTF-8 character boundary (see proc_runtime.py). */
 static size_t utf8_complete_prefix(const unsigned char *data, size_t length) {
     size_t cut = length;
     size_t back = 0;
@@ -272,6 +311,8 @@ static size_t utf8_complete_prefix(const unsigned char *data, size_t length) {
     return have >= need ? length : cut - 1;
 }
 
+/* `process.read`: up to `count` bytes, carrying an incomplete UTF-8 sequence in
+ * `pending`. Returns NULL at EOF with no bytes; invalid UTF-8 is R1000. */
 void *lox_proc_read(int64_t id, int64_t count, int32_t line, int32_t column) {
     LoxProcHandle *stream = proc_require(id, 1, "process.read", line, column);
     if (stream == NULL) {
@@ -345,6 +386,7 @@ void *lox_proc_read(int64_t id, int64_t count, int32_t line, int32_t column) {
                              utf8_code_points((const char *)buffer, total));
 }
 
+/* `process.write`: writes every byte, retrying EINTR; 0 when the pipe is closed. */
 int32_t lox_proc_write(int64_t id, const void *text_pointer, int32_t line,
                        int32_t column) {
     LoxProcHandle *stream = proc_require(id, 1, "process.write", line, column);
@@ -368,6 +410,11 @@ int32_t lox_proc_write(int64_t id, const void *text_pointer, int32_t line,
     return 1;
 }
 
+/* ---------------------------------------------------------------------------
+ * Poll
+ * --------------------------------------------------------------------------- */
+
+/* Appends an id to `ready[]`, avoiding duplicates. */
 static void proc_ready_push(int64_t *ready, size_t *count, int64_t id) {
     for (size_t index = 0; index < *count; index++) {
         if (ready[index] == id) {
@@ -378,6 +425,9 @@ static void proc_ready_push(int64_t *ready, size_t *count, int64_t id) {
     *count += 1;
 }
 
+/* `process.poll`: processes are reaped with waitpid(WNOHANG); streams use
+ * poll(2). Returns the ready ids (deduplicated). `timeout_ms < 0` waits forever;
+ * processes without an fd make the loop wake periodically to check them. */
 void *lox_proc_poll(const void *ids_pointer, int64_t timeout_ms, int32_t line,
                     int32_t column) {
     const LoxList *ids = ids_pointer;
@@ -446,7 +496,7 @@ void *lox_proc_poll(const void *ids_pointer, int64_t timeout_ms, int32_t line,
                            ? 0
                            : (remaining > 60000 ? 60000 : (int)remaining);
             } else if (has_processes) {
-                /* sem deadline, acorda para checar processos sem fd */
+                /* no deadline: wake up to check processes without an fd */
                 wait = 10;
             }
             int result = poll(fds, (nfds_t)fd_count, wait);
@@ -461,7 +511,7 @@ void *lox_proc_poll(const void *ids_pointer, int64_t timeout_ms, int32_t line,
                 break;
             }
         } else {
-            /* sem fd: dorme um pouco para não girar (inclusive com lista vazia) */
+            /* no fd: sleep briefly to avoid spinning (also with an empty list) */
             struct timespec pause = {0, 5 * 1000 * 1000};
             nanosleep(&pause, NULL);
         }

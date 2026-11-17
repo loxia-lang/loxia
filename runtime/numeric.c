@@ -1,20 +1,46 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-/* Aritmética com borda definida, `math.*` e parse (ADR-0006, ADR-0028, ADR-0029). */
+/*
+ * numeric.c — defined-edge arithmetic, `math.*`, numeric parsing and
+ * `Int`/`Float` conversions.
+ *
+ * Who calls it: the expression lowering (lower.py, lower_math.py,
+ * lower_optionals.py) and the stdlib/`Int.parse`/`Float.parse`. Every operation
+ * that can fail receives a call site (`line, column`) and calls `lox_panic`, to
+ * reproduce the tree-walk diagnostic.
+ *
+ * Invariants:
+ *  - `//` truncates toward zero; `INT64_MIN // -1` returns `INT64_MIN`;
+ *  - `%` follows the dividend sign; division/modulo by zero is R1002;
+ *  - `**` with a negative exponent is R1006; the result wraps as i64;
+ *  - `math.*` consults neither locale nor global state;
+ *  - `Int.parse`/`Float.parse` return `nil` (tag 0) for invalid input.
+ *
+ * ADRs: 0006 (Int/Float), 0028 (overflow/wrapping), 0029 (conversions/math).
+ */
 #include "lox_runtime.h"
 
 
+/* ---------------------------------------------------------------------------
+ * math.* (ADR-0029)
+ * --------------------------------------------------------------------------- */
+
+/* `abs(Int)`: INT64_MIN returns INT64_MIN (wrapping), with no UB. */
 int64_t lox_math_abs_int(int64_t value) {
     return value < 0 ? (int64_t)(0u - (uint64_t)value) : value;
 }
 
+/* `abs(Float)`; NaN keeps its input bit pattern. */
 double lox_math_abs_float(double value) {
     return fabs(value);
 }
 
+/* `sqrt`; domain/NaN follow C semantics (the checker does not reject them). */
 double lox_math_sqrt(double value) {
     return sqrt(value);
 }
 
+/* `floor`/`ceil`/`round`/`trunc` return Int through `lox_float_to_int`, with
+ * R1011 for NaN, infinity or values outside the i64 range. */
 int64_t lox_math_floor(double value, int32_t line, int32_t column) {
     return lox_float_to_int(floor(value), line, column);
 }
@@ -31,6 +57,12 @@ int64_t lox_math_trunc(double value, int32_t line, int32_t column) {
     return lox_float_to_int(trunc(value), line, column);
 }
 
+/* ---------------------------------------------------------------------------
+ * Numeric parsing (ADR-0029)
+ * --------------------------------------------------------------------------- */
+
+/* `Int.parse`: optional sign and digits only; returns `nil` (tag 0) for empty
+ * input, an invalid character or i64 overflow. */
 LoxValue lox_parse_int(const void *pointer) {
     const LoxStr *string = pointer;
     const char *data = string->data;
@@ -69,6 +101,8 @@ LoxValue lox_parse_int(const void *pointer) {
     return some;
 }
 
+/* `Float.parse`: `strtod` with full consumption; rejects trailing garbage, NaN
+ * and inf. Returns a boxed `{tag 2, bit pattern}`. */
 LoxValue lox_parse_float(const void *pointer) {
     const LoxStr *string = pointer;
     LoxValue nil = {0, 0};
@@ -92,6 +126,11 @@ LoxValue lox_parse_float(const void *pointer) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * Power, shifts and cast
+ * --------------------------------------------------------------------------- */
+
+/* Int `**` by squaring, with i64 wrapping; a negative exponent is R1006. */
 int64_t lox_int_pow(int64_t base, int64_t exponent, int32_t line,
                     int32_t column) {
     if (exponent < 0) {
@@ -113,6 +152,8 @@ int64_t lox_int_pow(int64_t base, int64_t exponent, int32_t line,
     return (int64_t)result;
 }
 
+/* Int shifts: kind 0 = `<<`, 1 = arithmetic `>>`, 2 = logical `>>>`.
+ * A count outside 0..63 is R1006. */
 int64_t lox_shift(int64_t value, int64_t count, int32_t kind, int32_t line,
                   int32_t column) {
     if (count < 0 || count > 63) {
@@ -128,6 +169,8 @@ int64_t lox_shift(int64_t value, int64_t count, int32_t kind, int32_t line,
     return (int64_t)((uint64_t)value >> (uint64_t)count);
 }
 
+/* `Float -> Int` cast: truncates toward zero; NaN, infinity or values outside
+ * the i64 range are R1011. */
 int64_t lox_float_to_int(double value, int32_t line, int32_t column) {
     if (isnan(value) || isinf(value) || value < -9223372036854775808.0 ||
         value >= 9223372036854775808.0) {
@@ -138,10 +181,14 @@ int64_t lox_float_to_int(double value, int32_t line, int32_t column) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * Division and remainder
+ * --------------------------------------------------------------------------- */
+
 /*
- * `//`: divisão inteira truncada em direção a zero, com wrapping de i64 em release
- * (ADR-0028). O interpretador devolve INT_MIN para INT_MIN // -1; em C e em LLVM isso
- * é UB, então o caso é resolvido explicitamente.
+ * `//`: integer division truncated toward zero, with i64 wrapping in release
+ * (ADR-0028). The interpreter returns INT_MIN for INT_MIN // -1; in C and LLVM
+ * that is UB, so the case is handled explicitly.
  */
 int64_t lox_int_div(int64_t left, int64_t right, int32_t line,
                     int32_t column) {
@@ -154,7 +201,7 @@ int64_t lox_int_div(int64_t left, int64_t right, int32_t line,
     return left / right;
 }
 
-/* `/`: sempre Float. Divisão por zero é erro fatal, como no interpretador. */
+/* `/`: always Float. Division by zero is a fatal error, as in the interpreter. */
 double lox_float_div(double left, double right, int32_t line,
                      int32_t column) {
     if (right == 0.0) {
@@ -163,7 +210,7 @@ double lox_float_div(double left, double right, int32_t line,
     return left / right;
 }
 
-/* `%` com Float: `fmod`, sinal do dividendo, e zero é erro (como no interpretador). */
+/* Float `%`: `fmod`, dividend sign, and zero is an error (as in the interpreter). */
 double lox_float_mod(double left, double right, int32_t line,
                      int32_t column) {
     if (right == 0.0) {
@@ -172,7 +219,7 @@ double lox_float_mod(double left, double right, int32_t line,
     return fmod(left, right);
 }
 
-/* `%`: resto truncado (sinal do dividendo), como `srem`. INT_MIN % -1 é 0. */
+/* `%`: truncated remainder (dividend sign), like `srem`. INT_MIN % -1 is 0. */
 int64_t lox_int_mod(int64_t left, int64_t right, int32_t line,
                     int32_t column) {
     if (right == 0) {

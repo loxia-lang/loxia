@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""`Int.parse`/`Float.parse`: conversão explícita de texto, sem crash."""
+"""`Int.parse`/`Float.parse`: explicit text conversion without crashing.
+
+Public contract in `loxia/builtins_docs.py`; the regexes below define exactly
+which spellings are accepted. Invalid input returns `nil`; a non-string argument
+raises `NativeError`.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +23,8 @@ _FLOAT_RE = re.compile(r"[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
 
 
 class IntParse:
+    """`Int.parse` — optional sign + ASCII digits; i64 overflow returns nil."""
+
     def min_arity(self) -> int:
         return 1
 
@@ -42,6 +49,8 @@ class IntParse:
 
 
 class FloatParse:
+    """`Float.parse` — decimal/fraction/exponent; non-finite returns nil."""
+
     def min_arity(self) -> int:
         return 1
 

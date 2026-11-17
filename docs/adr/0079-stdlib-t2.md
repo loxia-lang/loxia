@@ -167,7 +167,7 @@ tocado.
   `test_kernel_read_all_nativo`, `test_campos_container_nativos`,
   `test_std_fs_nativo`, `test_std_io_nativo`, `test_map_key_any_error`.
 - `tests/cases/map_key_any_error.lx` no nível `l6` prova o `R1014` idêntico.
-- `exemplos/vendas.lx` é o programa real (CSV → agregação → tabela → JSON) que roda e
+- `examples/sales.lx` é o programa real (CSV → agregação → tabela → JSON) que roda e
   compila.
 - Revisitar se: constraints de chave entrarem (campo de `Set` volta a `Map[T, Bool]`),
   `Any` virar campo (representação nova), ou o kernel passar de 17 (novo ADR).

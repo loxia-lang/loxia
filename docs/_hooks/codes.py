@@ -45,8 +45,8 @@ PHASES: tuple[Phase, ...] = (
 )
 
 HEADINGS = {
-    Phase.LEXER: "### Léxico",
-    Phase.PARSER: "### Sintaxe",
+    Phase.LEXER: "### Lexicon",
+    Phase.PARSER: "### Syntax",
     Phase.RESOLVER: "### Resolver",
     Phase.CHECKER: "### Checker",
     Phase.BACKEND: "### Backend",
@@ -61,7 +61,7 @@ def render() -> str:
     for phase in PHASES:
         lines.append(HEADINGS[phase])
         lines.append("")
-        lines.append("| Código | Família |")
+        lines.append("| Code | Family |")
         lines.append("| --- | --- |")
         codes = sorted(
             (code for code in Code if CODE_PHASE[code] == phase),

@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
+"""`chars`: split a string into one-code-point strings (docs: loxia/builtins_docs.py)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,7 +13,10 @@ if TYPE_CHECKING:
 
 
 class Chars:
-    """`chars(s)` — code points da string, cada um como `String` de 1 cp."""
+    """Returns a `List[String]` with one element per Unicode code point.
+
+    A non-string argument raises `NativeError`; the empty string yields `[]`.
+    """
 
     def min_arity(self) -> int:
         return 1

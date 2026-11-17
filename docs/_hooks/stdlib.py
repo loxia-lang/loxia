@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from loxia import docgen  # noqa: E402
-from loxia.builtins_docs import BUILTIN_DOCS  # noqa: E402
+from loxia.builtins_docs import BUILTIN_DOCS, BuiltinDoc  # noqa: E402
 from loxia_core.bundle import bundle_dir  # noqa: E402
 from loxia_core.diagnostics.error_reporter import ErrorReporter  # noqa: E402
 from loxia_core.frontend.parser import Parser  # noqa: E402
@@ -22,31 +22,31 @@ OUT = ROOT / "docs" / "stdlib"
 STD = bundle_dir("std")
 
 MODULES = {
-    "asserts": "Assertions that raise `RuntimeError` on failure.",
-    "cli": "Deterministic command-line parsing.",
-    "convert": "Text conversions (integer/float/bool, Base64, hex).",
-    "csv": "RFC 4180 CSV parsing and serialization.",
-    "fmt": "Formatting helpers (templates, padding, numbers, byte sizes).",
-    "fs": "File reading/writing (ambient: outside I1).",
-    "io": "Standard input/output (ambient where it blocks).",
+    "asserts": "Explicit failures for tests and contracts. Every helper raises `RuntimeError`.",
+    "cli": "Deterministic command-line parsing from a declarative spec.",
+    "convert": "Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes.",
+    "csv": "RFC 4180 CSV parsing and serialization, with CRLF output.",
+    "fmt": "Locale-free formatting helpers (templates, padding, numbers, byte sizes).",
+    "fs": "File reading and writing. Ambient: outside the I1 corpus.",
+    "io": "Standard input/output. The read functions are ambient where they block.",
     "log": "Leveled logging to stderr, without timestamps.",
-    "collections": "Stack, Queue, Deque and PriorityQueue.",
+    "collections": "Stack, Queue, Deque and PriorityQueue, backed by lists.",
     "hash": "Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes.",
-    "rand": "Deterministic PRNG with an explicit seed.",
-    "timex": "UTC date/time helpers (no timezone).",
+    "rand": "Deterministic xorshift64* PRNG with an explicit seed.",
+    "timex": "UTC date/time helpers over integer epoch seconds; no timezones.",
     "iter": "Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`).",
-    "json": "RFC 8259 JSON with insertion-ordered objects.",
-    "lists": "Generic list combinators.",
-    "maps": "Helpers for `Map[String, V]`.",
-    "numeric": "Integer number theory and statistics.",
-    "paths": "Lexical POSIX path helpers.",
-    "proc": "Processes, streams and `poll` (POSIX, ambient).",
-    "property": "Property-based testing with generators, shrinking and seeds.",
+    "json": "RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.",
+    "lists": "Generic list combinators; every function leaves the input unchanged.",
+    "maps": "Helpers for `Map[String, V]` that preserve insertion order.",
+    "numeric": "Integer number theory and population statistics.",
+    "paths": "Lexical POSIX path helpers; no filesystem access.",
+    "proc": "Processes, streams and `poll` (POSIX, ambient: outside I1/I3).",
+    "property": "Deterministic property-based testing with generators, shrinking and seeds.",
     "results": "Combinators for `Result[T, E]`.",
-    "sets": "`Set[T]` backed by `Map[Any, Bool]`.",
+    "sets": "`Set[T]` backed by `Map[Any, Bool]`, preserving insertion order.",
     "utf8": "UTF-8 and UTF-16 widths (bytes, code units, columns).",
-    "strings": "UTF-8 text operations over code points.",
-    "test": "Mini-harness de testes (TAP, `Suite`, matchers, `Recorder`).",
+    "strings": "UTF-8 text operations over code points, not bytes or UTF-16 units.",
+    "test": "Mini test harness with TAP output, hooks, matchers and a recorder.",
 }
 
 
@@ -85,6 +85,10 @@ def _module_page(module: str) -> str:
     )
 
 
+def _builtin_entry(lines: list[str], item: BuiltinDoc, level: str) -> None:
+    lines.extend([f"{level} `{item.signature}`", "", item.doc, ""])
+
+
 def _builtins_page() -> str:
     lines = [
         "---",
@@ -97,21 +101,31 @@ def _builtins_page() -> str:
         "",
         "# Builtins and kernel",
         "",
-        "Global names and native namespaces documented from `loxia/builtins_docs.py`.",
-        "They are available without an import; `std.*` modules are documented separately.",
-        "",
-        "## Global functions and namespaces",
+        "Global names available without an import, generated from `loxia/builtins_docs.py`.",
+        "Namespaces are read-only. `std.*` modules are documented separately.",
         "",
     ]
-    for item in BUILTIN_DOCS:
-        if "." in item.name:
-            continue
-        lines.extend([f"### `{item.signature}`", "", item.doc, ""])
-    lines.extend(["## Native module members", ""])
-    for item in BUILTIN_DOCS:
-        if "." not in item.name:
-            continue
-        lines.extend([f"### `{item.signature}`", "", item.doc, ""])
+    functions = [item for item in BUILTIN_DOCS if item.kind == "function" and "." not in item.name]
+    if functions:
+        lines.extend(["## Global functions", ""])
+        for item in functions:
+            _builtin_entry(lines, item, "###")
+
+    modules = [item for item in BUILTIN_DOCS if item.kind == "module"]
+    if modules:
+        lines.extend(["## Namespaces", ""])
+        for module in modules:
+            _builtin_entry(lines, module, "###")
+            members = [item for item in BUILTIN_DOCS if item.name.startswith(module.name + ".")]
+            for member in members:
+                _builtin_entry(lines, member, "####")
+
+    types = [item for item in BUILTIN_DOCS if item.kind == "type"]
+    if types:
+        lines.extend(["## Built-in types", ""])
+        for item in types:
+            _builtin_entry(lines, item, "###")
+
     return "\n".join(lines).rstrip() + "\n"
 
 

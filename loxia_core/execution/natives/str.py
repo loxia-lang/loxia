@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
+"""`str`: display representation (docs: loxia/builtins_docs.py)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,7 +12,11 @@ if TYPE_CHECKING:
 
 
 class Str:
-    """`str(valor)` — representação de exibição, sem aspas em string."""
+    """Returns the display representation.
+
+    Strings are returned unchanged; other values match `print` without the
+    trailing newline.
+    """
 
     def min_arity(self) -> int:
         return 1

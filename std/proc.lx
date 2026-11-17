@@ -1,45 +1,53 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.proc — processos e streams (T2, ambiente: fora do I1/I3).
-# Casca em Lox sobre `proc.*`: sem shell, sem thread; `poll` é a concorrência.
+# std.proc — processes and streams (T2, ambient: outside I1/I3), thin Lox shell.
+#
+# Wraps `proc.*`: no shell and no threads; `poll` is the concurrency primitive. Handles
+# are opaque ids that must be closed explicitly, and `run` can block when writing more
+# than the pipe buffer (~64 KiB) to a child that is not reading.
 
-/// Fluxo de bytes de um processo (`stdin`, `stdout` ou `stderr`).
+/// Byte stream of a child process (`stdin`, `stdout` or `stderr`).
 class Stream {
-  /// Handle do stream em `proc.*`.
+  /// Stream handle used by `proc.*`.
   val id: Int
 
-  /// Cria a casca em volta de um handle já existente.
+  /// Wraps an existing stream handle.
   init(id: Int) {
     this.id = id
   }
 
-  /// Lê até `n` bytes; `nil` no fim do stream. Sempre em fronteira de UTF-8.
+  /// Reads up to `n` bytes, or `nil` at end of stream.
+  ///
+  /// Reading stops at a UTF-8 boundary, so the returned text is always valid even when
+  /// `n` lands inside a multi-byte code point.
   fn read(n: Int) -> String? {
     return process.read(this.id, n)
   }
 
-  /// Escreve todo o texto; `false` se o outro lado fechou.
+  /// Writes all text, returning `false` when the other side closed the pipe.
   fn write(text: String) -> Bool {
     return process.write(this.id, text)
   }
 
-  /// Fecha o descritor; usar o stream depois disso é erro.
+  /// Closes the descriptor; using the stream afterwards is an error.
+  ///
+  /// Close each handle once: a second close raises for an unknown handle.
   fn close() -> Nil {
     process.close(this.id)
   }
 }
 
-/// Processo filho com os três canais em pipes.
+/// Child process with its three channels connected to pipes.
 class Process {
-  /// Handle do processo em `proc.*`.
+  /// Process handle used by `proc.*`.
   val id: Int
-  /// Canal de entrada do filho.
+  /// Child's standard input.
   val stdin: Stream
-  /// Canal de saída do filho.
+  /// Child's standard output.
   val stdout: Stream
-  /// Canal de erro do filho.
+  /// Child's standard error.
   val stderr: Stream
 
-  /// Cria a casca em volta de um processo já iniciado.
+  /// Wraps an already-started process handle; prefer `spawn`.
   init(id: Int) {
     this.id = id
     this.stdin = Stream(process.stdin(id))
@@ -47,32 +55,36 @@ class Process {
     this.stderr = Stream(process.stderr(id))
   }
 
-  /// Espera o processo terminar; código negativo significa sinal.
+  /// Waits for the process to exit and returns its status.
+  ///
+  /// A negative status means the child was terminated by a signal.
   fn wait() -> Int {
     return process.wait(this.id)
   }
 
-  /// Mata com `SIGKILL`; `false` se o processo já tinha saído.
+  /// Sends `SIGKILL`, returning `false` when the process already exited.
   fn kill() -> Bool {
     return process.kill(this.id)
   }
 
-  /// Fecha os canais e libera o handle (não mata um processo em execução).
+  /// Closes the channels and releases the handle.
+  ///
+  /// Does not kill a process that is still running; call `kill` first if needed.
   fn close() -> Nil {
     process.close(this.id)
   }
 }
 
-/// Saída capturada por `run`.
+/// Captured output of a finished `run`.
 class Output {
-  /// Código de saída (negativo quando o filho morreu por sinal).
+  /// Exit code (negative when the child died from a signal).
   val code: Int
-  /// Tudo o que o filho escreveu em stdout.
+  /// Everything the child wrote to stdout.
   val stdout: String
-  /// Tudo o que o filho escreveu em stderr.
+  /// Everything the child wrote to stderr.
   val stderr: String
 
-  /// Monta o resultado de uma execução.
+  /// Builds the result of a finished run.
   init(code: Int, stdout: String, stderr: String) {
     this.code = code
     this.stdout = stdout
@@ -80,7 +92,10 @@ class Output {
   }
 }
 
-/// Inicia `argv` (sem shell) com pipes nos três canais; `nil` se não conseguiu.
+/// Starts `argv` without a shell, with pipes on all three channels.
+///
+/// Returns `nil` when the process cannot be started. `argv[0]` is resolved by the OS,
+/// not by a shell, so no quoting or command interpolation happens.
 fn spawn(argv: List[String]) -> Process? {
   val id = process.spawn(argv)
   if (id == 0) {
@@ -89,11 +104,12 @@ fn spawn(argv: List[String]) -> Process? {
   return Process(id)
 }
 
-/// Roda `argv` até o fim e devolve código e saída; `nil` em falha ou timeout.
+/// Runs `argv` to completion and returns its exit code and captured output.
 ///
-/// `stdin` é escrito antes do primeiro `poll` (limite prático: o buffer do pipe,
-/// ~64 KiB; texto maior pode bloquear se o filho não ler). `timeoutMs > 0` mata o
-/// processo e devolve `nil`. Sem shell e sem interpolação de comando.
+/// `stdin` is written before the first `poll` (practical limit: the pipe buffer,
+/// ~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the
+/// process and returns `nil`. There is no shell and no command interpolation; `nil` also
+/// means the process could not be started.
 fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Output? {
   val child = spawn(argv)
   if (child == nil) {

@@ -280,55 +280,12 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 > **PR 9** (release 1.1.0 + PyPI + GitHub Release) e o **flip para público** com os ajustes
 > de segurança do GitHub.
 
-- [x] **Licença:** código sob `MIT OR Apache-2.0` com `LICENSE-MIT`, `LICENSE-APACHE` e
-  `NOTICE`; PEP 639 no `pyproject`; contribuições inbound=outbound com DCO, sem CLA
-  ([ADR-0101](docs/adr/0101-licenca-dual-e-politica-de-contribuicao.md)).
-  `tests/official/` permanece MIT.
-- [x] **Histórico e repo:** `git filter-repo` removeu `IDEIAS-REDDIT.md` de todos os
-  commits; a árvore do HEAD foi conferida contra o backup; a `v1.0.0` foi recriada no
-  commit reescrito; backup em `.tmp-phase0/` (ignorado). O repo novo é
-  `loxia-lang/loxia`; o antigo foi arquivado, não apagado.
-- [x] **Comunidade:** [CONTRIBUTING.md](CONTRIBUTING.md) (setup, `make check`, Conventional
-  Commits, DCO, portões do [ADR-0014](docs/adr/0014-identidade-e-invariantes.md) e do
-  [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md), política de IA),
-  [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1, reporte privado pelo
-  formulário de Security Advisories com `[conduct]`; sem e-mail) e
-  [SECURITY.md](SECURITY.md) (crash/panic, miscompile I1, escape do sandbox do `--emit`,
-  path traversal; semântica é issue, não CVE). `GOVERNANCE.md` fica para o segundo
-  mantenedor.
-- [x] **Templates:** [`.github/ISSUE_TEMPLATE/bug.yml`](.github/ISSUE_TEMPLATE/bug.yml)
-  (versão, instalação, caso mínimo `.lx`, comando/saída),
-  [`feature.yml`](.github/ISSUE_TEMPLATE/feature.yml) (as quatro perguntas do ADR-0066
-  quando for sintaxe) e [`PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) com o
-  DoD público e o checklist de IA/DCO.
-- [x] **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)): `uv` e
-  `github-actions`, semanal e agrupado; major de `llvmlite` ignorado (acoplado ao LLVM).
-  `pip` separado não é necessário: o ecossistema `uv` cobre `pyproject.toml`/`uv.lock`.
-  O Dependabot já abriu o PR #1 (`ruff` 0.17.5); falta rebase/merge.
-- [x] **CI endurecido:** [`ci.yml`](.github/workflows/ci.yml) com jobs de lint/format,
-  typecheck, unit (3.13 e 3.14), backend nativo, docs/grammar, wheel/install, commits/DCO e
-  o agregador `CI success`; `permissions: contents: read`, `concurrency`, timeouts, ações
-  pinadas por SHA e cache do runtime. CodeQL Python em
-  [`codeql.yml`](.github/workflows/codeql.yml), **skipped enquanto o repo é privado**
-  (code scanning exige Advanced Security em repo privado); CodeQL C fica para depois.
-- [x] **Release workflow:** [`release.yml`](.github/workflows/release.yml) confere a tag
-  contra o `pyproject`, builda, atesta a proveniência, cria GitHub Release e publica no
-  PyPI via Trusted Publishing (OIDC). Ainda não foi executado; depende do PR 9 e do
-  pending publisher.
-- [x] **README/vitrine:** [README.md](README.md) em inglês, com badges de CI/licença/Python,
-  sample executado por teste, status honesto, instalação, CLI, documentação, contribuição e
-  licença; [ADR-0102](docs/adr/0102-ingles-na-vitrine-e-docs-pt-br.md) fixa a política de
-  idioma e [docs/README.md](docs/README.md) declara que a spec/ADRs seguem em pt-BR.
-- [x] **Higiene:** `.gitattributes` com `* text=auto eol=lf`, `.editorconfig`, `.gitignore`
-  revisado e badges no README. Branch/tag protection, secret scanning e private
-  vulnerability reporting ficam para o flip (o repo privado em plano free devolve 404 em
-  parte dessas APIs).
 - [ ] **PR 9 — release 1.1.0:** bump de versão, CHANGELOG 1.1.0 em inglês, tag `v1.1.0`,
   PyPI com pending publisher/2FA e badge PyPI no README. **Não fazer antes de fechar a
   revisão da Fase 1.**
 - [ ] **Flip para público:** tornar `loxia-lang/loxia` público, habilitar CodeQL,
   private vulnerability reporting, secret scanning/push protection, branch/tag protection,
-  topics e social preview; criar a issue de tradução da spec.
+  topics e social preview.
 - **Custo/risco:** público significa issue e PR de estranho; sem `CONTRIBUTING` a triagem
   vira ruído. E publicar **congela** API — por isso o
   [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md) veio antes.
@@ -338,82 +295,17 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 > **Status 2026-11-17:** desenho fechado no
 > [ADR-0103](docs/adr/0103-site-de-documentacao-e-versionamento.md). A implementação vai do
 > scaffold ao deploy em 7 PRs; o site é **build de `docs/`**, nunca fonte paralela.
-> PRs 1–7 implementados em 2026-11-17; o deploy fica condicionado ao flip público.
-
-Princípio: o site é uma projeção de `docs/` + `docs/i18n/` + `docs/versions/`, com busca,
-navegação e dark mode. O front matter `sources:` e o `freshness.py` continuam a fonte de
-verdade por página; o build injeta “verificado no commit X” e valida links.
-
-**Decisões fechadas**
-
-- **Stack:** Astro Starlight em [`site/`](site/), Node 24, npm e lockfile próprio. Node
-  fica isolado do runtime Python; o wheel e o comando `loxia` não dependem dele.
-- **Idiomas:** inglês na raiz (`/`), pt-BR em `/pt/`; Starlight faz fallback para inglês
-  quando uma página pt não existe. A referência 1.1 é publicada em pt-BR em
-  `/pt/reference/*`; `/reference` é uma landing inglesa que explica a tradução e aponta
-  para a referência portuguesa. Quando a tradução EN existir, `/reference/*` vira a versão
-  inglesa e `/pt/reference/*` permanece a portuguesa.
-- **Versionamento:** só a **referência** é versionada. `/pt/reference/*` é 1.1 (atual) e
-  `/pt/1.0/reference/*` é o arquivo 1.0, com banner e sem seletor global. Learn/why/
-  cookbook/stdlib/changelog são sempre atuais. O snapshot 1.0 é uma cópia congelada e
-  commitada de `v1.0.0`, com links normalizados; não usamos `starlight-versions`.
-  Enquanto o release 1.1.0 não sai, os rótulos são **1.0 (stable)** e **1.1 (next)**.
-- **URLs:** GitHub Pages project site (`site: https://loxia-lang.github.io`,
-  `base: /loxia`); links internos relativos. Domínio custom fica para depois, com redirect.
-- **i18n:** páginas traduzidas em `docs/i18n/<locale>/...` com
-  `translated_from: <sha>`; o build nunca traduz; `tools/docs_i18n.py` reporta traduções
-  defasadas e o site mostra o aviso. Inglês original (learn/why/cookbook) não é tradução.
-- **Fora do launch:** playground (WASM/servidor exige sandbox e orçamento), analytics por
-  padrão, versionar learn/why/cookbook e renderizar ADRs. `llms.txt`/MCP ficam na §14.3.
-
-**Estrutura de URLs**
-
-| URL | Fonte | Idioma/versão |
-| --- | --- | --- |
-| `/` | `docs/i18n/en/index.md` | EN |
-| `/why/` | `docs/i18n/en/why.md` | EN |
-| `/learn/...` | `docs/i18n/en/learn/` | EN (original) |
-| `/cookbook/...` | `docs/i18n/en/cookbook/` | EN (original) |
-| `/stdlib/...` | `docs/stdlib/` gerado | EN |
-| `/changelog/` | `docs/i18n/en/changelog.md` + link do GitHub | EN |
-| `/reference/` | `docs/i18n/en/reference/index.md` | EN (landing) |
-| `/pt/reference/...` | `docs/spec/` | pt-BR, 1.1 |
-| `/pt/1.0/reference/...` | `docs/versions/1.0/reference/` | pt-BR, 1.0 arquivado |
-
-**Pipeline e gates**
-
-- `tools/docs_site.py`: staging para `site/src/content/docs/` (ignorado), mapeia spec/
-  stdlib/versions/i18n, remove `sources:` do front matter e injeta título, ordem, banner de
-  versão e a linha de frescor.
-- `tools/docs_versions.py`: gera `docs/versions/<versão>/reference/` a partir de um tag,
-  normaliza links e escreve o manifesto.
-- `tools/docs_i18n.py`: confere `translated_from` e reporta traduções defasadas.
-- `make docs-build` = `docs-sync` + staging + `npm run build` + link check;
-  `docs-dev`, `docs-links`, `docs-i18n-check`, `docs-version`.
-- `ci.yml` ganha o job `site` (build + link check) no `CI success`; `docs.yml` faz deploy
-  no `main` com permissões mínimas de Pages. Enquanto o repo é privado, o deploy fica
-  condicionado ao flip (Pages privado exige plano pago); o build roda no CI.
-- O `tests/test_docs_links.py` continua o gate da fonte; o link check cobre o HTML.
-
-**PRs**
-
-- [x] 1. ADR-0103 + este desenho no TODO.
-- [x] 2. Scaffold `site/` Starlight + `tools/docs_site.py` + build local.
-- [x] 3. Mapeamento da referência 1.1, stdlib, changelog e landing `/reference`.
-- [x] 4. Versionamento 1.0/1.1 (snapshot congelado, banner/seletor).
-- [x] 5. Home/Why/Learn em inglês + snippets testados.
-- [x] 6. i18n/`translated_from`, job `site` no CI e workflow de deploy Pages.
-- [x] 7. Cookbook, favicon/SEO/link check e polimento.
+> PRs 1–7 implementados em 2026-11-17; a referência normativa foi traduzida para inglês em
+> `docs/spec/` no mesmo dia; o deploy fica condicionado ao flip público.
 
 **Pendências do 14.2:** habilitar Pages no flip público (`docs.yml` está
-condicionado a `repository.visibility == public`), criar a issue de tradução EN da
-referência, trocar os rótulos 1.1 (next)/1.0 (stable) depois do PR 9 e ajustar os
-redirects de `/reference/*` e `/1.0/reference/*` se o `base`/domínio mudar. O build do
-site já roda no CI.
+condicionado a `repository.visibility == public`), trocar os rótulos 1.1 (next)/1.0
+(stable) depois do PR 9 e ajustar os redirects de `/reference/*` e `/1.0/reference/*` se o
+`base`/domínio mudar. O build do site já roda no CI.
 
-**Riscos:** duplicação/idade do snapshot 1.0; tradução EN da referência ser o caminho
-crítico; duas toolchains (Node + Python) e Dependabot npm; links absolutos quebrarem no
-`base /loxia`; conteúdo do Learn envelhecer se os snippets não forem testados.
+**Riscos:** duplicação/idade do snapshot 1.0; manter a referência EN em passo com
+`docs/spec/`; duas toolchains (Node + Python) e Dependabot npm; links absolutos quebrarem
+no `base /loxia`; conteúdo do Learn envelhecer se os snippets não forem testados.
 
 ### 14.3 Servidor MCP (`loxia-mcp`)
 
@@ -526,7 +418,7 @@ Adoção ampla não é meta de projeto solo — é consequência improvável de 
       [`IDEIAS.md`](IDEIAS.md) I-14): ler os commits desde a última tag, parsear
       Conventional Commits e emitir Markdown para o release; começar no CI/release, sem
       hook de commit.
-- [ ] Tutorial de 30 min (base do `/learn` da §14.2) e cookbook a partir de `exemplos/`.
+- [ ] Tutorial de 30 min (base do `/learn` da §14.2) e cookbook a partir de `examples/`.
 - [ ] Página "por que Loxia": os três casos de uso reais + I1–I4 + orçamentos, em uma
       página; sem comparação com Python/Kotlin que não seja "para este caso, aqui".
 - [ ] Transparência: o README e os ADRs já dizem "Cássio + agente"; manter isso declarado,
@@ -552,7 +444,7 @@ não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
       build; `loxia run` funciona offline.
 - [ ] **Fase 2 — git**: `dep = { git = "...", rev = "..." }` (`path` já implementado no
       [ADR-0100](docs/adr/0100-dependencias-path.md)). Critério: monorepo real em
-      `exemplos/` compila nos dois motores.
+      `examples/` compila nos dois motores.
 - [ ] **Fase 3 — índice estático**: índice *sparse* (JSON por pacote) + tarball por versão +
       `loxia add nome@1.2`. **Só entra com demanda de terceiro**; hospedar é barato, moderar
       nome não.
@@ -573,7 +465,7 @@ real, scripts de build em pacote (risco de supply chain), pacote binário, mirro
 | `std/` | package data, versão = versão do compilador, resolvida pelo loader |
 | `docs/spec/`, ADRs, `docs/_hooks/` | frescor (`sources:`) e links apontam para o código |
 | `tests/` (casos + manifesto + diferencial) | é o corpus do I1; teste não pode depender de fetch |
-| `exemplos/`, `bench/` | rodam na suíte |
+| `examples/`, `bench/` | rodam na suíte |
 
 | Repo próprio | Quando | Dependência |
 | --- | --- | --- |

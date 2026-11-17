@@ -6,23 +6,23 @@ sources:
   - loxia_core/loader/manifest.py
 ---
 
-# Sintaxe
+# Syntax
 
-Gramática do parser atual ([`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py)) — recursive descent,
-uma função por nível de precedência.
+Grammar of the current parser ([`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py)) — recursive descent,
+one function per precedence level.
 
-> Isto é o **Lox implementado**. A sintaxe alvo da linguagem própria
-> (`break`/`continue`, por exemplo) está em [`../../TODO.md`](../../TODO.md) §1.
-> `fn`, `elif`, o `;` opcional, ternário, `??`, `?.`, interpolação, escapes, `not`,
-> destructuring aninhado, `"""` e raw strings já existem; `val`/`var` existem desde o
+> This is the **implemented Lox**. The target syntax of the language itself
+> (`break`/`continue`, for example) is in [`../../TODO.md`](../../TODO.md) §1.
+> `fn`, `elif`, the optional `;`, ternary, `??`, `?.`, interpolation, escapes, `not`,
+> nested destructuring, `"""` and raw strings already exist; `val`/`var` have existed since
 > ADR-0005.
 
 
-Trailing comma é aceito (e canônico no formatter) em parâmetros, chamadas,
-listas, mapas e tuplas **quando a construção é multiline**; enums e `match` continuam
-sem vírgula final.
+Trailing comma is accepted (and canonical in the formatter) in parameters, calls,
+lists, maps and tuples **when the construct is multiline**; enums and `match` remain
+without a trailing comma.
 
-## Gramática (EBNF)
+## Grammar (EBNF)
 
 ```ebnf
 program        → declaration* EOF ;
@@ -60,13 +60,13 @@ valDecl        → "val" ( IDENTIFIER ( ":" type )? "=" expression
                | destructure ( ":" type )? "=" expression ) terminator ;
 
 destructure    → "(" pattern ( "," pattern )+ ")" ;
-pattern        → IDENTIFIER | destructure ;   (* recursivo: (a, (b, c)) *)
+pattern        → IDENTIFIER | destructure ;   (* recursive: (a, (b, c)) *)
 
 type           → unionType ;
 unionType      → postfixType ( "|" postfixType )* ;
 postfixType    → primaryType ( "?" )* ;
 primaryType    → IDENTIFIER ( "[" type ( "," type )* "]" )?
-               | "(" type "," type ( "," type )* ")"   (* tupla *)
+               | "(" type "," type ( "," type )* ")"   (* tuple *)
                | "(" type ")" ;
 
 statement      → exprStmt
@@ -78,7 +78,7 @@ statement      → exprStmt
                | raiseStmt
                | block ;
 
-terminator     → ";"? ;   (* ver “Ponto e vírgula opcional” *)
+terminator     → ";"? ;   (* see "Optional semicolon" *)
 
 exprStmt       → expression terminator ;
 forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
@@ -96,7 +96,7 @@ raiseStmt      → "raise" expression? terminator ;
 block          → "{" declaration* "}" ;
 
 expression     → assignment ;
-assignment     → conditional ( "=" assignment )? ;   (* alvo: variável, propriedade ou índice *)
+assignment     → conditional ( "=" assignment )? ;   (* target: variable, property or index *)
 conditional    → coalesce ( "if" coalesce "else" conditional )? ;
 coalesce       → logic_or ( "??" coalesce )? ;
 logic_or       → logic_and ( "or" logic_and )* ;
@@ -118,7 +118,7 @@ arguments      → ( expression ( "," expression )* ( "," spread )? ) | spread ;
 spread         → "..." expression ;
 primary        → "true" | "false" | "nil" | "this"
                | NUMBER | STRING | INTERPOLATED_STRING | IDENTIFIER
-               | "(" expression ( "," expression )+ ")"   (* tupla *)
+               | "(" expression ( "," expression )+ ")"   (* tuple *)
                | "(" expression ")"
                | "super" "." IDENTIFIER
                | "[" ( expression ( "," expression )* )? "]"
@@ -133,51 +133,51 @@ pattern        → "_" | IDENTIFIER "." IDENTIFIER
 lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | block ) ;
 ```
 
-`try` exige pelo menos um `except`/`finally`; `raise` sem expressão só dentro de
-`except` (relança). `except Exception as e` é o catch-all e deve ser o último.
+`try` requires at least one `except`/`finally`; `raise` without an expression only inside
+`except` (rethrows). `except Exception as e` is the catch-all and must be last.
 
-`enum` declara variantes namespaced (`Cor.Verde`, `Shape.Circle(1.0)`); `match` é
-expressão e exige enum exaustivo (ver [`semantica.md`](semantica.md)). `Result` é um enum
-embutido com `Ok(T)`/`Err(E)`.
+`enum` declares namespaced variants (`Color.Green`, `Shape.Circle(1.0)`); `match` is an
+expression and requires an exhaustive enum (see [`semantica.md`](semantica.md)). `Result` is a built-in
+enum with `Ok(T)`/`Err(E)`.
 
-`INTERPOLATED_STRING` é o literal `"texto ${expressão} mais texto"`; a expressão é qualquer
-`expression` e pode conter outra string interpolada. `\${` e `\$` escapam o cifrão.
+`INTERPOLATED_STRING` is the literal `"text ${expression} more text"`; the expression is any
+`expression` and may contain another interpolated string. `\${` and `\$` escape the dollar sign.
 
-Defaults de parâmetro e inicializadores de campo são **constantes na v1** (literal,
-`nil`, `true`/`false`, `-` de literal numérico ou parênteses em torno disso). Parâmetros
-obrigatórios vêm antes dos opcionais; campos podem aparecer antes ou depois dos métodos.
+Parameter defaults and field initializers are **constants in v1** (literal,
+`nil`, `true`/`false`, `-` of a numeric literal or parentheses around that). Required
+parameters come before optional ones; fields may appear before or after methods.
 
-Anotações de tipo são opcionais para o interpretador (que as ignora); no modo `--check`
-as funções precisam de anotações em todos os parâmetros e no retorno (lambdas em `val`
-podem inferir e generalizar; ver T4). `T?` é açúcar para
-`T | Nil`; `Int` é non-null. `List[T]` e `Map[K, V]` são os únicos genéricos: o nome é
-capitalizado, `List`/`Map` sem argumentos é erro e `list[int]`/`map[...]` também (com
-sugestão de capitalização). Em `Map[K, V]`, `K` precisa ser `String`, `Int`, `Bool` (ou
-união desses); `Map[Float, V]`, `Map[List[T], V]` etc. são erro de tipo.
+Type annotations are optional for the interpreter (which ignores them); in `--check`
+mode functions need annotations on all parameters and on the return (lambdas in `val`
+may infer and generalize; see T4). `T?` is sugar for
+`T | Nil`; `Int` is non-null. `List[T]` and `Map[K, V]` are the only generics: the name is
+capitalized, `List`/`Map` without arguments is an error and `list[int]`/`map[...]` too (with
+a capitalization suggestion). In `Map[K, V]`, `K` must be `String`, `Int`, `Bool` (or a
+union of those); `Map[Float, V]`, `Map[List[T], V]` etc. are type errors.
 
-Tipos de função são escritos `fn(Int, String) -> Bool`; `fn()` não tem parâmetros. A seta
-liga ao tipo de retorno, então `fn(Int) -> Int | Nil` devolve `Int | Nil`. Para a própria
-função ser opcional, use parênteses: `(fn(Int) -> Int)?`. Ver
+Function types are written `fn(Int, String) -> Bool`; `fn()` has no parameters. The arrow
+binds to the return type, so `fn(Int) -> Int | Nil` returns `Int | Nil`. For the function
+itself to be optional, use parentheses: `(fn(Int) -> Int)?`. See
 [ADR-0021](../adr/0021-tipos-de-funcao.md).
 
-Lambdas usam `fn` em posição de expressão:
+Lambdas use `fn` in expression position:
 
 ```
 lambda := "fn" "(" params? ")" ("->" type)? ( "=>" expression | block )
 ```
 
 ```lox
-val dobro = fn(x: Int) => x * 2
-val soma = fn(a: Int, b: Int) { return a + b }
+val double = fn(x: Int) => x * 2
+val sum = fn(a: Int, b: Int) { return a + b }
 aplicar(fn(x) => x * 2, 3)
 ```
 
-`=>` introduz corpo de expressão (o valor é o retorno); `{ ... }` introduz bloco com
-`return` explícito. `-> Tipo` é opcional antes de qualquer corpo. Parâmetros seguem as
-regras de funções, **menos defaults** (`fn(x: Int = 1) => ...` é erro). `fn(` em expressão
-é lambda; `fn nome(` é declaração. Ver [ADR-0022](../adr/0022-lambdas.md).
+`=>` introduces an expression body (the value is the return); `{ ... }` introduces a block with
+an explicit `return`. `-> Type` is optional before any body. Parameters follow the
+function rules, **minus defaults** (`fn(x: Int = 1) => ...` is an error). `fn(` in an expression
+is a lambda; `fn name(` is a declaration. See [ADR-0022](../adr/0022-lambdas.md).
 
-Type aliases são declarações top-level com `type` **contextual** (não é palavra-chave):
+Type aliases are top-level declarations with **contextual** `type` (it is not a keyword):
 
 ```lox
 type UserId = Int
@@ -185,68 +185,68 @@ type Nomes = List[String]
 type Callback = fn(Int) -> Int
 ```
 
-O alvo usa a gramática normal de tipos, pode referenciar classes/interfaces/enums/aliases
-declarados antes ou depois e não pode ser genérico (`type BoxAlias[T] = ...` é erro). O
-alias é transparente: `UserId` e `Int` são o mesmo tipo em anotações, `is`/`as` e no
-backend. Ver [ADR-0039](../adr/0039-decisoes-tipos-pendentes.md) e
+The target uses the normal type grammar, may reference classes/interfaces/enums/aliases
+declared before or after and cannot be generic (`type BoxAlias[T] = ...` is an error). The
+alias is transparent: `UserId` and `Int` are the same type in annotations, `is`/`as` and in the
+backend. See [ADR-0039](../adr/0039-decisoes-tipos-pendentes.md) and
 [ADR-0084](../adr/0084-type-alias.md).
 
-Funções genéricas declaram parâmetros de tipo entre o nome e `(`:
+Generic functions declare type parameters between the name and `(`:
 
 ```lox
 fn id[T] (x: T) -> T { return x; }
 fn map[T, U] (xs: List[T], f: fn(T) -> U) -> List[U] { ... }
 ```
 
-`T`/`U` são nomes comuns (ASCII), válidos em `: T`, `-> T`, `List[T]`, `Map[String, T]`,
-`fn(T) -> U` e no corpo. Não há type application explícita: `id(1)` infere `T = Int`;
-`id[Int] (1)` **não** existe. Chamadas sem argumento/contexto que permitam inferir todos os
-`T` são erro.
+`T`/`U` are ordinary names (ASCII), valid in `: T`, `-> T`, `List[T]`, `Map[String, T]`,
+`fn(T) -> U` and in the body. There is no explicit type application: `id(1)` infers `T = Int`;
+`id[Int] (1)` does **not** exist. Calls without an argument/context that allows inferring every
+`T` are an error.
 
-Funções genéricas podem declarar **constraints** depois de `:`, unidas por `+`:
+Generic functions may declare **constraints** after `:`, joined by `+`:
 
 ```lox
 fn max[T: Ord] (a: T, b: T) -> T { ... }
 fn juntas[T: A + B] (x: T) -> String { ... }
 ```
 
-`Ord` e `Num` são constraints embutidas; nomes de interface também valem. Na v1 só
-funções aceitam bounds: `class C[T: Ord]` e `enum E[T: Ord]` são erro de parser
-(`Constraints on class type parameters aren't supported yet.`). Classes genéricas
-(`class Box[T]`) existem e inferem os argumentos no construtor; métodos com `[T]`
-continuam recusados no `--check`. Herança de classe genérica (`class C(Box[Int])`) ainda
-não existe. Ver [ADR-0027](../adr/0027-generics-t3b.md),
-[ADR-0040](../adr/0040-generics-classes-desenho.md) e
+`Ord` and `Num` are built-in constraints; interface names also work. In v1 only
+functions accept bounds: `class C[T: Ord]` and `enum E[T: Ord]` are a parser error
+(`Constraints on class type parameters aren't supported yet.`). Generic classes
+(`class Box[T]`) exist and infer the arguments at the constructor; methods with `[T]`
+remain rejected in `--check`. Generic class inheritance (`class C(Box[Int])`) does not
+exist yet. See [ADR-0027](../adr/0027-generics-t3b.md),
+[ADR-0040](../adr/0040-generics-classes-desenho.md) and
 [ADR-0081](../adr/0081-constraints-generics.md).
 
-`expr is Tipo` é uma expressão booleana; o lado direito usa a gramática de tipos e o
-operador fica no nível de comparação. `is` testa primitivos, classes/subclasses,
-`List[T]`/`Map[K, V]` (elementos inclusos) e uniões; tipos de função são recusados no
-`--check`. `Animal` como valor não é instância: `Animal is Animal` é `false`. Ver
+`expr is Type` is a boolean expression; the right side uses the type grammar and the
+operator sits at the comparison level. `is` tests primitives, classes/subclasses,
+`List[T]`/`Map[K, V]` (elements included) and unions; function types are rejected in
+`--check`. `Animal` as a value is not an instance: `Animal is Animal` is `false`. See
 [ADR-0025](../adr/0025-is-e-narrowing.md).
 
-Em **contexto de expressão** a união exige parênteses: `x is (Int | String)` é válido,
-mas `x is Int | String` é erro de sintaxe. O `|` é também o operador bitwise; sem o
-parêntese o parser não sabe se ele pertence ao tipo ou à expressão. Anotações
-(`val x: Int | String`, `-> Int | String`) continuam sem parênteses, porque ali não
-existe expressão concorrente. `as` segue a mesma gramática de tipo; união em `as` é
-recusada pelo checker (`as doesn't support union types`), não pelo parser.
+In **expression context** a union requires parentheses: `x is (Int | String)` is valid,
+but `x is Int | String` is a syntax error. `|` is also the bitwise operator; without the
+parenthesis the parser cannot tell whether it belongs to the type or to the expression. Annotations
+(`val x: Int | String`, `-> Int | String`) remain without parentheses, because there no
+concurrent expression exists. `as` follows the same type grammar; a union in `as` is
+rejected by the checker (`as doesn't support union types`), not by the parser.
 
-O literal de mapa só existe em **posição de expressão** (`val m = {...}`, argumento,
-`return`, condição). No início de um statement, `{` abre um **bloco**:
+The map literal only exists in **expression position** (`val m = {...}`, argument,
+`return`, condition). At the start of a statement, `{` opens a **block**:
 
 ```lox
-val m = {"a": 1}    # mapa
-{ "a": 1 }          # bloco: o ':' não é um statement válido
+val m = {"a": 1}    # map
+{ "a": 1 }          # block: ':' is not a valid statement
 ```
 
-No segundo caso o parser reporta um erro dirigido (`Unexpected ':'. Map literals can't
-start a statement...`) em vez do genérico `Expect ';' after expression.`
+In the second case the parser reports a targeted error (`Unexpected ':'. Map literals can't
+start a statement...`) instead of the generic `Expect ';' after expression.`
 
-## Ponto e vírgula opcional
+## Optional semicolon
 
-`;` termina statements e campos, mas pode ser omitido quando o próximo token começa em
-outra linha, no EOF ou num `}` de fechamento. Duas instruções na mesma linha ainda exigem
+`;` terminates statements and fields, but may be omitted when the next token starts on
+another line, at EOF or at a closing `}`. Two statements on the same line still require
 `;`.
 
 ```lox
@@ -256,18 +256,18 @@ print(a + b)
 
 val c = 1; val d = 2
 
-if (ok) { print("um") }     # `}` fecha o statement: `;` é opcional antes da chave
+if (ok) { print("um") }     # `}` closes the statement: `;` is optional before the brace
 ```
 
-Para continuar uma expressão na linha seguinte, deixe o **operador no fim** da linha:
+To continue an expression on the next line, leave the **operator at the end** of the line:
 
 ```lox
 val total = 1 +
   2            # ok: 3
 ```
 
-Dentro de `()`, `[]` e `{}` de expressão o operador também pode **começar** a linha,
-porque ali não existe um statement novo para iniciar:
+Inside `()`, `[]` and expression `{}` the operator may also **start** the line,
+because there is no new statement to start there:
 
 ```lox
 val total = (
@@ -276,125 +276,125 @@ val total = (
 )
 ```
 
-Fora de brackets, operador no começo da linha seguinte **não** continua a expressão; ele
-inicia outro statement:
+Outside brackets, an operator at the start of the next line does **not** continue the expression; it
+starts another statement:
 
 ```lox
 var x = 1
--2             # statement separado; x continua 1
+-2             # separate statement; x remains 1
 ```
 
-`return` sozinho no fim da linha devolve `nil`; para retornar um valor, mantenha-o na
-mesma linha do `return` (antes de `;`, `}` ou de outra linha, não precisa de `;`). Uma chamada com `(` precisa começar na mesma linha do callee;
-quebrar antes de `.` é permitido (encadeamento de propriedades). Os `;` do cabeçalho do
-`for` C-style continuam obrigatórios.
+A bare `return` at the end of the line returns `nil`; to return a value, keep it on the
+same line as the `return` (before `;`, `}`, or another line, no `;` is needed). A call with `(` must start on the same line as the callee;
+breaking before `.` is allowed (property chaining). The `;` of the C-style `for`
+header remain mandatory.
 
-`elif` é açúcar para `else if`, com a mesma exigência de parênteses na condição:
+`elif` is sugar for `else if`, with the same requirement of parentheses around the condition:
 
 ```lox
-if (n < 0) print("negativo")
+if (n < 0) print("negative")
 elif (n == 0) print("zero")
-else print("positivo")
+else print("positive")
 ```
 
-## Precedência e associatividade
+## Precedence and associativity
 
-Do menor para o maior:
+From lowest to highest:
 
-| Nível | Operadores | Associatividade |
+| Level | Operators | Associativity |
 | --- | --- | --- |
-| atribuição | `=` | direita |
-| condicional | `a if c else b` | direita no `else` |
-| coalescência | `??` | direita |
-| or | `or` | esquerda |
-| and | `and` | esquerda |
-| igualdade | `==` `!=` | esquerda |
-| comparação | `<` `<=` `>` `>=` `is T` | esquerda |
-| or de bits | `\|` | esquerda |
-| xor de bits | `^` | esquerda |
-| and de bits | `&` | esquerda |
-| range | `..`, `..=` | esquerda |
-| shift | `<<` `>>` `>>>` | esquerda |
-| termo | `+` `-` | esquerda |
-| fator | `*` `/` `//` `%` | esquerda |
-| cast | `as T` | esquerda |
-| unário | `not` `-` `~` | direita |
-| potência | `**` | direita; lado direito aceita unário |
-| chamada | `()` `.` `?.` `[ ]` | encadeia à esquerda |
-| primário | literais, `this`, `super.x`, `( … )`, `[ … ]` | — |
+| assignment | `=` | right |
+| conditional | `a if c else b` | right on `else` |
+| coalescing | `??` | right |
+| or | `or` | left |
+| and | `and` | left |
+| equality | `==` `!=` | left |
+| comparison | `<` `<=` `>` `>=` `is T` | left |
+| bitwise or | `\|` | left |
+| bitwise xor | `^` | left |
+| bitwise and | `&` | left |
+| range | `..`, `..=` | left |
+| shift | `<<` `>>` `>>>` | left |
+| term | `+` `-` | left |
+| factor | `*` `/` `//` `%` | left |
+| cast | `as T` | left |
+| unary | `not` `-` `~` | right |
+| power | `**` | right; the right side accepts unary |
+| call | `()` `.` `?.` `[ ]` | chains to the left |
+| primary | literals, `this`, `super.x`, `( … )`, `[ … ]` | — |
 
-`**` é o caso especial: `-2 ** 2` é `-(2 ** 2)` (potência liga mais forte que o sinal
-unário à esquerda), mas `2 ** -1` é permitido. Os operadores de bits ligam mais forte que
-`==`/`!=`/comparações, então `flags & MASK == 0` é `(flags & MASK) == 0`; shifts ficam
-abaixo de `+`/`-`, como no C.
+`**` is the special case: `-2 ** 2` is `-(2 ** 2)` (power binds tighter than the unary
+minus on the left), but `2 ** -1` is allowed. Bitwise operators bind tighter than
+`==`/`!=`/comparisons, so `flags & MASK == 0` is `(flags & MASK) == 0`; shifts sit
+below `+`/`-`, as in C.
 
-`as` liga mais forte que `*` e mais fraco que unário: `-x as Int` é `(-x) as Int` e
-`x as Int + 1` é `(x as Int) + 1`. O lado direito é um `type`; `as Int | String` é cast
-para a união (hoje recusado), não um `|` bitwise. Ver
+`as` binds tighter than `*` and looser than unary: `-x as Int` is `(-x) as Int` and
+`x as Int + 1` is `(x as Int) + 1`. The right side is a `type`; `as Int | String` is a cast
+to the union (currently rejected), not a bitwise `|`. See
 [ADR-0029](../adr/0029-conversoes-math.md).
 
-Consequências:
-- `-a.b()` = `-(a.b())` — a chamada liga mais forte que o unário;
-- `a = b = c` atribui da direita para a esquerda;
+Consequences:
+- `-a.b()` = `-(a.b())` — the call binds tighter than unary;
+- `a = b = c` assigns from right to left;
 - `a or b and c` = `a or (b and c)`;
-- `not a == b` = `(not a) == b` — `not` liga mais forte que `==` (ADR-0068);
-- `0..1 + 2` = `0..(1 + 2)` — o termo liga mais forte que o range; `..=` tem a mesma
-  precedência de `..`;
-- `0..n < 5` = `(0..n) < 5` — range liga mais forte que a comparação;
+- `not a == b` = `(not a) == b` — `not` binds tighter than `==` (ADR-0068);
+- `0..1 + 2` = `0..(1 + 2)` — the term binds tighter than the range; `..=` has the same
+  precedence as `..`;
+- `0..n < 5` = `(0..n) < 5` — the range binds tighter than the comparison;
 - `a ?? b or c` = `a ?? (b or c)`;
 - `a ?? b if c else d` = `(a ?? b) if c else d`;
-- `a?.b.c` protege só `a`; `a?.b?.c` protege os dois;
-- `a?.b = c` é erro (não há assignment opcional);
-- `xs[0]` indexa e `xs[0] = v` atribui; o `[` precisa estar na **mesma linha** da
-  expressão anterior, como o `(` de chamada;
-- `(1, 2)` é literal de tupla (2+ elementos; `(1)` continua agrupamento e `(1,)` é erro);
-  `(1, 2,)` aceita vírgula final. `f(1, 2)` são dois argumentos; para uma tupla como
-  argumento, `f((1, 2))`. `val (a, b) = t` e `var (c, d) = t` desestruturam (anotação
-  opcional); o padrão aninha em qualquer profundidade (`val (a, (b, c)) = t`), com
-  anotação recursiva `(Int, (String, Bool))` ([ADR-0069](../adr/0069-destructuring-aninhado.md)).
-- `[1, 2]` é literal de lista e `[]` é a lista vazia; vírgula final (`[1,]`, `[1, 2,]`)
-  é aceita, e o formatter só a insere em construções multiline.
+- `a?.b.c` protects only `a`; `a?.b?.c` protects both;
+- `a?.b = c` is an error (there is no optional assignment);
+- `xs[0]` indexes and `xs[0] = v` assigns; the `[` must be on the **same line** as the
+  previous expression, like the call `(`;
+- `(1, 2)` is a tuple literal (2+ elements; `(1)` is still grouping and `(1,)` is an error);
+  `(1, 2,)` accepts a trailing comma. `f(1, 2)` are two arguments; for a tuple as
+  argument, `f((1, 2))`. `val (a, b) = t` and `var (c, d) = t` destructure (annotation
+  optional); the pattern nests to any depth (`val (a, (b, c)) = t`), with a
+  recursive annotation `(Int, (String, Bool))` ([ADR-0069](../adr/0069-destructuring-aninhado.md)).
+- `[1, 2]` is a list literal and `[]` is the empty list; a trailing comma (`[1,]`, `[1, 2,]`)
+  is accepted, and the formatter only inserts it in multiline constructs.
 
-`<` é **só** comparação. Herança usa parênteses após o nome da classe
-(`class B(A)`), com uma única superclasse; `class B < A` é erro de sintaxe. A superclasse
-não pode ser genérica (`class C(Box[Int])` é erro); classe genérica pode herdar de classe
-não genérica.
+`<` is **only** comparison. Inheritance uses parentheses after the class name
+(`class B(A)`), with a single superclass; `class B < A` is a syntax error. The superclass
+cannot be generic (`class C(Box[Int])` is an error); a generic class may inherit from a
+non-generic class.
 
-Interfaces são nominais e usam `implements` **contextual** depois do cabeçalho da classe
+Interfaces are nominal and use **contextual** `implements` after the class header
 ([ADR-0080](../adr/0080-interfaces-nominais-implementacao.md)):
 
 ```lox
-interface Forma {
-  area() -> Float                 # abstrato: sem corpo
-  fn nome() -> String {           # default: com corpo; `fn` é opcional
-    return "forma"
+interface Shape {
+  area() -> Float                 # abstract: no body
+  fn name() -> String {           # default: with body; `fn` is optional
+    return "shape"
   }
 }
 
-class Circulo implements Forma { ... }
-class Triangulo(Figura) implements Forma, Desenhavel { ... }
+class Circle implements Shape { ... }
+class Triangle(Figure) implements Shape, Drawable { ... }
 ```
 
-- `interface` é palavra-chave e a declaração é **top-level**.
-- O corpo só aceita métodos; `init`, campos e `static` são recusados. Método sem `{` é
-  assinatura abstrata e termina pela regra normal de `;` opcional (fim de linha, `}` ou
-  EOF); método com `{ ... }` é default.
-- `implements` só é especial no cabeçalho da classe; em qualquer outro lugar continua
-  identificador (`val implements = 1` funciona).
-- Sem interfaces genéricas (`interface I[T]`), sem herança de interface (`interface A : B`)
-  e sem `class C(A, I)`.
+- `interface` is a keyword and the declaration is **top-level**.
+- The body only accepts methods; `init`, fields and `static` are rejected. A method without `{` is an
+  abstract signature and ends by the normal optional-`;` rule (end of line, `}` or
+  EOF); a method with `{ ... }` is a default.
+- `implements` is only special in the class header; anywhere else it remains an
+  identifier (`val implements = 1` works).
+- No generic interfaces (`interface I[T]`), no interface inheritance (`interface A : B`)
+  and no `class C(A, I)`.
 
-## Açúcar sintático
+## Syntactic sugar
 
-### `for` C-style vira `while`
+### C-style `for` becomes `while`
 
-Não existe nó para o `for` C-style na AST. O parser desaçucara:
+There is no node for the C-style `for` in the AST. The parser desugars:
 
 ```lox
 for (var i = 0; i < 3; i = i + 1) print(i);
 ```
 
-vira
+becomes
 
 ```lox
 {
@@ -406,34 +406,34 @@ vira
 }
 ```
 
-Por isso o `for` tem as mesmas regras de escopo de um bloco e uma condição omitida vira
-`true` (laço infinito).
+Therefore the `for` has the same scoping rules as a block and an omitted condition becomes
+`true` (infinite loop).
 
-O `for-in` é diferente: vira o nó `ForIn(name, iterable, body)` e **não** desaçucara para
-`while`, porque o interpretador precisa reportar "não iterável" e o codegen precisa do laço
-por iterável (Range/String/List/Map/Tuple — `Map` produz as chaves). Ver
-[`semantica.md`](semantica.md#ranges-e-for-in).
+`for-in` is different: it becomes the node `ForIn(name, iterable, body)` and does **not**
+desugar to `while`, because the interpreter needs to report "not iterable" and the codegen needs the loop
+per iterable (Range/String/List/Map/Tuple — `Map` yields the keys). See
+[`semantica.md`](semantica.md#ranges-and-for-in).
 
-### Blocos
+### Blocks
 
-`{ … }` é um statement; expressões não têm bloco (o `{` de expressão é literal de mapa).
-`if`/`while` recebem **um** statement (por isso as chaves quando há mais de uma instrução).
+`{ … }` is a statement; expressions have no block (the expression `{` is the map literal).
+`if`/`while` take **one** statement (hence the braces when there is more than one instruction).
 
-## Pontos finos
+## Fine points
 
-- **Ponto e vírgula é opcional** no fim da linha, no EOF ou antes de um `}` de fechamento
-  (ADR-0011); duas instruções na mesma linha ainda exigem `;`. No REPL, o `;` final pode ser
-  omitido quando a entrada termina (`_end_statement`).
-- `val` **exige inicializador** (`val x;` é erro). `var` pode omitir (`var x;` → `nil`).
-- Parâmetros são **`val` implícitos**; `var` antes do nome libera a reatribuição:
-  `fn f(x, var y)`. `val` explícito em parâmetro não é aceito.
-- Métodos de classe aceitam `fn` **opcional**; a forma canônica continua sem `fn`, porque
-  o corpo da classe já marca a declaração:
+- **Semicolon is optional** at the end of the line, at EOF or before a closing `}`
+  (ADR-0011); two statements on the same line still require `;`. In the REPL, the final `;` may be
+  omitted when the input ends (`_end_statement`).
+- `val` **requires an initializer** (`val x;` is an error). `var` may omit it (`var x;` → `nil`).
+- Parameters are **implicit `val`**; `var` before the name allows reassignment:
+  `fn f(x, var y)`. An explicit `val` on a parameter is not accepted.
+- Class methods accept an **optional** `fn`; the canonical form remains without `fn`, because
+  the class body already marks the declaration:
 
   ```lox
   class Foo {
     bar(a) { return a; }
-    fn baz(a) { return a; }   # aceito; mesma AST
+    fn baz(a) { return a; }   # accepted; same AST
   }
   ```
 
@@ -446,24 +446,24 @@ from std.strings import trim
 from dtos.dtoA import DtoA as Dto
 ```
 
-- `import caminho [as alias]` liga o último segmento (ou o alias) como namespace.
-- `from caminho import nome [as alias] [, nome ...]` liga nomes públicos.
-- Imports só no topo, antes de qualquer outro statement; sem `*`, sem reexportação.
-- Caminho são identificadores separados por `.`; `std` é root reservado.
-- `..` e caminho absoluto não são sintaxe válida no `import`: a raiz fora do projeto é
-  declarada no `loxia.toml` (`[dependencies]`/`[modules].paths`) ou em `--module-path`
+- `import path [as alias]` binds the last segment (or the alias) as a namespace.
+- `from path import name [as alias] [, name ...]` binds public names.
+- Imports only at the top, before any other statement; no `*`, no re-export.
+- The path is identifiers separated by `.`; `std` is a reserved root.
+- `..` and absolute paths are not valid syntax in `import`: the root outside the project is
+  declared in `loxia.toml` (`[dependencies]`/`[modules].paths`) or in `--module-path`
   ([ADR-0100](../adr/0100-dependencias-path.md)).
-- Módulo é arquivo `.lx`; pasta é só namespace (sem `__init__`/`index`).
-- Módulo não é valor: `val m = std.lists` é erro.
+- A module is a `.lx` file; a folder is only a namespace (no `__init__`/`index`).
+- A module is not a value: `val m = std.lists` is an error.
 
-- Limites do parser: no máximo **255 argumentos** por chamada e **255 parâmetros** por
-  função. Ao ultrapassar, o erro é reportado mas o parser continua (os argumentos são
-  descartados da AST).
-- `this` e `super` são palavras-chave: `super` só aparece como `super.metodo`.
-- Não existem: `break`/`continue`, `switch` (use `match`), operador ternário no estilo
-  `?:` (use `a if c else b`), `+=`, `++` e `catch` (use `except`). `match` com
-  enums ([ADR-0041](../adr/0041-enums-match.md)) e lambdas ([ADR-0022](../adr/0022-lambdas.md))
-  existem; listas, mapas e interpolação existem desde os
-  [ADR-0015](../adr/0015-listas-tipadas.md), [ADR-0017](../adr/0017-mapas-hash.md) e
+- Parser limits: at most **255 arguments** per call and **255 parameters** per
+  function. On exceeding, the error is reported but the parser continues (the arguments are
+  dropped from the AST).
+- `this` and `super` are keywords: `super` only appears as `super.method`.
+- These do not exist: `break`/`continue`, `switch` (use `match`), a `?:`-style ternary
+  operator (use `a if c else b`), `+=`, `++` and `catch` (use `except`). `match` with
+  enums ([ADR-0041](../adr/0041-enums-match.md)) and lambdas ([ADR-0022](../adr/0022-lambdas.md))
+  exist; lists, maps and interpolation have existed since
+  [ADR-0015](../adr/0015-listas-tipadas.md), [ADR-0017](../adr/0017-mapas-hash.md) and
   [ADR-0019](../adr/0019-interpolacao.md).
-- `fn` pode aparecer em qualquer posição de declaração, inclusive dentro de bloco.
+- `fn` may appear in any declaration position, including inside a block.

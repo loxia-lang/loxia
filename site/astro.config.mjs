@@ -12,11 +12,6 @@ export default defineConfig({
   base,
   trailingSlash: 'always',
   redirects: {
-    '/reference/lexicon': `${base}/pt/reference/lexicon/`,
-    '/reference/syntax': `${base}/pt/reference/syntax/`,
-    '/reference/semantics': `${base}/pt/reference/semantics/`,
-    '/reference/errors': `${base}/pt/reference/errors/`,
-    '/reference/guarantees': `${base}/pt/reference/guarantees/`,
     '/1.0/reference/lexicon': `${base}/pt/1.0/reference/lexicon/`,
     '/1.0/reference/syntax': `${base}/pt/1.0/reference/syntax/`,
     '/1.0/reference/semantics': `${base}/pt/1.0/reference/semantics/`,
@@ -61,10 +56,10 @@ export default defineConfig({
           items: [
             { label: 'Overview', translations: { 'pt-BR': 'Visão geral' }, link: '/reference/' },
             {
-              label: '1.1 (next, Portuguese)',
-              translations: { 'pt-BR': '1.1 (next, português)' },
+              label: '1.1 (next)',
+              translations: { 'pt-BR': '1.1 (next)' },
               collapsed: true,
-              items: [{ autogenerate: { directory: 'pt/reference' } }],
+              items: [{ autogenerate: { directory: 'reference' } }],
             },
             {
               label: '1.0 (stable, Portuguese)',

@@ -15,43 +15,56 @@ Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`).
 
 ### `enum Step[T]`
 
-Envelope para iterar elementos que podem ser `nil`: `next() -> Step[T]?` e
-`match step { Step.Item(value) => ... }`; `nil` continua encerrando a iteração.
+Envelope for iterating over elements that may be `nil`.
+
+A user iterator declares `next() -> Step[T]?`; returning `nil` ends the iteration,
+while `Step.Item(nil)` yields a nil element (ADR-0082).
 
 #### `Item(T)`
 
-Um elemento; `value` pode ser `nil` quando `T` é opcional.
+One element; `value` may be `nil` when `T` is optional.
 
 ## Functions
 
 ### `fn enumerate[T](items: List[T]) -> List[(Int, T)]`
 
-Pares `(índice, elemento)` na ordem da lista.
+Returns `(index, element)` pairs in list order.
+
+Indices start at 0 and match the positions in the input; the result has the same
+length as `items`.
 
 ### `fn zip[A, B](left: List[A], right: List[B]) -> List[(A, B)]`
 
-Pares dos elementos de `left` e `right`, até a menor das duas listas.
+Pairs elements from `left` and `right`, stopping at the shorter list.
+
+Returns a new list; the input lists are not modified.
 
 ### `fn sum(items: List[Int]) -> Int`
 
-Soma de inteiros; lista vazia devolve `0`.
+Returns the sum of the integers, or 0 for an empty list.
 
 ### `fn sumFloat(items: List[Float]) -> Float`
 
-Soma de floats; lista vazia devolve `0.0`.
+Returns the sum of the floats, or 0.0 for an empty list.
 
 ### `fn contains[T](items: List[T], item: T) -> Bool`
 
-`true` quando `item` está na lista (igualdade estrutural).
+Returns whether `item` occurs in the list.
+
+Uses `==`, so lists, maps and tuples compare structurally.
 
 ### `fn any[T](items: List[T], predicate: fn(T) -> Bool) -> Bool`
 
-`true` quando algum elemento satisfaz `predicate`.
+Returns whether any element satisfies `predicate`.
+
+Stops at the first match. An empty list returns `false`.
 
 ### `fn all[T](items: List[T], predicate: fn(T) -> Bool) -> Bool`
 
-`true` quando todos os elementos satisfazem `predicate`.
+Returns whether every element satisfies `predicate`.
+
+Stops at the first mismatch. An empty list satisfies it vacuously.
 
 ### `fn find[T](items: List[T], predicate: fn(T) -> Bool) -> T | Nil`
 
-Primeiro elemento que satisfaz `predicate`, ou `nil`.
+Returns the first element that satisfies `predicate`, or `nil` when none matches.

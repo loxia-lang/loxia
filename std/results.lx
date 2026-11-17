@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.results — combinadores para Result[T, E] (T1), em Lox puro.
-# `_ok`/`_err` existem para o checker inferir os argumentos de tipo a partir do
-# tipo esperado; `map`/`mapErr`/`andThen` atribuem em `var out: Result[...]`.
-# Nota: uma lambda que constrói `Result.Ok`/`Result.Err` ainda não infere o enum
-# genérico; nesse caso use uma função nomeada com retorno anotado.
+# std.results — combinators for `Result[T, E]` (T1), pure Lox.
+#
+# `_ok`/`_err` exist so the checker can infer type arguments from the expected type;
+# `map`, `mapErr` and `andThen` assign into a `var out: Result[...]`. A lambda that builds
+# `Result.Ok`/`Result.Err` still cannot infer the generic enum, so use a named function
+# with an annotated return type in that case.
 
 fn _ok[U, E](value: U) -> Result[U, E] {
   return Result.Ok(value)
@@ -13,7 +14,7 @@ fn _err[U, E](error: E) -> Result[U, E] {
   return Result.Err(error)
 }
 
-/// Returns true for `Result.Ok`.
+/// Returns `true` for `Result.Ok` and `false` for `Result.Err`.
 fn isOk[T, E](result: Result[T, E]) -> Bool {
   return match result {
     Result.Ok(_) => true
@@ -21,7 +22,7 @@ fn isOk[T, E](result: Result[T, E]) -> Bool {
   }
 }
 
-/// Returns true for `Result.Err`.
+/// Returns `true` for `Result.Err` and `false` for `Result.Ok`.
 fn isErr[T, E](result: Result[T, E]) -> Bool {
   return match result {
     Result.Ok(_) => false
@@ -29,7 +30,9 @@ fn isErr[T, E](result: Result[T, E]) -> Bool {
   }
 }
 
-/// Transforms the success value.
+/// Applies `transform` to the success value; an error passes through unchanged.
+///
+/// The error type `E` is preserved.
 fn map[T, U, E](
   result: Result[T, E],
   transform: fn(T) -> U
@@ -42,7 +45,9 @@ fn map[T, U, E](
   return out
 }
 
-/// Transforms the error value.
+/// Applies `transform` to the error value; a success passes through unchanged.
+///
+/// The success type `T` is preserved.
 fn mapErr[T, E, F](
   result: Result[T, E],
   transform: fn(E) -> F
@@ -56,6 +61,8 @@ fn mapErr[T, E, F](
 }
 
 /// Returns the success value, or `fallback` for an error.
+///
+/// `fallback` is an ordinary argument, so it is evaluated before the call.
 fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T {
   return match result {
     Result.Ok(value) => value
@@ -63,7 +70,10 @@ fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T {
   }
 }
 
-/// Chains a computation that returns another `Result`.
+/// Chains a computation that itself returns a `Result`.
+///
+/// On success `transform` is called; on error the original error is returned unchanged.
+/// This is the monadic bind for `Result`.
 fn andThen[T, U, E](
   result: Result[T, E],
   transform: fn(T) -> Result[U, E]
@@ -76,7 +86,9 @@ fn andThen[T, U, E](
   return out
 }
 
-/// Returns the success value or `nil`.
+/// Returns the success value, or `nil` when the result is an error.
+///
+/// The error value is discarded; use `match` when it must be inspected.
 fn toOptional[T, E](result: Result[T, E]) -> T? {
   return match result {
     Result.Ok(value) => value

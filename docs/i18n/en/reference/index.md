@@ -3,17 +3,16 @@ title: Reference
 description: The normative Loxia language reference.
 ---
 
-The normative reference describes what the language does **today**. It is currently
-written in Portuguese; the English translation is a tracked follow-up, not a machine
-translation.
+The normative reference describes what the language does **today**. It is written in
+English and generated from `docs/spec/`.
 
 ## Current reference — 1.1 (next)
 
-- [Lexicon (Portuguese)](../pt/reference/lexicon/)
-- [Syntax (Portuguese)](../pt/reference/syntax/)
-- [Semantics (Portuguese)](../pt/reference/semantics/)
-- [Errors (Portuguese)](../pt/reference/errors/)
-- [Guarantees (Portuguese)](../pt/reference/guarantees/)
+- [Lexicon](lexicon/)
+- [Syntax](syntax/)
+- [Semantics](semantics/)
+- [Errors](errors/)
+- [Guarantees](guarantees/)
 
 ## Archived reference — 1.0 (stable)
 

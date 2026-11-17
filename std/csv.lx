@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.csv — CSV RFC 4180 (T2), em Lox puro.
-# Determinístico: aceita CRLF e LF na entrada; `stringify` emite CRLF e uma quebra
-# final. Campos com `,`, `"`, CR ou LF são citados e `"` vira `""`.
-# `parse` devolve `nil` para entrada malformada (aspas não fechadas); uma linha em
-# branco é um registro com um campo vazio.
+# std.csv — RFC 4180 CSV (T2), pure Lox.
+#
+# Deterministic: accepts CRLF and LF input, while `stringify` always emits CRLF and one
+# trailing newline. Fields containing `,`, `"`, CR or LF are quoted and `"` is doubled.
+# `parse` returns `nil` on malformed input (stray or unterminated quotes); a blank line
+# is a record with a single empty field.
 
 class _Parser {
   val text: String
@@ -88,7 +89,12 @@ class _Parser {
   }
 }
 
-/// Parses RFC 4180 CSV text into rows, returning `nil` on malformed input.
+/// Parses RFC 4180 CSV text into rows of fields.
+///
+/// Accepts LF and CRLF line endings and preserves empty fields. Returns `nil` on
+/// malformed input, including a stray quote in an unquoted field or an unterminated
+/// quoted field. Empty text parses to `[]`; a blank line is a record with one empty
+/// field, not an empty row.
 fn parse(text: String) -> List[List[String]]? {
   if (len(text) == 0) {
     return []
@@ -100,7 +106,7 @@ fn parse(text: String) -> List[List[String]]? {
       rows.push(parser._parseRow())
     }
     return rows
-  } except RuntimeError as error {
+  } except RuntimeError as _error {
     return nil
   }
 }
@@ -137,6 +143,10 @@ fn _quoteField(field: String) -> String {
 }
 
 /// Serializes rows as RFC 4180 CSV, quoting fields when needed.
+///
+/// Fields are quoted when they contain `,`, `"`, CR or LF, and embedded quotes are
+/// doubled. Every row ends with CRLF, including the last one; an empty row raises
+/// `RuntimeError` because RFC 4180 has no representation for it. `[]` yields `""`.
 fn stringify(rows: List[List[String]]) -> String {
   if (len(rows) == 0) {
     return ""

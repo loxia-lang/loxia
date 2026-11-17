@@ -1,9 +1,31 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-/* Range, List, Map, Tuple, Enum e igualdade estrutural (ADR-0007, ADR-0017,
- * ADR-0036, ADR-0041). */
+/*
+ * containers.c — `Range`, `List`, `Map`, tuple, enum values and the structural
+ * equality used by `==` on the native path.
+ *
+ * Who calls it: the container lowering (lower_range/list/map/tuple/enums) and
+ * `format_value`/`lox_print_any` from strings.c. The interpreter is the oracle
+ * for all semantics here.
+ *
+ * Invariants:
+ *  - lists and maps preserve insertion order; `version` increments on every
+ *    mutation and is how `for-in` detects mutation during iteration;
+ *  - map keys may only be String/Int/Bool (ADR-0017);
+ *  - `LoxValue` is `{tag, payload}`; Float goes in `payload` via memcpy;
+ *  - container equality is structural and dispatches by tag;
+ *  - cycles are cut in equality/`str` (bounded depth).
+ *
+ * ADRs: 0007 (Range), 0017 (Map), 0036 (tuples), 0041 (enums), 0049 (Any).
+ */
 #include "lox_runtime.h"
 
 
+/* ---------------------------------------------------------------------------
+ * Range (ADR-0007)
+ * --------------------------------------------------------------------------- */
+
+/* Immutable Range `{start, end, step, inclusive}`; step 0 is R1014. `inclusive`
+ * makes the end participate in iteration and in the `..=` format. */
 void *lox_range_new(int64_t start, int64_t end, int64_t step,
                     int32_t inclusive) {
     if (step == 0) {
@@ -17,6 +39,7 @@ void *lox_range_new(int64_t start, int64_t end, int64_t step,
     return range;
 }
 
+/* Accessors used by the `for-in` lowering and by `is`/`as`. */
 int64_t lox_range_start(const void *pointer) {
     return ((const LoxRange *)pointer)->start;
 }
@@ -33,6 +56,7 @@ int32_t lox_range_inclusive(const void *pointer) {
     return ((const LoxRange *)pointer)->inclusive;
 }
 
+/* Equality by start/end/step/inclusive (ranges do not support `<`). */
 int32_t lox_range_equal(const void *left_pointer, const void *right_pointer) {
     const LoxRange *left = left_pointer;
     const LoxRange *right = right_pointer;
@@ -40,6 +64,7 @@ int32_t lox_range_equal(const void *left_pointer, const void *right_pointer) {
            left->step == right->step && left->inclusive == right->inclusive;
 }
 
+/* `print(Range)` as `<range a..b>`/`<range a..=b step s>`. */
 void lox_print_range(const void *pointer) {
     const LoxRange *range = pointer;
     const char *operator = range->inclusive ? "..=" : "..";
@@ -52,6 +77,11 @@ void lox_print_range(const void *pointer) {
     }
 }
 
+/* `str(Range)` for `str`/interpolation.
+ *
+ * NOTE: this format always uses `..`, ignoring `inclusive`; `lox_print_range`
+ * uses the correct operator. No corpus case compares `str(..=)` across engines —
+ * if you fix this, add the differential golden with it. */
 void *lox_str_from_range(const void *pointer) {
     const LoxRange *range = pointer;
     char buffer[128];
@@ -69,6 +99,15 @@ void *lox_str_from_range(const void *pointer) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * List (ADR-0015/0031)
+ *
+ * Doubling `LoxValue` array. `count` is the logical size; `capacity` is the
+ * allocation. The old array is left to the GC. `version` is the mutation
+ * discriminator observed by `for-in`.
+ * --------------------------------------------------------------------------- */
+
+/* Empty list with initial capacity 4. */
 void *lox_list_new(void) {
     LoxList *list = lox_alloc(sizeof(LoxList));
     list->count = 0;
@@ -78,6 +117,7 @@ void *lox_list_new(void) {
     return list;
 }
 
+/* Doubles capacity and copies the elements; the old array is collected. */
 void lox_list_grow(LoxList *list) {
     int64_t capacity = list->capacity * 2;
     LoxValue *items = lox_alloc(sizeof(LoxValue) * (size_t)capacity);
@@ -88,6 +128,7 @@ void lox_list_grow(LoxList *list) {
     list->capacity = capacity;
 }
 
+/* `push`: grows if needed, writes at the end and increments `version`. */
 void lox_list_push(void *pointer, int64_t tag, int64_t payload) {
     LoxList *list = pointer;
     if (list->count == list->capacity) {
@@ -99,10 +140,12 @@ void lox_list_push(void *pointer, int64_t tag, int64_t payload) {
     list->version += 1;
 }
 
+/* `len(xs)`. */
 int64_t lox_list_len(const void *pointer) {
     return ((const LoxList *)pointer)->count;
 }
 
+/* `xs[i]`; an index outside 0..count-1 is R1007. */
 LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line,
                       int32_t column) {
     const LoxList *list = pointer;
@@ -112,6 +155,7 @@ LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line,
     return list->items[index];
 }
 
+/* `xs[i] = v`; an index outside 0..count-1 is R1007; increments `version`. */
 void lox_list_set(void *pointer, int64_t index, int64_t tag, int64_t payload,
                   int32_t line, int32_t column) {
     LoxList *list = pointer;
@@ -123,6 +167,7 @@ void lox_list_set(void *pointer, int64_t index, int64_t tag, int64_t payload,
     list->version += 1;
 }
 
+/* `pop`: removes from the end; an empty list is R1007; increments `version`. */
 LoxValue lox_list_pop(void *pointer, int32_t line, int32_t column) {
     LoxList *list = pointer;
     if (list->count == 0) {
@@ -134,6 +179,7 @@ LoxValue lox_list_pop(void *pointer, int32_t line, int32_t column) {
 }
 
 
+/* Structural list equality, element by element. */
 int lox_list_equal(const void *left_pointer, const void *right_pointer) {
     if (left_pointer == right_pointer) {
         return 1;
@@ -151,6 +197,11 @@ int lox_list_equal(const void *left_pointer, const void *right_pointer) {
     return 1;
 }
 
+/* Dynamic `LoxValue` equality (used by `==`, lists, maps and tuples).
+ *
+ * Int and Float compare numerically with promotion (`1 == 1.0`); NaN != NaN;
+ * strings compare content; containers compare structure; other tags compare the
+ * payload. */
 int lox_value_equal(LoxValue left, LoxValue right) {
     if ((left.tag == 1 || left.tag == 2) &&
         (right.tag == 1 || right.tag == 2)) {
@@ -207,6 +258,15 @@ int lox_value_equal(LoxValue left, LoxValue right) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * Map (ADR-0017)
+ *
+ * Entries in insertion order, linear lookup (`lox_map_find`). Keys are
+ * String/Int/Bool; `version` increments on every mutation. `set` on an existing
+ * key keeps its position and replaces the value.
+ * --------------------------------------------------------------------------- */
+
+/* Empty map with initial capacity 4. */
 void *lox_map_new(void) {
     LoxMap *map = lox_alloc(sizeof(LoxMap));
     map->count = 0;
@@ -216,6 +276,7 @@ void *lox_map_new(void) {
     return map;
 }
 
+/* Key equality: String by content; Int/Bool by payload + tag. */
 int lox_map_key_equal(LoxValue left, LoxValue right) {
     if (left.tag != right.tag) {
         return 0;
@@ -227,6 +288,7 @@ int lox_map_key_equal(LoxValue left, LoxValue right) {
     return left.payload == right.payload;
 }
 
+/* Linear lookup in insertion order; returns the index or -1. */
 int64_t lox_map_find(const LoxMap *map, LoxValue key) {
     for (int64_t index = 0; index < map->count; index++) {
         if (lox_map_key_equal(map->entries[index].key, key)) {
@@ -236,6 +298,7 @@ int64_t lox_map_find(const LoxMap *map, LoxValue key) {
     return -1;
 }
 
+/* Doubles capacity and copies the entries. */
 void lox_map_grow(LoxMap *map) {
     int64_t capacity = map->capacity * 2;
     LoxMapEntry *entries = lox_alloc(sizeof(LoxMapEntry) * (size_t)capacity);
@@ -246,7 +309,7 @@ void lox_map_grow(LoxMap *map) {
     map->capacity = capacity;
 }
 
-/* ADR-0017: só String, Int e Bool são chaves; o interpretador é o oráculo. */
+/* ADR-0017: only String, Int and Bool are keys; the interpreter is the oracle. */
 void lox_map_check_key(int64_t tag, int32_t line, int32_t column) {
     if (tag != 1 && tag != 3 && tag != 4) {
         lox_panic(line, column, "R1014",
@@ -277,10 +340,12 @@ void lox_map_set(void *pointer, int64_t key_tag, int64_t key_payload,
     map->version += 1;
 }
 
+/* `len(m)`: number of entries. */
 int64_t lox_map_len(const void *pointer) {
     return ((const LoxMap *)pointer)->count;
 }
 
+/* `m.has(k)`: checks the key without creating an entry. */
 int32_t lox_map_has(const void *pointer, int64_t key_tag, int64_t key_payload,
                     int32_t line, int32_t column) {
     LoxValue key = {key_tag, key_payload};
@@ -288,6 +353,7 @@ int32_t lox_map_has(const void *pointer, int64_t key_tag, int64_t key_payload,
     return lox_map_find(pointer, key) >= 0;
 }
 
+/* `m.get(k)`: returns `nil` when absent (this is not `m[k]`, which errors). */
 LoxValue lox_map_get(const void *pointer, int64_t key_tag, int64_t key_payload,
                      int32_t line, int32_t column) {
     LoxValue key = {key_tag, key_payload};
@@ -300,6 +366,7 @@ LoxValue lox_map_get(const void *pointer, int64_t key_tag, int64_t key_payload,
     return ((const LoxMap *)pointer)->entries[found].value;
 }
 
+/* `m[k]`: a missing key is R1008. */
 LoxValue lox_map_get_checked(const void *pointer, int64_t key_tag,
                              int64_t key_payload, int32_t line,
                              int32_t column) {
@@ -312,6 +379,7 @@ LoxValue lox_map_get_checked(const void *pointer, int64_t key_tag,
     return ((const LoxMap *)pointer)->entries[found].value;
 }
 
+/* `m.remove(k)`: R1008 when absent; shifts the following entries. */
 LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
                         int32_t line, int32_t column) {
     LoxMap *map = pointer;
@@ -330,10 +398,12 @@ LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
     return value;
 }
 
+/* Key at position `index` (used by `for-in`). */
 LoxValue lox_map_key_at(const void *pointer, int64_t index) {
     return ((const LoxMap *)pointer)->entries[index].key;
 }
 
+/* `m.keys`: new list in insertion order. */
 void *lox_map_keys(const void *pointer) {
     const LoxMap *map = pointer;
     void *list = lox_list_new();
@@ -344,6 +414,7 @@ void *lox_map_keys(const void *pointer) {
     return list;
 }
 
+/* `m.values`: new list in insertion order. */
 void *lox_map_values(const void *pointer) {
     const LoxMap *map = pointer;
     void *list = lox_list_new();
@@ -355,8 +426,8 @@ void *lox_map_values(const void *pointer) {
 }
 
 int lox_map_equal(const void *left_pointer, const void *right_pointer) {
-    /* Guarda de ciclo: `depth` é compartilhada pela recursão; todo caminho que
-       incrementa precisa decrementar antes de retornar. */
+    /* Cycle guard: `depth` is shared across recursion; every path that
+       increments it must decrement before returning. */
     static int depth = 0;
     if (left_pointer == right_pointer) {
         return 1;
@@ -386,6 +457,11 @@ int lox_map_equal(const void *left_pointer, const void *right_pointer) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * Tuple (ADR-0036)
+ * --------------------------------------------------------------------------- */
+
+/* Immutable tuple of fixed arity; the lowering fills it with `lox_tuple_set`. */
 void *lox_tuple_new(int64_t count) {
     LoxTuple *tuple = lox_alloc(sizeof(LoxTuple));
     tuple->count = count;
@@ -393,12 +469,14 @@ void *lox_tuple_new(int64_t count) {
     return tuple;
 }
 
+/* Fills position `index` during construction (no bounds check). */
 void lox_tuple_set(void *pointer, int64_t index, int64_t tag, int64_t payload) {
     LoxTuple *tuple = pointer;
     tuple->items[index].tag = tag;
     tuple->items[index].payload = payload;
 }
 
+/* `t[i]`; an index outside 0..count-1 is R1007. */
 LoxValue lox_tuple_get(const void *pointer, int64_t index, int32_t line,
                        int32_t column) {
     const LoxTuple *tuple = pointer;
@@ -408,10 +486,12 @@ LoxValue lox_tuple_get(const void *pointer, int64_t index, int32_t line,
     return tuple->items[index];
 }
 
+/* `len(t)`. */
 int64_t lox_tuple_len(const void *pointer) {
     return ((const LoxTuple *)pointer)->count;
 }
 
+/* Structural tuple equality (arity + elements). */
 int lox_tuple_equal(const void *left_pointer, const void *right_pointer) {
     if (left_pointer == right_pointer) {
         return 1;
@@ -429,6 +509,7 @@ int lox_tuple_equal(const void *left_pointer, const void *right_pointer) {
     return 1;
 }
 
+/* Lowering entry point for `==` on the dynamic path. */
 int lox_any_equal(int64_t left_tag, int64_t left_payload, int64_t right_tag,
                   int64_t right_payload) {
     LoxValue left = {left_tag, left_payload};
@@ -436,6 +517,7 @@ int lox_any_equal(int64_t left_tag, int64_t left_payload, int64_t right_tag,
     return lox_value_equal(left, right);
 }
 
+/* Recognizes a 2-element tuple with the given tags (destructuring). */
 int lox_tuple_is2(const void *pointer, int64_t tag0, int64_t tag1) {
     const LoxTuple *tuple = pointer;
     if (tuple->count != 2) {
@@ -446,6 +528,11 @@ int lox_tuple_is2(const void *pointer, int64_t tag0, int64_t tag1) {
 
 
 
+/* ---------------------------------------------------------------------------
+ * Enum (ADR-0041)
+ * --------------------------------------------------------------------------- */
+
+/* Immutable enum: enum id + stable variant name + boxed payload. */
 void *lox_enum_new(int64_t enum_id, const char *enum_name,
                    const char *variant_name, int64_t count) {
     LoxEnumValue *value = lox_alloc(sizeof(LoxEnumValue));
@@ -457,12 +544,14 @@ void *lox_enum_new(int64_t enum_id, const char *enum_name,
     return value;
 }
 
+/* Fills the payload during construction. */
 void lox_enum_set(void *pointer, int64_t index, int64_t tag, int64_t payload) {
     LoxEnumValue *value = pointer;
     value->payload[index].tag = tag;
     value->payload[index].payload = payload;
 }
 
+/* Payload access in `match`; an invalid index is R1007. */
 LoxValue lox_enum_payload(const void *pointer, int64_t index, int32_t line,
                           int32_t column) {
     const LoxEnumValue *value = pointer;
@@ -472,17 +561,21 @@ LoxValue lox_enum_payload(const void *pointer, int64_t index, int32_t line,
     return value->payload[index];
 }
 
+/* Reserved: the current lowering compares variants by name through
+ * `lox_enum_variant_index`; generated code does not call this helper. */
 int64_t lox_enum_variant(const void *pointer) {
     const LoxEnumValue *value = pointer;
-    /* A variante é comparada pelo nome estável; o backend passa o índice. */
+    /* Variants are compared by stable name; the backend passes the index. */
     return value->count >= 0 ? (int64_t)0 : (int64_t)0;
 }
 
+/* Variant `match`: compares the stable name and returns 1/0. */
 int64_t lox_enum_variant_index(const void *pointer, const char *name) {
     const LoxEnumValue *value = pointer;
     return strcmp(value->variant_name, name) == 0 ? 1 : 0;
 }
 
+/* Structural equality: enum id + variant + payload. */
 int lox_enum_equal(const void *left_pointer, const void *right_pointer) {
     if (left_pointer == right_pointer) {
         return 1;

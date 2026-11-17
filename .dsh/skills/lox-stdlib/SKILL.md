@@ -12,7 +12,7 @@ A decisão de escopo está no [ADR-0072](../../../docs/adr/0072-stdlib-batteries
 
 ## Antes de codar
 
-1. **Dor real** — programa concreto em `exemplos/` ou caso que use o módulo; não copie
+1. **Dor real** — programa concreto em `examples/` ou caso que use o módulo; não copie
    API de outra linguagem por simetria.
 2. **Camada certa** — se dá para escrever em Lox puro sobre `std/*`/kernel existente, é
    stdlib; só vai para o kernel o que é SO ou representação que Lox não alcança.
@@ -23,7 +23,7 @@ A decisão de escopo está no [ADR-0072](../../../docs/adr/0072-stdlib-batteries
 
 ## Critério de pronto por módulo
 
-- [ ] programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
+- [ ] programa real em `examples/` ou caso que o use (não simetria com outra linguagem);
 - [ ] golden em `tests/cases/std_<modulo>.lx` + `--check` limpo;
 - [ ] determinismo declarado (função `ambient` ≠ corpus I1);
 - [ ] doc pública em `std/*.lx` e página gerada em `docs/stdlib/`;

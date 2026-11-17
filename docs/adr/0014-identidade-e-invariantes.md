@@ -106,7 +106,7 @@ interpretador e custo de fidelidade no backend.
 - Identidade verificável: I3 roda em CI hoje; I1 vira gate quando o backend nascer.
 - Dívida semântica é paga no **design**, não no codegen — cada feature nova já nasce com
   a obrigação de equivalência.
-- O corpus de conformidade (`tests/cases` + `tests/official` + `exemplos/`) vira produto:
+- O corpus de conformidade (`tests/cases` + `tests/official` + `examples/`) vira produto:
   é o teste diferencial e a especificação executável ao mesmo tempo.
 - Diferencia de concorrentes reais: Python/PyPy, Lua/LuaJIT e a maioria das linguagens
   **não** prometem equivalência byte a byte entre interpretado e compilado.

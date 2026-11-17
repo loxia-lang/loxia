@@ -7,7 +7,7 @@ sources:
 
 # std.rand
 
-Deterministic PRNG with an explicit seed.
+Deterministic xorshift64* PRNG with an explicit seed.
 
 ## API
 
@@ -15,38 +15,47 @@ Deterministic PRNG with an explicit seed.
 
 ### `class Rand`
 
-Gerador xorshift64*; a mesma semente produz a mesma sequência.
+Deterministic xorshift64* generator; the same seed yields the same sequence.
 
 #### `var state: Int`
 
-Estado interno (nunca zero).
+Internal state (never zero).
 
 #### `fn init(seed: Int)`
 
-Cria o gerador; `seed = 0` vira a constante padrão do xorshift.
+Creates a generator; `seed == 0` maps to the fixed default state.
+
+The seed is the only source of variation, so sequences are reproducible.
 
 #### `fn reseed(seed: Int) -> Nil`
 
-Reinicia a sequência com `seed`.
+Restarts the sequence with `seed`; `0` maps to the same default as `init`.
 
 #### `fn nextInt() -> Int`
 
-Próximo valor bruto de 64 bits (pode ser negativo).
+Returns the next raw 64-bit value.
+
+The `Int` may be negative; use `int` or `float` for bounded values.
 
 #### `fn int(min: Int, max: Int) -> Int`
 
-Inteiro em `[min, max]` (inclusivo); erro se `min > max` ou range grande demais.
+Returns an integer in `[min, max]` (inclusive).
+
+Raises `RuntimeError` when `min > max` or when the span overflows an `Int`.
 
 #### `fn float() -> Float`
 
-Float em `[0.0, 1.0)` com 53 bits de mantissa.
+Returns a `Float` in `[0.0, 1.0)` with 53 bits of mantissa.
 
 #### `fn bool() -> Bool`
 
-`true` ou `false` com probabilidade 1/2.
+Returns `true` or `false` with equal probability.
 
 ## Functions
 
 ### `fn shuffle[T](items: List[T], generator: Rand) -> Nil`
 
-Embaralha `items` in-place (Fisher-Yates) usando `generator`.
+Shuffles `items` in place with Fisher-Yates using `generator`.
+
+Mutates the list and returns `nil`; the resulting order depends only on the
+generator state.

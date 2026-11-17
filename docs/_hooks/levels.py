@@ -41,7 +41,7 @@ def render() -> str:
     """Bloco markdown determinístico (ordem e conteúdo derivados do manifesto)."""
     lines = [
         START,
-        "| Nível | Casos que compilam e concordam (I1) |",
+        "| Level | Cases that compile and agree (I1) |",
         "| --- | --- |",
     ]
     for level in sorted(LEVELS, key=_level_key):
@@ -51,9 +51,9 @@ def render() -> str:
     pending = ", ".join(f"`{Path(case).stem}` ({level})" for case, level in sorted(PENDING.items()))
     lines.append("")
     lines.append(
-        f"**{total} casos** em {len(LEVELS)} níveis compilam e concordam; "
-        f"**{len(PENDING)} em `PENDING`** ({pending}); "
-        f"**{len(NEGATIVE)} negativos** de propósito."
+        f"**{total} cases** across {len(LEVELS)} levels compile and agree; "
+        f"**{len(PENDING)} in `PENDING`** ({pending}); "
+        f"**{len(NEGATIVE)} negative** on purpose."
     )
     lines.append(END)
     return "\n".join(lines)

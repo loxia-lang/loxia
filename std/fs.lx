@@ -1,17 +1,26 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.fs — leitura e escrita de arquivos (T2), casca fina sobre o kernel.
-# Ambiente (ADR-0072): não entra no corpus I1; teste com diretório temporário e sem
-# imprimir caminho absoluto. `readLines` descarta a quebra final (uma linha por item);
-# `appendText` relê e regrava o arquivo (sem primitiva de append no kernel).
+# std.fs — file reading and writing (T2), a thin shell over the kernel.
+#
+# Ambient (ADR-0072): not part of the I1 corpus, and tests must use a temporary
+# directory without printing absolute paths. `readLines` drops only the final newline
+# (one item per line); `appendText` reads and rewrites the file because the kernel has no
+# append primitive. Failures return `nil`/`false` instead of raising.
 
 import std.strings as strings
 
-/// Reads a UTF-8 file, returning `nil` when unreadable.
+/// Reads a UTF-8 file into a string, or `nil` when unreadable.
+///
+/// Ambient: the content depends on the filesystem. Text is returned exactly as stored,
+/// including any trailing newline, and invalid UTF-8 yields `nil`.
 fn readText(path: String) -> String? {
   return io.readFile(path)
 }
 
-/// Reads a UTF-8 file as lines, returning `nil` when unreadable.
+/// Reads a UTF-8 file as one string per line, or `nil` when unreadable.
+///
+/// Accepts LF and CRLF line endings (a bare CR is not a break). Only the final empty
+/// segment is dropped, so a file ending in a newline does not produce a trailing empty
+/// item.
 fn readLines(path: String) -> List[String]? {
   val text = io.readFile(path)
   if (text == nil) {
@@ -24,12 +33,18 @@ fn readLines(path: String) -> List[String]? {
   return lines
 }
 
-/// Writes UTF-8 text, returning whether the write succeeded.
+/// Writes `text` as UTF-8, returning whether the write succeeded.
+///
+/// Ambient. Overwrites an existing file and creates a missing one; the parent
+/// directory must exist. A filesystem error returns `false` instead of raising.
 fn writeText(path: String, text: String) -> Bool {
   return io.writeFile(path, text)
 }
 
 /// Appends UTF-8 text, returning whether the write succeeded.
+///
+/// Ambient. Reads the current content and rewrites the file because the kernel has no
+/// append primitive; a missing file is created. The parent directory must exist.
 fn appendText(path: String, text: String) -> Bool {
   val existing = io.readFile(path)
   if (existing == nil) {
@@ -38,12 +53,17 @@ fn appendText(path: String, text: String) -> Bool {
   return io.writeFile(path, existing + text)
 }
 
-/// Returns whether the path exists.
+/// Returns whether `path` exists.
+///
+/// Ambient. True for files, directories and other entries that the host can stat.
 fn exists(path: String) -> Bool {
   return fs.exists(path)
 }
 
-/// Lists directory entries, returning `nil` when unreadable.
+/// Lists directory entry names in sorted order, or `nil` when unreadable.
+///
+/// Ambient. Sorting makes the result deterministic for a given directory; hidden files
+/// are included and `"."`/`".."` are not.
 fn listDir(path: String) -> List[String]? {
   return fs.listDir(path)
 }

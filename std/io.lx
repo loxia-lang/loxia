@@ -1,29 +1,44 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.io — entrada e saída padrão (T2), casca fina sobre o kernel.
-# `write`/`writeErr` são determinísticos; `readLine`/`readAll`/`prompt` são ambiente
-# (ADR-0072) e só entram em teste com entrada fixa, nunca no corpus I1.
+# std.io — standard input and output (T2), a thin shell over the kernel.
+#
+# `write`/`writeErr` are deterministic and flush immediately. `readLine`, `readAll` and
+# `prompt` are ambient (ADR-0072): they only belong in tests with fixed input, never in
+# the I1 corpus.
 
-/// Writes text to stdout without a trailing newline.
+/// Writes `text` to stdout without a trailing newline.
+///
+/// Flushes immediately, so the text is visible before the next read or process exit.
 fn write(text: String) -> Nil {
   io.write(text)
 }
 
-/// Writes text to stderr without a trailing newline.
+/// Writes `text` to stderr without a trailing newline.
+///
+/// Flushes immediately; deterministic, but stderr is not part of the default golden
+/// comparison.
 fn writeErr(text: String) -> Nil {
   io.writeErr(text)
 }
 
 /// Reads one line from stdin, returning `nil` at end of input.
+///
+/// Ambient. A trailing LF or CRLF is removed. Invalid UTF-8 raises instead of returning
+/// a replacement character.
 fn readLine() -> String? {
   return io.readLine()
 }
 
 /// Reads all remaining stdin as text.
+///
+/// Ambient. At end of input an empty string is returned. Invalid UTF-8 raises.
 fn readAll() -> String {
   return io.readAll()
 }
 
 /// Writes `message` and reads one line from stdin.
+///
+/// Ambient. The message is written without a trailing newline, then `readLine` is
+/// called; `nil` means end of input.
 fn prompt(message: String) -> String? {
   io.write(message)
   return io.readLine()

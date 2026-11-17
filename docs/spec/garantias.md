@@ -8,44 +8,44 @@ sources:
   - loxia_core/semantics/checker.py
 ---
 
-# Garantias — o que a linguagem promete
+# Guarantees — what the language promises
 
-Esta página é o **contrato** com quem usa a linguagem (ou escreve ferramenta em cima
-dela). Não descreve sintaxe nem semântica — isso está em
-[léxico](lexico.md), [sintaxe](sintaxe.md), [semântica](semantica.md) e
-[erros](erros.md). Aqui ficam as promessas que sobrevivem a features novas.
+This page is the **contract** with whoever uses the language (or builds tooling on top of
+it). It does not describe syntax or semantics — that is in
+[lexicon](lexico.md), [syntax](sintaxe.md), [semantics](semantica.md) and
+[errors](erros.md). Here live the promises that survive new features.
 
-As decisões por trás destas garantias estão nos
+The decisions behind these guarantees are in
 [ADR-0014](../adr/0014-identidade-e-invariantes.md) (I1–I3),
-[ADR-0059](../adr/0059-i4-check-limpo-compila.md) (I4) e
-[ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md) (memória; substitui o
+[ADR-0059](../adr/0059-i4-check-limpo-compila.md) (I4) and
+[ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md) (memory; it replaces
 [ADR-0060](../adr/0060-orcamento-de-memoria.md)).
 
-## As quatro garantias
+## The four guarantees
 
-| # | Garantia | Status |
+| # | Guarantee | Status |
 | --- | --- | --- |
-| **I1** | Mesmo programa, mesmo resultado: o interpretador **é** a especificação | 🟡 cobre o corpus declarado (tabela abaixo) |
-| **I2** | Nada acontece implicitamente | ✅ vale hoje |
-| **I3** | Determinismo observável: mesma entrada ⇒ mesmos bytes | ✅ vale hoje e é testado em CI |
-| **I4** | `--check` limpo ⇒ o backend compila (ou recusa só a lacuna declarada) | ✅ vale hoje e é testado em CI |
+| **I1** | Same program, same result: the interpreter **is** the specification | 🟡 covers the declared corpus (table below) |
+| **I2** | Nothing happens implicitly | ✅ holds today |
+| **I3** | Observable determinism: same input ⇒ same bytes | ✅ holds today and is tested in CI |
+| **I4** | Clean `--check` ⇒ the backend compiles (or refuses only the declared gap) | ✅ holds today and is tested in CI |
 
-### I1 — Equivalência executável
+### I1 — Executable equivalence
 
-O tree-walk é a **definição normativa** da linguagem. Todo programa do corpus declarado
-tem que produzir o **mesmo stdout (bytes)**, o **mesmo stderr** e o **mesmo exit code**
-nos dois motores; se divergirem, o bug é do backend.
+The tree-walk is the **normative definition** of the language. Every program in the declared
+corpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**
+in both engines; if they diverge, the bug is in the backend.
 
-O corpus é o corpus de conformidade inteiro, **anotado e classificado por nível** em
-`tests/corpus_manifest.py`. Cada caso está em `LEVELS` (o backend compila e concorda),
-`PENDING` (o `--check` passa, o backend ainda recusa com **65** e a mensagem
-`... is not supported by the backend yet.`) ou `NEGATIVE` (falha de propósito no
-`--check`). Um caso só entra em `LEVELS` quando os três canais batem; a promoção é
-monotônica e o teste diferencial nunca compara com expectativa escrita à mão. A lista de
-`PENDING` é pública: é o registro honesto do que falta, não um segredo.
+The corpus is the entire conformance corpus, **annotated and classified by level** in
+`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),
+`PENDING` (the `--check` passes, the backend still refuses with **65** and the message
+`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the
+`--check`). A case only enters `LEVELS` when the three channels match; promotion is
+monotonic and the differential test never compares against a hand-written expectation. The
+`PENDING` list is public: it is the honest record of what is missing, not a secret.
 
 <!-- levels:start -->
-| Nível | Casos que compilam e concordam (I1) |
+| Level | Cases that compile and agree (I1) |
 | --- | --- |
 | `l0` | 4 |
 | `l1` | 3 |
@@ -61,190 +61,190 @@ monotônica e o teste diferencial nunca compara com expectativa escrita à mão.
 | `t3` | 3 |
 | `t7` | 3 |
 
-**164 casos** em 13 níveis compilam e concordam; **0 em `PENDING`** (); **6 negativos** de propósito.
+**164 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
 <!-- levels:end -->
 
-Os níveis ainda não implementados rejeitam com **erro de compilação explícito**
-(exit 65), nunca com lowering silencioso.
+Levels not yet implemented reject with an **explicit compilation error**
+(exit 65), never with silent lowering.
 
-A comparação é feita por canal: quando stdout e stderr vão para o **mesmo** descritor
-(`2>&1`), a ordem de intercalação das duas saídas não faz parte da garantia.
+The comparison is per channel: when stdout and stderr go to the **same** descriptor
+(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.
 
-Não existe promessa de que código interpretado e compilado tenham a mesma **velocidade**
-ou o mesmo consumo de memória. O mesmo resultado observável inclui **stderr byte a byte**,
-portanto o stack trace de runtime também é idêntico nos dois motores
+There is no promise that interpreted and compiled code have the same **speed**
+or the same memory consumption. The same observable result includes **stderr byte for byte**,
+so the runtime stack trace is also identical in both engines
 ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 
-#### Orçamento de pilha ([ADR-0077](../adr/0077-limite-de-pilha.md))
+#### Stack budget ([ADR-0077](../adr/0077-limite-de-pilha.md))
 
-O binário e o tree-walk contam **ativações Lox** (função, método, lambda, `init` e
-construtor) com o mesmo limite: **10.000 chamadas**. A chamada 10.001 é `R1015`
-(`Stack overflow.`), exit 70, capturável por `try`/`except RuntimeError`, com a posição da
-declaração do chamado e o stack trace dos frames ativos. Chamadas nativas e construtores
-de exceção embutida não contam. Construtor + `init` contam duas ativações.
+The binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and
+constructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`
+(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the
+callee's declaration and the stack trace of the active frames. Native calls and built-in
+exception constructors do not count. Constructor + `init` count as two activations.
 
-- O binário reserva 128 MiB de soft limit de pilha (`setrlimit`) antes de executar; o
-  orçamento declarado é 64 MiB. Em plataformas com hard limit menor, o limite é clampado.
-- O tree-walk eleva o `sys.setrecursionlimit` para 200.000 (orçamento interno, não
-  contrato).
-- Acima de 10.000 chamadas o erro é determinístico e o trace é recortado (5 internos + 5
-  externos + elisão), sem endereço/tempo na saída.
+- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the
+  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.
+- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a
+  contract).
+- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5
+  outermost + elision), with no address/time in the output.
 
-#### Orçamento de memória ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](../adr/0087-heap-cap-e-self-hosting.md))
+#### Memory budget ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](../adr/0087-heap-cap-e-self-hosting.md))
 
-O binário usa **GC Boehm** conservador, com **hard cap default de 512 MiB** de heap
-coletado (o ADR-0074 fixou 128 MiB; o ADR-0087 subiu o default). Exceder o cap é `exit 70`
-+ `Out of memory.` no stderr, sem traceback, e o teto **não** depende do ambiente.
+The binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected
+heap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`
++ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the
+environment.
 
-- O build pode escolher outro teto com `--max-heap=SIZE` (só `--emit=exe`; default `512M`,
-  faixa `32M..8G`). O valor é embutido no binário, não é env nem flag de runtime.
-- O **I1 cobre programas cujo pico de memória viva caiba em 64 MiB**. Acima disso, o
-  programa está fora do corpus: pode rodar (até o cap), mas não há garantia de resultado
-  nem de ponto de falha. Self-hosting é declarado fora do I1 até existir corpus próprio.
-- O interpretador **não** tem teto (GC do Python) e pode rodar programas que o binário
-  recusa — a assimetria é declarada.
-- Como o Boehm é conservador, o **ponto exato** em que um programa acima do cap estoura
-  não é determinístico: roots falsos dependem da pilha e do ASLR. O que é estável é o
-  canal, a mensagem e o exit code. Programas que imprimem antes de estourar não têm o
-  prefixo de stdout coberto pelo I1.
+- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,
+  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.
+- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the
+  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result
+  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.
+- The interpreter has **no** ceiling (Python GC) and can run programs that the binary
+  refuses — the asymmetry is declared.
+- Because Boehm is conservative, the **exact point** at which a program above the cap overflows
+  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the
+  channel, the message and the exit code. Programs that print before overflowing do not have the
+  stdout prefix covered by I1.
 
-### I2 — Nada acontece implicitamente
+### I2 — Nothing happens implicitly
 
-Nenhuma conversão, coerção, truncamento, arredondamento, truthiness ou fallback acontece
-sem estar escrito no código.
+No conversion, coercion, truncation, rounding, truthiness or fallback happens
+without being written in the code.
 
 ```lox
-print(1 + 2.0)      # 3.0  — promoção Int -> Float, só em aritmética
-print(1 + "1")      # erro — sem coerção entre número e string
-print(4 / 2)        # 2.0  — `/` é sempre Float
-print(-7 // 2)      # -3   — truncado
-print(1 == 1.0)     # true — igualdade numérica com promoção
-print(1 == "1")     # false — tipos diferentes nunca são iguais
-if ("") { print("vazio é truthy") }  # imprime: só nil e false são falsy
-print((nil ?? 0))   # 0    — `??` troca apenas nil
-print(3.9 as Int)   # 3    — cast explícito, truncado
+print(1 + 2.0)      # 3.0  — Int -> Float promotion, arithmetic only
+print(1 + "1")      # error — no coercion between number and string
+print(4 / 2)        # 2.0  — `/` is always Float
+print(-7 // 2)      # -3   — truncated
+print(1 == 1.0)     # true — numeric equality with promotion
+print(1 == "1")     # false — different types are never equal
+if ("") { print("empty is truthy") }  # prints: only nil and false are falsy
+print((nil ?? 0))   # 0    — `??` replaces nil only
+print(3.9 as Int)   # 3    — explicit cast, truncated
 ```
 
-Em **armazenamento** não há promoção: `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` em
-função `-> Float` são erros de tipo; escreva `2.0` ou `2 as Float`
+In **storage** there is no promotion: `val x: Float = 2`, `x = 2`, `f(2)` and `return 2` in a
+`-> Float` function are type errors; write `2.0` or `2 as Float`
 ([ADR-0059](../adr/0059-i4-check-limpo-compila.md)).
 
-Se você quiser a conversão, ela é escrita: não há "o compilador resolve".
+If you want the conversion, it is written: there is no "the compiler sorts it out".
 
-### I3 — Determinismo observável
+### I3 — Observable determinism
 
-Mesma entrada + mesmas flags ⇒ **mesmos bytes** de saída e de diagnóstico. Isso vale para
-stdout, stderr, exit code e `--dump-ast`. Ficam proibidos na saída: endereço de memória,
-PID, timestamp, caminho absoluto, ordem de `set`/`dict`, locale e ordem de diretório.
+Same input + same flags ⇒ **same bytes** of output and of diagnostics. This holds for
+stdout, stderr, exit code and `--dump-ast`. The following are forbidden in the output: memory
+address, PID, timestamp, absolute path, `set`/`dict` order, locale and directory order.
 
-O prelúdio da 1.0 não lê o relógio nem outras entradas ambiente: `clock` foi removido
-([ADR-0026](../adr/0026-freeze-1.0.md)). As **funções ambiente** declaradas no
+The 1.0 prelude does not read the clock or other ambient inputs: `clock` was removed
+([ADR-0026](../adr/0026-freeze-1.0.md)). The **ambient functions** declared in
 [ADR-0072](../adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,
-`time.sleep`, `std.fs`, leitura de `std.io`, `std.proc`/`process.*` e abertura de
-arquivo do kernel — ficam
-explicitamente **fora** desta garantia e do corpus diferencial; têm teste próprio com
-entrada fixa. `std.fs.listDir` ordena as entradas por byte justamente para não vazar a
-ordem do diretório.
+`time.sleep`, `std.fs`, `std.io` reads, `std.proc`/`process.*` and kernel
+file opening — are explicitly **outside** this guarantee and the differential corpus; they
+have their own test with fixed input. `std.fs.listDir` sorts entries by byte precisely so as
+not to leak the directory order.
 
-**Streaming (não é I3, é contrato de I/O):** `io.write`/`io.writeErr` fazem flush a cada
-chamada nos dois motores, e `io.flush()` força os dois canais. `print` segue o buffer do
-stdio (bloco em pipe, linha em tty) — como no oráculo. Sem o flush, um processo que lê a
-saída de outro (pipe, JSONL, MCP, LSP) trava esperando bytes que ficam no buffer
-([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)); o teste
-`test_io_write_flush_antes_de_bloquear_no_stdin` policia isso, porque a comparação de
-bytes no fim do processo não distingue "flushou" de "flushou no exit".
+**Streaming (not I3, it is an I/O contract):** `io.write`/`io.writeErr` flush on every
+call in both engines, and `io.flush()` forces both channels. `print` follows the stdio
+buffer (block on a pipe, line on a tty) — as in the oracle. Without the flush, a process that
+reads another's output (pipe, JSONL, MCP, LSP) hangs waiting for bytes that stay in the buffer
+([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)); the
+`test_io_write_flush_antes_de_bloquear_no_stdin` test polices this, because the byte comparison
+at the end of the process does not distinguish "flushed" from "flushed on exit".
 
-`math.*` implementado é determinístico: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,
-`round`, `trunc` e `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` e `pow` dependem da libm e
-ficam **fora** da 1.0/I3 ([ADR-0029](../adr/0029-conversoes-math.md)). `--debug` muda o
-comportamento de overflow por design; a garantia vale para as mesmas flags.
+The implemented `math.*` is deterministic: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,
+`round`, `trunc` and `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` and `pow` depend on libm and
+stay **outside** 1.0/I3 ([ADR-0029](../adr/0029-conversoes-math.md)). `--debug` changes
+overflow behavior by design; the guarantee holds for the same flags.
 
 ```bash
-./lox programa.lx > a.txt 2>&1   # duas vezes, em máquinas/flags diferentes
-./lox programa.lx > b.txt 2>&1
-cmp a.txt b.txt                   # idênticos
+./lox program.lx > a.txt 2>&1   # twice, on different machines/flags
+./lox program.lx > b.txt 2>&1
+cmp a.txt b.txt                   # identical
 ```
 
-A redação de uma mensagem de erro **pode mudar entre versões**; o exit code não
-(`65` compilação, `70` runtime). Os **códigos** de diagnóstico são estáveis e nunca
-reaproveitados ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)); a saída é ordenada
-por `(arquivo, offset, código)`, deduplicada, limitada por `--max-errors` e o caminho
-exibido é sempre relativo. O JSON carrega `schema_version`.
+The wording of an error message **may change between versions**; the exit code does not
+(`65` compilation, `70` runtime). Diagnostic **codes** are stable and never
+reused ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)); the output is sorted
+by `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path
+is always relative. The JSON carries `schema_version`.
 
-### I4 — `--check` limpo ⇒ compila
+### I4 — Clean `--check` ⇒ it compiles
 
-Todo programa que passa no `--check` compila. A **única** recusa aceitável no lowering é a
-lacuna já declarada e classificada:
+Every program that passes `--check` compiles. The **only** acceptable refusal in lowering is the
+gap already declared and classified:
 
 ```
 ... is not supported by the backend yet.
 ```
 
-Qualquer outro erro depois de um check limpo é violação do I4. O checker é a **fonte de
-verdade** dos tipos; o backend consome os tipos publicados e não inventa regra própria.
+Any other error after a clean check is an I4 violation. The checker is the **source of
+truth** for types; the backend consumes the published types and does not invent its own rule.
 
 ```bash
 uv run main.py --check prog.lx      # exit 0 …
-uv run main.py --emit=exe prog.lx   # … então isto compila (ou recusa só "not supported")
+uv run main.py --emit=exe prog.lx   # … so this compiles (or refuses only "not supported")
 ```
 
-É o corolário operacional do I1: sem ele, o mesmo programa poderia dar `2` no
-interpretador e um erro de tipo no compilador, com o usuário recebendo dois diagnósticos
-contraditórios ([ADR-0059](../adr/0059-i4-check-limpo-compila.md)).
+It is the operational corollary of I1: without it, the same program could give `2` in the
+interpreter and a type error in the compiler, with the user receiving two contradictory
+diagnostics ([ADR-0059](../adr/0059-i4-check-limpo-compila.md)).
 
-## Princípios de design
+## Design principles
 
-Não são garantias testáveis como I1–I4: são os critérios que orientam as decisões de
-sintaxe, tipos e stdlib. O que ainda é aspiracional está marcado.
+They are not testable guarantees like I1–I4: they are the criteria that guide syntax, type
+and stdlib decisions. What is still aspirational is marked.
 
-1. **Sem ruído** — `;` opcional, `elif`, corpo de uma linha; a sintaxe não deve exigir
-   cerimônia para o caso comum.
-2. **Expressões primeiro** — quase tudo produz valor; `if`/`match`/bloco como expressão
-   ficou **fora da 1.0** ([ADR-0026](../adr/0026-freeze-1.0.md)); ternário e `??` cobrem o
-   caso comum.
-3. **Imutável por padrão** — `val`/`var` implementados; parâmetros são imutáveis e `var x`
-   libera a mutação. Argumentos no [ADR-0005](../adr/0005-val-var-imutabilidade.md).
-4. **Tipos opcionais, não cerimônia** — anotar só onde ajuda; no `--check` a inferência
-   local já existe e parâmetros/retorno continuam assinados. Inferir parâmetro sem
-   anotação ficou adiado; ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).
-5. **Falhar cedo e claro** — spans, caret e stack trace existem hoje
+1. **No noise** — optional `;`, `elif`, one-line body; the syntax should not require
+   ceremony for the common case.
+2. **Expressions first** — almost everything produces a value; `if`/`match`/block as an
+   expression stayed **outside 1.0** ([ADR-0026](../adr/0026-freeze-1.0.md)); ternary and `??` cover the
+   common case.
+3. **Immutable by default** — `val`/`var` implemented; parameters are immutable and `var x`
+   unlocks mutation. Arguments in [ADR-0005](../adr/0005-val-var-imutabilidade.md).
+4. **Optional types, not ceremony** — annotate only where it helps; in `--check` local
+   inference already exists and parameters/return remain signed. Inferring a parameter without
+   an annotation was postponed; see [ADR-0020](../adr/0020-assinaturas-explicitas.md).
+5. **Fail early and clearly** — spans, caret and stack trace exist today
    ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
    [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
-6. **Previsível** — nada de coerção implícita, nada de `nil` surpresa; é o I2.
-7. **Identidade = invariantes, não features** — o contrato é o
-   [ADR-0014](../adr/0014-identidade-e-invariantes.md); toda feature passa pelo portão de
-   admissão.
+6. **Predictable** — no implicit coercion, no `nil` surprise; that is I2.
+7. **Identity = invariants, not features** — the contract is
+   [ADR-0014](../adr/0014-identidade-e-invariantes.md); every feature goes through the admission
+   gate.
 
-## Como isso é verificado
+## How this is verified
 
-- [`tests/test_determinism.py`](../../tests/test_determinism.py) roda casos com
-  `PYTHONHASHSEED` diferentes e exige igualdade byte a byte (I3), além de proibir dados
-  voláteis.
-- [`tests/test_backend.py`](../../tests/test_backend.py) compila cada caso do manifesto e
-  compara stdout/stderr/exit com o interpretador (I1), varre o corpus exigindo que check
-  limpo nunca vire erro de tipo (I4) e documenta o orçamento de memória.
-- Os golden cases em `tests/cases/` fixam as recusas de I2 (coerção mista, `nil`
-  surpresa, divisão por zero, promoção em armazenamento).
-- `tests/test_docs_consistency.py` impede que esta página fique defasada em relação ao
-  manifesto e ao CLI.
+- [`tests/test_determinism.py`](../../tests/test_determinism.py) runs cases with
+  different `PYTHONHASHSEED` and requires byte-for-byte equality (I3), besides forbidding
+  volatile data.
+- [`tests/test_backend.py`](../../tests/test_backend.py) compiles each manifest case and
+  compares stdout/stderr/exit with the interpreter (I1), sweeps the corpus requiring that a
+  clean check never becomes a type error (I4) and documents the memory budget.
+- The golden cases in `tests/cases/` pin down the I2 refusals (mixed coercion, `nil`
+  surprise, division by zero, promotion in storage).
+- `tests/test_docs_consistency.py` prevents this page from falling behind the
+  manifest and the CLI.
 
-## O que **não** é prometido
+## What is **not** promised
 
-- **Velocidade.** O tree-walk é o oráculo, não o produto final; benchmarks servem para
-  detectar regressão, não para competir com Rust.
-- **Redação de mensagem entre versões.** Só o exit code (e, no futuro, o código do
-  diagnóstico) é estável.
-- **Compatibilidade com o Lox do livro.** A linguagem divergiu de propósito
-  (`val`/`var`, `Int`/`Float`, `class B(A)`); não há modo de compatibilidade.
-- **Estabilidade de ABI, bytecode ou formato de objeto.** Não existem ainda, e quando
-  existirem não serão contrato público na primeira versão.
-- **Timing.** Nada promete quando um `nil`/objeto é liberado, nem ordem de finalização —
-  justamente para não quebrar I1.
-- **Programas acima do orçamento de memória** no binário (hard cap default de 512 MiB e
-  I1 até 64 MiB de memória viva) e **acima de 10.000 chamadas Lox** (R1015 é o limite).
+- **Speed.** The tree-walk is the oracle, not the final product; benchmarks serve to
+  detect regression, not to compete with Rust.
+- **Message wording between versions.** Only the exit code (and, in the future, the diagnostic
+  code) is stable.
+- **Compatibility with book Lox.** The language diverged on purpose
+  (`val`/`var`, `Int`/`Float`, `class B(A)`); there is no compatibility mode.
+- **ABI, bytecode or object format stability.** They do not exist yet, and when they
+  exist they will not be a public contract in the first version.
+- **Timing.** Nothing promises when a `nil`/object is freed, nor finalization order —
+  precisely so as not to break I1.
+- **Programs above the memory budget** in the binary (default hard cap of 512 MiB and
+  I1 up to 64 MiB of live memory) and **above 10,000 Lox calls** (R1015 is the limit).
 
-## Revisitar
+## Revisit
 
-Se alguma garantia se mostrar impossível para uma feature, isso **não** se resolve
-afrouxando o texto em silêncio: um ADR novo diz o que deixa de valer e por quê
-(ver [ADR-0014](../adr/0014-identidade-e-invariantes.md), "Como verificar").
+If a guarantee turns out to be impossible for a feature, that is **not** resolved by
+loosening the text silently: a new ADR says what stops applying and why
+(see [ADR-0014](../adr/0014-identidade-e-invariantes.md), "How to verify").

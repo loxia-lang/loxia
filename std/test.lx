@@ -1,52 +1,54 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.test — mini-harness de testes (T3, determinístico).
+# std.test — mini test harness (T3, deterministic), pure Lox.
 #
-# `Suite.it` executa o corpo na hora e imprime TAP; sem registry de closures (R3) e sem
-# reflection (ADR-0096). O runner `lox test` só orquestra arquivos `*_test.lx`.
-#
-# Estado é do objeto (módulo não aceita `var` top-level): `val suite = t.Suite()`.
+# `Suite.it` runs each body immediately and prints TAP, so there is no closure registry
+# (R3) and no reflection (ADR-0096); the `lox test` runner only orchestrates `*_test.lx`
+# files. State lives on the object because modules cannot declare top-level `var`:
+# `val suite = t.Suite()`.
 import std.strings as strings
 
-/// Falha de teste (separada de `RuntimeError`, que é bug de infraestrutura).
+/// Test failure (distinct from `RuntimeError`, which is an infrastructure bug).
 class TestFailure(Exception) {
-  /// Cria a falha com a mensagem exibida no relatório.
+  /// Creates the failure with the message shown in the report.
   init(message: String) {
     this.message = message
   }
 }
 
-/// Teste pulado de propósito; o runner conta como `skip`, não como falha.
+/// Test skipped on purpose; the runner counts it as `skip`, not as a failure.
 class Skip(Exception) {
-  /// Cria o skip com o motivo.
+  /// Creates the skip with the given reason.
   init(reason: String) {
     this.message = reason
   }
 }
 
-/// Suite de testes: `describe`, `it`, `report` e `done`.
+/// Test suite: `describe`, `it`, `report` and `done`.
 class Suite {
-  /// Total de testes executados (filtrados não contam).
+  /// Number of tests executed (filtered-out tests do not count).
   var total: Int
-  /// Testes que passaram.
+  /// Tests that passed.
   var passed: Int
-  /// Testes que falharam.
+  /// Tests that failed.
   var failed: Int
-  /// Testes pulados com `skip`.
+  /// Tests skipped with `skip`.
   var skipped: Int
-  /// Prefixos abertos por `describe`.
+  /// Group names opened by `describe`, innermost last.
   var prefixes: List[String]
-  /// Filtro de `--filter=` vindo dos argumentos do script.
+  /// Substring filter read from `--filter=` in the script arguments.
   var filter: String
-  /// Nome exato de `--only=` vindo dos argumentos do script.
+  /// Exact test name read from `--only=` in the script arguments.
   var only: String
-  /// Hooks executados antes de cada `it`, na ordem de registro.
+  /// Hooks run before each `it`, in registration order.
   var beforeHooks: List[fn() -> Nil]
-  /// Hooks executados depois de cada `it`, na ordem inversa.
+  /// Hooks run after each `it`, in reverse registration order.
   var afterHooks: List[fn() -> Nil]
-  /// `--list`: só imprime `# test <nome>`, sem executar (isolamento por teste).
+  /// `--list`: print `# test <name>` only, without executing (per-test isolation).
   var listMode: Bool
 
-  /// Cria uma suite vazia e lê `--filter=`/`--only=` de `args()`.
+  /// Creates an empty suite and reads `--filter=`/`--only=` from `args()`.
+  ///
+  /// Also detects `--list` and enables list mode.
   init() {
     this.total = 0
     this.passed = 0
@@ -72,7 +74,9 @@ class Suite {
     }
   }
 
-  /// Abre um grupo; o nome entra no nome de cada `it` e os hooks valem só aqui.
+  /// Opens a group; its name prefixes every `it` and its hooks apply only here.
+  ///
+  /// Hooks registered inside the body are removed when the body returns.
   fn describe(name: String, body: fn() -> Nil) -> Nil {
     this.prefixes.push(name)
     val beforeMark = len(this.beforeHooks)
@@ -86,17 +90,21 @@ class Suite {
     }
   }
 
-  /// Registra um hook executado antes de cada `it` deste `describe`.
+  /// Registers a hook run before each `it` in this `describe`.
   fn beforeEach(body: fn() -> Nil) -> Nil {
     this.beforeHooks.push(body)
   }
 
-  /// Registra um hook executado depois de cada `it` deste `describe`.
+  /// Registers a hook run after each `it` in this `describe`.
   fn afterEach(body: fn() -> Nil) -> Nil {
     this.afterHooks.push(body)
   }
 
-  /// Executa um teste agora e imprime `ok`/`not ok` em TAP.
+  /// Runs a test immediately and prints `ok`/`not ok` in TAP.
+  ///
+  /// Filtered tests do not run or count. A skipped test still counts in `total` but not
+  /// as passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test
+  /// failure.
   fn it(name: String, body: fn() -> Nil) -> Nil {
     val full = this._fullName(name)
     if (not this._selected(full)) {
@@ -156,12 +164,14 @@ class Suite {
     }
   }
 
-  /// Pula o teste atual com `reason` (o `it` conta como skip, não falha).
+  /// Skips the current test with `reason`.
+  ///
+  /// Raises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.
   fn skip(reason: String) -> Nil {
     raise Skip(reason)
   }
 
-  /// Imprime plano e resumo em TAP; devolve 0 (tudo ok) ou 1 (alguma falha).
+  /// Prints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).
   fn report() -> Int {
     print("1..${this.total}")
     print("# tests ${this.total}")
@@ -174,7 +184,9 @@ class Suite {
     return 0
   }
 
-  /// Atalho de `report()` que encerra o processo com o código de saída.
+  /// Calls `report()` and exits the process with its code.
+  ///
+  /// In `--list` mode it exits 0 immediately.
   fn done() -> Nil {
     if (this.listMode) {
       os.exit(0)
@@ -227,24 +239,24 @@ fn _truncate[T](items: List[T], size: Int) -> Nil {
   }
 }
 
-/// Asserção de igualdade para um valor concreto (escalar, string, lista, mapa, tupla).
+/// Equality assertion for a concrete value (scalar, string, list, map or tuple).
 class Expectation[T] {
-  /// Valor observado.
+  /// Observed value.
   val value: T
 
-  /// Envolve o valor observado.
+  /// Wraps the observed value.
   init(value: T) {
     this.value = value
   }
 
-  /// Falha quando `value != other`.
+  /// Fails when `value != other`.
   fn toBe(other: T) -> Nil {
     if (this.value != other) {
       raise TestFailure("expected ${repr(other)}, got ${repr(this.value)}")
     }
   }
 
-  /// Falha quando `value == other`.
+  /// Fails when `value == other`.
   fn notToBe(other: T) -> Nil {
     if (this.value == other) {
       raise TestFailure("expected not ${repr(other)}")
@@ -252,17 +264,17 @@ class Expectation[T] {
   }
 }
 
-/// Asserção sobre os elementos de uma lista.
+/// Assertion over the elements of a list.
 class ListExpectation[T] {
-  /// Lista observada.
+  /// Observed list.
   val items: List[T]
 
-  /// Envolve a lista observada.
+  /// Wraps the observed list.
   init(items: List[T]) {
     this.items = items
   }
 
-  /// Falha quando `item` não está na lista (igualdade estrutural).
+  /// Fails when `item` is not in the list (structural equality).
   fn toContain(item: T) -> Nil {
     for current in this.items {
       if (current == item) {
@@ -275,17 +287,17 @@ class ListExpectation[T] {
   }
 }
 
-/// Asserção sobre o conteúdo de uma string.
+/// Assertion over the contents of a string.
 class StringExpectation {
-  /// Texto observado.
+  /// Observed text.
   val text: String
 
-  /// Envolve o texto observado.
+  /// Wraps the observed text.
   init(text: String) {
     this.text = text
   }
 
-  /// Falha quando `text` não contém `needle`.
+  /// Fails when `text` does not contain `needle`.
   fn contains(needle: String) -> Nil {
     if (not strings.contains(this.text, needle)) {
       raise TestFailure(
@@ -295,22 +307,22 @@ class StringExpectation {
   }
 }
 
-/// Registra chamadas de um spy/fake: `record`, `count`, `order`, `clear`.
+/// Records calls of a spy/fake: `record`, `count`, `order` and `clear`.
 class Recorder {
-  /// Chamadas na ordem em que foram registradas.
+  /// Calls in registration order.
   val calls: List[String]
 
-  /// Cria um gravador vazio.
+  /// Creates an empty recorder.
   init() {
     this.calls = []
   }
 
-  /// Registra uma chamada pelo nome.
+  /// Records one call by name.
   fn record(name: String) -> Nil {
     this.calls.push(name)
   }
 
-  /// Quantas vezes `name` foi registrado.
+  /// Returns how many times `name` was recorded.
   fn count(name: String) -> Int {
     var total = 0
     for call in this.calls {
@@ -321,7 +333,7 @@ class Recorder {
     return total
   }
 
-  /// Cópia das chamadas na ordem registrada.
+  /// Returns a copy of the calls in registration order.
   fn order() -> List[String] {
     val copy: List[String] = []
     for call in this.calls {
@@ -330,7 +342,7 @@ class Recorder {
     return copy
   }
 
-  /// Esvazia o registro.
+  /// Empties the record.
   fn clear() -> Nil {
     while (len(this.calls) > 0) {
       this.calls.pop()
@@ -338,53 +350,55 @@ class Recorder {
   }
 }
 
-/// Falha o teste atual com `message`.
+/// Fails the current test with `message`.
 fn fail(message: String) -> Nil {
   raise TestFailure(message)
 }
 
-/// Envolve um valor concreto para `toBe`/`notToBe`.
+/// Wraps a concrete value for `toBe`/`notToBe`.
 fn expect[T](value: T) -> Expectation[T] {
   return Expectation(value)
 }
 
-/// Falha quando `actual <= expected` (ordem natural de `T: Ord`).
+/// Fails when `actual <= expected` (natural order of `T: Ord`).
 fn expectGt[T: Ord](actual: T, expected: T) -> Nil {
   if (actual <= expected) {
     raise TestFailure("expected > ${repr(expected)}, got ${repr(actual)}")
   }
 }
 
-/// Falha quando `actual < expected`.
+/// Fails when `actual < expected`.
 fn expectGe[T: Ord](actual: T, expected: T) -> Nil {
   if (actual < expected) {
     raise TestFailure("expected >= ${repr(expected)}, got ${repr(actual)}")
   }
 }
 
-/// Falha quando `actual >= expected`.
+/// Fails when `actual >= expected`.
 fn expectLt[T: Ord](actual: T, expected: T) -> Nil {
   if (actual >= expected) {
     raise TestFailure("expected < ${repr(expected)}, got ${repr(actual)}")
   }
 }
 
-/// Falha quando `actual > expected`.
+/// Fails when `actual > expected`.
 fn expectLe[T: Ord](actual: T, expected: T) -> Nil {
   if (actual > expected) {
     raise TestFailure("expected <= ${repr(expected)}, got ${repr(actual)}")
   }
 }
 
-/// Falha quando `value` não é `nil`. Passe um opcional tipado (`val x: Int? = nil`);
-/// `expectNil(nil)` é opcional aninhado e o backend recusa.
+/// Fails when `value` is not `nil`.
+///
+/// Pass a typed optional (`val x: Int? = nil`): `expectNil(nil)` is a nested optional and
+/// the backend rejects it.
 fn expectNil[T](value: T?) -> Nil {
   if (value != nil) {
     raise TestFailure("expected nil, got ${repr(value)}")
   }
 }
 
-/// Falha quando `value` é `nil`; devolve o valor estreitado.
+/// Fails when `value` is `nil`; returns the narrowed value.
 fn expectNotNil[T](value: T?) -> T {
   if (value == nil) {
     raise TestFailure("expected a non-nil value")
@@ -392,17 +406,19 @@ fn expectNotNil[T](value: T?) -> T {
   return value
 }
 
-/// Envolve uma lista para `toContain`.
+/// Wraps a list for `toContain`.
 fn expectList[T](items: List[T]) -> ListExpectation[T] {
   return ListExpectation(items)
 }
 
-/// Envolve uma string para `contains`.
+/// Wraps a string for `contains`.
 fn expectString(text: String) -> StringExpectation {
   return StringExpectation(text)
 }
 
-/// Executa `body` e devolve a mensagem da exceção; falha se nada foi lançado.
+/// Runs `body` and returns the exception message; fails when nothing is raised.
+///
+/// Catches any `Exception`, including `Skip` and `TestFailure`.
 fn expectRaise(body: fn() -> Nil) -> String {
   try {
     body()

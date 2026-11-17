@@ -1,10 +1,10 @@
 # Documentation translations
 
-The English site is the default locale, but the normative reference is currently in
-Portuguese. Translations live here as a mirror of the source paths:
+The English site is the default locale and the normative reference in `docs/spec/` is
+written in English. Translations live here as a mirror of the source paths:
 
 ```text
-docs/i18n/en/reference/lexicon.md   # English translation of docs/spec/lexico.md
+docs/i18n/pt/reference/1.0/...      # archived Portuguese reference (1.0), when applicable
 docs/i18n/pt/learn/values.md        # optional Portuguese translation of the English page
 ```
 
@@ -23,5 +23,6 @@ that source when the translation was made. `make docs-i18n-check` reports pages 
 source changed after that commit. The site shows the translation status and never
 translates at build time.
 
-English-original pages (`learn`, `why`, `cookbook`) do not use `translated_from`; only the
-reference translation does. ADRs are not translated on the site.
+English-original pages (`learn`, `why`, `cookbook`, `reference`) do not use
+`translated_from`. The archived 1.0 reference is Portuguese-only. ADRs are not translated on
+the site.

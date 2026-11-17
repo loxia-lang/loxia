@@ -147,7 +147,7 @@ iteração, stringify, igualdade, testes).
 
 ### Positivas
 
-- Caso de uso básico destravado: `quicksort` e o exemplo `exemplos/quicksort.lox`.
+- Caso de uso básico destravado: `quicksort` e o exemplo `examples/quicksort.lx`.
 - `for-in` cumpre a promessa de iterar sobre `List`, sem protocolo de usuário.
 - Uma decisão de tipo só (`List[T]`), sem `Array`/`List`/`MutableList` competindo.
 - Homogeneidade explícita: `[1, "a"]` falha no `--check` em vez de virar JS.
@@ -223,7 +223,7 @@ O tree-walk é a spec; o codegen futuro precisa reproduzir:
 - Checker: [`tests/test_checker.py`](../../tests/test_checker.py) cobre invariância,
   literal misto, `[]` sem contexto, `push`/index com tipo errado e `len`.
 - Determinismo: `list_iteration.lox` e `list_stringify.lox` entraram em
-  [`tests/test_determinism.py`](../../tests/test_determinism.py); `exemplos/quicksort.lox`
+  [`tests/test_determinism.py`](../../tests/test_determinism.py); `examples/quicksort.lx`
   também.
 - `make check` verde (ruff + mypy strict + pytest).
 

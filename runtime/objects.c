@@ -1,10 +1,32 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-/* Descritores de tipo/classe, interfaces e `is`/`as` (ADR-0075, ADR-0080). */
+/*
+ * objects.c — class/interface identity and the `is`/`as` matcher.
+ *
+ * Who calls it: the class/interface lowering and the dynamic (`Any`) path in
+ * lower_class_codegen.py, lower_instances.py and lower_model.py. Generated code
+ * passes compact type strings (grammar below) and the matcher caches them by
+ * pointer in the `lox_type_cache` global.
+ *
+ * Invariants:
+ *  - class descriptor = {super, id, name, vtable, ...} (ADR-0048/0080);
+ *  - inheritance is the `super` chain; `lox_is_instance` compares descriptors;
+ *  - the type cache assumes the string is an immutable literal/global;
+ *  - `LoxValue` tags: 0 nil, 1 Int, 2 Float, 3 Bool, 4 String, 5 Class,
+ *    6 Instance, 7 Function, 8 Range, 9 List, 10 Map, 11 Tuple, 12 Enum.
+ *
+ * ADRs: 0025/0029 (`is`/`as`), 0080 (interfaces), 0048 (class ABI).
+ */
 #include "lox_runtime.h"
 
 LoxTypeCache *lox_type_cache = NULL;
 
+/* ---------------------------------------------------------------------------
+ * Interface dispatch (ADR-0080)
+ * --------------------------------------------------------------------------- */
 
+/* Looks up `method_index` in the itab of interface `interface_id`. The itab is
+ * parallel to the method declaration order; R1004 when the instance does not
+ * implement the interface. */
 void *lox_interface_method(const void *instance, int64_t interface_id,
                            int64_t method_index) {
     if (instance == NULL) {
@@ -24,6 +46,7 @@ void *lox_interface_method(const void *instance, int64_t interface_id,
     return NULL;
 }
 
+/* Nominal class `is`: walks the `super` chain comparing descriptors. */
 int lox_is_instance(void *descriptor, void *target) {
     while (descriptor != NULL) {
         if (descriptor == target) {
@@ -34,17 +57,22 @@ int lox_is_instance(void *descriptor, void *target) {
     return 0;
 }
 
-/* Checagem de tipo de runtime para `is`/`as` (ADR-0075).
+/* ---------------------------------------------------------------------------
+ * Runtime types for `is`/`as` (ADR-0025, ADR-0029)
  *
- * O lowering serializa o tipo alvo numa string compacta e o matcher percorre
- * listas, mapas e tuplas com os mesmos acessores do runtime. A árvore é
- * cacheada por ponteiro de string (o global de cada sítio de `is`/`as`).
+ * The lowering serializes the target type into a compact string and the matcher
+ * walks lists, maps and tuples with the same runtime accessors. The tree is
+ * cached by string pointer (the global owned by each `is`/`as` site).
  *
- * Gramática: A=Any, X=never, N=nil, B=Bool, I=Int, F=Float, S=String,
+ * Grammar: A=Any, X=never, N=nil, B=Bool, I=Int, F=Float, S=String,
  * R=Range, L<T>=List, M<K,V>=Map, T<T1,...>=Tuple, U<T1|...>=Union,
- * E<id>=enum, C<id>=classe.
- */
+ * E<id>=enum, C<id>=class.
+ *
+ * `kind` uses the LoxValue tag for concrete types; -1 is Any, -2 is union and
+ * -3 is never. For E/C, `count` stores the id (negative for local classes).
+ * --------------------------------------------------------------------------- */
 
+/* Allocates a zeroed node (kind 0 = nil). */
 LoxTypeDesc *lox_type_desc_new(void) {
     LoxTypeDesc *desc = lox_alloc(sizeof(LoxTypeDesc));
     desc->kind = 0;
@@ -55,6 +83,8 @@ LoxTypeDesc *lox_type_desc_new(void) {
     return desc;
 }
 
+/* Recursive parser for the compact string: consumes `<`, `,`, `|` and `>` and
+ * returns the cursor just past the type. Inner nodes are GC-allocated. */
 const char *lox_parse_type(const char *cursor, LoxTypeDesc *desc) {
     char kind = *cursor++;
     switch (kind) {
@@ -156,6 +186,8 @@ const char *lox_parse_type(const char *cursor, LoxTypeDesc *desc) {
     }
 }
 
+/* Cache by string pointer identity (the text is not copied): each `is`/`as` site
+ * owns a constant global, so the pointer is stable. */
 LoxTypeDesc *lox_type_parse_cached(const char *text) {
     for (LoxTypeCache *entry = lox_type_cache; entry != NULL;
          entry = entry->next) {
@@ -173,8 +205,12 @@ LoxTypeDesc *lox_type_parse_cached(const char *text) {
     return desc;
 }
 
-/* Descritor de classe: [super, id, nome, ...]. A instância guarda o descritor
- * no primeiro campo; a herança é a cadeia de `super`. */
+/* ---------------------------------------------------------------------------
+ * Class descriptors
+ * --------------------------------------------------------------------------- */
+
+/* Class descriptor: [super, id, name, ...]. The instance stores its descriptor
+ * in the first field; inheritance is the `super` chain. */
 int lox_class_id_matches(const void *descriptor, int64_t id) {
     while (descriptor != NULL) {
         const int64_t *words = descriptor;
@@ -186,6 +222,13 @@ int lox_class_id_matches(const void *descriptor, int64_t id) {
     return 0;
 }
 
+/* ---------------------------------------------------------------------------
+ * `is`/`as` matcher
+ * --------------------------------------------------------------------------- */
+
+/* Decides whether `(tag, payload)` matches the `type` tree. Containers walk their
+ * elements; classes compare the id along the inheritance chain; enums compare
+ * the id. `is`/`as` call it with the tree cached by `lox_type_parse_cached`. */
 int lox_type_matches_desc(int64_t tag, int64_t payload,
                                  const LoxTypeDesc *type) {
     if (type == NULL || type->kind == -1) {
@@ -210,12 +253,12 @@ int lox_type_matches_desc(int64_t tag, int64_t payload,
     case 4: /* string */
     case 8: /* range */
         return 1;
-    case 6: { /* instância */
+    case 6: { /* instance */
         const void *instance = (const void *)payload;
         return lox_class_id_matches(*(const void *const *)instance,
                                     type->count);
     }
-    case 9: { /* lista */
+    case 9: { /* list */
         const void *list = (const void *)payload;
         if (type->a == NULL || type->a->kind == -1) {
             return 1;
@@ -229,7 +272,7 @@ int lox_type_matches_desc(int64_t tag, int64_t payload,
         }
         return 1;
     }
-    case 10: { /* mapa */
+    case 10: { /* map */
         const LoxMap *map = (const LoxMap *)payload;
         for (int64_t index = 0; index < map->count; index++) {
             LoxValue key = map->entries[index].key;
@@ -245,7 +288,7 @@ int lox_type_matches_desc(int64_t tag, int64_t payload,
         }
         return 1;
     }
-    case 11: { /* tupla */
+    case 11: { /* tuple */
         const void *tuple = (const void *)payload;
         if (lox_tuple_len(tuple) != type->count) {
             return 0;

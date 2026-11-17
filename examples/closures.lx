@@ -1,4 +1,4 @@
-# Closures: a função interna guarda o ambiente onde foi declarada.
+# Closures: the inner function keeps the environment where it was declared.
 fn makeCounter() -> fn() -> Int {
   var count = 0;
 

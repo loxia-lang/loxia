@@ -514,7 +514,7 @@ motores; migração mecânica de corpus, suíte oficial, exemplos, stdlib e benc
   **0 em `PENDING`**; `print_function.lx` no `l6`.
 - `docs/decisoes.md`, `TODO.md`, `ESCOPO.md`, `README.md`, `AGENTS.md`,
   `tests/official/README.md` — **updated**: `print` função e migração.
-- `tests/official/cases`, `tests/cases`, `exemplos`, `std`, `bench` — **updated**:
+- `tests/official/cases`, `tests/cases`, `examples`, `std`, `bench` — **updated**:
   1.265 chamadas `print` migradas em 282 arquivos; testes Python e docs ajustados.
 
 ## 2026-11-15 — Narrowing: captura de `var` e merge de fluxo (ADR-0086)

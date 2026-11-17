@@ -1,13 +1,13 @@
-# Arquitetura
+# Architecture
 
-Como o interpretador é montado por dentro. Para o comportamento observável, ver
-[`../spec/`](../spec/); as regras de contribuição estão em
+How the interpreter is put together internally. For observable behavior, see
+[`../spec/`](../spec/); the contribution rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Pipeline
 
 ```
-fonte .lx
+source .lx
    │
    ▼
 Scanner ───────────────► list[Token]
@@ -17,458 +17,473 @@ Scanner ───────────────► list[Token]
    │                       │
    │                       ▼
    │                    Resolver ────────► Interpreter.locals: {Expr: depth}
-   │                       │                (erros de escopo vinculante)
+   │                       │                (binding scope errors)
    │                       ▼
-   │                    Checker ─────────► erros de tipo (só em `--check`)
+   │                    Checker ─────────► type errors (only in `--check`)
    │                       │
    ▼                       ▼
-   └──────────────────► Interpreter ──────► efeitos (print, variáveis, objetos)
+   └──────────────────► Interpreter ──────► effects (print, variables, objects)
 
-   (caminho `--emit`)     Checker ─────────► Lowerer ──► llvmlite.ir ──► .o ──► cc
+   (path `--emit`)        Checker ─────────► Lowerer ──► llvmlite.ir ──► .o ──► cc
                                                                     └─► `--emit=ll`
 ```
 
-Cada fase depende só da anterior. O **resolver** é obrigatório: sem ele, o interpretador
-não sabe a distância das variáveis locais. O **checker** é opt-in (`--check`) e não roda
-no caminho normal; tipos são apagados antes da execução.
+Each phase depends only on the previous one. The **resolver** is mandatory: without it, the
+interpreter does not know the distance of local variables. The **checker** is opt-in
+(`--check`) and does not run on the normal path; types are erased before execution.
 
-No caminho do backend (`--emit`, [ADR-0031](../adr/0031-backend-nativo.md)) o checker é
-**obrigatório**: o lowering consome tipos concretos. O que ainda não tem representação
-(`Float`, `String`, variáveis, funções, classes, `Any`) falha com erro de compilação
-explícito — o backend nunca gera código "mais ou menos".
+On the backend path (`--emit`, [ADR-0031](../adr/0031-backend-nativo.md)) the checker is
+**mandatory**: lowering consumes concrete types. What has no representation yet
+(`Float`, `String`, variables, functions, classes, `Any`) fails with an explicit compilation
+error — the backend never generates "roughly right" code.
 
-## Módulos
+## Modules
 
-Pacotes por fase (dependência só para baixo):
+Packages by phase (dependency only downward):
 
-| Pacote | Fase |
+| Package | Phase |
 | --- | --- |
-| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; tipos de anotação (`ty.py`) e `ast_printer` |
-| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (escopos/`depth`) e `checker` gradual |
-| [`loxia_core/execution/`](../../loxia_core/execution) | valores, ambiente, objetos, nativos e `interpreter` |
-| [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` e `error_reporter` |
-| [`loxia_core/backend/`](../../loxia_core/backend) | lowering e emissão LLVM (opt-in via `--emit`) |
+| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`) and `ast_printer` |
+| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`) and gradual `checker` |
+| [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
+| [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
+| [`loxia_core/backend/`](../../loxia_core/backend) | lowering and LLVM emission (opt-in via `--emit`) |
 
-| Módulo | Responsabilidade |
+| Module | Responsibility |
 | --- | --- |
-| [`main.py`](../../main.py) | shim de compatibilidade (`python main.py`) |
-| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcomandos, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restrito a `check`, warnings, `doc` e exit codes |
-| [`loxia/test_runner.py`](../../loxia/test_runner.py) | runner `loxia test` (ADR-0096): descobre `*_test.lx`, um subprocesso por arquivo, agrega TAP e `--json` |
-| [`loxia/docgen.py`](../../loxia/docgen.py) | gera Markdown/JSON da AST a partir de `///` (ADR-0091), sem executar |
-| [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
-| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/formatting/semantic tokens, codeAction, rename e workspace/symbol |
-| [`loxia/completion.py`](../../loxia/completion.py) | completion do LSP sobre a AST original: escopo, imports, módulos, `this`/`super`, enums e membros nativos |
-| [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
-| [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | docs English dos builtins/primitivas para `docs/stdlib/builtins.md` |
-| [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
-| [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | lexer manual; comentários `#` e `/* */` aninhados |
-| [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py) | `Token(type, lexeme, literal, line)` frozen |
-| [`loxia_core/frontend/token_type.py`](../../loxia_core/frontend/token_type.py) | enum `TokenType` |
-| [`loxia_core/frontend/keywords.py`](../../loxia_core/frontend/keywords.py) | mapa lexema → token |
-| [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
-| [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
-| [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
-| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | índice de spans de expressão (offset → menor nó; texto/linha por arquivo) para LSP, checker e `notes` de proveniência |
-| [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | única fronteira com o `llvmlite` (módulo, target machine, object file) |
-| [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | coordenação do lowering: programa, statements, expressões, aritmética e controle de fluxo |
-| [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | tipos, valores, bindings e layouts de campo/classe (ABI do ADR-0048) |
-| [`loxia_core/backend/lower_base.py`](../../loxia_core/backend/lower_base.py) | contexto compartilhado pelos mixins do lowering |
-| [`loxia_core/backend/lower_functions.py`](../../loxia_core/backend/lower_functions.py) | funções, lambdas, captura e ABI de closure |
-| [`loxia_core/backend/lower_variables.py`](../../loxia_core/backend/lower_variables.py) | slots, células, atribuição e escopo |
-| [`loxia_core/backend/lower_optionals.py`](../../loxia_core/backend/lower_optionals.py) | `T?`, coerções, unwrap e igualdade opcional |
-| [`loxia_core/backend/lower_strings.py`](../../loxia_core/backend/lower_strings.py) | strings, interpolação, `str`/`repr`/`len` e display |
-| [`loxia_core/backend/lower_class_layout.py`](../../loxia_core/backend/lower_class_layout.py) | planejamento de layout, campos e inicializadores constantes |
-| [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py) | descritor, vtable, construtor (topo e local), bound methods, `super`, `is`/`as` |
-| [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py) | leitura/escrita de campos, bitmap e `get`/`set` |
-| [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py) | chamadas, classes chamáveis, métodos e `?.` com curto-circuito |
-| [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) | `--emit=ll|obj|exe` e link com o `cc` do sistema |
-| [`runtime/lox_runtime.h`](../../runtime/lox_runtime.h) | tipos, limites e protótipos internos do runtime C (um header comum às unidades) |
-| [`runtime/core.c`](../../runtime/core.c) | inicialização, GC Boehm, pilha, panic e exceções |
-| [`runtime/objects.c`](../../runtime/objects.c) | descritores de classe/tipo, interfaces e matcher de `is`/`as` |
-| [`runtime/strings.c`](../../runtime/strings.c) | `LoxStr`, UTF-8, formatação de `Float` e `lox_print_*` |
-| [`runtime/containers.c`](../../runtime/containers.c) | `Range`, `List`, `Map`, tupla, enum e igualdade |
-| [`runtime/numeric.c`](../../runtime/numeric.c) | guardas de `//`/`%`/divisão, `**`, shifts, `math.*` e parse |
+| [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
+| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcommands, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restricted to `check`, warnings, `doc` and exit codes |
+| [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
+| [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
+| [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
+| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/formatting/semantic tokens, codeAction, rename and workspace/symbol |
+| [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, enums and native members |
+| [`loxia/symbols.py`](../../loxia/symbols.py) | LSP-1 `SymbolIndex`: declarations, references and checker types |
+| [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | English docs for builtins/primitives for `docs/stdlib/builtins.md` |
+| [`loxia/__main__.py`](../../loxia/__main__.py) | `python -m loxia` entrypoint |
+| [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | hand-written lexer; nested `#` and `/* */` comments |
+| [`loxia_core/frontend/tokens.py`](../../loxia_core/frontend/tokens.py) | frozen `Token(type, lexeme, literal, line)` |
+| [`loxia_core/frontend/token_type.py`](../../loxia_core/frontend/token_type.py) | `TokenType` enum |
+| [`loxia_core/frontend/keywords.py`](../../loxia_core/frontend/keywords.py) | lexeme → token map |
+| [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py) | expression nodes + `Visitor` Protocol + `accept` |
+| [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | statement nodes + `Visitor` Protocol + `accept` |
+| [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recovery; optional `;` at end of line; `elif`, `fn` and `[T]` |
+| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of expression spans (offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | single boundary with `llvmlite` (module, target machine, object file) |
+| [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | lowering coordination: program, statements, expressions, arithmetic and control flow |
+| [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | types, values, bindings and field/class layouts (ABI from ADR-0048) |
+| [`loxia_core/backend/lower_base.py`](../../loxia_core/backend/lower_base.py) | context shared by the lowering mixins |
+| [`loxia_core/backend/lower_functions.py`](../../loxia_core/backend/lower_functions.py) | functions, lambdas, capture and closure ABI |
+| [`loxia_core/backend/lower_variables.py`](../../loxia_core/backend/lower_variables.py) | slots, cells, assignment and scope |
+| [`loxia_core/backend/lower_optionals.py`](../../loxia_core/backend/lower_optionals.py) | `T?`, coercions, unwrap and optional equality |
+| [`loxia_core/backend/lower_strings.py`](../../loxia_core/backend/lower_strings.py) | strings, interpolation, `str`/`repr`/`len` and display |
+| [`loxia_core/backend/lower_class_layout.py`](../../loxia_core/backend/lower_class_layout.py) | layout planning, fields and constant initializers |
+| [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py) | descriptor, vtable, constructor (top-level and local), bound methods, `super`, `is`/`as` |
+| [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py) | field reads/writes, bitmap and `get`/`set` |
+| [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py) | calls, callable classes, methods and short-circuiting `?.` |
+| [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) | `--emit=ll|obj|exe` and linking with the system `cc` |
+| [`runtime/lox_runtime.h`](../../runtime/lox_runtime.h) | types, limits and internal prototypes of the C runtime (one header common to the units) |
+| [`runtime/core.c`](../../runtime/core.c) | initialization, Boehm GC, stack, panic and exceptions |
+| [`runtime/objects.c`](../../runtime/objects.c) | class/type descriptors, interfaces and the `is`/`as` matcher |
+| [`runtime/strings.c`](../../runtime/strings.c) | `LoxStr`, UTF-8, `Float` formatting and `lox_print_*` |
+| [`runtime/containers.c`](../../runtime/containers.c) | `Range`, `List`, `Map`, tuple, enum and equality |
+| [`runtime/numeric.c`](../../runtime/numeric.c) | guards for `//`/`%`/division, `**`, shifts, `math.*` and parse |
 | [`runtime/kernel.c`](../../runtime/kernel.c) | kernel 13.2 (ADR-0071): `args`, `io.*`, `fs.*`, `os.*`, `time.*` |
-| [`runtime/proc.c`](../../runtime/proc.c) | processos/streams (ADR-0095): `posix_spawnp`, pipes, `poll(2)` e handles |
-| [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | ABI das primitivas, **gerado** de `primitives.py` por `runtime/gen_kernel.py` |
-| [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | escopos léxicos, validações estáticas, `depth` |
-| [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execução; `globals`, `environment`, `locals` |
-| [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py) | escopos encadeados (`values` + `enclosing`) |
-| [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py) | `stringify` única |
-| [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py) | `Int`/`Float`, promoção, wrapping, `//`, `**` e bits |
-| [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py) | tipos (`Ty`), `TyVar`, `GenericFnTy`, uniões, `T?`, `FnTy` e helpers |
-| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | checker estático gradual (`--check`) |
-| [`loxia_core/execution/type_test.py`](../../loxia_core/execution/type_test.py) | teste dinâmico de tipo para `x is T` |
-| [`loxia_core/execution/lox_range.py`](../../loxia_core/execution/lox_range.py) | `Range` lazy (start, end, step) |
-| [`loxia_core/execution/lox_tuple.py`](../../loxia_core/execution/lox_tuple.py) | `LoxTuple` imutável (tuplas) |
-| [`loxia_core/execution/lox_exception.py`](../../loxia_core/execution/lox_exception.py) | `Exception`/`RuntimeError` e valores de exceção |
-| [`loxia_core/execution/lox_list.py`](../../loxia_core/execution/lox_list.py) | `List` mutável: elementos, `version`, `push`/`pop`, índice |
-| [`loxia_core/execution/lox_map.py`](../../loxia_core/execution/lox_map.py) | `Map` mutável: entradas, `version`, `get`/`has`/`remove`/`keys`/`values` |
-| [`loxia_core/diagnostics/error_reporter.py`](../../loxia_core/diagnostics/error_reporter.py) | coleta/impressão de diagnósticos |
+| [`runtime/proc.c`](../../runtime/proc.c) | processes/streams (ADR-0095): `posix_spawnp`, pipes, `poll(2)` and handles |
+| [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | primitive ABI, **generated** from `primitives.py` by `runtime/gen_kernel.py` |
+| [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | lexical scopes, static validations, `depth` |
+| [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execution; `globals`, `environment`, `locals` |
+| [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py) | chained scopes (`values` + `enclosing`) |
+| [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py) | single `stringify` |
+| [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py) | `Int`/`Float`, promotion, wrapping, `//`, `**` and bits |
+| [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py) | types (`Ty`), `TyVar`, `GenericFnTy`, unions, `T?`, `FnTy` and helpers |
+| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | gradual static checker (`--check`) |
+| [`loxia_core/execution/type_test.py`](../../loxia_core/execution/type_test.py) | dynamic type test for `x is T` |
+| [`loxia_core/execution/lox_range.py`](../../loxia_core/execution/lox_range.py) | lazy `Range` (start, end, step) |
+| [`loxia_core/execution/lox_tuple.py`](../../loxia_core/execution/lox_tuple.py) | immutable `LoxTuple` (tuples) |
+| [`loxia_core/execution/lox_exception.py`](../../loxia_core/execution/lox_exception.py) | `Exception`/`RuntimeError` and exception values |
+| [`loxia_core/execution/lox_list.py`](../../loxia_core/execution/lox_list.py) | mutable `List`: elements, `version`, `push`/`pop`, index |
+| [`loxia_core/execution/lox_map.py`](../../loxia_core/execution/lox_map.py) | mutable `Map`: entries, `version`, `get`/`has`/`remove`/`keys`/`values` |
+| [`loxia_core/diagnostics/error_reporter.py`](../../loxia_core/diagnostics/error_reporter.py) | collection/printing of diagnostics |
 | [`loxia_core/diagnostics/errors.py`](../../loxia_core/diagnostics/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
-| [`loxia_core/execution/lox_callable.py`](../../loxia_core/execution/lox_callable.py) | Protocol `min_arity`/`max_arity`/`call` |
-| [`loxia_core/execution/prelude.py`](../../loxia_core/execution/prelude.py) | nomes dos builtins globais reservados |
-| [`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py) | função de usuário + closure + `bind` |
-| [`loxia_core/execution/lox_class.py`](../../loxia_core/execution/lox_class.py) | classe (métodos, herança, `init`, interfaces) |
-| [`loxia_core/execution/lox_interface.py`](../../loxia_core/execution/lox_interface.py) | interface nominal (defaults ligados ao ambiente) |
-| [`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py) | instância (campos + métodos ligados) |
+| [`loxia_core/execution/lox_callable.py`](../../loxia_core/execution/lox_callable.py) | `min_arity`/`max_arity`/`call` Protocol |
+| [`loxia_core/execution/prelude.py`](../../loxia_core/execution/prelude.py) | names of reserved global builtins |
+| [`loxia_core/execution/lox_function.py`](../../loxia_core/execution/lox_function.py) | user function + closure + `bind` |
+| [`loxia_core/execution/lox_class.py`](../../loxia_core/execution/lox_class.py) | class (methods, inheritance, `init`, interfaces) |
+| [`loxia_core/execution/lox_interface.py`](../../loxia_core/execution/lox_interface.py) | nominal interface (defaults bound to the environment) |
+| [`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py) | instance (fields + bound methods) |
 | [`loxia_core/execution/natives/len.py`](../../loxia_core/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
 | [`loxia_core/execution/natives/repr.py`](../../loxia_core/execution/natives/repr.py) | `repr(x)` |
 | [`loxia_core/execution/natives/range.py`](../../loxia_core/execution/natives/range.py) | `range(a, b, step)` |
 | [`loxia_core/execution/natives/str.py`](../../loxia_core/execution/natives/str.py) | `str(x)` |
-| [`loxia_core/execution/native_module.py`](../../loxia_core/execution/native_module.py) | namespace nativo somente leitura (`Int`, `Float`, `math`) |
-| [`loxia_core/execution/natives/parse.py`](../../loxia_core/execution/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, sem crash) |
-| [`loxia_core/execution/natives/math.py`](../../loxia_core/execution/natives/math.py) | `math.*` determinístico (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
-| [`loxia_core/execution/natives/modules.py`](../../loxia_core/execution/natives/modules.py) | montagem dos namespaces nativos |
-| [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py) | dump S-expression (debug/testes) |
+| [`loxia_core/execution/native_module.py`](../../loxia_core/execution/native_module.py) | read-only native namespace (`Int`, `Float`, `math`) |
+| [`loxia_core/execution/natives/parse.py`](../../loxia_core/execution/natives/parse.py) | `Int.parse`/`Float.parse` (`T?`, without crashing) |
+| [`loxia_core/execution/natives/math.py`](../../loxia_core/execution/natives/math.py) | deterministic `math.*` (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
+| [`loxia_core/execution/natives/modules.py`](../../loxia_core/execution/natives/modules.py) | assembly of native namespaces |
+| [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py) | S-expression dump (debug/tests) |
 
-`loxia_core` é um pacote normal (`__init__.py`). Os imports são sempre absolutos e apontam para
-o pacote da fase (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
-import wrap_int`). O programa roda da raiz do repositório.
+`loxia_core` is a normal package (`__init__.py`). Imports are always absolute and point to
+the phase package (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
+import wrap_int`). The program runs from the repository root.
 
 ## Visitor
 
-`Expr` e `Stmt` são Protocols com um método `accept`. Cada nó é um
-`@dataclass(frozen=True, eq=False)` que chama `visitor.visit_<no>_<expr|stmt>`.
+`Expr` and `Stmt` are Protocols with an `accept` method. Each node is a
+`@dataclass(frozen=True, eq=False)` that calls `visitor.visit_<no>_<expr|stmt>`.
 
-Adicionar um nó exige **cinco** pontos:
+Adding a node requires **five** points:
 
-1. dataclass em `expr.py`/`stmt.py` + método no `Visitor`;
-2. `accept` no nó;
+1. dataclass in `expr.py`/`stmt.py` + method in the `Visitor`;
+2. `accept` on the node;
 3. parsing;
-4. `Interpreter` (semântica) e `Resolver` (escopo);
-5. `AstPrinter` (debug) + caso golden.
+4. `Interpreter` (semantics) and `Resolver` (scope);
+5. `AstPrinter` (debug) + golden case.
 
-O `mypy` strict cobra os métodos dos Protocols; esquecer um passo quebra o type check.
+Strict `mypy` enforces the Protocol methods; forgetting a step breaks the type check.
 
-## Identidade da AST
+## AST identity
 
-Nós usam `eq=False`: igualdade e hash são **por identidade**. O resolver usa o próprio nó
-como chave em `Interpreter.locals`, como o `HashMap` de identidade do livro. Com igualdade
-estrutural, dois `a` na mesma linha (mesmo token) colidiriam. Ver
+Nodes use `eq=False`: equality and hash are **by identity**. The resolver uses the node itself
+as the key in `Interpreter.locals`, like the book's identity `HashMap`. With structural
+equality, two `a` on the same line (same token) would collide. See
 [ADR-0004](../adr/0004-identidade-dos-nos-de-ast.md).
 
-## Ambientes e resolução
+## Environments and resolution
 
-- `Environment` é uma lista ligada (`values: dict[str, object]`, `_mutable: dict[str, bool]`,
+- `Environment` is a linked list (`values: dict[str, object]`, `_mutable: dict[str, bool]`,
   `enclosing`).
-- `define(nome, valor, mutable)` grava no escopo atual; `get`/`assign` sobem a corrente até
-  achar (globais vivem no ambiente raiz). `assign`/`assign_at` recusam binding imutável.
-- O resolver mantém uma pilha de escopos `dict[str, _VariableInfo]` (`defined`, `mutable`)
-  e grava em `Interpreter.locals[expr] = distância`. É aqui que `val` local/parâmetro vira
-  erro de compilação; globais ficam para o `Environment`.
-- Em runtime, variável local usa `environment.get_at(distance, nome)`; global usa
-  `globals.get`. Atribuição idem com `assign_at`.
-- `distance` é contada a partir do ambiente corrente: 0 = escopo atual.
+- `define(name, value, mutable)` writes to the current scope; `get`/`assign` walk up the chain
+  until they find it (globals live in the root environment). `assign`/`assign_at` reject
+  immutable bindings.
+- The resolver keeps a stack of `dict[str, _VariableInfo]` scopes (`defined`, `mutable`)
+  and writes `Interpreter.locals[expr] = distance`. This is where a local/parameter `val`
+  becomes a compilation error; globals are left to the `Environment`.
+- At runtime, a local variable uses `environment.get_at(distance, name)`; a global uses
+  `globals.get`. Assignment likewise with `assign_at`.
+- `distance` is counted from the current environment: 0 = current scope.
 
-Consequência: **escopo léxico**. Closure lê a variável do ponto de declaração, não da
-chamada.
+Consequence: **lexical scope**. A closure reads the variable from the declaration point, not
+from the call site.
 
-## Chamadas e objetos
+## Calls and objects
 
-- `LoxCallable` é um `Protocol` `runtime_checkable` com `min_arity()`, `max_arity()` e
-  `call(interpreter, args)`. A faixa cobre parâmetros com default.
-  `isinstance(x, LoxCallable)` verifica presença dos métodos.
-- `Stmt.Function.params` é uma lista de `Param(name, mutable, default, type_annotation)`, e
-  `Stmt.Var` carrega `mutable` e `type_annotation`. Parâmetros são imutáveis por padrão
-  (`var` no parser liga `mutable`).
-- `LoxFunction` guarda a declaração (`Stmt.Function`) e a `closure`; `call` cria um ambiente
-  novo, define os parâmetros (preenchendo defaults constantes) e executa o corpo.
-  `bind(instance)` cria um ambiente com `this` (usado por métodos e por `super`).
-- `LoxClass` guarda `superclass`, `methods` e `fields: dict[str, FieldInfo]` (campos
-  herdados já mesclados); `find_method`/`find_field` sobem recursivamente. `call` cria a
-  instância, roda inicializadores de campo e `init`, e valida os campos inicializados.
-- `LoxInstance` tem `fields: dict[str, object]` e `_initialized`; `get` procura campo,
-  depois método (e devolve o método ligado); `set` recusa campo não declarado e `val` já
-  inicializado.
-- `return` usa `ReturnSignal`, uma exceção interna capturada por `LoxFunction.call`.
-  Não é erro de runtime e não deve vazar para o usuário.
+- `LoxCallable` is a `runtime_checkable` `Protocol` with `min_arity()`, `max_arity()` and
+  `call(interpreter, args)`. The range covers parameters with defaults.
+  `isinstance(x, LoxCallable)` checks that the methods are present.
+- `Stmt.Function.params` is a list of `Param(name, mutable, default, type_annotation)`, and
+  `Stmt.Var` carries `mutable` and `type_annotation`. Parameters are immutable by default
+  (`var` in the parser sets `mutable`).
+- `LoxFunction` holds the declaration (`Stmt.Function`) and the `closure`; `call` creates a
+  new environment, defines the parameters (filling in constant defaults) and executes the
+  body. `bind(instance)` creates an environment with `this` (used by methods and by `super`).
+- `LoxClass` holds `superclass`, `methods` and `fields: dict[str, FieldInfo]` (inherited
+  fields already merged); `find_method`/`find_field` walk up recursively. `call` creates the
+  instance, runs field initializers and `init`, and validates the initialized fields.
+- `LoxInstance` has `fields: dict[str, object]` and `_initialized`; `get` looks for a field,
+  then a method (and returns the bound method); `set` rejects an undeclared field and a `val`
+  that is already initialized.
+- `return` uses `ReturnSignal`, an internal exception caught by `LoxFunction.call`.
+  It is not a runtime error and must not leak to the user.
 
-## Listas
+## Lists
 
-- `LoxList` envolve `list[object]` e um `version` incremental; `push`/`pop`/`set` mudam a
-  versão. `get_method(name)` devolve um `LoxCallable` ligado (`ListPushMethod`/
-  `ListPopMethod`), e o `Get` do interpretador aceita `LoxInstance` ou `LoxList`.
-- `ListLiteral`, `Index` e `IndexSet` são nós de expressão; `Index`/`IndexSet` carregam o
-  token `[` para o diagnóstico. `IndexSet` é o alvo de `xs[i] = v` (o parser transforma
-  `Index` em `IndexSet` quando vê `=`).
-- `for-in` usa `_iterate_list`: confere `version` antes de cada elemento e ao final; mutação
-  no meio do laço vira `RuntimeError`.
-- `stringify` é recursivo com pilha de identidades (ciclo → `[...]`); igualdade estrutural
-  usa um conjunto de pares `(id(a), id(b))`.
-- Tipos são apagados: o `LoxList` não conhece `T`; o `Checker` é quem aplica `ListTy`,
-  invariância e as assinaturas de `push`/`pop`/`len`.
+- `LoxList` wraps `list[object]` and an incremental `version`; `push`/`pop`/`set` change the
+  version. `get_method(name)` returns a bound `LoxCallable` (`ListPushMethod`/
+  `ListPopMethod`), and the interpreter's `Get` accepts `LoxInstance` or `LoxList`.
+- `ListLiteral`, `Index` and `IndexSet` are expression nodes; `Index`/`IndexSet` carry the
+  `[` token for diagnostics. `IndexSet` is the target of `xs[i] = v` (the parser turns
+  `Index` into `IndexSet` when it sees `=`).
+- `for-in` uses `_iterate_list`: it checks `version` before each element and at the end;
+  mutation in the middle of the loop becomes a `RuntimeError`.
+- `stringify` is recursive with an identity stack (cycle → `[...]`); structural equality
+  uses a set of `(id(a), id(b))` pairs.
+- Types are erased: `LoxList` does not know about `T`; the `Checker` is what applies `ListTy`,
+  invariance and the `push`/`pop`/`len` signatures.
 
-## Mapas
+## Maps
 
-- `LoxMap` envolve um `dict[_MapKey, object]` (ordem de inserção) e um `version`
-  incremental. `_MapKey` é `(tag, valor)` para separar `Bool` de `Int` e restringir chaves a
-  `String`/`Int`/`Bool`; qualquer outra chave vira `RuntimeError`.
-- `MapLiteral(entries, brace)` guarda pares `(chave, valor)` como expressões; o parser só
-  cria esse nó em posição de expressão (no início do statement, `{` é bloco). O
-  interpretador avalia chave→valor, da esquerda para a direita, e confere `has` antes de
-  inserir, para recusar chave duplicada no literal.
-- `Index`/`IndexSet` já eram genéricos: o interpretador despacha para `LoxList` ou
-  `LoxMap`. `m.get(k)`/`m.has(k)`/`m.remove(k)`/`m.keys()`/`m.values()` vêm de
-  `get_method` (métodos nativos ligados), e `Get` aceita `LoxInstance`, `LoxList` e
+- `LoxMap` wraps a `dict[_MapKey, object]` (insertion order) and an incremental `version`.
+  `_MapKey` is `(tag, value)` to separate `Bool` from `Int` and restrict keys to
+  `String`/`Int`/`Bool`; any other key becomes a `RuntimeError`.
+- `MapLiteral(entries, brace)` holds `(key, value)` pairs as expressions; the parser only
+  creates this node in expression position (at the start of a statement, `{` is a block). The
+  interpreter evaluates key→value, from left to right, and checks `has` before inserting, to
+  reject a duplicate key in the literal.
+- `Index`/`IndexSet` were already generic: the interpreter dispatches to `LoxList` or
+  `LoxMap`. `m.get(k)`/`m.has(k)`/`m.remove(k)`/`m.keys()`/`m.values()` come from
+  `get_method` (bound native methods), and `Get` accepts `LoxInstance`, `LoxList` and
   `LoxMap`.
-- `for-in` usa `_iterate_map`: snapshot das chaves + conferência de `version` antes de cada
-  chave e ao final; mutação no laço vira `RuntimeError`.
-- `stringify` de mapa é recursivo com a mesma pilha de identidades de `List` (ciclo →
-  `{...}`); igualdade estrutural é independente de ordem e usa `b.find(key)` com o mesmo
-  conjunto de pares `(id(a), id(b))`.
-- Tipos são apagados no runtime: o `LoxMap` não conhece `K`/`V`; o `Checker` aplica
-  `MapTy`, invariância, a restrição de chaves e as assinaturas dos métodos.
+- `for-in` uses `_iterate_map`: snapshot of the keys + `version` check before each key and
+  at the end; mutation in the loop becomes a `RuntimeError`.
+- Map `stringify` is recursive with the same identity stack as `List` (cycle → `{...}`);
+  structural equality is order-independent and uses `b.find(key)` with the same set of
+  `(id(a), id(b))` pairs.
+- Types are erased at runtime: `LoxMap` does not know about `K`/`V`; the `Checker` applies
+  `MapTy`, invariance, the key restriction and the method signatures.
 
-## Assinaturas e ordem
+## Signatures and order
 
-- `Checker.check` pré-declara as classes e calcula as assinaturas das **funções de topo**
-  antes de checar os corpos. O corpo de uma função pode chamar outra declarada depois,
-  inclusive recursão mútua, porque a assinatura já está na tabela
-  `_predeclared_by_name`.
-- A tabela só é consultada quando `_function_depth > 0` (dentro de um corpo). Statements de
-  topo continuam na ordem: chamar uma função antes da declaração dela ainda é erro.
-- A assinatura é calculada uma vez e guardada por nó de AST (`_signatures`); o
-  `visit_function_stmt` reutiliza o mesmo `FnTy` em vez de recalcular.
-- Métodos e campos de classes não são antecipados; seguem a ordem de visita da classe.
-  Ver [ADR-0020](../adr/0020-assinaturas-explicitas.md).
-- Anotações de função (`fn(Int) -> Int`) viram `FnTy` no parser e são resolvidas em
-  `_resolve_type`. `_assignable_fn` aplica contravariância nos parâmetros e covariância no
-  retorno; um `ClassObjectTy` também é atribuível à assinatura do seu `init`, então uma
-  classe pode ser passada como fábrica. Ver [ADR-0021](../adr/0021-tipos-de-funcao.md).
-- `_body_always_returns` vale para funções, métodos e lambdas: retorno não-nil sem caminho
-  de retorno é erro. `visit_return_stmt` recusa `return;` em retorno não-nil.
-- `_check_field_initialization` roda um dataflow simples (`_init_flow`/`_init_stmt`) sobre o
-  `init`: interseção em `if`/`else`, `return` antecipado e laços conservadores; todo campo
-  sem inicializador precisa estar atribuído em todos os caminhos.
-- `_check_overrides` roda depois de todas as classes e compara cada método com o da
-  superclasse via `_assignable` (contravariante nos parâmetros, covariante no retorno).
-  Ver [ADR-0023](../adr/0023-soundness-do-checker.md).
+- `Checker.check` pre-declares the classes and computes the signatures of **top-level
+  functions** before checking the bodies. A function body can call another one declared
+  later, including mutual recursion, because the signature is already in the
+  `_predeclared_by_name` table.
+- The table is only consulted when `_function_depth > 0` (inside a body). Top-level
+  statements remain in order: calling a function before its declaration is still an error.
+- The signature is computed once and stored per AST node (`_signatures`); `visit_function_stmt`
+  reuses the same `FnTy` instead of recomputing it.
+- Class methods and fields are not anticipated; they follow the class visit order.
+  See [ADR-0020](../adr/0020-assinaturas-explicitas.md).
+- Function annotations (`fn(Int) -> Int`) become `FnTy` in the parser and are resolved in
+  `_resolve_type`. `_assignable_fn` applies contravariance to parameters and covariance to
+  the return; a `ClassObjectTy` is also assignable to the signature of its `init`, so a
+  class can be passed as a factory. See [ADR-0021](../adr/0021-tipos-de-funcao.md).
+- `_body_always_returns` applies to functions, methods and lambdas: a non-nil return without
+  a return path is an error. `visit_return_stmt` rejects `return;` in a non-nil return.
+- `_check_field_initialization` runs a simple dataflow (`_init_flow`/`_init_stmt`) over
+  `init`: intersection at `if`/`else`, early `return` and conservative loops; every field
+  without an initializer must be assigned on all paths.
+- `_check_overrides` runs after all classes and compares each method with the superclass
+  one via `_assignable` (contravariant in parameters, covariant in the return).
+  See [ADR-0023](../adr/0023-soundness-do-checker.md).
 
 ## Lambdas
 
-- `Lambda(Expr)` guarda `keyword`, `params`, `body` e `return_type`. O parser transforma
-  `=> expr` em `body = [Return(arrow, expr)]`; bloco usa o corpo normal. O runtime não
-  precisa saber a diferença.
-- `LoxFunction` aceita `Function | Lambda`; a lambda é uma closure sobre o ambiente onde
-  foi avaliada (`visit_lambda_expr`), e `__str__` devolve `<lambda>`.
-- O resolver reutiliza `_resolve_function` para lambda: muda `_current_function` para
-  `FUNCTION`, mas **não** muda `_current_class`; `this`/`super` continuam sendo resolvidos
-  no escopo do método que envolve a lambda.
-- O checker usa `_lambda_type`. O tipo esperado (`FnTy`) preenche parâmetros sem anotação;
-  o retorno é coletado por `_check_function_body(..., collect_returns=True)` e inferido; o
-  flag `preserve_class` mantém `this`/`super` visíveis. Parâmetro sem contexto é erro;
-  mistura de retornos não-nil exige anotação.
-- `AstPrinter.visit_lambda_expr` imprime `(lambda (params) [-> Tipo] corpo)`.
-  Ver [ADR-0022](../adr/0022-lambdas.md).
+- `Lambda(Expr)` holds `keyword`, `params`, `body` and `return_type`. The parser turns
+  `=> expr` into `body = [Return(arrow, expr)]`; a block uses the normal body. The runtime
+  does not need to know the difference.
+- `LoxFunction` accepts `Function | Lambda`; a lambda is a closure over the environment
+  where it was evaluated (`visit_lambda_expr`), and `__str__` returns `<lambda>`.
+- The resolver reuses `_resolve_function` for a lambda: it changes `_current_function` to
+  `FUNCTION`, but **does not** change `_current_class`; `this`/`super` are still resolved
+  in the scope of the method that encloses the lambda.
+- The checker uses `_lambda_type`. The expected type (`FnTy`) fills in parameters without an
+  annotation; the return is collected by `_check_function_body(..., collect_returns=True)`
+  and inferred; the `preserve_class` flag keeps `this`/`super` visible. A parameter without
+  context is an error; a mix of non-nil returns requires an annotation.
+- `AstPrinter.visit_lambda_expr` prints `(lambda (params) [-> Type] body)`.
+  See [ADR-0022](../adr/0022-lambdas.md).
 
 ## Generics
 
-- `Function.type_params` guarda os tokens de `[T, U]`; o parser aceita o bloco só em
-  declarações de função, nunca em lambda. O dump imprime `(fn id[T] ...)`.
-- O checker tem `FunctionSignature(type_params, type_param_names, fn)`. `_signature` cria
-  `TyVar` frescas (`id` único), empilha `_type_param_scopes` e resolve parâmetros/retorno
-  com `_resolve_type`; `T` vira `TyVar` em vez de `ClassTy`. O corpo é checado **uma vez**
-  com `_check_function_body(..., type_params=...)`; o escopo de tipos fica ativo para
-  anotações e lambdas aninhadas.
-- `_lookup` de uma função genérica devolve `GenericFnTy` (parâmetros + assinatura), não
-  `FnTy`. Ela só é válida como callee; `val f = id` e passar `id` como callback são erros.
-- `visit_call_expr` delega para `_infer_call`. Se o callee é `GenericFnTy`,
-  `_instantiate_generic` renomeia as `TyVar` e `_infer_generic_call`:
-  - unifica o retorno com o tipo esperado (quando há);
-  - checa argumentos em ordem, usando `_check_generic_argument` (contexto para lambda/
-    lista/mapa, unificação para o resto);
-  - aplica as substituições, exige que todo `T` tenha sido inferido e devolve o tipo
-    concreto.
-- `_unify` cobre `TyVar`, `List`, `Map`, `Fn`, uniões e casos concretos via `_assignable`;
-  `_occurs` recusa `T = List[T]`; `_substitute` aplica o mapa. Sem constraints, `a + b`
-  em `T` continua erro (`_numeric` não aceita `TyVar`).
-- `_check_polymorphic_recursion` recusa `f[T]` chamando `f([x])` (muda os argumentos de
-  tipo); `f(x)` com os mesmos `T` é permitido.
-- O runtime não muda: `T` é apagado; o monomorphization é responsabilidade do backend
-  (ADR-0027). Nada de `LoxValue` boxeado no tree-walk.
+- `Function.type_params` holds the `[T, U]` tokens; the parser accepts the block only in
+  function declarations, never in a lambda. The dump prints `(fn id[T] ...)`.
+- The checker has `FunctionSignature(type_params, type_param_names, fn)`. `_signature`
+  creates fresh `TyVar`s (unique `id`), pushes `_type_param_scopes` and resolves
+  parameters/return with `_resolve_type`; `T` becomes a `TyVar` instead of a `ClassTy`. The
+  body is checked **once** with `_check_function_body(..., type_params=...)`; the type scope
+  stays active for annotations and nested lambdas.
+- `_lookup` of a generic function returns `GenericFnTy` (parameters + signature), not
+  `FnTy`. It is only valid as a callee; `val f = id` and passing `id` as a callback are
+  errors.
+- `visit_call_expr` delegates to `_infer_call`. If the callee is a `GenericFnTy`,
+  `_instantiate_generic` renames the `TyVar`s and `_infer_generic_call`:
+  - unifies the return with the expected type (when there is one);
+  - checks arguments in order, using `_check_generic_argument` (context for a lambda/
+    list/map, unification for the rest);
+  - applies the substitutions, requires every `T` to have been inferred and returns the
+    concrete type.
+- `_unify` covers `TyVar`, `List`, `Map`, `Fn`, unions and concrete cases via
+  `_assignable`; `_occurs` rejects `T = List[T]`; `_substitute` applies the map. Without
+  constraints, `a + b` on `T` remains an error (`_numeric` does not accept `TyVar`).
+- `_check_polymorphic_recursion` rejects `f[T]` calling `f([x])` (it changes the type
+  arguments); `f(x)` with the same `T`s is allowed.
+- The runtime does not change: `T` is erased; monomorphization is the backend's
+  responsibility (ADR-0027). No boxed `LoxValue` in the tree-walk.
 
 ## Narrowing
 
-- O checker mantém `_scopes` (declarações) e `_narrowings` (refinamentos), uma pilha
-  paralela. Cada entrada de `_narrowings` guarda `(índice_do_escopo_da_declaração, Ty)`,
-  para um refinamento antigo não vazar para uma variável redefinida em escopo interno.
-- `_find_decl` acha a declaração mais próxima; `_lookup` procura refinamento do nível mais
-  interno até a declaração (com o índice batendo) e cai para o tipo declarado.
-- `_refinements(cond, truth)` reconhece `x == nil`, `x != nil`, `if (x)`, `x is T`,
-  `not`, e combina `and` (ramo verdadeiro) / `or` (ramo falso); `_check_branch` empilha um
-  nível temporário e `_always_returns` decide se o ramo oposto persiste após retorno
-  antecipado. `while` aplica o refinamento verdadeiro ao corpo.
-- `x is T` usa `_intersect_types`/`_narrow_to` no ramo verdadeiro e `_narrow_away` no falso
-  (remove membros da união totalmente cobertos por `T`); `_merge_refinements` combina
-  `and`/`or` por interseção.
-- `Is` é um nó de expressão (`left`, `test_type`, `operator`); o interpreter chama
-  `matches_type`, que mora em `loxia_core/execution/type_test.py` e cobre primitivos, classes/subclasses,
-  `List[T]`/`Map[K, V]` (recursivo) e uniões. O runtime não ganha um sistema de tipos
-  geral; `matches_type` existe só para `is`.
-- `_invalidate` remove o nome de todos os níveis ativos quando há atribuição. É
-  conservador: perder refinamento é seguro; manter um refinamento inválido não seria.
-- Runtime não participa; `T?` continua apagado.
+- The checker keeps `_scopes` (declarations) and `_narrowings` (refinements), a parallel
+  stack. Each `_narrowings` entry holds `(declaration_scope_index, Ty)`, so an old
+  refinement does not leak to a variable redefined in an inner scope.
+- `_find_decl` finds the closest declaration; `_lookup` searches for a refinement from the
+  innermost level up to the declaration (with a matching index) and falls back to the
+  declared type.
+- `_refinements(cond, truth)` recognizes `x == nil`, `x != nil`, `if (x)`, `x is T`, `not`,
+  and combines `and` (true branch) / `or` (false branch); `_check_branch` pushes a temporary
+  level and `_always_returns` decides whether the opposite branch persists after an early
+  return. `while` applies the true refinement to the body.
+- `x is T` uses `_intersect_types`/`_narrow_to` in the true branch and `_narrow_away` in the
+  false one (removes union members fully covered by `T`); `_merge_refinements` combines
+  `and`/`or` by intersection.
+- `Is` is an expression node (`left`, `test_type`, `operator`); the interpreter calls
+  `matches_type`, which lives in `loxia_core/execution/type_test.py` and covers primitives, classes/subclasses,
+  `List[T]`/`Map[K, V]` (recursive) and unions. The runtime does not gain a general type
+  system; `matches_type` exists only for `is`.
+- `_invalidate` removes the name from all active levels when there is an assignment. It is
+  conservative: losing a refinement is safe; keeping an invalid refinement would not be.
+- The runtime does not participate; `T?` remains erased.
 
-## Interpolação
+## Interpolation
 
-- `Scanner._string` reconhece `${` e delega a expressão a `_scan_expression_tokens`, que
-  escaneia em um buffer de tokens próprio, conta chaves internas (mapa/bloco) e ignora
-  strings/comentários. O token `INTERPOLATED_STRING` guarda `list[str | list[Token]]`.
-- `Parser._interpolated_string` cria um sub-`Parser` por buffer e chama
-  `parse_expression`; o resultado é `InterpolatedString(parts, token)`, com trechos de texto
-  e nós de expressão.
-- `Interpreter.visit_interpolated_expr` avalia cada expressão da esquerda para a direita e
-  concatena com `stringify`; `Checker` infere cada parte e devolve `String`; `Resolver`
-  resolve as subexpressões.
-- `\$` e `\${` são escapes de texto; `$` sem `{` é literal. O AST printer mostra
+- `Scanner._string` recognizes `${` and delegates the expression to
+  `_scan_expression_tokens`, which scans into its own token buffer, counts inner braces
+  (map/block) and ignores strings/comments. The `INTERPOLATED_STRING` token holds
+  `list[str | list[Token]]`.
+- `Parser._interpolated_string` creates a sub-`Parser` per buffer and calls
+  `parse_expression`; the result is `InterpolatedString(parts, token)`, with text chunks and
+  expression nodes.
+- `Interpreter.visit_interpolated_expr` evaluates each expression from left to right and
+  concatenates with `stringify`; `Checker` infers each part and returns `String`; `Resolver`
+  resolves the subexpressions.
+- `\$` and `\${` are text escapes; `$` without `{` is literal. The AST printer shows
   `(interp "texto" expr ...)`.
 
-## Builtins e sombreamento
+## Builtins and shadowing
 
-- `Interpreter.__init__` define `len`, `range`, `repr`, `str`, `Int`, `Float` e `math`
-  com `mutable=False`; `_reject_immutable_redeclaration` recusa redefinição no escopo
-  global. `clock` foi removido da 1.0 ([ADR-0026](../adr/0026-freeze-1.0.md)); pode ser
-  nome comum.
-- `Int`/`Float`/`math` são `NativeModule` (namespace somente leitura), não classes
-  instanciáveis. O checker associa cada nome a `NativeModuleTy(name)` e resolve membros
-  em `_native_modules`; o interpreter resolve `visit_get_expr` para o membro.
-- `as` é um nó `As(left, target_type, operator)` no parser (entre `factor` e `unary`); o
-  checker valida targets/`Any` e o interpreter converte/checa em runtime
-  ([ADR-0029](../adr/0029-conversoes-math.md)).
-- O checker tem a mesma lista em `loxia_core/execution/prelude.py::BUILTIN_NAMES`: `_define` reporta
-  `Can't redefine builtin 'x'.` quando o escopo é o global; `visit_class_stmt` faz a
-  checagem própria porque classes são pré-declaradas.
-- Escopos locais (parâmetro, bloco, `for`) podem sombrear o nome normalmente; a resolução
-  léxica já existente cuida do resto.
+- `Interpreter.__init__` defines `len`, `range`, `repr`, `str`, `Int`, `Float` and `math`
+  with `mutable=False`; `_reject_immutable_redeclaration` rejects redefinition in the
+  global scope. `clock` was removed from 1.0 ([ADR-0026](../adr/0026-freeze-1.0.md)); it can
+  be an ordinary name.
+- `Int`/`Float`/`math` are `NativeModule`s (read-only namespaces), not instantiable
+  classes. The checker associates each name with `NativeModuleTy(name)` and resolves members
+  in `_native_modules`; the interpreter resolves `visit_get_expr` to the member.
+- `as` is an `As(left, target_type, operator)` node in the parser (between `factor` and
+  `unary`); the checker validates targets/`Any` and the interpreter converts/checks at
+  runtime ([ADR-0029](../adr/0029-conversoes-math.md)).
+- The checker has the same list in `loxia_core/execution/prelude.py::BUILTIN_NAMES`: `_define`
+  reports `Can't redefine builtin 'x'.` when the scope is the global one; `visit_class_stmt`
+  does its own check because classes are pre-declared.
+- Local scopes (parameter, block, `for`) can shadow the name normally; the existing lexical
+  resolution takes care of the rest.
 
-## Diagnósticos
+## Diagnostics
 
-- Um `ErrorReporter` por execução, criado em `Lox.run` e injetado em scanner, parser,
-  resolver e interpretador (ver [ADR-0003](../adr/0003-diagnosticos-por-execucao.md)).
-- Sintaxe/escopo: `reporter.error(token, mensagem)`; o parser se recupera e o resolver
-  continua. Runtime: `raise LoxRuntimeError` e o `interpret` captura.
-- Exit codes: 65 (compilação), 70 (runtime), 66 (arquivo).
-- Diagnósticos estruturados ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)):
-  `Diagnostic` com código, fase, span, `labels`/`notes`/`help` e `trace`; renderizadores
-  `human`/`short`/`json`; flags `--error-format`, `--color` e `--max-errors`. O token
-  carrega o arquivo de origem, então erro de compilação em módulo aponta o módulo.
-- Stack trace de runtime ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)): o
-  `Interpreter` mantém `_frames` e congela o trace no `except` mais interno; o binário
-  mantém `lox_frames` e o call site em três globais lidos por `lox_stack_enter`. Formato,
-  recorte e `R1015` são idênticos nos dois motores (I1).
+- One `ErrorReporter` per execution, created in `Lox.run` and injected into the scanner,
+  parser, resolver and interpreter (see
+  [ADR-0003](../adr/0003-diagnosticos-por-execucao.md)).
+- Syntax/scope: `reporter.error(token, message)`; the parser recovers and the resolver
+  continues. Runtime: `raise LoxRuntimeError` and `interpret` catches it.
+- Exit codes: 65 (compilation), 70 (runtime), 66 (file).
+- Structured diagnostics ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)):
+  `Diagnostic` with code, phase, span, `labels`/`notes`/`help` and `trace`;
+  `human`/`short`/`json` renderers; `--error-format`, `--color` and `--max-errors` flags.
+  The token carries the source file, so a compilation error in a module points to the
+  module.
+- Runtime stack trace ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)): the
+  `Interpreter` keeps `_frames` and freezes the trace at the innermost `except`; the binary
+  keeps `lox_frames` and the call site in three globals read by `lox_stack_enter`. Format,
+  clipping and `R1015` are identical in both engines (I1).
 
 ## REPL
 
-`main.Lox.run_prompt` lê uma linha por vez e chama `run_repl`:
+`main.Lox.run_prompt` reads one line at a time and calls `run_repl`:
 
-1. `Parser(..., repl=True)` tenta uma expressão pura e, se a linha inteira for expressão,
-   embrulha em `Print` (por isso `1 + 1` mostra `2`);
-2. senão, faz o parse normal de statements;
-3. o resolver roda a cada linha, mas o `Environment` e o `Interpreter.locals` persistem —
-   funções/classes definidas antes continuam válidas;
-4. o `ErrorReporter` é resetado no início de cada `run`.
+1. `Parser(..., repl=True)` tries a pure expression and, if the whole line is an expression,
+   wraps it in `Print` (that is why `1 + 1` shows `2`);
+2. otherwise, it parses statements normally;
+3. the resolver runs on every line, but the `Environment` and `Interpreter.locals` persist —
+   functions/classes defined earlier remain valid;
+4. the `ErrorReporter` is reset at the start of each `run`.
 
-O `;` é opcional no fim da linha/EOF em qualquer execução (`_end_statement`); só é
-obrigatório quando há outra instrução na mesma linha.
+The `;` is optional at the end of the line/EOF in any execution (`_end_statement`); it is only
+mandatory when there is another statement on the same line.
 
-## Backend nativo (L0–L5 + T7)
+## Native backend (L0–L5 + T7)
 
-O IR é intencionalmente pequeno: `Int` é `i64`, `Float` é `double`, `Bool` é `i1`, `nil`
-não tem valor (só afeta o `print`). `+ - *` viram instruções (com `sitofp` na promoção
-`Int → Float`); `if`/`while` viram blocos com `br`/`cbranch`. `//`, `%`, `/` e o `%` de
-Float chamam o runtime: `INT_MIN / -1` é UB em LLVM (`idiv` trap no x86) e divisão por
-zero é erro fatal no interpretador. Esses casos viram `lox_panic`, que reproduz o stderr e
-sai com 70. Desde o ADR-0075, `lox_panic(linha, coluna, codigo, mensagem)` imprime o mesmo
-cabeçalho do diagnóstico de compilação (`arquivo:linha:col: error[CODIGO]:`), sem caret; o
-caminho de exibição (relativo, nunca absoluto) é fixado em `lox_init`.
+The IR is intentionally small: `Int` is `i64`, `Float` is `double`, `Bool` is `i1`, `nil`
+has no value (it only affects `print`). `+ - *` become instructions (with `sitofp` in the
+`Int → Float` promotion); `if`/`while` become blocks with `br`/`cbranch`. `//`, `%`, `/` and
+Float's `%` call the runtime: `INT_MIN / -1` is UB in LLVM (`idiv` traps on x86) and division
+by zero is a fatal error in the interpreter. Those cases become `lox_panic`, which reproduces
+stderr and exits with 70. Since ADR-0075, `lox_panic(line, column, code, message)` prints the
+same compilation diagnostic header (`file:line:col: error[CODE]:`), without the caret; the
+display path (relative, never absolute) is pinned in `lox_init`.
 
-`Float` impresso usa a menor representação que reconstrói o mesmo bit pattern, com as
-convenções do `repr` do Python (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` fixa
-`LC_NUMERIC=C` para não depender de locale (I3). A paridade é policiada por fuzz contra
-`repr()` em `tests/test_backend.py`.
+Printed `Float` uses the shortest representation that reconstructs the same bit pattern, with
+Python's `repr` conventions (`1.0`, `-0.0`, `1e-05`, `1e+16`); `lox_init` pins
+`LC_NUMERIC=C` so it does not depend on the locale (I3). Parity is policed by fuzzing against
+`repr()` in `tests/test_backend.py`.
 
-Variáveis usam `alloca` (locais) e globais LLVM (topo); o `depth` do resolver decide o
-escopo (`depths`), e o tipo do slot é o tipo do **valor** em runtime, não o da anotação —
-como no interpretador, `val f: Float = 2` guarda `Int`. Variáveis capturadas por closures
-viram **células** no heap coletado (`{ value }`) e são referenciadas por ponteiro; as demais
-continuam em `alloca`.
+Variables use `alloca` (locals) and LLVM globals (top level); the resolver's `depth` decides
+the scope (`depths`), and the slot type is the type of the **value** at runtime, not the
+annotation's — as in the interpreter, `val f: Float = 2` stores an `Int`. Variables captured
+by closures become **cells** on the collected heap (`{ value }`) and are referenced by
+pointer; the others remain in `alloca`.
 
-Funções de usuário têm ABI `(i8* env, params...)`; uma closure é `{ fnptr, env, display }`
-alocada no heap coletado. Funções de topo têm a assinatura pré-declarada (recursão mútua), mas o
-binding global só é inicializado quando o statement executa — usar antes vira
-`lox_panic` com `Undefined variable`, como no interpretador. O passe
-[`loxia_core/backend/captures.py`](../../loxia_core/backend/captures.py) decide o que cada função
-captura e o que vira célula ([ADR-0046](../adr/0046-closures-celulas-l4.md)); funções
-locais, lambdas com tipo concreto e chamadas indiretas usam a mesma closure.
+User functions have the ABI `(i8* env, params...)`; a closure is `{ fnptr, env, display }`
+allocated on the collected heap. Top-level functions have their signature pre-declared
+(mutual recursion), but the global binding is only initialized when the statement runs —
+using it earlier becomes `lox_panic` with `Undefined variable`, as in the interpreter. The
+[`loxia_core/backend/captures.py`](../../loxia_core/backend/captures.py) pass decides what
+each function captures and what becomes a cell
+([ADR-0046](../adr/0046-closures-celulas-l4.md)); local functions, lambdas with a concrete
+type and indirect calls use the same closure.
 
-Chamadas diretas ainda preenchem defaults no call site; função com defaults como **valor**
-é recusada com exit 65 no L4. `return` e argumentos precisam casar (sem coerção implícita)
-e `Nil` vira `void`. Aridade errada vira `lox_panic` com a mensagem montada no compile time
-(os números são estáticos), e o corpo roda em blocos próprios com `ret`/`unreachable`.
+Direct calls still fill defaults at the call site; a function with defaults as a **value** is
+rejected with exit 65 in L4. `return` and arguments must match (no implicit coercion) and
+`Nil` becomes `void`. Wrong arity becomes `lox_panic` with the message assembled at compile
+time (the numbers are static), and the body runs in its own blocks with
+`ret`/`unreachable`.
 
-O spike L6 representa `Any` e uniões escalares como `{i64 tag, i64 payload}`, com
-`lox_print_any`; é uma caixa de 16 bytes só no caminho dinâmico (ADR-0049).
+The L6 spike represents `Any` and scalar unions as `{i64 tag, i64 payload}`, with
+`lox_print_any`; it is a 16-byte box only on the dynamic path (ADR-0049).
 
-O L5 usa uma ABI única de método `(i8* env, i8* this, params...)`, vtable de closures,
-descritor de classe `{super, id, name, vtable, n_fields, init, init_min, init_max}` e
-instância `{classe, bitmap, slots i64}`; bound methods são thunks. Herança copia a vtable,
-prefixa os campos e resolve `super` pela classe onde o método foi declarado
-([ADR-0048](../adr/0048-abi-classes-l5.md)). `String?`/instância `T?` usam ponteiro nulo; `is`/`as` de classe e classes locais vazias
-funcionam. `?.` com receptor opcional já funciona; classes locais gerais e `nil_aware` (união/`Any`) ficam no L6.
+L5 uses a single method ABI `(i8* env, i8* this, params...)`, a vtable of closures, a class
+descriptor `{super, id, name, vtable, n_fields, init, init_min, init_max}` and an instance
+`{classe, bitmap, slots i64}`; bound methods are thunks. Inheritance copies the vtable,
+prefixes the fields and resolves `super` through the class where the method was declared
+([ADR-0048](../adr/0048-abi-classes-l5.md)). `String?`/instance `T?` use a null pointer;
+class `is`/`as` and empty local classes work. `?.` with an optional receiver already works;
+general local classes and `nil_aware` (union/`Any`) stay in L6.
 
-`String` é `{byte_len, cp_len, data}`; literais viram globais constantes (bytes UTF-8 +
-header), concatenação aloca no heap coletado (GC Boehm,
-[ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)) e `len` devolve `cp_len` (code
-points). Igualdade é `memcmp`; `print` é um `fwrite`. Interpolação concatena as partes,
-convertendo escalares com `lox_str_from_int/double/bool` e `lox_str_nil`; `repr` cita e
-escapa com `lox_str_quote`.
+`String` is `{byte_len, cp_len, data}`; literals become constant globals (UTF-8 bytes +
+header), concatenation allocates on the collected heap (Boehm GC,
+[ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)) and `len` returns `cp_len` (code
+points). Equality is `memcmp`; `print` is an `fwrite`. Interpolation concatenates the parts,
+converting scalars with `lox_str_from_int/double/bool` and `lox_str_nil`; `repr` quotes and
+escapes with `lox_str_quote`.
 
-`main` gerado devolve `0` no sucesso; sucesso/falha nunca é o valor de retorno de uma
-função do usuário. Antes de emitir `.ll`, `.o` ou executável, o driver roda o verificador
-do LLVM (`mod.verify`); IR inválido vira `BackendError` (exit 65), nunca binário. O
-`--emit=ll` é artefato de inspeção: o build emite object file com o mesmo LLVM que
-construiu o módulo e linka com `cc`, sem depender da versão do LLVM do sistema.
+The generated `main` returns `0` on success; success/failure is never the return value of a
+user function. Before emitting `.ll`, `.o` or an executable, the driver runs the LLVM
+verifier (`mod.verify`); invalid IR becomes a `BackendError` (exit 65), never a binary.
+`--emit=ll` is an inspection artifact: the build emits an object file with the same LLVM that
+built the module and links it with `cc`, without depending on the system LLVM version.
 
-O runtime é dividido por domínio em sete unidades (`core`, `objects`, `strings`,
-`containers`, `numeric`, `kernel`, `proc`) com um header comum. Elas são compiladas uma vez por
-(conteúdo de **todas** as fontes e headers, compilador, versão, flags e `CPATH`) e os `.o`
-ficam em `$TMPDIR/loxia-build-<uid>/runtime-<chave>/`; `LOX_BUILD_CACHE=<dir>` isola o
-cache. Builds seguintes reusam os objetos e pagam só o link. O cache é só desempenho: não
-muda bytes gerados, não entra na saída e caminhos de erro são sanitizados para `<build>`.
+The runtime is split by domain into seven units (`core`, `objects`, `strings`, `containers`,
+`numeric`, `kernel`, `proc`) with a common header. They are compiled once per (content of
+**all** sources and headers, compiler, version, flags and `CPATH`) and the `.o` files live in
+`$TMPDIR/loxia-build-<uid>/runtime-<key>/`; `LOX_BUILD_CACHE=<dir>` isolates the cache.
+Subsequent builds reuse the objects and pay only for linking. The cache is only about performance:
+it does not change generated bytes, does not enter the output, and error paths are sanitized
+to `<build>`.
 
-`runtime/kernel_gen.h` é gerado da tabela de `primitives.py` (`make primitives`,
-`runtime/gen_kernel.py`) e incluído por `kernel.c`: tabela e definição C divergentes
-quebram a compilação, não o teste. `tests/test_primitives_gen.py` policia a frescura do
-arquivo gerado.
+The runtime navigation map — owner of each symbol, `LoxValue` tags, layouts, recipes (adding
+a primitive, debugging divergence) and known pitfalls — is in
+[`runtime/README.md`](../../runtime/README.md). The top comments of each `.c` repeat the
+essentials for anyone who opens the file directly.
 
-O teste diferencial (`tests/test_backend.py`) compila, executa e compara stdout, stderr e
-exit code com o interpretador — o oráculo é sempre o tree-walk.
+`runtime/kernel_gen.h` is generated from the `primitives.py` table (`make primitives`,
+`runtime/gen_kernel.py`) and included by `kernel.c`: divergent table and C definition break
+the compilation, not the test. `tests/test_primitives_gen.py` polices the freshness of the
+generated file.
 
-## Limitações conhecidas
+The differential test (`tests/test_backend.py`) compiles, runs and compares stdout, stderr
+and exit code with the interpreter — the oracle is always the tree-walk.
 
-- Sem stack trace em exceção **capturada** (o valor não carrega frames) e sem frames
-  suspensos de async; posição, código, JSON e trace do erro não capturado existem
+## Known limitations
+
+- No stack trace on a **caught** exception (the value does not carry frames) and no suspended
+  async frames; position, code, JSON and trace of the uncaught error exist
   ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
   [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
-- `Int` (i64) e `Float` (f64) separados; `/` sempre `Float`, `%` truncado, `Int` com
-  wrapping — ver [ADR-0006](../adr/0006-int-float-separados.md).
-- Recursão limitada a 10.000 chamadas Lox (R1015, capturável) nos dois motores; sem tail
-  call. O R1015 tem posição e o trace mostra os frames ativos
+- `Int` (i64) and `Float` (f64) separate; `/` always `Float`, `%` truncated, `Int` with
+  wrapping — see [ADR-0006](../adr/0006-int-float-separados.md).
+- Recursion limited to 10,000 Lox calls (R1015, catchable) in both engines; no tail call.
+  R1015 has a position and the trace shows the active frames
   ([ADR-0077](../adr/0077-limite-de-pilha.md),
   [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
-- No tree-walk, sem GC próprio: objetos são coletados pelo Python. No backend, GC
-  Boehm conservador, hard cap default de 512 MiB (`--max-heap` no build) e I1 até 64 MiB
-  de memória viva ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md),
+- In the tree-walk, no GC of its own: objects are collected by Python. In the backend,
+  conservative Boehm GC, default hard cap of 512 MiB (`--max-heap` at build) and I1 up to
+  64 MiB of live memory ([ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md),
   [ADR-0087](../adr/0087-heap-cap-e-self-hosting.md)).
-- Sem bytecode/VM: o alvo é LLVM, e o tree-walk é o oráculo (ADR-0002).
-- `;` opcional é decidido no parser, não por inserção no scanner; operador no começo da
-  linha não continua a expressão (ADR-0011).
+- No bytecode/VM: the target is LLVM, and the tree-walk is the oracle (ADR-0002).
+- Optional `;` is decided in the parser, not by insertion in the scanner; an operator at the
+  start of the line does not continue the expression (ADR-0011).
 
-## Testes e benchmark
+## Tests and benchmark
 
-- `tests/` — pytest + golden cases `.lx`; ver a skill
-  [`lox-testing`](../../.dsh/skills/lox-testing/SKILL.md).
-- `tests/official/` — suíte oficial do Crafting Interpreters (caps. 10–13), adaptada por
-  `tests/test_official_suite.py`; 112 passam, 8 são `xfail` documentados.
-- `bench/` — harness de performance com baseline; ver AGENTS §6.
+- `tests/` — pytest + `.lx` golden cases; see the
+  [`lox-testing`](../../.dsh/skills/lox-testing/SKILL.md) skill.
+- `tests/official/` — official Crafting Interpreters suite (chapters 10–13), adapted by
+  `tests/test_official_suite.py`; 112 pass, 8 are documented `xfail`s.
+- `bench/` — performance harness with a baseline; see AGENTS §6.

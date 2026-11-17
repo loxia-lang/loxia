@@ -26,12 +26,12 @@ TIMEOUT_SECONDS = 30
 
 # Caminhos relativos: se um caminho absoluto vazar para a saída, ele aparece aqui.
 CASES = [
-    "exemplos/classes.lx",
-    "exemplos/closures.lx",
-    "exemplos/fib.lx",
-    "exemplos/fizzbuzz.lx",
-    "exemplos/primos.lx",
-    "exemplos/quicksort.lx",
+    "examples/classes.lx",
+    "examples/closures.lx",
+    "examples/fib.lx",
+    "examples/fizzbuzz.lx",
+    "examples/primes.lx",
+    "examples/quicksort.lx",
     "tests/cases/class_fields.lx",
     "tests/cases/for_in.lx",
     "tests/cases/inheritance.lx",
@@ -113,7 +113,7 @@ def test_check_output_is_deterministic(path: str) -> None:
     assert_no_volatile_output(path, result)
 
 
-@pytest.mark.parametrize("path", ["tests/cases/typed_functions.lx", "exemplos/classes.lx"])
+@pytest.mark.parametrize("path", ["tests/cases/typed_functions.lx", "examples/classes.lx"])
 def test_dump_ast_is_deterministic(path: str) -> None:
     result = assert_deterministic(path, "--dump-ast")
     assert_no_volatile_output(path, result)
@@ -121,12 +121,12 @@ def test_dump_ast_is_deterministic(path: str) -> None:
 
 def test_same_script_twice_is_byte_identical_even_with_different_cwd() -> None:
     """O caminho absoluto de execução não pode influenciar o resultado (I3)."""
-    path = "exemplos/fib.lx"
+    path = "examples/fib.lx"
     from_root = run_cli(path, SEEDS[0])
 
     process = subprocess.run(
         [sys.executable, str(ENTRYPOINT), str(ROOT / path)],
-        cwd=ROOT / "exemplos",
+        cwd=ROOT / "examples",
         env=dict(os.environ, PYTHONHASHSEED=SEEDS[0]),
         capture_output=True,
         timeout=TIMEOUT_SECONDS,

@@ -15,7 +15,7 @@ EXCLUDED_PREFIXES = (
     "tests/cases/",
     "tests/official/",
     "bench/cases/",
-    "exemplos/",
+    "examples/",
 )
 EXCLUDED_FILES = {
     "runtime/kernel_gen.h",

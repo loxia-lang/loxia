@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.utf8 — larguras UTF-8/UTF-16 (T2). Lox puro sobre `charCodeAt`; determinístico.
-# LSP e qualquer protocolo posicional precisam das duas unidades no mesmo texto:
-# `byteLen` para `Content-Length`, `utf16Column` para coluna de editor.
+# std.utf8 — UTF-8/UTF-16 widths (T2), pure Lox over `charCodeAt`; deterministic.
+#
+# LSP and any positional protocol need both units for the same text: `byteLen` for
+# `Content-Length` and `utf16Column` for an editor column. Lengths count code points;
+# surrogate pairs count as two UTF-16 units.
 
-/// Conta os bytes UTF-8 de `text` (1..4 por code point).
+/// Counts the UTF-8 bytes of `text` (1..4 per code point).
 fn byteLen(text: String) -> Int {
   var total = 0
   var index = 0
@@ -23,7 +25,7 @@ fn byteLen(text: String) -> Int {
   return total
 }
 
-/// Conta as unidades UTF-16 de `text` (2 para code points acima de U+FFFF).
+/// Counts the UTF-16 code units of `text` (2 for code points above U+FFFF).
 fn utf16Len(text: String) -> Int {
   var total = 0
   var index = 0
@@ -34,7 +36,9 @@ fn utf16Len(text: String) -> Int {
   return total
 }
 
-/// Largura UTF-16 do prefixo de `index` code points; `index` é limitado a 0..len(text).
+/// Returns the UTF-16 width of the prefix of `index` code points.
+///
+/// `index` is clamped to 0..len(text), so negative and out-of-range values do not raise.
 fn utf16Column(text: String, index: Int) -> Int {
   var end = index
   if (end < 0) {
