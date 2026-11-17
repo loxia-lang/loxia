@@ -73,7 +73,7 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["loxia_core", "loxia", "main.py", "tests", "bench", "editors"]
+files = ["loxia_core", "loxia", "main.py", "tests", "bench", "editors", "tools"]
 
 [[tool.mypy.overrides]]
 # llvmlite não publica stubs; a fronteira é `loxia_core/backend/llvm_ir.py`.

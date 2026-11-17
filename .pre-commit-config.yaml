@@ -31,3 +31,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      - id: conventional-commit
+        name: conventional commit message
+        entry: env UV_CACHE_DIR=.uv-cache uv run python tools/check_commit_msg.py
+        language: system
+        stages: [commit-msg]
