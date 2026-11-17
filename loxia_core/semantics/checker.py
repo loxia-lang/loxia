@@ -7,7 +7,7 @@ retorno anotados. Tipos são apagados: o interpretador continua dinâmico.
 from __future__ import annotations
 
 import difflib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, is_dataclass
 
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import (
@@ -55,6 +55,7 @@ from loxia_core.frontend.expr import (
     WildcardPattern,
 )
 from loxia_core.frontend.expr import Visitor as ExprVisitor
+from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.spans import span_of_token
 from loxia_core.frontend.stmt import (
     Block,
@@ -204,8 +205,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         *,
         captured_mutables: set[Token] | None = None,
         captured_globals: set[str] | None = None,
+        source_index: SourceIndex | None = None,
     ) -> None:
         self._reporter = reporter
+        self._source_index = source_index
         self._scopes: list[dict[str, Ty]] = [{}]
         self._decl_tokens: list[dict[str, Token]] = [{}]
         self._captured_mutables: set[Token] = set(captured_mutables or ())
@@ -785,6 +788,47 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return f"Expected {display(expected)}, found {display(actual)}."
 
+    def _provenance_notes(
+        self, expression: Expr, token: Token
+    ) -> tuple[str, ...]:
+        """Nota de proveniência do valor, se a expressão tem nome/caminho.
+
+        O diagnóstico costuma apontar o *destino* (nome da variável, parêntese da
+        chamada); a nota aponta de onde o valor veio (ADR-0099). Literais e
+        expressões compostas ficam de fora: para eles a nota só repetiria o caret.
+        """
+        if self._source_index is None:
+            return ()
+        if not self._is_named_value(expression):
+            return ()
+        span = self._source_index.span_of(expression)
+        if span is None:
+            return ()
+        if (token.offset or 0) == span.start:
+            return ()
+        text = self._source_index.text_of(span)
+        line = self._source_index.line_of(span)
+        if text is None or line is None:
+            return ()
+        snippet = " ".join(text.split())
+        if not snippet:
+            return ()
+        if len(snippet) > 80:
+            snippet = snippet[:77] + "..."
+        return (f"the value comes from `{snippet}` (line {line})",)
+
+    def _is_named_value(self, expression: Expr) -> bool:
+        if isinstance(expression, Grouping):
+            return self._is_named_value(expression.expression)
+        return isinstance(expression, (Variable, Get, Index, Call))
+
+    def _argument_notes(
+        self, call: Call | None, index: int, token: Token
+    ) -> tuple[str, ...]:
+        if call is None or not 1 <= index <= len(call.arguments):
+            return ()
+        return self._provenance_notes(call.arguments[index - 1], token)
+
     def _check_stmt(self, stmt: Stmt) -> None:
         stmt.accept(self)
 
@@ -849,10 +893,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self.storage_types[expr] = self._storage_type(expr, actual)
             if not self._assignable(expected, actual):
                 self._error(
-                token,
-                self._mismatch_message(expected, actual),
-                code=Code.TYPE_MISMATCH,
-            )
+                    token,
+                    self._mismatch_message(expected, actual),
+                    code=Code.TYPE_MISMATCH,
+                    notes=self._provenance_notes(expr, token),
+                )
             return actual
 
         if isinstance(expr, ListLiteral):
@@ -905,10 +950,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self.storage_types[expr] = actual
             if not self._assignable(expected, actual):
                 self._error(
-                token,
-                self._mismatch_message(expected, actual),
-                code=Code.TYPE_MISMATCH,
-            )
+                    token,
+                    self._mismatch_message(expected, actual),
+                    code=Code.TYPE_MISMATCH,
+                    notes=self._provenance_notes(expr, token),
+                )
                 return ERROR
 
             return actual
@@ -927,6 +973,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 token,
                 self._mismatch_message(expected, actual),
                 code=Code.TYPE_MISMATCH,
+                notes=self._provenance_notes(expr, token),
             )
 
         return actual
@@ -1811,6 +1858,99 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return "{}"
         return None
 
+    def _literal_type(self, expr: Expr) -> Ty | None:
+        """Tipo exato de um default constante (literal/`-literal`), sem inferência."""
+        if isinstance(expr, Grouping):
+            return self._literal_type(expr.expression)
+        if isinstance(expr, Literal):
+            value = expr.value
+            if isinstance(value, bool):
+                return BOOL
+            if isinstance(value, int):
+                return INT
+            if isinstance(value, float):
+                return FLOAT
+            if isinstance(value, str):
+                return STRING
+            return None
+        if isinstance(expr, Unary) and expr.operator.type is TokenType.MINUS:
+            inner = self._literal_type(expr.right)
+            if inner is INT or inner is FLOAT:
+                return inner
+        return None
+
+    def _return_literal_type(self, stmt: Function) -> Ty | None:
+        """Tipo exato dos `return` do corpo, só quando todos são literais iguais.
+
+        Funções aninhadas, classes e lambdas não contam: os `return` delas pertencem a
+        outra assinatura. Sem `return`, o corpo cai em `nil`.
+        """
+        types: list[Ty] = []
+        unsupported = False
+
+        def walk(value: object) -> None:
+            nonlocal unsupported
+            if isinstance(value, Token):
+                return
+            if isinstance(value, (Function, Class, Lambda)):
+                return
+            if isinstance(value, Return):
+                if value.value is None:
+                    types.append(NIL)
+                else:
+                    ty = self._literal_type(value.value)
+                    if ty is None:
+                        unsupported = True
+                    else:
+                        types.append(ty)
+                return
+            if is_dataclass(value) and not isinstance(value, type):
+                for item in fields(value):
+                    walk(getattr(value, item.name))
+                return
+            if isinstance(value, (list, tuple)):
+                for item in value:
+                    walk(item)
+
+        for inner in stmt.body:
+            walk(inner)
+        if unsupported or not types:
+            return None if unsupported else NIL
+        if any(ty != types[0] for ty in types):
+            return None
+        if types[0] is not NIL and not self._body_always_returns(stmt.body):
+            return None
+        return types[0]
+
+    def _annotation_fix(
+        self,
+        token: Token | None,
+        ty: Ty | None,
+        *,
+        prefix: str,
+        public: bool,
+    ) -> tuple[Fix, ...]:
+        """Fix de anotação só quando o tipo é exato; nunca com `Any`/type var."""
+        if token is None or ty is None or ty in (ANY, ERROR):
+            return ()
+        if isinstance(ty, TyVar) or self._has_any_type_var(ty):
+            return ()
+        span = span_of_token(token, self._reporter.file)
+        point = Span(span.file, span.end, span.end)
+        rendered = display(ty)
+        message = (
+            f"Add return type '{rendered}'."
+            if prefix.strip().startswith("->")
+            else f"Annotate as '{rendered}'."
+        )
+        return (
+            Fix(
+                Applicability.UNSAFE if public else Applicability.SAFE,
+                message,
+                (Edit(point, prefix + rendered),),
+            ),
+        )
+
     def _initialization_fixes(self, field: Field) -> tuple[Fix, ...]:
         if field.end is None:
             return ()
@@ -2100,6 +2240,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         type_params = variables
         type_param_names = names
+        public = self._function_depth == 0
         self._push_type_params(type_param_names, type_params)
         try:
             param_types: list[Ty] = []
@@ -2137,10 +2278,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     continue
 
                 if param.type_annotation is None:
+                    suggested = (
+                        self._literal_type(param.default)
+                        if param.default is not None
+                        else None
+                    )
                     self._error(
                         param.name,
                         f"Parameter '{param.name.lexeme}' needs a type annotation.",
                         code=Code.MISSING_ANNOTATION,
+                        fixes=self._annotation_fix(
+                            param.name,
+                            suggested,
+                            prefix=": ",
+                            public=public,
+                        ),
                     )
                     param_ty = ANY
                 else:
@@ -2176,6 +2328,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     stmt.name,
                     f"Function '{stmt.name.lexeme}' needs a return type annotation.",
                     code=Code.MISSING_ANNOTATION,
+                    fixes=self._annotation_fix(
+                        stmt.params_end,
+                        self._return_literal_type(stmt),
+                        prefix=" -> ",
+                        public=public,
+                    ),
                 )
                 return_ty = ANY
             else:
@@ -2609,10 +2767,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             elif expected is not None and index < len(expected.params):
                 param_ty = expected.params[index]
             else:
+                suggested = (
+                    self._literal_type(param.default)
+                    if param.default is not None
+                    else None
+                )
                 self._error(
                     param.name,
                     f"Parameter '{param.name.lexeme}' needs a type annotation; "
                     "use the lambda where a function type is expected.",
+                    code=Code.MISSING_ANNOTATION,
+                    fixes=self._annotation_fix(
+                        param.name,
+                        suggested,
+                        prefix=": ",
+                        public=False,
+                    ),
                 )
                 param_ty = ANY
 
@@ -3155,6 +3325,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 stmt.keyword,
                 f"Can only raise Exception instances, found {display(raised)}.",
+                notes=self._provenance_notes(stmt.value, stmt.keyword),
             )
 
     def _expr_token(self, expr: Expr) -> Token | None:
@@ -3623,6 +3794,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expr.paren,
                     f"Expected a string, a list or a map, found {display(argument)}.",
                     code=Code.INVALID_OPERANDS,
+                    notes=self._argument_notes(expr, 1, expr.paren),
                 )
                 return ERROR
 
@@ -3645,6 +3817,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expr.paren,
                     f"chars() expects a string, found {display(argument)}.",
                     code=Code.INVALID_OPERANDS,
+                    notes=self._argument_notes(expr, 1, expr.paren),
                 )
                 return ERROR
 
@@ -3703,9 +3876,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if any(argument is ERROR for argument in arguments):
             return ERROR
         if name == "math.abs":
-            return self._math_numeric_result("math.abs", arguments, expr.paren)
+            return self._math_numeric_result(
+                "math.abs", arguments, expr.paren, expr.arguments
+            )
         if name in {"math.min", "math.max", "math.clamp"}:
-            return self._math_numeric_result(name, arguments, expr.paren)
+            return self._math_numeric_result(
+                name, arguments, expr.paren, expr.arguments
+            )
 
         self._error(
                 expr.paren,
@@ -3715,15 +3892,27 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return ERROR
 
     def _math_numeric_result(
-        self, name: str, arguments: list[Ty], token: Token
+        self,
+        name: str,
+        arguments: list[Ty],
+        token: Token,
+        expressions: list[Expr],
     ) -> Ty:
-        for argument in arguments:
+        for index, argument in enumerate(arguments):
             if argument is ANY:
                 continue
             if argument is INT or argument is FLOAT:
                 continue
+            notes = (
+                self._provenance_notes(expressions[index], token)
+                if index < len(expressions)
+                else ()
+            )
             self._error(
-                token, f"{name}() expects numbers.", code=Code.MATH_ARGUMENT
+                token,
+                f"{name}() expects numbers.",
+                code=Code.MATH_ARGUMENT,
+                notes=notes,
             )
             return ERROR
 
@@ -3784,6 +3973,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         token,
                         f"Argument {index}: "
                         f"{self._mismatch_message(signature.params[index - 1], argument)}",
+                        notes=self._argument_notes(expr, index, token),
                     )
             expected_list = ListTy(signature.params[-1])
             if not self._assignable(expected_list, arguments[-1]):
@@ -3791,6 +3981,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     token,
                     f"Argument {count}: "
                     f"{self._mismatch_message(expected_list, arguments[-1])}",
+                    notes=self._argument_notes(expr, count, token),
                 )
             return
 
@@ -3817,6 +4008,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         token,
                         f"Argument {index}: "
                         f"{self._mismatch_message(expected, argument)}",
+                        notes=self._argument_notes(expr, index, token),
                     )
             return
 
@@ -3876,6 +4068,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     f"Argument {index}: {self._mismatch_message(param, argument)}",
+                    notes=self._argument_notes(expr, index, token),
                 )
 
     def _instantiate_generic(self, callee: GenericFnTy) -> GenericFnTy:
@@ -5161,13 +5354,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.bracket,
                     f"Expected {display(obj.key)}, found {display(index)}.",
+                    notes=self._provenance_notes(expr.index, expr.bracket),
                 )
             return obj.value
         if not isinstance(obj, ListTy):
             self._error(expr.bracket, "Only lists and maps can be indexed.")
             return ERROR
 
-        self._check_index_type(index, expr)
+        self._check_index_type(index, expr, expr.index)
         return obj.element
 
     def visit_index_set_expr(self, expr: IndexSet) -> Ty:
@@ -5189,34 +5383,45 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.bracket,
                     f"Expected {display(obj.key)}, found {display(index)}.",
+                    notes=self._provenance_notes(expr.index, expr.bracket),
                 )
             if not self._assignable(obj.value, value):
                 self._error(
                     expr.bracket,
                     f"Expected {display(obj.value)}, found {display(value)}.",
+                    notes=self._provenance_notes(expr.value, expr.bracket),
                 )
             return value
         if not isinstance(obj, ListTy):
             self._error(expr.bracket, "Only lists and maps can be indexed.")
             return value
 
-        self._check_index_type(index, expr)
+        self._check_index_type(index, expr, expr.index)
         if not self._assignable(obj.element, value):
             self._error(
                 expr.bracket,
                 f"Expected {display(obj.element)}, found {display(value)}.",
+                notes=self._provenance_notes(expr.value, expr.bracket),
             )
 
         return value
 
-    def _check_index_type(self, index: Ty, expr: Index | IndexSet) -> None:
+    def _check_index_type(
+        self, index: Ty, expr: Index | IndexSet, index_expr: Expr | None = None
+    ) -> None:
         if index is INT or index is ANY or index is ERROR:
             return
 
+        notes = (
+            self._provenance_notes(index_expr, expr.bracket)
+            if index_expr is not None
+            else ()
+        )
         self._error(
             expr.bracket,
             f"List index must be an integer, found {display(index)}.",
             code=Code.INVALID_LIST,
+            notes=notes,
         )
 
     def visit_conditional_expr(self, expr: Conditional) -> Ty:

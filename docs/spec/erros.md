@@ -6,12 +6,14 @@ sources:
   - loxia_core/frontend/scanner.py
   - loxia_core/frontend/tokens.py
   - loxia_core/frontend/parser.py
+  - loxia_core/frontend/source_index.py
   - loxia_core/semantics/resolver.py
   - loxia_core/semantics/checker.py
   - loxia_core/loader/loader.py
   - runtime/**
   - loxia/cli.py
   - tests/test_diagnostics.py
+  - tests/test_provenance.py
 ---
 
 # Erros
@@ -134,6 +136,26 @@ sug.lx:2:7: error[E3003]: Undefined variable 'nom'.
 help: did you mean 'nome'?
 ```
 
+Erros de **tipo** ganham uma nota de proveniência quando o valor tem nome ou caminho
+(`Variable`, `Get`, `Index`, `Call`) e o caret aponta o destino — o nome da variável, o
+parêntese da chamada, o `=`. A nota mostra o texto-fonte e a linha do **início da
+expressão**, normalizados em uma linha e truncados em 80 caracteres
+([ADR-0099](../adr/0099-notas-de-proveniencia.md)):
+
+```text
+proveniencia.lx:6:5: error[E3001]: Expected Int, found String.
+  |
+6 | val total: Int = pessoa.nome
+  |     ^^^^^
+note: the value comes from `pessoa.nome` (line 6)
+```
+
+A nota cobre `val`/`var` anotado, destructuring, campo, `return`, atribuição, argumentos
+de chamada, `len`/`chars`/`math.*`, índice de lista e chave/valor de mapa. Literais e
+expressões compostas não ganham nota (ela só repetiria o caret); sem a fonte carregada,
+nenhuma nota é emitida. Erros de aridade, nome indefinido, propriedade e runtime não
+usam proveniência.
+
 `--error-format=short` continua uma linha (sem labels/notas/ajuda); `json` sempre inclui
 os três. Um label sem fonte carregada degrada para `note: arquivo:linha:col: mensagem`.
 
@@ -172,8 +194,10 @@ diagnósticos cortados por `--max-errors`.
 ```
 
 `fixes` é uma lista aditiva (pode ficar vazia): cada item tem `applicability`
-(`safe`/`unsafe`), `message` e `edits[]` com `span` + `new_text`. W1001 (`safe`) e E3003 (`unsafe`) já emitem fixes; `safe` só é aplicado
-automaticamente quando há prova de preservação de comportamento
+(`safe`/`unsafe`), `message` e `edits[]` com `span` + `new_text`. W1001/W1002 e E3004
+local emitem `safe`; E3003, E2001, E2002, E2009, E3002, E3015, E3016, E3018 e E3004 em
+API pública emitem `unsafe`; `safe` só é aplicado automaticamente quando há prova de
+preservação de comportamento
 ([ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md), análise em
 [`tech/fixes.md`](../tech/fixes.md)).
 
@@ -509,14 +533,14 @@ A mensagem de imutabilidade aparece em **duas fases**: compilação para locais/
 ## O que ainda falta
 
 Já implementado: modelo `Diagnostic`, códigos estáveis, spans (linha/coluna/offset),
-`human`/`short`/`json`, dedup/ordenação/cap, caminho relativo determinístico e o mesmo
+`human`/`short`/`json`, dedup/ordenação/cap, caminho relativo determinístico, o mesmo
 cabeçalho de runtime no interpretador e no binário
-([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
+([ADR-0075](../adr/0075-diagnosticos-estruturados.md)), stack trace
+([ADR-0089](../adr/0089-stack-trace-de-runtime.md)), `notes` de proveniência
+([ADR-0099](../adr/0099-notas-de-proveniencia.md)), fixes/warnings/JSONL
+([ADR-0093](../adr/0093-cli-agent-friendly-e-reparo.md)) e LSP
+([ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md)).
 
-Pendências registradas no [`../../TODO.md`](../../TODO.md) §3 e no
-[`../../IDEIAS.md`](../../IDEIAS.md) I-4:
-
-- stack trace de runtime com frames;
-- `notes` de proveniência (ex.: "o valor vem de `pessoa.nome`");
-- `fixes[]` com `applicability` e edições, `loxia explain`, `loxia capabilities`;
-- `--json-lines`, warnings/`-Werror` e LSP.
+Sem pendência de diagnóstico aberta: o `E3004` fechou com fix condicionado ao tipo
+exato ([`../tech/fixes.md`](../tech/fixes.md)); o que falta de tooling fica no
+[`../../TODO.md`](../../TODO.md) §7.

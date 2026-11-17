@@ -57,7 +57,6 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia/formatter.py`](../../loxia/formatter.py) | formatter mínimo (ADR-0092): indentação/`;`/newline, preserva strings e comentários |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/formatting/semantic tokens, codeAction, rename e workspace/symbol |
 | [`loxia/completion.py`](../../loxia/completion.py) | completion do LSP sobre a AST original: escopo, imports, módulos, `this`/`super`, enums e membros nativos |
-| [`loxia/source_index.py`](../../loxia/source_index.py) | índice de spans de expressão (offset → menor nó) para LSP/diagnósticos |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | `SymbolIndex` do LSP-1: declarações, referências e tipos do checker |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | docs English dos builtins/primitivas para `docs/stdlib/builtins.md` |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | entrypoint `python -m loxia` |
@@ -68,6 +67,7 @@ Pacotes por fase (dependência só para baixo):
 | [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py) | nós de expressão + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | nós de statement + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recuperação; `;` opcional no fim da linha; `elif`, `fn` e `[T]` |
+| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | índice de spans de expressão (offset → menor nó; texto/linha por arquivo) para LSP, checker e `notes` de proveniência |
 | [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | única fronteira com o `llvmlite` (módulo, target machine, object file) |
 | [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | coordenação do lowering: programa, statements, expressões, aritmética e controle de fluxo |
 | [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | tipos, valores, bindings e layouts de campo/classe (ABI do ADR-0048) |

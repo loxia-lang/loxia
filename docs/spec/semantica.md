@@ -928,8 +928,12 @@ try {
 - Erros de compilação são **acumulados** (parser tenta se recuperar; resolver reporta
   todos), ordenados por `(arquivo, offset, código)`, sem duplicatas e limitados por
   `--max-errors`; erros de runtime param no primeiro.
-- Códigos de erro são estáveis; colunas, spans e JSON existem desde o ADR-0075. Stack
-  trace, `fixes[]`, `notes` de proveniência e LSP continuam pendentes.
+- Códigos de erro são estáveis; colunas, spans, JSON, stack trace, `fixes[]`, `notes` de
+  proveniência e LSP existem
+  ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
+  [ADR-0089](../adr/0089-stack-trace-de-runtime.md),
+  [ADR-0099](../adr/0099-notas-de-proveniencia.md),
+  [ADR-0090](../adr/0090-lsp-escopo-e-hospedagem.md)).
 - No REPL, cada linha começa com estado de erro limpo e o ambiente permanece.
 
 ## Diferenças conscientes em relação ao livro
@@ -1049,8 +1053,9 @@ com entrada fixa.
   devolve `Int?`), `addDays` e `parts`; sem timezone e sem relógio.
 - `std.property` ([ADR-0098](../adr/0098-property-based-testing.md)): `Gen[T]` com
   `generate`/`shrink`, `forAll(gen, check, runs = 100, seed = 0)` e geradores
-  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOfInt`/`listOfString` e
-  `oneOf`; falha reduz o contraexemplo e reporta a seed.
+  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOf[T]` (com
+  `listOfInt`/`listOfString` como aliases) e `oneOf`; falha reduz o contraexemplo e
+  reporta a seed.
 - `std.test` ([ADR-0096](../adr/0096-testes-biblioteca-e-runner.md)): `Suite` (estado
   explícito, porque módulo não aceita `var` top-level) com `describe`, `it` (executa na
   hora), `beforeEach`/`afterEach` (escopados ao `describe`; `before` externo→interno,
@@ -1075,7 +1080,19 @@ o ADR-0079; `Any` como campo ainda não é suportado pelo backend.
 - `import m`/`import m as x` cria namespace; `from m import nome [as y]` liga públicos.
 - Nome de topo que começa com `_` é privado do módulo; fora dele `_x` é erro, inclusive
   via namespace (`m._x`).
-- `std.` resolve no bundle; módulos do usuário são relativos ao diretório do entry.
+- `std.` resolve no bundle; módulos do usuário são relativos à raiz do projeto.
+- Sem `loxia.toml`, a raiz é o diretório do entry. Com manifest, a raiz é a pasta do
+  manifest e a ordem é: projeto → dependências → `[modules].paths` → `--module-path` →
+  `std` ([ADR-0100](../adr/0100-dependencias-path.md)).
+- `[dependencies] acme = { path = "../acme" }` faz `import acme.foo` procurar
+  `../acme/foo.lx` (o nome do pacote não é o nome do diretório). O caminho é relativo ao
+  manifest e precisa existir; `std` é nome reservado e `import acme` sozinho é erro.
+- Dependência importa seu próprio pacote por nome (`acme.base`) ou outra dependência
+  declarada; não enxerga o projeto nem `[modules].paths`. `[modules].paths` são raízes
+  soltas (vendor/monorepo): `import shared.util` resolve `<root>/shared/util.lx`.
+- `..` e caminho absoluto continuam proibidos no `import`; só aparecem no `path` do
+  manifest ou em `--module-path`. O mesmo módulo em duas raízes é **erro de ambiguidade**
+  (nunca “primeira vence”), com caminhos relativos no diagnóstico.
 - Sem `*`, sem reexportação e sem módulo como valor.
 - Módulo é **puro por construção**: só declarações no topo, então importar não executa
   efeito; import não usado é `W1002` e a remoção da linha é `safe` (fix).

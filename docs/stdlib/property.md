@@ -59,13 +59,17 @@ Inteiro em `[min, max]`; reduz na direção de `min`.
 
 `Float` em `[0.0, 1.0)`; reduz para `0.0`.
 
+### `fn listOf[T](element: Gen[T], maxLength: Int = ...) -> Gen[List[T]]`
+
+Lista de `T` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+
 ### `fn listOfInt(element: Gen[Int], maxLength: Int = ...) -> Gen[List[Int]]`
 
-Lista de `Int` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+Lista de `Int`; alias de `listOf` mantido para compatibilidade.
 
 ### `fn listOfString(element: Gen[String], maxLength: Int = ...) -> Gen[List[String]]`
 
-Lista de `String` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+Lista de `String`; alias de `listOf` mantido para compatibilidade.
 
 ### `fn stringOf(maxLength: Int = ...) -> Gen[String]`
 

@@ -408,9 +408,9 @@ muito forte.
 
 ## I-9 — Módulos fora do projeto e pacotes externos
 
-**Status:** `em avaliação` — falta resolver monorepo e pacote externo.
-**Decidir até:** antes do primeiro release público — é o pré-requisito técnico do
-[`TODO.md`](TODO.md) §14.4.
+**Status:** `resolvido para path/dependências nomeadas` no
+[ADR-0100](docs/adr/0100-dependencias-path.md); lock, git e registry continuam abertos em
+[I-10](#i-10--gerenciador-de-pacotes-o-uv-da-loxia).
 
 ### A pergunta
 
@@ -477,10 +477,11 @@ Sem quebrar I3 (determinismo) nem a segurança de "import nunca escapa da raiz".
 
 ### Recomendação provisória
 
-**B agora** (`std` continua embutida e reservada; a opção A segue funcionando de graça,
-porque sem manifest a raiz é o projeto). **C depois**, e só com lockfile + hash de conteúdo — sem
-isso, rede quebra a promessa de reprodutibilidade que o projeto inteiro vende. **E
-rejeitada**: a stdlib é parte da linguagem, não uma dependência.
+**B implementado** no [ADR-0100](docs/adr/0100-dependencias-path.md) (com
+`[dependencies] path`), com `std` embutida e reservada; a opção A segue funcionando de
+graça, porque sem manifest a raiz é o projeto. **C depois**, e só com lockfile + hash de
+conteúdo — sem isso, rede quebra a promessa de reprodutibilidade que o projeto inteiro
+vende. **E rejeitada**: a stdlib é parte da linguagem, não uma dependência.
 
 Desenho mínimo:
 
@@ -646,11 +647,18 @@ LSP continua em Python ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
 
 ### Regras que continuam valendo
 
+- Cada capacidade nova pede **ADR próprio** e passa pelo orçamento do kernel.
 - `ambient: true` em tudo que toca SO/rede; fora do corpus I1/I3.
 - Erro de host novo é `Result[T, OsError]`; `T?` fica só nas APIs antigas.
-- Handle opaco com `close()`; usar handle fechado é `RuntimeError`.
-- `poll` antes de thread; `spawn` sem shell; nenhum callback C→Lox; sem FFI genérica.
+- Handle opaco com `close()` explícito e idempotente; usar handle fechado é
+  `RuntimeError`; sem finalizer (Boehm não é determinístico).
+- `poll` antes de thread; `spawn` sem shell; nenhum callback C→Lox que possa lançar; sem
+  FFI genérica (`extern fn` continua fora, [ADR-0071](docs/adr/0071-primitivas-de-runtime.md)).
+- `net` v1 só com IP literal (loopback quando possível), sem DNS nem TLS; TLS é ADR
+  separado.
 - Kernel > ~30 primitivas é sinal de camada errada; tipo opaco de handle antes de crescer.
+
+O checklist operacional está na skill [`lox-stdlib`](.dsh/skills/lox-stdlib/SKILL.md).
 
 ### Perguntas abertas
 

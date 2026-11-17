@@ -40,41 +40,6 @@ partir de [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie 
 > docs de usuário) não bloqueia nenhum nível da linguagem/backend e pode andar junto com a
 > fila acima. Ela é pré-requisito de **adoção**, não de correção.
 
-## 3. Diagnósticos
-
-O desenho e a primeira entrega estão no
-[ADR-0075](docs/adr/0075-diagnosticos-estruturados.md): modelo `Diagnostic`,
-códigos estáveis por família, spans (linha/coluna/offset), `human`/`short`/`json`,
-ordenação/dedup/cap e caminho relativo determinístico. O catálogo em
-[`docs/spec/erros.md`](docs/spec/erros.md) é **gerado** a partir de
-`loxia_core/diagnostics/codes.py` (`make codes`).
-
-### 3.1 O que ainda falta
-
-- [ ] **`notes` de proveniência** (`P2`): "o valor vem de `pessoa.nome` (linha 7)".
-      O `SourceIndex` de spans de expressão já existe; falta o checker consumi-lo para
-      produzir as `notes` ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)).
-
-**Anti-metas:** não imprimir direto do scanner/parser (só coletar); não usar `assert` do
-Python para validar código do usuário; não classificar código por prefixo de mensagem.
-
-### 6.9 CLI alvo
-
-```bash
-loxia run script.lx
-loxia check script.lx
-loxia build script.lx --emit=ll|obj|exe -o app
-loxia ast script.lx
-loxia fmt [--check] script.lx
-loxia doc std/strings.lx --json
-loxia explain E2001
-loxia capabilities --json
-loxia lsp
-loxia repl                    # REPL, com :type, :ast
-```
-
-`--check`, `--emit` e `--dump-ast` continuam como aliases; `main.py` e a invocação atual
-não quebram ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 
 ### 6.10 Bônus: WebAssembly
 
@@ -83,48 +48,16 @@ Isso permitiria um playground no navegador sem Pyodide — a linguagem rodando a
 browser. Guardar como ideia P3 (precisa de runtime mínimo em wasm e de uma ABI de
 imports para `print`).
 
-### 6.11 Corpus diferencial (bloqueia o I1)
-
-Regra: o I1 vale para o **corpus anotado e classificado**, nunca para o que o backend
-"quase" faz. Todo caso está em `LEVELS`, `PENDING` ou `NEGATIVE`
-([`tests/corpus_manifest.py`](tests/corpus_manifest.py)); promover caso = mover de
-`PENDING` para `LEVELS` no mesmo commit, com o teste diferencial verde nos três canais.
-O status atual (quantos compilam, quantos em `PENDING`) é **gerado** em
-[`docs/spec/garantias.md`](docs/spec/garantias.md) — não duplique aqui.
-
-**Teto** ([ADR-0064](docs/adr/0064-orcamento-do-corpus.md)): `PENDING` ≤ 5% do corpus,
-sempre com nível/motivo, e `l?` proibido. Hoje `PENDING` está zerado; o I1 cobre `LEVELS`,
-e o teto impede que o teste verde vire ficção. Caso novo sem backend espera em issue/branch
-em vez de inflar `PENDING`.
-
-```bash
-uv sync --extra llvm
-uv run pytest tests/test_backend.py -q
-```
 
 ---
 
 ## 7. Tooling e qualidade
 
-- [ ] `P2` E3004 (anotação ausente) — critérios em
-      [`docs/tech/fixes.md`](docs/tech/fixes.md).
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
 - [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
 - [ ] `P3` snapshot de AST em arquivo.
 - [ ] `P3` site publicado a partir de `docs/` — ver §14.2 (stack, i18n e gate).
 - [ ] `P3` servidor MCP (`loxia-mcp`) — ver §14.3; depende do CLI agent-friendly acima.
-
----
-
-## 8. Lox2: o que ainda vale
-
-| Recurso | Status | Nota |
-| --- | --- | --- |
-| FFI com C | ⏸ | **não haverá FFI genérica**: kernel fixo de primitivas ([ADR-0071](docs/adr/0071-primitivas-de-runtime.md)); reavaliar só com dor demonstrada |
-| `async`/`await` | ⏳ | ADR-0037 em revisão: `poll`/`proc` antes de async; colored/`Task[T]` só com caso que `poll` não resolva |
-
-Fora: VM própria, GC geracional, JIT tracing, cache de bytecode e `Object` raiz — o LLVM
-cobre o codegen e o escopo humano manda.
 
 ---
 
@@ -154,28 +87,11 @@ conhecida fora do corpus**. Limite declarado (regra da linguagem, não do loweri
 `is`/`as` com argumentos de tipo em classe/enum é recusado pelo checker (`E3000`) e o
 tree-walk levanta `R1014`.
 
-**Limitação de backend (E4001, não é divergência I1):** `fn listOf[T](...) -> Gen[List[T]]`
-passa no `--check` e o binário recusa com `Unbound type parameter 'T'`; `std.property`
-expõe `listOfInt` e `listOfString` até o lowering substituir o TyVar antes de instanciar a
-classe.
-
 ---
 
 ## 10. Parque de diversões (ideias soltas)
 
-- [ ] **Compilar o próprio interpretador?** (self-hosting) — o *front-end* já é
-      self-hostable hoje (lexer em Lox compila nativo e bate a saída); o compilador inteiro
-      depende de I/O, GC e do resto do L6. Escada em §13.7 (passo 1). P3/XL.
-- [ ] **LSP em Loxia** (`P3`, `XL`, **não decidido**) — avaliado em 2026-11-16: o LSP local
-      é stdio, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta
-      de kernel é pouco (`io.readUtf8`/`io.flush` já existem — §13.9) e o bloqueio
-      real é não haver front-end/checker chamável de um programa Loxia. Caminho B (delegar
-      a `loxia check --error-format=json` via `proc.spawn`) não duplica regra; caminho C
-      (front-end em Loxia) cria duas verdades de diagnóstico (I4). Por ora o servidor fica
-      em Python; revisitar depois do self-hosting. Ver [`IDEIAS.md`](IDEIAS.md) I-11.
-- [ ] **`loxia fmt`** — o formatter shipped começa em Python (referência, idempotente); o
-      exercício de dogfooding em Lox (parser + AST printer) entra depois da T3, com
-      paridade byte a byte ([ADR-0092](docs/adr/0092-estilo-e-formatter.md), §13.7).
+- [ ] **Compilar o próprio interpretador?**
 - [ ] **`fs.open` + leitura/escrita em streaming** (`P2`, `M`) — handle de arquivo
       explícito, no espírito do `open()` do Python, para não materializar arquivos grandes
       em `String`/`List[String]` (o `readLines` atual lê o arquivo inteiro). Ideias:
@@ -257,33 +173,11 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 8. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
    `raise` através de frames aninhados é dívida declarada, não bloqueia a stdlib.
-9. **Imports:** [ADR-0073](docs/adr/0073-imports-modulos.md) implementado; única pendência
-   é `..` fora da raiz (§13.5).
-
 ---
 
-## 12. Referências
-
-- Lox2: <https://github.com/HallofFamer/Lox2> · docs <https://mysidia-inc.gitbook.io/lox2>
-  (ler `notes/DESIGN.md` e `notes/TYPESYSTEM.md`).
-- `llvmlite`: <https://llvmlite.readthedocs.io/> · <https://github.com/numba/llvmlite>
-- LLVM LangRef: <https://llvm.org/docs/LangRef.html> · tutorial Kaleidoscope:
-  <https://llvm.org/docs/tutorial/>
-- *Mapping High-Level Constructs to LLVM IR*:
-  <https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/> (closures, vtables, GC)
-- Hindley–Milner (para o modelo mental de unificação):
-  <https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system>
-
----
 
 ## 13. Stdlib, kernel de primitivas e módulos
 
-> **Escopo:** pós-1.0; **não** bloqueia L6/L7 (§0). O kernel v1 está concluído
-> ([ADR-0074](docs/adr/0074-gc-boehm-e-contrato-de-memoria.md)). Decisões:
-> [ADR-0071](docs/adr/0071-primitivas-de-runtime.md) (primitivas e complexidade),
-> [ADR-0072](docs/adr/0072-stdlib-batteries.md) (política de batteries) e
-> [ADR-0073](docs/adr/0073-imports-modulos.md) (imports — **implementado**).
->
 > **Regra de ouro:** kernel = SO ou representação; tudo o mais é Lox. Nenhuma lógica de
 > negócio em primitiva, nenhuma primitiva que Lox faria em O(n).
 >
@@ -310,44 +204,15 @@ atingido; o próximo crescimento exige tipo opaco de handle ou ADR que justifiqu
 `os.cwd` segue fora: `std.paths` é lexical e não precisou dele.
 Candidatas em avaliação na §13.9: `fs.open`/`net`, só com consumidor e ADR próprio.
 
-### 13.5 Imports — pendências
-
-Implementado em [ADR-0073](docs/adr/0073-imports-modulos.md): arquivo=módulo, pasta=namespace,
-`_` privado, `from`/`as`, `std.` e desugar. Restam:
-
-- [ ] Imports com caminho que sai da raiz (`..`) — decisão futura.
-
-### 13.6 Batteries — concluídas
-
-T1, T2 e T3 foram entregues (catálogo em [`docs/stdlib/`](docs/stdlib/)); não há módulo
-pendente nesses tiers. `std.test`/`loxia test`, `std.property`, `std.rand`, `std.log`,
-`std.hash`, `std.collections`, `std.timex` e os módulos de T1/T2 têm golden e página
-gerada. Fora da stdlib continuam os itens do topo da §13 (regex, cripto, rede, async,
-timezone DB, i18n, YAML/TOML, UUID, bigint) — [ADR-0072](docs/adr/0072-stdlib-batteries.md).
 
 ### 13.7 Dogfood e self-hosting — adiados
-
 Portar `loxia fmt`/front-end para Lox e comparar byte a byte com o Python fica **depois**
 do repo público e bem documentado; não é pré-requisito de M8/M9 nem da publicação do
 cliente de editor ([ADR-0092](docs/adr/0092-estilo-e-formatter.md)).
 
-### 13.8 Critério de pronto por módulo
-
-Critério para qualquer módulo novo:
-
-- programa real em `exemplos/` ou caso que o use (não simetria com outra linguagem);
-- golden em `tests/cases/std_<modulo>.lx` + `--check` limpo;
-- determinismo declarado (função ambiente ≠ corpus I1);
-- doc pública em `std/*.lx` e página gerada em `docs/stdlib/`;
-- zero sintaxe nova — se precisar, é ADR-0066, não stdlib;
-- `make check` verde; `make bench` se tocar caminho quente.
-
 ### 13.9 Capacidades de host — `proc`/`poll` feitos; o resto não decidido
 
-Origem: a pergunta "por que o LSP não dá em Loxia?". Resposta curta: o LSP local é
-**stdio**, não rede ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)); o que falta de
-kernel para isso é pequeno, e o bloqueio real é não haver front-end/checker chamável de um
-programa Loxia. Análise completa em [`IDEIAS.md`](IDEIAS.md) I-11. `io.flush`/
+`io.flush`/
 `readUtf8` e `proc`/`poll` estão implementados ([ADR-0094](docs/adr/0094-kernel-io-flush-e-read-utf8.md),
 [ADR-0095](docs/adr/0095-processos-streams-poll.md)); `fs.open`/`net` seguem não
 aprovados, e o servidor LSP continua em Python.
@@ -362,16 +227,8 @@ aprovados, e o servidor LSP continua em Python.
 | `fs.open` | `open(path, mode) -> File` (streaming, §10) | arquivos grandes, CSV/log | M |
 | `net` | `tcpListen`/`tcpConnect`/`accept`/`close` (+ unix) | só com consumidor (HTTP client, debugger remoto) | M |
 
-**Política mínima (se entrar):** tudo `ambient: true` (fora do I1/I3); erro de host em
-`Result[T, OsError]`, não `T?`; handle opaco com `close()` explícito e sem finalizer
-(Boehm não é determinístico); `poll` **antes** de thread; nenhum callback C→Lox que possa
-lançar; sem FFI genérica (`extern fn` continua fora, ADR-0071); `net` v1 só com IP
-literal, sem DNS nem TLS.
-
 **Ordem sugerida:** `fs.open` (M) → `net` (L, só com dor). O servidor LSP continua em Python
 ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md)) — não reabrir.
-
-**Orçamento de kernel:** 29 de ~30; crescer daqui pede tipo opaco de handle e ADR.
 
 ---
 
@@ -389,7 +246,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 | Área | Estado | Gap de produto | Prioridade |
 | --- | --- | --- | --- |
-| **Pacotes/módulos** | loader e `std.*` prontos | **maior gap técnico**: sem `loxia.toml`, dependências, lock e `..` fora da raiz; projeto não consome código fora da pasta do entry | **P0** |
+| **Pacotes/módulos** | loader, `std.*` e `loxia.toml` com dependências `path` prontos ([ADR-0100](docs/adr/0100-dependencias-path.md)) | `loxia.lock`, git/registry e cache; primeiro pacote externo real | **P0** |
 | **Distribuição/release** | wheel, entry point e teste de instalação | `uv build`/sdist sem duplicação, PyPI com Trusted Publishing, workflow de tag e Homebrew | **P0** |
 | **Repo público** | LICENSE/README/CI | `CONTRIBUTING`, `SECURITY`, templates de issue/PR, Dependabot, CI endurecido/CodeQL e badges | **P0** |
 | **Docs de usuário** | spec, ADRs, stdlib gerada e guia de estilo | site público, tutorial de 30 min, cookbook, "por que Loxia" e `make docs-build` no CI | **P0** |
@@ -402,12 +259,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 | **Performance** | bench local e baseline | M8 restante; suíte pública só depois do release | P2 |
 | **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities` e `lsp` | `loxia repl` como subcomando e `loxia new`/scaffold | P3 |
 
-**Stdlib:** T1–T3 concluídas (26 módulos). Fora por decisão de escopo: regex, cripto,
-rede/HTTP, async, timezone DB, i18n, YAML/TOML, UUID e bigint; `fs.open`/`net` são as
-únicas capacidades de host em avaliação (§13.9). Não há módulo pendente nos tiers.
 
-**Dogfood/self-hosting:** explicitamente adiados até o repo público e bem documentado
-(§13.7).
 
 | # | Entrega | Por que nesta ordem |
 | --- | --- | --- |
@@ -511,20 +363,12 @@ O contrato do CLI que o MCP consome é o do
 ### 14.4 Distribuição, stdlib instalada e pacotes externos
 
 **O que ainda falta.** O item 1 fechou wheel, entry point, bundle de `std/`/`runtime/` e
-teste de instalação. O gap restante é **resolução de módulos e dependências**:
+teste de instalação. O item 2 fechou a resolução de módulos e dependências `path`
+([ADR-0100](docs/adr/0100-dependencias-path.md)): `loxia.toml` descoberto no ancestral,
+`[dependencies] nome = { path = ... }`, `[modules].paths`, `--module-path`, ambiguidade e
+isolamento de pacote. Lock, git e registry continuam na §14.7.
 
-- a raiz de módulos é o diretório do arquivo de entrada; `..` e caminho absoluto são erro
-  ([ADR-0073](docs/adr/0073-imports-modulos.md)). Um projeto ainda **não consegue** consumir
-  código fora da própria pasta — nem dependência, nem monorepo;
-- `std.*` é raiz reservada e resolve no bundle; o loader **inlina** os módulos em
-  compile-time, então tree-walk e backend usam a mesma resolução (bom: um caminho só);
-- `loxia.toml`/`[modules]` e `loxia.lock` ainda não existem no fluxo de pacotes.
-
-**O que isso custa hoje.** Instalar já funciona; o primeiro usuário que tentar `import` de
-um pacote vai bater na regra do `..`. É o maior *gap* entre "projeto impressionante" e
-"ferramenta" — e depende de decisão de design, não de feature.
-
-**Item 1 — empacotar e instalar (sem decidir resolução ainda).**
+**Item 1 — empacotar e instalar.**
 
 > Dívida do ADR-0088 **resolvida** em 2026-11-15: `src/` virou `loxia_core/`; o wheel
 > não instala mais um pacote top-level chamado `src`.
@@ -536,21 +380,15 @@ Empacotamento e instalação já funcionam: wheel com `std/`/`runtime/`, entry p
 - [ ] `uv build` e sdist sem `std/` duplicado; `CHANGELOG`/README com o comando de
       instalação.
 
-**Item 2 — resolução de módulos e pacotes (decidido no
-[ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md); desenho e opções em
-[`IDEIAS.md`](IDEIAS.md) I-9).**
+**Item 2 — resolução de módulos e pacotes (implementado no
+[ADR-0100](docs/adr/0100-dependencias-path.md)).**
 
-- [ ] Raízes ordenadas e determinísticas: `projeto` → raízes declaradas no manifest →
-      `std` (reservada, sempre por último).
-- [ ] `loxia.toml` com `[package] name` e `[modules] paths`; resolver `import acme.foo` pelo
-      pacote declarado, não pelo nome do diretório.
-- [ ] Política do `..`: **proibido no statement `import`** (mantém a regra), permitido apenas
-      como raiz declarada no manifest — monorepo funciona, fonte nunca escapa da raiz.
-- [ ] Ambiguidade entre raízes = erro explícito (nunca "primeira vence" em silêncio).
-- [ ] Determinismo: sem variável de ambiente; ordem fixa; diagnóstico lista raízes
-      **relativas** ao projeto (I3); `std` não pode ser sombreado.
-- [ ] Testes: monorepo com `../shared` declarado; raiz ambígua; pacote instalado; `std`
-      reservado; wheel de fora do repo.
+`loxia.toml` aceita `[package] name`, `[dependencies]` (só `path`) e `[modules].paths`;
+a descoberta sobe do entry até o ancestral mais próximo e a raiz do projeto é a pasta do
+manifest. `import acme.foo` resolve pelo nome do pacote; `..` continua proibido no fonte;
+ambiguidade e raiz inexistente falham com caminho relativo. Testes em
+`tests/test_manifest.py` e no backend (`test_backend.py`). O que sobra — lock, git,
+registry, semver e fetch — está na §14.7.
 
 **Não fazer agora:** registry com rede, resolução de versões/semver, pacote binário e
 `../` dentro do fonte. Um gerenciador de pacotes completo é outro produto; o mínimo é
@@ -615,14 +453,14 @@ não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 - [ ] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia repl` como subcomando;
       `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` já existem e as flags
       atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] **Fase 1 — manifest + lock** (`loxia.toml` já existe pelo [ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)):
-      `[dependencies]`, `loxia.lock` com versão exata + `sha256`, `loxia lock`,
-      `loxia fetch --offline` e cache local. Critério de pronto: dois manifests iguais com o
-      mesmo lock produzem a mesma árvore de raízes e o mesmo build; `loxia run` funciona
-      offline.
-- [ ] **Fase 2 — path e git**: `dep = { path = "../lib" }` e `dep = { git = "...", rev = "..." }`.
-      Resolve monorepo sem registry. Critério: monorepo real em `exemplos/` compila nos dois
-      motores.
+- [ ] **Fase 1 — lock** (`loxia.toml` e `[dependencies] path` já existem pelo
+      [ADR-0100](docs/adr/0100-dependencias-path.md)): `loxia.lock` com versão exata +
+      `sha256`, `loxia lock`, `loxia fetch --offline` e cache local. Critério de pronto:
+      dois manifests iguais com o mesmo lock produzem a mesma árvore de raízes e o mesmo
+      build; `loxia run` funciona offline.
+- [ ] **Fase 2 — git**: `dep = { git = "...", rev = "..." }` (`path` já implementado no
+      [ADR-0100](docs/adr/0100-dependencias-path.md)). Critério: monorepo real em
+      `exemplos/` compila nos dois motores.
 - [ ] **Fase 3 — índice estático**: índice *sparse* (JSON por pacote) + tarball por versão +
       `loxia add nome@1.2`. **Só entra com demanda de terceiro**; hospedar é barato, moderar
       nome não.

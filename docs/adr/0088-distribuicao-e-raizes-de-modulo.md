@@ -1,18 +1,20 @@
 # ADR-0088 — Distribuição: `loxia` como comando, stdlib embutida e raízes de módulo declaradas
 
 - **Status:** accepted — **empacotamento entregue** em 2026-11-15 (wheel com `loxia`,
-  `std/` e `runtime.c`; rename `src` → `loxia_core` feito). Faltam `loxia.toml` e os
-  subcomandos — ver
-  [`../../TODO.md`](../../TODO.md) §14.4)
+  `std/` e `runtime.c`; rename `src` → `loxia_core` feito) e **manifest/raízes
+  entregues** em 2026-11-16 ([ADR-0100](0100-dependencias-path.md), que acrescenta
+  `[dependencies] path` e a descoberta no ancestral).
 - **Data:** 2026-11-15
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0073](0073-imports-modulos.md) (módulos e `_` privado),
+  [ADR-0100](0100-dependencias-path.md) (dependências `path`),
   [ADR-0078](0078-nome-loxia-extensao-lx.md) (nome e `.lx`),
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (nada de sintaxe nova aqui),
   [ADR-0014](0014-identidade-e-invariantes.md) (I1/I3),
   [`../../IDEIAS.md`](../../IDEIAS.md) I-9 (opções), [`../../TODO.md`](../../TODO.md) §14
 - **Implementação:** [`pyproject.toml`](../../pyproject.toml) (hatchling, `[project.scripts]`,
   force-include), [`loxia_core/bundle.py`](../../loxia_core/bundle.py),
+  [`loxia_core/loader/manifest.py`](../../loxia_core/loader/manifest.py),
   [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py),
   [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py),
   [`tests/test_install.py`](../../tests/test_install.py),
@@ -78,6 +80,11 @@ morar fora do projeto **apenas** se declarada no manifest — explícita, versio
 auditável. Assim o monorepo funciona sem que um fonte consiga escapar da raiz por conta
 própria.
 
+> **Nota (ADR-0100):** além de `[modules].paths`, o manifest ganhou
+> `[dependencies] nome = { path = "..." }` e a descoberta no ancestral mais próximo. A
+> ordem virou **projeto → dependência casada → `paths` → `--module-path` → `std`**; a
+> dependência resolve o próprio pacote e não enxerga o projeto.
+
 ### 5. Determinismo e ambiente
 
 - **Sem variável de ambiente** para caminho de módulo: quebraria o I3. Desenvolvimento usa
@@ -139,9 +146,9 @@ própria.
 
 - `tests/test_install.py`: `uv build` → instalar o wheel num venv **fora** do repo →
   `loxia --version` → programa que importa `std.json` roda.
-- `tests/test_modules.py`: monorepo com `../shared` declarado no manifest; raiz ambígua
-  (duas raízes com o mesmo módulo) falha com erro que lista as raízes; `import ..x` e
-  caminho absoluto continuam erro; `std` não pode ser sombreado.
+- `tests/test_manifest.py`: dependência `path`, monorepo com `../shared`, raiz ambígua
+  (duas raízes com o mesmo módulo), `import ..x`/caminho absoluto, `std` reservado e
+  `--module-path`; `tests/test_backend.py` cobre a paridade I1.
 - `make check` verde e corpus `t1`/`t2` verde com o layout instalado.
 - Revisitar se o rename `loxia_core` → layout `src/` de projeto entrar na fila, ou se o formato do
   manifest mudar.

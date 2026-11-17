@@ -315,7 +315,7 @@ class FunctionLowering(LoweringBase):
         saved_cleanup = self._cleanup_stack
 
         self._function_ir = info.ir
-        self._type_subst = info.type_subst or {}
+        self._type_subst = {**self._type_subst, **(info.type_subst or {})}
         self._return_type_desc = info.fn_sig.ret
         self._in_init = info.is_init
         self._method_class = info.this_class

@@ -33,9 +33,14 @@ forAll(intRange(1, 100), fn(n: Int) {
   falha vira `TestFailure` com contador de execuções, seed, contraexemplo e o menor
   contraexemplo encontrado pelo shrinking.
 - Geradores: `int`, `intRange(min, max)`, `bool`, `float`, `stringOf(maxLength)`,
-  `listOfInt`, `listOfString` e `oneOf(options)`.
+  `listOf[T]`, `oneOf(options)`; `listOfInt`/`listOfString` ficam como aliases.
 - Shrinking limitado a 100 rodadas por falha, sempre na direção de um valor "menor"
   (0/min, lista/string menor).
+
+> **Atualização (2026-11-16):** `listOf[T]` foi implementado e o
+> [E4001](../../TODO.md) de `Gen[List[T]]` deixou de existir — o lowering propaga o
+> `type_subst` para lambdas aninhadas. `listOfInt`/`listOfString` continuam como aliases
+> de compatibilidade.
 
 ### Determinismo
 
@@ -59,7 +64,7 @@ forAll(intRange(1, 100), fn(n: Int) {
 | Sem shrinking | O contraexemplo gerado pode ser enorme; reduzir é o que torna a falha útil. |
 | Shrinking configurável por propriedade | Mais superfície; o `Gen` já carrega a estratégia. |
 | Seed via `loxia test --seed` | O runner não precisa saber de propriedades; seed por `forAll` é local e reproduzível. |
-| Geradores genéricos de lista (`listOf[T]`) | O backend recusa `Gen[List[T]]` em função genérica (`E4001`); `listOfInt`/`listOfString` cobrem o caso até o lowering substituir o TyVar. |
+| Geradores genéricos de lista (`listOf[T]`) | **Implementado** em 2026-11-16: o backend propaga o `type_subst` para lambdas aninhadas; `listOfInt`/`listOfString` ficam como aliases. |
 
 ## Consequências
 
@@ -72,7 +77,6 @@ forAll(intRange(1, 100), fn(n: Int) {
 ### Negativas
 
 - Shrinking é por gerador e limitado; não é o minimalismo global do Hypothesis.
-- Sem gerador genérico de lista até resolver o `E4001` de `Gen[List[T]]`.
 - O relatório é uma string TAP; sem integração com cobertura.
 
 ## Como verificar

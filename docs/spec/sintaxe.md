@@ -3,6 +3,7 @@ sources:
   - loxia_core/frontend/parser.py
   - loxia_core/frontend/keywords.py
   - loxia_core/frontend/ast_printer.py
+  - loxia_core/loader/manifest.py
 ---
 
 # Sintaxe
@@ -449,6 +450,9 @@ from dtos.dtoA import DtoA as Dto
 - `from caminho import nome [as alias] [, nome ...]` liga nomes públicos.
 - Imports só no topo, antes de qualquer outro statement; sem `*`, sem reexportação.
 - Caminho são identificadores separados por `.`; `std` é root reservado.
+- `..` e caminho absoluto não são sintaxe válida no `import`: a raiz fora do projeto é
+  declarada no `loxia.toml` (`[dependencies]`/`[modules].paths`) ou em `--module-path`
+  ([ADR-0100](../adr/0100-dependencias-path.md)).
 - Módulo é arquivo `.lx`; pasta é só namespace (sem `__init__`/`index`).
 - Módulo não é valor: `val m = std.lists` é erro.
 

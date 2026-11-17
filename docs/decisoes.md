@@ -108,6 +108,7 @@ decisão.
 | L4 — ordem de declaração | Assinaturas de topo são pré-declaradas (recursão mútua), mas o binding só existe quando o statement executa; usar antes vira panic 70, sem hoisting. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | Diagnósticos no L4 | Spans/caret e stack trace ficam **fora** do L4; o contrato segue `lox_panic(linha, msg)`/`[line N]`; decisão própria antes do L5/L6. | [ADR-0046](adr/0046-closures-celulas-l4.md) |
 | Diagnósticos estruturados | Um `Diagnostic` por execução (código de família, fase, span com linha/coluna/offset), renderizadores `human`/`short`/`json`, ordem/dedup/cap determinísticos e caminho relativo; runtime humano com o mesmo cabeçalho, sem caret, nos dois motores. | [ADR-0075](adr/0075-diagnosticos-estruturados.md) |
+| Proveniência em notas | Erro de tipo cujo valor é `Variable`/`Get`/`Index`/`Call` ganha `note: the value comes from \`expr\` (line N)`; literais e expressões compostas não, e o texto vem do `SourceIndex`/`SourceMap`. | [ADR-0099](adr/0099-notas-de-proveniencia.md) |
 | Corpus do I1 | Corpus inteiro **anotado** (`tests/cases`, `exemplos/`, `tests/official/cases`); CI sempre com o extra `llvm`; promoção monotônica; suíte do livro entra quando anotada. | [ADR-0031](adr/0031-backend-nativo.md), [`spec/garantias.md`](spec/garantias.md) |
 | Primitivas e kernel | Kernel = SO ou representação (≤ 15 funções); o resto é Lox. Tabela única (`lox`, símbolo C, tipos, corpo Python, `ambient`) alimenta checker/interpreter/backend/testes. `LoxStr` ganha cache de offsets: `charAt`/`chars`/`for-in` **O(n)**, `substr` O(1)+cópia e `join` O(total). Sem FFI genérica e sem `ctypes` no oráculo; gatilho: kernel > 15 ou divergência observada. | [ADR-0071](adr/0071-primitivas-de-runtime.md) |
 | Kernel T2 | `io.readAll`, `fs.exists` e `fs.listDir` entram como primitivas `ambient` (SO); o teto vai de 15 para **17**. `listDir` ordena por byte e devolve `nil` em erro; `readAll` não normaliza quebras. | [ADR-0079](adr/0079-stdlib-t2.md) |
@@ -155,7 +156,9 @@ Distribuição fechada no [ADR-0088](adr/0088-distribuicao-e-raizes-de-modulo.md
 (`[modules] paths`) com ordem fixa **projeto → declaradas → std**, ambiguidade é erro,
 `..` continua proibido no `import` (só como raiz declarada) e sem manifest o comportamento
 atual permanece. **Empacotamento entregue** em 2026-11-15 (wheel com comando `loxia`,
-`std/` e `runtime.c`; `tests/test_install.py`); faltam `loxia.toml` e subcomandos
-([`../TODO.md`](../TODO.md) §14.4).
+`std/` e `runtime.c`; `tests/test_install.py`). O [ADR-0100](adr/0100-dependencias-path.md)
+acrescentou `[dependencies] nome = { path = "..." }` (resolução por nome de pacote,
+descoberta no ancestral, isolamento de dependência e `--module-path`); lock/git/registry
+seguem em [`../TODO.md`](../TODO.md) §14.7.
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

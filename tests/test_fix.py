@@ -173,6 +173,52 @@ def test_e2002_e_e2009_nao_sao_aplicados(tmp_path: Path) -> None:
         assert "val " in path.read_text(encoding="utf-8")
 
 
+def test_e3004_local_e_safe_e_aplicado(tmp_path: Path) -> None:
+    source = """fn outer() -> Int {
+  fn inner(x = 1) { return 2 }
+  return inner()
+}
+print(outer())
+"""
+    path = tmp_path / "annotation.lx"
+    path.write_text(source, encoding="utf-8")
+    before = run_program(path)
+    result = run_fix(path, "--apply")
+    assert result.returncode == 0, result.stderr
+    fixed = path.read_text(encoding="utf-8")
+    assert "fn inner(x: Int = 1) -> Int" in fixed
+    after = run_program(path)
+    assert after.stdout == before.stdout
+
+
+def test_e3004_publico_e_unsafe_nao_e_aplicado(tmp_path: Path) -> None:
+    source = "fn f(x = 1) -> Int { return x }\nprint(f())\n"
+    path = tmp_path / "annotation_public.lx"
+    path.write_text(source, encoding="utf-8")
+    result = run_fix(path, "--apply")
+    assert result.returncode == 1
+    assert "unsafe" in result.stderr
+    assert path.read_text(encoding="utf-8") == source
+
+
+def test_e3004_sem_tipo_exato_nao_ganha_fix(tmp_path: Path) -> None:
+    source = "fn f(x) -> Int { return x }\nprint(f(1))\n"
+    path = tmp_path / "annotation_unknown.lx"
+    path.write_text(source, encoding="utf-8")
+    checked = subprocess.run(
+        [sys.executable, "-m", "loxia", "check", "--json", str(path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    payload = json.loads(checked.stdout)
+    diagnostic = next(
+        item for item in payload["diagnostics"] if item["code"] == "E3004"
+    )
+    assert diagnostic["fixes"] == []
+
+
 def _apply_fix_edits(source: str, fix: dict[str, object]) -> str:
     data = source.encode("utf-8")
     edits = cast(list[dict[str, Any]], fix["edits"])
@@ -204,6 +250,10 @@ def test_fixes_unsafe_produzem_codigo_valido(tmp_path: Path) -> None:
             "class A {\n  fn m(x: Int) -> Int { return x }\n}\n"
             "class B(A) {\n  fn m() -> Int { return 1 }\n}\n",
             "E3015",
+        ),
+        "annotation": (
+            "fn f(x = 1) -> Int { return x }\nprint(f())\n",
+            "E3004",
         ),
     }
     for name, (source, code) in cases.items():

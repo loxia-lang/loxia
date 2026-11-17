@@ -43,3 +43,13 @@ def test_span_de_chamada_inclui_parentese() -> None:
     span = spans.at(source.index("(1)"))
     assert span is not None
     assert source[span.start : span.end] == "f(1)"
+
+
+def test_texto_e_linha_do_span() -> None:
+    source = "val x = 1\nval y = (x + 2)\n"
+    spans = index(source)
+    span = spans.at(source.index("("))
+
+    assert span is not None
+    assert spans.text_of(span) == "(x + 2)"
+    assert spans.line_of(span) == 2

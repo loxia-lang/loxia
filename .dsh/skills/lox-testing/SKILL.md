@@ -59,6 +59,29 @@ campos `this.x` declarados) e roda pelo CLI. 112 passam e 8 são `xfail` documen
 (campos dinâmicos do ADR-0009 e o teste de sintaxe antiga de superclasse). Rode com
 `uv run pytest tests/test_official_suite.py -q`.
 
+## Corpus diferencial (I1)
+
+O I1 vale para o **corpus anotado e classificado**, nunca para o que o backend "quase"
+faz ([ADR-0031](../../../docs/adr/0031-backend-nativo.md),
+[ADR-0064](../../../docs/adr/0064-orcamento-do-corpus.md)). Todo caso está em `LEVELS`,
+`PENDING` ou `NEGATIVE` ([`tests/corpus_manifest.py`](../../../tests/corpus_manifest.py)):
+
+- **Promover** um caso = mover de `PENDING` para `LEVELS` no mesmo commit, com o teste
+  diferencial verde nos três canais (stdout, stderr e exit code).
+- **`PENDING` ≤ 5%** do corpus, sempre com nível e motivo; `l?` é proibido. Caso novo sem
+  backend espera em issue/branch em vez de inflar `PENDING`.
+- O status (quantos compilam, quantos em `PENDING`) é **gerado** em
+  [`docs/spec/garantias.md`](../../../docs/spec/garantias.md); não copie números para o
+  `TODO.md`.
+
+```bash
+uv sync --extra llvm
+uv run pytest tests/test_backend.py -q
+```
+
+No CI o `libgc-dev` é a fonte da verdade. Nesta máquina, sem o header `gc.h`, use o shim
+local descrito no `AGENTS.md` §2.
+
 ## Armadilhas
 
 - O runner procura `#` em **qualquer** posição da linha (expectativa no fim da

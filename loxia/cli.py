@@ -32,7 +32,15 @@ from loxia_core.execution.limits import (
 from loxia_core.frontend.ast_printer import AstPrinter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.stmt import Stmt
+from loxia_core.frontend.token_type import TokenType
+from loxia_core.frontend.tokens import Token
+from loxia_core.loader.manifest import (
+    ManifestError,
+    discover_manifest,
+    parse_manifest,
+)
 from loxia_core.semantics.checker import Checker
 from loxia_core.semantics.resolver import Resolver
 
@@ -92,6 +100,7 @@ class Loxia:
         script_args: list[str] | None = None,
         json_lines: bool = False,
         werror: bool = False,
+        module_paths: list[str] | None = None,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
         self.interpreter = Interpreter(
@@ -103,13 +112,16 @@ class Loxia:
         self._sources = SourceMap()
         self._file = "<stdin>"
         self._module_root: Path | None = None
+        self._module_paths: tuple[Path, ...] = tuple(
+            Path(path).resolve() for path in (module_paths or ())
+        )
         self._watched_files: set[Path] = set()
         self._warn_unused_imports = False
         self._jsonl_started = False
         self._revision = 0
         # Estado da última análise, consumido pelo LSP (hover/definition).
         self.last_statements: list[Stmt] | None = None
-        self.last_source_index: object | None = None
+        self.last_source_index: SourceIndex | None = None
         self.last_resolver: Resolver | None = None
         self.last_checker: Checker | None = None
 
@@ -133,7 +145,40 @@ class Loxia:
         if self._module_root is not None:
             from loxia_core.loader.loader import ModuleLoader
 
-            loader = ModuleLoader(self.reporter, self._sources, self._module_root)
+            manifest = None
+            manifest_path = discover_manifest(self._module_root)
+            project_root = self._module_root
+            if manifest_path is not None:
+                display = display_path(manifest_path)
+                try:
+                    manifest_text = manifest_path.read_text(encoding="utf-8")
+                except OSError:
+                    self.reporter.error(
+                        _manifest_token(manifest_path),
+                        "Can't read manifest.",
+                        code=Code.SYNTAX_UNEXPECTED,
+                    )
+                    return None
+                self._sources.add(display, manifest_text)
+                try:
+                    manifest = parse_manifest(manifest_path, manifest_text)
+                except ManifestError as error:
+                    self.reporter.error(
+                        _manifest_token(
+                            manifest_path, error.line, error.column
+                        ),
+                        error.message,
+                        code=Code.SYNTAX_UNEXPECTED,
+                    )
+                    return None
+                project_root = manifest.path.parent
+            loader = ModuleLoader(
+                self.reporter,
+                self._sources,
+                project_root,
+                manifest=manifest,
+                module_paths=self._module_paths,
+            )
             loaded = loader.load(
                 statements,
                 self._file,
@@ -144,12 +189,14 @@ class Loxia:
             self._watched_files = {
                 module.path for module in loader.modules.values()
             }
+            if manifest_path is not None:
+                self._watched_files.add(manifest_path)
             statements = loaded
 
         self.last_statements = statements
-        from loxia.source_index import SourceIndex
-
-        self.last_source_index = SourceIndex(statements, source)
+        self.last_source_index = SourceIndex(
+            statements, source, sources=self._sources
+        )
         return statements
 
     def _execute(self, statements: list[Stmt]) -> None:
@@ -230,6 +277,7 @@ class Loxia:
                     self.reporter,
                     captured_mutables=resolver.captured_mutables,
                     captured_globals=resolver.captured_global_names,
+                    source_index=self.last_source_index,
                 )
                 checker.check(statements)
                 self.last_checker = checker
@@ -266,6 +314,7 @@ class Loxia:
             self.reporter,
             captured_mutables=resolver.captured_mutables,
             captured_globals=resolver.captured_global_names,
+            source_index=self.last_source_index,
         )
         checker.check(statements)
         if self.reporter.had_fatal_error:
@@ -567,6 +616,16 @@ def _add_common_options(
         default=20,
         metavar="N",
         help="limite de diagnósticos por execução (0 = sem limite)",
+    )
+    parser.add_argument(
+        "--module-path",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help=(
+            "raiz adicional de módulos, relativa ao CWD (repetível; "
+            "ordem de precedência depois do manifest)"
+        ),
     )
     parser.add_argument(
         "--no-progress",
@@ -905,6 +964,21 @@ def _validate_legacy(
             parser.error("--timeout requires a script or --stdin")
 
 
+def _manifest_token(
+    path: Path, line: int = 1, column: int = 1
+) -> Token:
+    """Token sintético para ancorar erro de `loxia.toml` (arquivo/linha reais)."""
+    return Token(
+        TokenType.IDENTIFIER,
+        path.name,
+        None,
+        line,
+        column,
+        0,
+        file=display_path(path),
+    )
+
+
 def _make_loxia(args: argparse.Namespace) -> Loxia:
     error_format = (
         "json" if args.json or args.json_lines else args.error_format
@@ -917,6 +991,7 @@ def _make_loxia(args: argparse.Namespace) -> Loxia:
         script_args=getattr(args, "script_args", None),
         json_lines=args.json_lines,
         werror=getattr(args, "werror", False),
+        module_paths=getattr(args, "module_path", None),
     )
 
 

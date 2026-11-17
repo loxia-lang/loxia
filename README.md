@@ -156,8 +156,9 @@ uv run main.py fix prog.lx --apply         # aplica só fixes safe (ADR-0093)
 `--json` é alias de `--error-format=json`; `--json-lines` emite um objeto por linha
 (`start`, `diagnostic`, `summary`) para agentes, com `revision` determinística e sem
 timestamp. `--stdin` lê o programa de stdin (`--file-name` define o nome exibido e a raiz
-de módulos); `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só vale
-para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
+de módulos); `--module-path DIR` (repetível) adiciona raízes de módulos de
+desenvolvimento; `--timeout=MS` limita `run`/`check` (exit `124` + `C0001`); `--watch` só
+vale para `check`, rechecando o arquivo e os módulos a cada mudança (SIGINT = `130`).
 O LSP também expõe `textDocument/codeAction` (quickfixes), `workspace/symbol` e
 `rename` de locais/parâmetros; a extensão de VS Code em `editors/vscode/` já fala com
 ele (sem dependências de npm). `loxia fix` (ou `uv run main.py fix` no checkout) aplica apenas fixes `safe`
@@ -179,6 +180,31 @@ Exit codes do CLI: `65` erro de compilação, `70` erro de runtime, `66` arquivo
 `2` uso inválido, `124` timeout, `130` `--watch` interrompido. O binário gerado por
 `--emit=exe` segue o mesmo contrato: `0` no sucesso e `70` no erro de runtime, com o mesmo
 stderr.
+
+### Módulos e dependências
+
+Módulo é um arquivo `.lx`; pasta é só namespace. Sem manifest, a raiz é o diretório do
+arquivo de entrada. Um `loxia.toml` no ancestral mais próximo declara a raiz do projeto e
+as dependências ([ADR-0100](docs/adr/0100-dependencias-path.md)):
+
+```toml
+[package]
+name = "meu-app"
+
+[dependencies]
+acme = { path = "../acme" }
+```
+
+```lox
+import acme.util          # resolve ../acme/util.lx; namespace local `util`
+from acme.base import Dto
+```
+
+`import acme.foo` usa o **nome do pacote**, não o nome do diretório; a dependência importa
+o próprio pacote por esse nome e não enxerga o projeto. `[modules] paths = ["vendor"]`
+declara raízes soltas e `--module-path DIR` é a válvula de desenvolvimento. `..` e caminho
+absoluto nunca aparecem no `import`; o mesmo módulo em duas raízes é erro de ambiguidade,
+com caminhos relativos no diagnóstico.
 
 ### Diagnósticos
 

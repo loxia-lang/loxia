@@ -152,9 +152,11 @@ runtime, proveniência em `notes` (ex.: "o valor vem de `pessoa.nome`"), warning
 e LSP. O modelo tem espaço para eles; o contrato só nasce quando houver produtor confiável.
 Um `fix` errado é pior do que nenhum.
 
-> **Nota (ADR-0090/0093):** o LSP, o JSONL/watch, o timeout e os warnings ganharam
+> **Nota (ADR-0090/0093/0099):** o LSP, o JSONL/watch, o timeout e os warnings ganharam
 > contrato próprio; `fixes[]` ganhou produtores W1001/E3003 e `loxia fix`
-> (ADR-0093). Esta seção continua valendo para o que ainda não tem produtor.
+> (ADR-0093); a proveniência em `notes` ganhou produtor no checker
+> ([ADR-0099](0099-notas-de-proveniencia.md)). Esta seção continua valendo para o que
+> ainda não tem produtor.
 
 ## Consequências
 

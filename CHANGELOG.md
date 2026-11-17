@@ -7,6 +7,27 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **`std.property.listOf[T]`** ([ADR-0098](docs/adr/0098-property-based-testing.md)):
+  gerador genérico de lista; `listOfInt`/`listOfString` ficam como aliases. O lowering
+  agora propaga o `type_subst` do corpo genérico para lambdas aninhadas, fechando o
+  `E4001` de `Gen[List[T]]` (`Unbound type parameter 'T'`). Golden `std_property` e
+  diferencial nos dois motores.
+- **E3004 — fix de anotação ausente**: parâmetro com default literal e `return` com
+  literais iguais ganham fix com o tipo exato; `safe` em função local/lambda e `unsafe`
+  em API pública. Sem tipo exato (parâmetro sem default, campo sem inicializador,
+  `return` não literal ou tipos discordantes) não há fix. `loxia fix` aplica só os
+  locais; `docs/tech/fixes.md` atualizado.
+- **Módulos e dependências `path`** ([ADR-0100](docs/adr/0100-dependencias-path.md)):
+  `loxia.toml` descoberto no ancestral mais próximo, `[dependencies] nome = { path = ... }`
+  resolvido pelo nome do pacote, `[modules].paths` para raízes soltas e `--module-path`
+  repetível. Dependência importa o próprio pacote (`acme.foo`) e não vê o projeto;
+  ambiguidade e raiz inexistente viram erro com caminho relativo. `..` continua proibido
+  no `import`; tree-walk e backend usam a mesma resolução.
+- **Notes de proveniência** ([ADR-0099](docs/adr/0099-notas-de-proveniencia.md)):
+  erros de tipo cujo valor é `Variable`/`Get`/`Index`/`Call` ganham
+  `note: the value comes from \`expr\` (line N)`, com o texto vindo do `SourceIndex`
+  (agora no core) e do `SourceMap` (módulos incluídos). Literais e expressões compostas
+  não ganham nota; `json` expõe `notes[]` e `--error-format=short` continua uma linha.
 - **Completion do LSP**: AST original em vez da reescrita — locais/parâmetros do escopo,
   imports (`import`/`from`), membros de módulos std/usuários, `this`/`super`, variantes
   de enum, membros nativos (`Int.`/`math.`) e métodos de lista/mapa; sem nomes mangled.
@@ -17,8 +38,8 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 - **Fixes restantes**: E2001 (rename do binding duplicado + usos), E3016/E3018
   (default primitivo/opcional), E3002 (remoção de argumentos extras) e E3015
   (rename de método), todos `unsafe`.
-- **Spans de expressão**: `loxia/source_index.py` (offset → menor expressão) e
-  rename cross-file conservador no LSP para declarações top-level.
+- **Spans de expressão**: `loxia_core/frontend/source_index.py` (offset → menor
+  expressão) e rename cross-file conservador no LSP para declarações top-level.
 - **LSP rename**: `textDocument/prepareRename` e `textDocument/rename` para variáveis
   locais/parâmetros (mesmo arquivo, via `SymbolIndex.references`); cross-file/globais
   continuam fora.

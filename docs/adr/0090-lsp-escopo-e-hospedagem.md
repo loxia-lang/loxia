@@ -8,8 +8,9 @@
 > documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`),
 > `rename`/`prepareRename` (locais/parâmetros e top-level cross-file conservador),
 > `workspace/symbol`, completion com escopo/imports/módulos e um `SourceIndex` de spans
-> de expressão. O cliente VS Code vive em `editors/vscode/` e está pronto para virar
-> repo próprio.
+> de expressão (agora em `loxia_core/frontend/source_index.py`, também consumido pelas
+> `notes` de proveniência do checker — [ADR-0099](0099-notas-de-proveniencia.md)). O
+> cliente VS Code vive em `editors/vscode/` e está pronto para virar repo próprio.
 
 - **Status:** accepted (implementação parcial)
 - **Data:** 2026-11-15
@@ -23,7 +24,7 @@
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
   `codeAction`, `rename` (locais/parâmetros e top-level cross-file) e
-  `loxia/source_index.py` e o cliente em `editors/vscode/` já existem.
+  `loxia_core/frontend/source_index.py` e o cliente em `editors/vscode/` já existem.
 
 ## Contexto
 
@@ -51,7 +52,8 @@ O que existe hoje de editor é a grammar TextMate/VS Code (`editors/`, gerada de
 `loxia_core/frontend`) — highlighting, sem semântica. O LSP é o próximo salto, mas
 **hover/definition/completion exigem informação que o compilador ainda não publica**:
 spans de expressão e um índice de símbolos (nome → declaração, tipo, doc). Esse é o mesmo
-pré-requisito das `notes` de proveniência abertas no TODO §3.1.
+pré-requisito das `notes` de proveniência (fechadas no
+[ADR-0099](0099-notas-de-proveniencia.md)).
 
 ## Decisão
 
@@ -86,7 +88,7 @@ de "linguagem de verdade", mas depende de:
   uso, doc (`///`, ADR-0091), contêiner (módulo/classe/função);
 - exposição pública de `type_at(offset)`/`symbol_at(offset)` sem duplicar inferência.
 
-Esse índice também serve às `notes` de proveniência e ao `loxia doc`; é trabalho de
+Esse índice também serve às `notes` de proveniência (ADR-0099) e ao `loxia doc`; é trabalho de
 compilador, não de LSP.
 
 LSP-2 é incremental e não é prometido junto do MVP. `codeAction`/fixes e `rename`

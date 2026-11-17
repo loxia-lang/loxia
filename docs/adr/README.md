@@ -144,6 +144,8 @@ Crie quando a decisão:
 | [0096](0096-testes-biblioteca-e-runner.md) | Testes: `std.test` (biblioteca) e `loxia test` (runner) | accepted (implementado) | 2026-11-16 |
 | [0097](0097-ranges-inclusivos.md) | Ranges inclusivos (`..=`) | accepted (implementado) | 2026-11-16 |
 | [0098](0098-property-based-testing.md) | Property-based testing (`std.property`) | accepted (implementado) | 2026-11-16 |
+| [0099](0099-notas-de-proveniencia.md) | Notes de proveniência em erros de tipo | accepted (implementado) | 2026-11-16 |
+| [0100](0100-dependencias-path.md) | Dependências `path` e resolução por nome de pacote | accepted (implementado) | 2026-11-16 |
 
 
 ## Próximas decisões que pedem ADR

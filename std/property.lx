@@ -119,11 +119,11 @@ fn float() -> Gen[Float] {
   )
 }
 
-/// Lista de `Int` com tamanho em `[0, maxLength]`; reduz removendo elementos.
-fn listOfInt(element: Gen[Int], maxLength: Int = 5) -> Gen[List[Int]] {
+/// Lista de `T` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+fn listOf[T](element: Gen[T], maxLength: Int = 5) -> Gen[List[T]] {
   return Gen(
-    fn(random: Rand) -> List[Int] {
-      val result: List[Int] = []
+    fn(random: Rand) -> List[T] {
+      val result: List[T] = []
       val size = random.int(0, maxLength)
       var index = 0
       while (index < size) {
@@ -132,11 +132,11 @@ fn listOfInt(element: Gen[Int], maxLength: Int = 5) -> Gen[List[Int]] {
       }
       return result
     },
-    fn(value: List[Int]) -> List[List[Int]] {
-      val candidates: List[List[Int]] = []
+    fn(value: List[T]) -> List[List[T]] {
+      val candidates: List[List[T]] = []
       var index = 0
       while (index < len(value)) {
-        val smaller: List[Int] = []
+        val smaller: List[T] = []
         var current = 0
         while (current < len(value)) {
           if (current != index) {
@@ -152,37 +152,14 @@ fn listOfInt(element: Gen[Int], maxLength: Int = 5) -> Gen[List[Int]] {
   )
 }
 
-/// Lista de `String` com tamanho em `[0, maxLength]`; reduz removendo elementos.
+/// Lista de `Int`; alias de `listOf` mantido para compatibilidade.
+fn listOfInt(element: Gen[Int], maxLength: Int = 5) -> Gen[List[Int]] {
+  return listOf(element, maxLength)
+}
+
+/// Lista de `String`; alias de `listOf` mantido para compatibilidade.
 fn listOfString(element: Gen[String], maxLength: Int = 5) -> Gen[List[String]] {
-  return Gen(
-    fn(random: Rand) -> List[String] {
-      val result: List[String] = []
-      val size = random.int(0, maxLength)
-      var index = 0
-      while (index < size) {
-        result.push(element.sample(random))
-        index = index + 1
-      }
-      return result
-    },
-    fn(value: List[String]) -> List[List[String]] {
-      val candidates: List[List[String]] = []
-      var index = 0
-      while (index < len(value)) {
-        val smaller: List[String] = []
-        var current = 0
-        while (current < len(value)) {
-          if (current != index) {
-            smaller.push(value[current])
-          }
-          current = current + 1
-        }
-        candidates.push(smaller)
-        index = index + 1
-      }
-      return candidates
-    }
-  )
+  return listOf(element, maxLength)
 }
 
 /// String de `[a-z0-9]` com tamanho em `[0, maxLength]`; reduz removendo caracteres.

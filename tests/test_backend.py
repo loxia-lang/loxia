@@ -1240,6 +1240,35 @@ print(dobro(21))
     assert native.stdout == "42\n"
 
 
+@pytest.mark.backend
+def test_dependencia_path_bate_com_interpretador(tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    dep = tmp_path / "acme"
+    app.mkdir()
+    dep.mkdir()
+    (app / "loxia.toml").write_text(
+        '[dependencies]\nacme = { path = "../acme" }\n',
+        encoding="utf-8",
+    )
+    (dep / "base.lx").write_text(
+        "fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8"
+    )
+    path = app / "main.lx"
+    path.write_text(
+        "import acme.base as base\nprint(base.dobro(21))\n",
+        encoding="utf-8",
+    )
+
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    native = _run([str(binary)])
+    assert native.stdout == interpreted.stdout == "42\n"
+    assert native.stderr == interpreted.stderr == ""
+    assert native.returncode == interpreted.returncode == 0
+
+
 def _run_bytes(
     arguments: list[str], data: bytes
 ) -> subprocess.CompletedProcess[bytes]:

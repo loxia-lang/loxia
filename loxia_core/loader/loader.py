@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, fields, is_dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ from loxia_core.diagnostics.diagnostic import (
     Span,
 )
 from loxia_core.diagnostics.error_reporter import ErrorReporter
-from loxia_core.diagnostics.source import SourceMap, display_path
+from loxia_core.diagnostics.source import SourceMap
 from loxia_core.frontend.destructuring import NamePattern, TuplePattern
 from loxia_core.frontend.expr import (
     As,
@@ -82,6 +83,7 @@ from loxia_core.frontend.ty import (
     Ty,
     UnionTy,
 )
+from loxia_core.loader.manifest import Manifest
 
 STD_ROOT = bundle_dir("std")
 
@@ -102,6 +104,23 @@ class Module:
     imports: list[Import]
     declarations: dict[str, Stmt]
     dependencies: list[str]
+    package: str | None = None
+
+
+@dataclass(frozen=True)
+class ResolvedModule:
+    """Módulo resolvido e o pacote dono (`None` = projeto; `"std"` = stdlib)."""
+
+    name: str
+    path: Path
+    package: str | None
+
+
+@dataclass(frozen=True)
+class _Candidate:
+    label: str
+    path: Path
+    package: str | None
 
 
 class ModuleLoader:
@@ -110,10 +129,15 @@ class ModuleLoader:
         reporter: ErrorReporter,
         sources: SourceMap,
         root: Path,
+        *,
+        manifest: Manifest | None = None,
+        module_paths: tuple[Path, ...] = (),
     ) -> None:
         self.reporter = reporter
         self.sources = sources
-        self.root = root
+        self.manifest = manifest
+        self.root = manifest.path.parent if manifest is not None else root
+        self.module_paths = module_paths
         self.modules: dict[str, Module] = {}
         self._loading: set[str] = set()
         self._order: list[str] = []
@@ -243,25 +267,187 @@ class ModuleLoader:
     # -- carregamento ----------------------------------------------------
 
     def _load_import(self, statement: Import) -> None:
-        target = self._resolve(statement.path, statement.path[0])
+        target = self._resolve(statement.path, statement.path[0], importer=None)
         self._load_module(target, statement.path[0])
 
-    def _resolve(self, path: tuple[Token, ...], token: Token) -> tuple[str, Path]:
+    def _resolve(
+        self, path: tuple[Token, ...], token: Token, *, importer: str | None
+    ) -> ResolvedModule:
         parts = [item.lexeme for item in path]
+        name = ".".join(parts)
         if parts[0] == "std":
             if len(parts) < 2:
                 self._error(token, "Expect a module name after 'std'.")
-            name = "std." + ".".join(parts[1:])
             file = STD_ROOT.joinpath(*parts[1:]).with_suffix(SOURCE_SUFFIX)
-        else:
-            name = ".".join(parts)
-            file = self.root.joinpath(*parts).with_suffix(SOURCE_SUFFIX)
-        if not file.is_file():
-            self._error(token, f"Module '{name}' not found.")
-        return name, file
+            if not file.is_file():
+                self._error(token, f"Module '{name}' not found.")
+            return ResolvedModule(name, file, "std")
 
-    def _load_module(self, target: tuple[str, Path], token: Token) -> None:
-        name, path = target
+        if len(parts) == 1 and parts[0] in self._dependencies:
+            self._error(token, f"Expect a module name after '{parts[0]}'.")
+
+        candidates = self._candidates(parts, importer)
+        if not candidates:
+            self._isolation_error(name, importer, token)
+
+        existing = self._existing(candidates)
+        if len(existing) > 1:
+            self._ambiguity_error(name, existing, token)
+        if not existing:
+            self._not_found_error(name, candidates, importer, token)
+
+        candidate = existing[0]
+        return ResolvedModule(name, candidate.path, candidate.package)
+
+    @property
+    def _dependencies(self) -> dict[str, Path]:
+        return self.manifest.dependencies if self.manifest is not None else {}
+
+    def _candidates(
+        self, parts: list[str], importer: str | None
+    ) -> list[_Candidate]:
+        result: list[_Candidate] = []
+        dependency = self._dependencies.get(parts[0])
+        if importer is None:
+            result.append(
+                _Candidate("project", self._module_file(self.root, parts), None)
+            )
+            if dependency is not None and len(parts) > 1:
+                result.append(
+                    _Candidate(
+                        f"dependency '{parts[0]}'",
+                        self._module_file(dependency, parts[1:]),
+                        parts[0],
+                    )
+                )
+            if self.manifest is not None:
+                for index, root in enumerate(self.manifest.module_paths):
+                    result.append(
+                        _Candidate(
+                            f"modules.paths[{index}]",
+                            self._module_file(root, parts),
+                            None,
+                        )
+                    )
+            for index, root in enumerate(self.module_paths):
+                result.append(
+                    _Candidate(
+                        f"--module-path[{index}]",
+                        self._module_file(root, parts),
+                        None,
+                    )
+                )
+            return result
+
+        if importer == "std":
+            return result
+
+        if dependency is not None and len(parts) > 1:
+            result.append(
+                _Candidate(
+                    f"dependency '{parts[0]}'",
+                    self._module_file(dependency, parts[1:]),
+                    parts[0],
+                )
+            )
+        return result
+
+    @staticmethod
+    def _module_file(root: Path, parts: list[str]) -> Path:
+        return root.joinpath(*parts).with_suffix(SOURCE_SUFFIX)
+
+    @staticmethod
+    def _existing(candidates: list[_Candidate]) -> list[_Candidate]:
+        seen: set[Path] = set()
+        existing: list[_Candidate] = []
+        for candidate in candidates:
+            if not candidate.path.is_file():
+                continue
+            resolved = candidate.path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            existing.append(candidate)
+        return existing
+
+    def _not_found_error(
+        self,
+        name: str,
+        candidates: list[_Candidate],
+        importer: str | None,
+        token: Token,
+    ) -> None:
+        if importer is not None and importer != "std":
+            if name.startswith(importer + "."):
+                searched = ", ".join(
+                    f"{candidate.label} "
+                    f"({self._display_candidate(candidate.path)})"
+                    for candidate in candidates
+                )
+                self._error(
+                    token,
+                    f"Module '{name}' not found in dependency '{importer}'. "
+                    f"Searched: {searched}.",
+                )
+            self._error(
+                token,
+                f"Module '{name}' not found. Inside dependency '{importer}', "
+                f"use '{importer}.{name}'.",
+            )
+        if importer == "std":
+            self._error(
+                token,
+                f"Module '{name}' not found. Modules in 'std' can only "
+                "import 'std.*'.",
+            )
+        searched = ", ".join(
+            f"{candidate.label} ({self._display_candidate(candidate.path)})"
+            for candidate in candidates
+        )
+        self._error(
+            token, f"Module '{name}' not found. Searched: {searched}."
+        )
+
+    def _ambiguity_error(
+        self, name: str, candidates: list[_Candidate], token: Token
+    ) -> None:
+        locations = _join_and([
+            f"{candidate.label} ({self._display_candidate(candidate.path)})"
+            for candidate in candidates
+        ])
+        self._error(
+            token, f"Module '{name}' is ambiguous: {locations}."
+        )
+
+    def _isolation_error(
+        self, name: str, importer: str | None, token: Token
+    ) -> None:
+        if importer == "std":
+            self._error(
+                token,
+                f"Module '{name}' not found. Modules in 'std' can only "
+                "import 'std.*'.",
+            )
+        if importer is not None:
+            self._error(
+                token,
+                f"Module '{name}' not found. Inside dependency '{importer}', "
+                f"use '{importer}.{name}'.",
+            )
+        self._error(token, f"Module '{name}' not found.")
+
+    def _display_candidate(self, path: Path) -> str:
+        try:
+            return path.relative_to(self.root).as_posix()
+        except ValueError:
+            try:
+                return Path(os.path.relpath(path, self.root)).as_posix()
+            except ValueError:
+                return path.name
+
+    def _load_module(self, target: ResolvedModule, token: Token) -> None:
+        name = target.name
+        path = target.path
         if name in self._loading:
             self._error(token, f"Import cycle involving '{name}'.")
         if name in self.modules:
@@ -271,10 +457,9 @@ class ModuleLoader:
             source = path.read_text(encoding="utf-8")
         except OSError:
             self._error(token, f"Can't read module '{name}'.")
-        # Caminho de exibição determinístico e consistente com a entrada (relativo ao
-        # CWD; basename fora dele). Módulos `std.*` usam o nome lógico para não colidir
-        # entre si nem depender do CWD (ADR-0075: nunca caminho absoluto).
-        display = self._display_path(name, path)
+        # Nome lógico é único (dois roots com o mesmo módulo viram ambiguidade), então
+        # o display não colide e não depende de CWD/absoluto (I3).
+        display = self._display_path(name)
         self.sources.add(display, source)
         previous = self.reporter.file
         self.reporter.file = display
@@ -312,29 +497,29 @@ class ModuleLoader:
             declarations[decl_name] = statement
         for statement in statements:
             self._reject_nested_imports(statement)
-        module = Module(name, path, statements, imports, declarations, [])
+        module = Module(
+            name,
+            path,
+            statements,
+            imports,
+            declarations,
+            [],
+            target.package,
+        )
         self.modules[name] = module
         for statement in imports:
-            target_import = self._resolve(statement.path, statement.path[0])
-            module.dependencies.append(target_import[0])
+            target_import = self._resolve(
+                statement.path, statement.path[0], importer=target.package
+            )
+            module.dependencies.append(target_import.name)
             self._load_module(target_import, statement.path[0])
         self._loading.remove(name)
         self._order.append(name)
 
-    def _display_path(self, name: str, path: Path) -> str:
-        """Caminho de exibição do módulo: sem absoluto, estável e sem colisão.
-
-        `std.*` usa o nome lógico (`std/strings.lx`). Fora do CWD, `display_path`
-        devolveria só o basename; aí preferimos o caminho relativo à raiz do programa
-        para que `pkgA/util.lx` e `pkgB/util.lx` não virem o mesmo `util.lx`.
-        """
-        if name.startswith("std."):
-            return name.replace(".", "/") + SOURCE_SUFFIX
-
-        display = display_path(path)
-        if display == path.name and path.is_relative_to(self.root):
-            return path.relative_to(self.root).as_posix()
-        return display
+    @staticmethod
+    def _display_path(name: str) -> str:
+        """Nome lógico do módulo; único e sem depender de CWD/absoluto (I3)."""
+        return name.replace(".", "/") + SOURCE_SUFFIX
 
     def _entry_root(self) -> Path:
         return self.root
@@ -360,16 +545,23 @@ class ModuleLoader:
         }
 
     def _import_maps(self, entry_imports: list[Import]) -> dict[str, _ImportMaps]:
-        result: dict[str, _ImportMaps] = {"<entry>": self._build_import_map(entry_imports)}
+        result: dict[str, _ImportMaps] = {
+            "<entry>": self._build_import_map(entry_imports, None)
+        }
         for name, module in self.modules.items():
-            result[name] = self._build_import_map(module.imports)
+            result[name] = self._build_import_map(module.imports, module.package)
         return result
 
-    def _build_import_map(self, imports: list[Import]) -> _ImportMaps:
+    def _build_import_map(
+        self, imports: list[Import], importer: str | None
+    ) -> _ImportMaps:
         names: dict[str, str] = {}
         namespaces: dict[str, Module] = {}
         for statement in imports:
-            target_name, _ = self._resolve(statement.path, statement.path[0])
+            target = self._resolve(
+                statement.path, statement.path[0], importer=importer
+            )
+            target_name = target.name
             module = self.modules[target_name]
             if statement.from_import:
                 for item in statement.names:
@@ -966,6 +1158,12 @@ def _pattern_names(pattern: Any) -> set[str]:
             result |= _pattern_names(item)
         return result
     return set()
+
+
+def _join_and(items: list[str]) -> str:
+    if len(items) <= 1:
+        return items[0] if items else ""
+    return ", ".join(items[:-1]) + " and " + items[-1]
 
 
 def _first_token(statement: Stmt) -> Token:
