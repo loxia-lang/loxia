@@ -335,30 +335,78 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 ### 14.2 Documentação como site (+ i18n)
 
-Princípio: o site é **build** de `docs/`, nunca fonte paralela. O front matter `sources:` de
-`docs/spec/*.md` dá de graça o diferencial que linguagem pequena não costuma ter: cada
-página declara "verificado no commit X", reusando `docs/_hooks/freshness.py`.
+> **Status 2026-11-17:** desenho fechado no
+> [ADR-0103](docs/adr/0103-site-de-documentacao-e-versionamento.md). A implementação vai do
+> scaffold ao deploy em 7 PRs; o site é **build de `docs/`**, nunca fonte paralela.
 
-- **Stack:** Astro Starlight (mais perto da UX do site do Kotlin: sidebar, busca local, i18n
-  por pasta, dark mode) ou VitePress. Alternativa que não soma toolchain JS: MkDocs
-  Material, que é Python e casa com o resto do repo. **Decisão pendente:** dois ecossistemas
-  vs. um.
-- **Estrutura:** `/learn` (tutorial de 30 min), `/reference` (gerado da spec), `/stdlib`,
-  `/cookbook` (de `exemplos/`), `/why` (I1–I4 em uma página) e `/changelog`. ADRs ficam fora
-  do site — são registro interno; linkar só o índice.
-- **i18n:** a spec e os ADRs são pt-BR. Recomendação: pt-BR é a fonte; en-US traduz apenas
-  *learn* e *reference*; ADRs não são traduzidos. A **API pública** (stdlib/builtins) tem
-  doc em inglês ([ADR-0091](docs/adr/0091-doc-comments-e-geracao-de-docs.md)); o site marca
-  `/stdlib` como inglês e o resto como pt-BR até a tradução. Tradução congela texto, então
-  cada página traduzida precisa do mesmo mecanismo de frescor, senão o inglês apodrece
-  primeiro.
-- **`/stdlib` e builtins gerados:** `loxia doc` (ADR-0091) gera Markdown/JSON a partir de
-  `///` e do registry de primitivas; o site **consome** o gerado, não edita à mão. O build
-  falha se a referência estiver defasada.
-- **Playground:** o alvo é WASM (§6.10). Até lá, ou playground server-side (`run`/`--check`
-  com timeout e sem rede), ou nenhum — não vale um serviço só para enfeite.
-- **Gate:** `make docs-build` no CI (links quebrados, front matter inválido, página sem par
-  traduzido). O `tests/test_docs_links.py` continua sendo o portão da fonte.
+Princípio: o site é uma projeção de `docs/` + `docs/i18n/` + `docs/versions/`, com busca,
+navegação e dark mode. O front matter `sources:` e o `freshness.py` continuam a fonte de
+verdade por página; o build injeta “verificado no commit X” e valida links.
+
+**Decisões fechadas**
+
+- **Stack:** Astro Starlight em [`site/`](site/), Node 24, npm e lockfile próprio. Node
+  fica isolado do runtime Python; o wheel e o comando `loxia` não dependem dele.
+- **Idiomas:** inglês na raiz (`/`), pt-BR em `/pt/`; Starlight faz fallback para inglês
+  quando uma página pt não existe. A referência 1.1 é publicada em pt-BR em
+  `/pt/reference/*`; `/reference` é uma landing inglesa que explica a tradução e aponta
+  para a referência portuguesa. Quando a tradução EN existir, `/reference/*` vira a versão
+  inglesa e `/pt/reference/*` permanece a portuguesa.
+- **Versionamento:** só a **referência** é versionada. `/pt/reference/*` é 1.1 (atual) e
+  `/pt/1.0/reference/*` é o arquivo 1.0, com banner e sem seletor global. Learn/why/
+  cookbook/stdlib/changelog são sempre atuais. O snapshot 1.0 é uma cópia congelada e
+  commitada de `v1.0.0`, com links normalizados; não usamos `starlight-versions`.
+  Enquanto o release 1.1.0 não sai, os rótulos são **1.0 (stable)** e **1.1 (next)**.
+- **URLs:** GitHub Pages project site (`site: https://loxia-lang.github.io`,
+  `base: /loxia`); links internos relativos. Domínio custom fica para depois, com redirect.
+- **i18n:** páginas traduzidas em `docs/i18n/<locale>/...` com
+  `translated_from: <sha>`; o build nunca traduz; `tools/docs_i18n.py` reporta traduções
+  defasadas e o site mostra o aviso. Inglês original (learn/why/cookbook) não é tradução.
+- **Fora do launch:** playground (WASM/servidor exige sandbox e orçamento), analytics por
+  padrão, versionar learn/why/cookbook e renderizar ADRs. `llms.txt`/MCP ficam na §14.3.
+
+**Estrutura de URLs**
+
+| URL | Fonte | Idioma/versão |
+| --- | --- | --- |
+| `/` | `docs/i18n/en/index.md` | EN |
+| `/why/` | `docs/i18n/en/why.md` | EN |
+| `/learn/...` | `docs/i18n/en/learn/` | EN (original) |
+| `/cookbook/...` | `docs/i18n/en/cookbook/` | EN (original) |
+| `/stdlib/...` | `docs/stdlib/` gerado | EN |
+| `/changelog/` | `docs/i18n/en/changelog.md` + link do GitHub | EN |
+| `/reference/` | `docs/i18n/en/reference/index.md` | EN (landing) |
+| `/pt/reference/...` | `docs/spec/` | pt-BR, 1.1 |
+| `/pt/1.0/reference/...` | `docs/versions/1.0/reference/` | pt-BR, 1.0 arquivado |
+
+**Pipeline e gates**
+
+- `tools/docs_site.py`: staging para `site/src/content/docs/` (ignorado), mapeia spec/
+  stdlib/versions/i18n, remove `sources:` do front matter e injeta título, ordem, banner de
+  versão e a linha de frescor.
+- `tools/docs_versions.py`: gera `docs/versions/<versão>/reference/` a partir de um tag,
+  normaliza links e escreve o manifesto.
+- `tools/docs_i18n.py`: confere `translated_from` e reporta traduções defasadas.
+- `make docs-build` = `docs-sync` + staging + `npm run build` + link check;
+  `docs-dev`, `docs-links`, `docs-i18n-check`, `docs-version`.
+- `ci.yml` ganha o job `site` (build + link check) no `CI success`; `docs.yml` faz deploy
+  no `main` com permissões mínimas de Pages. Enquanto o repo é privado, o deploy fica
+  condicionado ao flip (Pages privado exige plano pago); o build roda no CI.
+- O `tests/test_docs_links.py` continua o gate da fonte; o link check cobre o HTML.
+
+**PRs**
+
+- [x] 1. ADR-0103 + este desenho no TODO.
+- [ ] 2. Scaffold `site/` Starlight + `tools/docs_site.py` + build local.
+- [ ] 3. Mapeamento da referência 1.1, stdlib, changelog e landing `/reference`.
+- [ ] 4. Versionamento 1.0/1.1 (snapshot congelado, banner/seletor).
+- [ ] 5. Home/Why/Learn em inglês + snippets testados.
+- [ ] 6. i18n/`translated_from`, job `site` no CI e workflow de deploy Pages.
+- [ ] 7. Cookbook, favicon/SEO/link check e polimento.
+
+**Riscos:** duplicação/idade do snapshot 1.0; tradução EN da referência ser o caminho
+crítico; duas toolchains (Node + Python) e Dependabot npm; links absolutos quebrarem no
+`base /loxia`; conteúdo do Learn envelhecer se os snippets não forem testados.
 
 ### 14.3 Servidor MCP (`loxia-mcp`)
 
