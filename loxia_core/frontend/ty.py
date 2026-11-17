@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Tipos da linguagem e operações estruturais básicas.
 
 Tipos são apagados em runtime; este módulo é usado pelo parser (anotações) e pelo

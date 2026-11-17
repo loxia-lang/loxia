@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Kernel 13.2 (ADR-0071): SO, stdio por bytes e representação (ADR-0094). */
 #include "lox_runtime.h"
 #include "kernel_gen.h"

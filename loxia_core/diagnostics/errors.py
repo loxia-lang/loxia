@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import Trace
 from loxia_core.frontend.tokens import Token

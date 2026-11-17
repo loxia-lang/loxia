@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Listas (L6): runtime boxeado, literais, índice, métodos, `len` e igualdade."""
 
 from __future__ import annotations

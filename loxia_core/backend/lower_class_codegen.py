@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Emissão de classes, construtores, vtable, bound methods, `super` e `is`/`as`."""
 
 from __future__ import annotations

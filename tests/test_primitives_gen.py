@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Header gerado da tabela de primitivas (ADR-0071, ADR-0094).
 
 `runtime/kernel_gen.h` declara o símbolo C de cada primitiva com a assinatura que o

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Orçamentos de execução: profundidade de chamadas e heap do binário.
 
 Os números são contrato (ADR-0077 e ADR-0087). O runtime C recebe as mesmas

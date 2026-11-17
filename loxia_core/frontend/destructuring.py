@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Padrões de destructuring (`val (a, (b, c)) = t`).
 
 Padrão de destructuring não é expressão nem statement: é a forma à esquerda do `=` de

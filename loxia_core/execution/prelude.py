@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Nomes reservados do prelúdio global.
 
 Eles não podem ser redefinidos no escopo global; locais/parâmetros podem sombreá-los

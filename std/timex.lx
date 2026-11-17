@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.timex — datas e horas UTC (T3), em Lox puro; sem timezone e sem timestamp.
 import std.strings as strings
 

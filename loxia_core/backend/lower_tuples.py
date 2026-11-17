@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Tuplas (L6): runtime boxeado, índice, igualdade, destructuring e len."""
 
 from __future__ import annotations

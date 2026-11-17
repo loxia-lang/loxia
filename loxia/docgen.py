@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Geração de documentação a partir de `///` (ADR-0091).
 
 O parser guarda a doc no nó de declaração; este módulo só transforma AST em Markdown

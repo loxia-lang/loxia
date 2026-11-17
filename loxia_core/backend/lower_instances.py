@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Acesso a campos, bitmap, leitura/escrita e `get`/`set` de instâncias."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /*
  * Processos e streams do kernel (ADR-0095): `posix_spawnp`, pipes e `poll(2)`.
  *

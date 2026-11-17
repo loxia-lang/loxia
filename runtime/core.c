@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Núcleo do runtime: inicialização, GC, pilha, panic e exceções (ADR-0074,
  * ADR-0077, ADR-0089). */
 #include "lox_runtime.h"

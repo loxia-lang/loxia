@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.maps — utilitários para Map[String, V] (T1), em Lox puro.
 # Chaves String: o checker ainda não expressa "K é String, Int ou Bool" em função
 # genérica (constraints são pós-MVP), então a API fixa String e generaliza só o valor.

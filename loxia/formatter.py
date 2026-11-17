@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Formatter mínimo (ADR-0092), sem alterar semântica.
 
 Fase 1: normaliza indentação de bloco (2 espaços), remove espaços no fim da linha e

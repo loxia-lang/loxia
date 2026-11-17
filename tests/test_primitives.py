@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Tabela única de primitivas (ADR-0071)."""
 
 from __future__ import annotations

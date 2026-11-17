@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Roda a suíte oficial do Crafting Interpreters (caps. 10-13) adaptada.
 
 Os `.lx` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:

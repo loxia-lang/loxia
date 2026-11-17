@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Modelo de tipos, valores e layouts do lowering (sem emissão de IR).
 
 Este módulo é a fronteira estável entre o lowering e o emissor: as ABI/representações

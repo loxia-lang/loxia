@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* LoxStr, UTF-8, formatação de valor e impressão (ADR-0031, ADR-0035). */
 #include "lox_runtime.h"
 

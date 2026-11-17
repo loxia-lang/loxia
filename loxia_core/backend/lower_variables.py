@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Variáveis, células, atribuição e escopo do lowering."""
 
 from __future__ import annotations

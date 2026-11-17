@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Regressão de `except` com classe de exceção definida em módulo (`R4`, corrigido).
 
 O loader reescreve o nome do `except` para `modulo$Classe`, mas o descritor guarda o

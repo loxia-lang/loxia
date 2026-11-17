@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Manifesto do corpus diferencial por nível (ADR-0031, decisão 11).
 
 Um caso só entra aqui quando o backend do nível o compila **e** reproduz stdout, stderr

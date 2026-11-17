@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /*
  * Runtime do backend nativo: tipos, limites e contrato interno compartilhado.
  *

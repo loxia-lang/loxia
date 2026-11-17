@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Montagem dos namespaces nativos globais."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Runner `lox test`: descobre `*_test.lx`, roda cada unidade e agrega TAP (ADR-0096).
 
 `--isolate=file` (padrão) roda um subprocesso por arquivo; `--isolate=test` lista os

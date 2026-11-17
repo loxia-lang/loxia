@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Chamadas, métodos, classes chamáveis e curto-circuito de `?.`."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Cobertura de `--check` para os casos positivos da suíte oficial.
 
 Os arquivos oficiais ficam intactos; `official_annotations.annotate` aplica a

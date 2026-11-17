@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Enums, `Result` e `match` (L6i, ADR-0061)."""
 
 from __future__ import annotations

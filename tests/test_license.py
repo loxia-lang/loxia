@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Licença dual MIT/Apache-2.0 (ADR-0101)."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 from __future__ import annotations
 
 from loxia_core.frontend.ast_printer import AstPrinter

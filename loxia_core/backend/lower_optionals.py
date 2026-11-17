@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Tipos de representação, optionais e coerções do lowering (ADR-0045/0047)."""
 
 from __future__ import annotations

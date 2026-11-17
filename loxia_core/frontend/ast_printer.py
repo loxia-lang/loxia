@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 from loxia_core.execution.values import repr_value
 from loxia_core.frontend.destructuring import DestructurePattern, NamePattern
 from loxia_core.frontend.expr import (

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Anotação dinâmica da suíte oficial para o `--check`.
 
 Os `.lx` de `tests/official/cases` são mantidos como no original (MIT). O

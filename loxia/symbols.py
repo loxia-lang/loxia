@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Índice de símbolos para LSP-1 (hover/definition), sobre a AST do checker.
 
 Não reimplementa tipos: lê `Checker.types` e `Resolver.references`. Cobre variáveis,

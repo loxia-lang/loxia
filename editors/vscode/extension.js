@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 "use strict";
 
 // Cliente LSP mínimo da Loxia para VS Code, sem dependências de npm.

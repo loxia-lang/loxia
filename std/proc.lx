@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.proc — processos e streams (T2, ambiente: fora do I1/I3).
 # Casca em Lox sobre `proc.*`: sem shell, sem thread; `poll` é a concorrência.
 

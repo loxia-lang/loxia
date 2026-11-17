@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.sets — conjunto sobre `Map[Any, Bool]` (T2).
 # A ordem de `toList` é a de inserção (determinística). `T` deve ser `String`, `Int`
 # ou `Bool` no runtime: chaves de outro tipo são erro de runtime, porque constraints

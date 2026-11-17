@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Contexto compartilhado pelos módulos do lowering.
 
 O lowering é dividido por responsabilidade: funções, variáveis, tipos/optionais,

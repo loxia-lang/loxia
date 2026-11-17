@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.convert — conversões e codecs (T2), em Lox puro.
 # Sem tipo `Bytes` (ADR-0072): base64/hex operam sobre o texto UTF-8; a decodificação
 # devolve `nil` quando os bytes não são UTF-8 válido ou o texto é malformado.

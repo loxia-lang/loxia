@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Loader de módulos e privacidade `_` (ADR-0073)."""
 
 from __future__ import annotations

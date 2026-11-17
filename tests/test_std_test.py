@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Testes de oráculo do `std.test`: TAP, filtros, skip e falhas (ADR-0096)."""
 
 from __future__ import annotations

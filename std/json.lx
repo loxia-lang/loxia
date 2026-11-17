@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.json — JSON (RFC 8259) em Lox puro (T2).
 # Determinístico: objetos preservam a ordem de inserção, `Int`/`Float` são distintos
 # e nada depende de locale. `parse` devolve `nil` tanto para JSON `null` quanto para

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Relatório de frescor da documentação (inspirado no fluxo do Scrinalia).
 
 Uma página que descreve código declara, no front matter, **quais arquivos ela documenta**:

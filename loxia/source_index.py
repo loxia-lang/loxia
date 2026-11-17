@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Re-export de compatibilidade: a implementação mora no core (ADR-0090).
 
 O checker precisa do índice sem depender do pacote `loxia` (CLI); por isso o

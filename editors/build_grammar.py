@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Gera a grammar TextMate da Loxia (VS Code, Sublime, TextMate, GitHub).
 
 A lista de keywords, a de operadores e a de nomes embutidos **não** são copiadas à mão:

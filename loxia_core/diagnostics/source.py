@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Fonte carregada + aritmética de coluna para o caret (ADR-0075).
 
 Nada aqui imprime: são funções puras para que o renderizador seja testável sem

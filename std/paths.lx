@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.paths — caminhos POSIX (T2), em Lox puro.
 # Não toca no sistema de arquivos: só manipulação lexical. Separador é `/`.
 # `join` não normaliza (use `normalize`); `normalize` colapsa barras e resolve

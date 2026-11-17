@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Documentação English dos builtins/primitivas (ADR-0091).
 
 Fonte de verdade para a página `docs/stdlib/builtins.md`; nomes e assinaturas são

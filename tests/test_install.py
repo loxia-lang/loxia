@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Instalação real: wheel fora do repo, comando `loxia` e stdlib (ADR-0088).
 
 Fora da suíte padrão (`-m install`): builda o wheel e cria um venv. É o teste que

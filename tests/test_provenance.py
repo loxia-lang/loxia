@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Notes de proveniência nos erros de tipo (ADR-0090/ADR-0099)."""
 
 from __future__ import annotations

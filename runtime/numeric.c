@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Aritmética com borda definida, `math.*` e parse (ADR-0006, ADR-0028, ADR-0029). */
 #include "lox_runtime.h"
 

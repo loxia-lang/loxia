@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """`loxia fix`: só `safe`, dry-run/apply, idempotência e unsafe preservado."""
 
 from __future__ import annotations

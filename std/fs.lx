@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.fs — leitura e escrita de arquivos (T2), casca fina sobre o kernel.
 # Ambiente (ADR-0072): não entra no corpus I1; teste com diretório temporário e sem
 # imprimir caminho absoluto. `readLines` descarta a quebra final (uma linha por item);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Renderizadores puros de diagnóstico: `human`, `short` e `json` (ADR-0075).
 
 Nenhum deles imprime; todos devolvem a string. O `Lox` decide o stream e o exit code.

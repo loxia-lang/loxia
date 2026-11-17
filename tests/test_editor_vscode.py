@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Extensão VS Code: manifesto, grammar e cliente LSP autocontido."""
 
 from __future__ import annotations

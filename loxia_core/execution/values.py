@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Formatação dos valores da linguagem (usada pelo interpretador e por debug)."""
 
 from __future__ import annotations

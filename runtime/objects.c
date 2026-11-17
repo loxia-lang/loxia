@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Descritores de tipo/classe, interfaces e `is`/`as` (ADR-0075, ADR-0080). */
 #include "lox_runtime.h"
 

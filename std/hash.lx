@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.hash — hashes não criptográficos sobre os bytes UTF-8 do texto (T3).
 
 /// FNV-1a de 32 bits (0..4294967295) dos bytes UTF-8 de `text`.

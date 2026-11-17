@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Strings, interpolação, `str`/`repr`/`len` e display de valores."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Testes diferenciais do backend nativo (L0-L6 + T7).
 
 O contrato (ADR-0031) é: o interpretador é o oráculo. Cada caso compila, executa o

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.lists — operações funcionais básicas (T1), em Lox puro.
 
 /// Returns true when the list has no elements.

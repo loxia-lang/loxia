@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Catálogo de códigos estáveis de diagnóstico (ADR-0075).
 
 Um código identifica uma **família** de erro, não uma mensagem: a mensagem

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.fmt — formatação textual determinística (T2).
 # Sem locale: `fixed`/`commas`/`bytes` produzem os mesmos bytes em qualquer ambiente.
 # Variádico desde o ADR-0083: `format(template, ...values: Any)`.

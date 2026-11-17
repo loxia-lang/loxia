@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Resolução de recursos empacotados (`std/` e `runtime/`), dev vs wheel (ADR-0088)."""
 
 from __future__ import annotations

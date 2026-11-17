@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Kernel 13.2: ambiente, I/O e exit code no interpretador."""
 
 from __future__ import annotations

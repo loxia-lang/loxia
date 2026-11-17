@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.csv — CSV RFC 4180 (T2), em Lox puro.
 # Determinístico: aceita CRLF e LF na entrada; `stringify` emite CRLF e uma quebra
 # final. Campos com `,`, `"`, CR ou LF são citados e `"` vira `""`.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Loader de módulos: arquivo = módulo, pasta = namespace (ADR-0073)."""
 
 from __future__ import annotations

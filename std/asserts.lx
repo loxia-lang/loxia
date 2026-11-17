@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.asserts — falhas explícitas para testes e contratos (T1).
 # A falha é RuntimeError: capturável por `except RuntimeError as e`.
 

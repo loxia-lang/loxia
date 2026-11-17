@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 from collections.abc import Callable
 
 from loxia_core.diagnostics.codes import Code

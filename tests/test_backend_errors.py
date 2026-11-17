@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Formato e classificação dos erros do backend (E4001/E4002)."""
 
 from __future__ import annotations

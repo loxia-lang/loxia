@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Coleta de diagnósticos de **uma** execução (ADR-0003, ADR-0075).
 
 O reporter não imprime: ele acumula `Diagnostic`s e o `Lox` decide quando e como

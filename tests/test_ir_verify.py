@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Gate `mod.verify`: o módulo gerado é verificado antes de qualquer emissão."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Harness de benchmark do interpretador.
 
 Uso:

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.utf8 — larguras UTF-8/UTF-16 (T2). Lox puro sobre `charCodeAt`; determinístico.
 # LSP e qualquer protocolo posicional precisam das duas unidades no mesmo texto:
 # `byteLen` para `Content-Length`, `utf16Column` para coluna de editor.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Runner dos casos golden: um `.lx` por arquivo, expectativas em comentários.
 
 Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Range, List, Map, Tuple, Enum e igualdade estrutural (ADR-0007, ADR-0017,
  * ADR-0036, ADR-0041). */
 #include "lox_runtime.h"

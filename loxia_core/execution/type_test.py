@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Teste dinâmico de tipo para a expressão `is`.
 
 Os tipos são apagados no runtime; este módulo é a única ponte entre um `Ty` estático e um

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Localização dos recursos que viajam com o pacote: `std/` e `runtime/`.
 
 Em desenvolvimento (`uv run main.py`, pytest) os dois ficam na raiz do repo, porque é

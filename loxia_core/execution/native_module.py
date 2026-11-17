@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Namespace nativo somente leitura para `Int`, `Float` e `math`."""
 
 from __future__ import annotations

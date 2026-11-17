@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """`loxia fix`: aplica apenas fixes `safe`, com reparse/check a cada rodada (ADR-0093)."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.collections — Stack, Queue, Deque e PriorityQueue (T3), em Lox puro.
 
 /// Pilha LIFO genérica.

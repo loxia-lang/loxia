@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Monomorfização de funções genéricas (T7).
 
 O checker publica, por nó `Call`, a instanciação concreta que inferiu. O lowering usa

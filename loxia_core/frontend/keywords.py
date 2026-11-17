@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 from loxia_core.frontend.token_type import TokenType
 
 KEYWORDS: dict[str, TokenType] = {

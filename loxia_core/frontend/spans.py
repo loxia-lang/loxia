@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Spans de tokens para diagnósticos e fixes.
 
 Identificadores são ASCII, então coluna e offset andam juntos; spans de lexemas

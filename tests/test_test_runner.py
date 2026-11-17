@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Testes do subcomando `loxia test` (ADR-0096)."""
 
 from __future__ import annotations

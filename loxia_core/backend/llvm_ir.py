@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Camada única sobre o `llvmlite`.
 
 Nenhum outro módulo do backend importa `llvmlite` diretamente: esta é a fronteira da

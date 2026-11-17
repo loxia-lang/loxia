@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Portão do invariante I3 (ADR-0014): mesma entrada ⇒ mesmos bytes.
 
 A garantia de determinismo observável é parte da identidade da linguagem — não é

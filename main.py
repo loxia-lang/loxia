@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Compatibilidade: mantém `python main.py`, `from main import Loxia` e o alias `Lox`.
 
 A implementação fica em `loxia.cli`; o pacote também roda com `python -m loxia`.

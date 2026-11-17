@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Range e `for-in` (L6): Range é ponteiro de runtime; iteração é lowering direto."""
 
 from __future__ import annotations

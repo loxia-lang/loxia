@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Modelo de diagnóstico: dados imutáveis, sem I/O.
 
 O `ErrorReporter` acumula `Diagnostic`; os renderizadores (texto, JSON) moram em

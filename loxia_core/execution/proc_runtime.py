@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Handles de `proc.*`: processos e streams do kernel (1-based; 0 = falha).
 
 O estado (tabela de handles) vive no interpretador (`interpreter.proc_handles`), não

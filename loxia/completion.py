@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Completion do LSP sobre a AST original (não a reescrita pelo loader).
 
 A AST reescrita tem nomes mangled (`std$strings$upper`) e perde imports; aqui partimos do

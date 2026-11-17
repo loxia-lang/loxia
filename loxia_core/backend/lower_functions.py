@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Lowering de funções, lambdas e o ABI de closure do L4 (ADR-0046)."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Manifest `loxia.toml`: raízes de módulo e dependências `path` (ADR-0088/0100).
 
 O manifest é descoberto do diretório do entry para cima (primeiro vence) e é a única

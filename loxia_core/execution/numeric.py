@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Modelo numérico: `Int` (i64) e `Float` (f64), com promoção e wrapping.
 
 Contrato em [`TIPOS.md`](../TIPOS.md) §3 (decisões `D-1`..`D-6`) e ADR-0006.

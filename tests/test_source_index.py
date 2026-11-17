@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Spans de expressão: índice offset → menor expressão (ADR-0090)."""
 
 from __future__ import annotations

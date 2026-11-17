@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Servidor LSP mínimo (ADR-0090), JSON-RPC sobre stdio, sem dependências.
 
 LSP-0: full sync, diagnostics e documentSymbol. LSP-1: hover/definition via

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Type checker estático (gradual) — roda depois do resolver, antes de executar.
 
 Anotações são opcionais no runtime; em `--check` as funções precisam de parâmetros e

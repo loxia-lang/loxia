@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.property — property-based testing determinístico (T3), em Lox puro.
 import std.strings as strings
 from std.rand import Rand

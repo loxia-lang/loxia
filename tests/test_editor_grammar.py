@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Drift gate da grammar de editor (VS Code / Sublime / TextMate).
 
 A grammar `editors/vscode/syntaxes/loxia.tmLanguage.json` é **gerada** por

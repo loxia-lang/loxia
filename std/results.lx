@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.results — combinadores para Result[T, E] (T1), em Lox puro.
 # `_ok`/`_err` existem para o checker inferir os argumentos de tipo a partir do
 # tipo esperado; `map`/`mapErr`/`andThen` atribuem em `var out: Result[...]`.

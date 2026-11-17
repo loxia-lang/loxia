@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Planejamento de layout de classe, campos e inicializadores constantes."""
 
 from __future__ import annotations

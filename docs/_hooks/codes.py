@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Gera o catálogo de códigos de diagnóstico em `docs/spec/erros.md`.
 
 A tabela entre `<!-- codes:start -->` e `<!-- codes:end -->` é **gerada** a partir de

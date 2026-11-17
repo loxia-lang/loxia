@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Gera `runtime/kernel_gen.h` a partir da tabela única de primitivas (ADR-0071).
 
 O header gerado declara o símbolo C de cada primitiva com a assinatura que o lowering

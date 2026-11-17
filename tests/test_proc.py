@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Kernel de processos (ADR-0095): `std.proc` no oráculo.
 
 Os testes usam o próprio `sys.executable` como filho — nada de `cat`/shell — para

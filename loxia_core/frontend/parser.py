@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import cast

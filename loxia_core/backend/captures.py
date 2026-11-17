@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Análise de captura para closures do backend (ADR-0046).
 
 O lowering precisa saber, antes de emitir IR, duas coisas:

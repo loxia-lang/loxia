@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """T2: módulos de ambiente (`std.fs`, `std.io`) e `--check` de toda a stdlib."""
 
 from __future__ import annotations

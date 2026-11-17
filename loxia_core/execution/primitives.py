@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Tabela única das primitivas monomórficas do kernel (ADR-0071).
 
 Cada entrada liga a assinatura Lox (`lox`), o símbolo C (`c_symbol`), os tipos da

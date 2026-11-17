@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Pipeline de build: AST → IR → objeto → executável.
 
 O link é feito pelo compilador C do sistema (`cc`, `clang` ou `gcc`): o `llvmlite` emite

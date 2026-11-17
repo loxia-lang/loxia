@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Coordenação do lowering da AST para IR do LLVM.
 
 O lowering é dividido por responsabilidade: `lower_model` (tipos/valores/layouts),

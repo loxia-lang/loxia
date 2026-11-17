@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """`std.log`: níveis, filtro e stderr determinístico (sem timestamp)."""
 
 from __future__ import annotations

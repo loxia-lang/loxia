@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # std.strings — texto UTF-8, operações em code points (T1).
 # Tudo aqui é Lox puro sobre substr/join/charCodeAt/fromCodePoint.
 

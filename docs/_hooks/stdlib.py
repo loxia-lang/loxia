@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Gera `docs/stdlib/` a partir de `std/*.lx` e do registry de builtins (ADR-0091)."""
 
 from __future__ import annotations

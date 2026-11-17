@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Completion do LSP: escopo, imports, módulos, `this` e enums."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Índice de spans de expressão (ADR-0090).
 
 O parser não guarda spans em todo nó; o índice deriva a extensão a partir dos tokens

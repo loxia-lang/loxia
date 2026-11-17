@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Gera o bloco de status do corpus em `docs/spec/garantias.md`.
 
 O bloco entre `<!-- levels:start -->` e `<!-- levels:end -->` é **gerado** a partir de

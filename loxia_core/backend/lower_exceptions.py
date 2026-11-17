@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Exceções do L6j: try/raise/finally com ABI setjmp/longjmp (ADR-0062)."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Manifest `loxia.toml`: dependências path, raízes e descoberta (ADR-0088/0100)."""
 
 from __future__ import annotations

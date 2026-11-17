@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Cobertura mecânica da documentação (inspirado no fluxo do Scrinalia).
 
 O que **bloqueia** (`make check`) é o que é verificável sem julgamento:
