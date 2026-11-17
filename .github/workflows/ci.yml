@@ -133,6 +133,8 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --all-groups --extra llvm
       - run: uv build
+      # Policia o layout do artefato (std/ uma vez só) e a instalação fora do repo.
+      - run: uv run pytest -m install
       - run: uv run --with twine twine check dist/*
       - run: uv venv /tmp/lox-venv
       - run: uv pip install --python /tmp/lox-venv/bin/python dist/*.whl

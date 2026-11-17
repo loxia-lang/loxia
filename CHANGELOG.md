@@ -7,6 +7,14 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **`loxia repl` e distribuição verificada** (Fase 0 do §14.7 e item 1 do §14.4):
+  o REPL ganhou subcomando próprio (`loxia repl`, com `--debug`, `--module-path` e
+  `--json-lines`), e o banner/prompt só aparecem em TTY — pipe e agente recebem apenas a
+  saída do programa. `pytest -m install` passa a policiar o layout do artefato (sdist com
+  `std/` na raiz, wheel com `loxia_core/std/`, nunca os dois) e o CI roda o teste no job do
+  wheel. README documenta o comando instalado (`pip install loxia`/`uv tool install loxia`)
+  a partir da 1.1.0.
+
 - **Documentação como site** ([ADR-0103](docs/adr/0103-site-de-documentacao-e-versionamento.md)):
   Astro Starlight em `site/` construído a partir de `docs/` (`tools/docs_site.py`), com
   inglês na raiz, pt-BR em `/pt/`, referência 1.1 em português, arquivo congelado da 1.0

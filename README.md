@@ -72,7 +72,15 @@ Current version: **1.0.0**. The detailed, generated status by level is in
 
 ## Install
 
-The first public PyPI release will be **1.1.0**. Until then, install from the checkout:
+The first public PyPI release will be **1.1.0**. From 1.1.0 on, the command comes from the
+installed package, with no clone:
+
+```bash
+pip install loxia          # or: uv tool install loxia
+loxia --version
+```
+
+Until the release ships, install from the checkout:
 
 ```bash
 git clone https://github.com/loxia-lang/loxia.git
@@ -80,6 +88,9 @@ cd loxia
 uv sync --all-groups --extra llvm
 uv run loxia --version
 ```
+
+The wheel carries the interpreter, `loxia_core/std/` and the C runtime, which is what makes
+`import std.*` and `--emit` work outside the clone ([ADR-0088](docs/adr/0088-distribuicao-e-raizes-de-modulo.md)).
 
 The interpreter has no runtime dependencies. The native backend is opt-in: `--emit` needs
 `llvmlite` (`uv sync --extra llvm`); `--emit=exe` also needs a C compiler and the Boehm GC
@@ -92,6 +103,7 @@ work, the native backend is not promised there.
 
 ```bash
 uv run loxia                       # REPL
+uv run loxia repl                  # REPL as an explicit subcommand
 uv run loxia hello.lx              # run a file
 uv run loxia check hello.lx        # type-check only
 uv run loxia build hello.lx --emit=exe -o hello
@@ -105,6 +117,7 @@ uv run loxia --version             # loxia 1.0.0
 | Command | Purpose | Main flags |
 | --- | --- | --- |
 | `loxia run FILE` | Execute a program | `--debug`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |

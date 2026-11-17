@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tarfile
 import zipfile
 from pathlib import Path
 
@@ -36,6 +37,18 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
     assert any(name.endswith("loxia_core/std/json.lx") for name in names)
     assert any(name.endswith("loxia_core/runtime/lox_runtime.h") for name in names)
     assert any(name.endswith("loxia_core/runtime/kernel.c") for name in names)
+
+    # Um `std/` só: a sdist carrega a pasta na raiz e o wheel a move para dentro
+    # do pacote (force-include do hatchling). Cópia nos dois lugares = instalação
+    # com dois módulos e build não determinístico.
+    assert not any(name.startswith("std/") for name in names)
+
+    sdist = next(dist.glob("loxia-*.tar.gz"))
+    with tarfile.open(sdist) as archive:
+        sdist_names = archive.getnames()
+
+    assert any(name.endswith("/std/json.lx") and "/loxia_core/" not in name for name in sdist_names)
+    assert not any("/loxia_core/std/" in name for name in sdist_names)
 
     venv = tmp_path / "venv"
     _run("uv", "venv", str(venv), "--python", "3.13", cwd=tmp_path)

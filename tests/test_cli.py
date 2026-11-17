@@ -756,3 +756,64 @@ class Box {
     assert symbols["AMARELO"]["doc"] == "Yellow."
     assert symbols["Nome"]["kind"] == "type"
     assert symbols["value"]["container"] == "Box"
+
+
+def _run_repl(stdin: str, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "repl", *args],
+        cwd=ROOT,
+        input=stdin,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
+def test_repl_subcommand_runs_piped_program_without_banner() -> None:
+    result = _run_repl("print(1 + 1)\n")
+
+    assert result.returncode == 0
+    assert result.stdout == "2\n"
+    assert "REPL" not in result.stdout
+    assert "Saindo" not in result.stdout
+
+
+def test_repl_subcommand_keeps_session_after_syntax_error() -> None:
+    result = _run_repl("print(\nprint(2)\n")
+
+    assert result.returncode == 0
+    assert result.stdout == "2\n"
+    assert "error[E1001]" in result.stderr
+
+
+def test_repl_subcommand_accepts_common_flags_and_rejects_a_script() -> None:
+    result = _run_repl("print(1)\n", "--error-format", "short")
+    assert result.returncode == 0
+    assert result.stdout == "1\n"
+
+    rejected = run_cli("repl", str(ROOT / "examples" / "fib.lx"))
+    assert rejected.returncode == 2
+    assert "unrecognized arguments" in rejected.stderr
+
+
+def test_bare_loxia_with_piped_stdin_is_silent_like_loxia_repl() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT)],
+        cwd=ROOT,
+        input="print(3)\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "3\n"
+
+
+def test_capabilities_lists_the_repl_subcommand() -> None:
+    payload = json.loads(run_cli("capabilities", "--json").stdout)
+
+    commands = {item["name"] for item in payload["commands"]}
+    assert "repl" in commands

@@ -257,7 +257,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 | **Debugger/playground** | — | DAP no tree-walk e playground WASM | P2/P3 |
 | **Conformância** | corpus interno maduro | extrair `loxia-conformance` e runner genérico para outras implementações | P2 |
 | **Performance** | bench local e baseline | M8 restante; suíte pública só depois do release | P2 |
-| **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities` e `lsp` | `loxia repl` como subcomando e `loxia new`/scaffold | P3 |
+| **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities`, `lsp` e `repl` | `loxia new`/scaffold | P3 |
 
 
 
@@ -354,14 +354,15 @@ isolamento de pacote. Lock, git e registry continuam na §14.7.
 > não instala mais um pacote top-level chamado `src`.
 
 Empacotamento e instalação já funcionam: wheel com `std/`/`runtime/`, entry point
-`loxia`, subcomandos `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` e
+`loxia`, subcomandos `run|repl|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` e
 `tests/test_install.py` (wheel em venv fora do repo). Resta:
 
-- [ ] `uv build` e sdist sem `std/` duplicado; `CHANGELOG`/README com o comando de
-      instalação.
+- [x] `uv build` e sdist sem `std/` duplicado — policiado por `pytest -m install` (o CI
+      roda no job do wheel); README com o comando instalado (`pip install loxia` /
+      `uv tool install loxia`) a partir da 1.1.0. O release em si é o PR 9 da §14.1.
 
-**Item 2 — resolução de módulos e pacotes (implementado no
-[ADR-0100](docs/adr/0100-dependencias-path.md)).**
+**Item 2 — resolução de módulos e pacotes — ✅ fechado no
+[ADR-0100](docs/adr/0100-dependencias-path.md) (2026-11-17).**
 
 `loxia.toml` aceita `[package] name`, `[dependencies]` (só `path`) e `[modules].paths`;
 a descoberta sobe do entry até o ancestral mais próximo e a raiz do projeto é a pasta do
@@ -434,7 +435,7 @@ Objetivo: **um** comando (`loxia`) que roda, compila, testa e resolve pacotes �
 segundo nome. A análise completa (o que o `uv` resolve que a Loxia não tem, requisitos,
 não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 
-- [ ] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia repl` como subcomando;
+- [x] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia repl` como subcomando;
       `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` já existem e as flags
       atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
 - [ ] **Fase 1 — lock** (`loxia.toml` e `[dependencies] path` já existem pelo

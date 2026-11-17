@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 JSON_ON_STDOUT = frozenset({"check"})
 COMMANDS = (
     "run",
+    "repl",
     "check",
     "build",
     "ast",
@@ -383,15 +384,21 @@ class Loxia:
             sys.exit(70)
 
     def run_prompt(self) -> None:
-        print("Loxia REPL (Ctrl+C ou Ctrl+D para sair)")
+        # Sem TTY (pipe, CI, agente) a sessão é um stream: nada de banner nem de
+        # prompt no stdout, senão a saída deixa de ser só a do programa.
+        interactive = sys.stdin.isatty()
+        if interactive:
+            print("Loxia REPL (Ctrl+C ou Ctrl+D para sair)")
+        prompt = "> " if interactive else ""
         while True:
             try:
-                line = input("> ")
+                line = input(prompt)
                 if not line.strip():
                     continue
                 self.run_repl(line)
             except (KeyboardInterrupt, EOFError):
-                print("\nSaindo...")
+                if interactive:
+                    print("\nSaindo...")
                 break
 
     @property
@@ -667,7 +674,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Loxia: interpretador tree-walk com backend LLVM opcional",
         usage="%(prog)s [opções] [script]",
         epilog=(
-            "subcomandos: run, check, build, ast, fmt, doc, explain, capabilities, "
+            "subcomandos: run, repl, check, build, ast, fmt, doc, explain, capabilities, "
             "lsp, test, fix (use 'loxia <comando> --help')"
         ),
     )
@@ -740,6 +747,9 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_timeout(parser)
         _add_watch(parser)
         parser.add_argument("script", nargs="?", help="script Loxia")
+    elif command == "repl":
+        # Sessão interativa (ou stream em pipe): não há arquivo de entrada.
+        _add_common_options(parser, include_debug=True)
     elif command == "build":
         _add_common_options(parser)
         parser.add_argument(
@@ -1150,6 +1160,10 @@ def _capabilities_payload() -> dict[str, object]:
             "features": ["json", "json-lines", "stdin", "timeout"],
         },
         {
+            "name": "repl",
+            "features": ["json", "json-lines", "debug", "module-path"],
+        },
+        {
             "name": "check",
             "features": [
                 "json",
@@ -1300,6 +1314,11 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
 
     if command == "doc":
         _run_doc(args, parser)
+        return
+
+    if command == "repl":
+        _validate(args, parser, command=command)
+        _make_loxia(args).run_prompt()
         return
 
     _validate(args, parser, command=command)
