@@ -1,0 +1,90 @@
+name: Bug report
+description: Something crashes, errors or behaves differently from the documentation.
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A minimal `.lx` program and the exact command are the
+        fastest path to a fix. Please do not paste secrets or private paths.
+
+  - type: input
+    id: version
+    attributes:
+      label: Loxia version
+      description: Output of `loxia --version`.
+      placeholder: loxia 1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install Loxia?
+      options:
+        - "uv tool install loxia"
+        - "pip install loxia"
+        - "From source (git clone + uv sync)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and Python
+      description: For example, Ubuntu 24.04, Python 3.13.3; on macOS include the chip.
+      placeholder: Ubuntu 24.04, Python 3.13.3
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A complete `.lx` program that shows the problem. Smaller is better.
+      render: lox
+      placeholder: |
+        fn main() {
+          print(1 / 0)
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and output
+      description: The command you ran plus stdout, stderr and the exit code.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What the specification or documentation says should happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Backend (`--check`, `--emit=exe`), modules, editor, anything else.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: I can reproduce this on the latest `main`.
+          required: false
+        - label: This is not a security report (those go through SECURITY.md).
+          required: true

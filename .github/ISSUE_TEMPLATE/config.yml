@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/loxia-lang/loxia/tree/main/docs
+    about: Language specification, standard library reference and architecture notes.
+  - name: Questions and show and tell
+    url: https://github.com/loxia-lang/loxia/discussions
+    about: Ask a usage question or share a project. Use issues for bugs and feature requests.
+  - name: Report a vulnerability
+    url: https://github.com/loxia-lang/loxia/security/advisories/new
+    about: Private security report. For Code of Conduct reports, start the title with [conduct].

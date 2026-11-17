@@ -1,0 +1,82 @@
+name: Feature request
+description: Propose a capability, a tooling improvement or a syntax change.
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Loxia has an admission gate for features and a stricter gate for syntax. A feature
+        needs a real pain point, a backend story and a test that polices it. New syntax
+        needs human approval and the four questions from ADR-0066.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you unable to do today? Show a real program, not a hypothetical.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should Loxia do? Include the API or syntax you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds with the current language/stdlib and other designs considered.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of change
+      options:
+        - "Library or standard library (no syntax)"
+        - "Tooling, editor, LSP, formatter or docs"
+        - "Runtime or backend behavior"
+        - "Syntax or grammar change"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: gate
+    attributes:
+      label: Admission gate (ADR-0014)
+      description: Mark what you can answer today; the maintainers will help with the rest.
+      options:
+        - label: It does not violate I1 (interpreted and compiled agree), I2 (nothing implicit), I3 (deterministic output) or I4 (clean check compiles).
+          required: true
+        - label: I can describe a test that would police the new behavior.
+          required: true
+        - label: It does not require a new runtime dependency without discussion.
+          required: true
+
+  - type: textarea
+    id: syntax
+    attributes:
+      label: If this changes syntax
+      description: |
+        Answer the four ADR-0066 questions: (1) which existing spelling does it replace or
+        which stdlib function does it replace? (2) is it locally decidable? (3) does it fit
+        the current precedence? (4) is there exactly one canonical form? Also state the
+        impact on the LLVM backend and the formatter.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I read TODO.md §0 and this is not already queued or explicitly out of scope.
+          required: true
+        - label: I searched the existing issues and discussions.
+          required: true

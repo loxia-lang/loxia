@@ -19,3 +19,15 @@ build/
 *.egg-info/
 
 .tmp-*
+
+# Sistema e editores
+.DS_Store
+*.swp
+*.swo
+
+# Cobertura e profiling
+.coverage
+coverage.xml
+htmlcov/
+.hypothesis/
+*.prof
