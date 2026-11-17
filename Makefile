@@ -2,8 +2,10 @@
 .DEFAULT_GOAL := help
 
 FILE ?=
+VERSION ?= 1.0
+TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-version stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
@@ -17,6 +19,9 @@ help:
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
 	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
 	@echo "make docs-sync                 regenera níveis, catálogo e stdlib"
+	@echo "make docs-build                build do site Starlight em site/dist"
+	@echo "make docs-dev                  dev server do site (gera o conteúdo antes)"
+	@echo "make docs-version VERSION=1.0 TAG=v1.0.0  congela uma referência"
 	@echo "make stdlib-docs               regenera docs/stdlib/"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
 	@echo "make primitives                regenera runtime/kernel_gen.h da tabela"
@@ -59,6 +64,15 @@ docs-sync:
 	uv run python docs/_hooks/levels.py --write
 	uv run python docs/_hooks/codes.py --write
 	uv run python docs/_hooks/stdlib.py --write
+
+docs-build: docs-sync
+	npm --prefix site run build
+
+docs-dev:
+	npm --prefix site run dev
+
+docs-version:
+	uv run python tools/docs_versions.py --version $(VERSION) --tag $(TAG)
 
 stdlib-docs:
 	uv run python docs/_hooks/stdlib.py --write

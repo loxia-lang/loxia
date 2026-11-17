@@ -1,0 +1,28 @@
+{
+  "commit": "32e4aaf",
+  "date": "2026-11-12",
+  "pages": {
+    "errors": {
+      "source": "docs/spec/erros.md",
+      "title": "Erros"
+    },
+    "guarantees": {
+      "source": "docs/spec/garantias.md",
+      "title": "Garantias — o que a linguagem promete"
+    },
+    "lexicon": {
+      "source": "docs/spec/lexico.md",
+      "title": "Léxico"
+    },
+    "semantics": {
+      "source": "docs/spec/semantica.md",
+      "title": "Semântica"
+    },
+    "syntax": {
+      "source": "docs/spec/sintaxe.md",
+      "title": "Sintaxe"
+    }
+  },
+  "tag": "v1.0.0",
+  "version": "1.0"
+}

@@ -31,3 +31,9 @@ coverage.xml
 htmlcov/
 .hypothesis/
 *.prof
+
+# Docs site (content is generated from docs/ by tools/docs_site.py)
+site/node_modules/
+site/dist/
+site/.astro/
+site/src/content/docs/

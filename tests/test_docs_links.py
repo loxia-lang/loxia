@@ -5,12 +5,19 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# Site sources use site-relative links (`docs/i18n`, `docs/versions`); the Starlight
+# build and its link checker validate those, not the repository-file link test.
+SITE_SOURCES = (ROOT / "docs" / "i18n", ROOT / "docs" / "versions")
 DOCS = [
     ROOT / "README.md",
     ROOT / "CONTRIBUTING.md",
     ROOT / "CODE_OF_CONDUCT.md",
     ROOT / "SECURITY.md",
-    *sorted((ROOT / "docs").rglob("*.md")),
+    *sorted(
+        path
+        for path in (ROOT / "docs").rglob("*.md")
+        if not any(path.is_relative_to(prefix) for prefix in SITE_SOURCES)
+    ),
 ]
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 

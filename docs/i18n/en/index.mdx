@@ -1,0 +1,52 @@
+---
+title: Loxia
+description: A small, statically checked Lox dialect with a tree-walk interpreter and an optional LLVM backend.
+template: splash
+hero:
+  tagline: A small, statically checked Lox dialect with a tree-walk interpreter and an optional LLVM backend.
+  actions:
+    - text: Get started
+      link: learn/
+      icon: right-arrow
+    - text: Why Loxia?
+      link: why/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+**Loxia** is a language for people who want a small, predictable Lox dialect without
+giving up static checking, deterministic diagnostics or a native backend.
+
+The tree-walk interpreter is the executable specification. The optional LLVM backend is
+tested to produce the same stdout, stderr and exit code on a declared corpus.
+
+<CardGrid>
+  <Card title="Executable specification" icon="open-book">
+    The interpreter is the oracle. Every feature has a golden case, and the differential
+    corpus compares interpreted and compiled execution byte for byte.
+  </Card>
+  <Card title="Two engines" icon="rocket">
+    Start with the interpreter, then compile to a native binary with the optional LLVM
+    backend. The same checker types feed both engines.
+  </Card>
+  <Card title="Nothing implicit" icon="approve-check">
+    No implicit `Int`/`Float`/`String` coercion, no exotic truthiness, no surprise `nil`.
+    A clean `--check` compiles.
+  </Card>
+  <Card title="Batteries included" icon="puzzle">
+    JSON, CSV, paths, files, processes, collections, hashing, property-based testing and a
+    real test runner are part of the standard library.
+  </Card>
+</CardGrid>
+
+## Start here
+
+- [Learn Loxia in 30 minutes](learn/) — a guided tour with runnable snippets.
+- [Why Loxia?](why/) — the four invariants and the trade-offs.
+- [Reference](reference/) — the normative language reference.
+- [Standard library](stdlib/) — generated API reference.
+
+Loxia is pre-1.1: the language semantics are frozen, the tooling is still moving, and the
+first public PyPI release is planned for 1.1.0. Follow the repository on
+[GitHub](https://github.com/loxia-lang/loxia).

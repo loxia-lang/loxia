@@ -1,0 +1,24 @@
+{
+  "name": "loxia-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.14.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "content": "uv run --project .. python ../tools/docs_site.py",
+    "predev": "npm run content",
+    "dev": "astro dev",
+    "prebuild": "npm run content",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "3.7.5",
+    "@astrojs/starlight": "0.43.1",
+    "astro": "7.4.12",
+    "starlight-links-validator": "0.27.0"
+  }
+}

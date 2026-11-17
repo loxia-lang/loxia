@@ -1,0 +1,33 @@
+/* Loxia site theme: warm accent, readable code, small freshness notes. */
+
+:root {
+  --sl-color-accent-low: #3b1d0a;
+  --sl-color-accent: #f97316;
+  --sl-color-accent-high: #fed7aa;
+  --sl-color-text-accent: #fb923c;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #ffedd5;
+  --sl-color-accent: #c2410c;
+  --sl-color-accent-high: #7c2d12;
+  --sl-color-text-accent: #9a3412;
+}
+
+.loxia-freshness {
+  margin-block-start: 2.5rem;
+  border-block-start: 1px solid var(--sl-color-hairline);
+  padding-block-start: 0.75rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+.loxia-banner {
+  border-inline-start: 3px solid var(--sl-color-accent);
+  padding-inline-start: 1rem;
+  color: var(--sl-color-gray-2);
+}
+
+.loxia-banner strong {
+  color: var(--sl-color-white);
+}
