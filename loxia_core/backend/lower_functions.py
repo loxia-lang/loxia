@@ -36,14 +36,10 @@ class FunctionLowering(LoweringBase):
             if statement.type_params:
                 continue
 
-            info = self._function_info(
-                statement, llvm_name=f"lox.{statement.name.lexeme}"
-            )
+            info = self._function_info(statement, llvm_name=f"lox.{statement.name.lexeme}")
             self._top_level[id(statement)] = info
 
-            slot = llvm_ir.global_variable(
-                self.module, f"g.{statement.name.lexeme}", _I8_PTR
-            )
+            slot = llvm_ir.global_variable(self.module, f"g.{statement.name.lexeme}", _I8_PTR)
             self._globals[statement.name.lexeme] = Binding(
                 slot,
                 ValueType.FUNCTION,
@@ -82,9 +78,7 @@ class FunctionLowering(LoweringBase):
         if is_init:
             return_desc = TypeDesc(ValueType.NIL)
         else:
-            return_desc = self._return_desc(
-                stmt.return_type, stmt.name.line, stmt.name.lexeme
-            )
+            return_desc = self._return_desc(stmt.return_type, stmt.name.line, stmt.name.lexeme)
         sig = FnSig(
             tuple(params),
             return_desc,
@@ -97,11 +91,7 @@ class FunctionLowering(LoweringBase):
             self._function_counter += 1
             llvm_name = f"lox.{stmt.name.lexeme}.{self._function_counter}"
 
-        result = (
-            _VOID
-            if return_desc.ty is ValueType.NIL
-            else self._storage_llvm_type(return_desc)
-        )
+        result = _VOID if return_desc.ty is ValueType.NIL else self._storage_llvm_type(return_desc)
         has_this = this_class is not None or this_interface is not None
         prefix = [_I8_PTR, *([_I8_PTR] if has_this else [])]
         signature = llvm_ir.declare(
@@ -126,8 +116,7 @@ class FunctionLowering(LoweringBase):
     def _param_desc(self, param: Param) -> TypeDesc:
         if param.type_annotation is None:
             raise BackendError(
-                f"Parameter '{param.name.lexeme}' needs a type annotation "
-                "for the backend.",
+                f"Parameter '{param.name.lexeme}' needs a type annotation for the backend.",
                 param.name.line,
                 code=Code.BACKEND_UNSUPPORTED,
             )
@@ -150,9 +139,7 @@ class FunctionLowering(LoweringBase):
                 stmt.name.line,
             )
 
-        closure = self._build_closure(
-            info, (), f"<fn {stmt.display_name or stmt.name.lexeme}>"
-        )
+        closure = self._build_closure(info, (), f"<fn {stmt.display_name or stmt.name.lexeme}>")
         self.builder.store(closure.llvm, binding.storage)
 
     def _local_function(self, stmt: Function) -> None:
@@ -209,9 +196,7 @@ class FunctionLowering(LoweringBase):
             if isinstance(ty, GenericFnTy):
                 raise _unsupported("Generic function value", expr.keyword.line)
             if not isinstance(ty, FnTy):
-                raise _unsupported(
-                    "Lambda without a concrete function type", expr.keyword.line
-                )
+                raise _unsupported("Lambda without a concrete function type", expr.keyword.line)
             fn_ty = ty
 
         desc = self._type_desc(fn_ty, expr.keyword.line)
@@ -220,11 +205,7 @@ class FunctionLowering(LoweringBase):
 
         self._function_counter += 1
         llvm_name = f"lox.lambda.{self._function_counter}"
-        result = (
-            _VOID
-            if sig.ret.ty is ValueType.NIL
-            else self._storage_llvm_type(sig.ret)
-        )
+        result = _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret)
         signature = llvm_ir.declare(
             self.module,
             llvm_name,
@@ -246,13 +227,9 @@ class FunctionLowering(LoweringBase):
         for capture in self._analysis.captures_of(node):
             binding = self._find_binding(capture.name)
             if binding is None:
-                raise BackendError(
-                    f"Internal capture error for '{capture.name}'.", None
-                )
+                raise BackendError(f"Internal capture error for '{capture.name}'.", None)
             if not binding.cell:
-                raise BackendError(
-                    f"Captured variable '{capture.name}' was not boxed.", None
-                )
+                raise BackendError(f"Captured variable '{capture.name}' was not boxed.", None)
             result.append(CaptureBinding(capture.name, binding))
 
         return tuple(result)
@@ -279,16 +256,10 @@ class FunctionLowering(LoweringBase):
                 self.builder.store(capture.binding.storage, field)
             env = raw_env
 
-        raw_closure = self.builder.call(
-            self._function("lox_alloc_closure", _I8_PTR, []), []
-        )
+        raw_closure = self.builder.call(self._function("lox_alloc_closure", _I8_PTR, []), [])
         closure = self.builder.bitcast(raw_closure, _CLOSURE.as_pointer())
-        fn_slot = self.builder.gep(
-            closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)]
-        )
-        env_slot = self.builder.gep(
-            closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)]
-        )
+        fn_slot = self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)])
+        env_slot = self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)])
         name_slot = self.builder.gep(
             closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 2)]
         )
@@ -374,9 +345,7 @@ class FunctionLowering(LoweringBase):
                     interface_name=desc.interface_name,
                 )
             else:
-                slot = self.builder.alloca(
-                    self._storage_llvm_type(desc), name=param.name.lexeme
-                )
+                slot = self.builder.alloca(self._storage_llvm_type(desc), name=param.name.lexeme)
                 self.builder.store(argument, slot)
                 binding = Binding(
                     slot,
@@ -426,9 +395,7 @@ class FunctionLowering(LoweringBase):
         return self.builder.call(self._function("lox_alloc_cell", _I8_PTR, []), [])
 
     def _cell_pointer(self, cell: Any, desc: TypeDesc) -> Any:
-        return self.builder.bitcast(
-            cell, self._storage_llvm_type(desc).as_pointer()
-        )
+        return self.builder.bitcast(cell, self._storage_llvm_type(desc).as_pointer())
 
     def _store_null_cell(self, cell: Any) -> None:
         pointer = self.builder.bitcast(cell, _I8_PTR.as_pointer())

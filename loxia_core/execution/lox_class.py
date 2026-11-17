@@ -128,9 +128,7 @@ class LoxClass:
 
                 for field in self._fields.values():
                     if field.initializer is not None:
-                        instance.initialize(
-                            field, interpreter.evaluate(field.initializer)
-                        )
+                        instance.initialize(field, interpreter.evaluate(field.initializer))
 
                 initializer = self.find_method("init")
                 if initializer is not None:

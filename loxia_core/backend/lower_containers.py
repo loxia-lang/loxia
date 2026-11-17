@@ -29,15 +29,11 @@ class ContainerLowering(LoweringBase):
         if isinstance(ty, ListTy):
             return self._type_desc(self._subst_ty(ty.element), line)
         if self._list_expected_element is not None:
-            return self._type_desc(
-                self._subst_ty(self._list_expected_element), line
-            )
+            return self._type_desc(self._subst_ty(self._list_expected_element), line)
         raise _unsupported("List element type", line)
 
     def _list_literal(self, expr: ListLiteral) -> Value:
-        raw = self.builder.call(
-            self._function("lox_list_new", _I8_PTR, []), []
-        )
+        raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
         for item in expr.elements:
             value = self._expr(item)
             boxed = self._box_value(value, None)
@@ -133,9 +129,7 @@ class ContainerLowering(LoweringBase):
             tuple_block = llvm_ir.append_block(self._function_ir, "idx.tuple")
             bad_block = llvm_ir.append_block(self._function_ir, "idx.bad")
             end_block = llvm_ir.append_block(self._function_ir, "idx.end")
-            is_tuple = self.builder.icmp_signed(
-                "==", tag, llvm_ir.constant(_INT, 11)
-            )
+            is_tuple = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, 11))
             self.builder.cbranch(is_tuple, tuple_block, bad_block)
             self.builder = llvm_ir.builder(tuple_block)
             tuple_value = Value(
@@ -157,9 +151,7 @@ class ContainerLowering(LoweringBase):
             )
             merged.add_incoming(result.llvm, tuple_end)
             merged.add_incoming(zero.llvm, bad_end)
-            return Value(
-                result.ty, merged, result.sig, result.optional, result.class_name
-            )
+            return Value(result.ty, merged, result.sig, result.optional, result.class_name)
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
         if obj.ty is ValueType.MAP:
@@ -192,7 +184,9 @@ class ContainerLowering(LoweringBase):
                 llvm_ir.constant(_I32, expr.bracket.column),
             ],
         )
-        return self._unbox_value(raw, self._element_desc(expr.object, expr.bracket.line), expr.bracket.line)
+        return self._unbox_value(
+            raw, self._element_desc(expr.object, expr.bracket.line), expr.bracket.line
+        )
 
     def _list_set(self, expr: IndexSet) -> Value:
         obj = self._expr(expr.object)
@@ -225,9 +219,7 @@ class ContainerLowering(LoweringBase):
         value = self._coerce(self._expr(expr.value), element, expr.bracket.line)
         boxed = self._box_value(value, None)
         self.builder.call(
-            self._function(
-                "lox_list_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _I32, _I32]
-            ),
+            self._function("lox_list_set", _VOID, [_I8_PTR, _INT, _INT, _INT, _I32, _I32]),
             [
                 obj.llvm,
                 index.llvm,
@@ -298,9 +290,7 @@ class ContainerLowering(LoweringBase):
             payload = self.builder.extract_value(key.llvm, 1)
             if name == "has":
                 call = self.builder.call(
-                    self._function(
-                        "lox_map_has", _I32, [_I8_PTR, _INT, _INT, _I32, _I32]
-                    ),
+                    self._function("lox_map_has", _I32, [_I8_PTR, _INT, _INT, _I32, _I32]),
                     [
                         obj.llvm,
                         tag,
@@ -315,9 +305,7 @@ class ContainerLowering(LoweringBase):
                 )
             if name == "remove":
                 raw = self.builder.call(
-                    self._function(
-                        "lox_map_remove", _ANY, [_I8_PTR, _INT, _INT, _I32, _I32]
-                    ),
+                    self._function("lox_map_remove", _ANY, [_I8_PTR, _INT, _INT, _I32, _I32]),
                     [
                         obj.llvm,
                         tag,
@@ -327,13 +315,9 @@ class ContainerLowering(LoweringBase):
                     ],
                 )
                 return self._unbox_value(raw, value_desc, line)
-            optional = TypeDesc(
-                value_desc.ty, value_desc.fn, True, value_desc.class_name
-            )
+            optional = TypeDesc(value_desc.ty, value_desc.fn, True, value_desc.class_name)
             raw = self.builder.call(
-                self._function(
-                    "lox_map_get", _ANY, [_I8_PTR, _INT, _INT, _I32, _I32]
-                ),
+                self._function("lox_map_get", _ANY, [_I8_PTR, _INT, _INT, _I32, _I32]),
                 [
                     obj.llvm,
                     tag,
@@ -345,18 +329,14 @@ class ContainerLowering(LoweringBase):
             return self._unbox_value(raw, optional, line)
         if name in {"keys", "values"}:
             function = "lox_map_keys" if name == "keys" else "lox_map_values"
-            raw = self.builder.call(
-                self._function(function, _I8_PTR, [_I8_PTR]), [obj.llvm]
-            )
+            raw = self.builder.call(self._function(function, _I8_PTR, [_I8_PTR]), [obj.llvm])
             return Value(ValueType.LIST, raw)
         raise _unsupported(f"Map method '{name}'", line)
 
     def _map_len(self, value: Value) -> Value:
         return Value(
             ValueType.INT,
-            self.builder.call(
-                self._function("lox_map_len", _INT, [_I8_PTR]), [value.llvm]
-            ),
+            self.builder.call(self._function("lox_map_len", _INT, [_I8_PTR]), [value.llvm]),
         )
 
     def _map_equal(self, left: Value, right: Value) -> Value:
@@ -383,9 +363,7 @@ class ContainerLowering(LoweringBase):
         )
 
     def _list_len(self, value: Value) -> Value:
-        call = self.builder.call(
-            self._function("lox_list_len", _INT, [_I8_PTR]), [value.llvm]
-        )
+        call = self.builder.call(self._function("lox_list_len", _INT, [_I8_PTR]), [value.llvm])
         return Value(ValueType.INT, call)
 
     def _list_equal(self, left: Value, right: Value) -> Value:
@@ -393,9 +371,7 @@ class ContainerLowering(LoweringBase):
             self._function("lox_list_equal", _I32, [_I8_PTR, _I8_PTR]),
             [left.llvm, right.llvm],
         )
-        result = self.builder.icmp_signed(
-            "!=", call, llvm_ir.constant(_I32, 0)
-        )
+        result = self.builder.icmp_signed("!=", call, llvm_ir.constant(_I32, 0))
         return Value(ValueType.BOOL, result)
 
     def _unbox_any(self, value: Value, desc: TypeDesc, line: int | None) -> Value:
@@ -410,29 +386,19 @@ class ContainerLowering(LoweringBase):
                 case ValueType.INT:
                     return Value(ValueType.INT, payload)
                 case ValueType.FLOAT:
-                    return Value(
-                        ValueType.FLOAT, self.builder.bitcast(payload, _FLOAT)
-                    )
+                    return Value(ValueType.FLOAT, self.builder.bitcast(payload, _FLOAT))
                 case ValueType.BOOL:
                     return Value(
-                        ValueType.BOOL, self.builder.icmp_signed(
-                            "!=", payload, llvm_ir.constant(_INT, 0)
-                        )
+                        ValueType.BOOL,
+                        self.builder.icmp_signed("!=", payload, llvm_ir.constant(_INT, 0)),
                     )
                 case ValueType.STRING:
                     return Value(
                         ValueType.STRING,
                         self.builder.inttoptr(payload, _I8_PTR),
                     )
-                case (
-                    ValueType.LIST
-                    | ValueType.MAP
-                    | ValueType.RANGE
-                    | ValueType.TUPLE
-                ):
-                    return Value(
-                        inner.ty, self.builder.inttoptr(payload, _I8_PTR)
-                    )
+                case ValueType.LIST | ValueType.MAP | ValueType.RANGE | ValueType.TUPLE:
+                    return Value(inner.ty, self.builder.inttoptr(payload, _I8_PTR))
                 case ValueType.CLASS | ValueType.INSTANCE:
                     return Value(
                         inner.ty,
@@ -465,9 +431,7 @@ class ContainerLowering(LoweringBase):
             some = llvm_ir.append_block(self._function_ir, "list.some")
             nothing = llvm_ir.append_block(self._function_ir, "list.nil")
             end = llvm_ir.append_block(self._function_ir, "list.end")
-            present = self.builder.icmp_signed(
-                "!=", tag, llvm_ir.constant(_INT, 0)
-            )
+            present = self.builder.icmp_signed("!=", tag, llvm_ir.constant(_INT, 0))
             self.builder.cbranch(present, some, nothing)
             self.builder = llvm_ir.builder(nothing)
             zero = self._zero_desc(desc)
@@ -487,9 +451,7 @@ class ContainerLowering(LoweringBase):
             self.builder.branch(end)
             some_end = self.builder.block
             self.builder = llvm_ir.builder(end)
-            merged = self.builder.phi(
-                self._storage_llvm_type(desc), "list.optional"
-            )
+            merged = self.builder.phi(self._storage_llvm_type(desc), "list.optional")
             merged.add_incoming(zero.llvm, none_end)
             merged.add_incoming(value.llvm, some_end)
             return Value(

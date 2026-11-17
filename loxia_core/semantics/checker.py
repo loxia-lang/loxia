@@ -257,15 +257,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def concrete_class_types(self) -> set[ClassTy]:
         """Todas as instanciações de classe concretas vistas pelo checker."""
-        result = {
-            ty for ty in self.generic_classes if not self._contains_type_var(ty)
-        }
+        result = {ty for ty in self.generic_classes if not self._contains_type_var(ty)}
         for ty in self.storage_types.values():
-            if (
-                isinstance(ty, ClassTy)
-                and ty.args
-                and not self._contains_type_var(ty)
-            ):
+            if isinstance(ty, ClassTy) and ty.args and not self._contains_type_var(ty):
                 result.add(ty)
         return result
 
@@ -306,9 +300,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._classes["Exception"] = ClassInfo(
             "Exception",
             None,
-            fields={
-                "message": FieldBinding(STRING, False, message_token)
-            },
+            fields={"message": FieldBinding(STRING, False, message_token)},
             init=FnTy((STRING,), ClassTy("Exception"), 1),
         )
         self._classes["RuntimeError"] = ClassInfo(
@@ -357,9 +349,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return GenericFnTy(name, signature.type_params, signature.fn)
         return signature.fn
 
-    def _fresh_type_var(
-        self, name: str, bounds: tuple[str, ...] = ()
-    ) -> TyVar:
+    def _fresh_type_var(self, name: str, bounds: tuple[str, ...] = ()) -> TyVar:
         self._next_type_var_id += 1
         return TyVar(name, self._next_type_var_id, bounds)
 
@@ -423,9 +413,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return tuple(variables), tuple(names)
 
-    def _push_type_params(
-        self, names: tuple[str, ...], variables: tuple[TyVar, ...]
-    ) -> None:
+    def _push_type_params(self, names: tuple[str, ...], variables: tuple[TyVar, ...]) -> None:
         self._type_param_scopes.append(dict(zip(names, variables, strict=True)))
 
     def _pop_type_params(self) -> None:
@@ -445,9 +433,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 continue
 
             superclass = (
-                statement.superclass.name.lexeme
-                if statement.superclass is not None
-                else None
+                statement.superclass.name.lexeme if statement.superclass is not None else None
             )
             params, names = self._declare_type_params(statement.type_params)
             self._classes.setdefault(
@@ -459,17 +445,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     type_param_names=names,
                 ),
             )
-            self._scopes[0].setdefault(
-                statement.name.lexeme, ClassObjectTy(statement.name.lexeme)
-            )
+            self._scopes[0].setdefault(statement.name.lexeme, ClassObjectTy(statement.name.lexeme))
 
     def _predeclare_interfaces(self, statements: list[Stmt]) -> None:
         for statement in statements:
             if not isinstance(statement, Interface):
                 continue
-            self._interfaces.setdefault(
-                statement.name.lexeme, InterfaceInfo(statement.name.lexeme)
-            )
+            self._interfaces.setdefault(statement.name.lexeme, InterfaceInfo(statement.name.lexeme))
 
     def _predeclare_enums(self, statements: list[Stmt]) -> None:
         for statement in statements:
@@ -483,9 +465,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 statement.name.lexeme,
                 EnumInfo(statement.name.lexeme, params, names),
             )
-            self._scopes[0].setdefault(
-                statement.name.lexeme, EnumObjectTy(statement.name.lexeme)
-            )
+            self._scopes[0].setdefault(statement.name.lexeme, EnumObjectTy(statement.name.lexeme))
 
     def _predeclare_aliases(self, statements: list[Stmt]) -> None:
         for statement in statements:
@@ -588,11 +568,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[-1][name.lexeme] = ty
         self._decl_tokens[-1][name.lexeme] = name
         index = len(self._scopes) - 1
-        for key in [
-            key
-            for key in self._narrowings
-            if key[0] == index and key[1] == name.lexeme
-        ]:
+        for key in [key for key in self._narrowings if key[0] == index and key[1] == name.lexeme]:
             del self._narrowings[key]
 
     def _find_decl(self, name: str) -> tuple[int, Ty] | None:
@@ -612,12 +588,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         candidates: set[str] = set()
         for scope in self._scopes:
             candidates.update(key for key in scope if "$" not in key)
-        candidates.update(
-            key for key in self._predeclared_by_name if "$" not in key
-        )
-        matches = difflib.get_close_matches(
-            name, sorted(candidates), n=1, cutoff=0.7
-        )
+        candidates.update(key for key in self._predeclared_by_name if "$" not in key)
+        matches = difflib.get_close_matches(name, sorted(candidates), n=1, cutoff=0.7)
         return matches[0] if matches else None
 
     def _undefined_help(self, name: str) -> str | None:
@@ -722,11 +694,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         """Mutar um caminho invalida ele e os caminhos mais fundos com o mesmo prefixo."""
         size = len(key[2])
         for candidate in list(self._narrowings):
-            if (
-                candidate[0] == key[0]
-                and candidate[1] == key[1]
-                and candidate[2][:size] == key[2]
-            ):
+            if candidate[0] == key[0] and candidate[1] == key[1] and candidate[2][:size] == key[2]:
                 del self._narrowings[candidate]
 
     def _invalidate_members(self) -> None:
@@ -774,23 +742,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             and isinstance(actual, ClassObjectTy)
             and expected.name == actual.name
         ):
-            return (
-                f"Expected an instance of {expected.name}, "
-                f"found the class {actual.name}."
-            )
+            return f"Expected an instance of {expected.name}, found the class {actual.name}."
         if isinstance(expected, FnTy) and isinstance(actual, ClassObjectTy):
-            return (
-                f"Expected a function {display(expected)}, "
-                f"found the class {actual.name}."
-            )
+            return f"Expected a function {display(expected)}, found the class {actual.name}."
         if expected is FLOAT and actual is INT:
             return "Expected Float, found Int. Write `2.0` or use `2 as Float`."
 
         return f"Expected {display(expected)}, found {display(actual)}."
 
-    def _provenance_notes(
-        self, expression: Expr, token: Token
-    ) -> tuple[str, ...]:
+    def _provenance_notes(self, expression: Expr, token: Token) -> tuple[str, ...]:
         """Nota de proveniência do valor, se a expressão tem nome/caminho.
 
         O diagnóstico costuma apontar o *destino* (nome da variável, parêntese da
@@ -822,9 +782,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._is_named_value(expression.expression)
         return isinstance(expression, (Variable, Get, Index, Call))
 
-    def _argument_notes(
-        self, call: Call | None, index: int, token: Token
-    ) -> tuple[str, ...]:
+    def _argument_notes(self, call: Call | None, index: int, token: Token) -> tuple[str, ...]:
         if call is None or not 1 <= index <= len(call.arguments):
             return ()
         return self._provenance_notes(call.arguments[index - 1], token)
@@ -848,9 +806,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if isinstance(obj, ClassTy):
                 field = self._find_field(obj.name, expr.name.lexeme)
                 if field is not None:
-                    return self._substitute(
-                        field.ty, self._class_bindings(obj)
-                    )
+                    return self._substitute(field.ty, self._class_bindings(obj))
         if isinstance(expr, Index):
             obj = self._storage_object_type(expr.object)
             if isinstance(obj, ListTy):
@@ -872,14 +828,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if found is not None:
                 return non_nil(found[1])
         if isinstance(expr, This) and self._current_class is not None:
-            return ClassTy(
-                self._current_class.name, self._current_class.type_params
-            )
+            return ClassTy(self._current_class.name, self._current_class.type_params)
         return None
 
-    def _check(
-        self, expr: Expr, expected: Ty, token: Token
-    ) -> Ty:
+    def _check(self, expr: Expr, expected: Ty, token: Token) -> Ty:
         if isinstance(expr, Call):
             actual = self._infer_call(expr, expected, token)
             self._invalidate_members()
@@ -924,15 +876,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 if len(items) != len(expr.elements):
                     self._error(
                         token,
-                        f"Expected a tuple of {len(items)} elements, "
-                        f"found {len(expr.elements)}.",
+                        f"Expected a tuple of {len(items)} elements, found {len(expr.elements)}.",
                         code=Code.TYPE_MISMATCH,
                     )
                     return ERROR
 
-                for tuple_element, item_ty in zip(
-                    expr.elements, items, strict=True
-                ):
+                for tuple_element, item_ty in zip(expr.elements, items, strict=True):
                     self._check(tuple_element, item_ty, expr.paren)
 
                 # O lowering lê o tipo concreto da tupla (e do aninhamento) para
@@ -985,9 +934,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return expected.element
 
         if isinstance(expected, UnionTy):
-            lists = [
-                member for member in expected.members if isinstance(member, ListTy)
-            ]
+            lists = [member for member in expected.members if isinstance(member, ListTy)]
             if len(lists) == 1:
                 return lists[0].element
 
@@ -1006,9 +953,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return (expected.key, expected.value)
 
         if isinstance(expected, UnionTy):
-            maps = [
-                member for member in expected.members if isinstance(member, MapTy)
-            ]
+            maps = [member for member in expected.members if isinstance(member, MapTy)]
             if len(maps) == 1:
                 return (maps[0].key, maps[0].value)
 
@@ -1018,9 +963,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(expected, FnTy):
             return expected
         if isinstance(expected, UnionTy):
-            functions = [
-                member for member in expected.members if isinstance(member, FnTy)
-            ]
+            functions = [member for member in expected.members if isinstance(member, FnTy)]
             if len(functions) == 1:
                 return functions[0]
 
@@ -1057,9 +1000,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(expected, TupleTy) and isinstance(actual, TupleTy):
             return len(expected.items) == len(actual.items) and all(
                 self._assignable(expected_item, actual_item)
-                for expected_item, actual_item in zip(
-                    expected.items, actual.items, strict=True
-                )
+                for expected_item, actual_item in zip(expected.items, actual.items, strict=True)
             )
         if isinstance(expected, FnTy):
             if isinstance(actual, FnTy):
@@ -1068,9 +1009,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 info = self._classes.get(actual.name)
                 if info is None:
                     return False
-                signature = self._initializer(info) or FnTy(
-                    (), ClassTy(actual.name), 0
-                )
+                signature = self._initializer(info) or FnTy((), ClassTy(actual.name), 0)
                 return self._assignable_fn(expected, signature)
             if isinstance(actual, NativeFnTy):
                 native_signature = self._native_signature(actual.name)
@@ -1079,9 +1018,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
             if expected.args or actual.args:
-                return (
-                    expected.name == actual.name and expected.args == actual.args
-                )
+                return expected.name == actual.name and expected.args == actual.args
             return self._is_subclass(actual.name, expected.name)
         if isinstance(expected, InterfaceTy):
             if isinstance(actual, InterfaceTy):
@@ -1090,9 +1027,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return self._implements_interface(actual.name, expected.name)
             return False
         if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
-            return (
-                expected.name == actual.name and expected.args == actual.args
-            )
+            return expected.name == actual.name and expected.args == actual.args
 
         return False
 
@@ -1107,9 +1042,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif not actual.min_params <= count <= len(actual.params):
             return False
 
-        for expected_param, actual_param in zip(
-            expected.params, actual.params, strict=False
-        ):
+        for expected_param, actual_param in zip(expected.params, actual.params, strict=False):
             if not self._assignable(actual_param, expected_param):
                 return False
 
@@ -1181,9 +1114,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                             code=Code.TYPE_ARGUMENTS,
                         )
                         return ERROR
-                    args = tuple(
-                        self._resolve_type(arg, token) for arg in ty.args
-                    )
+                    args = tuple(self._resolve_type(arg, token) for arg in ty.args)
                     if any(arg is ERROR for arg in args):
                         return ERROR
                     return EnumTy(ty.name, args)
@@ -1209,9 +1140,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             info = self._classes.get(ty.name)
             if info is None:
-                self._error(
-                    token, f"Unknown type '{ty.name}'.", code=Code.UNKNOWN_TYPE
-                )
+                self._error(token, f"Unknown type '{ty.name}'.", code=Code.UNKNOWN_TYPE)
                 return ERROR
 
             if info.type_params:
@@ -1261,9 +1190,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 key = ERROR
             return MapTy(key, value)
         if isinstance(ty, TupleTy):
-            return TupleTy(
-                tuple(self._resolve_type(item, token) for item in ty.items)
-            )
+            return TupleTy(tuple(self._resolve_type(item, token) for item in ty.items))
         if isinstance(ty, FnTy):
             return FnTy(
                 tuple(self._resolve_type(param, token) for param in ty.params),
@@ -1272,9 +1199,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 ty.variadic,
             )
         if isinstance(ty, UnionTy):
-            return union(
-                *(self._resolve_type(member, token) for member in ty.members)
-            )
+            return union(*(self._resolve_type(member, token) for member in ty.members))
 
         return ty
 
@@ -1444,13 +1369,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     continue
                 seen.add(variant_name)
 
-                payload = tuple(
-                    self._resolve_type(item, variant.name)
-                    for item in variant.payload
-                )
-                info.variants[variant_name] = EnumVariantInfo(
-                    variant_name, payload, variant.name
-                )
+                payload = tuple(self._resolve_type(item, variant.name) for item in variant.payload)
+                info.variants[variant_name] = EnumVariantInfo(variant_name, payload, variant.name)
         finally:
             self._pop_type_params()
 
@@ -1505,15 +1425,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if method_name in info.methods:
                 self._error(
                     method.name,
-                    f"Method '{method_name}' is already declared in interface "
-                    f"'{name}'.",
+                    f"Method '{method_name}' is already declared in interface '{name}'.",
                     code=Code.INVALID_CHECKER_DECLARATION,
                 )
                 continue
 
-            signature = self._signature(
-                method, is_init=False, allow_type_params=False
-            ).fn
+            signature = self._signature(method, is_init=False, allow_type_params=False).fn
             info.methods[method_name] = signature
             info.method_tokens[method_name] = method.name
             info.defaults[method_name] = not method.abstract
@@ -1552,9 +1469,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.RESERVED_NAME,
             )
 
-        superclass_token = (
-            stmt.superclass.name if stmt.superclass is not None else None
-        )
+        superclass_token = stmt.superclass.name if stmt.superclass is not None else None
         superclass = superclass_token.lexeme if superclass_token is not None else None
 
         if superclass_token is not None and superclass not in self._classes:
@@ -1583,8 +1498,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 assert superclass_token is not None
                 self._error(
                     superclass_token,
-                    "Generic superclasses aren't supported yet; inherit from a "
-                    "non-generic class.",
+                    "Generic superclasses aren't supported yet; inherit from a non-generic class.",
                     code=Code.GENERIC_UNSUPPORTED,
                 )
 
@@ -1601,8 +1515,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if not interface.declared:
                 self._error(
                     token,
-                    f"Interface '{token.lexeme}' must be declared before "
-                    f"class '{name}'.",
+                    f"Interface '{token.lexeme}' must be declared before class '{name}'.",
                     code=Code.UNKNOWN_TYPE,
                 )
                 continue
@@ -1629,9 +1542,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             for field_decl in stmt.fields:
                 field_name = field_decl.name.lexeme
                 # Duplicata (mesma classe/herdada) é reportada pelo resolver.
-                if superclass is not None and self._find_method(
-                    superclass, field_name
-                ) is not None:
+                if superclass is not None and self._find_method(superclass, field_name) is not None:
                     self._error(
                         field_decl.name,
                         f"Field '{field_name}' conflicts with a method.",
@@ -1645,9 +1556,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
 
                 if field_decl.type_annotation is not None:
-                    field_ty = self._resolve_type(
-                        field_decl.type_annotation, field_decl.name
-                    )
+                    field_ty = self._resolve_type(field_decl.type_annotation, field_decl.name)
                 elif field_decl.initializer is not None:
                     field_ty = self._infer(field_decl.initializer)
                     if field_decl.mutable and field_ty is NIL:
@@ -1675,17 +1584,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             for method in stmt.methods:
                 is_init = method.name.lexeme == "init"
-                if superclass is not None and self._find_field(
-                    superclass, method.name.lexeme
-                ) is not None:
+                if (
+                    superclass is not None
+                    and self._find_field(superclass, method.name.lexeme) is not None
+                ):
                     self._error(
                         method.name,
                         f"Method '{method.name.lexeme}' conflicts with a field.",
                         code=Code.INVALID_OVERRIDE,
                     )
-                signature = self._signature(
-                    method, is_init=is_init, allow_type_params=False
-                ).fn
+                signature = self._signature(method, is_init=is_init, allow_type_params=False).fn
                 if is_init:
                     info.init = signature
                 else:
@@ -1694,13 +1602,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             for method in stmt.methods:
                 is_init = method.name.lexeme == "init"
-                body_signature = (
-                    info.init if is_init else info.methods.get(method.name.lexeme)
-                )
+                body_signature = info.init if is_init else info.methods.get(method.name.lexeme)
                 assert body_signature is not None
-                self._check_function_body(
-                    method, body_signature, info, is_init=is_init
-                )
+                self._check_function_body(method, body_signature, info, is_init=is_init)
 
             self._check_field_initialization(stmt, info)
             self._check_interface_conformance(stmt, info)
@@ -1716,16 +1620,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 if interface not in names:
                     names.append(interface)
             current = (
-                self._classes.get(current.superclass)
-                if current.superclass is not None
-                else None
+                self._classes.get(current.superclass) if current.superclass is not None else None
             )
 
         return names
 
-    def _find_class_method(
-        self, class_name: str | None, method_name: str
-    ) -> FnTy | None:
+    def _find_class_method(self, class_name: str | None, method_name: str) -> FnTy | None:
         """Só métodos declarados por classes (não defaults de interface)."""
         name = class_name
         while name is not None:
@@ -1755,9 +1655,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         for method_name, interface_names in providers.items():
             own = info.methods.get(method_name)
             inherited = (
-                self._find_class_method(info.superclass, method_name)
-                if own is None
-                else None
+                self._find_class_method(info.superclass, method_name) if own is None else None
             )
 
             if own is None and inherited is None and len(interface_names) > 1:
@@ -1784,11 +1682,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     # interface, então covariância/contravariância de representação
                     # diferente não é segura no backend (ADR-0080).
                     if required != implementation:
-                        token = (
-                            info.method_tokens[method_name]
-                            if own is not None
-                            else stmt.name
-                        )
+                        token = info.method_tokens[method_name] if own is not None else stmt.name
                         self._error(
                             token,
                             f"Method '{method_name}' is incompatible with "
@@ -1969,11 +1863,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
 
     def _check_field_initialization(self, stmt: Class, info: ClassInfo) -> None:
-        required = {
-            field.name.lexeme: field
-            for field in stmt.fields
-            if field.initializer is None
-        }
+        required = {field.name.lexeme: field for field in stmt.fields if field.initializer is None}
         if not required:
             return
 
@@ -1992,9 +1882,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
             return
 
-        assigned = {
-            field.name.lexeme for field in stmt.fields if field.initializer is not None
-        }
+        assigned = {field.name.lexeme for field in stmt.fields if field.initializer is not None}
         returns: list[set[str]] = []
         normal = self._init_flow(initializer.body, set(assigned), returns)
 
@@ -2036,15 +1924,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._init_flow(stmt.statements, set(assigned), returns)
         if isinstance(stmt, If):
             self._mark_field_assignments(stmt.condition, assigned)
-            then_state = self._init_flow(
-                [stmt.then_branch], set(assigned), returns
-            )
+            then_state = self._init_flow([stmt.then_branch], set(assigned), returns)
             if stmt.else_branch is None:
                 else_state: set[str] | None = set(assigned)
             else:
-                else_state = self._init_flow(
-                    [stmt.else_branch], set(assigned), returns
-                )
+                else_state = self._init_flow([stmt.else_branch], set(assigned), returns)
 
             if then_state is None:
                 return else_state
@@ -2126,17 +2010,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, ClassTy):
             method = self._find_method(ty.name, name)
             info = self._classes.get(ty.name)
-            if (
-                method is not None
-                and ty.args
-                and info is not None
-                and info.type_params
-            ):
+            if method is not None and ty.args and info is not None and info.type_params:
                 substituted = self._substitute(
                     method,
-                    dict(
-                        zip(info.type_params, ty.args, strict=True)
-                    ),
+                    dict(zip(info.type_params, ty.args, strict=True)),
                 )
                 assert isinstance(substituted, FnTy)
                 return substituted
@@ -2172,8 +2049,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if next_method is None:
             self._error(
                 token,
-                f"iter() must return an iterator with next() -> T?, "
-                f"found '{display(iterator)}'.",
+                f"iter() must return an iterator with next() -> T?, found '{display(iterator)}'.",
                 code=Code.INVALID_ITERATION,
             )
             return ERROR
@@ -2208,9 +2084,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if signature is None:
             signature = self._signature(stmt, is_init=False)
 
-        self._define(
-            stmt.name, self._function_value_type(stmt.name.lexeme, signature)
-        )
+        self._define(stmt.name, self._function_value_type(stmt.name.lexeme, signature))
         self._check_function_body(
             stmt,
             signature.fn,
@@ -2234,9 +2108,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.GENERIC_UNSUPPORTED,
             )
         elif stmt.type_params:
-            variables, names = self._declare_type_params(
-                stmt.type_params, stmt.type_param_bounds
-            )
+            variables, names = self._declare_type_params(stmt.type_params, stmt.type_param_bounds)
 
         type_params = variables
         type_param_names = names
@@ -2265,23 +2137,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     if param.type_annotation is None:
                         self._error(
                             param.name,
-                            f"Variadic parameter '{param.name.lexeme}' needs "
-                            "a type annotation.",
+                            f"Variadic parameter '{param.name.lexeme}' needs a type annotation.",
                             code=Code.MISSING_ANNOTATION,
                         )
                         param_ty: Ty = ANY
                     else:
-                        param_ty = self._resolve_type(
-                            param.type_annotation, param.name
-                        )
+                        param_ty = self._resolve_type(param.type_annotation, param.name)
                     param_types.append(param_ty)
                     continue
 
                 if param.type_annotation is None:
                     suggested = (
-                        self._literal_type(param.default)
-                        if param.default is not None
-                        else None
+                        self._literal_type(param.default) if param.default is not None else None
                     )
                     self._error(
                         param.name,
@@ -2320,9 +2187,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         code=Code.INVALID_CHECKER_DECLARATION,
                     )
                 assert self._current_class is not None
-                return_ty: Ty = ClassTy(
-                    self._current_class.name, self._current_class.type_params
-                )
+                return_ty: Ty = ClassTy(self._current_class.name, self._current_class.type_params)
             elif stmt.return_type is None:
                 self._error(
                     stmt.name,
@@ -2397,13 +2262,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         try:
             self._begin_scope()
             if not preserve_class and class_info is not None:
-                self._scopes[-1]["this"] = ClassTy(
-                    class_info.name, class_info.type_params
-                )
+                self._scopes[-1]["this"] = ClassTy(class_info.name, class_info.type_params)
                 if class_info.superclass is not None:
-                    self._scopes[-1]["super"] = ClassObjectTy(
-                        class_info.superclass
-                    )
+                    self._scopes[-1]["super"] = ClassObjectTy(class_info.superclass)
             elif not preserve_class and interface_info is not None:
                 self._scopes[-1]["this"] = InterfaceTy(interface_info.name)
 
@@ -2425,9 +2286,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 and not self._body_always_returns(stmt.body)
             ):
                 kind = (
-                    "Method"
-                    if class_info is not None or interface_info is not None
-                    else "Function"
+                    "Method" if class_info is not None or interface_info is not None else "Function"
                 )
                 default = self._default_value(signature.ret)
                 fixes: tuple[Fix, ...] = ()
@@ -2517,8 +2376,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if isinstance(source, ClassTy):
                 return target
         elif source == target and (
-            isinstance(target, (ListTy, MapTy))
-            or target in (BOOL, STRING, NIL, RANGE)
+            isinstance(target, (ListTy, MapTy)) or target in (BOOL, STRING, NIL, RANGE)
         ):
             return target
 
@@ -2649,15 +2507,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 if param.type_annotation is None:
                     self._error(
                         param.name,
-                        f"Variadic parameter '{param.name.lexeme}' needs a "
-                        "type annotation.",
+                        f"Variadic parameter '{param.name.lexeme}' needs a type annotation.",
                         code=Code.MISSING_ANNOTATION,
                     )
                     param_ty: Ty = ANY
                 else:
-                    param_ty = self._resolve_type(
-                        param.type_annotation, param.name
-                    )
+                    param_ty = self._resolve_type(param.type_annotation, param.name)
                 param_types.append(param_ty)
                 continue
 
@@ -2712,11 +2567,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return_ty = self._infer_lambda_return(expr, returns, all_paths_return)
         fn = FnTy(tuple(param_types), return_ty, minimum, variadic)
 
-        free = [
-            variable
-            for variable in variables
-            if self._contains_any_type_var(fn, (variable,))
-        ]
+        free = [variable for variable in variables if self._contains_any_type_var(fn, (variable,))]
         if not free:
             return fn
 
@@ -2742,20 +2593,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         code=Code.INVALID_CHECKER_DECLARATION,
                     )
                 if param.type_annotation is not None:
-                    param_ty = self._resolve_type(
-                        param.type_annotation, param.name
-                    )
+                    param_ty = self._resolve_type(param.type_annotation, param.name)
                 elif (
-                    expected is not None
-                    and expected.variadic
-                    and index == len(expected.params) - 1
+                    expected is not None and expected.variadic and index == len(expected.params) - 1
                 ):
                     param_ty = expected.params[index]
                 else:
                     self._error(
                         param.name,
-                        f"Variadic parameter '{param.name.lexeme}' needs a "
-                        "type annotation.",
+                        f"Variadic parameter '{param.name.lexeme}' needs a type annotation.",
                         code=Code.MISSING_ANNOTATION,
                     )
                     param_ty = ANY
@@ -2767,11 +2613,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             elif expected is not None and index < len(expected.params):
                 param_ty = expected.params[index]
             else:
-                suggested = (
-                    self._literal_type(param.default)
-                    if param.default is not None
-                    else None
-                )
+                suggested = self._literal_type(param.default) if param.default is not None else None
                 self._error(
                     param.name,
                     f"Parameter '{param.name.lexeme}' needs a type annotation; "
@@ -2797,11 +2639,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif expected is not None and not self._has_any_type_var(expected.ret):
             declared_return = expected.ret
 
-        minimum = sum(
-            1
-            for param in expr.params
-            if param.default is None and not param.variadic
-        )
+        minimum = sum(1 for param in expr.params if param.default is None and not param.variadic)
         signature = FnTy(
             tuple(param_types),
             declared_return if declared_return is not None else ANY,
@@ -2835,9 +2673,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return FnTy(tuple(param_types), return_ty, minimum, variadic)
 
-    def _infer_lambda_return(
-        self, expr: Lambda, returns: list[Ty], all_paths_return: bool
-    ) -> Ty:
+    def _infer_lambda_return(self, expr: Lambda, returns: list[Ty], all_paths_return: bool) -> Ty:
         if not returns:
             return NIL
 
@@ -2862,13 +2698,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         else_refinements = self._refinements(stmt.condition, False)
         base = dict(self._narrowings)
 
-        then_state, then_returns = self._check_branch(
-            stmt.then_branch, then_refinements
-        )
+        then_state, then_returns = self._check_branch(stmt.then_branch, then_refinements)
         if stmt.else_branch is not None:
-            else_state, else_returns = self._check_branch(
-                stmt.else_branch, else_refinements
-            )
+            else_state, else_returns = self._check_branch(stmt.else_branch, else_refinements)
         else:
             else_state = dict(base)
             else_state.update(else_refinements)
@@ -3081,9 +2913,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return None
         if isinstance(current, UnionTy):
             remaining = [
-                member
-                for member in current.members
-                if not self._is_test_subtype(member, test)
+                member for member in current.members if not self._is_test_subtype(member, test)
             ]
             if not remaining:
                 return None
@@ -3105,44 +2935,29 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if actual == expected:
             return True
         if isinstance(expected, UnionTy):
-            return any(
-                self._is_test_subtype(actual, member)
-                for member in expected.members
-            )
+            return any(self._is_test_subtype(actual, member) for member in expected.members)
         if isinstance(actual, UnionTy):
-            return all(
-                self._is_test_subtype(member, expected)
-                for member in actual.members
-            )
+            return all(self._is_test_subtype(member, expected) for member in actual.members)
         if isinstance(actual, ClassTy) and isinstance(expected, ClassTy):
             if expected.args or actual.args:
-                return (
-                    actual.name == expected.name and actual.args == expected.args
-                )
+                return actual.name == expected.name and actual.args == expected.args
             return self._is_subclass(actual.name, expected.name)
         if isinstance(actual, EnumTy) and isinstance(expected, EnumTy):
-            return (
-                actual.name == expected.name
-                and (not expected.args or actual.args == expected.args)
+            return actual.name == expected.name and (
+                not expected.args or actual.args == expected.args
             )
         if isinstance(actual, ListTy) and isinstance(expected, ListTy):
             return expected.element is ANY or self._is_test_subtype(
                 actual.element, expected.element
             )
         if isinstance(actual, MapTy) and isinstance(expected, MapTy):
-            key_ok = expected.key is ANY or self._is_test_subtype(
-                actual.key, expected.key
-            )
-            value_ok = expected.value is ANY or self._is_test_subtype(
-                actual.value, expected.value
-            )
+            key_ok = expected.key is ANY or self._is_test_subtype(actual.key, expected.key)
+            value_ok = expected.value is ANY or self._is_test_subtype(actual.value, expected.value)
             return key_ok and value_ok
         if isinstance(actual, TupleTy) and isinstance(expected, TupleTy):
             return len(actual.items) == len(expected.items) and all(
                 self._is_test_subtype(actual_item, expected_item)
-                for actual_item, expected_item in zip(
-                    actual.items, expected.items, strict=True
-                )
+                for actual_item, expected_item in zip(actual.items, expected.items, strict=True)
             )
 
         return False
@@ -3159,13 +2974,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if left == right:
             return left
         if isinstance(left, UnionTy):
-            return union(
-                *(self._intersect_types(member, right) for member in left.members)
-            )
+            return union(*(self._intersect_types(member, right) for member in left.members))
         if isinstance(right, UnionTy):
-            return union(
-                *(self._intersect_types(left, member) for member in right.members)
-            )
+            return union(*(self._intersect_types(left, member) for member in right.members))
         if self._is_test_subtype(left, right):
             return left
         if self._is_test_subtype(right, left):
@@ -3207,16 +3018,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(stmt, Raise):
             return True
         if isinstance(stmt, Try):
-            if stmt.finally_body is not None and self._body_always_returns(
-                stmt.finally_body
-            ):
+            if stmt.finally_body is not None and self._body_always_returns(stmt.finally_body):
                 return True
             if not self._body_always_returns(stmt.body):
                 return False
-            return all(
-                self._body_always_returns(clause.body)
-                for clause in stmt.handlers
-            )
+            return all(self._body_always_returns(clause.body) for clause in stmt.handlers)
         if isinstance(stmt, Block):
             return any(self._always_returns(inner) for inner in stmt.statements)
         if isinstance(stmt, If):
@@ -3267,10 +3073,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         handler_returns: list[bool] = []
         for index, clause in enumerate(stmt.handlers):
             exception_ty = self._resolve_exception_type(clause.type_name)
-            if (
-                clause.type_name.lexeme == "Exception"
-                and index != len(stmt.handlers) - 1
-            ):
+            if clause.type_name.lexeme == "Exception" and index != len(stmt.handlers) - 1:
                 self._error(
                     clause.type_name,
                     "Catch-all 'Exception' must be the last handler.",
@@ -3303,9 +3106,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings = merged
 
         if stmt.finally_body is not None:
-            self._narrowings = self._check_list_from(
-                stmt.finally_body, merged
-            )
+            self._narrowings = self._check_list_from(stmt.finally_body, merged)
 
     def visit_raise_stmt(self, stmt: Raise) -> None:
         if stmt.value is None:
@@ -3319,9 +3120,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         raised = self._infer(stmt.value)
         if raised is ERROR:
             return
-        if raised is ANY or not self._assignable(
-            ClassTy("Exception"), raised
-        ):
+        if raised is ANY or not self._assignable(ClassTy("Exception"), raised):
             self._error(
                 stmt.keyword,
                 f"Can only raise Exception instances, found {display(raised)}.",
@@ -3408,8 +3207,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if stmt.mutable and inferred is NIL:
             self._error(
                 stmt.name,
-                f"Can't infer type of '{stmt.name.lexeme}' from nil; "
-                "add an annotation.",
+                f"Can't infer type of '{stmt.name.lexeme}' from nil; add an annotation.",
             )
             self._define(stmt.name, ANY)
             return
@@ -3419,9 +3217,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)
         base = dict(self._narrowings)
-        body_state, _ = self._check_branch(
-            stmt.body, self._refinements(stmt.condition, True)
-        )
+        body_state, _ = self._check_branch(stmt.body, self._refinements(stmt.condition, True))
         # O laço pode executar zero vezes: junta a entrada com a saída do corpo e
         # depois aplica a condição falsa da saída normal.
         self._narrowings = self._join_states(base, body_state)
@@ -3526,8 +3322,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             ):
                 self._error(
                     operator,
-                    "Operands must be the same type parameter constrained "
-                    "by 'Num'.",
+                    "Operands must be the same type parameter constrained by 'Num'.",
                     code=Code.INVALID_OPERANDS,
                 )
             else:
@@ -3568,8 +3363,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             ):
                 self._error(
                     operator,
-                    "Comparisons need the same type parameter constrained "
-                    "by 'Ord'.",
+                    "Comparisons need the same type parameter constrained by 'Ord'.",
                     code=Code.INVALID_OPERANDS,
                 )
             else:
@@ -3593,18 +3387,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._invalidate_captured()
         return result
 
-    def _infer_call(
-        self, expr: Call, expected: Ty | None, token: Token
-    ) -> Ty:
+    def _infer_call(self, expr: Call, expected: Ty | None, token: Token) -> Ty:
         callee = self._infer(expr.callee)
         if isinstance(callee, GenericFnTy):
             return self._infer_generic_call(expr, callee, expected, token)
         if isinstance(callee, ClassObjectTy):
             info = self._classes.get(callee.name)
             if info is not None and info.type_params:
-                return self._infer_class_construction(
-                    expr, callee, expected, token
-                )
+                return self._infer_class_construction(expr, callee, expected, token)
 
         signature = self._call_signature(callee, expr)
         arguments: list[Ty] = []
@@ -3617,34 +3407,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 elif index < len(signature.params):
                     expected_ty = signature.params[index]
             expected_param = (
-                self._expected_element(expected_ty)
-                if expected_ty is not None
-                else None
+                self._expected_element(expected_ty) if expected_ty is not None else None
             )
 
             if isinstance(argument, Lambda) and expected_ty is not None:
-                arguments.append(
-                    self._check(argument, expected_ty, expr.paren)
-                )
+                arguments.append(self._check(argument, expected_ty, expr.paren))
             elif (
-                (
-                    isinstance(argument, ListLiteral)
-                    and expected_param is not None
-                )
+                (isinstance(argument, ListLiteral) and expected_param is not None)
                 or (
                     isinstance(argument, MapLiteral)
                     and expected_ty is not None
                     and self._expected_map(expected_ty) is not None
                 )
-                or (
-                    isinstance(argument, TupleLiteral)
-                    and isinstance(expected_ty, TupleTy)
-                )
+                or (isinstance(argument, TupleLiteral) and isinstance(expected_ty, TupleTy))
             ):
                 assert expected_ty is not None
-                arguments.append(
-                    self._check(argument, expected_ty, expr.paren)
-                )
+                arguments.append(self._check(argument, expected_ty, expr.paren))
             else:
                 arguments.append(self._infer(argument))
 
@@ -3686,9 +3464,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 info = self._classes.get(member.name)
                 if info is None:
                     return None
-                return self._initializer(info) or FnTy(
-                    (), ClassTy(member.name), 0
-                )
+                return self._initializer(info) or FnTy((), ClassTy(member.name), 0)
 
         return None
 
@@ -3699,8 +3475,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ERROR
 
         nilable = callee is NIL or (
-            isinstance(callee, UnionTy)
-            and any(member is NIL for member in callee.members)
+            isinstance(callee, UnionTy) and any(member is NIL for member in callee.members)
         )
         if nilable and not expr.optional:
             self._error(
@@ -3738,17 +3513,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
                 return ERROR
 
-            signature = self._initializer(info) or FnTy(
-                (), ClassTy(callable_ty.name), 0
-            )
-            self._check_call(
-                expr.paren, signature, arguments, expr.spread, expr
-            )
+            signature = self._initializer(info) or FnTy((), ClassTy(callable_ty.name), 0)
+            self._check_call(expr.paren, signature, arguments, expr.spread, expr)
             result = ClassTy(callable_ty.name)
         elif isinstance(callable_ty, FnTy):
-            self._check_call(
-                expr.paren, callable_ty, arguments, expr.spread, expr
-            )
+            self._check_call(expr.paren, callable_ty, arguments, expr.spread, expr)
             result = callable_ty.ret
         elif isinstance(callable_ty, NativeFnTy):
             result = self._call_native(callable_ty, expr, arguments)
@@ -3762,9 +3531,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return union(result, NIL) if expr.optional and nilable else result
 
-    def _call_native(
-        self, callee: NativeFnTy, expr: Call, arguments: list[Ty]
-    ) -> Ty:
+    def _call_native(self, callee: NativeFnTy, expr: Call, arguments: list[Ty]) -> Ty:
         if expr.spread:
             self._error(
                 expr.paren,
@@ -3772,9 +3539,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.ARITY_MISMATCH,
             )
             return ERROR
-        for expression, argument in zip(
-            expr.arguments, arguments, strict=True
-        ):
+        for expression, argument in zip(expr.arguments, arguments, strict=True):
             if isinstance(argument, GenericFnTy):
                 token = self._expr_token(expression) or expr.paren
                 self._generic_value_error(token, argument.name)
@@ -3852,19 +3617,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._call_math(callee.name, expr, arguments)
 
         self._error(
-                expr.paren,
-                "Can only call functions and classes.",
-                code=Code.NOT_CALLABLE,
-            )
+            expr.paren,
+            "Can only call functions and classes.",
+            code=Code.NOT_CALLABLE,
+        )
         return ERROR
 
-    def _call_math(
-        self, name: str, expr: Call, arguments: list[Ty]
-    ) -> Ty:
-        expected = 3 if name == "math.clamp" else 2 if name in {
-            "math.min",
-            "math.max",
-        } else 1
+    def _call_math(self, name: str, expr: Call, arguments: list[Ty]) -> Ty:
+        expected = (
+            3
+            if name == "math.clamp"
+            else 2
+            if name
+            in {
+                "math.min",
+                "math.max",
+            }
+            else 1
+        )
         if len(arguments) != expected:
             self._error(
                 expr.paren,
@@ -3876,19 +3646,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if any(argument is ERROR for argument in arguments):
             return ERROR
         if name == "math.abs":
-            return self._math_numeric_result(
-                "math.abs", arguments, expr.paren, expr.arguments
-            )
+            return self._math_numeric_result("math.abs", arguments, expr.paren, expr.arguments)
         if name in {"math.min", "math.max", "math.clamp"}:
-            return self._math_numeric_result(
-                name, arguments, expr.paren, expr.arguments
-            )
+            return self._math_numeric_result(name, arguments, expr.paren, expr.arguments)
 
         self._error(
-                expr.paren,
-                "Can only call functions and classes.",
-                code=Code.NOT_CALLABLE,
-            )
+            expr.paren,
+            "Can only call functions and classes.",
+            code=Code.NOT_CALLABLE,
+        )
         return ERROR
 
     def _math_numeric_result(
@@ -3979,8 +3745,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if not self._assignable(expected_list, arguments[-1]):
                 self._error(
                     token,
-                    f"Argument {count}: "
-                    f"{self._mismatch_message(expected_list, arguments[-1])}",
+                    f"Argument {count}: {self._mismatch_message(expected_list, arguments[-1])}",
                     notes=self._argument_notes(expr, count, token),
                 )
             return
@@ -3999,15 +3764,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._generic_value_error(token, argument.name)
                     continue
                 expected = (
-                    signature.params[index - 1]
-                    if index - 1 < fixed
-                    else signature.params[-1]
+                    signature.params[index - 1] if index - 1 < fixed else signature.params[-1]
                 )
                 if not self._assignable(expected, argument):
                     self._error(
                         token,
-                        f"Argument {index}: "
-                        f"{self._mismatch_message(expected, argument)}",
+                        f"Argument {index}: {self._mismatch_message(expected, argument)}",
                         notes=self._argument_notes(expr, index, token),
                     )
             return
@@ -4078,9 +3840,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         ]
         mapping: dict[TyVar, Ty] = {
             parameter: variable
-            for parameter, variable in zip(
-                callee.type_params, fresh, strict=True
-            )
+            for parameter, variable in zip(callee.type_params, fresh, strict=True)
         }
         fn = self._substitute(callee.fn, mapping)
         assert isinstance(fn, FnTy)
@@ -4101,19 +3861,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             )
             return ERROR
         info = self._classes[callee.name]
-        fresh = tuple(
-            self._fresh_type_var(type_param.name)
-            for type_param in info.type_params
-        )
-        mapping: dict[TyVar, Ty] = dict(
-            zip(info.type_params, fresh, strict=True)
-        )
+        fresh = tuple(self._fresh_type_var(type_param.name) for type_param in info.type_params)
+        mapping: dict[TyVar, Ty] = dict(zip(info.type_params, fresh, strict=True))
         # `init` herdado: `B(A)` sem `init` chama o `init` de `A`, mas o resultado é
         # uma instância de `B`. O template é sempre a própria classe.
         initializer = self._initializer(info)
-        result_template = self._substitute(
-            ClassTy(info.name, info.type_params), mapping
-        )
+        result_template = self._substitute(ClassTy(info.name, info.type_params), mapping)
         base = initializer or FnTy((), result_template, 0)
         signature_ty = self._substitute(base, mapping)
         assert isinstance(signature_ty, FnTy)
@@ -4125,9 +3878,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             and expected.name == info.name
             and len(expected.args) == len(fresh)
         ):
-            for variable, expected_arg in zip(
-                fresh, expected.args, strict=True
-            ):
+            for variable, expected_arg in zip(fresh, expected.args, strict=True):
                 bindings[variable] = expected_arg
         elif expected is not None and expected not in (ANY, ERROR):
             self._unify(result_template, expected, bindings, token)
@@ -4141,18 +3892,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             elif count < minimum:
                 message = f"Expected at least {minimum} arguments but got {count}."
             else:
-                message = (
-                    f"Expected {minimum} to {maximum} arguments but got {count}."
-                )
+                message = f"Expected {minimum} to {maximum} arguments but got {count}."
             self._error(token, message, code=Code.ARITY_MISMATCH)
             return ERROR
 
         for index, argument in enumerate(expr.arguments):
             if index >= len(signature.params):
                 break
-            parameter_type = self._substitute(
-                signature.params[index], bindings
-            )
+            parameter_type = self._substitute(signature.params[index], bindings)
             actual = self._check_generic_argument(
                 argument, parameter_type, bindings, token, index + 1
             )
@@ -4165,8 +3912,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             names = ", ".join(f"'{member.name}'" for member in unbound)
             self._error(
                 token,
-                f"Can't infer type argument(s) {names} for '{info.name}'; "
-                "annotate the value.",
+                f"Can't infer type argument(s) {names} for '{info.name}'; annotate the value.",
                 code=Code.GENERIC_INFERENCE,
             )
             return ERROR
@@ -4224,8 +3970,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 message = f"Expected at least {minimum} arguments but got {count}."
             else:
                 message = (
-                    f"Expected {minimum} to {len(signature.params)} "
-                    f"arguments but got {count}."
+                    f"Expected {minimum} to {len(signature.params)} arguments but got {count}."
                 )
             self._error(token, message, code=Code.ARITY_MISMATCH)
             return ERROR
@@ -4331,25 +4076,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(expr, ListLiteral) and isinstance(resolved, ListTy):
             element = resolved.element
             for item in expr.elements:
-                if (
-                    self._check_generic_argument(
-                        item, element, bindings, token, index
-                    )
-                    is ERROR
-                ):
+                if self._check_generic_argument(item, element, bindings, token, index) is ERROR:
                     return ERROR
             return ListTy(self._substitute(element, bindings))
 
         if isinstance(expr, MapLiteral) and isinstance(resolved, MapTy):
             for key, value in expr.entries:
                 if (
-                    self._check_generic_argument(
-                        key, resolved.key, bindings, token, index
-                    )
-                    is ERROR
-                    or self._check_generic_argument(
-                        value, resolved.value, bindings, token, index
-                    )
+                    self._check_generic_argument(key, resolved.key, bindings, token, index) is ERROR
+                    or self._check_generic_argument(value, resolved.value, bindings, token, index)
                     is ERROR
                 ):
                     return ERROR
@@ -4428,9 +4163,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._substitute(ty.value, bindings),
             )
         if isinstance(ty, TupleTy):
-            return TupleTy(
-                tuple(self._substitute(item, bindings) for item in ty.items)
-            )
+            return TupleTy(tuple(self._substitute(item, bindings) for item in ty.items))
         if isinstance(ty, FnTy):
             return FnTy(
                 tuple(self._substitute(param, bindings) for param in ty.params),
@@ -4439,9 +4172,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 ty.variadic,
             )
         if isinstance(ty, UnionTy):
-            return union(
-                *(self._substitute(member, bindings) for member in ty.members)
-            )
+            return union(*(self._substitute(member, bindings) for member in ty.members))
 
         return ty
 
@@ -4467,20 +4198,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return False
 
-    def _occurs(
-        self, variable: TyVar, ty: Ty, bindings: dict[TyVar, Ty]
-    ) -> bool:
+    def _occurs(self, variable: TyVar, ty: Ty, bindings: dict[TyVar, Ty]) -> bool:
         ty = self._substitute(ty, bindings)
         if isinstance(ty, TyVar):
             return ty == variable
         if isinstance(ty, ClassTy):
-            return any(
-                self._occurs(variable, arg, bindings) for arg in ty.args
-            )
+            return any(self._occurs(variable, arg, bindings) for arg in ty.args)
         if isinstance(ty, EnumTy):
-            return any(
-                self._occurs(variable, arg, bindings) for arg in ty.args
-            )
+            return any(self._occurs(variable, arg, bindings) for arg in ty.args)
         if isinstance(ty, ListTy):
             return self._occurs(variable, ty.element, bindings)
         if isinstance(ty, MapTy):
@@ -4488,18 +4213,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 variable, ty.value, bindings
             )
         if isinstance(ty, TupleTy):
-            return any(
-                self._occurs(variable, item, bindings) for item in ty.items
-            )
+            return any(self._occurs(variable, item, bindings) for item in ty.items)
         if isinstance(ty, FnTy):
             return any(
                 self._occurs(variable, param, bindings) for param in ty.params
             ) or self._occurs(variable, ty.ret, bindings)
         if isinstance(ty, UnionTy):
-            return any(
-                self._occurs(variable, member, bindings)
-                for member in ty.members
-            )
+            return any(self._occurs(variable, member, bindings) for member in ty.members)
 
         return False
 
@@ -4541,47 +4261,35 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return True
 
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
-            if expected.name != actual.name or len(expected.args) != len(
-                actual.args
-            ):
+            if expected.name != actual.name or len(expected.args) != len(actual.args):
                 return False
             if not expected.args:
                 return self._assignable(expected, actual)
             return all(
                 self._unify(expected_arg, actual_arg, bindings, token)
-                for expected_arg, actual_arg in zip(
-                    expected.args, actual.args, strict=True
-                )
+                for expected_arg, actual_arg in zip(expected.args, actual.args, strict=True)
             )
         if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
-            if expected.name != actual.name or len(expected.args) != len(
-                actual.args
-            ):
+            if expected.name != actual.name or len(expected.args) != len(actual.args):
                 return False
             return all(
                 self._unify(expected_arg, actual_arg, bindings, token)
-                for expected_arg, actual_arg in zip(
-                    expected.args, actual.args, strict=True
-                )
+                for expected_arg, actual_arg in zip(expected.args, actual.args, strict=True)
             )
 
-        if not self._has_any_type_var(expected) and not self._has_any_type_var(
-            actual
-        ):
+        if not self._has_any_type_var(expected) and not self._has_any_type_var(actual):
             return self._assignable(expected, actual)
 
         if isinstance(expected, ListTy) and isinstance(actual, ListTy):
             return self._unify(expected.element, actual.element, bindings, token)
         if isinstance(expected, MapTy) and isinstance(actual, MapTy):
-            return self._unify(
-                expected.key, actual.key, bindings, token
-            ) and self._unify(expected.value, actual.value, bindings, token)
+            return self._unify(expected.key, actual.key, bindings, token) and self._unify(
+                expected.value, actual.value, bindings, token
+            )
         if isinstance(expected, TupleTy) and isinstance(actual, TupleTy):
             return len(expected.items) == len(actual.items) and all(
                 self._unify(expected_item, actual_item, bindings, token)
-                for expected_item, actual_item in zip(
-                    expected.items, actual.items, strict=True
-                )
+                for expected_item, actual_item in zip(expected.items, actual.items, strict=True)
             )
         if isinstance(expected, FnTy) and isinstance(actual, FnTy):
             if expected.variadic != actual.variadic:
@@ -4589,27 +4297,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if actual.variadic:
                 if len(expected.params) != len(actual.params):
                     return False
-            elif not actual.min_params <= len(expected.params) <= len(
-                actual.params
-            ):
+            elif not actual.min_params <= len(expected.params) <= len(actual.params):
                 return False
-            for expected_param, actual_param in zip(
-                expected.params, actual.params, strict=False
-            ):
-                if not self._unify(
-                    expected_param, actual_param, bindings, token
-                ):
+            for expected_param, actual_param in zip(expected.params, actual.params, strict=False):
+                if not self._unify(expected_param, actual_param, bindings, token):
                     return False
             return self._unify(expected.ret, actual.ret, bindings, token)
         if isinstance(expected, UnionTy):
             # `T?` unifica com `Int?` como T=Int, não T=Int? (opcional aninhado).
             if isinstance(actual, UnionTy):
-                expected_non_nil = [
-                    member for member in expected.members if member is not NIL
-                ]
-                actual_non_nil = [
-                    member for member in actual.members if member is not NIL
-                ]
+                expected_non_nil = [member for member in expected.members if member is not NIL]
+                actual_non_nil = [member for member in actual.members if member is not NIL]
                 if len(expected_non_nil) == 1 and len(actual_non_nil) == 1:
                     return self._unify(
                         expected_non_nil[0],
@@ -4627,9 +4325,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return False
 
-    def _unbound_type_vars(
-        self, ty: Ty, variables: tuple[TyVar, ...]
-    ) -> list[TyVar]:
+    def _unbound_type_vars(self, ty: Ty, variables: tuple[TyVar, ...]) -> list[TyVar]:
         if isinstance(ty, TyVar):
             return [ty] if ty in variables else []
         if isinstance(ty, ClassTy):
@@ -4645,9 +4341,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, ListTy):
             return self._unbound_type_vars(ty.element, variables)
         if isinstance(ty, MapTy):
-            return self._unbound_type_vars(
-                ty.key, variables
-            ) + self._unbound_type_vars(ty.value, variables)
+            return self._unbound_type_vars(ty.key, variables) + self._unbound_type_vars(
+                ty.value, variables
+            )
         if isinstance(ty, TupleTy):
             tuple_vars: list[TyVar] = []
             for item in ty.items:
@@ -4671,34 +4367,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(ty, TyVar):
             return ty in variables
         if isinstance(ty, ClassTy):
-            return any(
-                self._contains_any_type_var(arg, variables) for arg in ty.args
-            )
+            return any(self._contains_any_type_var(arg, variables) for arg in ty.args)
         if isinstance(ty, EnumTy):
-            return any(
-                self._contains_any_type_var(arg, variables) for arg in ty.args
-            )
+            return any(self._contains_any_type_var(arg, variables) for arg in ty.args)
         if isinstance(ty, ListTy):
             return self._contains_any_type_var(ty.element, variables)
         if isinstance(ty, MapTy):
-            return self._contains_any_type_var(
-                ty.key, variables
-            ) or self._contains_any_type_var(ty.value, variables)
-        if isinstance(ty, TupleTy):
-            return any(
-                self._contains_any_type_var(item, variables)
-                for item in ty.items
+            return self._contains_any_type_var(ty.key, variables) or self._contains_any_type_var(
+                ty.value, variables
             )
+        if isinstance(ty, TupleTy):
+            return any(self._contains_any_type_var(item, variables) for item in ty.items)
         if isinstance(ty, FnTy):
             return any(
-                self._contains_any_type_var(param, variables)
-                for param in ty.params
+                self._contains_any_type_var(param, variables) for param in ty.params
             ) or self._contains_any_type_var(ty.ret, variables)
         if isinstance(ty, UnionTy):
-            return any(
-                self._contains_any_type_var(member, variables)
-                for member in ty.members
-            )
+            return any(self._contains_any_type_var(member, variables) for member in ty.members)
 
         return False
 
@@ -4715,9 +4400,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if instance.name != name:
             return
 
-        for fresh, current in zip(
-            instance.type_params, current_params, strict=False
-        ):
+        for fresh, current in zip(instance.type_params, current_params, strict=False):
             argument = self._substitute(fresh, bindings)
             if argument == current:
                 continue
@@ -4728,7 +4411,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "the type arguments must stay the same.",
                 )
                 return
-
 
     def visit_get_expr(self, expr: Get) -> Ty:
         key = self._refinement_path(expr)
@@ -4782,8 +4464,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 if not variant.payload:
                     self._error(
                         name,
-                        "Nullary variants of generic enums aren't supported "
-                        "yet; add a payload.",
+                        "Nullary variants of generic enums aren't supported yet; add a payload.",
                     )
                     return ERROR
                 return GenericFnTy(
@@ -4842,23 +4523,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 result = self._instance_property(classes[0], name)
             else:
                 results = [
-                    self._instance_property(member, name, report=False)
-                    for member in classes
+                    self._instance_property(member, name, report=False) for member in classes
                 ]
                 if any(item != results[0] for item in results):
                     self._error(name, "Only instances have properties.")
                     return ERROR
                 result = results[0]
         elif all(isinstance(member, InterfaceTy) for member in members):
-            interfaces = [
-                member for member in members if isinstance(member, InterfaceTy)
-            ]
+            interfaces = [member for member in members if isinstance(member, InterfaceTy)]
             if len(interfaces) == 1:
                 result = self._interface_property(interfaces[0], name)
             else:
                 results = [
-                    self._interface_property(member, name, report=False)
-                    for member in interfaces
+                    self._interface_property(member, name, report=False) for member in interfaces
                 ]
                 if any(item != results[0] for item in results):
                     self._error(name, "Only instances have properties.")
@@ -4925,9 +4602,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if param != arg
         }
 
-    def _instance_property(
-        self, obj: ClassTy, name: Token, *, report: bool = True
-    ) -> Ty:
+    def _instance_property(self, obj: ClassTy, name: Token, *, report: bool = True) -> Ty:
         bindings = self._class_bindings(obj)
         field_info = self._find_field(obj.name, name.lexeme)
         if field_info is not None:
@@ -4942,9 +4617,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return ERROR
 
-    def _interface_property(
-        self, obj: InterfaceTy, name: Token, *, report: bool = True
-    ) -> Ty:
+    def _interface_property(self, obj: InterfaceTy, name: Token, *, report: bool = True) -> Ty:
         info = self._interfaces.get(obj.name)
         if info is not None:
             method = info.methods.get(name.lexeme)
@@ -4982,8 +4655,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if not expr.elements:
             self._error(
                 expr.bracket,
-                "Can't infer the element type of an empty list; "
-                "annotate it as List[T].",
+                "Can't infer the element type of an empty list; annotate it as List[T].",
                 code=Code.INVALID_LIST,
             )
             return ListTy(ERROR)
@@ -5036,8 +4708,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if not expr.entries:
             self._error(
                 expr.brace,
-                "Can't infer the key and value types of an empty map; "
-                "annotate it as Map[K, V].",
+                "Can't infer the key and value types of an empty map; annotate it as Map[K, V].",
             )
             return MapTy(ERROR, ERROR)
 
@@ -5128,8 +4799,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if not 0 <= literal < len(tuple_ty.items):
             self._error(
                 expr.bracket,
-                f"Tuple index {literal} out of bounds for length "
-                f"{len(tuple_ty.items)}.",
+                f"Tuple index {literal} out of bounds for length {len(tuple_ty.items)}.",
             )
             return ERROR
 
@@ -5161,9 +4831,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         bindings: dict[TyVar, Ty] = {}
         if scrutinee.args:
-            bindings = dict(
-                zip(info.type_params, scrutinee.args, strict=True)
-            )
+            bindings = dict(zip(info.type_params, scrutinee.args, strict=True))
 
         covered: set[str] = set()
         wildcard = False
@@ -5212,14 +4880,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
             self._begin_scope()
             seen: set[str] = set()
-            for token, item_ty in zip(
-                pattern.bindings, variant.payload, strict=False
-            ):
+            for token, item_ty in zip(pattern.bindings, variant.payload, strict=False):
                 if token.lexeme in seen:
                     self._error(
                         token,
-                        f"Binding '{token.lexeme}' is declared twice in this "
-                        "pattern.",
+                        f"Binding '{token.lexeme}' is declared twice in this pattern.",
                     )
                 seen.add(token.lexeme)
                 self._define(token, self._substitute(item_ty, bindings))
@@ -5228,11 +4893,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._end_scope()
 
         if not wildcard:
-            missing = [
-                f"{scrutinee.name}.{name}"
-                for name in info.variants
-                if name not in covered
-            ]
+            missing = [f"{scrutinee.name}.{name}" for name in info.variants if name not in covered]
             if missing:
                 self._error(
                     expr.keyword,
@@ -5251,8 +4912,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if name.lexeme in seen:
                 self._error(
                     name,
-                    f"Variable '{name.lexeme}' is declared twice in this "
-                    "destructuring.",
+                    f"Variable '{name.lexeme}' is declared twice in this destructuring.",
                 )
             seen.add(name.lexeme)
 
@@ -5277,8 +4937,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if items is not None:
                 self._error(
                     token,
-                    f"Destructuring expects {len(pattern.elements)} values, "
-                    f"found {len(items)}.",
+                    f"Destructuring expects {len(pattern.elements)} values, found {len(items)}.",
                 )
             for name in pattern_names(pattern):
                 self._define(name, ERROR)
@@ -5289,30 +4948,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _destructure_items(self, ty: Ty, token: Token) -> tuple[Ty, ...] | None:
         if ty is ANY:
-            self._error(
-                token, "Can't destructure Any; add a tuple annotation."
-            )
+            self._error(token, "Can't destructure Any; add a tuple annotation.")
             return None
         if isinstance(ty, TupleTy):
             return ty.items
-        if isinstance(ty, UnionTy) and all(
-            isinstance(member, TupleTy) for member in ty.members
-        ):
+        if isinstance(ty, UnionTy) and all(isinstance(member, TupleTy) for member in ty.members):
             members = [member for member in ty.members if isinstance(member, TupleTy)]
             arity = len(members[0].items)
             if any(len(member.items) != arity for member in members):
-                self._error(
-                    token, "Tuple members of the union have different arity."
-                )
+                self._error(token, "Tuple members of the union have different arity.")
                 return None
             return tuple(
-                union(*(member.items[position] for member in members))
-                for position in range(arity)
+                union(*(member.items[position] for member in members)) for position in range(arity)
             )
 
-        self._error(
-            token, f"Can only destructure tuples, found {display(ty)}."
-        )
+        self._error(token, f"Can only destructure tuples, found {display(ty)}.")
         return None
 
     def visit_index_expr(self, expr: Index) -> Ty:
@@ -5326,8 +4976,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(obj, GenericFnTy):
             self._error(
                 expr.bracket,
-                "Type arguments on a call aren't supported; "
-                "let the checker infer them.",
+                "Type arguments on a call aren't supported; let the checker infer them.",
             )
             return ERROR
 
@@ -5339,9 +4988,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ERROR
         if isinstance(obj, TupleTy):
             return self._tuple_index(obj, index, expr)
-        if isinstance(obj, UnionTy) and all(
-            isinstance(member, TupleTy) for member in obj.members
-        ):
+        if isinstance(obj, UnionTy) and all(isinstance(member, TupleTy) for member in obj.members):
             return union(
                 *(
                     self._tuple_index(member, index, expr)
@@ -5412,11 +5059,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if index is INT or index is ANY or index is ERROR:
             return
 
-        notes = (
-            self._provenance_notes(index_expr, expr.bracket)
-            if index_expr is not None
-            else ()
-        )
+        notes = self._provenance_notes(index_expr, expr.bracket) if index_expr is not None else ()
         self._error(
             expr.bracket,
             f"List index must be an integer, found {display(index)}.",
@@ -5439,10 +5082,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             and is_nilable(left)
         ):
             expected = non_nil(left)
-            if (
-                isinstance(expr.right, ListLiteral)
-                and self._expected_element(expected) is not None
-            ):
+            if isinstance(expr.right, ListLiteral) and self._expected_element(expected) is not None:
                 right = self._check(expr.right, expected, expr.operator)
             else:
                 right = self._infer(expr.right)
@@ -5483,9 +5123,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         if isinstance(obj, InterfaceTy):
             self._infer(expr.value)
-            self._error(
-                expr.name, f"Interface '{obj.name}' has no fields."
-            )
+            self._error(expr.name, f"Interface '{obj.name}' has no fields.")
             return ANY
 
         if not isinstance(obj, ClassTy):
@@ -5511,9 +5149,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         path = self._refinement_path(expr.object)
         if path is not None:
-            self._invalidate_path(
-                (path[0], path[1], path[2] + (("field", expr.name.lexeme),))
-            )
+            self._invalidate_path((path[0], path[1], path[2] + (("field", expr.name.lexeme),)))
         self._invalidate_members()
 
         is_initializer_this = self._in_initializer and isinstance(expr.object, This)
@@ -5529,9 +5165,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if self._current_class is None or self._current_class.superclass is None:
             return ERROR
 
-        method = self._find_method(
-            self._current_class.superclass, expr.method.lexeme
-        )
+        method = self._find_method(self._current_class.superclass, expr.method.lexeme)
         if method is None:
             self._error(
                 expr.method,
@@ -5548,9 +5182,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if self._current_class is None:
             return ERROR
 
-        return ClassTy(
-            self._current_class.name, self._current_class.type_params
-        )
+        return ClassTy(self._current_class.name, self._current_class.type_params)
 
     def visit_unary_expr(self, expr: Unary) -> Ty:
         right = self._infer(expr.right)

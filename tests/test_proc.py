@@ -17,14 +17,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="proc.* é POSIX (posix_spawn/poll)"
-)
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="proc.* é POSIX (posix_spawn/poll)")
 
 
-def _run_source(
-    tmp_path: Path, source: str
-) -> subprocess.CompletedProcess[str]:
+def _run_source(tmp_path: Path, source: str) -> subprocess.CompletedProcess[str]:
     path = tmp_path / "caso.lx"
     path.write_text(source, encoding="utf-8")
     return subprocess.run(
@@ -55,8 +51,7 @@ def _run_lox(code: str, stdin: str = "", timeout_ms: int = 0) -> str:
 
 def test_run_captura_stdout_e_codigo(tmp_path: Path) -> None:
     result = _run_source(
-        tmp_path,
-        _run_lox("import sys; sys.stdout.write(sys.stdin.read())", "ola\n")
+        tmp_path, _run_lox("import sys; sys.stdout.write(sys.stdin.read())", "ola\n")
     )
 
     assert result.returncode == 0, result.stderr
@@ -64,10 +59,7 @@ def test_run_captura_stdout_e_codigo(tmp_path: Path) -> None:
 
 
 def test_run_captura_stderr_e_codigo(tmp_path: Path) -> None:
-    result = _run_source(
-        tmp_path,
-        _run_lox('import sys; sys.stderr.write("erro"); sys.exit(3)')
-    )
+    result = _run_source(tmp_path, _run_lox('import sys; sys.stderr.write("erro"); sys.exit(3)'))
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == '3\n""\n"erro"\n'

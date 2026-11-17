@@ -21,9 +21,7 @@ def items(source: str, marker: str) -> list[dict[str, object]]:
         checker=lox.last_checker,
         resolver=lox.last_resolver,
     )
-    return complete(
-        source, Path("t.lx"), len(source[:offset].encode("utf-8")), index
-    )
+    return complete(source, Path("t.lx"), len(source[:offset].encode("utf-8")), index)
 
 
 def labels(source: str, marker: str) -> list[str]:
@@ -31,10 +29,7 @@ def labels(source: str, marker: str) -> list[str]:
 
 
 def test_completion_de_local_nao_vaza_de_outra_funcao() -> None:
-    source = (
-        "fn f() -> Nil {\n  val total = 1\n  tot\n}\n"
-        "fn g() -> Nil {\n  val outro = 2\n}\n"
-    )
+    source = "fn f() -> Nil {\n  val total = 1\n  tot\n}\nfn g() -> Nil {\n  val outro = 2\n}\n"
     found = labels(source, "tot")
     assert "total" in found
     assert "outro" not in found

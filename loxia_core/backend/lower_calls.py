@@ -28,15 +28,11 @@ from loxia_core.frontend.tokens import Token
 
 class CallLowering(LoweringBase):
     def _primitive_call(self, primitive: Any, expr: Call) -> Value:
-        params = [
-            self._type_desc(param, expr.paren.line)
-            for param in primitive.params
-        ]
+        params = [self._type_desc(param, expr.paren.line) for param in primitive.params]
         if len(expr.arguments) != len(params):
             self._poison(
                 expr.paren.line,
-                f"Expected {len(params)} arguments but got "
-                f"{len(expr.arguments)}.",
+                f"Expected {len(params)} arguments but got {len(expr.arguments)}.",
             )
             return Value(ValueType.NIL)
 
@@ -45,9 +41,7 @@ class CallLowering(LoweringBase):
             for argument, desc in zip(expr.arguments, params, strict=True)
         ]
         result = self._type_desc(primitive.result, expr.paren.line)
-        param_types = [
-            self._storage_llvm_type(desc) for desc in params
-        ]
+        param_types = [self._storage_llvm_type(desc) for desc in params]
         call_arguments = [argument.llvm for argument in arguments]
         if primitive.site:
             # Primitivas que podem falhar recebem o call site para o panic.
@@ -74,10 +68,7 @@ class CallLowering(LoweringBase):
         )
 
     def _call(self, expr: Call) -> Value:
-        if (
-            isinstance(expr.callee, Get)
-            and isinstance(expr.callee.object, Variable)
-        ):
+        if isinstance(expr.callee, Get) and isinstance(expr.callee.object, Variable):
             primitive = PRIMITIVE_BY_LOX.get(
                 f"{expr.callee.object.name.lexeme}.{expr.callee.name.lexeme}"
             )
@@ -90,9 +81,7 @@ class CallLowering(LoweringBase):
             and expr.callee.object.name.lexeme in {"Int", "Float"}
             and expr.callee.name.lexeme == "parse"
         ):
-            return self._parse_call(
-                expr, self._expr_type_desc(expr, expr.paren.line)
-            )
+            return self._parse_call(expr, self._expr_type_desc(expr, expr.paren.line))
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
@@ -111,9 +100,7 @@ class CallLowering(LoweringBase):
             if generic is not None:
                 return self._call_generic(generic, expr)
             if expr.callee.name.lexeme in self._generic_class_nodes:
-                return self._call_generic_class(
-                    expr.callee.name.lexeme, expr
-                )
+                return self._call_generic_class(expr.callee.name.lexeme, expr)
 
         if (
             isinstance(expr.callee, Get)
@@ -158,9 +145,7 @@ class CallLowering(LoweringBase):
         if isinstance(expr.callee, Variable):
             depth = self.depths.get(expr.callee)
             if depth is not None or expr.callee.name.lexeme in self._globals:
-                early = self._lookup(
-                    expr.callee, expr.callee.name.lexeme, expr.callee.name.line
-                )
+                early = self._lookup(expr.callee, expr.callee.name.lexeme, expr.callee.name.line)
                 if early.ty is ValueType.CLASS:
                     return self._call_class(early, expr)
 
@@ -169,9 +154,7 @@ class CallLowering(LoweringBase):
         if isinstance(expr.callee, Variable):
             depth = self.depths.get(expr.callee)
             if depth is not None or expr.callee.name.lexeme in self._globals:
-                binding = self._lookup(
-                    expr.callee, expr.callee.name.lexeme, expr.callee.name.line
-                )
+                binding = self._lookup(expr.callee, expr.callee.name.lexeme, expr.callee.name.line)
                 if binding.function is not None:
                     info = binding.function
 
@@ -212,9 +195,7 @@ class CallLowering(LoweringBase):
         effective = info if info is not None else callee.function
         sig = effective.fn_sig if effective is not None else callee.sig
         assert sig is not None
-        prepared = self._prepare_call_arguments(
-            sig, effective, arguments, expr.spread, expr.paren
-        )
+        prepared = self._prepare_call_arguments(sig, effective, arguments, expr.spread, expr.paren)
         if prepared is None:
             return self._zero_desc(sig.ret)
         arguments = prepared
@@ -222,9 +203,7 @@ class CallLowering(LoweringBase):
         fnptr = self._closure_field(callee, 0)
         env = self._closure_field(callee, 1)
         function_type = llvm_ir.function_pointer(
-            _VOID
-            if sig.ret.ty is ValueType.NIL
-            else self._storage_llvm_type(sig.ret),
+            _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret),
             [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
         self._set_call_site(expr.paren)
@@ -272,9 +251,7 @@ class CallLowering(LoweringBase):
                 return None
             rest = values[-1]
             if rest.optional:
-                rest = self._unwrap(
-                    rest, token.line, "Spread argument can't be nil."
-                )
+                rest = self._unwrap(rest, token.line, "Spread argument can't be nil.")
             if rest.ty is not ValueType.LIST:
                 self._poison(
                     token,
@@ -334,16 +311,12 @@ class CallLowering(LoweringBase):
         ]
         element = sig.vararg_element
         assert element is not None
-        raw = self.builder.call(
-            self._function("lox_list_new", _I8_PTR, []), []
-        )
+        raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
         for value in values[fixed:]:
             coerced = self._coerce(value, element, token.line)
             boxed = self._box_value(coerced, token.line)
             self.builder.call(
-                self._function(
-                    "lox_list_push", _I8_PTR, [_I8_PTR, _INT, _INT]
-                ),
+                self._function("lox_list_push", _I8_PTR, [_I8_PTR, _INT, _INT]),
                 [
                     raw,
                     self.builder.extract_value(boxed.llvm, 0),
@@ -365,18 +338,14 @@ class CallLowering(LoweringBase):
             if count != len(sig.params):
                 self._poison(
                     expr.paren,
-                    self._arity_message(
-                        len(sig.params), len(sig.params), count
-                    ),
+                    self._arity_message(len(sig.params), len(sig.params), count),
                     code=Code.RUNTIME_ARITY,
                 )
                 return self._zero_desc(sig.ret)
 
         result = self._expr_type_desc(expr, expr.paren.line)
         if not result.optional and result.ty is not ValueType.NIL:
-            result = TypeDesc(
-                result.ty, result.fn, True, result.class_name
-            )
+            result = TypeDesc(result.ty, result.fn, True, result.class_name)
 
         some = llvm_ir.append_block(self._function_ir, "call.some")
         nothing = llvm_ir.append_block(self._function_ir, "call.nil")
@@ -399,19 +368,13 @@ class CallLowering(LoweringBase):
             arguments = prepared
         else:
             arguments = [
-                self._coerce(
-                    self._expr(argument), expected, expr.paren.line
-                )
-                for argument, expected in zip(
-                    expr.arguments, sig.params, strict=True
-                )
+                self._coerce(self._expr(argument), expected, expr.paren.line)
+                for argument, expected in zip(expr.arguments, sig.params, strict=True)
             ]
         fnptr = self._closure_field(payload, 0)
         env = self._closure_field(payload, 1)
         function_type = llvm_ir.function_pointer(
-            _VOID
-            if sig.ret.ty is ValueType.NIL
-            else self._storage_llvm_type(sig.ret),
+            _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret),
             [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
         )
         self._set_call_site(expr.paren)
@@ -446,9 +409,7 @@ class CallLowering(LoweringBase):
         if sig.ret.ty is ValueType.NIL:
             return Value(ValueType.NIL)
 
-        merged = self.builder.phi(
-            self._storage_llvm_type(result), "call.value"
-        )
+        merged = self.builder.phi(self._storage_llvm_type(result), "call.value")
         merged.add_incoming(value.llvm, some_end)
         merged.add_incoming(zero.llvm, nothing_end)
         return Value(
@@ -467,9 +428,7 @@ class CallLowering(LoweringBase):
             raise _unsupported("Class construction", expr.paren.line)
 
         class_ptr = self._load_binding(binding)
-        class_ptr = self._guard_closure(
-            class_ptr, name, expr.paren.line, expr.paren.column
-        )
+        class_ptr = self._guard_closure(class_ptr, name, expr.paren.line, expr.paren.column)
 
         arguments = [self._expr(argument) for argument in expr.arguments]
         if layout.synthetic_exception:
@@ -507,9 +466,7 @@ class CallLowering(LoweringBase):
                 arguments.append(self._expr(default))
             arguments = [
                 self._coerce(argument, expected, expr.paren.line)
-                for argument, expected in zip(
-                    arguments, init.fn_sig.params, strict=True
-                )
+                for argument, expected in zip(arguments, init.fn_sig.params, strict=True)
             ]
 
         call_args = [argument.llvm for argument in arguments]

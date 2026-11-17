@@ -51,9 +51,7 @@ def _check(path: Path, source: str) -> list[Diagnostic]:
     return list(lox.reporter.batch().diagnostics)
 
 
-def _safe_edits(
-    diagnostics: list[Diagnostic], file: str
-) -> list[tuple[int, int, str, Diagnostic]]:
+def _safe_edits(diagnostics: list[Diagnostic], file: str) -> list[tuple[int, int, str, Diagnostic]]:
     edits: list[tuple[int, int, str, Diagnostic]] = []
     for diagnostic in diagnostics:
         for fix in diagnostic.fixes:
@@ -74,9 +72,7 @@ def _apply(source: str, edits: list[tuple[int, int, str, Diagnostic]]) -> str:
     """Aplica edições não sobrepostas em ordem decrescente de offset."""
     data = source.encode("utf-8")
     limit = len(data)
-    for start, end, text, _diagnostic in sorted(
-        edits, key=lambda item: item[0], reverse=True
-    ):
+    for start, end, text, _diagnostic in sorted(edits, key=lambda item: item[0], reverse=True):
         if end > limit or start < 0 or end < start:
             continue
         data = data[:start] + text.encode("utf-8") + data[end:]
@@ -120,9 +116,7 @@ def run_fix(path: Path, *, apply: bool, max_iterations: int) -> FixResult:
 
 
 def _write_atomic(path: Path, text: str) -> None:
-    descriptor, temporary = tempfile.mkstemp(
-        prefix=f".{path.name}.", dir=str(path.parent)
-    )
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(text)
@@ -153,9 +147,7 @@ def run_fix_command(args: argparse.Namespace) -> int:
         max_iterations=args.max_iterations,
     )
     remaining_errors = [
-        diagnostic
-        for diagnostic in result.remaining
-        if diagnostic.severity.value == "error"
+        diagnostic for diagnostic in result.remaining if diagnostic.severity.value == "error"
     ]
     if args.json:
         print(
@@ -185,8 +177,7 @@ def run_fix_command(args: argparse.Namespace) -> int:
         for change in result.changes:
             verb = "aplicado" if args.apply else "aplicaria"
             print(
-                f"{display_path(str(path))}:{change.line}:{change.column}: "
-                f"{verb}: {change.title}"
+                f"{display_path(str(path))}:{change.line}:{change.column}: {verb}: {change.title}"
             )
         skipped = _unsafe_count(result.remaining)
         if skipped:

@@ -23,9 +23,7 @@ import pytest
 from loxia.cli import Loxia
 from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
 
-MANIFEST_CASES = [
-    (level, case) for level, cases in LEVELS.items() for case in cases
-]
+MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -46,9 +44,7 @@ if not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
     _require("nenhum compilador C encontrado (cc, clang ou gcc)")
 
 
-def _run(
-    arguments: list[str], input: str | None = None
-) -> subprocess.CompletedProcess[str]:
+def _run(arguments: list[str], input: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         arguments,
         cwd=ROOT,
@@ -132,10 +128,16 @@ CASES = [
     ("var n = 0; while (n < 3) { n = n + 1; print(n); }", "laço que termina"),
     ("val x = 1; val y = x * 2; print(y);", "dependência entre variáveis"),
     ("fn soma(a: Int, b: Int) -> Int { return a + b; } print(soma(1, 2));", "função e chamada"),
-    ("fn fib(n: Int) -> Int { if (n < 2) return n; return fib(n - 1) + fib(n - 2); } print(fib(10));", "recursão"),
+    (
+        "fn fib(n: Int) -> Int { if (n < 2) return n; return fib(n - 1) + fib(n - 2); } print(fib(10));",
+        "recursão",
+    ),
     ("fn vazio() -> Nil { return; } print(vazio());", "retorno Nil"),
     ("fn f(a: Int) -> Int { return a; } print(f());", "aridade vira panic"),
-    ("fn soma(a: Int, b: Int = 10) -> Int { return a + b; } print(soma(1));", "default no call site"),
+    (
+        "fn soma(a: Int, b: Int = 10) -> Int { return a + b; } print(soma(1));",
+        "default no call site",
+    ),
     ("print(naoexiste);", "variável indefinida vira panic"),
     ("fn f(a: Int) -> Int { return a // 0; } print(f(1));", "panic dentro de função"),
     ("print((1 if true else 2));", "ternário verdadeiro"),
@@ -151,25 +153,28 @@ CASES = [
         "print((false and e())); print((7 ?? e())); print(n);",
         "curto-circuito não avalia o lado direito",
     ),
-    ("print(\"hello\");", "literal de string"),
-    ("print(\"\");", "string vazia"),
-    ("print(\"a\" + \"b\");", "concatenação"),
-    ("val s = \"aço\"; print(len(s));", "len em code points"),
-    ("print(\"ab\" == \"ab\"); print(\"ab\" != \"ab\");", "igualdade de string"),
-    ("fn g(n: String) -> String { return \"oi \" + n; } print(g(\"ana\"));", "string em função"),
-    ("print(1 + \"a\");", "tipos misturados em + viram panic"),
-    ("print(\"a\" < \"b\");", "comparação de string"),
-    ("print(\"ab\" < \"abc\");", "prefixo menor na comparação"),
-    ("print(\"é\" > \"z\");", "ordem por code point"),
-    ("print(\"a\" < 1);", "string com número vira panic"),
-    ("print(\"a${1}b\");", "interpolação de Int"),
-    ("print(\"${1.5} ${true} ${nil}\");", "interpolação de Float/Bool/nil"),
-    ("val n = 7; print(\"n=${n}\");", "interpolação de variável"),
-    ("print(\"nested: ${\"a\" + \"b\"}\");", "interpolação com expressão de string"),
-    ("print(\"escape: \\${x}\");", "escape de $"),
-    ("print(str(42) + \"!\");", "str de Int"),
-    ('''print(repr("""a
-b"""));''', "repr escapa nova linha"),
+    ('print("hello");', "literal de string"),
+    ('print("");', "string vazia"),
+    ('print("a" + "b");', "concatenação"),
+    ('val s = "aço"; print(len(s));', "len em code points"),
+    ('print("ab" == "ab"); print("ab" != "ab");', "igualdade de string"),
+    ('fn g(n: String) -> String { return "oi " + n; } print(g("ana"));', "string em função"),
+    ('print(1 + "a");', "tipos misturados em + viram panic"),
+    ('print("a" < "b");', "comparação de string"),
+    ('print("ab" < "abc");', "prefixo menor na comparação"),
+    ('print("é" > "z");', "ordem por code point"),
+    ('print("a" < 1);', "string com número vira panic"),
+    ('print("a${1}b");', "interpolação de Int"),
+    ('print("${1.5} ${true} ${nil}");', "interpolação de Float/Bool/nil"),
+    ('val n = 7; print("n=${n}");', "interpolação de variável"),
+    ('print("nested: ${"a" + "b"}");', "interpolação com expressão de string"),
+    ('print("escape: \\${x}");', "escape de $"),
+    ('print(str(42) + "!");', "str de Int"),
+    (
+        '''print(repr("""a
+b"""));''',
+        "repr escapa nova linha",
+    ),
     ("print(repr(1.0));", "repr de Float"),
     (
         "fn dobro(x: Int) -> Int { return x * 2; } "
@@ -204,8 +209,7 @@ b"""));''', "repr escapa nova linha"),
         "chamada antes da declaração de topo vira panic",
     ),
     (
-        "var b: Int?; print(b); b = 7; print(b); "
-        "if (b != nil) print(b + 1);",
+        "var b: Int?; print(b); b = 7; print(b); if (b != nil) print(b + 1);",
         "opcional escalar: nil, atribuição e narrow",
     ),
     (
@@ -230,7 +234,7 @@ b"""));''', "repr escapa nova linha"),
         "Any as Int/Float com promoção",
     ),
     (
-        "val x: Any = \"a\"; print(x as Int);",
+        'val x: Any = "a"; print(x as Int);',
         "Any as Int com tag errada vira panic R1011",
     ),
     (
@@ -238,21 +242,21 @@ b"""));''', "repr escapa nova linha"),
         "raise na classe de exceção sintética com mensagem",
     ),
     (
-        'class MyError(Exception) { init(msg: String) { this.message = msg } } '
+        "class MyError(Exception) { init(msg: String) { this.message = msg } } "
         'raise MyError("falhou");',
         "exceção de usuário não capturada com a mensagem",
     ),
     (
-        "val t: Any = (1, \"a\"); print(t is (Int, String)); "
+        'val t: Any = (1, "a"); print(t is (Int, String)); '
         "print(t is (Int, Int)); print(t is (Int, String, Int));",
         "Any is tupla checa aridade e elementos",
     ),
     (
-        "val t: (Any, Any) = (1, \"a\"); print(t is (Int, String));",
+        'val t: (Any, Any) = (1, "a"); print(t is (Int, String));',
         "is de tupla estática com elementos Any",
     ),
     (
-        "val l: Any = [\"a\"]; print(l is List[Int]);",
+        'val l: Any = ["a"]; print(l is List[Int]);',
         "Any is List[Int] checa os elementos",
     ),
     (
@@ -260,15 +264,15 @@ b"""));''', "repr escapa nova linha"),
         "Any is/as List[Int] válidos",
     ),
     (
-        "val l: Any = [\"a\"]; print(l as List[Int]);",
+        'val l: Any = ["a"]; print(l as List[Int]);',
         "Any as List[Int] com elemento errado vira panic",
     ),
     (
-        "val m: Any = {\"a\": \"b\"}; print(m is Map[String, Int]);",
+        'val m: Any = {"a": "b"}; print(m is Map[String, Int]);',
         "Any is Map checa chave e valor",
     ),
     (
-        'enum Color { Red } enum Size { Small } val x: Any = Size.Small; '
+        "enum Color { Red } enum Size { Small } val x: Any = Size.Small; "
         "print(x is Color); print(x is Size);",
         "is de enum checa a identidade",
     ),
@@ -277,7 +281,7 @@ b"""));''', "repr escapa nova linha"),
         "as de enum",
     ),
     (
-        "print(5 is Int); print(5 is String); print(\"a\" is String); "
+        'print(5 is Int); print(5 is String); print("a" is String); '
         "print((1..2) is Range); print(nil is Nil);",
         "is estático de escalar",
     ),
@@ -286,13 +290,11 @@ b"""));''', "repr escapa nova linha"),
         "is de classe com valor não-instância devolve false",
     ),
     (
-        "class A {} val a: A? = nil; print(a is A); "
-        "val b: A? = A(); print(b is A);",
+        "class A {} val a: A? = nil; print(a is A); val b: A? = A(); print(b is A);",
         "is de classe opcional (nil e presente)",
     ),
     (
-        "val x: Int? = nil; print(x is Int); "
-        "val y: Int? = 3; print(y is Int);",
+        "val x: Int? = nil; print(x is Int); val y: Int? = 3; print(y is Int);",
         "is de escalar opcional",
     ),
     (
@@ -306,18 +308,15 @@ b"""));''', "repr escapa nova linha"),
         "literal de lista aninhada e is recursivo",
     ),
     (
-        "val x: Any = {\"a\": {\"b\": 1}}; print(x); "
-        "print(x is Map[String, Map[String, Int]]);",
+        'val x: Any = {"a": {"b": 1}}; print(x); print(x is Map[String, Map[String, Int]]);',
         "literal de mapa aninhado e is recursivo",
     ),
     (
-        'fn f() -> Any { class Local {} val x: Any = Local(); '
-        "return x is Local; } print(f());",
+        "fn f() -> Any { class Local {} val x: Any = Local(); return x is Local; } print(f());",
         "is de classe local a partir de Any",
     ),
     (
-        "print(true as Bool); print(\"a\" as String); "
-        "print((1..2) as Range); print(nil as Nil);",
+        'print(true as Bool); print("a" as String); print((1..2) as Range); print(nil as Nil);',
         "as estático de escalar",
     ),
 ]
@@ -325,9 +324,7 @@ b"""));''', "repr escapa nova linha"),
 
 @pytest.mark.backend
 @pytest.mark.parametrize(("source", "label"), CASES, ids=[case[1] for case in CASES])
-def test_binario_concorda_com_interpretador(
-    tmp_path: Path, source: str, label: str
-) -> None:
+def test_binario_concorda_com_interpretador(tmp_path: Path, source: str, label: str) -> None:
     path = _write(tmp_path, source + "\n")
 
     interpreted = _interpret(path)
@@ -374,9 +371,7 @@ CASES_DIR = ROOT / "tests" / "cases"
 
 
 def _corpus_paths() -> set[str]:
-    return {
-        path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lx")
-    }
+    return {path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lx")}
 
 
 def test_corpus_classificado() -> None:
@@ -395,9 +390,7 @@ def test_corpus_classificado() -> None:
 def test_pending_budget() -> None:
     """ADR-0064: PENDING não pode passar de 5% do corpus anotado."""
     total = len(_corpus_paths())
-    assert len(PENDING) * 100 <= total * 5, (
-        f"{len(PENDING)} PENDING em {total} casos; teto de 5%"
-    )
+    assert len(PENDING) * 100 <= total * 5, f"{len(PENDING)} PENDING em {total} casos; teto de 5%"
 
 
 @pytest.mark.backend
@@ -433,7 +426,7 @@ def test_gc_recicla_memoria_no_backend(tmp_path: Path) -> None:
     """
     path = _write(
         tmp_path,
-        'var i = 0\n'
+        "var i = 0\n"
         "while (i < 80) {\n"
         '  var s = "0123456789abcdef"\n'
         "  var j = 0\n"
@@ -612,9 +605,7 @@ def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
     if hard != resource.RLIM_INFINITY and hard < 64 * 1024 * 1024:
         pytest.skip("hard limit de pilha baixo demais para o teste de reserva")
 
-    locals_source = "\n".join(
-        f"  var a{index}: Int = n + {index}" for index in range(200)
-    )
+    locals_source = "\n".join(f"  var a{index}: Int = n + {index}" for index in range(200))
     terms = " + ".join(f"a{index}" for index in range(200))
     source = (
         "fn g(n: Int) -> Int {\n"
@@ -630,9 +621,7 @@ def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
 
     def soft_8_mib() -> None:
         _soft, maximum = resource.getrlimit(resource.RLIMIT_STACK)
-        resource.setrlimit(
-            resource.RLIMIT_STACK, (8 * 1024 * 1024, maximum)
-        )
+        resource.setrlimit(resource.RLIMIT_STACK, (8 * 1024 * 1024, maximum))
 
     native = subprocess.run(
         [str(binary)],
@@ -649,13 +638,8 @@ def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
 
 def _checkable_sources() -> list[tuple[str, str]]:
     """Casos do corpus que podem passar no `--check` (sem `errors/`)."""
-    paths = sorted(CASES_DIR.glob("*.lx")) + sorted(
-        (ROOT / "exemplos").glob("*.lx")
-    )
-    return [
-        (path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8"))
-        for path in paths
-    ]
+    paths = sorted(CASES_DIR.glob("*.lx")) + sorted((ROOT / "exemplos").glob("*.lx"))
+    return [(path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8")) for path in paths]
 
 
 @pytest.mark.backend
@@ -666,10 +650,13 @@ def test_promocao_int_para_float_e_recusada_pelos_dois(tmp_path: Path) -> None:
     "Can't use INT where FLOAT is expected" — duas fontes de verdade.
     Agora o checker recusa primeiro, com a mesma mensagem nos dois caminhos.
     """
-    path = _write(tmp_path, """var x: Float = 1.5
+    path = _write(
+        tmp_path,
+        """var x: Float = 1.5
 x = 2
 print(x)
-""")
+""",
+    )
 
     checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
     expected = "Expected Float, found Int. Write `2.0` or use `2 as Float`."
@@ -709,9 +696,7 @@ def test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering(
         if not built and "not supported by the backend yet" not in reported:
             problems.append(f"{name}: {reported.strip()}")
 
-    assert problems == [], (
-        "check limpo virou erro no backend:\n" + "\n".join(problems)
-    )
+    assert problems == [], "check limpo virou erro no backend:\n" + "\n".join(problems)
 
 
 @pytest.mark.parametrize(
@@ -799,9 +784,7 @@ int main(void) {
     )
     assert compiled.returncode == 0, compiled.stderr
 
-    payload = "".join(
-        f"{struct.unpack('<Q', struct.pack('<d', value))[0]:x}\n" for value in values
-    )
+    payload = "".join(f"{struct.unpack('<Q', struct.pack('<d', value))[0]:x}\n" for value in values)
     result = subprocess.run(
         [str(helper)], input=payload, capture_output=True, text=True, check=False
     )
@@ -813,8 +796,7 @@ int main(void) {
 @pytest.mark.backend
 def test_stack_trace_de_modulo_bate_com_interpretador(tmp_path: Path) -> None:
     (tmp_path / "mod.lx").write_text(
-        "fn inner() -> Int { return 1 // 0 }\n"
-        "fn outer() -> Int { return inner() }\n",
+        "fn inner() -> Int { return 1 // 0 }\nfn outer() -> Int { return inner() }\n",
         encoding="utf-8",
     )
     path = tmp_path / "main.lx"
@@ -836,8 +818,11 @@ def test_stack_trace_de_modulo_bate_com_interpretador(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_erro_rebaixavel_nao_e_impresso_no_build(tmp_path: Path) -> None:
-    path = _write(tmp_path, """print(1 + true);
-""")
+    path = _write(
+        tmp_path,
+        """print(1 + true);
+""",
+    )
 
     result, binary = _build(path, tmp_path)
 
@@ -859,8 +844,11 @@ def test_erro_nao_rebaixavel_bloqueia_o_build(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_emit_ll_mostra_ir_sem_caminho_absoluto(tmp_path: Path) -> None:
-    path = _write(tmp_path, """print(1 + 2);
-""")
+    path = _write(
+        tmp_path,
+        """print(1 + 2);
+""",
+    )
 
     result = _run([sys.executable, str(ENTRYPOINT), "--emit", "ll", str(path)])
 
@@ -872,8 +860,11 @@ def test_emit_ll_mostra_ir_sem_caminho_absoluto(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
-    path = _write(tmp_path, """print(1 + 2);
-""")
+    path = _write(
+        tmp_path,
+        """print(1 + 2);
+""",
+    )
     output = tmp_path / "programa.o"
 
     result = _run(
@@ -895,8 +886,11 @@ def test_emit_obj_gera_arquivo_de_objeto(tmp_path: Path) -> None:
 
 @pytest.mark.backend
 def test_tupla_e_compilada(tmp_path: Path) -> None:
-    path = _write(tmp_path, """print((1, 2));
-""")
+    path = _write(
+        tmp_path,
+        """print((1, 2));
+""",
+    )
 
     result, binary = _build(path, tmp_path)
 
@@ -1017,8 +1011,11 @@ def test_abi_das_estruturas_publicas_e_estavel() -> None:
 
 @pytest.mark.backend
 def test_kernel_args_nativo(tmp_path: Path) -> None:
-    path = _write(tmp_path, """print(args())
-""")
+    path = _write(
+        tmp_path,
+        """print(args())
+""",
+    )
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr
 
@@ -1056,10 +1053,16 @@ def test_cache_do_runtime_objeto(tmp_path: Path) -> None:
         assert result.returncode == 0, result.stderr
         return binary
 
-    first = build("""print("um")
-""", "um.lx")
-    second = build("""print("dois")
-""", "dois.lx")
+    first = build(
+        """print("um")
+""",
+        "um.lx",
+    )
+    second = build(
+        """print("dois")
+""",
+        "dois.lx",
+    )
 
     from loxia_core.backend.driver import RUNTIME_SOURCES
 
@@ -1110,8 +1113,7 @@ print(text)
     assert result.returncode == 0, result.stderr
 
     native = _run([str(binary)], input="linha1\nlinha2\n")
-    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)],
-                       input="linha1\nlinha2\n")
+    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)], input="linha1\nlinha2\n")
     assert native.returncode == interpreted.returncode
     assert native.stdout == interpreted.stdout
     assert native.stdout == "14\nlinha1\nlinha2\n\n"
@@ -1175,9 +1177,7 @@ def test_std_io_nativo(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     native = _run([str(binary)], input="linha\nresto\n")
-    interpreted = _run(
-        [sys.executable, str(ENTRYPOINT), str(path)], input="linha\nresto\n"
-    )
+    interpreted = _run([sys.executable, str(ENTRYPOINT), str(path)], input="linha\nresto\n")
     assert native.returncode == interpreted.returncode
     assert native.stdout == interpreted.stdout
 
@@ -1193,13 +1193,13 @@ def test_campos_container_nativos(tmp_path: Path) -> None:
         "  init() {\n"
         "    this.items = []\n"
         "    this.labels = {}\n"
-        "    this.pair = (1, \"a\")\n"
+        '    this.pair = (1, "a")\n'
         "    this.span = 0..3\n"
         "  }\n"
         "}\n"
         "val bag = Bag()\n"
         "bag.items.push(7)\n"
-        "bag.labels[\"x\"] = 9\n"
+        'bag.labels["x"] = 9\n'
         """print(bag.items)
 """
         """print(bag.labels)
@@ -1218,19 +1218,21 @@ def test_campos_container_nativos(tmp_path: Path) -> None:
     interpreted = _interpret(path)
     assert native.returncode == interpreted.returncode, native.stderr
     assert native.stdout == interpreted.stdout
-    assert native.stdout == "[7]\n{\"x\": 9}\n(1, \"a\")\n<range 0..3>\n"
+    assert native.stdout == '[7]\n{"x": 9}\n(1, "a")\n<range 0..3>\n'
 
 
 @pytest.mark.backend
 def test_modulos_nativos(tmp_path: Path) -> None:
     (tmp_path / "lib.lx").write_text(
-        'fn dobro(x: Int) -> Int { return x * 2 }\n'
-        'fn _privado() -> Int { return 1 }\n',
+        "fn dobro(x: Int) -> Int { return x * 2 }\nfn _privado() -> Int { return 1 }\n",
         encoding="utf-8",
     )
-    path = _write(tmp_path, """from lib import dobro
+    path = _write(
+        tmp_path,
+        """from lib import dobro
 print(dobro(21))
-""")
+""",
+    )
 
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr
@@ -1250,9 +1252,7 @@ def test_dependencia_path_bate_com_interpretador(tmp_path: Path) -> None:
         '[dependencies]\nacme = { path = "../acme" }\n',
         encoding="utf-8",
     )
-    (dep / "base.lx").write_text(
-        "fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8"
-    )
+    (dep / "base.lx").write_text("fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8")
     path = app / "main.lx"
     path.write_text(
         "import acme.base as base\nprint(base.dobro(21))\n",
@@ -1269,9 +1269,7 @@ def test_dependencia_path_bate_com_interpretador(tmp_path: Path) -> None:
     assert native.returncode == interpreted.returncode == 0
 
 
-def _run_bytes(
-    arguments: list[str], data: bytes
-) -> subprocess.CompletedProcess[bytes]:
+def _run_bytes(arguments: list[str], data: bytes) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
         arguments,
         cwd=ROOT,
@@ -1285,18 +1283,16 @@ def _run_bytes(
 R2_CASOS = (
     'print(substr("a", 0, 9))\n',
     'print(substr("a", -1, 0))\n',
-    'print(fromCodePoint(-1))\n',
+    "print(fromCodePoint(-1))\n",
     'print(charCodeAt("a", 5))\n',
-    'os.exit(999)\n',
-    'time.sleep(-1)\n',
+    "os.exit(999)\n",
+    "time.sleep(-1)\n",
 )
 
 
 @pytest.mark.backend
 @pytest.mark.parametrize("source", R2_CASOS, ids=range(len(R2_CASOS)))
-def test_panic_de_primitiva_bate_com_oraculo(
-    tmp_path: Path, source: str
-) -> None:
+def test_panic_de_primitiva_bate_com_oraculo(tmp_path: Path, source: str) -> None:
     """R2: primitivas antigas reportam o mesmo código, mensagem e posição."""
     path = _write(tmp_path, source)
 
@@ -1317,7 +1313,7 @@ def _proc_program(py_code: str) -> str:
         "import std.proc as p\n"
         f"val py = {json.dumps(sys.executable)}\n"
         f'val out = p.run([py, "-c", {json.dumps(py_code)}])\n'
-        "if (out == nil) {\n  print(\"nil\")\n} else {\n"
+        'if (out == nil) {\n  print("nil")\n} else {\n'
         "  print(out.code)\n  print(len(out.stdout))\n"
         "  print(repr(out.stderr))\n}\n"
     )
@@ -1331,8 +1327,7 @@ def test_std_proc_nativo(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         _proc_program(
-            "import sys; sys.stdout.write(chr(231)*3000); "
-            "sys.stderr.write(chr(101)); sys.exit(3)"
+            "import sys; sys.stdout.write(chr(231)*3000); sys.stderr.write(chr(101)); sys.exit(3)"
         ),
     )
     result, binary = _build(path, tmp_path)
@@ -1359,7 +1354,7 @@ def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
         'val child = p.spawn([py, "-c", '
         + json.dumps("import sys; sys.stdout.write('eco')")
         + "])\n"
-        "if (child == nil) {\n  print(\"nil\")\n} else {\n"
+        'if (child == nil) {\n  print("nil")\n} else {\n'
         "  val ready = process.poll([child.id, child.stdout.id], 5000)\n"
         "  print(len(ready) >= 1)\n"
         "  print(child.stdout.read(64))\n"
@@ -1381,8 +1376,7 @@ def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
 def test_io_read_utf8_nativo(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
-        "print(io.readUtf8(6))\n"
-        "print(io.readUtf8(1))\n",
+        "print(io.readUtf8(6))\nprint(io.readUtf8(1))\n",
     )
 
     result, binary = _build(path, tmp_path)
@@ -1390,9 +1384,7 @@ def test_io_read_utf8_nativo(tmp_path: Path) -> None:
 
     payload = "ação".encode()
     native = _run_bytes([str(binary)], payload)
-    interpreted = _run_bytes(
-        [sys.executable, str(ENTRYPOINT), str(path)], payload
-    )
+    interpreted = _run_bytes([sys.executable, str(ENTRYPOINT), str(path)], payload)
     assert native.returncode == interpreted.returncode, native.stderr
     assert native.stdout == interpreted.stdout
     assert native.stderr == interpreted.stderr
@@ -1403,9 +1395,7 @@ def test_io_read_utf8_nativo(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     native = _run_bytes([str(binary)], b"\xff\xfe")
-    interpreted = _run_bytes(
-        [sys.executable, str(ENTRYPOINT), str(invalid)], b"\xff\xfe"
-    )
+    interpreted = _run_bytes([sys.executable, str(ENTRYPOINT), str(invalid)], b"\xff\xfe")
     assert native.returncode == 70
     assert native.returncode == interpreted.returncode
     assert native.stderr == interpreted.stderr
@@ -1425,9 +1415,7 @@ def test_io_write_flush_antes_de_bloquear_no_stdin(tmp_path: Path) -> None:
 
     path = _write(
         tmp_path,
-        'io.write("pronto")\n'
-        "val line = io.readLine()\n"
-        'print(line or "nil")\n',
+        'io.write("pronto")\nval line = io.readLine()\nprint(line or "nil")\n',
     )
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr
@@ -1447,10 +1435,7 @@ def test_io_write_flush_antes_de_bloquear_no_stdin(tmp_path: Path) -> None:
         try:
             assert process.stdout is not None
             ready, _, _ = select.select([process.stdout], [], [], 5.0)
-            assert ready, (
-                "stdout não foi flushado antes de bloquear no stdin: "
-                f"{command}"
-            )
+            assert ready, f"stdout não foi flushado antes de bloquear no stdin: {command}"
             assert process.stdout.read(6) == b"pronto"
             assert process.stdin is not None
             process.stdin.write(b"ok\n")
@@ -1466,13 +1451,12 @@ def test_io_write_flush_antes_de_bloquear_no_stdin(tmp_path: Path) -> None:
                 if stream is not None:
                     stream.close()
 
+
 @pytest.mark.backend
 def test_build_nao_escreve_no_stdout(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
-        "enum E { A }\n"
-        "val x = match E.A { E.A => 1 }\n"
-        "print(x)\n",
+        "enum E { A }\nval x = match E.A { E.A => 1 }\nprint(x)\n",
     )
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, result.stderr

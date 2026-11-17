@@ -52,7 +52,5 @@ def test_excecao_de_classe_de_modulo_casa(tmp_path: Path) -> None:
         check=False,
     )
     assert build.returncode == 0, build.stderr
-    result = subprocess.run(
-        [str(binary)], capture_output=True, text=True, check=False
-    )
+    result = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
     assert result.stdout == "my: x\n"

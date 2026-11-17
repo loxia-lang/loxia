@@ -73,18 +73,13 @@ def _params(params: list[Param]) -> str:
     return ", ".join(rendered)
 
 
-def _function_symbol(
-    function: Function, *, container: str | None = None
-) -> DocSymbol:
+def _function_symbol(function: Function, *, container: str | None = None) -> DocSymbol:
     type_params = (
         "[" + ", ".join(item.lexeme for item in function.type_params) + "]"
         if function.type_params
         else ""
     )
-    signature = (
-        f"fn {function.name.lexeme}{type_params}"
-        f"({_params(function.params)})"
-    )
+    signature = f"fn {function.name.lexeme}{type_params}({_params(function.params)})"
     if function.return_type is not None:
         signature += f" -> {_type_text(function.return_type)}"
     return DocSymbol(
@@ -128,9 +123,7 @@ def _declaration_symbols(statement: Stmt) -> list[DocSymbol]:
             else ""
         )
         superclass = (
-            f"({statement.superclass.name.lexeme})"
-            if statement.superclass is not None
-            else ""
+            f"({statement.superclass.name.lexeme})" if statement.superclass is not None else ""
         )
         implements = (
             " implements " + ", ".join(item.lexeme for item in statement.implements)
@@ -141,18 +134,14 @@ def _declaration_symbols(statement: Stmt) -> list[DocSymbol]:
             DocSymbol(
                 name=statement.name.lexeme,
                 kind="class",
-                signature=f"class {statement.name.lexeme}{type_params}"
-                f"{superclass}{implements}",
+                signature=f"class {statement.name.lexeme}{type_params}{superclass}{implements}",
                 doc=statement.doc,
                 line=statement.name.line,
                 column=statement.name.column,
                 visibility=_visibility(statement.name.lexeme),
             )
         ]
-        symbols.extend(
-            _field_symbol(field, statement.name.lexeme)
-            for field in statement.fields
-        )
+        symbols.extend(_field_symbol(field, statement.name.lexeme) for field in statement.fields)
         symbols.extend(
             _function_symbol(method, container=statement.name.lexeme)
             for method in statement.methods
@@ -219,8 +208,7 @@ def _declaration_symbols(statement: Stmt) -> list[DocSymbol]:
             DocSymbol(
                 name=statement.name.lexeme,
                 kind="type",
-                signature=f"type {statement.name.lexeme} = "
-                f"{_type_text(statement.target)}",
+                signature=f"type {statement.name.lexeme} = {_type_text(statement.target)}",
                 doc=statement.doc,
                 line=statement.name.line,
                 column=statement.name.column,
@@ -294,9 +282,7 @@ def render_markdown(source: str, symbols: list[DocSymbol]) -> str:
             lines.extend([f"### `{symbol.signature}`", ""])
             lines.append(symbol.doc or "_No documentation._")
             lines.append("")
-            members = [
-                item for item in symbols if item.container == symbol.name
-            ]
+            members = [item for item in symbols if item.container == symbol.name]
             for member in members:
                 lines.extend([f"#### `{member.signature}`", ""])
                 lines.append(member.doc or "_No documentation._")

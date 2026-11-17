@@ -40,9 +40,7 @@ class MathAbs:
         value = _number(arguments[0], "math.abs")
         if numeric.is_int(value):
             if value < 0:
-                return numeric.negate(
-                    value, checked=interpreter.checked_overflow
-                )
+                return numeric.negate(value, checked=interpreter.checked_overflow)
             return value
         return abs(value)
 
@@ -103,9 +101,7 @@ class MathClamp:
         value = _number(arguments[0], "math.clamp")
         low = _number(arguments[1], "math.clamp")
         high = _number(arguments[2], "math.clamp")
-        if math.isnan(float(value)) or math.isnan(float(low)) or math.isnan(
-            float(high)
-        ):
+        if math.isnan(float(value)) or math.isnan(float(low)) or math.isnan(float(high)):
             return float("nan")
         if low > high:
             raise NativeError("math.clamp() requires low <= high.")

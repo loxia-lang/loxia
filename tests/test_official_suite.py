@@ -196,9 +196,7 @@ def adapt_source(source: str) -> str:
     adapted = source.replace("//", "#")
     adapted = re.sub(r"\bfun\b", "fn", adapted)
     adapted = re.sub(r"\bclock\b", "len", adapted)
-    adapted = re.sub(
-        r"\bclass\s+(\w+)\s*<\s*(\w+)", r"class \1(\2)", adapted
-    )
+    adapted = re.sub(r"\bclass\s+(\w+)\s*<\s*(\w+)", r"class \1(\2)", adapted)
     return _declare_this_fields(adapted)
 
 
@@ -251,9 +249,7 @@ def _execute(path: Path) -> subprocess.CompletedProcess[str]:
     source = path.read_text(encoding="utf-8")
     adapted = adapt_source(source)
 
-    with tempfile.NamedTemporaryFile(
-        "w", suffix=".lx", encoding="utf-8", delete=False
-    ) as file:
+    with tempfile.NamedTemporaryFile("w", suffix=".lx", encoding="utf-8", delete=False) as file:
         file.write(adapted)
         temporary = Path(file.name)
 
@@ -276,9 +272,7 @@ def _without_snippet(stderr: str) -> str:
     O `# expect`/`// expect` pode estar na mesma linha do código; o trecho do
     renderizador human não pode virar falso positivo (ADR-0075).
     """
-    return "\n".join(
-        line for line in stderr.splitlines() if not SNIPPET_LINE.match(line)
-    )
+    return "\n".join(line for line in stderr.splitlines() if not SNIPPET_LINE.match(line))
 
 
 @pytest.mark.parametrize("path", CASES_PARAMS)
@@ -295,8 +289,7 @@ def test_official_case(path: Path) -> None:
         # O cabeçalho `arquivo:linha:col: error[CODIGO]:` antecede a mensagem; o
         # critério do livro é a mensagem contida no stderr (ADR-0075, fase 2).
         assert expectations.runtime_error in result.stderr, (
-            f"runtime error esperado: {expectations.runtime_error!r}\n"
-            f"stderr:\n{result.stderr}"
+            f"runtime error esperado: {expectations.runtime_error!r}\nstderr:\n{result.stderr}"
         )
     elif expectations.compile_errors:
         assert result.returncode == 65, (

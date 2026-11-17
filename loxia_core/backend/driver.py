@@ -104,8 +104,7 @@ def build(
         raise
     except Exception as error:
         raise BackendError(
-            "internal error: LLVM lowering/emission failed: "
-            f"{type(error).__name__}: {error}"
+            f"internal error: LLVM lowering/emission failed: {type(error).__name__}: {error}"
         ) from error
 
     if emit == "obj":
@@ -121,8 +120,7 @@ def build(
         raise
     except Exception as error:
         raise BackendError(
-            "internal error: native link failed: "
-            f"{type(error).__name__}: {error}"
+            f"internal error: native link failed: {type(error).__name__}: {error}"
         ) from error
     return target
 
@@ -132,9 +130,7 @@ def _verify(module: Any) -> None:
     try:
         llvm_ir.verify(module)
     except llvm_ir.LLVMVerificationError as error:
-        raise BackendError(
-            f"internal error: generated invalid LLVM IR: {error}"
-        ) from error
+        raise BackendError(f"internal error: generated invalid LLVM IR: {error}") from error
 
 
 def _link(object_bytes: bytes, target: Path, heap_bytes: int) -> None:
@@ -162,9 +158,7 @@ def _link(object_bytes: bytes, target: Path, heap_bytes: int) -> None:
             raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
 
 
-def _runtime_objects(
-    compiler: str, build_dir: Path, heap_bytes: int
-) -> tuple[Path, ...]:
+def _runtime_objects(compiler: str, build_dir: Path, heap_bytes: int) -> tuple[Path, ...]:
     """Compila as unidades do runtime uma vez por (fontes, compilador, flags).
 
     O runtime não depende do programa do usuário; recompilá-lo a cada `--emit=exe`
@@ -176,13 +170,8 @@ def _runtime_objects(
     if cache is not None:
         key = _runtime_key(compiler, heap_bytes)
         directory = cache / f"runtime-{key}"
-        objects = tuple(
-            directory / f"{source.stem}.o" for source in RUNTIME_SOURCES
-        )
-        if all(
-            object_.is_file() and object_.stat().st_size > 0
-            for object_ in objects
-        ):
+        objects = tuple(directory / f"{source.stem}.o" for source in RUNTIME_SOURCES)
+        if all(object_.is_file() and object_.stat().st_size > 0 for object_ in objects):
             return objects
 
         try:
@@ -192,9 +181,7 @@ def _runtime_objects(
                     continue
                 temporary = directory / f"{source.stem}.{os.getpid()}.tmp.o"
                 try:
-                    _compile_runtime_unit(
-                        compiler, source, temporary, directory, heap_bytes
-                    )
+                    _compile_runtime_unit(compiler, source, temporary, directory, heap_bytes)
                     os.replace(temporary, object_)
                 finally:
                     temporary.unlink(missing_ok=True)
@@ -205,9 +192,7 @@ def _runtime_objects(
     fallback: list[Path] = []
     for source in RUNTIME_SOURCES:
         object_ = build_dir / f"runtime_{source.stem}.o"
-        _compile_runtime_unit(
-            compiler, source, object_, build_dir, heap_bytes
-        )
+        _compile_runtime_unit(compiler, source, object_, build_dir, heap_bytes)
         fallback.append(object_)
     return tuple(fallback)
 
@@ -242,9 +227,7 @@ def _runtime_key(compiler: str, heap_bytes: int) -> str:
         try:
             source = path.read_bytes()
         except OSError as error:
-            raise BackendError(
-                f"internal error: can't read runtime source: {error}"
-            ) from error
+            raise BackendError(f"internal error: can't read runtime source: {error}") from error
         # O nome entra na chave: renomear/remover arquivo muda o build.
         digest.update(path.name.encode("utf-8"))
         digest.update(source)
@@ -325,9 +308,7 @@ def _compiler() -> str:
 
 def _run(command: list[str]) -> None:
     try:
-        process = subprocess.run(
-            command, capture_output=True, text=True, check=False
-        )
+        process = subprocess.run(command, capture_output=True, text=True, check=False)
     except OSError as error:
         raise BackendError(
             f"internal error: failed to run {Path(command[0]).name}: {error}"

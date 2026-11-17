@@ -21,9 +21,7 @@ _TOP_LEVEL_KEYS = frozenset({"package", "modules", "dependencies"})
 class ManifestError(Exception):
     """Manifest inválido; a mensagem já está pronta para o diagnóstico."""
 
-    def __init__(
-        self, message: str, *, line: int = 1, column: int = 1
-    ) -> None:
+    def __init__(self, message: str, *, line: int = 1, column: int = 1) -> None:
         super().__init__(message)
         self.message = message
         self.line = line
@@ -64,9 +62,7 @@ def parse_manifest(path: Path, text: str) -> Manifest:
     data = _table(raw, "manifest")
     unknown = sorted(set(data) - _TOP_LEVEL_KEYS)
     if unknown:
-        raise ManifestError(
-            "Unknown manifest key(s): " + ", ".join(unknown) + "."
-        )
+        raise ManifestError("Unknown manifest key(s): " + ", ".join(unknown) + ".")
 
     base = path.parent
     package = _package_name(data.get("package"))
@@ -93,9 +89,7 @@ def _package_name(value: object | None) -> str | None:
     package = _table(value, "package")
     unknown = sorted(set(package) - {"name"})
     if unknown:
-        raise ManifestError(
-            "Unknown [package] key(s): " + ", ".join(unknown) + "."
-        )
+        raise ManifestError("Unknown [package] key(s): " + ", ".join(unknown) + ".")
     if "name" not in package:
         return None
     return _string(package["name"], "package.name")
@@ -110,9 +104,7 @@ def _dependencies(value: object | None, base: Path) -> dict[str, Path]:
         if name == "std":
             raise ManifestError("Dependency name 'std' is reserved.")
         if not _IDENTIFIER.match(name):
-            raise ManifestError(
-                f"Invalid dependency name '{name}'; use an ASCII identifier."
-            )
+            raise ManifestError(f"Invalid dependency name '{name}'; use an ASCII identifier.")
         spec = _table(table[name], f"dependencies.{name}")
         unknown = sorted(set(spec) - {"path"})
         if unknown:
@@ -122,9 +114,7 @@ def _dependencies(value: object | None, base: Path) -> dict[str, Path]:
                 + "; only 'path' is supported."
             )
         if "path" not in spec:
-            raise ManifestError(
-                f"Dependency '{name}' needs a 'path'."
-            )
+            raise ManifestError(f"Dependency '{name}' needs a 'path'.")
         result[name] = _relative_dir(spec["path"], base, f"dependencies.{name}.path")
     return result
 
@@ -135,9 +125,7 @@ def _module_paths(value: object | None, base: Path) -> tuple[Path, ...]:
     modules = _table(value, "modules")
     unknown = sorted(set(modules) - {"paths"})
     if unknown:
-        raise ManifestError(
-            "Unknown [modules] key(s): " + ", ".join(unknown) + "."
-        )
+        raise ManifestError("Unknown [modules] key(s): " + ", ".join(unknown) + ".")
     raw_paths = modules.get("paths", [])
     if not isinstance(raw_paths, list):
         raise ManifestError("Expected 'modules.paths' to be a list of strings.")
@@ -154,7 +142,5 @@ def _relative_dir(value: object, base: Path, what: str) -> Path:
         raise ManifestError(f"'{what}' must be relative to the manifest.")
     resolved = (base / candidate).resolve()
     if not resolved.is_dir():
-        raise ManifestError(
-            f"'{what}' does not exist or is not a directory: '{raw}'."
-        )
+        raise ManifestError(f"'{what}' does not exist or is not a directory: '{raw}'.")
     return resolved

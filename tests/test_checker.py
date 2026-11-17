@@ -175,10 +175,7 @@ def test_function_type_rejects_wrong_signature(
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
-    assert (
-        "Argument 1: Expected fn(Int) -> Int, found fn(Int) -> String."
-        in captured.err
-    )
+    assert "Argument 1: Expected fn(Int) -> Int, found fn(Int) -> String." in captured.err
 
 
 def test_function_type_rejects_non_function(
@@ -592,9 +589,7 @@ def test_mutable_field_initialized_with_nil_needs_annotation(
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
-    assert (
-        "Field 'x' initialized with nil needs a type annotation." in captured.err
-    )
+    assert "Field 'x' initialized with nil needs a type annotation." in captured.err
 
 
 def test_mutable_field_nil_with_annotation_is_clean() -> None:
@@ -768,7 +763,7 @@ def test_override_is_checked_even_if_superclass_comes_later(
             "Expected Int, found String.",
         ),
         (
-            'fn f(a: Int) -> Int { return a; } f();',
+            "fn f(a: Int) -> Int { return a; } f();",
             "Expected 1 arguments but got 0.",
         ),
         ("val x: Desconhecido = 1;", "Unknown type 'Desconhecido'."),
@@ -785,18 +780,15 @@ def test_override_is_checked_even_if_superclass_comes_later(
             "Expected Int, found String.",
         ),
         (
-            "class C { val x: Int; init() { this.x = 1; } }"
-            " val c = C(); c.x = 2;",
+            "class C { val x: Int; init() { this.x = 1; } } val c = C(); c.x = 2;",
             "Can't assign to immutable field 'x'.",
         ),
         (
-            "class C { var x: Int; init() { this.x = 1; } }"
-            " val c = C(); c.y = 2;",
+            "class C { var x: Int; init() { this.x = 1; } } val c = C(); c.y = 2;",
             "Undefined field 'y'.",
         ),
         (
-            "fn f(n: Int) -> Int { return n; }"
-            " fn g() -> Int { return f(true); }",
+            "fn f(n: Int) -> Int { return n; } fn g() -> Int { return f(true); }",
             "Expected Int, found Bool.",
         ),
         (
@@ -809,9 +801,7 @@ def test_override_is_checked_even_if_superclass_comes_later(
         ),
     ],
 )
-def test_type_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_type_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -834,8 +824,7 @@ def test_type_errors(
             "iter() must take no arguments.",
         ),
         (
-            "class C { fn init() {} fn iter() -> Int { return 1; } }"
-            " for x in C() {}",
+            "class C { fn init() {} fn iter() -> Int { return 1; } } for x in C() {}",
             "iter() must return an iterator with next() -> T?",
         ),
         (
@@ -870,9 +859,7 @@ def test_type_errors(
         ),
     ],
 )
-def test_iterator_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_iterator_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -980,7 +967,7 @@ def test_nil_aware_and_conditional_types_are_clean() -> None:
             "Expected Int, found Int | String.",
         ),
         (
-            "class C { var nome: String; init() { this.nome = \"x\"; } }"
+            'class C { var nome: String; init() { this.nome = "x"; } }'
             " val c: C? = nil; val x: Int = c?.nome ?? 0;",
             "Expected Int, found String | Int.",
         ),
@@ -1147,8 +1134,7 @@ def test_map_types_are_clean() -> None:
             "Expected String, found Int.",
         ),
         (
-            "val m: Map[String, Int] = {};"
-            " for k in m { val n: Int = k; }",
+            "val m: Map[String, Int] = {}; for k in m { val n: Int = k; }",
             "Expected Int, found String.",
         ),
         (
@@ -1181,9 +1167,7 @@ def test_map_types_are_clean() -> None:
         ),
     ],
 )
-def test_map_type_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_map_type_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -1268,13 +1252,11 @@ def test_narrowing_types_are_clean() -> None:
     ("source", "message"),
     [
         (
-            'val nome: String? = "Ana";'
-            " if (nome != nil) { print(1) } else { print(len(nome)); }",
+            'val nome: String? = "Ana"; if (nome != nil) { print(1) } else { print(len(nome)); }',
             "Expected a string, a list or a map, found Nil.",
         ),
         (
-            'var nome: String? = "Ana";'
-            " if (nome != nil) { nome = nil; print(len(nome)); }",
+            'var nome: String? = "Ana"; if (nome != nil) { nome = nil; print(len(nome)); }',
             "Expected a string, a list or a map, found Nil.",
         ),
     ],
@@ -1363,7 +1345,7 @@ def test_string_ordering_and_chars() -> None:
 def test_string_ordering_rejects_mixed(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = check("print(1 < \"a\")")
+    lox = check('print(1 < "a")')
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
@@ -1469,9 +1451,7 @@ def test_narrowing_fields_and_indices() -> None:
         """,
     ],
 )
-def test_narrowing_field_invalidations(
-    source: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_narrowing_field_invalidations(source: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -1487,9 +1467,7 @@ def test_storage_type_ignores_narrowing() -> None:
     }
     """
     reporter = ErrorReporter()
-    statements = Parser(
-        Scanner(source, reporter).scan_tokens(), reporter=reporter
-    ).parse()
+    statements = Parser(Scanner(source, reporter).scan_tokens(), reporter=reporter).parse()
     assert statements is not None
 
     Resolver(Interpreter(reporter), reporter).resolve(statements)
@@ -1498,9 +1476,7 @@ def test_storage_type_ignores_narrowing() -> None:
 
     assert reporter.had_error is False
     variables = [
-        node
-        for node in checker.types
-        if isinstance(node, Variable) and node.name.lexeme == "x"
+        node for node in checker.types if isinstance(node, Variable) and node.name.lexeme == "x"
     ]
     narrowed = [node for node in variables if checker.types[node] is INT]
     assert narrowed
@@ -1520,9 +1496,7 @@ def test_storage_type_of_narrowed_field_is_declared() -> None:
     }
     """
     reporter = ErrorReporter()
-    statements = Parser(
-        Scanner(source, reporter).scan_tokens(), reporter=reporter
-    ).parse()
+    statements = Parser(Scanner(source, reporter).scan_tokens(), reporter=reporter).parse()
     assert statements is not None
 
     Resolver(Interpreter(reporter), reporter).resolve(statements)
@@ -1531,9 +1505,7 @@ def test_storage_type_of_narrowed_field_is_declared() -> None:
 
     assert reporter.had_error is False
     fields = [
-        node
-        for node in checker.types
-        if isinstance(node, Get) and node.name.lexeme == "nome"
+        node for node in checker.types if isinstance(node, Get) and node.name.lexeme == "nome"
     ]
     narrowed = [node for node in fields if checker.types[node] is STRING]
     assert narrowed
@@ -1683,9 +1655,7 @@ def test_generic_functions_identity_map_filter_and_context() -> None:
         ),
     ],
 )
-def test_generic_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_generic_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -1759,13 +1729,11 @@ def test_generic_constraints_accept_ord_num_and_interfaces() -> None:
             "has no method 'nome'; add an interface bound.",
         ),
         (
-            "fn max[T: Ord](a: T, b: T) -> T { return a; }"
-            " print(max(true, false));",
+            "fn max[T: Ord](a: T, b: T) -> T { return a; } print(max(true, false));",
             "doesn't satisfy constraint 'Ord'.",
         ),
         (
-            "fn twice[T: Num](x: T) -> T { return x + x; }"
-            " print(twice(\"a\"));",
+            'fn twice[T: Num](x: T) -> T { return x + x; } print(twice("a"));',
             "doesn't satisfy constraint 'Num'.",
         ),
         (
@@ -1951,15 +1919,15 @@ def test_interpolation_types_are_clean() -> None:
             "Expected Int, found String.",
         ),
         (
-            "print(\"${naoexiste}\");",
+            'print("${naoexiste}");',
             "Undefined variable 'naoexiste'.",
         ),
         (
-            "print(\"${[1, \"a\"]}\");",
+            'print("${[1, "a"]}");',
             "List elements must have a common type; found Int and String.",
         ),
         (
-            "print(\"${}\");",
+            'print("${}");',
             "Expect expression.",
         ),
     ],
@@ -1998,7 +1966,7 @@ def test_interpolation_type_errors(
             "Expected Int, found String.",
         ),
         (
-            "val xs: List[Int] = [1]; print(xs[\"a\"]);",
+            'val xs: List[Int] = [1]; print(xs["a"]);',
             "List index must be an integer, found String.",
         ),
         (
@@ -2006,7 +1974,7 @@ def test_interpolation_type_errors(
             "Expected Int, found String.",
         ),
         (
-            'val xs: List[Int] = [1, 2.0];',
+            "val xs: List[Int] = [1, 2.0];",
             "Expected Int, found Float.",
         ),
         (
@@ -2018,8 +1986,7 @@ def test_interpolation_type_errors(
             "Undefined property 'foo'.",
         ),
         (
-            "val xs: List[Int] = [1];"
-            " for x in xs { val y: String = x; }",
+            "val xs: List[Int] = [1]; for x in xs { val y: String = x; }",
             "Expected String, found Int.",
         ),
         (
@@ -2040,9 +2007,7 @@ def test_interpolation_type_errors(
         ),
     ],
 )
-def test_list_type_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_list_type_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -2124,7 +2089,7 @@ def test_casts_parse_and_math_are_typed() -> None:
             "Expected Float, found Int.",
         ),
         ("val xs: List[Float] = [1];", "Expected Float, found Int."),
-        ("val m: Map[String, Float] = { \"a\": 1 };", "Expected Float, found Int."),
+        ('val m: Map[String, Float] = { "a": 1 };', "Expected Float, found Int."),
         (
             "class P { var x: Float; init() { this.x = 2; } }",
             "Expected Float, found Int.",
@@ -2270,15 +2235,15 @@ def test_tuple_any_can_be_destructured_with_annotation() -> None:
             "Can only destructure tuples, found Int.",
         ),
         (
-            'val (a, (b, c)): (Int, (String, Bool)) = (1, (2, true))',
+            "val (a, (b, c)): (Int, (String, Bool)) = (1, (2, true))",
             "Expected String, found Int.",
         ),
         (
-            "print((1, 2)[\"a\"])",
+            'print((1, 2)["a"])',
             "Tuple index must be an integer, found String.",
         ),
         (
-            'val (a, b): (Int, String) = (1, 2)',
+            "val (a, b): (Int, String) = (1, 2)",
             "Expected String, found Int.",
         ),
     ],
@@ -2330,7 +2295,7 @@ def test_tuple_iteration_is_and_as() -> None:
 def test_tuple_as_incompatible_is_rejected(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lox = check("print((1, \"a\") as (Int, Int))")
+    lox = check('print((1, "a") as (Int, Int))')
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
@@ -2468,8 +2433,7 @@ def test_enum_match_and_result() -> None:
     ("source", "message"),
     [
         (
-            "enum Cor { Vermelho, Verde }\n"
-            "print(match Cor.Vermelho { Cor.Vermelho => 1 })",
+            "enum Cor { Vermelho, Verde }\nprint(match Cor.Vermelho { Cor.Vermelho => 1 })",
             "Non-exhaustive match; missing Cor.Verde.",
         ),
         (
@@ -2478,14 +2442,12 @@ def test_enum_match_and_result() -> None:
             "Unreachable match arm.",
         ),
         (
-            "enum Cor { Vermelho, Verde }\n"
-            "print(match Cor.Vermelho { _ => 1, Cor.Verde => 2 })",
+            "enum Cor { Vermelho, Verde }\nprint(match Cor.Vermelho { _ => 1, Cor.Verde => 2 })",
             "Unreachable match arm.",
         ),
         ("print(match 1 { _ => 1 })", "match requires an enum value"),
         (
-            "enum Cor { Vermelho }\n"
-            "print(match Cor.Vermelho { Cor.Verde => 1 })",
+            "enum Cor { Vermelho }\nprint(match Cor.Vermelho { Cor.Verde => 1 })",
             "Unknown variant 'Verde'.",
         ),
         (
@@ -2507,19 +2469,16 @@ print(x is E[Int])""",
             "Can't infer type argument(s) 'E'.",
         ),
         (
-            "enum Shape { Circle(Float) }\nval s = Shape.Circle(\"x\")",
+            'enum Shape { Circle(Float) }\nval s = Shape.Circle("x")',
             "Argument 1: Expected Float, found String.",
         ),
         (
-            "enum Cor { Vermelho }\n"
-            "print(match Cor.Vermelho { Cor.Vermelho(x) => 1 })",
+            "enum Cor { Vermelho }\nprint(match Cor.Vermelho { Cor.Vermelho(x) => 1 })",
             "expects 0 binding(s), got 1.",
         ),
     ],
 )
-def test_enum_match_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_enum_match_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -2581,9 +2540,7 @@ def test_exceptions_typed_catch_and_finally() -> None:
         ("try { print(1) }", "Try needs at least one 'except' or 'finally'."),
     ],
 )
-def test_exception_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_exception_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -2673,8 +2630,7 @@ def test_interfaces_defaults_superclass_and_types_are_clean() -> None:
             "Unknown interface 'Nope'.",
         ),
         (
-            "interface I { m() -> Int }\n"
-            "class C implements I, I { fn m() -> Int { return 1 } }",
+            "interface I { m() -> Int }\nclass C implements I, I { fn m() -> Int { return 1 } }",
             "Interface 'I' is already implemented.",
         ),
         (
@@ -2699,8 +2655,7 @@ print(I)""",
             "Interfaces must be declared at top level.",
         ),
         (
-            "class C implements I { fn m() -> Int { return 1 } }\n"
-            "interface I { m() -> Int }",
+            "class C implements I { fn m() -> Int { return 1 } }\ninterface I { m() -> Int }",
             "Interface 'I' must be declared before class 'C'.",
         ),
         (
@@ -2716,15 +2671,12 @@ print(I)""",
             "Method 'm' must return Int on all paths.",
         ),
         (
-            "interface I { fn m() -> Int { return 1 } }\n"
-            "class C implements I { val m: Int = 1 }",
+            "interface I { fn m() -> Int { return 1 } }\nclass C implements I { val m: Int = 1 }",
             "Field 'm' conflicts with an interface method.",
         ),
     ],
 )
-def test_interface_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_interface_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -2744,23 +2696,20 @@ def test_interface_errors(
             "Variadic parameters aren't supported in 'init' yet.",
         ),
         (
-            "fn f(a: Int) -> Int { return a; }"
-            " val xs = [1]; print(f(...xs));",
+            "fn f(a: Int) -> Int { return a; } val xs = [1]; print(f(...xs));",
             "Spread arguments are only supported for variadic functions.",
         ),
         (
-            "fn f(a: Int, ...xs: Int) -> Int { return a; }"
-            " print(f(...[1, 2]));",
+            "fn f(a: Int, ...xs: Int) -> Int { return a; } print(f(...[1, 2]));",
             "Spread arguments only fill the variadic parameter; "
             "pass the fixed parameters explicitly.",
         ),
         (
-            "fn f(...xs: Int) -> Int { return 0; }"
-            " val xs = [\"a\"]; print(f(...xs));",
+            'fn f(...xs: Int) -> Int { return 0; } val xs = ["a"]; print(f(...xs));',
             "Expected List[Int], found List[String].",
         ),
         (
-            "fn f(...xs: Int) -> Int { return 0; } print(f(1, \"a\"));",
+            'fn f(...xs: Int) -> Int { return 0; } print(f(1, "a"));',
             "Expected Int, found String.",
         ),
         (
@@ -2769,9 +2718,7 @@ def test_interface_errors(
         ),
     ],
 )
-def test_variadic_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_variadic_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 
@@ -2834,9 +2781,7 @@ def test_type_aliases_are_transparent() -> None:
         ),
     ],
 )
-def test_type_alias_errors(
-    source: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_type_alias_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 

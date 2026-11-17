@@ -69,13 +69,11 @@ def matches_type(
         return isinstance(value, LoxRange)
     if isinstance(ty, ListTy):
         return isinstance(value, LoxList) and all(
-            matches_type(element, ty.element, class_lookup)
-            for element in value.elements
+            matches_type(element, ty.element, class_lookup) for element in value.elements
         )
     if isinstance(ty, MapTy):
         return isinstance(value, LoxMap) and all(
-            matches_type(key, ty.key, class_lookup)
-            and matches_type(item, ty.value, class_lookup)
+            matches_type(key, ty.key, class_lookup) and matches_type(item, ty.value, class_lookup)
             for key, item in value.items
         )
     if isinstance(ty, TupleTy):
@@ -102,9 +100,7 @@ def matches_type(
     if isinstance(ty, ClassObjectTy):
         return isinstance(value, LoxClass) and value.is_subclass_of(ty.name)
     if isinstance(ty, UnionTy):
-        return any(
-            matches_type(value, member, class_lookup) for member in ty.members
-        )
+        return any(matches_type(value, member, class_lookup) for member in ty.members)
     if isinstance(ty, (FnTy, NativeFnTy)):
         return False
 

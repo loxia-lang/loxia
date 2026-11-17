@@ -90,8 +90,7 @@ class AstPrinter:
 
     def visit_match_expr(self, expr: Match) -> str:
         arms = " ".join(
-            f"({self._pattern(arm.pattern)} {arm.body.accept(self)})"
-            for arm in expr.arms
+            f"({self._pattern(arm.pattern)} {arm.body.accept(self)})" for arm in expr.arms
         )
         return f"(match {expr.scrutinee.accept(self)} {arms})"
 
@@ -102,9 +101,7 @@ class AstPrinter:
         if isinstance(pattern, VariantPattern):
             bindings = " ".join(token.lexeme for token in pattern.bindings)
             suffix = f" ({bindings})" if bindings else ""
-            return (
-                f"({pattern.enum.lexeme}.{pattern.variant.lexeme}{suffix})"
-            )
+            return f"({pattern.enum.lexeme}.{pattern.variant.lexeme}{suffix})"
         return "_"
 
     def visit_try_stmt(self, stmt: Try) -> str:
@@ -114,9 +111,7 @@ class AstPrinter:
             for clause in stmt.handlers
         )
         finally_part = (
-            f" (finally {self._block(stmt.finally_body)})"
-            if stmt.finally_body is not None
-            else ""
+            f" (finally {self._block(stmt.finally_body)})" if stmt.finally_body is not None else ""
         )
         return f"(try {self._block(stmt.body)} {handlers}{finally_part})"
 
@@ -149,8 +144,7 @@ class AstPrinter:
             return "(map)"
 
         inner = " ".join(
-            f"({key.accept(self)} {value.accept(self)})"
-            for key, value in expr.entries
+            f"({key.accept(self)} {value.accept(self)})" for key, value in expr.entries
         )
         return f"(map {inner})"
 
@@ -158,9 +152,7 @@ class AstPrinter:
         return self._parenthesize("index", expr.object, expr.index)
 
     def visit_index_set_expr(self, expr: IndexSet) -> str:
-        return self._parenthesize(
-            "index-set", expr.object, expr.index, expr.value
-        )
+        return self._parenthesize("index-set", expr.object, expr.index, expr.value)
 
     def visit_is_expr(self, expr: Is) -> str:
         return f"(is {expr.left.accept(self)} {display(expr.test_type)})"
@@ -175,9 +167,7 @@ class AstPrinter:
         return self._parenthesize(expr.operator.lexeme, expr.left, expr.right)
 
     def visit_range_expr(self, expr: Range) -> str:
-        return self._parenthesize(
-            "..=" if expr.inclusive else "..", expr.start, expr.end
-        )
+        return self._parenthesize("..=" if expr.inclusive else "..", expr.start, expr.end)
 
     def visit_assign_expr(self, expr: Assign) -> str:
         return self._parenthesize(f"= {expr.name.lexeme}", expr.value)
@@ -194,9 +184,7 @@ class AstPrinter:
         return f"({inner})"
 
     def visit_conditional_expr(self, expr: Conditional) -> str:
-        return self._parenthesize(
-            "if", expr.condition, expr.then_branch, expr.else_branch
-        )
+        return self._parenthesize("if", expr.condition, expr.then_branch, expr.else_branch)
 
     def visit_get_expr(self, expr: Get) -> str:
         name = "?." if expr.optional else "."
@@ -252,11 +240,7 @@ class AstPrinter:
         for field in stmt.fields:
             keyword = "var" if field.mutable else "val"
             suffix = self._type_suffix(field.type_annotation)
-            value = (
-                f" {field.initializer.accept(self)}"
-                if field.initializer is not None
-                else ""
-            )
+            value = f" {field.initializer.accept(self)}" if field.initializer is not None else ""
             parts.append(f"({keyword} {field.name.lexeme}{suffix}{value})")
 
         parts.extend(method.accept(self) for method in stmt.methods)
@@ -267,10 +251,7 @@ class AstPrinter:
         return f"(expr {stmt.expression.accept(self)})"
 
     def visit_for_in_stmt(self, stmt: ForIn) -> str:
-        return (
-            f"(for-in {stmt.name.lexeme} {stmt.iterable.accept(self)} "
-            f"{stmt.body.accept(self)})"
-        )
+        return f"(for-in {stmt.name.lexeme} {stmt.iterable.accept(self)} {stmt.body.accept(self)})"
 
     def visit_lambda_expr(self, expr: Lambda) -> str:
         params = " ".join(
@@ -280,11 +261,7 @@ class AstPrinter:
             + self._type_suffix(param.type_annotation)
             for param in expr.params
         )
-        returns = (
-            f" -> {display(expr.return_type)}"
-            if expr.return_type is not None
-            else ""
-        )
+        returns = f" -> {display(expr.return_type)}" if expr.return_type is not None else ""
         body = " ".join(statement.accept(self) for statement in expr.body)
         inner = f"({params})"
         return f"(lambda {inner}{returns}{f' {body}' if body else ''})"
@@ -297,11 +274,7 @@ class AstPrinter:
             + self._type_suffix(param.type_annotation)
             for param in stmt.params
         )
-        returns = (
-            f" -> {display(stmt.return_type)}"
-            if stmt.return_type is not None
-            else ""
-        )
+        returns = f" -> {display(stmt.return_type)}" if stmt.return_type is not None else ""
         return f"({params})", returns
 
     def visit_type_alias_stmt(self, stmt: TypeAlias) -> str:
@@ -314,12 +287,9 @@ class AstPrinter:
             if method.abstract:
                 parts.append(f"(sig {method.name.lexeme} {inner}{returns})")
             else:
-                body = " ".join(
-                    statement.accept(self) for statement in method.body
-                )
+                body = " ".join(statement.accept(self) for statement in method.body)
                 parts.append(
-                    f"(fn {method.name.lexeme} {inner}{returns}"
-                    f"{f' {body}' if body else ''})"
+                    f"(fn {method.name.lexeme} {inner}{returns}{f' {body}' if body else ''})"
                 )
         return f"({' '.join(parts)})"
 
@@ -331,21 +301,14 @@ class AstPrinter:
             rendered = []
             for index, token in enumerate(stmt.type_params):
                 text = token.lexeme
-                if (
-                    index < len(stmt.type_param_bounds)
-                    and stmt.type_param_bounds[index]
-                ):
+                if index < len(stmt.type_param_bounds) and stmt.type_param_bounds[index]:
                     constraints = " + ".join(
-                        bound.lexeme
-                        for bound in stmt.type_param_bounds[index]
+                        bound.lexeme for bound in stmt.type_param_bounds[index]
                     )
                     text = f"{text}: {constraints}"
                 rendered.append(text)
             type_params = "[" + " ".join(rendered) + "]"
-        return (
-            f"(fn {stmt.name.lexeme}{type_params} {inner}{returns}"
-            f"{f' {body}' if body else ''})"
-        )
+        return f"(fn {stmt.name.lexeme}{type_params} {inner}{returns}{f' {body}' if body else ''})"
 
     def visit_if_stmt(self, stmt: If) -> str:
         condition = stmt.condition.accept(self)
@@ -371,9 +334,7 @@ class AstPrinter:
     def _destructure_pattern(self, pattern: DestructurePattern) -> str:
         if isinstance(pattern, NamePattern):
             return pattern.name.lexeme
-        inner = " ".join(
-            self._destructure_pattern(element) for element in pattern.elements
-        )
+        inner = " ".join(self._destructure_pattern(element) for element in pattern.elements)
         return f"({inner})"
 
     def visit_var_stmt(self, stmt: Var) -> str:

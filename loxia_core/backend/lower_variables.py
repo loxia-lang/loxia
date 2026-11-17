@@ -53,12 +53,8 @@ class VariableLowering(LoweringBase):
         else:
             self.builder.store(value.llvm, binding.storage)
 
-    def _guard_closure(
-        self, value: Value, name: str, line: int, column: int = 0
-    ) -> Value:
-        is_null = self.builder.icmp_signed(
-            "==", value.llvm, llvm_ir.null_pointer()
-        )
+    def _guard_closure(self, value: Value, name: str, line: int, column: int = 0) -> Value:
+        is_null = self.builder.icmp_signed("==", value.llvm, llvm_ir.null_pointer())
         ok = llvm_ir.append_block(self._function_ir, "fn.ok")
         bad = llvm_ir.append_block(self._function_ir, "fn.null")
         self.builder.cbranch(is_null, bad, ok)
@@ -76,8 +72,7 @@ class VariableLowering(LoweringBase):
         if stmt.initializer is None:
             if stmt.type_annotation is None:
                 raise BackendError(
-                    "Uninitialized variables need a type annotation "
-                    "for the backend.",
+                    "Uninitialized variables need a type annotation for the backend.",
                     stmt.name.line,
                     code=Code.BACKEND_UNSUPPORTED,
                 )
@@ -116,17 +111,14 @@ class VariableLowering(LoweringBase):
                             TypeDesc(annotated.ty, annotated.fn)
                         ):
                             raise BackendError(
-                                f"Can't initialize {annotated.ty.name}? with "
-                                f"{value.ty.name}?.",
+                                f"Can't initialize {annotated.ty.name}? with {value.ty.name}?.",
                                 stmt.name.line,
                             )
                         declared = value.desc
                     else:
                         # Como no L2, o tipo do slot é o do valor em runtime:
                         # `var b: Float? = 2` guarda `Int?` e imprime `2`.
-                        declared = TypeDesc(
-                            value.ty, value.sig, True, value.class_name
-                        )
+                        declared = TypeDesc(value.ty, value.sig, True, value.class_name)
                         value = self._some(declared, value)
                 elif value.optional or value.ty is ValueType.NIL:
                     declared = annotated
@@ -178,9 +170,7 @@ class VariableLowering(LoweringBase):
                 return
 
             name = f"g.{stmt.name.lexeme}"
-            global_ = llvm_ir.global_variable(
-                self.module, name, self._storage_llvm_type(declared)
-            )
+            global_ = llvm_ir.global_variable(self.module, name, self._storage_llvm_type(declared))
             binding = Binding(
                 global_,
                 declared.ty,
@@ -214,9 +204,7 @@ class VariableLowering(LoweringBase):
             )
             return
 
-        slot = self.builder.alloca(
-            self._storage_llvm_type(declared), name=stmt.name.lexeme
-        )
+        slot = self.builder.alloca(self._storage_llvm_type(declared), name=stmt.name.lexeme)
         self.builder.store(value.llvm, slot)
         self._scopes[-1][stmt.name.lexeme] = Binding(
             slot,
@@ -245,9 +233,7 @@ class VariableLowering(LoweringBase):
         if value.generic is not None:
             return value
         if value.ty in (ValueType.FUNCTION, ValueType.CLASS):
-            return self._guard_closure(
-                value, expr.name.lexeme, expr.name.line, expr.name.column
-            )
+            return self._guard_closure(value, expr.name.lexeme, expr.name.line, expr.name.column)
         return value
 
     def _assign(self, expr: Assign) -> Value:

@@ -47,9 +47,7 @@ def render() -> str:
         lines.append(f"| `{level}` | {len(LEVELS[level])} |")
 
     total = sum(len(cases) for cases in LEVELS.values())
-    pending = ", ".join(
-        f"`{Path(case).stem}` ({level})" for case, level in sorted(PENDING.items())
-    )
+    pending = ", ".join(f"`{Path(case).stem}` ({level})" for case, level in sorted(PENDING.items()))
     lines.append("")
     lines.append(
         f"**{total} casos** em {len(LEVELS)} níveis compilam e concordam; "

@@ -84,9 +84,7 @@ class _Unit:
         if existing is None:
             self.captures[binding.name] = Capture(binding.name, binding.decl)
         elif existing.decl is not binding.decl:
-            raise AssertionError(
-                f"capture ambíguo para '{binding.name}' na mesma função"
-            )
+            raise AssertionError(f"capture ambíguo para '{binding.name}' na mesma função")
 
 
 @dataclass(frozen=True)
@@ -148,9 +146,7 @@ class _Analyzer:
 
     # --- funções ---
 
-    def _function(
-        self, node: FunctionNode, params: list[Param], body: list[Stmt]
-    ) -> None:
+    def _function(self, node: FunctionNode, params: list[Param], body: list[Stmt]) -> None:
         unit = _Unit(node, self._unit)
         self._units[node] = unit
 
@@ -215,7 +211,6 @@ class _Analyzer:
             self._expr(stmt.condition)
             self._stmt(stmt.body)
             return
-
 
         if isinstance(stmt, Return):
             if stmt.value is not None:

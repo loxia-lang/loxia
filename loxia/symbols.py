@@ -90,13 +90,9 @@ class SymbolIndex:
         if symbol.container is None:
             self.by_name.setdefault(symbol.name, symbol)
         else:
-            self.by_container.setdefault(symbol.container, {})[
-                symbol.name
-            ] = symbol
+            self.by_container.setdefault(symbol.container, {})[symbol.name] = symbol
 
-    def _add_statements(
-        self, statements: list[Stmt], *, container: str | None
-    ) -> None:
+    def _add_statements(self, statements: list[Stmt], *, container: str | None) -> None:
         for statement in statements:
             self._add_statement(statement, container=container)
 
@@ -175,8 +171,7 @@ class SymbolIndex:
                     name=statement.name.lexeme,
                     kind="type",
                     token=statement.name,
-                    signature=f"type {statement.name.lexeme} = "
-                    f"{display(statement.target)}",
+                    signature=f"type {statement.name.lexeme} = {display(statement.target)}",
                     doc=statement.doc,
                     container=container,
                 )
@@ -302,14 +297,10 @@ class SymbolIndex:
             if ty is not None:
                 self.token_types[key] = ty
             object_type = (
-                self._checker.types.get(expression.object)
-                if self._checker is not None
-                else None
+                self._checker.types.get(expression.object) if self._checker is not None else None
             )
             if isinstance(object_type, (ClassTy, InterfaceTy, EnumObjectTy)):
-                symbol = self.by_container.get(object_type.name, {}).get(
-                    expression.name.lexeme
-                )
+                symbol = self.by_container.get(object_type.name, {}).get(expression.name.lexeme)
                 if symbol is not None:
                     self.references[key] = token_key(symbol.token)
             return
@@ -401,11 +392,7 @@ def _class_signature(statement: Class) -> str:
         if statement.type_params
         else ""
     )
-    superclass = (
-        f"({statement.superclass.name.lexeme})"
-        if statement.superclass is not None
-        else ""
-    )
+    superclass = f"({statement.superclass.name.lexeme})" if statement.superclass is not None else ""
     implements = (
         " implements " + ", ".join(item.lexeme for item in statement.implements)
         if statement.implements

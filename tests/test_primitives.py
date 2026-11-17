@@ -41,10 +41,7 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "time.now",
         "time.sleep",
     ]
-    signatures = {
-        primitive.lox: (primitive.params, primitive.result)
-        for primitive in PRIMITIVES
-    }
+    signatures = {primitive.lox: (primitive.params, primitive.result) for primitive in PRIMITIVES}
     assert signatures["substr"] == ((STRING, INT, INT), STRING)
     assert signatures["join"] == ((ListTy(STRING), STRING), STRING)
     assert signatures["charCodeAt"] == ((STRING, INT), INT)

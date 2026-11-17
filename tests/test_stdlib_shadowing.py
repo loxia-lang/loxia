@@ -24,8 +24,7 @@ def test_core_nao_sombreia_modulos_da_stdlib() -> None:
     )
 
     assert offenders == [], (
-        "renomeie estes módulos de loxia_core/ para não sombrear a stdlib: "
-        + ", ".join(offenders)
+        "renomeie estes módulos de loxia_core/ para não sombrear a stdlib: " + ", ".join(offenders)
     )
 
 

@@ -263,9 +263,7 @@ def test_conditional_and_coalesce_ast_shape() -> None:
     assert ast("1 ?? 2 or 3") == "(?? 1 (or 2 3))"
     assert ast("1 ?? 2 if true else 3") == "(if true (?? 1 2) 3)"
     assert ast("1 if true else 2 ?? 3") == "(if true 1 (?? 2 3))"
-    assert ast("1 if true else 2 if false else 3") == (
-        "(if true 1 (if false 2 3))"
-    )
+    assert ast("1 if true else 2 if false else 3") == ("(if true 1 (if false 2 3))")
 
 
 def test_optional_chain_ast_shape() -> None:
@@ -303,9 +301,7 @@ def test_parses_function_declaration() -> None:
 
 
 def test_parses_generic_function_type_params() -> None:
-    statements = parse(
-        "fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] { return []; }"
-    )
+    statements = parse("fn map[T, U](xs: List[T], f: fn(T) -> U) -> List[U] { return []; }")
 
     function = statements[0]
     assert isinstance(function, Function)
@@ -361,8 +357,7 @@ def test_parses_type_annotations() -> None:
 
 def test_parses_function_type_annotations() -> None:
     statements = parse(
-        "fn aplicar(f: fn(Int) -> String, g: (fn() -> Int)?)"
-        " -> fn(String) -> Int { return f; }"
+        "fn aplicar(f: fn(Int) -> String, g: (fn() -> Int)?) -> fn(String) -> Int { return f; }"
     )
 
     function = statements[0]
@@ -513,9 +508,7 @@ def test_tuple_literal_and_grouping() -> None:
 
 
 def test_destructuring_shape() -> None:
-    statements = parse(
-        'val (a, b) = (1, 2); var (c, d): (Int, String) = (3, "x");'
-    )
+    statements = parse('val (a, b) = (1, 2); var (c, d): (Int, String) = (3, "x");')
 
     first = statements[0]
     assert isinstance(first, Destructure)
@@ -562,17 +555,15 @@ def test_tuple_parse_errors(source: str) -> None:
 
 
 def test_parses_type_param_bounds() -> None:
-    statements = parse(
-        "fn f[T: Ord + Forma, U: Num](a: T, b: U) -> T { return a; }"
-    )
+    statements = parse("fn f[T: Ord + Forma, U: Num](a: T, b: U) -> T { return a; }")
 
     function = statements[0]
     assert isinstance(function, Function)
     assert [token.lexeme for token in function.type_params] == ["T", "U"]
-    assert [
-        [token.lexeme for token in bounds]
-        for bounds in function.type_param_bounds
-    ] == [["Ord", "Forma"], ["Num"]]
+    assert [[token.lexeme for token in bounds] for bounds in function.type_param_bounds] == [
+        ["Ord", "Forma"],
+        ["Num"],
+    ]
 
 
 def test_class_type_param_bounds_are_rejected() -> None:
@@ -599,10 +590,7 @@ def test_generic_type_alias_is_rejected() -> None:
 
 
 def test_parses_variadic_parameter_and_spread_call() -> None:
-    statements = parse(
-        'fn f(a: Int, ...xs: String) -> Int { return a; }'
-        ' f(1, ...["a", "b"]);'
-    )
+    statements = parse('fn f(a: Int, ...xs: String) -> Int { return a; } f(1, ...["a", "b"]);')
 
     function = statements[0]
     assert isinstance(function, Function)
@@ -684,8 +672,7 @@ def test_enum_and_match_parse() -> None:
 
 def test_try_and_raise_parse() -> None:
     statements = parse(
-        'try { raise "x"; } except RuntimeError as e { print(e); } '
-        "finally { print(1); }"
+        'try { raise "x"; } except RuntimeError as e { print(e); } finally { print(1); }'
     )
 
     first = statements[0]

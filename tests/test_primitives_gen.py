@@ -34,11 +34,7 @@ def test_header_gerado_esta_atualizado() -> None:
 def test_header_declara_toda_a_tabela() -> None:
     text = HEADER.read_text(encoding="utf-8")
 
-    missing = [
-        primitive.c_symbol
-        for primitive in PRIMITIVES
-        if primitive.c_symbol not in text
-    ]
+    missing = [primitive.c_symbol for primitive in PRIMITIVES if primitive.c_symbol not in text]
     assert missing == [], f"fora do header: {missing}"
 
 

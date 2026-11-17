@@ -26,10 +26,10 @@ class Environment:
             return self.enclosing.get(name)
 
         raise LoxRuntimeError(
-                name,
-                f"Undefined variable '{name.lexeme}'.",
-                code=Code.UNDEFINED_VARIABLE,
-            )
+            name,
+            f"Undefined variable '{name.lexeme}'.",
+            code=Code.UNDEFINED_VARIABLE,
+        )
 
     def assign(self, name: Token, value: object) -> None:
         if name.lexeme in self.values:
@@ -48,10 +48,10 @@ class Environment:
             return
 
         raise LoxRuntimeError(
-                name,
-                f"Undefined variable '{name.lexeme}'.",
-                code=Code.UNDEFINED_VARIABLE,
-            )
+            name,
+            f"Undefined variable '{name.lexeme}'.",
+            code=Code.UNDEFINED_VARIABLE,
+        )
 
     def get_at(self, distance: int, name: str) -> object:
         return self.ancestor(distance).values[name]
@@ -60,10 +60,10 @@ class Environment:
         target = self.ancestor(distance)
         if not target.is_mutable(name.lexeme):
             raise LoxRuntimeError(
-                    name,
-                    immutable_assignment_message(name.lexeme),
-                    code=Code.RUNTIME_IMMUTABLE,
-                )
+                name,
+                immutable_assignment_message(name.lexeme),
+                code=Code.RUNTIME_IMMUTABLE,
+            )
 
         target.values[name.lexeme] = value
 

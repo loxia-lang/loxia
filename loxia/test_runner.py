@@ -86,10 +86,7 @@ def discover(paths: list[str]) -> list[Path]:
         if not path.is_dir():
             raise FileNotFoundError(raw)
         for candidate in path.rglob("*_test.lx"):
-            if any(
-                part in SKIP_DIRS or part.startswith(".tmp")
-                for part in candidate.parts
-            ):
+            if any(part in SKIP_DIRS or part.startswith(".tmp") for part in candidate.parts):
                 continue
             files.append(candidate)
     return sorted(set(files))
@@ -119,9 +116,7 @@ def _parse_tap(path: Path, stdout: str, returncode: int) -> list[TestResult]:
         current = TestResult(_display(path), name, status, skip)
         results.append(current)
     if current is not None and diagnostics:
-        results[-1] = TestResult(
-            current.file, current.name, current.status, "\n".join(diagnostics)
-        )
+        results[-1] = TestResult(current.file, current.name, current.status, "\n".join(diagnostics))
     if returncode != 0 and not any(item.status == "fail" for item in results):
         results.append(
             TestResult(
@@ -146,9 +141,7 @@ def _invoke(
     timeout_s: float | None,
 ) -> Invocation:
     command = (
-        [binary]
-        if binary is not None
-        else [sys.executable, "-m", "loxia", "run", str(path), "--"]
+        [binary] if binary is not None else [sys.executable, "-m", "loxia", "run", str(path), "--"]
     )
     command = [*command, *script_args]
     try:
@@ -336,15 +329,8 @@ def _run_isolated(
     jobs: int,
     fail_fast: bool,
 ) -> list[FileRun]:
-    names, errors = _collect_names(
-        files, binaries, build_errors, script_args, timeout_s, jobs
-    )
-    units = [
-        (path, name)
-        for path in files
-        for name in names.get(path, [])
-        if path not in errors
-    ]
+    names, errors = _collect_names(files, binaries, build_errors, script_args, timeout_s, jobs)
+    units = [(path, name) for path in files for name in names.get(path, []) if path not in errors]
     results: list[TestResult] = []
     if jobs == 1:
         for path, name in units:
@@ -355,9 +341,7 @@ def _run_isolated(
     else:
         with ThreadPoolExecutor(max_workers=jobs) as pool:
             futures = [
-                pool.submit(
-                    _run_single_test, path, name, binaries[path], timeout_s
-                )
+                pool.submit(_run_single_test, path, name, binaries[path], timeout_s)
                 for path, name in units
             ]
             results = [future.result() for future in futures]
@@ -425,9 +409,7 @@ def _payload(runs: list[FileRun]) -> dict[str, object]:
 
 def run_tests(args: argparse.Namespace) -> int:
     """Executa o subcomando `loxia test`; devolve o código de saída."""
-    paths: list[str] = args.paths or (
-        ["tests"] if Path("tests").is_dir() else ["."]
-    )
+    paths: list[str] = args.paths or (["tests"] if Path("tests").is_dir() else ["."])
     try:
         files = discover(paths)
     except FileNotFoundError as missing:
@@ -479,7 +461,5 @@ def run_tests(args: argparse.Namespace) -> int:
     else:
         text, _failed = _render_human(runs)
         print(text)
-    failed = sum(
-        1 for run in runs for result in run.results if result.status == "fail"
-    )
+    failed = sum(1 for run in runs for result in run.results if result.status == "fail")
     return 1 if failed else 0

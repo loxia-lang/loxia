@@ -11,6 +11,13 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: ruff-format
+        name: ruff format
+        entry: env UV_CACHE_DIR=.uv-cache uv run ruff format .
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: mypy
         name: mypy strict
         entry: env UV_CACHE_DIR=.uv-cache uv run mypy

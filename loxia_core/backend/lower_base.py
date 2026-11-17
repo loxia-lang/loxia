@@ -106,9 +106,7 @@ class LoweringBase:
     ) -> FunctionInfo:
         raise NotImplementedError
 
-    def _emit_function(
-        self, info: FunctionInfo, stmt: Function, captures: Any
-    ) -> None:
+    def _emit_function(self, info: FunctionInfo, stmt: Function, captures: Any) -> None:
         raise NotImplementedError
 
     def _stack_enter(self, info: FunctionInfo) -> None:
@@ -183,9 +181,7 @@ class LoweringBase:
     def _parse_call(self, expr: Call, desc: TypeDesc) -> Value:
         raise NotImplementedError
 
-    def _instantiate_class(
-        self, name: str, args: tuple[Ty, ...], line: int | None
-    ) -> TypeDesc:
+    def _instantiate_class(self, name: str, args: tuple[Ty, ...], line: int | None) -> TypeDesc:
         raise NotImplementedError
 
     def _subst_ty(self, ty: Ty) -> Ty:
@@ -206,9 +202,7 @@ class LoweringBase:
     def _zero(self, ty: ValueType) -> Value:
         raise NotImplementedError
 
-    def _plain_equality(
-        self, left: Value, right: Value, operator: TokenType
-    ) -> Value:
+    def _plain_equality(self, left: Value, right: Value, operator: TokenType) -> Value:
         raise NotImplementedError
 
     def _find_binding(self, name: str) -> Binding | None:
@@ -217,17 +211,13 @@ class LoweringBase:
     def _class_layout_for_type(self, name: str) -> ClassLayout | None:
         raise NotImplementedError
 
-    def _bound_method(
-        self, instance: Value, layout: ClassLayout, method: MethodLayout
-    ) -> Value:
+    def _bound_method(self, instance: Value, layout: ClassLayout, method: MethodLayout) -> Value:
         raise NotImplementedError
 
     def _interface_has_method(self, interface: str, name: str) -> bool:
         raise NotImplementedError
 
-    def _interface_bound_method(
-        self, instance: Value, interface: str, name: Any
-    ) -> Value:
+    def _interface_bound_method(self, instance: Value, interface: str, name: Any) -> Value:
         raise NotImplementedError
 
     def _len(self, expr: Call) -> Value:
@@ -270,9 +260,7 @@ class LoweringBase:
     ) -> None:
         raise NotImplementedError
 
-    def _push_cleanup(
-        self, frame: Any | None, finally_body: list[Stmt] | None
-    ) -> CleanupContext:
+    def _push_cleanup(self, frame: Any | None, finally_body: list[Stmt] | None) -> CleanupContext:
         """Registra um `try` ativo para o `return` desempilhar frame/finally."""
         context = CleanupContext(frame, finally_body)
         self._cleanup_stack.append(context)

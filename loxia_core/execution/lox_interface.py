@@ -13,9 +13,7 @@ class LoxInterface:
     guarda só os métodos default, ligados ao ambiente onde a interface foi declarada.
     """
 
-    def __init__(
-        self, name: str, defaults: dict[str, LoxFunction]
-    ) -> None:
+    def __init__(self, name: str, defaults: dict[str, LoxFunction]) -> None:
         self._name = name
         self._defaults = defaults
 

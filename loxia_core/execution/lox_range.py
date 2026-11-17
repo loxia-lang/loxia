@@ -19,6 +19,4 @@ class LoxRange:
         if self.step == 1:
             return f"<range {self.start}{operator}{self.end}>"
 
-        return (
-            f"<range {self.start}{operator}{self.end} step {self.step}>"
-        )
+        return f"<range {self.start}{operator}{self.end} step {self.step}>"

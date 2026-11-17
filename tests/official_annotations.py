@@ -94,9 +94,7 @@ def annotate(source: str) -> str:
 
         match = re.match(r"(var|val)\s+(\w+)\s*=\s*nil\s*$", body)
         if match is not None:
-            lines.append(
-                f"{indent}{match.group(1)} {match.group(2)}: Any = nil"
-            )
+            lines.append(f"{indent}{match.group(1)} {match.group(2)}: Any = nil")
             continue
 
         lines.append(line)

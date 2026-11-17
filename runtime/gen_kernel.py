@@ -49,9 +49,7 @@ def _c_type(ty: Ty, *, result: bool) -> str:
 
 def _signature(primitive: Primitive) -> str:
     result = _c_type(primitive.result, result=True)
-    params = [
-        _c_type(param, result=False) for param in primitive.params
-    ]
+    params = [_c_type(param, result=False) for param in primitive.params]
     if primitive.site:
         params.extend(["int32_t", "int32_t"])
     joined = ", ".join(params) if params else "void"

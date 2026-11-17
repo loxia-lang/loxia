@@ -23,9 +23,7 @@ class StringLowering(LoweringBase):
     def _display_pointer(self, display: str) -> Any:
         global_ = self._displays.get(display)
         if global_ is None:
-            global_ = llvm_ir.cstring(
-                self.module, display, f"display.{len(self._displays)}"
-            )
+            global_ = llvm_ir.cstring(self.module, display, f"display.{len(self._displays)}")
             self._displays[display] = global_
 
         return llvm_ir.cstring_pointer(self.builder, global_)
@@ -62,81 +60,55 @@ class StringLowering(LoweringBase):
                 return value
             case ValueType.INT:
                 function = self._function("lox_str_from_int", _I8_PTR, [_INT])
-                return Value(
-                    ValueType.STRING, self.builder.call(function, [value.llvm])
-                )
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.FLOAT:
                 function = self._function("lox_str_from_double", _I8_PTR, [_FLOAT])
-                return Value(
-                    ValueType.STRING, self.builder.call(function, [value.llvm])
-                )
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.BOOL:
                 function = self._function("lox_str_from_bool", _I8_PTR, [_I32])
                 widened = self.builder.zext(value.llvm, _I32)
-                return Value(
-                    ValueType.STRING, self.builder.call(function, [widened])
-                )
+                return Value(ValueType.STRING, self.builder.call(function, [widened]))
             case ValueType.FUNCTION:
-                function = self._function(
-                    "lox_str_from_function", _I8_PTR, [_I8_PTR]
-                )
-                return Value(
-                    ValueType.STRING, self.builder.call(function, [value.llvm])
-                )
+                function = self._function("lox_str_from_function", _I8_PTR, [_I8_PTR])
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.CLASS | ValueType.INSTANCE:
                 display = self._class_display(value.class_name or "?")
-                text = (
-                    display
-                    if value.ty is ValueType.CLASS
-                    else f"{display} instance"
-                )
+                text = display if value.ty is ValueType.CLASS else f"{display} instance"
                 return self._string_literal(text)
             case ValueType.ANY:
                 tag = self.builder.extract_value(value.llvm, 0)
                 payload = self.builder.extract_value(value.llvm, 1)
-                function = self._function(
-                    "lox_str_from_any", _I8_PTR, [_INT, _INT]
-                )
+                function = self._function("lox_str_from_any", _I8_PTR, [_INT, _INT])
                 return Value(
                     ValueType.STRING,
                     self.builder.call(function, [tag, payload]),
                 )
             case ValueType.RANGE:
-                function = self._function(
-                    "lox_str_from_range", _I8_PTR, [_I8_PTR]
-                )
+                function = self._function("lox_str_from_range", _I8_PTR, [_I8_PTR])
                 return Value(
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
             case ValueType.LIST:
-                function = self._function(
-                    "lox_str_from_list", _I8_PTR, [_I8_PTR]
-                )
+                function = self._function("lox_str_from_list", _I8_PTR, [_I8_PTR])
                 return Value(
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
             case ValueType.MAP:
-                function = self._function(
-                    "lox_str_from_map", _I8_PTR, [_I8_PTR]
-                )
+                function = self._function("lox_str_from_map", _I8_PTR, [_I8_PTR])
                 return Value(
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
             case ValueType.ENUM:
-                function = self._function(
-                    "lox_str_from_enum", _I8_PTR, [_I8_PTR]
-                )
+                function = self._function("lox_str_from_enum", _I8_PTR, [_I8_PTR])
                 return Value(
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
                 )
             case ValueType.TUPLE:
-                function = self._function(
-                    "lox_str_from_tuple", _I8_PTR, [_I8_PTR]
-                )
+                function = self._function("lox_str_from_tuple", _I8_PTR, [_I8_PTR])
                 return Value(
                     ValueType.STRING,
                     self.builder.call(function, [value.llvm]),
@@ -155,9 +127,7 @@ class StringLowering(LoweringBase):
         self.builder.cbranch(tag, some, nothing)
 
         self.builder = llvm_ir.builder(nothing)
-        nothing_value = self.builder.call(
-            self._function("lox_str_nil", _I8_PTR, []), []
-        )
+        nothing_value = self.builder.call(self._function("lox_str_nil", _I8_PTR, []), [])
         nothing_end = self.builder.block
         self.builder.branch(end)
 
@@ -174,9 +144,7 @@ class StringLowering(LoweringBase):
 
     def _concat(self, left: Value, right: Value) -> Value:
         function = self._function("lox_str_concat", _I8_PTR, [_I8_PTR, _I8_PTR])
-        return Value(
-            ValueType.STRING, self.builder.call(function, [left.llvm, right.llvm])
-        )
+        return Value(ValueType.STRING, self.builder.call(function, [left.llvm, right.llvm]))
 
     def _repr(self, expr: Call) -> Value:
         arguments = [self._expr(argument) for argument in expr.arguments]

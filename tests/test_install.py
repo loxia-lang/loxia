@@ -17,9 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        args, cwd=cwd, capture_output=True, text=True, check=True, timeout=600
-    )
+    return subprocess.run(args, cwd=cwd, capture_output=True, text=True, check=True, timeout=600)
 
 
 @pytest.mark.install
@@ -42,7 +40,13 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
     _run("uv", "venv", str(venv), "--python", "3.13", cwd=tmp_path)
     python = venv / "bin" / "python"
     _run(
-        "uv", "pip", "install", "--python", str(python), "--no-deps", str(wheel),
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        str(python),
+        "--no-deps",
+        str(wheel),
         cwd=tmp_path,
     )
 

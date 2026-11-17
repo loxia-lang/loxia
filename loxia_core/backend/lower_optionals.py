@@ -106,8 +106,7 @@ class OptionalLowering(LoweringBase):
 
             descs = [self._type_desc(member, line) for member in non_nil]
             if all(
-                desc.ty
-                in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL, ValueType.STRING)
+                desc.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL, ValueType.STRING)
                 for desc in descs
             ):
                 return TypeDesc(ValueType.ANY)
@@ -117,9 +116,7 @@ class OptionalLowering(LoweringBase):
             if ty.name in self.type_aliases:
                 return self._type_desc(self.type_aliases[ty.name], line)
             if ty.name in self._interface_ids:
-                return TypeDesc(
-                    ValueType.INSTANCE, interface_name=ty.name
-                )
+                return TypeDesc(ValueType.INSTANCE, interface_name=ty.name)
             if ty.name in self._enum_layouts:
                 return TypeDesc(ValueType.ENUM)
             if ty.name in self._type_subst:
@@ -130,10 +127,7 @@ class OptionalLowering(LoweringBase):
                     tuple(self._subst_ty(arg) for arg in ty.args),
                     line,
                 )
-            if (
-                self._class_layout_for_type(ty.name) is None
-                and ty.name not in self._class_names
-            ):
+            if self._class_layout_for_type(ty.name) is None and ty.name not in self._class_names:
                 raise _unsupported(f"Class '{ty.name}'", line)
             return TypeDesc(ValueType.INSTANCE, class_name=ty.name)
         if isinstance(ty, ClassObjectTy):
@@ -287,9 +281,7 @@ class OptionalLowering(LoweringBase):
             )
 
         aggregate = llvm_ir.zero_value(self._storage_llvm_type(desc))
-        tagged = self.builder.insert_value(
-            aggregate, llvm_ir.constant(_BOOL, 1), 0
-        )
+        tagged = self.builder.insert_value(aggregate, llvm_ir.constant(_BOOL, 1), 0)
         return Value(
             desc.ty,
             self.builder.insert_value(tagged, value.llvm, 1),
@@ -302,9 +294,7 @@ class OptionalLowering(LoweringBase):
     def _optional_tag(self, value: Value) -> Any:
         if value.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
             return self.builder.extract_value(value.llvm, 0)
-        return self.builder.icmp_signed(
-            "!=", value.llvm, llvm_ir.null_pointer()
-        )
+        return self.builder.icmp_signed("!=", value.llvm, llvm_ir.null_pointer())
 
     def _optional_payload(self, value: Value) -> Value:
         if value.ty in (ValueType.INT, ValueType.FLOAT, ValueType.BOOL):
@@ -359,18 +349,14 @@ class OptionalLowering(LoweringBase):
             elif value.ty is ValueType.BOOL:
                 payload = self.builder.zext(payload, _INT)
         else:
-            present = self.builder.icmp_signed(
-                "!=", value.llvm, llvm_ir.null_pointer()
-            )
+            present = self.builder.icmp_signed("!=", value.llvm, llvm_ir.null_pointer())
             payload = self.builder.ptrtoint(value.llvm, _INT)
         tag = self.builder.select(
             present,
             llvm_ir.constant(_INT, self._any_tag(value.ty, line)),
             llvm_ir.constant(_INT, ANY_TAG_NIL),
         )
-        payload = self.builder.select(
-            present, payload, llvm_ir.constant(_INT, 0)
-        )
+        payload = self.builder.select(present, payload, llvm_ir.constant(_INT, 0))
         aggregate = llvm_ir.zero_value(_ANY)
         aggregate = self.builder.insert_value(aggregate, tag, 0)
         aggregate = self.builder.insert_value(aggregate, payload, 1)
@@ -396,9 +382,7 @@ class OptionalLowering(LoweringBase):
             payload = self.builder.ptrtoint(value.llvm, _INT)
 
         aggregate = llvm_ir.zero_value(_ANY)
-        aggregate = self.builder.insert_value(
-            aggregate, llvm_ir.constant(_INT, tag), 0
-        )
+        aggregate = self.builder.insert_value(aggregate, llvm_ir.constant(_INT, tag), 0)
         aggregate = self.builder.insert_value(aggregate, payload, 1)
         return Value(ValueType.ANY, aggregate)
 
@@ -450,9 +434,7 @@ class OptionalLowering(LoweringBase):
         if expected.ty is ValueType.NIL:
             if value.ty is ValueType.NIL:
                 return value
-            raise BackendError(
-                f"Can't use {value.ty.name} where Nil is expected.", line
-            )
+            raise BackendError(f"Can't use {value.ty.name} where Nil is expected.", line)
 
         if expected.ty is ValueType.ANY:
             return self._box_value(value, line)
@@ -471,16 +453,17 @@ class OptionalLowering(LoweringBase):
                     value.class_name,
                     value.interface_name,
                 )
-                if not inner.same_as(TypeDesc(
-                    expected.ty,
-                    expected.fn,
-                    False,
-                    expected.class_name,
-                    expected.interface_name,
-                )):
+                if not inner.same_as(
+                    TypeDesc(
+                        expected.ty,
+                        expected.fn,
+                        False,
+                        expected.class_name,
+                        expected.interface_name,
+                    )
+                ):
                     raise BackendError(
-                        f"Can't use {value.ty.name}? where "
-                        f"{expected.ty.name}? is expected.",
+                        f"Can't use {value.ty.name}? where {expected.ty.name}? is expected.",
                         line,
                     )
                 return value
@@ -496,29 +479,25 @@ class OptionalLowering(LoweringBase):
                 )
             ):
                 raise BackendError(
-                    f"Can't use {value.ty.name} where {expected.ty.name}? "
-                    "is expected.",
+                    f"Can't use {value.ty.name} where {expected.ty.name}? is expected.",
                     line,
                 )
             return self._some(expected, value)
 
         if value.ty is ValueType.NIL:
-            raise BackendError(
-                f"Can't use nil where {expected.ty.name} is expected.", line
-            )
+            raise BackendError(f"Can't use nil where {expected.ty.name} is expected.", line)
 
         if value.optional:
             inner = TypeDesc(
-                    value.ty,
-                    value.sig,
-                    False,
-                    value.class_name,
-                    value.interface_name,
-                )
+                value.ty,
+                value.sig,
+                False,
+                value.class_name,
+                value.interface_name,
+            )
             if not inner.same_as(expected):
                 raise BackendError(
-                    f"Can't use {value.ty.name}? where {expected.ty.name} "
-                    "is expected.",
+                    f"Can't use {value.ty.name}? where {expected.ty.name} is expected.",
                     line,
                 )
             return self._unwrap(value, line or 0, "Can't use nil value.")
@@ -530,9 +509,7 @@ class OptionalLowering(LoweringBase):
             and value.ty is ValueType.INSTANCE
             and not value.optional
         ):
-            return Value(
-                ValueType.INSTANCE, value.llvm, expected.fn, False
-            )
+            return Value(ValueType.INSTANCE, value.llvm, expected.fn, False)
 
         if not value.desc.same_as(expected):
             raise BackendError(
@@ -541,9 +518,7 @@ class OptionalLowering(LoweringBase):
             )
         return value
 
-    def _coerce_interface(
-        self, value: Value, expected: TypeDesc, line: int | None
-    ) -> Value:
+    def _coerce_interface(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
         """Converte classe/interface/`Any` para um tipo interface (ponteiro)."""
         inner = TypeDesc(ValueType.INSTANCE, interface_name=expected.interface_name)
 
@@ -555,8 +530,7 @@ class OptionalLowering(LoweringBase):
             if value.optional:
                 if value.ty is not ValueType.INSTANCE:
                     raise BackendError(
-                        f"Can't use {value.ty.name}? where "
-                        f"{expected.ty.name}? is expected.",
+                        f"Can't use {value.ty.name}? where {expected.ty.name}? is expected.",
                         line,
                     )
                 return Value(
@@ -569,8 +543,7 @@ class OptionalLowering(LoweringBase):
                 )
             if value.ty is not ValueType.INSTANCE:
                 raise BackendError(
-                    f"Can't use {value.ty.name} where {expected.ty.name}? "
-                    "is expected.",
+                    f"Can't use {value.ty.name} where {expected.ty.name}? is expected.",
                     line,
                 )
             return self._some(
@@ -583,9 +556,7 @@ class OptionalLowering(LoweringBase):
             )
 
         if value.ty is ValueType.NIL:
-            raise BackendError(
-                f"Can't use nil where {expected.ty.name} is expected.", line
-            )
+            raise BackendError(f"Can't use nil where {expected.ty.name} is expected.", line)
         if value.optional:
             unwrapped = self._unwrap(value, line or 0, "Can't use nil value.")
             return self._coerce_interface(unwrapped, expected, line)
@@ -605,9 +576,7 @@ class OptionalLowering(LoweringBase):
             interface_name=expected.interface_name,
         )
 
-    def _optional_equality(
-        self, left: Value, right: Value, operator: TokenType
-    ) -> Value:
+    def _optional_equality(self, left: Value, right: Value, operator: TokenType) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
             return self._equality_with_nil(left, right, equal)
@@ -617,9 +586,7 @@ class OptionalLowering(LoweringBase):
             return self._equality_one_optional(left, right, equal)
         return self._plain_equality(left, right, operator)
 
-    def _equality_with_nil(
-        self, left: Value, right: Value, equal: bool
-    ) -> Value:
+    def _equality_with_nil(self, left: Value, right: Value, equal: bool) -> Value:
         true = llvm_ir.constant(_BOOL, 1)
         false = llvm_ir.constant(_BOOL, 0)
         if left.ty is ValueType.NIL and right.ty is ValueType.NIL:
@@ -628,20 +595,14 @@ class OptionalLowering(LoweringBase):
         if not optional.optional:
             return Value(ValueType.BOOL, false if equal else true)
         tag = self._optional_tag(optional)
-        is_nil = self.builder.icmp_signed(
-            "==", tag, llvm_ir.constant(_BOOL, 0)
-        )
+        is_nil = self.builder.icmp_signed("==", tag, llvm_ir.constant(_BOOL, 0))
         return Value(
             ValueType.BOOL,
             is_nil if equal else self.builder.not_(is_nil),
         )
 
-    def _equality_both_optional(
-        self, left: Value, right: Value, equal: bool
-    ) -> Value:
-        if not left.desc.same_as(right.desc) and not (
-            left.ty in NUMERIC and right.ty in NUMERIC
-        ):
+    def _equality_both_optional(self, left: Value, right: Value, equal: bool) -> Value:
+        if not left.desc.same_as(right.desc) and not (left.ty in NUMERIC and right.ty in NUMERIC):
             return Value(
                 ValueType.BOOL,
                 llvm_ir.constant(_BOOL, 0 if equal else 1),
@@ -649,26 +610,20 @@ class OptionalLowering(LoweringBase):
 
         left_tag = self._optional_tag(left)
         right_tag = self._optional_tag(right)
-        both_nil = self.builder.and_(
-            self.builder.not_(left_tag), self.builder.not_(right_tag)
-        )
+        both_nil = self.builder.and_(self.builder.not_(left_tag), self.builder.not_(right_tag))
         both_some = self.builder.and_(left_tag, right_tag)
         payload_equal = self._plain_equality(
             self._optional_payload(left),
             self._optional_payload(right),
             TokenType.EQUAL_EQUAL,
         ).llvm
-        result = self.builder.or_(
-            both_nil, self.builder.and_(both_some, payload_equal)
-        )
+        result = self.builder.or_(both_nil, self.builder.and_(both_some, payload_equal))
         return Value(
             ValueType.BOOL,
             result if equal else self.builder.not_(result),
         )
 
-    def _equality_one_optional(
-        self, left: Value, right: Value, equal: bool
-    ) -> Value:
+    def _equality_one_optional(self, left: Value, right: Value, equal: bool) -> Value:
         optional = left if left.optional else right
         other = right if left.optional else left
         inner = TypeDesc(
@@ -678,9 +633,7 @@ class OptionalLowering(LoweringBase):
             optional.class_name,
             optional.interface_name,
         )
-        if not inner.same_as(other.desc) and not (
-            optional.ty in NUMERIC and other.ty in NUMERIC
-        ):
+        if not inner.same_as(other.desc) and not (optional.ty in NUMERIC and other.ty in NUMERIC):
             return Value(
                 ValueType.BOOL,
                 llvm_ir.constant(_BOOL, 0 if equal else 1),
@@ -689,13 +642,9 @@ class OptionalLowering(LoweringBase):
         tag = self._optional_tag(optional)
         payload = self._optional_payload(optional)
         if left.optional:
-            payload_equal = self._plain_equality(
-                payload, other, TokenType.EQUAL_EQUAL
-            ).llvm
+            payload_equal = self._plain_equality(payload, other, TokenType.EQUAL_EQUAL).llvm
         else:
-            payload_equal = self._plain_equality(
-                other, payload, TokenType.EQUAL_EQUAL
-            ).llvm
+            payload_equal = self._plain_equality(other, payload, TokenType.EQUAL_EQUAL).llvm
 
         result = self.builder.and_(tag, payload_equal)
         return Value(

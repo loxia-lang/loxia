@@ -50,14 +50,10 @@ def _public_declarations(statements: list[Stmt]) -> list[PublicDecl]:
                 continue
             result.append(statement)
             result.extend(
-                field
-                for field in statement.fields
-                if not field.name.lexeme.startswith("_")
+                field for field in statement.fields if not field.name.lexeme.startswith("_")
             )
             result.extend(
-                method
-                for method in statement.methods
-                if not method.name.lexeme.startswith("_")
+                method for method in statement.methods if not method.name.lexeme.startswith("_")
             )
     return result
 

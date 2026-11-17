@@ -17,7 +17,7 @@ def run(source: str, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str
 
 
 def test_prints_literals(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, stderr = run("print(1); print(true); print(nil); print(\"a\");", capsys)
+    stdout, stderr = run('print(1); print(true); print(nil); print("a");', capsys)
 
     assert stdout == ["1", "true", "nil", "a"]
     assert stderr == ""
@@ -90,9 +90,7 @@ def test_nil_aware_and_conditional_short_circuit(
 
 
 def test_int_arithmetic_wraps_on_overflow(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, _ = run(
-        "print(9223372036854775807 + 1); print(-9223372036854775807 - 2);", capsys
-    )
+    stdout, _ = run("print(9223372036854775807 + 1); print(-9223372036854775807 - 2);", capsys)
 
     assert stdout == ["-9223372036854775808", "9223372036854775807"]
 
@@ -106,14 +104,14 @@ def test_float_stringify_round_trips(capsys: pytest.CaptureFixture[str]) -> None
 def test_utf8_strings_use_code_points(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    stdout, stderr = run("print(len(\"ação\")); print(\"ação\");", capsys)
+    stdout, stderr = run('print(len("ação")); print("ação");', capsys)
 
     assert stdout == ["4", "ação"]
     assert stderr == ""
 
 
 def test_for_in_iterates_range_and_string(capsys: pytest.CaptureFixture[str]) -> None:
-    source = "for i in 0..3 { print(i); } for c in \"ab\" { print(c); }"
+    source = 'for i in 0..3 { print(i); } for c in "ab" { print(c); }'
 
     stdout, stderr = run(source, capsys)
 
@@ -161,9 +159,7 @@ def test_for_in_closure_captures_iteration_value(
 
 
 def test_range_value_stringify_and_equality(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, _ = run(
-        "print(0..3); print(range(3, 0, -1)); print((0..3) == (0..3));", capsys
-    )
+    stdout, _ = run("print(0..3); print(range(3, 0, -1)); print((0..3) == (0..3));", capsys)
 
     assert stdout == ["<range 0..3>", "<range 3..0 step -1>", "true"]
 
@@ -214,7 +210,7 @@ def test_not_negates_truthiness(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_zero_and_empty_string_are_truthy(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, _ = run("if (0) print(\"zero\"); if (\"\") print(\"vazia\");", capsys)
+    stdout, _ = run('if (0) print("zero"); if ("") print("vazia");', capsys)
 
     assert stdout == ["zero", "vazia"]
 
@@ -238,7 +234,7 @@ def test_undefined_variable_is_a_runtime_error(
 
 
 def test_runtime_error_stops_execution(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, stderr = run("print(\"antes\"); print(1 / 0); print(\"depois\");", capsys)
+    stdout, stderr = run('print("antes"); print(1 / 0); print("depois");', capsys)
 
     assert stdout == ["antes"]
     assert "Division by zero" in stderr
@@ -258,7 +254,7 @@ def test_errors_do_not_leak_between_runs(capsys: pytest.CaptureFixture[str]) -> 
     execute(lox, "print(naoexiste);", capsys)
     assert lox.reporter.had_runtime_error is True
 
-    stdout, stderr = execute(lox, "print(\"ok\");", capsys)
+    stdout, stderr = execute(lox, 'print("ok");', capsys)
 
     assert stdout == ["ok"]
     assert stderr == ""
@@ -640,9 +636,7 @@ def test_val_shadowing_and_var_redeclaration(
 
 
 def test_debug_mode_checks_integer_overflow(capsys: pytest.CaptureFixture[str]) -> None:
-    stdout, stderr = execute(
-        Loxia(debug=True), "print(9223372036854775807 + 1);", capsys
-    )
+    stdout, stderr = execute(Loxia(debug=True), "print(9223372036854775807 + 1);", capsys)
 
     assert stdout == []
     assert "Integer overflow." in stderr
@@ -706,7 +700,7 @@ def test_invalid_casts_and_math_domains_fail(capsys: pytest.CaptureFixture[str])
     _stdout, stderr = run("print(math.sqrt(-1.0) as Int);", capsys)
     assert "Can't cast this Float to Int." in stderr
 
-    _stdout, stderr = run("print(\"1\" as Int);", capsys)
+    _stdout, stderr = run('print("1" as Int);', capsys)
     assert "Can't cast value to Int." in stderr
 
 
@@ -766,9 +760,7 @@ def test_debug_mode_checks_integer_division_and_power(
 def test_map_hash_is_consistent_with_equality(
     first: str, second: str, same: bool, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    stdout, stderr = run(
-        f"var m = {{ {first}: 1 }}; print(m.has({second}));", capsys
-    )
+    stdout, stderr = run(f"var m = {{ {first}: 1 }}; print(m.has({second}));", capsys)
 
     assert stdout == ["true" if same else "false"]
     assert stderr == ""
@@ -777,7 +769,7 @@ def test_map_hash_is_consistent_with_equality(
 def test_float_is_rejected_as_map_key_at_runtime(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    stdout, stderr = run("var m = {1: \"a\"}; print(m[1.0]);", capsys)
+    stdout, stderr = run('var m = {1: "a"}; print(m[1.0]);', capsys)
 
     assert stdout == []
     assert "Map keys must be strings, integers or booleans." in stderr
@@ -787,11 +779,11 @@ def test_tuples_values_formatting_and_equality(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     stdout, stderr = run(
-        "print((1, \"a\"));"
-        "print((1, (2, \"x\")));"
+        'print((1, "a"));'
+        'print((1, (2, "x")));'
         "print(len((1, 2, 3)));"
-        "print((1, \"a\") == (1.0, \"a\"));"
-        "print((1, \"a\") != (2, \"a\"));",
+        'print((1, "a") == (1.0, "a"));'
+        'print((1, "a") != (2, "a"));',
         capsys,
     )
 
@@ -809,13 +801,7 @@ def test_tuple_destructuring_bindings(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     stdout, stderr = run(
-        'val (a, b) = (1, "x");'
-        "print(a);"
-        "print(b);"
-        "var (c, d) = (2, 3);"
-        "c = 9;"
-        "print(c);"
-        "print(d);",
+        'val (a, b) = (1, "x");print(a);print(b);var (c, d) = (2, 3);c = 9;print(c);print(d);',
         capsys,
     )
 
@@ -836,7 +822,7 @@ def test_tuple_destructuring_bindings(
             "Destructuring expects 2 values, found 3.",
         ),
         ("val (a, (b, c)) = (1, 2);", "Can only destructure a tuple."),
-        ("print((1, 2)[\"a\"]);", "Tuple index must be an integer."),
+        ('print((1, 2)["a"]);', "Tuple index must be an integer."),
         ("print((1, 2)[5]);", "Tuple index 5 out of bounds for length 2."),
     ],
 )
@@ -852,9 +838,9 @@ def test_tuple_iteration_and_is(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     stdout, stderr = run(
-        "for x in (1, \"a\") { print(x); }"
-        "print((1, \"a\") is (Int, String));"
-        "print((1, \"a\") is (Int, Int));",
+        'for x in (1, "a") { print(x); }'
+        'print((1, "a") is (Int, String));'
+        'print((1, "a") is (Int, Int));',
         capsys,
     )
 
@@ -864,10 +850,7 @@ def test_tuple_iteration_and_is(
 
 def test_tuple_as_from_any(capsys: pytest.CaptureFixture[str]) -> None:
     stdout, stderr = run(
-        'val x: Any = (2, "b");'
-        "val (n, s) = x as (Int, String);"
-        "print(n);"
-        "print(s);",
+        'val x: Any = (2, "b");val (n, s) = x as (Int, String);print(n);print(s);',
         capsys,
     )
 
@@ -878,9 +861,7 @@ def test_tuple_as_from_any(capsys: pytest.CaptureFixture[str]) -> None:
 def test_tuple_as_failure_at_runtime(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _, stderr = run(
-        "val x: Any = [1]; print(x as (Int, String));", capsys
-    )
+    _, stderr = run("val x: Any = [1]; print(x as (Int, String));", capsys)
 
     assert "Can't cast value to (Int, String)." in stderr
 
@@ -956,8 +937,7 @@ def test_enum_match_runtime_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     _, stderr = run(
-        "enum Cor { Vermelho, Verde } "
-        "print(match Cor.Vermelho { Cor.Verde => 1 });",
+        "enum Cor { Vermelho, Verde } print(match Cor.Vermelho { Cor.Verde => 1 });",
         capsys,
     )
 

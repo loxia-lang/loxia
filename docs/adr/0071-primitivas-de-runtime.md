@@ -117,12 +117,12 @@ declara cada primitiva:
 ```python
 @dataclass(frozen=True)
 class Primitive:
-    lox: str                     # "io.readFile"
-    c_symbol: str                # "lox_io_read_file"
+    lox: str  # "io.readFile"
+    c_symbol: str  # "lox_io_read_file"
     params: tuple[Ty, ...]
-    result: Ty                   # T? quando falível
-    py: Callable[..., object]    # corpo do oráculo, sem regra de tipo
-    ambient: bool                # fora do corpus I1 (SO/relógio/argv/env)
+    result: Ty  # T? quando falível
+    py: Callable[..., object]  # corpo do oráculo, sem regra de tipo
+    ambient: bool  # fora do corpus I1 (SO/relógio/argv/env)
 ```
 
 - o **checker** registra `FnTy(params, result)` a partir da tabela;

@@ -189,15 +189,9 @@ class Lowerer(
         # Stack trace (ADR-0089): strings deduplicadas e call site global lido pelo
         # prologue do chamado. Os globais vivem no runtime C; aqui só declaramos.
         self._trace_strings: dict[tuple[str, str], Any] = {}
-        self._call_file_global = llvm_ir.extern_global(
-            self.module, "lox_call_file", _I8_PTR
-        )
-        self._call_line_global = llvm_ir.extern_global(
-            self.module, "lox_call_line", _I32
-        )
-        self._call_column_global = llvm_ir.extern_global(
-            self.module, "lox_call_column", _I32
-        )
+        self._call_file_global = llvm_ir.extern_global(self.module, "lox_call_file", _I8_PTR)
+        self._call_line_global = llvm_ir.extern_global(self.module, "lox_call_line", _I32)
+        self._call_column_global = llvm_ir.extern_global(self.module, "lox_call_column", _I32)
 
     # --- programa ---
 
@@ -220,13 +214,9 @@ class Lowerer(
         self._captures = {}
         self._cleanup_stack = []
         self.builder = llvm_ir.builder(llvm_ir.block_of(main, "entry"))
-        init_path = llvm_ir.cstring_pointer(
-            self.builder, self._cstring(self.source_path)
-        )
+        init_path = llvm_ir.cstring_pointer(self.builder, self._cstring(self.source_path))
         self.builder.call(
-            self._function(
-                "lox_init", _VOID, [_I8_PTR, _I32, llvm_ir.pointer_pointer()]
-            ),
+            self._function("lox_init", _VOID, [_I8_PTR, _I32, llvm_ir.pointer_pointer()]),
             [init_path, main.args[0], main.args[1]],
         )
         self._emit_exception_classes()
@@ -250,26 +240,7 @@ class Lowerer(
             info = self._top_level[id(statement)]
             self._emit_function(info, statement, ())
 
-
-
-
-
-
-
-
-
-
-
-
-
-
     # --- opcionais (L2.5) ---
-
-
-
-
-
-
 
     # --- statements ---
 
@@ -367,42 +338,24 @@ class Lowerer(
     def _print_value(self, value: Value) -> None:
         match value.ty:
             case ValueType.INT:
-                self.builder.call(
-                    self._function("lox_print_int", _VOID, [_INT]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_int", _VOID, [_INT]), [value.llvm])
             case ValueType.FLOAT:
-                self.builder.call(
-                    self._function("lox_print_float", _VOID, [_FLOAT]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_float", _VOID, [_FLOAT]), [value.llvm])
             case ValueType.BOOL:
                 widened = self.builder.zext(value.llvm, _I32)
-                self.builder.call(
-                    self._function("lox_print_bool", _VOID, [_I32]), [widened]
-                )
+                self.builder.call(self._function("lox_print_bool", _VOID, [_I32]), [widened])
             case ValueType.STRING:
-                self.builder.call(
-                    self._function("lox_print_str", _VOID, [_I8_PTR]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_str", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.RANGE:
-                self.builder.call(
-                    self._function("lox_print_range", _VOID, [_I8_PTR]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_range", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.LIST:
-                self.builder.call(
-                    self._function("lox_print_list", _VOID, [_I8_PTR]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_list", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.MAP:
-                self.builder.call(
-                    self._function("lox_print_map", _VOID, [_I8_PTR]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_map", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.TUPLE:
-                self.builder.call(
-                    self._function("lox_print_tuple", _VOID, [_I8_PTR]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_tuple", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.ENUM:
-                self.builder.call(
-                    self._function("lox_print_enum", _VOID, [_I8_PTR]), [value.llvm]
-                )
+                self.builder.call(self._function("lox_print_enum", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.FUNCTION:
                 self.builder.call(
                     self._function("lox_print_function", _VOID, [_I8_PTR]),
@@ -410,11 +363,7 @@ class Lowerer(
                 )
             case ValueType.CLASS | ValueType.INSTANCE:
                 display = self._class_display(value.class_name or "?")
-                text = (
-                    display
-                    if value.ty is ValueType.CLASS
-                    else f"{display} instance"
-                )
+                text = display if value.ty is ValueType.CLASS else f"{display} instance"
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]),
                     [self._string_literal(text).llvm],
@@ -423,9 +372,7 @@ class Lowerer(
                 tag = self.builder.extract_value(value.llvm, 0)
                 payload = self.builder.extract_value(value.llvm, 1)
                 self.builder.call(
-                    self._function(
-                        "lox_print_any", _VOID, [_INT, _INT]
-                    ),
+                    self._function("lox_print_any", _VOID, [_INT, _INT]),
                     [tag, payload],
                 )
             case ValueType.NIL:
@@ -504,61 +451,11 @@ class Lowerer(
 
     # --- funções e closures ---
 
-
-
-
-
-
-
-
-
-
-
     # --- células ---
-
-
-
-
-
-
 
     # --- classes e instâncias ---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     # --- variáveis ---
-
-
-
-
-
 
     def _literal(self, expr: Literal) -> Value:
         value = expr.value
@@ -575,10 +472,6 @@ class Lowerer(
             return self._string_literal(value)
 
         raise _unsupported("Literal", None)
-
-
-
-
 
     def _unary(self, expr: Unary) -> Value:
         operand = self._expr(expr.right)
@@ -640,17 +533,11 @@ class Lowerer(
 
         match operator.type:
             case TokenType.PLUS:
-                return self._arithmetic(
-                    left, right, "add", "fadd", operator.type, operator
-                )
+                return self._arithmetic(left, right, "add", "fadd", operator.type, operator)
             case TokenType.MINUS:
-                return self._arithmetic(
-                    left, right, "sub", "fsub", operator.type, operator
-                )
+                return self._arithmetic(left, right, "sub", "fsub", operator.type, operator)
             case TokenType.STAR:
-                return self._arithmetic(
-                    left, right, "mul", "fmul", operator.type, operator
-                )
+                return self._arithmetic(left, right, "mul", "fmul", operator.type, operator)
             case TokenType.SLASH:
                 return self._float_division(left, right, operator)
             case TokenType.SLASH_SLASH:
@@ -658,10 +545,7 @@ class Lowerer(
             case TokenType.PERCENT:
                 return self._modulo(left, right, operator)
             case (
-                TokenType.LESS
-                | TokenType.LESS_EQUAL
-                | TokenType.GREATER
-                | TokenType.GREATER_EQUAL
+                TokenType.LESS | TokenType.LESS_EQUAL | TokenType.GREATER | TokenType.GREATER_EQUAL
             ):
                 return self._comparison(left, right, operator.type, operator)
             case TokenType.EQUAL_EQUAL | TokenType.NOT_EQUAL:
@@ -806,9 +690,7 @@ class Lowerer(
         line = token.line
         column = token.column
         message = _OPERAND_MESSAGES[operator]
-        left = self._unwrap_operand(
-            left, line, message, column=column, code=Code.RUNTIME_OPERANDS
-        )
+        left = self._unwrap_operand(left, line, message, column=column, code=Code.RUNTIME_OPERANDS)
         right = self._unwrap_operand(
             right, line, message, column=column, code=Code.RUNTIME_OPERANDS
         )
@@ -863,9 +745,7 @@ class Lowerer(
             )
             return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
 
-        function = self._function(
-            "lox_float_div", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32]
-        )
+        function = self._function("lox_float_div", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32])
         call = self.builder.call(
             function,
             [
@@ -946,9 +826,7 @@ class Lowerer(
             return Value(ValueType.INT, call)
 
         if left.ty in NUMERIC and right.ty in NUMERIC:
-            function = self._function(
-                "lox_float_mod", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32]
-            )
+            function = self._function("lox_float_mod", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32])
             call = self.builder.call(
                 function,
                 [
@@ -968,9 +846,7 @@ class Lowerer(
         )
         return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-    def _comparison(
-        self, left: Value, right: Value, operator: TokenType, token: Token
-    ) -> Value:
+    def _comparison(self, left: Value, right: Value, operator: TokenType, token: Token) -> Value:
         line = token.line
         column = token.column
         predicates = {
@@ -995,9 +871,7 @@ class Lowerer(
         )
 
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
-            result = self.builder.icmp_signed(
-                predicates[operator], left.llvm, right.llvm
-            )
+            result = self.builder.icmp_signed(predicates[operator], left.llvm, right.llvm)
             return Value(ValueType.BOOL, result)
 
         if left.ty in NUMERIC and right.ty in NUMERIC:
@@ -1028,10 +902,7 @@ class Lowerer(
             return self._optional_equality(left, right, operator)
         return self._plain_equality(left, right, operator)
 
-
-    def _plain_equality(
-        self, left: Value, right: Value, operator: TokenType
-    ) -> Value:
+    def _plain_equality(self, left: Value, right: Value, operator: TokenType) -> Value:
         equal = operator is TokenType.EQUAL_EQUAL
 
         if left.ty is ValueType.ANY or right.ty is ValueType.ANY:
@@ -1045,9 +916,7 @@ class Lowerer(
                 self._function("lox_any_equal", _I32, [_INT, _INT, _INT, _INT]),
                 [left_tag, left_payload, right_tag, right_payload],
             )
-            compared = self.builder.icmp_signed(
-                "!=", result, llvm_ir.constant(_I32, 0)
-            )
+            compared = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
             if not equal:
                 compared = self.builder.not_(compared)
             return Value(ValueType.BOOL, compared)
@@ -1057,9 +926,7 @@ class Lowerer(
                 self._function("lox_enum_equal", _I32, [_I8_PTR, _I8_PTR]),
                 [left.llvm, right.llvm],
             )
-            result = self.builder.icmp_signed(
-                "!=", equal_value, llvm_ir.constant(_I32, 0)
-            )
+            result = self.builder.icmp_signed("!=", equal_value, llvm_ir.constant(_I32, 0))
             if not equal:
                 result = self.builder.not_(result)
             return Value(ValueType.BOOL, result)
@@ -1094,18 +961,14 @@ class Lowerer(
 
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
             both_nil = left.ty is right.ty
-            return Value(
-                ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal))
-            )
+            return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal)))
 
         if left.ty is ValueType.ENUM and right.ty is ValueType.ENUM:
             equal_value = self.builder.call(
                 self._function("lox_enum_equal", _I32, [_I8_PTR, _I8_PTR]),
                 [left.llvm, right.llvm],
             )
-            result = self.builder.icmp_signed(
-                "!=", equal_value, llvm_ir.constant(_I32, 0)
-            )
+            result = self.builder.icmp_signed("!=", equal_value, llvm_ir.constant(_I32, 0))
             if not equal:
                 result = self.builder.not_(result)
             return Value(ValueType.BOOL, result)
@@ -1147,9 +1010,7 @@ class Lowerer(
             return Value(ValueType.BOOL, result)
 
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
-            result = self.builder.icmp_signed(
-                "==" if equal else "!=", left.llvm, right.llvm
-            )
+            result = self.builder.icmp_signed("==" if equal else "!=", left.llvm, right.llvm)
             return Value(ValueType.BOOL, result)
 
         if left.ty in NUMERIC and right.ty in NUMERIC:
@@ -1161,12 +1022,8 @@ class Lowerer(
 
         if left.ty is right.ty:
             if left.ty is ValueType.FUNCTION and left.sig != right.sig:
-                return Value(
-                    ValueType.BOOL, llvm_ir.constant(_BOOL, int(not equal))
-                )
-            result = self.builder.icmp_signed(
-                "==" if equal else "!=", left.llvm, right.llvm
-            )
+                return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(not equal)))
+            result = self.builder.icmp_signed("==" if equal else "!=", left.llvm, right.llvm)
             return Value(ValueType.BOOL, result)
 
         # Tipos diferentes nunca são iguais (I2): constante, sem comparação.
@@ -1186,15 +1043,12 @@ class Lowerer(
                 value = self._zero_desc(self._return_type_desc)
             else:
                 raise BackendError(
-                    "Returning nil from a non-Nil function is not supported "
-                    "by the backend yet.",
+                    "Returning nil from a non-Nil function is not supported by the backend yet.",
                     stmt.keyword.line,
                     code=Code.BACKEND_UNSUPPORTED,
                 )
         else:
-            value = self._coerce(
-                self._expr(stmt.value), self._return_type_desc, stmt.keyword.line
-            )
+            value = self._coerce(self._expr(stmt.value), self._return_type_desc, stmt.keyword.line)
             if self._return_type_desc.ty is ValueType.NIL:
                 value = None
 
@@ -1217,10 +1071,6 @@ class Lowerer(
             self.builder.ret_void()
         else:
             self.builder.ret(value.llvm)
-
-
-
-
 
     def _conditional(self, expr: Conditional) -> Value:
         condition = self._truthy(self._expr(expr.condition))
@@ -1262,9 +1112,7 @@ class Lowerer(
             return Value(ValueType.NIL)
 
         if then_open and else_open:
-            merged = self.builder.phi(
-                self._storage_llvm_type(common), "cond.value"
-            )
+            merged = self.builder.phi(self._storage_llvm_type(common), "cond.value")
             merged.add_incoming(then_value.llvm, then_end)
             merged.add_incoming(else_value.llvm, else_end)
             return Value(common.ty, merged, common.fn, common.optional)
@@ -1277,9 +1125,7 @@ class Lowerer(
         self.builder.unreachable()
         return self._zero_desc(common)
 
-    def _merge_branches(
-        self, left: Value, right: Value, line: int | None
-    ) -> TypeDesc:
+    def _merge_branches(self, left: Value, right: Value, line: int | None) -> TypeDesc:
         left_desc = left.desc
         right_desc = right.desc
         if left_desc.same_as(right_desc):
@@ -1298,11 +1144,7 @@ class Lowerer(
                 return left_desc
             return TypeDesc(left.ty, left.sig, True)
 
-        if (
-            left.optional
-            and not right.optional
-            and TypeDesc(left.ty, left.sig).same_as(right_desc)
-        ):
+        if left.optional and not right.optional and TypeDesc(left.ty, left.sig).same_as(right_desc):
             return left_desc
         if (
             right.optional
@@ -1342,7 +1184,10 @@ class Lowerer(
             return self._expr(expr.right)
 
         coalesced = self.types.get(expr)
-        if coalesced is not None and self._type_desc(coalesced, expr.operator.line).ty is ValueType.ANY:
+        if (
+            coalesced is not None
+            and self._type_desc(coalesced, expr.operator.line).ty is ValueType.ANY
+        ):
             return self._coalesce_any(left, expr)
 
         some = llvm_ir.append_block(self._function_ir, "coalesce.some")
@@ -1398,16 +1243,12 @@ class Lowerer(
         self.builder.cbranch(self._optional_tag(left), some, nothing)
 
         self.builder = llvm_ir.builder(some)
-        some_value = self._box_value(
-            self._optional_payload(left), expr.operator.line
-        )
+        some_value = self._box_value(self._optional_payload(left), expr.operator.line)
         self.builder.branch(end)
         some_end = self.builder.block
 
         self.builder = llvm_ir.builder(nothing)
-        right = self._box_value(
-            self._expr(expr.right), expr.operator.line
-        )
+        right = self._box_value(self._expr(expr.right), expr.operator.line)
         self.builder.branch(end)
         nothing_end = self.builder.block
 
@@ -1479,9 +1320,7 @@ class Lowerer(
         if not right_open:
             return left
 
-        merged = self.builder.phi(
-            self._storage_llvm_type(common), "logical.value"
-        )
+        merged = self.builder.phi(self._storage_llvm_type(common), "logical.value")
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
         return Value(common.ty, merged, common.fn, common.optional)
@@ -1500,20 +1339,12 @@ class Lowerer(
             case ValueType.ANY:
                 tag = self.builder.extract_value(value.llvm, 0)
                 payload = self.builder.extract_value(value.llvm, 1)
-                is_nil = self.builder.icmp_signed(
-                    "==", tag, llvm_ir.constant(_INT, 0)
-                )
+                is_nil = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, 0))
                 is_false = self.builder.and_(
-                    self.builder.icmp_signed(
-                        "==", tag, llvm_ir.constant(_INT, 3)
-                    ),
-                    self.builder.icmp_signed(
-                        "==", payload, llvm_ir.constant(_INT, 0)
-                    ),
+                    self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, 3)),
+                    self.builder.icmp_signed("==", payload, llvm_ir.constant(_INT, 0)),
                 )
-                return self.builder.not_(
-                    self.builder.or_(is_nil, is_false)
-                )
+                return self.builder.not_(self.builder.or_(is_nil, is_false))
             case (
                 ValueType.INT
                 | ValueType.FLOAT
@@ -1550,9 +1381,7 @@ class Lowerer(
         function = self._panic_function()
         text = self._cstring(message)
         pointer = llvm_ir.cstring_pointer(self.builder, text)
-        code_pointer = llvm_ir.cstring_pointer(
-            self.builder, self._cstring(code.value)
-        )
+        code_pointer = llvm_ir.cstring_pointer(self.builder, self._cstring(code.value))
         self.builder.call(
             function,
             [
@@ -1580,9 +1409,7 @@ class Lowerer(
     def _cstring(self, message: str) -> Any:
         global_ = self._messages.get(message)
         if global_ is None:
-            global_ = llvm_ir.cstring(
-                self.module, message, f"msg.{len(self._messages)}"
-            )
+            global_ = llvm_ir.cstring(self.module, message, f"msg.{len(self._messages)}")
             self._messages[message] = global_
         return global_
 
@@ -1597,26 +1424,18 @@ class Lowerer(
         key = (kind, text)
         global_ = self._trace_strings.get(key)
         if global_ is None:
-            global_ = llvm_ir.cstring(
-                self.module, text, f"trace.{kind}.{len(self._trace_strings)}"
-            )
+            global_ = llvm_ir.cstring(self.module, text, f"trace.{kind}.{len(self._trace_strings)}")
             self._trace_strings[key] = global_
         return global_
 
-    def _emit_stack_enter(
-        self, name: str, file: str, line: int, column: int
-    ) -> None:
+    def _emit_stack_enter(self, name: str, file: str, line: int, column: int) -> None:
         """Prologue do chamado: empilha (nome, arquivo, decl) + call site global."""
-        name_ptr = llvm_ir.cstring_pointer(
-            self.builder, self._trace_string(name, "name")
-        )
+        name_ptr = llvm_ir.cstring_pointer(self.builder, self._trace_string(name, "name"))
         file_ptr = llvm_ir.cstring_pointer(
             self.builder, self._trace_string(file or self.source_path, "file")
         )
         self.builder.call(
-            self._function(
-                "lox_stack_enter", _VOID, [_I8_PTR, _I8_PTR, _I32, _I32]
-            ),
+            self._function("lox_stack_enter", _VOID, [_I8_PTR, _I8_PTR, _I32, _I32]),
             [
                 name_ptr,
                 file_ptr,
@@ -1638,9 +1457,7 @@ class Lowerer(
         if token is None:
             self._emit_stack_enter(layout.display, self.source_path, 0, 1)
             return
-        self._emit_stack_enter(
-            layout.display, token.file, token.line, token.column
-        )
+        self._emit_stack_enter(layout.display, token.file, token.line, token.column)
 
     def _set_call_site(self, token: Token) -> None:
         """Grava o call site para o prologue do chamado (lido em `lox_stack_enter`)."""
@@ -1650,15 +1467,11 @@ class Lowerer(
         )
         self.builder.store(file_ptr, self._call_file_global)
         self.builder.store(llvm_ir.constant(_I32, token.line), self._call_line_global)
-        self.builder.store(
-            llvm_ir.constant(_I32, max(1, token.column)), self._call_column_global
-        )
+        self.builder.store(llvm_ir.constant(_I32, max(1, token.column)), self._call_column_global)
 
     def _restore_call_site(self) -> None:
         """Devolve o call site do frame atual (ctor → init, após inicializadores)."""
-        self.builder.call(
-            self._function("lox_call_site_restore", _VOID, []), []
-        )
+        self.builder.call(self._function("lox_call_site_restore", _VOID, []), [])
 
     def _stack_leave(self) -> None:
         self.builder.call(self._function("lox_stack_leave", _VOID, []), [])

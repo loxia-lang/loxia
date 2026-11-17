@@ -60,7 +60,7 @@ def test_dump_interface_and_implements() -> None:
     """
 
     assert dump(source) == (
-        '(interface Forma (sig area () -> Int) '
+        "(interface Forma (sig area () -> Int) "
         '(fn nome () -> String (return "forma")))\n'
         "(class Circulo (implements Forma) (fn area () -> Int (return 1)))"
     )
@@ -74,9 +74,7 @@ def test_dump_list_nodes() -> None:
     """
 
     assert dump(source) == (
-        "(val xs (list 1 2))\n"
-        "(expr (call print (index xs 0)))\n"
-        "(expr (index-set xs 1 3))"
+        "(val xs (list 1 2))\n(expr (call print (index xs 0)))\n(expr (index-set xs 1 3))"
     )
 
 
@@ -109,9 +107,7 @@ def test_dump_lambda_nodes() -> None:
 
 
 def test_dump_generic_function() -> None:
-    assert dump("fn id[T](x: T) -> T { return x; }") == (
-        "(fn id[T] (x: T) -> T (return x))"
-    )
+    assert dump("fn id[T](x: T) -> T { return x; }") == ("(fn id[T] (x: T) -> T (return x))")
 
 
 def test_dump_type_alias() -> None:
@@ -119,9 +115,8 @@ def test_dump_type_alias() -> None:
 
 
 def test_dump_variadic_and_spread() -> None:
-    assert dump('fn f(...xs: Int) -> Int { return 0; } f(...[1]);') == (
-        "(fn f (...xs: Int) -> Int (return 0))\n"
-        "(expr (call f ...(list 1)))"
+    assert dump("fn f(...xs: Int) -> Int { return 0; } f(...[1]);") == (
+        "(fn f (...xs: Int) -> Int (return 0))\n(expr (call f ...(list 1)))"
     )
 
 
@@ -141,10 +136,7 @@ def test_dump_interpolated_string() -> None:
     print("${nome}")
     """
 
-    assert dump(source) == (
-        '(val s (interp "a " (+ 1 2) " b"))\n'
-        "(expr (call print (interp nome)))"
-    )
+    assert dump(source) == ('(val s (interp "a " (+ 1 2) " b"))\n(expr (call print (interp nome)))')
 
 
 def test_dump_as_expression() -> None:
@@ -166,8 +158,6 @@ def test_dump_tuples_and_destructuring() -> None:
 
 
 def test_dump_nested_destructuring() -> None:
-    source = 'val (a, (b, c)): (Int, (Int, Int)) = (1, (2, 3));'
+    source = "val (a, (b, c)): (Int, (Int, Int)) = (1, (2, 3));"
 
-    assert dump(source) == (
-        "(val-destructure (a (b c)): (Int, (Int, Int)) (tuple 1 (tuple 2 3)))"
-    )
+    assert dump(source) == ("(val-destructure (a (b c)): (Int, (Int, Int)) (tuple 1 (tuple 2 3)))")

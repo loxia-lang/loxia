@@ -43,9 +43,7 @@ class ExceptionLowering(LoweringBase):
             instance_type=instance_type,
             synthetic_exception=True,
         )
-        exception.ctor = llvm_ir.declare(
-            self.module, "lox.ctor.Exception", _I8_PTR, [_I8_PTR]
-        )
+        exception.ctor = llvm_ir.declare(self.module, "lox.ctor.Exception", _I8_PTR, [_I8_PTR])
         runtime_error = ClassLayout(
             "RuntimeError",
             901,
@@ -63,9 +61,7 @@ class ExceptionLowering(LoweringBase):
         for layout in (exception, runtime_error):
             self._classes[layout.name] = layout
             self._globals[layout.name] = Binding(
-                llvm_ir.global_variable(
-                    self.module, f"g.{layout.name}", _I8_PTR
-                ),
+                llvm_ir.global_variable(self.module, f"g.{layout.name}", _I8_PTR),
                 ValueType.CLASS,
                 class_name=layout.name,
             )
@@ -90,9 +86,7 @@ class ExceptionLowering(LoweringBase):
             return
         value = self._expr(stmt.value)
         if value.ty is not ValueType.INSTANCE:
-            self._poison(
-                line, "Can only raise exceptions.", column=column, code=Code.INVALID_VALUE
-            )
+            self._poison(line, "Can only raise exceptions.", column=column, code=Code.INVALID_VALUE)
             return
         layout = self._classes.get(value.class_name or "")
         type_name = layout.display if layout is not None else "Exception"
@@ -107,9 +101,7 @@ class ExceptionLowering(LoweringBase):
                     [string],
                 )
         self.builder.call(
-            self._function(
-                "lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32, _I32]
-            ),
+            self._function("lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32, _I32]),
             [
                 value.llvm,
                 self._cstring_pointer(type_name),
@@ -122,21 +114,15 @@ class ExceptionLowering(LoweringBase):
         self._new_block("raise.next")
 
     def _try(self, stmt: Try) -> None:
-        frame = self.builder.call(
-            self._function("lox_try_push", _I8_PTR, []), []
-        )
-        buffer = self.builder.call(
-            self._function("lox_try_buffer", _I8_PTR, [_I8_PTR]), [frame]
-        )
+        frame = self.builder.call(self._function("lox_try_push", _I8_PTR, []), [])
+        buffer = self.builder.call(self._function("lox_try_buffer", _I8_PTR, [_I8_PTR]), [frame])
         setjmp = self._function("_setjmp", _I32, [_I8_PTR])
         setjmp.attributes.add("returns_twice")
         status = self.builder.call(setjmp, [buffer])
         normal = llvm_ir.append_block(self._function_ir, "try.normal")
         caught = llvm_ir.append_block(self._function_ir, "try.caught")
         end = llvm_ir.append_block(self._function_ir, "try.end")
-        ok = self.builder.icmp_signed(
-            "==", status, llvm_ir.constant(_I32, 0)
-        )
+        ok = self.builder.icmp_signed("==", status, llvm_ir.constant(_I32, 0))
         self.builder.cbranch(ok, normal, caught)
 
         # Caminho normal: corpo, pop, finally.
@@ -152,16 +138,12 @@ class ExceptionLowering(LoweringBase):
             self._scopes.pop()
             self._pop_cleanup(context)
         if not self.builder.block.is_terminated:
-            self.builder.call(
-                self._function("lox_try_pop", _VOID, [_I8_PTR]), [frame]
-            )
+            self.builder.call(self._function("lox_try_pop", _VOID, [_I8_PTR]), [frame])
             self._emit_finally(stmt, end, None)
 
         # Caminho de exceção: captura, handlers, finally/rethrow.
         self.builder = llvm_ir.builder(caught)
-        self.builder.call(
-            self._function("lox_try_pop", _VOID, [_I8_PTR]), [frame]
-        )
+        self.builder.call(self._function("lox_try_pop", _VOID, [_I8_PTR]), [frame])
         exception = self.builder.call(
             self._function("lox_try_exception", _I8_PTR, [_I8_PTR]), [frame]
         )
@@ -169,30 +151,22 @@ class ExceptionLowering(LoweringBase):
         for clause in stmt.handlers:
             layout = self._classes.get(clause.type_name.lexeme)
             if layout is None:
-                layout = self._classes.get(
-                    clause.type_name.lexeme.rsplit("$", 1)[-1]
-                )
-            global_binding = (
-                self._globals.get(layout.name) if layout is not None else None
-            )
+                layout = self._classes.get(clause.type_name.lexeme.rsplit("$", 1)[-1])
+            global_binding = self._globals.get(layout.name) if layout is not None else None
             expected = (
                 self.builder.load(global_binding.storage)
                 if global_binding is not None
                 else llvm_ir.null_pointer()
             )
             match = self.builder.call(
-                self._function(
-                    "lox_exception_matches", _I32, [_I8_PTR, _I8_PTR, _I8_PTR]
-                ),
+                self._function("lox_exception_matches", _I32, [_I8_PTR, _I8_PTR, _I8_PTR]),
                 [
                     exception,
                     expected,
                     self._cstring_pointer(clause.type_name.lexeme),
                 ],
             )
-            matched = self.builder.icmp_signed(
-                "!=", match, llvm_ir.constant(_I32, 0)
-            )
+            matched = self.builder.icmp_signed("!=", match, llvm_ir.constant(_I32, 0))
             body = llvm_ir.append_block(self._function_ir, "except.body")
             next_block = llvm_ir.append_block(self._function_ir, "except.next")
             self.builder.cbranch(matched, body, next_block)
@@ -271,9 +245,7 @@ class ExceptionLowering(LoweringBase):
         instance.add_incoming(constructed, runtime_end)
         self.builder.store(instance, binding)
 
-    def _emit_finally(
-        self, stmt: Try, end: Any, pending: Any | None
-    ) -> None:
+    def _emit_finally(self, stmt: Try, end: Any, pending: Any | None) -> None:
         if stmt.finally_body is None:
             if pending is not None:
                 self.builder.call(

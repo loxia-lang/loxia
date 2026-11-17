@@ -127,9 +127,7 @@ def test_lowerable_diagnostic_is_deferred_in_build_mode() -> None:
     reporter.defer_lowerable = True
     token = _token()
 
-    reporter.error(
-        token, "Operands must be numbers.", code=Code.INVALID_OPERANDS, lowerable=True
-    )
+    reporter.error(token, "Operands must be numbers.", code=Code.INVALID_OPERANDS, lowerable=True)
 
     assert reporter.had_error is True
     assert reporter.had_fatal_error is False

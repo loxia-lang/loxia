@@ -306,4 +306,3 @@ def _unsupported(what: str, line: int | None) -> BackendError:
         line,
         code=Code.BACKEND_UNSUPPORTED,
     )
-

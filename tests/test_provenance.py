@@ -32,35 +32,21 @@ def test_nota_de_proveniencia_em_var_anotada() -> None:
     assert len(diagnostics) == 1
     diagnostic = diagnostics[0]
     assert diagnostic.message == "Expected Int, found String."
-    assert diagnostic.notes == (
-        "the value comes from `pessoa.nome` (line 6)",
-    )
+    assert diagnostic.notes == ("the value comes from `pessoa.nome` (line 6)",)
 
 
 def test_nota_de_proveniencia_em_argumento() -> None:
-    diagnostics = _diagnostics(
-        "fn f(x: Int) -> Nil { return nil }\n"
-        'val nome = "Ana"\n'
-        "f(nome)\n"
-    )
+    diagnostics = _diagnostics('fn f(x: Int) -> Nil { return nil }\nval nome = "Ana"\nf(nome)\n')
 
     assert len(diagnostics) == 1
-    assert diagnostics[0].notes == (
-        "the value comes from `nome` (line 3)",
-    )
+    assert diagnostics[0].notes == ("the value comes from `nome` (line 3)",)
 
 
 def test_nota_de_proveniencia_em_atribuicao() -> None:
-    diagnostics = _diagnostics(
-        "var total: Int = 0\n"
-        'val nome = "Ana"\n'
-        "total = nome\n"
-    )
+    diagnostics = _diagnostics('var total: Int = 0\nval nome = "Ana"\ntotal = nome\n')
 
     assert len(diagnostics) == 1
-    assert diagnostics[0].notes == (
-        "the value comes from `nome` (line 3)",
-    )
+    assert diagnostics[0].notes == ("the value comes from `nome` (line 3)",)
 
 
 def test_literal_nao_ganha_nota_de_proveniencia() -> None:
@@ -84,9 +70,7 @@ def test_nota_de_proveniencia_em_modulo(tmp_path: Path) -> None:
     )
     main = tmp_path / "main.lx"
     main.write_text(
-        "import mod\n"
-        'val p = mod.Pessoa("Ana")\n'
-        "print(mod.total(p))\n",
+        'import mod\nval p = mod.Pessoa("Ana")\nprint(mod.total(p))\n',
         encoding="utf-8",
     )
 

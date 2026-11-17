@@ -89,9 +89,7 @@ def _optimize(parsed: Any) -> None:
     passes conservadores que importam para o código gerado (SSA de slots, inlining,
     dobramento e DCE) e mantêm `setjmp`/`longjmp` intactos.
     """
-    pass_builder = binding.PassBuilder(
-        _target_machine(), binding.PipelineTuningOptions(2)
-    )
+    pass_builder = binding.PassBuilder(_target_machine(), binding.PipelineTuningOptions(2))
     manager = binding.ModulePassManager()
     manager.add_global_opt_pass()
     manager.add_ipsccp_pass()

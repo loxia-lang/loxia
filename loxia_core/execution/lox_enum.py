@@ -20,9 +20,7 @@ class LoxEnumValue:
 class LoxEnumVariant:
     """Construtor de uma variante com payload (`Shape.Circle`)."""
 
-    def __init__(
-        self, enum: str, variant: str, arity: int, key: str = ""
-    ) -> None:
+    def __init__(self, enum: str, variant: str, arity: int, key: str = "") -> None:
         self.enum = enum
         self.variant = variant
         self._arity = arity
@@ -35,29 +33,21 @@ class LoxEnumVariant:
         return self._arity
 
     def call(self, interpreter: Interpreter, arguments: list[object]) -> object:
-        return LoxEnumValue(
-            self.enum, self.variant, tuple(arguments), self.key
-        )
+        return LoxEnumValue(self.enum, self.variant, tuple(arguments), self.key)
 
 
 class LoxEnumObject:
     """Namespace de variantes (`Cor`, `Result`)."""
 
-    def __init__(
-        self, name: str, arities: dict[str, int], key: str | None = None
-    ) -> None:
+    def __init__(self, name: str, arities: dict[str, int], key: str | None = None) -> None:
         self.name = name
         self.key = key or name
         self._variants: dict[str, object] = {}
         for variant, arity in arities.items():
             if arity == 0:
-                self._variants[variant] = LoxEnumValue(
-                    name, variant, (), self.key
-                )
+                self._variants[variant] = LoxEnumValue(name, variant, (), self.key)
             else:
-                self._variants[variant] = LoxEnumVariant(
-                    name, variant, arity, self.key
-                )
+                self._variants[variant] = LoxEnumVariant(name, variant, arity, self.key)
 
     def get(self, variant: str) -> object | None:
         return self._variants.get(variant)

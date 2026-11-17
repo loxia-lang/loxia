@@ -24,9 +24,7 @@ class Formatted:
     changed: bool
 
 
-def format_source(
-    source: str, *, reporter: ErrorReporter | None = None
-) -> Formatted | None:
+def format_source(source: str, *, reporter: ErrorReporter | None = None) -> Formatted | None:
     """Formata `source`; `None` quando há erro léxico/sintático."""
     reporter = reporter or ErrorReporter()
     scanner = Scanner(source, reporter)
@@ -79,9 +77,7 @@ def format_source(
     for number, line in enumerate(lines, start=1):
         stripped = line.strip()
 
-        starts_literal = (
-            number in multiline_start or number in scanner.block_comment_starts
-        )
+        starts_literal = number in multiline_start or number in scanner.block_comment_starts
         if number in protected and not starts_literal:
             output.append(line)
         elif starts_literal:
@@ -101,10 +97,7 @@ def format_source(
         else:
             indent = depth - (1 if stripped.startswith("}") else 0)
             content = stripped
-            if (
-                content.endswith(";")
-                and not content.startswith(("#", "///", "/*"))
-            ):
+            if content.endswith(";") and not content.startswith(("#", "///", "/*")):
                 content = content[:-1].rstrip()
             output.append("  " * max(0, indent) + content)
 
@@ -143,11 +136,15 @@ def _structural_edits(
             TokenType.LEFT_BRACE,
         ):
             stack.append(token)
-        elif token.type in (
-            TokenType.RIGHT_PAREN,
-            TokenType.RIGHT_BRACKET,
-            TokenType.RIGHT_BRACE,
-        ) and stack:
+        elif (
+            token.type
+            in (
+                TokenType.RIGHT_PAREN,
+                TokenType.RIGHT_BRACKET,
+                TokenType.RIGHT_BRACE,
+            )
+            and stack
+        ):
             close_of[stack.pop().offset] = token
 
     by_offset = {token.offset: index for index, token in enumerate(tokens)}

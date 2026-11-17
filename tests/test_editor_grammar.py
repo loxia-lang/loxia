@@ -27,9 +27,7 @@ GITATTRIBUTES = ROOT / ".gitattributes"
 
 
 def _grammar() -> dict[str, Any]:
-    return cast(
-        dict[str, Any], json.loads(GRAMMAR.read_text(encoding="utf-8"))
-    )
+    return cast(dict[str, Any], json.loads(GRAMMAR.read_text(encoding="utf-8")))
 
 
 def _patterns(node: object) -> list[str]:
@@ -93,9 +91,9 @@ def test_todo_nome_embutido_aparece() -> None:
     joined = " ".join(_patterns(_grammar()))
 
     for name in BUILTIN_NAMES:
-        assert re.search(
-            rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", joined
-        ), f"nome embutido sem regra de destaque: {name}"
+        assert re.search(rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", joined), (
+            f"nome embutido sem regra de destaque: {name}"
+        )
 
 
 def test_barra_barra_e_divisao_nao_comentario() -> None:

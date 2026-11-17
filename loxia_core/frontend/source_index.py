@@ -46,9 +46,30 @@ from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.tokens import Token
 
 EXPR_TYPES = (
-    As, Assign, Binary, Call, Conditional, Get, Grouping, Index, IndexSet,
-    InterpolatedString, Is, Lambda, ListLiteral, Literal, Logical, MapLiteral,
-    Match, Range, Set, Super, This, TupleLiteral, Unary, Variable,
+    As,
+    Assign,
+    Binary,
+    Call,
+    Conditional,
+    Get,
+    Grouping,
+    Index,
+    IndexSet,
+    InterpolatedString,
+    Is,
+    Lambda,
+    ListLiteral,
+    Literal,
+    Logical,
+    MapLiteral,
+    Match,
+    Range,
+    Set,
+    Super,
+    This,
+    TupleLiteral,
+    Unary,
+    Variable,
 )
 
 # (start, end, file) em bytes UTF-8.
@@ -99,17 +120,12 @@ class SourceIndex:
                 [
                     extent
                     for item in fields(value)
-                    if (extent := self._walk(getattr(value, item.name)))
-                    is not None
+                    if (extent := self._walk(getattr(value, item.name))) is not None
                 ]
             )
         if isinstance(value, (list, tuple)):
             return self._merge(
-                [
-                    extent
-                    for item in value
-                    if (extent := self._walk(item)) is not None
-                ]
+                [extent for item in value if (extent := self._walk(item)) is not None]
             )
         return None
 
@@ -118,9 +134,7 @@ class SourceIndex:
         if not extents:
             return None
         first = min(extents, key=lambda item: item[0])
-        file = first[2] or next(
-            (item[2] for item in extents if item[2]), ""
-        )
+        file = first[2] or next((item[2] for item in extents if item[2]), "")
         return first[0], max(item[1] for item in extents), file
 
     def _own_extent(self, expression: Expr) -> Extent | None:
@@ -130,9 +144,7 @@ class SourceIndex:
             and expression.end is not None
         ):
             start = expression.start.offset or 0
-            end = (expression.end.offset or 0) + len(
-                expression.end.lexeme.encode("utf-8")
-            )
+            end = (expression.end.offset or 0) + len(expression.end.lexeme.encode("utf-8"))
             return start, end, expression.start.file or expression.end.file
         if isinstance(expression, Literal) and expression.token is not None:
             start = expression.token.offset or 0
@@ -151,11 +163,7 @@ class SourceIndex:
 
     def at(self, offset: int) -> ExprSpan | None:
         """Menor expressão que contém `offset` (half-open)."""
-        found = [
-            span
-            for span in self.spans
-            if span.start <= offset < span.end
-        ]
+        found = [span for span in self.spans if span.start <= offset < span.end]
         if not found:
             return None
         return min(found, key=lambda span: span.end - span.start)

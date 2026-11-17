@@ -213,9 +213,7 @@ def test_e3004_sem_tipo_exato_nao_ganha_fix(tmp_path: Path) -> None:
         check=False,
     )
     payload = json.loads(checked.stdout)
-    diagnostic = next(
-        item for item in payload["diagnostics"] if item["code"] == "E3004"
-    )
+    diagnostic = next(item for item in payload["diagnostics"] if item["code"] == "E3004")
     assert diagnostic["fixes"] == []
 
 
@@ -267,9 +265,7 @@ def test_fixes_unsafe_produzem_codigo_valido(tmp_path: Path) -> None:
             check=False,
         )
         payload = json.loads(checked.stdout)
-        diagnostic = next(
-            item for item in payload["diagnostics"] if item["code"] == code
-        )
+        diagnostic = next(item for item in payload["diagnostics"] if item["code"] == code)
         fixed = _apply_fix_edits(source, diagnostic["fixes"][0])
         path.write_text(fixed, encoding="utf-8")
         after = subprocess.run(

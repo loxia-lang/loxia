@@ -146,9 +146,7 @@ def test_super_depth_in_subclass() -> None:
 
 
 def test_this_depth_in_subclass() -> None:
-    reporter, interpreter, _ = resolve(
-        "class A {} class B(A) { m() { print(this); } }"
-    )
+    reporter, interpreter, _ = resolve("class A {} class B(A) { m() { print(this); } }")
 
     assert not reporter.had_error
     assert list(interpreter.locals.values()) == [1]

@@ -105,9 +105,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._reporter = reporter
         self._warn_unused = warn_unused
         self._scopes: list[dict[str, _VariableInfo]] = []
-        self._scope_duplicates: list[
-            list[tuple[Token, Token | None, _VariableInfo]]
-        ] = []
+        self._scope_duplicates: list[list[tuple[Token, Token | None, _VariableInfo]]] = []
         self._current_field_keywords: dict[str, Token] | None = None
         self._class_field_keywords: dict[str, dict[str, Token]] = {}
         self._current_function: FunctionType = FunctionType.NONE
@@ -160,9 +158,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                             f"Rename to '{replacement}' to mark it unused.",
                             (
                                 Edit(
-                                    span_of_token(
-                                        info.declaration, self._reporter.file
-                                    ),
+                                    span_of_token(info.declaration, self._reporter.file),
                                     replacement,
                                 ),
                             ),
@@ -170,13 +166,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                     ),
                 )
 
-    def _emit_duplicate(
-        self, token: Token, previous: Token | None, info: _VariableInfo
-    ) -> None:
+    def _emit_duplicate(self, token: Token, previous: Token | None, info: _VariableInfo) -> None:
         replacement = self._unique_name(token, "_dup_")
-        edits: list[Edit] = [
-            Edit(span_of_token(token, self._reporter.file), replacement)
-        ]
+        edits: list[Edit] = [Edit(span_of_token(token, self._reporter.file), replacement)]
         for use, declaration in self.references.items():
             if declaration is info.declaration:
                 edits.append(
@@ -189,11 +181,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             token,
             "Already a variable with this name in this scope.",
             code=Code.DUPLICATE_VARIABLE,
-            label_tokens=(
-                ((previous, "first declared here"),)
-                if previous is not None
-                else ()
-            ),
+            label_tokens=(((previous, "first declared here"),) if previous is not None else ()),
             fixes=(
                 Fix(
                     Applicability.UNSAFE,
@@ -248,9 +236,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             return
 
         scope = self._scopes[-1]
-        previous = (
-            scope[name.lexeme].declaration if name.lexeme in scope else None
-        )
+        previous = scope[name.lexeme].declaration if name.lexeme in scope else None
 
         info = _VariableInfo(
             defined=False,
@@ -285,9 +271,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         return None
 
-    def _resolve_function(
-        self, function: Function | Lambda, function_type: FunctionType
-    ) -> None:
+    def _resolve_function(self, function: Function | Lambda, function_type: FunctionType) -> None:
         enclosing_function = self._current_function
         self._current_function = function_type
 
@@ -319,10 +303,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._declare(stmt.name, mutable=True)
         self._define(stmt.name)
 
-        if (
-            stmt.superclass is not None
-            and stmt.name.lexeme == stmt.superclass.name.lexeme
-        ):
+        if stmt.superclass is not None and stmt.name.lexeme == stmt.superclass.name.lexeme:
             self._reporter.error(
                 stmt.superclass.name,
                 "A class can't inherit from itself.",
@@ -335,17 +316,13 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         if stmt.superclass is not None:
             self._begin_scope()
-            self._scopes[-1]["super"] = _VariableInfo(
-            defined=True, mutable=False, warn=False
-        )
+            self._scopes[-1]["super"] = _VariableInfo(defined=True, mutable=False, warn=False)
 
         inherited: dict[str, bool] = {}
         inherited_keywords: dict[str, Token] = {}
         if stmt.superclass is not None:
             inherited = self._class_fields.get(stmt.superclass.name.lexeme, {})
-            inherited_keywords = self._class_field_keywords.get(
-                stmt.superclass.name.lexeme, {}
-            )
+            inherited_keywords = self._class_field_keywords.get(stmt.superclass.name.lexeme, {})
 
         fields: dict[str, bool] = dict(inherited)
         field_keywords: dict[str, Token] = dict(inherited_keywords)
@@ -379,9 +356,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_field_keywords = field_keywords
 
         self._begin_scope()
-        self._scopes[-1]["this"] = _VariableInfo(
-            defined=True, mutable=False, warn=False
-        )
+        self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False, warn=False)
 
         for method in stmt.methods:
             declaration = FunctionType.METHOD
@@ -428,9 +403,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_class = ClassType.INTERFACE
 
         self._begin_scope()
-        self._scopes[-1]["this"] = _VariableInfo(
-            defined=True, mutable=False, warn=False
-        )
+        self._scopes[-1]["this"] = _VariableInfo(defined=True, mutable=False, warn=False)
         for method in stmt.methods:
             if method.abstract:
                 continue
@@ -537,19 +510,14 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
             info, scope_index = resolved
             if not info.mutable:
                 fixes: tuple[Fix, ...] = ()
-                if (
-                    info.keyword is not None
-                    and info.keyword.lexeme == "val"
-                ):
+                if info.keyword is not None and info.keyword.lexeme == "val":
                     fixes = (
                         Fix(
                             Applicability.UNSAFE,
                             "Change 'val' to 'var'.",
                             (
                                 Edit(
-                                    span_of_token(
-                                        info.keyword, self._reporter.file
-                                    ),
+                                    span_of_token(info.keyword, self._reporter.file),
                                     "var",
                                 ),
                             ),

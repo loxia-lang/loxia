@@ -3,7 +3,7 @@
 
 FILE ?=
 
-.PHONY: help run test test-fast case lint type fmt check check-fast docs-sync stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
 
 help:
 	@echo "make run FILE=exemplos/x.lx   executa um script (sem FILE abre o REPL)"
@@ -12,9 +12,10 @@ help:
 	@echo "make case                      runner golden, sem pytest"
 	@echo "make lint                      ruff"
 	@echo "make type                      mypy strict"
-	@echo "make fmt                       ruff format (primeira vez reformata tudo)"
-	@echo "make check                     lint + type + test + docs (gate completo)"
-	@echo "make check-fast                lint + type + test-fast + docs (loop local)"
+	@echo "make fmt                       ruff format (aplica)"
+	@echo "make fmt-check                 ruff format --check (gate)"
+	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
+	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
 	@echo "make docs-sync                 regenera níveis, catálogo e stdlib"
 	@echo "make stdlib-docs               regenera docs/stdlib/"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
@@ -47,9 +48,12 @@ type:
 fmt:
 	uv run ruff format .
 
-check: lint type test docs-fresh
+fmt-check:
+	uv run ruff format --check .
 
-check-fast: lint type test-fast docs-fresh
+check: lint fmt-check type test docs-fresh
+
+check-fast: lint fmt-check type test-fast docs-fresh
 
 docs-sync:
 	uv run python docs/_hooks/levels.py --write

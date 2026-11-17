@@ -65,9 +65,7 @@ def test_log_nativo(tmp_path: Path) -> None:
         check=False,
     )
     assert build.returncode == 0, build.stderr
-    result = subprocess.run(
-        [str(binary)], capture_output=True, text=True, check=False
-    )
+    result = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
     assert result.returncode == 0
     assert result.stdout == ""
     assert result.stderr.splitlines() == [

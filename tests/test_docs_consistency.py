@@ -88,9 +88,7 @@ def test_scoreboard_de_keywords_bate_com_keywords() -> None:
     # A regra está no próprio ADR: literais e reservas sem sintaxe não contam.
     excluded = {"true", "false", "nil", "async", "await"}
     expected = len(KEYWORDS) - len(excluded)
-    assert int(line.group(1)) == expected, (
-        f"scoreboard diz {line.group(1)}, KEYWORDS dá {expected}"
-    )
+    assert int(line.group(1)) == expected, f"scoreboard diz {line.group(1)}, KEYWORDS dá {expected}"
 
 
 def test_adr_numeracao_unica_sequencial_e_titulo_coerente() -> None:
@@ -104,9 +102,7 @@ def test_adr_numeracao_unica_sequencial_e_titulo_coerente() -> None:
     for path in _adr_files():
         title = ADR_TITLE.search(path.read_text(encoding="utf-8"))
         assert title is not None, f"{path.name}: sem título `# ADR-NNNN`"
-        assert title.group(1) == _adr_number(path), (
-            f"{path.name}: título diz ADR-{title.group(1)}"
-        )
+        assert title.group(1) == _adr_number(path), f"{path.name}: título diz ADR-{title.group(1)}"
 
 
 def test_todo_adr_esta_no_indice() -> None:
@@ -129,9 +125,7 @@ def test_paginas_de_spec_estao_linkadas_no_readme() -> None:
     readme = README.read_text(encoding="utf-8")
 
     for page in sorted(SPEC_DIR.glob("*.md")):
-        assert f"docs/spec/{page.name}" in readme, (
-            f"{page.name} não está linkada no README"
-        )
+        assert f"docs/spec/{page.name}" in readme, f"{page.name} não está linkada no README"
 
 
 def test_paginas_mutaveis_declaram_sources() -> None:
@@ -142,9 +136,7 @@ def test_paginas_mutaveis_declaram_sources() -> None:
         assert "sources:" in block, f"{page.name}: sem `sources:` no front matter"
 
         listed = [
-            line.strip()[2:].strip()
-            for line in block.splitlines()
-            if line.strip().startswith("- ")
+            line.strip()[2:].strip() for line in block.splitlines() if line.strip().startswith("- ")
         ]
         assert listed, f"{page.name}: `sources:` vazio"
 

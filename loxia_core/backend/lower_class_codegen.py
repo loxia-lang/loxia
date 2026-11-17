@@ -116,9 +116,7 @@ class ClassCodegenLowering(LoweringBase):
                 method_name = method.name.lexeme
                 info = infos[method_name]
                 self._emit_function(info, method, ())
-                closure = self._build_closure(
-                    info, (), f"<fn {name}.{method_name}>"
-                )
+                closure = self._build_closure(info, (), f"<fn {name}.{method_name}>")
                 closures[method_name] = closure
                 slot = llvm_ir.global_variable(
                     self.module, f"g.iface.{name}.{method_name}", _I8_PTR
@@ -131,19 +129,13 @@ class ClassCodegenLowering(LoweringBase):
     def _interface_has_method(self, interface: str, name: str) -> bool:
         return name in self._interface_method_infos.get(interface, {})
 
-    def _interface_thunk(
-        self, interface: str, method_name: str, sig: FnSig
-    ) -> Any:
+    def _interface_thunk(self, interface: str, method_name: str, sig: FnSig) -> Any:
         key = (interface, method_name)
         cached = self._interface_thunks.get(key)
         if cached is not None:
             return cached
 
-        result = (
-            _VOID
-            if sig.ret.ty is ValueType.NIL
-            else self._storage_llvm_type(sig.ret)
-        )
+        result = _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret)
         thunk = llvm_ir.declare(
             self.module,
             f"lox.bound.interface.{interface}.{method_name}",
@@ -177,24 +169,18 @@ class ClassCodegenLowering(LoweringBase):
         self._interface_thunks[key] = thunk
         return thunk
 
-    def _interface_bound_method(
-        self, instance: Value, interface: str, name: Any
-    ) -> Value:
+    def _interface_bound_method(self, instance: Value, interface: str, name: Any) -> Value:
         method_name = name.lexeme
         info = self._interface_method_infos.get(interface, {}).get(method_name)
         if info is None:
-            self._poison(
-                name, f"Undefined property '{method_name}'."
-            )
+            self._poison(name, f"Undefined property '{method_name}'.")
             return self._zero(ValueType.INT)
 
         names = self._interface_method_names[interface]
         index = names.index(method_name)
         interface_id = self._interface_ids[interface]
         closure_ptr = self.builder.call(
-            self._function(
-                "lox_interface_method", _I8_PTR, [_I8_PTR, _INT, _INT]
-            ),
+            self._function("lox_interface_method", _I8_PTR, [_I8_PTR, _INT, _INT]),
             [
                 instance.llvm,
                 llvm_ir.constant(_INT, interface_id),
@@ -216,9 +202,7 @@ class ClassCodegenLowering(LoweringBase):
             self._local_class_declaration(stmt)
             return
         if stmt.type_params:
-            for layout in self._generic_class_by_source.get(
-                stmt.name.lexeme, []
-            ):
+            for layout in self._generic_class_by_source.get(stmt.name.lexeme, []):
                 if layout.name in self._emitted_generic_classes:
                     continue
                 self._emitted_generic_classes.add(layout.name)
@@ -282,15 +266,11 @@ class ClassCodegenLowering(LoweringBase):
                 self._make_captures(method.node),
                 f"<fn {method.name}>",
             )
-            slot = self.builder.gep(
-                vtable, [llvm_ir.constant(_I32, method.index)]
-            )
+            slot = self.builder.gep(vtable, [llvm_ir.constant(_I32, method.index)])
             self.builder.store(closure.llvm, slot)
         return raw
 
-    def _copy_base_vtable(
-        self, super_layout: ClassLayout, super_ptr: Any, vtable: Any
-    ) -> None:
+    def _copy_base_vtable(self, super_layout: ClassLayout, super_ptr: Any, vtable: Any) -> None:
         base_desc = self.builder.bitcast(super_ptr, _CLASS_DESC.as_pointer())
         base_vtable = self.builder.bitcast(
             self.builder.load(
@@ -302,9 +282,7 @@ class ClassCodegenLowering(LoweringBase):
             _I8_PTR.as_pointer(),
         )
         for slot_index in range(super_layout.vtable_size):
-            slot = self.builder.gep(
-                vtable, [llvm_ir.constant(_I32, slot_index)]
-            )
+            slot = self.builder.gep(vtable, [llvm_ir.constant(_I32, slot_index)])
             self.builder.store(
                 self.builder.load(
                     self.builder.gep(
@@ -345,9 +323,7 @@ class ClassCodegenLowering(LoweringBase):
         name_value = self._string_literal(layout.display)
         init_min = 0 if effective is None else effective.fn_sig.min_params
         init_max = 0 if effective is None else len(effective.fn_sig.params)
-        interface_count, interface_table = self._class_interface_table(
-            layout, vtable_raw
-        )
+        interface_count, interface_table = self._class_interface_table(layout, vtable_raw)
         values = [
             super_ptr,
             llvm_ir.constant(_INT, layout.id),
@@ -367,9 +343,7 @@ class ClassCodegenLowering(LoweringBase):
             )
             self.builder.store(value, slot)
 
-    def _class_interface_table(
-        self, layout: ClassLayout, vtable_raw: Any
-    ) -> tuple[int, Any]:
+    def _class_interface_table(self, layout: ClassLayout, vtable_raw: Any) -> tuple[int, Any]:
         interfaces = layout.effective_interfaces()
         if not interfaces:
             return 0, llvm_ir.null_pointer()
@@ -391,12 +365,8 @@ class ClassCodegenLowering(LoweringBase):
             )
             itab = self.builder.bitcast(raw, _I8_PTR.as_pointer())
             for index, method_name in enumerate(names):
-                closure = self._class_interface_closure(
-                    layout, vtable_raw, interface, method_name
-                )
-                slot = self.builder.gep(
-                    itab, [llvm_ir.constant(_I32, index)]
-                )
+                closure = self._class_interface_closure(layout, vtable_raw, interface, method_name)
+                slot = self.builder.gep(itab, [llvm_ir.constant(_I32, index)])
                 self.builder.store(closure, slot)
             itabs.append((interface_id, raw))
 
@@ -406,9 +376,7 @@ class ClassCodegenLowering(LoweringBase):
         )
         table = self.builder.bitcast(table_raw, _INTERFACE_ENTRY.as_pointer())
         for index, (interface_id, itab_raw) in enumerate(itabs):
-            entry = self.builder.gep(
-                table, [llvm_ir.constant(_I32, index)]
-            )
+            entry = self.builder.gep(table, [llvm_ir.constant(_I32, index)])
             self.builder.store(
                 llvm_ir.constant(_INT, interface_id),
                 self.builder.gep(
@@ -436,24 +404,18 @@ class ClassCodegenLowering(LoweringBase):
         if method is not None:
             if layout.vtable_size == 0:
                 raise BackendError(
-                    f"Interface method '{interface}.{method_name}' has no vtable "
-                    "slot.",
+                    f"Interface method '{interface}.{method_name}' has no vtable slot.",
                     None,
                     code=Code.BACKEND_INTERNAL,
                 )
             vtable = self.builder.bitcast(vtable_raw, _I8_PTR.as_pointer())
-            slot = self.builder.gep(
-                vtable, [llvm_ir.constant(_I32, method.index)]
-            )
+            slot = self.builder.gep(vtable, [llvm_ir.constant(_I32, method.index)])
             return self.builder.load(slot)
 
-        slot = self._interface_default_globals.get(interface, {}).get(
-            method_name
-        )
+        slot = self._interface_default_globals.get(interface, {}).get(method_name)
         if slot is None:
             raise BackendError(
-                f"Interface method '{interface}.{method_name}' has no "
-                "implementation.",
+                f"Interface method '{interface}.{method_name}' has no implementation.",
                 None,
                 code=Code.BACKEND_INTERNAL,
             )
@@ -493,9 +455,7 @@ class ClassCodegenLowering(LoweringBase):
         methods, init, init_method, new_methods = self._class_methods(
             stmt, name, None, 0, ir_name=key
         )
-        instance_type = llvm_ir.literal_struct(
-            [_I8_PTR, _INT, *([_INT] * len(fields))]
-        )
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * len(fields))])
         layout = ClassLayout(
             name,
             len(self._classes) + 1,
@@ -503,11 +463,7 @@ class ClassCodegenLowering(LoweringBase):
             methods,
             init,
             init_node=next(
-                (
-                    method
-                    for method in stmt.methods
-                    if method.name.lexeme == "init"
-                ),
+                (method for method in stmt.methods if method.name.lexeme == "init"),
                 None,
             ),
             local=True,
@@ -522,10 +478,7 @@ class ClassCodegenLowering(LoweringBase):
         ctor_params = (
             []
             if effective is None
-            else [
-                self._storage_llvm_type(param)
-                for param in effective.fn_sig.params
-            ]
+            else [self._storage_llvm_type(param) for param in effective.fn_sig.params]
         )
         layout.ctor = llvm_ir.declare(
             self.module,
@@ -559,9 +512,7 @@ class ClassCodegenLowering(LoweringBase):
             )
 
         vtable = self._class_vtable(layout, llvm_ir.null_pointer())
-        init_closure = self._class_init_closure(
-            layout, llvm_ir.null_pointer()
-        )
+        init_closure = self._class_init_closure(layout, llvm_ir.null_pointer())
         self._store_class_descriptor(
             layout,
             descriptor,
@@ -616,9 +567,7 @@ class ClassCodegenLowering(LoweringBase):
         if layout.synthetic_exception:
             field = layout.field("message")
             assert field is not None
-            self._store_field(
-                instance, field, Value(ValueType.STRING, ctor.args[0])
-            )
+            self._store_field(instance, field, Value(ValueType.STRING, ctor.args[0]))
             self._ctor_require_fields(layout, instance)
             self.builder.ret(instance.llvm)
             return
@@ -634,10 +583,7 @@ class ClassCodegenLowering(LoweringBase):
                 [
                     llvm_ir.null_pointer(),
                     instance.llvm,
-                    *[
-                        ctor.args[index]
-                        for index in range(offset, len(ctor.args))
-                    ],
+                    *[ctor.args[index] for index in range(offset, len(ctor.args))],
                 ],
             )
         self._ctor_require_fields(layout, instance)
@@ -645,9 +591,7 @@ class ClassCodegenLowering(LoweringBase):
             self._stack_leave()
         self.builder.ret(instance.llvm)
 
-    def _ctor_allocate(
-        self, layout: ClassLayout, descriptor: Any = None
-    ) -> Value:
+    def _ctor_allocate(self, layout: ClassLayout, descriptor: Any = None) -> Value:
         assert layout.instance_type is not None
         size = 16 + 8 * layout.field_count()
         raw = self.builder.call(
@@ -657,9 +601,7 @@ class ClassCodegenLowering(LoweringBase):
         instance = Value(ValueType.INSTANCE, raw, class_name=layout.name)
         struct_ = self.builder.bitcast(raw, layout.instance_type.as_pointer())
         if descriptor is None:
-            descriptor = self.builder.load(
-                self._globals[layout.name].storage
-            )
+            descriptor = self.builder.load(self._globals[layout.name].storage)
         self.builder.store(
             descriptor,
             self.builder.gep(
@@ -676,20 +618,14 @@ class ClassCodegenLowering(LoweringBase):
         )
         return instance
 
-    def _ctor_run_initializers(
-        self, layout: ClassLayout, instance: Value
-    ) -> None:
+    def _ctor_run_initializers(self, layout: ClassLayout, instance: Value) -> None:
         for field in layout.all_fields():
             if field.initializer is None:
                 continue
-            value = self._coerce(
-                self._expr(field.initializer), field.ty, field.line
-            )
+            value = self._coerce(self._expr(field.initializer), field.ty, field.line)
             self._store_field(instance, field, value)
 
-    def _ctor_require_fields(
-        self, layout: ClassLayout, instance: Value
-    ) -> None:
+    def _ctor_require_fields(self, layout: ClassLayout, instance: Value) -> None:
         for field in layout.all_fields():
             bitmap = self.builder.load(self._bitmap_slot(instance, field.line))
             mask = llvm_ir.constant(_INT, 1 << field.index)
@@ -721,13 +657,9 @@ class ClassCodegenLowering(LoweringBase):
         binding = self._globals.get(name)
         if binding is None:
             raise _unsupported(f"Class '{name}'", line)
-        return self._guard_closure(
-            self._load_binding(binding), name, line, column
-        )
+        return self._guard_closure(self._load_binding(binding), name, line, column)
 
-    def _is_instance(
-        self, value: Value, class_name: str, line: int, column: int = 0
-    ) -> Value:
+    def _is_instance(self, value: Value, class_name: str, line: int, column: int = 0) -> Value:
         if value.ty is ValueType.NIL:
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
         if value.ty is not ValueType.INSTANCE:
@@ -751,9 +683,7 @@ class ClassCodegenLowering(LoweringBase):
         )
         return Value(
             ValueType.BOOL,
-            self.builder.icmp_signed(
-                "!=", result, llvm_ir.constant(_I32, 0)
-            ),
+            self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0)),
         )
 
     def _expand_alias(self, ty: Ty) -> Ty:
@@ -772,19 +702,13 @@ class ClassCodegenLowering(LoweringBase):
             result = llvm_ir.constant(_BOOL, 0)
             for member in test_type.members:
                 member_desc = self._type_desc(member, expr.operator.line)
-                check = self._is_any(
-                    boxed, member, member_desc, expr.operator.line
-                )
+                check = self._is_any(boxed, member, member_desc, expr.operator.line)
                 result = self.builder.or_(result, check.llvm)
             return Value(ValueType.BOOL, result)
         if value.ty is ValueType.ANY:
-            return self._is_any(
-                value, test_type, target_desc, expr.operator.line
-            )
+            return self._is_any(value, test_type, target_desc, expr.operator.line)
         boxed = self._box_value(value, expr.operator.line)
-        return self._is_any(
-            boxed, test_type, target_desc, expr.operator.line
-        )
+        return self._is_any(boxed, test_type, target_desc, expr.operator.line)
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
         """`Any is T` com checagem recursiva (listas, mapas, tuplas, enums).
@@ -796,16 +720,12 @@ class ClassCodegenLowering(LoweringBase):
         payload = self.builder.extract_value(value.llvm, 1)
         text = self._type_text(test_type, line)
         result = self.builder.call(
-            self._function(
-                "lox_type_matches_str", _I32, [_INT, _INT, _I8_PTR]
-            ),
+            self._function("lox_type_matches_str", _I32, [_INT, _INT, _I8_PTR]),
             [tag, payload, self._cstring_pointer(text)],
         )
         return Value(
             ValueType.BOOL,
-            self.builder.icmp_signed(
-                "!=", result, llvm_ir.constant(_I32, 0)
-            ),
+            self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0)),
         )
 
     def _type_text(self, ty: Ty, line: int) -> str:
@@ -828,17 +748,12 @@ class ClassCodegenLowering(LoweringBase):
         if isinstance(ty, ListTy):
             return f"L<{self._type_text(ty.element, line)}>"
         if isinstance(ty, MapTy):
-            return (
-                f"M<{self._type_text(ty.key, line)},"
-                f"{self._type_text(ty.value, line)}>"
-            )
+            return f"M<{self._type_text(ty.key, line)},{self._type_text(ty.value, line)}>"
         if isinstance(ty, TupleTy):
             items = ",".join(self._type_text(item, line) for item in ty.items)
             return f"T<{items}>"
         if isinstance(ty, UnionTy):
-            members = "|".join(
-                self._type_text(member, line) for member in ty.members
-            )
+            members = "|".join(self._type_text(member, line) for member in ty.members)
             return f"U<{members}>"
         if isinstance(ty, EnumTy):
             layout = self._enum_layouts.get(ty.name)
@@ -859,9 +774,7 @@ class ClassCodegenLowering(LoweringBase):
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
-                raise _unsupported(
-                    f"Unbound type parameter '{ty.name}'", line
-                )
+                raise _unsupported(f"Unbound type parameter '{ty.name}'", line)
             return self._type_text(mapped, line)
         if isinstance(ty, (FnTy, NativeFnTy, ClassObjectTy)):
             return "X"
@@ -916,9 +829,7 @@ class ClassCodegenLowering(LoweringBase):
         if target_desc.ty is ValueType.FLOAT:
             return self._as_any_float(expr, value, line, column)
 
-        matches = self._is_any(
-            value, self._expand_alias(expr.target_type), target_desc, line
-        )
+        matches = self._is_any(value, self._expand_alias(expr.target_type), target_desc, line)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
         bad = llvm_ir.append_block(self._function_ir, "as.bad")
         self.builder.cbranch(matches.llvm, ok, bad)
@@ -931,17 +842,11 @@ class ClassCodegenLowering(LoweringBase):
         self.builder = llvm_ir.builder(ok)
         return self._unbox_any(value, target_desc, line)
 
-    def _as_any_int(
-        self, expr: As, value: Value, line: int, column: int
-    ) -> Value:
+    def _as_any_int(self, expr: As, value: Value, line: int, column: int) -> Value:
         tag = self.builder.extract_value(value.llvm, 0)
         payload = self.builder.extract_value(value.llvm, 1)
-        is_int = self.builder.icmp_signed(
-            "==", tag, llvm_ir.constant(_INT, ANY_TAG_INT)
-        )
-        is_float = self.builder.icmp_signed(
-            "==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT)
-        )
+        is_int = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_INT))
+        is_float = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT))
         int_ok = llvm_ir.append_block(self._function_ir, "as.int")
         float_check = llvm_ir.append_block(self._function_ir, "as.float?")
         float_ok = llvm_ir.append_block(self._function_ir, "as.float")
@@ -968,9 +873,7 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.branch(end)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(
-            expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST
-        )
+        self._poison(expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST)
 
         self.builder = llvm_ir.builder(end)
         merged = self.builder.phi(_INT, "as.int")
@@ -978,17 +881,11 @@ class ClassCodegenLowering(LoweringBase):
         merged.add_incoming(converted, float_ok)
         return Value(ValueType.INT, merged)
 
-    def _as_any_float(
-        self, expr: As, value: Value, line: int, column: int
-    ) -> Value:
+    def _as_any_float(self, expr: As, value: Value, line: int, column: int) -> Value:
         tag = self.builder.extract_value(value.llvm, 0)
         payload = self.builder.extract_value(value.llvm, 1)
-        is_int = self.builder.icmp_signed(
-            "==", tag, llvm_ir.constant(_INT, ANY_TAG_INT)
-        )
-        is_float = self.builder.icmp_signed(
-            "==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT)
-        )
+        is_int = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_INT))
+        is_float = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, ANY_TAG_FLOAT))
         int_ok = llvm_ir.append_block(self._function_ir, "as.int")
         float_check = llvm_ir.append_block(self._function_ir, "as.float?")
         float_ok = llvm_ir.append_block(self._function_ir, "as.float")
@@ -1008,9 +905,7 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.branch(end)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(
-            expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST
-        )
+        self._poison(expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST)
 
         self.builder = llvm_ir.builder(end)
         merged = self.builder.phi(_FLOAT, "as.float")
@@ -1026,27 +921,19 @@ class ClassCodegenLowering(LoweringBase):
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
             if value.optional:
-                value = self._unwrap(
-                    value, expr.operator.line, "Can't cast value to Int."
-                )
+                value = self._unwrap(value, expr.operator.line, "Can't cast value to Int.")
             if target_desc.ty is ValueType.FLOAT:
                 if value.ty is ValueType.FLOAT:
                     return value
                 if value.ty is ValueType.INT:
-                    return Value(
-                        ValueType.FLOAT, self.builder.sitofp(value.llvm, _FLOAT)
-                    )
-                self._poison(
-                    expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST
-                )
+                    return Value(ValueType.FLOAT, self.builder.sitofp(value.llvm, _FLOAT))
+                self._poison(expr.operator, "Can't cast value to Float.", code=Code.RUNTIME_CAST)
                 return Value(ValueType.FLOAT, llvm_ir.float_constant(0.0))
             if value.ty is ValueType.INT:
                 return value
             if value.ty is ValueType.FLOAT:
                 call = self.builder.call(
-                    self._function(
-                        "lox_float_to_int", _INT, [_FLOAT, _I32, _I32]
-                    ),
+                    self._function("lox_float_to_int", _INT, [_FLOAT, _I32, _I32]),
                     [
                         value.llvm,
                         llvm_ir.constant(_I32, expr.operator.line),
@@ -1054,9 +941,7 @@ class ClassCodegenLowering(LoweringBase):
                     ],
                 )
                 return Value(ValueType.INT, call)
-            self._poison(
-                    expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST
-                )
+            self._poison(expr.operator, "Can't cast value to Int.", code=Code.RUNTIME_CAST)
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
         if (
@@ -1083,17 +968,13 @@ class ClassCodegenLowering(LoweringBase):
                 expr.operator.line,
                 f"Can't cast value to {target}.",
             )
-        check = self._is_instance(
-            value, target, expr.operator.line, expr.operator.column
-        )
+        check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
         bad = llvm_ir.append_block(self._function_ir, "as.bad")
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(
-            expr.operator, f"Can't cast value to {target}.", code=Code.RUNTIME_CAST
-        )
+        self._poison(expr.operator, f"Can't cast value to {target}.", code=Code.RUNTIME_CAST)
 
         self.builder = llvm_ir.builder(ok)
         return Value(
@@ -1116,9 +997,7 @@ class ClassCodegenLowering(LoweringBase):
         sig: FnSig,
         function: FunctionInfo | None = None,
     ) -> Value:
-        raw = self.builder.call(
-            self._function("lox_alloc_closure", _I8_PTR, []), []
-        )
+        raw = self.builder.call(self._function("lox_alloc_closure", _I8_PTR, []), [])
         closure = self.builder.bitcast(raw, _CLOSURE.as_pointer())
         self.builder.store(
             self.builder.bitcast(fnptr, _I8_PTR),
@@ -1148,11 +1027,7 @@ class ClassCodegenLowering(LoweringBase):
             return method.thunk
 
         sig = method.info.fn_sig
-        result = (
-            _VOID
-            if sig.ret.ty is ValueType.NIL
-            else self._storage_llvm_type(sig.ret)
-        )
+        result = _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret)
         thunk = llvm_ir.declare(
             self.module,
             f"lox.bound.{layout.ir_name or layout.name}.{method.name}",
@@ -1189,9 +1064,7 @@ class ClassCodegenLowering(LoweringBase):
         ) = saved
         return thunk
 
-    def _emit_thunk_call(
-        self, thunk: Any, sig: FnSig, result: Any
-    ) -> None:
+    def _emit_thunk_call(self, thunk: Any, sig: FnSig, result: Any) -> None:
         bound_type = llvm_ir.literal_struct([_I8_PTR, _I8_PTR])
         bound = self.builder.bitcast(thunk.args[0], bound_type.as_pointer())
         closure_ptr = self.builder.load(
@@ -1281,13 +1154,9 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)],
             ),
         )
-        return self._make_raw_closure(
-            thunk, raw_env, f"<fn {name}>", sig, function
-        )
+        return self._make_raw_closure(thunk, raw_env, f"<fn {name}>", sig, function)
 
-    def _bound_method(
-        self, instance: Value, layout: ClassLayout, method: MethodLayout
-    ) -> Value:
+    def _bound_method(self, instance: Value, layout: ClassLayout, method: MethodLayout) -> Value:
         struct_ = self._instance_struct(instance, 0)
         descriptor_slot = self.builder.gep(
             struct_,
@@ -1299,16 +1168,10 @@ class ClassCodegenLowering(LoweringBase):
             desc_struct,
             [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 3)],
         )
-        vtable = self.builder.bitcast(
-            self.builder.load(vtable_slot), _I8_PTR.as_pointer()
-        )
-        method_slot = self.builder.gep(
-            vtable, [llvm_ir.constant(_I32, method.index)]
-        )
+        vtable = self.builder.bitcast(self.builder.load(vtable_slot), _I8_PTR.as_pointer())
+        method_slot = self.builder.gep(vtable, [llvm_ir.constant(_I32, method.index)])
         method_closure = self.builder.load(method_slot)
-        return self._bind_method_closure(
-            instance, layout, method, method_closure
-        )
+        return self._bind_method_closure(instance, layout, method, method_closure)
 
     def _this_value(self, line: int) -> Value:
         binding = self._find_binding("this")
@@ -1342,9 +1205,7 @@ class ClassCodegenLowering(LoweringBase):
         else:
             method = base.method(name)
             if method is None:
-                raise BackendError(
-                    f"Undefined property '{name}'.", expr.method.line
-                )
+                raise BackendError(f"Undefined property '{name}'.", expr.method.line)
             vtable = self.builder.bitcast(
                 self.builder.load(
                     self.builder.gep(
@@ -1355,9 +1216,7 @@ class ClassCodegenLowering(LoweringBase):
                 _I8_PTR.as_pointer(),
             )
             closure = self.builder.load(
-                self.builder.gep(
-                    vtable, [llvm_ir.constant(_I32, method.index)]
-                )
+                self.builder.gep(vtable, [llvm_ir.constant(_I32, method.index)])
             )
 
         return self._bind_method_closure(instance, base, method, closure)

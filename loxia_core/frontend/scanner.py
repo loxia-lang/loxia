@@ -119,17 +119,13 @@ class Scanner:
                 else:
                     self._add_token(TokenType.DOT)
             case "-":
-                self._add_token(
-                    TokenType.ARROW if self._match(">") else TokenType.MINUS
-                )
+                self._add_token(TokenType.ARROW if self._match(">") else TokenType.MINUS)
             case "+":
                 self._add_token(TokenType.PLUS)
             case ";":
                 self._add_token(TokenType.SEMICOLON)
             case "*":
-                self._add_token(
-                    TokenType.STAR_STAR if self._match("*") else TokenType.STAR
-                )
+                self._add_token(TokenType.STAR_STAR if self._match("*") else TokenType.STAR)
             case "%":
                 self._add_token(TokenType.PERCENT)
             case "!":
@@ -145,18 +141,12 @@ class Scanner:
                 if self._match(">"):
                     self._add_token(TokenType.FAT_ARROW)
                 else:
-                    self._add_token(
-                        TokenType.EQUAL_EQUAL
-                        if self._match("=")
-                        else TokenType.EQUAL
-                    )
+                    self._add_token(TokenType.EQUAL_EQUAL if self._match("=") else TokenType.EQUAL)
             case "<":
                 if self._match("<"):
                     self._add_token(TokenType.LESS_LESS)
                 else:
-                    self._add_token(
-                        TokenType.LESS_EQUAL if self._match("=") else TokenType.LESS
-                    )
+                    self._add_token(TokenType.LESS_EQUAL if self._match("=") else TokenType.LESS)
             case ">":
                 if self._match(">"):
                     self._add_token(
@@ -263,10 +253,7 @@ class Scanner:
         return self._peek() == "/" and self._peek_next() == "/"
 
     def _scan_doc_line(self) -> None:
-        if (
-            self._doc_lines
-            and self._start_line != self._last_doc_line + 1
-        ):
+        if self._doc_lines and self._start_line != self._last_doc_line + 1:
             self._doc_lines = []
         self._advance()
         self._advance()
@@ -340,7 +327,7 @@ class Scanner:
                 if not triple:
                     self._error(
                         string_position,
-                        "Unterminated string; multiline strings use '\"\"\"'.",
+                        'Unterminated string; multiline strings use \'"""\'.',
                         Code.UNTERMINATED_STRING,
                     )
                     # Descarta o resto da linha para não gerar erros em cascata.
@@ -521,9 +508,7 @@ class Scanner:
             self._scan_digits(Scanner._is_digit)
 
         exponent_digits = 2 if self._peek_at(1) in ("+", "-") else 1
-        if self._peek() in ("e", "E") and Scanner._is_digit(
-            self._peek_at(exponent_digits)
-        ):
+        if self._peek() in ("e", "E") and Scanner._is_digit(self._peek_at(exponent_digits)):
             is_float = True
             self._advance()
             if self._peek() in ("+", "-"):

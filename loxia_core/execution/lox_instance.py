@@ -25,10 +25,10 @@ class LoxInstance:
             return method.bind(self)
 
         raise LoxRuntimeError(
-                name,
-                f"Undefined property '{name.lexeme}'.",
-                code=Code.UNDEFINED_PROPERTY,
-            )
+            name,
+            f"Undefined property '{name.lexeme}'.",
+            code=Code.UNDEFINED_PROPERTY,
+        )
 
     def set(self, name: Token, value: object) -> None:
         field = self._klass.find_field(name.lexeme)

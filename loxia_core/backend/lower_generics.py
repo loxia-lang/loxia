@@ -114,9 +114,7 @@ class GenericLowering(LoweringBase):
         finally:
             self._type_subst = saved
 
-        instance_type = llvm_ir.literal_struct(
-            [_I8_PTR, _INT, *([_INT] * len(fields))]
-        )
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * len(fields))])
         layout = ClassLayout(
             key,
             len(self._classes) + 1,
@@ -124,11 +122,7 @@ class GenericLowering(LoweringBase):
             methods,
             init,
             init_node=next(
-                (
-                    method
-                    for method in stmt.methods
-                    if method.name.lexeme == "init"
-                ),
+                (method for method in stmt.methods if method.name.lexeme == "init"),
                 None,
             ),
             ir_name=key,
@@ -162,9 +156,7 @@ class GenericLowering(LoweringBase):
         layout = self._classes.get(class_name)
         return layout.display if layout is not None else class_name
 
-    def _instantiate_class(
-        self, name: str, args: tuple[Ty, ...], line: int | None
-    ) -> TypeDesc:
+    def _instantiate_class(self, name: str, args: tuple[Ty, ...], line: int | None) -> TypeDesc:
         return TypeDesc(
             ValueType.INSTANCE,
             class_name=self._mangled(name, args),
@@ -176,9 +168,7 @@ class GenericLowering(LoweringBase):
         if isinstance(ty, ClassTy):
             if ty.name in self._type_subst:
                 return self._type_subst[ty.name]
-            return ClassTy(
-                ty.name, tuple(self._subst_ty(arg) for arg in ty.args)
-            )
+            return ClassTy(ty.name, tuple(self._subst_ty(arg) for arg in ty.args))
         if isinstance(ty, FnTy):
             return FnTy(
                 tuple(self._subst_ty(param) for param in ty.params),
@@ -189,15 +179,11 @@ class GenericLowering(LoweringBase):
         if isinstance(ty, ListTy):
             return ListTy(self._subst_ty(ty.element))
         if isinstance(ty, MapTy):
-            return MapTy(
-                self._subst_ty(ty.key), self._subst_ty(ty.value)
-            )
+            return MapTy(self._subst_ty(ty.key), self._subst_ty(ty.value))
         if isinstance(ty, TupleTy):
             return TupleTy(tuple(self._subst_ty(item) for item in ty.items))
         if isinstance(ty, UnionTy):
-            return UnionTy(
-                tuple(self._subst_ty(member) for member in ty.members)
-            )
+            return UnionTy(tuple(self._subst_ty(member) for member in ty.members))
         return ty
 
     def _call_generic_lambda(self, callee: Value, expr: Call) -> Value:
@@ -281,15 +267,11 @@ class GenericLowering(LoweringBase):
                 arguments.append(self._expr(default))
             arguments = [
                 self._coerce(argument, expected, expr.paren.line)
-                for argument, expected in zip(
-                    arguments, init.fn_sig.params, strict=True
-                )
+                for argument, expected in zip(arguments, init.fn_sig.params, strict=True)
             ]
         _ = class_ptr
         self._set_call_site(expr.paren)
-        call = self.builder.call(
-            layout.ctor, [argument.llvm for argument in arguments]
-        )
+        call = self.builder.call(layout.ctor, [argument.llvm for argument in arguments])
         return Value(ValueType.INSTANCE, call, class_name=layout.name)
 
     def _mangled(self, name: str, type_args: tuple[Ty, ...]) -> str:
@@ -301,21 +283,16 @@ class GenericLowering(LoweringBase):
             parts.append(text.strip("_"))
         return name + "$" + "$".join(parts)
 
-    def _generic_subst(
-        self, stmt: Function, type_args: tuple[Ty, ...]
-    ) -> dict[str, Ty]:
+    def _generic_subst(self, stmt: Function, type_args: tuple[Ty, ...]) -> dict[str, Ty]:
         names = [param.lexeme for param in stmt.type_params]
         if len(names) != len(type_args):
             raise BackendError(
-                f"Generic function '{stmt.name.lexeme}' expected "
-                f"{len(names)} type argument(s).",
+                f"Generic function '{stmt.name.lexeme}' expected {len(names)} type argument(s).",
                 stmt.name.line,
             )
         return dict(zip(names, type_args, strict=True))
 
-    def _generic_function(
-        self, stmt: Function, type_args: tuple[Ty, ...]
-    ) -> FunctionInfo:
+    def _generic_function(self, stmt: Function, type_args: tuple[Ty, ...]) -> FunctionInfo:
         name = stmt.name.lexeme
         key = (
             name,
@@ -351,9 +328,7 @@ class GenericLowering(LoweringBase):
                 expr.paren.line,
             )
 
-        type_args = tuple(
-            self._subst_ty(arg) for arg in instance.type_args
-        )
+        type_args = tuple(self._subst_ty(arg) for arg in instance.type_args)
         if any(self._has_type_var(arg) for arg in type_args):
             raise _unsupported(
                 "A generic call inside another generic body",
@@ -392,15 +367,13 @@ class GenericLowering(LoweringBase):
         if isinstance(ty, ListTy):
             return self._has_type_var(ty.element)
         if isinstance(ty, MapTy):
-            return self._has_type_var(ty.key) or self._has_type_var(
-                ty.value
-            )
+            return self._has_type_var(ty.key) or self._has_type_var(ty.value)
         if isinstance(ty, TupleTy):
             return any(self._has_type_var(item) for item in ty.items)
         if isinstance(ty, UnionTy):
             return any(self._has_type_var(member) for member in ty.members)
         if isinstance(ty, FnTy):
-            return any(
-                self._has_type_var(param) for param in ty.params
-            ) or self._has_type_var(ty.ret)
+            return any(self._has_type_var(param) for param in ty.params) or self._has_type_var(
+                ty.ret
+            )
         return False

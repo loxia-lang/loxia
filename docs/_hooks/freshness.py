@@ -121,9 +121,7 @@ def _last_commit(files: list[str]) -> int:
 def _commits_since(files: list[str], timestamp: int) -> list[str]:
     if not files or timestamp == 0:
         return _git("log", "--format=%h %s", "--", *files).splitlines()
-    return _git(
-        "log", "--format=%h %s", f"{timestamp + 1}..HEAD", "--", *files
-    ).splitlines()
+    return _git("log", "--format=%h %s", f"{timestamp + 1}..HEAD", "--", *files).splitlines()
 
 
 def _dirty(files: list[str]) -> list[str]:
@@ -209,8 +207,7 @@ def main(argv: list[str]) -> int:
 
     if quiet and stale:
         print(
-            f"docs: {len(stale)} página(s) candidata(s) a desatualizada(s); "
-            f"rode `make docs-fresh`"
+            f"docs: {len(stale)} página(s) candidata(s) a desatualizada(s); rode `make docs-fresh`"
         )
 
     return 1 if strict and stale else 0

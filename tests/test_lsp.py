@@ -423,9 +423,7 @@ def test_lsp_completion_global_and_property(tmp_path: Path) -> None:
                 },
             },
         )
-        property_labels = {
-            item["label"] for item in read(process)["result"]["items"]
-        }
+        property_labels = {item["label"] for item in read(process)["result"]["items"]}
         assert {"x", "init"} <= property_labels
 
         send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
@@ -502,12 +500,7 @@ def test_lsp_signature_help_and_semantic_tokens(tmp_path: Path) -> None:
 
 def test_lsp_code_action_expoe_fixes(tmp_path: Path) -> None:
     uri = (tmp_path / "fix.lx").as_uri()
-    source = (
-        "fn f() -> Nil {\n"
-        "  val unused = 1\n"
-        '  prin("x")\n'
-        "}\n"
-    )
+    source = 'fn f() -> Nil {\n  val unused = 1\n  prin("x")\n}\n'
     process = start()
     try:
         send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
@@ -573,9 +566,7 @@ def test_lsp_rename_local(tmp_path: Path) -> None:
     try:
         send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         initialized = read(process)
-        assert initialized["result"]["capabilities"]["renameProvider"] == {
-            "prepareProvider": True
-        }
+        assert initialized["result"]["capabilities"]["renameProvider"] == {"prepareProvider": True}
         send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
         send(
             process,
@@ -682,11 +673,7 @@ def test_lsp_rename_cross_file(tmp_path: Path) -> None:
         response = read(process)
         changes = response["result"]["changes"]
         assert set(changes) == {module.as_uri(), main.as_uri()}
-        assert all(
-            edit["newText"] == "bar"
-            for edits in changes.values()
-            for edit in edits
-        )
+        assert all(edit["newText"] == "bar" for edits in changes.values() for edit in edits)
         assert len(changes[main.as_uri()]) == 2
 
         send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})

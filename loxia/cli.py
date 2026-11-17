@@ -103,9 +103,7 @@ class Loxia:
         module_paths: list[str] | None = None,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
-        self.interpreter = Interpreter(
-            self.reporter, checked_overflow=debug, argv=script_args
-        )
+        self.interpreter = Interpreter(self.reporter, checked_overflow=debug, argv=script_args)
         self.error_format = error_format
         self.color = color
         self.json_lines = json_lines
@@ -164,9 +162,7 @@ class Loxia:
                     manifest = parse_manifest(manifest_path, manifest_text)
                 except ManifestError as error:
                     self.reporter.error(
-                        _manifest_token(
-                            manifest_path, error.line, error.column
-                        ),
+                        _manifest_token(manifest_path, error.line, error.column),
                         error.message,
                         code=Code.SYNTAX_UNEXPECTED,
                     )
@@ -186,24 +182,18 @@ class Loxia:
             )
             if loaded is None:
                 return None
-            self._watched_files = {
-                module.path for module in loader.modules.values()
-            }
+            self._watched_files = {module.path for module in loader.modules.values()}
             if manifest_path is not None:
                 self._watched_files.add(manifest_path)
             statements = loaded
 
         self.last_statements = statements
-        self.last_source_index = SourceIndex(
-            statements, source, sources=self._sources
-        )
+        self.last_source_index = SourceIndex(statements, source, sources=self._sources)
         return statements
 
     def _execute(self, statements: list[Stmt]) -> None:
         # Em run não há warnings: o binário não os emite e o I1 compara stderr.
-        Resolver(
-            self.interpreter, self.reporter, warn_unused=False
-        ).resolve(statements)
+        Resolver(self.interpreter, self.reporter, warn_unused=False).resolve(statements)
 
         if self.reporter.had_error:
             return
@@ -341,9 +331,7 @@ class Loxia:
                 max_heap=max_heap,
             )
         except BackendError as error:
-            self.reporter.backend_error(
-                error.line, error.message, code=error.code
-            )
+            self.reporter.backend_error(error.line, error.message, code=error.code)
             self._flush("build", exit_code=65, always=True)
             return False
 
@@ -413,9 +401,7 @@ class Loxia:
         return self._exit_code()
 
     def report_timeout(self, command: str, milliseconds: int) -> None:
-        self.reporter.cli_error(
-            f"Execution timed out after {milliseconds} ms."
-        )
+        self.reporter.cli_error(f"Execution timed out after {milliseconds} ms.")
         self._flush(command, exit_code=124, always=True)
 
     # -- diagnóstico -----------------------------------------------------
@@ -451,9 +437,7 @@ class Loxia:
         if self.error_format == "json":
             if not batch and not always:
                 return
-            text = render_json(
-                batch, command=command, success=success, exit_code=exit_code
-            )
+            text = render_json(batch, command=command, success=success, exit_code=exit_code)
             stream = sys.stdout if command in JSON_ON_STDOUT else sys.stderr
             stream.write(text)
             stream.flush()
@@ -584,9 +568,7 @@ class _ErrorFormatAction(argparse.Action):
         namespace.error_format_explicit = True
 
 
-def _add_common_options(
-    parser: argparse.ArgumentParser, *, include_debug: bool = False
-) -> None:
+def _add_common_options(parser: argparse.ArgumentParser, *, include_debug: bool = False) -> None:
     parser.add_argument(
         "--error-format",
         choices=("human", "short", "json"),
@@ -780,17 +762,13 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
     elif command == "fmt":
         _add_common_options(parser)
         _add_stdin_options(parser)
-        parser.add_argument(
-            "--check", action="store_true", help="não escreve; exit 1 se mudaria"
-        )
+        parser.add_argument("--check", action="store_true", help="não escreve; exit 1 se mudaria")
         parser.add_argument("script", nargs="?", help="arquivo Loxia")
     elif command == "doc":
         parser.add_argument("script", nargs="?", help="arquivo Loxia")
         parser.add_argument("--stdin", action="store_true", help="lê de stdin")
         parser.add_argument("--file-name", metavar="NOME", help="nome de exibição")
-        parser.add_argument(
-            "--json", action="store_true", help="referência em JSON"
-        )
+        parser.add_argument("--json", action="store_true", help="referência em JSON")
         parser.add_argument(
             "--error-format",
             choices=("human", "short", "json"),
@@ -832,9 +810,7 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             metavar="N",
             help="rodadas de fix (default: 10)",
         )
-        parser.add_argument(
-            "--json", action="store_true", help="resumo em JSON"
-        )
+        parser.add_argument("--json", action="store_true", help="resumo em JSON")
     elif command == "test":
         parser.add_argument(
             "paths",
@@ -842,9 +818,7 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             help="arquivos ou diretórios (default: tests/ se existir, senão .)",
         )
         parser.add_argument("--filter", metavar="SUB", help="só nomes com SUB")
-        parser.add_argument(
-            "--only", metavar="NAME", help="só o teste com esse nome exato"
-        )
+        parser.add_argument("--only", metavar="NAME", help="só o teste com esse nome exato")
         parser.add_argument(
             "--jobs",
             type=int,
@@ -858,9 +832,7 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             metavar="MS",
             help="timeout por arquivo em milissegundos",
         )
-        parser.add_argument(
-            "--json", action="store_true", help="relatório em JSON"
-        )
+        parser.add_argument("--json", action="store_true", help="relatório em JSON")
         parser.add_argument(
             "--isolate",
             choices=("file", "test"),
@@ -924,9 +896,7 @@ def _validate(
             parser.error("--max-heap requires --emit=exe")
 
 
-def _validate_legacy(
-    args: argparse.Namespace, parser: argparse.ArgumentParser
-) -> None:
+def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.json_lines and args.error_format_explicit:
         parser.error("--json-lines cannot be combined with --error-format")
     if args.max_errors < 0:
@@ -964,9 +934,7 @@ def _validate_legacy(
             parser.error("--timeout requires a script or --stdin")
 
 
-def _manifest_token(
-    path: Path, line: int = 1, column: int = 1
-) -> Token:
+def _manifest_token(path: Path, line: int = 1, column: int = 1) -> Token:
     """Token sintético para ancorar erro de `loxia.toml` (arquivo/linha reais)."""
     return Token(
         TokenType.IDENTIFIER,
@@ -980,9 +948,7 @@ def _manifest_token(
 
 
 def _make_loxia(args: argparse.Namespace) -> Loxia:
-    error_format = (
-        "json" if args.json or args.json_lines else args.error_format
-    )
+    error_format = "json" if args.json or args.json_lines else args.error_format
     return Loxia(
         debug=getattr(args, "debug", False),
         error_format=error_format,
@@ -1069,9 +1035,7 @@ def _run_fmt(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         parser.error("--timeout is not supported by fmt")
 
     lox = Loxia(
-        error_format=(
-            "json" if args.json or args.json_lines else args.error_format
-        ),
+        error_format=("json" if args.json or args.json_lines else args.error_format),
         color=args.color,
         max_errors=args.max_errors,
         json_lines=args.json_lines,
@@ -1170,9 +1134,7 @@ def _watch_check(lox: Loxia, args: argparse.Namespace) -> None:
                 lox._module_root = entry.parent
                 code = lox.check(source, emit=False)
                 lox._revision = revision
-                lox._flush(
-                    "check", exit_code=code, always=True, revision=revision
-                )
+                lox._flush("check", exit_code=code, always=True, revision=revision)
                 last = _snapshot([entry, *lox.watched_files])
                 revision += 1
             time.sleep(_WATCH_INTERVAL_SECONDS)
@@ -1216,16 +1178,19 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
-        {"name": "lsp", "features": [
-            "stdio",
-            "hover",
-            "definition",
-            "documentSymbol",
-            "completion",
-            "signatureHelp",
-            "formatting",
-            "semanticTokens",
-        ]},
+        {
+            "name": "lsp",
+            "features": [
+                "stdio",
+                "hover",
+                "definition",
+                "documentSymbol",
+                "completion",
+                "signatureHelp",
+                "formatting",
+                "semanticTokens",
+            ],
+        },
     ]
     codes = [
         {

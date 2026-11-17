@@ -42,15 +42,12 @@ class ClassLayoutLowering(LoweringBase):
     def _validate_class(self, stmt: Class) -> None:
         if len(stmt.fields) > 64:
             raise BackendError(
-                "Classes with more than 64 fields are not supported by the "
-                "backend yet.",
+                "Classes with more than 64 fields are not supported by the backend yet.",
                 stmt.name.line,
                 code=Code.BACKEND_UNSUPPORTED,
             )
 
-    def _class_super(
-        self, stmt: Class
-    ) -> tuple[str | None, ClassLayout | None]:
+    def _class_super(self, stmt: Class) -> tuple[str | None, ClassLayout | None]:
         if stmt.superclass is None:
             return None, None
         super_name = stmt.superclass.name.lexeme
@@ -62,9 +59,7 @@ class ClassLayoutLowering(LoweringBase):
             )
         return super_name, super_layout
 
-    def _class_fields(
-        self, stmt: Class, base_fields: int
-    ) -> list[FieldLayout]:
+    def _class_fields(self, stmt: Class, base_fields: int) -> list[FieldLayout]:
         fields: list[FieldLayout] = []
         for local_index, field in enumerate(stmt.fields):
             fields.append(
@@ -90,9 +85,7 @@ class ClassLayoutLowering(LoweringBase):
         ir_name: str | None = None,
         allow_generic: bool = False,
         type_subst: dict[str, Any] | None = None,
-    ) -> tuple[
-        list[MethodLayout], FunctionInfo | None, MethodLayout | None, int
-    ]:
+    ) -> tuple[list[MethodLayout], FunctionInfo | None, MethodLayout | None, int]:
         methods: list[MethodLayout] = []
         init: FunctionInfo | None = None
         init_method: MethodLayout | None = None
@@ -111,27 +104,17 @@ class ClassLayoutLowering(LoweringBase):
             )
             if type_subst is not None:
                 info = replace(info, type_subst=type_subst)
-            if not is_init and any(
-                param.default is not None for param in method.params
-            ):
-                raise _unsupported(
-                    "Default parameters in methods", method.name.line
-                )
+            if not is_init and any(param.default is not None for param in method.params):
+                raise _unsupported("Default parameters in methods", method.name.line)
             if is_init:
                 init = info
                 init_method = MethodLayout("init", info, -1, node=method)
                 continue
 
             inherited = (
-                super_layout.method(method.name.lexeme)
-                if super_layout is not None
-                else None
+                super_layout.method(method.name.lexeme) if super_layout is not None else None
             )
-            slot = (
-                inherited.index
-                if inherited is not None
-                else base_methods + new_methods
-            )
+            slot = inherited.index if inherited is not None else base_methods + new_methods
             if inherited is None:
                 new_methods += 1
             methods.append(
@@ -175,11 +158,7 @@ class ClassLayoutLowering(LoweringBase):
             methods,
             init,
             init_node=next(
-                (
-                    method
-                    for method in stmt.methods
-                    if method.name.lexeme == "init"
-                ),
+                (method for method in stmt.methods if method.name.lexeme == "init"),
                 None,
             ),
             super_name=super_name,
@@ -194,10 +173,7 @@ class ClassLayoutLowering(LoweringBase):
         ctor_params = (
             []
             if effective is None
-            else [
-                self._storage_llvm_type(param)
-                for param in effective.fn_sig.params
-            ]
+            else [self._storage_llvm_type(param) for param in effective.fn_sig.params]
         )
         layout.ctor = llvm_ir.declare(
             self.module,
@@ -221,17 +197,12 @@ class ClassLayoutLowering(LoweringBase):
 
         if field.initializer is not None:
             initial = self._const_desc(field.initializer, field.name.line)
-            desc = (
-                annotated
-                if annotated is not None and annotated.optional
-                else initial
-            )
+            desc = annotated if annotated is not None and annotated.optional else initial
         elif annotated is not None:
             desc = annotated
         else:
             raise BackendError(
-                f"Field '{field.name.lexeme}' needs a type annotation "
-                "for the backend.",
+                f"Field '{field.name.lexeme}' needs a type annotation for the backend.",
                 field.name.line,
                 code=Code.BACKEND_UNSUPPORTED,
             )

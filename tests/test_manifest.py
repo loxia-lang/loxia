@@ -10,9 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 
 
-def _run(
-    script: Path, *flags: str, cwd: Path = ROOT
-) -> subprocess.CompletedProcess[str]:
+def _run(script: Path, *flags: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), *flags, str(script)],
         cwd=cwd,
@@ -34,26 +32,21 @@ def _app_and_dep(tmp_path: Path) -> tuple[Path, Path]:
     dep.mkdir()
     _manifest(
         app,
-        '[package]\nname = "app"\n\n'
-        '[dependencies]\nacme = { path = "../acme" }\n',
+        '[package]\nname = "app"\n\n[dependencies]\nacme = { path = "../acme" }\n',
     )
     return app, dep
 
 
 def test_dependencia_path_resolve_import_por_nome(tmp_path: Path) -> None:
     app, dep = _app_and_dep(tmp_path)
-    (dep / "base.lx").write_text(
-        "fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8"
-    )
+    (dep / "base.lx").write_text("fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8")
     (dep / "util.lx").write_text(
         "import acme.base as base\n"
         "fn quadruplo(n: Int) -> Int {\n"
         "  return base.dobro(base.dobro(n)) }\n",
         encoding="utf-8",
     )
-    (app / "main.lx").write_text(
-        "import acme.util\nprint(util.quadruplo(2))\n", encoding="utf-8"
-    )
+    (app / "main.lx").write_text("import acme.util\nprint(util.quadruplo(2))\n", encoding="utf-8")
 
     result = _run(app / "main.lx")
 
@@ -63,9 +56,7 @@ def test_dependencia_path_resolve_import_por_nome(tmp_path: Path) -> None:
 
 def test_from_import_de_dependencia(tmp_path: Path) -> None:
     app, dep = _app_and_dep(tmp_path)
-    (dep / "base.lx").write_text(
-        "fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8"
-    )
+    (dep / "base.lx").write_text("fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8")
     (app / "main.lx").write_text(
         "from acme.base import dobro\nprint(dobro(21))\n", encoding="utf-8"
     )
@@ -78,9 +69,7 @@ def test_from_import_de_dependencia(tmp_path: Path) -> None:
 
 def test_manifest_no_ancestral_e_raiz_do_projeto(tmp_path: Path) -> None:
     app, dep = _app_and_dep(tmp_path)
-    (dep / "base.lx").write_text(
-        "fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8"
-    )
+    (dep / "base.lx").write_text("fn dobro(n: Int) -> Int { return n * 2 }\n", encoding="utf-8")
     (app / "src").mkdir()
     (app / "lib").mkdir()
     (app / "lib" / "saudacao.lx").write_text(
@@ -106,12 +95,8 @@ def test_modules_paths_declarado(tmp_path: Path) -> None:
     app.mkdir()
     shared.mkdir()
     _manifest(app, '[modules]\npaths = ["../shared"]\n')
-    (shared / "extra.lx").write_text(
-        'fn oi() -> String { return "extra" }\n', encoding="utf-8"
-    )
-    (app / "main.lx").write_text(
-        "import extra\nprint(extra.oi())\n", encoding="utf-8"
-    )
+    (shared / "extra.lx").write_text('fn oi() -> String { return "extra" }\n', encoding="utf-8")
+    (app / "main.lx").write_text("import extra\nprint(extra.oi())\n", encoding="utf-8")
 
     result = _run(app / "main.lx")
 
@@ -122,15 +107,9 @@ def test_modules_paths_declarado(tmp_path: Path) -> None:
 def test_ambiguidade_entre_projeto_e_dependencia(tmp_path: Path) -> None:
     app, dep = _app_and_dep(tmp_path)
     (app / "acme").mkdir()
-    (app / "acme" / "foo.lx").write_text(
-        "fn valor() -> Int { return 1 }\n", encoding="utf-8"
-    )
-    (dep / "foo.lx").write_text(
-        "fn valor() -> Int { return 2 }\n", encoding="utf-8"
-    )
-    (app / "main.lx").write_text(
-        "import acme.foo\nprint(foo.valor())\n", encoding="utf-8"
-    )
+    (app / "acme" / "foo.lx").write_text("fn valor() -> Int { return 1 }\n", encoding="utf-8")
+    (dep / "foo.lx").write_text("fn valor() -> Int { return 2 }\n", encoding="utf-8")
+    (app / "main.lx").write_text("import acme.foo\nprint(foo.valor())\n", encoding="utf-8")
 
     result = _run(app / "main.lx")
 
@@ -143,17 +122,12 @@ def test_ambiguidade_entre_projeto_e_dependencia(tmp_path: Path) -> None:
 def test_dependencia_nao_ve_modulo_do_projeto(tmp_path: Path) -> None:
     app, dep = _app_and_dep(tmp_path)
     (app / "acme").mkdir()
-    (app / "acme" / "segredo.lx").write_text(
-        "fn valor() -> Int { return 1 }\n", encoding="utf-8"
-    )
+    (app / "acme" / "segredo.lx").write_text("fn valor() -> Int { return 1 }\n", encoding="utf-8")
     (dep / "util.lx").write_text(
-        "import acme.segredo\n"
-        "fn usa() -> Int { return segredo.valor() }\n",
+        "import acme.segredo\nfn usa() -> Int { return segredo.valor() }\n",
         encoding="utf-8",
     )
-    (app / "main.lx").write_text(
-        "import acme.util\nprint(util.usa())\n", encoding="utf-8"
-    )
+    (app / "main.lx").write_text("import acme.util\nprint(util.usa())\n", encoding="utf-8")
 
     result = _run(app / "main.lx")
 
@@ -167,12 +141,8 @@ def test_module_path_flag(tmp_path: Path) -> None:
     extra = tmp_path / "extra"
     app.mkdir()
     extra.mkdir()
-    (extra / "ext.lx").write_text(
-        'fn oi() -> String { return "extra" }\n', encoding="utf-8"
-    )
-    (app / "main.lx").write_text(
-        "import ext\nprint(ext.oi())\n", encoding="utf-8"
-    )
+    (extra / "ext.lx").write_text('fn oi() -> String { return "extra" }\n', encoding="utf-8")
+    (app / "main.lx").write_text("import ext\nprint(ext.oi())\n", encoding="utf-8")
 
     result = _run(app / "main.lx", "--module-path", str(extra))
 
@@ -181,9 +151,7 @@ def test_module_path_flag(tmp_path: Path) -> None:
 
 
 def test_import_com_ponto_ponto_continua_erro(tmp_path: Path) -> None:
-    (tmp_path / "main.lx").write_text(
-        "import ..acme.foo\n", encoding="utf-8"
-    )
+    (tmp_path / "main.lx").write_text("import ..acme.foo\n", encoding="utf-8")
 
     result = _run(tmp_path / "main.lx")
 
@@ -234,12 +202,8 @@ def test_std_do_projeto_nao_sombreia_o_bundle(tmp_path: Path) -> None:
     app = tmp_path / "app"
     app.mkdir()
     (app / "std").mkdir()
-    (app / "std" / "foo.lx").write_text(
-        "fn valor() -> Int { return 1 }\n", encoding="utf-8"
-    )
-    (app / "main.lx").write_text(
-        "import std.foo\nprint(foo.valor())\n", encoding="utf-8"
-    )
+    (app / "std" / "foo.lx").write_text("fn valor() -> Int { return 1 }\n", encoding="utf-8")
+    (app / "main.lx").write_text("import std.foo\nprint(foo.valor())\n", encoding="utf-8")
 
     result = _run(app / "main.lx")
 

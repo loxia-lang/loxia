@@ -179,14 +179,10 @@ class Parser:
                 return self._function("function", fn_token=self._previous())
 
             if self._match(TokenType.VAL):
-                return self._var_declaration(
-                    mutable=False, keyword=self._previous()
-                )
+                return self._var_declaration(mutable=False, keyword=self._previous())
 
             if self._match(TokenType.VAR):
-                return self._var_declaration(
-                    mutable=True, keyword=self._previous()
-                )
+                return self._var_declaration(mutable=True, keyword=self._previous())
 
             return self._statement()
         except ParseError:
@@ -198,11 +194,9 @@ class Parser:
             return False
         if self._current + 2 >= len(self._tokens):
             return False
-        return (
-            self._tokens[self._current + 1].type is TokenType.IDENTIFIER
-            and self._tokens[self._current + 2].type
-            in (TokenType.EQUAL, TokenType.LEFT_BRACKET)
-        )
+        return self._tokens[self._current + 1].type is TokenType.IDENTIFIER and self._tokens[
+            self._current + 2
+        ].type in (TokenType.EQUAL, TokenType.LEFT_BRACKET)
 
     def _type_alias_declaration(self) -> Stmt:
         keyword = self._advance()
@@ -221,9 +215,7 @@ class Parser:
     def _module_path(self) -> tuple[Token, ...]:
         path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
         while self._match(TokenType.DOT):
-            path.append(
-                self._consume(TokenType.IDENTIFIER, "Expect name after '.'.")
-            )
+            path.append(self._consume(TokenType.IDENTIFIER, "Expect name after '.'."))
         return tuple(path)
 
     def _import_declaration(self, keyword: Token) -> Stmt:
@@ -281,9 +273,7 @@ class Parser:
         implements: list[Token] = []
         if self._match_contextual("implements"):
             while True:
-                implements.append(
-                    self._consume(TokenType.IDENTIFIER, "Expect interface name.")
-                )
+                implements.append(self._consume(TokenType.IDENTIFIER, "Expect interface name."))
                 if not self._match(TokenType.COMMA):
                     break
 
@@ -293,17 +283,9 @@ class Parser:
         methods: list[Function] = []
         while not self._check(TokenType.RIGHT_BRACE) and not self._is_at_end():
             if self._match(TokenType.VAL):
-                fields.append(
-                    self._field_declaration(
-                        mutable=False, keyword=self._previous()
-                    )
-                )
+                fields.append(self._field_declaration(mutable=False, keyword=self._previous()))
             elif self._match(TokenType.VAR):
-                fields.append(
-                    self._field_declaration(
-                        mutable=True, keyword=self._previous()
-                    )
-                )
+                fields.append(self._field_declaration(mutable=True, keyword=self._previous()))
             else:
                 # `fn` é opcional em método: o corpo da classe já marca a declaração.
                 fn_token = self._previous() if self._match(TokenType.FN) else None
@@ -341,11 +323,7 @@ class Parser:
                 )
             # `fn` é opcional, como em método (ADR-0067).
             fn_token = self._previous() if self._match(TokenType.FN) else None
-            methods.append(
-                self._function(
-                    "method", allow_abstract=True, fn_token=fn_token
-                )
-            )
+            methods.append(self._function("method", allow_abstract=True, fn_token=fn_token))
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after interface body.")
         return Interface(name, methods, doc=keyword.doc)
@@ -359,9 +337,7 @@ class Parser:
         variants: list[EnumVariant] = []
         if not self._check(TokenType.RIGHT_BRACE):
             while True:
-                variant = self._consume(
-                    TokenType.IDENTIFIER, "Expect variant name."
-                )
+                variant = self._consume(TokenType.IDENTIFIER, "Expect variant name.")
                 payload: list[Ty] = []
                 if self._match(TokenType.LEFT_PAREN):
                     if not self._check(TokenType.RIGHT_PAREN):
@@ -373,9 +349,7 @@ class Parser:
                         "Expect ')' after variant payload.",
                     )
 
-                variants.append(
-                    EnumVariant(variant, payload, doc=variant.doc)
-                )
+                variants.append(EnumVariant(variant, payload, doc=variant.doc))
                 if not self._match(TokenType.COMMA):
                     break
 
@@ -429,9 +403,7 @@ class Parser:
             while self._match(TokenType.COMMA):
                 elements.append(self._destructure_pattern())
 
-            self._consume(
-                TokenType.RIGHT_PAREN, "Expect ')' after destructuring pattern."
-            )
+            self._consume(TokenType.RIGHT_PAREN, "Expect ')' after destructuring pattern.")
             if len(elements) < 2:
                 raise self._error(
                     first_token(elements[0]),
@@ -504,16 +476,10 @@ class Parser:
 
         handlers: list[ExceptClause] = []
         while self._match(TokenType.EXCEPT):
-            type_name = self._consume(
-                TokenType.IDENTIFIER, "Expect exception type after 'except'."
-            )
+            type_name = self._consume(TokenType.IDENTIFIER, "Expect exception type after 'except'.")
             self._consume(TokenType.AS, "Expect 'as' after exception type.")
-            binding = self._consume(
-                TokenType.IDENTIFIER, "Expect binding name after 'as'."
-            )
-            self._consume(
-                TokenType.LEFT_BRACE, "Expect '{' after except binding."
-            )
+            binding = self._consume(TokenType.IDENTIFIER, "Expect binding name after 'as'.")
+            self._consume(TokenType.LEFT_BRACE, "Expect '{' after except binding.")
             handlers.append(ExceptClause(type_name, binding, self._block()))
 
         finally_body: list[Stmt] | None = None
@@ -532,9 +498,7 @@ class Parser:
 
     def _raise_statement(self, keyword: Token) -> Stmt:
         value: Expr | None = None
-        if not self._check(TokenType.SEMICOLON) and not self._check(
-            TokenType.RIGHT_BRACE
-        ):
+        if not self._check(TokenType.SEMICOLON) and not self._check(TokenType.RIGHT_BRACE):
             value = self._expression()
 
         self._end_statement("Expect ';' after raise.")
@@ -568,13 +532,9 @@ class Parser:
         if self._match(TokenType.SEMICOLON):
             initializer = None
         elif self._match(TokenType.VAL):
-            initializer = self._var_declaration(
-                mutable=False, keyword=self._previous()
-            )
+            initializer = self._var_declaration(mutable=False, keyword=self._previous())
         elif self._match(TokenType.VAR):
-            initializer = self._var_declaration(
-                mutable=True, keyword=self._previous()
-            )
+            initializer = self._var_declaration(mutable=True, keyword=self._previous())
         else:
             initializer = self._expression_statement()
 
@@ -608,9 +568,7 @@ class Parser:
         return body
 
     def _for_in_statement(self) -> Stmt:
-        name = self._consume(
-            TokenType.IDENTIFIER, "Expect loop variable name after 'for'."
-        )
+        name = self._consume(TokenType.IDENTIFIER, "Expect loop variable name after 'for'.")
         self._consume(TokenType.IN, "Expect 'in' after loop variable.")
         iterable = self._expression()
         body = self._statement()
@@ -642,9 +600,7 @@ class Parser:
     def _if_statement(self, keyword: str) -> Stmt:
         self._consume(TokenType.LEFT_PAREN, f"Expect '(' after '{keyword}'.")
         cond = self._expression()
-        self._consume(
-            TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword}' condition."
-        )
+        self._consume(TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword}' condition.")
 
         then_branch = self._statement()
         else_branch = None
@@ -748,16 +704,12 @@ class Parser:
         parameters: list[Token] = []
         bounds: list[tuple[Token, ...]] = []
         while True:
-            parameters.append(
-                self._consume(TokenType.IDENTIFIER, "Expect type parameter name.")
-            )
+            parameters.append(self._consume(TokenType.IDENTIFIER, "Expect type parameter name."))
             parameter_bounds: list[Token] = []
             if self._match(TokenType.COLON):
                 while True:
                     parameter_bounds.append(
-                        self._consume(
-                            TokenType.IDENTIFIER, "Expect constraint name."
-                        )
+                        self._consume(TokenType.IDENTIFIER, "Expect constraint name.")
                     )
                     if not self._match(TokenType.PLUS):
                         break
@@ -765,14 +717,10 @@ class Parser:
             if not self._match(TokenType.COMMA):
                 break
 
-        self._consume(
-            TokenType.RIGHT_BRACKET, "Expect ']' after type parameters."
-        )
+        self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after type parameters.")
         return parameters, bounds
 
-    def _reject_type_param_bounds(
-        self, bounds: list[tuple[Token, ...]], kind: str
-    ) -> None:
+    def _reject_type_param_bounds(self, bounds: list[tuple[Token, ...]], kind: str) -> None:
         for parameter_bounds in bounds:
             if parameter_bounds:
                 raise self._error(
@@ -804,9 +752,7 @@ class Parser:
                     saw_variadic = True
 
                 mutable = self._match(TokenType.VAR)
-                name_token = self._consume(
-                    TokenType.IDENTIFIER, "Expect parameter name."
-                )
+                name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
 
                 type_annotation: Ty | None = None
                 if self._match(TokenType.COLON):
@@ -877,9 +823,7 @@ class Parser:
         elif self._match(TokenType.LEFT_BRACE):
             body = self._block()
         else:
-            raise self._error(
-                self._peek(), "Expect '=>' or '{' after lambda parameters."
-            )
+            raise self._error(self._peek(), "Expect '=>' or '{' after lambda parameters.")
 
         return Lambda(keyword, parameters, body, return_type)
 
@@ -916,9 +860,7 @@ class Parser:
                     if not self._match(TokenType.COMMA):
                         break
 
-                self._consume(
-                    TokenType.RIGHT_PAREN, "Expect ')' after tuple type."
-                )
+                self._consume(TokenType.RIGHT_PAREN, "Expect ')' after tuple type.")
                 return TupleTy(tuple(items))
 
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after type.")
@@ -951,9 +893,7 @@ class Parser:
         return ClassTy(name)
 
     def _function_type(self) -> Ty:
-        self._consume(
-            TokenType.LEFT_PAREN, "Expect '(' after 'fn' in function type."
-        )
+        self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'fn' in function type.")
         params: list[Ty] = []
         variadic = False
         if not self._check(TokenType.RIGHT_PAREN):
@@ -972,12 +912,8 @@ class Parser:
                 if not self._match(TokenType.COMMA):
                     break
 
-        self._consume(
-            TokenType.RIGHT_PAREN, "Expect ')' after function type parameters."
-        )
-        self._consume(
-            TokenType.ARROW, "Expect '->' after function type parameters."
-        )
+        self._consume(TokenType.RIGHT_PAREN, "Expect ')' after function type parameters.")
+        self._consume(TokenType.ARROW, "Expect '->' after function type parameters.")
         ret = self._type()
         return FnTy(
             tuple(params),
@@ -1056,9 +992,7 @@ class Parser:
                     return expr
                 return IndexSet(expr.object, expr.index, value, expr.bracket)
 
-            self._error(
-                equals, "Invalid assignment target.", Code.INVALID_ASSIGNMENT_TARGET
-            )
+            self._error(equals, "Invalid assignment target.", Code.INVALID_ASSIGNMENT_TARGET)
 
         return expr
 
@@ -1079,9 +1013,7 @@ class Parser:
 
         if self._match_infix(TokenType.IF):
             condition = self._coalesce()
-            self._consume(
-                TokenType.ELSE, "Expect 'else' after conditional expression."
-            )
+            self._consume(TokenType.ELSE, "Expect 'else' after conditional expression.")
             else_branch = self._conditional()
             return Conditional(condition, expr, else_branch)
 
@@ -1188,9 +1120,7 @@ class Parser:
     def _range(self) -> Expr:
         expr: Expr = self._shift()
 
-        while self._match_infix(
-            TokenType.DOT_DOT, TokenType.DOT_DOT_EQUAL
-        ):
+        while self._match_infix(TokenType.DOT_DOT, TokenType.DOT_DOT_EQUAL):
             operator: Token = self._previous()
             end: Expr = self._shift()
             expr = Range(
@@ -1274,40 +1204,26 @@ class Parser:
         optional_call = False
 
         while True:
-            if (
-                self._check(TokenType.LEFT_PAREN)
-                and self._peek().line == self._previous().line
-            ):
+            if self._check(TokenType.LEFT_PAREN) and self._peek().line == self._previous().line:
                 self._advance()
                 expr = self._finish_call(expr, optional=optional_call)
                 optional_call = False
             elif self._match(TokenType.QUESTION_DOT):
-                name = self._consume(
-                    TokenType.IDENTIFIER, "Expect property name after '?.'."
-                )
+                name = self._consume(TokenType.IDENTIFIER, "Expect property name after '?.'.")
                 expr = Get(expr, name, optional=True)
                 optional_call = True
             elif self._match(TokenType.DOT):
-                name = self._consume(
-                    TokenType.IDENTIFIER, "Expect property name after '.'."
-                )
+                name = self._consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
                 expr = Get(expr, name)
                 optional_call = False
-            elif (
-                self._check(TokenType.LEFT_BRACKET)
-                and self._peek().line == self._previous().line
-            ):
+            elif self._check(TokenType.LEFT_BRACKET) and self._peek().line == self._previous().line:
                 bracket = self._advance()
                 with self._in_brackets():
                     if self._check(TokenType.RIGHT_BRACKET):
-                        raise self._error(
-                            self._peek(), "Expect index expression."
-                        )
+                        raise self._error(self._peek(), "Expect index expression.")
 
                     index = self._expression()
-                    self._consume(
-                        TokenType.RIGHT_BRACKET, "Expect ']' after index."
-                    )
+                    self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
                     expr = Index(expr, index, bracket)
                 optional_call = False
             else:
@@ -1350,9 +1266,7 @@ class Parser:
                     if self._check(TokenType.RIGHT_PAREN):
                         break
 
-            paren = self._consume(
-                TokenType.RIGHT_PAREN, "Expect ')' after arguments."
-            )
+            paren = self._consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
             return Call(
                 callee,
                 paren,
@@ -1421,9 +1335,7 @@ class Parser:
         if self._match(TokenType.SUPER):
             keyword = self._previous()
             self._consume(TokenType.DOT, "Expect '.' after 'super'.")
-            method = self._consume(
-                TokenType.IDENTIFIER, "Expect superclass method name."
-            )
+            method = self._consume(TokenType.IDENTIFIER, "Expect superclass method name.")
             return Super(keyword, method)
 
         if self._match(TokenType.THIS):
@@ -1446,9 +1358,7 @@ class Parser:
                         if self._check(TokenType.RIGHT_BRACKET):
                             break
 
-                self._consume(
-                    TokenType.RIGHT_BRACKET, "Expect ']' after list elements."
-                )
+                self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.")
                 return ListLiteral(elements, bracket)
 
         if self._match(TokenType.LEFT_BRACE):
@@ -1468,20 +1378,13 @@ class Parser:
                         elements.append(self._expression())
                         if not self._match(TokenType.COMMA):
                             break
-                        if (
-                            len(elements) >= 2
-                            and self._check(TokenType.RIGHT_PAREN)
-                        ):
+                        if len(elements) >= 2 and self._check(TokenType.RIGHT_PAREN):
                             break
 
-                    self._consume(
-                        TokenType.RIGHT_PAREN, "Expect ')' after tuple elements."
-                    )
+                    self._consume(TokenType.RIGHT_PAREN, "Expect ')' after tuple elements.")
                     return TupleLiteral(elements, paren)
 
-                self._consume(
-                    TokenType.RIGHT_PAREN, "Expect ')' after expression."
-                )
+                self._consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
                 return Grouping(first, paren, self._previous())
 
         if self._check(TokenType.SLASH_SLASH):
@@ -1507,9 +1410,7 @@ class Parser:
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
         if not arms:
-            raise self._error(
-                keyword, "Match needs at least one arm.", Code.INVALID_MATCH
-            )
+            raise self._error(keyword, "Match needs at least one arm.", Code.INVALID_MATCH)
         return Match(keyword, scrutinee, arms)
 
     def _pattern(self) -> Pattern:
@@ -1522,16 +1423,10 @@ class Parser:
         bindings: list[Token] = []
         if self._match(TokenType.LEFT_PAREN):
             if not self._check(TokenType.RIGHT_PAREN):
-                bindings.append(
-                    self._consume(TokenType.IDENTIFIER, "Expect binding name.")
-                )
+                bindings.append(self._consume(TokenType.IDENTIFIER, "Expect binding name."))
                 while self._match(TokenType.COMMA):
-                    bindings.append(
-                        self._consume(TokenType.IDENTIFIER, "Expect binding name.")
-                    )
-            self._consume(
-                TokenType.RIGHT_PAREN, "Expect ')' after pattern bindings."
-            )
+                    bindings.append(self._consume(TokenType.IDENTIFIER, "Expect binding name."))
+            self._consume(TokenType.RIGHT_PAREN, "Expect ')' after pattern bindings.")
 
         return VariantPattern(token, variant, bindings)
 

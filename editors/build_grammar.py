@@ -51,14 +51,37 @@ KEYWORD_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "keywords-control",
         "keyword.control.loxia",
         (
-            "if", "elif", "else", "while", "for", "in", "return", "match",
-            "try", "except", "finally", "raise",
+            "if",
+            "elif",
+            "else",
+            "while",
+            "for",
+            "in",
+            "return",
+            "match",
+            "try",
+            "except",
+            "finally",
+            "raise",
         ),
     ),
     (
         "keywords-declaration",
         "keyword.other.declaration.loxia",
-        ("class", "fn", "val", "var", "enum", "interface", "import", "from", "as", "is", "super", "this"),
+        (
+            "class",
+            "fn",
+            "val",
+            "var",
+            "enum",
+            "interface",
+            "import",
+            "from",
+            "as",
+            "is",
+            "super",
+            "this",
+        ),
     ),
     ("keywords-operator-word", "keyword.operator.word.loxia", ("and", "or", "not")),
     ("keywords-modifier", "storage.modifier.loxia", ("async", "await")),
@@ -141,9 +164,7 @@ def check_coverage() -> None:
     unknown = categorized - set(KEYWORDS)
     missing_keywords = set(KEYWORDS) - categorized
     if missing_keywords:
-        raise SystemExit(
-            "keywords sem grupo na grammar: " + ", ".join(sorted(missing_keywords))
-        )
+        raise SystemExit("keywords sem grupo na grammar: " + ", ".join(sorted(missing_keywords)))
     if unknown:
         raise SystemExit(
             "grupos da grammar citam keywords inexistentes: " + ", ".join(sorted(unknown))
@@ -220,12 +241,8 @@ def build() -> dict[str, Any]:
                 "begin": r"\$\{",
                 "end": r"\}",
                 "name": "meta.interpolation.loxia",
-                "beginCaptures": {
-                    "0": {"name": "punctuation.section.interpolation.begin.loxia"}
-                },
-                "endCaptures": {
-                    "0": {"name": "punctuation.section.interpolation.end.loxia"}
-                },
+                "beginCaptures": {"0": {"name": "punctuation.section.interpolation.begin.loxia"}},
+                "endCaptures": {"0": {"name": "punctuation.section.interpolation.end.loxia"}},
                 "patterns": [{"include": "$self"}],
             },
             "string-raw-triple": {

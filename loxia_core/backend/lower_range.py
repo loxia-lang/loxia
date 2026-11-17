@@ -29,9 +29,7 @@ class RangeLowering(LoweringBase):
         start = self._coerce(self._expr(expr.start), self._int_desc(), expr.operator.line)
         end = self._coerce(self._expr(expr.end), self._int_desc(), expr.operator.line)
         raw = self.builder.call(
-            self._function(
-                "lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]
-            ),
+            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]),
             [
                 start.llvm,
                 end.llvm,
@@ -51,13 +49,10 @@ class RangeLowering(LoweringBase):
             )
             return Value(ValueType.RANGE, llvm_ir.null_pointer())
         coerced = [
-            self._coerce(argument, self._int_desc(), expr.paren.line)
-            for argument in arguments
+            self._coerce(argument, self._int_desc(), expr.paren.line) for argument in arguments
         ]
         raw = self.builder.call(
-            self._function(
-                "lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]
-            ),
+            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]),
             [*[value.llvm for value in coerced], llvm_ir.constant(_I32, 0)],
         )
         return Value(ValueType.RANGE, raw)
@@ -126,30 +121,20 @@ class RangeLowering(LoweringBase):
         self.builder = llvm_ir.builder(header)
         next_value = self._call_zero_method(iterator, "next", stmt.name)
         has_value = (
-            self._optional_tag(next_value)
-            if next_value.optional
-            else llvm_ir.constant(_BOOL, 1)
+            self._optional_tag(next_value) if next_value.optional else llvm_ir.constant(_BOOL, 1)
         )
         self.builder.cbranch(has_value, body, end)
 
         self.builder = llvm_ir.builder(body)
-        value = (
-            self._optional_payload(next_value)
-            if next_value.optional
-            else next_value
-        )
+        value = self._optional_payload(next_value) if next_value.optional else next_value
         self._for_bind(stmt, element, lambda: value.llvm)
         if not self.builder.block.is_terminated:
             self.builder.branch(header)
 
         self.builder = llvm_ir.builder(end)
 
-    def _call_zero_method(
-        self, instance: Value, name: str, token: Token
-    ) -> Value:
-        method_token = Token(
-            TokenType.IDENTIFIER, name, None, token.line, token.column
-        )
+    def _call_zero_method(self, instance: Value, name: str, token: Token) -> Value:
+        method_token = Token(TokenType.IDENTIFIER, name, None, token.line, token.column)
         callee = self._get_instance_name(instance, method_token)
         if callee.ty is not ValueType.FUNCTION or callee.sig is None:
             self._poison(
@@ -162,13 +147,9 @@ class RangeLowering(LoweringBase):
         sig = callee.sig
         fnptr = self._closure_field(callee, 0)
         env = self._closure_field(callee, 1)
-        function_type = llvm_ir.function_pointer(
-            self._storage_llvm_type(sig.ret), [_I8_PTR]
-        )
+        function_type = llvm_ir.function_pointer(self._storage_llvm_type(sig.ret), [_I8_PTR])
         self._set_call_site(token)
-        call = self.builder.call(
-            self.builder.bitcast(fnptr, function_type), [env]
-        )
+        call = self.builder.call(self.builder.bitcast(fnptr, function_type), [env])
         return Value(
             sig.ret.ty,
             call,
@@ -178,9 +159,7 @@ class RangeLowering(LoweringBase):
             interface_name=sig.ret.interface_name,
         )
 
-    def _iterator_next_desc(
-        self, iterator: Value, token: Token
-    ) -> TypeDesc | None:
+    def _iterator_next_desc(self, iterator: Value, token: Token) -> TypeDesc | None:
         if iterator.class_name is not None:
             layout = self._classes.get(iterator.class_name)
             if layout is not None:
@@ -189,15 +168,11 @@ class RangeLowering(LoweringBase):
                     return method.info.fn_sig.ret
                 for interface in layout.effective_interfaces():
                     if self._interface_has_method(interface, "next"):
-                        info = self._interface_method_infos.get(
-                            interface, {}
-                        ).get("next")
+                        info = self._interface_method_infos.get(interface, {}).get("next")
                         if info is not None:
                             return info.fn_sig.ret
         if iterator.interface_name is not None:
-            info = self._interface_method_infos.get(
-                iterator.interface_name, {}
-            ).get("next")
+            info = self._interface_method_infos.get(iterator.interface_name, {}).get("next")
             if info is not None:
                 return info.fn_sig.ret
         return None
@@ -238,15 +213,11 @@ class RangeLowering(LoweringBase):
     def _for_map(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.map")
         self.builder.store(llvm_ir.constant(_INT, 0), index)
-        length = self.builder.call(
-            self._function("lox_map_len", _INT, [_I8_PTR]), [iterable.llvm]
-        )
+        length = self.builder.call(self._function("lox_map_len", _INT, [_I8_PTR]), [iterable.llvm])
         key_desc, _ = self._map_types(stmt.iterable, stmt.name.line)
 
         def condition() -> Any:
-            return self.builder.icmp_signed(
-                "<", self.builder.load(index), length
-            )
+            return self.builder.icmp_signed("<", self.builder.load(index), length)
 
         def load() -> Any:
             raw = self.builder.call(
@@ -257,9 +228,7 @@ class RangeLowering(LoweringBase):
 
         def advance() -> None:
             self.builder.store(
-                self.builder.add(
-                    self.builder.load(index), llvm_ir.constant(_INT, 1)
-                ),
+                self.builder.add(self.builder.load(index), llvm_ir.constant(_INT, 1)),
                 index,
             )
 
@@ -268,21 +237,15 @@ class RangeLowering(LoweringBase):
     def _for_list(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.list")
         self.builder.store(llvm_ir.constant(_INT, 0), index)
-        length = self.builder.call(
-            self._function("lox_list_len", _INT, [_I8_PTR]), [iterable.llvm]
-        )
+        length = self.builder.call(self._function("lox_list_len", _INT, [_I8_PTR]), [iterable.llvm])
         element = self._element_desc(stmt.iterable, stmt.name.line)
 
         def condition() -> Any:
-            return self.builder.icmp_signed(
-                "<", self.builder.load(index), length
-            )
+            return self.builder.icmp_signed("<", self.builder.load(index), length)
 
         def load() -> Any:
             raw = self.builder.call(
-                self._function(
-                    "lox_list_get", self._any_type(), [_I8_PTR, _INT, _I32, _I32]
-                ),
+                self._function("lox_list_get", self._any_type(), [_I8_PTR, _INT, _I32, _I32]),
                 [
                     iterable.llvm,
                     self.builder.load(index),
@@ -294,9 +257,7 @@ class RangeLowering(LoweringBase):
 
         def advance() -> None:
             self.builder.store(
-                self.builder.add(
-                    self.builder.load(index), llvm_ir.constant(_INT, 1)
-                ),
+                self.builder.add(self.builder.load(index), llvm_ir.constant(_INT, 1)),
                 index,
             )
 
@@ -311,32 +272,22 @@ class RangeLowering(LoweringBase):
         start = self.builder.call(
             self._function("lox_range_start", _INT, [_I8_PTR]), [iterable.llvm]
         )
-        end = self.builder.call(
-            self._function("lox_range_end", _INT, [_I8_PTR]), [iterable.llvm]
-        )
-        step = self.builder.call(
-            self._function("lox_range_step", _INT, [_I8_PTR]), [iterable.llvm]
-        )
+        end = self.builder.call(self._function("lox_range_end", _INT, [_I8_PTR]), [iterable.llvm])
+        step = self.builder.call(self._function("lox_range_step", _INT, [_I8_PTR]), [iterable.llvm])
         inclusive = self.builder.call(
             self._function("lox_range_inclusive", _I32, [_I8_PTR]),
             [iterable.llvm],
         )
         index = self.builder.alloca(_INT, name="for.range")
         self.builder.store(start, index)
-        negative = self.builder.icmp_signed(
-            "<", step, llvm_ir.constant(_INT, 0)
-        )
+        negative = self.builder.icmp_signed("<", step, llvm_ir.constant(_INT, 0))
 
         def advance() -> Any:
             current = self.builder.load(index)
-            self.builder.store(
-                self.builder.add(current, step), index
-            )
+            self.builder.store(self.builder.add(current, step), index)
             keep = self.builder.icmp_signed("!=", current, end)
             return self.builder.select(
-                self.builder.icmp_signed(
-                    "!=", inclusive, llvm_ir.constant(_I32, 0)
-                ),
+                self.builder.icmp_signed("!=", inclusive, llvm_ir.constant(_I32, 0)),
                 keep,
                 llvm_ir.constant(_BOOL, 1),
             )
@@ -344,9 +295,7 @@ class RangeLowering(LoweringBase):
         self._for_loop(
             stmt,
             TypeDesc(ValueType.INT),
-            condition=lambda: self._range_condition(
-                index, end, step, negative, inclusive
-            ),
+            condition=lambda: self._range_condition(index, end, step, negative, inclusive),
             load=lambda: self.builder.load(index),
             advance=advance,
         )
@@ -364,9 +313,7 @@ class RangeLowering(LoweringBase):
         above = self.builder.icmp_signed(">", current, end)
         below_in = self.builder.icmp_signed("<=", current, end)
         above_in = self.builder.icmp_signed(">=", current, end)
-        flag = self.builder.icmp_signed(
-            "!=", inclusive, llvm_ir.constant(_I32, 0)
-        )
+        flag = self.builder.icmp_signed("!=", inclusive, llvm_ir.constant(_I32, 0))
         below = self.builder.select(flag, below_in, below)
         above = self.builder.select(flag, above_in, above)
         return self.builder.select(negative, above, below)
@@ -374,14 +321,10 @@ class RangeLowering(LoweringBase):
     def _for_string(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.str")
         self.builder.store(llvm_ir.constant(_INT, 0), index)
-        length = self.builder.call(
-            self._function("lox_str_len", _INT, [_I8_PTR]), [iterable.llvm]
-        )
+        length = self.builder.call(self._function("lox_str_len", _INT, [_I8_PTR]), [iterable.llvm])
 
         def condition() -> Any:
-            return self.builder.icmp_signed(
-                "<", self.builder.load(index), length
-            )
+            return self.builder.icmp_signed("<", self.builder.load(index), length)
 
         def load() -> Any:
             return self.builder.call(
@@ -391,9 +334,7 @@ class RangeLowering(LoweringBase):
 
         def advance() -> None:
             self.builder.store(
-                self.builder.add(
-                    self.builder.load(index), llvm_ir.constant(_INT, 1)
-                ),
+                self.builder.add(self.builder.load(index), llvm_ir.constant(_INT, 1)),
                 index,
             )
 
@@ -416,11 +357,7 @@ class RangeLowering(LoweringBase):
         self.builder.cbranch(condition(), body, end)
 
         self.builder = llvm_ir.builder(body)
-        desc = (
-            value_type
-            if isinstance(value_type, TypeDesc)
-            else TypeDesc(value_type)
-        )
+        desc = value_type if isinstance(value_type, TypeDesc) else TypeDesc(value_type)
         self._for_bind(stmt, desc, load)
         if not self.builder.block.is_terminated:
             keep = advance()
@@ -431,9 +368,7 @@ class RangeLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(end)
 
-    def _for_bind(
-        self, stmt: ForIn, desc: TypeDesc, load: Any
-    ) -> None:
+    def _for_bind(self, stmt: ForIn, desc: TypeDesc, load: Any) -> None:
         self._scopes.append({})
         try:
             captured = self._analysis.is_captured(stmt.name)
@@ -450,9 +385,7 @@ class RangeLowering(LoweringBase):
                     interface_name=desc.interface_name,
                 )
             else:
-                slot = self.builder.alloca(
-                    self._storage_llvm_type(desc), name=stmt.name.lexeme
-                )
+                slot = self.builder.alloca(self._storage_llvm_type(desc), name=stmt.name.lexeme)
                 self.builder.store(load(), slot)
                 binding = Binding(
                     slot,

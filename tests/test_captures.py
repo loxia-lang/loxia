@@ -15,9 +15,7 @@ def _parse(source: str) -> list[Stmt]:
     return statements
 
 
-def _capture_names(
-    analysis: CaptureAnalysis, node: Function | Lambda
-) -> list[str]:
+def _capture_names(analysis: CaptureAnalysis, node: Function | Lambda) -> list[str]:
     return [capture.name for capture in analysis.captures_of(node)]
 
 

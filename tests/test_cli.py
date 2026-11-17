@@ -56,8 +56,11 @@ def test_module_entrypoint() -> None:
 
 def test_dump_ast_prints_and_does_not_execute(tmp_path: Path) -> None:
     script = tmp_path / "programa.lx"
-    script.write_text("""print(1 + 2);
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + 2);
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--dump-ast", str(script))
 
@@ -67,8 +70,11 @@ def test_dump_ast_prints_and_does_not_execute(tmp_path: Path) -> None:
 
 def test_dump_ast_syntax_error_exits_65(tmp_path: Path) -> None:
     script = tmp_path / "quebrado.lx"
-    script.write_text("""print(1 + );
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + );
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--dump-ast", str(script))
 
@@ -120,9 +126,7 @@ def test_check_requires_script() -> None:
 
 def test_check_mostra_label_da_declaracao_anterior(tmp_path: Path) -> None:
     script = tmp_path / "dup.lx"
-    script.write_text(
-        "fn f() {\n  val a = 1\n  val a = 2\n}\n", encoding="utf-8"
-    )
+    script.write_text("fn f() {\n  val a = 1\n  val a = 2\n}\n", encoding="utf-8")
 
     result = run_cli("--check", str(script))
 
@@ -145,8 +149,11 @@ def test_check_sugere_nome_proximo(tmp_path: Path) -> None:
 
 def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
     script = tmp_path / "x.lx"
-    script.write_text("""print(1);
-""", encoding="utf-8")
+    script.write_text(
+        """print(1);
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--check", "--dump-ast", str(script))
 
@@ -155,8 +162,11 @@ def test_check_conflicts_with_dump_ast(tmp_path: Path) -> None:
 
 def test_debug_flag_checks_overflow(tmp_path: Path) -> None:
     script = tmp_path / "overflow.lx"
-    script.write_text("""print(9223372036854775807 + 1);
-""", encoding="utf-8")
+    script.write_text(
+        """print(9223372036854775807 + 1);
+""",
+        encoding="utf-8",
+    )
 
     debug = run_cli("--debug", str(script))
     release = run_cli(str(script))
@@ -172,8 +182,11 @@ def test_debug_flag_checks_overflow(tmp_path: Path) -> None:
 
 def test_error_format_short_is_one_line_per_diagnostic(tmp_path: Path) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("""print(1 + );
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + );
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--error-format=short", str(script))
 
@@ -185,16 +198,22 @@ def test_error_format_short_is_one_line_per_diagnostic(tmp_path: Path) -> None:
 
 def test_error_format_human_includes_source_snippet(tmp_path: Path) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("""print(1 + );
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + );
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli(str(script))
 
     assert result.returncode == 65
     assert "erro.lx:1:11: error[E1001]: Expect expression." in result.stderr
     assert "  |\n" in result.stderr
-    assert """1 | print(1 + );
-""" in result.stderr
+    assert (
+        """1 | print(1 + );
+"""
+        in result.stderr
+    )
     assert "  |           ^\n" in result.stderr
 
 
@@ -217,9 +236,12 @@ def test_error_format_json_goes_to_stdout_on_check(tmp_path: Path) -> None:
 
 def test_error_format_json_success_envelope_on_check(tmp_path: Path) -> None:
     script = tmp_path / "ok.lx"
-    script.write_text("""fn f(a: Int) -> Int { return a; }
+    script.write_text(
+        """fn f(a: Int) -> Int { return a; }
 print(f(1));
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--check", "--error-format=json", str(script))
 
@@ -231,8 +253,11 @@ print(f(1));
 
 def test_error_format_json_goes_to_stderr_on_run(tmp_path: Path) -> None:
     script = tmp_path / "boom.lx"
-    script.write_text("""print(1 / 0);
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 / 0);
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--error-format=json", str(script))
 
@@ -246,21 +271,25 @@ def test_error_format_json_goes_to_stderr_on_run(tmp_path: Path) -> None:
 
 def test_runtime_human_uses_the_same_header_as_compilation(tmp_path: Path) -> None:
     script = tmp_path / "boom.lx"
-    script.write_text("""print(1 / 0);
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 / 0);
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli(str(script))
 
     assert result.returncode == 70
-    assert result.stderr == (
-        "boom.lx:1:9: error[R1002]: Division by zero not allowed\n"
-    )
+    assert result.stderr == ("boom.lx:1:9: error[R1002]: Division by zero not allowed\n")
 
 
 def test_color_always_emits_ansi_and_never_does_not(tmp_path: Path) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("""print(1 + );
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + );
+""",
+        encoding="utf-8",
+    )
 
     colored = run_cli("--color=always", str(script))
     plain = run_cli("--color=never", str(script))
@@ -273,8 +302,11 @@ def test_no_color_is_respected_in_auto_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     script = tmp_path / "erro.lx"
-    script.write_text("""print(1 + );
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + );
+""",
+        encoding="utf-8",
+    )
     monkeypatch.setenv("NO_COLOR", "1")
 
     result = run_cli(str(script))
@@ -299,8 +331,11 @@ def test_max_errors_limits_and_reports_suppressed(tmp_path: Path) -> None:
 
 def test_diagnostics_use_basename_for_files_outside_cwd(tmp_path: Path) -> None:
     script = tmp_path / "fora.lx"
-    script.write_text("""print(1 + );
-""", encoding="utf-8")
+    script.write_text(
+        """print(1 + );
+""",
+        encoding="utf-8",
+    )
 
     result = run_cli("--error-format=short", str(script))
 
@@ -460,9 +495,7 @@ def test_json_lines_conflicts_with_error_format(tmp_path: Path) -> None:
     script = tmp_path / "linhas.lx"
     script.write_text("print(1)\n", encoding="utf-8")
 
-    result = run_cli(
-        "check", str(script), "--json-lines", "--error-format=short"
-    )
+    result = run_cli("check", str(script), "--json-lines", "--error-format=short")
 
     assert result.returncode == 2
 
@@ -583,7 +616,7 @@ def test_watch_emits_initial_snapshot_and_can_be_stopped(tmp_path: Path) -> None
 
 
 def test_doc_json_from_stdin_has_signature_and_docs() -> None:
-    source = '''/// Adds two ints.
+    source = """/// Adds two ints.
 fn add(a: Int, b: Int) -> Int {
   return a + b
 }
@@ -593,7 +626,7 @@ class Point {
   /// x coordinate.
   val x: Int
 }
-'''
+"""
     result = subprocess.run(
         [
             sys.executable,
@@ -626,9 +659,7 @@ class Point {
 
 def test_doc_does_not_execute_or_include_imported_modules(tmp_path: Path) -> None:
     script = tmp_path / "api.lx"
-    script.write_text(
-        "/// Main.\nfn main() {\n  print(1)\n}\n", encoding="utf-8"
-    )
+    script.write_text("/// Main.\nfn main() {\n  print(1)\n}\n", encoding="utf-8")
 
     result = run_cli("doc", str(script))
 
@@ -675,7 +706,7 @@ fn f() -> Int {
 
 
 def test_doc_covers_interface_enum_type_alias_and_method() -> None:
-    source = '''/// A shape.
+    source = """/// A shape.
 interface Shape {
   /// Area.
   fn area() -> Float
@@ -695,7 +726,7 @@ class Box {
   /// The value.
   var value: Int
 }
-'''
+"""
     result = subprocess.run(
         [
             sys.executable,

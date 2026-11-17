@@ -74,9 +74,7 @@ def parse_expectations(source: str) -> Expectations:
 
 
 def _without_snippet(stderr: str) -> str:
-    return "\n".join(
-        line for line in stderr.splitlines() if not SNIPPET_LINE.match(line)
-    )
+    return "\n".join(line for line in stderr.splitlines() if not SNIPPET_LINE.match(line))
 
 
 def execute(path: Path) -> Executed:
@@ -102,9 +100,7 @@ def check_case(path: Path) -> list[str]:
     problems: list[str] = []
 
     if executed.stdout != expectations.stdout:
-        problems.append(
-            f"stdout: esperado {expectations.stdout!r}, obtido {executed.stdout!r}"
-        )
+        problems.append(f"stdout: esperado {expectations.stdout!r}, obtido {executed.stdout!r}")
 
     diagnostics_only = _without_snippet(executed.stderr)
 

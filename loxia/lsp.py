@@ -147,9 +147,7 @@ def _read_message(stream: IO[bytes]) -> dict[str, Any] | None:
 
 
 def _send(stream: IO[bytes], message: dict[str, Any]) -> None:
-    body = json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode(
-        "utf-8"
-    )
+    body = json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     stream.write(f"Content-Length: {len(body)}\r\n\r\n".encode("ascii"))
     stream.write(body)
     stream.flush()
@@ -159,9 +157,7 @@ def _response(message_id: object, result: object) -> dict[str, Any]:
     return {"jsonrpc": JSONRPC_VERSION, "id": message_id, "result": result}
 
 
-def _error(
-    message_id: object, code: int, message: str
-) -> dict[str, Any]:
+def _error(message_id: object, code: int, message: str) -> dict[str, Any]:
     return {
         "jsonrpc": JSONRPC_VERSION,
         "id": message_id,
@@ -192,9 +188,7 @@ def _utf16_column(text: str, column: int | None) -> int:
     return len(prefix.encode("utf-16-le")) // 2
 
 
-def _position(
-    line: int, column: int | None, source: str
-) -> dict[str, int]:
+def _position(line: int, column: int | None, source: str) -> dict[str, int]:
     lines = source.splitlines()
     text = lines[line - 1] if 0 <= line - 1 < len(lines) else ""
     return {"line": max(0, line - 1), "character": _utf16_column(text, column)}
@@ -271,9 +265,7 @@ class Server:
                                 "triggerCharacters": [".", ":"],
                                 "resolveProvider": False,
                             },
-                            "signatureHelpProvider": {
-                                "triggerCharacters": ["(", ","]
-                            },
+                            "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                             "documentFormattingProvider": True,
                             "codeActionProvider": True,
                             "semanticTokensProvider": {
@@ -314,9 +306,7 @@ class Server:
             return
 
         if method == "textDocument/definition":
-            _send(
-                self.stdout, _response(message_id, self._definition(message))
-            )
+            _send(self.stdout, _response(message_id, self._definition(message)))
             return
 
         if method == "textDocument/completion":
@@ -331,9 +321,7 @@ class Server:
             return
 
         if method == "textDocument/formatting":
-            _send(
-                self.stdout, _response(message_id, self._formatting(message))
-            )
+            _send(self.stdout, _response(message_id, self._formatting(message)))
             return
 
         if method == "workspace/symbol":
@@ -529,9 +517,7 @@ class Server:
                 if self.root is not None:
                     label_uri = _path_to_uri(self.root / label.span.file)
                 elif document.path is not None:
-                    label_uri = _path_to_uri(
-                        document.path.parent / label.span.file
-                    )
+                    label_uri = _path_to_uri(document.path.parent / label.span.file)
             related.append(
                 {
                     "location": {
@@ -634,10 +620,7 @@ class Server:
 
     def _tokens_by_key(self, text: str) -> dict[tuple[int, int, int], Token]:
         reporter = ErrorReporter(max_errors=0)
-        return {
-            token_key(token): token
-            for token in Scanner(text, reporter).scan_tokens()
-        }
+        return {token_key(token): token for token in Scanner(text, reporter).scan_tokens()}
 
     def _prepare_rename(self, message: dict[str, Any]) -> object:
         params = message.get("params")
@@ -652,9 +635,7 @@ class Server:
         index = self._index_for(document.uri)
         if index is None:
             return None
-        if self._rename_target(index, token) is None and not self._is_top_level(
-            index, token
-        ):
+        if self._rename_target(index, token) is None and not self._is_top_level(index, token):
             return None
         return {
             "range": _token_range(token, document.text),
@@ -735,13 +716,10 @@ class Server:
                             "uri": uri,
                             "range": _token_range(symbol.token, text),
                         },
-                        **(
-                            {"containerName": symbol.container}
-                            if symbol.container
-                            else {}
-                        ),
+                        **({"containerName": symbol.container} if symbol.container else {}),
                     }
                 )
+
         def sort_key(item: dict[str, object]) -> tuple[str, str, int, int]:
             location = cast(dict[str, Any], item["location"])
             range_ = cast(dict[str, Any], location["range"])
@@ -775,10 +753,7 @@ class Server:
         except OSError:
             candidates = iter(())
         for path in candidates:
-            if any(
-                part.startswith(".") or part in {"node_modules"}
-                for part in path.parts
-            ):
+            if any(part.startswith(".") or part in {"node_modules"} for part in path.parts):
                 continue
             if path not in files:
                 try:
@@ -787,9 +762,7 @@ class Server:
                     continue
         return sorted(files.items())
 
-    def _workspace_rename(
-        self, document: Document, token: Token, new_name: str
-    ) -> object:
+    def _workspace_rename(self, document: Document, token: Token, new_name: str) -> object:
         old = token.lexeme
         if self.root is None:
             return "Cross-file rename requires an initialized workspace root."
@@ -814,11 +787,13 @@ class Server:
             for symbol in index.symbols:
                 if symbol.name != old:
                     continue
-                if (
-                    symbol.container is None
-                    and symbol.kind
-                    in {"function", "class", "enum", "interface", "type"}
-                ):
+                if symbol.container is None and symbol.kind in {
+                    "function",
+                    "class",
+                    "enum",
+                    "interface",
+                    "type",
+                }:
                     declarations += 1
                     if token_key(symbol.token) != target_key or path != document.path:
                         continue
@@ -903,9 +878,7 @@ class Server:
                         or not isinstance(new_text, str)
                     ):
                         continue
-                    changes.setdefault(uri, []).append(
-                        {"range": edit_range, "newText": new_text}
-                    )
+                    changes.setdefault(uri, []).append({"range": edit_range, "newText": new_text})
                 if not changes:
                     continue
                 title = fix.get("title")
@@ -938,9 +911,7 @@ class Server:
         self._diagnostics(document)
         return self.indexes.get(uri)
 
-    def _token_at(
-        self, document: Document, position: object
-    ) -> Token | None:
+    def _token_at(self, document: Document, position: object) -> Token | None:
         if not isinstance(position, dict):
             return None
         line = position.get("line")
@@ -1011,9 +982,7 @@ class Server:
             "range": _token_range(token, document.text),
         }
 
-    def _definition(
-        self, message: dict[str, Any]
-    ) -> dict[str, object] | None:
+    def _definition(self, message: dict[str, Any]) -> dict[str, object] | None:
         params = message.get("params")
         if not isinstance(params, dict):
             return None
@@ -1043,9 +1012,7 @@ class Server:
             and document.path is not None
             and symbol.token.file != document.path.name
         ):
-            target_source = _source_for(
-                self.source_maps.get(uri), symbol.token.file, document.text
-            )
+            target_source = _source_for(self.source_maps.get(uri), symbol.token.file, document.text)
         return {
             "uri": target_uri,
             "range": _token_range(symbol.token, target_source),
@@ -1090,11 +1057,7 @@ class Server:
         uri = document_info.get("uri")
         line = position.get("line")
         character = position.get("character")
-        if (
-            not isinstance(uri, str)
-            or not isinstance(line, int)
-            or not isinstance(character, int)
-        ):
+        if not isinstance(uri, str) or not isinstance(line, int) or not isinstance(character, int):
             return empty
         document = self.documents.get(uri)
         if document is None:
@@ -1103,14 +1066,10 @@ class Server:
         offset = self._offset_at(document.text, line, character)
         return {
             "isIncomplete": False,
-            "items": completion_items(
-                document.text, document.path, offset, index
-            ),
+            "items": completion_items(document.text, document.path, offset, index),
         }
 
-    def _signature_help(
-        self, message: dict[str, Any]
-    ) -> dict[str, object] | None:
+    def _signature_help(self, message: dict[str, Any]) -> dict[str, object] | None:
         params = message.get("params")
         if not isinstance(params, dict):
             return None
@@ -1143,9 +1102,7 @@ class Server:
         name = match.group(1)
         start = match.start(1)
         token_character = len(before[:start].encode("utf-16-le")) // 2
-        token = self._token_at(
-            document, {"line": line, "character": token_character}
-        )
+        token = self._token_at(document, {"line": line, "character": token_character})
         if token is None:
             return None
         index = self._index_for(uri)
@@ -1154,9 +1111,7 @@ class Server:
         symbol = index.symbol_at(token)
         signature = symbol.signature if symbol is not None else None
         if signature is None:
-            builtin = next(
-                (item for item in BUILTIN_DOCS if item.name == name), None
-            )
+            builtin = next((item for item in BUILTIN_DOCS if item.name == name), None)
             if builtin is None:
                 return None
             signature = builtin.signature
@@ -1212,9 +1167,7 @@ class Server:
             }
         ]
 
-    def _semantic_tokens(
-        self, message: dict[str, Any]
-    ) -> dict[str, object]:
+    def _semantic_tokens(self, message: dict[str, Any]) -> dict[str, object]:
         params = message.get("params")
         if not isinstance(params, dict):
             return {"data": []}
@@ -1244,14 +1197,10 @@ class Server:
             line_text = self._line_text(document, line) or ""
             character = _utf16_column(line_text, token.column)
             length = len(token.lexeme.encode("utf-16-le")) // 2
-            if line < previous_line or (
-                line == previous_line and character < previous_character
-            ):
+            if line < previous_line or (line == previous_line and character < previous_character):
                 continue
             delta_line = line - previous_line
-            delta_character = (
-                character if delta_line else character - previous_character
-            )
+            delta_character = character if delta_line else character - previous_character
             data.extend(
                 [
                     delta_line,
@@ -1276,16 +1225,12 @@ class Server:
 
     # -- símbolos --------------------------------------------------------
 
-    def _document_symbols(
-        self, message: dict[str, Any]
-    ) -> list[dict[str, object]]:
+    def _document_symbols(self, message: dict[str, Any]) -> list[dict[str, object]]:
         params = message.get("params")
         if not isinstance(params, dict):
             return []
         document = params.get("textDocument")
-        if not isinstance(document, dict) or not isinstance(
-            document.get("uri"), str
-        ):
+        if not isinstance(document, dict) or not isinstance(document.get("uri"), str):
             return []
         current = self.documents.get(document["uri"])
         if current is None:
@@ -1298,9 +1243,7 @@ class Server:
         if reporter.had_error or statements is None:
             return []
         return [
-            symbol
-            for statement in statements
-            for symbol in _symbols_for(statement, current.text)
+            symbol for statement in statements for symbol in _symbols_for(statement, current.text)
         ]
 
 
@@ -1395,9 +1338,7 @@ def _summary(doc: str | None) -> str | None:
     return doc.splitlines()[0]
 
 
-def _symbols_for(
-    statement: Stmt, source: str
-) -> list[dict[str, object]]:
+def _symbols_for(statement: Stmt, source: str) -> list[dict[str, object]]:
     if isinstance(statement, Function):
         return [
             _symbol(
@@ -1526,10 +1467,38 @@ def _valid_name(name: str) -> bool:
     if not all(char.isalnum() or char == "_" for char in name):
         return False
     return name not in {
-        "and", "as", "class", "elif", "else", "enum", "false", "fn", "for",
-        "from", "if", "implements", "import", "in", "interface", "is", "match",
-        "nil", "not", "or", "raise", "return", "super", "this", "true", "try",
-        "except", "finally", "type", "val", "var", "while",
+        "and",
+        "as",
+        "class",
+        "elif",
+        "else",
+        "enum",
+        "false",
+        "fn",
+        "for",
+        "from",
+        "if",
+        "implements",
+        "import",
+        "in",
+        "interface",
+        "is",
+        "match",
+        "nil",
+        "not",
+        "or",
+        "raise",
+        "return",
+        "super",
+        "this",
+        "true",
+        "try",
+        "except",
+        "finally",
+        "type",
+        "val",
+        "var",
+        "while",
     }
 
 

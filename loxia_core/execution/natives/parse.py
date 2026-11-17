@@ -13,9 +13,7 @@ if TYPE_CHECKING:
     from loxia_core.execution.interpreter import Interpreter
 
 _INT_RE = re.compile(r"[+-]?[0-9]+")
-_FLOAT_RE = re.compile(
-    r"[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
-)
+_FLOAT_RE = re.compile(r"[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
 
 
 class IntParse:

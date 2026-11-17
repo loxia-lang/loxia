@@ -39,10 +39,13 @@ print(os.getenv("LOX_KERNEL_TEST"))
 
 def test_os_exit(tmp_path: Path) -> None:
     path = tmp_path / "exit.lx"
-    path.write_text("""print("antes")
+    path.write_text(
+        """print("antes")
 os.exit(7)
 print("depois")
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     result = _run(str(path))
 
@@ -77,7 +80,8 @@ def test_read_all_rejeita_stdin_nao_utf8(tmp_path: Path) -> None:
     path.write_text(
         """import std.io as io
 print(io.readAll())
-""", encoding="utf-8"
+""",
+        encoding="utf-8",
     )
 
     result = subprocess.run(
@@ -99,7 +103,8 @@ def test_read_line_rejeita_stdin_nao_utf8(tmp_path: Path) -> None:
     path.write_text(
         """import std.io as io
 print(io.readLine())
-""", encoding="utf-8"
+""",
+        encoding="utf-8",
     )
 
     result = subprocess.run(

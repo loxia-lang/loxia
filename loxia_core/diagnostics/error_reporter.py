@@ -56,9 +56,7 @@ def _end_position(start: Position, lexeme: str) -> Position:
 
 
 class ErrorReporter:
-    def __init__(
-        self, *, max_errors: int = 20, werror: bool = False
-    ) -> None:
+    def __init__(self, *, max_errors: int = 20, werror: bool = False) -> None:
         self.max_errors = max_errors
         self.werror = werror
         self.file: str = "<stdin>"
@@ -94,14 +92,9 @@ class ErrorReporter:
         resolve cada token para o arquivo/coluna reais do módulo, como no span principal.
         """
         span = (
-            self._span_of_token(target)
-            if isinstance(target, Token)
-            else self._span_of_line(target)
+            self._span_of_token(target) if isinstance(target, Token) else self._span_of_line(target)
         )
-        labels = tuple(
-            Label(self._span_of_token(token), text)
-            for token, text in label_tokens
-        )
+        labels = tuple(Label(self._span_of_token(token), text) for token, text in label_tokens)
         self._record(
             code=code,
             phase=CODE_PHASE[code],
@@ -148,14 +141,9 @@ class ErrorReporter:
     ) -> None:
         """Registra um warning (ou erro, com `-Werror`); não falha por padrão."""
         span = (
-            self._span_of_token(target)
-            if isinstance(target, Token)
-            else self._span_of_line(target)
+            self._span_of_token(target) if isinstance(target, Token) else self._span_of_line(target)
         )
-        labels = tuple(
-            Label(self._span_of_token(token), text)
-            for token, text in label_tokens
-        )
+        labels = tuple(Label(self._span_of_token(token), text) for token, text in label_tokens)
         severity = Severity.ERROR if self.werror else Severity.WARNING
         if self.werror:
             self.had_error = True
@@ -211,9 +199,7 @@ class ErrorReporter:
             )
         )
 
-    def cli_error(
-        self, message: str, *, code: Code = Code.CLI_TIMEOUT
-    ) -> None:
+    def cli_error(self, message: str, *, code: Code = Code.CLI_TIMEOUT) -> None:
         """Erro do comando (fase CLI), como timeout; não conta como erro de compilação."""
         self._diagnostics.append(
             Diagnostic(

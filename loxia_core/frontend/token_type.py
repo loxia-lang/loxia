@@ -2,7 +2,7 @@ from enum import Enum, auto
 
 
 class TokenType(Enum):
-    #Single-character tokens.
+    # Single-character tokens.
     LEFT_PAREN = auto()
     RIGHT_PAREN = auto()
     LEFT_BRACE = auto()
@@ -13,7 +13,7 @@ class TokenType(Enum):
     MINUS = auto()
     PLUS = auto()
     SEMICOLON = auto()
-    SLASH  = auto()
+    SLASH = auto()
     SLASH_SLASH = auto()
     STAR = auto()
     STAR_STAR = auto()
@@ -47,13 +47,13 @@ class TokenType(Enum):
     FAT_ARROW = auto()
     PIPE = auto()
 
-    #Literals.
+    # Literals.
     IDENTIFIER = auto()
     STRING = auto()
     INTERPOLATED_STRING = auto()
     NUMBER = auto()
 
-    #Keywords.
+    # Keywords.
     AND = auto()
     AS = auto()
     ASYNC = auto()

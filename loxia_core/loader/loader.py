@@ -157,8 +157,7 @@ class ModuleLoader:
                 self._load_import(statement)
             import_maps = self._import_maps(entry_imports)
             public_maps = {
-                name: self._declaration_map(module)
-                for name, module in self.modules.items()
+                name: self._declaration_map(module) for name, module in self.modules.items()
             }
             if warn_unused and not self.reporter.had_error:
                 self._warn_unused_imports(entry, entry_imports)
@@ -184,21 +183,17 @@ class ModuleLoader:
         except ModuleError:
             return None
 
-    def _warn_unused_imports(
-        self, statements: list[Stmt], imports: list[Import]
-    ) -> None:
+    def _warn_unused_imports(self, statements: list[Stmt], imports: list[Import]) -> None:
         """W1002: módulos são puros (só declarações) e imports não são re-exportados."""
         used = _used_names(statements)
         for statement in imports:
             if statement.from_import:
                 unused = [
-                    item
-                    for item in statement.names
-                    if (item.alias or item.name).lexeme not in used
+                    item for item in statement.names if (item.alias or item.name).lexeme not in used
                 ]
                 if not unused:
                     continue
-                names = [ (item.alias or item.name).lexeme for item in unused ]
+                names = [(item.alias or item.name).lexeme for item in unused]
                 label = "Import" if len(names) == 1 else "Imports"
                 quoted = ", ".join(f"'{name}'" for name in names)
                 self.reporter.warning(
@@ -220,9 +215,7 @@ class ModuleLoader:
                     fixes=self._unused_import_fix(statement, remove=True),
                 )
 
-    def _unused_import_fix(
-        self, statement: Import, *, remove: bool
-    ) -> tuple[Fix, ...]:
+    def _unused_import_fix(self, statement: Import, *, remove: bool) -> tuple[Fix, ...]:
         if not remove:
             return ()
         start = statement.start or statement.path[0]
@@ -303,15 +296,11 @@ class ModuleLoader:
     def _dependencies(self) -> dict[str, Path]:
         return self.manifest.dependencies if self.manifest is not None else {}
 
-    def _candidates(
-        self, parts: list[str], importer: str | None
-    ) -> list[_Candidate]:
+    def _candidates(self, parts: list[str], importer: str | None) -> list[_Candidate]:
         result: list[_Candidate] = []
         dependency = self._dependencies.get(parts[0])
         if importer is None:
-            result.append(
-                _Candidate("project", self._module_file(self.root, parts), None)
-            )
+            result.append(_Candidate("project", self._module_file(self.root, parts), None))
             if dependency is not None and len(parts) > 1:
                 result.append(
                     _Candidate(
@@ -380,14 +369,12 @@ class ModuleLoader:
         if importer is not None and importer != "std":
             if name.startswith(importer + "."):
                 searched = ", ".join(
-                    f"{candidate.label} "
-                    f"({self._display_candidate(candidate.path)})"
+                    f"{candidate.label} ({self._display_candidate(candidate.path)})"
                     for candidate in candidates
                 )
                 self._error(
                     token,
-                    f"Module '{name}' not found in dependency '{importer}'. "
-                    f"Searched: {searched}.",
+                    f"Module '{name}' not found in dependency '{importer}'. Searched: {searched}.",
                 )
             self._error(
                 token,
@@ -397,36 +384,28 @@ class ModuleLoader:
         if importer == "std":
             self._error(
                 token,
-                f"Module '{name}' not found. Modules in 'std' can only "
-                "import 'std.*'.",
+                f"Module '{name}' not found. Modules in 'std' can only import 'std.*'.",
             )
         searched = ", ".join(
             f"{candidate.label} ({self._display_candidate(candidate.path)})"
             for candidate in candidates
         )
-        self._error(
-            token, f"Module '{name}' not found. Searched: {searched}."
-        )
+        self._error(token, f"Module '{name}' not found. Searched: {searched}.")
 
-    def _ambiguity_error(
-        self, name: str, candidates: list[_Candidate], token: Token
-    ) -> None:
-        locations = _join_and([
-            f"{candidate.label} ({self._display_candidate(candidate.path)})"
-            for candidate in candidates
-        ])
-        self._error(
-            token, f"Module '{name}' is ambiguous: {locations}."
+    def _ambiguity_error(self, name: str, candidates: list[_Candidate], token: Token) -> None:
+        locations = _join_and(
+            [
+                f"{candidate.label} ({self._display_candidate(candidate.path)})"
+                for candidate in candidates
+            ]
         )
+        self._error(token, f"Module '{name}' is ambiguous: {locations}.")
 
-    def _isolation_error(
-        self, name: str, importer: str | None, token: Token
-    ) -> None:
+    def _isolation_error(self, name: str, importer: str | None, token: Token) -> None:
         if importer == "std":
             self._error(
                 token,
-                f"Module '{name}' not found. Modules in 'std' can only "
-                "import 'std.*'.",
+                f"Module '{name}' not found. Modules in 'std' can only import 'std.*'.",
             )
         if importer is not None:
             self._error(
@@ -529,9 +508,7 @@ class ModuleLoader:
             items = value if isinstance(value, list) else [value]
             for item in items:
                 if isinstance(item, Import):
-                    self._error(
-                        item.path[0], "Imports must appear at the top level."
-                    )
+                    self._error(item.path[0], "Imports must appear at the top level.")
                 if hasattr(item, "accept"):
                     self._reject_nested_imports(item)
 
@@ -539,28 +516,19 @@ class ModuleLoader:
 
     def _declaration_map(self, module: Module) -> dict[str, str]:
         prefix = module.name.replace(".", "$")
-        return {
-            name: f"{prefix}${name}"
-            for name in module.declarations
-        }
+        return {name: f"{prefix}${name}" for name in module.declarations}
 
     def _import_maps(self, entry_imports: list[Import]) -> dict[str, _ImportMaps]:
-        result: dict[str, _ImportMaps] = {
-            "<entry>": self._build_import_map(entry_imports, None)
-        }
+        result: dict[str, _ImportMaps] = {"<entry>": self._build_import_map(entry_imports, None)}
         for name, module in self.modules.items():
             result[name] = self._build_import_map(module.imports, module.package)
         return result
 
-    def _build_import_map(
-        self, imports: list[Import], importer: str | None
-    ) -> _ImportMaps:
+    def _build_import_map(self, imports: list[Import], importer: str | None) -> _ImportMaps:
         names: dict[str, str] = {}
         namespaces: dict[str, Module] = {}
         for statement in imports:
-            target = self._resolve(
-                statement.path, statement.path[0], importer=importer
-            )
+            target = self._resolve(statement.path, statement.path[0], importer=importer)
             target_name = target.name
             module = self.modules[target_name]
             if statement.from_import:
@@ -569,8 +537,7 @@ class ModuleLoader:
                     if public.startswith("_"):
                         self._error(
                             item.name,
-                            f"Can't import private name '{public}' from "
-                            f"'{target_name}'.",
+                            f"Can't import private name '{public}' from '{target_name}'.",
                         )
                     if public not in module.declarations:
                         self._error(
@@ -580,9 +547,7 @@ class ModuleLoader:
                     local = (item.alias or item.name).lexeme
                     if local in names or local in namespaces:
                         self._error(item.alias or item.name, f"Duplicate import '{local}'.")
-                    names[local] = (
-                        f"{target_name.replace('.', '$')}${public}"
-                    )
+                    names[local] = f"{target_name.replace('.', '$')}${public}"
             else:
                 alias = statement.alias or statement.path[-1]
                 if alias.lexeme in names or alias.lexeme in namespaces:
@@ -638,18 +603,14 @@ class _Rewriter:
             return Variable(self._rename_token(expr.name, replacement))
         return expr
 
-    def _type_param_bounds(
-        self, bounds: list[tuple[Token, ...]]
-    ) -> list[tuple[Token, ...]]:
+    def _type_param_bounds(self, bounds: list[tuple[Token, ...]]) -> list[tuple[Token, ...]]:
         renamed: list[tuple[Token, ...]] = []
         for group in bounds:
             items: list[Token] = []
             for token in group:
                 replacement = self._global(token.lexeme, token)
                 items.append(
-                    self._rename_token(token, replacement)
-                    if replacement is not None
-                    else token
+                    self._rename_token(token, replacement) if replacement is not None else token
                 )
             renamed.append(tuple(items))
         return renamed
@@ -670,18 +631,20 @@ class _Rewriter:
         if isinstance(ty, InterfaceTy):
             return replace(
                 ty,
-                name=self._global(
-                    ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0)
-                )
+                name=self._global(ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0))
                 or ty.name,
             )
         if isinstance(ty, ClassObjectTy):
             return replace(
-                ty, name=self._global(ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0)) or ty.name
+                ty,
+                name=self._global(ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0))
+                or ty.name,
             )
         if isinstance(ty, EnumObjectTy):
             return replace(
-                ty, name=self._global(ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0)) or ty.name
+                ty,
+                name=self._global(ty.name, Token(TokenType.IDENTIFIER, ty.name, None, 0))
+                or ty.name,
             )
         if isinstance(ty, ListTy):
             element = self._type(ty.element)
@@ -723,8 +686,7 @@ class _Rewriter:
                 if member.startswith("_"):
                     self.loader._error(
                         expr.name,
-                        f"Can't access private name '{member}' from "
-                        f"'{module.name}'.",
+                        f"Can't access private name '{member}' from '{module.name}'.",
                     )
                 if member not in module.declarations:
                     self.loader._error(
@@ -732,9 +694,7 @@ class _Rewriter:
                         f"Module '{module.name}' has no public name '{member}'.",
                     )
                 return Variable(
-                    self._rename_token(
-                        expr.name, f"{module.name.replace('.', '$')}${member}"
-                    )
+                    self._rename_token(expr.name, f"{module.name.replace('.', '$')}${member}")
                 )
             return replace(expr, object=self.expr(expr.object))
         if isinstance(expr, Assign):
@@ -745,17 +705,13 @@ class _Rewriter:
                     name = self._rename_token(name, replacement)
             return replace(expr, name=name, value=self.expr(expr.value))
         if isinstance(expr, Binary):
-            return replace(
-                expr, left=self.expr(expr.left), right=self.expr(expr.right)
-            )
+            return replace(expr, left=self.expr(expr.left), right=self.expr(expr.right))
         if isinstance(expr, Grouping):
             return replace(expr, expression=self.expr(expr.expression))
         if isinstance(expr, Unary):
             return replace(expr, right=self.expr(expr.right))
         if isinstance(expr, Logical):
-            return replace(
-                expr, left=self.expr(expr.left), right=self.expr(expr.right)
-            )
+            return replace(expr, left=self.expr(expr.left), right=self.expr(expr.right))
         if isinstance(expr, Conditional):
             return replace(
                 expr,
@@ -793,20 +749,14 @@ class _Rewriter:
         if isinstance(expr, MapLiteral):
             return replace(
                 expr,
-                entries=[
-                    (self.expr(key), self.expr(value))
-                    for key, value in expr.entries
-                ],
+                entries=[(self.expr(key), self.expr(value)) for key, value in expr.entries],
             )
         if isinstance(expr, TupleLiteral):
             return replace(expr, elements=[self.expr(item) for item in expr.elements])
         if isinstance(expr, InterpolatedString):
             return replace(
                 expr,
-                parts=[
-                    part if isinstance(part, str) else self.expr(part)
-                    for part in expr.parts
-                ],
+                parts=[part if isinstance(part, str) else self.expr(part) for part in expr.parts],
             )
         if isinstance(expr, Is):
             return replace(
@@ -821,9 +771,7 @@ class _Rewriter:
                 target_type=self._type(expr.target_type) or expr.target_type,
             )
         if isinstance(expr, Range):
-            return replace(
-                expr, start=self.expr(expr.start), end=self.expr(expr.end)
-            )
+            return replace(expr, start=self.expr(expr.start), end=self.expr(expr.end))
         if isinstance(expr, Lambda):
             self.bound.append({param.name.lexeme for param in expr.params})
             try:
@@ -832,9 +780,7 @@ class _Rewriter:
                     params=[
                         replace(
                             param,
-                            default=self.expr(param.default)
-                            if param.default is not None
-                            else None,
+                            default=self.expr(param.default) if param.default is not None else None,
                             type_annotation=self._type(param.type_annotation),
                         )
                         for param in expr.params
@@ -875,11 +821,7 @@ class _Rewriter:
         if isinstance(statement, Expression):
             return replace(statement, expression=self.expr(statement.expression))
         if isinstance(statement, Var):
-            value = (
-                self.expr(statement.initializer)
-                if statement.initializer is not None
-                else None
-            )
+            value = self.expr(statement.initializer) if statement.initializer is not None else None
             result = replace(
                 statement,
                 initializer=value,
@@ -901,9 +843,7 @@ class _Rewriter:
                 condition=self.expr(statement.condition),
                 then_branch=self.stmt(statement.then_branch),
                 else_branch=(
-                    self.stmt(statement.else_branch)
-                    if statement.else_branch is not None
-                    else None
+                    self.stmt(statement.else_branch) if statement.else_branch is not None else None
                 ),
             )
         if isinstance(statement, While):
@@ -942,9 +882,7 @@ class _Rewriter:
                 params = [
                     replace(
                         param,
-                        default=self.expr(param.default)
-                        if param.default is not None
-                        else None,
+                        default=self.expr(param.default) if param.default is not None else None,
                         type_annotation=self._type(param.type_annotation),
                     )
                     for param in statement.params
@@ -958,17 +896,13 @@ class _Rewriter:
                 params=params,
                 body=function_body,
                 return_type=self._type(statement.return_type),
-                type_param_bounds=self._type_param_bounds(
-                    statement.type_param_bounds
-                ),
+                type_param_bounds=self._type_param_bounds(statement.type_param_bounds),
                 display_name=statement.display_name or statement.name.lexeme,
             )
         if isinstance(statement, Return):
             return replace(
                 statement,
-                value=self.expr(statement.value)
-                if statement.value is not None
-                else None,
+                value=self.expr(statement.value) if statement.value is not None else None,
             )
         if isinstance(statement, Class):
             name = statement.name
@@ -976,17 +910,13 @@ class _Rewriter:
             if replacement is not None:
                 name = self._rename_token(name, replacement)
             superclass = (
-                self.expr(statement.superclass)
-                if statement.superclass is not None
-                else None
+                self.expr(statement.superclass) if statement.superclass is not None else None
             )
             fields = [
                 replace(
                     field,
                     initializer=(
-                        self.expr(field.initializer)
-                        if field.initializer is not None
-                        else None
+                        self.expr(field.initializer) if field.initializer is not None else None
                     ),
                     type_annotation=self._type(field.type_annotation),
                 )
@@ -1021,9 +951,7 @@ class _Rewriter:
             for token in statement.implements:
                 replacement = self._global(token.lexeme, token)
                 implements.append(
-                    self._rename_token(token, replacement)
-                    if replacement is not None
-                    else token
+                    self._rename_token(token, replacement) if replacement is not None else token
                 )
 
             return replace(
@@ -1061,9 +989,7 @@ class _Rewriter:
                                 for param in method.params
                             ],
                             body=(
-                                []
-                                if method.abstract
-                                else [self.stmt(item) for item in method.body]
+                                [] if method.abstract else [self.stmt(item) for item in method.body]
                             ),
                             return_type=self._type(method.return_type),
                         )
@@ -1142,9 +1068,7 @@ class _Rewriter:
         if isinstance(statement, Raise):
             return replace(
                 statement,
-                value=self.expr(statement.value)
-                if statement.value is not None
-                else None,
+                value=self.expr(statement.value) if statement.value is not None else None,
             )
         return statement
 

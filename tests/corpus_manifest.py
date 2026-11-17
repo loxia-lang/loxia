@@ -223,6 +223,4 @@ NEGATIVE: frozenset[str] = frozenset(
 
 def all_cases() -> list[tuple[str, str]]:
     """Pares (nível, caminho) para o teste diferencial do manifesto."""
-    return [
-        (level, case) for level, cases in LEVELS.items() for case in cases
-    ]
+    return [(level, case) for level, cases in LEVELS.items() for case in cases]

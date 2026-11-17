@@ -111,11 +111,7 @@ def _render(items: list[Item], prefix: str) -> list[dict[str, object]]:
             "kind": item.kind,
             "detail": item.detail,
             "insertText": item.label,
-            **(
-                {"documentation": {"kind": "markdown", "value": item.doc}}
-                if item.doc
-                else {}
-            ),
+            **({"documentation": {"kind": "markdown", "value": item.doc}} if item.doc else {}),
             "sortText": item.sort,
         }
         for item in sorted(best.values(), key=lambda entry: entry.sort)
@@ -167,14 +163,10 @@ def _cursor(source: str, offset: int) -> tuple[str, str | None]:
     return (word.group(0) if word else ""), None
 
 
-_DOT = __import__("re").compile(
-    r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z0-9_]*)$"
-)
+_DOT = __import__("re").compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z0-9_]*)$")
 _WORD = __import__("re").compile(r"[A-Za-z_][A-Za-z0-9_]*$")
 _IMPORT = __import__("re").compile(r"^\s*import\s+([\w.]*)$")
-_FROM = __import__("re").compile(
-    r"^\s*from\s+([\w.]+)\s+import\s+([\w]*)$"
-)
+_FROM = __import__("re").compile(r"^\s*from\s+([\w.]+)\s+import\s+([\w]*)$")
 
 
 def _imports(statements: list[Stmt]) -> dict[str, tuple[str, str | None]]:
@@ -190,9 +182,7 @@ def _imports(statements: list[Stmt]) -> dict[str, tuple[str, str | None]]:
                 result[local] = (module, item.name.lexeme)
         else:
             local = (
-                statement.alias.lexeme
-                if statement.alias is not None
-                else statement.path[-1].lexeme
+                statement.alias.lexeme if statement.alias is not None else statement.path[-1].lexeme
             )
             result[local] = (module, None)
     return result
@@ -370,11 +360,7 @@ def _member_items(
             return []
         if public is not None:
             return _type_members(module_statements, public, path)
-        return [
-            item
-            for item in _declarations(module_statements)
-            if not item.label.startswith("_")
-        ]
+        return [item for item in _declarations(module_statements) if not item.label.startswith("_")]
     if receiver in {"Int", "Float", "math", "io", "fs", "process", "os", "time"}:
         return _native_members(receiver)
     token = _token_named(statements, receiver, offset)
@@ -391,9 +377,7 @@ def _member_items(
     if isinstance(ty, (ClassTy, InterfaceTy, EnumObjectTy)):
         name = ty.name.rsplit("$", 1)[-1]
         statements_for_type = statements
-        if not any(
-            _statement_name(item) == name for item in statements_for_type
-        ):
+        if not any(_statement_name(item) == name for item in statements_for_type):
             for module, public in imports.values():
                 if public == name:
                     loaded = _module_statements(module, path)
@@ -436,9 +420,7 @@ def _native_members(module: str) -> list[Item]:
     ]
 
 
-def _type_members(
-    statements: list[Stmt], name: str, path: Path | None
-) -> list[Item]:
+def _type_members(statements: list[Stmt], name: str, path: Path | None) -> list[Item]:
     for statement in statements:
         if isinstance(statement, EnumDecl) and statement.name.lexeme == name:
             return [
@@ -495,9 +477,7 @@ def _class_members(statements: list[Stmt], name: str) -> list[Item]:
     return []
 
 
-def _context(
-    statements: list[Stmt], offset: int
-) -> tuple[str | None, str | None]:
+def _context(statements: list[Stmt], offset: int) -> tuple[str | None, str | None]:
     function: str | None = None
     klass: str | None = None
     for statement in statements:
@@ -516,9 +496,7 @@ def _inside(function: Function, offset: int) -> bool:
     return function.params_end.offset <= offset <= function.end.offset
 
 
-def _token_named(
-    statements: list[Stmt], name: str, offset: int
-) -> Token | None:
+def _token_named(statements: list[Stmt], name: str, offset: int) -> Token | None:
     tokens: list[Token] = []
 
     def walk(value: object) -> None:
@@ -544,10 +522,7 @@ def _find_symbol(statements: list[Stmt], name: str) -> Any:
 
 
 def _keyword_items() -> list[Item]:
-    return [
-        Item(keyword, KIND_KEYWORD, keyword, None, f"4_{keyword}")
-        for keyword in KEYWORDS
-    ]
+    return [Item(keyword, KIND_KEYWORD, keyword, None, f"4_{keyword}") for keyword in KEYWORDS]
 
 
 def _import_items(
@@ -576,20 +551,14 @@ def _import_items(
         module_statements = _module_statements(module, path)
         if module_statements is None:
             return []
-        return [
-            item
-            for item in _declarations(module_statements)
-            if not item.label.startswith("_")
-        ]
+        return [item for item in _declarations(module_statements) if not item.label.startswith("_")]
     return []
 
 
 def _function_signature(function: Function) -> str:
     params = ", ".join(_param_signature(param) for param in function.params)
     type_params = (
-        "["
-        + ", ".join(item.lexeme for item in function.type_params)
-        + "]"
+        "[" + ", ".join(item.lexeme for item in function.type_params) + "]"
         if function.type_params
         else ""
     )
@@ -616,17 +585,11 @@ def _field_signature(field: Any) -> str:
 
 def _class_signature(statement: Class) -> str:
     type_params = (
-        "["
-        + ", ".join(item.lexeme for item in statement.type_params)
-        + "]"
+        "[" + ", ".join(item.lexeme for item in statement.type_params) + "]"
         if statement.type_params
         else ""
     )
-    superclass = (
-        f"({statement.superclass.name.lexeme})"
-        if statement.superclass is not None
-        else ""
-    )
+    superclass = f"({statement.superclass.name.lexeme})" if statement.superclass is not None else ""
     implements = (
         f" implements {', '.join(item.lexeme for item in statement.implements)}"
         if statement.implements
@@ -636,9 +599,7 @@ def _class_signature(statement: Class) -> str:
 
 
 def _statement_name(statement: Stmt) -> str | None:
-    if isinstance(
-        statement, (Function, Class, EnumDecl, Interface, TypeAlias)
-    ):
+    if isinstance(statement, (Function, Class, EnumDecl, Interface, TypeAlias)):
         return statement.name.lexeme
     return None
 
@@ -659,14 +620,12 @@ def _declared_type(statements: list[Stmt], name: str) -> Any:
                 found = ListTy(ANY)
             elif isinstance(value.initializer, MapLiteral):
                 found = MapTy(ANY, ANY)
-            elif (
-                isinstance(value.initializer, Literal)
-                and isinstance(value.initializer.value, str)
+            elif isinstance(value.initializer, Literal) and isinstance(
+                value.initializer.value, str
             ):
                 found = STRING
-            elif (
-                isinstance(value.initializer, Call)
-                and isinstance(value.initializer.callee, Variable)
+            elif isinstance(value.initializer, Call) and isinstance(
+                value.initializer.callee, Variable
             ):
                 found = ClassTy(value.initializer.callee.name.lexeme)
             return

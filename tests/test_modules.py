@@ -36,11 +36,11 @@ def _project(tmp_path: Path) -> Path:
         "  val nome: String\n"
         "  init(nome: String) { this.nome = nome }\n"
         "  fn publico() -> String { return this.nome }\n"
-        "  fn _segredo() -> String { return \"x\" }\n"
+        '  fn _segredo() -> String { return "x" }\n'
         "}\n"
         "enum Status { Ativo, Inativo }\n"
-        "fn helper() -> String { return \"ok\" }\n"
-        "fn _oculto() -> String { return \"x\" }\n",
+        'fn helper() -> String { return "ok" }\n'
+        'fn _oculto() -> String { return "x" }\n',
         encoding="utf-8",
     )
     return tmp_path
@@ -89,9 +89,12 @@ def test_privado_e_rejeitado_em_from_e_namespace(tmp_path: Path) -> None:
     from_main = root / "from.lx"
     from_main.write_text("from dtos.dtoA import _oculto\n", encoding="utf-8")
     ns_main = root / "ns.lx"
-    ns_main.write_text("""import dtos.dtoA as d
+    ns_main.write_text(
+        """import dtos.dtoA as d
 print(d._oculto)
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     for main in (from_main, ns_main):
         result = _run(main)
@@ -123,8 +126,11 @@ def test_ciclo_e_erro(tmp_path: Path) -> None:
 
 
 def test_modulo_so_declara(tmp_path: Path) -> None:
-    (tmp_path / "m.lx").write_text("""print(1)
-""", encoding="utf-8")
+    (tmp_path / "m.lx").write_text(
+        """print(1)
+""",
+        encoding="utf-8",
+    )
     main = tmp_path / "main.lx"
     main.write_text("import m\n", encoding="utf-8")
 
@@ -136,9 +142,7 @@ def test_modulo_so_declara(tmp_path: Path) -> None:
 
 def test_importa_type_alias(tmp_path: Path) -> None:
     (tmp_path / "types.lx").write_text(
-        "type UserId = Int\n"
-        "type Nomes = List[String]\n"
-        "fn eco(x: UserId) -> UserId { return x }\n",
+        "type UserId = Int\ntype Nomes = List[String]\nfn eco(x: UserId) -> UserId { return x }\n",
         encoding="utf-8",
     )
     main = tmp_path / "main.lx"
@@ -177,9 +181,7 @@ def test_display_de_classe_de_modulo_preserva_nome(tmp_path: Path) -> None:
 
 def test_erro_de_checker_aponta_o_arquivo_do_modulo(tmp_path: Path) -> None:
     """ADR-0075: o span carrega a origem real, não o arquivo da entrada."""
-    (tmp_path / "mod.lx").write_text(
-        'fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8"
-    )
+    (tmp_path / "mod.lx").write_text('fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8")
     main = tmp_path / "main.lx"
     main.write_text("import mod\n\nprint(mod.f())\n", encoding="utf-8")
 
@@ -222,9 +224,7 @@ def test_erro_de_resolver_aponta_o_arquivo_do_modulo(tmp_path: Path) -> None:
 
 
 def test_json_do_checker_traz_span_do_modulo(tmp_path: Path) -> None:
-    (tmp_path / "mod.lx").write_text(
-        'fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8"
-    )
+    (tmp_path / "mod.lx").write_text('fn f() -> Int {\n  return "boom"\n}\n', encoding="utf-8")
     main = tmp_path / "main.lx"
     main.write_text("import mod\n\nprint(mod.f())\n", encoding="utf-8")
 
@@ -240,9 +240,7 @@ def test_json_do_checker_traz_span_do_modulo(tmp_path: Path) -> None:
 
 def test_rewriter_preserva_posicao_do_token(tmp_path: Path) -> None:
     """O rewriter renomeia `f` para `a$f`; posição e arquivo não podem se perder."""
-    (tmp_path / "a.lx").write_text(
-        "fn f() -> Int { return 1 }\n", encoding="utf-8"
-    )
+    (tmp_path / "a.lx").write_text("fn f() -> Int { return 1 }\n", encoding="utf-8")
     line = "fn h() -> Int { return g(f) }"
     (tmp_path / "b.lx").write_text(
         f"from a import f\nfn g(x: Int) -> Int {{ return x }}\n{line}\n",
@@ -258,9 +256,7 @@ def test_rewriter_preserva_posicao_do_token(tmp_path: Path) -> None:
     assert loaded is not None
 
     function = next(
-        stmt
-        for stmt in loaded
-        if isinstance(stmt, Function) and stmt.display_name == "h"
+        stmt for stmt in loaded if isinstance(stmt, Function) and stmt.display_name == "h"
     )
     return_stmt = next(stmt for stmt in function.body if isinstance(stmt, Return))
     call = return_stmt.value

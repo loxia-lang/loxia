@@ -84,9 +84,7 @@ class EnumLowering(LoweringBase):
             next_id += 1
         self._enum_layouts = layouts
         self._enum_names = {
-            stmt.name.lexeme: stmt
-            for stmt in statements
-            if isinstance(stmt, EnumDecl)
+            stmt.name.lexeme: stmt for stmt in statements if isinstance(stmt, EnumDecl)
         }
 
     def _cstring_ptr(self, message: str) -> Any:
@@ -113,8 +111,7 @@ class EnumLowering(LoweringBase):
             self._type_subst = {**saved, **mapping}
             return {
                 variant.name: tuple(
-                    self._type_desc(self._subst_ty(item), None)
-                    for item in variant.payload
+                    self._type_desc(self._subst_ty(item), None) for item in variant.payload
                 )
                 for variant in layout.variants
             }
@@ -130,9 +127,7 @@ class EnumLowering(LoweringBase):
     ) -> Value:
         count = len(payload)
         raw = self.builder.call(
-            self._function(
-                "lox_enum_new", _I8_PTR, [_INT, _I8_PTR, _I8_PTR, _INT]
-            ),
+            self._function("lox_enum_new", _I8_PTR, [_INT, _I8_PTR, _I8_PTR, _INT]),
             [
                 llvm_ir.constant(_INT, layout.enum_id),
                 self._cstring_ptr(layout.name),
@@ -143,9 +138,7 @@ class EnumLowering(LoweringBase):
         for index, argument in enumerate(payload):
             boxed = self._box_value(argument, None)
             self.builder.call(
-                self._function(
-                    "lox_enum_set", _VOID, [_I8_PTR, _INT, _INT, _INT]
-                ),
+                self._function("lox_enum_set", _VOID, [_I8_PTR, _INT, _INT, _INT]),
                 [
                     raw,
                     llvm_ir.constant(_INT, index),
@@ -155,9 +148,7 @@ class EnumLowering(LoweringBase):
             )
         return Value(ValueType.ENUM, raw)
 
-    def _enum_value(
-        self, layout: EnumLayout, variant: EnumVariantLayout, expr: Any
-    ) -> Value:
+    def _enum_value(self, layout: EnumLayout, variant: EnumVariantLayout, expr: Any) -> Value:
         enum_ty = self._enum_of(expr)
         payload: list[Value] = []
         for index, argument in enumerate(expr.arguments):
@@ -172,9 +163,7 @@ class EnumLowering(LoweringBase):
                 except Exception:
                     expected = None
             payload.append(
-                self._coerce(value, expected, expr.paren.line)
-                if expected is not None
-                else value
+                self._coerce(value, expected, expr.paren.line) if expected is not None else value
             )
         return self._enum_build(layout, variant, expr, payload)
 
@@ -194,8 +183,7 @@ class EnumLowering(LoweringBase):
         if len(expr.arguments) != len(variant.payload):
             self._poison(
                 expr.paren,
-                f"Expected {len(variant.payload)} arguments but got "
-                f"{len(expr.arguments)}.",
+                f"Expected {len(variant.payload)} arguments but got {len(expr.arguments)}.",
                 code=Code.RUNTIME_ARITY,
             )
             return Value(ValueType.ENUM, llvm_ir.null_pointer())
@@ -211,17 +199,13 @@ class EnumLowering(LoweringBase):
         if variant is None:
             raise _unsupported(f"Enum variant '{expr.name.lexeme}'", expr.name.line)
         if variant.payload:
-            raise _unsupported(
-                "Enum variant with payload as a value", expr.name.line
-            )
+            raise _unsupported("Enum variant with payload as a value", expr.name.line)
         return self._enum_build(layout, variant, None, [])  # type: ignore[arg-type]
 
     def _match(self, expr: Match) -> Value:
         scrutinee = self._expr(expr.scrutinee)
         if scrutinee.ty is ValueType.ANY:
-            scrutinee = self._unbox_any(
-                scrutinee, TypeDesc(ValueType.ENUM), expr.keyword.line
-            )
+            scrutinee = self._unbox_any(scrutinee, TypeDesc(ValueType.ENUM), expr.keyword.line)
         if scrutinee.ty is not ValueType.ENUM:
             raise _unsupported("match on non-enum", expr.keyword.line)
         enum_ty = self._enum_of(expr.scrutinee)
@@ -245,9 +229,7 @@ class EnumLowering(LoweringBase):
                 assert isinstance(pattern, VariantPattern)
                 variant = layout.variant(pattern.variant.lexeme)
                 if variant is None:
-                    raise _unsupported(
-                        f"Variant '{pattern.variant.lexeme}'", pattern.variant.line
-                    )
+                    raise _unsupported(f"Variant '{pattern.variant.lexeme}'", pattern.variant.line)
                 check = self.builder.call(
                     self._function(
                         "lox_enum_variant_index",
@@ -256,9 +238,7 @@ class EnumLowering(LoweringBase):
                     ),
                     [scrutinee.llvm, self._cstring_ptr(variant.name)],
                 )
-                matched = self.builder.icmp_signed(
-                    "!=", check, llvm_ir.constant(_INT, 0)
-                )
+                matched = self.builder.icmp_signed("!=", check, llvm_ir.constant(_INT, 0))
                 self.builder.cbranch(matched, body, next_block)
 
             self.builder = llvm_ir.builder(body)
@@ -295,9 +275,7 @@ class EnumLowering(LoweringBase):
                             class_name=desc.class_name,
                             interface_name=desc.interface_name,
                         )
-                value = self._coerce(
-                    self._expr(arm.body), result_desc, expr.keyword.line
-                )
+                value = self._coerce(self._expr(arm.body), result_desc, expr.keyword.line)
             finally:
                 self._scopes.pop()
             if not self.builder.block.is_terminated:
@@ -319,9 +297,7 @@ class EnumLowering(LoweringBase):
             return self._zero_desc(result_desc)
         if result_desc.ty is ValueType.NIL:
             return Value(ValueType.NIL)
-        merged = self.builder.phi(
-            self._storage_llvm_type(result_desc), "match.value"
-        )
+        merged = self.builder.phi(self._storage_llvm_type(result_desc), "match.value")
         for value, block in incoming:
             merged.add_incoming(value.llvm, block)
         return Value(

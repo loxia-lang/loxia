@@ -41,11 +41,7 @@ def _char_code_at(text: str, index: int) -> int:
 
 
 def _from_code_point(code_point: int) -> str:
-    if (
-        code_point < 0
-        or code_point > 0x10FFFF
-        or 0xD800 <= code_point <= 0xDFFF
-    ):
+    if code_point < 0 or code_point > 0x10FFFF or 0xD800 <= code_point <= 0xDFFF:
         raise NativeError("fromCodePoint() expects a valid Unicode code point.")
     return chr(code_point)
 
@@ -217,9 +213,7 @@ def _proc_write(interpreter: object, identifier: int, text: str) -> bool:
     return _proc_table(interpreter).write(identifier, text)
 
 
-def _proc_poll(
-    interpreter: object, identifiers: LoxList, timeout_ms: int
-) -> LoxList:
+def _proc_poll(interpreter: object, identifiers: LoxList, timeout_ms: int) -> LoxList:
     return _proc_table(interpreter).poll(identifiers, timeout_ms)
 
 
@@ -243,72 +237,146 @@ class Primitive:
 
 
 PRIMITIVES: tuple[Primitive, ...] = (
+    Primitive("substr", "lox_substr", (STRING, INT, INT), STRING, _substr, site=True),
+    Primitive("join", "lox_join", (ListTy(STRING), STRING), STRING, _join, site=True),
+    Primitive("charCodeAt", "lox_char_code_at", (STRING, INT), INT, _char_code_at, site=True),
+    Primitive("fromCodePoint", "lox_from_code_point", (INT,), STRING, _from_code_point, site=True),
+    Primitive("args", "lox_args", (), ListTy(STRING), _args, ambient=True, needs_interpreter=True),
     Primitive(
-        "substr", "lox_substr", (STRING, INT, INT), STRING, _substr,
-        site=True
+        "io.readFile", "lox_io_read_file", (STRING,), union(STRING, NIL), _read_file, ambient=True
     ),
-    Primitive(
-        "join", "lox_join", (ListTy(STRING), STRING), STRING, _join,
-        site=True
-    ),
-    Primitive(
-        "charCodeAt", "lox_char_code_at", (STRING, INT), INT,
-        _char_code_at, site=True
-    ),
-    Primitive(
-        "fromCodePoint", "lox_from_code_point", (INT,), STRING,
-        _from_code_point, site=True
-    ),
-    Primitive("args", "lox_args", (), ListTy(STRING), _args, ambient=True,
-              needs_interpreter=True),
-    Primitive("io.readFile", "lox_io_read_file", (STRING,),
-              union(STRING, NIL), _read_file, ambient=True),
-    Primitive("io.readAll", "lox_io_read_all", (), STRING, _read_all,
-              ambient=True),
+    Primitive("io.readAll", "lox_io_read_all", (), STRING, _read_all, ambient=True),
     Primitive("io.write", "lox_io_write", (STRING,), NIL, _write),
     Primitive("io.writeErr", "lox_io_write_err", (STRING,), NIL, _write_err),
-    Primitive("io.writeFile", "lox_io_write_file", (STRING, STRING), BOOL,
-              _write_file, ambient=True),
-    Primitive("io.readLine", "lox_io_read_line", (), union(STRING, NIL),
-              _read_line, ambient=True),
-    Primitive("io.readUtf8", "lox_io_read_utf8", (INT,), union(STRING, NIL),
-              _read_utf8, ambient=True, site=True),
+    Primitive(
+        "io.writeFile", "lox_io_write_file", (STRING, STRING), BOOL, _write_file, ambient=True
+    ),
+    Primitive("io.readLine", "lox_io_read_line", (), union(STRING, NIL), _read_line, ambient=True),
+    Primitive(
+        "io.readUtf8",
+        "lox_io_read_utf8",
+        (INT,),
+        union(STRING, NIL),
+        _read_utf8,
+        ambient=True,
+        site=True,
+    ),
     Primitive("io.flush", "lox_io_flush", (), NIL, _flush),
-    Primitive("fs.exists", "lox_fs_exists", (STRING,), BOOL, _exists,
-              ambient=True),
-    Primitive("fs.listDir", "lox_fs_list_dir", (STRING,),
-              union(ListTy(STRING), NIL), _list_dir, ambient=True),
+    Primitive("fs.exists", "lox_fs_exists", (STRING,), BOOL, _exists, ambient=True),
+    Primitive(
+        "fs.listDir",
+        "lox_fs_list_dir",
+        (STRING,),
+        union(ListTy(STRING), NIL),
+        _list_dir,
+        ambient=True,
+    ),
     Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit, site=True),
-    Primitive("os.getenv", "lox_os_getenv", (STRING,), union(STRING, NIL),
-              _getenv, ambient=True),
-    Primitive("process.spawn", "lox_proc_spawn", (ListTy(STRING),), INT,
-              _proc_spawn, ambient=True, needs_interpreter=True),
-    Primitive("process.stdin", "lox_proc_stdin", (INT,), INT, _proc_stdin,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.stdout", "lox_proc_stdout", (INT,), INT, _proc_stdout,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.stderr", "lox_proc_stderr", (INT,), INT, _proc_stderr,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.wait", "lox_proc_wait", (INT,), INT, _proc_wait,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.kill", "lox_proc_kill", (INT,), BOOL, _proc_kill,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.close", "lox_proc_close", (INT,), NIL, _proc_close,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.read", "lox_proc_read", (INT, INT), union(STRING, NIL),
-              _proc_read, ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.write", "lox_proc_write", (INT, STRING), BOOL, _proc_write,
-              ambient=True, needs_interpreter=True, site=True),
-    Primitive("process.poll", "lox_proc_poll", (ListTy(INT), INT), ListTy(INT),
-              _proc_poll, ambient=True, needs_interpreter=True, site=True),
+    Primitive("os.getenv", "lox_os_getenv", (STRING,), union(STRING, NIL), _getenv, ambient=True),
+    Primitive(
+        "process.spawn",
+        "lox_proc_spawn",
+        (ListTy(STRING),),
+        INT,
+        _proc_spawn,
+        ambient=True,
+        needs_interpreter=True,
+    ),
+    Primitive(
+        "process.stdin",
+        "lox_proc_stdin",
+        (INT,),
+        INT,
+        _proc_stdin,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.stdout",
+        "lox_proc_stdout",
+        (INT,),
+        INT,
+        _proc_stdout,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.stderr",
+        "lox_proc_stderr",
+        (INT,),
+        INT,
+        _proc_stderr,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.wait",
+        "lox_proc_wait",
+        (INT,),
+        INT,
+        _proc_wait,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.kill",
+        "lox_proc_kill",
+        (INT,),
+        BOOL,
+        _proc_kill,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.close",
+        "lox_proc_close",
+        (INT,),
+        NIL,
+        _proc_close,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.read",
+        "lox_proc_read",
+        (INT, INT),
+        union(STRING, NIL),
+        _proc_read,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.write",
+        "lox_proc_write",
+        (INT, STRING),
+        BOOL,
+        _proc_write,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "process.poll",
+        "lox_proc_poll",
+        (ListTy(INT), INT),
+        ListTy(INT),
+        _proc_poll,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
     Primitive("time.now", "lox_time_now", (), INT, _now, ambient=True),
-    Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True,
-              site=True),
+    Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True, site=True),
 )
 
-PRIMITIVE_BY_LOX: dict[str, Primitive] = {
-    primitive.lox: primitive for primitive in PRIMITIVES
-}
+PRIMITIVE_BY_LOX: dict[str, Primitive] = {primitive.lox: primitive for primitive in PRIMITIVES}
 
 
 class PrimitiveCallable:

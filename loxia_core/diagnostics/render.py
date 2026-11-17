@@ -93,9 +93,7 @@ def _trace_lines(diagnostic: Diagnostic) -> str:
     for index, frame in enumerate(trace.frames):
         if trace.omitted > 0 and index == trace.head:
             parts.append(f"  ... {trace.omitted} frames omitted\n")
-        parts.append(
-            f"  at {frame.name} ({frame.file}:{frame.line}:{frame.column})\n"
-        )
+        parts.append(f"  at {frame.name} ({frame.file}:{frame.line}:{frame.column})\n")
     return "".join(parts)
 
 
@@ -188,9 +186,7 @@ def _caret_block(
     suffix = f" {message}" if message else ""
     leading = f"{gutter} |\n" if separator else ""
     return (
-        f"{leading}"
-        f"{line_number} | {display_line}\n"
-        f"{gutter} | {' ' * prefix_width}{marks}{suffix}\n"
+        f"{leading}{line_number} | {display_line}\n{gutter} | {' ' * prefix_width}{marks}{suffix}\n"
     )
 
 
@@ -203,9 +199,7 @@ def render_batch(
 ) -> str:
     """Renderiza um lote em `human` ou `short` (o JSON tem envelope próprio)."""
     if error_format == "short":
-        return "".join(
-            render_short(item, color=color) for item in batch.diagnostics
-        )
+        return "".join(render_short(item, color=color) for item in batch.diagnostics)
 
     parts: list[str] = []
     for item in batch.diagnostics:
@@ -297,9 +291,7 @@ def render_json(
         "command": command,
         "success": success,
         "exit_code": exit_code,
-        "diagnostics": [
-            diagnostic_json(item) for item in batch.diagnostics
-        ],
+        "diagnostics": [diagnostic_json(item) for item in batch.diagnostics],
         "summary": {
             "errors": batch.errors,
             "warnings": batch.warnings,

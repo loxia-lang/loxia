@@ -63,10 +63,10 @@ class LoxList:
             return ListPopMethod(self, name)
 
         raise LoxRuntimeError(
-                name,
-                f"Undefined property '{name.lexeme}'.",
-                code=Code.UNDEFINED_PROPERTY,
-            )
+            name,
+            f"Undefined property '{name.lexeme}'.",
+            code=Code.UNDEFINED_PROPERTY,
+        )
 
     def _check_index(self, index: object, token: Token) -> int:
         if not numeric.is_int(index):

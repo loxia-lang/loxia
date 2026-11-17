@@ -51,7 +51,9 @@ class TupleLowering(LoweringBase):
             [llvm_ir.constant(_INT, len(expr.elements))],
         )
         for index, (element, desc) in enumerate(zip(expr.elements, descs, strict=True)):
-            value = self._coerce(self._expr(element), desc, element.line if hasattr(element, "line") else None)
+            value = self._coerce(
+                self._expr(element), desc, element.line if hasattr(element, "line") else None
+            )
             boxed = self._box_value(value, None)
             self.builder.call(
                 self._function("lox_tuple_set", _VOID, [_I8_PTR, _INT, _INT, _INT]),
@@ -65,9 +67,7 @@ class TupleLowering(LoweringBase):
         return Value(ValueType.TUPLE, raw)
 
     def _tuple_get(self, expr: Index, obj: Value) -> Value:
-        index = self._coerce(
-            self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line
-        )
+        index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
         raw = self.builder.call(
             self._function("lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32, _I32]),
             [
@@ -83,9 +83,7 @@ class TupleLowering(LoweringBase):
     def _tuple_len(self, value: Value) -> Value:
         return Value(
             ValueType.INT,
-            self.builder.call(
-                self._function("lox_tuple_len", _INT, [_I8_PTR]), [value.llvm]
-            ),
+            self.builder.call(self._function("lox_tuple_len", _INT, [_I8_PTR]), [value.llvm]),
         )
 
     def _tuple_equal(self, left: Value, right: Value) -> Value:
@@ -108,9 +106,7 @@ class TupleLowering(LoweringBase):
             raise _unsupported("Destructuring initializer type", line)
         self._bind_pattern(stmt.pattern, value, ty)
 
-    def _bind_pattern(
-        self, pattern: DestructurePattern, value: Value, ty: Ty
-    ) -> None:
+    def _bind_pattern(self, pattern: DestructurePattern, value: Value, ty: Ty) -> None:
         line = first_token(pattern).line
 
         if isinstance(pattern, NamePattern):
@@ -123,13 +119,9 @@ class TupleLowering(LoweringBase):
         if len(ty.items) != len(pattern.elements):
             raise _unsupported("Destructuring arity", line)
 
-        for index, (element, item_ty) in enumerate(
-            zip(pattern.elements, ty.items, strict=True)
-        ):
+        for index, (element, item_ty) in enumerate(zip(pattern.elements, ty.items, strict=True)):
             raw = self.builder.call(
-                self._function(
-                    "lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32, _I32]
-                ),
+                self._function("lox_tuple_get", _ANY, [_I8_PTR, _INT, _I32, _I32]),
                 [
                     value.llvm,
                     llvm_ir.constant(_INT, index),
@@ -137,14 +129,10 @@ class TupleLowering(LoweringBase):
                     llvm_ir.constant(_I32, 0),
                 ],
             )
-            item = self._unbox_value(
-                raw, self._type_desc(self._subst_ty(item_ty), line), line
-            )
+            item = self._unbox_value(raw, self._type_desc(self._subst_ty(item_ty), line), line)
             self._bind_pattern(element, item, item_ty)
 
-    def _bind_destructured_name(
-        self, name: Token, value: Value, desc: TypeDesc
-    ) -> None:
+    def _bind_destructured_name(self, name: Token, value: Value, desc: TypeDesc) -> None:
         if self._function_ir is self.main and len(self._scopes) == 1:
             slot = llvm_ir.global_variable(
                 self.module, f"g.{name.lexeme}", self._storage_llvm_type(desc)
@@ -174,15 +162,13 @@ class TupleLowering(LoweringBase):
             )
             return
 
-        slot = self.builder.alloca(
-            self._storage_llvm_type(desc), name=name.lexeme
-        )
+        slot = self.builder.alloca(self._storage_llvm_type(desc), name=name.lexeme)
         self.builder.store(value.llvm, slot)
         self._scopes[-1][name.lexeme] = Binding(
             slot,
-                desc.ty,
-                desc.fn,
-                desc.optional,
-                class_name=desc.class_name,
-                interface_name=desc.interface_name,
+            desc.ty,
+            desc.fn,
+            desc.optional,
+            class_name=desc.class_name,
+            interface_name=desc.interface_name,
         )

@@ -89,9 +89,7 @@ def test_fmt_check_exit_codes(tmp_path: Path) -> None:
 
 
 def test_fmt_stdin_writes_formatted_output() -> None:
-    result = run_cli(
-        "fmt", "--stdin", input_text="fn f() -> Int {\n    return 1;\n}\n"
-    )
+    result = run_cli("fmt", "--stdin", input_text="fn f() -> Int {\n    return 1;\n}\n")
 
     assert result.returncode == 0
     assert result.stdout == "fn f() -> Int {\n  return 1\n}\n"
@@ -117,10 +115,7 @@ def test_fmt_insere_fn_canonico_em_metodo() -> None:
 
 
 def test_fmt_trailing_comma_multiline() -> None:
-    source = (
-        "fn f(\n  a: Int,\n  b: Int\n) -> Int {\n"
-        "  return g(\n    a,\n    b\n  )\n}\n"
-    )
+    source = "fn f(\n  a: Int,\n  b: Int\n) -> Int {\n  return g(\n    a,\n    b\n  )\n}\n"
 
     result = format_source(source)
 
@@ -134,9 +129,7 @@ def test_fmt_trailing_comma_multiline() -> None:
 
 def test_fmt_trailing_comma_em_lista_mapa_tupla() -> None:
     source = (
-        "val xs = [\n  1,\n  2\n]\n"
-        "val m = {\n  \"a\": 1,\n  \"b\": 2\n}\n"
-        "val t = (\n  1,\n  2\n)\n"
+        'val xs = [\n  1,\n  2\n]\nval m = {\n  "a": 1,\n  "b": 2\n}\nval t = (\n  1,\n  2\n)\n'
     )
 
     result = format_source(source)

@@ -36,9 +36,7 @@ def test_render_backend_short_sem_caret() -> None:
     reporter.file = "caso.lx"
     reporter.backend_error(7, "Feature X is not supported.", code=Code.BACKEND_UNSUPPORTED)
 
-    text = render_batch(
-        reporter.batch(), SourceMap(), error_format="human", color=False
-    )
+    text = render_batch(reporter.batch(), SourceMap(), error_format="human", color=False)
 
     assert text == "caso.lx:7: error[E4001]: Feature X is not supported.\n"
     assert "^" not in text

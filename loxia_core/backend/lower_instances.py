@@ -68,9 +68,7 @@ class InstanceLowering(LoweringBase):
         self.builder.cbranch(present, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(
-            line, message, column=column, code=Code.UNDEFINED_PROPERTY
-        )
+        self._poison(line, message, column=column, code=Code.UNDEFINED_PROPERTY)
 
         self.builder = llvm_ir.builder(ok)
 
@@ -86,9 +84,7 @@ class InstanceLowering(LoweringBase):
             case ValueType.INT:
                 return Value(ValueType.INT, raw)
             case ValueType.FLOAT:
-                return Value(
-                    ValueType.FLOAT, self.builder.bitcast(raw, _FLOAT)
-                )
+                return Value(ValueType.FLOAT, self.builder.bitcast(raw, _FLOAT))
             case ValueType.BOOL:
                 return Value(ValueType.BOOL, self.builder.trunc(raw, _BOOL))
             case (
@@ -164,9 +160,7 @@ class InstanceLowering(LoweringBase):
         return self._slot_to_value(self._field_slot(instance, field), field.ty)
 
     def _store_field(self, instance: Value, field: FieldLayout, value: Value) -> None:
-        self.builder.store(
-            self._value_to_slot(value), self._field_slot(instance, field)
-        )
+        self.builder.store(self._value_to_slot(value), self._field_slot(instance, field))
         self._set_bitmap(instance, field)
 
     def _get(self, expr: Get) -> Value:
@@ -175,9 +169,7 @@ class InstanceLowering(LoweringBase):
         obj = self._expr(expr.object)
         if expr.optional:
             if obj.ty is ValueType.NIL:
-                return self._zero_desc(
-                    self._expr_type_desc(expr, expr.name.line)
-                )
+                return self._zero_desc(self._expr_type_desc(expr, expr.name.line))
             if obj.optional:
                 return self._get_optional(obj, expr)
 
@@ -186,9 +178,7 @@ class InstanceLowering(LoweringBase):
     def _get_optional(self, obj: Value, expr: Get) -> Value:
         result = self._expr_type_desc(expr, expr.name.line)
         if not result.optional:
-            result = TypeDesc(
-                result.ty, result.fn, True, result.class_name
-            )
+            result = TypeDesc(result.ty, result.fn, True, result.class_name)
 
         some = llvm_ir.append_block(self._function_ir, "get.some")
         nothing = llvm_ir.append_block(self._function_ir, "get.nil")
@@ -198,9 +188,7 @@ class InstanceLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(some)
         payload = self._optional_payload(obj)
-        value = self._coerce(
-            self._get_instance(payload, expr), result, expr.name.line
-        )
+        value = self._coerce(self._get_instance(payload, expr), result, expr.name.line)
         self.builder.branch(end)
         some_end = self.builder.block
 
@@ -210,9 +198,7 @@ class InstanceLowering(LoweringBase):
         nothing_end = self.builder.block
 
         self.builder = llvm_ir.builder(end)
-        merged = self.builder.phi(
-            self._storage_llvm_type(result), "get.value"
-        )
+        merged = self.builder.phi(self._storage_llvm_type(result), "get.value")
         merged.add_incoming(value.llvm, some_end)
         merged.add_incoming(zero.llvm, nothing_end)
         return Value(
@@ -228,44 +214,32 @@ class InstanceLowering(LoweringBase):
 
     def _get_instance_name(self, obj: Value, name: Token) -> Value:
         if obj.ty is not ValueType.INSTANCE:
-            self._poison(
-                name, "Only instances have properties.", code=Code.INVALID_VALUE
-            )
+            self._poison(name, "Only instances have properties.", code=Code.INVALID_VALUE)
             return self._zero(ValueType.INT)
 
         if obj.interface_name is not None and obj.class_name is None:
-            return self._interface_bound_method(
-                obj, obj.interface_name, name
-            )
+            return self._interface_bound_method(obj, obj.interface_name, name)
 
         layout = self._layout_for(obj, name.line)
         field = layout.field(name.lexeme)
         if field is not None:
-            return self._load_field(
-                obj, field, name.line, name.column
-            )
+            return self._load_field(obj, field, name.line, name.column)
         method = layout.method(name.lexeme)
         if method is not None:
             return self._bound_method(obj, layout, method)
 
         for interface in layout.effective_interfaces():
             if self._interface_has_method(interface, name.lexeme):
-                return self._interface_bound_method(
-                    obj, interface, name
-                )
+                return self._interface_bound_method(obj, interface, name)
 
-        self._poison(
-            name, f"Undefined property '{name.lexeme}'."
-        )
+        self._poison(name, f"Undefined property '{name.lexeme}'.")
         return self._zero(ValueType.INT)
 
     def _set(self, expr: Set) -> Value:
         obj = self._expr(expr.object)
         value = self._expr(expr.value)
         if obj.ty is not ValueType.INSTANCE:
-            self._poison(
-                expr.name, "Only instances have fields.", code=Code.INVALID_VALUE
-            )
+            self._poison(expr.name, "Only instances have fields.", code=Code.INVALID_VALUE)
             return value
 
         layout = self._layout_for(obj, expr.name.line)

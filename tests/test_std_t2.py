@@ -11,9 +11,7 @@ ENTRYPOINT = ROOT / "main.py"
 CASES = ROOT / "tests" / "cases"
 
 
-def _run(
-    arguments: list[str], input: str | None = None
-) -> subprocess.CompletedProcess[str]:
+def _run(arguments: list[str], input: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), *arguments],
         cwd=ROOT,
@@ -136,9 +134,7 @@ def test_io_stdin_e_write(tmp_path: Path) -> None:
 def test_io_write_err(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
-        "import std.io as io\n"
-        'io.write("saida")\n'
-        'io.writeErr("erro")\n',
+        'import std.io as io\nio.write("saida")\nio.writeErr("erro")\n',
     )
 
     result = _run([str(path)])

@@ -46,9 +46,7 @@ def discover_cases() -> list[Path]:
 
 
 def run_once(path: Path) -> float:
-    return _run_timed(
-        [sys.executable, str(ENTRYPOINT), str(path)], f"caso {path.name}"
-    )
+    return _run_timed([sys.executable, str(ENTRYPOINT), str(path)], f"caso {path.name}")
 
 
 def build_native(path: Path, binary: Path) -> None:
@@ -69,8 +67,7 @@ def build_native(path: Path, binary: Path) -> None:
     )
     if process.returncode != 0:
         raise SystemExit(
-            f"build nativo de {path.name} falhou (exit {process.returncode}):\n"
-            f"{process.stderr}"
+            f"build nativo de {path.name} falhou (exit {process.returncode}):\n{process.stderr}"
         )
 
 
@@ -91,9 +88,7 @@ def _run_timed(command: list[str], label: str) -> float:
     elapsed = time.perf_counter() - start
 
     if process.returncode != 0:
-        raise SystemExit(
-            f"{label} falhou (exit {process.returncode}):\n{process.stderr}"
-        )
+        raise SystemExit(f"{label} falhou (exit {process.returncode}):\n{process.stderr}")
 
     return elapsed * 1000.0
 
@@ -227,10 +222,7 @@ def main(argv: list[str] | None = None) -> int:
                 binary = Path(directory) / case.stem
                 build_native(case, binary)
                 binaries[case] = binary
-            measurements = [
-                measure(case, args.repeat, native=binaries[case])
-                for case in cases
-            ]
+            measurements = [measure(case, args.repeat, native=binaries[case]) for case in cases]
     else:
         measurements = [measure(case, args.repeat) for case in cases]
 
@@ -261,9 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     if not baseline:
         print("sem baseline: rode com --update para criar\n")
 
-    return print_report(
-        measurements, baseline, args.tolerance, native=args.native
-    )
+    return print_report(measurements, baseline, args.tolerance, native=args.native)
 
 
 if __name__ == "__main__":

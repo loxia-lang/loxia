@@ -9,7 +9,9 @@ from tests.runner import check_case, discover_cases
 CASES = discover_cases()
 
 
-@pytest.mark.parametrize("case", CASES, ids=lambda p: str(p.relative_to(Path(__file__).parent / "cases")))
+@pytest.mark.parametrize(
+    "case", CASES, ids=lambda p: str(p.relative_to(Path(__file__).parent / "cases"))
+)
 def test_golden_case(case: Path) -> None:
     problems = check_case(case)
     assert not problems, "\n".join(problems)

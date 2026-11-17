@@ -117,10 +117,13 @@ def test_display_width_counts_wide_and_combining() -> None:
 
 def test_render_human_has_header_and_caret() -> None:
     sources = SourceMap()
-    sources.add("x.lx", """print(1);
+    sources.add(
+        "x.lx",
+        """print(1);
 print(2);
   val x = nome
-""")
+""",
+    )
     diagnostic = _diagnostic(
         code=Code.TYPE_MISMATCH,
         message="Expected Float, found String.",
@@ -140,9 +143,7 @@ print(2);
 def test_render_human_aligns_caret_with_tabs() -> None:
     sources = SourceMap()
     sources.add("tab.lx", "\tval x = nome\n")
-    diagnostic = _diagnostic(
-        span=_span(file="tab.lx", line=1, column=10, end_column=14)
-    )
+    diagnostic = _diagnostic(span=_span(file="tab.lx", line=1, column=10, end_column=14))
 
     text = render_human(diagnostic, sources)
 
@@ -152,11 +153,12 @@ def test_render_human_aligns_caret_with_tabs() -> None:
 
 def test_render_human_counts_wide_characters() -> None:
     sources = SourceMap()
-    sources.add("wide.lx", """print(名前);
-""")
-    diagnostic = _diagnostic(
-        span=_span(file="wide.lx", line=1, column=7, end_column=9)
+    sources.add(
+        "wide.lx",
+        """print(名前);
+""",
     )
+    diagnostic = _diagnostic(span=_span(file="wide.lx", line=1, column=7, end_column=9))
 
     text = render_human(diagnostic, sources)
 
@@ -166,9 +168,7 @@ def test_render_human_counts_wide_characters() -> None:
 def test_render_human_without_source_degrades_to_header() -> None:
     diagnostic = _diagnostic(span=_span(line=2, column=3))
 
-    assert render_human(diagnostic, SourceMap()) == (
-        "x.lx:2:3: error[E3000]: boom\n"
-    )
+    assert render_human(diagnostic, SourceMap()) == ("x.lx:2:3: error[E3000]: boom\n")
 
 
 def test_render_human_without_column_omits_location_suffix() -> None:
@@ -246,9 +246,7 @@ def test_render_runtime_uses_header() -> None:
         span=_span(line=2, column=9),
     )
 
-    assert render_runtime(diagnostic) == (
-        "x.lx:2:9: error[R1002]: Division by zero not allowed\n"
-    )
+    assert render_runtime(diagnostic) == ("x.lx:2:9: error[R1002]: Division by zero not allowed\n")
 
 
 def test_render_batch_human_uses_runtime_header() -> None:
@@ -271,9 +269,7 @@ def test_render_batch_short_always_uses_header() -> None:
         phase=Phase.RUNTIME,
         message="Division by zero not allowed",
         span=_span(line=2, column=9),
-        trace=Trace(
-            (Frame("f", "x.lx", 4, 3), Frame("g", "x.lx", 8, 1))
-        ),
+        trace=Trace((Frame("f", "x.lx", 4, 3), Frame("g", "x.lx", 8, 1))),
     )
     batch = DiagnosticBatch((runtime,))
 
@@ -288,9 +284,7 @@ def test_render_runtime_appends_trace_frames() -> None:
         phase=Phase.RUNTIME,
         message="Division by zero not allowed",
         span=_span(line=2, column=9),
-        trace=Trace(
-            (Frame("f", "x.lx", 4, 3), Frame("g", "x.lx", 8, 1))
-        ),
+        trace=Trace((Frame("f", "x.lx", 4, 3), Frame("g", "x.lx", 8, 1))),
     )
 
     assert render_runtime(diagnostic) == (
@@ -301,9 +295,7 @@ def test_render_runtime_appends_trace_frames() -> None:
 
 
 def test_render_runtime_elides_middle_frames() -> None:
-    frames = tuple(
-        Frame(f"f{index}", "x.lx", index, 1) for index in range(1, 13)
-    )
+    frames = tuple(Frame(f"f{index}", "x.lx", index, 1) for index in range(1, 13))
     diagnostic = _diagnostic(
         code=Code.DIVISION_BY_ZERO,
         phase=Phase.RUNTIME,

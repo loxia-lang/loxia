@@ -284,9 +284,7 @@ def test_newline_in_single_line_string_is_a_directed_error() -> None:
     scanner = scan_with_reporter('"a\nb"')
 
     assert scanner.reporter.had_error
-    assert any(
-        'multiline strings use \'"""\'' in item for item in messages('"a\nb"')
-    )
+    assert any('multiline strings use \'"""\'' in item for item in messages('"a\nb"'))
 
 
 def test_unterminated_triple_string_reports_error() -> None:

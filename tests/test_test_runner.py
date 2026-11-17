@@ -87,7 +87,7 @@ def test_isolamento_de_exit_e_timeout(tmp_path: Path) -> None:
     assert "exit 7" in result.stdout
     slow = tests / "lento_test.lx"
     slow.write_text(
-        'import std.test as t\nval suite = t.Suite()\n'
+        "import std.test as t\nval suite = t.Suite()\n"
         'suite.it("dorme", fn() { time.sleep(5000) })\nsuite.done()\n',
         encoding="utf-8",
     )

@@ -23,10 +23,7 @@ def test_manifesto_aponta_para_o_cliente_e_o_servidor() -> None:
     properties = manifest["contributes"]["configuration"]["properties"]
     assert properties["loxia.server.path"]["default"] == ""
     assert properties["loxia.server.args"]["default"] == ["lsp"]
-    assert (
-        manifest["contributes"]["commands"][0]["command"]
-        == "loxia.restartServer"
-    )
+    assert manifest["contributes"]["commands"][0]["command"] == "loxia.restartServer"
 
 
 def test_cliente_cobre_os_metodos_do_servidor() -> None:
