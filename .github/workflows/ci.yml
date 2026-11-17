@@ -102,6 +102,25 @@ jobs:
       - run: git diff --exit-code
       - run: uv run pytest tests/test_docs_links.py tests/test_docs_consistency.py
 
+  site:
+    name: Documentation site
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: npm ci --prefix site
+      - run: npm run build --prefix site
+      - run: uv run python tools/docs_i18n.py --strict
+
   package:
     name: Build and install wheel
     runs-on: ubuntu-latest
@@ -141,7 +160,7 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [lint, typecheck, unit, backend, docs, package, commits]
+    needs: [lint, typecheck, unit, backend, docs, site, package, commits]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
