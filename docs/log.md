@@ -880,3 +880,14 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
   em `primitives.py` foi só o decode estrito de stdin, sem API nova.
 
 <!-- triaged: 47f9f45 -->
+
+## 2026-11-17 — SPDX headers
+
+- `docs/spec/*.md` (5 páginas) — **no-change**: o header SPDX é comentário; nenhum
+  comportamento, gramática ou mensagem de erro mudou.
+- `docs/stdlib/*.md` (27 páginas) — **no-change**: `stdlib.py --write` não produziu diff;
+  o header não altera os doc comments.
+- `docs/decisoes.md` — **no-change**: a linha do ADR-0101 já entrou no PR de licença; o
+  header SPDX não toca decisões.
+
+<!-- triaged: 7629214 -->
