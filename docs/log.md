@@ -891,3 +891,11 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
   header SPDX não toca decisões.
 
 <!-- triaged: 7629214 -->
+
+## 2026-11-17 — site de documentação
+
+- `docs/decisoes.md` — **updated**: entrou a linha do ADR-0103 (Starlight em `site/`,
+  staging de `docs/`, i18n com referência pt-BR e arquivo 1.0). Nenhuma decisão de
+  linguagem mudou; o restante é infraestrutura de publicação.
+
+<!-- triaged: 3055e2b -->
