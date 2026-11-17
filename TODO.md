@@ -522,6 +522,10 @@ Adoção ampla não é meta de projeto solo — é consequência improvável de 
 - [ ] **Um programa real**, com `std.csv`/`std.json`/`std.fs`/`std.cli`: algo que você
       realmente use (relatório CSV→HTML/JSON, analisador de logs, gerador de site). Publicar
       o **programa** e um texto curto de "por que escrevi isso em Loxia".
+- [ ] **Gerador de release notes em Loxia** (dogfooding; ver
+      [`IDEIAS.md`](IDEIAS.md) I-14): ler os commits desde a última tag, parsear
+      Conventional Commits e emitir Markdown para o release; começar no CI/release, sem
+      hook de commit.
 - [ ] Tutorial de 30 min (base do `/learn` da §14.2) e cookbook a partir de `exemplos/`.
 - [ ] Página "por que Loxia": os três casos de uso reais + I1–I4 + orçamentos, em uma
       página; sem comparação com Python/Kotlin que não seja "para este caso, aqui".

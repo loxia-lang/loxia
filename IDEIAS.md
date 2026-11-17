@@ -684,3 +684,66 @@ O checklist operacional está na skill [`lox-stdlib`](.dsh/skills/lox-stdlib/SKI
       [ADR-0098](docs/adr/0098-property-based-testing.md)).
 - [ ] Localização de falha no relatório: expor `e.trace`/linha do `expect` (feature de
       linguagem, não do runner).
+
+---
+
+## I-14 — Gerador de release notes em Loxia (dogfooding)
+
+**Status:** `em avaliação` — não iniciado.
+**Relacionados:** [`TODO.md`](TODO.md) §14.6 (programa real), §14.7 (fases do CLI),
+[`tools/conventional.py`](tools/conventional.py) (oráculo atual) e o PR 9.
+
+### A ideia
+
+Um programa Loxia — `tools/release_notes.lx` — que lê os commits desde a última tag,
+parseia Conventional Commits, agrupa por tipo/escopo e emite Markdown para o GitHub
+Release ou para uma seção do `CHANGELOG.md`.
+
+Não é um `semantic-release`: não cria tag, não publica, não chama a API do GitHub e não
+substitui a revisão editorial das notas. É um gerador determinístico de rascunho, e ao
+mesmo tempo um programa real que exercita `std.proc`, `std.strings`, `std.cli`, `std.fs`
+e o runner `std.test`.
+
+### Escopo mínimo (v1)
+
+- Entrada via `git log <última-tag>..HEAD` chamado por `std.proc`; `--log-file` (ou stdin)
+  para testes sem git.
+- Parse do header `type(scope)!: assunto (#N)` e do footer `BREAKING CHANGE:`.
+- Grupos: breaking changes, features, fixes, performance, refactor, docs e chores;
+  ordem estável e sem timestamp/e-mail de autor.
+- Saída em stdout, em inglês (as notas públicas são em inglês); `--write` para arquivo é
+  opcional.
+- Testes com fixtures de log + `std.test`; teste de paridade com
+  [`tools/conventional.py`](tools/conventional.py) para os mesmos headers.
+
+### Fora do escopo
+
+- Tag, release, PyPI, comentário/label de PR, `git push` e qualquer rede.
+- Reescrever o `CHANGELOG.md` inteiro ou gerar notas sem revisão humana.
+- Substituir o validador Python antes de haver paridade e alguns releases de uso real.
+- Rodar no `commit-msg` hook; o primeiro alvo é CI/release, onde um bug não bloqueia
+  commits.
+
+### Por que vale
+
+- É um programa real, com entrada/saída e casos de erro, não um exemplo de vitrine.
+- Força melhorias concretas na stdlib (processos, leitura de arquivo, strings, exit code)
+  em vez de features inventadas.
+- Pode virar um passo do workflow de release depois que o PR 9 estabilizar o processo
+  manual.
+
+### Perguntas abertas
+
+- [ ] Entrada padrão é git ou `--log-file` explícito? (recomendo git por padrão e arquivo
+      para teste.)
+- [ ] Notas em inglês sempre, ou `--lang=pt-BR` para o changelog histórico?
+- [ ] Agrupar por tipo ou por escopo? Qual a ordem canônica?
+- [ ] Incluir corpo do commit ou só o header + breaking changes?
+- [ ] Como extrair o número do PR: sufixo `(#N)` do squash ou metadata externa?
+- [ ] O arquivo fica em `tools/release_notes.lx` ou `ferramentas/`?
+
+### Gatilhos para revisitar
+
+- O PR 9 exigir notas manuais e a extração manual do `CHANGELOG` doer.
+- A §14.6 precisar de um “programa real” com prazo curto.
+- O resolver em Loxia (§14.7, fase 4) entrar na fila e precisar de mais dogfooding.
