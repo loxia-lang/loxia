@@ -32,7 +32,7 @@ partir de [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie 
 1. [ ] **M8** (`P2`): performance restante; JIT no REPL é P3 e não bloqueia.
 2. [ ] **M9** (`P2`): ecossistema — site, playground e publicação do cliente de editor
        (ADRs 0090–0093; §7 e §14).
-3. [ ] **Publicação** (`P2`, paralela): §14 (repo público, site, MCP, distribuição).
+3. [ ] **Publicação** (`P2`, paralela): §14 (repo privado pronto; falta 1.1.0, flip, site, MCP e distribuição).
 4. [ ] **Depois do repo público:** dogfood/self-hosting do formatter e do front-end
        (§13.7, [`IDEIAS.md`](IDEIAS.md)).
 
@@ -247,8 +247,8 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 | Área | Estado | Gap de produto | Prioridade |
 | --- | --- | --- | --- |
 | **Pacotes/módulos** | loader, `std.*` e `loxia.toml` com dependências `path` prontos ([ADR-0100](docs/adr/0100-dependencias-path.md)) | `loxia.lock`, git/registry e cache; primeiro pacote externo real | **P0** |
-| **Distribuição/release** | wheel, entry point e teste de instalação | `uv build`/sdist sem duplicação, PyPI com Trusted Publishing, workflow de tag e Homebrew | **P0** |
-| **Repo público** | LICENSE/README/CI | `CONTRIBUTING`, `SECURITY`, templates de issue/PR, Dependabot, CI endurecido/CodeQL e badges | **P0** |
+| **Distribuição/release** | wheel/sdist, entry point, teste de instalação e release workflow com attestation/GitHub Release | pending publisher do PyPI, release 1.1.0, PyPI e Homebrew | **P0** |
+| **Repo público** | entregue no privado em 2026-11-17: licença dual, README EN, CI split, CONTRIBUTING/CoC/SECURITY, templates, Dependabot, CodeQL Python e badges | release 1.1.0, flip para público, branch/tag protection e CodeQL C | **P0** |
 | **Docs de usuário** | spec, ADRs, stdlib gerada e guia de estilo | site público, tutorial de 30 min, cookbook, "por que Loxia" e `make docs-build` no CI | **P0** |
 | **Extensão VS Code** | cliente funcional em `editors/vscode/` | validar UX num VS Code real, empacotar (`vsce`), manifest completo e snippets/inlay hints | **P1** |
 | **LSP residual** | diagnostics, hover, completion, codeAction, rename e workspace symbols | rename cross-file plenamente semântico, membros herdados na completion, signatureHelp de método importado e `inlayHint` | **P1** |
@@ -263,7 +263,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 | # | Entrega | Por que nesta ordem |
 | --- | --- | --- |
-| 1 | {@14.1} Repositório público | é o pré-requisito de URL, issues e release |
+| 1 | {@14.1} Repositório público | pré-requisito de URL, issues e release; repo privado pronto, falta 1.1.0 + flip |
 | 2 | {@14.2} Documentação como site | depende do repo público e do CI |
 | 3 | {@14.3} Servidor MCP | depende da spec publicada e estável |
 | 4 | {@14.4} Distribuição, stdlib instalada e pacotes | **pré-requisito técnico** do release da §14.1: resolução de módulos/pacotes e `uv build`/sdist; wheel e comando já prontos |
@@ -273,32 +273,65 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 ### 14.1 Abrir o repositório
 
-Hoje existem `LICENSE`, `README` e um workflow de CI; falta o "contrato social" de um repo
-público e a automação de suprimentos.
+> **Status 2026-11-17:** o "contrato social", a licença dual, os templates, o Dependabot,
+> o CI dividido e o README em inglês estão prontos no repo **privado**
+> `loxia-lang/loxia`. O histórico foi reescrito para remover `IDEIAS-REDDIT.md`, a tag
+> `v1.0.0` foi recriada e o repo antigo (`CassioDalla/my-lox`) foi arquivado. Falta o
+> **PR 9** (release 1.1.0 + PyPI + GitHub Release) e o **flip para público** com os ajustes
+> de segurança do GitHub.
 
-- **Comunidade:** `CONTRIBUTING.md` (rodar da raiz, `make check`, Conventional Commits,
-  resumo dos portões do [ADR-0014](docs/adr/0014-identidade-e-invariantes.md) e do
-  [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md)), `CODE_OF_CONDUCT.md`
-  (Contributor Covenant), `SECURITY.md` (o que é vulnerabilidade aqui: crash/panic no
-  interpretador ou no backend, escape do sandbox do `--emit` — bug de semântica é issue,
-  não CVE) e `GOVERNANCE.md` só quando houver segundo mantenedor.
-- **Templates:** `.github/ISSUE_TEMPLATE/bug.yml` (versão, saída de `--version`, caso mínimo
-  `.lx`), `feature.yml` (exige as quatro perguntas do ADR-0066 — filtro barato contra pedido
-  de sintaxe) e `PULL_REQUEST_TEMPLATE.md` com o DoD do `AGENTS.md` §7.
-- **Dependabot** (`.github/dependabot.yml`): `uv` (dev-deps), `github-actions` e `pip`,
-  agrupado semanal; ignorar major de `llvmlite` (acoplado ao LLVM).
-- **Endurecer CI:** `permissions: read-all` no topo do workflow, `contents: write` só no job
-  de release, ações pinadas por SHA (cadeia de suprimentos) e CodeQL para Python (CLI/interpretador)
-  e C (`runtime/*.c`, header comum `runtime/lox_runtime.h`); o código gerado não entra.
-- **Release:** workflow em tag `v*` → `uv build`, anexar wheel/sdist no GitHub Release e
-  publicar no PyPI via **Trusted Publishing** (OIDC, sem token). Depende de reservar `loxia`
-  no PyPI (hoje livre).
-- **Higiene:** `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`, badges no README
-  (CI, versão, licença) e conferir `.gitignore` (`.tmp-*`, `.uv-cache`, shim de `gc.h`) no
-  primeiro clone público.
+- [x] **Licença:** código sob `MIT OR Apache-2.0` com `LICENSE-MIT`, `LICENSE-APACHE` e
+  `NOTICE`; PEP 639 no `pyproject`; contribuições inbound=outbound com DCO, sem CLA
+  ([ADR-0101](docs/adr/0101-licenca-dual-e-politica-de-contribuicao.md)).
+  `tests/official/` permanece MIT.
+- [x] **Histórico e repo:** `git filter-repo` removeu `IDEIAS-REDDIT.md` de todos os
+  commits; a árvore do HEAD foi conferida contra o backup; a `v1.0.0` foi recriada no
+  commit reescrito; backup em `.tmp-phase0/` (ignorado). O repo novo é
+  `loxia-lang/loxia`; o antigo foi arquivado, não apagado.
+- [x] **Comunidade:** [CONTRIBUTING.md](CONTRIBUTING.md) (setup, `make check`, Conventional
+  Commits, DCO, portões do [ADR-0014](docs/adr/0014-identidade-e-invariantes.md) e do
+  [ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md), política de IA),
+  [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1, reporte privado pelo
+  formulário de Security Advisories com `[conduct]`; sem e-mail) e
+  [SECURITY.md](SECURITY.md) (crash/panic, miscompile I1, escape do sandbox do `--emit`,
+  path traversal; semântica é issue, não CVE). `GOVERNANCE.md` fica para o segundo
+  mantenedor.
+- [x] **Templates:** [`.github/ISSUE_TEMPLATE/bug.yml`](.github/ISSUE_TEMPLATE/bug.yml)
+  (versão, instalação, caso mínimo `.lx`, comando/saída),
+  [`feature.yml`](.github/ISSUE_TEMPLATE/feature.yml) (as quatro perguntas do ADR-0066
+  quando for sintaxe) e [`PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) com o
+  DoD público e o checklist de IA/DCO.
+- [x] **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)): `uv` e
+  `github-actions`, semanal e agrupado; major de `llvmlite` ignorado (acoplado ao LLVM).
+  `pip` separado não é necessário: o ecossistema `uv` cobre `pyproject.toml`/`uv.lock`.
+  O Dependabot já abriu o PR #1 (`ruff` 0.17.5); falta rebase/merge.
+- [x] **CI endurecido:** [`ci.yml`](.github/workflows/ci.yml) com jobs de lint/format,
+  typecheck, unit (3.13 e 3.14), backend nativo, docs/grammar, wheel/install, commits/DCO e
+  o agregador `CI success`; `permissions: contents: read`, `concurrency`, timeouts, ações
+  pinadas por SHA e cache do runtime. CodeQL Python em
+  [`codeql.yml`](.github/workflows/codeql.yml), **skipped enquanto o repo é privado**
+  (code scanning exige Advanced Security em repo privado); CodeQL C fica para depois.
+- [x] **Release workflow:** [`release.yml`](.github/workflows/release.yml) confere a tag
+  contra o `pyproject`, builda, atesta a proveniência, cria GitHub Release e publica no
+  PyPI via Trusted Publishing (OIDC). Ainda não foi executado; depende do PR 9 e do
+  pending publisher.
+- [x] **README/vitrine:** [README.md](README.md) em inglês, com badges de CI/licença/Python,
+  sample executado por teste, status honesto, instalação, CLI, documentação, contribuição e
+  licença; [ADR-0102](docs/adr/0102-ingles-na-vitrine-e-docs-pt-br.md) fixa a política de
+  idioma e [docs/README.md](docs/README.md) declara que a spec/ADRs seguem em pt-BR.
+- [x] **Higiene:** `.gitattributes` com `* text=auto eol=lf`, `.editorconfig`, `.gitignore`
+  revisado e badges no README. Branch/tag protection, secret scanning e private
+  vulnerability reporting ficam para o flip (o repo privado em plano free devolve 404 em
+  parte dessas APIs).
+- [ ] **PR 9 — release 1.1.0:** bump de versão, CHANGELOG 1.1.0 em inglês, tag `v1.1.0`,
+  PyPI com pending publisher/2FA e badge PyPI no README. **Não fazer antes de fechar a
+  revisão da Fase 1.**
+- [ ] **Flip para público:** tornar `loxia-lang/loxia` público, habilitar CodeQL,
+  private vulnerability reporting, secret scanning/push protection, branch/tag protection,
+  topics e social preview; criar a issue de tradução da spec.
 - **Custo/risco:** público significa issue e PR de estranho; sem `CONTRIBUTING` a triagem
-  vira ruído. E publicar **congela** API — por isso o [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)
-  veio antes.
+  vira ruído. E publicar **congela** API — por isso o
+  [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md) veio antes.
 
 ### 14.2 Documentação como site (+ i18n)
 
