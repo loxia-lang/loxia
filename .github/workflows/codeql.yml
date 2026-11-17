@@ -21,6 +21,9 @@ concurrency:
 jobs:
   analyze:
     name: Analyze Python
+    # Code scanning is free for public repositories. Loxia is private until the
+    # launch; the job starts running when the repository becomes public.
+    if: github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
