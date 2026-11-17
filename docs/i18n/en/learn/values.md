@@ -24,6 +24,7 @@ to reassign it.
 `Int` is a 64-bit integer; `Float` is a 64-bit float. They are distinct types. A literal
 without a dot or exponent is `Int`; a literal with one is `Float`.
 
+<!-- run -->
 ```lox
 print(1)       # Int
 print(1.0)     # Float

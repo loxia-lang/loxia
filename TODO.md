@@ -407,8 +407,9 @@ verdade por página; o build injeta “verificado no commit X” e valida links.
 
 **Pendências do 14.2:** habilitar Pages no flip público (`docs.yml` está
 condicionado a `repository.visibility == public`), criar a issue de tradução EN da
-referência, trocar os rótulos 1.1 (next)/1.0 (stable) depois do PR 9 e revisar os
-`hreflang` de fallback do arquivo 1.0. O build do site já roda no CI.
+referência, trocar os rótulos 1.1 (next)/1.0 (stable) depois do PR 9 e ajustar os
+redirects de `/reference/*` e `/1.0/reference/*` se o `base`/domínio mudar. O build do
+site já roda no CI.
 
 **Riscos:** duplicação/idade do snapshot 1.0; tradução EN da referência ser o caminho
 crítico; duas toolchains (Node + Python) e Dependabot npm; links absolutos quebrarem no

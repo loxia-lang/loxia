@@ -12,6 +12,11 @@ export default defineConfig({
   base,
   trailingSlash: 'always',
   redirects: {
+    '/reference/lexicon': `${base}/pt/reference/lexicon/`,
+    '/reference/syntax': `${base}/pt/reference/syntax/`,
+    '/reference/semantics': `${base}/pt/reference/semantics/`,
+    '/reference/errors': `${base}/pt/reference/errors/`,
+    '/reference/guarantees': `${base}/pt/reference/guarantees/`,
     '/1.0/reference/lexicon': `${base}/pt/1.0/reference/lexicon/`,
     '/1.0/reference/syntax': `${base}/pt/1.0/reference/syntax/`,
     '/1.0/reference/semantics': `${base}/pt/1.0/reference/semantics/`,

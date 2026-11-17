@@ -43,6 +43,7 @@ An enum is either a set of constants or a tagged union with payloads. Variants a
 namespaced.
 
 <!-- run -->
+<!-- run -->
 ```lox
 enum Shape {
   Circle(Float),

@@ -42,6 +42,7 @@ and `path` dependencies; deterministic resolution is part of the language contra
 `Result[T, E]` is in the standard library when you prefer explicit error values over
 exceptions:
 
+<!-- run -->
 ```lox
 import std.results as results
 

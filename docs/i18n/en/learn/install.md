@@ -41,6 +41,7 @@ Loxia!
 
 Create `hello.lx`:
 
+<!-- run -->
 ```lox
 print("hello from Loxia")
 ```

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Run the complete `lox` snippets marked with `<!-- run -->` in the Learn pages."""
+"""Run the complete `lox` snippets marked with `<!-- run -->` in Learn and Cookbook."""
 
 from __future__ import annotations
 
