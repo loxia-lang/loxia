@@ -359,6 +359,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
   o projeto passa a ser distribuído sob `MIT OR Apache-2.0`, com `LICENSE-MIT`,
   `LICENSE-APACHE` e `NOTICE`; o metadado PEP 639 declara a expressão SPDX. Contribuições
   são inbound=outbound com DCO, sem CLA; `tests/official/` permanece MIT.
+- **README público em inglês** ([ADR-0102](docs/adr/0102-ingles-na-vitrine-e-docs-pt-br.md)):
+  a vitrine (README, CONTRIBUTING, SECURITY, CoC, templates, CI e commits) passa a ser
+  em inglês; a spec, os ADRs e o roadmap seguem em pt-BR até a tradução da §14.2.
 - **O nome é Loxia e a extensão é `.lx`** ([ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)):
   "PyLox" era nome de trabalho desde o [ADR-0014](docs/adr/0014-identidade-e-invariantes.md).
   O pacote virou `loxia/`, o comando `loxia` (`python -m loxia`, `--version` →

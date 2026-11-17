@@ -140,6 +140,7 @@ decisão.
 | Estilo e formatter | Tipos `PascalCase`, funções/vars/campos `camelCase`; enum constante `UPPER_SNAKE`, enum soma `PascalCase`; 2 espaços/100 col, `;` omitido, `fn` mantido em método; formatter Python agora e dogfood Lox após T3 com paridade. **Guia + `loxia fmt` mínimo implementados em 2026-11-16**; `fn` em método, trailing comma, reflow e Lox pendentes. | [ADR-0092](adr/0092-estilo-e-formatter.md) |
 | CLI agent-friendly | Subcomandos aditivos, `capabilities`/`explain`, JSONL/watch restrito a `check`, `--stdin`, `--timeout` (124 + `C0001`), warnings `W1xxx` com `-Werror` e protocolo de reparo com `fixes[]` safe/unsafe. **Core implementado em 2026-11-16**; `fixes[]`, `W1002`, `fmt`, `doc` e `lsp` pendentes. | [ADR-0093](adr/0093-cli-agent-friendly-e-reparo.md) |
 | Licença e contribuição | Código sob `MIT OR Apache-2.0`, à escolha; `LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE`; contribuições inbound=outbound com DCO (sem CLA); `tests/official/` permanece MIT. | [ADR-0101](adr/0101-licenca-dual-e-politica-de-contribuicao.md) |
+| Idioma | Vitrine pública (README, CONTRIBUTING, SECURITY, CoC, templates, CI e commits) em inglês; spec, ADRs e roadmap em pt-BR até a tradução da §14.2; código pode manter comentários em pt-BR. | [ADR-0102](adr/0102-ingles-na-vitrine-e-docs-pt-br.md) |
 
 ## O que ainda não está aqui
 

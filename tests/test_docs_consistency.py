@@ -42,6 +42,7 @@ ADR_ROW = re.compile(r"\[(\d{4})\]\(([^)]+)\)")
 # Módulos/scripts de ferramentas que documentam comandos que não são do CLI do Loxia.
 NON_CLI_FLAGS = {
     "--all",
+    "--all-groups",
     "--extra",
     "--repeat",
     "--strict",
@@ -175,10 +176,11 @@ def test_flags_do_cli_estao_documentadas_no_readme() -> None:
 
 
 def test_versao_do_readme_bate_com_o_pacote() -> None:
-    first_line = README.read_text(encoding="utf-8").splitlines()[0]
+    readme = README.read_text(encoding="utf-8")
 
-    assert first_line == f"# Loxia {__version__}", (
-        f"README diz {first_line!r}, pacote é {__version__}"
+    assert readme.startswith("# Loxia\n"), "README deve começar com '# Loxia'"
+    assert f"Current version: **{__version__}**" in readme, (
+        f"README não declara a versão {__version__} em 'Current version'"
     )
 
 

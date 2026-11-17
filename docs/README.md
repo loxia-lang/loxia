@@ -2,6 +2,11 @@
 
 Portal da documentação técnica, sintática e das decisões de design.
 
+> **Idioma:** a vitrine pública (README, CONTRIBUTING, SECURITY, Code of Conduct,
+> templates, CI e commits) é em inglês. A especificação, os ADRs e o roadmap ainda estão
+> em português; a tradução está em [`../TODO.md`](../TODO.md) §14.2
+> ([ADR-0102](adr/0102-ingles-na-vitrine-e-docs-pt-br.md)).
+
 > **Estado:** a especificação descreve o interpretador **como ele existe hoje** (Lox da
 > Parte II do livro + `fn`, `elif`, `;` opcional, `val`/`var`, `?.`/`??`, ternário,
 > escapes, listas `List[T]`, API híbrida `len`/`str`/`repr` + métodos e checker
