@@ -899,3 +899,14 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
   linguagem mudou; o restante é infraestrutura de publicação.
 
 <!-- triaged: 3055e2b -->
+
+## 2026-11-17 — `loxia repl` e layout do pacote
+
+- `docs/spec/*` — **no-change**: nenhuma semântica, sintaxe ou código de diagnóstico mudou;
+  o commit só acrescenta um subcomando de CLI e um teste de empacotamento.
+- `docs/decisoes.md` — **no-change**: a Fase 0 completa o escopo já aceito no ADR-0093; não
+  há decisão nova.
+- `docs/tech/arquitetura.md` — **no-change**: a linha do CLI já citava o REPL e a tabela de
+  comandos do README foi atualizada no mesmo commit.
+
+<!-- triaged: 4c73c6a -->
