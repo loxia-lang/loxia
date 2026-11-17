@@ -871,3 +871,12 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
   independente do locale.
 
 <!-- triaged: 7f3f9af -->
+
+## 2026-11-17 — pós-fix de stdin e links
+
+- `docs/decisoes.md` — **no-change**: os ADR-0066/0078 só trocaram links locais por alvos
+  públicos; nenhuma decisão mudou.
+- `docs/stdlib/builtins.md` — **no-change**: `make docs-sync` regenerou sem diff; a mudança
+  em `primitives.py` foi só o decode estrito de stdin, sem API nova.
+
+<!-- triaged: 47f9f45 -->
