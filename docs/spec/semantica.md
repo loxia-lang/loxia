@@ -484,6 +484,8 @@ da linha seguinte inicia outro statement. `return` sozinho na linha devolve `nil
   da chamada. Misturar `io.readUtf8` com `io.readLine`/`io.readAll` no interpretador é
   indefinido (camadas de buffer distintas); use um estilo só
   ([ADR-0094](../adr/0094-kernel-io-flush-e-read-utf8.md)).
+- `io.readLine`/`io.readAll` decodificam UTF-8 **estrito**, independente do locale:
+  bytes inválidos são `RuntimeError` com `expects UTF-8 input.`, nunca ecoados.
 - `str(x)` devolve a forma de exibição (string no topo sem aspas); `repr(x)` devolve a forma
   de debug (string citada/escapada). Ambas aceitam qualquer valor, têm aridade 1 e devolvem
   `String`; em listas as duas usam a mesma formatação hoje. Builtins globais são

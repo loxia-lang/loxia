@@ -396,6 +396,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Corrigido
 
+- **stdin não-UTF-8 dependia do locale**: `io.readAll`/`io.readLine` agora leem bytes e
+  decodificam UTF-8 estrito; no locale C o `surrogateescape` ecoava os bytes inválidos com
+  exit 0. Os testes forçam `LC_ALL=C` e cobrem `readLine`.
 - **Panic de primitiva sem posição** (`R2`): `substr`, `join`, `charCodeAt`,
   `fromCodePoint`, `os.exit` e `time.sleep` agora usam `R1000` com a mensagem e a
   posição do oráculo; `substr` também passou a rejeitar `end > len`. Teste diferencial

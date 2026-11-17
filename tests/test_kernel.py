@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -65,6 +66,12 @@ def test_leitura_e_escrita_de_arquivo(tmp_path: Path) -> None:
     assert result.stdout == "linha\n\nnil\n"
 
 
+def _c_locale_env() -> dict[str, str]:
+    # O locale C faz `sys.stdin` usar surrogateescape; o teste força o caso em que
+    # a leitura em texto ecoaria bytes inválidos em vez de falhar.
+    return {**os.environ, "LC_ALL": "C", "PYTHONUTF8": "0"}
+
+
 def test_read_all_rejeita_stdin_nao_utf8(tmp_path: Path) -> None:
     path = tmp_path / "readall.lx"
     path.write_text(
@@ -79,6 +86,29 @@ print(io.readAll())
         input=b"\xff\xfe",
         capture_output=True,
         check=False,
+        env=_c_locale_env(),
+    )
+
+    assert result.returncode == 70
+    assert b"expects UTF-8 input" in result.stderr
+    assert b"Traceback" not in result.stderr
+
+
+def test_read_line_rejeita_stdin_nao_utf8(tmp_path: Path) -> None:
+    path = tmp_path / "readline.lx"
+    path.write_text(
+        """import std.io as io
+print(io.readLine())
+""", encoding="utf-8"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), str(path)],
+        cwd=ROOT,
+        input=b"\xff\n",
+        capture_output=True,
+        check=False,
+        env=_c_locale_env(),
     )
 
     assert result.returncode == 70

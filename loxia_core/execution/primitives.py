@@ -73,12 +73,24 @@ def _write_file(path: str, text: str) -> bool:
 
 
 def _read_line() -> str | None:
-    try:
-        line = sys.stdin.readline()
-    except UnicodeError:
-        raise NativeError("io.readLine() expects UTF-8 input.") from None
-    if line == "":
-        return None
+    # Lê bytes e decodifica UTF-8 estrito: `sys.stdin` usa `surrogateescape` no
+    # locale C e ecoaria os bytes inválidos em vez de falhar.
+    stream = getattr(sys.stdin, "buffer", None)
+    if stream is not None:
+        data: bytes = stream.readline()
+        if not data:
+            return None
+        try:
+            line = data.decode("utf-8")
+        except UnicodeError:
+            raise NativeError("io.readLine() expects UTF-8 input.") from None
+    else:
+        try:
+            line = sys.stdin.readline()
+        except UnicodeError:
+            raise NativeError("io.readLine() expects UTF-8 input.") from None
+        if line == "":
+            return None
     if line.endswith("\n"):
         line = line[:-1]
     if line.endswith("\r"):
@@ -87,6 +99,13 @@ def _read_line() -> str | None:
 
 
 def _read_all() -> str:
+    stream = getattr(sys.stdin, "buffer", None)
+    if stream is not None:
+        data: bytes = stream.read()
+        try:
+            return data.decode("utf-8")
+        except UnicodeError:
+            raise NativeError("io.readAll() expects UTF-8 input.") from None
     try:
         return sys.stdin.read()
     except UnicodeError:
