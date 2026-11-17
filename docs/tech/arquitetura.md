@@ -1,7 +1,8 @@
 # Arquitetura
 
 Como o interpretador é montado por dentro. Para o comportamento observável, ver
-[`../spec/`](../spec/); as regras de contribuição serão publicadas em `CONTRIBUTING.md`.
+[`../spec/`](../spec/); as regras de contribuição estão em
+[`../../CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Pipeline
 
