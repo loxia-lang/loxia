@@ -21,7 +21,7 @@ Portal da documentação técnica, sintática e das decisões de design.
 | O que ainda está em aberto? | [`../TODO.md`](../TODO.md) §11 |
 | O que queremos fazer depois? | [`../TODO.md`](../TODO.md), [`../IDEIAS.md`](../IDEIAS.md) |
 | Pendências de tipos | [`../TIPOS.md`](../TIPOS.md) |
-| Regras para agentes/devs | `AGENTS.md` (local, não versionado) e `.dsh/skills/` |
+| Regras para agentes/devs | `CONTRIBUTING.md` (em publicação) e `.dsh/skills/` |
 
 Regra de manutenção: **mudou comportamento → muda `spec/` no mesmo commit**. Decisão difícil
 de reverter → novo ADR. Discussão ainda aberta → `IDEIAS.md`/`TODO.md`, não `spec/`.

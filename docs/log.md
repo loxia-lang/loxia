@@ -853,3 +853,21 @@ original: escopo, imports, módulos, `this`/`super`, enums e membros nativos.
   registrado no ADR-0090.
 
 <!-- triaged: 64dfea4 -->
+
+## 2026-11-17 — Fase 0: histórico limpo e links públicos
+
+Nota: a reescrita do histórico removeu `IDEIAS-REDDIT.md`; os SHAs anteriores a este dia
+não existem mais. O marcador abaixo usa o SHA reescrito.
+
+- `docs/spec/garantias.md` — **no-change**: `levels.py --write` regenerou o bloco idêntico;
+  a fonte `7f3f9af` mudou backend/stdlib, mas o contrato e o status não.
+- `docs/stdlib/index.md` — **no-change**: `stdlib.py --write` regenerou as 27 páginas sem
+  diff; a API documentada já cobre `std.property.listOf`.
+- `docs/adr/0066-orcamento-e-gate-sintatico.md`, `docs/adr/0078-nome-loxia-extensao-lx.md`,
+  `docs/README.md`, `docs/tech/arquitetura.md`, `docs/glossario.md` — **updated**: links
+  para o `AGENTS.md` local trocados por alvos públicos (ADR-0014, guia de estilo,
+  garantias, spec/erros); o `CONTRIBUTING.md` entra na próxima etapa.
+- `docs/spec/semantica.md` — **updated**: `io.readLine`/`io.readAll` exigem UTF-8 estrito,
+  independente do locale.
+
+<!-- triaged: 7f3f9af -->

@@ -37,7 +37,7 @@ pelo local de chamada. O resolver garante isso.
 que produz efeito (`print`, `var`, `if`, `while`, `return`, bloco).
 
 **Golden case** — arquivo `.lx` de teste com a saída esperada em comentários
-(`// expect: …`). Ver §5 do `AGENTS.md` (local) e a skill `lox-testing`.
+(`// expect: …`). Ver [`spec/erros.md`](spec/erros.md) e a skill `lox-testing`.
 
 **Generics** — função que recebe parâmetros de tipo (`fn id[T] (x: T) -> T`) e é usada com
 vários tipos; o checker infere os argumentos na chamada. Ver

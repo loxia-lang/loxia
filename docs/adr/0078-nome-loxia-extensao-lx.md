@@ -50,7 +50,7 @@ Três forças empurravam para longe do nome provisório:
    os nomes do livro; renomeá-los é churn sem ganho observável. O prefixo `lox.` dos
    símbolos do backend (`lox.ctor.*`) é **ABI do runtime** e também fica.
 
-Regra de vocabulário, agora normativa (e em `AGENTS.md`): **Lox** = dialeto do livro e
+Regra de vocabulário, agora normativa: **Lox** = dialeto do livro e
 oráculo; **Loxia** = a linguagem; **`Lox*`/`lox.`** = herança do livro no código.
 
 ## Consequências
@@ -106,4 +106,3 @@ oráculo; **Loxia** = a linguagem; **`Lox*`/`lox.`** = herança do livro no cód
 - [github-linguist/languages.yml](https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml)
 - [Lux — especificação](https://docs.lux-lang.dev/docs/spec) (alternativa descartada)
 - [`../../docs/decisoes.md`](../decisoes.md) — resumo executivo
-- [`../../AGENTS.md`](../../AGENTS.md) §4 — regra de vocabulário

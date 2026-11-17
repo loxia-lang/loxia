@@ -13,7 +13,7 @@
   [ADR-0011](0011-fn-elif-ponto-e-virgula.md),
   [ADR-0013](0013-ternario-nil-aware-escapes.md),
   [ADR-0067](0067-desambiguacao-sintatica.md),
-  [`AGENTS.md`](../../AGENTS.md) §1/§4/§7, [`../../TODO.md`](../../TODO.md) §1
+  [`../../TODO.md`](../../TODO.md) §1
 - **Implementação:** [`../spec/sintaxe.md`](../spec/sintaxe.md),
   [`../../.dsh/skills/lox-syntax/SKILL.md`](../../.dsh/skills/lox-syntax/SKILL.md),
   `tests/test_docs_consistency.py` (frases defasadas) e os casos golden citados no
@@ -130,8 +130,9 @@ Recusados por padrão; reabrir exige ADR e dor demonstrada:
 
 ### 5. Onde a regra mora
 
-- [`AGENTS.md`](../../AGENTS.md) §1 (portão), §4 (convenções), §7 (DoD) e §11 (onde
-  decidir);
+- [ADR-0014](0014-identidade-e-invariantes.md) (portão), [`../guia-estilo.md`](../guia-estilo.md)
+  (convenções), [`../spec/garantias.md`](../spec/garantias.md) (contrato) e
+  [`../../TODO.md`](../../TODO.md) §11 (onde decidir);
 - skill `lox-syntax` (procedimento operacional);
 - `tests/test_docs_consistency.py` (frases que já foram verdadeiras e hoje mentem);
 - este ADR (a decisão).
@@ -171,7 +172,8 @@ Recusados por padrão; reabrir exige ADR e dor demonstrada:
 
 ## Como verificar
 
-- `AGENTS.md` §1/§4/§7/§11 e a skill `lox-syntax` existem e citam este ADR.
+- O [ADR-0014](0014-identidade-e-invariantes.md) e a skill `lox-syntax` existem e citam
+  este ADR.
 - Toda mudança de sintaxe futura cita o checklist das quatro perguntas no ADR da feature.
 - `tests/test_docs_consistency.py` continua verde, incluindo as frases defasadas.
 - Revisitar o orçamento quando uma dor real não couber nos tetos; nesse caso, ADR de
