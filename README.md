@@ -391,3 +391,14 @@ grammar no formato que ele consome — também gerado por `make grammar`.
 > `not`, escapes, `"""`/raw, narrowing e generics). O que falta — o resto do L6/L7 no
 > backend (enums/`match`, exceções), `break`/`continue`, spread/variádicos e imports — está
 > nos documentos de roadmap e ainda **não** está implementado.
+
+## License
+
+Loxia is licensed under **MIT OR Apache-2.0**, at your option:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for
+inclusion in this project by you, as defined in the Apache-2.0 license, shall be dual
+licensed as above, without any additional terms or conditions.

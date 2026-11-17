@@ -139,6 +139,7 @@ decisão.
 | Documentação | `///` como doc comment (Markdown, anexada à declaração), API pública da stdlib/builtins em inglês e obrigatória; `loxia doc` gera Markdown/JSON e o site consome. **Core, docs da stdlib/builtins e `docs/stdlib/` implementados em 2026-11-16**; integração do site pendente. | [ADR-0091](adr/0091-doc-comments-e-geracao-de-docs.md) |
 | Estilo e formatter | Tipos `PascalCase`, funções/vars/campos `camelCase`; enum constante `UPPER_SNAKE`, enum soma `PascalCase`; 2 espaços/100 col, `;` omitido, `fn` mantido em método; formatter Python agora e dogfood Lox após T3 com paridade. **Guia + `loxia fmt` mínimo implementados em 2026-11-16**; `fn` em método, trailing comma, reflow e Lox pendentes. | [ADR-0092](adr/0092-estilo-e-formatter.md) |
 | CLI agent-friendly | Subcomandos aditivos, `capabilities`/`explain`, JSONL/watch restrito a `check`, `--stdin`, `--timeout` (124 + `C0001`), warnings `W1xxx` com `-Werror` e protocolo de reparo com `fixes[]` safe/unsafe. **Core implementado em 2026-11-16**; `fixes[]`, `W1002`, `fmt`, `doc` e `lsp` pendentes. | [ADR-0093](adr/0093-cli-agent-friendly-e-reparo.md) |
+| Licença e contribuição | Código sob `MIT OR Apache-2.0`, à escolha; `LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE`; contribuições inbound=outbound com DCO (sem CLA); `tests/official/` permanece MIT. | [ADR-0101](adr/0101-licenca-dual-e-politica-de-contribuicao.md) |
 
 ## O que ainda não está aqui
 

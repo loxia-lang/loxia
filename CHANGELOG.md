@@ -355,6 +355,10 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Mudado
 
+- **Licença dual MIT/Apache-2.0** ([ADR-0101](docs/adr/0101-licenca-dual-e-politica-de-contribuicao.md)):
+  o projeto passa a ser distribuído sob `MIT OR Apache-2.0`, com `LICENSE-MIT`,
+  `LICENSE-APACHE` e `NOTICE`; o metadado PEP 639 declara a expressão SPDX. Contribuições
+  são inbound=outbound com DCO, sem CLA; `tests/official/` permanece MIT.
 - **O nome é Loxia e a extensão é `.lx`** ([ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md)):
   "PyLox" era nome de trabalho desde o [ADR-0014](docs/adr/0014-identidade-e-invariantes.md).
   O pacote virou `loxia/`, o comando `loxia` (`python -m loxia`, `--version` →

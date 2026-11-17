@@ -1,0 +1,7 @@
+Loxia
+Copyright 2026 Cassio Dalla
+
+This product includes test cases from Crafting Interpreters
+(https://craftinginterpreters.com/), Copyright 2015 Robert Nystrom,
+licensed under the MIT License. See tests/official/LICENSE for the
+original notice and the licensing of the adapted test files.

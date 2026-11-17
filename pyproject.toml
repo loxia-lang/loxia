@@ -1,16 +1,27 @@
 [build-system]
-requires = ["hatchling>=1.26"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "loxia"
 version = "1.0.0"
-description = "Loxia: dialeto de Lox com interpretador tree-walk em Python e backend LLVM opcional"
+description = "Loxia: a statically checked Lox dialect with a tree-walk interpreter and an optional LLVM backend"
 readme = "README.md"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 requires-python = ">=3.13"
 dependencies = []
 authors = [{ name = "Cassio Dalla" }]
-keywords = ["language", "interpreter", "compiler", "llvm", "lox", "loxia"]
+keywords = [
+    "language",
+    "interpreter",
+    "compiler",
+    "llvm",
+    "lox",
+    "loxia",
+    "programming-language",
+    "tree-walk",
+]
 classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
@@ -83,6 +94,7 @@ packages = ["loxia", "loxia_core"]
 [tool.hatch.build.targets.wheel.force-include]
 "std" = "loxia_core/std"
 "runtime" = "loxia_core/runtime"
+"NOTICE" = "NOTICE"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -92,7 +104,9 @@ include = [
     "runtime",
     "tests",
     "README.md",
-    "LICENSE",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "NOTICE",
     "CHANGELOG.md",
     "pyproject.toml",
 ]

@@ -146,6 +146,7 @@ Crie quando a decisão:
 | [0098](0098-property-based-testing.md) | Property-based testing (`std.property`) | accepted (implementado) | 2026-11-16 |
 | [0099](0099-notas-de-proveniencia.md) | Notes de proveniência em erros de tipo | accepted (implementado) | 2026-11-16 |
 | [0100](0100-dependencias-path.md) | Dependências `path` e resolução por nome de pacote | accepted (implementado) | 2026-11-16 |
+| [0101](0101-licenca-dual-e-politica-de-contribuicao.md) | Licença dual MIT/Apache-2.0 e política de contribuição (DCO) | accepted (implementação parcial) | 2026-11-17 |
 
 
 ## Próximas decisões que pedem ADR
