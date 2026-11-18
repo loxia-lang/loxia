@@ -153,7 +153,7 @@ jobs:
       - name: Conventional PR title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: python3 tools/check_pr_title.py
+        run: python3 -m tools.check_pr_title
       - name: Developer Certificate of Origin
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
