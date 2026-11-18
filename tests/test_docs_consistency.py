@@ -8,6 +8,7 @@ O que **bloqueia** (`make check`) é o que é verificável sem julgamento:
 - spec: toda página linkada no README, toda página mutável com `sources:`, e todo glob de
   `sources:` casando com arquivo real (pega módulo renomeado/removido);
 - CLI: toda flag do `argparse` documentada no README, e nenhuma flag inventada nele;
+- site: os rótulos de versão do sidebar e do banner gerado batem com o release atual;
 - nível: o bloco de status do corpus em `garantias.md` é **gerado** do manifesto e não
   pode estar defasado;
 - prosa: frases que já foram verdadeiras e hoje mentem são proibidas por lista explícita.
@@ -34,6 +35,8 @@ ADR_DIR = ROOT / "docs" / "adr"
 ADR_INDEX = ADR_DIR / "README.md"
 README = ROOT / "README.md"
 SPEC_DIR = ROOT / "docs" / "spec"
+SITE_CONFIG = ROOT / "site" / "astro.config.mjs"
+DOCS_SITE = ROOT / "tools" / "docs_site.py"
 
 ADR_FILE = re.compile(r"^(\d{4})-[a-z0-9.-]+\.md$")
 ADR_TITLE = re.compile(r"^# ADR-(\d{4})\b", re.MULTILINE)
@@ -179,6 +182,23 @@ def test_versao_do_readme_bate_com_o_pacote() -> None:
     assert readme.startswith("# Loxia\n"), "README deve começar com '# Loxia'"
     assert f"Current version: **{__version__}**" in readme, (
         f"README não declara a versão {__version__} em 'Current version'"
+    )
+
+
+def test_rotulos_da_referencia_batem_com_o_release() -> None:
+    minor = ".".join(__version__.split(".")[:2])
+    config = SITE_CONFIG.read_text(encoding="utf-8")
+    generator = DOCS_SITE.read_text(encoding="utf-8")
+
+    assert f"{minor} (current)" in config, (
+        f"sidebar não anuncia a referência {minor} como current (site/astro.config.mjs)"
+    )
+    assert f"{minor} (next)" not in config, (
+        f"sidebar ainda anuncia {minor} como next depois do release"
+    )
+    assert "1.0 (archive" in config, "sidebar deve marcar a 1.0 como archive"
+    assert f"{minor} (current)" in generator, (
+        f"banner da referência gerada não anuncia {minor} como current (tools/docs_site.py)"
     )
 
 

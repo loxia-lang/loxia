@@ -47,9 +47,9 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 - **Documentação como site** ([ADR-0103](docs/adr/0103-site-de-documentacao-e-versionamento.md)):
   Astro Starlight em `site/` construído a partir de `docs/` (`tools/docs_site.py`), com
-  inglês na raiz, pt-BR em `/pt/`, referência 1.1 em português, arquivo congelado da 1.0
-  e deploy no GitHub Pages. Inclui home/why/learn/cookbook, checagem de links do HTML,
-  `translated_from` e job `site` no CI; o deploy começa no flip público.
+  inglês na raiz, pt-BR em `/pt/`, referência 1.1 em inglês, arquivo congelado da 1.0 e
+  deploy no GitHub Pages em <https://loxia-lang.github.io/loxia/>. Inclui
+  home/why/learn/cookbook, checagem de links do HTML, `translated_from` e job `site` no CI.
 - **`std.property.listOf[T]`** ([ADR-0098](docs/adr/0098-property-based-testing.md)):
   gerador genérico de lista; `listOfInt`/`listOfString` ficam como aliases. O lowering
   agora propaga o `type_subst` do corpo genérico para lambdas aninhadas, fechando o

@@ -1,6 +1,6 @@
 # ADR-0103 — Site de documentação: Starlight, staging e versão da referência
 
-- **Status:** accepted (implementado; deploy condicionado ao flip público)
+- **Status:** accepted (implementado; deploy ativo desde 2026-11-18)
 - **Data:** 2026-11-17
 - **Decisores:** Cassio Dalla (dono do projeto) e agente
 - **Relacionados:** [ADR-0091](0091-doc-comments-e-geracao-de-docs.md),
@@ -103,10 +103,17 @@ na §14.2; o repo é privado até o PR 9.
 - `site/` builda com `npm run build` e `make docs-build`; o conteúdo gerado está no
   `.gitignore`.
 - `tests/test_docs_links.py` continua verde na fonte; `make docs-links` cobre o HTML.
-- A referência 1.1 aparece em `/pt/reference/*`, a 1.0 em `/pt/1.0/reference/*`, e a
-  landing `/reference` explica a tradução.
+- A referência 1.1 aparece em `/reference/*` (inglês), a 1.0 em `/pt/1.0/reference/*`, e
+  `/pt/reference/*` continua como fallback do Starlight para o leitor pt-BR.
 - `docs/i18n/en/...` não contém tradução automática; `translated_from` é conferido.
 - O CI `site` e o workflow `docs.yml` usam ações pinadas e permissões mínimas.
+
+## Atualização (2026-11-18)
+
+A 1.1.0 foi lançada e o deploy está ativo em <https://loxia-lang.github.io/loxia/>.
+A referência 1.1 foi traduzida para inglês e agora vive em `/reference/*`; a versão em
+`/pt/reference/*` continua como fallback do Starlight. Os rótulos passaram a **1.1
+(current)** e **1.0 (archive)**. A decisão original fica registrada como estava.
 
 ## Referências
 
