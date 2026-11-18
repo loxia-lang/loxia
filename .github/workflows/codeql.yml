@@ -18,9 +18,9 @@ name: CodeQL
 # enables GHAS before that, relax this guard (and keep the default setup off).
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
