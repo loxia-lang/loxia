@@ -6,11 +6,14 @@ description: Release notes and the history of Loxia.
 The canonical changelog is maintained in the repository at
 [`CHANGELOG.md`](https://github.com/loxia-lang/loxia/blob/main/CHANGELOG.md).
 
-The first public release is **1.1.0**. Until it is published, the current checkout reports
-`loxia 1.0.0`; historical changelog entries before 1.1.0 are written in Portuguese.
+The first public release is **1.1.0**, published on
+[PyPI](https://pypi.org/project/loxia/) and tagged
+[`v1.1.0`](https://github.com/loxia-lang/loxia/releases/tag/v1.1.0). Historical changelog
+entries before 1.1.0 are written in Portuguese.
 
-## 1.1.0 (upcoming)
+## 1.1.0
 
-The 1.1.0 release will bring the public repository, packaging, the documentation site and
-the accumulated post-1.0 work to PyPI. The exact notes are curated from the changelog; the
-site will link the release once it exists.
+The 1.1.0 release brought the public repository, packaging, the documentation site and the
+accumulated post-1.0 work to PyPI. The exact notes are curated in the canonical changelog;
+the [GitHub Release](https://github.com/loxia-lang/loxia/releases/tag/v1.1.0) links the
+artifacts.

@@ -1,6 +1,7 @@
 # Loxia
 
 [![CI](https://github.com/loxia-lang/loxia/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/loxia-lang/loxia/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/loxia)](https://pypi.org/project/loxia/)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](pyproject.toml)
 
@@ -10,9 +11,9 @@ It is not a toy: the interpreter and the compiled binary are tested for byte-ide
 stdout, stderr and exit codes on a declared corpus. The lineage is declared, not a
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
-> **Status:** 1.x, pre-public release. The language semantics are frozen; tooling and
-> packaging are still moving. The project is not on PyPI yet. The specification and ADRs
-> are currently in Portuguese; see [Documentation](#documentation).
+> **Status:** 1.x, released. The language semantics are frozen; tooling and packaging are
+> still moving. 1.1.0 is on PyPI. The specification and ADRs are currently in Portuguese;
+> see [Documentation](#documentation).
 
 ## Why Loxia
 
@@ -66,22 +67,19 @@ area = 6.0
 | Native backend | L0–L6 + T7: strings, classes, closures, containers, enums, exceptions |
 | Standard library | T1–T3: `json`, `fmt`, `fs`, `io`, `proc`, `sets`, `csv`, `hash`, `property`… |
 | Tooling | formatter, LSP, test runner, `fix`, `doc`, `explain`, `capabilities` |
-| Packaging | first public release (1.1.0) pending |
+| Packaging | on PyPI since 1.1.0 |
 
 Current version: **1.1.0**. The detailed, generated status by level is in
 [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Install
 
-The first public PyPI release will be **1.1.0**. From 1.1.0 on, the command comes from the
-installed package, with no clone:
-
 ```bash
 pip install loxia          # or: uv tool install loxia
 loxia --version
 ```
 
-Until the release ships, install from the checkout:
+To work on the interpreter itself, use a checkout:
 
 ```bash
 git clone https://github.com/loxia-lang/loxia.git
@@ -103,14 +101,14 @@ work, the native backend is not promised there.
 ## Quick start
 
 ```bash
-uv run loxia                       # REPL
-uv run loxia repl                  # REPL as an explicit subcommand
-uv run loxia new hello             # project scaffold (loxia.toml, .gitignore, src/main.lx, lock)
-uv run loxia run hello/src/main.lx
-uv run loxia hello.lx              # run a file
-uv run loxia check hello.lx        # type-check only
-uv run loxia build hello.lx --emit=exe -o hello
-uv run loxia --version             # loxia 1.0.0
+loxia                              # REPL
+loxia repl                         # REPL as an explicit subcommand
+loxia new hello                    # project scaffold (loxia.toml, .gitignore, src/main.lx, lock)
+loxia run hello/src/main.lx
+loxia hello.lx                     # run a file
+loxia check hello.lx               # type-check only
+loxia build hello.lx --emit=exe -o hello
+loxia --version                    # loxia 1.1.0
 ```
 
 ## CLI
