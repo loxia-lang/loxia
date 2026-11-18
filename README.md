@@ -67,7 +67,7 @@ area = 6.0
 | Tooling | formatter, LSP, test runner, `fix`, `doc`, `explain`, `capabilities` |
 | Packaging | first public release (1.1.0) pending |
 
-Current version: **1.0.0**. The detailed, generated status by level is in
+Current version: **1.1.0**. The detailed, generated status by level is in
 [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Install

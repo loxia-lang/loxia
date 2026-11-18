@@ -3,7 +3,7 @@
 Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada versão está em
 [`ESCOPO.md`](ESCOPO.md); decisões fechadas em [`docs/decisoes.md`](docs/decisoes.md).
 
-## [Não lançado]
+## [1.1.0] — 2026-11-17
 
 ### Adicionado
 

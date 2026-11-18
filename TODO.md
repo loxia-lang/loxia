@@ -269,9 +269,9 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 > **Status 2026-11-17:** o "contrato social", a licença dual, os templates, o Dependabot,
 > o CI dividido e o README em inglês estão prontos no repo **privado**
 > `loxia-lang/loxia`. O histórico foi reescrito para remover `IDEIAS-REDDIT.md`, a tag
-> `v1.0.0` foi recriada e o repo antigo (`CassioDalla/my-lox`) foi arquivado. Falta o
-> **PR 9** (release 1.1.0 + PyPI + GitHub Release) e o **flip para público** com os ajustes
-> de segurança do GitHub.
+> `v1.0.0` foi recriada e o repo antigo (`CassioDalla/my-lox`) foi arquivado. O bump
+> 1.1.0 + CHANGELOG já estão prontos; falta a tag `v1.1.0`/push, o PyPI (pending publisher
+> + 2FA) e o **flip para público** com os ajustes de segurança do GitHub.
 
 - [ ] **PR 9 — release 1.1.0:** bump de versão, CHANGELOG 1.1.0 em inglês, tag `v1.1.0`,
   PyPI com pending publisher/2FA e badge PyPI no README. **Não fazer antes de fechar a
