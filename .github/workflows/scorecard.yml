@@ -11,8 +11,11 @@ on:
   # https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained
   schedule:
     - cron: '33 21 * * 1'
+  # `main` is the default branch: pushes there satisfy the job's publish guard.
   push:
     branches: [ "main" ]
+  # Manual runs are useful after changing the workflow; dispatch from the default branch.
+  workflow_dispatch:
 
 # Declare default permissions as read only.
 permissions: read-all
