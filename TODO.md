@@ -238,11 +238,6 @@ aprovados, e o servidor LSP continua em Python.
 
 ## 14. Publicação e ecossistema
 
-Fora da fila de features (§0): nada aqui muda a linguagem, então não passa pelo portão do
-ADR-0014. A ordem importa por dependência real — URL e CI estáveis antes do site, e a spec
-consolidada antes do MCP, que a consome.
-
-
 ### 14.0 Lacunas do produto (visão)
 
 A linguagem e a stdlib T1–T3 estão fechadas; o que falta é a camada de produto. Esta
@@ -250,11 +245,6 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 | Área | Estado | Gap de produto | Prioridade |
 | --- | --- | --- | --- |
-| **Pacotes/módulos** | loader, `std.*`, dependências `path` ([ADR-0100](docs/adr/0100-dependencias-path.md)), lock/cache/`--frozen` ([ADR-0104](docs/adr/0104-lock-e-frozen.md)) e `git` ([ADR-0105](docs/adr/0105-dependencias-git.md)) prontos | registry (fase 3) e o primeiro pacote externo real | **P0** |
-| **Distribuição/release** | wheel/sdist, entry point, teste de instalação e release workflow com attestation/GitHub Release | pending publisher do PyPI, release 1.1.0, PyPI e Homebrew | **P0** |
-| **Repo público** | entregue no privado em 2026-11-17: licença dual, README EN, CI split, CONTRIBUTING/CoC/SECURITY, templates, Dependabot, CodeQL Python e badges | release 1.1.0, flip para público, branch/tag protection e CodeQL C | **P0** |
-| **Docs de usuário** | spec, ADRs, stdlib gerada e guia de estilo | site público, tutorial de 30 min, cookbook, "por que Loxia" e `make docs-build` no CI | **P0** |
-| **Extensão VS Code** | cliente funcional em `editors/vscode/` | validar UX num VS Code real, empacotar (`vsce`), manifest completo e snippets/inlay hints | **P1** |
 | **LSP residual** | diagnostics, hover, completion, codeAction, rename e workspace symbols | rename cross-file plenamente semântico, membros herdados na completion, signatureHelp de método importado e `inlayHint` | **P1** |
 | **MCP** | contrato do CLI pronto (`--json`, `explain`, `capabilities`, `fix`) | servidor `loxia-mcp` ainda não existe | **P1** |
 | **Robustez** | diferencial I1, determinismo e docs | fuzzing do scanner/parser antes do público, snapshots e LSP contra código incompleto | **P1** |
@@ -267,13 +257,10 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 | # | Entrega | Por que nesta ordem |
 | --- | --- | --- |
-| 1 | {@14.1} Repositório público | pré-requisito de URL, issues e release; repo privado pronto, falta 1.1.0 + flip |
-| 2 | {@14.2} Documentação como site | depende do repo público e do CI |
 | 3 | {@14.3} Servidor MCP | depende da spec publicada e estável |
-| 4 | {@14.4} Distribuição, stdlib instalada e pacotes | **pré-requisito técnico** do release da §14.1: resolução de módulos/pacotes e `uv build`/sdist; wheel e comando já prontos |
 | 5 | {@14.5} Corpus de conformidade como artefato | em paralelo; depende do manifesto estabilizado (já está) |
 | 6 | {@14.6} Primeiro programa real e docs de usuário | depende de 4 (instalar) e alimenta a §14.2 (tutorial/cookbook) |
-| 7 | {@14.7} CLI único e gerenciador de pacotes | fase 0 junto da 4; fases 1–2 depois do release; fase 3 só com demanda |
+
 
 ### 14.1 Abrir o repositório
 
@@ -344,40 +331,6 @@ O contrato do CLI que o MCP consome é o do
 - **Não fazer:** MCP que gera código por conta própria, RAG com embeddings (não
   determinístico) e tool que edita arquivo do usuário.
 
-### 14.4 Distribuição, stdlib instalada e pacotes externos
-
-**O que ainda falta.** O item 1 fechou wheel, entry point, bundle de `std/`/`runtime/` e
-teste de instalação. O item 2 fechou a resolução de módulos e dependências `path`
-([ADR-0100](docs/adr/0100-dependencias-path.md)): `loxia.toml` descoberto no ancestral,
-`[dependencies] nome = { path = ... }`, `[modules].paths`, `--module-path`, ambiguidade e
-isolamento de pacote. Lock e git fecharam no §14.7 (ADRs 0104/0105); registry é a fase 3.
-
-**Item 1 — empacotar e instalar.**
-
-> Dívida do ADR-0088 **resolvida** em 2026-11-15: `src/` virou `loxia_core/`; o wheel
-> não instala mais um pacote top-level chamado `src`.
-
-Empacotamento e instalação já funcionam: wheel com `std/`/`runtime/`, entry point
-`loxia`, subcomandos `run|repl|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` e
-`tests/test_install.py` (wheel em venv fora do repo). Resta:
-
-- [x] `uv build` e sdist sem `std/` duplicado — policiado por `pytest -m install` (o CI
-      roda no job do wheel); README com o comando instalado (`pip install loxia` /
-      `uv tool install loxia`) a partir da 1.1.0. O release em si é o PR 9 da §14.1.
-
-**Item 2 — resolução de módulos e pacotes — ✅ fechado no
-[ADR-0100](docs/adr/0100-dependencias-path.md) (2026-11-17).**
-
-`loxia.toml` aceita `[package] name`, `[dependencies]` (só `path`) e `[modules].paths`;
-a descoberta sobe do entry até o ancestral mais próximo e a raiz do projeto é a pasta do
-manifest. `import acme.foo` resolve pelo nome do pacote; `..` continua proibido no fonte;
-ambiguidade e raiz inexistente falham com caminho relativo. Testes em
-`tests/test_manifest.py` e no backend (`test_backend.py`). O que sobra — lock, git,
-registry, semver e fetch — está na §14.7.
-
-**Não fazer agora:** registry com rede, resolução de versões/semver, pacote binário e
-`../` dentro do fonte. Um gerenciador de pacotes completo é outro produto; o mínimo é
-"dependência declarada + resolução determinística".
 
 ### 14.5 Corpus de conformidade como artefato
 
@@ -385,13 +338,26 @@ O que viaja não é a linguagem — é o **corpus**. Hoje ele já é maduro: cas
 autoexplicativos, manifesto por nível, promoção monotônica, runner diferencial nos três
 canais.
 
+> **Status 2026-11-17 — adiado por decisão.** O objetivo é contribuição ao ecossistema **e**
+> vitrine, mas não há consumidor hoje e o artefato cria contrato público (versão, licença,
+> issues, custo de mudar sintaxe depois). Retomar **depois do flip público + 1.1.0**
+> (§14.1), começando pela camada **`lox-core`**; a camada `loxia` (dialeto) vem depois.
+> Contrato de "passar": **stdout/exit exatos + categoria de erro** (`compile`/`runtime`),
+> nunca texto de mensagem, com `skip`/`PENDING` por implementação. Semente do `lox-core`:
+> suíte oficial do livro (MIT) + curadoria; o adaptador mecânico
+> (`fun→fn`, `//→#`, `class B < A→class B(A)`, campos, `print expr;`) fica **no nosso
+> repo**, fora do artefato. Gatilho para antecipar: um terceiro implementando Lox/Loxia ou
+> pedido explícito da suíte.
+
 - [ ] Extrair `conformance/` (ou repo próprio): casos anotados, manifesto, runner e README
       que explique o contrato (`# expect:`, `PENDING`, `NEGATIVE`).
-- [ ] Duas camadas: **`lox-core`** (subconjunto compatível com o livro, para quem implementa
-      jlox/clox) e **`loxia`** (dialeto: `val`/`var`, `fn`, `print(...)`, enums, etc.).
-      Sem essa separação o corpus só serve a nós.
+- [ ] Fase 1 — **`lox-core`**: subconjunto compatível com o livro, para quem implementa
+      jlox/clox; oráculo é o livro, não o nosso tree-walk (evita circularidade). Inclui
+      casos que a Loxia falha de propósito (campos dinâmicos, ADR-0009).
+- [ ] Fase 2 — **`loxia`**: o dialeto (`val`/`var`, `fn`, `print(...)`, enums, etc.) numa
+      camada separada; sem essa separação o corpus só serve a nós.
 - [ ] Runner genérico: `conformance run --impl "<comando>"` roda qualquer interpretador e
-      compara stdout/stderr/exit, sem depender do nosso CLI.
+      compara stdout/exit + categoria de erro, sem depender do nosso CLI.
 - [ ] Licença: conferir a da suíte oficial (`tests/official/LICENSE`) e declarar a dos casos
       nossos.
 - [ ] README com o mapeamento de divergências (o que um implementador do livro precisa
@@ -439,18 +405,6 @@ Objetivo: **um** comando (`loxia`) que roda, compila, testa e resolve pacotes �
 segundo nome. A análise completa (o que o `uv` resolve que a Loxia não tem, requisitos,
 não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 
-- [x] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia repl` como subcomando;
-      `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` já existem e as flags
-      atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [x] **Fase 1 — lock** — ✅ fechada no [ADR-0104](docs/adr/0104-lock-e-frozen.md):
-      `loxia.lock` canônico (nome + origem + `[package].version` `X.Y.Z` + `sha256` da
-      árvore `.lx`), `loxia lock`, `lock --check`, `fetch`, `--frozen`/`--offline`/
-      `--cache-dir` (cache `.loxia/cache` por projeto) e `C0002`. Dois manifests iguais com
-      o mesmo lock produzem a mesma árvore e o mesmo build; `run --frozen` funciona offline.
-- [x] **Fase 2 — git** — ✅ fechada no [ADR-0105](docs/adr/0105-dependencias-git.md):
-      `dep = { git = "...", rev = "..." }` (commit completo ou tag, nunca branch), lock com
-      `commit` resolvido, mirror bare + checkout limpo em `.loxia/cache`, `fetch`/`--offline`
-      e `run` sem rede. `examples/monorepo/` compila nos dois motores (teste backend).
 - [ ] **Fase 2.5 — `loxia add` (path/git)**: seria útil já sem registry (`add acme --path ../acme`
       e `add acme --git URL --rev X`, depois `lock`), mas editar `loxia.toml` preservando
       comentários/ordem exige writer de TOML. Fica para depois de uma stdlib de TOML (hoje
@@ -487,7 +441,6 @@ real, scripts de build em pacote (risco de supply chain), pacote binário, mirro
 | `loxia-playground` | com o alvo WASM (§6.10) | compilador como artefato |
 | `loxia-bench` | só se a suíte virar pública | baseline acoplado à versão |
 
-- [ ] Criar `loxia` (principal) na org e mover o repo antes de qualquer split.
 - [ ] `.github` da org com README/perfil, templates e política de segurança comuns.
 - [ ] Extrair `loxia-editors` com `git subtree split -P editors` (preserva histórico).
 - [ ] CI do principal publica `syntaxes/loxia.tmLanguage.json` como release asset; o repo de
