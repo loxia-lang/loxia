@@ -201,7 +201,10 @@ def _write_spec_current() -> int:
         title = _title(document.body, path.stem)
         body = _strip_h1(document.body)
         body = _rewrite_links(body, partial(_spec_link, slug=slug, ref=None))
-        banner = f"> **1.1 (next).** [1.0 archive](../../pt/1.0/reference/{slug}/)\n"
+        # Relative on purpose: the same page is served again as an i18n fallback at
+        # /pt/reference/<slug>/. From /reference/<slug>/ this hits the /1.0/reference/<slug>
+        # redirect; from /pt/reference/<slug>/ it lands on /pt/1.0/reference/<slug>/.
+        banner = f"> **1.1 (next).** [1.0 archive](../../1.0/reference/{slug}/)\n"
         freshness = _refresh_for(_sources(document.front_matter), None)
         text = (
             _front_matter(title, "Normative reference for the Loxia language (1.1).", order)
