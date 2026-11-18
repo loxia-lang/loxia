@@ -1,0 +1,35 @@
+name: Fuzz
+
+# Coverage-guided fuzzing for the scanner and the parser. The hypothesis suite
+# (`tests/test_fuzz.py`) runs on every CI build; this job spends a minute of real fuzzing
+# on pull requests that touch the front-end and once a week, which is where a crash that
+# the generated examples missed shows up.
+
+on:
+  pull_request:
+    paths:
+      - "loxia_core/frontend/**"
+      - "loxia_core/diagnostics/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  atheris:
+    name: Atheris (scanner and parser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - name: Fuzz for 60 seconds
+        run: |
+          timeout 180 uv run --python 3.13 --with atheris \
+            python fuzz/fuzz_frontend.py -max_total_time=60 -print_final_stats=1
