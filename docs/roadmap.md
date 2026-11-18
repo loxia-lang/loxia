@@ -9,15 +9,16 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 - Repositório público; **1.1.0** lançada (PyPI + GitHub Release).
 - Linguagem 1.0 congelada; backend **L0–L6 + T7** fechado; **M8** (performance) fechado.
-- **M9** (ecossistema) em andamento: LSP, MCP, cliente de editor e distribuição.
+- **M9** (ecossistema) em andamento: MCP, cliente de editor e distribuição.
 - **Site no ar**: <https://loxia-lang.github.io/loxia/> ([#4](https://github.com/loxia-lang/loxia/issues/4)).
+- **LSP sem as lacunas P1**: completion herdada, signature importado/herdado, `inlayHint` e
+  rename cross-file semântico ([#7](https://github.com/loxia-lang/loxia/issues/7)).
 
 ## Agora (Now)
 
 1. **M9 — editor**: publicar o cliente VS Code e o asset de grammar ([#5](https://github.com/loxia-lang/loxia/issues/5)).
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
-3. **M9 — LSP**: fechar rename cross-file, completion herdada, `signatureHelp` e `inlayHint` ([#7](https://github.com/loxia-lang/loxia/issues/7)).
-4. **Decisões abertas**: contratos ([#14](https://github.com/loxia-lang/loxia/issues/14)), `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)).
+3. **Decisões abertas**: contratos ([#14](https://github.com/loxia-lang/loxia/issues/14)), `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)).
 
 ## Próximo (Next)
 
