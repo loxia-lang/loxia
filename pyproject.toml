@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "loxia"
 version = "1.1.0"
-description = "Loxia: a statically checked Lox dialect with a tree-walk interpreter and an optional LLVM backend"
+description = "Loxia: a small, statically checked language descended from Lox, with a tree-walk interpreter and an optional LLVM backend"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]

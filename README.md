@@ -4,10 +4,11 @@
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](pyproject.toml)
 
-**Loxia** is a small, statically checked **Lox dialect** with a tree-walk interpreter that
-serves as the executable specification and an optional **LLVM** backend. It is not a toy:
-the interpreter and the compiled binary are tested for byte-identical stdout, stderr and
-exit codes on a declared corpus.
+**Loxia** is a small, statically checked language **descended from Lox**, with a tree-walk
+interpreter that serves as the executable specification and an optional **LLVM** backend.
+It is not a toy: the interpreter and the compiled binary are tested for byte-identical
+stdout, stderr and exit codes on a declared corpus. The lineage is declared, not a
+compatibility claim — Loxia has its own syntax, semantics and standard library.
 
 > **Status:** 1.x, pre-public release. The language semantics are frozen; tooling and
 > packaging are still moving. The project is not on PyPI yet. The specification and ADRs
@@ -61,7 +62,7 @@ area = 6.0
 | Area | State |
 | --- | --- |
 | Language semantics | 1.x frozen ([ADR-0026](docs/adr/0026-freeze-1.0.md)); no silent changes |
-| Interpreter | Lox from *Crafting Interpreters* plus the Loxia dialect |
+| Interpreter | Lox core from *Crafting Interpreters* plus Loxia's own syntax and semantics |
 | Native backend | L0–L6 + T7: strings, classes, closures, containers, enums, exceptions |
 | Standard library | T1–T3: `json`, `fmt`, `fs`, `io`, `proc`, `sets`, `csv`, `hash`, `property`… |
 | Tooling | formatter, LSP, test runner, `fix`, `doc`, `explain`, `capabilities` |
