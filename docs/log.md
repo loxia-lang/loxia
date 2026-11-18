@@ -971,3 +971,15 @@ diagnóstico, tipo ou semântica de execução mudou.
   apenas virou método público para o LSP reutilizar.
 
 <!-- triaged: b818f65 -->
+
+## 2026-11-18 — LSP: rename cross-file semântico
+
+Intervalo: `5108074`. `ClassTy` ganhou um `token` opcional de parser (`compare=False`) para
+o rename atualizar anotações de tipo; é metadado de posição, não uma regra nova.
+
+- `docs/spec/sintaxe.md` — **no-change**: a gramática e a precedência não mudaram; o token
+  extra é interno ao parser.
+- `docs/spec/erros.md` — **no-change**: nenhum código, mensagem ou fase de diagnóstico
+  mudou; igualdade/hash de tipos continuam iguais.
+
+<!-- triaged: 5108074 -->

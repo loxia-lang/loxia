@@ -903,7 +903,7 @@ class Parser:
         if primitive is not None:
             return primitive
 
-        return ClassTy(name)
+        return ClassTy(name, token=token)
 
     def _function_type(self) -> Ty:
         self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'fn' in function type.")
@@ -955,7 +955,7 @@ class Parser:
                 Code.INVALID_TYPE_ANNOTATION,
             )
         else:
-            return ClassTy(name, tuple(arguments))
+            return ClassTy(name, tuple(arguments), token=token)
 
         return ERROR
 

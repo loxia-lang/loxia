@@ -23,6 +23,7 @@ from loxia.completion import declared_type as completion_declared_type
 from loxia.completion import enclosing_context as completion_context
 from loxia.completion import superclass_name as completion_superclass
 from loxia.formatter import format_source
+from loxia.rename import semantic_rename, semantic_target
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
 from loxia.symbols import Symbol, SymbolIndex, token_key
 from loxia_core.diagnostics.diagnostic import (
@@ -666,12 +667,26 @@ class Server:
         index = self._index_for(document.uri)
         if index is None:
             return None
-        if self._rename_target(index, token) is None and not self._is_top_level(index, token):
+        tokens = self._tokens_by_key(document.text)
+        local = self._rename_target(index, token)
+        if local is not None and local[0] not in tokens:
+            local = None
+        if (
+            local is None
+            and not self._is_top_level(index, token)
+            and self._semantic_target(document, token) is None
+        ):
             return None
         return {
             "range": _token_range(token, document.text),
             "placeholder": token.lexeme,
         }
+
+    def _semantic_target(self, document: Document, token: Token) -> object | None:
+        if self.root is None or document.path is None:
+            return None
+        files = dict(self._workspace_files())
+        return semantic_target(self.root, files, document.path, token)
 
     def _rename(self, message: dict[str, Any]) -> object:
         params = message.get("params")
@@ -689,13 +704,22 @@ class Server:
         index = self._index_for(document.uri)
         if index is None:
             return None
+        tokens = self._tokens_by_key(document.text)
         target = self._rename_target(index, token)
+        if target is not None and target[0] not in tokens:
+            target = None
         if target is None:
+            if self.root is not None and document.path is not None:
+                files = dict(self._workspace_files())
+                semantic = semantic_rename(self.root, files, document.path, token, new_name)
+                if isinstance(semantic, str):
+                    return semantic
+                if semantic is not None:
+                    return semantic
             if self._is_top_level(index, token):
                 return self._workspace_rename(document, token, new_name)
             return "Rename is only supported for local variables, parameters and top-level declarations."
         _declaration, occurrences = target
-        tokens = self._tokens_by_key(document.text)
         edits: list[dict[str, object]] = []
         for key in sorted(occurrences, key=lambda item: (item[0], item[1])):
             found = tokens.get(key)
@@ -769,7 +793,14 @@ class Server:
         symbol = index.by_token.get(token_key(token))
         if symbol is None or symbol.container is not None:
             return False
-        return symbol.kind in {"function", "class", "enum", "interface", "type"}
+        return symbol.kind in {
+            "function",
+            "class",
+            "enum",
+            "interface",
+            "type",
+            "variable",
+        }
 
     def _workspace_files(self) -> list[tuple[Path, str]]:
         files: dict[Path, str] = {}

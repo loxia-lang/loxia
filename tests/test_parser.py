@@ -26,7 +26,7 @@ from loxia_core.frontend.stmt import (
     Var,
     While,
 )
-from loxia_core.frontend.ty import display
+from loxia_core.frontend.ty import ClassTy, ListTy, display
 
 
 def parser_for(source: str, *, repl: bool = False) -> Parser:
@@ -356,6 +356,26 @@ def test_parses_type_annotations() -> None:
     assert display(first) == "Int"
     assert display(second) == "String"
     assert display(return_type) == "Bool"
+
+
+def test_class_type_annotation_preserva_token_sem_mudar_igualdade() -> None:
+    statements = parse("fn f(a: Point) -> List[Point] { return a; }")
+    function = statements[0]
+    assert isinstance(function, Function)
+    annotation = function.params[0].type_annotation
+    return_type = function.return_type
+    assert isinstance(annotation, ClassTy)
+    assert annotation.token is not None
+    assert annotation.token.lexeme == "Point"
+
+    assert isinstance(return_type, ListTy)
+    element = return_type.element
+    assert isinstance(element, ClassTy)
+    assert element.token is not None
+    assert element.token.lexeme == "Point"
+
+    assert annotation == ClassTy("Point")
+    assert hash(annotation) == hash(ClassTy("Point"))
 
 
 def test_parses_function_type_annotations() -> None:

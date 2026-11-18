@@ -18,6 +18,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `publishDiagnostics` agora é comparado com `check --error-format=json` em
   `tests/test_lsp.py`.
 
+- **LSP: rename cross-file semântico** (ADR-0090): a AST resolvida pelo `ModuleLoader`
+  identifica a declaração top-level e só os usos que pertencem a ela; um `foo` local em
+  outro arquivo não é tocado. Imports, aliases e `mod.nome` são editados com precisão;
+  colisão de nome ou parse error recusa o rename inteiro. `ClassTy` ganhou um `token`
+  opcional de parser (`compare=False`) para atualizar anotações de tipo sem mudar
+  igualdade/hash. Cobertura nova em `tests/test_lsp.py` (homônimo, alias, namespace,
+  tipo e colisão) e em `tests/test_parser.py` (token sem regressão de igualdade).
+
 ## [1.1.0] — 2026-11-17
 
 ### Adicionado
