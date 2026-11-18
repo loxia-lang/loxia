@@ -1,5 +1,8 @@
 minimum_pre_commit_version: "4.0.0"
 fail_fast: true
+# Without this, hooks without an explicit `stages` also run on commit-msg, so the
+# whole suite ran twice per commit.
+default_stages: [pre-commit]
 
 repos:
   - repo: local
