@@ -1,0 +1,88 @@
+name: CodeQL
+
+# The scanner that follows the data instead of the dependency list: it sees a value coming
+# from a request/CLI and reaching a sink, which a version-based audit cannot. It runs on
+# the pull request, on `main`, and weekly — a query pack improves without the code
+# changing, and a weekly run is what notices that.
+#
+# This is an **advanced** configuration and it cannot coexist with the repository's
+# *default setup*: while that is on, the analysis runs to completion but the upload is
+# refused ("CodeQL analyses from advanced configurations cannot be processed when the
+# default setup is enabled"). Keep default setup off in Settings > Code security while
+# this file exists.
+#
+# Code scanning is free for public repositories. On a private repository it needs GitHub
+# Advanced Security (GHAS); without one of the two, the upload is refused and the job goes
+# red for a reason unrelated to the code. Loxia is private until the launch, so the job is
+# gated to public: it skips quietly now and runs Python + C/C++ after the flip. If the org
+# enables GHAS before that, relax this guard (and keep the default setup off).
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write # upload the analysis to the Security tab
+      actions: read # workflow run metadata CodeQL attaches to the results
+      contents: read # the repository being analysed
+      packages: read # CodeQL query packs
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Python is interpreted: `build-mode: none` keeps CodeQL from syncing the
+          # environment just to extract code it can read as-is.
+          - language: python
+            build-mode: none
+          # The C runtime (`runtime/*.c`) is compiled by the Python build, not by a C
+          # build system, so CodeQL cannot autobuild it: compile every unit explicitly.
+          - language: c-cpp
+            build-mode: manual
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the Boehm GC headers
+        if: matrix.language == 'c-cpp'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgc-dev
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Build the C runtime
+        if: matrix.language == 'c-cpp'
+        run: |
+          # The tracer captures each `cc` invocation; the objects are throwaway (CodeQL
+          # only needs the compilation database, not the binary).
+          for source in runtime/*.c; do
+            cc -std=c11 -O2 -Iruntime -c "$source" -o "${RUNNER_TEMP}/$(basename "$source").o"
+          done
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:${{ matrix.language }}"
