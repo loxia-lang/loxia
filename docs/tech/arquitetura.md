@@ -57,9 +57,10 @@ Packages by phase (dependency only downward):
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
-| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/formatting/semantic tokens, codeAction, rename and workspace/symbol |
-| [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, enums and native members |
-| [`loxia/symbols.py`](../../loxia/symbols.py) | LSP-1 `SymbolIndex`: declarations, references and checker types |
+| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/inlay hints/formatting/semantic tokens, codeAction, rename, workspace/symbol and settings |
+| [`loxia/source_symbols.py`](../../loxia/source_symbols.py) | original-AST symbol resolution for the LSP: imports, members with superclass/interfaces, callable signatures and source type display |
+| [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, inherited members, enums and native members |
+| [`loxia/symbols.py`](../../loxia/symbols.py) | LSP-1 `SymbolIndex`: declarations, references, checker types and inferred declaration metadata |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | English docs for builtins/primitives for `docs/stdlib/builtins.md` |
 | [`loxia/__main__.py`](../../loxia/__main__.py) | `python -m loxia` entrypoint |
 | [`loxia_core/frontend/scanner.py`](../../loxia_core/frontend/scanner.py) | hand-written lexer; nested `#` and `/* */` comments |

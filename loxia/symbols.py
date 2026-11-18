@@ -57,6 +57,7 @@ class Symbol:
     doc: str | None
     container: str | None = None
     type: Ty | None = None
+    annotated: bool = False
 
 
 class SymbolIndex:
@@ -112,7 +113,12 @@ class SymbolIndex:
                 )
             )
             for field in statement.fields:
-                ty = field.type_annotation
+                initializer_type = (
+                    self._checker.types.get(field.initializer)
+                    if self._checker is not None and field.initializer is not None
+                    else None
+                )
+                ty = field.type_annotation or initializer_type
                 self._add(
                     Symbol(
                         name=field.name.lexeme,
@@ -122,6 +128,7 @@ class SymbolIndex:
                         doc=field.doc,
                         container=statement.name.lexeme,
                         type=ty,
+                        annotated=field.type_annotation is not None,
                     )
                 )
             for method in statement.methods:
@@ -197,6 +204,7 @@ class SymbolIndex:
                     doc=statement.doc,
                     container=container,
                     type=ty,
+                    annotated=statement.type_annotation is not None,
                 )
             )
         elif isinstance(statement, Destructure):
@@ -214,14 +222,23 @@ class SymbolIndex:
         elif isinstance(statement, Block):
             self._add_statements(statement.statements, container=container)
         elif isinstance(statement, ForIn):
+            loop_type = None
+            if self._checker is not None:
+                iterable_type = self._checker.types.get(statement.iterable)
+                if iterable_type is not None:
+                    loop_type = self._checker.element_type(iterable_type, statement.name)
+            signature = f"val {statement.name.lexeme}"
+            if loop_type is not None:
+                signature += f": {display(loop_type)}"
             self._add(
                 Symbol(
                     name=statement.name.lexeme,
                     kind="variable",
                     token=statement.name,
-                    signature=f"val {statement.name.lexeme}",
+                    signature=signature,
                     doc=None,
                     container=container,
+                    type=loop_type,
                 )
             )
             self._add_statement(statement.body, container=container)
@@ -270,6 +287,7 @@ class SymbolIndex:
                     doc=None,
                     container=function.name.lexeme,
                     type=param.type_annotation,
+                    annotated=param.type_annotation is not None,
                 )
             )
         self._add_statements(function.body, container=function.name.lexeme)

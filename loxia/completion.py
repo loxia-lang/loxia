@@ -13,19 +13,27 @@ from pathlib import Path
 from typing import Any
 
 from loxia.builtins_docs import BUILTIN_DOCS
+from loxia.source_symbols import (
+    FROM_LINE,
+    IMPORT_LINE,
+    ImportRef,
+    Member,
+    SourceContext,
+    class_signature,
+    function_signature,
+    imports_of,
+    load_module,
+    parse_for_completion,
+)
 from loxia.symbols import SymbolIndex
 from loxia_core.bundle import bundle_dir
-from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.frontend.expr import Call, ListLiteral, Literal, MapLiteral, Variable
 from loxia_core.frontend.keywords import KEYWORDS
-from loxia_core.frontend.parser import Parser
-from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.stmt import (
     Class,
     EnumDecl,
     Field,
     Function,
-    Import,
     Interface,
     Stmt,
     TypeAlias,
@@ -70,15 +78,17 @@ def complete(
     path: Path | None,
     offset: int,
     type_index: SymbolIndex | None,
+    *,
+    inherited_members: bool = True,
 ) -> list[dict[str, object]]:
     """Itens de completion para o offset (byte) no documento."""
     prefix, dot_receiver = _cursor(source, offset)
-    statements = _parse_for_completion(source, offset)
+    statements = parse_for_completion(source, offset)
     if statements is None:
         if dot_receiver is not None:
             return _render(_textual_enum_members(dot_receiver, source), prefix)
         return _render(_keyword_items() + _builtin_items(), prefix)
-    imports = _imports(statements)
+    imports = imports_of(statements)
     import_items = _import_items(source, offset, path, statements)
     if import_items:
         items = import_items
@@ -90,6 +100,7 @@ def complete(
             offset,
             imports,
             type_index,
+            inherited_members=inherited_members,
         )
         if not items:
             items = _textual_enum_members(dot_receiver, source)
@@ -119,41 +130,6 @@ def _render(items: list[Item], prefix: str) -> list[dict[str, object]]:
     ]
 
 
-def _parse_for_completion(source: str, offset: int) -> list[Stmt] | None:
-    prefix = source[:offset]
-    line = prefix.rsplit("\n", 1)[-1]
-    needs_placeholder = (
-        line.rstrip().endswith(".")
-        or _IMPORT.match(line) is not None
-        or _FROM.match(line) is not None
-    )
-    placeholder = "x" if needs_placeholder else ""
-    candidates = [
-        prefix + placeholder + source[offset:],
-        source,
-        prefix + placeholder,
-    ]
-    depth = prefix.count("{") - prefix.count("}")
-    if depth > 0:
-        candidates.append(prefix + placeholder + "\n" + "}" * depth)
-    for candidate in candidates:
-        statements = _parse(candidate)
-        if statements is not None:
-            return statements
-    return None
-
-
-def _parse(source: str) -> list[Stmt] | None:
-    reporter = ErrorReporter(max_errors=0)
-    tokens = Scanner(source, reporter).scan_tokens()
-    if reporter.had_error:
-        return None
-    statements = Parser(tokens, reporter=reporter).parse()
-    if reporter.had_error:
-        return None
-    return statements
-
-
 def _cursor(source: str, offset: int) -> tuple[str, str | None]:
     prefix_text = source[max(0, offset - 200) : offset]
     line = prefix_text.rsplit("\n", 1)[-1]
@@ -166,45 +142,11 @@ def _cursor(source: str, offset: int) -> tuple[str, str | None]:
 
 _DOT = __import__("re").compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z0-9_]*)$")
 _WORD = __import__("re").compile(r"[A-Za-z_][A-Za-z0-9_]*$")
-_IMPORT = __import__("re").compile(r"^\s*import\s+([\w.]*)$")
-_FROM = __import__("re").compile(r"^\s*from\s+([\w.]+)\s+import\s+([\w]*)$")
-
-
-def _imports(statements: list[Stmt]) -> dict[str, tuple[str, str | None]]:
-    """local -> (módulo, nome público ou None para namespace)."""
-    result: dict[str, tuple[str, str | None]] = {}
-    for statement in statements:
-        if not isinstance(statement, Import):
-            continue
-        module = ".".join(part.lexeme for part in statement.path)
-        if statement.from_import:
-            for item in statement.names:
-                local = (item.alias or item.name).lexeme
-                result[local] = (module, item.name.lexeme)
-        else:
-            local = (
-                statement.alias.lexeme if statement.alias is not None else statement.path[-1].lexeme
-            )
-            result[local] = (module, None)
-    return result
 
 
 def _module_statements(module: str, path: Path | None) -> list[Stmt] | None:
-    file: Path | None = None
-    if module == "std" or module.startswith("std."):
-        name = module[4:] if module.startswith("std.") else ""
-        if name:
-            file = bundle_dir("std") / f"{name}.lx"
-    elif path is not None:
-        candidate = path.parent.joinpath(*module.split(".")).with_suffix(".lx")
-        if candidate.is_file():
-            file = candidate
-    if file is None or not file.is_file():
-        return None
-    try:
-        return _parse(file.read_text(encoding="utf-8"))
-    except OSError:
-        return None
+    loaded = load_module(module, path)
+    return loaded.statements if loaded is not None else None
 
 
 def _declarations(statements: list[Stmt]) -> list[Item]:
@@ -215,7 +157,7 @@ def _declarations(statements: list[Stmt]) -> list[Item]:
                 Item(
                     statement.name.lexeme,
                     KIND_FUNCTION,
-                    _function_signature(statement),
+                    function_signature(statement),
                     statement.doc,
                     f"1_{statement.name.lexeme}",
                 )
@@ -225,7 +167,7 @@ def _declarations(statements: list[Stmt]) -> list[Item]:
                 Item(
                     statement.name.lexeme,
                     KIND_CLASS,
-                    _class_signature(statement),
+                    class_signature(statement),
                     statement.doc,
                     f"1_{statement.name.lexeme}",
                 )
@@ -266,7 +208,7 @@ def _declarations(statements: list[Stmt]) -> list[Item]:
 def _value_items(
     statements: list[Stmt],
     offset: int,
-    imports: dict[str, tuple[str, str | None]],
+    imports: dict[str, ImportRef],
     path: Path | None,
 ) -> list[Item]:
     index = SymbolIndex(statements, source="", checker=None, resolver=None)
@@ -299,7 +241,8 @@ def _value_items(
                 f"{scope}_{symbol.name}",
             )
         )
-    for local, (module, public) in imports.items():
+    for local, imported in imports.items():
+        module, public = imported.module, imported.public
         item = Item(
             local,
             KIND_MODULE if public is None else KIND_FUNCTION,
@@ -341,8 +284,10 @@ def _member_items(
     statements: list[Stmt],
     path: Path | None,
     offset: int,
-    imports: dict[str, tuple[str, str | None]],
+    imports: dict[str, ImportRef],
     type_index: SymbolIndex | None,
+    *,
+    inherited_members: bool,
 ) -> list[Item]:
     if receiver in {"this", "super"}:
         _, klass = _context(statements, offset)
@@ -352,16 +297,21 @@ def _member_items(
             parent = _superclass(statements, klass)
             if parent is None:
                 return []
-            return _type_members(statements, parent, path)
-        return _class_members(statements, klass)
+            return _members_for(statements, parent, path, inherited=True)
+        return _members_for(statements, klass, path, inherited=inherited_members)
     if receiver in imports:
-        module, public = imports[receiver]
-        module_statements = _module_statements(module, path)
-        if module_statements is None:
+        imported = imports[receiver]
+        loaded = load_module(imported.module, path)
+        if loaded is None:
             return []
-        if public is not None:
-            return _type_members(module_statements, public, path)
-        return [item for item in _declarations(module_statements) if not item.label.startswith("_")]
+        if imported.public is not None:
+            return _members_for(
+                loaded.statements,
+                imported.public,
+                loaded.path,
+                inherited=inherited_members,
+            )
+        return [item for item in _declarations(loaded.statements) if not item.label.startswith("_")]
     if receiver in {"Int", "Float", "math", "io", "fs", "process", "os", "time"}:
         return _native_members(receiver)
     token = _token_named(statements, receiver, offset)
@@ -370,22 +320,14 @@ def _member_items(
         ty = type_index.type_at(token)
     symbol = _find_symbol(statements, receiver)
     if symbol is not None and symbol.kind in {"enum", "class", "interface"}:
-        return _type_members(statements, symbol.name, path)
+        return _members_for(statements, symbol.name, path, inherited=inherited_members)
     if ty is None and symbol is not None:
         ty = symbol.type
     if ty is None:
-        ty = _declared_type(statements, receiver)
+        ty = declared_type(statements, receiver)
     if isinstance(ty, (ClassTy, InterfaceTy, EnumObjectTy)):
         name = ty.name.rsplit("$", 1)[-1]
-        statements_for_type = statements
-        if not any(_statement_name(item) == name for item in statements_for_type):
-            for module, public in imports.values():
-                if public == name:
-                    loaded = _module_statements(module, path)
-                    if loaded is not None:
-                        statements_for_type = loaded
-                        break
-        return _type_members(statements_for_type, name, path)
+        return _members_for(statements, name, path, inherited=inherited_members)
     if isinstance(ty, list) and ty:
         return []
     if isinstance(ty, ListTy):
@@ -421,61 +363,34 @@ def _native_members(module: str) -> list[Item]:
     ]
 
 
-def _type_members(statements: list[Stmt], name: str, path: Path | None) -> list[Item]:
-    for statement in statements:
-        if isinstance(statement, EnumDecl) and statement.name.lexeme == name:
-            return [
-                Item(
-                    variant.name.lexeme,
-                    KIND_ENUM_MEMBER,
-                    name + "." + variant.name.lexeme,
-                    variant.doc,
-                    f"1_{variant.name.lexeme}",
-                )
-                for variant in statement.variants
-            ]
-        if isinstance(statement, Class) and statement.name.lexeme == name:
-            return _class_members(statements, name)
-        if isinstance(statement, Interface) and statement.name.lexeme == name:
-            return [
-                Item(
-                    method.name.lexeme,
-                    KIND_METHOD,
-                    _function_signature(method),
-                    method.doc,
-                    f"1_{method.name.lexeme}",
-                )
-                for method in statement.methods
-            ]
-    return []
+def _members_for(
+    statements: list[Stmt],
+    name: str,
+    path: Path | None,
+    *,
+    inherited: bool,
+) -> list[Item]:
+    context = SourceContext(statements, path)
+    return [_member_item(member) for member in context.members(name, inherited=inherited)]
 
 
-def _class_members(statements: list[Stmt], name: str) -> list[Item]:
-    for statement in statements:
-        if not isinstance(statement, Class) or statement.name.lexeme != name:
-            continue
-        items = [
-            Item(
-                field.name.lexeme,
-                KIND_FIELD,
-                _field_signature(field),
-                field.doc,
-                f"1_{field.name.lexeme}",
-            )
-            for field in statement.fields
-        ]
-        items.extend(
-            Item(
-                method.name.lexeme,
-                KIND_METHOD,
-                _function_signature(method),
-                method.doc,
-                f"1_{method.name.lexeme}",
-            )
-            for method in statement.methods
-        )
-        return items
-    return []
+def _member_item(member: Member) -> Item:
+    kind = {
+        "field": KIND_FIELD,
+        "method": KIND_METHOD,
+        "variant": KIND_ENUM_MEMBER,
+    }.get(member.kind, KIND_VARIABLE)
+    return Item(member.name, kind, member.signature, member.doc, f"1_{member.name}")
+
+
+def enclosing_context(statements: list[Stmt], offset: int) -> tuple[str | None, str | None]:
+    """Função e classe que contêm o offset, para signatureHelp."""
+    return _context(statements, offset)
+
+
+def superclass_name(statements: list[Stmt], name: str) -> str | None:
+    """Superclasse direta de uma classe local, para `super.` no signatureHelp."""
+    return _superclass(statements, name)
 
 
 def _context(statements: list[Stmt], offset: int) -> tuple[str | None, str | None]:
@@ -530,7 +445,7 @@ def _import_items(
     source: str, offset: int, path: Path | None, statements: list[Stmt]
 ) -> list[Item]:
     line = source[:offset].rsplit("\n", 1)[-1]
-    match = _IMPORT.match(line)
+    match = IMPORT_LINE.match(line)
     if match is not None:
         typed = match.group(1)
         if typed and not typed.startswith("std."):
@@ -546,7 +461,7 @@ def _import_items(
             )
             for file in sorted(bundle_dir("std").glob("*.lx"))
         ]
-    match = _FROM.match(line)
+    match = FROM_LINE.match(line)
     if match is not None:
         module = match.group(1)
         module_statements = _module_statements(module, path)
@@ -556,56 +471,13 @@ def _import_items(
     return []
 
 
-def _function_signature(function: Function) -> str:
-    params = ", ".join(_param_signature(param) for param in function.params)
-    type_params = (
-        "[" + ", ".join(item.lexeme for item in function.type_params) + "]"
-        if function.type_params
-        else ""
-    )
-    signature = f"fn {function.name.lexeme}{type_params}({params})"
-    if function.return_type is not None:
-        signature += f" -> {display(function.return_type)}"
-    return signature
-
-
-def _param_signature(param: Any) -> str:
-    name = f"...{param.name.lexeme}" if param.variadic else param.name.lexeme
-    if param.type_annotation is not None:
-        name += f": {display(param.type_annotation)}"
-    return name
-
-
-def _field_signature(field: Any) -> str:
-    keyword = "var" if field.mutable else "val"
-    signature = f"{keyword} {field.name.lexeme}"
-    if field.type_annotation is not None:
-        signature += f": {display(field.type_annotation)}"
-    return signature
-
-
-def _class_signature(statement: Class) -> str:
-    type_params = (
-        "[" + ", ".join(item.lexeme for item in statement.type_params) + "]"
-        if statement.type_params
-        else ""
-    )
-    superclass = f"({statement.superclass.name.lexeme})" if statement.superclass is not None else ""
-    implements = (
-        f" implements {', '.join(item.lexeme for item in statement.implements)}"
-        if statement.implements
-        else ""
-    )
-    return f"class {statement.name.lexeme}{type_params}{superclass}{implements}"
-
-
 def _statement_name(statement: Stmt) -> str | None:
     if isinstance(statement, (Function, Class, EnumDecl, Interface, TypeAlias)):
         return statement.name.lexeme
     return None
 
 
-def _declared_type(statements: list[Stmt], name: str) -> Any:
+def declared_type(statements: list[Stmt], name: str) -> Any:
     found: Any = None
 
     def walk(value: object) -> None:

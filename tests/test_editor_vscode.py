@@ -24,6 +24,8 @@ def test_manifesto_aponta_para_o_cliente_e_o_servidor() -> None:
     properties = manifest["contributes"]["configuration"]["properties"]
     assert properties["loxia.server.path"]["default"] == ""
     assert properties["loxia.server.args"]["default"] == ["lsp"]
+    assert properties["loxia.inlayHints.enabled"]["default"] is True
+    assert properties["loxia.completion.inheritedMembers"]["default"] is True
     assert manifest["contributes"]["commands"][0]["command"] == "loxia.restartServer"
 
 
@@ -35,6 +37,7 @@ def test_cliente_cobre_os_metodos_do_servidor() -> None:
         "textDocument/definition",
         "textDocument/completion",
         "textDocument/signatureHelp",
+        "textDocument/inlayHint",
         "textDocument/codeAction",
         "textDocument/prepareRename",
         "textDocument/rename",
@@ -48,6 +51,9 @@ def test_cliente_cobre_os_metodos_do_servidor() -> None:
     assert "uv" in source
     assert "vscode.languages.registerWorkspaceSymbolProvider" in source
     assert "vscode.workspace.registerWorkspaceSymbolProvider" not in source
+    assert "vscode.languages.registerInlayHintsProvider" in source
+    assert "initializationOptions" in source
+    assert "workspace/didChangeConfiguration" in source
 
 
 def test_cliente_tem_sintaxe_valida() -> None:

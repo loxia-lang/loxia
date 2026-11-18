@@ -2,8 +2,8 @@
 
 Syntax highlighting + an **LSP client** for `.lx`. The client is JSON-RPC over stdio with
 no npm dependencies: it starts `loxia lsp` (or the configured command) and exposes
-diagnostics, hover, definition, completion with scope/imports/modules, signatureHelp,
-formatting, code actions, rename and symbols.
+diagnostics, hover, definition, completion with scope/imports/modules/inheritance,
+signatureHelp, inlay hints (inferred types), formatting, code actions, rename and symbols.
 
 ## Run from the checkout
 
@@ -27,6 +27,17 @@ The `loxia.restartServer` command reloads the process after changing the configu
 command starts, the message shows the error and the **Loxia** channel records each
 attempt; an empty `loxia.server.path` means autodetection. The default `cwd` is the
 workspace root; open the main repo (or adjust `loxia.server.cwd`).
+
+## Feature settings
+
+- `loxia.inlayHints.enabled` (default `true`): inferred-type hints for `val`/`var`/fields
+  without an annotation and for `for` bindings. `editor.inlayHints.enabled` still applies
+  on top.
+- `loxia.completion.inheritedMembers` (default `true`): include superclass and interface
+  members in completion.
+
+Both are sent to the server on `initialize` and on configuration changes; other LSP
+clients can send the same `initializationOptions`/`workspace/didChangeConfiguration`.
 
 ## Publish (when the repo is split)
 
