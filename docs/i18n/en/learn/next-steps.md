@@ -19,13 +19,14 @@ in `std/*.lx`. Start with:
 ## The reference
 
 The [reference](../../reference/) is the normative description of the language. It is
-currently in Portuguese; the English translation is tracked separately.
+generated from `docs/spec/` and published in English; the 1.0 archive remains in
+Portuguese.
 
 ## The native backend
 
 `loxia build program.lx --emit=exe -o program` compiles with LLVM. The backend is tested
 against the interpreter for the declared corpus, byte for byte. See the
-[guarantees](../../reference/) for the exact contract.
+[guarantees](../../reference/guarantees/) for the exact contract.
 
 ## Contributing
 

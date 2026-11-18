@@ -10,9 +10,10 @@ Portal to the technical and syntax documentation and to the design decisions.
 > **Status:** the specification describes the interpreter **as it exists today** (the Lox
 > from Part II of the book + `fn`, `elif`, optional `;`, `val`/`var`, `?.`/`??`, ternary,
 > escapes, `List[T]` lists, the hybrid `len`/`str`/`repr` API + methods and the `--check`
-> checker). What is still a plan lives in [`../TODO.md`](../TODO.md) §1/§2,
-> [`../IDEIAS.md`](../IDEIAS.md) and [`../TIPOS.md`](../TIPOS.md), and does **not** apply to
-> the current code.
+> checker). What is still a plan lives in [`roadmap.md`](roadmap.md),
+> [Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas),
+> [`../TIPOS.md`](../TIPOS.md) and [ADR-0107](adr/0107-adiados-e-nao-objetivos.md), and
+> does **not** apply to the current code.
 
 ## Sources of truth
 
@@ -22,14 +23,16 @@ Portal to the technical and syntax documentation and to the design decisions.
 | How does it work inside? | [`tech/arquitetura.md`](tech/arquitetura.md) |
 | Why did we decide X? | [`adr/`](adr/) — Architecture Decision Records |
 | Which decisions have already been made? | [`decisoes.md`](decisoes.md) — executive summary + links |
-| What is 1.0 and what comes after? | [`../ESCOPO.md`](../ESCOPO.md) |
-| What is still open? | [`../TODO.md`](../TODO.md) §11 |
-| What do we want to do later? | [`../TODO.md`](../TODO.md), [`../IDEIAS.md`](../IDEIAS.md) |
+| What comes after 1.0? | [`roadmap.md`](roadmap.md) |
+| What is still open? | [issues labeled `decision`](https://github.com/loxia-lang/loxia/issues?q=label%3Adecision) |
+| What do we want to do later? | [`roadmap.md`](roadmap.md) and [ADR-0107](adr/0107-adiados-e-nao-objetivos.md) |
+| What is just an idea? | [Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas) |
 | Pending type issues | [`../TIPOS.md`](../TIPOS.md) |
 | Rules for agents/devs | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) and `.dsh/skills/` |
 
 Maintenance rule: **behavior changed → `spec/` changes in the same commit**. A decision that
-is hard to reverse → a new ADR. Discussion still open → `IDEIAS.md`/`TODO.md`, not `spec/`.
+is hard to reverse → a new ADR. Discussion still open → a `decision` issue or Discussions ›
+Ideas, not `spec/`.
 
 ## Specification
 

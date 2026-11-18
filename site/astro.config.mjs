@@ -56,14 +56,14 @@ export default defineConfig({
           items: [
             { label: 'Overview', translations: { 'pt-BR': 'Visão geral' }, link: '/reference/' },
             {
-              label: '1.1 (next)',
-              translations: { 'pt-BR': '1.1 (next)' },
+              label: '1.1 (current)',
+              translations: { 'pt-BR': '1.1 (atual)' },
               collapsed: true,
               items: [{ autogenerate: { directory: 'reference' } }],
             },
             {
-              label: '1.0 (stable, Portuguese)',
-              translations: { 'pt-BR': '1.0 (stable, português)' },
+              label: '1.0 (archive, Portuguese)',
+              translations: { 'pt-BR': '1.0 (arquivo, português)' },
               collapsed: true,
               items: [{ autogenerate: { directory: 'pt/1.0/reference' } }],
             },

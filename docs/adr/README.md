@@ -17,7 +17,8 @@ TODO item.
 
 ## Flow
 
-1. Discuss in [`../../IDEIAS.md`](../../IDEIAS.md), [`../../TODO.md`](../../TODO.md) or
+1. Discuss in [Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas)
+   or in an issue labeled `decision`; pending type questions stay in
    [`../../TIPOS.md`](../../TIPOS.md).
 2. Decide, with a test case that demonstrates the behavior.
 3. Create `NNNN-slug.md` from the [template](template.md), with status `accepted`.
@@ -32,8 +33,8 @@ TODO item.
 - Language: existing ADRs are written in Portuguese (they are not being translated now);
   code identifiers stay in English.
 - Every ADR lists **negative** consequences or costs. A decision with no cost is suspect.
-- Open discussion is **not** an ADR — it lives in `IDEIAS.md` as `em avaliação` (under
-  evaluation).
+- Open discussion is **not** an ADR — it lives in Discussions › Ideas or in a `decision`
+  issue. A deferred decision is recorded in [ADR-0107](0107-adiados-e-nao-objetivos.md).
 
 ## Status
 
@@ -155,20 +156,22 @@ TODO item.
 | [0104](0104-lock-e-frozen.md) | Package lock: tree hash, `--frozen`, local cache and `C0002` | accepted (implemented) | 2026-11-17 |
 | [0105](0105-dependencias-git.md) | Git dependencies: pinned `rev`, bare mirror, clean checkout and offline fetch | accepted (implemented) | 2026-11-17 |
 | [0106](0106-scaffolding-new-init.md) | Scaffolding: `loxia new`/`init`, minimal template, git and name rules | accepted (implemented) | 2026-11-17 |
+| [0107](0107-adiados-e-nao-objetivos.md) | Deferred and non-goals: consolidated reopen triggers | accepted (consolidation) | 2026-11-18 |
 
 
 ## Next decisions that call for an ADR
 
-Once decided, they become an ADR (today they live in `IDEIAS.md`/`TIPOS.md`/`TODO.md` §11):
+Open decisions have an issue labeled `decision`; the ADR is written when the issue closes.
 
-- contracts/DbC and errors in JSON — [I-4](../../IDEIAS.md);
-- language decisions still open (name, `if` expression, recoverable exceptions, class/method
-  generics and constraints, backend, mutable unification) —
-  [`../../TODO.md`](../../TODO.md) §11. Tuples were implemented in the interpreter/checker
-  ([ADR-0036](0036-tuplas-implementacao.md)); in the backend they are left for L6. Async has
-  a decided direction, but the implementation is pending ([ADR-0037](0037-async-direcao.md)).
-- imports: [ADR-0073](0073-imports-modulos.md) implemented;
-  syntax gate of [ADR-0066](0066-orcamento-e-gate-sintatico.md).
+- contracts/DbC — [#14](https://github.com/loxia-lang/loxia/issues/14), with the
+  [ADR-0066](0066-orcamento-e-gate-sintatico.md) syntax gate;
+- `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16);
+- AST generator — [#15](https://github.com/loxia-lang/loxia/issues/15).
+
+Language decisions still open: `if`/blocks as an expression, recoverable exceptions,
+generic methods/inheritance/reification, constraints in classes and mutable unification.
+Deferred items are consolidated in [ADR-0107](0107-adiados-e-nao-objetivos.md); async has a
+decided direction, but the implementation is pending ([ADR-0037](0037-async-direcao.md)).
 
 The summary of decisions **already closed** lives in [`../decisoes.md`](../decisoes.md); this
 index remains the complete history.

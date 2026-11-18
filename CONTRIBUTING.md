@@ -37,8 +37,10 @@ CLA.
 - **Large refactor?** Discuss it before writing code. A small, focused diff is easier to
   review and to revert.
 
-The roadmap lives in [TODO.md](TODO.md). Read §0 before proposing something that is
-already queued or explicitly out of scope.
+The roadmap lives in [docs/roadmap.md](docs/roadmap.md). Read the **Now** section before
+proposing something that is already queued or explicitly out of scope. Ideas go to
+[Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas);
+deferred decisions are in [ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md).
 
 ## Development setup
 

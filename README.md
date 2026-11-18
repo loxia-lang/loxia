@@ -13,8 +13,8 @@ stdout, stderr and exit codes on a declared corpus. The lineage is declared, not
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
 > **Status:** 1.x, released. The language semantics are frozen; tooling and packaging are
-> still moving. 1.1.0 is on PyPI. The specification and ADRs are currently in Portuguese;
-> see [Documentation](#documentation).
+> still moving. 1.1.0 is on PyPI. The specification is in English; the ADRs and roadmap are
+> in Portuguese (pt-BR). See [Documentation](#documentation).
 
 ## Why Loxia
 
@@ -200,15 +200,16 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
   [guarantees](docs/spec/garantias.md).
 - **Architecture:** [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
-- **Documentation site:** [`site/`](site/) — Starlight build from `docs/`; run
-  `make docs-dev`; publication follows the public flip.
+- **Documentation site:** <https://loxia-lang.github.io/loxia/> — Starlight build from
+  `docs/`; run `make docs-dev` for the local server.
 - **Style guide:** [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Design decisions:** [`docs/adr/`](docs/adr/).
-- **Roadmap:** [`TODO.md`](TODO.md) · **open ideas:** [`IDEIAS.md`](IDEIAS.md).
+- **Roadmap:** [`docs/roadmap.md`](docs/roadmap.md) · **open ideas:**
+  [Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas).
 
-> **Language:** the README and the community files are in English. The specification,
-> ADRs and roadmap are currently in Portuguese (pt-BR); English translation is planned in
-> [`TODO.md`](TODO.md) §14.2. The public API docs (`docs/stdlib/`) are in English.
+> **Language:** the README, the community files and the specification are in English.
+> The ADRs and the roadmap remain in Portuguese (pt-BR). The public API docs
+> (`docs/stdlib/`) are in English.
 
 ## Development
 

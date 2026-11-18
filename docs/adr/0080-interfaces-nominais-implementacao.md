@@ -251,7 +251,7 @@ comparador), iterador (`for-in` sobre classe) e variádicos
 
 Critério de pronto: `make check` verde (B1 e B2 entregues), casos golden e de erro,
 `--check` limpo nos casos válidos, backend recusando **só** com a mensagem declarada,
-`TODO.md`/`TIPOS.md`/`ESCOPO.md` atualizados e `docs/decisoes.md` com a linha.
+`docs/roadmap.md`/`TIPOS.md` atualizados e `docs/decisoes.md` com a linha.
 
 ## Como verificar
 

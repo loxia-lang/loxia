@@ -45,7 +45,7 @@ make baseline                                # regrava o baseline (só quando fo
 
 ## O que não concluir
 
-- O tree-walk em Python não vai ficar "rápido"; o alvo é o backend LLVM (`TODO.md` §6).
+- O tree-walk em Python não vai ficar "rápido"; o alvo é o backend LLVM (fila no `docs/roadmap.md`).
 - Ganho de micro-otimização dentro de ±35% é indistinguível de ruído. Antes de
   otimizar, meça o mesmo caso 3 vezes em sequência.
 - Não adicione `time`/`print` de instrumentação no interpretador para "medir":

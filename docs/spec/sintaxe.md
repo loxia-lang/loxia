@@ -12,7 +12,7 @@ Grammar of the current parser ([`loxia_core/frontend/parser.py`](../../loxia_cor
 one function per precedence level.
 
 > This is the **implemented Lox**. The target syntax of the language itself
-> (`break`/`continue`, for example) is in [`../../TODO.md`](../../TODO.md) §1.
+> (`break`/`continue`, for example) is tracked in [`../roadmap.md`](../roadmap.md).
 > `fn`, `elif`, the optional `;`, ternary, `??`, `?.`, interpolation, escapes, `not`,
 > nested destructuring, `"""` and raw strings already exist; `val`/`var` have existed since
 > ADR-0005.

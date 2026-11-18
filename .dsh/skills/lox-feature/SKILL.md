@@ -15,8 +15,9 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
    a policia. Feature bonita que só compra superfície = dívida paga pelo codegen.
 3. Escolha **um** comportamento observável e escreva o caso antes do código:
    `tests/cases/<nome>.lx` com `# expect: ...` (ver skill `lox-testing`).
-4. Feature que muda gramática → registrar em `TODO.md` §1. Escolha de rumo da
-   linguagem → registrar em `TODO.md` §11 **antes** de implementar.
+4. Feature que muda gramática → issue `decision` com `gate:syntax` (quatro perguntas do
+   ADR-0066 e aprovação humana). Escolha de rumo da linguagem → issue `decision`/ADR
+   **antes** de implementar; o que já foi adiado está no ADR-0107.
 5. Nunca implemente um capítulo futuro do livro "de passagem" (ex.: funções antes do
    cap. 10). Ver `AGENTS.md` §8.
 
@@ -33,7 +34,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 | 7 | Semântica | `loxia_core/execution/interpreter.py` |
 | 8 | Debug | `loxia_core/frontend/ast_printer.py` — todo nó precisa de `visit_*`, senão o dump quebra |
 | 9 | Teste | `tests/cases/` + unitário se a lógica interna for não trivial |
-| 10 | Docs | `docs/spec/` (comportamento) e ADR em `docs/adr/` se for decisão; marque no `TODO.md` |
+| 10 | Docs | `docs/spec/` (comportamento) e ADR em `docs/adr/` se for decisão; feche a issue no PR |
 
 ## Invariantes que não podem quebrar
 

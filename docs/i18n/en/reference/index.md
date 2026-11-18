@@ -6,7 +6,7 @@ description: The normative Loxia language reference.
 The normative reference describes what the language does **today**. It is written in
 English and generated from `docs/spec/`.
 
-## Current reference — 1.1 (next)
+## Current reference — 1.1
 
 - [Lexicon](lexicon/)
 - [Syntax](syntax/)
@@ -14,7 +14,7 @@ English and generated from `docs/spec/`.
 - [Errors](errors/)
 - [Guarantees](guarantees/)
 
-## Archived reference — 1.0 (stable)
+## Archived reference — 1.0
 
 The 1.0 reference is frozen at the `v1.0.0` tag and kept for programs that still target
 the first release:

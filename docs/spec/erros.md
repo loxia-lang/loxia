@@ -546,4 +546,4 @@ header in the interpreter and in the binary
 
 No open diagnostic work item: `E3004` closed with a fix conditioned on the exact
 type ([`../tech/fixes.md`](../tech/fixes.md)); what remains of tooling lives in
-[`../../TODO.md`](../../TODO.md) §7.
+[`../roadmap.md`](../roadmap.md).

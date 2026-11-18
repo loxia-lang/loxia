@@ -25,7 +25,7 @@ e o site futuro prevê pt-BR como fonte com tradução de *learn*/*reference* (�
    `SECURITY.md`, templates de issue/PR, textos de CI, mensagens de commit, release notes e
    o `CHANGELOG` a partir da 1.1.0.
 2. **Docs internas em pt-BR por enquanto:** `docs/spec/`, `docs/adr/`, `TODO.md`,
-   `IDEIAS.md`, `TIPOS.md`, `ESCOPO.md` e `docs/tech/` continuam em português. O README e o
+   `TIPOS.md`, `docs/roadmap.md` e `docs/tech/` continuam em português. O README e o
    `docs/README.md` declaram isso e apontam para a tradução em `TODO.md` §14.2.
 3. **Código:** comentários e docstrings existentes podem ficar em pt-BR; código novo de
    API pública e mensagens de runtime são em inglês. Não há tradução em massa de

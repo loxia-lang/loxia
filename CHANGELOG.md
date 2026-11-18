@@ -1,7 +1,7 @@
 # Changelog
 
-Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada versão está em
-[`ESCOPO.md`](ESCOPO.md); decisões fechadas em [`docs/decisoes.md`](docs/decisoes.md).
+Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
+[`docs/decisoes.md`](docs/decisoes.md).
 
 ## [1.1.0] — 2026-11-17
 
@@ -47,9 +47,9 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 - **Documentação como site** ([ADR-0103](docs/adr/0103-site-de-documentacao-e-versionamento.md)):
   Astro Starlight em `site/` construído a partir de `docs/` (`tools/docs_site.py`), com
-  inglês na raiz, pt-BR em `/pt/`, referência 1.1 em português, arquivo congelado da 1.0
-  e deploy no GitHub Pages. Inclui home/why/learn/cookbook, checagem de links do HTML,
-  `translated_from` e job `site` no CI; o deploy começa no flip público.
+  inglês na raiz, pt-BR em `/pt/`, referência 1.1 em inglês, arquivo congelado da 1.0 e
+  deploy no GitHub Pages em <https://loxia-lang.github.io/loxia/>. Inclui
+  home/why/learn/cookbook, checagem de links do HTML, `translated_from` e job `site` no CI.
 - **`std.property.listOf[T]`** ([ADR-0098](docs/adr/0098-property-based-testing.md)):
   gerador genérico de lista; `listOfInt`/`listOfString` ficam como aliases. O lowering
   agora propaga o `type_subst` do corpo genérico para lambdas aninhadas, fechando o
@@ -539,7 +539,8 @@ publicado; o LLVM L0–L2 é pós-1.0. A release é local (sem publicação exte
 
 Backend LLVM, tuplas, classes/métodos genéricos, constraints/traits, módulos/stdlib,
 contratos/JSON, `Result`/`try`, variádicos, trailing closure, `match`/enums, diagnósticos
-com spans/caret e transcendentais de `math`. Ver [`ESCOPO.md`](ESCOPO.md).
+com spans/caret e transcendentais de `math`. Ver [`docs/roadmap.md`](docs/roadmap.md) e
+[ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md).
 
 ### Verificação
 
