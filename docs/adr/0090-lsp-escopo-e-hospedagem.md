@@ -1,18 +1,22 @@
 # ADR-0090 — LSP: hospedagem, escopo e fases
 
-> **Implementação parcial (2026-11-16):** LSP-0 em Python (`loxia lsp`, JSON-RPC
-> stdio à mão): `initialize`/`shutdown`/`exit`, full sync, `publishDiagnostics` e
-> `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references` e
-> `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
-> variantes. LSP-2 parcial: completion (global e por membro), signatureHelp,
+> **Implementação parcial (2026-11-16; ampliada em 2026-11-18):** LSP-0 em Python
+> (`loxia lsp`, JSON-RPC stdio à mão): `initialize`/`shutdown`/`exit`, full sync,
+> `publishDiagnostics` e `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references`
+> e `hover`/`definition` para variáveis, funções, classes, campos, métodos, enums e
+> variantes. LSP-2: completion (global, por membro e **herdada** de superclasse/interface),
+> signatureHelp (inclusive funções, métodos e construtores **importados/herdados**),
 > documentFormatting, semanticTokens/full, `codeAction` (quickfixes de `data.fixes`),
 > `rename`/`prepareRename` (locais/parâmetros e top-level cross-file conservador),
-> `workspace/symbol`, completion com escopo/imports/módulos e um `SourceIndex` de spans
-> de expressão (agora em `loxia_core/frontend/source_index.py`, também consumido pelas
-> `notes` de proveniência do checker — [ADR-0099](0099-notas-de-proveniencia.md)). O
-> cliente VS Code vive em `editors/vscode/` e está pronto para virar repo próprio.
+> `workspace/symbol`, **`inlayHint`** de tipos inferidos, completion com
+> escopo/imports/módulos, settings `loxia.inlayHints.enabled`/
+> `loxia.completion.inheritedMembers`, teste de paridade com `check --error-format=json`
+> e um `SourceIndex` de spans de expressão (agora em
+> `loxia_core/frontend/source_index.py`, também consumido pelas `notes` de proveniência do
+> checker — [ADR-0099](0099-notas-de-proveniencia.md)). O cliente VS Code vive em
+> `editors/vscode/` e está pronto para virar repo próprio.
 
-- **Status:** accepted (implementação parcial)
+- **Status:** accepted (implementação parcial; rename cross-file semântico em andamento)
 - **Data:** 2026-11-15
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0075](0075-diagnosticos-estruturados.md) (modelo de
@@ -78,7 +82,7 @@ opcionalmente, entry point `loxia-lsp`). Ele reusa `Parser`, `Resolver`, `Checke
 | --- | --- | --- |
 | **LSP-0** | `initialize`/`shutdown`/`exit`, `didOpen`/`didChange`/`didSave`/`didClose` com **full sync**, `publishDiagnostics`, `documentSymbol` | `Diagnostic` atual; sem spans de expressão |
 | **LSP-1** | `hover` (tipo + doc), `textDocument/definition` | spans de expressão + `SymbolIndex` + mapa uso→declaração |
-| **LSP-2** | `completion`, `signatureHelp`, `documentFormatting` (formatter), `codeAction` (fixes), `semanticTokens`, `rename`, `workspace/symbol` | formatter, `fixes[]`, `SourceIndex`/índice de escopos |
+| **LSP-2** | `completion` (com herança e imports), `signatureHelp` (funções/métodos/construtores importados e herdados), `inlayHint` (tipos inferidos), `documentFormatting` (formatter), `codeAction` (fixes), `semanticTokens`, `rename`, `workspace/symbol`, settings | formatter, `fixes[]`, `SourceIndex`/índice de escopos |
 
 LSP-0 é barato e já resolve o problema real (erros no editor). LSP-1 é o que dá a sensação
 de "linguagem de verdade", mas depende de:
@@ -92,9 +96,13 @@ Esse índice também serve às `notes` de proveniência (ADR-0099) e ao `loxia d
 compilador, não de LSP.
 
 LSP-2 é incremental e não é prometido junto do MVP. `codeAction`/fixes e `rename`
-entraram (2026-11-16); rename cross-file é conservador (recusa nomes que também são
-locais/campos/métodos em qualquer arquivo). `workspace/symbol`, `inlayHint` e DAP
-ficam fora por enquanto.
+entraram (2026-11-16); rename cross-file continua conservador (recusa nomes que também são
+locais/campos/métodos em qualquer arquivo) até a fatia semântica. `workspace/symbol` e
+`inlayHint` entraram em 2026-11-18; DAP fica fora por enquanto. As duas features novas
+têm settings (`loxia.inlayHints.enabled` e `loxia.completion.inheritedMembers`), enviadas
+pelo cliente em `initializationOptions` e `workspace/didChangeConfiguration`; os defaults
+são `true`. O teste de paridade `publishDiagnostics` × `check --error-format=json` passou
+a existir em `tests/test_lsp.py`.
 
 ### 3. Mapeamento do diagnóstico
 

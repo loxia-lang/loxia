@@ -174,6 +174,7 @@ class LspClient {
           uri: folder.uri.toString(),
           name: folder.name,
         })) || null,
+      initializationOptions: loxiaSettings(),
       capabilities: {
         workspace: { configuration: false, workspaceFolders: true },
         textDocument: {
@@ -342,6 +343,14 @@ class LspClient {
   }
 }
 
+function loxiaSettings() {
+  const config = vscode.workspace.getConfiguration("loxia");
+  return {
+    inlayHints: { enabled: config.get("inlayHints.enabled", true) },
+    completion: { inheritedMembers: config.get("completion.inheritedMembers", true) },
+  };
+}
+
 function toRange(range) {
   return new vscode.Range(
     range.start.line,
@@ -464,6 +473,18 @@ async function activate(context) {
         rawDiagnostics.delete(document.uri.toString());
       }
     }),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (
+        event.affectsConfiguration("loxia.inlayHints") ||
+        event.affectsConfiguration("loxia.completion")
+      ) {
+        client.ready.then(() =>
+          client.notify("workspace/didChangeConfiguration", {
+            settings: loxiaSettings(),
+          })
+        );
+      }
+    }),
     vscode.commands.registerCommand("loxia.restartServer", async () => {
       client.stop();
       diagnostics.clear();
@@ -531,6 +552,29 @@ async function activate(context) {
           completion.filterText = item.filterText;
           completion.range = range;
           return completion;
+        });
+      },
+    }),
+    vscode.languages.registerInlayHintsProvider("loxia", {
+      provideInlayHints: async (document, range) => {
+        const result = await send("textDocument/inlayHint", {
+          ...documentOf(document),
+          range: {
+            start: { line: range.start.line, character: range.start.character },
+            end: { line: range.end.line, character: range.end.character },
+          },
+        });
+        return (result || []).map((item) => {
+          const hint = new vscode.InlayHint(
+            new vscode.Position(item.position.line, item.position.character),
+            item.label,
+            item.kind === 1
+              ? vscode.InlayHintKind.Type
+              : vscode.InlayHintKind.Parameter
+          );
+          hint.paddingLeft = Boolean(item.paddingLeft);
+          hint.paddingRight = Boolean(item.paddingRight);
+          return hint;
         });
       },
     }),

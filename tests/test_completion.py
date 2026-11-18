@@ -107,3 +107,21 @@ def test_completion_global_nao_tem_nome_mangled() -> None:
     assert "strings" in found
     assert "if" in found
     assert all("$" not in name for name in found)
+
+
+def test_completion_de_classe_importada_com_heranca_em_outro_modulo(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "base.lx").write_text("class Base {\n  fn greet() -> Nil {}\n}\n", encoding="utf-8")
+    (tmp_path / "child.lx").write_text(
+        "from base import Base\nclass Child(Base) {\n  fn own() -> Nil {}\n}\n",
+        encoding="utf-8",
+    )
+    main = tmp_path / "main.lx"
+    source = "from child import Child\nval c = Child()\nc.\n"
+    main.write_text(source, encoding="utf-8")
+    offset = source.rindex("c.") + 2
+    found = {
+        item["label"] for item in complete(source, main, len(source[:offset].encode("utf-8")), None)
+    }
+    assert {"greet", "own"} <= found

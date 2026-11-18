@@ -3,6 +3,21 @@
 Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 [`docs/decisoes.md`](docs/decisoes.md).
 
+## [Unreleased]
+
+### Adicionado
+
+- **LSP: completion herdada, signature importado e inlay hints** (ADR-0090): completion
+  inclui campos/métodos de superclasse e de interfaces implementadas; `signatureHelp`
+  resolve funções, métodos e construtores importados/herdados sem vazar nomes mangled;
+  `textDocument/inlayHint` mostra o tipo inferido de `val`/`var`/campos sem anotação e de
+  variáveis de `for`. Duas settings novas (`loxia.inlayHints.enabled` e
+  `loxia.completion.inheritedMembers`, default `true`) são negociadas por
+  `initializationOptions`/`workspace/didChangeConfiguration`, e o cliente VS Code ganhou
+  o provider de inlay hints. O ADR-0090 prometia um teste de paridade que não existia:
+  `publishDiagnostics` agora é comparado com `check --error-format=json` em
+  `tests/test_lsp.py`.
+
 ## [1.1.0] — 2026-11-17
 
 ### Adicionado

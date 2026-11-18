@@ -1970,7 +1970,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_for_in_stmt(self, stmt: ForIn) -> None:
         iterable = self._infer(stmt.iterable)
-        element = self._element_type(iterable, stmt.name)
+        element = self.element_type(iterable, stmt.name)
 
         if isinstance(iterable, (ClassTy, InterfaceTy)) or iterable is ANY:
             self._invalidate_members()
@@ -1984,7 +1984,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         # O corpo pode executar zero vezes; só sobrevive o que vale nos dois caminhos.
         self._narrowings = self._join_states(base, body_state)
 
-    def _element_type(self, iterable: Ty, token: Token) -> Ty:
+    def element_type(self, iterable: Ty, token: Token) -> Ty:
+        """Tipo do elemento de um iterável; checker e LSP (inlay hints) compartilham."""
         if iterable is ANY:
             return ANY
         if iterable is RANGE:

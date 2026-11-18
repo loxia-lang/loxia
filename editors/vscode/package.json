@@ -68,6 +68,16 @@
           "type": "string",
           "default": "",
           "description": "Diretório de trabalho do servidor (vazio = o do workspace)."
+        },
+        "loxia.inlayHints.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mostra inlay hints com o tipo inferido de val/var/campos sem anotação."
+        },
+        "loxia.completion.inheritedMembers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Inclui campos e métodos herdados (superclasse e interfaces) na completion."
         }
       }
     }

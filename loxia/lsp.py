@@ -19,8 +19,12 @@ from loxia import __version__
 from loxia.builtins_docs import BUILTIN_DOCS
 from loxia.cli import Loxia
 from loxia.completion import complete as completion_items
+from loxia.completion import declared_type as completion_declared_type
+from loxia.completion import enclosing_context as completion_context
+from loxia.completion import superclass_name as completion_superclass
 from loxia.formatter import format_source
-from loxia.symbols import SymbolIndex, token_key
+from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
+from loxia.symbols import Symbol, SymbolIndex, token_key
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
@@ -222,8 +226,21 @@ class Server:
         self.documents: dict[str, Document] = {}
         self.indexes: dict[str, SymbolIndex] = {}
         self.source_maps: dict[str, object] = {}
+        self.clean: dict[str, bool] = {}
         self.root: Path | None = None
         self.shutdown = False
+        self.inlay_hints = True
+        self.inherited_members = True
+
+    def _apply_settings(self, data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        inlay = data.get("inlayHints")
+        if isinstance(inlay, dict) and isinstance(inlay.get("enabled"), bool):
+            self.inlay_hints = inlay["enabled"]
+        completion = data.get("completion")
+        if isinstance(completion, dict) and isinstance(completion.get("inheritedMembers"), bool):
+            self.inherited_members = completion["inheritedMembers"]
 
     def run(self) -> int:
         while True:
@@ -250,6 +267,7 @@ class Server:
                 root_uri = params.get("rootUri")
                 if isinstance(root_uri, str):
                     self.root = _uri_to_path(root_uri)
+                self._apply_settings(params.get("initializationOptions"))
             _send(
                 self.stdout,
                 _response(
@@ -269,6 +287,7 @@ class Server:
                             "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                             "documentFormattingProvider": True,
                             "codeActionProvider": True,
+                            "inlayHintProvider": True,
                             "semanticTokensProvider": {
                                 "legend": {
                                     "tokenTypes": list(SEMANTIC_TOKEN_TYPES),
@@ -354,6 +373,13 @@ class Server:
                 _send(self.stdout, _response(message_id, result))
             return
 
+        if method == "textDocument/inlayHint":
+            _send(
+                self.stdout,
+                _response(message_id, self._inlay_hint(message)),
+            )
+            return
+
         if method == "textDocument/semanticTokens/full":
             _send(
                 self.stdout,
@@ -368,6 +394,9 @@ class Server:
 
     def _notification(self, method: str, params: object) -> None:
         if not isinstance(params, dict):
+            return
+        if method == "workspace/didChangeConfiguration":
+            self._apply_settings(params.get("settings"))
             return
         if method == "textDocument/didOpen":
             document = params.get("textDocument")
@@ -463,6 +492,7 @@ class Server:
         batch = lox.reporter.batch()
         sources = lox._sources
         self.source_maps[document.uri] = sources
+        self.clean[document.uri] = not lox.reporter.had_error
         self.indexes[document.uri] = SymbolIndex(
             lox.last_statements or [],
             source=document.text,
@@ -1067,7 +1097,13 @@ class Server:
         offset = self._offset_at(document.text, line, character)
         return {
             "isIncomplete": False,
-            "items": completion_items(document.text, document.path, offset, index),
+            "items": completion_items(
+                document.text,
+                document.path,
+                offset,
+                index,
+                inherited_members=self.inherited_members,
+            ),
         }
 
     def _signature_help(self, message: dict[str, Any]) -> dict[str, object] | None:
@@ -1097,20 +1133,36 @@ class Server:
         if open_paren < 0:
             return None
         before = prefix[:open_paren]
-        match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*$", before)
+        match = re.search(
+            r"([A-Za-z_][A-Za-z0-9_]*(?:\s*\.\s*[A-Za-z_][A-Za-z0-9_]*)*)\s*$",
+            before,
+        )
         if match is None:
             return None
-        name = match.group(1)
-        start = match.start(1)
-        token_character = len(before[:start].encode("utf-16-le")) // 2
-        token = self._token_at(document, {"line": line, "character": token_character})
-        if token is None:
-            return None
-        index = self._index_for(uri)
-        if index is None:
-            return None
-        symbol = index.symbol_at(token)
-        signature = symbol.signature if symbol is not None else None
+        callee = match.group(1).replace(" ", "")
+        parts = callee.split(".")
+        name = parts[-1]
+        offset = self._offset_at(document.text, line, character)
+        statements = parse_for_completion(document.text, offset)
+        signature = None
+        if statements is not None:
+            context = SourceContext(statements, document.path)
+            if len(parts) == 1:
+                signature = context.function_signature(name)
+            else:
+                receiver = ".".join(parts[:-1])
+                signature = self._member_signature(
+                    context,
+                    statements,
+                    document,
+                    line,
+                    before,
+                    match.start(1),
+                    receiver,
+                    name,
+                    offset,
+                    uri,
+                )
         if signature is None:
             builtin = next((item for item in BUILTIN_DOCS if item.name == name), None)
             if builtin is None:
@@ -1134,6 +1186,126 @@ class Server:
             "activeSignature": 0,
             "activeParameter": active,
         }
+
+    def _member_signature(
+        self,
+        context: SourceContext,
+        statements: list[Stmt],
+        document: Document,
+        line: int,
+        before: str,
+        start: int,
+        receiver: str,
+        name: str,
+        offset: int,
+        uri: str,
+    ) -> str | None:
+        imported = context.imports.get(receiver)
+        if imported is not None and imported.public is None:
+            return context.namespace_signature(receiver, name)
+
+        last = receiver.rsplit(".", 1)[-1]
+        last_start = before.rfind(last, start, start + len(receiver) + 1)
+        token_character = len(before[:last_start].encode("utf-16-le")) // 2
+        token = self._token_at(document, {"line": line, "character": token_character})
+        ty = None
+        if token is not None:
+            index = self._index_for(uri)
+            if index is not None:
+                ty = index.type_at(token)
+        if ty is None:
+            ty = completion_declared_type(statements, last)
+        if receiver in {"this", "super"}:
+            _function, klass = completion_context(statements, offset)
+            if klass is not None:
+                target = klass if receiver == "this" else completion_superclass(statements, klass)
+                if target is not None:
+                    return context.method_signature(target, name)
+        if ty is not None:
+            return context.method_signature(ty, name)
+        return None
+
+    def _inlay_hint(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        if not self.inlay_hints:
+            return []
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return []
+        document_info = params.get("textDocument")
+        if not isinstance(document_info, dict):
+            return []
+        uri = document_info.get("uri")
+        if not isinstance(uri, str):
+            return []
+        document = self.documents.get(uri)
+        if document is None:
+            return []
+        index = self._index_for(uri)
+        if index is None or not self.clean.get(uri, False):
+            return []
+        hints: list[dict[str, object]] = []
+        for symbol in index.symbols:
+            if symbol.kind not in {"variable", "field"}:
+                continue
+            if symbol.annotated or symbol.type is None:
+                continue
+            if not self._symbol_in_document(symbol, document):
+                continue
+            label = display_source_type(symbol.type)
+            if label == "Any":
+                continue
+            position = self._after_name_position(document, symbol)
+            if position is None:
+                continue
+            hints.append(
+                {
+                    "position": position,
+                    "label": f": {label}",
+                    "kind": 1,
+                    "paddingLeft": False,
+                }
+            )
+        hints.sort(
+            key=lambda item: (
+                cast(dict[str, int], item["position"])["line"],
+                cast(dict[str, int], item["position"])["character"],
+            )
+        )
+        return hints
+
+    def _symbol_in_document(self, symbol: Symbol, document: Document) -> bool:
+        if not symbol.token.file:
+            return True
+        if document.path is None:
+            return True
+        token_path = Path(symbol.token.file)
+        candidates = [token_path]
+        if not token_path.is_absolute() and self.root is not None:
+            candidates.append(self.root / token_path)
+        try:
+            target = document.path.resolve()
+        except OSError:
+            return False
+        for candidate in candidates:
+            try:
+                if candidate.resolve() == target:
+                    return True
+            except OSError:
+                continue
+        return False
+
+    def _after_name_position(self, document: Document, symbol: Symbol) -> dict[str, int] | None:
+        data = document.text.encode("utf-8")
+        tail = data[symbol.token.offset :].decode("utf-8")
+        match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", tail)
+        if match is None:
+            return None
+        end = symbol.token.offset + len(match.group(0).encode("utf-8"))
+        prefix = data[:end].decode("utf-8")
+        line = prefix.count("\n")
+        last = prefix.rsplit("\n", 1)[-1]
+        character = len(last.encode("utf-16-le")) // 2
+        return {"line": line, "character": character}
 
     def _formatting(self, message: dict[str, Any]) -> list[dict[str, object]]:
         params = message.get("params")

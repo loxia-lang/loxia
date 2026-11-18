@@ -957,3 +957,17 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
 
 
 
+
+## 2026-11-18 — LSP: completion herdada, signature e inlay hints
+
+Intervalo: `b818f65` (fatia LSP). A única fonte de spec tocada é
+`loxia_core/semantics/checker.py`, e a mudança é só a visibilidade do helper
+`_element_type` → `element_type` (consumido pelo `SymbolIndex` para inlay hints); nenhum
+diagnóstico, tipo ou semântica de execução mudou.
+
+- `docs/spec/erros.md` — **no-change**: nenhum código/mensagem/fase de diagnóstico mudou.
+- `docs/spec/garantias.md` — **no-change**: I1–I4, corpus e backend intactos; LSP é tooling.
+- `docs/spec/semantica.md` — **no-change**: `element_type` já era a regra do `for-in`;
+  apenas virou método público para o LSP reutilizar.
+
+<!-- triaged: b818f65 -->
