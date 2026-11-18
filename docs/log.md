@@ -943,4 +943,17 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
 
 <!-- triaged: 9ad600f -->
 
+## 2026-11-17 — fuzzing e orçamento de monomorfização (M8)
+
+- `docs/spec/garantias.md` — **updated**: seção do orçamento de monomorfização (256/256/8/1024,
+  `E4003`, exit 65, sem artefato parcial e sem afetar o tree-walk).
+- `docs/spec/erros.md` — **updated**: `E4003` (gerado por `make codes`).
+- `docs/adr/README.md` — **updated**: ADR-0063 passa a “accepted (implemented)”.
+- `docs/adr/0063-orcamento-monomorfizacao.md` — **updated**: status/implementação e a seção de
+  medição do M8 (corpus e sintético).
+- `bench/README.md` — **updated**: números do `make monomorph`.
+
+<!-- triaged: fb3e95d -->
+
+
 
