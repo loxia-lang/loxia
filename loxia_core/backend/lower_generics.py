@@ -41,6 +41,94 @@ from loxia_core.frontend.ty import (
     display,
 )
 
+MAX_GENERIC_FUNCTIONS = 256
+MAX_GENERIC_CLASSES = 256
+MAX_GENERIC_TYPE_DEPTH = 8
+MAX_MANGLED_BYTES = 1024
+
+
+def _type_depth(ty: Ty) -> int:
+    """Profundidade de construtores de tipo (ADR-0063: teto 8)."""
+    if isinstance(ty, ClassTy):
+        return 1 + max((_type_depth(arg) for arg in ty.args), default=0)
+    if isinstance(ty, ListTy):
+        return 1 + _type_depth(ty.element)
+    if isinstance(ty, MapTy):
+        return 1 + max(_type_depth(ty.key), _type_depth(ty.value))
+    if isinstance(ty, TupleTy):
+        return 1 + max((_type_depth(item) for item in ty.items), default=0)
+    if isinstance(ty, UnionTy):
+        return max((_type_depth(member) for member in ty.members), default=0)
+    if isinstance(ty, FnTy):
+        nested = [_type_depth(param) for param in ty.params]
+        nested.append(_type_depth(ty.ret))
+        return 1 + max(nested, default=0)
+    return 0
+
+
+class MonomorphizationBudget:
+    """Teto determinístico de monomorfização (ADR-0063), por compilação."""
+
+    def __init__(
+        self,
+        *,
+        max_functions: int = MAX_GENERIC_FUNCTIONS,
+        max_classes: int = MAX_GENERIC_CLASSES,
+        max_depth: int = MAX_GENERIC_TYPE_DEPTH,
+        max_mangled_bytes: int = MAX_MANGLED_BYTES,
+    ) -> None:
+        self.max_functions = max_functions
+        self.max_classes = max_classes
+        self.max_depth = max_depth
+        self.max_mangled_bytes = max_mangled_bytes
+        self.functions = 0
+        self.classes = 0
+
+    def spend_function(
+        self,
+        type_args: tuple[Ty, ...],
+        llvm_name: str,
+        line: int | None,
+    ) -> None:
+        self.functions += 1
+        if self.functions > self.max_functions:
+            raise _budget_error(
+                "Too many generic instantiations "
+                f"(limit {self.max_functions}); simplify type arguments.",
+                line,
+            )
+        self._check(type_args, llvm_name, line)
+
+    def spend_class(self, type_args: tuple[Ty, ...], name: str, line: int | None) -> None:
+        self.classes += 1
+        if self.classes > self.max_classes:
+            raise _budget_error(
+                "Too many generic class instantiations "
+                f"(limit {self.max_classes}); simplify type arguments.",
+                line,
+            )
+        self._check(type_args, name, line)
+
+    def _check(self, type_args: tuple[Ty, ...], name: str, line: int | None) -> None:
+        for arg in type_args:
+            depth = _type_depth(arg)
+            if depth > self.max_depth:
+                raise _budget_error(
+                    "Generic type nesting is too deep "
+                    f"(limit {self.max_depth}); simplify type arguments.",
+                    line,
+                )
+        if len(name.encode("utf-8")) > self.max_mangled_bytes:
+            raise _budget_error(
+                "Mangled generic name is too long "
+                f"(limit {self.max_mangled_bytes} bytes); simplify type arguments.",
+                line,
+            )
+
+
+def _budget_error(message: str, line: int | None) -> BackendError:
+    return BackendError(message, line, code=Code.BACKEND_BUDGET)
+
 
 class GenericLowering(LoweringBase):
     def _prepare_generics(self, statements: list[Any]) -> None:
@@ -92,6 +180,7 @@ class GenericLowering(LoweringBase):
         if stmt is None:
             raise _unsupported(f"Generic class '{class_ty.name}'", None)
 
+        self.budget.spend_class(class_ty.args, key, stmt.name.line)
         names = [param.lexeme for param in stmt.type_params]
         if len(names) != len(class_ty.args):
             raise BackendError(
@@ -293,7 +382,13 @@ class GenericLowering(LoweringBase):
             )
         return dict(zip(names, type_args, strict=True))
 
-    def _generic_function(self, stmt: Function, type_args: tuple[Ty, ...]) -> FunctionInfo:
+    def _generic_function(
+        self,
+        stmt: Function,
+        type_args: tuple[Ty, ...],
+        *,
+        line: int | None = None,
+    ) -> FunctionInfo:
         name = stmt.name.lexeme
         key = (
             name,
@@ -303,13 +398,19 @@ class GenericLowering(LoweringBase):
         if info is not None:
             return info
 
+        llvm_name = f"lox.{name}${'$'.join(display(arg) for arg in type_args)}"
+        self.budget.spend_function(
+            type_args,
+            llvm_name,
+            line if line is not None else stmt.name.line,
+        )
         subst = self._generic_subst(stmt, type_args)
         saved = self._type_subst
         self._type_subst = subst
         try:
             info = self._function_info(
                 stmt,
-                llvm_name=f"lox.{name}${'$'.join(display(arg) for arg in type_args)}",
+                llvm_name=llvm_name,
                 allow_generic=True,
             )
             info = replace(info, type_subst=subst)
@@ -336,7 +437,7 @@ class GenericLowering(LoweringBase):
                 expr.paren.line,
             )
 
-        info = self._generic_function(stmt, type_args)
+        info = self._generic_function(stmt, type_args, line=expr.paren.line)
         arguments = [self._expr(argument) for argument in expr.arguments]
         prepared = self._prepare_call_arguments(
             info.fn_sig, info, arguments, expr.spread, expr.paren

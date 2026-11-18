@@ -30,7 +30,7 @@ from loxia_core.backend.lower_containers import ContainerLowering
 from loxia_core.backend.lower_enums import EnumLowering
 from loxia_core.backend.lower_exceptions import ExceptionLowering
 from loxia_core.backend.lower_functions import FunctionLowering
-from loxia_core.backend.lower_generics import GenericLowering
+from loxia_core.backend.lower_generics import GenericLowering, MonomorphizationBudget
 from loxia_core.backend.lower_instances import InstanceLowering
 from loxia_core.backend.lower_math import MathLowering
 from loxia_core.backend.lower_model import (
@@ -150,6 +150,7 @@ class Lowerer(
         self._runtime: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
         self._displays: dict[str, Any] = {}
+        self.budget = MonomorphizationBudget()
         self._poison_count = 0
         self._string_count = 0
         self._function_counter = 0

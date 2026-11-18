@@ -111,7 +111,7 @@ TODO item.
 | [0060](0060-orcamento-de-memoria.md) | Memory budget (64 MiB arena) in the contract | superseded by [0074](0074-gc-boehm-e-contrato-de-memoria.md) | 2026-11-13 |
 | [0061](0061-l6-enums-match.md) | L6i: enums, `Result` and `match` | accepted | 2026-11-13 |
 | [0062](0062-l6-excecoes-unwinding.md) | L6j: exceptions, unwinding ABI and cleanup | accepted | 2026-11-13 |
-| [0063](0063-orcamento-monomorfizacao.md) | Monomorphization budget and generic value | accepted | 2026-11-13 |
+| [0063](0063-orcamento-monomorfizacao.md) | Monomorphization budget and generic value | accepted (implemented) | 2026-11-13 |
 | [0064](0064-orcamento-do-corpus.md) | Corpus ceiling: 5% for `PENDING` and the I1 promise | accepted | 2026-11-13 |
 | [0065](0065-hir-lite-controle.md) | HIR-lite: scope, trigger and not doing full HIR | accepted | 2026-11-13 |
 | [0066](0066-orcamento-e-gate-sintatico.md) | Syntax budget and gate: ceilings, non-goals and human approval | accepted | 2026-11-13 |

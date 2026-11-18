@@ -5,7 +5,7 @@ FILE ?=
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -32,6 +32,8 @@ help:
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
 	@echo "make bench-native              benchmarks do binário nativo (--emit=exe)"
+	@echo "make monomorph                 mede o orçamento de monomorfização (ADR-0063)"
+	@echo "make fuzz                      roda o fuzzing do scanner/parser (hypothesis)"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:

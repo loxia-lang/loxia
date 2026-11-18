@@ -109,6 +109,20 @@ environment.
   channel, the message and the exit code. Programs that print before overflowing do not have the
   stdout prefix covered by I1.
 
+#### Monomorphization budget ([ADR-0063](../adr/0063-orcamento-monomorfizacao.md))
+
+The native backend monomorphizes generics; each specialization costs code. Per compilation:
+
+- at most **256** specialized functions and **256** specialized class layouts;
+- generic type nesting up to **8** constructors;
+- a mangled generic name up to **1024 bytes**.
+
+Exceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and
+no partial object/binary. The checker still accepts the program and the tree-walk is
+unaffected. The initial limits were validated against the corpus and a synthetic nesting
+case (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and
+~0.33 s locally); see [`bench/README.md`](../../bench/README.md).
+
 ### I2 — Nothing happens implicitly
 
 No conversion, coercion, truncation, rounding, truthiness or fallback happens

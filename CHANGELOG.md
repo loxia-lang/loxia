@@ -7,6 +7,16 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Fuzzing do front-end** (TODO §7/§14.0): `hypothesis` como dependência de dev e
+  `tests/test_fuzz.py` com propriedades determinísticas — texto arbitrário e sopa de tokens
+  nunca derrubam scanner/parser, posições ficam dentro da fonte e duas execuções produzem
+  os mesmos bytes; `make fuzz` roda a suíte. O CI padrão já executa os exemplos fixos.
+- **Orçamento de monomorfização (M8)** ([ADR-0063](docs/adr/0063-orcamento-monomorfizacao.md)):
+  teto determinístico de 256 funções especializadas, 256 layouts de classe, profundidade 8
+  e nome mangled de 1024 bytes, com `E4003`/exit 65 e sem artefato parcial. `make monomorph`
+  mede o corpus (máx. 15 funções/4 classes) e o sintético (256 = 1,2 MiB/~0,33 s); o teto
+  fica ~17x acima do corpus.
+
 - **Scaffolding `loxia new`/`init`** ([ADR-0106](docs/adr/0106-scaffolding-new-init.md)):
   cria o projeto mínimo e determinístico (`loxia.toml`, `.gitignore`, `src/main.lx` e um
   `loxia.lock` vazio), com `git init` por padrão (`--no-git` desliga, nunca repo aninhado),

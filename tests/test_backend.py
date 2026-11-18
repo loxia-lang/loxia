@@ -1548,3 +1548,129 @@ def test_monorepo_do_exemplo_compila_nos_dois_motores(tmp_path: Path) -> None:
 
     assert native.stdout == interpreted.stdout == "42\n"
     assert native.returncode == interpreted.returncode == 0
+
+
+def _budget_program(count: int) -> str:
+    lines = ["fn id[T](x: T) -> T { return x }"]
+    lines.extend(f"class C{index} {{ }}" for index in range(count))
+    lines.extend(f"print(id(C{index}()))" for index in range(count))
+    return "\n".join(lines) + "\n"
+
+
+@pytest.mark.backend
+def test_orcamento_de_monomorfizacao_no_limite_compila(tmp_path: Path) -> None:
+    path = _write(tmp_path, _budget_program(256))
+    output = tmp_path / "budget.ll"
+
+    result = _run(
+        [sys.executable, str(ENTRYPOINT), "build", str(path), "--emit=ll", "-o", str(output)]
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert output.is_file()
+
+
+@pytest.mark.backend
+def test_orcamento_de_monomorfizacao_recusa_a_instanciacao_257(tmp_path: Path) -> None:
+    path = _write(tmp_path, _budget_program(257))
+    output = tmp_path / "budget.ll"
+
+    result = _run(
+        [sys.executable, str(ENTRYPOINT), "build", str(path), "--emit=ll", "-o", str(output)]
+    )
+
+    assert result.returncode == 65
+    assert "error[E4003]" in result.stderr
+    assert "Too many generic instantiations (limit 256)" in result.stderr
+    assert not output.exists()
+
+
+@pytest.mark.backend
+def test_orcamento_recusa_tipo_aninhado_alem_de_8(tmp_path: Path) -> None:
+    depth = "Int"
+    value = "1"
+    for _ in range(9):
+        depth = f"List[{depth}]"
+        value = f"[{value}]"
+    source = f"fn id[T](x: T) -> T {{ return x }}\nval x: {depth} = {value}\nprint(id(x))\n"
+    path = _write(tmp_path, source)
+
+    result = _run([sys.executable, str(ENTRYPOINT), "build", str(path), "--emit=ll"])
+
+    assert result.returncode == 65
+    assert "error[E4003]" in result.stderr
+    assert "nesting is too deep (limit 8)" in result.stderr
+
+
+@pytest.mark.backend
+def test_orcamento_recusa_nome_mangled_acima_de_1024_bytes(tmp_path: Path) -> None:
+    name = "A" * 1100
+    source = f"fn id[T](x: T) -> T {{ return x }}\nclass {name} {{ }}\nprint(id({name}()))\n"
+    path = _write(tmp_path, source)
+
+    result = _run([sys.executable, str(ENTRYPOINT), "build", str(path), "--emit=ll"])
+
+    assert result.returncode == 65
+    assert "error[E4003]" in result.stderr
+    assert "Mangled generic name is too long" in result.stderr
+
+
+def test_orcamento_unitario_de_funcoes_classes_e_profundidade() -> None:
+    from loxia_core.backend.lower_generics import MonomorphizationBudget
+    from loxia_core.backend.lower_model import BackendError
+    from loxia_core.frontend.ty import ClassTy
+
+    budget = MonomorphizationBudget(
+        max_functions=1,
+        max_classes=1,
+        max_depth=1,
+        max_mangled_bytes=8,
+    )
+    budget.spend_function((ClassTy("C"),), "id$C", 1)
+    with pytest.raises(BackendError) as too_many:
+        budget.spend_function((ClassTy("D"),), "id$D", 1)
+    assert too_many.value.code.value == "E4003"
+
+    budget.spend_class((ClassTy("C"),), "Box$C", 1)
+    with pytest.raises(BackendError) as too_many_classes:
+        budget.spend_class((ClassTy("D"),), "Box$D", 1)
+    assert too_many_classes.value.code.value == "E4003"
+
+    depth_budget = MonomorphizationBudget(
+        max_functions=2,
+        max_classes=2,
+        max_depth=1,
+        max_mangled_bytes=8,
+    )
+    with pytest.raises(BackendError) as too_deep:
+        depth_budget.spend_function((ClassTy("C", (ClassTy("D"),)),), "id$C", 1)
+    assert "nesting is too deep" in str(too_deep.value)
+
+    mangled_budget = MonomorphizationBudget(
+        max_functions=2,
+        max_classes=2,
+        max_depth=8,
+        max_mangled_bytes=8,
+    )
+    with pytest.raises(BackendError) as too_long:
+        mangled_budget.spend_function((ClassTy("C"),), "id$" + "x" * 9, 1)
+    assert "Mangled generic name is too long" in str(too_long.value)
+
+
+@pytest.mark.backend
+def test_orcamento_de_classes_genericas_recusa_a_instanciacao_257(tmp_path: Path) -> None:
+    lines = [
+        "class Box[T] {",
+        "  var value: T",
+        "  init(value: T) { this.value = value }",
+        "}",
+    ]
+    lines.extend(f"class C{index} {{ }}" for index in range(257))
+    lines.extend(f"print(Box(C{index}()))" for index in range(257))
+    path = _write(tmp_path, "\n".join(lines) + "\n")
+
+    result = _run([sys.executable, str(ENTRYPOINT), "build", str(path), "--emit=ll"])
+
+    assert result.returncode == 65
+    assert "error[E4003]" in result.stderr
+    assert "Too many generic class instantiations (limit 256)" in result.stderr

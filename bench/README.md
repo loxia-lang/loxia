@@ -43,3 +43,17 @@ Leitura: o ganho é enorme em chamadas, classes, enums, float e laços; `collect
 `string_concat` continuam presos ao custo de alocação/GC e ao algoritmo de concatenação
 O(n²), não ao codegen. `string_scan` usa `join` + `charCodeAt` e mede a melhora do cache de
 code points. Os números >100x são limitados pelo startup do binário (~1 ms).
+
+## Orçamento de monomorfização (2026-11-17)
+
+`make monomorph` (local, não é gate) mede o que o corpus pede e o custo do teto do
+[ADR-0063](../docs/adr/0063-orcamento-monomorfizacao.md):
+
+- replay do corpus (`tests/cases`, 163 casos medidos; 105 pulados por import/erro de
+  `--check`): máximo de **15** funções especializadas, **4** layouts de classe,
+  profundidade **1** e nome mangled **25 bytes**;
+- sintético (`N` classes + `N` chamadas `id(Ci())`): 16 → 80 KiB, 64 → 299 KiB,
+  128 → 593 KiB, 256 → **1.183 KiB em ~327 ms**; 257 é recusado com `E4003`.
+
+Conclusão: os limites iniciais (256 funções, 256 classes, profundidade 8, 1024 bytes)
+ficam ~17x acima do maior caso do corpus e o teto custa ~1,2 MiB/~0,33 s nesta máquina.

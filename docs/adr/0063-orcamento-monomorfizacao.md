@@ -1,10 +1,12 @@
 # ADR-0063 — Orçamento de monomorfização e política para M8
 
-- **Status:** accepted
+- **Status:** accepted (implemented)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0027](0027-generics-t3b.md), [ADR-0050](0050-monomorfizacao-t7.md),
   [`../../TODO.md`](../../TODO.md) §6/§9
+- **Implementação:** `loxia_core/backend/lower_generics.py` (`MonomorphizationBudget`),
+  `loxia/cli.py` (diagnóstico `E4003`), `tests/test_backend.py` e `bench/monomorph.py`
 
 ## Contexto
 

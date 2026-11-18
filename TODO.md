@@ -20,7 +20,8 @@ backend. O que já foi implementado **não fica aqui**: vira ADR, [`docs/spec/`]
 
 ## 0. Fila única
 
-A fila ativa é curta: **M8/M9**, **tooling de editor** e a trilha de publicação (§14).
+A fila ativa é curta: **M9**, **tooling de editor** e a trilha de publicação (§14); o M8
+fechou com bench local e orçamento de monomorfização (ADR-0063).
 LSP-2 e o lote de fixes estão fechados; dogfood/self-hosting ficam para depois do repo
 público e documentado ([`IDEIAS.md`](IDEIAS.md)).
 O status por nível é **gerado** em [`docs/spec/garantias.md`](docs/spec/garantias.md) a
@@ -29,7 +30,8 @@ partir de [`tests/corpus_manifest.py`](tests/corpus_manifest.py) — não copie 
 
 ### 0.2 Ordem de execução
 
-1. [ ] **M8** (`P2`): performance restante; JIT no REPL é P3 e não bloqueia.
+1. [x] **M8** (`P2`): performance fechada — `-O2`, bench local e orçamento de
+       monomorfização (ADR-0063); JIT no REPL é P3 e não bloqueia.
 2. [ ] **M9** (`P2`): ecossistema — site, playground e publicação do cliente de editor
        (ADRs 0090–0093; §7 e §14).
 3. [ ] **Publicação** (`P2`, paralela): §14 (repo privado pronto; falta 1.1.0, flip, site, MCP e distribuição).
@@ -54,7 +56,7 @@ imports para `print`).
 ## 7. Tooling e qualidade
 
 - [ ] `P3` tree-sitter grammar (complemento do LSP; não substitui).
-- [ ] `P3` fuzzing do scanner/parser com `hypothesis`.
+- [x] Fuzzing do scanner/parser com `hypothesis` (`tests/test_fuzz.py`, `make fuzz`).
 - [ ] `P3` snapshot de AST em arquivo.
 - [ ] `P3` site publicado a partir de `docs/` — ver §14.2 (stack, i18n e gate).
 - [ ] `P3` servidor MCP (`loxia-mcp`) — ver §14.3; depende do CLI agent-friendly acima.
@@ -67,7 +69,7 @@ M0–M7 estão fechados (ver [`docs/decisoes.md`](docs/decisoes.md)). Falta:
 
 | # | Marco | Critério de pronto | Estado |
 | --- | --- | --- | --- |
-| **M8** | Performance | `-O2` e benchmarks feitos; JIT no REPL é P3 e não bloqueia | 🟡 |
+| **M8** | Performance | `-O2` e benchmarks feitos; orçamento de monomorfização implementado/medido (ADR-0063); JIT no REPL é P3 e não bloqueia | ✅ |
 | **M9** | Ecossistema | formatter, LSP, docs e playground — escopo definido nos [ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md) a [ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md) | 🟡 |
 
 **Regra:** a ordem oficial é a §0. Se algo mudar a semântica de um nível já compilado, o
@@ -247,10 +249,10 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 | --- | --- | --- | --- |
 | **LSP residual** | diagnostics, hover, completion, codeAction, rename e workspace symbols | rename cross-file plenamente semântico, membros herdados na completion, signatureHelp de método importado e `inlayHint` | **P1** |
 | **MCP** | contrato do CLI pronto (`--json`, `explain`, `capabilities`, `fix`) | servidor `loxia-mcp` ainda não existe | **P1** |
-| **Robustez** | diferencial I1, determinismo e docs | fuzzing do scanner/parser antes do público, snapshots e LSP contra código incompleto | **P1** |
+| **Robustez** | diferencial I1, determinismo, docs e fuzzing do front-end | snapshots de AST e LSP contra código incompleto | **P1** |
 | **Debugger/playground** | — | DAP no tree-walk e playground WASM | P2/P3 |
 | **Conformância** | corpus interno maduro | extrair `loxia-conformance` e runner genérico para outras implementações | P2 |
-| **Performance** | bench local e baseline | M8 restante; suíte pública só depois do release | P2 |
+| **Performance** | bench local/baseline e orçamento de monomorfização medido (M8 ✅) | suíte pública de benchmarks só depois do release | P2 |
 | **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities`, `lsp`, `repl`, `new`/`init` ([ADR-0106](docs/adr/0106-scaffolding-new-init.md)) | `loxia add`/`remove` (depois de stdlib de TOML) | P3 |
 
 

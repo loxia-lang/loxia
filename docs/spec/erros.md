@@ -302,6 +302,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | --- | --- |
 | `E4001` | not supported by the backend yet |
 | `E4002` | backend internal error/verification/link |
+| `E4003` | generic instantiation budget exceeded |
 
 ### Runtime
 
