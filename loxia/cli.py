@@ -69,6 +69,8 @@ JSON_ON_STDOUT = frozenset({"check"})
 COMMANDS = (
     "run",
     "repl",
+    "new",
+    "init",
     "check",
     "build",
     "ast",
@@ -716,6 +718,19 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_debug: bool 
     parser.set_defaults(error_format_explicit=False)
 
 
+def _add_scaffold_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--name",
+        metavar="NOME",
+        help="nome do pacote (default: nome do diretório, normalizado para identificador)",
+    )
+    parser.add_argument(
+        "--no-git",
+        action="store_true",
+        help="não inicializa um repositório git no projeto",
+    )
+
+
 def _add_dependency_options(
     parser: argparse.ArgumentParser,
     *,
@@ -778,8 +793,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Loxia: interpretador tree-walk com backend LLVM opcional",
         usage="%(prog)s [opções] [script]",
         epilog=(
-            "subcomandos: run, repl, check, build, ast, fmt, doc, explain, capabilities, "
-            "lsp, test, fix (use 'loxia <comando> --help')"
+            "subcomandos: run, repl, new, init, check, build, ast, fmt, doc, explain, "
+            "capabilities, lsp, test, fix, lock, fetch (use 'loxia <comando> --help')"
         ),
     )
     parser.add_argument(
@@ -856,6 +871,19 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
     elif command == "repl":
         # Sessão interativa (ou stream em pipe): não há arquivo de entrada.
         _add_common_options(parser, include_debug=True)
+    elif command == "new":
+        _add_common_options(parser)
+        _add_scaffold_options(parser)
+        parser.add_argument("path", help="diretório do projeto (não pode existir)")
+    elif command == "init":
+        _add_common_options(parser)
+        _add_scaffold_options(parser)
+        parser.add_argument(
+            "path",
+            nargs="?",
+            default=".",
+            help="diretório existente para inicializar (default: .)",
+        )
     elif command == "build":
         _add_common_options(parser)
         parser.add_argument(
@@ -1226,6 +1254,55 @@ def _run_doc(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         sys.exit(65)
 
 
+def _run_scaffold(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+    *,
+    command: str,
+) -> None:
+    from loxia.scaffold import ScaffoldError, create, validate_name
+
+    _validate(args, parser, command=command)
+    lox = _make_loxia(args)
+    if args.name is not None:
+        try:
+            validate_name(args.name)
+        except ScaffoldError as error:
+            parser.error(error.message)
+    target = Path(args.path)
+    try:
+        project = create(
+            target,
+            name=args.name,
+            git=not args.no_git,
+            require_new=command == "new",
+        )
+    except ScaffoldError as error:
+        lox.reporter.error(
+            _manifest_token(target / "loxia.toml"),
+            error.message,
+            code=Code.SCAFFOLD_STATE,
+        )
+        lox._flush(command, exit_code=65, always=True)
+        sys.exit(65)
+    shown = display_path(project.path)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "path": shown,
+                    "name": project.name,
+                    "files": list(project.files),
+                    "git": project.git_initialized,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return
+    verb = "Created" if command == "new" else "Initialized"
+    print(f"{verb} project '{project.name}' at '{shown}'.")
+
+
 def _dependency_failure(
     lox: Loxia,
     command: str,
@@ -1375,6 +1452,8 @@ def _capabilities_payload() -> dict[str, object]:
             "name": "repl",
             "features": ["json", "json-lines", "debug", "module-path"],
         },
+        {"name": "new", "features": ["name", "no-git", "json"]},
+        {"name": "init", "features": ["name", "no-git", "json"]},
         {
             "name": "check",
             "features": [
@@ -1540,6 +1619,10 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
 
     if command == "doc":
         _run_doc(args, parser)
+        return
+
+    if command in {"new", "init"}:
+        _run_scaffold(args, parser, command=command)
         return
 
     if command == "lock":

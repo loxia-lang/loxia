@@ -52,7 +52,8 @@ Packages by phase (dependency only downward):
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
-| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcommands, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restricted to `check`, `lock`/`fetch`, `--frozen`/`--offline`/`--cache-dir`, warnings, `doc` and exit codes |
+| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcommands, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restricted to `check`, `new`/`init`, `lock`/`fetch`, `--frozen`/`--offline`/`--cache-dir`, warnings, `doc` and exit codes |
+| [`loxia/scaffold.py`](../../loxia/scaffold.py) | `loxia new`/`init` (ADR-0106): minimal deterministic template, name normalization, `git init` and empty lock |
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |

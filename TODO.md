@@ -173,6 +173,10 @@ pendências de tipo: [`TIPOS.md`](TIPOS.md).
    ([ADR-0089](docs/adr/0089-stack-trace-de-runtime.md)).
 8. **Cleanup de exceções:** `finally` cobre o corpus; cleanup dinâmico completo em
    `raise` através de frames aninhados é dívida declarada, não bloqueia a stdlib.
+9. **TOML na stdlib e `loxia add`:** implementar `add` com edição de manifest exige um
+   writer de TOML; hoje o §13 lista YAML/TOML como fora. Decidir se TOML entra na stdlib
+   (e com que escopo: parse + write canônico preservando comentários) antes de `add`;
+   registry continua a fase 3 do §14.7.
 ---
 
 
@@ -257,7 +261,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 | **Debugger/playground** | — | DAP no tree-walk e playground WASM | P2/P3 |
 | **Conformância** | corpus interno maduro | extrair `loxia-conformance` e runner genérico para outras implementações | P2 |
 | **Performance** | bench local e baseline | M8 restante; suíte pública só depois do release | P2 |
-| **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities`, `lsp` e `repl` | `loxia new`/scaffold | P3 |
+| **Tooling menor** | `fmt`, `test`, `fix`, `doc`, `explain`, `capabilities`, `lsp`, `repl`, `new`/`init` ([ADR-0106](docs/adr/0106-scaffolding-new-init.md)) | `loxia add`/`remove` (depois de stdlib de TOML) | P3 |
 
 
 
@@ -447,6 +451,10 @@ não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
       `dep = { git = "...", rev = "..." }` (commit completo ou tag, nunca branch), lock com
       `commit` resolvido, mirror bare + checkout limpo em `.loxia/cache`, `fetch`/`--offline`
       e `run` sem rede. `examples/monorepo/` compila nos dois motores (teste backend).
+- [ ] **Fase 2.5 — `loxia add` (path/git)**: seria útil já sem registry (`add acme --path ../acme`
+      e `add acme --git URL --rev X`, depois `lock`), mas editar `loxia.toml` preservando
+      comentários/ordem exige writer de TOML. Fica para depois de uma stdlib de TOML (hoje
+      YAML/TOML estão **fora** no §13); até lá o fluxo é editar à mão + `loxia lock`.
 - [ ] **Fase 3 — índice estático**: índice *sparse* (JSON por pacote) + tarball por versão +
       `loxia add nome@1.2`. **Só entra com demanda de terceiro**; hospedar é barato, moderar
       nome não.

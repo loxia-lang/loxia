@@ -330,6 +330,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | --- | --- |
 | `C0001` | execution timeout exceeded |
 | `C0002` | lockfile or dependency state (missing, stale, not fetched) |
+| `C0003` | project scaffolding (existing target, conflict, git) |
 
 <!-- codes:end -->
 

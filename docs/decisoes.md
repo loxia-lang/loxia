@@ -170,6 +170,10 @@ O [ADR-0105](adr/0105-dependencias-git.md) fechou a fase 2: `acme = { git = "...
 (rev = commit completo ou tag; branch nunca), lock com `commit` resolvido, mirror bare e
 checkout limpo em `.loxia/cache` (`--cache-dir` troca), `loxia fetch` materializa e
 `--offline` usa só o cache; `run` exige checkout já baixado. Registry (fase 3) segue em
-[`../TODO.md`](../TODO.md) §14.7.
+[`../TODO.md`](../TODO.md) §14.7. O [ADR-0106](adr/0106-scaffolding-new-init.md) fechou o
+scaffolding: `loxia new NAME`/`loxia init [DIR]` criam `loxia.toml`, `.gitignore`,
+`src/main.lx` e um `loxia.lock` vazio, com `git init` por padrão (`--no-git` desliga, sem
+repo aninhado), nome normalizado/`--name` e `--json`; `loxia add` fica para depois de uma
+stdlib de TOML (hoje fora do §13) e o registry segue a fase 3.
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

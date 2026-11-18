@@ -531,7 +531,8 @@ import std.json           # raiz reservada, embutida no wheel
 
 ## I-10 — Gerenciador de pacotes (o "uv" da Loxia)
 
-**Status:** `em avaliação` — fases 1–4 em roadmap.
+**Status:** `em avaliação` — fases 1–2 entregues (ADRs 0104/0105) e `new`/`init` no
+[ADR-0106](docs/adr/0106-scaffolding-new-init.md); `add` espera uma stdlib de TOML; fases 3–4 em roadmap.
 **Decidir até:** fase 1 antes do primeiro `loxia add`; fase 3 só com demanda real.
 
 ### A pergunta

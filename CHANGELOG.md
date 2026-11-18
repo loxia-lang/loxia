@@ -7,6 +7,11 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Scaffolding `loxia new`/`init`** ([ADR-0106](docs/adr/0106-scaffolding-new-init.md)):
+  cria o projeto mínimo e determinístico (`loxia.toml`, `.gitignore`, `src/main.lx` e um
+  `loxia.lock` vazio), com `git init` por padrão (`--no-git` desliga, nunca repo aninhado),
+  nome normalizado/`--name`, `--json` e erro `C0003` para alvo/estado inválido.
+
 - **Dependências `git`** (fase 2 do §14.7, [ADR-0105](docs/adr/0105-dependencias-git.md)):
   `acme = { git = "...", rev = "..." }` com commit completo ou tag (branch nunca), lock com
   `commit` resolvido (tag móvel não muda o build) e `version` obrigatória no manifest da

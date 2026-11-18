@@ -154,6 +154,7 @@ TODO item.
 | [0103](0103-site-de-documentacao-e-versionamento.md) | Documentation site: Starlight, staging and reference version | accepted (implemented; deploy on the flip) | 2026-11-17 |
 | [0104](0104-lock-e-frozen.md) | Package lock: tree hash, `--frozen`, local cache and `C0002` | accepted (implemented) | 2026-11-17 |
 | [0105](0105-dependencias-git.md) | Git dependencies: pinned `rev`, bare mirror, clean checkout and offline fetch | accepted (implemented) | 2026-11-17 |
+| [0106](0106-scaffolding-new-init.md) | Scaffolding: `loxia new`/`init`, minimal template, git and name rules | accepted (implemented) | 2026-11-17 |
 
 
 ## Next decisions that call for an ADR

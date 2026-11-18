@@ -104,6 +104,8 @@ work, the native backend is not promised there.
 ```bash
 uv run loxia                       # REPL
 uv run loxia repl                  # REPL as an explicit subcommand
+uv run loxia new hello             # project scaffold (loxia.toml, .gitignore, src/main.lx, lock)
+uv run loxia run hello/src/main.lx
 uv run loxia hello.lx              # run a file
 uv run loxia check hello.lx        # type-check only
 uv run loxia build hello.lx --emit=exe -o hello
@@ -118,6 +120,8 @@ uv run loxia --version             # loxia 1.0.0
 | --- | --- | --- |
 | `loxia run FILE` | Execute a program | `--debug`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--json` |
+| `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--json` |
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
@@ -132,6 +136,10 @@ uv run loxia --version             # loxia 1.0.0
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
 
 Global compatibility flags: `--check`, `--dump-ast`, `--debug`, `--version`, `--color`.
+
+`loxia new` writes a minimal, deterministic template and runs `git init` unless
+`--no-git` is given (never inside an existing repository); `loxia init` does the same in an
+existing directory and never overwrites files. Both accept `--json` for tooling.
 
 Exit codes: `65` compilation error, `70` runtime error, `66` missing file, `2` invalid
 usage, `1` for a `--check`/`lock --check` difference, `124` timeout, `130` interrupted
