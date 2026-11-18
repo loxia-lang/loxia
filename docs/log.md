@@ -933,3 +933,14 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
 
 <!-- triaged: a4fe6d1 -->
 
+## 2026-11-17 — scaffolding `loxia new`/`init`
+
+- `docs/spec/erros.md` — **updated**: `C0003` (gerado por `make codes`).
+- `docs/tech/arquitetura.md` — **updated**: `loxia/scaffold.py` e `new`/`init` na linha
+  do CLI.
+- `docs/decisoes.md` — **updated**: linha do ADR-0106.
+- `docs/adr/README.md` — **updated**: índice com o ADR-0106.
+
+<!-- triaged: 9ad600f -->
+
+
