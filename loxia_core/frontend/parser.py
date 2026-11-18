@@ -100,14 +100,23 @@ class Parser:
     def parse(self) -> list[Stmt] | None:
         statements: list[Stmt] = []
         while not self._is_at_end():
-            declaration = self._declaration()
+            try:
+                declaration = self._declaration()
+            except RecursionError:
+                # Deeply nested input (`[[[[...`) exhausts the Python stack before the
+                # parser can build an AST. It is a syntax error, not a crash.
+                self.reporter.error(self._peek(), "Too deeply nested.", code=Code.SYNTAX_UNEXPECTED)
+                break
             if declaration is not None:
                 statements.append(declaration)
 
         return statements
 
     def parse_expression(self) -> Expr:
-        expr = self._expression()
+        try:
+            expr = self._expression()
+        except RecursionError:
+            raise self._error(self._peek(), "Too deeply nested.") from None
         if not self._is_at_end():
             raise self._error(self._peek(), "Expect end of interpolation.")
 
@@ -145,6 +154,9 @@ class Parser:
                 )
                 return [Expression(call)]
         except ParseError:
+            pass
+        except RecursionError:
+            # Fall through to the statement parser, which reports "Too deeply nested.".
             pass
 
         # Rollback: restaura a posição dos tokens e descarta os diagnósticos do teste

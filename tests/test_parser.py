@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from loxia_core.frontend.ast_printer import AstPrinter
@@ -685,3 +687,22 @@ def test_try_and_raise_parse() -> None:
     assert isinstance(first.body[0], Raise)
     assert first.body[0].value is not None
     assert AstPrinter().print_program(statements).startswith("(try")
+
+
+def test_deeply_nested_input_is_a_syntax_error_and_not_a_crash() -> None:
+    # Found by the Atheris target (`fuzz/fuzz_frontend.py`): the recursive descent parser
+    # exhausted the Python stack on `[[[[...` before it could report anything. The limit
+    # is pinned here because the interpreter raises it globally (`execution/limits.py`).
+    previous = sys.getrecursionlimit()
+    sys.setrecursionlimit(2000)
+    try:
+        parser = parser_for("[" * 300)
+        statements = parser.parse()
+    finally:
+        sys.setrecursionlimit(previous)
+
+    assert statements == []
+    assert parser.reporter.had_error
+    assert "Too deeply nested." in [
+        diagnostic.message for diagnostic in parser.reporter.batch().diagnostics
+    ]
