@@ -1,0 +1,66 @@
+name: Attest release
+
+# Adds the signed provenance statement to an existing GitHub Release as a
+# `*.intoto.jsonl` asset. The release build already creates a GitHub attestation (the
+# bundle with the DSSE envelope over the wheel and the sdist); this workflow turns that
+# bundle into the in-toto JSONL file that consumers and the OpenSSF Scorecard expect.
+#
+# The release workflow writes the asset directly for new releases. This one exists for
+# releases cut before that step, starting with v1.1.0.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (for example v1.1.0)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    name: Attest ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # upload the provenance asset to the release
+      id-token: write # OIDC token for the attestation
+      attestations: write # store the attestation in the repository
+    steps:
+      - name: Download the release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --pattern '*.whl' --pattern '*.tar.gz' --dir dist
+
+      - name: Attest build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "dist/*"
+
+      - name: Write the in-toto JSONL asset
+        env:
+          TAG: ${{ inputs.tag }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["BUNDLE"], encoding="utf-8") as handle:
+              bundle = json.load(handle)
+          envelope = bundle.get("dsseEnvelope") or bundle.get("envelope") or bundle
+          version = os.environ["TAG"].removeprefix("v")
+          with open(f"dist/loxia-{version}.intoto.jsonl", "w", encoding="utf-8") as handle:
+              handle.write(json.dumps(envelope, separators=(",", ":")) + "\n")
+          PY
+
+      - name: Upload the provenance asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release upload "$TAG" dist/*.intoto.jsonl --clobber

@@ -116,10 +116,32 @@ jobs:
         # GitHub's provenance action is available for public repositories (or private ones
         # with GHAS). The 1.1.0 cut may happen before the flip; PyPI's PEP 740 attestation
         # still applies, and the GitHub attestation starts with the first public release.
+        id: attest
         if: github.event.repository.visibility == 'public'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: "dist/*"
+
+      - name: Write the release provenance asset
+        # The attestation bundle is a DSSE envelope over the in-toto statement; the
+        # `.intoto.jsonl` asset is the same statement in the format consumers (and the
+        # OpenSSF Scorecard Signed-Releases check) look for on the release.
+        if: github.event.repository.visibility == 'public'
+        env:
+          VERSION: ${{ inputs.version }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["BUNDLE"], encoding="utf-8") as handle:
+              bundle = json.load(handle)
+          envelope = bundle.get("dsseEnvelope") or bundle.get("envelope") or bundle
+          path = f"dist/loxia-{os.environ['VERSION']}.intoto.jsonl"
+          with open(path, "w", encoding="utf-8") as handle:
+              handle.write(json.dumps(envelope, separators=(",", ":")) + "\n")
+          PY
 
       - name: Store artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
