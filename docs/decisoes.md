@@ -5,13 +5,12 @@ sources:
 
 # Decisões já tomadas
 
-Registro executivo das decisões **fechadas** que antes ficavam misturadas com as abertas
-no `TODO.md` §11. A fonte de verdade continua sendo o ADR (ou o documento indicado); este
-arquivo existe para consulta rápida e para o `TODO.md` ficar só com o que ainda precisa de
+Registro executivo das decisões **fechadas**. A fonte de verdade continua sendo o ADR (ou o documento indicado); este
+arquivo existe para consulta rápida e para o roadmap ficar só com o que ainda precisa de
 decisão.
 
 > **Regra:** decisão nova → ADR (quando relevante) + linha aqui. Discussão ainda aberta →
-> [`../IDEIAS.md`](../IDEIAS.md)/[`../TODO.md`](../TODO.md) §11; não entra neste arquivo.
+> Discussions › Ideas ou uma issue `decision`; não entra neste arquivo.
 
 ## Linguagem e semântica
 
@@ -58,7 +57,7 @@ decisão.
 | Overflow no debug | `--debug` checa `+ - * ** -`, `INT_MIN // -1` e `% -1`; overflow é erro fatal (exit 70); release continua wrapping; shifts não checam. | [ADR-0028](adr/0028-overflow-debug.md) |
 | Conversões e `math` | `as` explícito (`Int`/`Float`/`Any`/classe/lista/mapa); `Float as Int` trunca e falha em NaN/Inf/range; `Int.parse`/`Float.parse` devolvem `T?`; `math.*` determinístico com abs/min/max/clamp/floor/ceil/round/trunc/sqrt; transcendentais fora do I3. | [ADR-0029](adr/0029-conversoes-math.md) |
 | Tuplas | `(a, b)`/`(A, B)`, `t[i]` (literal com bounds no `--check`; dinâmico vira união), `val`/`var (a, b) = t` com anotação opcional, 2+ elementos, imutáveis e **covariantes**; igualdade/`len`/formatação; `for-in`/`is`/`as` e backend (L6) pendentes; não hasháveis. | [ADR-0030](adr/0030-tuplas.md), [ADR-0036](adr/0036-tuplas-implementacao.md) |
-| Async | **Direção decidida; só as palavras-chave reservadas (sem sintaxe):** `async`/`await` *colored*, stackless, single-thread e determinístico; `Task[T]` embutido e covariante; top-level `await` (sem `async main`); `Task.all` com ordem preservada; sem `.then`/thenables/`race`; falha de tarefa é fatal; sem paralelismo. Entra depois do M7 e só com I/O, antes do M8. | [ADR-0037](adr/0037-async-direcao.md), [IDEIAS I-7](../IDEIAS.md) |
+| Async | **Direção decidida; só as palavras-chave reservadas (sem sintaxe):** `async`/`await` *colored*, stackless, single-thread e determinístico; `Task[T]` embutido e covariante; top-level `await` (sem `async main`); `Task.all` com ordem preservada; sem `.then`/thenables/`race`; falha de tarefa é fatal; sem paralelismo. Entra depois do M7 e só com I/O, antes do M8. | [ADR-0037](adr/0037-async-direcao.md), [ADR-0107](adr/0107-adiados-e-nao-objetivos.md) (paralelismo) |
 | `fn`/`elif`/`;` | `fn` substitui `fun`; `elif` é açúcar para `else if`; `;` opcional no fim da linha, EOF ou antes de `}`; operador só continua na mesma linha; `return` sozinho devolve `nil`. | [ADR-0011](adr/0011-fn-elif-ponto-e-virgula.md) |
 | Comentários, `//`, `**` e bits | `#` e `/* */` aninhado; `//` truncado só `Int`; `**` com precedência matemática e `Int ** Int -> Int`; `& \| ^ ~ << >> >>>` em i64; shift inválido é erro. | [ADR-0012](adr/0012-comentarios-divisao-potencia-bits.md) |
 | Ternário, `??`, `?.` e escapes | `a if c else b` (Python-style); `??` só nil; `?.` com optional call e assignment proibido; escapes `\n \t \r \" \\ \0 \u{...}`. Sem `?:`, interpolação, `"""` ou raw ainda. | [ADR-0013](adr/0013-ternario-nil-aware-escapes.md) |
@@ -140,16 +139,18 @@ decisão.
 | Estilo e formatter | Tipos `PascalCase`, funções/vars/campos `camelCase`; enum constante `UPPER_SNAKE`, enum soma `PascalCase`; 2 espaços/100 col, `;` omitido, `fn` mantido em método; formatter Python agora e dogfood Lox após T3 com paridade. **Guia + `loxia fmt` mínimo implementados em 2026-11-16**; `fn` em método, trailing comma, reflow e Lox pendentes. | [ADR-0092](adr/0092-estilo-e-formatter.md) |
 | CLI agent-friendly | Subcomandos aditivos, `capabilities`/`explain`, JSONL/watch restrito a `check`, `--stdin`, `--timeout` (124 + `C0001`), warnings `W1xxx` com `-Werror` e protocolo de reparo com `fixes[]` safe/unsafe. **Core implementado em 2026-11-16**; `fixes[]`, `W1002`, `fmt`, `doc` e `lsp` pendentes. | [ADR-0093](adr/0093-cli-agent-friendly-e-reparo.md) |
 | Licença e contribuição | Código sob `MIT OR Apache-2.0`, à escolha; `LICENSE-MIT`/`LICENSE-APACHE`/`NOTICE`; contribuições inbound=outbound com DCO (sem CLA); `tests/official/` permanece MIT. | [ADR-0101](adr/0101-licenca-dual-e-politica-de-contribuicao.md) |
-| Idioma | Vitrine pública (README, CONTRIBUTING, SECURITY, CoC, templates, CI e commits) em inglês; spec, ADRs e roadmap em pt-BR até a tradução da §14.2; código pode manter comentários em pt-BR. | [ADR-0102](adr/0102-ingles-na-vitrine-e-docs-pt-br.md) |
+| Idioma | Vitrine pública (README, CONTRIBUTING, SECURITY, CoC, templates, CI e commits) em inglês; spec, ADRs e roadmap em pt-BR até a tradução; código pode manter comentários em pt-BR. | [ADR-0102](adr/0102-ingles-na-vitrine-e-docs-pt-br.md) |
 | Site de documentação | Astro Starlight em `site/`, staging de `docs/`, inglês na raiz e pt-BR em `/pt/`; referência 1.1 pt-BR e arquivo 1.0 congelado; learn/why/cookbook não versionados; deploy GitHub Pages. | [ADR-0103](adr/0103-site-de-documentacao-e-versionamento.md) |
+| Adiados e não-objetivos | Generics além do MVP, operator overloading, trailing closure, `match` estrutural, extension methods, metaclasses/decorators, math transcendentais e paralelismo continuam deferidos, cada um com gatilho explícito de reabertura. | [ADR-0107](adr/0107-adiados-e-nao-objetivos.md) |
 
 ## O que ainda não está aqui
 
-Nome/extensão da linguagem, `if`/blocos como expressão, `print` como função, `match`
-estrutural para uniões (o de enums fechou no [ADR-0041](adr/0041-enums-match.md)),
-**generics de classes/métodos e constraints em classes**, contratos e unificação mutável
-continuam **em aberto** no
-[`../TODO.md`](../TODO.md) §11. Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6. Async tem direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).
+`if`/blocos como expressão, exceções recuperáveis, constraints em classes e unificação
+mutável seguem em aberto, sem issue até houver dor. `match` estrutural em uniões e generics
+além do MVP estão consolidados no [ADR-0107](adr/0107-adiados-e-nao-objetivos.md); contratos
+têm issue de decisão ([#14](https://github.com/loxia-lang/loxia/issues/14)). Async tem
+direção decidida, mas implementação pendente ([ADR-0037](adr/0037-async-direcao.md)).
+Tuplas foram implementadas no interpretador/checker ([ADR-0036](adr/0036-tuplas-implementacao.md)); no backend ficam para o L6.
 Módulos têm forma implementada em [ADR-0073](adr/0073-imports-modulos.md): arquivo=módulo,
 pasta=namespace, `_` privado verificado, `std.*` reservado e imports de arquivos do usuário.
 
@@ -169,11 +170,11 @@ diagnóstico `C0002`; `run`/`check`/`build` nunca acessam a rede.
 O [ADR-0105](adr/0105-dependencias-git.md) fechou a fase 2: `acme = { git = "...", rev = "..." }`
 (rev = commit completo ou tag; branch nunca), lock com `commit` resolvido, mirror bare e
 checkout limpo em `.loxia/cache` (`--cache-dir` troca), `loxia fetch` materializa e
-`--offline` usa só o cache; `run` exige checkout já baixado. Registry (fase 3) segue em
-[`../TODO.md`](../TODO.md) §14.7. O [ADR-0106](adr/0106-scaffolding-new-init.md) fechou o
+`--offline` usa só o cache; `run` exige checkout já baixado. Registry (fase 3) segue no
+[`roadmap.md`](roadmap.md) e espera um terceiro publicando. O [ADR-0106](adr/0106-scaffolding-new-init.md) fechou o
 scaffolding: `loxia new NAME`/`loxia init [DIR]` criam `loxia.toml`, `.gitignore`,
 `src/main.lx` e um `loxia.lock` vazio, com `git init` por padrão (`--no-git` desliga, sem
-repo aninhado), nome normalizado/`--name` e `--json`; `loxia add` fica para depois de uma
-stdlib de TOML (hoje fora do §13) e o registry segue a fase 3.
+repo aninhado), nome normalizado/`--name` e `--json`; `loxia add` fica para depois de um
+writer de TOML (hoje fora do escopo da stdlib) e o registry segue a fase 3.
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

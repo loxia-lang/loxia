@@ -18,7 +18,7 @@
 
 O objetivo é ter assincronismo "de preferência real" em algum momento. Hoje a linguagem
 1.0 está congelada, não tem I/O (só `print`), não tem módulos, e async está listado como
-**fora** em [`TODO.md`](../../TODO.md) §8 e [`ESCOPO.md`](../../ESCOPO.md). Sem uma direção
+**fora** em [`TODO.md`](../../TODO.md) §8 e [`roadmap.md`](../roadmap.md). Sem uma direção
 registrada, a primeira implementação decidiria no calor do código — e as decisões caras
 (frames, GC, ABI) seriam tomadas antes do L4/L6, que é onde elas realmente importam.
 

@@ -72,7 +72,7 @@ dicionários na monomorfização e são um passo separado.
 ## Consequências
 
 - `D-17` fechado: nominal, `implements`, métodos default; sem código novo agora.
-- `TODO.md`/`TIPOS.md`/`ESCOPO.md` deixam de tratar traits como bloqueio do M5/L4.
+- `docs/roadmap.md`/`TIPOS.md` deixam de tratar traits como bloqueio do M5/L4.
 - A sintaxe existente não muda; `implements` é contextual e só aparece em declaração de
   classe.
 - O ADR-0026 continua valendo: traits não estão na 1.0.

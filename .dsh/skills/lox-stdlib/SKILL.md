@@ -46,6 +46,7 @@ não mudam:
 - Kernel acima de ~30 primitivas é sinal de camada errada; tipo opaco de handle antes de
   crescer.
 
-As capacidades em avaliação e as perguntas abertas ficam em
-[`IDEIAS.md`](../../../IDEIAS.md) I-11; o orçamento corrente e a ordem sugerida ficam no
-[`TODO.md`](../../../TODO.md) §13.9.
+As capacidades em avaliação ficam em **Discussions › Ideas** (threads de `net`, `fs.open`,
+registry); `fs.open` tem issue de decisão
+([#16](https://github.com/loxia-lang/loxia/issues/16)) e o orçamento corrente está no
+[`docs/roadmap.md`](../../../docs/roadmap.md).

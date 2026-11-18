@@ -63,9 +63,7 @@ STALE_PHRASES = {
 
 MUTABLE_DOCS = [
     README,
-    ROOT / "ESCOPO.md",
-    ROOT / "TODO.md",
-    ROOT / "IDEIAS.md",
+    ROOT / "docs" / "roadmap.md",
     ROOT / "docs" / "decisoes.md",
     *sorted(SPEC_DIR.glob("*.md")),
 ]

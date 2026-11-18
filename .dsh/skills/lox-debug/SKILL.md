@@ -40,8 +40,8 @@ ideal). Bug sem reprodução mínima costuma virar dois bugs.
 1. Escreva o caso golden que falha **antes** do fix.
 2. Corrija a causa, não o sintoma.
 3. `make check` completo (lint, mypy strict, pytest).
-4. Se o fix muda comportamento visível, atualize `docs/spec/` (e o `TODO.md` se for algo
-   planejado).
+4. Se o fix muda comportamento visível, atualize `docs/spec/` (e a issue/roadmap se for
+   algo planejado).
 5. Commit `fix: <sintoma>` com o caso de regressão junto.
 
 ## Ferramentas úteis

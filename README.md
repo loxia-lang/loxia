@@ -201,14 +201,15 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
 - **Architecture:** [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
 - **Documentation site:** [`site/`](site/) — Starlight build from `docs/`; run
-  `make docs-dev`; publication follows the public flip.
+  `make docs-dev`; deployment is tracked in the [roadmap](docs/roadmap.md).
 - **Style guide:** [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Design decisions:** [`docs/adr/`](docs/adr/).
-- **Roadmap:** [`TODO.md`](TODO.md) · **open ideas:** [`IDEIAS.md`](IDEIAS.md).
+- **Roadmap:** [`docs/roadmap.md`](docs/roadmap.md) · **open ideas:**
+  [Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas).
 
 > **Language:** the README and the community files are in English. The specification,
-> ADRs and roadmap are currently in Portuguese (pt-BR); English translation is planned in
-> [`TODO.md`](TODO.md) §14.2. The public API docs (`docs/stdlib/`) are in English.
+> ADRs and roadmap are currently in Portuguese (pt-BR); their translation is tracked in the
+> roadmap. The public API docs (`docs/stdlib/`) are in English.
 
 ## Development
 

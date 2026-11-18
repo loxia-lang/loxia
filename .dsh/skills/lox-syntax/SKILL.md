@@ -60,16 +60,17 @@ Para reabrir qualquer um: ADR + dor demonstrada. A lista completa está no
    linha em [`docs/decisoes.md`](../../../docs/decisoes.md).
 2. Atualize [`docs/spec/sintaxe.md`](../../../docs/spec/sintaxe.md) (gramática + prosa) e,
    se mudou mensagem, [`docs/spec/erros.md`](../../../docs/spec/erros.md).
-3. Atualize [`TODO.md`](../../../TODO.md) §1 e o `docs/adr/README.md`.
+3. Atualize o `docs/adr/README.md` e, se a fila mudou, o [`docs/roadmap.md`](../../../docs/roadmap.md).
 4. Escreva o **golden** antes/durante o parser (`tests/cases/*.lx`), mais unitário em
    `tests/test_parser.py` se a AST for não trivial.
 5. Rode `make check`; se tocou caminho quente, `make bench`.
 
 ## Se recusada
 
-Registre em [`IDEIAS.md`](../../../IDEIAS.md) ou `TODO.md` §11, **nunca** em ADR. Diga o
-motivo em uma linha (custo no parser/backend, grafia duplicada, ambiguidade local). Isso
-evita rediscutir o mesmo pedido na próxima sessão.
+Registre no [ADR-0107](../../../docs/adr/0107-adiados-e-nao-objetivos.md) (adiado/não-objetivo
+com gatilho) ou em **Discussions › Ideas** (se ainda não há decisão), nunca só no comentário
+do PR. Diga o motivo em uma linha (custo no parser/backend, grafia duplicada, ambiguidade
+local). Isso evita rediscutir o mesmo pedido na próxima sessão.
 
 ## Exemplo recente
 

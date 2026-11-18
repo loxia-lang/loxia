@@ -1,0 +1,53 @@
+title: "[idea] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a parking lot, not a commitment. An idea here has no schedule and no
+        done criteria. It becomes work only when a maintainer opens an issue (or a
+        decision issue/ADR) linking back to this thread.
+
+        Keep it short: the problem first, the proposal second. If you are not sure it
+        is worth doing, say what real event would change your mind.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today? Show a real program or workflow, not a hypothetical.
+      placeholder: "Today I have to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What it would be
+      description: The smallest useful shape. Call out syntax, runtime or stdlib impact.
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround today
+      description: How do you solve it now (free function, explicit method, external tool)?
+    validations:
+      required: false
+  - type: textarea
+    id: trigger
+    attributes:
+      label: Reopen trigger
+      description: What real event would make this worth doing? "It would be nice" is not a trigger.
+      placeholder: "A real program where ..."
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Language
+        - Runtime/backend
+        - Stdlib
+        - Tooling
+        - Ecosystem/product
+    validations:
+      required: true

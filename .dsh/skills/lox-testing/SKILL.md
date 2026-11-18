@@ -72,7 +72,7 @@ faz ([ADR-0031](../../../docs/adr/0031-backend-nativo.md),
   backend espera em issue/branch em vez de inflar `PENDING`.
 - O status (quantos compilam, quantos em `PENDING`) é **gerado** em
   [`docs/spec/garantias.md`](../../../docs/spec/garantias.md); não copie números para o
-  `TODO.md`.
+  roadmap.
 
 ```bash
 uv sync --extra llvm

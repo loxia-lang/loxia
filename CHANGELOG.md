@@ -1,7 +1,7 @@
 # Changelog
 
-Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada versão está em
-[`ESCOPO.md`](ESCOPO.md); decisões fechadas em [`docs/decisoes.md`](docs/decisoes.md).
+Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
+[`docs/decisoes.md`](docs/decisoes.md).
 
 ## [1.1.0] — 2026-11-17
 
@@ -539,7 +539,8 @@ publicado; o LLVM L0–L2 é pós-1.0. A release é local (sem publicação exte
 
 Backend LLVM, tuplas, classes/métodos genéricos, constraints/traits, módulos/stdlib,
 contratos/JSON, `Result`/`try`, variádicos, trailing closure, `match`/enums, diagnósticos
-com spans/caret e transcendentais de `math`. Ver [`ESCOPO.md`](ESCOPO.md).
+com spans/caret e transcendentais de `math`. Ver [`docs/roadmap.md`](docs/roadmap.md) e
+[ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md).
 
 ### Verificação
 
