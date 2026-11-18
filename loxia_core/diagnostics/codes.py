@@ -103,6 +103,7 @@ class Code(StrEnum):
 
     # CLI/execução
     CLI_TIMEOUT = "C0001"
+    DEPENDENCY_STATE = "C0002"
 
     # Warnings
     UNUSED_LOCAL = "W1001"
@@ -173,6 +174,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.INVALID_VALUE: Phase.RUNTIME,
     Code.RUNTIME_STACK_OVERFLOW: Phase.RUNTIME,
     Code.CLI_TIMEOUT: Phase.CLI,
+    Code.DEPENDENCY_STATE: Phase.CLI,
     Code.UNUSED_LOCAL: Phase.RESOLVER,
     Code.UNUSED_IMPORT: Phase.RESOLVER,
 }
@@ -244,6 +246,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.INVALID_VALUE: "invalid value (map key, superclass, …)",
     Code.RUNTIME_STACK_OVERFLOW: "call depth above the limit",
     Code.CLI_TIMEOUT: "execution timeout exceeded",
+    Code.DEPENDENCY_STATE: "lockfile or dependency state (missing, stale, not fetched)",
     Code.UNUSED_LOCAL: "local declared and never read (warning)",
     Code.UNUSED_IMPORT: "import declared and never used (warning)",
 }

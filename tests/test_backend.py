@@ -1464,3 +1464,60 @@ def test_build_nao_escreve_no_stdout(tmp_path: Path) -> None:
     assert result.stdout == ""
     run = _run([str(binary)])
     assert run.stdout == "1\n"
+
+
+@pytest.mark.backend
+def test_dependencia_path_com_frozen_compila_nos_dois_motores(tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    dep = tmp_path / "acme"
+    app.mkdir()
+    dep.mkdir()
+    (app / "loxia.toml").write_text(
+        '[package]\nname = "app"\n\n[dependencies]\nacme = { path = "../acme" }\n',
+        encoding="utf-8",
+    )
+    (dep / "loxia.toml").write_text(
+        '[package]\nname = "acme"\nversion = "0.1.0"\n',
+        encoding="utf-8",
+    )
+    (dep / "base.lx").write_text(
+        "fn dobro(n: Int) -> Int { return n * 2 }\n",
+        encoding="utf-8",
+    )
+    entry = app / "main.lx"
+    entry.write_text(
+        "import acme.base as base\nprint(base.dobro(21))\n",
+        encoding="utf-8",
+    )
+    locked = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "lock"],
+        cwd=app,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+    assert locked.returncode == 0, locked.stderr
+
+    interpreted = _run([sys.executable, str(ENTRYPOINT), "run", "--frozen", str(entry)])
+    assert interpreted.returncode == 0, interpreted.stderr
+
+    binary = tmp_path / "programa"
+    built = _run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "build",
+            "--frozen",
+            "--emit",
+            "exe",
+            "-o",
+            str(binary),
+            str(entry),
+        ]
+    )
+    assert built.returncode == 0, built.stderr
+    native = _run([str(binary)])
+
+    assert native.stdout == interpreted.stdout == "42\n"
+    assert native.returncode == interpreted.returncode == 0

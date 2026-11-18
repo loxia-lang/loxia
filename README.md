@@ -116,24 +116,54 @@ uv run loxia --version             # loxia 1.0.0
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
-| `loxia run FILE` | Execute a program | `--debug`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia run FILE` | Execute a program | `--debug`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia fmt FILE` | Format a file (`--check` does not write) | `--check`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia doc FILE` | Generate Markdown/JSON from `///` | `--stdin`, `--file-name`, `--json`, `--error-format`, `--max-errors`, `--color` |
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--native`, `--json` |
+| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
+| `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
+| `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
 
 Global compatibility flags: `--check`, `--dump-ast`, `--debug`, `--version`, `--color`.
 
 Exit codes: `65` compilation error, `70` runtime error, `66` missing file, `2` invalid
-usage, `124` timeout, `130` interrupted `--watch`. The generated binary follows the same
-runtime contract: `0` on success and `70` on an uncaught runtime error.
+usage, `1` for a `--check`/`lock --check` difference, `124` timeout, `130` interrupted
+`--watch`. The generated binary follows the same runtime contract: `0` on success and `70`
+on an uncaught runtime error.
+
+## Packages
+
+A project declares dependencies in `loxia.toml`; `loxia lock` writes `loxia.lock` next to
+it and both are committed:
+
+```toml
+[package]
+name = "app"
+version = "0.1.0"
+
+[dependencies]
+acme = { path = "../acme" }
+```
+
+```bash
+loxia lock                 # writes loxia.lock (name, path, version, sha256)
+loxia lock --check         # exit 1 if the lock is stale
+loxia fetch                # verifies the tree against the lock
+loxia run --frozen app.lx  # resolves only from the lock; fails on drift
+```
+
+The lock pins the `sha256` of each dependency's `.lx` tree, so `--frozen` detects any
+content change and `run`/`check`/`build` never touch the network. The cache lives in
+`.loxia/cache/` (ignored by git) and `--cache-dir` overrides it
+([ADR-0104](docs/adr/0104-lock-e-frozen.md)).
+
 
 ## How it works
 

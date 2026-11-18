@@ -329,6 +329,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | Code | Family |
 | --- | --- |
 | `C0001` | execution timeout exceeded |
+| `C0002` | lockfile or dependency state (missing, stale, not fetched) |
 
 <!-- codes:end -->
 

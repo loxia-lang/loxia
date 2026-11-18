@@ -161,7 +161,11 @@ Distribuição fechada no [ADR-0088](adr/0088-distribuicao-e-raizes-de-modulo.md
 atual permanece. **Empacotamento entregue** em 2026-11-15 (wheel com comando `loxia`,
 `std/` e `runtime.c`; `tests/test_install.py`). O [ADR-0100](adr/0100-dependencias-path.md)
 acrescentou `[dependencies] nome = { path = "..." }` (resolução por nome de pacote,
-descoberta no ancestral, isolamento de dependência e `--module-path`); lock/git/registry
-seguem em [`../TODO.md`](../TODO.md) §14.7.
+descoberta no ancestral, isolamento de dependência e `--module-path`).
+O [ADR-0104](adr/0104-lock-e-frozen.md) fechou a fase 1: `loxia.lock` canônico com
+nome + origem + `version` (X.Y.Z) + `sha256` da árvore `.lx`, `loxia lock`/`lock --check`/
+`fetch`, `--frozen`/`--offline`/`--cache-dir` (cache `.loxia/cache` por projeto) e o
+diagnóstico `C0002`; `run`/`check`/`build` nunca acessam a rede. Git é a fase 2 e registry
+segue em [`../TODO.md`](../TODO.md) §14.7.
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

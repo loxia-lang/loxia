@@ -52,7 +52,7 @@ Packages by phase (dependency only downward):
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
-| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcommands, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restricted to `check`, warnings, `doc` and exit codes |
+| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcommands, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restricted to `check`, `lock`/`fetch`, `--frozen`/`--offline`/`--cache-dir`, warnings, `doc` and exit codes |
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
@@ -69,6 +69,10 @@ Packages by phase (dependency only downward):
 | [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | statement nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recovery; optional `;` at end of line; `elif`, `fn` and `[T]` |
 | [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of expression spans (offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py) | module loader (ADR-0073/0100): file = module, folder = namespace, inlining, import cycles and isolation |
+| [`loxia_core/loader/manifest.py`](../../loxia_core/loader/manifest.py) | `loxia.toml`: discovery, `[package]` (name/version), `[dependencies]` specs and `[modules].paths` |
+| [`loxia_core/loader/lock.py`](../../loxia_core/loader/lock.py) | `loxia.lock` (ADR-0104): strict parse and canonical rendering (sorted, relative posix paths, no timestamp) |
+| [`loxia_core/loader/deps.py`](../../loxia_core/loader/deps.py) | dependency resolution: `.lx` tree hash, lock generation, `--frozen` verification, `fetch` and `C0002` |
 | [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | single boundary with `llvmlite` (module, target machine, object file) |
 | [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | lowering coordination: program, statements, expressions, arithmetic and control flow |
 | [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | types, values, bindings and field/class layouts (ABI from ADR-0048) |

@@ -246,7 +246,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 | Área | Estado | Gap de produto | Prioridade |
 | --- | --- | --- | --- |
-| **Pacotes/módulos** | loader, `std.*` e `loxia.toml` com dependências `path` prontos ([ADR-0100](docs/adr/0100-dependencias-path.md)) | `loxia.lock`, git/registry e cache; primeiro pacote externo real | **P0** |
+| **Pacotes/módulos** | loader, `std.*`, `loxia.toml` com dependências `path` ([ADR-0100](docs/adr/0100-dependencias-path.md)) e lock/cache/`--frozen` ([ADR-0104](docs/adr/0104-lock-e-frozen.md)) prontos | git/registry e o primeiro pacote externo real | **P0** |
 | **Distribuição/release** | wheel/sdist, entry point, teste de instalação e release workflow com attestation/GitHub Release | pending publisher do PyPI, release 1.1.0, PyPI e Homebrew | **P0** |
 | **Repo público** | entregue no privado em 2026-11-17: licença dual, README EN, CI split, CONTRIBUTING/CoC/SECURITY, templates, Dependabot, CodeQL Python e badges | release 1.1.0, flip para público, branch/tag protection e CodeQL C | **P0** |
 | **Docs de usuário** | spec, ADRs, stdlib gerada e guia de estilo | site público, tutorial de 30 min, cookbook, "por que Loxia" e `make docs-build` no CI | **P0** |
@@ -438,11 +438,11 @@ não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
 - [x] **Fase 0 — restante do CLI único** (junto da §14.4): `loxia repl` como subcomando;
       `run|check|build|ast|fmt|doc|explain|capabilities|lsp|test|fix` já existem e as flags
       atuais continuam aceitas ([ADR-0093](docs/adr/0093-cli-agent-friendly-e-reparo.md)).
-- [ ] **Fase 1 — lock** (`loxia.toml` e `[dependencies] path` já existem pelo
-      [ADR-0100](docs/adr/0100-dependencias-path.md)): `loxia.lock` com versão exata +
-      `sha256`, `loxia lock`, `loxia fetch --offline` e cache local. Critério de pronto:
-      dois manifests iguais com o mesmo lock produzem a mesma árvore de raízes e o mesmo
-      build; `loxia run` funciona offline.
+- [x] **Fase 1 — lock** — ✅ fechada no [ADR-0104](docs/adr/0104-lock-e-frozen.md):
+      `loxia.lock` canônico (nome + origem + `[package].version` `X.Y.Z` + `sha256` da
+      árvore `.lx`), `loxia lock`, `lock --check`, `fetch`, `--frozen`/`--offline`/
+      `--cache-dir` (cache `.loxia/cache` por projeto) e `C0002`. Dois manifests iguais com
+      o mesmo lock produzem a mesma árvore e o mesmo build; `run --frozen` funciona offline.
 - [ ] **Fase 2 — git**: `dep = { git = "...", rev = "..." }` (`path` já implementado no
       [ADR-0100](docs/adr/0100-dependencias-path.md)). Critério: monorepo real em
       `examples/` compila nos dois motores.

@@ -16,6 +16,7 @@ from typing import cast
 
 MANIFEST_NAME = "loxia.toml"
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 _TOP_LEVEL_KEYS = frozenset({"package", "modules", "dependencies"})
 
 
@@ -30,12 +31,22 @@ class ManifestError(Exception):
 
 
 @dataclass(frozen=True)
+class Dependency:
+    """Especificação declarada no manifest; a raiz resolvida mora no lock/loader."""
+
+    path: Path | None = None
+    git: str | None = None
+    rev: str | None = None
+
+
+@dataclass(frozen=True)
 class Manifest:
     """Manifest já validado; caminhos absolutos, sem exibir no diagnóstico."""
 
     path: Path
     package: str | None
-    dependencies: dict[str, Path]
+    version: str | None
+    dependencies: dict[str, Dependency]
     module_paths: tuple[Path, ...]
 
 
@@ -66,10 +77,10 @@ def parse_manifest(path: Path, text: str) -> Manifest:
         raise ManifestError("Unknown manifest key(s): " + ", ".join(unknown) + ".")
 
     base = path.parent
-    package = _package_name(data.get("package"))
+    package, version = _package(data.get("package"))
     dependencies = _dependencies(data.get("dependencies"), base)
     module_paths = _module_paths(data.get("modules"), base)
-    return Manifest(path, package, dependencies, module_paths)
+    return Manifest(path, package, version, dependencies, module_paths)
 
 
 def _table(value: object, what: str) -> dict[str, object]:
@@ -84,20 +95,28 @@ def _string(value: object, what: str, *, allow_empty: bool = False) -> str:
     return value
 
 
-def _package_name(value: object | None) -> str | None:
+def parse_version(value: object, what: str = "package.version") -> str:
+    """Versão exata `X.Y.Z` (sem ranges, pre-release ou build metadata)."""
+    version = _string(value, what)
+    if not _VERSION.match(version):
+        raise ManifestError(f"Expected '{what}' to be X.Y.Z, got '{version}'.")
+    return version
+
+
+def _package(value: object | None) -> tuple[str | None, str | None]:
     if value is None:
-        return None
+        return None, None
     package = _table(value, "package")
-    unknown = sorted(set(package) - {"name"})
+    unknown = sorted(set(package) - {"name", "version"})
     if unknown:
         raise ManifestError("Unknown [package] key(s): " + ", ".join(unknown) + ".")
-    if "name" not in package:
-        return None
-    return _string(package["name"], "package.name")
+    name = _string(package["name"], "package.name") if "name" in package else None
+    version = parse_version(package["version"]) if "version" in package else None
+    return name, version
 
 
-def _dependencies(value: object | None, base: Path) -> dict[str, Path]:
-    result: dict[str, Path] = {}
+def _dependencies(value: object | None, base: Path) -> dict[str, Dependency]:
+    result: dict[str, Dependency] = {}
     if value is None:
         return result
     table = _table(value, "dependencies")
@@ -116,7 +135,9 @@ def _dependencies(value: object | None, base: Path) -> dict[str, Path]:
             )
         if "path" not in spec:
             raise ManifestError(f"Dependency '{name}' needs a 'path'.")
-        result[name] = _relative_dir(spec["path"], base, f"dependencies.{name}.path")
+        result[name] = Dependency(
+            path=_relative_dir(spec["path"], base, f"dependencies.{name}.path")
+        )
     return result
 
 

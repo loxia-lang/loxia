@@ -7,6 +7,14 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Lock de dependências (`loxia.lock`) e modo `--frozen`** (fase 1 do §14.7,
+  [ADR-0104](docs/adr/0104-lock-e-frozen.md)): `loxia lock` grava o lock canônico (nome,
+  `path` relativo, `[package].version` `X.Y.Z` e `sha256` da árvore `.lx`), `lock --check`
+  detecta drift (exit 1), `fetch` verifica a árvore e `--frozen` resolve só pelo lock
+  (`C0002`, exit 65) em `run`/`check`/`build`/`ast`/`test`. `--offline` proíbe rede,
+  `--cache-dir` seleciona o cache (default `.loxia/cache/`) e `loxia test` repassa as
+  flags aos subprocessos. `run`/`check`/`build` nunca acessam a rede.
+
 - **`loxia repl` e distribuição verificada** (Fase 0 do §14.7 e item 1 do §14.4):
   o REPL ganhou subcomando próprio (`loxia repl`, com `--debug`, `--module-path` e
   `--json-lines`), e o banner/prompt só aparecem em TTY — pipe e agente recebem apenas a

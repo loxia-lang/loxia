@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from loxia import __version__
 from loxia_core.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
@@ -37,7 +37,22 @@ from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.loader.deps import (
+    DependencyError,
+    fetch_dependencies,
+    lock_manifest,
+    resolve_dependencies,
+)
+from loxia_core.loader.lock import (
+    LOCK_NAME,
+    LockError,
+    read_lock,
+    render_lock,
+    write_lock,
+)
 from loxia_core.loader.manifest import (
+    MANIFEST_NAME,
+    Manifest,
     ManifestError,
     discover_manifest,
     parse_manifest,
@@ -64,6 +79,8 @@ COMMANDS = (
     "lsp",
     "test",
     "fix",
+    "lock",
+    "fetch",
 )
 _HEAP_SUFFIXES = {"k": 1024, "m": 1024**2, "g": 1024**3}
 _WATCH_INTERVAL_SECONDS = 0.25
@@ -103,12 +120,18 @@ class Loxia:
         json_lines: bool = False,
         werror: bool = False,
         module_paths: list[str] | None = None,
+        frozen: bool = False,
+        offline: bool = False,
+        cache_dir: str | None = None,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
         self.interpreter = Interpreter(self.reporter, checked_overflow=debug, argv=script_args)
         self.error_format = error_format
         self.color = color
         self.json_lines = json_lines
+        self.frozen = frozen
+        self.offline = offline
+        self.cache_dir = Path(cache_dir).resolve() if cache_dir is not None else None
         self._sources = SourceMap()
         self._file = "<stdin>"
         self._module_root: Path | None = None
@@ -146,36 +169,51 @@ class Loxia:
             from loxia_core.loader.loader import ModuleLoader
 
             manifest = None
+            dependencies: dict[str, Path] = {}
+            lock_path: Path | None = None
             manifest_path = discover_manifest(self._module_root)
             project_root = self._module_root
+            if manifest_path is None and self.frozen:
+                self._dependency_error(
+                    Path(self._file),
+                    "--frozen requires a loxia.toml.",
+                )
+                return None
             if manifest_path is not None:
-                display = display_path(manifest_path)
-                try:
-                    manifest_text = manifest_path.read_text(encoding="utf-8")
-                except OSError:
-                    self.reporter.error(
-                        _manifest_token(manifest_path),
-                        "Can't read manifest.",
-                        code=Code.SYNTAX_UNEXPECTED,
-                    )
-                    return None
-                self._sources.add(display, manifest_text)
-                try:
-                    manifest = parse_manifest(manifest_path, manifest_text)
-                except ManifestError as error:
-                    self.reporter.error(
-                        _manifest_token(manifest_path, error.line, error.column),
-                        error.message,
-                        code=Code.SYNTAX_UNEXPECTED,
-                    )
+                manifest = self._load_manifest(manifest_path)
+                if manifest is None:
                     return None
                 project_root = manifest.path.parent
+                lock_path = manifest.path.parent / LOCK_NAME
+                try:
+                    lock = read_lock(lock_path)
+                    dependencies = resolve_dependencies(
+                        manifest,
+                        lock=lock,
+                        frozen=self.frozen,
+                        offline=self.offline,
+                        cache_dir=self.cache_dir,
+                    )
+                except LockError as error:
+                    self._dependency_error(
+                        lock_path,
+                        error.message,
+                        line=error.line,
+                        column=error.column,
+                    )
+                    return None
+                except DependencyError as error:
+                    self._dependency_error(manifest_path, error.message)
+                    return None
+                if lock is not None:
+                    self._watched_files.add(lock_path)
             loader = ModuleLoader(
                 self.reporter,
                 self._sources,
                 project_root,
                 manifest=manifest,
                 module_paths=self._module_paths,
+                dependencies=dependencies,
             )
             loaded = loader.load(
                 statements,
@@ -192,6 +230,47 @@ class Loxia:
         self.last_statements = statements
         self.last_source_index = SourceIndex(statements, source, sources=self._sources)
         return statements
+
+    def _load_manifest(self, path: Path) -> Manifest | None:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            self.reporter.error(
+                _manifest_token(path),
+                "Can't read manifest.",
+                code=Code.SYNTAX_UNEXPECTED,
+            )
+            return None
+        self._sources.add(display_path(path), text)
+        try:
+            return parse_manifest(path, text)
+        except ManifestError as error:
+            self.reporter.error(
+                _manifest_token(path, error.line, error.column),
+                error.message,
+                code=Code.SYNTAX_UNEXPECTED,
+            )
+            return None
+
+    def _dependency_error(
+        self,
+        path: Path,
+        message: str,
+        *,
+        line: int = 1,
+        column: int = 1,
+    ) -> None:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            pass
+        else:
+            self._sources.add(display_path(path), text)
+        self.reporter.error(
+            _manifest_token(path, line, column),
+            message,
+            code=Code.DEPENDENCY_STATE,
+        )
 
     def _execute(self, statements: list[Stmt]) -> None:
         # Em run não há warnings: o binário não os emite e o I1 compara stderr.
@@ -637,6 +716,31 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_debug: bool 
     parser.set_defaults(error_format_explicit=False)
 
 
+def _add_dependency_options(
+    parser: argparse.ArgumentParser,
+    *,
+    frozen: bool = True,
+    cache: bool = True,
+) -> None:
+    if frozen:
+        parser.add_argument(
+            "--frozen",
+            action="store_true",
+            help="resolve só pelo loxia.lock; falha se manifest ou conteúdo divergirem",
+        )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="nunca acessa a rede (dependências git só do cache)",
+    )
+    if cache:
+        parser.add_argument(
+            "--cache-dir",
+            metavar="DIR",
+            help="cache de dependências (default: .loxia/cache na raiz do projeto)",
+        )
+
+
 def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--stdin",
@@ -735,6 +839,7 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_common_options(parser, include_debug=True)
         _add_stdin_options(parser)
         _add_timeout(parser)
+        _add_dependency_options(parser)
         parser.add_argument("script", nargs="?", help="script Loxia")
         parser.add_argument(
             "script_args",
@@ -746,6 +851,7 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_stdin_options(parser)
         _add_timeout(parser)
         _add_watch(parser)
+        _add_dependency_options(parser)
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "repl":
         # Sessão interativa (ou stream em pipe): não há arquivo de entrada.
@@ -765,10 +871,12 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             metavar="SIZE",
             help="teto de heap do binário nativo (só --emit=exe)",
         )
+        _add_dependency_options(parser)
         parser.add_argument("script", help="script Loxia")
     elif command == "ast":
         _add_common_options(parser)
         _add_stdin_options(parser)
+        _add_dependency_options(parser)
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "fmt":
         _add_common_options(parser)
@@ -858,6 +966,18 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help="compila cada arquivo e roda o binário",
         )
+        _add_dependency_options(parser)
+    elif command == "lock":
+        _add_common_options(parser)
+        parser.add_argument(
+            "--check",
+            action="store_true",
+            help="não escreve; exit 1 se o lock estiver desatualizado",
+        )
+        _add_dependency_options(parser, frozen=False)
+    elif command == "fetch":
+        _add_common_options(parser)
+        _add_dependency_options(parser, frozen=False)
     elif command == "explain":
         parser.add_argument("code", help="código de diagnóstico (ex.: E2001)")
         parser.add_argument("--json", action="store_true", help="saída JSON")
@@ -878,6 +998,9 @@ def _validate(
     args.file_name = getattr(args, "file_name", None)
     args.timeout = getattr(args, "timeout", None)
     args.watch = getattr(args, "watch", False)
+    args.frozen = getattr(args, "frozen", False)
+    args.offline = getattr(args, "offline", False)
+    args.cache_dir = getattr(args, "cache_dir", None)
     if args.json_lines and args.error_format_explicit:
         parser.error("--json-lines cannot be combined with --error-format")
     if args.max_errors < 0:
@@ -969,6 +1092,9 @@ def _make_loxia(args: argparse.Namespace) -> Loxia:
         json_lines=args.json_lines,
         werror=getattr(args, "werror", False),
         module_paths=getattr(args, "module_path", None),
+        frozen=getattr(args, "frozen", False),
+        offline=getattr(args, "offline", False),
+        cache_dir=getattr(args, "cache_dir", None),
     )
 
 
@@ -1100,6 +1226,84 @@ def _run_doc(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         sys.exit(65)
 
 
+def _dependency_failure(
+    lox: Loxia,
+    command: str,
+    path: Path,
+    message: str,
+    *,
+    line: int = 1,
+    column: int = 1,
+) -> NoReturn:
+    lox._dependency_error(path, message, line=line, column=column)
+    lox._flush(command, exit_code=65, always=True)
+    sys.exit(65)
+
+
+def _project_manifest(lox: Loxia, command: str) -> Manifest:
+    manifest_path = discover_manifest(Path.cwd())
+    if manifest_path is None:
+        _dependency_failure(lox, command, Path.cwd() / MANIFEST_NAME, "No loxia.toml found.")
+    manifest = lox._load_manifest(manifest_path)
+    if manifest is None:
+        lox._flush(command, exit_code=65, always=True)
+        sys.exit(65)
+    return manifest
+
+
+def _run_lock(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    _validate(args, parser, command="lock")
+    lox = _make_loxia(args)
+    manifest = _project_manifest(lox, "lock")
+    lock_path = manifest.path.parent / LOCK_NAME
+    try:
+        lock = lock_manifest(manifest, cache_dir=lox.cache_dir)
+        if args.check:
+            current = read_lock(lock_path)
+            if current is None or render_lock(current) != render_lock(lock):
+                print("loxia.lock is out of date; run 'loxia lock'.", file=sys.stderr)
+                sys.exit(1)
+            return
+        write_lock(lock_path, lock)
+    except LockError as error:
+        _dependency_failure(
+            lox,
+            "lock",
+            lock_path,
+            error.message,
+            line=error.line,
+            column=error.column,
+        )
+    except DependencyError as error:
+        _dependency_failure(lox, "lock", manifest.path, error.message)
+
+
+def _run_fetch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    _validate(args, parser, command="fetch")
+    lox = _make_loxia(args)
+    manifest = _project_manifest(lox, "fetch")
+    lock_path = manifest.path.parent / LOCK_NAME
+    try:
+        lock = read_lock(lock_path)
+        fetch_dependencies(
+            manifest,
+            lock=lock,
+            offline=args.offline,
+            cache_dir=lox.cache_dir,
+        )
+    except LockError as error:
+        _dependency_failure(
+            lox,
+            "fetch",
+            lock_path,
+            error.message,
+            line=error.line,
+            column=error.column,
+        )
+    except DependencyError as error:
+        _dependency_failure(lox, "fetch", manifest.path, error.message)
+
+
 def _run_build(lox: Loxia, args: argparse.Namespace) -> None:
     source = _set_source(
         lox,
@@ -1157,7 +1361,15 @@ def _capabilities_payload() -> dict[str, object]:
     commands: list[dict[str, object]] = [
         {
             "name": "run",
-            "features": ["json", "json-lines", "stdin", "timeout"],
+            "features": [
+                "json",
+                "json-lines",
+                "stdin",
+                "timeout",
+                "frozen",
+                "offline",
+                "cache-dir",
+            ],
         },
         {
             "name": "repl",
@@ -1171,10 +1383,19 @@ def _capabilities_payload() -> dict[str, object]:
                 "stdin",
                 "timeout",
                 "watch",
+                "frozen",
+                "offline",
+                "cache-dir",
             ],
         },
-        {"name": "build", "features": ["json", "json-lines"]},
-        {"name": "ast", "features": ["json", "json-lines", "stdin"]},
+        {
+            "name": "build",
+            "features": ["json", "json-lines", "frozen", "offline", "cache-dir"],
+        },
+        {
+            "name": "ast",
+            "features": ["json", "json-lines", "stdin", "frozen", "offline", "cache-dir"],
+        },
         {"name": "fmt", "features": ["check", "stdin"]},
         {"name": "fix", "features": ["apply", "json"]},
         {
@@ -1188,8 +1409,13 @@ def _capabilities_payload() -> dict[str, object]:
                 "fail-fast",
                 "native",
                 "timeout",
+                "frozen",
+                "offline",
+                "cache-dir",
             ],
         },
+        {"name": "lock", "features": ["check", "offline", "cache-dir"]},
+        {"name": "fetch", "features": ["offline", "cache-dir"]},
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
@@ -1314,6 +1540,14 @@ def _main_subcommand(command: str, argv: list[str]) -> None:
 
     if command == "doc":
         _run_doc(args, parser)
+        return
+
+    if command == "lock":
+        _run_lock(args, parser)
+        return
+
+    if command == "fetch":
+        _run_fetch(args, parser)
         return
 
     if command == "repl":

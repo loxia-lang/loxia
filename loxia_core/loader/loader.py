@@ -133,12 +133,15 @@ class ModuleLoader:
         *,
         manifest: Manifest | None = None,
         module_paths: tuple[Path, ...] = (),
+        dependencies: dict[str, Path] | None = None,
     ) -> None:
         self.reporter = reporter
         self.sources = sources
         self.manifest = manifest
         self.root = manifest.path.parent if manifest is not None else root
         self.module_paths = module_paths
+        # Raízes já resolvidas por `deps.resolve_dependencies` (lock/`--frozen`/git).
+        self.dependencies = dict(dependencies or {})
         self.modules: dict[str, Module] = {}
         self._loading: set[str] = set()
         self._order: list[str] = []
@@ -277,7 +280,7 @@ class ModuleLoader:
                 self._error(token, f"Module '{name}' not found.")
             return ResolvedModule(name, file, "std")
 
-        if len(parts) == 1 and parts[0] in self._dependencies:
+        if len(parts) == 1 and parts[0] in self.dependencies:
             self._error(token, f"Expect a module name after '{parts[0]}'.")
 
         candidates = self._candidates(parts, importer)
@@ -293,13 +296,9 @@ class ModuleLoader:
         candidate = existing[0]
         return ResolvedModule(name, candidate.path, candidate.package)
 
-    @property
-    def _dependencies(self) -> dict[str, Path]:
-        return self.manifest.dependencies if self.manifest is not None else {}
-
     def _candidates(self, parts: list[str], importer: str | None) -> list[_Candidate]:
         result: list[_Candidate] = []
-        dependency = self._dependencies.get(parts[0])
+        dependency = self.dependencies.get(parts[0])
         if importer is None:
             result.append(_Candidate("project", self._module_file(self.root, parts), None))
             if dependency is not None and len(parts) > 1:

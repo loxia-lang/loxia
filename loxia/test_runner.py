@@ -140,9 +140,12 @@ def _invoke(
     script_args: list[str],
     binary: str | None,
     timeout_s: float | None,
+    deps: tuple[str, ...] = (),
 ) -> Invocation:
     command = (
-        [binary] if binary is not None else [sys.executable, "-m", "loxia", "run", str(path), "--"]
+        [binary]
+        if binary is not None
+        else [sys.executable, "-m", "loxia", "run", *deps, str(path), "--"]
     )
     command = [*command, *script_args]
     try:
@@ -166,13 +169,14 @@ def _text(value: str | bytes | None) -> str:
     return value
 
 
-def _build(path: Path, binary: Path) -> str | None:
+def _build(path: Path, binary: Path, deps: tuple[str, ...] = ()) -> str | None:
     completed = subprocess.run(
         [
             sys.executable,
             "-m",
             "loxia",
             "build",
+            *deps,
             str(path),
             "-o",
             str(binary),
@@ -198,10 +202,11 @@ def _run_file_unit(
     build_error: str | None,
     script_args: list[str],
     timeout_s: float | None,
+    deps: tuple[str, ...] = (),
 ) -> FileRun:
     if build_error is not None:
         return _file_failure(path, build_error)
-    invocation = _invoke(path, script_args, binary, timeout_s)
+    invocation = _invoke(path, script_args, binary, timeout_s, deps)
     if invocation.timed_out:
         return _file_failure(path, "timeout")
     return FileRun(path, _parse_tap(path, invocation.stdout, invocation.returncode))
@@ -213,10 +218,11 @@ def _list_names(
     build_error: str | None,
     script_args: list[str],
     timeout_s: float | None,
+    deps: tuple[str, ...] = (),
 ) -> tuple[list[str], str | None]:
     if build_error is not None:
         return [], build_error
-    invocation = _invoke(path, ["--list", *script_args], binary, timeout_s)
+    invocation = _invoke(path, ["--list", *script_args], binary, timeout_s, deps)
     if invocation.timed_out:
         return [], "timeout"
     if invocation.returncode != 0:
@@ -234,8 +240,9 @@ def _run_single_test(
     name: str,
     binary: str | None,
     timeout_s: float | None,
+    deps: tuple[str, ...] = (),
 ) -> TestResult:
-    invocation = _invoke(path, [f"--only={name}"], binary, timeout_s)
+    invocation = _invoke(path, [f"--only={name}"], binary, timeout_s, deps)
     display = _display(path)
     if invocation.timed_out:
         return TestResult(display, name, "fail", "timeout")
@@ -254,6 +261,7 @@ def _run_files(
     timeout_s: float | None,
     jobs: int,
     fail_fast: bool,
+    deps: tuple[str, ...] = (),
 ) -> list[FileRun]:
     runs: list[FileRun] = []
     if jobs == 1:
@@ -264,6 +272,7 @@ def _run_files(
                 build_errors.get(path),
                 script_args,
                 timeout_s,
+                deps,
             )
             runs.append(run)
             if fail_fast and any(item.status == "fail" for item in run.results):
@@ -278,6 +287,7 @@ def _run_files(
                 build_errors.get(path),
                 script_args,
                 timeout_s,
+                deps,
             )
             for path in files
         ]
@@ -291,6 +301,7 @@ def _collect_names(
     script_args: list[str],
     timeout_s: float | None,
     jobs: int,
+    deps: tuple[str, ...] = (),
 ) -> tuple[dict[Path, list[str]], dict[Path, str]]:
     names: dict[Path, list[str]] = {}
     errors: dict[Path, str] = {}
@@ -302,6 +313,7 @@ def _collect_names(
             build_errors.get(path),
             script_args,
             timeout_s,
+            deps,
         )
 
     if jobs == 1:
@@ -329,20 +341,23 @@ def _run_isolated(
     timeout_s: float | None,
     jobs: int,
     fail_fast: bool,
+    deps: tuple[str, ...] = (),
 ) -> list[FileRun]:
-    names, errors = _collect_names(files, binaries, build_errors, script_args, timeout_s, jobs)
+    names, errors = _collect_names(
+        files, binaries, build_errors, script_args, timeout_s, jobs, deps
+    )
     units = [(path, name) for path in files for name in names.get(path, []) if path not in errors]
     results: list[TestResult] = []
     if jobs == 1:
         for path, name in units:
-            result = _run_single_test(path, name, binaries[path], timeout_s)
+            result = _run_single_test(path, name, binaries[path], timeout_s, deps)
             results.append(result)
             if fail_fast and result.status == "fail":
                 break
     else:
         with ThreadPoolExecutor(max_workers=jobs) as pool:
             futures = [
-                pool.submit(_run_single_test, path, name, binaries[path], timeout_s)
+                pool.submit(_run_single_test, path, name, binaries[path], timeout_s, deps)
                 for path, name in units
             ]
             results = [future.result() for future in futures]
@@ -426,13 +441,20 @@ def run_tests(args: argparse.Namespace) -> int:
         script_args.append(f"--filter={args.filter}")
     if args.only:
         script_args.append(f"--only={args.only}")
+    deps: list[str] = []
+    if getattr(args, "frozen", False):
+        deps.append("--frozen")
+    if getattr(args, "offline", False):
+        deps.append("--offline")
+    if getattr(args, "cache_dir", None):
+        deps.extend(["--cache-dir", args.cache_dir])
     with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
         binaries: dict[Path, str | None] = {path: None for path in files}
         build_errors: dict[Path, str] = {}
         if args.native:
             for index, path in enumerate(files):
                 binary = Path(directory) / f"{index}-{path.stem}"
-                error = _build(path, binary)
+                error = _build(path, binary, tuple(deps))
                 if error is None:
                     binaries[path] = str(binary)
                 else:
@@ -446,6 +468,7 @@ def run_tests(args: argparse.Namespace) -> int:
                 timeout_s,
                 jobs,
                 args.fail_fast,
+                tuple(deps),
             )
         else:
             runs = _run_files(
@@ -456,6 +479,7 @@ def run_tests(args: argparse.Namespace) -> int:
                 timeout_s,
                 jobs,
                 args.fail_fast,
+                tuple(deps),
             )
     if args.json:
         print(json.dumps(_payload(runs), ensure_ascii=False, indent=2))
