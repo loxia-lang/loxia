@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/loxia-lang/loxia/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/loxia-lang/loxia/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/loxia)](https://pypi.org/project/loxia/)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/loxia-lang/loxia/badge)](https://securityscorecards.dev/viewer/?uri=github.com/loxia-lang/loxia)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](pyproject.toml)
 
