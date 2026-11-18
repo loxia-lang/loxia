@@ -398,6 +398,12 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Mudado
 
+- **Release por workflow:** o `Release` agora é `workflow_dispatch` (inputs `version` e
+  `dry_run`, default `true`): valida a versão contra `pyproject.toml`, builda/atesta e só
+  então cria a tag `v<versão>` + GitHub Release e publica no PyPI. Tag `v*` manual não
+  dispara mais release. O CodeQL passa a analisar também o runtime C (`c-cpp`, build
+  manual) além do Python quando o repositório for público.
+
 - **`exemplos/` virou `examples/`**: a pasta, os arquivos em português
   (`primos.lx`→`primes.lx`, `vendas.lx`→`sales.lx`) e os identificadores dos programas
   passaram para inglês; o README foi reescrito e as referências em testes, docs,

@@ -171,6 +171,8 @@ private reporting channel and scope. Conduct reports are handled separately unde
 
 ## Releases
 
-Releases are cut by the maintainers from `main` with a `v*` tag; the tag must match
-`pyproject.toml`. The release workflow builds the wheel and sdist and publishes to PyPI via
-Trusted Publishing. Contributors do not need to bump the version or create tags.
+Releases are cut by the maintainers by dispatching the **Release** workflow from `main`,
+with the version already bumped in `pyproject.toml` (the input must match it). The workflow
+builds and attests the wheel/sdist, then creates the `v<version>` tag and the GitHub
+Release, and publishes to PyPI via Trusted Publishing. A manual `v*` tag push does not
+start a release. Contributors do not need to bump the version or create tags.

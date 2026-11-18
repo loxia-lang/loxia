@@ -270,15 +270,20 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 > o CI dividido e o README em inglês estão prontos no repo **privado**
 > `loxia-lang/loxia`. O histórico foi reescrito para remover `IDEIAS-REDDIT.md`, a tag
 > `v1.0.0` foi recriada e o repo antigo (`CassioDalla/my-lox`) foi arquivado. O bump
-> 1.1.0 + CHANGELOG já estão prontos; falta a tag `v1.1.0`/push, o PyPI (pending publisher
-> + 2FA) e o **flip para público** com os ajustes de segurança do GitHub.
+> 1.1.0 + CHANGELOG já estão prontos. O workflow **Release** agora é `workflow_dispatch`:
+> valida a versão contra `pyproject.toml`, builda/atesta e só então cria a tag `v<versão>` +
+> GitHub Release e publica no PyPI (`dry_run` default `true`). Falta rodar o dispatch com
+> `dry_run=false`, o pending publisher/2FA do PyPI e o **flip para público** com os ajustes
+> de segurança do GitHub.
 
-- [ ] **PR 9 — release 1.1.0:** bump de versão, CHANGELOG 1.1.0 em inglês, tag `v1.1.0`,
-  PyPI com pending publisher/2FA e badge PyPI no README. **Não fazer antes de fechar a
-  revisão da Fase 1.**
-- [ ] **Flip para público:** tornar `loxia-lang/loxia` público, habilitar CodeQL,
-  private vulnerability reporting, secret scanning/push protection, branch/tag protection,
-  topics e social preview.
+- [ ] **PR 9 — release 1.1.0:** bump de versão e CHANGELOG 1.1.0 (feitos); dispatch do
+  workflow **Release** com `version=1.1.0` e `dry_run=false` (ele cria a tag, o GitHub
+  Release e publica no PyPI); pending publisher/2FA e badge PyPI no README. **Não fazer
+  antes de fechar a revisão da Fase 1.**
+- [ ] **Flip para público:** tornar `loxia-lang/loxia` público, manter o **default setup do
+  CodeQL desligado** (o workflow avançado cobre Python e C/C++ a partir do flip — ver
+  `.github/workflows/codeql.yml`), private vulnerability reporting, secret scanning/push
+  protection, branch/tag protection, topics e social preview.
 - **Custo/risco:** público significa issue e PR de estranho; sem `CONTRIBUTING` a triagem
   vira ruído. E publicar **congela** API — por isso o
   [ADR-0078](docs/adr/0078-nome-loxia-extensao-lx.md) veio antes.

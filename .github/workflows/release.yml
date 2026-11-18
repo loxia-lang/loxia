@@ -1,17 +1,38 @@
 name: Release
 
-# Publishes to PyPI via Trusted Publishing (OIDC): no token, no manual upload.
-# Requires a pending publisher at https://pypi.org/manage/account/publishing/:
+# Cutting a release is a deliberate act, not a side effect of a merge. Dispatch this
+# workflow with the version already bumped in `pyproject.toml` (and in README/CHANGELOG);
+# it validates the version, builds and attests the artifacts, and only then creates the
+# tag `v<version>` and the GitHub Release. A failed build leaves no tag behind.
+#
+# The tag is created by `gh release create --target`, not pushed by a maintainer, and the
+# workflow deliberately has no `push: tags` trigger: a manual tag push no longer starts a
+# release (use this workflow instead). A PyPI failure after the tag exists is recovered by
+# re-running the failed `pypi` job — the tag/release are not recreated.
+#
+# It does not run the test suite: a release is cut from a commit whose CI is already green.
+#
+# PyPI uses Trusted Publishing (OIDC), no token: configure a pending publisher at
+# https://pypi.org/manage/account/publishing/ with
 #   project: loxia · owner: loxia-lang · repo: loxia · workflow: release.yml · env: pypi
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the leading 'v' (must match pyproject.toml)"
+        required: true
+        default: "1.1.0"
+      dry_run:
+        description: "Validate and build without creating the tag/release or publishing"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
+# A release is a sequence, not a race: a second dispatch waits instead of cancelling.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
@@ -21,60 +42,129 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write
-      attestations: write
+      id-token: write # sign the provenance attestation
+      attestations: write # store the attestation in the repository
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The history and the tags: the commit-range summary needs both.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the requested version
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The input reaches the shell through the environment, never interpolated into
+          # the script: a workflow input is text a person types.
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$VERSION' is not a semantic version (expected MAJOR.MINOR.PATCH)."
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::A release is cut from main, not from $GITHUB_REF."
+            exit 1
+          fi
+          declared="$(python3 - <<'PY'
+          import tomllib
+
+          print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])
+          PY
+          )"
+          if [ "$declared" != "$VERSION" ]; then
+            echo "::error::pyproject.toml declares $declared, not $VERSION; bump it in the release commit."
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "::error::tag v$VERSION already exists — a published version is never re-pointed."
+            exit 1
+          fi
+
+      - name: What the commits since the last tag imply
+        # Not a gate: the human chooses the version. Conventional Commits already say
+        # whether the release is a patch, minor or major; a release that contradicts its
+        # own history is worth a second look.
+        run: |
+          last="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          range="${last:+${last}..}HEAD"
+          {
+            echo "### Commits since ${last:-the first commit}"
+            echo
+            git log --no-merges --format='- %s' $range | head -50
+            echo
+            if git log --no-merges --format='%s%n%b' $range | grep -qE '(^[a-z]+(\(.+\))?!:)|^BREAKING CHANGE'; then
+              echo "**Conventional Commits suggest: MAJOR** (a breaking change is present)"
+            elif git log --no-merges --format='%s' $range | grep -qE '^feat(\(.+\))?:'; then
+              echo "**Conventional Commits suggest: MINOR** (a feature is present)"
+            else
+              echo "**Conventional Commits suggest: PATCH** (only fixes and chores)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
-      - name: Check tag against pyproject version
-        run: |
-          python3 - <<'PY'
-          import os
-          import tomllib
 
-          version = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
-          tag = os.environ["GITHUB_REF_NAME"]
-          expected = f"v{version}"
-          if tag != expected:
-              raise SystemExit(f"tag {tag!r} does not match version {expected!r}")
-          print(f"ok: {tag}")
-          PY
       - name: Build wheel and sdist
         run: uv build
+
       - name: Validate metadata
         run: uv run --with twine twine check dist/*
+
       - name: Attest build provenance
+        # GitHub's provenance action is available for public repositories (or private ones
+        # with GHAS). The 1.1.0 cut may happen before the flip; PyPI's PEP 740 attestation
+        # still applies, and the GitHub attestation starts with the first public release.
+        if: github.event.repository.visibility == 'public'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: "dist/*"
+
       - name: Store artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
           path: dist/
 
+      - name: Dry run — nothing was tagged
+        if: inputs.dry_run
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "::notice::Dry run: built the artifacts for v$VERSION and stopped. Re-run with dry_run=false to tag and publish."
+
   github-release:
-    name: GitHub Release
+    name: Tag and GitHub Release
     needs: build
+    if: inputs.dry_run == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: write # create the tag and the GitHub Release
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
-      - name: Create release
+      - name: Create the tag and the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          # `gh` creates the tag at this commit and the release in one call: no local push
+          # and no credential kept in the checkout's git config.
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "Loxia v$VERSION" \
+            --generate-notes \
+            dist/*
 
   pypi:
     name: Publish to PyPI
-    needs: build
+    needs: github-release
+    if: inputs.dry_run == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
