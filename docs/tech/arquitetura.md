@@ -59,6 +59,7 @@ Packages by phase (dependency only downward):
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/inlay hints/formatting/semantic tokens, codeAction, rename, workspace/symbol and settings |
 | [`loxia/source_symbols.py`](../../loxia/source_symbols.py) | original-AST symbol resolution for the LSP: imports, members with superclass/interfaces, callable signatures and source type display |
+| [`loxia/rename.py`](../../loxia/rename.py) | semantic cross-file rename from the loader-resolved AST: mangled tokens, imports/aliases and type annotations |
 | [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, inherited members, enums and native members |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | LSP-1 `SymbolIndex`: declarations, references, checker types and inferred declaration metadata |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | English docs for builtins/primitives for `docs/stdlib/builtins.md` |

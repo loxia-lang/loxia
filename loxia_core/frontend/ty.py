@@ -7,7 +7,11 @@ checker (inferência/checagem). O tree-walk continua dinâmico.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from loxia_core.frontend.tokens import Token
 
 
 class Ty:
@@ -80,10 +84,15 @@ class TupleTy(Ty):
 
 @dataclass(frozen=True)
 class ClassTy(Ty):
-    """Instância de uma classe; `args` vazio para classe não genérica."""
+    """Instância de uma classe; `args` vazio para classe não genérica.
+
+    `token` é metadado opcional do parser (posição do nome na anotação), usado pelo
+    rename do LSP. Fora de comparação/hash para não mudar igualdade de tipos.
+    """
 
     name: str
     args: tuple[Ty, ...] = ()
+    token: Token | None = field(default=None, compare=False, repr=False)
 
 
 @dataclass(frozen=True)

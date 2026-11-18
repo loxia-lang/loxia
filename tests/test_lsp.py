@@ -1103,3 +1103,173 @@ def test_lsp_diagnostics_match_check_json(tmp_path: Path) -> None:
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_lsp_rename_cross_file_semantico_ignora_homonimo(tmp_path: Path) -> None:
+    module = tmp_path / "mod.lx"
+    module.write_text("fn foo() -> Int {\n  return 1\n}\n", encoding="utf-8")
+    other = tmp_path / "other.lx"
+    other.write_text("fn foo() -> Int {\n  return 2\n}\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
+    main.write_text("from mod import foo\nprint(foo())\n", encoding="utf-8")
+    process = _start_with_root(tmp_path)
+    try:
+        _open_document(process, module, module.read_text(encoding="utf-8"))
+        result = cast(
+            dict[str, Any],
+            _request(
+                process,
+                2,
+                "textDocument/rename",
+                {
+                    "textDocument": {"uri": module.as_uri()},
+                    "position": {"line": 0, "character": 4},
+                    "newName": "bar",
+                },
+            ),
+        )
+        changes = cast(dict[str, list[dict[str, Any]]], result["changes"])
+        assert set(changes) == {module.as_uri(), main.as_uri()}
+        assert other.as_uri() not in changes
+        assert len(changes[module.as_uri()]) == 1
+        assert len(changes[main.as_uri()]) == 2
+        assert all(edit["newText"] == "bar" for edits in changes.values() for edit in edits)
+
+        _open_document(process, main, main.read_text(encoding="utf-8"))
+        prepared = cast(
+            dict[str, Any],
+            _request(
+                process,
+                3,
+                "textDocument/prepareRename",
+                {
+                    "textDocument": {"uri": main.as_uri()},
+                    "position": {"line": 1, "character": 7},
+                },
+            ),
+        )
+        assert prepared["placeholder"] == "foo"
+        assert prepared["range"]["start"] == {"line": 1, "character": 6}
+
+        send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+
+
+def test_lsp_rename_cross_file_preserva_alias_e_namespace(tmp_path: Path) -> None:
+    module = tmp_path / "mod.lx"
+    module.write_text("fn foo() -> Int {\n  return 1\n}\n", encoding="utf-8")
+    alias_file = tmp_path / "alias.lx"
+    alias_source = "from mod import foo as f\nprint(f())\n"
+    alias_file.write_text(alias_source, encoding="utf-8")
+    namespace_file = tmp_path / "namespace.lx"
+    namespace_file.write_text("import mod\nprint(mod.foo())\n", encoding="utf-8")
+    process = _start_with_root(tmp_path)
+    try:
+        _open_document(process, module, module.read_text(encoding="utf-8"))
+        result = cast(
+            dict[str, Any],
+            _request(
+                process,
+                2,
+                "textDocument/rename",
+                {
+                    "textDocument": {"uri": module.as_uri()},
+                    "position": {"line": 0, "character": 4},
+                    "newName": "bar",
+                },
+            ),
+        )
+        changes = cast(dict[str, list[dict[str, Any]]], result["changes"])
+        alias_edits = changes[alias_file.as_uri()]
+        assert len(alias_edits) == 1
+        assert alias_edits[0]["range"]["start"] == {"line": 0, "character": 16}
+        assert alias_edits[0]["newText"] == "bar"
+        namespace_edits = changes[namespace_file.as_uri()]
+        assert len(namespace_edits) == 1
+        assert namespace_edits[0]["range"]["start"] == {"line": 1, "character": 10}
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+
+
+def test_lsp_rename_cross_file_de_tipo_atualiza_anotacao(tmp_path: Path) -> None:
+    module = tmp_path / "mod.lx"
+    module.write_text(
+        "class Point {\n  val x: Int\n  init(x: Int) { this.x = x }\n}\n",
+        encoding="utf-8",
+    )
+    main = tmp_path / "main.lx"
+    main.write_text(
+        "from mod import Point\nval p: Point = Point(1)\nprint(p.x)\n",
+        encoding="utf-8",
+    )
+    process = _start_with_root(tmp_path)
+    try:
+        _open_document(process, module, module.read_text(encoding="utf-8"))
+        result = cast(
+            dict[str, Any],
+            _request(
+                process,
+                2,
+                "textDocument/rename",
+                {
+                    "textDocument": {"uri": module.as_uri()},
+                    "position": {"line": 0, "character": 7},
+                    "newName": "Q",
+                },
+            ),
+        )
+        changes = cast(dict[str, list[dict[str, Any]]], result["changes"])
+        assert set(changes) == {module.as_uri(), main.as_uri()}
+        main_positions = {
+            (edit["range"]["start"]["line"], edit["range"]["start"]["character"])
+            for edit in changes[main.as_uri()]
+        }
+        assert main_positions == {
+            (0, 16),
+            (1, 7),
+            (1, 15),
+        }
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+
+
+def test_lsp_rename_cross_file_recusa_colisao(tmp_path: Path) -> None:
+    module = tmp_path / "mod.lx"
+    module.write_text("fn foo() -> Int {\n  return 1\n}\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
+    main.write_text("from mod import foo\nval bar = 1\nprint(foo())\n", encoding="utf-8")
+    process = _start_with_root(tmp_path)
+    try:
+        _open_document(process, module, module.read_text(encoding="utf-8"))
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": module.as_uri()},
+                    "position": {"line": 0, "character": 4},
+                    "newName": "bar",
+                },
+            },
+        )
+        response = read(process)
+        assert "already used" in response["error"]["message"]
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
