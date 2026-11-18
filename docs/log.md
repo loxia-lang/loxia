@@ -910,3 +910,26 @@ não existem mais. O marcador abaixo usa o SHA reescrito.
   comandos do README foi atualizada no mesmo commit.
 
 <!-- triaged: 4c73c6a -->
+
+## 2026-11-17 — lock, hash e `--frozen`
+
+- `docs/spec/semantica.md` — **updated**: `loxia.lock`, `--frozen`/`--offline`/`--cache-dir`,
+  cache por projeto e a regra de identidade (nome + origem + versão + `sha256`).
+- `docs/spec/erros.md` — **updated**: `C0002` (gerado por `make codes`).
+- `docs/tech/arquitetura.md` — **updated**: loader/lock/deps e as flags novas do CLI.
+- `docs/decisoes.md` — **updated**: linha do ADR-0104.
+- `docs/adr/README.md` — **updated**: índice com o ADR-0104.
+
+<!-- triaged: df489c5 -->
+
+## 2026-11-17 — dependências `git`
+
+- `docs/spec/semantica.md` — **updated**: `git`/`rev`, commit travado, mirror/checkout e
+  `--offline`; `run` sem rede.
+- `docs/tech/arquitetura.md` — **updated**: `deps.py` agora cobre mirror/checkout git.
+- `docs/decisoes.md` — **updated**: linha do ADR-0105.
+- `docs/adr/README.md` — **updated**: índice com o ADR-0105; ADR-0104 aponta para ele.
+- `examples/README.md` — **updated**: seção do monorepo com `lock --check`.
+
+<!-- triaged: a4fe6d1 -->
+
