@@ -1,0 +1,4 @@
+/// Doubles an integer.
+fn dobro(n: Int) -> Int {
+  return n * 2
+}

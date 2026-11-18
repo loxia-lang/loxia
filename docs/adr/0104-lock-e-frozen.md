@@ -51,7 +51,7 @@ sha256 = "…"
 - `path` é relativo à pasta do manifest, em posix. Caminho absoluto é erro de parse;
   nenhuma máquina/`CWD` entra no arquivo.
 - `version` é a `[package].version` da dependência quando ela declara uma (opcional nesta
-  fase; obrigatória para dependência `git` no ADR-0105, fase 2).
+  fase; obrigatória para dependência `git` no [ADR-0105](0105-dependencias-git.md)).
 - `git`/`rev`/`commit` já são aceitos no parser e reservados para a fase 2; nesta fase só
   `path` é emitido.
 
@@ -112,6 +112,7 @@ caminho absoluto.
 - `std` não entra no lock: a versão da stdlib é a do compilador (ADR-0088).
 - `[modules].paths` não entra no lock: são raízes soltas, sem identidade de pacote.
 - Registry, tarballs, semver com ranges e pacote binário: §14.7 fases 3+.
+- Git (rev/tag, mirror e fetch offline): [ADR-0105](0105-dependencias-git.md).
 
 ## Consequências
 

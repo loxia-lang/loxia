@@ -24,3 +24,15 @@ keep them deterministic and free of host-dependent output.
 
 Add a new example only when it demonstrates a real language or stdlib feature; keep
 the output small and free of addresses, timestamps and absolute paths.
+
+## Monorepo
+
+`monorepo/` is a small project with a `path` dependency (`shared = { path = "lib" }`),
+a committed `loxia.lock` and a runnable app:
+
+```bash
+uv run loxia run --frozen examples/monorepo/app/main.lx
+cd examples/monorepo && uv run loxia lock --check
+```
+
+It is covered by `tests/test_monorepo.py` and by the backend differential test.

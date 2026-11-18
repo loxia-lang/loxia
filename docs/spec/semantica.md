@@ -1101,6 +1101,15 @@ ADR-0079; `Any` as a field is not yet supported by the backend.
   never access the network; only `loxia lock` and `loxia fetch` may, and `--offline`
   forbids it there too. Only the root manifest declares dependencies: the lock is flat,
   `std` and `[modules].paths` never appear in it.
+- A git dependency is `acme = { git = "https://github.com/acme/acme", rev = "v1.2.3" }`
+  ([ADR-0105](../adr/0105-dependencias-git.md)). `rev` is required and is a full commit or a
+  tag (never a branch); exactly one of `path`/`git` is allowed. `loxia lock` resolves the tag
+  to a commit and records `git`, `rev`, `commit`, `version` (required in the dependency's
+  `loxia.toml`) and the tree `sha256`. `loxia fetch` populates the cache (bare mirror plus a
+  clean `git archive` checkout, no `.git`/hooks/submodules); `run`/`check`/`build` use the
+  locked commit only and fail with `C0002` when the checkout is missing ("run `loxia fetch`").
+  `--offline` restricts `lock`/`fetch` to the cache, and `file://` URLs are dev/test only and
+  stored verbatim in the lock.
 - A dependency imports its own package by name (`acme.base`) or another declared
   dependency; it does not see the project or `[modules].paths`. `[modules].paths` are loose
   roots (vendor/monorepo): `import shared.util` resolves `<root>/shared/util.lx`.

@@ -150,19 +150,23 @@ version = "0.1.0"
 
 [dependencies]
 acme = { path = "../acme" }
+# or a pinned repository, with a full commit or a tag (never a branch):
+# acme = { git = "https://github.com/acme/acme", rev = "v1.2.3" }
 ```
 
 ```bash
-loxia lock                 # writes loxia.lock (name, path, version, sha256)
+loxia lock                 # writes loxia.lock (name, origin, version, sha256)
 loxia lock --check         # exit 1 if the lock is stale
-loxia fetch                # verifies the tree against the lock
+loxia fetch                # verifies path deps; downloads/materializes git deps
 loxia run --frozen app.lx  # resolves only from the lock; fails on drift
 ```
 
 The lock pins the `sha256` of each dependency's `.lx` tree, so `--frozen` detects any
-content change and `run`/`check`/`build` never touch the network. The cache lives in
-`.loxia/cache/` (ignored by git) and `--cache-dir` overrides it
-([ADR-0104](docs/adr/0104-lock-e-frozen.md)).
+content change and `run`/`check`/`build` never touch the network. Git dependencies are
+fetched by `loxia lock`/`loxia fetch` only: the lock stores the resolved commit, so a
+moving tag cannot change a build. The cache lives in `.loxia/cache/` (ignored by git),
+`--cache-dir` overrides it and `--offline` uses the cache only
+([ADR-0104](docs/adr/0104-lock-e-frozen.md), [ADR-0105](docs/adr/0105-dependencias-git.md)).
 
 
 ## How it works

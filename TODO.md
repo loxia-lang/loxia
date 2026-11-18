@@ -246,7 +246,7 @@ tabela é o resumo executivo; o detalhe fica nas subseções abaixo.
 
 | Área | Estado | Gap de produto | Prioridade |
 | --- | --- | --- | --- |
-| **Pacotes/módulos** | loader, `std.*`, `loxia.toml` com dependências `path` ([ADR-0100](docs/adr/0100-dependencias-path.md)) e lock/cache/`--frozen` ([ADR-0104](docs/adr/0104-lock-e-frozen.md)) prontos | git/registry e o primeiro pacote externo real | **P0** |
+| **Pacotes/módulos** | loader, `std.*`, dependências `path` ([ADR-0100](docs/adr/0100-dependencias-path.md)), lock/cache/`--frozen` ([ADR-0104](docs/adr/0104-lock-e-frozen.md)) e `git` ([ADR-0105](docs/adr/0105-dependencias-git.md)) prontos | registry (fase 3) e o primeiro pacote externo real | **P0** |
 | **Distribuição/release** | wheel/sdist, entry point, teste de instalação e release workflow com attestation/GitHub Release | pending publisher do PyPI, release 1.1.0, PyPI e Homebrew | **P0** |
 | **Repo público** | entregue no privado em 2026-11-17: licença dual, README EN, CI split, CONTRIBUTING/CoC/SECURITY, templates, Dependabot, CodeQL Python e badges | release 1.1.0, flip para público, branch/tag protection e CodeQL C | **P0** |
 | **Docs de usuário** | spec, ADRs, stdlib gerada e guia de estilo | site público, tutorial de 30 min, cookbook, "por que Loxia" e `make docs-build` no CI | **P0** |
@@ -346,7 +346,7 @@ O contrato do CLI que o MCP consome é o do
 teste de instalação. O item 2 fechou a resolução de módulos e dependências `path`
 ([ADR-0100](docs/adr/0100-dependencias-path.md)): `loxia.toml` descoberto no ancestral,
 `[dependencies] nome = { path = ... }`, `[modules].paths`, `--module-path`, ambiguidade e
-isolamento de pacote. Lock, git e registry continuam na §14.7.
+isolamento de pacote. Lock e git fecharam no §14.7 (ADRs 0104/0105); registry é a fase 3.
 
 **Item 1 — empacotar e instalar.**
 
@@ -443,9 +443,10 @@ não-objetivos) está em [`IDEIAS.md`](IDEIAS.md) I-10; aqui fica o que fazer.
       árvore `.lx`), `loxia lock`, `lock --check`, `fetch`, `--frozen`/`--offline`/
       `--cache-dir` (cache `.loxia/cache` por projeto) e `C0002`. Dois manifests iguais com
       o mesmo lock produzem a mesma árvore e o mesmo build; `run --frozen` funciona offline.
-- [ ] **Fase 2 — git**: `dep = { git = "...", rev = "..." }` (`path` já implementado no
-      [ADR-0100](docs/adr/0100-dependencias-path.md)). Critério: monorepo real em
-      `examples/` compila nos dois motores.
+- [x] **Fase 2 — git** — ✅ fechada no [ADR-0105](docs/adr/0105-dependencias-git.md):
+      `dep = { git = "...", rev = "..." }` (commit completo ou tag, nunca branch), lock com
+      `commit` resolvido, mirror bare + checkout limpo em `.loxia/cache`, `fetch`/`--offline`
+      e `run` sem rede. `examples/monorepo/` compila nos dois motores (teste backend).
 - [ ] **Fase 3 — índice estático**: índice *sparse* (JSON por pacote) + tarball por versão +
       `loxia add nome@1.2`. **Só entra com demanda de terceiro**; hospedar é barato, moderar
       nome não.

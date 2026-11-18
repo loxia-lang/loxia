@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Manifest `loxia.toml`: raízes de módulo e dependências `path` (ADR-0088/0100).
+"""Manifest `loxia.toml`: raízes de módulo e dependências `path`/`git` (ADR-0088/0100/0105).
 
 O manifest é descoberto do diretório do entry para cima (primeiro vence) e é a única
 fonte de raízes fora do projeto. O `import` continua só com identificadores; `..` nunca
@@ -17,7 +17,13 @@ from typing import cast
 MANIFEST_NAME = "loxia.toml"
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+_GIT_SHA = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+_GIT_TAG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+_GIT_SCHEME = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*)://")
+_GIT_SCP = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:.+$")
+_GIT_SCHEMES = frozenset({"https", "ssh", "git", "file"})
 _TOP_LEVEL_KEYS = frozenset({"package", "modules", "dependencies"})
+_DEPENDENCY_KEYS = frozenset({"path", "git", "rev"})
 
 
 class ManifestError(Exception):
@@ -126,19 +132,59 @@ def _dependencies(value: object | None, base: Path) -> dict[str, Dependency]:
         if not _IDENTIFIER.match(name):
             raise ManifestError(f"Invalid dependency name '{name}'; use an ASCII identifier.")
         spec = _table(table[name], f"dependencies.{name}")
-        unknown = sorted(set(spec) - {"path"})
+        unknown = sorted(set(spec) - _DEPENDENCY_KEYS)
         if unknown:
             raise ManifestError(
                 f"Unsupported key(s) in dependency '{name}': "
                 + ", ".join(unknown)
-                + "; only 'path' is supported."
+                + "; use 'path' or 'git' + 'rev'."
             )
-        if "path" not in spec:
-            raise ManifestError(f"Dependency '{name}' needs a 'path'.")
+        if ("path" in spec) == ("git" in spec):
+            raise ManifestError(f"Dependency '{name}' needs exactly one of 'path' or 'git'.")
+        if "path" in spec:
+            if "rev" in spec:
+                raise ManifestError(f"Dependency '{name}': 'rev' is only valid with 'git'.")
+            result[name] = Dependency(
+                path=_relative_dir(spec["path"], base, f"dependencies.{name}.path")
+            )
+            continue
+        if "rev" not in spec:
+            raise ManifestError(f"Git dependency '{name}' needs a 'rev'.")
         result[name] = Dependency(
-            path=_relative_dir(spec["path"], base, f"dependencies.{name}.path")
+            git=_git_url(spec["git"], f"dependencies.{name}.git"),
+            rev=_git_rev(spec["rev"], f"dependencies.{name}.rev"),
         )
     return result
+
+
+def _git_url(value: object, what: str) -> str:
+    """URL absoluta (`https`/`ssh`/`git`/`file`) ou `user@host:path`; nunca `ext::`/`-x`."""
+    url = _string(value, what)
+    if any(ch.isspace() or ord(ch) < 32 for ch in url):
+        raise ManifestError(f"Expected '{what}' to be a URL without whitespace.")
+    if url.startswith("-") or "::" in url:
+        raise ManifestError(f"Expected '{what}' to be a URL, not a git option/helper.")
+    scheme = _GIT_SCHEME.match(url)
+    if scheme is not None:
+        if scheme.group(1).lower() not in _GIT_SCHEMES:
+            raise ManifestError(f"Unsupported scheme in '{what}'; use https, ssh, git or file.")
+        return url
+    if _GIT_SCP.match(url):
+        return url
+    raise ManifestError(
+        f"Expected '{what}' to be an absolute URL (https://, ssh://, git://, file://) "
+        "or user@host:path."
+    )
+
+
+def _git_rev(value: object, what: str) -> str:
+    """Commit completo (40/64 hex) ou tag simples; branch solto nunca."""
+    rev = _string(value, what)
+    if rev.startswith("-") or ".." in rev or any(ch.isspace() for ch in rev):
+        raise ManifestError(f"Expected '{what}' to be a full commit SHA or a tag name.")
+    if _GIT_SHA.match(rev) or _GIT_TAG.match(rev):
+        return rev
+    raise ManifestError(f"Expected '{what}' to be a full commit SHA or a tag name.")
 
 
 def _module_paths(value: object | None, base: Path) -> tuple[Path, ...]:

@@ -165,7 +165,11 @@ descoberta no ancestral, isolamento de dependência e `--module-path`).
 O [ADR-0104](adr/0104-lock-e-frozen.md) fechou a fase 1: `loxia.lock` canônico com
 nome + origem + `version` (X.Y.Z) + `sha256` da árvore `.lx`, `loxia lock`/`lock --check`/
 `fetch`, `--frozen`/`--offline`/`--cache-dir` (cache `.loxia/cache` por projeto) e o
-diagnóstico `C0002`; `run`/`check`/`build` nunca acessam a rede. Git é a fase 2 e registry
-segue em [`../TODO.md`](../TODO.md) §14.7.
+diagnóstico `C0002`; `run`/`check`/`build` nunca acessam a rede.
+O [ADR-0105](adr/0105-dependencias-git.md) fechou a fase 2: `acme = { git = "...", rev = "..." }`
+(rev = commit completo ou tag; branch nunca), lock com `commit` resolvido, mirror bare e
+checkout limpo em `.loxia/cache` (`--cache-dir` troca), `loxia fetch` materializa e
+`--offline` usa só o cache; `run` exige checkout já baixado. Registry (fase 3) segue em
+[`../TODO.md`](../TODO.md) §14.7.
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).

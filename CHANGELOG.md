@@ -7,6 +7,13 @@ Todas as mudanças relevantes da linguagem/interpretador. O escopo de cada vers�
 
 ### Adicionado
 
+- **Dependências `git`** (fase 2 do §14.7, [ADR-0105](docs/adr/0105-dependencias-git.md)):
+  `acme = { git = "...", rev = "..." }` com commit completo ou tag (branch nunca), lock com
+  `commit` resolvido (tag móvel não muda o build) e `version` obrigatória no manifest da
+  dependência. Mirror bare + checkout limpo (`git archive`, sem `.git`/hooks/submódulos) em
+  `.loxia/cache`, `loxia fetch`/`--offline` e `run`/`check`/`build` sem rede; URL e `rev`
+  validados (`ext::` e `-x` recusados) e `examples/monorepo/` compila nos dois motores.
+
 - **Lock de dependências (`loxia.lock`) e modo `--frozen`** (fase 1 do §14.7,
   [ADR-0104](docs/adr/0104-lock-e-frozen.md)): `loxia lock` grava o lock canônico (nome,
   `path` relativo, `[package].version` `X.Y.Z` e `sha256` da árvore `.lx`), `lock --check`

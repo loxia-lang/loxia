@@ -1257,7 +1257,7 @@ def _run_lock(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None
     manifest = _project_manifest(lox, "lock")
     lock_path = manifest.path.parent / LOCK_NAME
     try:
-        lock = lock_manifest(manifest, cache_dir=lox.cache_dir)
+        lock = lock_manifest(manifest, offline=args.offline, cache_dir=lox.cache_dir)
         if args.check:
             current = read_lock(lock_path)
             if current is None or render_lock(current) != render_lock(lock):

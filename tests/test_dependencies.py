@@ -4,16 +4,25 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import cast
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
+_GIT_REQUIRED = pytest.mark.skipif(shutil.which("git") is None, reason="git não está no PATH")
 
 
-def _cli(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
+def _cli(
+    *args: str,
+    cwd: Path,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), *args],
         cwd=cwd,
@@ -21,6 +30,7 @@ def _cli(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
         text=True,
         timeout=120,
         check=False,
+        env=env,
     )
 
 
@@ -70,7 +80,9 @@ def test_lock_grava_identidade_versao_e_hash(tmp_path: Path) -> None:
     assert package["name"] == "acme"
     assert package["path"] == "../acme"
     assert package["version"] == "0.1.0"
-    assert len(package["sha256"]) == 64
+    digest = package["sha256"]
+    assert isinstance(digest, str)
+    assert len(digest) == 64
     assert str(tmp_path) not in (app / "loxia.lock").read_text(encoding="utf-8")
 
 
@@ -253,3 +265,241 @@ def test_erro_de_dependencia_em_json_tem_codigo_e_fase(tmp_path: Path) -> None:
     payload = json.loads(result.stderr)
     assert payload["diagnostics"][0]["code"] == "C0002"
     assert payload["diagnostics"][0]["phase"] == "cli"
+
+
+# -- git (fase 2, ADR-0105) ----------------------------------------------
+
+
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    ).stdout.strip()
+
+
+def _git_repository(
+    tmp_path: Path,
+    *,
+    tag: str | None = None,
+    version: str | None = "0.1.0",
+) -> tuple[Path, str]:
+    repo = tmp_path / "remote"
+    repo.mkdir()
+    _git("init", "-q", cwd=repo)
+    _git("config", "user.email", "test@example.com", cwd=repo)
+    _git("config", "user.name", "Test", cwd=repo)
+    manifest = '[package]\nname = "acme"\n'
+    if version is not None:
+        manifest += f'version = "{version}"\n'
+    (repo / "loxia.toml").write_text(manifest, encoding="utf-8")
+    (repo / "base.lx").write_text(
+        "fn dobro(n: Int) -> Int { return n * 2 }\n",
+        encoding="utf-8",
+    )
+    _git("add", "-A", cwd=repo)
+    _git("commit", "-qm", "init", cwd=repo)
+    if tag is not None:
+        _git("tag", tag, cwd=repo)
+    return repo, _git("rev-parse", "HEAD", cwd=repo)
+
+
+def _git_app(tmp_path: Path, repo: Path, rev: str) -> Path:
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "loxia.toml").write_text(
+        '[package]\nname = "app"\n\n'
+        f'[dependencies]\nacme = {{ git = "{repo.as_uri()}", rev = "{rev}" }}\n',
+        encoding="utf-8",
+    )
+    (app / "main.lx").write_text(
+        "import acme.base as base\nprint(base.dobro(21))\n",
+        encoding="utf-8",
+    )
+    return app
+
+
+def _git_lock(app: Path) -> dict[str, object]:
+    lock = tomllib.loads((app / "loxia.lock").read_text(encoding="utf-8"))
+    packages = lock["package"]
+    assert isinstance(packages, list)
+    (package,) = packages
+    return cast("dict[str, object]", package)
+
+
+@_GIT_REQUIRED
+def test_git_com_sha_trava_commit_e_roda(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, sha)
+
+    locked = _cli("lock", cwd=app)
+
+    assert locked.returncode == 0, locked.stderr
+    package = _git_lock(app)
+    assert package["git"] == repo.as_uri()
+    assert package["rev"] == sha
+    assert package["commit"] == sha
+    assert package["version"] == "0.1.0"
+    digest = package["sha256"]
+    assert isinstance(digest, str)
+    assert len(digest) == 64
+
+    run = _run(app / "main.lx", "run", cwd=app)
+    frozen = _run(app / "main.lx", "run", "--frozen", cwd=app)
+    assert run.stdout == "42\n"
+    assert frozen.returncode == 0, frozen.stderr
+    assert frozen.stdout == "42\n"
+
+
+@_GIT_REQUIRED
+def test_git_com_tag_resolve_para_o_commit(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path, tag="v0.1.0")
+    app = _git_app(tmp_path, repo, "v0.1.0")
+
+    assert _cli("lock", cwd=app).returncode == 0
+    package = _git_lock(app)
+
+    assert package["rev"] == "v0.1.0"
+    assert package["commit"] == sha
+    assert _run(app / "main.lx", "run", "--frozen", cwd=app).stdout == "42\n"
+
+
+@_GIT_REQUIRED
+def test_git_sem_checkout_pede_fetch_e_depois_funciona(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, sha)
+    assert _cli("lock", cwd=app).returncode == 0
+    shutil.rmtree(app / ".loxia" / "cache" / "src")
+
+    missing = _run(app / "main.lx", "run", cwd=app)
+    fetched = _cli("fetch", cwd=app)
+    run = _run(app / "main.lx", "run", cwd=app)
+
+    assert missing.returncode == 65
+    assert "not available locally" in missing.stderr
+    assert fetched.returncode == 0, fetched.stderr
+    assert run.stdout == "42\n"
+
+
+@_GIT_REQUIRED
+def test_git_offline_usa_o_cache_mesmo_sem_remoto(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, sha)
+    assert _cli("lock", cwd=app).returncode == 0
+    assert _cli("fetch", cwd=app).returncode == 0
+    shutil.rmtree(repo)
+
+    offline = _run(app / "main.lx", "run", "--offline", cwd=app)
+    frozen = _run(app / "main.lx", "run", "--frozen", cwd=app)
+    relocked = _cli("lock", "--offline", cwd=app)
+    fetched = _cli("fetch", "--offline", cwd=app)
+
+    assert offline.stdout == "42\n"
+    assert frozen.stdout == "42\n"
+    assert relocked.returncode == 0, relocked.stderr
+    assert fetched.returncode == 0, fetched.stderr
+
+
+@_GIT_REQUIRED
+def test_git_offline_sem_cache_falha(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, sha)
+    assert _cli("lock", cwd=app).returncode == 0
+    shutil.rmtree(app / ".loxia")
+
+    result = _cli("fetch", "--offline", cwd=app)
+
+    assert result.returncode == 65
+    assert "not in the cache" in result.stderr
+
+
+@_GIT_REQUIRED
+def test_git_frozen_detecta_rev_trocada(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, sha)
+    assert _cli("lock", cwd=app).returncode == 0
+    (repo / "base.lx").write_text(
+        "fn dobro(n: Int) -> Int { return n * 3 }\n",
+        encoding="utf-8",
+    )
+    _git("add", "-A", cwd=repo)
+    _git("commit", "-qm", "segundo", cwd=repo)
+    second = _git("rev-parse", "HEAD", cwd=repo)
+    (app / "loxia.toml").write_text(
+        '[package]\nname = "app"\n\n'
+        f'[dependencies]\nacme = {{ git = "{repo.as_uri()}", rev = "{second}" }}\n',
+        encoding="utf-8",
+    )
+
+    result = _run(app / "main.lx", "run", "--frozen", cwd=app)
+
+    assert result.returncode == 65
+    assert "changed since loxia.lock" in result.stderr
+
+
+@_GIT_REQUIRED
+def test_git_exige_version_no_manifest_da_dependencia(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path, version=None)
+    app = _git_app(tmp_path, repo, sha)
+
+    result = _cli("lock", cwd=app)
+
+    assert result.returncode == 65
+    assert "needs [package].version" in result.stderr
+
+
+@_GIT_REQUIRED
+def test_git_rev_inexistente_falha_no_lock(tmp_path: Path) -> None:
+    repo, _sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, "0" * 40)
+
+    result = _cli("lock", cwd=app)
+
+    assert result.returncode == 65
+    assert "Can't resolve rev" in result.stderr
+
+
+@_GIT_REQUIRED
+def test_git_sem_git_no_path_falha_com_mensagem_clara(tmp_path: Path) -> None:
+    repo, sha = _git_repository(tmp_path)
+    app = _git_app(tmp_path, repo, sha)
+
+    result = _cli("lock", cwd=app, env={"PATH": ""})
+
+    assert result.returncode == 65
+    assert "git was not found" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("spec", "needle"),
+    [
+        (
+            '{ git = "ext::sh -c true", rev = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }',
+            "URL",
+        ),
+        ('{ git = "file:///tmp/acme", rev = "-x" }', "full commit SHA or a tag name"),
+        ('{ path = ".", git = "file:///tmp/acme", rev = "abc" }', "exactly one"),
+        ('{ git = "file:///tmp/acme" }', "needs a 'rev'"),
+        ('{ path = ".", rev = "abc" }', "'rev' is only valid"),
+        (
+            '{ git = "https://example.com/acme", rev = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", branch = "main" }',
+            "Unsupported key",
+        ),
+    ],
+)
+def test_git_manifest_invalido(spec: str, needle: str, tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "loxia.toml").write_text(
+        f'[package]\nname = "app"\n\n[dependencies]\nacme = {spec}\n',
+        encoding="utf-8",
+    )
+    (app / "main.lx").write_text("print(1)\n", encoding="utf-8")
+
+    result = _cli("lock", cwd=app)
+
+    assert result.returncode == 65
+    assert needle in result.stderr

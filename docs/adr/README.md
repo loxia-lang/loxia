@@ -152,7 +152,8 @@ TODO item.
 | [0101](0101-licenca-dual-e-politica-de-contribuicao.md) | Dual MIT/Apache-2.0 license and contribution policy (DCO) | accepted (partial implementation) | 2026-11-17 |
 | [0102](0102-ingles-na-vitrine-e-docs-pt-br.md) | English in the public showcase; internal docs in pt-BR until the translation | accepted (first stage) | 2026-11-17 |
 | [0103](0103-site-de-documentacao-e-versionamento.md) | Documentation site: Starlight, staging and reference version | accepted (implemented; deploy on the flip) | 2026-11-17 |
-| [0104](0104-lock-e-frozen.md) | Package lock: tree hash, `--frozen`, local cache and `C0002` | accepted (implemented; git in phase 2) | 2026-11-17 |
+| [0104](0104-lock-e-frozen.md) | Package lock: tree hash, `--frozen`, local cache and `C0002` | accepted (implemented) | 2026-11-17 |
+| [0105](0105-dependencias-git.md) | Git dependencies: pinned `rev`, bare mirror, clean checkout and offline fetch | accepted (implemented) | 2026-11-17 |
 
 
 ## Next decisions that call for an ADR

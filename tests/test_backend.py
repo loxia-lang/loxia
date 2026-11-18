@@ -1521,3 +1521,30 @@ def test_dependencia_path_com_frozen_compila_nos_dois_motores(tmp_path: Path) ->
 
     assert native.stdout == interpreted.stdout == "42\n"
     assert native.returncode == interpreted.returncode == 0
+
+
+@pytest.mark.backend
+def test_monorepo_do_exemplo_compila_nos_dois_motores(tmp_path: Path) -> None:
+    entry = ROOT / "examples" / "monorepo" / "app" / "main.lx"
+    interpreted = _run([sys.executable, str(ENTRYPOINT), "run", "--frozen", str(entry)])
+    assert interpreted.returncode == 0, interpreted.stderr
+
+    binary = tmp_path / "monorepo"
+    built = _run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "build",
+            "--frozen",
+            "--emit",
+            "exe",
+            "-o",
+            str(binary),
+            str(entry),
+        ]
+    )
+    assert built.returncode == 0, built.stderr
+    native = _run([str(binary)])
+
+    assert native.stdout == interpreted.stdout == "42\n"
+    assert native.returncode == interpreted.returncode == 0
