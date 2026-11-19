@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia.source_index import SourceIndex
 
 

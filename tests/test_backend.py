@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
 
 MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]

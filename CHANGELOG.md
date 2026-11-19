@@ -35,6 +35,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Mudado
 
+- **CLI: help per command and split modules** ([ADR-0110](docs/adr/0110-help-do-cli-e-modulos.md)):
+  `loxia --help` lists the commands and global options; each subcommand documents only
+  its own flags, grouped, with examples. The compatibility mode (`loxia [flag]
+  file.lx`) keeps parsing the legacy flags and is summarized in the epilog.
+  `loxia/cli.py` was split into `cli_args.py`, `cli_commands.py` and `engine.py`;
+  `Loxia` exposes `use_file`/`sources`/`flush` and the dead `run_file` is gone.
+
 - **Editor: cliente VS Code em repo próprio e grammar como asset** (ADR-0109): o cliente
   saiu de `editors/vscode/` para `loxia-lang/loxia-vscode` (TypeScript + esbuild, testes
   unitários e smoke de integração, CI, VSIX, Marketplace/Open VSX). A grammar gerada
