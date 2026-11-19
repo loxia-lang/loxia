@@ -7,6 +7,7 @@ prova que `pip install loxia` entrega comando + `std/` + `runtime.c`, e não só
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import tarfile
@@ -39,6 +40,11 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
     assert any(name.endswith("loxia_core/runtime/kernel.c") for name in names)
     # O índice de docs é um artefato gerado e precisa viajar no wheel (ADR-0111).
     assert any(name.endswith("loxia/_spec/index.json") for name in names)
+    assert any(name.endswith("loxia/mcp.py") for name in names)
+    entry_points = next(name for name in names if name.endswith("entry_points.txt"))
+    with zipfile.ZipFile(wheel) as archive:
+        entry_text = archive.read(entry_points).decode("utf-8")
+    assert "loxia-mcp = loxia.mcp:main" in entry_text
 
     # Um `std/` só: a sdist carrega a pasta na raiz e o wheel a move para dentro
     # do pacote (force-include do hatchling). Cópia nos dois lugares = instalação
@@ -84,3 +90,33 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == '{"ok":true}'
+
+    # O entry point e o índice de docs também precisam funcionar fora do repo.
+    mcp = subprocess.run(
+        [str(venv / "bin" / "loxia-mcp")],
+        cwd=work,
+        input=json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "loxia_version",
+                    "arguments": {},
+                    "_meta": {
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                        "io.modelcontextprotocol/clientCapabilities": {},
+                    },
+                },
+            }
+        )
+        + "\n",
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert mcp.returncode == 0, mcp.stderr
+    version = json.loads(mcp.stdout)["result"]["structuredContent"]
+    assert version["protocol_version"] == "2026-07-28"
+    assert version["docs_pages"] > 0

@@ -5,13 +5,14 @@ issues; ideias em [Discussions › Ideas](https://github.com/loxia-lang/loxia/di
 decisões adiadas no [ADR-0107](adr/0107-adiados-e-nao-objetivos.md). Este arquivo é
 narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone).
 
-## Onde estamos (2026-11-18)
+## Onde estamos (2026-11-19)
 
 - Repositório público; **1.1.0** lançada (PyPI + GitHub Release).
 - Linguagem 1.0 congelada; backend **L0–L6 + T7** fechado; **M8** (performance) fechado.
 - **M9** (ecossistema) em andamento: MCP, cliente de editor e distribuição. O cliente
   VS Code já vive em `loxia-lang/loxia-vscode` (ADR-0109) e a grammar é asset de release;
-  falta criar publisher/namespace e publicar a 1.1.0.
+  falta criar publisher/namespace e publicar a 1.1.0. O servidor MCP foi implementado
+  (`loxia mcp`/`loxia-mcp`, ADR-0112), com paridade CLI×MCP e perfil `--sandbox`.
 - **Site no ar**: <https://loxia-lang.github.io/loxia/> ([#4](https://github.com/loxia-lang/loxia/issues/4)).
 - **LSP sem as lacunas P1**: completion herdada, signature importado/herdado, `inlayHint` e
   rename cross-file semântico ([#7](https://github.com/loxia-lang/loxia/issues/7)).
@@ -22,6 +23,8 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
    confirmar o asset de grammar no release ([#5](https://github.com/loxia-lang/loxia/issues/5));
    o split, os testes, o CI e o empacotamento já estão implementados.
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
+   **Implementado** (ADR-0112: modern-only 2026-07-28, zero-dep, `--sandbox`); falta
+   validar com os clientes-alvo e publicar.
 3. **Decisões abertas**: `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)). Contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos.
 
 ## Próximo (Next)

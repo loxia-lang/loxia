@@ -67,7 +67,7 @@ area = 6.0
 | Interpreter | Lox core from *Crafting Interpreters* plus Loxia's own syntax and semantics |
 | Native backend | L0–L6 + T7: strings, classes, closures, containers, enums, exceptions |
 | Standard library | T1–T3: `json`, `fmt`, `fs`, `io`, `proc`, `sets`, `csv`, `hash`, `property`… |
-| Tooling | formatter, LSP, test runner, `fix`, `doc`, `explain`, `capabilities` |
+| Tooling | formatter, LSP, MCP, test runner, `fix`, `doc`, `explain`, `capabilities` |
 | Packaging | on PyPI since 1.1.0 |
 
 Current version: **1.1.0**. The detailed, generated status by level is in
@@ -122,7 +122,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
-| `loxia run FILE` | Execute a program | `--debug`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia run FILE` | Execute a program | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--json` |
 | `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--json` |
@@ -134,6 +134,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
+| `loxia mcp` | MCP server over stdio (tools) | — |
 | `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
@@ -150,6 +151,32 @@ Exit codes: `65` compilation error, `70` runtime error, `66` missing file, `2` i
 usage, `1` for a `--check`/`lock --check` difference, `124` timeout, `130` interrupted
 `--watch`. The generated binary follows the same runtime contract: `0` on success and `70`
 on an uncaught runtime error.
+
+## MCP server
+
+`loxia mcp` (or the `loxia-mcp` console script) is a thin
+[Model Context Protocol](https://modelcontextprotocol.io/) server over the CLI. It speaks
+MCP `2026-07-28` on stdio and exposes:
+
+- `loxia_check` — type-check a source and return the CLI JSON diagnostics;
+- `loxia_run` — run a source in the sandbox profile (no filesystem/process primitives,
+  timeout and resource limits);
+- `loxia_ast` — parse and return the S-expression AST;
+- `loxia_spec` — search the packaged language reference and stdlib;
+- `loxia_explain` and `loxia_version`.
+
+Point your client at it:
+
+```json
+{
+  "mcpServers": {
+    "loxia": { "command": "loxia", "args": ["mcp"] }
+  }
+}
+```
+
+The server is zero-dependency; check/run/ast results are byte-identical to the CLI. See
+[`docs/tech/mcp.md`](docs/tech/mcp.md) for the protocol, sandbox and limits (ADR-0112).
 
 ## Packages
 

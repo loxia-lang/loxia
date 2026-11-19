@@ -1003,3 +1003,24 @@ pré-existentes continuam abertas (ver a última linha) e seriam silenciadas por
   `docs/stdlib/sets.md` já estavam defasados antes deste PR (as fontes mudaram em #39/#40)
   e não foram tocados aqui; ficam para a triagem de quem mexer naquelas fontes, sem
   marcador `triaged:` que os silencie.
+
+## 2026-11-19 — servidor MCP e perfil `--sandbox` (ADR-0112)
+
+Intervalo: `1982773`. O CLI ganhou `loxia mcp`/`loxia-mcp`, tools MCP sobre o contrato
+existente e o perfil `--sandbox` no `run`; a spec e a stdlib não mudaram.
+
+- `docs/spec/garantias.md` — **no-change**: I1–I4, corpus, orçamentos e backend intactos;
+  a candidata é pré-existente de #39/#40.
+- `docs/spec/semantica.md` — **no-change**: `--sandbox` é um perfil de capacidade do host
+  (opt-in, nega fs/process); a semântica default da linguagem e os exemplos continuam
+  iguais. A candidata também é pré-existente de #39/#40.
+- `docs/stdlib/sets.md` — **no-change**: `std/sets.lx` e `loxia/docgen.py` não foram
+  tocados; a candidata é pré-existente de #39/#40.
+- `docs/decisoes.md`, `docs/roadmap.md`, `docs/tech/arquitetura.md`, `docs/README.md`,
+  `README.md`, `CHANGELOG.md` — **updated**: status MCP, decisão, arquitetura e uso.
+- `docs/tech/mcp.md`, `docs/adr/0112-mcp-servidor-stdio.md` — **new**: protocolo,
+  ferramentas, sandbox e limites.
+- `docs/spec/erros.md` — **no-change**: nenhum código, mensagem ou fase de diagnóstico
+  mudou; o sandbox reusa `R1000`.
+
+<!-- triaged: 1982773 -->

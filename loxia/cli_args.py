@@ -37,6 +37,7 @@ COMMANDS = (
     "explain",
     "capabilities",
     "lsp",
+    "mcp",
     "test",
     "fix",
     "lock",
@@ -56,6 +57,7 @@ _COMMAND_SUMMARIES = {
     "explain": "explica um código de diagnóstico",
     "capabilities": "descreve comandos, formatos e limites",
     "lsp": "servidor de linguagem (LSP) sobre stdio",
+    "mcp": "servidor MCP (Model Context Protocol) sobre stdio",
     "test": "roda suítes `*_test.lx`",
     "fix": "aplica correções seguras (dry-run por padrão)",
     "lock": "escreve `loxia.lock` a partir do `loxia.toml`",
@@ -264,6 +266,14 @@ def _add_debug(container: argparse._ActionsContainer) -> None:
     )
 
 
+def _add_sandbox(container: argparse._ActionsContainer) -> None:
+    container.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="nega fs/process ambientais ao programa (run)",
+    )
+
+
 def _add_timeout(container: argparse._ActionsContainer) -> None:
     container.add_argument(
         "--timeout",
@@ -465,6 +475,7 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_diagnostics_options(groups.diagnostics)
         _add_module_options(groups.modules)
         _add_debug(groups.execution)
+        _add_sandbox(groups.execution)
         _add_input_options(groups.input)
         _add_timeout(groups.execution)
         _add_dependency_options(groups.modules)
@@ -561,6 +572,9 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help="usa stdio (padrão; aceito para compatibilidade)",
         )
+    elif command == "mcp":
+        # O transporte do MCP é sempre stdio; não há flags de servidor no v1.
+        pass
     elif command == "fix":
         parser.add_argument("script", help="arquivo Loxia")
         groups.execution.add_argument(

@@ -7,6 +7,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **Servidor MCP** ([ADR-0112](docs/adr/0112-mcp-servidor-stdio.md)): `loxia mcp` e
+  `loxia-mcp` falam MCP 2026-07-28 modern-only em stdio, sem dependência; tools
+  `loxia_check`, `loxia_run`, `loxia_ast`, `loxia_spec`, `loxia_explain` e
+  `loxia_version`, com paridade CLI×MCP. `loxia run --sandbox` nega fs/process e o
+  servidor aplica timeout, process group e limites de processo; testes em
+  `tests/test_mcp.py` e `tests/test_cli.py`.
+
 - **Índice determinístico da documentação** ([ADR-0111](docs/adr/0111-indice-de-documentacao.md)):
   `make docs-index` gera `loxia/_spec/index.json` (spec + stdlib, 33 páginas/542 seções) e
   `site/public/llms.txt`; IDs, âncoras e URLs são os mesmos do Starlight, os links viram
