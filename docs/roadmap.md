@@ -39,7 +39,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
   para tooling, buffers não salvos nos imports, rename de arquivo e hierarquia de tipos
   (fases 1–4; inspirado no pyrefly, sem herdar código Rust).
 - Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)).
-- `loxia add`/`remove` depois de um writer de TOML ([#8](https://github.com/loxia-lang/loxia/issues/8), bloqueada).
+- `loxia add`/`remove` com editor escopado de `loxia.toml` ([#8](https://github.com/loxia-lang/loxia/issues/8), [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md)); spike de `std.toml` (dados, paridade com `tomllib`) em paralelo, promoção só com consumidor.
 - Lacunas do runner de testes: `--json`, cobertura e localização de falha ([#11](https://github.com/loxia-lang/loxia/issues/11)).
 - Primeiro programa real + tutorial/cookbook ([#12](https://github.com/loxia-lang/loxia/issues/12)).
 

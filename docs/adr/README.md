@@ -169,6 +169,7 @@ TODO item.
 | [0115](0115-corpus-de-conformidade-adiado.md) | Conformance corpus artifact: deferred until a published `lox-core` spec exists | accepted (deferred) | 2026-11-19 |
 | [0116](0116-benchmarks-publicos-adiados.md) | Public benchmarks: deferred until a reproducible protocol and a performance-led release exist | accepted (deferred) | 2026-11-19 |
 | [0117](0117-ast-manual-e-cobertura-de-visitantes.md) | AST stays manual: visitor coverage enforced by protocols and a hierarchy guard | accepted (implemented) | 2026-11-19 |
+| [0118](0118-toml-na-toolchain-e-edicao-de-manifest.md) | TOML: data model in the language (spike first), comment-preserving editing in the tool | accepted (implementation pending) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR
