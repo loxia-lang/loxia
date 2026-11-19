@@ -14,7 +14,7 @@
 > e um `SourceIndex` de spans de expressão (agora em
 > `loxia_core/frontend/source_index.py`, também consumido pelas `notes` de proveniência do
 > checker — [ADR-0099](0099-notas-de-proveniencia.md)). O cliente VS Code vive em
-> `editors/vscode/` e está pronto para virar repo próprio.
+> `loxia-lang/loxia-vscode` (ADR-0109); o servidor continua neste repo.
 
 - **Status:** accepted (implementado; DAP fora de escopo)
 - **Data:** 2026-11-15
@@ -28,7 +28,7 @@
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
   `codeAction`, `rename` (locais/parâmetros e top-level cross-file) e
-  `loxia_core/frontend/source_index.py` e o cliente em `editors/vscode/` já existem.
+  `loxia_core/frontend/source_index.py` e o cliente em `loxia-lang/loxia-vscode` já existem (ADR-0109).
 
 ## Contexto
 
@@ -192,7 +192,7 @@ mensagem ao usuário.
 
 - `uv run pytest tests/test_lsp.py` — transcrições JSON-RPC e paridade com
   `check --error-format=json`.
-- Teste manual no VS Code com `editors/` (cliente LSP) em um projeto com módulos.
+- Teste manual no VS Code com o repo `loxia-vscode` (cliente LSP) em um projeto com módulos.
 - `uv run main.py --check --error-format=json` como oráculo; divergência é bug.
 - `make check`; nenhum stdout fora do framing; nenhum caminho absoluto em mensagem.
 - Critério para revisitar: LSP-0/LSP-1 em uso real; necessidade de incremental, file

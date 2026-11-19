@@ -983,3 +983,23 @@ o rename atualizar anotações de tipo; é metadado de posição, não uma regra
   mudou; igualdade/hash de tipos continuam iguais.
 
 <!-- triaged: 5108074 -->
+
+## 2026-11-18 — cliente VS Code em repo próprio (ADR-0109)
+
+Intervalo: commits deste PR. Não há marcador `triaged:` global: as três páginas
+pré-existentes continuam abertas (ver a última linha) e seriam silenciadas por ele.
+
+- `editors/README.md` — **updated**: caminhos de `editors/grammar/`, contrato de asset de
+  release, sync do repo novo e remoção da seção de instalação do cliente.
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md` — **updated**: o cliente aponta para
+  `loxia-lang/loxia-vscode` (ADR-0109); o servidor continua no main.
+- `docs/adr/0109-editor-repo-e-assets.md` — **new**: split, asset de grammar, pin,
+  distribuição, settings/run e o que sai do main.
+- `docs/decisoes.md`, `docs/roadmap.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md` —
+  **updated**: resumo da decisão, status M9, link do editor, entrada de changelog e mapa
+  de arquitetura.
+- `docs/spec/*.md` — **no-change**: a linguagem, I1–I4 e os diagnósticos não mudaram; o
+  trabalho é de empacotamento/editor. `docs/spec/erros.md`, `docs/spec/semantica.md` e
+  `docs/stdlib/sets.md` já estavam defasados antes deste PR (as fontes mudaram em #39/#40)
+  e não foram tocados aqui; ficam para a triagem de quem mexer naquelas fontes, sem
+  marcador `triaged:` que os silencie.

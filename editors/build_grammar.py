@@ -9,9 +9,10 @@ embutido novo sem grammar atualizada falha no `--check`, que roda em
 
 Uso:
 
-    uv run python editors/build_grammar.py           # imprime o JSON
-    uv run python editors/build_grammar.py --write   # regrava o .tmLanguage.json
-    uv run python editors/build_grammar.py --check   # exit 1 se o arquivo estiver defasado
+    uv run python editors/build_grammar.py                 # imprime o JSON
+    uv run python editors/build_grammar.py --write         # regrava os 3 artefatos
+    uv run python editors/build_grammar.py --check         # exit 1 se algum estiver defasado
+    uv run python editors/build_grammar.py --assets dist   # artefatos + SHA256SUMS
 
 Limitações **declaradas** do TextMate (não são bugs do gerador):
 
@@ -24,6 +25,7 @@ Limitações **declaradas** do TextMate (não são bugs do gerador):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -39,9 +41,14 @@ from loxia_core.execution.prelude import BUILTIN_NAMES  # noqa: E402
 from loxia_core.frontend.keywords import KEYWORDS  # noqa: E402
 from loxia_core.frontend.token_type import TokenType  # noqa: E402
 
-TARGET = ROOT / "editors" / "vscode" / "syntaxes" / "loxia.tmLanguage.json"
-SHIKI_TARGET = ROOT / "editors" / "shiki" / "loxia.mjs"
-DSH_TARGET = ROOT / "editors" / "dsh" / "loxia.ts"
+TARGET = ROOT / "editors" / "grammar" / "loxia.tmLanguage.json"
+SHIKI_TARGET = ROOT / "editors" / "grammar" / "loxia.mjs"
+DSH_TARGET = ROOT / "editors" / "grammar" / "loxia.ts"
+ASSET_NAMES = (
+    "loxia.tmLanguage.json",
+    "loxia.mjs",
+    "loxia.ts",
+)
 SCOPE = "source.loxia"
 NESTING = 3
 
@@ -373,7 +380,7 @@ def render_shiki() -> str:
         "// Consumido por Shiki (site de docs e viewer do harness), que usa o mesmo\n"
         "// JSON do VS Code. A grammar é indentada por `name` = id, então o shim\n"
         "// renomeia para `loxia` e adiciona o alias `lx`.\n"
-        "import grammar from '../vscode/syntaxes/loxia.tmLanguage.json' with { type: 'json' }\n"
+        "import grammar from './loxia.tmLanguage.json' with { type: 'json' }\n"
         "\n"
         "export default [\n"
         "  { ...grammar, name: 'loxia', displayName: 'Loxia', aliases: ['lx'] },\n"
@@ -399,16 +406,62 @@ def render_ts() -> str:
     )
 
 
+def _rendered() -> tuple[tuple[Path, str], ...]:
+    return (
+        (TARGET, render()),
+        (SHIKI_TARGET, render_shiki()),
+        (DSH_TARGET, render_ts()),
+    )
+
+
+def _assets_dir(argv: list[str]) -> Path | None:
+    """`--assets DIR` (ou `--assets=DIR`); None quando a flag não foi usada."""
+    for index, value in enumerate(argv):
+        if value == "--assets":
+            if index + 1 >= len(argv):
+                return None
+            return Path(argv[index + 1])
+        if value.startswith("--assets="):
+            return Path(value.split("=", 1)[1])
+    return None
+
+
+def write_assets(directory: Path) -> list[Path]:
+    """Grava os três artefatos e um `SHA256SUMS` determinístico em `directory`."""
+    by_name = {path.name: text for path, text in _rendered()}
+    directory.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    checksums: list[str] = []
+    for name in ASSET_NAMES:
+        content = by_name[name]
+        path = directory / name
+        path.write_text(content, encoding="utf-8")
+        written.append(path)
+        digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        checksums.append(f"{digest}  {name}\n")
+    checksums_path = directory / "SHA256SUMS"
+    checksums_path.write_text("".join(checksums), encoding="utf-8")
+    written.append(checksums_path)
+    return written
+
+
 def main(argv: list[str]) -> int:
     check_coverage()
-    text = render()
+    rendered = _rendered()
+    text = dict(rendered)[TARGET]
 
-    shiki = render_shiki()
-    ts = render_ts()
+    assets = _assets_dir(argv)
+    if "--assets" in argv or any(value.startswith("--assets=") for value in argv):
+        if assets is None:
+            print("--assets exige um diretório (ex.: --assets dist)")
+            return 2
+        for path in write_assets(assets):
+            print(f"escrito {path}")
+        return 0
 
     if "--check" in argv:
         stale = []
-        for path, expected in ((TARGET, text), (SHIKI_TARGET, shiki), (DSH_TARGET, ts)):
+        for path, expected in rendered:
             current = path.read_text(encoding="utf-8") if path.is_file() else ""
             if current != expected:
                 stale.append(str(path.relative_to(ROOT)))
@@ -422,7 +475,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     if "--write" in argv:
-        for path, content in ((TARGET, text), (SHIKI_TARGET, shiki), (DSH_TARGET, ts)):
+        for path, content in rendered:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
             print(f"escrito {path.relative_to(ROOT)}")

@@ -158,6 +158,7 @@ TODO item.
 | [0106](0106-scaffolding-new-init.md) | Scaffolding: `loxia new`/`init`, minimal template, git and name rules | accepted (implemented) | 2026-11-17 |
 | [0107](0107-adiados-e-nao-objetivos.md) | Deferred and non-goals: consolidated reopen triggers | accepted (consolidation) | 2026-11-18 |
 | [0108](0108-contratos-como-biblioteca.md) | Contracts as a library: `std.contracts`, no syntax yet | accepted (library implemented; adoption pending) | 2026-11-18 |
+| [0109](0109-editor-repo-e-assets.md) | Editor client in its own repo; generated grammar as a release asset | accepted (implemented; publishing pending accounts) | 2026-11-18 |
 
 
 ## Next decisions that call for an ADR

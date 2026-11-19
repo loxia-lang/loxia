@@ -5,7 +5,7 @@ FILE ?=
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -27,7 +27,8 @@ help:
 	@echo "make stdlib-docs               regenera docs/stdlib/"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
 	@echo "make primitives                regenera runtime/kernel_gen.h da tabela"
-	@echo "make grammar                   regenera a grammar TextMate de editors/"
+	@echo "make grammar                   regenera a grammar TextMate de editors/grammar/"
+	@echo "make grammar-assets            empacota a grammar + SHA256SUMS em dist/ (release)"
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
@@ -96,6 +97,9 @@ primitives:
 
 grammar:
 	uv run python editors/build_grammar.py --write
+
+grammar-assets:
+	uv run python editors/build_grammar.py --assets dist-grammar
 
 docs-fresh:
 	uv run python docs/_hooks/freshness.py --quiet || true
