@@ -168,6 +168,7 @@ TODO item.
 | [0114](0114-ast-recuperada-para-tooling.md) | Recovered AST for tooling: strict CLI, parser prefix for the LSP | accepted (implemented) | 2026-11-19 |
 | [0115](0115-corpus-de-conformidade-adiado.md) | Conformance corpus artifact: deferred until a published `lox-core` spec exists | accepted (deferred) | 2026-11-19 |
 | [0116](0116-benchmarks-publicos-adiados.md) | Public benchmarks: deferred until a reproducible protocol and a performance-led release exist | accepted (deferred) | 2026-11-19 |
+| [0117](0117-ast-manual-e-cobertura-de-visitantes.md) | AST stays manual: visitor coverage enforced by protocols and a hierarchy guard | accepted (implemented) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR
@@ -176,8 +177,7 @@ Open decisions have an issue labeled `decision`; the ADR is written when the iss
 
 - contracts/DbC — decided as a library in [ADR-0108](0108-contratos-como-biblioteca.md);
   the syntax remains deferred with triggers (issue #14 closes with this ADR);
-- `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16);
-- AST generator — [#15](https://github.com/loxia-lang/loxia/issues/15).
+- `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16).
 
 Language decisions still open: `if`/blocks as an expression, recoverable exceptions,
 generic methods/inheritance/reification, constraints in classes and mutable unification.

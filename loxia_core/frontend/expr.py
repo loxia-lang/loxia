@@ -300,7 +300,7 @@ class This(Expr):
 
 
 @dataclass(frozen=True, eq=False)
-class Variable:
+class Variable(Expr):
     name: Token
 
     def accept[R](self, visitor: Visitor[R]) -> R:

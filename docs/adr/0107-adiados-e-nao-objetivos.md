@@ -52,8 +52,10 @@ gatilho descrito **e** uma issue de decisão que responda ao portão do
 > **Fora desta lista:** contratos ([issue #14](https://github.com/loxia-lang/loxia/issues/14))
 > foram decididos como biblioteca no [ADR-0108](0108-contratos-como-biblioteca.md), com a
 > sintaxe adiada por gatilhos; `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16))
-> e o gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)) continuam em
-> decisão; são trabalho, não adiados. O corpus de conformidade
+> continua em decisão; é trabalho, não adiado. O gerador de AST
+> ([#15](https://github.com/loxia-lang/loxia/issues/15)) foi decidido como manual + guard
+> ([ADR-0117](0117-ast-manual-e-cobertura-de-visitantes.md)), não como codegen agora. O
+> corpus de conformidade
 > ([#10](https://github.com/loxia-lang/loxia/issues/10)) foi adiado por decisão própria
 > ([ADR-0115](0115-corpus-de-conformidade-adiado.md)) e os benchmarks públicos
 > ([#13](https://github.com/loxia-lang/loxia/issues/13)) também

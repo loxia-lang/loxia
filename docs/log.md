@@ -1080,3 +1080,21 @@ extração do corpus `lox-core` e a publicação da suíte de benchmarks saíram
   "Speed" intactos; são artefatos de release, não comportamento observável.
 
 <!-- triaged: 20630d5 -->
+
+## 2026-11-19 — AST manual e cobertura de visitantes (ADR-0117, issue #15)
+
+Intervalo: `0159177`..working tree. O `AstPrinter` passou a herdar os protocols de
+`Visitor`, `Variable` voltou para a hierarquia `Expr` e um teste trava a hierarquia; o
+gerador de schema fica adiado com gatilho.
+
+- `loxia_core/frontend/ast_printer.py`, `loxia_core/frontend/expr.py` — **updated**:
+  `AstPrinter` herda `Visitor[str]`; `Variable(Expr)`.
+- `tests/test_ast_hierarchy.py` — **new**: nós herdam `Expr`/`Stmt` e o printer herda os
+  protocols.
+- `docs/adr/0117-ast-manual-e-cobertura-de-visitantes.md` — **new**: decisão e gatilho.
+- `docs/roadmap.md`, `docs/decisoes.md`, `docs/adr/README.md`,
+  `docs/adr/0107-adiados-e-nao-objetivos.md` — **updated**: decisão, índice e referências.
+- `docs/spec/` — **no-change**: nenhuma semântica, diagnóstico ou garantia mudou; é
+  tipagem/guard de tooling.
+
+<!-- triaged: 0159177 -->
