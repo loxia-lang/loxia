@@ -3084,3 +3084,44 @@ def test_narrowing_try_joins_falling_through_handler(
 
     assert lox.reporter.had_error is True
     assert "Expected String, found Int | String." in captured.err
+
+
+def test_any_nao_e_atribuivel_a_tipo_concreto(capsys: pytest.CaptureFixture[str]) -> None:
+    """`Any` é top type; o caminho de volta exige `as` (I2/I1)."""
+    lox = check(
+        """
+        fn f(x: Int) -> Nil { print(x) }
+        val a: Any = "x"
+        f(a)
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Argument 1: Expected Int, found Any." in captured.err
+
+
+def test_any_nao_e_indice_sem_cast(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(
+        """
+        val xs = [1, 2]
+        val i: Any = 0.0
+        print(xs[i])
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "List index must be an integer" in captured.err
+
+
+def test_nil_nao_e_tipo_de_armazenamento(capsys: pytest.CaptureFixture[str]) -> None:
+    for source in (
+        "val n: Nil = nil",
+        "fn f(n: Nil) -> Nil { return n }",
+        "class C { var n: Nil }",
+    ):
+        lox = check(source)
+        captured = capsys.readouterr()
+        assert lox.reporter.had_error is True, source
+        assert "of type Nil are not supported; use `Any`." in captured.err

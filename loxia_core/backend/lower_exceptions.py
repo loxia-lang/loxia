@@ -23,6 +23,8 @@ from loxia_core.frontend.stmt import Raise, Stmt, Try
 
 
 class ExceptionLowering(LoweringBase):
+    _handler_exception: Any | None
+
     def _prepare_exception_classes(self) -> None:
         if "Exception" in self._classes:
             return
@@ -75,13 +77,23 @@ class ExceptionLowering(LoweringBase):
         line = stmt.keyword.line
         column = stmt.keyword.column
         if stmt.value is None:
-            self.builder.call(
-                self._function("lox_raise_current", _VOID, [_I32, _I32]),
-                [
-                    llvm_ir.constant(_I32, line),
-                    llvm_ir.constant(_I32, column),
-                ],
-            )
+            if self._handler_exception is not None:
+                self.builder.call(
+                    self._function("lox_raise_value", _VOID, [_I8_PTR, _I32, _I32]),
+                    [
+                        self._handler_exception,
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
+                )
+            else:
+                self.builder.call(
+                    self._function("lox_raise_current", _VOID, [_I32, _I32]),
+                    [
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
+                )
             self.builder.unreachable()
             self._new_block("raise.next")
             return
@@ -175,6 +187,8 @@ class ExceptionLowering(LoweringBase):
             self.builder = llvm_ir.builder(body)
             self._scopes.append({})
             handler_context = self._push_cleanup(None, stmt.finally_body)
+            previous_handler = self._handler_exception
+            self._handler_exception = exception
             try:
                 binding = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
                 self._bind_handler_exception(exception, binding)
@@ -187,11 +201,12 @@ class ExceptionLowering(LoweringBase):
                     if self.builder.block.is_terminated:
                         break
                     self._stmt(statement)
+                if not self.builder.block.is_terminated:
+                    self._emit_finally(stmt, end, None)
             finally:
+                self._handler_exception = previous_handler
                 self._scopes.pop()
                 self._pop_cleanup(handler_context)
-            if not self.builder.block.is_terminated:
-                self._emit_finally(stmt, end, None)
             self.builder = llvm_ir.builder(next_block)
 
         # Nenhum handler: finally e rethrow.
@@ -250,7 +265,7 @@ class ExceptionLowering(LoweringBase):
         if stmt.finally_body is None:
             if pending is not None:
                 self.builder.call(
-                    self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
+                    self._function("lox_raise_value", _VOID, [_I8_PTR, _I32, _I32]),
                     [
                         pending,
                         llvm_ir.constant(_I32, stmt.keyword.line),

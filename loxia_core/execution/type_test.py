@@ -12,6 +12,7 @@ from collections.abc import Callable
 from loxia_core.execution import numeric
 from loxia_core.execution.lox_class import LoxClass
 from loxia_core.execution.lox_enum import LoxEnumValue
+from loxia_core.execution.lox_exception import LoxExceptionValue
 from loxia_core.execution.lox_instance import LoxInstance
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.lox_map import LoxMap
@@ -87,6 +88,8 @@ def matches_type(
             )
         )
     if isinstance(ty, ClassTy):
+        if isinstance(value, LoxExceptionValue):
+            return value.is_instance_of(ty.name)
         if isinstance(value, LoxInstance):
             if class_lookup is not None:
                 klass = class_lookup(ty.name)

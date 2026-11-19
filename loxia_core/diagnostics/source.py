@@ -14,15 +14,30 @@ from pathlib import Path
 TAB_WIDTH = 4
 
 
-def display_path(path: str | Path, *, cwd: str | Path | None = None) -> str:
-    """Caminho determinístico para exibição: relativo ao CWD, nunca absoluto.
+def _display_root(absolute: str) -> str:
+    """Raiz estável do projeto: `loxia.toml`/`.git` mais próximo, senão o diretório."""
+    current = os.path.dirname(absolute)
+    while True:
+        if os.path.exists(os.path.join(current, "loxia.toml")) or os.path.exists(
+            os.path.join(current, ".git")
+        ):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            return os.path.dirname(absolute)
+        current = parent
 
-    Se o arquivo estiver fora do CWD (caso comum de `tmp_path` nos testes), usa só o
-    basename. O resultado depende da invocação (CWD + argumento), que é determinística;
-    o caminho absoluto nunca vaza (I3).
+
+def display_path(path: str | Path, *, cwd: str | Path | None = None) -> str:
+    """Caminho determinístico para exibição, nunca absoluto.
+
+    Sem `cwd` explícito, relativiza contra a raiz do projeto (o `loxia.toml`/`.git`
+    mais próximo) — assim o mesmo arquivo produz os mesmos bytes de diagnóstico
+    independentemente do diretório de invocação (I3). Fora do projeto, usa o
+    basename. Com `cwd`, preserva o contrato antigo dos testes/ferramentas.
     """
-    base = os.path.abspath(os.fspath(cwd) if cwd is not None else os.getcwd())
     absolute = os.path.abspath(os.fspath(path))
+    base = os.path.abspath(os.fspath(cwd)) if cwd is not None else _display_root(absolute)
 
     try:
         relative = os.path.relpath(absolute, base)

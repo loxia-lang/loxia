@@ -127,12 +127,8 @@ void lox_print_frames(int64_t depth) {
     int64_t head = LOX_TRACE_HEAD;
     int64_t tail = LOX_TRACE_TAIL;
     int64_t show_head = depth < head ? depth : head;
-    int64_t show_tail = 0;
-    int64_t omitted = 0;
-    if (depth > head + tail) {
-        omitted = depth - head - tail;
-        show_tail = tail;
-    }
+    int64_t show_tail = depth <= head + tail ? depth - show_head : tail;
+    int64_t omitted = depth > head + tail ? depth - head - tail : 0;
 
     for (int64_t index = 0; index < show_head; index++) {
         lox_print_frame(&lox_frames[depth - 1 - index]);
@@ -175,16 +171,23 @@ void lox_reserve_stack(void) {
 
 /* Boehm OOM callback: fixed message and exit 70. */
 
+static void lox_oom_exit(void) {
+    fflush(stdout);
+    fputs("error[R1000]: Out of memory.\n", stderr);
+    fflush(stderr);
+    exit(70);
+}
+
 void *lox_oom(size_t size) {
     (void)size;
-    lox_panic(0, 0, "R1000", "Out of memory.");
+    lox_oom_exit();
     return NULL;
 }
 
 void *lox_alloc(size_t size) {
     void *pointer = GC_MALLOC(size > 0 ? size : 1u);
     if (pointer == NULL) {
-        lox_panic(0, 0, "R1000", "Out of memory.");
+        lox_oom_exit();
     }
     return pointer;
 }
@@ -193,7 +196,7 @@ void *lox_alloc(size_t size) {
 void *lox_alloc_atomic(size_t size) {
     void *pointer = GC_MALLOC_ATOMIC(size > 0 ? size : 1u);
     if (pointer == NULL) {
-        lox_panic(0, 0, "R1000", "Out of memory.");
+        lox_oom_exit();
     }
     return pointer;
 }
@@ -409,6 +412,15 @@ void lox_rethrow(void *exception_pointer, int32_t line, int32_t column) {
     lox_throw_internal_at(file, exception->code, exception->instance,
                           exception->type_name, exception->message, line,
                           column, trace_depth);
+}
+
+/* `raise;` dentro de `except`: reemite a exceção como valor de usuário
+ * (R1010), não como o panic original (R1002/R1014 etc.). */
+void lox_raise_value(void *pointer, int32_t line, int32_t column) {
+    LoxException *exception = pointer;
+    lox_throw_internal_at(lox_current_file(), NULL, exception->instance,
+                          exception->type_name, exception->message, line,
+                          column, lox_call_depth);
 }
 
 void lox_raise_current(int32_t line, int32_t column) {

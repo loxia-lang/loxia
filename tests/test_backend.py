@@ -320,6 +320,83 @@ b"""));''',
         'print(true as Bool); print("a" as String); print((1..2) as Range); print(nil as Nil);',
         "as estático de escalar",
     ),
+    # Regressões da auditoria de invariantes (Any dinâmico, val global, iteração,
+    # diagnósticos, Float, formatação, exceções).
+    (
+        "val a: Any = 1; print(a + 1); print(a - 2); print(a * 3); "
+        "print(a / 2); print(a // 2); print(a % 2); print(a ** 2); "
+        "print(a < 2); print(-a);",
+        "Any: aritmética dinâmica",
+    ),
+    (
+        'val s: Any = "x"; print(s + "y"); print("y" + s);',
+        "Any: concatenação dinâmica",
+    ),
+    (
+        'val a: Any = "x"; print(a + 1);',
+        "Any: operando inválido vira panic",
+    ),
+    ("val a = 1; a = 2; print(a);", "val global: atribuição é R1009"),
+    ("val x = 1; val x = 2; print(x);", "val global: redeclaração é R1009"),
+    ("val xs = [1, 2, 3]; for x in xs { xs.push(x) }", "lista mutada durante for-in"),
+    ("val m = {1: 2}; for k in m { m[3] = 4 }", "mapa mutado durante for-in"),
+    ("val xs = [1]; print(xs[2]);", "índice de lista: mensagem detalhada"),
+    ("val xs = [1]; xs[2] = 3;", "índice de lista em atribuição: mensagem detalhada"),
+    (
+        "fn f(t: (Int, Int), i: Int) -> Int { return t[i] } print(f((1, 2), 5));",
+        "índice de tupla dinâmico: mensagem detalhada",
+    ),
+    ("print(range(1, 2, 0));", "range step zero: R1000 com posição"),
+    (
+        "val n = math.sqrt(-1.0); print(n != n); print(n == n); print(n < 1.0);",
+        "Float: NaN != NaN",
+    ),
+    ("print(0.0 ** -3);", "Float: domínio de **"),
+    ("print(1e308 ** 2);", "Float: overflow de **"),
+    (
+        "print(math.min(math.sqrt(-1.0), 1.0)); "
+        "print(math.max(1.0, math.sqrt(-1.0))); "
+        "print(math.min(0.0, -0.0));",
+        "math.min/max: NaN e zero sinalizado",
+    ),
+    (
+        "print(math.clamp(0.5, math.sqrt(-1.0), 1.0));",
+        "math.clamp: NaN propaga",
+    ),
+    (
+        'print(Float.parse(" 1")); print(Float.parse("0x10")); '
+        'print(Float.parse(".5")); print(Float.parse("5."));',
+        "Float.parse: estrito",
+    ),
+    (
+        "class C { } val c: Any = C(); print(c); val i: Any = C(); print(i);",
+        "Any: classe/instância sem newline extra",
+    ),
+    (
+        "fn f() -> Int { return 1 } val xs: List[Any] = [f]; print(xs);",
+        "Any: função em container mantém o display",
+    ),
+    (
+        'print(1..=3); print(str(1..=3)); print("${1..=3}"); print(repr(1..=3));',
+        "Range: str/repr inclusivos",
+    ),
+    (
+        'val a: Any = "hi"; print(repr(a)); var s: String?; print(repr(s)); '
+        's = "x"; print(repr(s));',
+        "repr: Any string e String? nil",
+    ),
+    (
+        "class E(Exception) { init(m: String) { this.message = m } } "
+        'try { raise E("boom") } except E as e { print(e); print(e is Exception); } '
+        "try { print(1 / 0) } except RuntimeError as e { "
+        "print(e is RuntimeError); print(e is Exception); print(e as Exception); }",
+        "exceções: stringify/is/as",
+    ),
+    (
+        'try { val z = 0; print(1 // z) } except RuntimeError as e { print("caught"); raise; }',
+        "raise; dentro de except relança R1010",
+    ),
+    ('val m = {1: "a", 1: "b"}; print(m);', "map literal: chave duplicada"),
 ]
 
 
@@ -1674,3 +1751,227 @@ def test_orcamento_de_classes_genericas_recusa_a_instanciacao_257(tmp_path: Path
     assert result.returncode == 65
     assert "error[E4003]" in result.stderr
     assert "Too many generic class instantiations (limit 256)" in result.stderr
+
+
+@pytest.mark.backend
+def test_truthiness_de_containers_e_enum(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """enum E { A }
+val xs: List[Int] = [1]
+val m: Map[Int, Int] = {1: 2}
+val t = (1, 2)
+if (xs) print(1)
+if (m) print(2)
+if (t) print(3)
+if (E.A) print(4)
+""",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_subtipo_de_classe_em_parametro(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """class A { }
+class B(A) { }
+fn take(a: A) -> Int { return 1 }
+print(take(B()))
+""",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_optional_get_apos_atribuicao_nil(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """class C { var x: Int; init() { this.x = 1 } }
+var c: C? = C()
+c = nil
+print(c?.x)
+""",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_i4_lacunas_declaradas(tmp_path: Path) -> None:
+    """Casos que o backend não representa devem recusar com a frase do I4."""
+    sources = {
+        "fnvar.lx": (
+            "fn g(x: Any) -> Int { return 1 }\n"
+            "fn h(f: fn(Int) -> Int) -> Int { return f(3) }\n"
+            "print(h(g))\n"
+        ),
+        "andopt.lx": "val x: Int? = 1\nprint(x and 1.5)\n",
+        "mathany.lx": 'val a: Any = "x"\nprint(math.abs(a))\n',
+        "nativevalue.lx": "print(len)\n",
+        "enumvalue.lx": "enum E { A }\nprint(E)\n",
+    }
+    for name, source in sources.items():
+        path = _write(tmp_path, source, name)
+        checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+        assert checked.returncode == 0, checked.stderr
+
+        built, _binary = _build(path, tmp_path)
+        assert built.returncode == 65, built.stderr
+        assert "not supported by the backend yet" in built.stderr, built.stderr
+
+
+@pytest.mark.backend
+def test_debug_checa_overflow_no_binario(tmp_path: Path) -> None:
+    path = _write(tmp_path, "print(9223372036854775807 + 1)\n")
+    interpreted = _run([sys.executable, str(ENTRYPOINT), "--debug", str(path)])
+    assert interpreted.returncode == 70
+
+    binary = tmp_path / "programa"
+    result = _run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "--debug",
+            "--emit",
+            "exe",
+            "-o",
+            str(binary),
+            str(path),
+        ]
+    )
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.returncode == interpreted.returncode
+    assert compiled.stderr == interpreted.stderr
+
+
+@pytest.mark.backend
+def test_trace_raso_tem_todos_os_frames(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """fn f(n: Int) -> Int {
+  if (n <= 0) return 1
+  return f(n - 1)
+}
+f(5)
+""",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.returncode == interpreted.returncode
+    assert compiled.stderr == interpreted.stderr
+
+
+@pytest.mark.backend
+def test_recursion_budget_com_try_finally(tmp_path: Path) -> None:
+    """3 `try/finally` por ativação não podem estourar o Python antes de 10k."""
+    path = _write(
+        tmp_path,
+        """fn f(n: Int) -> Int {
+  try {
+  try {
+  try {
+  if (n <= 0) return 0
+  return f(n - 1)
+  } finally { val a1 = 0 }
+  } finally { val a2 = 0 }
+  } finally { val a3 = 0 }
+}
+print(f(9998))
+""",
+    )
+    interpreted = _interpret(path)
+    assert interpreted.returncode == 0, interpreted.stderr[-1000:]
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.returncode == interpreted.returncode
+    assert compiled.stdout == interpreted.stdout
+
+
+@pytest.mark.backend
+def test_oom_nao_e_capturavel(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """fn alloc() -> Nil {
+  var xs: List[String] = []
+  val s = "abcdefgh"
+  var i = 0
+  while (i < 2000000) {
+    xs.push(s)
+    i = i + 1
+  }
+}
+try {
+  alloc()
+} except RuntimeError as e {
+  print("caught")
+}
+print("after")
+""",
+    )
+    result, binary = _build(path, tmp_path, max_heap="32M")
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+
+    assert compiled.returncode == 70
+    assert compiled.stdout == ""
+    assert "Out of memory." in compiled.stderr
+    assert "caught" not in compiled.stdout
+
+
+@pytest.mark.backend
+def test_goldens_de_runtime_error_batem_bytes(tmp_path: Path) -> None:
+    """Todo golden de erro de runtime que passa no check deve ter stderr idêntico.
+
+    O corpus `LEVELS` não inclui os goldens de erro; este teste fecha a lacuna que
+    deixou passar mensagens de índice/range/cast divergentes.
+    """
+    from tests.runner import parse_expectations
+
+    cases = []
+    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
+        expectations = parse_expectations(path.read_text(encoding="utf-8"))
+        if expectations.exit_code != 70 or expectations.error is None:
+            continue
+        checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+        if checked.returncode != 0:
+            continue
+        cases.append(path)
+
+    assert cases, "nenhum golden de runtime error check-clean encontrado"
+
+    for index, path in enumerate(cases):
+        interpreted = _interpret(path)
+        case_dir = tmp_path / f"case_{index}"
+        case_dir.mkdir()
+        result, binary = _build(path, case_dir)
+        assert result.returncode == 0, f"{path}: {result.stderr}"
+        compiled = _run([str(binary)])
+
+        assert compiled.stdout == interpreted.stdout, path
+        assert compiled.stderr == interpreted.stderr, path
+        assert compiled.returncode == interpreted.returncode, path

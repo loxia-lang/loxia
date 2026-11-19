@@ -136,9 +136,11 @@ class Lowerer(
         generic_class_sites: Any = None,
         type_aliases: dict[str, Ty] | None = None,
         source_path: str = "<lox>",
+        debug: bool = False,
     ) -> None:
         self.module: Any = module
         self.source_path: str = source_path
+        self.debug = debug
         self.types = types
         self.depths = depths
         self.generic_instances = generic_instances or {}
@@ -170,6 +172,7 @@ class Lowerer(
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
         self._cleanup_stack: list[CleanupContext] = []
+        self._handler_exception: Any | None = None
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
         self._map_expected_value: Ty | None = None
@@ -364,6 +367,14 @@ class Lowerer(
                     [value.llvm],
                 )
             case ValueType.CLASS | ValueType.INSTANCE:
+                if value.ty is ValueType.INSTANCE:
+                    exception = self._exception_text(value)
+                    if exception is not None:
+                        self.builder.call(
+                            self._function("lox_print_str", _VOID, [_I8_PTR]),
+                            [exception.llvm],
+                        )
+                        return
                 display = self._class_display(value.class_name or "?")
                 text = display if value.ty is ValueType.CLASS else f"{display} instance"
                 self.builder.call(
@@ -482,6 +493,18 @@ class Lowerer(
 
         match expr.operator.type:
             case TokenType.MINUS:
+                if operand.ty is ValueType.ANY and not operand.optional:
+                    boxed = self._box_value(operand, line)
+                    call = self.builder.call(
+                        self._function("lox_any_neg", self._any_type(), [_INT, _INT, _I32, _I32]),
+                        [
+                            self.builder.extract_value(boxed.llvm, 0),
+                            self.builder.extract_value(boxed.llvm, 1),
+                            llvm_ir.constant(_I32, line),
+                            llvm_ir.constant(_I32, column),
+                        ],
+                    )
+                    return Value(ValueType.ANY, call)
                 operand = self._unwrap_operand(
                     operand,
                     line,
@@ -490,6 +513,16 @@ class Lowerer(
                     code=Code.RUNTIME_OPERANDS,
                 )
                 if operand.ty is ValueType.INT:
+                    if self.debug:
+                        call = self.builder.call(
+                            self._function("lox_int_neg_checked", _INT, [_INT, _I32, _I32]),
+                            [
+                                operand.llvm,
+                                llvm_ir.constant(_I32, line),
+                                llvm_ir.constant(_I32, column),
+                            ],
+                        )
+                        return Value(ValueType.INT, call)
                     zero = llvm_ir.constant(_INT, 0)
                     return Value(ValueType.INT, self.builder.sub(zero, operand.llvm))
                 if operand.ty is ValueType.FLOAT:
@@ -505,6 +538,20 @@ class Lowerer(
                 truth = self._truthy(operand)
                 return Value(ValueType.BOOL, self.builder.not_(truth))
             case TokenType.TILDE:
+                if operand.ty is ValueType.ANY and not operand.optional:
+                    boxed = self._box_value(operand, line)
+                    call = self.builder.call(
+                        self._function(
+                            "lox_any_bit_not", self._any_type(), [_INT, _INT, _I32, _I32]
+                        ),
+                        [
+                            self.builder.extract_value(boxed.llvm, 0),
+                            self.builder.extract_value(boxed.llvm, 1),
+                            llvm_ir.constant(_I32, line),
+                            llvm_ir.constant(_I32, column),
+                        ],
+                    )
+                    return Value(ValueType.ANY, call)
                 operand = self._unwrap_operand(
                     operand,
                     line,
@@ -532,6 +579,16 @@ class Lowerer(
         right = self._expr(expr.right)
         operator = expr.operator
         line = operator.line
+
+        # `Any` é o escape dinâmico: o checker aceita as operações e o runtime
+        # decide pela tag, como o tree-walk. `==`/`!=` já têm caminho próprio.
+        if (
+            (left.ty is ValueType.ANY or right.ty is ValueType.ANY)
+            and not left.optional
+            and not right.optional
+            and operator.type not in (TokenType.EQUAL_EQUAL, TokenType.NOT_EQUAL)
+        ):
+            return self._any_operator(left, right, operator)
 
         match operator.type:
             case TokenType.PLUS:
@@ -569,6 +626,85 @@ class Lowerer(
 
         raise _unsupported(f"Binary operator '{operator.lexeme}'", line)
 
+    def _any_operator(self, left: Value, right: Value, operator: Token) -> Value:
+        """Operador binário com pelo menos um operando `Any` (L6 dinâmico)."""
+        line = operator.line
+        column = operator.column
+        boxed_left = self._box_value(left, line)
+        boxed_right = self._box_value(right, line)
+        left_tag = self.builder.extract_value(boxed_left.llvm, 0)
+        left_payload = self.builder.extract_value(boxed_left.llvm, 1)
+        right_tag = self.builder.extract_value(boxed_right.llvm, 0)
+        right_payload = self.builder.extract_value(boxed_right.llvm, 1)
+
+        if operator.type in (
+            TokenType.LESS,
+            TokenType.LESS_EQUAL,
+            TokenType.GREATER,
+            TokenType.GREATER_EQUAL,
+        ):
+            comparison_op = {
+                TokenType.LESS: 0,
+                TokenType.LESS_EQUAL: 1,
+                TokenType.GREATER: 2,
+                TokenType.GREATER_EQUAL: 3,
+            }[operator.type]
+            call = self.builder.call(
+                self._function(
+                    "lox_any_compare",
+                    _I32,
+                    [_I32, _INT, _INT, _INT, _INT, _I32, _I32],
+                ),
+                [
+                    llvm_ir.constant(_I32, comparison_op),
+                    left_tag,
+                    left_payload,
+                    right_tag,
+                    right_payload,
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
+            )
+            return Value(
+                ValueType.BOOL,
+                self.builder.icmp_signed("!=", call, llvm_ir.constant(_I32, 0)),
+            )
+
+        op = {
+            TokenType.PLUS: 0,
+            TokenType.MINUS: 1,
+            TokenType.STAR: 2,
+            TokenType.SLASH: 3,
+            TokenType.SLASH_SLASH: 4,
+            TokenType.PERCENT: 5,
+            TokenType.STAR_STAR: 6,
+            TokenType.AMPERSAND: 7,
+            TokenType.PIPE: 8,
+            TokenType.CARET: 9,
+            TokenType.LESS_LESS: 10,
+            TokenType.GREATER_GREATER: 11,
+            TokenType.GREATER_GREATER_GREATER: 12,
+        }.get(operator.type)
+        if op is None:
+            raise _unsupported(f"Binary operator '{operator.lexeme}' on Any", line)
+        call = self.builder.call(
+            self._function(
+                "lox_any_binary",
+                self._any_type(),
+                [_I32, _INT, _INT, _INT, _INT, _I32, _I32],
+            ),
+            [
+                llvm_ir.constant(_I32, op),
+                left_tag,
+                left_payload,
+                right_tag,
+                right_payload,
+                llvm_ir.constant(_I32, line),
+                llvm_ir.constant(_I32, column),
+            ],
+        )
+        return Value(ValueType.ANY, call)
+
     def _power(self, left: Value, right: Value, token: Token) -> Value:
         line = token.line
         column = token.column
@@ -587,8 +723,9 @@ class Lowerer(
             code=Code.RUNTIME_OPERANDS,
         )
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
+            pow_name = "lox_int_pow_checked" if self.debug else "lox_int_pow"
             call = self.builder.call(
-                self._function("lox_int_pow", _INT, [_INT, _INT, _I32, _I32]),
+                self._function(pow_name, _INT, [_INT, _INT, _I32, _I32]),
                 [
                     left.llvm,
                     right.llvm,
@@ -599,8 +736,13 @@ class Lowerer(
             return Value(ValueType.INT, call)
         if left.ty in NUMERIC and right.ty in NUMERIC:
             call = self.builder.call(
-                self._function("pow", _FLOAT, [_FLOAT, _FLOAT]),
-                [self._to_float(left), self._to_float(right)],
+                self._function("lox_float_pow", _FLOAT, [_FLOAT, _FLOAT, _I32, _I32]),
+                [
+                    self._to_float(left),
+                    self._to_float(right),
+                    llvm_ir.constant(_I32, line),
+                    llvm_ir.constant(_I32, column),
+                ],
             )
             return Value(ValueType.FLOAT, call)
         self._poison(
@@ -703,6 +845,22 @@ class Lowerer(
             return self._concat(left, right)
 
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
+            if self.debug:
+                helper = {
+                    "add": "lox_int_add_checked",
+                    "sub": "lox_int_sub_checked",
+                    "mul": "lox_int_mul_checked",
+                }[integer_op]
+                call = self.builder.call(
+                    self._function(helper, _INT, [_INT, _INT, _I32, _I32]),
+                    [
+                        left.llvm,
+                        right.llvm,
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
+                )
+                return Value(ValueType.INT, call)
             operation = getattr(self.builder, integer_op)
             return Value(ValueType.INT, operation(left.llvm, right.llvm))
 
@@ -785,7 +943,8 @@ class Lowerer(
             )
             return Value(ValueType.INT, llvm_ir.constant(_INT, 0))
 
-        function = self._function("lox_int_div", _INT, [_INT, _INT, _I32, _I32])
+        div_name = "lox_int_div_checked" if self.debug else "lox_int_div"
+        function = self._function(div_name, _INT, [_INT, _INT, _I32, _I32])
         call = self.builder.call(
             function,
             [
@@ -815,7 +974,8 @@ class Lowerer(
             code=Code.RUNTIME_OPERANDS,
         )
         if left.ty is ValueType.INT and right.ty is ValueType.INT:
-            function = self._function("lox_int_mod", _INT, [_INT, _INT, _I32, _I32])
+            mod_name = "lox_int_mod_checked" if self.debug else "lox_int_mod"
+            function = self._function(mod_name, _INT, [_INT, _INT, _I32, _I32])
             call = self.builder.call(
                 function,
                 [
@@ -1016,10 +1176,14 @@ class Lowerer(
             return Value(ValueType.BOOL, result)
 
         if left.ty in NUMERIC and right.ty in NUMERIC:
-            # `fcmp ordered` mantém `NaN != NaN` verdadeiro e `NaN == NaN` falso.
-            result = self.builder.fcmp_ordered(
-                "==" if equal else "!=", self._to_float(left), self._to_float(right)
-            )
+            # `==` é ordered (`NaN == NaN` falso); `!=` é unordered
+            # (`NaN != NaN` verdadeiro, como no tree-walk e na spec).
+            left_float = self._to_float(left)
+            right_float = self._to_float(right)
+            if equal:
+                result = self.builder.fcmp_ordered("==", left_float, right_float)
+            else:
+                result = self.builder.fcmp_unordered("!=", left_float, right_float)
             return Value(ValueType.BOOL, result)
 
         if left.ty is right.ty:
@@ -1298,6 +1462,12 @@ class Lowerer(
         common: TypeDesc | None
         if left.optional:
             common = left.desc
+            inner = TypeDesc(left.ty, left.sig, False, left.class_name, left.interface_name)
+            if not self._compatible(right.desc, inner):
+                raise _unsupported(
+                    "and/or with an optional left operand and an incompatible right",
+                    expr.operator.line,
+                )
             right = self._coerce(right, common, expr.operator.line)
         elif left.desc.same_as(right.desc):
             common = left.desc
@@ -1355,6 +1525,10 @@ class Lowerer(
                 | ValueType.CLASS
                 | ValueType.INSTANCE
                 | ValueType.RANGE
+                | ValueType.LIST
+                | ValueType.MAP
+                | ValueType.TUPLE
+                | ValueType.ENUM
             ):
                 # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
                 return llvm_ir.constant(_BOOL, 1)
@@ -1489,6 +1663,7 @@ def lower_program(
     generic_class_sites: Any = None,
     type_aliases: dict[str, Ty] | None = None,
     source_path: str = "<lox>",
+    debug: bool = False,
 ) -> Any:
     module = llvm_ir.new_module()
     Lowerer(
@@ -1500,5 +1675,6 @@ def lower_program(
         generic_class_sites=generic_class_sites,
         type_aliases=type_aliases,
         source_path=source_path,
+        debug=debug,
     ).lower(statements)
     return module

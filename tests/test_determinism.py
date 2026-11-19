@@ -165,3 +165,95 @@ def test_color_always_is_byte_identical() -> None:
     path = "tests/cases/errors/redeclaration.lx"
     result = assert_deterministic(path, "--color=always")
     assert "\x1b[" in result.stderr.decode("utf-8")
+
+
+def test_diagnostico_nao_depende_do_cwd(tmp_path: Path) -> None:
+    """I3: o mesmo arquivo absoluto deve gerar os mesmos bytes em CWDs diferentes."""
+    script = tmp_path / "erro.lx"
+    script.write_text("print(1 // 0)\n", encoding="utf-8")
+
+    env = dict(os.environ, PYTHONHASHSEED="0")
+    from_root = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), str(script)],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+    from_elsewhere = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), str(script)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+
+    assert from_root.returncode == from_elsewhere.returncode
+    assert from_root.stdout == from_elsewhere.stdout
+    assert from_root.stderr == from_elsewhere.stderr
+
+
+def test_arquivo_inexistente_nao_vaza_caminho_absoluto() -> None:
+    missing = ROOT / "tests" / "nao_existe_de_verdade.lx"
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), str(missing)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+
+    assert result.returncode == 66
+    assert str(ROOT) not in result.stderr
+    assert "tests/nao_existe_de_verdade.lx" in result.stderr
+
+
+def test_emit_ll_nao_depende_do_cwd(tmp_path: Path) -> None:
+    """O caminho embutido no IR não pode mudar com o CWD de build (I3)."""
+    script = tmp_path / "um.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+    first = tmp_path / "root.ll"
+    second = tmp_path / "sub.ll"
+    env = dict(os.environ, PYTHONHASHSEED="0")
+
+    from_root = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "--emit=ll",
+            "-o",
+            str(first),
+            str(script),
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+    from_sub = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "--emit=ll",
+            "-o",
+            str(second),
+            str(script),
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+    )
+
+    assert from_root.returncode == 0, from_root.stderr
+    assert from_sub.returncode == 0, from_sub.stderr
+    assert first.read_bytes() == second.read_bytes()

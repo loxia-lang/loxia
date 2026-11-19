@@ -106,7 +106,7 @@ class ContainerLowering(LoweringBase):
             value = self._box_value(self._expr(value_expr), None)
             self.builder.call(
                 self._function(
-                    "lox_map_set",
+                    "lox_map_set_literal",
                     _VOID,
                     [_I8_PTR, _INT, _INT, _INT, _INT, _I32, _I32],
                 ),

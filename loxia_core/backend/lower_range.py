@@ -30,12 +30,14 @@ class RangeLowering(LoweringBase):
         start = self._coerce(self._expr(expr.start), self._int_desc(), expr.operator.line)
         end = self._coerce(self._expr(expr.end), self._int_desc(), expr.operator.line)
         raw = self.builder.call(
-            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]),
+            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32, _I32, _I32]),
             [
                 start.llvm,
                 end.llvm,
                 llvm_ir.constant(_INT, 1),
                 llvm_ir.constant(_I32, 1 if expr.inclusive else 0),
+                llvm_ir.constant(_I32, expr.operator.line),
+                llvm_ir.constant(_I32, expr.operator.column),
             ],
         )
         return Value(ValueType.RANGE, raw)
@@ -53,8 +55,13 @@ class RangeLowering(LoweringBase):
             self._coerce(argument, self._int_desc(), expr.paren.line) for argument in arguments
         ]
         raw = self.builder.call(
-            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32]),
-            [*[value.llvm for value in coerced], llvm_ir.constant(_I32, 0)],
+            self._function("lox_range_new", _I8_PTR, [_INT, _INT, _INT, _I32, _I32, _I32]),
+            [
+                *[value.llvm for value in coerced],
+                llvm_ir.constant(_I32, 0),
+                llvm_ir.constant(_I32, expr.paren.line),
+                llvm_ir.constant(_I32, expr.paren.column),
+            ],
         )
         return Value(ValueType.RANGE, raw)
 
@@ -214,10 +221,23 @@ class RangeLowering(LoweringBase):
     def _for_map(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.map")
         self.builder.store(llvm_ir.constant(_INT, 0), index)
+        version = self.builder.alloca(_INT, name="for.map.version")
+        self.builder.store(
+            self.builder.call(self._function("lox_map_version", _INT, [_I8_PTR]), [iterable.llvm]),
+            version,
+        )
         length = self.builder.call(self._function("lox_map_len", _INT, [_I8_PTR]), [iterable.llvm])
         key_desc, _ = self._map_types(stmt.iterable, stmt.name.line)
 
         def condition() -> Any:
+            self._iteration_guard(
+                iterable.llvm,
+                version,
+                "lox_map_version",
+                "Can't modify a map while iterating over it.",
+                stmt.name.line,
+                stmt.name.column,
+            )
             return self.builder.icmp_signed("<", self.builder.load(index), length)
 
         def load() -> Any:
@@ -234,14 +254,54 @@ class RangeLowering(LoweringBase):
             )
 
         self._for_loop(stmt, key_desc, condition, load, advance)
+        self._iteration_guard(
+            iterable.llvm,
+            version,
+            "lox_map_version",
+            "Can't modify a map while iterating over it.",
+            stmt.name.line,
+            stmt.name.column,
+        )
+
+    def _iteration_guard(
+        self,
+        iterable: Any,
+        version: Any,
+        getter: str,
+        message: str,
+        line: int,
+        column: int,
+    ) -> None:
+        """Emite R1012 quando o container mudou desde o início do `for-in`."""
+        current = self.builder.call(self._function(getter, _INT, [_I8_PTR]), [iterable])
+        changed = self.builder.icmp_signed("!=", current, self.builder.load(version))
+        bad = llvm_ir.append_block(self._function_ir, "for.mutated")
+        ok = llvm_ir.append_block(self._function_ir, "for.stable")
+        self.builder.cbranch(changed, bad, ok)
+        self.builder = llvm_ir.builder(bad)
+        self._poison(line, message, column=column, code=Code.RUNTIME_ITERATION)
+        self.builder = llvm_ir.builder(ok)
 
     def _for_list(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.list")
         self.builder.store(llvm_ir.constant(_INT, 0), index)
+        version = self.builder.alloca(_INT, name="for.list.version")
+        self.builder.store(
+            self.builder.call(self._function("lox_list_version", _INT, [_I8_PTR]), [iterable.llvm]),
+            version,
+        )
         length = self.builder.call(self._function("lox_list_len", _INT, [_I8_PTR]), [iterable.llvm])
         element = self._element_desc(stmt.iterable, stmt.name.line)
 
         def condition() -> Any:
+            self._iteration_guard(
+                iterable.llvm,
+                version,
+                "lox_list_version",
+                "Can't modify a list while iterating over it.",
+                stmt.name.line,
+                stmt.name.column,
+            )
             return self.builder.icmp_signed("<", self.builder.load(index), length)
 
         def load() -> Any:
@@ -263,6 +323,14 @@ class RangeLowering(LoweringBase):
             )
 
         self._for_loop(stmt, element, condition, load, advance)
+        self._iteration_guard(
+            iterable.llvm,
+            version,
+            "lox_list_version",
+            "Can't modify a list while iterating over it.",
+            stmt.name.line,
+            stmt.name.column,
+        )
 
     def _any_type(self) -> Any:
         from loxia_core.backend.lower_model import _ANY
@@ -355,7 +423,8 @@ class RangeLowering(LoweringBase):
         self.builder.branch(header)
 
         self.builder = llvm_ir.builder(header)
-        self.builder.cbranch(condition(), body, end)
+        condition_value = condition()
+        self.builder.cbranch(condition_value, body, end)
 
         self.builder = llvm_ir.builder(body)
         desc = value_type if isinstance(value_type, TypeDesc) else TypeDesc(value_type)

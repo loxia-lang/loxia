@@ -148,6 +148,7 @@ class Binding:
     generic: Any = None
     generic_node: Any = None
     interface_name: str | None = None
+    mutable: bool = True
 
     @property
     def desc(self) -> TypeDesc:

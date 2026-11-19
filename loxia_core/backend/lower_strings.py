@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
@@ -72,10 +72,15 @@ class StringLowering(LoweringBase):
             case ValueType.FUNCTION:
                 function = self._function("lox_str_from_function", _I8_PTR, [_I8_PTR])
                 return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
-            case ValueType.CLASS | ValueType.INSTANCE:
+            case ValueType.INSTANCE:
+                exception = self._exception_text(value)
+                if exception is not None:
+                    return cast(Value, exception)
                 display = self._class_display(value.class_name or "?")
-                text = display if value.ty is ValueType.CLASS else f"{display} instance"
-                return self._string_literal(text)
+                return self._string_literal(f"{display} instance")
+            case ValueType.CLASS:
+                display = self._class_display(value.class_name or "?")
+                return self._string_literal(display)
             case ValueType.ANY:
                 tag = self.builder.extract_value(value.llvm, 0)
                 payload = self.builder.extract_value(value.llvm, 1)
@@ -158,6 +163,42 @@ class StringLowering(LoweringBase):
             return self._zero(ValueType.STRING)
 
         argument = arguments[0]
+        if argument.optional:
+            if argument.ty is not ValueType.STRING:
+                # `repr` de não-string é igual a `str`, inclusive nil.
+                return self._to_string(argument)
+            tag = self._optional_tag(argument)
+            some = llvm_ir.append_block(self._function_ir, "repr.some")
+            nothing = llvm_ir.append_block(self._function_ir, "repr.nil")
+            end = llvm_ir.append_block(self._function_ir, "repr.end")
+            self.builder.cbranch(tag, some, nothing)
+
+            self.builder = llvm_ir.builder(nothing)
+            nil_value = self.builder.call(self._function("lox_str_nil", _I8_PTR, []), [])
+            nothing_end = self.builder.block
+            self.builder.branch(end)
+
+            self.builder = llvm_ir.builder(some)
+            quote = self._function("lox_str_quote", _I8_PTR, [_I8_PTR])
+            some_value = self.builder.call(quote, [self._optional_payload(argument).llvm])
+            some_end = self.builder.block
+            self.builder.branch(end)
+
+            self.builder = llvm_ir.builder(end)
+            merged = self.builder.phi(_I8_PTR, "repr.optional")
+            merged.add_incoming(nil_value, nothing_end)
+            merged.add_incoming(some_value, some_end)
+            return Value(ValueType.STRING, merged)
+
+        if argument.ty is ValueType.ANY:
+            tag = self.builder.extract_value(argument.llvm, 0)
+            payload = self.builder.extract_value(argument.llvm, 1)
+            function = self._function("lox_repr_from_any", _I8_PTR, [_INT, _INT])
+            return Value(
+                ValueType.STRING,
+                self.builder.call(function, [tag, payload]),
+            )
+
         if argument.ty is not ValueType.STRING:
             return self._to_string(argument)
 

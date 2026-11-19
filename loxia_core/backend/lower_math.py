@@ -34,6 +34,8 @@ class MathLowering(LoweringBase):
             )
             for argument in expr.arguments
         ]
+        if any(argument.ty is ValueType.ANY for argument in args):
+            raise _unsupported("math.* with dynamic Any", expr.paren.line)
         result = self.types.get(expr)
         if result is None:
             raise _unsupported("math result type", expr.paren.line)
@@ -41,6 +43,18 @@ class MathLowering(LoweringBase):
         if name == "abs":
             argument = args[0]
             if argument.ty is ValueType.INT:
+                if self.debug:
+                    return Value(
+                        ValueType.INT,
+                        self.builder.call(
+                            self._function("lox_math_abs_int_checked", _INT, [_INT, _I32, _I32]),
+                            [
+                                argument.llvm,
+                                llvm_ir.constant(_I32, expr.paren.line),
+                                llvm_ir.constant(_I32, expr.paren.column),
+                            ],
+                        ),
+                    )
                 return Value(
                     ValueType.INT,
                     self.builder.call(
@@ -85,25 +99,40 @@ class MathLowering(LoweringBase):
     def _math_select(self, expr: Call, name: str, args: list[Value], desc: TypeDesc) -> Value:
         use_float = any(arg.ty is ValueType.FLOAT for arg in args) or desc.ty is ValueType.FLOAT
         values = [self._to_float(arg) if use_float else arg.llvm for arg in args]
-        if name == "min":
-            condition = (
-                self.builder.fcmp_ordered("<", values[0], values[1])
-                if use_float
-                else self.builder.icmp_signed("<", values[0], values[1])
+        if use_float:
+            if name == "min":
+                call = self.builder.call(
+                    self._function("lox_math_min", _FLOAT, [_FLOAT, _FLOAT]),
+                    values,
+                )
+                return Value(ValueType.FLOAT, call)
+            if name == "max":
+                call = self.builder.call(
+                    self._function("lox_math_max", _FLOAT, [_FLOAT, _FLOAT]),
+                    values,
+                )
+                return Value(ValueType.FLOAT, call)
+            call = self.builder.call(
+                self._function(
+                    "lox_math_clamp",
+                    _FLOAT,
+                    [_FLOAT, _FLOAT, _FLOAT, _I32, _I32],
+                ),
+                [
+                    *values,
+                    llvm_ir.constant(_I32, expr.paren.line),
+                    llvm_ir.constant(_I32, expr.paren.column),
+                ],
             )
+            return Value(ValueType.FLOAT, call)
+
+        if name == "min":
+            condition = self.builder.icmp_signed("<", values[0], values[1])
             return Value(desc.ty, self.builder.select(condition, values[0], values[1]))
         if name == "max":
-            condition = (
-                self.builder.fcmp_ordered(">", values[0], values[1])
-                if use_float
-                else self.builder.icmp_signed(">", values[0], values[1])
-            )
+            condition = self.builder.icmp_signed(">", values[0], values[1])
             return Value(desc.ty, self.builder.select(condition, values[0], values[1]))
-        low_high = (
-            self.builder.fcmp_ordered(">", values[1], values[2])
-            if use_float
-            else self.builder.icmp_signed(">", values[1], values[2])
-        )
+        low_high = self.builder.icmp_signed(">", values[1], values[2])
         ok = llvm_ir.append_block(self._function_ir, "clamp.ok")
         bad = llvm_ir.append_block(self._function_ir, "clamp.bad")
         self.builder.cbranch(low_high, bad, ok)
@@ -111,16 +140,12 @@ class MathLowering(LoweringBase):
         self._poison(expr.paren, "math.clamp() requires low <= high.")
         self.builder = llvm_ir.builder(ok)
         lower = self.builder.select(
-            self.builder.fcmp_ordered("<", values[0], values[1])
-            if use_float
-            else self.builder.icmp_signed("<", values[0], values[1]),
+            self.builder.icmp_signed("<", values[0], values[1]),
             values[1],
             values[0],
         )
         upper = self.builder.select(
-            self.builder.fcmp_ordered(">", lower, values[2])
-            if use_float
-            else self.builder.icmp_signed(">", lower, values[2]),
+            self.builder.icmp_signed(">", lower, values[2]),
             values[2],
             lower,
         )
@@ -129,7 +154,8 @@ class MathLowering(LoweringBase):
     def _parse_call(self, expr: Call, desc: TypeDesc) -> Value:
         args = [self._expr(argument) for argument in expr.arguments]
         if len(args) != 1 or args[0].ty is not ValueType.STRING:
-            self._poison(expr.paren, "parse() expects a string.")
+            name = "Int.parse()" if desc.ty is ValueType.INT else "Float.parse()"
+            self._poison(expr.paren, f"{name} expects a string.")
             return self._zero_desc(desc)
         function = "lox_parse_int" if desc.ty is ValueType.INT else "lox_parse_float"
         raw = self.builder.call(self._function(function, _ANY, [_I8_PTR]), [args[0].llvm])
