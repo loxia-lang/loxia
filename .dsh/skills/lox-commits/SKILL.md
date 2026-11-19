@@ -4,6 +4,14 @@ Use this skill whenever you create, amend or review a commit or a pull request t
 The rules are also in [`CONTRIBUTING.md`](../../../CONTRIBUTING.md); this file is the
 agent-facing checklist.
 
+## Language
+
+**Everything that reaches Git is English**: commit headers, bodies and footers (including
+`Signed-off-by`), branch names, PR titles, PR descriptions, review comments, issue comments,
+tag names and release notes. Portuguese belongs in local conversations and non-Git docs;
+never in a commit, PR or review thread. This applies even when the user writes in
+Portuguese.
+
 ## Format
 
 ```

@@ -84,7 +84,9 @@ not edit its cases to make a test pass.
 ## Commit messages
 
 The project uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
-Messages are in English, imperative, and describe **why** the change exists.
+All Git-facing text is in English: commit messages, branch names, PR titles and
+descriptions, review comments, tags and release notes. Messages are imperative and describe
+**why** the change exists.
 
 ```
 <type>(<scope>): <subject>
