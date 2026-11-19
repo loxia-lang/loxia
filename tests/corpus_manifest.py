@@ -103,6 +103,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/range_inclusive.lx",
         "tests/cases/range_value.lx",
         "tests/cases/leading_operator_brackets.lx",
+        "tests/cases/result_nil.lx",
     ),
     "t7": (
         "tests/cases/generic_class.lx",
@@ -181,6 +182,9 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/trailing_comma.lx",
     ),
     "t3": (
+        "tests/cases/std_documents.lx",
+        "tests/cases/std_framing.lx",
+        "tests/cases/std_jsonrpc.lx",
         "tests/cases/std_test.lx",
         "tests/cases/std_test_hooks.lx",
         "tests/cases/std_timex.lx",

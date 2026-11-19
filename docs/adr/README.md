@@ -162,6 +162,7 @@ TODO item.
 | [0110](0110-help-do-cli-e-modulos.md) | CLI help per command; CLI split into args/commands/engine | accepted (implemented) | 2026-11-19 |
 | [0111](0111-indice-de-documentacao.md) | Deterministic documentation index for agents, site and MCP | accepted (implemented) | 2026-11-19 |
 | [0112](0112-mcp-servidor-stdio.md) | MCP server over the CLI: modern-only stdio, sandbox profile, zero-dep | accepted (implemented) | 2026-11-19 |
+| [0113](0113-protocolo-stdio-jsonrpc-framing-documents.md) | Stdio protocol as three modules: JSON-RPC envelopes, `Content-Length` framing and document store | accepted (implemented) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR

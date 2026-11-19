@@ -27,6 +27,13 @@ val exato = strings.repeat("[", 16) + strings.repeat("]", 16)
 print(json.stringify(json.parse(exato)) == exato)
 val fundo = strings.repeat("[", 17) + strings.repeat("]", 17)
 print(json.parse(fundo))
+val nulo = json.parseResult("null")
+print(json.isOk(nulo))
+print(json.value(nulo) == nil)
+print(json.error(nulo) == nil)
+print(json.error(json.parseResult("bad")))
+print(json.stringify(json.value(json.parseResult("[1, 2]"))))
+print(json.isOk(json.parseResult("{")))
 # expect: {"a":1,"b":[true,false,null]}
 # expect: {"n":1,"f":1.0,"e":1000.0}
 # expect: []
@@ -50,3 +57,9 @@ print(json.parse(fundo))
 # expect: 13
 # expect: true
 # expect: nil
+# expect: true
+# expect: true
+# expect: true
+# expect: Invalid JSON: unexpected character.
+# expect: [1,2]
+# expect: false

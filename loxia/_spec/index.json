@@ -733,7 +733,7 @@
           "line_start": 24,
           "line_end": 209,
           "url": "https://loxia-lang.github.io/loxia/reference/guarantees/#the-four-guarantees",
-          "text": "## The four guarantees\n\n| # | Guarantee | Status |\n| --- | --- | --- |\n| **I1** | Same program, same result: the interpreter **is** the specification | 🟡 covers the declared corpus (table below) |\n| **I2** | Nothing happens implicitly | ✅ holds today |\n| **I3** | Observable determinism: same input ⇒ same bytes | ✅ holds today and is tested in CI |\n| **I4** | Clean `--check` ⇒ the backend compiles (or refuses only the declared gap) | ✅ holds today and is tested in CI |\n\n### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 58 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 3 |\n| `t7` | 3 |\n\n**168 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n\n### I2 — Nothing happens implicitly\n\nNo conversion, coercion, truncation, rounding, truthiness or fallback happens\nwithout being written in the code.\n\n```lox\nprint(1 + 2.0)      # 3.0  — Int -> Float promotion, arithmetic only\nprint(1 + \"1\")      # error — no coercion between number and string\nprint(4 / 2)        # 2.0  — `/` is always Float\nprint(-7 // 2)      # -3   — truncated\nprint(1 == 1.0)     # true — numeric equality with promotion\nprint(1 == \"1\")     # false — different types are never equal\nif (\"\") { print(\"empty is truthy\") }  # prints: only nil and false are falsy\nprint((nil ?? 0))   # 0    — `??` replaces nil only\nprint(3.9 as Int)   # 3    — explicit cast, truncated\n```\n\nIn **storage** there is no promotion: `val x: Float = 2`, `x = 2`, `f(2)` and `return 2` in a\n`-> Float` function are type errors; write `2.0` or `2 as Float`\n([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n\nIf you want the conversion, it is written: there is no \"the compiler sorts it out\".\n\n### I3 — Observable determinism\n\nSame input + same flags ⇒ **same bytes** of output and of diagnostics. This holds for\nstdout, stderr, exit code and `--dump-ast`. The following are forbidden in the output: memory\naddress, PID, timestamp, absolute path, `set`/`dict` order, locale and directory order.\n\nThe 1.0 prelude does not read the clock or other ambient inputs: `clock` was removed\n([ADR-0026](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0026-freeze-1.0.md)). The **ambient functions** declared in\n[ADR-0072](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,\n`time.sleep`, `std.fs`, `std.io` reads, `std.proc`/`process.*` and kernel\nfile opening — are explicitly **outside** this guarantee and the differential corpus; they\nhave their own test with fixed input. `std.fs.listDir` sorts entries by byte precisely so as\nnot to leak the directory order.\n\n**Streaming (not I3, it is an I/O contract):** `io.write`/`io.writeErr` flush on every\ncall in both engines, and `io.flush()` forces both channels. `print` follows the stdio\nbuffer (block on a pipe, line on a tty) — as in the oracle. Without the flush, a process that\nreads another's output (pipe, JSONL, MCP, LSP) hangs waiting for bytes that stay in the buffer\n([ADR-0094](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0094-kernel-io-flush-e-read-utf8.md)); the\n`test_io_write_flush_antes_de_bloquear_no_stdin` test polices this, because the byte comparison\nat the end of the process does not distinguish \"flushed\" from \"flushed on exit\".\n\nThe implemented `math.*` is deterministic: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,\n`round`, `trunc` and `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` and `pow` depend on libm and\nstay **outside** 1.0/I3 ([ADR-0029](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0029-conversoes-math.md)). `--debug` changes\noverflow behavior by design; the guarantee holds for the same flags.\n\n```bash\n./lox program.lx > a.txt 2>&1   # twice, on different machines/flags\n./lox program.lx > b.txt 2>&1\ncmp a.txt b.txt                   # identical\n```\n\nThe wording of an error message **may change between versions**; the exit code does not\n(`65` compilation, `70` runtime). Diagnostic **codes** are stable and never\nreused ([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md)); the output is sorted\nby `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path\nis always relative. The JSON carries `schema_version`.\n\n### I4 — Clean `--check` ⇒ it compiles\n\nEvery program that passes `--check` compiles. The **only** acceptable refusal in lowering is the\ngap already declared and classified:\n\n```\n... is not supported by the backend yet.\n```\n\nAny other error after a clean check is an I4 violation. The checker is the **source of\ntruth** for types; the backend consumes the published types and does not invent its own rule.\n\n```bash\nuv run main.py --check prog.lx      # exit 0 …\nuv run main.py --emit=exe prog.lx   # … so this compiles (or refuses only \"not supported\")\n```\n\nIt is the operational corollary of I1: without it, the same program could give `2` in the\ninterpreter and a type error in the compiler, with the user receiving two contradictory\ndiagnostics ([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n"
+          "text": "## The four guarantees\n\n| # | Guarantee | Status |\n| --- | --- | --- |\n| **I1** | Same program, same result: the interpreter **is** the specification | 🟡 covers the declared corpus (table below) |\n| **I2** | Nothing happens implicitly | ✅ holds today |\n| **I3** | Observable determinism: same input ⇒ same bytes | ✅ holds today and is tested in CI |\n| **I4** | Clean `--check` ⇒ the backend compiles (or refuses only the declared gap) | ✅ holds today and is tested in CI |\n\n### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 59 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 6 |\n| `t7` | 3 |\n\n**172 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n\n### I2 — Nothing happens implicitly\n\nNo conversion, coercion, truncation, rounding, truthiness or fallback happens\nwithout being written in the code.\n\n```lox\nprint(1 + 2.0)      # 3.0  — Int -> Float promotion, arithmetic only\nprint(1 + \"1\")      # error — no coercion between number and string\nprint(4 / 2)        # 2.0  — `/` is always Float\nprint(-7 // 2)      # -3   — truncated\nprint(1 == 1.0)     # true — numeric equality with promotion\nprint(1 == \"1\")     # false — different types are never equal\nif (\"\") { print(\"empty is truthy\") }  # prints: only nil and false are falsy\nprint((nil ?? 0))   # 0    — `??` replaces nil only\nprint(3.9 as Int)   # 3    — explicit cast, truncated\n```\n\nIn **storage** there is no promotion: `val x: Float = 2`, `x = 2`, `f(2)` and `return 2` in a\n`-> Float` function are type errors; write `2.0` or `2 as Float`\n([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n\nIf you want the conversion, it is written: there is no \"the compiler sorts it out\".\n\n### I3 — Observable determinism\n\nSame input + same flags ⇒ **same bytes** of output and of diagnostics. This holds for\nstdout, stderr, exit code and `--dump-ast`. The following are forbidden in the output: memory\naddress, PID, timestamp, absolute path, `set`/`dict` order, locale and directory order.\n\nThe 1.0 prelude does not read the clock or other ambient inputs: `clock` was removed\n([ADR-0026](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0026-freeze-1.0.md)). The **ambient functions** declared in\n[ADR-0072](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,\n`time.sleep`, `std.fs`, `std.io` reads, `std.proc`/`process.*` and kernel\nfile opening — are explicitly **outside** this guarantee and the differential corpus; they\nhave their own test with fixed input. `std.fs.listDir` sorts entries by byte precisely so as\nnot to leak the directory order.\n\n**Streaming (not I3, it is an I/O contract):** `io.write`/`io.writeErr` flush on every\ncall in both engines, and `io.flush()` forces both channels. `print` follows the stdio\nbuffer (block on a pipe, line on a tty) — as in the oracle. Without the flush, a process that\nreads another's output (pipe, JSONL, MCP, LSP) hangs waiting for bytes that stay in the buffer\n([ADR-0094](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0094-kernel-io-flush-e-read-utf8.md)); the\n`test_io_write_flush_antes_de_bloquear_no_stdin` test polices this, because the byte comparison\nat the end of the process does not distinguish \"flushed\" from \"flushed on exit\".\n\nThe implemented `math.*` is deterministic: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,\n`round`, `trunc` and `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` and `pow` depend on libm and\nstay **outside** 1.0/I3 ([ADR-0029](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0029-conversoes-math.md)). `--debug` changes\noverflow behavior by design; the guarantee holds for the same flags.\n\n```bash\n./lox program.lx > a.txt 2>&1   # twice, on different machines/flags\n./lox program.lx > b.txt 2>&1\ncmp a.txt b.txt                   # identical\n```\n\nThe wording of an error message **may change between versions**; the exit code does not\n(`65` compilation, `70` runtime). Diagnostic **codes** are stable and never\nreused ([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md)); the output is sorted\nby `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path\nis always relative. The JSON carries `schema_version`.\n\n### I4 — Clean `--check` ⇒ it compiles\n\nEvery program that passes `--check` compiles. The **only** acceptable refusal in lowering is the\ngap already declared and classified:\n\n```\n... is not supported by the backend yet.\n```\n\nAny other error after a clean check is an I4 violation. The checker is the **source of\ntruth** for types; the backend consumes the published types and does not invent its own rule.\n\n```bash\nuv run main.py --check prog.lx      # exit 0 …\nuv run main.py --emit=exe prog.lx   # … so this compiles (or refuses only \"not supported\")\n```\n\nIt is the operational corollary of I1: without it, the same program could give `2` in the\ninterpreter and a type error in the compiler, with the user receiving two contradictory\ndiagnostics ([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n"
         },
         {
           "id": "spec/guarantees#i1--executable-equivalence",
@@ -743,7 +743,7 @@
           "line_start": 33,
           "line_end": 126,
           "url": "https://loxia-lang.github.io/loxia/reference/guarantees/#i1--executable-equivalence",
-          "text": "### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 58 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 3 |\n| `t7` | 3 |\n\n**168 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n"
+          "text": "### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 59 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 6 |\n| `t7` | 3 |\n\n**172 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n"
         },
         {
           "id": "spec/guarantees#stack-budget-adr-0077",
@@ -865,17 +865,17 @@
           "title": "Modules",
           "level": 2,
           "line_start": 12,
-          "line_end": 43,
+          "line_end": 46,
           "url": "https://loxia-lang.github.io/loxia/stdlib/#modules",
-          "text": "## Modules\n\n| Module | Summary |\n| --- | --- |\n| [`std.asserts`](https://loxia-lang.github.io/loxia/stdlib/asserts/) | Explicit failures for tests and contracts. Every helper raises `RuntimeError`. |\n| [`std.cli`](https://loxia-lang.github.io/loxia/stdlib/cli/) | Deterministic command-line parsing from a declarative spec. |\n| [`std.collections`](https://loxia-lang.github.io/loxia/stdlib/collections/) | Stack, Queue, Deque and PriorityQueue, backed by lists. |\n| [`std.contracts`](https://loxia-lang.github.io/loxia/stdlib/contracts/) | Design by contract as a library: precondition, postcondition and invariant checks. |\n| [`std.convert`](https://loxia-lang.github.io/loxia/stdlib/convert/) | Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes. |\n| [`std.csv`](https://loxia-lang.github.io/loxia/stdlib/csv/) | RFC 4180 CSV parsing and serialization, with CRLF output. |\n| [`std.fmt`](https://loxia-lang.github.io/loxia/stdlib/fmt/) | Locale-free formatting helpers (templates, padding, numbers, byte sizes). |\n| [`std.fs`](https://loxia-lang.github.io/loxia/stdlib/fs/) | File reading and writing. Ambient: outside the I1 corpus. |\n| [`std.hash`](https://loxia-lang.github.io/loxia/stdlib/hash/) | Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes. |\n| [`std.io`](https://loxia-lang.github.io/loxia/stdlib/io/) | Standard input/output. The read functions are ambient where they block. |\n| [`std.iter`](https://loxia-lang.github.io/loxia/stdlib/iter/) | Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`). |\n| [`std.json`](https://loxia-lang.github.io/loxia/stdlib/json/) | RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap. |\n| [`std.lists`](https://loxia-lang.github.io/loxia/stdlib/lists/) | Generic list combinators; every function leaves the input unchanged. |\n| [`std.log`](https://loxia-lang.github.io/loxia/stdlib/log/) | Leveled logging to stderr, without timestamps. |\n| [`std.maps`](https://loxia-lang.github.io/loxia/stdlib/maps/) | Helpers for `Map[String, V]` that preserve insertion order. |\n| [`std.numeric`](https://loxia-lang.github.io/loxia/stdlib/numeric/) | Integer number theory and population statistics. |\n| [`std.paths`](https://loxia-lang.github.io/loxia/stdlib/paths/) | Lexical POSIX path helpers; no filesystem access. |\n| [`std.proc`](https://loxia-lang.github.io/loxia/stdlib/proc/) | Processes, streams and `poll` (POSIX, ambient: outside I1/I3). |\n| [`std.property`](https://loxia-lang.github.io/loxia/stdlib/property/) | Deterministic property-based testing with generators, shrinking and seeds. |\n| [`std.rand`](https://loxia-lang.github.io/loxia/stdlib/rand/) | Deterministic xorshift64* PRNG with an explicit seed. |\n| [`std.results`](https://loxia-lang.github.io/loxia/stdlib/results/) | Combinators for `Result[T, E]`. |\n| [`std.sets`](https://loxia-lang.github.io/loxia/stdlib/sets/) | `Set[T]` backed by `Map[Any, Bool]`, preserving insertion order. |\n| [`std.strings`](https://loxia-lang.github.io/loxia/stdlib/strings/) | UTF-8 text operations over code points, not bytes or UTF-16 units. |\n| [`std.test`](https://loxia-lang.github.io/loxia/stdlib/test/) | Mini test harness with TAP output, hooks, matchers and a recorder. |\n| [`std.timex`](https://loxia-lang.github.io/loxia/stdlib/timex/) | UTC date/time helpers over integer epoch seconds; no timezones. |\n| [`std.utf8`](https://loxia-lang.github.io/loxia/stdlib/utf8/) | UTF-8 and UTF-16 widths (bytes, code units, columns). |\n"
+          "text": "## Modules\n\n| Module | Summary |\n| --- | --- |\n| [`std.asserts`](https://loxia-lang.github.io/loxia/stdlib/asserts/) | Explicit failures for tests and contracts. Every helper raises `RuntimeError`. |\n| [`std.cli`](https://loxia-lang.github.io/loxia/stdlib/cli/) | Deterministic command-line parsing from a declarative spec. |\n| [`std.collections`](https://loxia-lang.github.io/loxia/stdlib/collections/) | Stack, Queue, Deque and PriorityQueue, backed by lists. |\n| [`std.contracts`](https://loxia-lang.github.io/loxia/stdlib/contracts/) | Design by contract as a library: precondition, postcondition and invariant checks. |\n| [`std.convert`](https://loxia-lang.github.io/loxia/stdlib/convert/) | Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes. |\n| [`std.csv`](https://loxia-lang.github.io/loxia/stdlib/csv/) | RFC 4180 CSV parsing and serialization, with CRLF output. |\n| [`std.documents`](https://loxia-lang.github.io/loxia/stdlib/documents/) | Full-sync document store: opaque URIs, versions and text, without JSON or I/O. |\n| [`std.fmt`](https://loxia-lang.github.io/loxia/stdlib/fmt/) | Locale-free formatting helpers (templates, padding, numbers, byte sizes). |\n| [`std.framing`](https://loxia-lang.github.io/loxia/stdlib/framing/) | `Content-Length` framing over an injected byte reader; stdin/stdout only at the edge. |\n| [`std.fs`](https://loxia-lang.github.io/loxia/stdlib/fs/) | File reading and writing. Ambient: outside the I1 corpus. |\n| [`std.hash`](https://loxia-lang.github.io/loxia/stdlib/hash/) | Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes. |\n| [`std.io`](https://loxia-lang.github.io/loxia/stdlib/io/) | Standard input/output. The read functions are ambient where they block. |\n| [`std.iter`](https://loxia-lang.github.io/loxia/stdlib/iter/) | Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`). |\n| [`std.json`](https://loxia-lang.github.io/loxia/stdlib/json/) | RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap. |\n| [`std.jsonrpc`](https://loxia-lang.github.io/loxia/stdlib/jsonrpc/) | JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages. |\n| [`std.lists`](https://loxia-lang.github.io/loxia/stdlib/lists/) | Generic list combinators; every function leaves the input unchanged. |\n| [`std.log`](https://loxia-lang.github.io/loxia/stdlib/log/) | Leveled logging to stderr, without timestamps. |\n| [`std.maps`](https://loxia-lang.github.io/loxia/stdlib/maps/) | Helpers for `Map[String, V]` that preserve insertion order. |\n| [`std.numeric`](https://loxia-lang.github.io/loxia/stdlib/numeric/) | Integer number theory and population statistics. |\n| [`std.paths`](https://loxia-lang.github.io/loxia/stdlib/paths/) | Lexical POSIX path helpers; no filesystem access. |\n| [`std.proc`](https://loxia-lang.github.io/loxia/stdlib/proc/) | Processes, streams and `poll` (POSIX, ambient: outside I1/I3). |\n| [`std.property`](https://loxia-lang.github.io/loxia/stdlib/property/) | Deterministic property-based testing with generators, shrinking and seeds. |\n| [`std.rand`](https://loxia-lang.github.io/loxia/stdlib/rand/) | Deterministic xorshift64* PRNG with an explicit seed. |\n| [`std.results`](https://loxia-lang.github.io/loxia/stdlib/results/) | Combinators for `Result[T, E]`. |\n| [`std.sets`](https://loxia-lang.github.io/loxia/stdlib/sets/) | `Set[T]` backed by `Map[Any, Bool]`, preserving insertion order. |\n| [`std.strings`](https://loxia-lang.github.io/loxia/stdlib/strings/) | UTF-8 text operations over code points, not bytes or UTF-16 units. |\n| [`std.test`](https://loxia-lang.github.io/loxia/stdlib/test/) | Mini test harness with TAP output, hooks, matchers and a recorder. |\n| [`std.timex`](https://loxia-lang.github.io/loxia/stdlib/timex/) | UTC date/time helpers over integer epoch seconds; no timezones. |\n| [`std.utf8`](https://loxia-lang.github.io/loxia/stdlib/utf8/) | UTF-8 and UTF-16 widths (bytes, code units, columns). |\n"
         },
         {
           "id": "stdlib/index#builtins",
           "anchor": "builtins",
           "title": "Builtins",
           "level": 2,
-          "line_start": 43,
-          "line_end": 46,
+          "line_start": 46,
+          "line_end": 49,
           "url": "https://loxia-lang.github.io/loxia/stdlib/#builtins",
           "text": "## Builtins\n\nSee [builtins.md](https://loxia-lang.github.io/loxia/stdlib/builtins/).\n"
         }
@@ -2441,6 +2441,270 @@
       ]
     },
     {
+      "id": "stdlib/documents",
+      "kind": "stdlib",
+      "title": "std.documents",
+      "path": "docs/stdlib/documents.md",
+      "url": "https://loxia-lang.github.io/loxia/stdlib/documents/",
+      "summary": "Full-sync document store: opaque URIs, versions and text, without JSON or I/O.",
+      "sources": [
+        "std/documents.lx",
+        "loxia/docgen.py"
+      ],
+      "sections": [
+        {
+          "id": "stdlib/documents#api",
+          "anchor": "api",
+          "title": "API",
+          "level": 2,
+          "line_start": 12,
+          "line_end": 14,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#api",
+          "text": "## API\n"
+        },
+        {
+          "id": "stdlib/documents#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 118,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#classes",
+          "text": "## Classes\n\n### `class Document`\n\nOne open document and its last known version.\n\n#### `val uri: String`\n\nOpaque document identifier, usually a `file://` URI.\n\n#### `val languageId: String`\n\nEditor language id, e.g. `loxia`.\n\n#### `val version: Int`\n\nMonotonically increasing version supplied by the client.\n\n#### `val text: String`\n\nFull text of the document.\n\n#### `fn init(uri: String, languageId: String, version: Int, text: String)`\n\nCreates a document snapshot.\n\n### `class DocumentError`\n\nWhy a store operation failed; `kind` is stable and `message` is for humans.\n\nKinds: `already_open` (opening an open URI), `not_open` (changing/closing an unknown\nURI), `stale_version` (change not newer than the stored version), `invalid_version`\n(negative version on open).\n\n#### `val kind: String`\n\nStable machine-readable kind.\n\n#### `val message: String`\n\nHuman-readable reason; a fixed message plus the caller-provided URI.\n\n#### `fn init(kind: String, message: String)`\n\nCreates an error with an explicit kind and message.\n\n### `class DocumentStore`\n\nFull-sync store keyed by opaque URI.\n\n`change` replaces the whole text: range-based changes are not representable here and\nbelong to the adapter that parses the notification. Versions must increase on every\nchange; a stale version is rejected instead of silently overwriting newer text.\n\n#### `var docs: Map[String, Document]`\n\nOpen documents keyed by URI, in insertion order.\n\n#### `fn init()`\n\nCreates an empty store.\n\n#### `fn open(uri: String, languageId: String, version: Int, text: String) -> Result[Bool, DocumentError]`\n\nRegisters a document; fails when the URI is already open or the version is negative.\n\n#### `fn change(uri: String, version: Int, text: String) -> Result[Bool, DocumentError]`\n\nReplaces the full text of an open document.\n\n`version` must be strictly greater than the stored one; otherwise the change is\nrejected and the stored text is left untouched.\n\n#### `fn close(uri: String) -> Result[Bool, DocumentError]`\n\nRemoves an open document; fails when the URI is unknown.\n\n#### `fn get(uri: String) -> Document | Nil`\n\nReturns the document snapshot, or `nil` when the URI is not open.\n\n#### `fn text(uri: String) -> String | Nil`\n\nReturns the current text, or `nil` when the URI is not open.\n\n#### `fn version(uri: String) -> Int | Nil`\n\nReturns the last version, or `nil` when the URI is not open.\n\n#### `fn languageId(uri: String) -> String | Nil`\n\nReturns the language id, or `nil` when the URI is not open.\n\n#### `fn has(uri: String) -> Bool`\n\nReturns `true` when the URI is open.\n\n#### `fn uris() -> List[String]`\n\nReturns the open URIs in ascending order, independent of insertion order.\n\n#### `fn len() -> Int`\n\nReturns the number of open documents.\n"
+        },
+        {
+          "id": "stdlib/documents#class-document",
+          "anchor": "class-document",
+          "title": "class Document",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 40,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#class-document",
+          "text": "### `class Document`\n\nOne open document and its last known version.\n\n#### `val uri: String`\n\nOpaque document identifier, usually a `file://` URI.\n\n#### `val languageId: String`\n\nEditor language id, e.g. `loxia`.\n\n#### `val version: Int`\n\nMonotonically increasing version supplied by the client.\n\n#### `val text: String`\n\nFull text of the document.\n\n#### `fn init(uri: String, languageId: String, version: Int, text: String)`\n\nCreates a document snapshot.\n"
+        },
+        {
+          "id": "stdlib/documents#val-uri-string",
+          "anchor": "val-uri-string",
+          "title": "val uri: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#val-uri-string",
+          "text": "#### `val uri: String`\n\nOpaque document identifier, usually a `file://` URI.\n"
+        },
+        {
+          "id": "stdlib/documents#val-languageid-string",
+          "anchor": "val-languageid-string",
+          "title": "val languageId: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#val-languageid-string",
+          "text": "#### `val languageId: String`\n\nEditor language id, e.g. `loxia`.\n"
+        },
+        {
+          "id": "stdlib/documents#val-version-int",
+          "anchor": "val-version-int",
+          "title": "val version: Int",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#val-version-int",
+          "text": "#### `val version: Int`\n\nMonotonically increasing version supplied by the client.\n"
+        },
+        {
+          "id": "stdlib/documents#val-text-string",
+          "anchor": "val-text-string",
+          "title": "val text: String",
+          "level": 4,
+          "line_start": 32,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#val-text-string",
+          "text": "#### `val text: String`\n\nFull text of the document.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-inituri-string-languageid-string-version-int-text-string",
+          "anchor": "fn-inituri-string-languageid-string-version-int-text-string",
+          "title": "fn init(uri: String, languageId: String, version: Int, text: String)",
+          "level": 4,
+          "line_start": 36,
+          "line_end": 40,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-inituri-string-languageid-string-version-int-text-string",
+          "text": "#### `fn init(uri: String, languageId: String, version: Int, text: String)`\n\nCreates a document snapshot.\n"
+        },
+        {
+          "id": "stdlib/documents#class-documenterror",
+          "anchor": "class-documenterror",
+          "title": "class DocumentError",
+          "level": 3,
+          "line_start": 40,
+          "line_end": 60,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#class-documenterror",
+          "text": "### `class DocumentError`\n\nWhy a store operation failed; `kind` is stable and `message` is for humans.\n\nKinds: `already_open` (opening an open URI), `not_open` (changing/closing an unknown\nURI), `stale_version` (change not newer than the stored version), `invalid_version`\n(negative version on open).\n\n#### `val kind: String`\n\nStable machine-readable kind.\n\n#### `val message: String`\n\nHuman-readable reason; a fixed message plus the caller-provided URI.\n\n#### `fn init(kind: String, message: String)`\n\nCreates an error with an explicit kind and message.\n"
+        },
+        {
+          "id": "stdlib/documents#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 48,
+          "line_end": 52,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable machine-readable kind.\n"
+        },
+        {
+          "id": "stdlib/documents#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 52,
+          "line_end": 56,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#val-message-string",
+          "text": "#### `val message: String`\n\nHuman-readable reason; a fixed message plus the caller-provided URI.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 56,
+          "line_end": 60,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nCreates an error with an explicit kind and message.\n"
+        },
+        {
+          "id": "stdlib/documents#class-documentstore",
+          "anchor": "class-documentstore",
+          "title": "class DocumentStore",
+          "level": 3,
+          "line_start": 60,
+          "line_end": 118,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#class-documentstore",
+          "text": "### `class DocumentStore`\n\nFull-sync store keyed by opaque URI.\n\n`change` replaces the whole text: range-based changes are not representable here and\nbelong to the adapter that parses the notification. Versions must increase on every\nchange; a stale version is rejected instead of silently overwriting newer text.\n\n#### `var docs: Map[String, Document]`\n\nOpen documents keyed by URI, in insertion order.\n\n#### `fn init()`\n\nCreates an empty store.\n\n#### `fn open(uri: String, languageId: String, version: Int, text: String) -> Result[Bool, DocumentError]`\n\nRegisters a document; fails when the URI is already open or the version is negative.\n\n#### `fn change(uri: String, version: Int, text: String) -> Result[Bool, DocumentError]`\n\nReplaces the full text of an open document.\n\n`version` must be strictly greater than the stored one; otherwise the change is\nrejected and the stored text is left untouched.\n\n#### `fn close(uri: String) -> Result[Bool, DocumentError]`\n\nRemoves an open document; fails when the URI is unknown.\n\n#### `fn get(uri: String) -> Document | Nil`\n\nReturns the document snapshot, or `nil` when the URI is not open.\n\n#### `fn text(uri: String) -> String | Nil`\n\nReturns the current text, or `nil` when the URI is not open.\n\n#### `fn version(uri: String) -> Int | Nil`\n\nReturns the last version, or `nil` when the URI is not open.\n\n#### `fn languageId(uri: String) -> String | Nil`\n\nReturns the language id, or `nil` when the URI is not open.\n\n#### `fn has(uri: String) -> Bool`\n\nReturns `true` when the URI is open.\n\n#### `fn uris() -> List[String]`\n\nReturns the open URIs in ascending order, independent of insertion order.\n\n#### `fn len() -> Int`\n\nReturns the number of open documents.\n"
+        },
+        {
+          "id": "stdlib/documents#var-docs-mapstring-document",
+          "anchor": "var-docs-mapstring-document",
+          "title": "var docs: Map[String, Document]",
+          "level": 4,
+          "line_start": 68,
+          "line_end": 72,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#var-docs-mapstring-document",
+          "text": "#### `var docs: Map[String, Document]`\n\nOpen documents keyed by URI, in insertion order.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-init",
+          "anchor": "fn-init",
+          "title": "fn init()",
+          "level": 4,
+          "line_start": 72,
+          "line_end": 76,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-init",
+          "text": "#### `fn init()`\n\nCreates an empty store.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-openuri-string-languageid-string-version-int-text-string---resultbool-documenterror",
+          "anchor": "fn-openuri-string-languageid-string-version-int-text-string---resultbool-documenterror",
+          "title": "fn open(uri: String, languageId: String, version: Int, text: String) -> Result[Bool, DocumentError]",
+          "level": 4,
+          "line_start": 76,
+          "line_end": 80,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-openuri-string-languageid-string-version-int-text-string---resultbool-documenterror",
+          "text": "#### `fn open(uri: String, languageId: String, version: Int, text: String) -> Result[Bool, DocumentError]`\n\nRegisters a document; fails when the URI is already open or the version is negative.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-changeuri-string-version-int-text-string---resultbool-documenterror",
+          "anchor": "fn-changeuri-string-version-int-text-string---resultbool-documenterror",
+          "title": "fn change(uri: String, version: Int, text: String) -> Result[Bool, DocumentError]",
+          "level": 4,
+          "line_start": 80,
+          "line_end": 87,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-changeuri-string-version-int-text-string---resultbool-documenterror",
+          "text": "#### `fn change(uri: String, version: Int, text: String) -> Result[Bool, DocumentError]`\n\nReplaces the full text of an open document.\n\n`version` must be strictly greater than the stored one; otherwise the change is\nrejected and the stored text is left untouched.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-closeuri-string---resultbool-documenterror",
+          "anchor": "fn-closeuri-string---resultbool-documenterror",
+          "title": "fn close(uri: String) -> Result[Bool, DocumentError]",
+          "level": 4,
+          "line_start": 87,
+          "line_end": 91,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-closeuri-string---resultbool-documenterror",
+          "text": "#### `fn close(uri: String) -> Result[Bool, DocumentError]`\n\nRemoves an open document; fails when the URI is unknown.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-geturi-string---document--nil",
+          "anchor": "fn-geturi-string---document--nil",
+          "title": "fn get(uri: String) -> Document | Nil",
+          "level": 4,
+          "line_start": 91,
+          "line_end": 95,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-geturi-string---document--nil",
+          "text": "#### `fn get(uri: String) -> Document | Nil`\n\nReturns the document snapshot, or `nil` when the URI is not open.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-texturi-string---string--nil",
+          "anchor": "fn-texturi-string---string--nil",
+          "title": "fn text(uri: String) -> String | Nil",
+          "level": 4,
+          "line_start": 95,
+          "line_end": 99,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-texturi-string---string--nil",
+          "text": "#### `fn text(uri: String) -> String | Nil`\n\nReturns the current text, or `nil` when the URI is not open.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-versionuri-string---int--nil",
+          "anchor": "fn-versionuri-string---int--nil",
+          "title": "fn version(uri: String) -> Int | Nil",
+          "level": 4,
+          "line_start": 99,
+          "line_end": 103,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-versionuri-string---int--nil",
+          "text": "#### `fn version(uri: String) -> Int | Nil`\n\nReturns the last version, or `nil` when the URI is not open.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-languageiduri-string---string--nil",
+          "anchor": "fn-languageiduri-string---string--nil",
+          "title": "fn languageId(uri: String) -> String | Nil",
+          "level": 4,
+          "line_start": 103,
+          "line_end": 107,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-languageiduri-string---string--nil",
+          "text": "#### `fn languageId(uri: String) -> String | Nil`\n\nReturns the language id, or `nil` when the URI is not open.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-hasuri-string---bool",
+          "anchor": "fn-hasuri-string---bool",
+          "title": "fn has(uri: String) -> Bool",
+          "level": 4,
+          "line_start": 107,
+          "line_end": 111,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-hasuri-string---bool",
+          "text": "#### `fn has(uri: String) -> Bool`\n\nReturns `true` when the URI is open.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-uris---liststring",
+          "anchor": "fn-uris---liststring",
+          "title": "fn uris() -> List[String]",
+          "level": 4,
+          "line_start": 111,
+          "line_end": 115,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-uris---liststring",
+          "text": "#### `fn uris() -> List[String]`\n\nReturns the open URIs in ascending order, independent of insertion order.\n"
+        },
+        {
+          "id": "stdlib/documents#fn-len---int",
+          "anchor": "fn-len---int",
+          "title": "fn len() -> Int",
+          "level": 4,
+          "line_start": 115,
+          "line_end": 118,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/documents/#fn-len---int",
+          "text": "#### `fn len() -> Int`\n\nReturns the number of open documents.\n"
+        }
+      ]
+    },
+    {
       "id": "stdlib/fmt",
       "kind": "stdlib",
       "title": "std.fmt",
@@ -2531,6 +2795,150 @@
           "line_end": 59,
           "url": "https://loxia-lang.github.io/loxia/stdlib/fmt/#fn-bytesvalue-int---string",
           "text": "### `fn bytes(value: Int) -> String`\n\nFormats a byte count with a binary unit (`B`, `KiB`, `MiB`, `GiB` or `TiB`).\n\nScales by 1024 and uses one decimal place above `B`. Negative input raises\n`RuntimeError`; `bytes(0)` is `\"0 B\"`.\n"
+        }
+      ]
+    },
+    {
+      "id": "stdlib/framing",
+      "kind": "stdlib",
+      "title": "std.framing",
+      "path": "docs/stdlib/framing.md",
+      "url": "https://loxia-lang.github.io/loxia/stdlib/framing/",
+      "summary": "Content-Length framing over an injected byte reader; stdin/stdout only at the edge.",
+      "sources": [
+        "std/framing.lx",
+        "loxia/docgen.py"
+      ],
+      "sections": [
+        {
+          "id": "stdlib/framing#api",
+          "anchor": "api",
+          "title": "API",
+          "level": 2,
+          "line_start": 12,
+          "line_end": 14,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#api",
+          "text": "## API\n"
+        },
+        {
+          "id": "stdlib/framing#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#classes",
+          "text": "## Classes\n\n### `class FrameFailure`\n\nFraming failure; `kind` is stable, `message` is for humans.\n\nKinds: `truncated` (input ended inside a frame), `bad_header` (malformed or missing\n`Content-Length`), `too_large` (header or body above the caps), `read` (the reader\nraised, e.g. invalid UTF-8).\n\n#### `val kind: String`\n\nStable machine-readable kind.\n\n#### `val message: String`\n\nHuman-readable reason; never contains a path, timestamp or address.\n\n#### `fn init(kind: String, message: String)`\n\nCreates a failure with an explicit kind and message.\n"
+        },
+        {
+          "id": "stdlib/framing#class-framefailure",
+          "anchor": "class-framefailure",
+          "title": "class FrameFailure",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#class-framefailure",
+          "text": "### `class FrameFailure`\n\nFraming failure; `kind` is stable, `message` is for humans.\n\nKinds: `truncated` (input ended inside a frame), `bad_header` (malformed or missing\n`Content-Length`), `too_large` (header or body above the caps), `read` (the reader\nraised, e.g. invalid UTF-8).\n\n#### `val kind: String`\n\nStable machine-readable kind.\n\n#### `val message: String`\n\nHuman-readable reason; never contains a path, timestamp or address.\n\n#### `fn init(kind: String, message: String)`\n\nCreates a failure with an explicit kind and message.\n"
+        },
+        {
+          "id": "stdlib/framing#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable machine-readable kind.\n"
+        },
+        {
+          "id": "stdlib/framing#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#val-message-string",
+          "text": "#### `val message: String`\n\nHuman-readable reason; never contains a path, timestamp or address.\n"
+        },
+        {
+          "id": "stdlib/framing#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 32,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nCreates a failure with an explicit kind and message.\n"
+        },
+        {
+          "id": "stdlib/framing#types",
+          "anchor": "types",
+          "title": "Types",
+          "level": 2,
+          "line_start": 36,
+          "line_end": 45,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#types",
+          "text": "## Types\n\n### `type Reader = fn(Int) -> String | Nil`\n\nReader of at most `count` bytes, never splitting a code point.\n\n`nil` means clean end of input. A returned text has one or more code points and at\nmost `count` UTF-8 bytes. `std.framing.readStdin` is the stdin implementation.\n"
+        },
+        {
+          "id": "stdlib/framing#type-reader--fnint---string--nil",
+          "anchor": "type-reader--fnint---string--nil",
+          "title": "type Reader = fn(Int) -> String | Nil",
+          "level": 3,
+          "line_start": 38,
+          "line_end": 45,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#type-reader--fnint---string--nil",
+          "text": "### `type Reader = fn(Int) -> String | Nil`\n\nReader of at most `count` bytes, never splitting a code point.\n\n`nil` means clean end of input. A returned text has one or more code points and at\nmost `count` UTF-8 bytes. `std.framing.readStdin` is the stdin implementation.\n"
+        },
+        {
+          "id": "stdlib/framing#functions",
+          "anchor": "functions",
+          "title": "Functions",
+          "level": 2,
+          "line_start": 45,
+          "line_end": 74,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#functions",
+          "text": "## Functions\n\n### `fn readFrame(read: Reader) -> Result[String | Nil, FrameFailure]`\n\nReads one frame, returning its body.\n\n`Result.Ok(nil)` is a clean end of input at a frame boundary. Headers must be ASCII\nand end with CRLF; `Content-Length` is required, unique and counts UTF-8 bytes;\n`Content-Type` is accepted and ignored. The body is returned as text, still\nunparsed; pair with `std.jsonrpc.decode` for JSON-RPC.\n\n### `fn encodeFrame(text: String) -> String`\n\nSerializes one frame: `Content-Length` counts UTF-8 bytes, then the body.\n\n### `fn readStdin(count: Int) -> String | Nil`\n\nReads from stdin with `io.readUtf8`, the exact-bytes reader.\n\nAmbient: blocks until `count` bytes or end of input. A truncated body is normalized\nto `nil` (the codec reports `truncated`); invalid UTF-8 raises `RuntimeError`, which\n`readFrame` turns into a `read` failure.\n\n### `fn writeStdout(text: String) -> Nil`\n\nWrites a complete frame to stdout and flushes it.\n\nAmbient. `io.write` flushes on every call (ADR-0094), so a client waiting for the\nresponse never deadlocks. Never use `print` for protocol output.\n"
+        },
+        {
+          "id": "stdlib/framing#fn-readframeread-reader---resultstring--nil-framefailure",
+          "anchor": "fn-readframeread-reader---resultstring--nil-framefailure",
+          "title": "fn readFrame(read: Reader) -> Result[String | Nil, FrameFailure]",
+          "level": 3,
+          "line_start": 47,
+          "line_end": 56,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#fn-readframeread-reader---resultstring--nil-framefailure",
+          "text": "### `fn readFrame(read: Reader) -> Result[String | Nil, FrameFailure]`\n\nReads one frame, returning its body.\n\n`Result.Ok(nil)` is a clean end of input at a frame boundary. Headers must be ASCII\nand end with CRLF; `Content-Length` is required, unique and counts UTF-8 bytes;\n`Content-Type` is accepted and ignored. The body is returned as text, still\nunparsed; pair with `std.jsonrpc.decode` for JSON-RPC.\n"
+        },
+        {
+          "id": "stdlib/framing#fn-encodeframetext-string---string",
+          "anchor": "fn-encodeframetext-string---string",
+          "title": "fn encodeFrame(text: String) -> String",
+          "level": 3,
+          "line_start": 56,
+          "line_end": 60,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#fn-encodeframetext-string---string",
+          "text": "### `fn encodeFrame(text: String) -> String`\n\nSerializes one frame: `Content-Length` counts UTF-8 bytes, then the body.\n"
+        },
+        {
+          "id": "stdlib/framing#fn-readstdincount-int---string--nil",
+          "anchor": "fn-readstdincount-int---string--nil",
+          "title": "fn readStdin(count: Int) -> String | Nil",
+          "level": 3,
+          "line_start": 60,
+          "line_end": 68,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#fn-readstdincount-int---string--nil",
+          "text": "### `fn readStdin(count: Int) -> String | Nil`\n\nReads from stdin with `io.readUtf8`, the exact-bytes reader.\n\nAmbient: blocks until `count` bytes or end of input. A truncated body is normalized\nto `nil` (the codec reports `truncated`); invalid UTF-8 raises `RuntimeError`, which\n`readFrame` turns into a `read` failure.\n"
+        },
+        {
+          "id": "stdlib/framing#fn-writestdouttext-string---nil",
+          "anchor": "fn-writestdouttext-string---nil",
+          "title": "fn writeStdout(text: String) -> Nil",
+          "level": 3,
+          "line_start": 68,
+          "line_end": 74,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/framing/#fn-writestdouttext-string---nil",
+          "text": "### `fn writeStdout(text: String) -> Nil`\n\nWrites a complete frame to stdout and flushes it.\n\nAmbient. `io.write` flushes on every call (ADR-0094), so a client waiting for the\nresponse never deadlocks. Never use `print` for protocol output.\n"
         }
       ]
     },
@@ -2943,32 +3351,112 @@
           "text": "## API\n"
         },
         {
+          "id": "stdlib/json#enums",
+          "anchor": "enums",
+          "title": "Enums",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#enums",
+          "text": "## Enums\n\n### `enum JsonResult`\n\nResult of `parseResult`: the parsed value or the reason the text is invalid.\n\nIt is not a `Result[Any, String]` because the checker refuses to instantiate a type\nvariable with `Any` (`E3011`); the enum carries the same information and can become a\n`Result` if that restriction is lifted.\n\n#### `Ok(Any)`\n\n_No documentation._\n\n#### `Err(String)`\n\n_No documentation._\n"
+        },
+        {
+          "id": "stdlib/json#enum-jsonresult",
+          "anchor": "enum-jsonresult",
+          "title": "enum JsonResult",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#enum-jsonresult",
+          "text": "### `enum JsonResult`\n\nResult of `parseResult`: the parsed value or the reason the text is invalid.\n\nIt is not a `Result[Any, String]` because the checker refuses to instantiate a type\nvariable with `Any` (`E3011`); the enum carries the same information and can become a\n`Result` if that restriction is lifted.\n\n#### `Ok(Any)`\n\n_No documentation._\n\n#### `Err(String)`\n\n_No documentation._\n"
+        },
+        {
+          "id": "stdlib/json#okany",
+          "anchor": "okany",
+          "title": "Ok(Any)",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#okany",
+          "text": "#### `Ok(Any)`\n\n_No documentation._\n"
+        },
+        {
+          "id": "stdlib/json#errstring",
+          "anchor": "errstring",
+          "title": "Err(String)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#errstring",
+          "text": "#### `Err(String)`\n\n_No documentation._\n"
+        },
+        {
           "id": "stdlib/json#functions",
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 14,
-          "line_end": 42,
+          "line_start": 32,
+          "line_end": 84,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#functions",
-          "text": "## Functions\n\n### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters, nesting deeper than\n16) returns `nil`; a valid JSON `null` also returns `nil`.\n\n### `fn stringify(value: Any) -> String`\n\nSerializes a Loxia value as compact JSON.\n\nSupports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and\n`Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;\na non-finite float raises `RuntimeError`. Object keys keep insertion order, and any\nother type raises `RuntimeError`.\n\n### `fn pretty(value: Any, indent: Int = ...) -> String`\n\nSerializes a Loxia value as indented JSON.\n\nUses `indent` spaces per nesting level and the same value rules as `stringify`.\n`indent <= 0` falls back to compact output. Non-empty containers are always broken\nacross lines; empty ones render as `[]` or `{}`.\n"
+          "text": "## Functions\n\n### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters, nesting deeper than\n16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the\ncaller must distinguish malformed text from a valid `null`.\n\n### `fn parseResult(text: String) -> JsonResult`\n\nParses JSON text, preserving the difference between `null` and invalid text.\n\nReturns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`\nfor malformed input, including the 16-level nesting cap. The message is the same one\n`parse` used to hide and never contains a path, timestamp or address.\n\n### `fn isOk(result: JsonResult) -> Bool`\n\nReturns `true` when `result` came from a valid JSON text.\n\nExists because an enum type exported by a module cannot be named in another module's\nannotations; callers use these helpers instead of writing a typed wrapper function.\n\n### `fn value(result: JsonResult) -> Any`\n\nReturns the parsed value, or `nil` when the text was invalid.\n\n### `fn error(result: JsonResult) -> String | Nil`\n\nReturns the error message, or `nil` when the text was valid.\n\n### `fn stringify(value: Any) -> String`\n\nSerializes a Loxia value as compact JSON.\n\nSupports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and\n`Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;\na non-finite float raises `RuntimeError`. Object keys keep insertion order, and any\nother type raises `RuntimeError`.\n\n### `fn pretty(value: Any, indent: Int = ...) -> String`\n\nSerializes a Loxia value as indented JSON.\n\nUses `indent` spaces per nesting level and the same value rules as `stringify`.\n`indent <= 0` falls back to compact output. Non-empty containers are always broken\nacross lines; empty ones render as `[]` or `{}`.\n"
         },
         {
           "id": "stdlib/json#fn-parsetext-string---any",
           "anchor": "fn-parsetext-string---any",
           "title": "fn parse(text: String) -> Any",
           "level": 3,
-          "line_start": 16,
-          "line_end": 26,
+          "line_start": 34,
+          "line_end": 45,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-parsetext-string---any",
-          "text": "### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters, nesting deeper than\n16) returns `nil`; a valid JSON `null` also returns `nil`.\n"
+          "text": "### `fn parse(text: String) -> Any`\n\nParses RFC 8259 JSON text into Loxia values.\n\nAccepts `null`, booleans, numbers, strings, arrays and objects. A number without a\nfraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;\nnon-finite values are rejected. Objects preserve key order and a repeated key keeps\nthe last value. Invalid input (bad escapes, trailing characters, nesting deeper than\n16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the\ncaller must distinguish malformed text from a valid `null`.\n"
+        },
+        {
+          "id": "stdlib/json#fn-parseresulttext-string---jsonresult",
+          "anchor": "fn-parseresulttext-string---jsonresult",
+          "title": "fn parseResult(text: String) -> JsonResult",
+          "level": 3,
+          "line_start": 45,
+          "line_end": 53,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-parseresulttext-string---jsonresult",
+          "text": "### `fn parseResult(text: String) -> JsonResult`\n\nParses JSON text, preserving the difference between `null` and invalid text.\n\nReturns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`\nfor malformed input, including the 16-level nesting cap. The message is the same one\n`parse` used to hide and never contains a path, timestamp or address.\n"
+        },
+        {
+          "id": "stdlib/json#fn-isokresult-jsonresult---bool",
+          "anchor": "fn-isokresult-jsonresult---bool",
+          "title": "fn isOk(result: JsonResult) -> Bool",
+          "level": 3,
+          "line_start": 53,
+          "line_end": 60,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-isokresult-jsonresult---bool",
+          "text": "### `fn isOk(result: JsonResult) -> Bool`\n\nReturns `true` when `result` came from a valid JSON text.\n\nExists because an enum type exported by a module cannot be named in another module's\nannotations; callers use these helpers instead of writing a typed wrapper function.\n"
+        },
+        {
+          "id": "stdlib/json#fn-valueresult-jsonresult---any",
+          "anchor": "fn-valueresult-jsonresult---any",
+          "title": "fn value(result: JsonResult) -> Any",
+          "level": 3,
+          "line_start": 60,
+          "line_end": 64,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-valueresult-jsonresult---any",
+          "text": "### `fn value(result: JsonResult) -> Any`\n\nReturns the parsed value, or `nil` when the text was invalid.\n"
+        },
+        {
+          "id": "stdlib/json#fn-errorresult-jsonresult---string--nil",
+          "anchor": "fn-errorresult-jsonresult---string--nil",
+          "title": "fn error(result: JsonResult) -> String | Nil",
+          "level": 3,
+          "line_start": 64,
+          "line_end": 68,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-errorresult-jsonresult---string--nil",
+          "text": "### `fn error(result: JsonResult) -> String | Nil`\n\nReturns the error message, or `nil` when the text was valid.\n"
         },
         {
           "id": "stdlib/json#fn-stringifyvalue-any---string",
           "anchor": "fn-stringifyvalue-any---string",
           "title": "fn stringify(value: Any) -> String",
           "level": 3,
-          "line_start": 26,
-          "line_end": 35,
+          "line_start": 68,
+          "line_end": 77,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-stringifyvalue-any---string",
           "text": "### `fn stringify(value: Any) -> String`\n\nSerializes a Loxia value as compact JSON.\n\nSupports `nil`, `Bool`, `Int`, `Float`, `String`, `List[Any]` and\n`Map[String, Any]`. `Int` is emitted without a decimal point and `Float` with one;\na non-finite float raises `RuntimeError`. Object keys keep insertion order, and any\nother type raises `RuntimeError`.\n"
         },
@@ -2977,10 +3465,224 @@
           "anchor": "fn-prettyvalue-any-indent-int-----string",
           "title": "fn pretty(value: Any, indent: Int = ...) -> String",
           "level": 3,
-          "line_start": 35,
-          "line_end": 42,
+          "line_start": 77,
+          "line_end": 84,
           "url": "https://loxia-lang.github.io/loxia/stdlib/json/#fn-prettyvalue-any-indent-int-----string",
           "text": "### `fn pretty(value: Any, indent: Int = ...) -> String`\n\nSerializes a Loxia value as indented JSON.\n\nUses `indent` spaces per nesting level and the same value rules as `stringify`.\n`indent <= 0` falls back to compact output. Non-empty containers are always broken\nacross lines; empty ones render as `[]` or `{}`.\n"
+        }
+      ]
+    },
+    {
+      "id": "stdlib/jsonrpc",
+      "kind": "stdlib",
+      "title": "std.jsonrpc",
+      "path": "docs/stdlib/jsonrpc.md",
+      "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/",
+      "summary": "JSON-RPC 2.0 envelopes: validation, construction, error codes and Map messages.",
+      "sources": [
+        "std/jsonrpc.lx",
+        "loxia/docgen.py"
+      ],
+      "sections": [
+        {
+          "id": "stdlib/jsonrpc#api",
+          "anchor": "api",
+          "title": "API",
+          "level": 2,
+          "line_start": 12,
+          "line_end": 14,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#api",
+          "text": "## API\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#classes",
+          "text": "## Classes\n\n### `class RpcFailure`\n\nWhy `decode` rejected a message; `code` is the JSON-RPC error code.\n\nError data is not stored because a field of type `Any` is not supported by the\nbackend; callers that need `error.data` build the envelope themselves.\n\n#### `val code: Int`\n\nNumeric JSON-RPC error code: `-32700` parse, `-32600` invalid request,\n`-32601` method not found, `-32602` invalid params, `-32603` internal.\n\n#### `val message: String`\n\nHuman-readable reason; never contains a path, timestamp or address.\n\n#### `fn init(code: Int, message: String)`\n\nCreates a failure with an explicit code and message.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#class-rpcfailure",
+          "anchor": "class-rpcfailure",
+          "title": "class RpcFailure",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#class-rpcfailure",
+          "text": "### `class RpcFailure`\n\nWhy `decode` rejected a message; `code` is the JSON-RPC error code.\n\nError data is not stored because a field of type `Any` is not supported by the\nbackend; callers that need `error.data` build the envelope themselves.\n\n#### `val code: Int`\n\nNumeric JSON-RPC error code: `-32700` parse, `-32600` invalid request,\n`-32601` method not found, `-32602` invalid params, `-32603` internal.\n\n#### `val message: String`\n\nHuman-readable reason; never contains a path, timestamp or address.\n\n#### `fn init(code: Int, message: String)`\n\nCreates a failure with an explicit code and message.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#val-code-int",
+          "anchor": "val-code-int",
+          "title": "val code: Int",
+          "level": 4,
+          "line_start": 23,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#val-code-int",
+          "text": "#### `val code: Int`\n\nNumeric JSON-RPC error code: `-32700` parse, `-32600` invalid request,\n`-32601` method not found, `-32602` invalid params, `-32603` internal.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#val-message-string",
+          "text": "#### `val message: String`\n\nHuman-readable reason; never contains a path, timestamp or address.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-initcode-int-message-string",
+          "anchor": "fn-initcode-int-message-string",
+          "title": "fn init(code: Int, message: String)",
+          "level": 4,
+          "line_start": 32,
+          "line_end": 36,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-initcode-int-message-string",
+          "text": "#### `fn init(code: Int, message: String)`\n\nCreates a failure with an explicit code and message.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#functions",
+          "anchor": "functions",
+          "title": "Functions",
+          "level": 2,
+          "line_start": 36,
+          "line_end": 96,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#functions",
+          "text": "## Functions\n\n### `fn decode(text: String) -> Result[Map[String, Any], RpcFailure]`\n\nParses and validates one JSON-RPC 2.0 envelope.\n\nA request has `method` and `id`; a notification has `method` and no `id`; a response\nhas exactly one of `result` or `error`. `id` is `Int` or `String` in requests, and\nmay also be `nil` in responses. `params` is an array or an object when present.\nBatches (a top-level array) and malformed JSON are reported as failures.\n\n### `fn encode(message: Map[String, Any]) -> String`\n\nSerializes an envelope as compact JSON, preserving key insertion order.\n\n### `fn request(id: Any, method: String, params: Any = ...) -> Map[String, Any]`\n\nBuilds a request with `method`, an `id` and optional `params`.\n\n`id` should be an `Int` or a `String`; builders do not validate, `decode` does.\n\n### `fn notification(method: String, params: Any = ...) -> Map[String, Any]`\n\nBuilds a notification: `method` with no `id`.\n\n### `fn success(id: Any, result: Any = ...) -> Map[String, Any]`\n\nBuilds a success response; `result` may be `nil` (serialized as `null`).\n\n### `fn failure(id: Any, code: Int, message: String) -> Map[String, Any]`\n\nBuilds an error response; the `error` object carries `code` and `message`.\n\n### `fn isRequest(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the envelope is a request (has `method` and `id`).\n\n### `fn isNotification(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the envelope is a notification (has `method` and no `id`).\n\n### `fn isResponse(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the envelope is a response (has `result` or `error`).\n\n### `fn hasId(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the `id` member is present (its value may be `nil`).\n\n### `fn idOf(message: Map[String, Any]) -> Any`\n\nReturns the `id` member, or `nil` when it is absent.\n\n### `fn methodOf(message: Map[String, Any]) -> String | Nil`\n\nReturns the `method` member, or `nil` when it is absent or not a string.\n\n### `fn errorOf(message: Map[String, Any]) -> Map[String, Any] | Nil`\n\nReturns the `error` object, or `nil` when it is absent or not an object.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-decodetext-string---resultmapstring-any-rpcfailure",
+          "anchor": "fn-decodetext-string---resultmapstring-any-rpcfailure",
+          "title": "fn decode(text: String) -> Result[Map[String, Any], RpcFailure]",
+          "level": 3,
+          "line_start": 38,
+          "line_end": 47,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-decodetext-string---resultmapstring-any-rpcfailure",
+          "text": "### `fn decode(text: String) -> Result[Map[String, Any], RpcFailure]`\n\nParses and validates one JSON-RPC 2.0 envelope.\n\nA request has `method` and `id`; a notification has `method` and no `id`; a response\nhas exactly one of `result` or `error`. `id` is `Int` or `String` in requests, and\nmay also be `nil` in responses. `params` is an array or an object when present.\nBatches (a top-level array) and malformed JSON are reported as failures.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-encodemessage-mapstring-any---string",
+          "anchor": "fn-encodemessage-mapstring-any---string",
+          "title": "fn encode(message: Map[String, Any]) -> String",
+          "level": 3,
+          "line_start": 47,
+          "line_end": 51,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-encodemessage-mapstring-any---string",
+          "text": "### `fn encode(message: Map[String, Any]) -> String`\n\nSerializes an envelope as compact JSON, preserving key insertion order.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-requestid-any-method-string-params-any-----mapstring-any",
+          "anchor": "fn-requestid-any-method-string-params-any-----mapstring-any",
+          "title": "fn request(id: Any, method: String, params: Any = ...) -> Map[String, Any]",
+          "level": 3,
+          "line_start": 51,
+          "line_end": 57,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-requestid-any-method-string-params-any-----mapstring-any",
+          "text": "### `fn request(id: Any, method: String, params: Any = ...) -> Map[String, Any]`\n\nBuilds a request with `method`, an `id` and optional `params`.\n\n`id` should be an `Int` or a `String`; builders do not validate, `decode` does.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-notificationmethod-string-params-any-----mapstring-any",
+          "anchor": "fn-notificationmethod-string-params-any-----mapstring-any",
+          "title": "fn notification(method: String, params: Any = ...) -> Map[String, Any]",
+          "level": 3,
+          "line_start": 57,
+          "line_end": 61,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-notificationmethod-string-params-any-----mapstring-any",
+          "text": "### `fn notification(method: String, params: Any = ...) -> Map[String, Any]`\n\nBuilds a notification: `method` with no `id`.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-successid-any-result-any-----mapstring-any",
+          "anchor": "fn-successid-any-result-any-----mapstring-any",
+          "title": "fn success(id: Any, result: Any = ...) -> Map[String, Any]",
+          "level": 3,
+          "line_start": 61,
+          "line_end": 65,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-successid-any-result-any-----mapstring-any",
+          "text": "### `fn success(id: Any, result: Any = ...) -> Map[String, Any]`\n\nBuilds a success response; `result` may be `nil` (serialized as `null`).\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-failureid-any-code-int-message-string---mapstring-any",
+          "anchor": "fn-failureid-any-code-int-message-string---mapstring-any",
+          "title": "fn failure(id: Any, code: Int, message: String) -> Map[String, Any]",
+          "level": 3,
+          "line_start": 65,
+          "line_end": 69,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-failureid-any-code-int-message-string---mapstring-any",
+          "text": "### `fn failure(id: Any, code: Int, message: String) -> Map[String, Any]`\n\nBuilds an error response; the `error` object carries `code` and `message`.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-isrequestmessage-mapstring-any---bool",
+          "anchor": "fn-isrequestmessage-mapstring-any---bool",
+          "title": "fn isRequest(message: Map[String, Any]) -> Bool",
+          "level": 3,
+          "line_start": 69,
+          "line_end": 73,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-isrequestmessage-mapstring-any---bool",
+          "text": "### `fn isRequest(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the envelope is a request (has `method` and `id`).\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-isnotificationmessage-mapstring-any---bool",
+          "anchor": "fn-isnotificationmessage-mapstring-any---bool",
+          "title": "fn isNotification(message: Map[String, Any]) -> Bool",
+          "level": 3,
+          "line_start": 73,
+          "line_end": 77,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-isnotificationmessage-mapstring-any---bool",
+          "text": "### `fn isNotification(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the envelope is a notification (has `method` and no `id`).\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-isresponsemessage-mapstring-any---bool",
+          "anchor": "fn-isresponsemessage-mapstring-any---bool",
+          "title": "fn isResponse(message: Map[String, Any]) -> Bool",
+          "level": 3,
+          "line_start": 77,
+          "line_end": 81,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-isresponsemessage-mapstring-any---bool",
+          "text": "### `fn isResponse(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the envelope is a response (has `result` or `error`).\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-hasidmessage-mapstring-any---bool",
+          "anchor": "fn-hasidmessage-mapstring-any---bool",
+          "title": "fn hasId(message: Map[String, Any]) -> Bool",
+          "level": 3,
+          "line_start": 81,
+          "line_end": 85,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-hasidmessage-mapstring-any---bool",
+          "text": "### `fn hasId(message: Map[String, Any]) -> Bool`\n\nReturns `true` when the `id` member is present (its value may be `nil`).\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-idofmessage-mapstring-any---any",
+          "anchor": "fn-idofmessage-mapstring-any---any",
+          "title": "fn idOf(message: Map[String, Any]) -> Any",
+          "level": 3,
+          "line_start": 85,
+          "line_end": 89,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-idofmessage-mapstring-any---any",
+          "text": "### `fn idOf(message: Map[String, Any]) -> Any`\n\nReturns the `id` member, or `nil` when it is absent.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-methodofmessage-mapstring-any---string--nil",
+          "anchor": "fn-methodofmessage-mapstring-any---string--nil",
+          "title": "fn methodOf(message: Map[String, Any]) -> String | Nil",
+          "level": 3,
+          "line_start": 89,
+          "line_end": 93,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-methodofmessage-mapstring-any---string--nil",
+          "text": "### `fn methodOf(message: Map[String, Any]) -> String | Nil`\n\nReturns the `method` member, or `nil` when it is absent or not a string.\n"
+        },
+        {
+          "id": "stdlib/jsonrpc#fn-errorofmessage-mapstring-any---mapstring-any--nil",
+          "anchor": "fn-errorofmessage-mapstring-any---mapstring-any--nil",
+          "title": "fn errorOf(message: Map[String, Any]) -> Map[String, Any] | Nil",
+          "level": 3,
+          "line_start": 93,
+          "line_end": 96,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/jsonrpc/#fn-errorofmessage-mapstring-any---mapstring-any--nil",
+          "text": "### `fn errorOf(message: Map[String, Any]) -> Map[String, Any] | Nil`\n\nReturns the `error` object, or `nil` when it is absent or not an object.\n"
         }
       ]
     },

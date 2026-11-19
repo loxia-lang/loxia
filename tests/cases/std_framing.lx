@@ -1,0 +1,82 @@
+# std.framing (T3): Content-Length em bytes, reader injetado, caps e truncamento.
+from std.framing import FrameFailure, encodeFrame, readFrame
+import std.strings as strings
+import std.utf8 as utf8
+
+class Script {
+  val chunks: List[String]
+  var index: Int
+  init(chunks: List[String]) {
+    this.chunks = chunks
+    this.index = 0
+  }
+  fn read(count: Int) -> String? {
+    if (this.index >= len(this.chunks)) {
+      return nil
+    }
+    val chunk = this.chunks[this.index]
+    this.index = this.index + 1
+    return chunk
+  }
+}
+
+fn chunksOf(text: String) -> List[String] {
+  val out: List[String] = []
+  for ch in chars(text) {
+    out.push(ch)
+  }
+  return out
+}
+
+fn show(result: Result[String?, FrameFailure]) -> String {
+  return match result {
+    Result.Ok(body) => "ok:" + (body ?? "<eof>")
+    Result.Err(error) => "err:${error.kind}"
+  }
+}
+
+fn readerOf(text: String) -> fn(Int) -> String? {
+  val script = Script(chunksOf(text))
+  return script.read
+}
+
+val body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"x\",\"params\":{\"nome\":\"ação😀\"}}"
+val frame = encodeFrame(body)
+print(frame == "Content-Length: ${str(utf8.byteLen(body))}\r\n\r\n${body}")
+print(utf8.byteLen(body) - len(body))
+print(show(readFrame(readerOf(frame))))
+val dois = readerOf(frame + frame)
+print(show(readFrame(dois)))
+print(show(readFrame(dois)))
+print(show(readFrame(dois)))
+print(show(readFrame(readerOf(""))))
+print(show(readFrame(readerOf("Content-Type: x\r\n\r\n{}"))))
+print(show(readFrame(readerOf("content-length: 2\r\n\r\n{}"))))
+print(show(readFrame(readerOf("Content-Type: application/vscode-jsonrpc; charset=utf-8\r\nContent-Length: 2\r\n\r\n{}"))))
+print(show(readFrame(readerOf("Content-Length: 2\r\nContent-Length: 2\r\n\r\n{}"))))
+print(show(readFrame(readerOf("Content-Length: -1\r\n\r\n"))))
+print(show(readFrame(readerOf("Content-Length: 2\n\n{}"))))
+print(show(readFrame(readerOf("Content-Length: 0\r\n\r\n"))))
+print(show(readFrame(readerOf("Content-Length: 4\r\n\r\nabcd"))))
+print(show(readFrame(readerOf("Content-Length: 16777217\r\n\r\n"))))
+print(show(readFrame(readerOf("Content-Length: 10\r\n\r\n{}"))))
+val grande = "X: " + strings.repeat("a", 8200) + "\r\nContent-Length: 2\r\n\r\n{}"
+print(show(readFrame(readerOf(grande))))
+# expect: true
+# expect: 5
+# expect: ok:{"jsonrpc":"2.0","id":1,"method":"x","params":{"nome":"ação😀"}}
+# expect: ok:{"jsonrpc":"2.0","id":1,"method":"x","params":{"nome":"ação😀"}}
+# expect: ok:{"jsonrpc":"2.0","id":1,"method":"x","params":{"nome":"ação😀"}}
+# expect: ok:<eof>
+# expect: ok:<eof>
+# expect: err:bad_header
+# expect: ok:{}
+# expect: ok:{}
+# expect: err:bad_header
+# expect: err:bad_header
+# expect: err:bad_header
+# expect: ok:
+# expect: ok:abcd
+# expect: err:too_large
+# expect: err:truncated
+# expect: err:too_large

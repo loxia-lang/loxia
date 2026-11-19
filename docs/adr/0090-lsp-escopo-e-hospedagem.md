@@ -1,5 +1,12 @@
 # ADR-0090 — LSP: hospedagem, escopo e fases
 
+> **Atualização (2026-11-19):** o framing `Content-Length`, os envelopes JSON-RPC e o
+> `DocumentStore` viraram três módulos de stdlib em Lox puro — `std.framing`,
+> `std.jsonrpc` e `std.documents` ([ADR-0113](0113-protocolo-stdio-jsonrpc-framing-documents.md)).
+> Eles são primitivas de protocolo, não um servidor LSP em Loxia: a decisão de hospedagem
+> abaixo continua valendo, e `std/lsp` só nasce com política de servidor (capabilities,
+> diagnóstico, `positionEncoding`).
+
 > **Implementação (2026-11-16; ampliada em 2026-11-18):** LSP-0 em Python
 > (`loxia lsp`, JSON-RPC stdio à mão): `initialize`/`shutdown`/`exit`, full sync,
 > `publishDiagnostics` e `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references`
