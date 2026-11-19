@@ -42,10 +42,11 @@ gatilho descrito **e** uma issue de decisão que responda ao portão do
 | Math transcendentais e constantes (`log`, `exp`, `sin`, `cos`, `tan`, `pow`, `math.pi`) | [ADR-0029](0029-conversoes-math.md), [ADR-0066](0066-orcamento-e-gate-sintatico.md) | Biblioteca determinística com testes de I3, ou API explicitamente ambient fora do I1/I3. |
 | Paralelismo (multithread) | [ADR-0037](0037-async-direcao.md) (async single-thread) | Async implementado + caso de uso CPU-bound + benchmark; ADR de modelo de memória antes de qualquer sintaxe. |
 
-> **Fora desta lista:** contratos ([issue #14](https://github.com/loxia-lang/loxia/issues/14)),
-> `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e o gerador de AST
-> ([#15](https://github.com/loxia-lang/loxia/issues/15)) saíram para decisão; são trabalho,
-> não adiados.
+> **Fora desta lista:** contratos ([issue #14](https://github.com/loxia-lang/loxia/issues/14))
+> foram decididos como biblioteca no [ADR-0108](0108-contratos-como-biblioteca.md), com a
+> sintaxe adiada por gatilhos; `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16))
+> e o gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)) continuam em
+> decisão; são trabalho, não adiados.
 
 ## Consequências
 

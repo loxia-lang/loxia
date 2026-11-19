@@ -141,7 +141,7 @@ class ClassCodegenLowering(LoweringBase):
             self.module,
             f"lox.bound.interface.{interface}.{method_name}",
             result,
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
         saved = (
             self.builder,
@@ -479,7 +479,7 @@ class ClassCodegenLowering(LoweringBase):
         ctor_params = (
             []
             if effective is None
-            else [self._storage_llvm_type(param) for param in effective.fn_sig.params]
+            else [self._param_llvm_type(param) for param in effective.fn_sig.params]
         )
         layout.ctor = llvm_ir.declare(
             self.module,
@@ -1037,7 +1037,7 @@ class ClassCodegenLowering(LoweringBase):
             self.module,
             f"lox.bound.{layout.ir_name or layout.name}.{method.name}",
             result,
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
 
         saved = (
@@ -1102,7 +1102,7 @@ class ClassCodegenLowering(LoweringBase):
             [
                 _I8_PTR,
                 _I8_PTR,
-                *[self._storage_llvm_type(param) for param in sig.params],
+                *[self._param_llvm_type(param) for param in sig.params],
             ],
         )
         args = [thunk.args[index + 1] for index in range(len(sig.params))]

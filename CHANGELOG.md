@@ -26,6 +26,26 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   igualdade/hash. Cobertura nova em `tests/test_lsp.py` (homônimo, alias, namespace,
   tipo e colisão) e em `tests/test_parser.py` (token sem regressão de igualdade).
 
+- **Contratos como biblioteca** ([ADR-0108](docs/adr/0108-contratos-como-biblioteca.md)):
+  `std.contracts` traz `ContractError` (distinto de `RuntimeError`), `require`/`ensure`/
+  `checkInvariant`, `check`/`checkMethod` e as variantes `checkVoid`/`checkMethodVoid`;
+  `old` é um local capturado e `result` é o parâmetro de `post`. O mesmo predicado serve
+  de contrato de runtime e oráculo de property tests; a sintaxe de
+  `requires`/`ensures`/`invariant` continua adiada com gatilhos.
+
+### Corrigido
+
+- **Backend: `this` lexical em lambdas e funções locais** (ADR-0022): o receptor agora é
+  capturado em célula quando uma função interna o usa, cobrindo lambda direto, closure
+  retornada e função local (`tests/cases/this_in_lambda.lx`). Antes o `--check` passava e
+  o lowering nativo falhava com `E4002`.
+- **Backend: `Nil` em parâmetro de tipo de função e em local**: `Nil` ganhou um slot
+  `i32` sem payload, permitindo `check[T]` com `T = Nil` e `val x = nil`
+  (`tests/cases/nil_value.lx`); parâmetro nomeado `Nil` continua recusado pelo checker.
+- **Backend: captura de locais dentro de `try`/`raise`**: o passe de captura percorre
+  corpo, handlers e `finally`, então closures dentro de `try` enxergam os locais
+  capturados no binário nativo (`tests/cases/std_contracts.lx`).
+
 ## [1.1.0] — 2026-11-17
 
 ### Adicionado

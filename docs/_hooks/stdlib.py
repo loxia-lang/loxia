@@ -24,6 +24,7 @@ STD = bundle_dir("std")
 MODULES = {
     "asserts": "Explicit failures for tests and contracts. Every helper raises `RuntimeError`.",
     "cli": "Deterministic command-line parsing from a declarative spec.",
+    "contracts": "Design by contract as a library: precondition, postcondition and invariant checks.",
     "convert": "Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes.",
     "csv": "RFC 4180 CSV parsing and serialization, with CRLF output.",
     "fmt": "Locale-free formatting helpers (templates, padding, numbers, byte sizes).",

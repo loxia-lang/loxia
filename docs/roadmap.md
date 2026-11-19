@@ -18,11 +18,12 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 1. **M9 — editor**: publicar o cliente VS Code e o asset de grammar ([#5](https://github.com/loxia-lang/loxia/issues/5)).
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
-3. **Decisões abertas**: contratos ([#14](https://github.com/loxia-lang/loxia/issues/14)), `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)).
+3. **Decisões abertas**: `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)). Contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos.
 
 ## Próximo (Next)
 
 - `std/lsp` framing em Lox puro ([#9](https://github.com/loxia-lang/loxia/issues/9)).
+- Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)).
 - `loxia add`/`remove` depois de um writer de TOML ([#8](https://github.com/loxia-lang/loxia/issues/8), bloqueada).
 - Corpus de conformidade como artefato `lox-core` ([#10](https://github.com/loxia-lang/loxia/issues/10)).
 - Lacunas do runner de testes: `--json`, cobertura e localização de falha ([#11](https://github.com/loxia-lang/loxia/issues/11)).
@@ -40,9 +41,9 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 ## Decidido não agora
 
-Generics além do MVP, operator overloading, trailing closure, `match` estrutural,
+Sintaxe de contratos (`requires`/`ensures`/`invariant`; ADR-0108), generics além do MVP, operator overloading, trailing closure, `match` estrutural,
 extension methods, metaclasses/decorators, math transcendentais e paralelismo. Gatilhos em
-[ADR-0107](adr/0107-adiados-e-nao-objetivos.md).
+[ADR-0107](adr/0107-adiados-e-nao-objetivos.md); para contratos, [ADR-0108](adr/0108-contratos-como-biblioteca.md).
 
 ## Regras
 

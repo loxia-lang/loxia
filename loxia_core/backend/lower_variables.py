@@ -57,9 +57,9 @@ class VariableLowering(LoweringBase):
     def _store_binding(self, binding: Binding, value: Value) -> None:
         if binding.cell:
             pointer = self._cell_pointer(binding.storage, binding.desc)
-            self.builder.store(value.llvm, pointer)
+            self.builder.store(self._arg_llvm(value, binding.desc), pointer)
         else:
-            self.builder.store(value.llvm, binding.storage)
+            self.builder.store(self._arg_llvm(value, binding.desc), binding.storage)
 
     def _guard_closure(self, value: Value, name: str, line: int, column: int = 0) -> Value:
         is_null = self.builder.icmp_signed("==", value.llvm, llvm_ir.null_pointer())
@@ -139,12 +139,6 @@ class VariableLowering(LoweringBase):
                     # guarda `Int` e imprime `2`.
                     declared = value.desc
             else:
-                if value.ty is ValueType.NIL:
-                    raise BackendError(
-                        "Variables of type Nil are not supported by the backend yet.",
-                        stmt.name.line,
-                        code=Code.BACKEND_UNSUPPORTED,
-                    )
                 declared = value.desc
 
         if self._function_ir is self.main and len(self._scopes) == 1:
@@ -182,7 +176,7 @@ class VariableLowering(LoweringBase):
                     mutable=stmt.mutable,
                 )
                 self._globals[stmt.name.lexeme] = binding
-                self.builder.store(value.llvm, binding.storage)
+                self.builder.store(self._arg_llvm(value, declared), binding.storage)
                 return
 
             name = f"g.{stmt.name.lexeme}"
@@ -200,13 +194,13 @@ class VariableLowering(LoweringBase):
                 mutable=stmt.mutable,
             )
             self._globals[stmt.name.lexeme] = binding
-            self.builder.store(value.llvm, global_)
+            self.builder.store(self._arg_llvm(value, declared), global_)
             return
 
         if self._analysis.is_captured(stmt):
             cell = self._alloc_cell()
             cell_pointer = self._cell_pointer(cell, declared)
-            self.builder.store(value.llvm, cell_pointer)
+            self.builder.store(self._arg_llvm(value, declared), cell_pointer)
             self._scopes[-1][stmt.name.lexeme] = Binding(
                 cell,
                 declared.ty,
@@ -223,7 +217,7 @@ class VariableLowering(LoweringBase):
             return
 
         slot = self.builder.alloca(self._storage_llvm_type(declared), name=stmt.name.lexeme)
-        self.builder.store(value.llvm, slot)
+        self.builder.store(self._arg_llvm(value, declared), slot)
         self._scopes[-1][stmt.name.lexeme] = Binding(
             slot,
             declared.ty,

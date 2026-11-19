@@ -174,7 +174,7 @@ class ClassLayoutLowering(LoweringBase):
         ctor_params = (
             []
             if effective is None
-            else [self._storage_llvm_type(param) for param in effective.fn_sig.params]
+            else [self._param_llvm_type(param) for param in effective.fn_sig.params]
         )
         layout.ctor = llvm_ir.declare(
             self.module,
