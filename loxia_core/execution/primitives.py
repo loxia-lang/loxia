@@ -382,12 +382,30 @@ PRIMITIVES: tuple[Primitive, ...] = (
 
 PRIMITIVE_BY_LOX: dict[str, Primitive] = {primitive.lox: primitive for primitive in PRIMITIVES}
 
+# Perfil `--sandbox` (ADR-0112): o programa não lê/escreve arquivos nem cria processos.
+# O loader de módulos continua lendo `std/` e arquivos do projeto pelo host; só as
+# primitivas ambientais do programa são negadas.
+SANDBOX_DENIED_NAMES = frozenset(
+    {
+        "io.readFile",
+        "io.writeFile",
+        "fs.exists",
+        "fs.listDir",
+    }
+)
+SANDBOX_DENIED_PREFIXES = ("process.",)
+
+
+def is_sandbox_denied(name: str) -> bool:
+    return name in SANDBOX_DENIED_NAMES or name.startswith(SANDBOX_DENIED_PREFIXES)
+
 
 class PrimitiveCallable:
     """Adaptador do corpo Python para o protocolo `LoxCallable`."""
 
-    def __init__(self, primitive: Primitive) -> None:
+    def __init__(self, primitive: Primitive, *, sandboxed: bool = False) -> None:
         self.primitive = primitive
+        self.sandboxed = sandboxed
 
     def min_arity(self) -> int:
         return len(self.primitive.params)
@@ -396,6 +414,8 @@ class PrimitiveCallable:
         return len(self.primitive.params)
 
     def call(self, interpreter: object, arguments: list[object]) -> object:
+        if self.sandboxed:
+            raise NativeError(f"{self.primitive.lox}() is not available in sandbox mode.")
         if self.primitive.needs_interpreter:
             return self.primitive.py(interpreter, *arguments)
         return self.primitive.py(*arguments)

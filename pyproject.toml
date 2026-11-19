@@ -38,6 +38,7 @@ Changelog = "https://github.com/loxia-lang/loxia/blob/main/CHANGELOG.md"
 
 [project.scripts]
 loxia = "loxia.cli:main"
+loxia-mcp = "loxia.mcp:main"
 
 [project.optional-dependencies]
 # Backend nativo (ADR-0031). O interpretador continua sem dependências: `uv sync`

@@ -546,6 +546,38 @@ def test_legacy_stdin_run_passes_script_args() -> None:
     assert result.stdout.strip() == '["alpha", "beta"]'
 
 
+def _run_sandbox(source: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "run", "--stdin", "--sandbox"],
+        cwd=ROOT,
+        input=source,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
+def test_sandbox_allows_pure_programs() -> None:
+    result = _run_sandbox("print(1 + 2)\n")
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "3"
+
+
+def test_sandbox_denies_filesystem_and_process_primitives() -> None:
+    cases = {
+        'io.writeFile("x", "y")\n': "io.writeFile() is not available in sandbox mode.",
+        'io.readFile("README.md")\n': "io.readFile() is not available in sandbox mode.",
+        'fs.exists("README.md")\n': "fs.exists() is not available in sandbox mode.",
+        'process.spawn(["true"])\n': "process.spawn() is not available in sandbox mode.",
+    }
+    for source, message in cases.items():
+        result = _run_sandbox(source)
+        assert result.returncode == 70, source
+        assert message in result.stderr, (source, result.stderr)
+
+
 def test_json_lines_check_has_start_diagnostic_summary(tmp_path: Path) -> None:
     script = tmp_path / "linhas.lx"
     script.write_text("print(1 + )\n", encoding="utf-8")

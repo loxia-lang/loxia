@@ -79,10 +79,16 @@ class Loxia:
         frozen: bool = False,
         offline: bool = False,
         cache_dir: str | None = None,
+        sandbox: bool = False,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
         self.debug = debug
-        self.interpreter = Interpreter(self.reporter, checked_overflow=debug, argv=script_args)
+        self.interpreter = Interpreter(
+            self.reporter,
+            checked_overflow=debug,
+            argv=script_args,
+            sandbox=sandbox,
+        )
         self.error_format = error_format
         self.color = color
         self.json_lines = json_lines

@@ -100,6 +100,7 @@ def make_loxia(args: argparse.Namespace) -> Loxia:
         frozen=getattr(args, "frozen", False),
         offline=getattr(args, "offline", False),
         cache_dir=getattr(args, "cache_dir", None),
+        sandbox=getattr(args, "sandbox", False),
     )
 
 
@@ -417,6 +418,7 @@ def _capabilities_payload() -> dict[str, object]:
                 "json-lines",
                 "stdin",
                 "timeout",
+                "sandbox",
                 "frozen",
                 "offline",
                 "cache-dir",
@@ -472,6 +474,10 @@ def _capabilities_payload() -> dict[str, object]:
         {"name": "doc", "features": ["json", "stdin"]},
         {"name": "explain", "features": ["json"]},
         {"name": "capabilities", "features": ["json"]},
+        {
+            "name": "mcp",
+            "features": ["stdio", "tools"],
+        },
         {
             "name": "lsp",
             "features": [
@@ -619,6 +625,12 @@ def lsp_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     raise SystemExit(lsp_main())
 
 
+def mcp_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    from loxia.mcp import main as mcp_main
+
+    raise SystemExit(mcp_main())
+
+
 def test_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     from loxia.test_runner import run_tests
 
@@ -646,6 +658,7 @@ HANDLERS: dict[str, Command] = {
     "explain": explain_command,
     "capabilities": capabilities_command,
     "lsp": lsp_command,
+    "mcp": mcp_command,
     "test": test_command,
     "fix": fix_command,
     "lock": lock_command,

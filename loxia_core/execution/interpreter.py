@@ -38,7 +38,11 @@ from loxia_core.execution.natives.print import Print
 from loxia_core.execution.natives.range import RangeNative
 from loxia_core.execution.natives.repr import Repr
 from loxia_core.execution.natives.str import Str
-from loxia_core.execution.primitives import PRIMITIVES, PrimitiveCallable
+from loxia_core.execution.primitives import (
+    PRIMITIVES,
+    PrimitiveCallable,
+    is_sandbox_denied,
+)
 from loxia_core.execution.type_test import matches_type
 from loxia_core.execution.values import stringify
 from loxia_core.frontend.destructuring import (
@@ -131,11 +135,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         *,
         checked_overflow: bool = False,
         argv: list[str] | None = None,
+        sandbox: bool = False,
     ) -> None:
         ensure_recursion_budget()
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
         self.checked_overflow = checked_overflow
         self.argv = list(argv or [])
+        self.sandbox = sandbox
         self._call_depth = 0
         # Tuplas leves no caminho feliz; `Frame` só é materializado ao capturar o trace.
         self._frames: list[tuple[str, str, int, int]] = []
@@ -154,11 +160,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals.define("str", Str(), mutable=False)
         primitive_modules: dict[str, dict[str, object]] = {}
         for primitive in PRIMITIVES:
+            callable_ = PrimitiveCallable(
+                primitive,
+                sandboxed=sandbox and is_sandbox_denied(primitive.lox),
+            )
             if "." in primitive.lox:
                 module, member = primitive.lox.split(".", 1)
-                primitive_modules.setdefault(module, {})[member] = PrimitiveCallable(primitive)
+                primitive_modules.setdefault(module, {})[member] = callable_
             else:
-                self.globals.define(primitive.lox, PrimitiveCallable(primitive), mutable=False)
+                self.globals.define(primitive.lox, callable_, mutable=False)
         for module, members in primitive_modules.items():
             self.globals.define(module, NativeModule(module, members), mutable=False)
         self.globals.define("Int", int_module(), mutable=False)
