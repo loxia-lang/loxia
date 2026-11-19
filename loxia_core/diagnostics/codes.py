@@ -106,6 +106,7 @@ class Code(StrEnum):
     CLI_TIMEOUT = "C0001"
     DEPENDENCY_STATE = "C0002"
     SCAFFOLD_STATE = "C0003"
+    MANIFEST_EDIT = "C0004"
 
     # Warnings
     UNUSED_LOCAL = "W1001"
@@ -179,6 +180,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.CLI_TIMEOUT: Phase.CLI,
     Code.DEPENDENCY_STATE: Phase.CLI,
     Code.SCAFFOLD_STATE: Phase.CLI,
+    Code.MANIFEST_EDIT: Phase.CLI,
     Code.UNUSED_LOCAL: Phase.RESOLVER,
     Code.UNUSED_IMPORT: Phase.RESOLVER,
 }
@@ -253,6 +255,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.CLI_TIMEOUT: "execution timeout exceeded",
     Code.DEPENDENCY_STATE: "lockfile or dependency state (missing, stale, not fetched)",
     Code.SCAFFOLD_STATE: "project scaffolding (existing target, conflict, git)",
+    Code.MANIFEST_EDIT: "manifest edit refused (unsupported shape, conflict)",
     Code.UNUSED_LOCAL: "local declared and never read (warning)",
     Code.UNUSED_IMPORT: "import declared and never used (warning)",
 }

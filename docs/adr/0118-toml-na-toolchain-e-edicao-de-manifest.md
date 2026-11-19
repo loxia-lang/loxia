@@ -1,6 +1,6 @@
 # ADR-0118 — TOML no toolchain: dados na linguagem, edição na ferramenta
 
-- **Status:** accepted (implementação pendente: ADR agora; editor do #8 e spike de `std.toml` depois)
+- **Status:** accepted (implementação: editor do #8 entregue; spike de `std.toml` pendente)
 - **Data:** 2026-11-19
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0100](0100-dependencias-path.md) (dependências `path`),
@@ -8,12 +8,12 @@
   (git, cache, fetch), [ADR-0072](0072-stdlib-batteries.md) (stdlib),
   [ADR-0071](0071-primitivas-de-runtime.md) (kernel), [ADR-0016](0016-api-stdlib-hibrida.md)
   (API da stdlib), [ADR-0093](0093-cli-agent-friendly-e-reparo.md) (contrato do CLI),
-  [ADR-0075](0075-diagnosticos-estruturados.md) (`C0003`),
+  [ADR-0075](0075-diagnosticos-estruturados.md) (`C0004`),
   [#8](https://github.com/loxia-lang/loxia/issues/8),
   [#16](https://github.com/loxia-lang/loxia/issues/16) (`fs.open`), [`../roadmap.md`](../roadmap.md)
-- **Implementação:** pendente — `loxia/manifest_edit.py`, `loxia/cli_commands.py`
-  (`add`/`remove`), `tests/test_manifest_edit.py`, `tests/test_toml_parity.py`,
-  `tests/lox/toml/`
+- **Implementação:** `loxia/manifest_edit.py`, `loxia/cli_commands.py` (`add`/`remove`),
+  `tests/test_manifest_edit.py`, `tests/test_dependencies.py`; pendentes
+  `tests/test_toml_parity.py` e `tests/lox/toml/` (spike #53)
 
 ## Contexto
 
@@ -58,7 +58,9 @@ no self-host.
 - Formas aceitas na v1: `nome = { path = "…" }` e `nome = { git = "…", rev = "…" }`
   (inline tables de uma linha; TOML 1.0 proíbe newline dentro de inline table).
 - Formas fora disso (dotted keys, `[dependencies.nome]`, arrays/valores multilinha) são
-  **recusadas** com diagnóstico `C0003` e o trecho na mensagem; o editor nunca adivinha.
+  **recusadas** com diagnóstico `C0004` e o trecho na mensagem; o editor nunca adivinha.
+  (Erratum: o ADR nasceu com `C0003`, mas o catálogo já usava esse código para
+  scaffolding — ADR-0106; edição de manifest é `C0004`.)
 - Entrada nova entra no **fim** da tabela (ordem preservada, como a issue pede); sem
   `[dependencies]`, a tabela é anexada ao fim do arquivo.
 - `remove` apaga a linha da entrada; a tabela vazia permanece (TOML aceita).
@@ -83,7 +85,7 @@ no self-host.
   `"changed": false`. Spec diferente para o mesmo nome ⇒ erro `exit 65`, sem escrita.
 - `--dry-run` imprime unified diff com caminho **relativo** (`loxia.toml`) e **sem
   timestamp** (I3); não escreve.
-- Diagnóstico `C0003` para “manifest não editável com segurança”, separado de `E1001`
+- Diagnóstico `C0004` para “manifest não editável com segurança”, separado de `E1001`
   (TOML inválido); exit `65`.
 - Nome já declarado, `remove` de nome inexistente e spec inválida reusam as validações de
   `parse_manifest` — nenhuma regra duplicada no CLI.
@@ -136,14 +138,14 @@ programa Lox que lê config, ou o início do self-host); entrada de corpus I1 (`
   bug, e pode surpreender quem chega com arquivo de fora.
 - `add` carrega um editor escopado só dele; o self-host vai reimplementá-lo em Lox como
   biblioteca da ferramenta (não como stdlib), duplicando trabalho uma vez.
-- `C0003` é um código a mais no catálogo e precisa entrar em `docs/spec/erros.md` quando o
+- `C0004` é um código a mais no catálogo e precisa entrar em `docs/spec/erros.md` quando o
   produtor existir.
 
 ### Neutras
 
 - `--lock` opt-in deixa o fluxo em dois passos para quem tem dependência `git`.
 - O editor preserva o estilo existente, mas entradas novas saem sempre na forma canônica
-  inline; quem usa outro estilo recebe `C0003` e edita à mão (ou usa `--rewrite` no futuro,
+  inline; quem usa outro estilo recebe `C0004` e edita à mão (ou usa `--rewrite` no futuro,
   se doer).
 
 ## Alternativas consideradas
@@ -161,7 +163,7 @@ programa Lox que lê config, ou o início do self-host); entrada de corpus I1 (`
 
 - `tests/test_manifest_edit.py`: comentários e ordem intactos, CRLF, arquivo sem
   `[dependencies]`, entrada existente (no-op), spec diferente (erro sem escrita), forma
-  exótica (`C0003` sem tocar no disco), atomicidade em falha de re-parse.
+  exótica (`C0004` sem tocar no disco), atomicidade em falha de re-parse.
 - `tests/test_dependencies.py`: `add → lock → run`; `remove` + `lock --check` acusando
   drift; `--dry-run` não escreve.
 - `tests/test_determinism.py`: `--dry-run`/`--json` sem caminho absoluto nem timestamp.

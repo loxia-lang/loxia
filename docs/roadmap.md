@@ -17,6 +17,9 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 - **Site no ar**: <https://loxia-lang.github.io/loxia/> ([#4](https://github.com/loxia-lang/loxia/issues/4)).
 - **LSP sem as lacunas P1**: completion herdada, signature importado/herdado, `inlayHint` e
   rename cross-file semântico ([#7](https://github.com/loxia-lang/loxia/issues/7)).
+- **Dependências sem atrito**: `loxia add`/`remove` editam `loxia.toml` com editor escopado
+  (comentários, ordem e CRLF preservados; `C0004` em vez de reescrita) e `--dry-run` mostra
+  o diff ([#8](https://github.com/loxia-lang/loxia/issues/8), [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md)).
 - **Protocolo stdio em Lox puro**: `std.jsonrpc`, `std.framing` e `std.documents`, com
   `std.json.parseResult`, harness de transcrição e diferencial nos dois motores
   ([#9](https://github.com/loxia-lang/loxia/issues/9), [ADR-0113](adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)).
@@ -39,7 +42,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
   para tooling, buffers não salvos nos imports, rename de arquivo e hierarquia de tipos
   (fases 1–4; inspirado no pyrefly, sem herdar código Rust).
 - Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)).
-- `loxia add`/`remove` com editor escopado de `loxia.toml` ([#8](https://github.com/loxia-lang/loxia/issues/8), [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md)); spike de `std.toml` (dados, paridade com `tomllib`) em paralelo, promoção só com consumidor.
+- Spike de `std.toml` (dados, paridade com `tomllib`): [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md) separou dados de edição; promoção só com consumidor real ([#53](https://github.com/loxia-lang/loxia/issues/53)).
 - Lacunas do runner de testes: `--json`, cobertura e localização de falha ([#11](https://github.com/loxia-lang/loxia/issues/11)).
 - Primeiro programa real + tutorial/cookbook ([#12](https://github.com/loxia-lang/loxia/issues/12)).
 

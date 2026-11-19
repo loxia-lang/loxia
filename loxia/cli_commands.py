@@ -21,6 +21,16 @@ from typing import NoReturn, cast
 from loxia import __version__
 from loxia.cli_args import _validate
 from loxia.engine import Loxia, manifest_token
+from loxia.manifest_edit import (
+    DependencySpec,
+    ManifestEditError,
+    add_dependency,
+    read_manifest_text,
+    remove_dependency,
+    unified_diff,
+    validate_dependency_name,
+    write_manifest_text,
+)
 from loxia_core.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
 from loxia_core.diagnostics.diagnostic import Severity
 from loxia_core.diagnostics.render import SCHEMA_VERSION
@@ -42,7 +52,12 @@ from loxia_core.loader.lock import (
     render_lock,
     write_lock,
 )
-from loxia_core.loader.manifest import MANIFEST_NAME, Manifest, discover_manifest
+from loxia_core.loader.manifest import (
+    MANIFEST_NAME,
+    Manifest,
+    ManifestError,
+    discover_manifest,
+)
 
 _WATCH_INTERVAL_SECONDS = 0.25
 
@@ -303,6 +318,137 @@ def _project_manifest(lox: Loxia, command: str) -> Manifest:
         lox.flush(command, exit_code=65, always=True)
         sys.exit(65)
     return manifest
+
+
+def _edit_failure(
+    lox: Loxia,
+    command: str,
+    path: Path,
+    error: ManifestEditError,
+) -> NoReturn:
+    lox.reporter.error(
+        manifest_token(path, error.line, error.column),
+        error.message,
+        code=Code.MANIFEST_EDIT,
+    )
+    lox.flush(command, exit_code=65, always=True)
+    sys.exit(65)
+
+
+def _dependency_spec(args: argparse.Namespace, parser: argparse.ArgumentParser) -> DependencySpec:
+    path = getattr(args, "path", None)
+    git = getattr(args, "git", None)
+    rev = getattr(args, "rev", None)
+    if (path is None) == (git is None):
+        parser.error("use exactly one of --path or --git")
+    if path is not None and rev is not None:
+        parser.error("--rev is only valid with --git")
+    if git is not None and rev is None:
+        parser.error("--git requires --rev")
+    return DependencySpec(path=path, git=git, rev=rev)
+
+
+def _relock(lox: Loxia, command: str, manifest: Manifest) -> None:
+    lock_path = manifest.path.parent / LOCK_NAME
+    try:
+        lock = lock_manifest(manifest, offline=lox.offline, cache_dir=lox.cache_dir)
+        write_lock(lock_path, lock)
+    except LockError as error:
+        _dependency_failure(
+            lox, command, lock_path, error.message, line=error.line, column=error.column
+        )
+    except DependencyError as error:
+        _dependency_failure(lox, command, manifest.path, error.message)
+
+
+def _run_edit(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+    *,
+    command: str,
+) -> None:
+    _validate(args, parser, command=command)
+    lox = make_loxia(args)
+    spec = _dependency_spec(args, parser) if command == "add" else None
+    try:
+        validate_dependency_name(args.name)
+    except ManifestEditError as error:
+        parser.error(error.message)
+    manifest_path = discover_manifest(Path.cwd())
+    if manifest_path is None:
+        _dependency_failure(lox, command, Path.cwd() / MANIFEST_NAME, "No loxia.toml found.")
+    if lox._load_manifest(manifest_path) is None:
+        lox.flush(command, exit_code=65, always=True)
+        sys.exit(65)
+
+    old_text = read_manifest_text(manifest_path)
+    try:
+        if command == "add":
+            assert spec is not None
+            result = add_dependency(manifest_path, old_text, args.name, spec)
+        else:
+            result = remove_dependency(manifest_path, old_text, args.name)
+    except ManifestEditError as error:
+        _edit_failure(lox, command, manifest_path, error)
+    except ManifestError as error:
+        lox.reporter.error(
+            manifest_token(manifest_path, error.line, error.column),
+            error.message,
+            code=Code.SYNTAX_UNEXPECTED,
+        )
+        lox.flush(command, exit_code=65, always=True)
+        sys.exit(65)
+
+    if not result.changed:
+        if args.json:
+            print(
+                json.dumps(
+                    {"manifest": manifest_path.name, "changed": False, "dry_run": False},
+                    ensure_ascii=False,
+                )
+            )
+        else:
+            print(f"Dependency '{args.name}' is already declared.")
+        return
+    if args.dry_run:
+        diff = unified_diff(old_text, result.text, manifest_path.name)
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "manifest": manifest_path.name,
+                        "changed": True,
+                        "dry_run": True,
+                        "diff": diff,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+        else:
+            print(diff, end="")
+        return
+    write_manifest_text(manifest_path, result.text)
+    if args.lock:
+        _relock(lox, command, result.manifest)
+    if args.json:
+        print(
+            json.dumps(
+                {"manifest": manifest_path.name, "changed": True, "dry_run": False},
+                ensure_ascii=False,
+            )
+        )
+        return
+    verb = "Added" if command == "add" else "Removed"
+    preposition = "to" if command == "add" else "from"
+    print(f"{verb} dependency '{args.name}' {preposition} {manifest_path.name}.")
+
+
+def add_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    _run_edit(args, parser, command="add")
+
+
+def remove_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    _run_edit(args, parser, command="remove")
 
 
 def lock_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -650,6 +796,8 @@ HANDLERS: dict[str, Command] = {
     "repl": repl_command,
     "new": new_command,
     "init": init_command,
+    "add": add_command,
+    "remove": remove_command,
     "check": check_command,
     "build": build_command,
     "ast": ast_command,
