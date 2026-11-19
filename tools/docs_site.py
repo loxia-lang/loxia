@@ -10,42 +10,40 @@ from __future__ import annotations
 
 import json
 import posixpath
-import re
 import shutil
 import subprocess
-from collections.abc import Callable
-from dataclasses import dataclass
+import sys
 from functools import cache, partial
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
-SPEC = DOCS / "spec"
-STDLIB = DOCS / "stdlib"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from tools import docs_common  # noqa: E402
+from tools.docs_common import (  # noqa: E402
+    DOCS,
+    ROOT,
+    SPEC,
+    SPEC_PAGES,
+    SPEC_SLUGS,
+    STDLIB,
+    STDLIB_TITLES,
+    VERSIONS,
+)
+
+_front_matter_value = docs_common.front_matter_value
+_rewrite_links = docs_common.rewrite_links
+_sources = docs_common.sources
+_split_front_matter = docs_common.split_front_matter
+_strip_h1 = docs_common.strip_h1
+_title = docs_common.title
+
 I18N = DOCS / "i18n"
-VERSIONS = DOCS / "versions"
 CONTENT = ROOT / "site" / "src" / "content" / "docs"
 
 REPOSITORY = "https://github.com/loxia-lang/loxia"
 DEFAULT_LOCALE = "en"
-
-# (source file, site slug, sidebar order)
-SPEC_PAGES: tuple[tuple[str, str, int], ...] = (
-    ("lexico.md", "lexicon", 1),
-    ("sintaxe.md", "syntax", 2),
-    ("semantica.md", "semantics", 3),
-    ("erros.md", "errors", 4),
-    ("garantias.md", "guarantees", 5),
-)
-SPEC_SLUGS = {source.removesuffix(".md"): slug for source, slug, _ in SPEC_PAGES}
-
-LINK = re.compile(r"(!?\[[^\]]*\]\()([^)\s]+)(\))")
-
-
-@dataclass(frozen=True)
-class Document:
-    front_matter: str
-    body: str
 
 
 def _git(*args: str) -> str:
@@ -56,54 +54,6 @@ def _git(*args: str) -> str:
         check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else ""
-
-
-def _split_front_matter(text: str) -> Document:
-    if not text.startswith("---\n"):
-        return Document("", text)
-    end = text.find("\n---", 4)
-    if end == -1:
-        return Document("", text)
-    return Document(text[4:end], text[end + 4 :].lstrip("\n"))
-
-
-def _front_matter_value(block: str, key: str) -> str | None:
-    prefix = f"{key}:"
-    for line in block.splitlines():
-        if line.startswith(prefix):
-            return line[len(prefix) :].strip().strip("'\"")
-    return None
-
-
-def _sources(block: str) -> tuple[str, ...]:
-    found: list[str] = []
-    inside = False
-    for line in block.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("sources:"):
-            inside = True
-            continue
-        if inside:
-            if stripped.startswith("- "):
-                found.append(stripped[2:].strip().strip("'\""))
-            elif stripped and not line.startswith((" ", "\t")):
-                break
-    return tuple(found)
-
-
-def _title(body: str, fallback: str) -> str:
-    for line in body.splitlines():
-        if line.startswith("# "):
-            return line[2:].strip()
-    return fallback
-
-
-def _strip_h1(body: str) -> str:
-    lines = body.splitlines()
-    for index, line in enumerate(lines):
-        if line.startswith("# "):
-            return "\n".join(lines[index + 1 :]).lstrip("\n")
-    return body.lstrip("\n")
 
 
 def _expand_sources(sources: tuple[str, ...]) -> tuple[str, ...]:
@@ -162,26 +112,6 @@ def _spec_link(target: str, slug: str, ref: str | None) -> str:
     resolved = _github_path(clean, ref)
     suffix = f"#{anchor}" if anchor else ""
     return f"{resolved}{suffix}"
-
-
-def _rewrite_links(text: str, resolver: Callable[[str], str]) -> str:
-    output: list[str] = []
-    fenced = False
-    for line in text.splitlines(keepends=True):
-        if line.strip().startswith("```"):
-            fenced = not fenced
-            output.append(line)
-            continue
-        if fenced:
-            output.append(line)
-            continue
-        output.append(
-            LINK.sub(
-                lambda match: match.group(1) + resolver(match.group(2)) + match.group(3),
-                line,
-            )
-        )
-    return "".join(output)
 
 
 def _front_matter(title: str, description: str, order: int | None = None) -> str:
@@ -282,8 +212,7 @@ def _write_stdlib() -> int:
         page = path.stem
         document = _split_front_matter(path.read_text(encoding="utf-8"))
         title = _front_matter_value(document.front_matter, "title") or _title(document.body, page)
-        if page == "builtins":
-            title = "Builtins and kernel"
+        title = STDLIB_TITLES.get(page, title)
         body = _strip_h1(document.body)
         body = _rewrite_links(body, partial(_stdlib_link, page=page))
         freshness = _refresh_for(_sources(document.front_matter), None)

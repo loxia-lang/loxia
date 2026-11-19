@@ -5,7 +5,7 @@ FILE ?=
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -18,7 +18,8 @@ help:
 	@echo "make fmt-check                 ruff format --check (gate)"
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
 	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
-	@echo "make docs-sync                 regenera níveis, catálogo e stdlib"
+	@echo "make docs-sync                 regenera níveis, catálogo, stdlib e índice"
+	@echo "make docs-index                regenera loxia/_spec/index.json e site/public/llms.txt"
 	@echo "make docs-build                build do site Starlight em site/dist"
 	@echo "make docs-links                valida links internos do HTML gerado"
 	@echo "make docs-dev                  dev server do site (gera o conteúdo antes)"
@@ -69,6 +70,10 @@ docs-sync:
 	uv run python docs/_hooks/levels.py --write
 	uv run python docs/_hooks/codes.py --write
 	uv run python docs/_hooks/stdlib.py --write
+	uv run python tools/docs_index.py --write
+
+docs-index:
+	uv run python tools/docs_index.py --write
 
 docs-build: docs-sync
 	npm --prefix site run build
