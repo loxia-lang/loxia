@@ -44,6 +44,7 @@ Ideas, not `spec/`.
 ## Technical
 
 - [Architecture](tech/arquitetura.md) — pipeline, modules, visitor, environments, resolver.
+- [Documentation index](tech/docs-index.md) — generated `loxia/_spec/index.json` and `llms.txt` for agents/site (ADR-0111).
 
 ## Design
 

@@ -2,7 +2,8 @@
 
 The public documentation site is built with [Astro Starlight](https://starlight.astro.build/)
 and lives in this directory. **Do not edit `src/content/docs/`**: it is generated from
-`docs/` by `../tools/docs_site.py` and ignored by git.
+`docs/` by `../tools/docs_site.py` and ignored by git. The same content step also writes
+`public/llms.txt` and `../loxia/_spec/index.json` via `../tools/docs_index.py` (ADR-0111).
 
 ```bash
 npm ci
@@ -17,6 +18,7 @@ From the repository root:
 make docs-dev
 make docs-build
 make docs-links
+make docs-index     # only the JSON/llms.txt artifacts
 ```
 
 Content sources:

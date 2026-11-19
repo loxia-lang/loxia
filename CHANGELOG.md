@@ -7,6 +7,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **Índice determinístico da documentação** ([ADR-0111](docs/adr/0111-indice-de-documentacao.md)):
+  `make docs-index` gera `loxia/_spec/index.json` (spec + stdlib, 33 páginas/542 seções) e
+  `site/public/llms.txt`; IDs, âncoras e URLs são os mesmos do Starlight, os links viram
+  URLs canônicas e não há timestamp/caminho absoluto. O índice viaja no wheel, é validado
+  por `loxia/docs_index.py` (`section`/`find_page`/`search`) e tem gate de sincronia em
+  `tests/test_docs_index.py`; o site compartilha `tools/docs_common.py` com o gerador.
+
 - **LSP: completion herdada, signature importado e inlay hints** (ADR-0090): completion
   inclui campos/métodos de superclasse e de interfaces implementadas; `signatureHelp`
   resolve funções, métodos e construtores importados/herdados sem vazar nomes mangled;

@@ -37,6 +37,8 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
     assert any(name.endswith("loxia_core/std/json.lx") for name in names)
     assert any(name.endswith("loxia_core/runtime/lox_runtime.h") for name in names)
     assert any(name.endswith("loxia_core/runtime/kernel.c") for name in names)
+    # O índice de docs é um artefato gerado e precisa viajar no wheel (ADR-0111).
+    assert any(name.endswith("loxia/_spec/index.json") for name in names)
 
     # Um `std/` só: a sdist carrega a pasta na raiz e o wheel a move para dentro
     # do pacote (force-include do hatchling). Cópia nos dois lugares = instalação

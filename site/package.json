@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "content": "uv run --project .. python ../tools/docs_site.py",
+    "content": "uv run --project .. python ../tools/docs_site.py && uv run --project .. python ../tools/docs_index.py --write",
     "predev": "npm run content",
     "dev": "astro dev",
     "prebuild": "npm run content",

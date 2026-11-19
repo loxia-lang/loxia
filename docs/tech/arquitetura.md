@@ -61,6 +61,8 @@ Packages by phase (dependency only downward):
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/inlay hints/formatting/semantic tokens, codeAction, rename, workspace/symbol and settings |
+| [`loxia/docs_index.py`](../../loxia/docs_index.py) | generated documentation index loader/search (ADR-0111); `loxia/_spec/index.json` is produced by `tools/docs_index.py` |
+| [`tools/docs_index.py`](../../tools/docs_index.py) | generates the index and `site/public/llms.txt`; `tools/docs_common.py` shares slugs/URLs with the Starlight generator |
 | [`loxia/source_symbols.py`](../../loxia/source_symbols.py) | original-AST symbol resolution for the LSP: imports, members with superclass/interfaces, callable signatures and source type display |
 | [`loxia/rename.py`](../../loxia/rename.py) | semantic cross-file rename from the loader-resolved AST: mangled tokens, imports/aliases and type annotations |
 | [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, inherited members, enums and native members |
