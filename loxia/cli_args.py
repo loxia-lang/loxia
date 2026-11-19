@@ -66,6 +66,7 @@ _COMMAND_EXAMPLES = {
     "run": """exemplos:
   loxia run examples/fib.lx
   loxia run --stdin --file-name demo.lx < demo.lx
+  loxia run --stdin -- --verbose --output=out.txt < demo.lx
   loxia run prog.lx -- --verbose""",
     "check": """exemplos:
   loxia check src/main.lx
@@ -637,6 +638,20 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
     return parser
 
 
+def _shift_stdin_args(args: argparse.Namespace) -> None:
+    """`run --stdin -- a b`: the first positional is a program argument, not a script.
+
+    `argparse` cannot know that `--stdin` removes the `script` positional, so it puts
+    the first program argument in `args.script`. Move it (and the remainder) to
+    `script_args`, which is what the engine exposes through `args()`.
+    """
+    script = getattr(args, "script", None)
+    if not script:
+        return
+    args.script_args = [script, *getattr(args, "script_args", [])]
+    args.script = None
+
+
 def _validate(
     args: argparse.Namespace,
     parser: argparse.ArgumentParser,
@@ -667,7 +682,10 @@ def _validate(
     if getattr(args, "watch", False) and args.stdin:
         parser.error("--watch cannot be combined with --stdin")
     if args.stdin and getattr(args, "script", None):
-        parser.error("--stdin cannot be combined with a script")
+        if command == "run":
+            _shift_stdin_args(args)
+        else:
+            parser.error("--stdin cannot be combined with a script")
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
@@ -699,7 +717,9 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
     if args.watch and args.timeout:
         parser.error("--timeout cannot be combined with --watch")
     if args.stdin and args.script:
-        parser.error("--stdin cannot be combined with a script")
+        if args.dump_ast or args.check or args.emit:
+            parser.error("--stdin cannot be combined with a script")
+        _shift_stdin_args(args)
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
     if (args.dump_ast or args.check or args.emit) and not (args.script or args.stdin):

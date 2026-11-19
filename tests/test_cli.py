@@ -476,6 +476,76 @@ def test_stdin_run_and_check_use_file_name(tmp_path: Path) -> None:
     assert "entrada.lx:1:11" in check_result.stderr
 
 
+def test_stdin_run_passes_script_args_after_double_dash() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "run", "--stdin", "--", "alpha", "beta"],
+        cwd=ROOT,
+        input="print(args())\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == '["alpha", "beta"]'
+
+
+def test_stdin_run_keeps_file_name_and_args_together() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "run",
+            "--stdin",
+            "--file-name",
+            "demo.lx",
+            "--",
+            "--flag",
+            "value",
+        ],
+        cwd=ROOT,
+        input="print(args())\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == '["--flag", "value"]'
+
+
+def test_stdin_check_still_rejects_a_script_positional() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "check", "--stdin", "--", "a"],
+        cwd=ROOT,
+        input="print(1)\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "--stdin cannot be combined with a script" in result.stderr
+
+
+def test_legacy_stdin_run_passes_script_args() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "--stdin", "--", "alpha", "beta"],
+        cwd=ROOT,
+        input="print(args())\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == '["alpha", "beta"]'
+
+
 def test_json_lines_check_has_start_diagnostic_summary(tmp_path: Path) -> None:
     script = tmp_path / "linhas.lx"
     script.write_text("print(1 + )\n", encoding="utf-8")
