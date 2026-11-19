@@ -114,7 +114,11 @@ loxia --version                    # loxia 1.1.0
 
 ## CLI
 
-`loxia` exposes subcommands; the legacy flags remain available for compatibility.
+`loxia --help` lists the commands; `loxia <command> --help` documents only that
+command's flags (grouped by purpose) and examples. The legacy invocation
+`loxia [flags] file.lx` remains supported: its flags are summarized at the end of
+`loxia --help` under compatibility mode and map to subcommands (`--check` → `check`,
+`--dump-ast` → `ast`, `--emit` → `build`).
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
@@ -135,7 +139,8 @@ loxia --version                    # loxia 1.1.0
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
 
-Global compatibility flags: `--check`, `--dump-ast`, `--debug`, `--version`, `--color`.
+Global flag: `--version`. Every other flag belongs to a command; run
+`loxia <command> --help` for the authoritative list and the grouped descriptions.
 
 `loxia new` writes a minimal, deterministic template and runs `git init` unless
 `--no-git` is given (never inside an existing repository); `loxia init` does the same in an

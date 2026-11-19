@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia_core.diagnostics.diagnostic import Diagnostic
 
 ROOT = Path(__file__).resolve().parents[1]

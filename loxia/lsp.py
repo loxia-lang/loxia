@@ -17,11 +17,11 @@ from urllib.parse import unquote, urlparse
 
 from loxia import __version__
 from loxia.builtins_docs import BUILTIN_DOCS
-from loxia.cli import Loxia
 from loxia.completion import complete as completion_items
 from loxia.completion import declared_type as completion_declared_type
 from loxia.completion import enclosing_context as completion_context
 from loxia.completion import superclass_name as completion_superclass
+from loxia.engine import Loxia
 from loxia.formatter import format_source
 from loxia.rename import semantic_rename, semantic_target
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
@@ -485,13 +485,12 @@ class Server:
     def _diagnostics(self, document: Document) -> list[dict[str, object]]:
         lox = Loxia(error_format="json", color="never", max_errors=0)
         if document.path is not None:
-            lox._file = display_path(str(document.path))
-            lox._module_root = document.path.parent
+            lox.use_file(display_path(str(document.path)), module_root=document.path.parent)
         else:
-            lox._file = "<lsp>"
+            lox.use_file("<lsp>")
         lox.check(document.text, emit=False)
         batch = lox.reporter.batch()
-        sources = lox._sources
+        sources = lox.sources
         self.source_maps[document.uri] = sources
         self.clean[document.uri] = not lox.reporter.had_error
         self.indexes[document.uri] = SymbolIndex(

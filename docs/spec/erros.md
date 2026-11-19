@@ -12,6 +12,9 @@ sources:
   - loxia_core/loader/loader.py
   - runtime/**
   - loxia/cli.py
+  - loxia/cli_args.py
+  - loxia/cli_commands.py
+  - loxia/engine.py
   - tests/test_diagnostics.py
   - tests/test_provenance.py
 ---

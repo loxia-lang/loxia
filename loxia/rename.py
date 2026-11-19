@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass, fields, is_dataclass
 from pathlib import Path
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia.source_symbols import imports_of, parse_source
 from loxia.symbols import SymbolIndex
 from loxia_core.diagnostics.source import display_path
@@ -92,8 +92,7 @@ def _workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
         if original is None:
             return f"Can't rename across files: parse error in {path.name}."
         lox = Loxia(error_format="json", color="never", max_errors=0)
-        lox._file = display_path(str(path))
-        lox._module_root = root
+        lox.use_file(display_path(str(path)), module_root=root)
         lox.check(text, emit=False)
         merged = lox.last_statements
         if merged is None:

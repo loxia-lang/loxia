@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 
 from loxia import __version__
-from loxia.cli import parse_heap_size
+from loxia.cli_args import COMMANDS, _build_subcommand_parser, parse_heap_size
+from loxia.cli_commands import HANDLERS
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -817,3 +818,49 @@ def test_capabilities_lists_the_repl_subcommand() -> None:
 
     commands = {item["name"] for item in payload["commands"]}
     assert "repl" in commands
+
+
+def test_help_do_topo_lista_comandos_sem_as_flags_do_modo_compativel() -> None:
+    result = run_cli("--help")
+
+    assert result.returncode == 0
+    assert "loxia <comando> [opções]" in result.stdout
+    assert "loxia <comando> --help" in result.stdout
+    for command in COMMANDS:
+        assert command in result.stdout
+
+    before_compat = result.stdout.split("modo compatível:", 1)[0]
+    for flag in ("--dump-ast", "--check", "--emit", "--max-heap", "--stdin", "--watch"):
+        assert flag not in before_compat
+
+
+def test_help_do_topo_resume_o_modo_compativel() -> None:
+    compat = run_cli("--help").stdout.split("modo compatível:", 1)[1]
+
+    assert "--dump-ast" in compat
+    assert "--emit" in compat
+    assert "--watch" in compat
+
+
+def test_help_de_cada_comando_mostra_so_as_suas_flags() -> None:
+    run_help = run_cli("run", "--help")
+
+    assert run_help.returncode == 0
+    assert "executa um script Loxia" in run_help.stdout
+    assert "módulos e dependências" in run_help.stdout
+    assert "exemplos:" in run_help.stdout
+    assert "--watch" not in run_help.stdout
+
+    check_help = run_cli("check", "--help").stdout
+    assert "--watch" in check_help
+    assert "--emit" not in check_help
+
+    fmt_help = run_cli("fmt", "--help").stdout
+    assert "--timeout" not in fmt_help
+    assert "options:" not in fmt_help
+
+
+def test_todo_comando_tem_handler_e_parser() -> None:
+    assert set(HANDLERS) == set(COMMANDS)
+    for command in COMMANDS:
+        assert _build_subcommand_parser(command).prog == f"loxia {command}"

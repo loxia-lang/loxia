@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.expr import Get, Variable

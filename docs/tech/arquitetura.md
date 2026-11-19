@@ -52,7 +52,10 @@ Packages by phase (dependency only downward):
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
-| [`loxia/cli.py`](../../loxia/cli.py) | CLI/subcommands, `Loxia.run`, REPL, `--json`/`--json-lines`, `--timeout`, `--watch` restricted to `check`, `new`/`init`, `lock`/`fetch`, `--frozen`/`--offline`/`--cache-dir`, warnings, `doc` and exit codes |
+| [`loxia/cli.py`](../../loxia/cli.py) | CLI entry point: picks a subcommand or compatibility mode and dispatches to `HANDLERS` |
+| [`loxia/cli_args.py`](../../loxia/cli_args.py) | CLI surface: `COMMANDS`, `build_parser`/`_build_subcommand_parser`, option groups, per-command help and `_validate*` |
+| [`loxia/cli_commands.py`](../../loxia/cli_commands.py) | subcommand runners (`run`, `check`, `build`, `fmt`, `doc`, `lock`, `fetch`, `capabilities`, ...), timeout/watch and the `HANDLERS` table |
+| [`loxia/engine.py`](../../loxia/engine.py) | `Loxia` engine: parse + modules, resolver, checker, execution, `build` and diagnostic flushing |
 | [`loxia/scaffold.py`](../../loxia/scaffold.py) | `loxia new`/`init` (ADR-0106): minimal deterministic template, name normalization, `git init` and empty lock |
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
