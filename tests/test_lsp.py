@@ -506,7 +506,12 @@ def test_lsp_code_action_expoe_fixes(tmp_path: Path) -> None:
     try:
         send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         initialized = read(process)
-        assert initialized["result"]["capabilities"]["codeActionProvider"] is True
+        code_action = initialized["result"]["capabilities"]["codeActionProvider"]
+        assert code_action["codeActionKinds"] == [
+            "quickfix",
+            "source.fixAll",
+            "source.fixAll.loxia",
+        ]
         send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
         send(
             process,

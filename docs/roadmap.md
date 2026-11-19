@@ -33,6 +33,10 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 ## Próximo (Next)
 
+- LSP: fechar as lacunas do [#46](https://github.com/loxia-lang/loxia/issues/46) — references/
+  highlight, `typeDefinition`/`implementation`, tags de não usado, fix-all, AST recuperada
+  para tooling, buffers não salvos nos imports, rename de arquivo e hierarquia de tipos
+  (fases 1–4; inspirado no pyrefly, sem herdar código Rust).
 - Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)).
 - `loxia add`/`remove` depois de um writer de TOML ([#8](https://github.com/loxia-lang/loxia/issues/8), bloqueada).
 - Corpus de conformidade como artefato `lox-core` ([#10](https://github.com/loxia-lang/loxia/issues/10)).

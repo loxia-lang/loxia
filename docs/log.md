@@ -1042,3 +1042,22 @@ harness de transcrição usa stdin binário real e os casos entram no diferencia
   linguagem ou builtin mudou neste trabalho.
 
 <!-- triaged: 23bd1d3 -->
+
+## 2026-11-19 — LSP: navegação, buffers e hierarquia (ADR-0114, issue #46)
+
+Intervalo: `6300032`..`b4d33a3`. O servidor ganhou references/highlight, typeDefinition/
+implementation, type hierarchy, tags `Unnecessary`, fix-all, AST recuperada para tooling,
+overlays de buffer não salvo e `willRenameFiles`; o CLI, o backend e a semântica da
+linguagem não mudaram.
+
+- `docs/spec/semantica.md` — **no-change**: o overlay de módulos é caminho de tooling (o
+  loader só o consulta quando o LSP passa `module_overrides`); `run`/`check` continuam
+  lendo o disco e a AST recuperada não entra no caminho normativo.
+- `docs/spec/erros.md` — **no-change**: nenhum código, mensagem, severidade ou exit code
+  mudou; W1001/W1002 ganharam `tags` apenas no payload LSP (apresentação).
+- `docs/adr/0114-ast-recuperada-para-tooling.md` — **new**: contrato da AST recuperada.
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md`, `docs/adr/README.md`, `docs/decisoes.md`,
+  `docs/roadmap.md`, `docs/tech/arquitetura.md`, `CHANGELOG.md` — **updated**: fases,
+  índice, decisão, status, arquitetura e release notes.
+
+<!-- triaged: b4d33a3 -->

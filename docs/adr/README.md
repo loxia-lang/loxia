@@ -163,6 +163,7 @@ TODO item.
 | [0111](0111-indice-de-documentacao.md) | Deterministic documentation index for agents, site and MCP | accepted (implemented) | 2026-11-19 |
 | [0112](0112-mcp-servidor-stdio.md) | MCP server over the CLI: modern-only stdio, sandbox profile, zero-dep | accepted (implemented) | 2026-11-19 |
 | [0113](0113-protocolo-stdio-jsonrpc-framing-documents.md) | Stdio protocol as three modules: JSON-RPC envelopes, `Content-Length` framing and document store | accepted (implemented) | 2026-11-19 |
+| [0114](0114-ast-recuperada-para-tooling.md) | Recovered AST for tooling: strict CLI, parser prefix for the LSP | accepted (implemented) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR

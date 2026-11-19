@@ -107,6 +107,9 @@ class Loxia:
         self._revision = 0
         # Estado da última análise, consumido pelo LSP (hover/definition).
         self.last_statements: list[Stmt] | None = None
+        # Statements recuperados pelo parser quando há erro de sintaxe: só tooling
+        # (LSP) consome; `run`/`check` continuam estritos (ADR-0113).
+        self.last_recovered_statements: list[Stmt] | None = None
         self.last_source_index: SourceIndex | None = None
         self.last_resolver: Resolver | None = None
         self.last_checker: Checker | None = None
@@ -123,7 +126,13 @@ class Loxia:
         if module_root is not None:
             self._module_root = module_root
 
-    def _parse(self, source: str, *, repl: bool = False) -> list[Stmt] | None:
+    def _parse(
+        self,
+        source: str,
+        *,
+        repl: bool = False,
+        module_overrides: dict[Path, str] | None = None,
+    ) -> list[Stmt] | None:
         self.reporter.reset()
         self.reporter.file = self._file
         self._sources.add(self._file, source)
@@ -133,6 +142,7 @@ class Loxia:
         tokens = scanner.scan_tokens()
         parser = Parser(tokens, repl=repl, reporter=self.reporter)
         statements = parser.parse_repl() if repl else parser.parse()
+        self.last_recovered_statements = statements
 
         if self.reporter.had_error or statements is None:
             self.last_statements = None
@@ -187,6 +197,7 @@ class Loxia:
                 manifest=manifest,
                 module_paths=self._module_paths,
                 dependencies=dependencies,
+                overrides=module_overrides,
             )
             loaded = loader.load(
                 statements,
@@ -303,12 +314,18 @@ class Loxia:
         sys.stdout.flush()
         return True
 
-    def check(self, source: str, *, emit: bool = True) -> int:
+    def check(
+        self,
+        source: str,
+        *,
+        emit: bool = True,
+        module_overrides: dict[Path, str] | None = None,
+    ) -> int:
         self.last_resolver = None
         self.last_checker = None
         self._warn_unused_imports = True
         try:
-            statements = self._parse(source)
+            statements = self._parse(source, module_overrides=module_overrides)
         finally:
             self._warn_unused_imports = False
         if statements is not None:

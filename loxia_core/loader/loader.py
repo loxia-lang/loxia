@@ -134,12 +134,15 @@ class ModuleLoader:
         manifest: Manifest | None = None,
         module_paths: tuple[Path, ...] = (),
         dependencies: dict[str, Path] | None = None,
+        overrides: dict[Path, str] | None = None,
     ) -> None:
         self.reporter = reporter
         self.sources = sources
         self.manifest = manifest
         self.root = manifest.path.parent if manifest is not None else root
         self.module_paths = module_paths
+        # Texto do editor (LSP): caminho resolvido -> fonte ainda não salva.
+        self.overrides = dict(overrides or {})
         # Raízes já resolvidas por `deps.resolve_dependencies` (lock/`--frozen`/git).
         self.dependencies = dict(dependencies or {})
         self.modules: dict[str, Module] = {}
@@ -432,10 +435,14 @@ class ModuleLoader:
         if name in self.modules:
             return
         self._loading.add(name)
-        try:
-            source = path.read_text(encoding="utf-8")
-        except OSError:
-            self._error(token, f"Can't read module '{name}'.")
+        override = self.overrides.get(path.resolve())
+        if override is not None:
+            source = override
+        else:
+            try:
+                source = path.read_text(encoding="utf-8")
+            except OSError:
+                self._error(token, f"Can't read module '{name}'.")
         # Nome lógico é único (dois roots com o mesmo módulo viram ambiguidade), então
         # o display não colide e não depende de CWD/absoluto (I3).
         display = self._display_path(name)
