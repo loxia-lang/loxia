@@ -16,6 +16,7 @@ AGENTS.md
 IDEIAS-REDDIT.md
 
 dist/
+dist-grammar/
 build/
 *.egg-info/
 

@@ -202,6 +202,11 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
 - **Documentation site:** <https://loxia-lang.github.io/loxia/> — Starlight build from
   `docs/`; run `make docs-dev` for the local server.
+- **Editors:** [VS Code](https://marketplace.visualstudio.com/items?itemName=loxia-lang.loxia)
+  (also on [Open VSX](https://open-vsx.org/extension/loxia-lang/loxia)) — syntax
+  highlighting, LSP and Run; the client lives in
+  [`loxia-lang/loxia-vscode`](https://github.com/loxia-lang/loxia-vscode) and consumes the
+  grammar asset attached to each release (ADR-0109).
 - **Style guide:** [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Design decisions:** [`docs/adr/`](docs/adr/).
 - **Roadmap:** [`docs/roadmap.md`](docs/roadmap.md) · **open ideas:**

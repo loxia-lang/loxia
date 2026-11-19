@@ -9,14 +9,18 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 - Repositório público; **1.1.0** lançada (PyPI + GitHub Release).
 - Linguagem 1.0 congelada; backend **L0–L6 + T7** fechado; **M8** (performance) fechado.
-- **M9** (ecossistema) em andamento: MCP, cliente de editor e distribuição.
+- **M9** (ecossistema) em andamento: MCP, cliente de editor e distribuição. O cliente
+  VS Code já vive em `loxia-lang/loxia-vscode` (ADR-0109) e a grammar é asset de release;
+  falta criar publisher/namespace e publicar a 1.1.0.
 - **Site no ar**: <https://loxia-lang.github.io/loxia/> ([#4](https://github.com/loxia-lang/loxia/issues/4)).
 - **LSP sem as lacunas P1**: completion herdada, signature importado/herdado, `inlayHint` e
   rename cross-file semântico ([#7](https://github.com/loxia-lang/loxia/issues/7)).
 
 ## Agora (Now)
 
-1. **M9 — editor**: publicar o cliente VS Code e o asset de grammar ([#5](https://github.com/loxia-lang/loxia/issues/5)).
+1. **M9 — editor**: publicar a 1.1.0 do cliente VS Code no Marketplace/Open VSX e
+   confirmar o asset de grammar no release ([#5](https://github.com/loxia-lang/loxia/issues/5));
+   o split, os testes, o CI e o empacotamento já estão implementados.
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
 3. **Decisões abertas**: `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)). Contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos.
 

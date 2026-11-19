@@ -19,11 +19,12 @@ EXCLUDED_PREFIXES = (
 )
 EXCLUDED_FILES = {
     "runtime/kernel_gen.h",
-    "editors/dsh/loxia.ts",
-    "editors/shiki/loxia.mjs",
+    "editors/grammar/loxia.ts",
+    "editors/grammar/loxia.mjs",
 }
 SOURCE_SUFFIXES = {".py", ".c", ".h", ".lx", ".mjs", ".ts", ".css"}
-EXTRA_SOURCES = {"editors/vscode/extension.js"}
+# O cliente VS Code agora vive em loxia-lang/loxia-vscode (ADR-0109).
+EXTRA_SOURCES: set[str] = set()
 
 
 def tracked_files() -> list[str]:

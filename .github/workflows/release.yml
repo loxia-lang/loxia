@@ -109,6 +109,14 @@ jobs:
       - name: Build wheel and sdist
         run: uv build
 
+      - name: Check the generated grammar
+        run: uv run python editors/build_grammar.py --check
+
+      - name: Package the grammar assets
+        # Issue #5: the editor repo consumes these from the GitHub Release, never from a
+        # hand copy. They are a separate artifact so PyPI still receives only the wheel/sdist.
+        run: uv run python editors/build_grammar.py --assets dist-grammar
+
       - name: Validate metadata
         run: uv run --with twine twine check dist/*
 
@@ -149,6 +157,12 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Store grammar artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: grammar
+          path: dist-grammar/
+
       - name: Dry run — nothing was tagged
         if: inputs.dry_run
         env:
@@ -169,6 +183,10 @@ jobs:
         with:
           name: dist
           path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: grammar
+          path: grammar
       - name: Create the tag and the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -181,7 +199,8 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Loxia v$VERSION" \
             --generate-notes \
-            dist/*
+            dist/* \
+            grammar/*
 
   pypi:
     name: Publish to PyPI

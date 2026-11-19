@@ -33,6 +33,20 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   de contrato de runtime e oráculo de property tests; a sintaxe de
   `requires`/`ensures`/`invariant` continua adiada com gatilhos.
 
+### Mudado
+
+- **Editor: cliente VS Code em repo próprio e grammar como asset** (ADR-0109): o cliente
+  saiu de `editors/vscode/` para `loxia-lang/loxia-vscode` (TypeScript + esbuild, testes
+  unitários e smoke de integração, CI, VSIX, Marketplace/Open VSX). A grammar gerada
+  passou para `editors/grammar/` (`loxia.tmLanguage.json`, `loxia.mjs`, `loxia.ts`) e o
+  release do main anexa os três arquivos + `SHA256SUMS`; o repo novo pina a release em
+  `grammar.lock.json` (versão + SHA-256) e sincroniza por `npm run grammar:sync`, sem
+  submódulo e sem cópia manual. O servidor LSP continua no main (ADR-0090). O cliente
+  ganhou play button interpretado/compilado, settings por feature, autodetecção do CLI e
+  testes; `editors/README.md` foi reescrito para o contrato de asset.
+- **`make grammar-assets`**: `editors/build_grammar.py --assets DIR` grava os três
+  artefatos e `SHA256SUMS` para o release; `--check` continua sendo o gate de drift.
+
 ### Corrigido
 
 - **Backend: `this` lexical em lambdas e funções locais** (ADR-0022): o receptor agora é
