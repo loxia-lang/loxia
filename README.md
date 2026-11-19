@@ -126,6 +126,8 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--json` |
 | `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--json` |
+| `loxia add NAME` | Declare a `path` or `git` dependency in `loxia.toml` | `--path`, `--git`, `--rev`, `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia remove NAME` | Remove a dependency from `loxia.toml` | `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
@@ -195,11 +197,21 @@ acme = { path = "../acme" }
 ```
 
 ```bash
+loxia add acme --path ../acme          # inserts the entry, preserving comments/order
+loxia add acme --git URL --rev v1.2.3  # pinned git dependency
+loxia remove acme --dry-run            # unified diff; add `--lock` to relock afterwards
 loxia lock                 # writes loxia.lock (name, origin, version, sha256)
 loxia lock --check         # exit 1 if the lock is stale
 loxia fetch                # verifies path deps; downloads/materializes git deps
 loxia run --frozen app.lx  # resolves only from the lock; fails on drift
 ```
+
+`loxia add`/`remove` edit only the `[dependencies]` entry: comments, order and line
+endings are preserved, the edited manifest is re-parsed before writing, and a shape the
+editor does not understand (a `[dependencies.NAME]` sub-table, a dotted key) fails with
+`C0004` instead of rewriting the file. Adding an already-declared dependency with the same
+spec is a no-op (`"changed": false` with `--json`); with a different spec it fails. Neither
+command touches the network unless `--lock` is given.
 
 The lock pins the `sha256` of each dependency's `.lx` tree, so `--frozen` detects any
 content change and `run`/`check`/`build` never touch the network. Git dependencies are

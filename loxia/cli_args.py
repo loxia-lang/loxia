@@ -29,6 +29,8 @@ COMMANDS = (
     "repl",
     "new",
     "init",
+    "add",
+    "remove",
     "check",
     "build",
     "ast",
@@ -49,6 +51,8 @@ _COMMAND_SUMMARIES = {
     "repl": "abre uma sessão interativa (padrão sem arquivo)",
     "new": "cria um projeto novo (loxia.toml, src/main.lx, lock, git)",
     "init": "inicializa um projeto num diretório existente",
+    "add": "adiciona uma dependência ao loxia.toml",
+    "remove": "remove uma dependência do loxia.toml",
     "check": "checa os tipos sem executar",
     "build": "compila para código nativo (LLVM)",
     "ast": "imprime a AST como S-expression, sem executar",
@@ -93,6 +97,13 @@ _COMMAND_EXAMPLES = {
     "init": """exemplos:
   loxia init
   loxia init meu-projeto""",
+    "add": """exemplos:
+  loxia add acme --path ../acme
+  loxia add acme --git https://github.com/acme/acme --rev v1.2.3 --lock
+  loxia add acme --path ../acme --dry-run""",
+    "remove": """exemplos:
+  loxia remove acme
+  loxia remove acme --dry-run --json""",
     "lock": """exemplos:
   loxia lock
   loxia lock --check""",
@@ -317,6 +328,19 @@ def _add_build_options(container: argparse._ActionsContainer, *, default_emit: b
     )
 
 
+def _add_edit_options(container: argparse._ActionsContainer) -> None:
+    container.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="não escreve; imprime o diff do manifest",
+    )
+    container.add_argument(
+        "--lock",
+        action="store_true",
+        help="roda `loxia lock` depois de editar (pode acessar a rede)",
+    )
+
+
 def _add_scaffold_options(container: argparse._ActionsContainer) -> None:
     container.add_argument(
         "--name",
@@ -513,6 +537,33 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             default=".",
             help="diretório existente para inicializar (default: .)",
         )
+    elif command == "add":
+        _add_diagnostics_options(groups.diagnostics)
+        _add_module_options(groups.modules)
+        _add_dependency_options(groups.modules, frozen=False)
+        _add_edit_options(groups.general)
+        groups.modules.add_argument(
+            "--path",
+            metavar="DIR",
+            help="dependência local, relativa à pasta do manifest",
+        )
+        groups.modules.add_argument(
+            "--git",
+            metavar="URL",
+            help="repositório git (exige --rev)",
+        )
+        groups.modules.add_argument(
+            "--rev",
+            metavar="REV",
+            help="commit completo ou tag (nunca branch)",
+        )
+        parser.add_argument("name", help="nome da dependência (identificador ASCII)")
+    elif command == "remove":
+        _add_diagnostics_options(groups.diagnostics)
+        _add_module_options(groups.modules)
+        _add_dependency_options(groups.modules, frozen=False)
+        _add_edit_options(groups.general)
+        parser.add_argument("name", help="nome da dependência declarada")
     elif command == "build":
         _add_diagnostics_options(groups.diagnostics)
         _add_module_options(groups.modules)
