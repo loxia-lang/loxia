@@ -30,7 +30,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
    **Implementado** (ADR-0112: modern-only 2026-07-28, zero-dep, `--sandbox`); falta
    validar com os clientes-alvo e publicar.
-3. **Decisões abertas**: `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e gerador de AST ([#15](https://github.com/loxia-lang/loxia/issues/15)). Contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos.
+3. **Decisões abertas**: `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)). Contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos; o gerador de AST foi decidido como manual + guard ([ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md)).
 
 ## Próximo (Next)
 
@@ -63,6 +63,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 Sintaxe de contratos (`requires`/`ensures`/`invariant`; ADR-0108), generics além do MVP, operator overloading, trailing closure, `match` estrutural,
 extension methods, metaclasses/decorators, math transcendentais e paralelismo. Gatilhos em
 [ADR-0107](adr/0107-adiados-e-nao-objetivos.md); para contratos, [ADR-0108](adr/0108-contratos-como-biblioteca.md).
+Gerador de AST/visitor: mantido manual com cobertura de protocolo ([ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md)); reabre com 3+ nós por ciclo ou um 5º visitante.
 
 ## Regras
 

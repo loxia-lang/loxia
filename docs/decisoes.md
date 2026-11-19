@@ -151,6 +151,7 @@ decisão.
 | Adiados e não-objetivos | Generics além do MVP, operator overloading, trailing closure, `match` estrutural, extension methods, metaclasses/decorators, math transcendentais e paralelismo continuam deferidos, cada um com gatilho explícito de reabertura. | [ADR-0107](adr/0107-adiados-e-nao-objetivos.md) |
 | Corpus de conformidade | Não extrair agora: o corpus interno é o oráculo do I1 (ADR-0064), não um contrato externo; o artefato `lox-core` exige spec publicada e demanda externa. #10 fechada como *not planned*; a fase 1 da issue fica como plano para o gatilho. | [ADR-0115](adr/0115-corpus-de-conformidade-adiado.md) |
 | Benchmarks públicos | Não publicar agora: o `bench/` é harness local de regressão (baseline por máquina) e as garantias não prometem speed; a suíte pública exige protocolo (hardware/flags/aquecimento/N/dispersão) e um release com performance na mensagem. #13 fechada como *not planned*. | [ADR-0116](adr/0116-benchmarks-publicos-adiados.md) |
+| AST manual | Sem schema/codegen: `AstPrinter` herda os protocols (o mypy cobre os 40 `visit_*`), todo nó herda `Expr`/`Stmt` e `tests/test_ast_hierarchy.py` trava a hierarquia. Gerador reabre com 3+ nós/ciclo ou um 5º visitante. | [ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md) |
 
 ## O que ainda não está aqui
 

@@ -29,6 +29,7 @@ from loxia_core.frontend.expr import (
     Variable,
     VariantPattern,
 )
+from loxia_core.frontend.expr import Visitor as ExprVisitor
 from loxia_core.frontend.stmt import (
     Block,
     Class,
@@ -48,12 +49,13 @@ from loxia_core.frontend.stmt import (
     Var,
     While,
 )
+from loxia_core.frontend.stmt import Visitor as StmtVisitor
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import Ty, display
 
 
-class AstPrinter:
+class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
     """Serializa a AST em S-expressions — ferramenta de debug, não de execução."""
 
     def print(self, expr: Expr) -> str:
