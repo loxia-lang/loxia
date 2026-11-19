@@ -986,8 +986,8 @@ o rename atualizar anotações de tipo; é metadado de posição, não uma regra
 
 ## 2026-11-18 — cliente VS Code em repo próprio (ADR-0109)
 
-Intervalo: mudanças ainda não commitadas (o marcador `triaged:` deve ser fechado no
-commit que levar este trabalho; até lá o `freshness.py` não as enxerga).
+Intervalo: commits deste PR. Não há marcador `triaged:` global: as três páginas
+pré-existentes continuam abertas (ver a última linha) e seriam silenciadas por ele.
 
 - `editors/README.md` — **updated**: caminhos de `editors/grammar/`, contrato de asset de
   release, sync do repo novo e remoção da seção de instalação do cliente.
@@ -999,4 +999,7 @@ commit que levar este trabalho; até lá o `freshness.py` não as enxerga).
   **updated**: resumo da decisão, status M9, link do editor, entrada de changelog e mapa
   de arquitetura.
 - `docs/spec/*.md` — **no-change**: a linguagem, I1–I4 e os diagnósticos não mudaram; o
-  trabalho é de empacotamento/editor.
+  trabalho é de empacotamento/editor. `docs/spec/erros.md`, `docs/spec/semantica.md` e
+  `docs/stdlib/sets.md` já estavam defasados antes deste PR (as fontes mudaram em #39/#40)
+  e não foram tocados aqui; ficam para a triagem de quem mexer naquelas fontes, sem
+  marcador `triaged:` que os silencie.
