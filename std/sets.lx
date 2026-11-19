@@ -43,7 +43,7 @@ class Set[T] {
   fn toList() -> List[T] {
     val result: List[T] = []
     for key in this.items {
-      result.push(key)
+      result.push(key as T)
     }
     return result
   }

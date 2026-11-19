@@ -971,11 +971,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return None
 
     def _assignable(self, expected: Ty, actual: Ty) -> bool:
-        if expected is ANY or actual is ANY or expected is ERROR or actual is ERROR:
+        # `Any` é top type: qualquer `T` é atribuível a `Any`. O contrário exige
+        # conversão explícita (`as`), porque os tipos são apagados no runtime —
+        # deixar `Any -> T` passar aqui fazia o backend reinterpretar o payload
+        # (ponteiro vazado/segfault) e quebrava I1/I2/I3.
+        if expected is ANY or expected is ERROR or actual is ERROR:
             return True
         if actual is NEVER:
             return True
         if expected == actual:
+            return True
+        # Rebinding de classe é dinâmico por ADR-0044: `Base = OtherBase as Any`
+        # continua válido; o backend representa classe como ponteiro.
+        if isinstance(expected, ClassObjectTy) and actual is ANY:
+            return True
+        # Destructuring com anotação de tupla é o formulário explícito previsto
+        # em ADR-0069 para um valor vindo de `Any`; o backend desemboxa a tupla.
+        if isinstance(expected, TupleTy) and actual is ANY:
             return True
         if isinstance(actual, UnionTy):
             return all(self._assignable(expected, member) for member in actual.members)
@@ -1557,7 +1569,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
 
                 if field_decl.type_annotation is not None:
-                    field_ty = self._resolve_type(field_decl.type_annotation, field_decl.name)
+                    field_ty = self._storage_annotation(
+                        self._resolve_type(field_decl.type_annotation, field_decl.name),
+                        field_decl.name,
+                        "Fields",
+                    )
                 elif field_decl.initializer is not None:
                     field_ty = self._infer(field_decl.initializer)
                     if field_decl.mutable and field_ty is NIL:
@@ -2144,7 +2160,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         )
                         param_ty: Ty = ANY
                     else:
-                        param_ty = self._resolve_type(param.type_annotation, param.name)
+                        param_ty = self._storage_annotation(
+                            self._resolve_type(param.type_annotation, param.name),
+                            param.name,
+                            "Parameters",
+                        )
                     param_types.append(param_ty)
                     continue
 
@@ -2165,7 +2185,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
                     param_ty = ANY
                 else:
-                    param_ty = self._resolve_type(param.type_annotation, param.name)
+                    param_ty = self._storage_annotation(
+                        self._resolve_type(param.type_annotation, param.name),
+                        param.name,
+                        "Parameters",
+                    )
 
                 if param.default is not None:
                     self._check(param.default, param_ty, param.name)
@@ -2391,6 +2415,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _validate_as_target(self, ty: Ty, token: Token) -> None:
         if ty is ERROR or ty is ANY:
+            return
+        if isinstance(ty, TyVar):
+            # `x as T` é o cast dinâmico explícito de `Any` para um parâmetro
+            # de tipo; a monomorfização resolve T para um tipo concreto.
             return
         if isinstance(ty, InterfaceTy):
             self._error(
@@ -3173,6 +3201,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if self._return_collector is not None:
             self._return_collector.append(actual)
 
+    def _storage_annotation(self, ty: Ty, token: Token, what: str) -> Ty:
+        """`Nil` não tem representação de slot no backend; recusa no check."""
+        if ty is NIL:
+            self._error(
+                token,
+                f"{what} of type Nil are not supported; use `Any`.",
+                code=Code.INVALID_TYPE_ANNOTATION,
+            )
+            return ANY
+        return ty
+
     def visit_var_stmt(self, stmt: Var) -> None:
         if (
             stmt.type_annotation is None
@@ -3187,7 +3226,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return
 
         if stmt.type_annotation is not None:
-            annotated = self._resolve_type(stmt.type_annotation, stmt.name)
+            annotated = self._storage_annotation(
+                self._resolve_type(stmt.type_annotation, stmt.name), stmt.name, "Variables"
+            )
             if stmt.initializer is not None:
                 self._check(stmt.initializer, annotated, stmt.name)
             self._define(stmt.name, annotated)
@@ -5058,7 +5099,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _check_index_type(
         self, index: Ty, expr: Index | IndexSet, index_expr: Expr | None = None
     ) -> None:
-        if index is INT or index is ANY or index is ERROR:
+        if index is INT or index is ERROR:
             return
 
         notes = self._provenance_notes(index_expr, expr.bracket) if index_expr is not None else ()

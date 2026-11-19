@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
@@ -178,6 +178,9 @@ class InstanceLowering(LoweringBase):
 
     def _get_optional(self, obj: Value, expr: Get) -> Value:
         result = self._expr_type_desc(expr, expr.name.line)
+        if result.ty is ValueType.NIL and not result.optional:
+            # `c = nil; c?.x`: o checker já sabe que o resultado é nil.
+            return Value(ValueType.NIL)
         if not result.optional:
             result = TypeDesc(result.ty, result.fn, True, result.class_name)
 
@@ -209,6 +212,28 @@ class InstanceLowering(LoweringBase):
             True,
             result.class_name,
         )
+
+    def _exception_text(self, value: Value, line: int = 0) -> Value | None:
+        """`Tipo: mensagem` para instância de `Exception` (paridade com o tree-walk)."""
+        name = value.class_name
+        if name is None:
+            return None
+        layout = self._classes.get(name)
+        if layout is None:
+            return None
+        cursor: ClassLayout | None = layout
+        while cursor is not None:
+            if cursor.name == "Exception":
+                break
+            cursor = cursor.super_layout
+        if cursor is None:
+            return None
+        field = layout.field("message")
+        if field is None:
+            return None
+        message = self._load_field(value, field, line, 0)
+        prefix = self._string_literal(f"{layout.display}: ")
+        return cast(Value, self._concat(prefix, message))
 
     def _get_instance(self, obj: Value, expr: Get) -> Value:
         return self._get_instance_name(obj, expr.name)

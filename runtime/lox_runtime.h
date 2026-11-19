@@ -286,7 +286,7 @@ extern void *lox_str_concat (const void *left_pointer, const void *right_pointer
  * --------------------------------------------------------------------------- */
 
 extern void *lox_range_new (int64_t start, int64_t end, int64_t step,
-                            int32_t inclusive);
+                            int32_t inclusive, int32_t line, int32_t column);
 extern int64_t lox_range_start (const void *pointer);
 extern int64_t lox_range_end (const void *pointer);
 extern int64_t lox_range_step (const void *pointer);
@@ -298,6 +298,7 @@ extern void *lox_list_new (void);
 extern void lox_list_grow (LoxList *list);
 extern void lox_list_push (void *pointer, int64_t tag, int64_t payload);
 extern int64_t lox_list_len (const void *pointer);
+extern int64_t lox_list_version (const void *pointer);
 extern LoxValue lox_list_get (const void *pointer, int64_t index, int32_t line, int32_t column);
 extern void lox_list_set (void *pointer, int64_t index, int64_t tag, int64_t payload, int32_t line, int32_t column);
 extern LoxValue lox_list_pop (void *pointer, int32_t line, int32_t column);
@@ -309,7 +310,9 @@ extern int64_t lox_map_find (const LoxMap *map, LoxValue key);
 extern void lox_map_grow (LoxMap *map);
 extern void lox_map_check_key (int64_t tag, int32_t line, int32_t column);
 extern void lox_map_set (void *pointer, int64_t key_tag, int64_t key_payload, int64_t value_tag, int64_t value_payload, int32_t line, int32_t column);
+extern void lox_map_set_literal (void *pointer, int64_t key_tag, int64_t key_payload, int64_t value_tag, int64_t value_payload, int32_t line, int32_t column);
 extern int64_t lox_map_len (const void *pointer);
+extern int64_t lox_map_version (const void *pointer);
 extern int32_t lox_map_has (const void *pointer, int64_t key_tag, int64_t key_payload, int32_t line, int32_t column);
 extern LoxValue lox_map_get (const void *pointer, int64_t key_tag, int64_t key_payload, int32_t line, int32_t column);
 extern LoxValue lox_map_get_checked (const void *pointer, int64_t key_tag, int64_t key_payload, int32_t line, int32_t column);
@@ -355,6 +358,17 @@ extern int64_t utf8_cp_offset (const LoxStr *string, int64_t index);
 extern void *lox_str_char_at (const void *pointer, int64_t index);
 extern int64_t utf8_decode (const unsigned char *data, size_t *length);
 extern int64_t lox_int_pow (int64_t base, int64_t exponent, int32_t line, int32_t column);
+extern int64_t lox_int_add_checked (int64_t left, int64_t right, int32_t line, int32_t column);
+extern int64_t lox_int_sub_checked (int64_t left, int64_t right, int32_t line, int32_t column);
+extern int64_t lox_int_mul_checked (int64_t left, int64_t right, int32_t line, int32_t column);
+extern int64_t lox_int_neg_checked (int64_t value, int32_t line, int32_t column);
+extern int64_t lox_int_pow_checked (int64_t base, int64_t exponent, int32_t line, int32_t column);
+extern int64_t lox_int_div_checked (int64_t left, int64_t right, int32_t line, int32_t column);
+extern int64_t lox_int_mod_checked (int64_t left, int64_t right, int32_t line, int32_t column);
+extern int64_t lox_math_abs_int_checked (int64_t value, int32_t line, int32_t column);
+extern double lox_math_min (double left, double right);
+extern double lox_math_max (double left, double right);
+extern double lox_math_clamp (double value, double low, double high, int32_t line, int32_t column);
 extern int64_t lox_shift (int64_t value, int64_t count, int32_t kind, int32_t line, int32_t column);
 extern int64_t lox_float_to_int (double value, int32_t line, int32_t column);
 /* ---------------------------------------------------------------------------
@@ -379,6 +393,7 @@ extern void lox_throw_internal (const char *code, void *instance, const char *ty
 extern void lox_throw (void *instance, const char *type_name, const char *message, int32_t line, int32_t column);
 extern void lox_rethrow (void *exception_pointer, int32_t line, int32_t column);
 extern void lox_raise_current (int32_t line, int32_t column);
+extern void lox_raise_value (void *pointer, int32_t line, int32_t column);
 extern void lox_panic_at (const char *file, int32_t line, int32_t column, const char *code, const char *message);
 extern void lox_panic (int32_t line, int32_t column, const char *code, const char *message);
 /* ---------------------------------------------------------------------------
@@ -419,6 +434,7 @@ extern void *lox_str_from_tuple (const void *pointer);
 extern void *lox_str_from_map (const void *pointer);
 extern void *lox_str_from_list (const void *pointer);
 extern void *lox_str_from_any (int64_t tag, int64_t payload);
+extern void *lox_repr_from_any (int64_t tag, int64_t payload);
 /* ---------------------------------------------------------------------------
  * Arithmetic guards and dynamic Any printing
  * --------------------------------------------------------------------------- */
@@ -427,6 +443,15 @@ extern int64_t lox_int_div (int64_t left, int64_t right, int32_t line, int32_t c
 extern double lox_float_div (double left, double right, int32_t line, int32_t column);
 extern double lox_float_mod (double left, double right, int32_t line, int32_t column);
 extern int64_t lox_int_mod (int64_t left, int64_t right, int32_t line, int32_t column);
+extern double lox_float_pow (double base, double exponent, int32_t line, int32_t column);
+extern LoxValue lox_any_binary (int32_t op, int64_t left_tag, int64_t left_payload,
+                                int64_t right_tag, int64_t right_payload,
+                                int32_t line, int32_t column);
+extern LoxValue lox_any_neg (int64_t tag, int64_t payload, int32_t line, int32_t column);
+extern LoxValue lox_any_bit_not (int64_t tag, int64_t payload, int32_t line, int32_t column);
+extern int32_t lox_any_compare (int32_t op, int64_t left_tag, int64_t left_payload,
+                                int64_t right_tag, int64_t right_payload,
+                                int32_t line, int32_t column);
 extern void lox_print_any (int64_t tag, int64_t payload);
 extern int64_t utf8_code_points (const char *data, size_t length);
 extern int utf8_valid (const unsigned char *data, size_t length);

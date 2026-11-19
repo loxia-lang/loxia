@@ -109,6 +109,7 @@ from loxia_core.frontend.ty import (
     MapTy,
     TupleTy,
     Ty,
+    TyVar,
     UnionTy,
     display,
 )
@@ -640,6 +641,14 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "as doesn't support type arguments on enums yet.",
                 code=Code.RUNTIME_CAST,
             )
+        if isinstance(target, TyVar) or (
+            isinstance(target, ClassTy) and self._class_for_type(target.name) is None
+        ):
+            # Tipos apagados: o cast dinâmico para um parâmetro de tipo é
+            # identidade no tree-walk; o backend o resolve na monomorfização.
+            # Um nome de classe sem binding também é um parâmetro apagado
+            # (o checker já validou o alvo).
+            return value
 
         if target is INT:
             if numeric.is_int(value):

@@ -77,6 +77,7 @@ def build(
     type_aliases: dict[str, Ty] | None = None,
     source_path: str = "<lox>",
     max_heap: int | None = None,
+    debug: bool = False,
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
     try:
@@ -89,6 +90,7 @@ def build(
             generic_class_sites=generic_class_sites,
             type_aliases=type_aliases,
             source_path=source_path,
+            debug=debug,
         )
         _verify(module)
 

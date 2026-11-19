@@ -454,14 +454,15 @@ class OptionalLowering(LoweringBase):
                     value.class_name,
                     value.interface_name,
                 )
-                if not inner.same_as(
+                if not self._compatible(
+                    inner,
                     TypeDesc(
                         expected.ty,
                         expected.fn,
                         False,
                         expected.class_name,
                         expected.interface_name,
-                    )
+                    ),
                 ):
                     raise BackendError(
                         f"Can't use {value.ty.name}? where {expected.ty.name}? is expected.",
@@ -470,14 +471,15 @@ class OptionalLowering(LoweringBase):
                 return value
 
             actual = value.desc
-            if not actual.same_as(
+            if not self._compatible(
+                actual,
                 TypeDesc(
                     expected.ty,
                     expected.fn,
                     False,
                     expected.class_name,
                     expected.interface_name,
-                )
+                ),
             ):
                 raise BackendError(
                     f"Can't use {value.ty.name} where {expected.ty.name}? is expected.",
@@ -496,7 +498,7 @@ class OptionalLowering(LoweringBase):
                 value.class_name,
                 value.interface_name,
             )
-            if not inner.same_as(expected):
+            if not self._compatible(inner, expected):
                 raise BackendError(
                     f"Can't use {value.ty.name}? where {expected.ty.name} is expected.",
                     line,
@@ -512,12 +514,58 @@ class OptionalLowering(LoweringBase):
         ):
             return Value(ValueType.INSTANCE, value.llvm, expected.fn, False)
 
-        if not value.desc.same_as(expected):
+        if not self._compatible(value.desc, expected):
+            if value.ty is ValueType.FUNCTION or expected.ty is ValueType.FUNCTION:
+                raise _unsupported("Function type variance", line)
             raise BackendError(
                 f"Can't use {value.ty.name} where {expected.ty.name} is expected.",
                 line,
             )
         return value
+
+    def _compatible(self, actual: TypeDesc, expected: TypeDesc) -> bool:
+        """`same_as` + covariância nominal de classe (subclasse onde cabe base)."""
+        if actual.same_as(expected):
+            return True
+        if (
+            actual.ty is expected.ty
+            and actual.ty in (ValueType.INSTANCE, ValueType.CLASS)
+            and expected.class_name is not None
+            and actual.class_name is not None
+        ):
+            return self._is_subclass_name(actual.class_name, expected.class_name)
+        if (
+            actual.ty is ValueType.FUNCTION
+            and expected.ty is ValueType.FUNCTION
+            and actual.fn is not None
+            and expected.fn is not None
+        ):
+            return self._compatible_fn(expected.fn, actual.fn)
+        return False
+
+    def _compatible_fn(self, expected: FnSig, actual: FnSig) -> bool:
+        """Variância de tipo-função com representação idêntica (ADR-0021)."""
+        if expected.variadic != actual.variadic:
+            return False
+        if expected.min_params != actual.min_params:
+            return False
+        if len(expected.params) != len(actual.params):
+            return False
+        for expected_param, actual_param in zip(expected.params, actual.params, strict=True):
+            if not self._compatible(expected_param, actual_param):
+                return False
+        return self._compatible(actual.ret, expected.ret)
+
+    def _is_subclass_name(self, actual: str, expected: str) -> bool:
+        name: str | None = actual
+        while name is not None:
+            if name == expected:
+                return True
+            layout = self._classes.get(name)
+            if layout is None:
+                return False
+            name = layout.super_name
+        return False
 
     def _coerce_interface(self, value: Value, expected: TypeDesc, line: int | None) -> Value:
         """Converte classe/interface/`Any` para um tipo interface (ponteiro)."""

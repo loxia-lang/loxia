@@ -127,6 +127,7 @@ class Loxia:
         cache_dir: str | None = None,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
+        self.debug = debug
         self.interpreter = Interpreter(self.reporter, checked_overflow=debug, argv=script_args)
         self.error_format = error_format
         self.color = color
@@ -412,6 +413,7 @@ class Loxia:
                 type_aliases=checker.type_aliases(),
                 source_path=self._file,
                 max_heap=max_heap,
+                debug=self.debug,
             )
         except BackendError as error:
             self.reporter.backend_error(error.line, error.message, code=error.code)
@@ -435,7 +437,10 @@ class Loxia:
             with open(path, encoding="utf-8") as file:
                 source = file.read()
         except FileNotFoundError:
-            print(f"Erro: Arquivo '{path}' não encontrado.", file=sys.stderr)
+            print(
+                f"Erro: Arquivo '{display_path(path)}' não encontrado.",
+                file=sys.stderr,
+            )
             sys.exit(66)
 
         self._file = display_path(path)
@@ -1131,7 +1136,10 @@ def _read_source(path: str) -> str:
         with open(path, encoding="utf-8") as file:
             return file.read()
     except FileNotFoundError:
-        print(f"Erro: Arquivo '{path}' não encontrado.", file=sys.stderr)
+        print(
+            f"Erro: Arquivo '{display_path(path)}' não encontrado.",
+            file=sys.stderr,
+        )
         sys.exit(66)
 
 
@@ -1285,7 +1293,7 @@ def _run_scaffold(
         )
         lox._flush(command, exit_code=65, always=True)
         sys.exit(65)
-    shown = display_path(project.path)
+    shown = display_path(project.path, cwd=Path.cwd())
     if args.json:
         print(
             json.dumps(
