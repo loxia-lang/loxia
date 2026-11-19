@@ -250,6 +250,20 @@ class EnumLowering(LoweringBase):
                     for index, (binding, desc) in enumerate(
                         zip(pattern.bindings, descs[variant.name], strict=False)
                     ):
+                        if desc.ty is ValueType.NIL:
+                            # `Nil` has no value representation: keep a dummy slot so the
+                            # arm can name the binding, and load it as `Value(NIL)`.
+                            slot = self.builder.alloca(_I32, name=binding.lexeme)
+                            self.builder.store(llvm_ir.constant(_I32, 0), slot)
+                            self._scopes[-1][binding.lexeme] = Binding(
+                                slot,
+                                desc.ty,
+                                desc.fn,
+                                desc.optional,
+                                class_name=desc.class_name,
+                                interface_name=desc.interface_name,
+                            )
+                            continue
                         raw = self.builder.call(
                             self._function(
                                 "lox_enum_payload",

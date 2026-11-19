@@ -1,0 +1,19 @@
+# Regression: a `Result` with a `Nil` payload must match on both engines.
+#
+# The checker accepts `Result[Nil, E]`; the backend used to crash when an arm bound the
+# nil payload (no LLVM value to store). The binding now loads as a nil value.
+
+fn ok() -> Result[Nil, String] { return Result.Ok(nil) }
+fn err() -> Result[Nil, String] { return Result.Err("boom") }
+
+fn describe(result: Result[Nil, String]) -> String {
+  return match result {
+    Result.Ok(value) => "ok:" + str(value)
+    Result.Err(message) => "err:" + message
+  }
+}
+
+print(describe(ok()))
+print(describe(err()))
+# expect: ok:nil
+# expect: err:boom

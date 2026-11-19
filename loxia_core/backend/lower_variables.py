@@ -36,6 +36,9 @@ class VariableLowering(LoweringBase):
         return self._captures.get(name)
 
     def _load_binding(self, binding: Binding) -> Value:
+        if binding.ty is ValueType.NIL:
+            # `Nil` has no value representation: the slot only exists so the name exists.
+            return Value(ValueType.NIL)
         if binding.cell:
             pointer = self._cell_pointer(binding.storage, binding.desc)
             loaded = self.builder.load(pointer)

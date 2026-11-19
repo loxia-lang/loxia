@@ -1,0 +1,57 @@
+# std.documents (T3): DocumentStore full sync, versões e URIs ordenadas.
+from std.documents import DocumentError, DocumentStore
+
+fn show(result: Result[Bool, DocumentError]) -> String {
+  return match result {
+    Result.Ok(_value) => "ok"
+    Result.Err(error) => "err:${error.kind}"
+  }
+}
+
+val store = DocumentStore()
+print(show(store.open("file:///b", "loxia", 1, "b")))
+print(show(store.open("file:///a", "loxia", 4, "a")))
+print(store.len())
+print(store.has("file:///a"))
+print(join(store.uris(), ","))
+print(store.text("file:///a"))
+print(store.version("file:///a"))
+print(store.languageId("file:///a"))
+print(store.get("file:///a")?.text)
+print(show(store.open("file:///a", "loxia", 2, "x")))
+print(show(store.change("file:///a", 5, "novo")))
+print(store.text("file:///a"))
+print(show(store.change("file:///a", 5, "stale")))
+print(show(store.change("file:///a", 4, "stale")))
+print(store.text("file:///a"))
+print(show(store.change("file:///z", 1, "x")))
+print(show(store.open("file:///n", "loxia", -1, "x")))
+print(show(store.close("file:///a")))
+print(store.has("file:///a"))
+print(show(store.close("file:///a")))
+print(store.text("file:///a") == nil)
+print(store.get("file:///a") == nil)
+print(join(store.uris(), ","))
+# expect: ok
+# expect: ok
+# expect: 2
+# expect: true
+# expect: file:///a,file:///b
+# expect: a
+# expect: 4
+# expect: loxia
+# expect: a
+# expect: err:already_open
+# expect: ok
+# expect: novo
+# expect: err:stale_version
+# expect: err:stale_version
+# expect: novo
+# expect: err:not_open
+# expect: err:invalid_version
+# expect: ok
+# expect: false
+# expect: err:not_open
+# expect: true
+# expect: true
+# expect: file:///b

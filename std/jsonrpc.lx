@@ -1,0 +1,223 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.jsonrpc — JSON-RPC 2.0 envelopes (T3), pure Lox.
+#
+# Deterministic: no I/O, clock, locale or hash order. Messages are plain
+# `Map[String, Any]` values so they serialize with `std.json` and stay inside the
+# backend's supported field types. Validation rejects batches: LSP does not use them.
+
+import std.json as json
+
+/// Why `decode` rejected a message; `code` is the JSON-RPC error code.
+///
+/// Error data is not stored because a field of type `Any` is not supported by the
+/// backend; callers that need `error.data` build the envelope themselves.
+class RpcFailure {
+  /// Numeric JSON-RPC error code: `-32700` parse, `-32600` invalid request,
+  /// `-32601` method not found, `-32602` invalid params, `-32603` internal.
+  val code: Int
+
+  /// Human-readable reason; never contains a path, timestamp or address.
+  val message: String
+
+  /// Creates a failure with an explicit code and message.
+  init(code: Int, message: String) {
+    this.code = code
+    this.message = message
+  }
+}
+
+/// Parses and validates one JSON-RPC 2.0 envelope.
+///
+/// A request has `method` and `id`; a notification has `method` and no `id`; a response
+/// has exactly one of `result` or `error`. `id` is `Int` or `String` in requests, and
+/// may also be `nil` in responses. `params` is an array or an object when present.
+/// Batches (a top-level array) and malformed JSON are reported as failures.
+fn decode(text: String) -> Result[Map[String, Any], RpcFailure] {
+  val parsed = json.parseResult(text)
+  if (not json.isOk(parsed)) {
+    return Result.Err(RpcFailure(-32700, "Parse error"))
+  }
+  val value = json.value(parsed)
+  if (not (value is Map[String, Any])) {
+    return _invalid()
+  }
+  val message = value as Map[String, Any]
+  if (not _hasProtocol(message)) {
+    return _invalid()
+  }
+  val hasMethod = message.has("method")
+  val hasResult = message.has("result")
+  val hasError = message.has("error")
+  if (hasMethod) {
+    if (hasResult or hasError) {
+      return _invalid()
+    }
+    if (not _validMethod(message["method"])) {
+      return _invalid()
+    }
+    if (message.has("params") and not _validParams(message["params"])) {
+      return _invalid()
+    }
+    if (message.has("id") and not _validRequestId(message["id"])) {
+      return _invalid()
+    }
+    return Result.Ok(message)
+  }
+  if (hasResult and hasError) {
+    return _invalid()
+  }
+  if (not (hasResult or hasError)) {
+    return _invalid()
+  }
+  if (not message.has("id")) {
+    return _invalid()
+  }
+  if (not _validResponseId(message["id"])) {
+    return _invalid()
+  }
+  if (hasError and not _validError(message["error"])) {
+    return _invalid()
+  }
+  return Result.Ok(message)
+}
+
+/// Serializes an envelope as compact JSON, preserving key insertion order.
+fn encode(message: Map[String, Any]) -> String {
+  return json.stringify(message)
+}
+
+/// Builds a request with `method`, an `id` and optional `params`.
+///
+/// `id` should be an `Int` or a `String`; builders do not validate, `decode` does.
+fn request(id: Any, method: String, params: Any = nil) -> Map[String, Any] {
+  val message: Map[String, Any] = { "jsonrpc": "2.0", "id": id, "method": method }
+  if (params != nil) {
+    message["params"] = params
+  }
+  return message
+}
+
+/// Builds a notification: `method` with no `id`.
+fn notification(method: String, params: Any = nil) -> Map[String, Any] {
+  val message: Map[String, Any] = { "jsonrpc": "2.0", "method": method }
+  if (params != nil) {
+    message["params"] = params
+  }
+  return message
+}
+
+/// Builds a success response; `result` may be `nil` (serialized as `null`).
+fn success(id: Any, result: Any = nil) -> Map[String, Any] {
+  val message: Map[String, Any] = { "jsonrpc": "2.0", "id": id, "result": result }
+  return message
+}
+
+/// Builds an error response; the `error` object carries `code` and `message`.
+fn failure(id: Any, code: Int, message: String) -> Map[String, Any] {
+  val error: Map[String, Any] = { "code": code, "message": message }
+  val envelope: Map[String, Any] = { "jsonrpc": "2.0", "id": id, "error": error }
+  return envelope
+}
+
+/// Returns `true` when the envelope is a request (has `method` and `id`).
+fn isRequest(message: Map[String, Any]) -> Bool {
+  return message.has("method") and message.has("id")
+}
+
+/// Returns `true` when the envelope is a notification (has `method` and no `id`).
+fn isNotification(message: Map[String, Any]) -> Bool {
+  return message.has("method") and not message.has("id")
+}
+
+/// Returns `true` when the envelope is a response (has `result` or `error`).
+fn isResponse(message: Map[String, Any]) -> Bool {
+  return message.has("result") or message.has("error")
+}
+
+/// Returns `true` when the `id` member is present (its value may be `nil`).
+fn hasId(message: Map[String, Any]) -> Bool {
+  return message.has("id")
+}
+
+/// Returns the `id` member, or `nil` when it is absent.
+fn idOf(message: Map[String, Any]) -> Any {
+  if (not message.has("id")) {
+    return nil
+  }
+  return message["id"]
+}
+
+/// Returns the `method` member, or `nil` when it is absent or not a string.
+fn methodOf(message: Map[String, Any]) -> String? {
+  if (not message.has("method")) {
+    return nil
+  }
+  val value = message["method"]
+  if (not (value is String)) {
+    return nil
+  }
+  return value as String
+}
+
+/// Returns the `error` object, or `nil` when it is absent or not an object.
+fn errorOf(message: Map[String, Any]) -> Map[String, Any]? {
+  if (not message.has("error")) {
+    return nil
+  }
+  val value = message["error"]
+  if (not (value is Map[String, Any])) {
+    return nil
+  }
+  return value as Map[String, Any]
+}
+
+fn _invalid() -> Result[Map[String, Any], RpcFailure] {
+  return Result.Err(RpcFailure(-32600, "Invalid Request"))
+}
+
+fn _hasProtocol(message: Map[String, Any]) -> Bool {
+  if (not message.has("jsonrpc")) {
+    return false
+  }
+  val version = message["jsonrpc"]
+  if (not (version is String)) {
+    return false
+  }
+  return (version as String) == "2.0"
+}
+
+fn _validMethod(value: Any) -> Bool {
+  if (not (value is String)) {
+    return false
+  }
+  return (value as String) != ""
+}
+
+fn _validParams(value: Any) -> Bool {
+  return value is List[Any] or value is Map[String, Any]
+}
+
+fn _validRequestId(value: Any) -> Bool {
+  return value is Int or value is String
+}
+
+fn _validResponseId(value: Any) -> Bool {
+  return value == nil or value is Int or value is String
+}
+
+fn _validError(value: Any) -> Bool {
+  if (not (value is Map[String, Any])) {
+    return false
+  }
+  val error = value as Map[String, Any]
+  if (not error.has("code")) {
+    return false
+  }
+  if (not (error["code"] is Int)) {
+    return false
+  }
+  if (not error.has("message")) {
+    return false
+  }
+  return error["message"] is String
+}

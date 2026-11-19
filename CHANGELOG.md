@@ -7,6 +7,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **Protocolo stdio em Lox puro** ([ADR-0113](docs/adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)):
+  `std.jsonrpc` valida e constrói envelopes JSON-RPC 2.0; `std.framing` lê e escreve
+  `Content-Length` sobre um reader injetado, contando bytes UTF-8 e com caps de 8 KiB/16 MiB;
+  `std.documents` guarda documentos full sync com URI opaca e versão crescente. `std.json`
+  ganhou `parseResult`/`JsonResult` (separa `null` de JSON malformado) e o harness
+  `tests/test_protocol_lox.py` fala o protocolo com stdin binário real; os três módulos
+  entram no diferencial (t3).
+
 - **Servidor MCP** ([ADR-0112](docs/adr/0112-mcp-servidor-stdio.md)): `loxia mcp` e
   `loxia-mcp` falam MCP 2026-07-28 modern-only em stdio, sem dependência; tools
   `loxia_check`, `loxia_run`, `loxia_ast`, `loxia_spec`, `loxia_explain` e
@@ -70,6 +78,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **Backend: payload `Nil` no `match` de `Result`** ([ADR-0113](docs/adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)):
+  `Result[Nil, E]` passava no `--check` e o lowering nativo falhava com `E4002` ao ligar o
+  payload `nil` do braço. O braço agora usa um slot dummy e carrega `Value(NIL)`; regressão
+  em `tests/cases/result_nil.lx` (l6).
 - **Backend: `this` lexical em lambdas e funções locais** (ADR-0022): o receptor agora é
   capturado em célula quando uma função interna o usa, cobrindo lambda direto, closure
   retornada e função local (`tests/cases/this_in_lambda.lx`). Antes o `--check` passava e

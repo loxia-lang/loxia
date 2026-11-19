@@ -16,6 +16,10 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 - **Site no ar**: <https://loxia-lang.github.io/loxia/> ([#4](https://github.com/loxia-lang/loxia/issues/4)).
 - **LSP sem as lacunas P1**: completion herdada, signature importado/herdado, `inlayHint` e
   rename cross-file semântico ([#7](https://github.com/loxia-lang/loxia/issues/7)).
+- **Protocolo stdio em Lox puro**: `std.jsonrpc`, `std.framing` e `std.documents`, com
+  `std.json.parseResult`, harness de transcrição e diferencial nos dois motores
+  ([#9](https://github.com/loxia-lang/loxia/issues/9), [ADR-0113](adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)).
+  O servidor LSP continua Python; `std/lsp` só nasce com política de servidor.
 
 ## Agora (Now)
 
@@ -29,7 +33,6 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 ## Próximo (Next)
 
-- `std/lsp` framing em Lox puro ([#9](https://github.com/loxia-lang/loxia/issues/9)).
 - Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)).
 - `loxia add`/`remove` depois de um writer de TOML ([#8](https://github.com/loxia-lang/loxia/issues/8), bloqueada).
 - Corpus de conformidade como artefato `lox-core` ([#10](https://github.com/loxia-lang/loxia/issues/10)).

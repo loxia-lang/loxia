@@ -20,12 +20,15 @@
 - [std.contracts](https://loxia-lang.github.io/loxia/stdlib/contracts/): Design by contract as a library: precondition, postcondition and invariant checks.
 - [std.convert](https://loxia-lang.github.io/loxia/stdlib/convert/): Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes.
 - [std.csv](https://loxia-lang.github.io/loxia/stdlib/csv/): RFC 4180 CSV parsing and serialization, with CRLF output.
+- [std.documents](https://loxia-lang.github.io/loxia/stdlib/documents/): Full-sync document store: opaque URIs, versions and text, without JSON or I/O.
 - [std.fmt](https://loxia-lang.github.io/loxia/stdlib/fmt/): Locale-free formatting helpers (templates, padding, numbers, byte sizes).
+- [std.framing](https://loxia-lang.github.io/loxia/stdlib/framing/): Content-Length framing over an injected byte reader; stdin/stdout only at the edge.
 - [std.fs](https://loxia-lang.github.io/loxia/stdlib/fs/): File reading and writing. Ambient: outside the I1 corpus.
 - [std.hash](https://loxia-lang.github.io/loxia/stdlib/hash/): Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes.
 - [std.io](https://loxia-lang.github.io/loxia/stdlib/io/): Standard input/output. The read functions are ambient where they block.
 - [std.iter](https://loxia-lang.github.io/loxia/stdlib/iter/): Iteration helpers (enumerate, zip, sum, contains, Step).
 - [std.json](https://loxia-lang.github.io/loxia/stdlib/json/): RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.
+- [std.jsonrpc](https://loxia-lang.github.io/loxia/stdlib/jsonrpc/): JSON-RPC 2.0 envelopes: validation, construction, error codes and Map messages.
 - [std.lists](https://loxia-lang.github.io/loxia/stdlib/lists/): Generic list combinators; every function leaves the input unchanged.
 - [std.log](https://loxia-lang.github.io/loxia/stdlib/log/): Leveled logging to stderr, without timestamps.
 - [std.maps](https://loxia-lang.github.io/loxia/stdlib/maps/): Helpers for Map[String, V] that preserve insertion order.

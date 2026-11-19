@@ -1024,3 +1024,21 @@ existente e o perfil `--sandbox` no `run`; a spec e a stdlib não mudaram.
   mudou; o sandbox reusa `R1000`.
 
 <!-- triaged: 1982773 -->
+
+## 2026-11-19 — protocolo stdio: `std.jsonrpc`, `std.framing` e `std.documents` (ADR-0113)
+
+Intervalo: `23bd1d3`..working tree. A stdlib ganhou os três módulos de protocolo, o
+`std.json.parseResult`/`JsonResult` e a correção do lowering de `Result[Nil, E]`; o
+harness de transcrição usa stdin binário real e os casos entram no diferencial.
+
+- `docs/stdlib/jsonrpc.md`, `docs/stdlib/framing.md`, `docs/stdlib/documents.md` — **new**:
+  API e contrato de cada módulo, gerados dos doc comments.
+- `docs/stdlib/json.md` — **updated**: enum `JsonResult`, `parseResult` e os helpers
+  `isOk`/`value`/`error`.
+- `docs/stdlib/index.md`, `docs/decisoes.md`, `docs/roadmap.md`, `docs/spec/garantias.md`
+  — **updated**: catálogo de módulos, decisão, status e bloco de níveis gerado.
+- `docs/spec/erros.md`, `docs/spec/semantica.md`, `docs/stdlib/builtins.md` — **no-change**:
+  candidatas pré-existentes de #39/#40; nenhum código de diagnóstico, regra semântica da
+  linguagem ou builtin mudou neste trabalho.
+
+<!-- triaged: 23bd1d3 -->
