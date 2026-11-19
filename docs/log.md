@@ -1061,3 +1061,22 @@ linguagem não mudaram.
   índice, decisão, status, arquitetura e release notes.
 
 <!-- triaged: b4d33a3 -->
+
+## 2026-11-19 — corpus e benchmarks públicos: artefatos adiados (ADR-0115/0116, issues #10/#13)
+
+Intervalo: `20630d5`..working tree. A #10 e a #13 foram fechadas como *not planned*; a
+extração do corpus `lox-core` e a publicação da suíte de benchmarks saíram de **Next** para
+**Later**; nenhum código, semântica ou garantia mudou.
+
+- `docs/adr/0115-corpus-de-conformidade-adiado.md`,
+  `docs/adr/0116-benchmarks-publicos-adiados.md` — **new**: decisão, gatilho, custos e
+  alternativas de cada artefato.
+- `docs/roadmap.md` — **updated**: #10 e #13 saem de Next e entram em Later com os gatilhos.
+- `docs/decisoes.md` — **updated**: linhas do corpus de conformidade e dos benchmarks
+  públicos em Processo e escopo.
+- `docs/adr/README.md`, `docs/adr/0107-adiados-e-nao-objetivos.md` — **updated**: índice,
+  regra de adiados e referências cruzadas para os ADRs próprios.
+- `docs/spec/` — **no-change**: I1–I4, corpus declarado, orçamentos, semântica e a seção
+  "Speed" intactos; são artefatos de release, não comportamento observável.
+
+<!-- triaged: 20630d5 -->

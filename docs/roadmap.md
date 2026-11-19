@@ -2,7 +2,8 @@
 
 Esta é a página para responder **"o que vem agora?"**. O detalhe executável vive nas
 issues; ideias em [Discussions › Ideas](https://github.com/loxia-lang/loxia/discussions/categories/ideas);
-decisões adiadas no [ADR-0107](adr/0107-adiados-e-nao-objetivos.md). Este arquivo é
+decisões adiadas no [ADR-0107](adr/0107-adiados-e-nao-objetivos.md) (linguagem/runtime)
+ou no ADR próprio (processo/release). Este arquivo é
 narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone).
 
 ## Onde estamos (2026-11-19)
@@ -39,14 +40,18 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
   (fases 1–4; inspirado no pyrefly, sem herdar código Rust).
 - Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)).
 - `loxia add`/`remove` depois de um writer de TOML ([#8](https://github.com/loxia-lang/loxia/issues/8), bloqueada).
-- Corpus de conformidade como artefato `lox-core` ([#10](https://github.com/loxia-lang/loxia/issues/10)).
 - Lacunas do runner de testes: `--json`, cobertura e localização de falha ([#11](https://github.com/loxia-lang/loxia/issues/11)).
 - Primeiro programa real + tutorial/cookbook ([#12](https://github.com/loxia-lang/loxia/issues/12)).
-- Suíte pública de benchmarks ([#13](https://github.com/loxia-lang/loxia/issues/13)).
 
 ## Depois (Later)
 
 - Self-hosting do `loxia fmt` (começar pelo formatter), depois do `fs.open`.
+- Corpus de conformidade como artefato `lox-core` ([#10](https://github.com/loxia-lang/loxia/issues/10)):
+  adiado até existir spec `lox-core` publicada e implementação externa pedindo
+  ([ADR-0115](adr/0115-corpus-de-conformidade-adiado.md)).
+- Suíte pública de benchmarks ([#13](https://github.com/loxia-lang/loxia/issues/13)):
+  adiada até um release em que performance faça parte da mensagem e existir protocolo
+  reprodutível + consumidor ([ADR-0116](adr/0116-benchmarks-publicos-adiados.md)).
 - `REPL :type`, gerador de release notes em Loxia, tree-sitter e snapshot de AST.
 - `net`, registry de pacotes e bindgen TOML: só com o gatilho da thread de Ideas.
 - Playground WASM, debugger DAP e hot reload: ideias em Discussions.
