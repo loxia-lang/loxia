@@ -1,0 +1,22 @@
+# std.contracts + std.property: the contract is the oracle of the generated inputs.
+from std.contracts import checkInvariant
+from std.lists import sort
+from std.property import forAll, intRange, listOf
+
+fn isSorted(xs: List[Int]) -> Bool {
+  var i = 1
+  while (i < len(xs)) {
+    if (xs[i - 1] > xs[i]) {
+      return false
+    }
+    i = i + 1
+  }
+  return true
+}
+
+forAll(listOf(intRange(0, 9), 5), fn(xs: List[Int]) {
+  val sorted = sort(xs, fn(a: Int, b: Int) => a - b)
+  checkInvariant(isSorted(sorted), "sort: result is sorted")
+  checkInvariant(len(sorted) == len(xs), "sort: length preserved")
+})
+print("property ok")  # expect: property ok

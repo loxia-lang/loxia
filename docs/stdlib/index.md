@@ -16,6 +16,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.asserts`](asserts.md) | Explicit failures for tests and contracts. Every helper raises `RuntimeError`. |
 | [`std.cli`](cli.md) | Deterministic command-line parsing from a declarative spec. |
 | [`std.collections`](collections.md) | Stack, Queue, Deque and PriorityQueue, backed by lists. |
+| [`std.contracts`](contracts.md) | Design by contract as a library: precondition, postcondition and invariant checks. |
 | [`std.convert`](convert.md) | Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes. |
 | [`std.csv`](csv.md) | RFC 4180 CSV parsing and serialization, with CRLF output. |
 | [`std.fmt`](fmt.md) | Locale-free formatting helpers (templates, padding, numbers, byte sizes). |

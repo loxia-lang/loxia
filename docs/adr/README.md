@@ -157,14 +157,15 @@ TODO item.
 | [0105](0105-dependencias-git.md) | Git dependencies: pinned `rev`, bare mirror, clean checkout and offline fetch | accepted (implemented) | 2026-11-17 |
 | [0106](0106-scaffolding-new-init.md) | Scaffolding: `loxia new`/`init`, minimal template, git and name rules | accepted (implemented) | 2026-11-17 |
 | [0107](0107-adiados-e-nao-objetivos.md) | Deferred and non-goals: consolidated reopen triggers | accepted (consolidation) | 2026-11-18 |
+| [0108](0108-contratos-como-biblioteca.md) | Contracts as a library: `std.contracts`, no syntax yet | accepted (library implemented; adoption pending) | 2026-11-18 |
 
 
 ## Next decisions that call for an ADR
 
 Open decisions have an issue labeled `decision`; the ADR is written when the issue closes.
 
-- contracts/DbC — [#14](https://github.com/loxia-lang/loxia/issues/14), with the
-  [ADR-0066](0066-orcamento-e-gate-sintatico.md) syntax gate;
+- contracts/DbC — decided as a library in [ADR-0108](0108-contratos-como-biblioteca.md);
+  the syntax remains deferred with triggers (issue #14 closes with this ADR);
 - `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16);
 - AST generator — [#15](https://github.com/loxia-lang/loxia/issues/15).
 

@@ -12,8 +12,8 @@ from loxia_core.backend.lower_model import (
     _BOOL,
     _FLOAT,
     _I8_PTR,
+    _I32,
     _INT,
-    _VOID,
     ANY_TAG_BOOL,
     ANY_TAG_CLASS,
     ANY_TAG_ENUM,
@@ -149,8 +149,6 @@ class OptionalLowering(LoweringBase):
                     param_descs.append(TypeDesc(ValueType.LIST))
                 else:
                     desc = self._type_desc(param, line)
-                    if desc.ty is ValueType.NIL:
-                        raise _unsupported("A Nil parameter", line)
                     param_descs.append(desc)
             ret = self._type_desc(ty.ret, line)
             return TypeDesc(
@@ -193,7 +191,9 @@ class OptionalLowering(LoweringBase):
             case ValueType.ANY:
                 return _ANY
             case ValueType.NIL:
-                return _VOID
+                # `nil` não tem payload, mas precisa de um slot concreto para
+                # parâmetros, locais e phis. O valor lógico continua `NIL`.
+                return _I32
 
     def _expr_type_desc(self, expr: Expr, line: int | None) -> TypeDesc:
         ty = self.types.get(expr)

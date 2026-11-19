@@ -1,0 +1,8 @@
+# `nil` as a local value (no annotation) keeps the Nil type in both engines.
+val a = nil
+print(a == nil)
+if (a == nil) {
+  print("both nil")
+}
+# expect: true
+# expect: both nil

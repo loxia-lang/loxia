@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.contracts — design by contract as a library (no syntax).
+#
+# Contracts are cooperative: the function calls `require`/`ensure`/`checkInvariant`
+# (or the `check*` helpers) explicitly. `old` is a local captured before the mutation;
+# `result` is the parameter of the postcondition closure. `ContractError` is not a
+# `RuntimeError`, so `except RuntimeError` does not swallow a violated contract.
+
+/// Error raised when a precondition, postcondition or invariant is violated.
+///
+/// It extends `Exception`, not `RuntimeError`: a contract violation is a programming
+/// bug and must be caught explicitly (`except ContractError`) or terminate the program.
+class ContractError(Exception) {
+  /// Creates the error with the message shown in the diagnostic.
+  init(message: String) {
+    this.message = message
+  }
+}
+
+/// Requires `condition`; raises `ContractError(message)` when it is false.
+///
+/// Use it at the top of a function or method. The default message is
+/// `precondition failed`; prefer a message that names the function and the condition.
+fn require(condition: Bool, message: String = "precondition failed") -> Nil {
+  if (not condition) {
+    raise ContractError(message)
+  }
+}
+
+/// Ensures `condition`; raises `ContractError(message)` when it is false.
+///
+/// Use it after the body computed `result`, before returning. For single-exit functions
+/// prefer `check`, which evaluates the postcondition automatically.
+fn ensure(condition: Bool, message: String = "postcondition failed") -> Nil {
+  if (not condition) {
+    raise ContractError(message)
+  }
+}
+
+/// Checks an invariant; raises `ContractError(message)` when it is false.
+///
+/// Invariants are cooperative: fields are public, so this checks only the points where
+/// the code calls it (typically the end of `init` and the boundary of public methods).
+fn checkInvariant(condition: Bool, message: String = "invariant violated") -> Nil {
+  if (not condition) {
+    raise ContractError(message)
+  }
+}
+
+/// Runs `body` between `pre` and `post`, returning its result.
+///
+/// `pre` is evaluated before the body; when it is false, the body is not executed.
+/// `post` receives the result and is evaluated only when the body returns normally.
+/// If the body raises, the postcondition is not evaluated.
+///
+/// The `old` value is a local captured before the call; pass a closure that reads it.
+fn check[T](
+  name: String,
+  pre: fn() -> Bool,
+  body: fn() -> T,
+  post: fn(T) -> Bool
+) -> T {
+  require(pre(), "${name}: precondition failed")
+  val result = body()
+  ensure(post(result), "${name}: postcondition failed")
+  return result
+}
+
+/// Like `check`, but for a method with an explicit receiver.
+///
+/// The receiver is passed as `self` instead of being captured as `this`; that keeps the
+/// closure independent from the method frame and works in both engines. The predicates
+/// take the receiver as their first parameter.
+fn checkMethod[T, R](
+  name: String,
+  self: T,
+  pre: fn(T) -> Bool,
+  body: fn(T) -> R,
+  post: fn(T, R) -> Bool
+) -> R {
+  require(pre(self), "${name}: precondition failed")
+  val result = body(self)
+  ensure(post(self, result), "${name}: postcondition failed")
+  return result
+}
+
+/// Like `check`, but for a function returning `Nil`.
+///
+/// The postcondition takes no result parameter, which reads better for procedures and
+/// avoids the dummy `Nil` argument that `check` would need.
+fn checkVoid(
+  name: String,
+  pre: fn() -> Bool,
+  body: fn() -> Nil,
+  post: fn() -> Bool
+) -> Nil {
+  require(pre(), "${name}: precondition failed")
+  body()
+  ensure(post(), "${name}: postcondition failed")
+}
+
+/// Like `checkMethod`, but for a method returning `Nil`.
+fn checkMethodVoid[T](
+  name: String,
+  self: T,
+  pre: fn(T) -> Bool,
+  body: fn(T) -> Nil,
+  post: fn(T) -> Bool
+) -> Nil {
+  require(pre(self), "${name}: precondition failed")
+  body(self)
+  ensure(post(self), "${name}: postcondition failed")
+}

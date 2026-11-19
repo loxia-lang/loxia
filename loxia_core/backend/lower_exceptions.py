@@ -190,13 +190,25 @@ class ExceptionLowering(LoweringBase):
             previous_handler = self._handler_exception
             self._handler_exception = exception
             try:
-                binding = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
-                self._bind_handler_exception(exception, binding)
-                self._scopes[-1][clause.binding.lexeme] = Binding(
-                    binding,
-                    ValueType.INSTANCE,
-                    class_name=clause.type_name.lexeme,
-                )
+                binding_desc = TypeDesc(ValueType.INSTANCE, class_name=clause.type_name.lexeme)
+                if self._analysis.is_captured(clause.binding):
+                    cell = self._alloc_cell()
+                    self._bind_handler_exception(exception, self._cell_pointer(cell, binding_desc))
+                    handler_binding = Binding(
+                        cell,
+                        ValueType.INSTANCE,
+                        cell=True,
+                        class_name=clause.type_name.lexeme,
+                    )
+                else:
+                    slot = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
+                    self._bind_handler_exception(exception, slot)
+                    handler_binding = Binding(
+                        slot,
+                        ValueType.INSTANCE,
+                        class_name=clause.type_name.lexeme,
+                    )
+                self._scopes[-1][clause.binding.lexeme] = handler_binding
                 for statement in clause.body:
                     if self.builder.block.is_terminated:
                         break
