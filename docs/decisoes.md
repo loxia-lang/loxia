@@ -152,6 +152,7 @@ decisão.
 | Corpus de conformidade | Não extrair agora: o corpus interno é o oráculo do I1 (ADR-0064), não um contrato externo; o artefato `lox-core` exige spec publicada e demanda externa. #10 fechada como *not planned*; a fase 1 da issue fica como plano para o gatilho. | [ADR-0115](adr/0115-corpus-de-conformidade-adiado.md) |
 | Benchmarks públicos | Não publicar agora: o `bench/` é harness local de regressão (baseline por máquina) e as garantias não prometem speed; a suíte pública exige protocolo (hardware/flags/aquecimento/N/dispersão) e um release com performance na mensagem. #13 fechada como *not planned*. | [ADR-0116](adr/0116-benchmarks-publicos-adiados.md) |
 | AST manual | Sem schema/codegen: `AstPrinter` herda os protocols (o mypy cobre os 40 `visit_*`), todo nó herda `Expr`/`Stmt` e `tests/test_ast_hierarchy.py` trava a hierarquia. Gerador reabre com 3+ nós/ciclo ou um 5º visitante. | [ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md) |
+| TOML e edição do manifest | TOML tem dois usos: **dados** (parse + write canônico, candidato a `std.toml` via spike com corpus de paridade) e **edição preservando comentário**, que fica na ferramenta — `loxia add`/`remove` usam editor escopado com re-parse antes de gravar, sem rede (`--lock` opt-in), no-op idempotente e `C0003` para forma não editável. O subconjunto exclui datas e `inf`/`nan` (irrepresentáveis na linguagem). | [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md) |
 
 ## O que ainda não está aqui
 
@@ -184,7 +185,7 @@ checkout limpo em `.loxia/cache` (`--cache-dir` troca), `loxia fetch` materializ
 [`roadmap.md`](roadmap.md) e espera um terceiro publicando. O [ADR-0106](adr/0106-scaffolding-new-init.md) fechou o
 scaffolding: `loxia new NAME`/`loxia init [DIR]` criam `loxia.toml`, `.gitignore`,
 `src/main.lx` e um `loxia.lock` vazio, com `git init` por padrão (`--no-git` desliga, sem
-repo aninhado), nome normalizado/`--name` e `--json`; `loxia add` fica para depois de um
-writer de TOML (hoje fora do escopo da stdlib) e o registry segue a fase 3.
+repo aninhado), nome normalizado/`--name` e `--json`; `loxia add`/`remove` entram com um
+editor escopado de manifest (sem TOML novo na stdlib, [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md)) e o registry segue a fase 3.
 
 `std.lists.sort` usa comparador de três vias e é estável, retornando lista nova; `sortNatural[T: Ord]` cobre a ordenação natural ([ADR-0081](adr/0081-constraints-generics.md)); `sortBy`/`groupBy` ficam pós-MVP ([ADR-0076](adr/0076-std-lists-sort.md)).
