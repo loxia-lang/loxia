@@ -23,7 +23,7 @@ from loxia.completion import enclosing_context as completion_context
 from loxia.completion import superclass_name as completion_superclass
 from loxia.engine import Loxia
 from loxia.formatter import format_source
-from loxia.rename import semantic_rename, semantic_target
+from loxia.rename import semantic_references, semantic_rename, semantic_target
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
 from loxia.symbols import Symbol, SymbolIndex, token_key
 from loxia_core.diagnostics.diagnostic import (
@@ -48,7 +48,17 @@ from loxia_core.frontend.stmt import (
 )
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.ty import display
+from loxia_core.frontend.ty import (
+    ClassObjectTy,
+    ClassTy,
+    EnumObjectTy,
+    EnumTy,
+    InterfaceTy,
+    Ty,
+    UnionTy,
+    display,
+)
+from loxia_core.semantics.resolver import Resolver
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
@@ -116,6 +126,49 @@ SYMBOL_KINDS = {
     "type": 26,
     "variant": 22,
 }
+
+# Toda request atendida precisa estar aqui; o teste de drift compara este conjunto com
+# as capabilities anunciadas no initialize.
+REQUEST_METHODS = frozenset(
+    {
+        "initialize",
+        "shutdown",
+        "textDocument/documentSymbol",
+        "textDocument/hover",
+        "textDocument/definition",
+        "textDocument/references",
+        "textDocument/documentHighlight",
+        "textDocument/typeDefinition",
+        "textDocument/implementation",
+        "textDocument/completion",
+        "textDocument/signatureHelp",
+        "textDocument/formatting",
+        "workspace/symbol",
+        "workspace/willRenameFiles",
+        "textDocument/codeAction",
+        "textDocument/prepareRename",
+        "textDocument/rename",
+        "textDocument/inlayHint",
+        "textDocument/semanticTokens/full",
+        "textDocument/prepareTypeHierarchy",
+        "typeHierarchy/supertypes",
+        "typeHierarchy/subtypes",
+    }
+)
+
+_UNNECESSARY_CODES = frozenset({"W1001", "W1002"})
+
+
+@dataclass(frozen=True)
+class TypeDecl:
+    """Declaração de tipo top-level de um módulo, para hierarquia e implementação."""
+
+    name: str
+    kind: str
+    path: Path
+    token: Token
+    superclass: str | None = None
+    interfaces: tuple[str, ...] = ()
 
 
 @dataclass
@@ -216,6 +269,202 @@ def _token_range(token: Token, source: str) -> dict[str, object]:
     return {"start": start, "end": end}
 
 
+def _offset_range(source: str, offset: int, identifier: str) -> dict[str, object]:
+    """Range UTF-16 de um identificador a partir do offset em bytes (como o rename)."""
+    start = _position_at(source, offset)
+    end_offset = offset + len(identifier.encode("utf-8"))
+    end = _position_at(source, end_offset)
+    return {"start": start, "end": end}
+
+
+def _offset_span(source: str, start_offset: int, end_offset: int) -> dict[str, object]:
+    return {
+        "start": _position_at(source, start_offset),
+        "end": _position_at(source, end_offset),
+    }
+
+
+def _position_at(source: str, offset: int) -> dict[str, int]:
+    data = source.encode("utf-8")
+    prefix = data[:offset].decode("utf-8")
+    line = prefix.count("\n")
+    last = prefix.rsplit("\n", 1)[-1]
+    return {"line": line, "character": len(last.encode("utf-16-le")) // 2}
+
+
+def _module_of(path: Path, root: Path) -> tuple[str, ...] | None:
+    try:
+        relative = path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return None
+    if relative.suffix == ".lx":
+        relative = relative.with_suffix("")
+    parts = tuple(part for part in relative.parts if part not in {"", "."})
+    return parts or None
+
+
+def _rewrite_module(
+    module: tuple[str, ...], renames: list[tuple[tuple[str, ...], tuple[str, ...]]]
+) -> tuple[str, ...] | None:
+    best: tuple[int, tuple[str, ...], tuple[str, ...]] | None = None
+    for old, new in renames:
+        if len(old) == 0 or module[: len(old)] != old:
+            continue
+        if best is None or len(old) > best[0]:
+            best = (len(old), old, new)
+    if best is None:
+        return None
+    _, old, new = best
+    return new + module[len(old) :]
+
+
+def _kind_matches(requested: str, kind: str) -> bool:
+    return kind == requested or kind.startswith(requested + ".")
+
+
+def _range_key(value: object) -> tuple[tuple[int, int], tuple[int, int]]:
+    if not isinstance(value, dict):
+        return ((0, 0), (0, 0))
+    start = value.get("start")
+    end = value.get("end")
+    if not isinstance(start, dict) or not isinstance(end, dict):
+        return ((0, 0), (0, 0))
+    start_line = start.get("line")
+    start_character = start.get("character")
+    end_line = end.get("line")
+    end_character = end.get("character")
+    return (
+        (
+            start_line if isinstance(start_line, int) else 0,
+            start_character if isinstance(start_character, int) else 0,
+        ),
+        (
+            end_line if isinstance(end_line, int) else 0,
+            end_character if isinstance(end_character, int) else 0,
+        ),
+    )
+
+
+def _type_names(ty: Ty | None) -> list[str]:
+    if isinstance(ty, (ClassTy, EnumTy, EnumObjectTy, ClassObjectTy, InterfaceTy)):
+        # O loader reescreve nomes importados para ``modulo$Nome``; a declaração no
+        # workspace usa o nome público.
+        return [ty.name.rsplit("$", 1)[-1]]
+    if isinstance(ty, UnionTy):
+        names: list[str] = []
+        for member in ty.members:
+            for name in _type_names(member):
+                if name not in names:
+                    names.append(name)
+        return names
+    return []
+
+
+def _type_declarations_of(statements: list[Stmt], path: Path) -> list[TypeDecl]:
+    declarations: list[TypeDecl] = []
+    for statement in statements:
+        if isinstance(statement, Class):
+            superclass = statement.superclass.name.lexeme if statement.superclass else None
+            declarations.append(
+                TypeDecl(
+                    name=statement.name.lexeme,
+                    kind="class",
+                    path=path,
+                    token=statement.name,
+                    superclass=superclass,
+                    interfaces=tuple(item.lexeme for item in statement.implements),
+                )
+            )
+        elif isinstance(statement, Interface):
+            declarations.append(
+                TypeDecl(
+                    name=statement.name.lexeme,
+                    kind="interface",
+                    path=path,
+                    token=statement.name,
+                )
+            )
+        elif isinstance(statement, EnumDecl):
+            declarations.append(
+                TypeDecl(
+                    name=statement.name.lexeme,
+                    kind="enum",
+                    path=path,
+                    token=statement.name,
+                )
+            )
+    return declarations
+
+
+def _find_type(name: str, declarations: list[TypeDecl], preferred: Path | None) -> TypeDecl | None:
+    same_file = [
+        item
+        for item in declarations
+        if item.name == name
+        and preferred is not None
+        and item.path.resolve() == preferred.resolve()
+    ]
+    if same_file:
+        return same_file[0]
+    matches = [item for item in declarations if item.name == name]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _subtypes(declaration: TypeDecl, declarations: list[TypeDecl]) -> list[TypeDecl]:
+    if declaration.kind == "interface":
+        found = [
+            item
+            for item in declarations
+            if item.kind == "class" and declaration.name in item.interfaces
+        ]
+    elif declaration.kind == "class":
+        found = [
+            item
+            for item in declarations
+            if item.kind == "class" and item.superclass == declaration.name
+        ]
+    else:
+        return []
+    unique: dict[tuple[Path, int], TypeDecl] = {}
+    for item in found:
+        unique.setdefault((item.path.resolve(), item.token.offset), item)
+    return list(unique.values())
+
+
+def _implementors(declaration: TypeDecl, declarations: list[TypeDecl]) -> list[TypeDecl]:
+    """Classes que implementam a interface, direta ou herdando de quem implementa."""
+    if declaration.kind != "interface":
+        return _subtypes(declaration, declarations)
+    found: list[TypeDecl] = []
+    names = {declaration.name}
+    changed = True
+    while changed:
+        changed = False
+        for item in declarations:
+            if item.kind != "class" or item in found:
+                continue
+            implements = declaration.name in item.interfaces
+            inherited = item.superclass is not None and item.superclass in names
+            if implements or inherited:
+                found.append(item)
+                names.add(item.name)
+                changed = True
+    return found
+
+
+def _type_hierarchy_item(declaration: TypeDecl, source: str) -> dict[str, object]:
+    rng = _token_range(declaration.token, source)
+    return {
+        "name": declaration.name,
+        "kind": SYMBOL_KINDS.get(declaration.kind, 5),
+        "uri": _path_to_uri(declaration.path),
+        "range": rng,
+        "selectionRange": rng,
+        "detail": declaration.kind,
+        "data": {"name": declaration.name, "path": str(declaration.path)},
+    }
+
+
 def _severity(severity: Severity) -> int:
     return 1 if severity is Severity.ERROR else 2
 
@@ -228,6 +477,7 @@ class Server:
         self.indexes: dict[str, SymbolIndex] = {}
         self.source_maps: dict[str, object] = {}
         self.clean: dict[str, bool] = {}
+        self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
         self.shutdown = False
         self.inlay_hints = True
@@ -262,6 +512,9 @@ class Server:
 
     def _request(self, message: dict[str, Any], method: str) -> None:
         message_id = message.get("id")
+        if method not in REQUEST_METHODS:
+            _send(self.stdout, _error(message_id, -32601, f"Method not found: {method}"))
+            return
         if method == "initialize":
             params = message.get("params")
             if isinstance(params, dict):
@@ -278,6 +531,11 @@ class Server:
                             "textDocumentSync": 1,
                             "hoverProvider": True,
                             "definitionProvider": True,
+                            "referencesProvider": True,
+                            "documentHighlightProvider": True,
+                            "typeDefinitionProvider": True,
+                            "implementationProvider": True,
+                            "typeHierarchyProvider": True,
                             "workspaceSymbolProvider": True,
                             "renameProvider": {"prepareProvider": True},
                             "documentSymbolProvider": True,
@@ -287,7 +545,13 @@ class Server:
                             },
                             "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                             "documentFormattingProvider": True,
-                            "codeActionProvider": True,
+                            "codeActionProvider": {
+                                "codeActionKinds": [
+                                    "quickfix",
+                                    "source.fixAll",
+                                    "source.fixAll.loxia",
+                                ]
+                            },
                             "inlayHintProvider": True,
                             "semanticTokensProvider": {
                                 "legend": {
@@ -296,9 +560,10 @@ class Server:
                                 },
                                 "full": True,
                             },
-                            "diagnosticProvider": {
-                                "interFileDependencies": False,
-                                "workspaceDiagnostics": False,
+                            "workspace": {
+                                "fileOperations": {
+                                    "willRename": {"filters": [{"pattern": {"glob": "**/*.lx"}}]}
+                                }
                             },
                         },
                         "serverInfo": {
@@ -330,6 +595,52 @@ class Server:
             _send(self.stdout, _response(message_id, self._definition(message)))
             return
 
+        if method == "textDocument/references":
+            _send(self.stdout, _response(message_id, self._references(message)))
+            return
+
+        if method == "textDocument/documentHighlight":
+            _send(
+                self.stdout,
+                _response(message_id, self._document_highlight(message)),
+            )
+            return
+
+        if method == "textDocument/typeDefinition":
+            _send(
+                self.stdout,
+                _response(message_id, self._type_definition(message)),
+            )
+            return
+
+        if method == "textDocument/implementation":
+            _send(
+                self.stdout,
+                _response(message_id, self._implementation(message)),
+            )
+            return
+
+        if method == "textDocument/prepareTypeHierarchy":
+            _send(
+                self.stdout,
+                _response(message_id, self._prepare_type_hierarchy(message)),
+            )
+            return
+
+        if method == "typeHierarchy/supertypes":
+            _send(
+                self.stdout,
+                _response(message_id, self._type_hierarchy_supertypes(message)),
+            )
+            return
+
+        if method == "typeHierarchy/subtypes":
+            _send(
+                self.stdout,
+                _response(message_id, self._type_hierarchy_subtypes(message)),
+            )
+            return
+
         if method == "textDocument/completion":
             _send(self.stdout, _response(message_id, self._completion(message)))
             return
@@ -349,6 +660,13 @@ class Server:
             _send(
                 self.stdout,
                 _response(message_id, self._workspace_symbols(message)),
+            )
+            return
+
+        if method == "workspace/willRenameFiles":
+            _send(
+                self.stdout,
+                _response(message_id, self._will_rename_files(message)),
             )
             return
 
@@ -411,8 +729,9 @@ class Server:
             document = params.get("textDocument")
             if isinstance(document, dict) and isinstance(document.get("uri"), str):
                 uri = document["uri"]
-                self.documents.pop(uri, None)
+                closed = self.documents.pop(uri, None)
                 self.indexes.pop(uri, None)
+                self.dependencies.pop(uri, None)
                 _send(
                     self.stdout,
                     _notification(
@@ -420,6 +739,8 @@ class Server:
                         {"uri": uri, "diagnostics": []},
                     ),
                 )
+                if closed is not None and closed.path is not None:
+                    self._recheck_dependents(closed.path, skip_uri=uri)
 
     # -- documentos ------------------------------------------------------
 
@@ -459,6 +780,22 @@ class Server:
             current.version = version
         self.indexes.pop(uri, None)
         self._publish_by_uri(uri)
+        if current.path is not None:
+            self._recheck_dependents(current.path, skip_uri=uri)
+
+    def _recheck_dependents(self, path: Path, *, skip_uri: str) -> None:
+        """Recheca documentos abertos cujo import closure inclui o módulo alterado.
+
+        O loader lê o texto não salvo via `module_overrides` (ADR-0090, limitação
+        declarada); a ordem publica o documento alterado primeiro e os importadores
+        depois, para o editor não mostrar um diagnóstico velho.
+        """
+        changed = path.resolve()
+        for uri, dependencies in list(self.dependencies.items()):
+            if uri == skip_uri or changed not in dependencies:
+                continue
+            self.indexes.pop(uri, None)
+            self._publish_by_uri(uri)
 
     def _publish(self, document: object) -> None:
         if isinstance(document, dict) and isinstance(document.get("uri"), str):
@@ -488,16 +825,31 @@ class Server:
             lox.use_file(display_path(str(document.path)), module_root=document.path.parent)
         else:
             lox.use_file("<lsp>")
-        lox.check(document.text, emit=False)
+        overrides = {
+            current.path.resolve(): current.text
+            for current in self.documents.values()
+            if current.path is not None
+        }
+        lox.check(document.text, emit=False, module_overrides=overrides)
         batch = lox.reporter.batch()
         sources = lox.sources
         self.source_maps[document.uri] = sources
         self.clean[document.uri] = not lox.reporter.had_error
+        self.dependencies[document.uri] = frozenset(lox.watched_files)
+        checker = lox.last_checker
+        resolver = lox.last_resolver
+        statements = lox.last_statements
+        if statements is None and lox.last_recovered_statements:
+            # Erro de sintaxe: o parser recuperou os statements anteriores (ADR-0113).
+            # Sem checker: anotações e assinaturas valem; o corpo não é analisado.
+            statements = lox.last_recovered_statements
+            checker = None
+            resolver = self._resolve_recovered(lox, statements)
         self.indexes[document.uri] = SymbolIndex(
-            lox.last_statements or [],
+            statements or [],
             source=document.text,
-            checker=lox.last_checker,
-            resolver=lox.last_resolver,
+            checker=checker,
+            resolver=resolver,
         )
 
         result: list[dict[str, object]] = []
@@ -511,6 +863,16 @@ class Server:
                 )
             )
         return result
+
+    def _resolve_recovered(self, lox: Loxia, statements: list[Stmt]) -> Resolver | None:
+        """Resolve escopos dos statements recuperados, sem misturar diagnósticos."""
+        reporter = ErrorReporter(max_errors=0)
+        resolver = Resolver(lox.interpreter, reporter, warn_unused=False)
+        try:
+            resolver.resolve(statements)
+        except Exception:
+            return None
+        return resolver
 
     def _diagnostic(
         self,
@@ -607,6 +969,10 @@ class Server:
             "source": "loxia",
             "message": diagnostic.message,
         }
+        if diagnostic.code.value in _UNNECESSARY_CODES:
+            # DiagnosticTag.Unnecessary: o editor apaga/apaga visualmente o nome sem
+            # mudar severidade, mensagem ou exit code do CLI.
+            payload["tags"] = [1]
         if related:
             payload["relatedInformation"] = related
         payload["data"] = data
@@ -890,6 +1256,73 @@ class Server:
             return None
         return {"changes": changes}
 
+    def _will_rename_files(self, message: dict[str, Any]) -> dict[str, object] | None:
+        """`workspace/willRenameFiles`: reescreve imports quando um módulo muda de nome."""
+        if self.root is None:
+            return None
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        files = params.get("files")
+        if not isinstance(files, list):
+            return None
+        renames: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+        for item in files:
+            if not isinstance(item, dict):
+                continue
+            old_uri = item.get("oldUri")
+            new_uri = item.get("newUri")
+            if not isinstance(old_uri, str) or not isinstance(new_uri, str):
+                continue
+            old_path = _uri_to_path(old_uri)
+            new_path = _uri_to_path(new_uri)
+            if old_path is None or new_path is None:
+                continue
+            old_module = _module_of(old_path, self.root)
+            new_module = _module_of(new_path, self.root)
+            if old_module is None or new_module is None or old_module == new_module:
+                continue
+            renames.append((old_module, new_module))
+        if not renames:
+            return None
+
+        changes: dict[str, list[dict[str, object]]] = {}
+        for path, text in self._workspace_files():
+            reporter = ErrorReporter(max_errors=0)
+            try:
+                statements = Parser(
+                    Scanner(text, reporter).scan_tokens(), reporter=reporter
+                ).parse()
+            except Exception:
+                continue
+            if reporter.had_error or statements is None:
+                continue
+            edits: list[dict[str, object]] = []
+            for statement in statements:
+                if not isinstance(statement, Import) or not statement.path:
+                    continue
+                module = tuple(part.lexeme for part in statement.path)
+                replacement = _rewrite_module(module, renames)
+                if replacement is None:
+                    continue
+                first = statement.path[0]
+                last = statement.path[-1]
+                edits.append(
+                    {
+                        "range": _offset_span(
+                            text,
+                            first.offset,
+                            last.offset + len(last.lexeme.encode("utf-8")),
+                        ),
+                        "newText": ".".join(replacement),
+                    }
+                )
+            if edits:
+                changes[_path_to_uri(path)] = edits
+        if not changes:
+            return None
+        return {"changes": changes}
+
     def _document(self, params: dict[str, Any]) -> Document | None:
         text_document = params.get("textDocument")
         if not isinstance(text_document, dict):
@@ -909,9 +1342,18 @@ class Server:
         diagnostics = context.get("diagnostics")
         if not isinstance(diagnostics, list):
             return []
+        raw_only = context.get("only")
+        requested = (
+            [item for item in raw_only if isinstance(item, str)]
+            if isinstance(raw_only, list)
+            else None
+        )
         actions: list[dict[str, object]] = []
         seen: set[tuple[str, str]] = set()
-        for diagnostic in diagnostics:
+        quickfix_allowed = requested is None or any(
+            _kind_matches(kind, "quickfix") for kind in requested
+        )
+        for diagnostic in diagnostics if quickfix_allowed else []:
             if not isinstance(diagnostic, dict):
                 continue
             data = diagnostic.get("data")
@@ -958,7 +1400,70 @@ class Server:
                         "diagnostics": [diagnostic],
                     }
                 )
+
+        if requested is not None and any(
+            _kind_matches(kind, "source.fixAll.loxia") for kind in requested
+        ):
+            document = self._document(params)
+            if document is not None:
+                fix_all = self._fix_all(document)
+                if fix_all is not None:
+                    actions.append(fix_all)
         return actions
+
+    def _fix_all(self, document: Document) -> dict[str, object] | None:
+        """Aplica todos os fixes `safe` do documento como uma edição só."""
+        changes: dict[str, list[dict[str, object]]] = {}
+        for diagnostic in self._diagnostics(document):
+            data = diagnostic.get("data")
+            if not isinstance(data, dict):
+                continue
+            fixes = data.get("fixes")
+            if not isinstance(fixes, list):
+                continue
+            for fix in fixes:
+                if not isinstance(fix, dict) or fix.get("applicability") != "safe":
+                    continue
+                edits = fix.get("edits")
+                if not isinstance(edits, list):
+                    continue
+                for edit in edits:
+                    if not isinstance(edit, dict):
+                        continue
+                    uri = edit.get("uri")
+                    edit_range = edit.get("range")
+                    new_text = edit.get("newText")
+                    if (
+                        not isinstance(uri, str)
+                        or not isinstance(edit_range, dict)
+                        or not isinstance(new_text, str)
+                    ):
+                        continue
+                    changes.setdefault(uri, []).append({"range": edit_range, "newText": new_text})
+        overlaps = False
+        merged: dict[str, list[dict[str, object]]] = {}
+        for uri, entries in changes.items():
+            ordered = sorted(entries, key=lambda item: _range_key(item["range"]))
+            kept: list[dict[str, object]] = []
+            last_end: tuple[int, int] | None = None
+            for entry in ordered:
+                start, end = _range_key(entry["range"])
+                if last_end is not None and start < last_end:
+                    overlaps = True
+                    break
+                kept.append(entry)
+                last_end = end
+            if overlaps:
+                break
+            merged[uri] = kept
+        if overlaps or not merged:
+            return None
+        return {
+            "title": "Fix all safe fixes",
+            "kind": "source.fixAll.loxia",
+            "isPreferred": False,
+            "edit": {"changes": merged},
+        }
 
     # -- hover/definition ------------------------------------------------
 
@@ -1078,6 +1583,290 @@ class Server:
             "uri": target_uri,
             "range": _token_range(symbol.token, target_source),
         }
+
+    # -- referências, tipos e hierarquia ---------------------------------
+
+    def _references(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return []
+        document = self._document(params)
+        if document is None:
+            return []
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return []
+        index = self._index_for(document.uri)
+        if index is None:
+            return []
+        context = params.get("context")
+        include_declaration = True
+        if isinstance(context, dict):
+            include_declaration = context.get("includeDeclaration", True) is not False
+        locations: list[dict[str, object]] = []
+
+        local = self._rename_target(index, token)
+        tokens = self._tokens_by_key(document.text)
+        if local is not None and local[0] in tokens:
+            declaration, occurrences = local
+            for key in sorted(occurrences, key=lambda item: (item[0], item[1], item[2])):
+                found = tokens.get(key)
+                if found is None:
+                    continue
+                if not include_declaration and key == declaration:
+                    continue
+                locations.append({"uri": document.uri, "range": _token_range(found, document.text)})
+        elif self.root is not None and document.path is not None:
+            files = dict(self._workspace_files())
+            references = semantic_references(self.root, files, document.path, token)
+            if references is None:
+                return []
+            declaration_path, declaration_offset = references.declaration
+            for path, offset, name in references.occurrences:
+                if not include_declaration and (
+                    path.resolve() == declaration_path.resolve() and offset == declaration_offset
+                ):
+                    continue
+                text = files.get(path)
+                if text is None:
+                    try:
+                        text = path.read_text(encoding="utf-8")
+                    except OSError:
+                        continue
+                locations.append(
+                    {
+                        "uri": _path_to_uri(path),
+                        "range": _offset_range(text, offset, name),
+                    }
+                )
+
+        locations.sort(
+            key=lambda item: (
+                str(item["uri"]),
+                cast(dict[str, Any], item["range"])["start"]["line"],
+                cast(dict[str, Any], item["range"])["start"]["character"],
+            )
+        )
+        return locations
+
+    def _document_highlight(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return []
+        document = self._document(params)
+        if document is None:
+            return []
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return []
+        index = self._index_for(document.uri)
+        if index is None:
+            return []
+        highlights: list[dict[str, object]] = []
+
+        local = self._rename_target(index, token)
+        tokens = self._tokens_by_key(document.text)
+        if local is not None and local[0] in tokens:
+            declaration, occurrences = local
+            for key in sorted(occurrences, key=lambda item: (item[0], item[1], item[2])):
+                found = tokens.get(key)
+                if found is None:
+                    continue
+                highlights.append(
+                    {
+                        "range": _token_range(found, document.text),
+                        "kind": 3 if key == declaration else 2,
+                    }
+                )
+        elif self.root is not None and document.path is not None:
+            files = dict(self._workspace_files())
+            references = semantic_references(self.root, files, document.path, token)
+            if references is None:
+                return []
+            declaration_path, declaration_offset = references.declaration
+            for path, offset, name in references.occurrences:
+                if path.resolve() != document.path.resolve():
+                    continue
+                highlights.append(
+                    {
+                        "range": _offset_range(document.text, offset, name),
+                        "kind": 3
+                        if offset == declaration_offset
+                        and path.resolve() == declaration_path.resolve()
+                        else 2,
+                    }
+                )
+        return highlights
+
+    def _type_definition(self, message: dict[str, Any]) -> object | None:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        document = self._document(params)
+        if document is None:
+            return None
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return None
+        index = self._index_for(document.uri)
+        if index is None:
+            return None
+        symbol = index.symbol_at(token)
+        ty = index.type_at(token) or (symbol.type if symbol is not None else None)
+        names = _type_names(ty)
+        if not names and symbol is not None:
+            name = symbol.name.rsplit("$", 1)[-1]
+            if symbol.container is None and symbol.kind in {"class", "enum", "interface", "type"}:
+                names = [name]
+        if not names:
+            return None
+        declarations, texts = self._type_declarations()
+        targets: list[dict[str, object]] = []
+        for name in names:
+            declaration = _find_type(name, declarations, document.path)
+            if declaration is None:
+                continue
+            text = texts.get(declaration.path, "")
+            targets.append(
+                {
+                    "uri": _path_to_uri(declaration.path),
+                    "range": _token_range(declaration.token, text),
+                }
+            )
+        if not targets:
+            return None
+        return targets[0] if len(targets) == 1 else targets
+
+    def _implementation(self, message: dict[str, Any]) -> object | None:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        document = self._document(params)
+        if document is None:
+            return None
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return None
+        index = self._index_for(document.uri)
+        if index is None:
+            return None
+        symbol = index.symbol_at(token) or index.reference_target(token)
+        name = symbol.name.rsplit("$", 1)[-1] if symbol is not None else token.lexeme
+        declarations, texts = self._type_declarations()
+        declaration = _find_type(name, declarations, document.path)
+        if declaration is None:
+            return None
+        targets = [
+            {
+                "uri": _path_to_uri(item.path),
+                "range": _token_range(item.token, texts.get(item.path, "")),
+            }
+            for item in _implementors(declaration, declarations)
+        ]
+        if not targets:
+            return None
+        return targets[0] if len(targets) == 1 else targets
+
+    def _prepare_type_hierarchy(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return []
+        document = self._document(params)
+        if document is None:
+            return []
+        token = self._token_at(document, params.get("position"))
+        if token is None:
+            return []
+        declarations, texts = self._type_declarations()
+        declaration = next(
+            (
+                item
+                for item in declarations
+                if document.path is not None
+                and item.path.resolve() == document.path.resolve()
+                and item.token.line == token.line
+                and item.token.column == token.column
+            ),
+            None,
+        )
+        if declaration is None:
+            declaration = _find_type(token.lexeme, declarations, document.path)
+        if declaration is None:
+            return []
+        return [_type_hierarchy_item(declaration, texts.get(declaration.path, ""))]
+
+    def _type_hierarchy_supertypes(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        declaration = self._type_hierarchy_target(message)
+        if declaration is None:
+            return []
+        declarations, texts = self._type_declarations()
+        names = ([declaration.superclass] if declaration.superclass else []) + list(
+            declaration.interfaces
+        )
+        items: list[dict[str, object]] = []
+        for name in names:
+            found = _find_type(name, declarations, declaration.path)
+            if found is not None:
+                items.append(_type_hierarchy_item(found, texts.get(found.path, "")))
+        return items
+
+    def _type_hierarchy_subtypes(self, message: dict[str, Any]) -> list[dict[str, object]]:
+        declaration = self._type_hierarchy_target(message)
+        if declaration is None:
+            return []
+        declarations, texts = self._type_declarations()
+        return [
+            _type_hierarchy_item(item, texts.get(item.path, ""))
+            for item in _subtypes(declaration, declarations)
+        ]
+
+    def _type_hierarchy_target(self, message: dict[str, Any]) -> TypeDecl | None:
+        params = message.get("params")
+        if not isinstance(params, dict):
+            return None
+        item = params.get("item")
+        if not isinstance(item, dict):
+            return None
+        data = item.get("data")
+        name: str | None = None
+        path: Path | None = None
+        if isinstance(data, dict):
+            raw_name = data.get("name")
+            raw_path = data.get("path")
+            if isinstance(raw_name, str):
+                name = raw_name
+            if isinstance(raw_path, str):
+                path = Path(raw_path)
+        if name is None:
+            raw = item.get("name")
+            if isinstance(raw, str):
+                name = raw
+        declarations, _texts = self._type_declarations()
+        if name is None:
+            return None
+        if path is None:
+            return _find_type(name, declarations, None)
+        for declaration in declarations:
+            if declaration.path.resolve() == path.resolve() and declaration.name == name:
+                return declaration
+        return None
+
+    def _type_declarations(self) -> tuple[list[TypeDecl], dict[Path, str]]:
+        declarations: list[TypeDecl] = []
+        texts: dict[Path, str] = {}
+        for path, text in self._workspace_files():
+            texts[path] = text
+            reporter = ErrorReporter(max_errors=0)
+            try:
+                statements = Parser(
+                    Scanner(text, reporter).scan_tokens(), reporter=reporter
+                ).parse()
+            except Exception:
+                continue
+            if reporter.had_error or statements is None:
+                continue
+            declarations.extend(_type_declarations_of(statements, path))
+        return declarations, texts
 
     # -- completion/signature/format/semantic ----------------------------
 

@@ -60,7 +60,7 @@ Packages by phase (dependency only downward):
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
-| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090): JSON-RPC stdio, diagnostics, documentSymbol, hover/definition, completion/signature/inlay hints/formatting/semantic tokens, codeAction, rename, workspace/symbol and settings |
+| [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090/ADR-0114): JSON-RPC stdio, diagnostics (tags), documentSymbol, hover/definition/references/highlight, typeDefinition/implementation, type hierarchy, completion/signature/inlay hints/formatting/semantic tokens, codeAction/fix-all, rename, file rename imports, workspace/symbol, unsaved module overlays and settings |
 | [`loxia/docs_index.py`](../../loxia/docs_index.py) | generated documentation index loader/search (ADR-0111); `loxia/_spec/index.json` is produced by `tools/docs_index.py` |
 | [`loxia/mcp.py`](../../loxia/mcp.py) | MCP stdio modern-only (2026-07-28) over the CLI, sandboxed `run`, tools and CLI parity (ADR-0112) |
 | [`tools/docs_index.py`](../../tools/docs_index.py) | generates the index and `site/public/llms.txt`; `tools/docs_common.py` shares slugs/URLs with the Starlight generator |

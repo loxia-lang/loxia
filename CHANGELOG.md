@@ -7,6 +7,18 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **LSP: navegação, robustez e hierarquia de tipos** ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md),
+  [ADR-0114](docs/adr/0114-ast-recuperada-para-tooling.md); issue
+  [#46](https://github.com/loxia-lang/loxia/issues/46)): `textDocument/references` e
+  `documentHighlight` reusam as referências do resolver e o índice do rename;
+  `typeDefinition`/`implementation` e `typeHierarchy/*` cobrem classes e interfaces;
+  W1001/W1002 ganham `DiagnosticTag.Unnecessary`; `source.fixAll.loxia` aplica os fixes
+  `safe`; a AST recuperada do parser mantém hover/definition no prefixo de um arquivo com
+  erro de sintaxe; buffers não salvos alimentam o loader (importadores rechecados);
+  `workspace/willRenameFiles` reescreve imports; e o `diagnosticProvider` anunciado sem
+  handler de pull foi removido, com teste de drift capability↔handler. Testes em
+  `tests/test_lsp_navigation.py`.
+
 - **Protocolo stdio em Lox puro** ([ADR-0113](docs/adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)):
   `std.jsonrpc` valida e constrói envelopes JSON-RPC 2.0; `std.framing` lê e escreve
   `Content-Length` sobre um reader injetado, contando bytes UTF-8 e com caps de 8 KiB/16 MiB;

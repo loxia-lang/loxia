@@ -7,6 +7,14 @@
 > abaixo continua valendo, e `std/lsp` só nasce com política de servidor (capabilities,
 > diagnóstico, `positionEncoding`).
 
+> **Atualização (2026-11-19, issue #46):** entraram `textDocument/references` e
+> `documentHighlight`, `typeDefinition`/`implementation`, `typeHierarchy/*`,
+> `DiagnosticTag.Unnecessary` (W1001/W1002), `source.fixAll.loxia`, a AST recuperada para
+> tooling ([ADR-0114](0114-ast-recuperada-para-tooling.md)), o overlay de buffers não
+> salvos no loader (com recheck dos importadores abertos) e `workspace/willRenameFiles`.
+> O `diagnosticProvider` (pull) foi **removido**: o servidor é push-only, e um teste de
+> drift compara capabilities e handlers.
+
 > **Implementação (2026-11-16; ampliada em 2026-11-18):** LSP-0 em Python
 > (`loxia lsp`, JSON-RPC stdio à mão): `initialize`/`shutdown`/`exit`, full sync,
 > `publishDiagnostics` e `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references`
@@ -174,7 +182,9 @@ mensagem ao usuário.
 - LSP-1 é trabalho de compilador (spans + índice + referências), não só de servidor.
 - Full sync e recheck do documento inteiro ficam mais lentos em arquivos grandes; medir
   antes de otimizar.
-- Módulos alterados fora do documento aberto não atualizam até o próximo `didChange`.
+- Módulos **abertos** agora alimentam o loader e os importadores abertos são rechecados no
+  `didChange`/`didClose`; mudanças fora do editor continuam invisíveis até o próximo
+  `didChange` (file watching segue fora do MVP).
 - O repo ganha uma superfície (subcomando) que não pode quebrar o CLI/JSON.
 
 ### Neutras
