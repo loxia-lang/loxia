@@ -149,6 +149,8 @@ decisão.
 | Idioma | Vitrine pública (README, CONTRIBUTING, SECURITY, CoC, templates, CI e commits) e spec em inglês; ADRs e roadmap em pt-BR até a tradução; código pode manter comentários em pt-BR. | [ADR-0102](adr/0102-ingles-na-vitrine-e-docs-pt-br.md) |
 | Site de documentação | Astro Starlight em `site/`, staging de `docs/`, inglês na raiz e pt-BR em `/pt/`; referência 1.1 em inglês e arquivo 1.0 congelado em pt-BR; learn/why/cookbook não versionados; deploy ativo no GitHub Pages. | [ADR-0103](adr/0103-site-de-documentacao-e-versionamento.md) |
 | Adiados e não-objetivos | Generics além do MVP, operator overloading, trailing closure, `match` estrutural, extension methods, metaclasses/decorators, math transcendentais e paralelismo continuam deferidos, cada um com gatilho explícito de reabertura. | [ADR-0107](adr/0107-adiados-e-nao-objetivos.md) |
+| Corpus de conformidade | Não extrair agora: o corpus interno é o oráculo do I1 (ADR-0064), não um contrato externo; o artefato `lox-core` exige spec publicada e demanda externa. #10 fechada como *not planned*; a fase 1 da issue fica como plano para o gatilho. | [ADR-0115](adr/0115-corpus-de-conformidade-adiado.md) |
+| Benchmarks públicos | Não publicar agora: o `bench/` é harness local de regressão (baseline por máquina) e as garantias não prometem speed; a suíte pública exige protocolo (hardware/flags/aquecimento/N/dispersão) e um release com performance na mensagem. #13 fechada como *not planned*. | [ADR-0116](adr/0116-benchmarks-publicos-adiados.md) |
 
 ## O que ainda não está aqui
 
