@@ -237,11 +237,11 @@ fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Result[Out
             if (not results.isOk(chunk)) {
               failure = results.errorOf(chunk) ?? ProcError("io", "stdout read failed.")
             } else {
-              val text = results.unwrapOr(chunk, nil)
-              if (text == nil) {
+              val text = results.unwrapOr(chunk, "")
+              if (text == nil or text == "") {
                 outOpen = false
               } else {
-                outParts.push(text as String)
+                outParts.push(text)
               }
             }
           } else if (id == errId) {
@@ -249,11 +249,11 @@ fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Result[Out
             if (not results.isOk(chunk)) {
               failure = results.errorOf(chunk) ?? ProcError("io", "stderr read failed.")
             } else {
-              val text = results.unwrapOr(chunk, nil)
-              if (text == nil) {
+              val text = results.unwrapOr(chunk, "")
+              if (text == nil or text == "") {
                 errOpen = false
               } else {
-                errParts.push(text as String)
+                errParts.push(text)
               }
             }
           }

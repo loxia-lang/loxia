@@ -1421,11 +1421,13 @@ def _proc_program(py_code: str) -> str:
 
     return (
         "import std.proc as p\n"
+        "import std.results as results\n"
         f"val py = {json.dumps(sys.executable)}\n"
         f'val out = p.run([py, "-c", {json.dumps(py_code)}])\n'
-        'if (out == nil) {\n  print("nil")\n} else {\n'
-        "  print(out.code)\n  print(len(out.stdout))\n"
-        "  print(repr(out.stderr))\n}\n"
+        "val done = results.toOptional(out)\n"
+        'if (done == nil) {\n  print("nil")\n} else {\n'
+        "  print(done.code)\n  print(len(done.stdout))\n"
+        "  print(repr(done.stderr))\n}\n"
     )
 
 
@@ -1460,15 +1462,17 @@ def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
 
     source = (
         "import std.proc as p\n"
+        "import std.results as results\n"
         f"val py = {json.dumps(sys.executable)}\n"
-        'val child = p.spawn([py, "-c", '
+        'val spawned = p.spawn([py, "-c", '
         + json.dumps("import sys; sys.stdout.write('eco')")
         + "])\n"
+        "val child = results.toOptional(spawned)\n"
         'if (child == nil) {\n  print("nil")\n} else {\n'
         "  val ready = process.poll([child.id, child.stdout.id], 5000)\n"
         "  print(len(ready) >= 1)\n"
-        "  print(child.stdout.read(64))\n"
-        "  print(child.wait())\n"
+        '  print(results.unwrapOr(child.stdout.read(64), "nil"))\n'
+        "  print(results.unwrapOr(child.wait(), -1))\n"
         "  child.close()\n}\n"
     )
     path = _write(tmp_path, source)
