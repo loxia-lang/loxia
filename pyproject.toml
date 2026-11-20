@@ -99,6 +99,21 @@ packages = ["loxia", "loxia_core"]
 "NOTICE" = "NOTICE"
 
 [tool.hatch.build.targets.sdist]
+# O wheel materializa `loxia_core/std` e `loxia_core/runtime` como force-include;
+# se um build em andamento deixar a cópia na árvore, a sdist não pode capturá-la
+# (o teste de instalação exige um `std/` só, na raiz).
+exclude = [
+    ".uv-cache",
+    ".uv-cache/**",
+    ".venv",
+    ".venv/**",
+    "build",
+    "dist",
+    "loxia_core/std",
+    "loxia_core/std/**",
+    "loxia_core/runtime",
+    "loxia_core/runtime/**",
+]
 include = [
     "loxia",
     "loxia_core",

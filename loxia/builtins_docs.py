@@ -300,6 +300,36 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         ambient=True,
     ),
     BuiltinDoc(
+        "fs.open",
+        "fs.open(path: String, mode: String) -> Int",
+        "Opens `path` in mode `r`, `w` or `a` and returns a 1-based handle.\n\n"
+        "Ambient. `w` truncates/creates and `a` creates and appends; failure raises "
+        "`RuntimeError` with a stable kind prefix (`notFound: ...`).",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.read",
+        "fs.read(id: Int, n: Int) -> String?",
+        "Reads at most `n` bytes from a file handle, always a complete UTF-8 prefix.\n\n"
+        "Ambient. `nil` is end of file; invalid UTF-8 or a handle not open for reading "
+        "raises.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.write",
+        "fs.write(id: Int, text: String) -> Nil",
+        "Writes all of `text` to a file handle.\n\n"
+        "Ambient. A handle opened with `r`, a closed handle or a failed write raises.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.close",
+        "fs.close(id: Int) -> Nil",
+        "Closes a file handle; closing it again is a no-op.\n\n"
+        "Ambient. An id that never existed raises.",
+        ambient=True,
+    ),
+    BuiltinDoc(
         "fs.listDir",
         "fs.listDir(path: String) -> List[String]?",
         "Returns the entry names of a directory, sorted, or `nil` when unreadable.\n\n"

@@ -1,69 +1,196 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-# std.fs — file reading and writing (T2), a thin shell over the kernel.
+# std.fs — files and directories (T2), a thin shell over the kernel.
 #
 # Ambient (ADR-0072): not part of the I1 corpus, and tests must use a temporary
-# directory without printing absolute paths. `readLines` drops only the final newline
-# (one item per line); `appendText` reads and rewrites the file because the kernel has no
-# append primitive. Failures return `nil`/`false` instead of raising.
+# directory without printing absolute paths. Host failures are `Result[T, FileError]`
+# (ADR-0119): `FileError.kind` is a stable token (`notFound`, `permission`, ...), never
+# `strerror`/locale text. `exists` is a question, so it stays `Bool`.
 
+import std.results as results
 import std.strings as strings
 
-/// Reads a UTF-8 file into a string, or `nil` when unreadable.
-///
-/// Ambient: the content depends on the filesystem. Text is returned exactly as stored,
-/// including any trailing newline, and invalid UTF-8 yields `nil`.
-fn readText(path: String) -> String? {
-  return io.readFile(path)
+/// Host failure of a filesystem operation.
+class FileError {
+  /// Stable token: `notFound`, `permission`, `isDirectory`, `notDirectory`,
+  /// `alreadyExists`, `tooManyFiles`, `noSpace`, `badMode`, `closed`, `invalidHandle`,
+  /// `io`.
+  val kind: String
+  /// Human-readable detail; never contains an absolute path.
+  val message: String
+
+  /// Builds a failure from a stable kind and a message.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
 }
 
-/// Reads a UTF-8 file as one string per line, or `nil` when unreadable.
-///
-/// Accepts LF and CRLF line endings (a bare CR is not a break). Only the final empty
-/// segment is dropped, so a file ending in a newline does not produce a trailing empty
-/// item.
-fn readLines(path: String) -> List[String]? {
-  val text = io.readFile(path)
-  if (text == nil) {
-    return nil
+/// Open file handle; close it, or prefer `withOpen`.
+class File {
+  /// Kernel handle used by `fs.*`.
+  val id: Int
+
+  /// Wraps an existing handle; prefer `open`.
+  init(id: Int) {
+    this.id = id
   }
-  val lines = strings.splitLines(text)
+
+  /// Reads up to `n` bytes at a UTF-8 boundary; `Ok(nil)` means end of file.
+  fn read(n: Int) -> Result[String?, FileError] {
+    var out: Result[String?, FileError]
+    try {
+      out = Result.Ok(fs.read(this.id, n))
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
+  }
+
+  /// Writes all of `text`.
+  fn write(text: String) -> Result[Nil, FileError] {
+    var out: Result[Nil, FileError]
+    try {
+      fs.write(this.id, text)
+      out = Result.Ok(nil)
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
+  }
+
+  /// Closes the handle; closing twice is a no-op.
+  fn close() -> Result[Nil, FileError] {
+    var out: Result[Nil, FileError]
+    try {
+      fs.close(this.id)
+      out = Result.Ok(nil)
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
+  }
+}
+
+/// Opens `path` in mode `r`, `w` or `a`.
+///
+/// `w` truncates/creates, `a` creates and appends; `r` requires the file to exist.
+fn open(path: String, mode: String) -> Result[File, FileError] {
+  var out: Result[File, FileError]
+  try {
+    out = Result.Ok(File(fs.open(path, mode)))
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+/// Opens `path`, calls `body` and closes the file even when `body` raises.
+///
+/// This is the scoped form of `open`, replacing a `with` block: the handle never
+/// escapes, and the close runs on normal return and on error.
+fn withOpen[T](path: String, mode: String, body: fn(File) -> T) -> Result[T, FileError] {
+  val opened = open(path, mode)
+  val file = results.toOptional(opened)
+  if (file == nil) {
+    return Result.Err(results.errorOf(opened) ?? FileError("io", "can't open the file."))
+  }
+  try {
+    return Result.Ok(body(file as File))
+  } finally {
+    file.close()
+  }
+}
+
+/// Reads a UTF-8 file into a string.
+fn readText(path: String) -> Result[String, FileError] {
+  var out: Result[String, FileError]
+  try {
+    val file = File(fs.open(path, "r"))
+    try {
+      var text = ""
+      var chunk = fs.read(file.id, 65536)
+      while (chunk != nil) {
+        text = text + chunk
+        chunk = fs.read(file.id, 65536)
+      }
+      out = Result.Ok(text)
+    } finally {
+      file.close()
+    }
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+/// Reads a UTF-8 file as one string per line (LF and CRLF; no trailing empty item).
+fn readLines(path: String) -> Result[List[String], FileError] {
+  val text = readText(path)
+  val content = results.toOptional(text)
+  if (content == nil) {
+    return Result.Err(results.errorOf(text) ?? FileError("io", "can't read the file."))
+  }
+  val lines = strings.splitLines(results.unwrapOr(text, ""))
   if (len(lines) > 0 and lines[len(lines) - 1] == "") {
     lines.pop()
   }
-  return lines
+  return Result.Ok(lines)
 }
 
-/// Writes `text` as UTF-8, returning whether the write succeeded.
-///
-/// Ambient. Overwrites an existing file and creates a missing one; the parent
-/// directory must exist. A filesystem error returns `false` instead of raising.
-fn writeText(path: String, text: String) -> Bool {
-  return io.writeFile(path, text)
+/// Writes `text` as UTF-8, overwriting/creating the file.
+fn writeText(path: String, text: String) -> Result[Nil, FileError] {
+  return _write(path, "w", text)
 }
 
-/// Appends UTF-8 text, returning whether the write succeeded.
-///
-/// Ambient. Reads the current content and rewrites the file because the kernel has no
-/// append primitive; a missing file is created. The parent directory must exist.
-fn appendText(path: String, text: String) -> Bool {
-  val existing = io.readFile(path)
-  if (existing == nil) {
-    return io.writeFile(path, text)
-  }
-  return io.writeFile(path, existing + text)
+/// Appends `text` as UTF-8, creating the file when missing.
+fn appendText(path: String, text: String) -> Result[Nil, FileError] {
+  return _write(path, "a", text)
 }
 
-/// Returns whether `path` exists.
-///
-/// Ambient. True for files, directories and other entries that the host can stat.
+/// Returns whether `path` exists (file, directory or other entry).
 fn exists(path: String) -> Bool {
   return fs.exists(path)
 }
 
-/// Lists directory entry names in sorted order, or `nil` when unreadable.
-///
-/// Ambient. Sorting makes the result deterministic for a given directory; hidden files
-/// are included and `"."`/`".."` are not.
-fn listDir(path: String) -> List[String]? {
-  return fs.listDir(path)
+/// Lists directory entry names in sorted order.
+fn listDir(path: String) -> Result[List[String], FileError] {
+  var out: Result[List[String], FileError]
+  try {
+    val names = fs.listDir(path)
+    if (names == nil) {
+      out = Result.Err(FileError("io", "can't list the directory."))
+    } else {
+      out = Result.Ok(names)
+    }
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+fn _write(path: String, mode: String, text: String) -> Result[Nil, FileError] {
+  var out: Result[Nil, FileError]
+  try {
+    val file = File(fs.open(path, mode))
+    try {
+      fs.write(file.id, text)
+      out = Result.Ok(nil)
+    } finally {
+      file.close()
+    }
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+fn _failure(message: String) -> FileError {
+  var index = 0
+  while (index + 1 < len(message)) {
+    if (charCodeAt(message, index) == 58 and charCodeAt(message, index + 1) == 32) {
+      return FileError(substr(message, 0, index), substr(message, index + 2, len(message)))
+    }
+    index = index + 1
+  }
+  return FileError("io", message)
 }

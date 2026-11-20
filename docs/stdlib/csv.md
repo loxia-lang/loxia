@@ -11,6 +11,24 @@ RFC 4180 CSV parsing and serialization, with CRLF output.
 
 ## API
 
+## Classes
+
+### `class CsvError`
+
+Failure to parse CSV text.
+
+#### `val kind: String`
+
+Stable token: `invalidCsv`.
+
+#### `val message: String`
+
+Detail without path/locale text.
+
+#### `fn init(kind: String, message: String)`
+
+Builds a parse failure.
+
 ## Functions
 
 ### `fn parse(text: String) -> List[List[String]] | Nil`
@@ -21,6 +39,13 @@ Accepts LF and CRLF line endings and preserves empty fields. Returns `nil` on
 malformed input, including a stray quote in an unquoted field or an unterminated
 quoted field. Empty text parses to `[]`; a blank line is a record with one empty
 field, not an empty row.
+
+### `fn parseResult(text: String) -> Result[List[List[String]], CsvError]`
+
+Parses CSV text, preserving the cause of a malformed input.
+
+Empty text is `Ok([])`; a stray quote or an unterminated quoted field is
+`Err(CsvError("invalidCsv", ...))`.
 
 ### `fn stringify(rows: List[List[String]]) -> String`
 

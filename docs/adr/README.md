@@ -170,6 +170,7 @@ TODO item.
 | [0116](0116-benchmarks-publicos-adiados.md) | Public benchmarks: deferred until a reproducible protocol and a performance-led release exist | accepted (deferred) | 2026-11-19 |
 | [0117](0117-ast-manual-e-cobertura-de-visitantes.md) | AST stays manual: visitor coverage enforced by protocols and a hierarchy guard | accepted (implemented) | 2026-11-19 |
 | [0118](0118-toml-na-toolchain-e-edicao-de-manifest.md) | TOML: data model in the language (spike first), comment-preserving editing in the tool | accepted (implementation pending) | 2026-11-19 |
+| [0119](0119-fs-open-handles-e-erro-de-host.md) | File handles plus one `Result` pattern for host failures across the stdlib | accepted (implementation partial) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR

@@ -33,6 +33,10 @@ Applies `transform` to the error value; a success passes through unchanged.
 
 The success type `T` is preserved.
 
+### `fn errorOf[T, E](result: Result[T, E]) -> E | Nil`
+
+Returns the error value, or `nil` when the result is a success.
+
 ### `fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T`
 
 Returns the success value, or `fallback` for an error.

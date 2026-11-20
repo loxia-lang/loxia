@@ -1208,23 +1208,55 @@ def test_std_fs_nativo(tmp_path: Path) -> None:
         f'val alvo = "{data}/arquivo.txt"\n'
         f'val pasta = "{data}"\n'
         f'val quebras = "{crlf}"\n'
-        """print(fs.writeText(alvo, "a\\nb\\n"))
+        """val escrito = fs.writeText(alvo, "a\\nb\\n")
 """
-        """print(fs.readLines(alvo))
+        """match escrito { Result.Ok(_) => print("ok"), Result.Err(e) => print(e.kind) }
 """
-        """print(fs.appendText(alvo, "c\\n"))
+        """val lido = fs.readLines(alvo)
 """
-        """print(fs.readText(alvo))
+        """match lido { Result.Ok(lines) => print(lines), Result.Err(e) => print(e.kind) }
 """
-        """print(fs.listDir(pasta))
+        """val anexado = fs.appendText(alvo, "c\\n")
 """
-        """print(fs.readText(pasta + "/nao-existe"))
+        """match anexado { Result.Ok(_) => print("ok"), Result.Err(e) => print(e.kind) }
+"""
+        """val texto = fs.readText(alvo)
+"""
+        """match texto { Result.Ok(content) => print(content), Result.Err(e) => print(e.kind) }
+"""
+        """val nomes = fs.listDir(pasta)
+"""
+        """match nomes { Result.Ok(items) => print(items), Result.Err(e) => print(e.kind) }
+"""
+        """val ausente = fs.readText(pasta + "/nao-existe")
+"""
+        """match ausente { Result.Ok(_) => print("ok"), Result.Err(e) => print(e.kind) }
 """
         """print(fs.exists(pasta))
 """
-        """print(repr(fs.readText(quebras) or ""))
+        """val quebrado = fs.readText(quebras)
 """
-        """print(len(fs.readText(quebras) or ""))
+        """match quebrado { Result.Ok(content) => print(repr(content)), Result.Err(e) => print(e.kind) }
+"""
+        """match quebrado { Result.Ok(content) => print(len(content)), Result.Err(e) => print(e.kind) }
+"""
+        """val aberto = fs.open(alvo, "r")
+"""
+        """val arquivo = match aberto { Result.Ok(handle) => handle, Result.Err(_) => nil }
+"""
+        """if (arquivo != nil) {
+"""
+        """  val parte = arquivo.read(2)
+"""
+        """  match parte { Result.Ok(text) => print(text), Result.Err(e) => print(e.kind) }
+"""
+        """  val fechado = arquivo.close()
+"""
+        """  match fechado { Result.Ok(_) => print("closed"), Result.Err(e) => print(e.kind) }
+"""
+        """  match arquivo.close() { Result.Ok(_) => print("closed"), Result.Err(e) => print(e.kind) }
+"""
+        """}
 """
     )
     path = _write(tmp_path, source)
@@ -1389,11 +1421,13 @@ def _proc_program(py_code: str) -> str:
 
     return (
         "import std.proc as p\n"
+        "import std.results as results\n"
         f"val py = {json.dumps(sys.executable)}\n"
         f'val out = p.run([py, "-c", {json.dumps(py_code)}])\n'
-        'if (out == nil) {\n  print("nil")\n} else {\n'
-        "  print(out.code)\n  print(len(out.stdout))\n"
-        "  print(repr(out.stderr))\n}\n"
+        "val done = results.toOptional(out)\n"
+        'if (done == nil) {\n  print("nil")\n} else {\n'
+        "  print(done.code)\n  print(len(done.stdout))\n"
+        "  print(repr(done.stderr))\n}\n"
     )
 
 
@@ -1428,15 +1462,17 @@ def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
 
     source = (
         "import std.proc as p\n"
+        "import std.results as results\n"
         f"val py = {json.dumps(sys.executable)}\n"
-        'val child = p.spawn([py, "-c", '
+        'val spawned = p.spawn([py, "-c", '
         + json.dumps("import sys; sys.stdout.write('eco')")
         + "])\n"
+        "val child = results.toOptional(spawned)\n"
         'if (child == nil) {\n  print("nil")\n} else {\n'
         "  val ready = process.poll([child.id, child.stdout.id], 5000)\n"
         "  print(len(ready) >= 1)\n"
-        "  print(child.stdout.read(64))\n"
-        "  print(child.wait())\n"
+        '  print(results.unwrapOr(child.stdout.read(64), "nil"))\n'
+        "  print(results.unwrapOr(child.wait(), -1))\n"
         "  child.close()\n}\n"
     )
     path = _write(tmp_path, source)

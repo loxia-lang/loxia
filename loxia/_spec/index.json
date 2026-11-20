@@ -1094,9 +1094,9 @@
           "title": "Namespaces",
           "level": 2,
           "line_start": 82,
-          "line_end": 338,
+          "line_end": 362,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#namespaces",
-          "text": "## Namespaces\n\n### `Int`\n\nNamespace for integer conversions.\n\nRead-only; the only member is `Int.parse`.\n\n#### `Int.parse(text: String) -> Int?`\n\nParses a decimal integer.\n\nAccepts an optional `+`/`-` followed by ASCII digits only; whitespace, other bases and values outside the i64 range return `nil`. A non-string argument raises `RuntimeError`.\n\n### `Float`\n\nNamespace for float conversions.\n\nRead-only; the only member is `Float.parse`.\n\n#### `Float.parse(text: String) -> Float?`\n\nParses a decimal float.\n\nAccepts digits with an optional fraction and exponent (`1`, `-2.5`, `1e3`). Whitespace, `NaN`, infinities and overflow return `nil`. A non-string argument raises `RuntimeError`.\n\n### `math`\n\nDeterministic math namespace.\n\nNo locale or host state is consulted. Functions returning `Int` (`floor`, `ceil`, `round`, `trunc`) require a finite value in i64 range and raise `RuntimeError` otherwise.\n\n#### `math.abs(value: Int | Float) -> Int | Float`\n\nReturns the absolute value, preserving the argument type.\n\nAn `Int` stays `Int` (under `--debug`, `abs(INT_MIN)` raises on overflow); a `Float` stays `Float`.\n\n#### `math.min(a: Int | Float, b: Int | Float) -> Int | Float`\n\nReturns the smaller of two numbers.\n\nPromotes to `Float` when either argument is `Float`; any `NaN` argument makes the result `NaN`.\n\n#### `math.max(a: Int | Float, b: Int | Float) -> Int | Float`\n\nReturns the larger of two numbers.\n\nPromotes to `Float` when either argument is `Float`; any `NaN` argument makes the result `NaN`.\n\n#### `math.clamp(value: Int | Float, low: Int | Float, high: Int | Float) -> Int | Float`\n\nClamps `value` into the inclusive range `[low, high]`.\n\nRequires `low <= high`; otherwise `RuntimeError` is raised. A `NaN` in any argument makes the result `NaN`; mixed `Int`/`Float` promotes to `Float`.\n\n#### `math.floor(value: Float) -> Int`\n\nRounds down to an integer.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.ceil(value: Float) -> Int`\n\nRounds up to an integer.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.round(value: Float) -> Int`\n\nRounds to the nearest integer, with ties away from zero.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.trunc(value: Float) -> Int`\n\nTruncates toward zero.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.sqrt(value: Float) -> Float`\n\nReturns the square root as a `Float`.\n\nRequires a `Float`. A negative argument returns `NaN` instead of raising.\n\n### `io`\n\nStandard input/output namespace.\n\n`write`, `writeErr` and `flush` are deterministic; the read functions are ambient and may block.\n\n#### `io.readFile(path: String) -> String?`\n\nReads a UTF-8 file into a string, or `nil` when it cannot be read.\n\nAmbient. Invalid UTF-8 counts as unreadable (`nil`); the content is returned exactly as stored, including any trailing newline.\n\n#### `io.readAll() -> String`\n\nReads all remaining standard input as text.\n\nAmbient. At immediate end of input it returns `\"\"`; invalid UTF-8 raises `RuntimeError`.\n\n#### `io.write(text: String) -> Nil`\n\nWrites `text` to standard output without a trailing newline.\n\nFlushes immediately, so output order is observable before the next read or process exit.\n\n#### `io.writeErr(text: String) -> Nil`\n\nWrites `text` to standard error without a trailing newline.\n\nFlushes immediately; stderr is not part of the default golden comparison.\n\n#### `io.writeFile(path: String, text: String) -> Bool`\n\nWrites `text` as UTF-8, creating or truncating the file.\n\nAmbient. Returns `true` on success and `false` on a filesystem error; the parent directory must exist.\n\n#### `io.readLine() -> String?`\n\nReads one line from standard input.\n\nAmbient. A trailing LF or CRLF is removed; `nil` means immediate end of input. Invalid UTF-8 raises `RuntimeError`.\n\n#### `io.readUtf8(n: Int) -> String?`\n\nReads exactly `n` bytes and decodes them as strict UTF-8.\n\nAmbient. `nil` only at immediate end of input; a short read or invalid UTF-8 raises `RuntimeError`. `n` must be non-negative; `n == 0` returns `\"\"`.\n\n#### `io.flush() -> Nil`\n\nFlushes standard output and standard error.\n\n### `fs`\n\nFilesystem namespace (ambient).\n\nOperations read the host filesystem and are outside the I1 corpus; tests use temporary directories and never print absolute paths.\n\n#### `fs.exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries the host can stat.\n\n#### `fs.listDir(path: String) -> List[String]?`\n\nReturns the entry names of a directory, sorted, or `nil` when unreadable.\n\nAmbient. The sort makes the result deterministic for a given directory; `.` and `..` are not included.\n\n### `process`\n\nProcess and stream handles for the kernel (POSIX, ambient).\n\nHandles are opaque, 1-based `Int` ids; `0` is never a valid handle and is returned by `spawn` on failure.\n\n#### `process.spawn(argv: List[String]) -> Int`\n\nStarts a process without a shell.\n\nAmbient. `argv[0]` is the program and the remaining items are its arguments; stdin/stdout/stderr are pipes. Returns a process handle, or `0` when the process cannot start.\n\n#### `process.stdin(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard input.\n\nAmbient. The process handle must be valid.\n\n#### `process.stdout(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard output.\n\nAmbient. The process handle must be valid.\n\n#### `process.stderr(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard error.\n\nAmbient. The process handle must be valid.\n\n#### `process.wait(handle: Int) -> Int`\n\nWaits for a process and returns its exit code.\n\nAmbient. A negative code means the child was terminated by a signal; the status is cached after the first wait.\n\n#### `process.kill(handle: Int) -> Bool`\n\nSends `SIGKILL` to a process.\n\nAmbient. Returns `false` when the process already exited; records the exit status when it reaps the child.\n\n#### `process.close(handle: Int) -> Nil`\n\nReleases a process or stream handle.\n\nAmbient. Does not kill a running process; after closing, any use of the handle raises `RuntimeError`.\n\n#### `process.read(handle: Int, n: Int) -> String?`\n\nReads up to `n` bytes from a stream as UTF-8.\n\nAmbient. `nil` at end of stream; an incomplete UTF-8 sequence is buffered for the next call, so a character is never split. `n` must be non-negative.\n\n#### `process.write(handle: Int, text: String) -> Bool`\n\nWrites all of `text` to a stream.\n\nAmbient. Returns `false` when the other side closed the pipe.\n\n#### `process.poll(handles: List[Int], timeoutMs: Int) -> List[Int]`\n\nReturns the handles that are ready.\n\nAmbient. A negative timeout waits forever and `0` is non-blocking; streams are ready when readable or at EOF, processes when they have exited. The result is deduplicated.\n\n### `os`\n\nOperating-system namespace.\n\n#### `os.exit(code: Int) -> Nil`\n\nFlushes both streams and terminates the process with `code`.\n\n`code` must be in `0..255`; anything else raises `RuntimeError`.\n\n#### `os.getenv(name: String) -> String?`\n\nReturns the value of an environment variable, or `nil` when unset.\n\nAmbient: it reads the host environment.\n\n### `time`\n\nTime namespace (ambient).\n\nFunctions read the host clock; they are outside the I1/I3 corpus.\n\n#### `time.now() -> Int`\n\nReturns the current Unix time in milliseconds.\n\nAmbient and non-deterministic; tests must not assert an exact value.\n\n#### `time.sleep(milliseconds: Int) -> Nil`\n\nSuspends the current process for at least `milliseconds`.\n\nAmbient. A negative duration raises `RuntimeError`.\n"
+          "text": "## Namespaces\n\n### `Int`\n\nNamespace for integer conversions.\n\nRead-only; the only member is `Int.parse`.\n\n#### `Int.parse(text: String) -> Int?`\n\nParses a decimal integer.\n\nAccepts an optional `+`/`-` followed by ASCII digits only; whitespace, other bases and values outside the i64 range return `nil`. A non-string argument raises `RuntimeError`.\n\n### `Float`\n\nNamespace for float conversions.\n\nRead-only; the only member is `Float.parse`.\n\n#### `Float.parse(text: String) -> Float?`\n\nParses a decimal float.\n\nAccepts digits with an optional fraction and exponent (`1`, `-2.5`, `1e3`). Whitespace, `NaN`, infinities and overflow return `nil`. A non-string argument raises `RuntimeError`.\n\n### `math`\n\nDeterministic math namespace.\n\nNo locale or host state is consulted. Functions returning `Int` (`floor`, `ceil`, `round`, `trunc`) require a finite value in i64 range and raise `RuntimeError` otherwise.\n\n#### `math.abs(value: Int | Float) -> Int | Float`\n\nReturns the absolute value, preserving the argument type.\n\nAn `Int` stays `Int` (under `--debug`, `abs(INT_MIN)` raises on overflow); a `Float` stays `Float`.\n\n#### `math.min(a: Int | Float, b: Int | Float) -> Int | Float`\n\nReturns the smaller of two numbers.\n\nPromotes to `Float` when either argument is `Float`; any `NaN` argument makes the result `NaN`.\n\n#### `math.max(a: Int | Float, b: Int | Float) -> Int | Float`\n\nReturns the larger of two numbers.\n\nPromotes to `Float` when either argument is `Float`; any `NaN` argument makes the result `NaN`.\n\n#### `math.clamp(value: Int | Float, low: Int | Float, high: Int | Float) -> Int | Float`\n\nClamps `value` into the inclusive range `[low, high]`.\n\nRequires `low <= high`; otherwise `RuntimeError` is raised. A `NaN` in any argument makes the result `NaN`; mixed `Int`/`Float` promotes to `Float`.\n\n#### `math.floor(value: Float) -> Int`\n\nRounds down to an integer.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.ceil(value: Float) -> Int`\n\nRounds up to an integer.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.round(value: Float) -> Int`\n\nRounds to the nearest integer, with ties away from zero.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.trunc(value: Float) -> Int`\n\nTruncates toward zero.\n\nRequires a `Float`; the value must be finite and fit in i64, otherwise `RuntimeError` is raised.\n\n#### `math.sqrt(value: Float) -> Float`\n\nReturns the square root as a `Float`.\n\nRequires a `Float`. A negative argument returns `NaN` instead of raising.\n\n### `io`\n\nStandard input/output namespace.\n\n`write`, `writeErr` and `flush` are deterministic; the read functions are ambient and may block.\n\n#### `io.readFile(path: String) -> String?`\n\nReads a UTF-8 file into a string, or `nil` when it cannot be read.\n\nAmbient. Invalid UTF-8 counts as unreadable (`nil`); the content is returned exactly as stored, including any trailing newline.\n\n#### `io.readAll() -> String`\n\nReads all remaining standard input as text.\n\nAmbient. At immediate end of input it returns `\"\"`; invalid UTF-8 raises `RuntimeError`.\n\n#### `io.write(text: String) -> Nil`\n\nWrites `text` to standard output without a trailing newline.\n\nFlushes immediately, so output order is observable before the next read or process exit.\n\n#### `io.writeErr(text: String) -> Nil`\n\nWrites `text` to standard error without a trailing newline.\n\nFlushes immediately; stderr is not part of the default golden comparison.\n\n#### `io.writeFile(path: String, text: String) -> Bool`\n\nWrites `text` as UTF-8, creating or truncating the file.\n\nAmbient. Returns `true` on success and `false` on a filesystem error; the parent directory must exist.\n\n#### `io.readLine() -> String?`\n\nReads one line from standard input.\n\nAmbient. A trailing LF or CRLF is removed; `nil` means immediate end of input. Invalid UTF-8 raises `RuntimeError`.\n\n#### `io.readUtf8(n: Int) -> String?`\n\nReads exactly `n` bytes and decodes them as strict UTF-8.\n\nAmbient. `nil` only at immediate end of input; a short read or invalid UTF-8 raises `RuntimeError`. `n` must be non-negative; `n == 0` returns `\"\"`.\n\n#### `io.flush() -> Nil`\n\nFlushes standard output and standard error.\n\n### `fs`\n\nFilesystem namespace (ambient).\n\nOperations read the host filesystem and are outside the I1 corpus; tests use temporary directories and never print absolute paths.\n\n#### `fs.exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries the host can stat.\n\n#### `fs.open(path: String, mode: String) -> Int`\n\nOpens `path` in mode `r`, `w` or `a` and returns a 1-based handle.\n\nAmbient. `w` truncates/creates and `a` creates and appends; failure raises `RuntimeError` with a stable kind prefix (`notFound: ...`).\n\n#### `fs.read(id: Int, n: Int) -> String?`\n\nReads at most `n` bytes from a file handle, always a complete UTF-8 prefix.\n\nAmbient. `nil` is end of file; invalid UTF-8 or a handle not open for reading raises.\n\n#### `fs.write(id: Int, text: String) -> Nil`\n\nWrites all of `text` to a file handle.\n\nAmbient. A handle opened with `r`, a closed handle or a failed write raises.\n\n#### `fs.close(id: Int) -> Nil`\n\nCloses a file handle; closing it again is a no-op.\n\nAmbient. An id that never existed raises.\n\n#### `fs.listDir(path: String) -> List[String]?`\n\nReturns the entry names of a directory, sorted, or `nil` when unreadable.\n\nAmbient. The sort makes the result deterministic for a given directory; `.` and `..` are not included.\n\n### `process`\n\nProcess and stream handles for the kernel (POSIX, ambient).\n\nHandles are opaque, 1-based `Int` ids; `0` is never a valid handle and is returned by `spawn` on failure.\n\n#### `process.spawn(argv: List[String]) -> Int`\n\nStarts a process without a shell.\n\nAmbient. `argv[0]` is the program and the remaining items are its arguments; stdin/stdout/stderr are pipes. Returns a process handle, or `0` when the process cannot start.\n\n#### `process.stdin(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard input.\n\nAmbient. The process handle must be valid.\n\n#### `process.stdout(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard output.\n\nAmbient. The process handle must be valid.\n\n#### `process.stderr(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard error.\n\nAmbient. The process handle must be valid.\n\n#### `process.wait(handle: Int) -> Int`\n\nWaits for a process and returns its exit code.\n\nAmbient. A negative code means the child was terminated by a signal; the status is cached after the first wait.\n\n#### `process.kill(handle: Int) -> Bool`\n\nSends `SIGKILL` to a process.\n\nAmbient. Returns `false` when the process already exited; records the exit status when it reaps the child.\n\n#### `process.close(handle: Int) -> Nil`\n\nReleases a process or stream handle.\n\nAmbient. Does not kill a running process; after closing, any use of the handle raises `RuntimeError`.\n\n#### `process.read(handle: Int, n: Int) -> String?`\n\nReads up to `n` bytes from a stream as UTF-8.\n\nAmbient. `nil` at end of stream; an incomplete UTF-8 sequence is buffered for the next call, so a character is never split. `n` must be non-negative.\n\n#### `process.write(handle: Int, text: String) -> Bool`\n\nWrites all of `text` to a stream.\n\nAmbient. Returns `false` when the other side closed the pipe.\n\n#### `process.poll(handles: List[Int], timeoutMs: Int) -> List[Int]`\n\nReturns the handles that are ready.\n\nAmbient. A negative timeout waits forever and `0` is non-blocking; streams are ready when readable or at EOF, processes when they have exited. The result is deduplicated.\n\n### `os`\n\nOperating-system namespace.\n\n#### `os.exit(code: Int) -> Nil`\n\nFlushes both streams and terminates the process with `code`.\n\n`code` must be in `0..255`; anything else raises `RuntimeError`.\n\n#### `os.getenv(name: String) -> String?`\n\nReturns the value of an environment variable, or `nil` when unset.\n\nAmbient: it reads the host environment.\n\n### `time`\n\nTime namespace (ambient).\n\nFunctions read the host clock; they are outside the I1/I3 corpus.\n\n#### `time.now() -> Int`\n\nReturns the current Unix time in milliseconds.\n\nAmbient and non-deterministic; tests must not assert an exact value.\n\n#### `time.sleep(milliseconds: Int) -> Nil`\n\nSuspends the current process for at least `milliseconds`.\n\nAmbient. A negative duration raises `RuntimeError`.\n"
         },
         {
           "id": "stdlib/builtins#int",
@@ -1334,9 +1334,9 @@
           "title": "fs",
           "level": 3,
           "line_start": 220,
-          "line_end": 238,
+          "line_end": 262,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#fs",
-          "text": "### `fs`\n\nFilesystem namespace (ambient).\n\nOperations read the host filesystem and are outside the I1 corpus; tests use temporary directories and never print absolute paths.\n\n#### `fs.exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries the host can stat.\n\n#### `fs.listDir(path: String) -> List[String]?`\n\nReturns the entry names of a directory, sorted, or `nil` when unreadable.\n\nAmbient. The sort makes the result deterministic for a given directory; `.` and `..` are not included.\n"
+          "text": "### `fs`\n\nFilesystem namespace (ambient).\n\nOperations read the host filesystem and are outside the I1 corpus; tests use temporary directories and never print absolute paths.\n\n#### `fs.exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries the host can stat.\n\n#### `fs.open(path: String, mode: String) -> Int`\n\nOpens `path` in mode `r`, `w` or `a` and returns a 1-based handle.\n\nAmbient. `w` truncates/creates and `a` creates and appends; failure raises `RuntimeError` with a stable kind prefix (`notFound: ...`).\n\n#### `fs.read(id: Int, n: Int) -> String?`\n\nReads at most `n` bytes from a file handle, always a complete UTF-8 prefix.\n\nAmbient. `nil` is end of file; invalid UTF-8 or a handle not open for reading raises.\n\n#### `fs.write(id: Int, text: String) -> Nil`\n\nWrites all of `text` to a file handle.\n\nAmbient. A handle opened with `r`, a closed handle or a failed write raises.\n\n#### `fs.close(id: Int) -> Nil`\n\nCloses a file handle; closing it again is a no-op.\n\nAmbient. An id that never existed raises.\n\n#### `fs.listDir(path: String) -> List[String]?`\n\nReturns the entry names of a directory, sorted, or `nil` when unreadable.\n\nAmbient. The sort makes the result deterministic for a given directory; `.` and `..` are not included.\n"
         },
         {
           "id": "stdlib/builtins#fsexistspath-string---bool",
@@ -1349,12 +1349,52 @@
           "text": "#### `fs.exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries the host can stat.\n"
         },
         {
+          "id": "stdlib/builtins#fsopenpath-string-mode-string---int",
+          "anchor": "fsopenpath-string-mode-string---int",
+          "title": "fs.open(path: String, mode: String) -> Int",
+          "level": 4,
+          "line_start": 232,
+          "line_end": 238,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#fsopenpath-string-mode-string---int",
+          "text": "#### `fs.open(path: String, mode: String) -> Int`\n\nOpens `path` in mode `r`, `w` or `a` and returns a 1-based handle.\n\nAmbient. `w` truncates/creates and `a` creates and appends; failure raises `RuntimeError` with a stable kind prefix (`notFound: ...`).\n"
+        },
+        {
+          "id": "stdlib/builtins#fsreadid-int-n-int---string",
+          "anchor": "fsreadid-int-n-int---string",
+          "title": "fs.read(id: Int, n: Int) -> String?",
+          "level": 4,
+          "line_start": 238,
+          "line_end": 244,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#fsreadid-int-n-int---string",
+          "text": "#### `fs.read(id: Int, n: Int) -> String?`\n\nReads at most `n` bytes from a file handle, always a complete UTF-8 prefix.\n\nAmbient. `nil` is end of file; invalid UTF-8 or a handle not open for reading raises.\n"
+        },
+        {
+          "id": "stdlib/builtins#fswriteid-int-text-string---nil",
+          "anchor": "fswriteid-int-text-string---nil",
+          "title": "fs.write(id: Int, text: String) -> Nil",
+          "level": 4,
+          "line_start": 244,
+          "line_end": 250,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#fswriteid-int-text-string---nil",
+          "text": "#### `fs.write(id: Int, text: String) -> Nil`\n\nWrites all of `text` to a file handle.\n\nAmbient. A handle opened with `r`, a closed handle or a failed write raises.\n"
+        },
+        {
+          "id": "stdlib/builtins#fscloseid-int---nil",
+          "anchor": "fscloseid-int---nil",
+          "title": "fs.close(id: Int) -> Nil",
+          "level": 4,
+          "line_start": 250,
+          "line_end": 256,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#fscloseid-int---nil",
+          "text": "#### `fs.close(id: Int) -> Nil`\n\nCloses a file handle; closing it again is a no-op.\n\nAmbient. An id that never existed raises.\n"
+        },
+        {
           "id": "stdlib/builtins#fslistdirpath-string---liststring",
           "anchor": "fslistdirpath-string---liststring",
           "title": "fs.listDir(path: String) -> List[String]?",
           "level": 4,
-          "line_start": 232,
-          "line_end": 238,
+          "line_start": 256,
+          "line_end": 262,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#fslistdirpath-string---liststring",
           "text": "#### `fs.listDir(path: String) -> List[String]?`\n\nReturns the entry names of a directory, sorted, or `nil` when unreadable.\n\nAmbient. The sort makes the result deterministic for a given directory; `.` and `..` are not included.\n"
         },
@@ -1363,8 +1403,8 @@
           "anchor": "process",
           "title": "process",
           "level": 3,
-          "line_start": 238,
-          "line_end": 304,
+          "line_start": 262,
+          "line_end": 328,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#process",
           "text": "### `process`\n\nProcess and stream handles for the kernel (POSIX, ambient).\n\nHandles are opaque, 1-based `Int` ids; `0` is never a valid handle and is returned by `spawn` on failure.\n\n#### `process.spawn(argv: List[String]) -> Int`\n\nStarts a process without a shell.\n\nAmbient. `argv[0]` is the program and the remaining items are its arguments; stdin/stdout/stderr are pipes. Returns a process handle, or `0` when the process cannot start.\n\n#### `process.stdin(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard input.\n\nAmbient. The process handle must be valid.\n\n#### `process.stdout(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard output.\n\nAmbient. The process handle must be valid.\n\n#### `process.stderr(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard error.\n\nAmbient. The process handle must be valid.\n\n#### `process.wait(handle: Int) -> Int`\n\nWaits for a process and returns its exit code.\n\nAmbient. A negative code means the child was terminated by a signal; the status is cached after the first wait.\n\n#### `process.kill(handle: Int) -> Bool`\n\nSends `SIGKILL` to a process.\n\nAmbient. Returns `false` when the process already exited; records the exit status when it reaps the child.\n\n#### `process.close(handle: Int) -> Nil`\n\nReleases a process or stream handle.\n\nAmbient. Does not kill a running process; after closing, any use of the handle raises `RuntimeError`.\n\n#### `process.read(handle: Int, n: Int) -> String?`\n\nReads up to `n` bytes from a stream as UTF-8.\n\nAmbient. `nil` at end of stream; an incomplete UTF-8 sequence is buffered for the next call, so a character is never split. `n` must be non-negative.\n\n#### `process.write(handle: Int, text: String) -> Bool`\n\nWrites all of `text` to a stream.\n\nAmbient. Returns `false` when the other side closed the pipe.\n\n#### `process.poll(handles: List[Int], timeoutMs: Int) -> List[Int]`\n\nReturns the handles that are ready.\n\nAmbient. A negative timeout waits forever and `0` is non-blocking; streams are ready when readable or at EOF, processes when they have exited. The result is deduplicated.\n"
         },
@@ -1373,8 +1413,8 @@
           "anchor": "processspawnargv-liststring---int",
           "title": "process.spawn(argv: List[String]) -> Int",
           "level": 4,
-          "line_start": 244,
-          "line_end": 250,
+          "line_start": 268,
+          "line_end": 274,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processspawnargv-liststring---int",
           "text": "#### `process.spawn(argv: List[String]) -> Int`\n\nStarts a process without a shell.\n\nAmbient. `argv[0]` is the program and the remaining items are its arguments; stdin/stdout/stderr are pipes. Returns a process handle, or `0` when the process cannot start.\n"
         },
@@ -1383,8 +1423,8 @@
           "anchor": "processstdinhandle-int---int",
           "title": "process.stdin(handle: Int) -> Int",
           "level": 4,
-          "line_start": 250,
-          "line_end": 256,
+          "line_start": 274,
+          "line_end": 280,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processstdinhandle-int---int",
           "text": "#### `process.stdin(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard input.\n\nAmbient. The process handle must be valid.\n"
         },
@@ -1393,8 +1433,8 @@
           "anchor": "processstdouthandle-int---int",
           "title": "process.stdout(handle: Int) -> Int",
           "level": 4,
-          "line_start": 256,
-          "line_end": 262,
+          "line_start": 280,
+          "line_end": 286,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processstdouthandle-int---int",
           "text": "#### `process.stdout(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard output.\n\nAmbient. The process handle must be valid.\n"
         },
@@ -1403,8 +1443,8 @@
           "anchor": "processstderrhandle-int---int",
           "title": "process.stderr(handle: Int) -> Int",
           "level": 4,
-          "line_start": 262,
-          "line_end": 268,
+          "line_start": 286,
+          "line_end": 292,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processstderrhandle-int---int",
           "text": "#### `process.stderr(handle: Int) -> Int`\n\nReturns the stream handle for a process's standard error.\n\nAmbient. The process handle must be valid.\n"
         },
@@ -1413,8 +1453,8 @@
           "anchor": "processwaithandle-int---int",
           "title": "process.wait(handle: Int) -> Int",
           "level": 4,
-          "line_start": 268,
-          "line_end": 274,
+          "line_start": 292,
+          "line_end": 298,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processwaithandle-int---int",
           "text": "#### `process.wait(handle: Int) -> Int`\n\nWaits for a process and returns its exit code.\n\nAmbient. A negative code means the child was terminated by a signal; the status is cached after the first wait.\n"
         },
@@ -1423,8 +1463,8 @@
           "anchor": "processkillhandle-int---bool",
           "title": "process.kill(handle: Int) -> Bool",
           "level": 4,
-          "line_start": 274,
-          "line_end": 280,
+          "line_start": 298,
+          "line_end": 304,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processkillhandle-int---bool",
           "text": "#### `process.kill(handle: Int) -> Bool`\n\nSends `SIGKILL` to a process.\n\nAmbient. Returns `false` when the process already exited; records the exit status when it reaps the child.\n"
         },
@@ -1433,8 +1473,8 @@
           "anchor": "processclosehandle-int---nil",
           "title": "process.close(handle: Int) -> Nil",
           "level": 4,
-          "line_start": 280,
-          "line_end": 286,
+          "line_start": 304,
+          "line_end": 310,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processclosehandle-int---nil",
           "text": "#### `process.close(handle: Int) -> Nil`\n\nReleases a process or stream handle.\n\nAmbient. Does not kill a running process; after closing, any use of the handle raises `RuntimeError`.\n"
         },
@@ -1443,8 +1483,8 @@
           "anchor": "processreadhandle-int-n-int---string",
           "title": "process.read(handle: Int, n: Int) -> String?",
           "level": 4,
-          "line_start": 286,
-          "line_end": 292,
+          "line_start": 310,
+          "line_end": 316,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processreadhandle-int-n-int---string",
           "text": "#### `process.read(handle: Int, n: Int) -> String?`\n\nReads up to `n` bytes from a stream as UTF-8.\n\nAmbient. `nil` at end of stream; an incomplete UTF-8 sequence is buffered for the next call, so a character is never split. `n` must be non-negative.\n"
         },
@@ -1453,8 +1493,8 @@
           "anchor": "processwritehandle-int-text-string---bool",
           "title": "process.write(handle: Int, text: String) -> Bool",
           "level": 4,
-          "line_start": 292,
-          "line_end": 298,
+          "line_start": 316,
+          "line_end": 322,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processwritehandle-int-text-string---bool",
           "text": "#### `process.write(handle: Int, text: String) -> Bool`\n\nWrites all of `text` to a stream.\n\nAmbient. Returns `false` when the other side closed the pipe.\n"
         },
@@ -1463,8 +1503,8 @@
           "anchor": "processpollhandles-listint-timeoutms-int---listint",
           "title": "process.poll(handles: List[Int], timeoutMs: Int) -> List[Int]",
           "level": 4,
-          "line_start": 298,
-          "line_end": 304,
+          "line_start": 322,
+          "line_end": 328,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#processpollhandles-listint-timeoutms-int---listint",
           "text": "#### `process.poll(handles: List[Int], timeoutMs: Int) -> List[Int]`\n\nReturns the handles that are ready.\n\nAmbient. A negative timeout waits forever and `0` is non-blocking; streams are ready when readable or at EOF, processes when they have exited. The result is deduplicated.\n"
         },
@@ -1473,8 +1513,8 @@
           "anchor": "os",
           "title": "os",
           "level": 3,
-          "line_start": 304,
-          "line_end": 320,
+          "line_start": 328,
+          "line_end": 344,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#os",
           "text": "### `os`\n\nOperating-system namespace.\n\n#### `os.exit(code: Int) -> Nil`\n\nFlushes both streams and terminates the process with `code`.\n\n`code` must be in `0..255`; anything else raises `RuntimeError`.\n\n#### `os.getenv(name: String) -> String?`\n\nReturns the value of an environment variable, or `nil` when unset.\n\nAmbient: it reads the host environment.\n"
         },
@@ -1483,8 +1523,8 @@
           "anchor": "osexitcode-int---nil",
           "title": "os.exit(code: Int) -> Nil",
           "level": 4,
-          "line_start": 308,
-          "line_end": 314,
+          "line_start": 332,
+          "line_end": 338,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#osexitcode-int---nil",
           "text": "#### `os.exit(code: Int) -> Nil`\n\nFlushes both streams and terminates the process with `code`.\n\n`code` must be in `0..255`; anything else raises `RuntimeError`.\n"
         },
@@ -1493,8 +1533,8 @@
           "anchor": "osgetenvname-string---string",
           "title": "os.getenv(name: String) -> String?",
           "level": 4,
-          "line_start": 314,
-          "line_end": 320,
+          "line_start": 338,
+          "line_end": 344,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#osgetenvname-string---string",
           "text": "#### `os.getenv(name: String) -> String?`\n\nReturns the value of an environment variable, or `nil` when unset.\n\nAmbient: it reads the host environment.\n"
         },
@@ -1503,8 +1543,8 @@
           "anchor": "time",
           "title": "time",
           "level": 3,
-          "line_start": 320,
-          "line_end": 338,
+          "line_start": 344,
+          "line_end": 362,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#time",
           "text": "### `time`\n\nTime namespace (ambient).\n\nFunctions read the host clock; they are outside the I1/I3 corpus.\n\n#### `time.now() -> Int`\n\nReturns the current Unix time in milliseconds.\n\nAmbient and non-deterministic; tests must not assert an exact value.\n\n#### `time.sleep(milliseconds: Int) -> Nil`\n\nSuspends the current process for at least `milliseconds`.\n\nAmbient. A negative duration raises `RuntimeError`.\n"
         },
@@ -1513,8 +1553,8 @@
           "anchor": "timenow---int",
           "title": "time.now() -> Int",
           "level": 4,
-          "line_start": 326,
-          "line_end": 332,
+          "line_start": 350,
+          "line_end": 356,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#timenow---int",
           "text": "#### `time.now() -> Int`\n\nReturns the current Unix time in milliseconds.\n\nAmbient and non-deterministic; tests must not assert an exact value.\n"
         },
@@ -1523,8 +1563,8 @@
           "anchor": "timesleepmilliseconds-int---nil",
           "title": "time.sleep(milliseconds: Int) -> Nil",
           "level": 4,
-          "line_start": 332,
-          "line_end": 338,
+          "line_start": 356,
+          "line_end": 362,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#timesleepmilliseconds-int---nil",
           "text": "#### `time.sleep(milliseconds: Int) -> Nil`\n\nSuspends the current process for at least `milliseconds`.\n\nAmbient. A negative duration raises `RuntimeError`.\n"
         },
@@ -1533,8 +1573,8 @@
           "anchor": "built-in-types",
           "title": "Built-in types",
           "level": 2,
-          "line_start": 338,
-          "line_end": 357,
+          "line_start": 362,
+          "line_end": 381,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#built-in-types",
           "text": "## Built-in types\n\n### `Result[T, E]`\n\nBuilt-in generic sum type with `Result.Ok(value)` and `Result.Err(error)`.\n\nUse an exhaustive `match` to inspect it, or the combinators in `std.results`.\n\n### `Exception`\n\nBase class for catchable runtime errors.\n\n`except Exception as e` catches user exceptions and runtime panics converted to `RuntimeError`.\n\n### `RuntimeError`\n\nCatchable runtime error type, below `Exception`.\n\nRaised by the `raise` statement and by runtime panics; the `message` field holds the diagnostic text.\n"
         },
@@ -1543,8 +1583,8 @@
           "anchor": "resultt-e",
           "title": "Result[T, E]",
           "level": 3,
-          "line_start": 340,
-          "line_end": 346,
+          "line_start": 364,
+          "line_end": 370,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#resultt-e",
           "text": "### `Result[T, E]`\n\nBuilt-in generic sum type with `Result.Ok(value)` and `Result.Err(error)`.\n\nUse an exhaustive `match` to inspect it, or the combinators in `std.results`.\n"
         },
@@ -1553,8 +1593,8 @@
           "anchor": "exception",
           "title": "Exception",
           "level": 3,
-          "line_start": 346,
-          "line_end": 352,
+          "line_start": 370,
+          "line_end": 376,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#exception",
           "text": "### `Exception`\n\nBase class for catchable runtime errors.\n\n`except Exception as e` catches user exceptions and runtime panics converted to `RuntimeError`.\n"
         },
@@ -1563,8 +1603,8 @@
           "anchor": "runtimeerror",
           "title": "RuntimeError",
           "level": 3,
-          "line_start": 352,
-          "line_end": 357,
+          "line_start": 376,
+          "line_end": 381,
           "url": "https://loxia-lang.github.io/loxia/stdlib/builtins/#runtimeerror",
           "text": "### `RuntimeError`\n\nCatchable runtime error type, below `Exception`.\n\nRaised by the `raise` statement and by runtime panics; the `message` field holds the diagnostic text.\n"
         }
@@ -2409,32 +2449,92 @@
           "text": "## API\n"
         },
         {
+          "id": "stdlib/csv#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#classes",
+          "text": "## Classes\n\n### `class CsvError`\n\nFailure to parse CSV text.\n\n#### `val kind: String`\n\nStable token: `invalidCsv`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/csv#class-csverror",
+          "anchor": "class-csverror",
+          "title": "class CsvError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#class-csverror",
+          "text": "### `class CsvError`\n\nFailure to parse CSV text.\n\n#### `val kind: String`\n\nStable token: `invalidCsv`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/csv#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable token: `invalidCsv`.\n"
+        },
+        {
+          "id": "stdlib/csv#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#val-message-string",
+          "text": "#### `val message: String`\n\nDetail without path/locale text.\n"
+        },
+        {
+          "id": "stdlib/csv#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
           "id": "stdlib/csv#functions",
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 14,
-          "line_end": 32,
+          "line_start": 32,
+          "line_end": 57,
           "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#functions",
-          "text": "## Functions\n\n### `fn parse(text: String) -> List[List[String]] | Nil`\n\nParses RFC 4180 CSV text into rows of fields.\n\nAccepts LF and CRLF line endings and preserves empty fields. Returns `nil` on\nmalformed input, including a stray quote in an unquoted field or an unterminated\nquoted field. Empty text parses to `[]`; a blank line is a record with one empty\nfield, not an empty row.\n\n### `fn stringify(rows: List[List[String]]) -> String`\n\nSerializes rows as RFC 4180 CSV, quoting fields when needed.\n\nFields are quoted when they contain `,`, `\"`, CR or LF, and embedded quotes are\ndoubled. Every row ends with CRLF, including the last one; an empty row raises\n`RuntimeError` because RFC 4180 has no representation for it. `[]` yields `\"\"`.\n"
+          "text": "## Functions\n\n### `fn parse(text: String) -> List[List[String]] | Nil`\n\nParses RFC 4180 CSV text into rows of fields.\n\nAccepts LF and CRLF line endings and preserves empty fields. Returns `nil` on\nmalformed input, including a stray quote in an unquoted field or an unterminated\nquoted field. Empty text parses to `[]`; a blank line is a record with one empty\nfield, not an empty row.\n\n### `fn parseResult(text: String) -> Result[List[List[String]], CsvError]`\n\nParses CSV text, preserving the cause of a malformed input.\n\nEmpty text is `Ok([])`; a stray quote or an unterminated quoted field is\n`Err(CsvError(\"invalidCsv\", ...))`.\n\n### `fn stringify(rows: List[List[String]]) -> String`\n\nSerializes rows as RFC 4180 CSV, quoting fields when needed.\n\nFields are quoted when they contain `,`, `\"`, CR or LF, and embedded quotes are\ndoubled. Every row ends with CRLF, including the last one; an empty row raises\n`RuntimeError` because RFC 4180 has no representation for it. `[]` yields `\"\"`.\n"
         },
         {
           "id": "stdlib/csv#fn-parsetext-string---listliststring--nil",
           "anchor": "fn-parsetext-string---listliststring--nil",
           "title": "fn parse(text: String) -> List[List[String]] | Nil",
           "level": 3,
-          "line_start": 16,
-          "line_end": 25,
+          "line_start": 34,
+          "line_end": 43,
           "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-parsetext-string---listliststring--nil",
           "text": "### `fn parse(text: String) -> List[List[String]] | Nil`\n\nParses RFC 4180 CSV text into rows of fields.\n\nAccepts LF and CRLF line endings and preserves empty fields. Returns `nil` on\nmalformed input, including a stray quote in an unquoted field or an unterminated\nquoted field. Empty text parses to `[]`; a blank line is a record with one empty\nfield, not an empty row.\n"
+        },
+        {
+          "id": "stdlib/csv#fn-parseresulttext-string---resultlistliststring-csverror",
+          "anchor": "fn-parseresulttext-string---resultlistliststring-csverror",
+          "title": "fn parseResult(text: String) -> Result[List[List[String]], CsvError]",
+          "level": 3,
+          "line_start": 43,
+          "line_end": 50,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-parseresulttext-string---resultlistliststring-csverror",
+          "text": "### `fn parseResult(text: String) -> Result[List[List[String]], CsvError]`\n\nParses CSV text, preserving the cause of a malformed input.\n\nEmpty text is `Ok([])`; a stray quote or an unterminated quoted field is\n`Err(CsvError(\"invalidCsv\", ...))`.\n"
         },
         {
           "id": "stdlib/csv#fn-stringifyrows-listliststring---string",
           "anchor": "fn-stringifyrows-listliststring---string",
           "title": "fn stringify(rows: List[List[String]]) -> String",
           "level": 3,
-          "line_start": 25,
-          "line_end": 32,
+          "line_start": 50,
+          "line_end": 57,
           "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-stringifyrows-listliststring---string",
           "text": "### `fn stringify(rows: List[List[String]]) -> String`\n\nSerializes rows as RFC 4180 CSV, quoting fields when needed.\n\nFields are quoted when they contain `,`, `\"`, CR or LF, and embedded quotes are\ndoubled. Every row ends with CRLF, including the last one; an empty row raises\n`RuntimeError` because RFC 4180 has no representation for it. `[]` yields `\"\"`.\n"
         }
@@ -2965,74 +3065,204 @@
           "text": "## API\n"
         },
         {
+          "id": "stdlib/fs#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 58,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#classes",
+          "text": "## Classes\n\n### `class FileError`\n\nHost failure of a filesystem operation.\n\n#### `val kind: String`\n\nStable token: `notFound`, `permission`, `isDirectory`, `notDirectory`,\n`alreadyExists`, `tooManyFiles`, `noSpace`, `badMode`, `closed`, `invalidHandle`,\n`io`.\n\n#### `val message: String`\n\nHuman-readable detail; never contains an absolute path.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a failure from a stable kind and a message.\n\n### `class File`\n\nOpen file handle; close it, or prefer `withOpen`.\n\n#### `val id: Int`\n\nKernel handle used by `fs.*`.\n\n#### `fn init(id: Int)`\n\nWraps an existing handle; prefer `open`.\n\n#### `fn read(n: Int) -> Result[String | Nil, FileError]`\n\nReads up to `n` bytes at a UTF-8 boundary; `Ok(nil)` means end of file.\n\n#### `fn write(text: String) -> Result[Nil, FileError]`\n\nWrites all of `text`.\n\n#### `fn close() -> Result[Nil, FileError]`\n\nCloses the handle; closing twice is a no-op.\n"
+        },
+        {
+          "id": "stdlib/fs#class-fileerror",
+          "anchor": "class-fileerror",
+          "title": "class FileError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 34,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#class-fileerror",
+          "text": "### `class FileError`\n\nHost failure of a filesystem operation.\n\n#### `val kind: String`\n\nStable token: `notFound`, `permission`, `isDirectory`, `notDirectory`,\n`alreadyExists`, `tooManyFiles`, `noSpace`, `badMode`, `closed`, `invalidHandle`,\n`io`.\n\n#### `val message: String`\n\nHuman-readable detail; never contains an absolute path.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a failure from a stable kind and a message.\n"
+        },
+        {
+          "id": "stdlib/fs#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 26,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable token: `notFound`, `permission`, `isDirectory`, `notDirectory`,\n`alreadyExists`, `tooManyFiles`, `noSpace`, `badMode`, `closed`, `invalidHandle`,\n`io`.\n"
+        },
+        {
+          "id": "stdlib/fs#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 26,
+          "line_end": 30,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#val-message-string",
+          "text": "#### `val message: String`\n\nHuman-readable detail; never contains an absolute path.\n"
+        },
+        {
+          "id": "stdlib/fs#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 30,
+          "line_end": 34,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nBuilds a failure from a stable kind and a message.\n"
+        },
+        {
+          "id": "stdlib/fs#class-file",
+          "anchor": "class-file",
+          "title": "class File",
+          "level": 3,
+          "line_start": 34,
+          "line_end": 58,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#class-file",
+          "text": "### `class File`\n\nOpen file handle; close it, or prefer `withOpen`.\n\n#### `val id: Int`\n\nKernel handle used by `fs.*`.\n\n#### `fn init(id: Int)`\n\nWraps an existing handle; prefer `open`.\n\n#### `fn read(n: Int) -> Result[String | Nil, FileError]`\n\nReads up to `n` bytes at a UTF-8 boundary; `Ok(nil)` means end of file.\n\n#### `fn write(text: String) -> Result[Nil, FileError]`\n\nWrites all of `text`.\n\n#### `fn close() -> Result[Nil, FileError]`\n\nCloses the handle; closing twice is a no-op.\n"
+        },
+        {
+          "id": "stdlib/fs#val-id-int",
+          "anchor": "val-id-int",
+          "title": "val id: Int",
+          "level": 4,
+          "line_start": 38,
+          "line_end": 42,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#val-id-int",
+          "text": "#### `val id: Int`\n\nKernel handle used by `fs.*`.\n"
+        },
+        {
+          "id": "stdlib/fs#fn-initid-int",
+          "anchor": "fn-initid-int",
+          "title": "fn init(id: Int)",
+          "level": 4,
+          "line_start": 42,
+          "line_end": 46,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-initid-int",
+          "text": "#### `fn init(id: Int)`\n\nWraps an existing handle; prefer `open`.\n"
+        },
+        {
+          "id": "stdlib/fs#fn-readn-int---resultstring--nil-fileerror",
+          "anchor": "fn-readn-int---resultstring--nil-fileerror",
+          "title": "fn read(n: Int) -> Result[String | Nil, FileError]",
+          "level": 4,
+          "line_start": 46,
+          "line_end": 50,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-readn-int---resultstring--nil-fileerror",
+          "text": "#### `fn read(n: Int) -> Result[String | Nil, FileError]`\n\nReads up to `n` bytes at a UTF-8 boundary; `Ok(nil)` means end of file.\n"
+        },
+        {
+          "id": "stdlib/fs#fn-writetext-string---resultnil-fileerror",
+          "anchor": "fn-writetext-string---resultnil-fileerror",
+          "title": "fn write(text: String) -> Result[Nil, FileError]",
+          "level": 4,
+          "line_start": 50,
+          "line_end": 54,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-writetext-string---resultnil-fileerror",
+          "text": "#### `fn write(text: String) -> Result[Nil, FileError]`\n\nWrites all of `text`.\n"
+        },
+        {
+          "id": "stdlib/fs#fn-close---resultnil-fileerror",
+          "anchor": "fn-close---resultnil-fileerror",
+          "title": "fn close() -> Result[Nil, FileError]",
+          "level": 4,
+          "line_start": 54,
+          "line_end": 58,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-close---resultnil-fileerror",
+          "text": "#### `fn close() -> Result[Nil, FileError]`\n\nCloses the handle; closing twice is a no-op.\n"
+        },
+        {
           "id": "stdlib/fs#functions",
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 14,
-          "line_end": 57,
+          "line_start": 58,
+          "line_end": 96,
           "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#functions",
-          "text": "## Functions\n\n### `fn readText(path: String) -> String | Nil`\n\nReads a UTF-8 file into a string, or `nil` when unreadable.\n\nAmbient: the content depends on the filesystem. Text is returned exactly as stored,\nincluding any trailing newline, and invalid UTF-8 yields `nil`.\n\n### `fn readLines(path: String) -> List[String] | Nil`\n\nReads a UTF-8 file as one string per line, or `nil` when unreadable.\n\nAccepts LF and CRLF line endings (a bare CR is not a break). Only the final empty\nsegment is dropped, so a file ending in a newline does not produce a trailing empty\nitem.\n\n### `fn writeText(path: String, text: String) -> Bool`\n\nWrites `text` as UTF-8, returning whether the write succeeded.\n\nAmbient. Overwrites an existing file and creates a missing one; the parent\ndirectory must exist. A filesystem error returns `false` instead of raising.\n\n### `fn appendText(path: String, text: String) -> Bool`\n\nAppends UTF-8 text, returning whether the write succeeded.\n\nAmbient. Reads the current content and rewrites the file because the kernel has no\nappend primitive; a missing file is created. The parent directory must exist.\n\n### `fn exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries that the host can stat.\n\n### `fn listDir(path: String) -> List[String] | Nil`\n\nLists directory entry names in sorted order, or `nil` when unreadable.\n\nAmbient. Sorting makes the result deterministic for a given directory; hidden files\nare included and `\".\"`/`\"..\"` are not.\n"
+          "text": "## Functions\n\n### `fn open(path: String, mode: String) -> Result[File, FileError]`\n\nOpens `path` in mode `r`, `w` or `a`.\n\n`w` truncates/creates, `a` creates and appends; `r` requires the file to exist.\n\n### `fn withOpen[T](path: String, mode: String, body: fn(File) -> T) -> Result[T, FileError]`\n\nOpens `path`, calls `body` and closes the file even when `body` raises.\n\nThis is the scoped form of `open`, replacing a `with` block: the handle never\nescapes, and the close runs on normal return and on error.\n\n### `fn readText(path: String) -> Result[String, FileError]`\n\nReads a UTF-8 file into a string.\n\n### `fn readLines(path: String) -> Result[List[String], FileError]`\n\nReads a UTF-8 file as one string per line (LF and CRLF; no trailing empty item).\n\n### `fn writeText(path: String, text: String) -> Result[Nil, FileError]`\n\nWrites `text` as UTF-8, overwriting/creating the file.\n\n### `fn appendText(path: String, text: String) -> Result[Nil, FileError]`\n\nAppends `text` as UTF-8, creating the file when missing.\n\n### `fn exists(path: String) -> Bool`\n\nReturns whether `path` exists (file, directory or other entry).\n\n### `fn listDir(path: String) -> Result[List[String], FileError]`\n\nLists directory entry names in sorted order.\n"
         },
         {
-          "id": "stdlib/fs#fn-readtextpath-string---string--nil",
-          "anchor": "fn-readtextpath-string---string--nil",
-          "title": "fn readText(path: String) -> String | Nil",
+          "id": "stdlib/fs#fn-openpath-string-mode-string---resultfile-fileerror",
+          "anchor": "fn-openpath-string-mode-string---resultfile-fileerror",
+          "title": "fn open(path: String, mode: String) -> Result[File, FileError]",
           "level": 3,
-          "line_start": 16,
-          "line_end": 23,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-readtextpath-string---string--nil",
-          "text": "### `fn readText(path: String) -> String | Nil`\n\nReads a UTF-8 file into a string, or `nil` when unreadable.\n\nAmbient: the content depends on the filesystem. Text is returned exactly as stored,\nincluding any trailing newline, and invalid UTF-8 yields `nil`.\n"
+          "line_start": 60,
+          "line_end": 66,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-openpath-string-mode-string---resultfile-fileerror",
+          "text": "### `fn open(path: String, mode: String) -> Result[File, FileError]`\n\nOpens `path` in mode `r`, `w` or `a`.\n\n`w` truncates/creates, `a` creates and appends; `r` requires the file to exist.\n"
         },
         {
-          "id": "stdlib/fs#fn-readlinespath-string---liststring--nil",
-          "anchor": "fn-readlinespath-string---liststring--nil",
-          "title": "fn readLines(path: String) -> List[String] | Nil",
+          "id": "stdlib/fs#fn-withopentpath-string-mode-string-body-fnfile---t---resultt-fileerror",
+          "anchor": "fn-withopentpath-string-mode-string-body-fnfile---t---resultt-fileerror",
+          "title": "fn withOpen[T](path: String, mode: String, body: fn(File) -> T) -> Result[T, FileError]",
           "level": 3,
-          "line_start": 23,
-          "line_end": 31,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-readlinespath-string---liststring--nil",
-          "text": "### `fn readLines(path: String) -> List[String] | Nil`\n\nReads a UTF-8 file as one string per line, or `nil` when unreadable.\n\nAccepts LF and CRLF line endings (a bare CR is not a break). Only the final empty\nsegment is dropped, so a file ending in a newline does not produce a trailing empty\nitem.\n"
+          "line_start": 66,
+          "line_end": 73,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-withopentpath-string-mode-string-body-fnfile---t---resultt-fileerror",
+          "text": "### `fn withOpen[T](path: String, mode: String, body: fn(File) -> T) -> Result[T, FileError]`\n\nOpens `path`, calls `body` and closes the file even when `body` raises.\n\nThis is the scoped form of `open`, replacing a `with` block: the handle never\nescapes, and the close runs on normal return and on error.\n"
         },
         {
-          "id": "stdlib/fs#fn-writetextpath-string-text-string---bool",
-          "anchor": "fn-writetextpath-string-text-string---bool",
-          "title": "fn writeText(path: String, text: String) -> Bool",
+          "id": "stdlib/fs#fn-readtextpath-string---resultstring-fileerror",
+          "anchor": "fn-readtextpath-string---resultstring-fileerror",
+          "title": "fn readText(path: String) -> Result[String, FileError]",
           "level": 3,
-          "line_start": 31,
-          "line_end": 38,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-writetextpath-string-text-string---bool",
-          "text": "### `fn writeText(path: String, text: String) -> Bool`\n\nWrites `text` as UTF-8, returning whether the write succeeded.\n\nAmbient. Overwrites an existing file and creates a missing one; the parent\ndirectory must exist. A filesystem error returns `false` instead of raising.\n"
+          "line_start": 73,
+          "line_end": 77,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-readtextpath-string---resultstring-fileerror",
+          "text": "### `fn readText(path: String) -> Result[String, FileError]`\n\nReads a UTF-8 file into a string.\n"
         },
         {
-          "id": "stdlib/fs#fn-appendtextpath-string-text-string---bool",
-          "anchor": "fn-appendtextpath-string-text-string---bool",
-          "title": "fn appendText(path: String, text: String) -> Bool",
+          "id": "stdlib/fs#fn-readlinespath-string---resultliststring-fileerror",
+          "anchor": "fn-readlinespath-string---resultliststring-fileerror",
+          "title": "fn readLines(path: String) -> Result[List[String], FileError]",
           "level": 3,
-          "line_start": 38,
-          "line_end": 45,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-appendtextpath-string-text-string---bool",
-          "text": "### `fn appendText(path: String, text: String) -> Bool`\n\nAppends UTF-8 text, returning whether the write succeeded.\n\nAmbient. Reads the current content and rewrites the file because the kernel has no\nappend primitive; a missing file is created. The parent directory must exist.\n"
+          "line_start": 77,
+          "line_end": 81,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-readlinespath-string---resultliststring-fileerror",
+          "text": "### `fn readLines(path: String) -> Result[List[String], FileError]`\n\nReads a UTF-8 file as one string per line (LF and CRLF; no trailing empty item).\n"
+        },
+        {
+          "id": "stdlib/fs#fn-writetextpath-string-text-string---resultnil-fileerror",
+          "anchor": "fn-writetextpath-string-text-string---resultnil-fileerror",
+          "title": "fn writeText(path: String, text: String) -> Result[Nil, FileError]",
+          "level": 3,
+          "line_start": 81,
+          "line_end": 85,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-writetextpath-string-text-string---resultnil-fileerror",
+          "text": "### `fn writeText(path: String, text: String) -> Result[Nil, FileError]`\n\nWrites `text` as UTF-8, overwriting/creating the file.\n"
+        },
+        {
+          "id": "stdlib/fs#fn-appendtextpath-string-text-string---resultnil-fileerror",
+          "anchor": "fn-appendtextpath-string-text-string---resultnil-fileerror",
+          "title": "fn appendText(path: String, text: String) -> Result[Nil, FileError]",
+          "level": 3,
+          "line_start": 85,
+          "line_end": 89,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-appendtextpath-string-text-string---resultnil-fileerror",
+          "text": "### `fn appendText(path: String, text: String) -> Result[Nil, FileError]`\n\nAppends `text` as UTF-8, creating the file when missing.\n"
         },
         {
           "id": "stdlib/fs#fn-existspath-string---bool",
           "anchor": "fn-existspath-string---bool",
           "title": "fn exists(path: String) -> Bool",
           "level": 3,
-          "line_start": 45,
-          "line_end": 51,
+          "line_start": 89,
+          "line_end": 93,
           "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-existspath-string---bool",
-          "text": "### `fn exists(path: String) -> Bool`\n\nReturns whether `path` exists.\n\nAmbient. True for files, directories and other entries that the host can stat.\n"
+          "text": "### `fn exists(path: String) -> Bool`\n\nReturns whether `path` exists (file, directory or other entry).\n"
         },
         {
-          "id": "stdlib/fs#fn-listdirpath-string---liststring--nil",
-          "anchor": "fn-listdirpath-string---liststring--nil",
-          "title": "fn listDir(path: String) -> List[String] | Nil",
+          "id": "stdlib/fs#fn-listdirpath-string---resultliststring-fileerror",
+          "anchor": "fn-listdirpath-string---resultliststring-fileerror",
+          "title": "fn listDir(path: String) -> Result[List[String], FileError]",
           "level": 3,
-          "line_start": 51,
-          "line_end": 57,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-listdirpath-string---liststring--nil",
-          "text": "### `fn listDir(path: String) -> List[String] | Nil`\n\nLists directory entry names in sorted order, or `nil` when unreadable.\n\nAmbient. Sorting makes the result deterministic for a given directory; hidden files\nare included and `\".\"`/`\"..\"` are not.\n"
+          "line_start": 93,
+          "line_end": 96,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/fs/#fn-listdirpath-string---resultliststring-fileerror",
+          "text": "### `fn listDir(path: String) -> Result[List[String], FileError]`\n\nLists directory entry names in sorted order.\n"
         }
       ]
     },
@@ -4744,27 +4974,67 @@
           "title": "Classes",
           "level": 2,
           "line_start": 14,
-          "line_end": 105,
+          "line_end": 117,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#classes",
-          "text": "## Classes\n\n### `class Stream`\n\nByte stream of a child process (`stdin`, `stdout` or `stderr`).\n\n#### `val id: Int`\n\nStream handle used by `proc.*`.\n\n#### `fn init(id: Int)`\n\nWraps an existing stream handle.\n\n#### `fn read(n: Int) -> String | Nil`\n\nReads up to `n` bytes, or `nil` at end of stream.\n\nReading stops at a UTF-8 boundary, so the returned text is always valid even when\n`n` lands inside a multi-byte code point.\n\n#### `fn write(text: String) -> Bool`\n\nWrites all text, returning `false` when the other side closed the pipe.\n\n#### `fn close() -> Nil`\n\nCloses the descriptor; using the stream afterwards is an error.\n\nClose each handle once: a second close raises for an unknown handle.\n\n### `class Process`\n\nChild process with its three channels connected to pipes.\n\n#### `val id: Int`\n\nProcess handle used by `proc.*`.\n\n#### `val stdin: Stream`\n\nChild's standard input.\n\n#### `val stdout: Stream`\n\nChild's standard output.\n\n#### `val stderr: Stream`\n\nChild's standard error.\n\n#### `fn init(id: Int)`\n\nWraps an already-started process handle; prefer `spawn`.\n\n#### `fn wait() -> Int`\n\nWaits for the process to exit and returns its status.\n\nA negative status means the child was terminated by a signal.\n\n#### `fn kill() -> Bool`\n\nSends `SIGKILL`, returning `false` when the process already exited.\n\n#### `fn close() -> Nil`\n\nCloses the channels and releases the handle.\n\nDoes not kill a process that is still running; call `kill` first if needed.\n\n### `class Output`\n\nCaptured output of a finished `run`.\n\n#### `val code: Int`\n\nExit code (negative when the child died from a signal).\n\n#### `val stdout: String`\n\nEverything the child wrote to stdout.\n\n#### `val stderr: String`\n\nEverything the child wrote to stderr.\n\n#### `fn init(code: Int, stdout: String, stderr: String)`\n\nBuilds the result of a finished run.\n"
+          "text": "## Classes\n\n### `class ProcError`\n\nHost failure of a process operation.\n\n#### `val kind: String`\n\nStable token: `spawnFailed`, `closed`, `pipeClosed`, `timeout`, `io`.\n\n#### `val message: String`\n\nHuman-readable detail; no PID, path or locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a failure from a stable kind and a message.\n\n### `class Stream`\n\nByte stream of a child process (`stdin`, `stdout` or `stderr`).\n\n#### `val id: Int`\n\nStream handle used by `proc.*`.\n\n#### `fn init(id: Int)`\n\nWraps an existing stream handle.\n\n#### `fn read(n: Int) -> Result[String | Nil, ProcError]`\n\nReads up to `n` bytes, or `Ok(nil)` at end of stream.\n\nReading stops at a UTF-8 boundary, so the returned text is always valid even when\n`n` lands inside a multi-byte code point.\n\n#### `fn write(text: String) -> Result[Nil, ProcError]`\n\nWrites all text; `pipeClosed` when the other side closed the pipe.\n\n#### `fn close() -> Result[Nil, ProcError]`\n\nCloses the descriptor; closing twice is a no-op.\n\n### `class Process`\n\nChild process with its three channels connected to pipes.\n\n#### `val id: Int`\n\nProcess handle used by `proc.*`.\n\n#### `val stdin: Stream`\n\nChild's standard input.\n\n#### `val stdout: Stream`\n\nChild's standard output.\n\n#### `val stderr: Stream`\n\nChild's standard error.\n\n#### `fn init(id: Int)`\n\nWraps an already-started process handle; prefer `spawn`.\n\n#### `fn wait() -> Result[Int, ProcError]`\n\nWaits for the process to exit and returns its status.\n\nA negative status means the child was terminated by a signal.\n\n#### `fn kill() -> Bool`\n\nSends `SIGKILL`, returning `false` when the process already exited.\n\n#### `fn close() -> Result[Nil, ProcError]`\n\nCloses the channels and releases the handle; closing twice is a no-op.\n\n### `class Output`\n\nCaptured output of a finished `run`.\n\n#### `val code: Int`\n\nExit code (negative when the child died from a signal).\n\n#### `val stdout: String`\n\nEverything the child wrote to stdout.\n\n#### `val stderr: String`\n\nEverything the child wrote to stderr.\n\n#### `fn init(code: Int, stdout: String, stderr: String)`\n\nBuilds the result of a finished run.\n"
+        },
+        {
+          "id": "stdlib/proc#class-procerror",
+          "anchor": "class-procerror",
+          "title": "class ProcError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#class-procerror",
+          "text": "### `class ProcError`\n\nHost failure of a process operation.\n\n#### `val kind: String`\n\nStable token: `spawnFailed`, `closed`, `pipeClosed`, `timeout`, `io`.\n\n#### `val message: String`\n\nHuman-readable detail; no PID, path or locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a failure from a stable kind and a message.\n"
+        },
+        {
+          "id": "stdlib/proc#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable token: `spawnFailed`, `closed`, `pipeClosed`, `timeout`, `io`.\n"
+        },
+        {
+          "id": "stdlib/proc#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-message-string",
+          "text": "#### `val message: String`\n\nHuman-readable detail; no PID, path or locale text.\n"
+        },
+        {
+          "id": "stdlib/proc#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nBuilds a failure from a stable kind and a message.\n"
         },
         {
           "id": "stdlib/proc#class-stream",
           "anchor": "class-stream",
           "title": "class Stream",
           "level": 3,
-          "line_start": 16,
-          "line_end": 45,
+          "line_start": 32,
+          "line_end": 59,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#class-stream",
-          "text": "### `class Stream`\n\nByte stream of a child process (`stdin`, `stdout` or `stderr`).\n\n#### `val id: Int`\n\nStream handle used by `proc.*`.\n\n#### `fn init(id: Int)`\n\nWraps an existing stream handle.\n\n#### `fn read(n: Int) -> String | Nil`\n\nReads up to `n` bytes, or `nil` at end of stream.\n\nReading stops at a UTF-8 boundary, so the returned text is always valid even when\n`n` lands inside a multi-byte code point.\n\n#### `fn write(text: String) -> Bool`\n\nWrites all text, returning `false` when the other side closed the pipe.\n\n#### `fn close() -> Nil`\n\nCloses the descriptor; using the stream afterwards is an error.\n\nClose each handle once: a second close raises for an unknown handle.\n"
+          "text": "### `class Stream`\n\nByte stream of a child process (`stdin`, `stdout` or `stderr`).\n\n#### `val id: Int`\n\nStream handle used by `proc.*`.\n\n#### `fn init(id: Int)`\n\nWraps an existing stream handle.\n\n#### `fn read(n: Int) -> Result[String | Nil, ProcError]`\n\nReads up to `n` bytes, or `Ok(nil)` at end of stream.\n\nReading stops at a UTF-8 boundary, so the returned text is always valid even when\n`n` lands inside a multi-byte code point.\n\n#### `fn write(text: String) -> Result[Nil, ProcError]`\n\nWrites all text; `pipeClosed` when the other side closed the pipe.\n\n#### `fn close() -> Result[Nil, ProcError]`\n\nCloses the descriptor; closing twice is a no-op.\n"
         },
         {
           "id": "stdlib/proc#val-id-int",
           "anchor": "val-id-int",
           "title": "val id: Int",
           "level": 4,
-          "line_start": 20,
-          "line_end": 24,
+          "line_start": 36,
+          "line_end": 40,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-id-int",
           "text": "#### `val id: Int`\n\nStream handle used by `proc.*`.\n"
         },
@@ -4773,58 +5043,58 @@
           "anchor": "fn-initid-int",
           "title": "fn init(id: Int)",
           "level": 4,
-          "line_start": 24,
-          "line_end": 28,
+          "line_start": 40,
+          "line_end": 44,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-initid-int",
           "text": "#### `fn init(id: Int)`\n\nWraps an existing stream handle.\n"
         },
         {
-          "id": "stdlib/proc#fn-readn-int---string--nil",
-          "anchor": "fn-readn-int---string--nil",
-          "title": "fn read(n: Int) -> String | Nil",
+          "id": "stdlib/proc#fn-readn-int---resultstring--nil-procerror",
+          "anchor": "fn-readn-int---resultstring--nil-procerror",
+          "title": "fn read(n: Int) -> Result[String | Nil, ProcError]",
           "level": 4,
-          "line_start": 28,
-          "line_end": 35,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-readn-int---string--nil",
-          "text": "#### `fn read(n: Int) -> String | Nil`\n\nReads up to `n` bytes, or `nil` at end of stream.\n\nReading stops at a UTF-8 boundary, so the returned text is always valid even when\n`n` lands inside a multi-byte code point.\n"
+          "line_start": 44,
+          "line_end": 51,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-readn-int---resultstring--nil-procerror",
+          "text": "#### `fn read(n: Int) -> Result[String | Nil, ProcError]`\n\nReads up to `n` bytes, or `Ok(nil)` at end of stream.\n\nReading stops at a UTF-8 boundary, so the returned text is always valid even when\n`n` lands inside a multi-byte code point.\n"
         },
         {
-          "id": "stdlib/proc#fn-writetext-string---bool",
-          "anchor": "fn-writetext-string---bool",
-          "title": "fn write(text: String) -> Bool",
+          "id": "stdlib/proc#fn-writetext-string---resultnil-procerror",
+          "anchor": "fn-writetext-string---resultnil-procerror",
+          "title": "fn write(text: String) -> Result[Nil, ProcError]",
           "level": 4,
-          "line_start": 35,
-          "line_end": 39,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-writetext-string---bool",
-          "text": "#### `fn write(text: String) -> Bool`\n\nWrites all text, returning `false` when the other side closed the pipe.\n"
+          "line_start": 51,
+          "line_end": 55,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-writetext-string---resultnil-procerror",
+          "text": "#### `fn write(text: String) -> Result[Nil, ProcError]`\n\nWrites all text; `pipeClosed` when the other side closed the pipe.\n"
         },
         {
-          "id": "stdlib/proc#fn-close---nil",
-          "anchor": "fn-close---nil",
-          "title": "fn close() -> Nil",
+          "id": "stdlib/proc#fn-close---resultnil-procerror",
+          "anchor": "fn-close---resultnil-procerror",
+          "title": "fn close() -> Result[Nil, ProcError]",
           "level": 4,
-          "line_start": 39,
-          "line_end": 45,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-close---nil",
-          "text": "#### `fn close() -> Nil`\n\nCloses the descriptor; using the stream afterwards is an error.\n\nClose each handle once: a second close raises for an unknown handle.\n"
+          "line_start": 55,
+          "line_end": 59,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-close---resultnil-procerror",
+          "text": "#### `fn close() -> Result[Nil, ProcError]`\n\nCloses the descriptor; closing twice is a no-op.\n"
         },
         {
           "id": "stdlib/proc#class-process",
           "anchor": "class-process",
           "title": "class Process",
           "level": 3,
-          "line_start": 45,
-          "line_end": 85,
+          "line_start": 59,
+          "line_end": 97,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#class-process",
-          "text": "### `class Process`\n\nChild process with its three channels connected to pipes.\n\n#### `val id: Int`\n\nProcess handle used by `proc.*`.\n\n#### `val stdin: Stream`\n\nChild's standard input.\n\n#### `val stdout: Stream`\n\nChild's standard output.\n\n#### `val stderr: Stream`\n\nChild's standard error.\n\n#### `fn init(id: Int)`\n\nWraps an already-started process handle; prefer `spawn`.\n\n#### `fn wait() -> Int`\n\nWaits for the process to exit and returns its status.\n\nA negative status means the child was terminated by a signal.\n\n#### `fn kill() -> Bool`\n\nSends `SIGKILL`, returning `false` when the process already exited.\n\n#### `fn close() -> Nil`\n\nCloses the channels and releases the handle.\n\nDoes not kill a process that is still running; call `kill` first if needed.\n"
+          "text": "### `class Process`\n\nChild process with its three channels connected to pipes.\n\n#### `val id: Int`\n\nProcess handle used by `proc.*`.\n\n#### `val stdin: Stream`\n\nChild's standard input.\n\n#### `val stdout: Stream`\n\nChild's standard output.\n\n#### `val stderr: Stream`\n\nChild's standard error.\n\n#### `fn init(id: Int)`\n\nWraps an already-started process handle; prefer `spawn`.\n\n#### `fn wait() -> Result[Int, ProcError]`\n\nWaits for the process to exit and returns its status.\n\nA negative status means the child was terminated by a signal.\n\n#### `fn kill() -> Bool`\n\nSends `SIGKILL`, returning `false` when the process already exited.\n\n#### `fn close() -> Result[Nil, ProcError]`\n\nCloses the channels and releases the handle; closing twice is a no-op.\n"
         },
         {
           "id": "stdlib/proc#val-id-int-1",
           "anchor": "val-id-int-1",
           "title": "val id: Int",
           "level": 4,
-          "line_start": 49,
-          "line_end": 53,
+          "line_start": 63,
+          "line_end": 67,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-id-int-1",
           "text": "#### `val id: Int`\n\nProcess handle used by `proc.*`.\n"
         },
@@ -4833,8 +5103,8 @@
           "anchor": "val-stdin-stream",
           "title": "val stdin: Stream",
           "level": 4,
-          "line_start": 53,
-          "line_end": 57,
+          "line_start": 67,
+          "line_end": 71,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-stdin-stream",
           "text": "#### `val stdin: Stream`\n\nChild's standard input.\n"
         },
@@ -4843,8 +5113,8 @@
           "anchor": "val-stdout-stream",
           "title": "val stdout: Stream",
           "level": 4,
-          "line_start": 57,
-          "line_end": 61,
+          "line_start": 71,
+          "line_end": 75,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-stdout-stream",
           "text": "#### `val stdout: Stream`\n\nChild's standard output.\n"
         },
@@ -4853,8 +5123,8 @@
           "anchor": "val-stderr-stream",
           "title": "val stderr: Stream",
           "level": 4,
-          "line_start": 61,
-          "line_end": 65,
+          "line_start": 75,
+          "line_end": 79,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-stderr-stream",
           "text": "#### `val stderr: Stream`\n\nChild's standard error.\n"
         },
@@ -4863,48 +5133,48 @@
           "anchor": "fn-initid-int-1",
           "title": "fn init(id: Int)",
           "level": 4,
-          "line_start": 65,
-          "line_end": 69,
+          "line_start": 79,
+          "line_end": 83,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-initid-int-1",
           "text": "#### `fn init(id: Int)`\n\nWraps an already-started process handle; prefer `spawn`.\n"
         },
         {
-          "id": "stdlib/proc#fn-wait---int",
-          "anchor": "fn-wait---int",
-          "title": "fn wait() -> Int",
+          "id": "stdlib/proc#fn-wait---resultint-procerror",
+          "anchor": "fn-wait---resultint-procerror",
+          "title": "fn wait() -> Result[Int, ProcError]",
           "level": 4,
-          "line_start": 69,
-          "line_end": 75,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-wait---int",
-          "text": "#### `fn wait() -> Int`\n\nWaits for the process to exit and returns its status.\n\nA negative status means the child was terminated by a signal.\n"
+          "line_start": 83,
+          "line_end": 89,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-wait---resultint-procerror",
+          "text": "#### `fn wait() -> Result[Int, ProcError]`\n\nWaits for the process to exit and returns its status.\n\nA negative status means the child was terminated by a signal.\n"
         },
         {
           "id": "stdlib/proc#fn-kill---bool",
           "anchor": "fn-kill---bool",
           "title": "fn kill() -> Bool",
           "level": 4,
-          "line_start": 75,
-          "line_end": 79,
+          "line_start": 89,
+          "line_end": 93,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-kill---bool",
           "text": "#### `fn kill() -> Bool`\n\nSends `SIGKILL`, returning `false` when the process already exited.\n"
         },
         {
-          "id": "stdlib/proc#fn-close---nil-1",
-          "anchor": "fn-close---nil-1",
-          "title": "fn close() -> Nil",
+          "id": "stdlib/proc#fn-close---resultnil-procerror-1",
+          "anchor": "fn-close---resultnil-procerror-1",
+          "title": "fn close() -> Result[Nil, ProcError]",
           "level": 4,
-          "line_start": 79,
-          "line_end": 85,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-close---nil-1",
-          "text": "#### `fn close() -> Nil`\n\nCloses the channels and releases the handle.\n\nDoes not kill a process that is still running; call `kill` first if needed.\n"
+          "line_start": 93,
+          "line_end": 97,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-close---resultnil-procerror-1",
+          "text": "#### `fn close() -> Result[Nil, ProcError]`\n\nCloses the channels and releases the handle; closing twice is a no-op.\n"
         },
         {
           "id": "stdlib/proc#class-output",
           "anchor": "class-output",
           "title": "class Output",
           "level": 3,
-          "line_start": 85,
-          "line_end": 105,
+          "line_start": 97,
+          "line_end": 117,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#class-output",
           "text": "### `class Output`\n\nCaptured output of a finished `run`.\n\n#### `val code: Int`\n\nExit code (negative when the child died from a signal).\n\n#### `val stdout: String`\n\nEverything the child wrote to stdout.\n\n#### `val stderr: String`\n\nEverything the child wrote to stderr.\n\n#### `fn init(code: Int, stdout: String, stderr: String)`\n\nBuilds the result of a finished run.\n"
         },
@@ -4913,8 +5183,8 @@
           "anchor": "val-code-int",
           "title": "val code: Int",
           "level": 4,
-          "line_start": 89,
-          "line_end": 93,
+          "line_start": 101,
+          "line_end": 105,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-code-int",
           "text": "#### `val code: Int`\n\nExit code (negative when the child died from a signal).\n"
         },
@@ -4923,8 +5193,8 @@
           "anchor": "val-stdout-string",
           "title": "val stdout: String",
           "level": 4,
-          "line_start": 93,
-          "line_end": 97,
+          "line_start": 105,
+          "line_end": 109,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-stdout-string",
           "text": "#### `val stdout: String`\n\nEverything the child wrote to stdout.\n"
         },
@@ -4933,8 +5203,8 @@
           "anchor": "val-stderr-string",
           "title": "val stderr: String",
           "level": 4,
-          "line_start": 97,
-          "line_end": 101,
+          "line_start": 109,
+          "line_end": 113,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#val-stderr-string",
           "text": "#### `val stderr: String`\n\nEverything the child wrote to stderr.\n"
         },
@@ -4943,8 +5213,8 @@
           "anchor": "fn-initcode-int-stdout-string-stderr-string",
           "title": "fn init(code: Int, stdout: String, stderr: String)",
           "level": 4,
-          "line_start": 101,
-          "line_end": 105,
+          "line_start": 113,
+          "line_end": 117,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-initcode-int-stdout-string-stderr-string",
           "text": "#### `fn init(code: Int, stdout: String, stderr: String)`\n\nBuilds the result of a finished run.\n"
         },
@@ -4953,30 +5223,30 @@
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 105,
-          "line_end": 122,
+          "line_start": 117,
+          "line_end": 133,
           "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#functions",
-          "text": "## Functions\n\n### `fn spawn(argv: List[String]) -> Process | Nil`\n\nStarts `argv` without a shell, with pipes on all three channels.\n\nReturns `nil` when the process cannot be started. `argv[0]` is resolved by the OS,\nnot by a shell, so no quoting or command interpolation happens.\n\n### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Output | Nil`\n\nRuns `argv` to completion and returns its exit code and captured output.\n\n`stdin` is written before the first `poll` (practical limit: the pipe buffer,\n~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the\nprocess and returns `nil`. There is no shell and no command interpolation; `nil` also\nmeans the process could not be started.\n"
+          "text": "## Functions\n\n### `fn spawn(argv: List[String]) -> Result[Process, ProcError]`\n\nStarts `argv` without a shell, with pipes on all three channels.\n\n`argv[0]` is resolved by the OS, not by a shell, so no quoting or command\ninterpolation happens.\n\n### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Result[Output, ProcError]`\n\nRuns `argv` to completion and returns its exit code and captured output.\n\n`stdin` is written before the first `poll` (practical limit: the pipe buffer,\n~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the\nprocess and returns `Err(ProcError(\"timeout\", ...))`. There is no shell.\n"
         },
         {
-          "id": "stdlib/proc#fn-spawnargv-liststring---process--nil",
-          "anchor": "fn-spawnargv-liststring---process--nil",
-          "title": "fn spawn(argv: List[String]) -> Process | Nil",
+          "id": "stdlib/proc#fn-spawnargv-liststring---resultprocess-procerror",
+          "anchor": "fn-spawnargv-liststring---resultprocess-procerror",
+          "title": "fn spawn(argv: List[String]) -> Result[Process, ProcError]",
           "level": 3,
-          "line_start": 107,
-          "line_end": 114,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-spawnargv-liststring---process--nil",
-          "text": "### `fn spawn(argv: List[String]) -> Process | Nil`\n\nStarts `argv` without a shell, with pipes on all three channels.\n\nReturns `nil` when the process cannot be started. `argv[0]` is resolved by the OS,\nnot by a shell, so no quoting or command interpolation happens.\n"
+          "line_start": 119,
+          "line_end": 126,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-spawnargv-liststring---resultprocess-procerror",
+          "text": "### `fn spawn(argv: List[String]) -> Result[Process, ProcError]`\n\nStarts `argv` without a shell, with pipes on all three channels.\n\n`argv[0]` is resolved by the OS, not by a shell, so no quoting or command\ninterpolation happens.\n"
         },
         {
-          "id": "stdlib/proc#fn-runargv-liststring-stdin-string---timeoutms-int-----output--nil",
-          "anchor": "fn-runargv-liststring-stdin-string---timeoutms-int-----output--nil",
-          "title": "fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Output | Nil",
+          "id": "stdlib/proc#fn-runargv-liststring-stdin-string---timeoutms-int-----resultoutput-procerror",
+          "anchor": "fn-runargv-liststring-stdin-string---timeoutms-int-----resultoutput-procerror",
+          "title": "fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Result[Output, ProcError]",
           "level": 3,
-          "line_start": 114,
-          "line_end": 122,
-          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-runargv-liststring-stdin-string---timeoutms-int-----output--nil",
-          "text": "### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Output | Nil`\n\nRuns `argv` to completion and returns its exit code and captured output.\n\n`stdin` is written before the first `poll` (practical limit: the pipe buffer,\n~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the\nprocess and returns `nil`. There is no shell and no command interpolation; `nil` also\nmeans the process could not be started.\n"
+          "line_start": 126,
+          "line_end": 133,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/proc/#fn-runargv-liststring-stdin-string---timeoutms-int-----resultoutput-procerror",
+          "text": "### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Result[Output, ProcError]`\n\nRuns `argv` to completion and returns its exit code and captured output.\n\n`stdin` is written before the first `poll` (practical limit: the pipe buffer,\n~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the\nprocess and returns `Err(ProcError(\"timeout\", ...))`. There is no shell.\n"
         }
       ]
     },
@@ -5346,9 +5616,9 @@
           "title": "Functions",
           "level": 2,
           "line_start": 14,
-          "line_end": 54,
+          "line_end": 58,
           "url": "https://loxia-lang.github.io/loxia/stdlib/results/#functions",
-          "text": "## Functions\n\n### `fn isOk[T, E](result: Result[T, E]) -> Bool`\n\nReturns `true` for `Result.Ok` and `false` for `Result.Err`.\n\n### `fn isErr[T, E](result: Result[T, E]) -> Bool`\n\nReturns `true` for `Result.Err` and `false` for `Result.Ok`.\n\n### `fn map[T, U, E](result: Result[T, E], transform: fn(T) -> U) -> Result[U, E]`\n\nApplies `transform` to the success value; an error passes through unchanged.\n\nThe error type `E` is preserved.\n\n### `fn mapErr[T, E, F](result: Result[T, E], transform: fn(E) -> F) -> Result[T, F]`\n\nApplies `transform` to the error value; a success passes through unchanged.\n\nThe success type `T` is preserved.\n\n### `fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T`\n\nReturns the success value, or `fallback` for an error.\n\n`fallback` is an ordinary argument, so it is evaluated before the call.\n\n### `fn andThen[T, U, E](result: Result[T, E], transform: fn(T) -> Result[U, E]) -> Result[U, E]`\n\nChains a computation that itself returns a `Result`.\n\nOn success `transform` is called; on error the original error is returned unchanged.\nThis is the monadic bind for `Result`.\n\n### `fn toOptional[T, E](result: Result[T, E]) -> T | Nil`\n\nReturns the success value, or `nil` when the result is an error.\n\nThe error value is discarded; use `match` when it must be inspected.\n"
+          "text": "## Functions\n\n### `fn isOk[T, E](result: Result[T, E]) -> Bool`\n\nReturns `true` for `Result.Ok` and `false` for `Result.Err`.\n\n### `fn isErr[T, E](result: Result[T, E]) -> Bool`\n\nReturns `true` for `Result.Err` and `false` for `Result.Ok`.\n\n### `fn map[T, U, E](result: Result[T, E], transform: fn(T) -> U) -> Result[U, E]`\n\nApplies `transform` to the success value; an error passes through unchanged.\n\nThe error type `E` is preserved.\n\n### `fn mapErr[T, E, F](result: Result[T, E], transform: fn(E) -> F) -> Result[T, F]`\n\nApplies `transform` to the error value; a success passes through unchanged.\n\nThe success type `T` is preserved.\n\n### `fn errorOf[T, E](result: Result[T, E]) -> E | Nil`\n\nReturns the error value, or `nil` when the result is a success.\n\n### `fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T`\n\nReturns the success value, or `fallback` for an error.\n\n`fallback` is an ordinary argument, so it is evaluated before the call.\n\n### `fn andThen[T, U, E](result: Result[T, E], transform: fn(T) -> Result[U, E]) -> Result[U, E]`\n\nChains a computation that itself returns a `Result`.\n\nOn success `transform` is called; on error the original error is returned unchanged.\nThis is the monadic bind for `Result`.\n\n### `fn toOptional[T, E](result: Result[T, E]) -> T | Nil`\n\nReturns the success value, or `nil` when the result is an error.\n\nThe error value is discarded; use `match` when it must be inspected.\n"
         },
         {
           "id": "stdlib/results#fn-isokt-eresult-resultt-e---bool",
@@ -5391,12 +5661,22 @@
           "text": "### `fn mapErr[T, E, F](result: Result[T, E], transform: fn(E) -> F) -> Result[T, F]`\n\nApplies `transform` to the error value; a success passes through unchanged.\n\nThe success type `T` is preserved.\n"
         },
         {
+          "id": "stdlib/results#fn-erroroft-eresult-resultt-e---e--nil",
+          "anchor": "fn-erroroft-eresult-resultt-e---e--nil",
+          "title": "fn errorOf[T, E](result: Result[T, E]) -> E | Nil",
+          "level": 3,
+          "line_start": 36,
+          "line_end": 40,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/results/#fn-erroroft-eresult-resultt-e---e--nil",
+          "text": "### `fn errorOf[T, E](result: Result[T, E]) -> E | Nil`\n\nReturns the error value, or `nil` when the result is a success.\n"
+        },
+        {
           "id": "stdlib/results#fn-unwraport-eresult-resultt-e-fallback-t---t",
           "anchor": "fn-unwraport-eresult-resultt-e-fallback-t---t",
           "title": "fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T",
           "level": 3,
-          "line_start": 36,
-          "line_end": 42,
+          "line_start": 40,
+          "line_end": 46,
           "url": "https://loxia-lang.github.io/loxia/stdlib/results/#fn-unwraport-eresult-resultt-e-fallback-t---t",
           "text": "### `fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T`\n\nReturns the success value, or `fallback` for an error.\n\n`fallback` is an ordinary argument, so it is evaluated before the call.\n"
         },
@@ -5405,8 +5685,8 @@
           "anchor": "fn-andthent-u-eresult-resultt-e-transform-fnt---resultu-e---resultu-e",
           "title": "fn andThen[T, U, E](result: Result[T, E], transform: fn(T) -> Result[U, E]) -> Result[U, E]",
           "level": 3,
-          "line_start": 42,
-          "line_end": 49,
+          "line_start": 46,
+          "line_end": 53,
           "url": "https://loxia-lang.github.io/loxia/stdlib/results/#fn-andthent-u-eresult-resultt-e-transform-fnt---resultu-e---resultu-e",
           "text": "### `fn andThen[T, U, E](result: Result[T, E], transform: fn(T) -> Result[U, E]) -> Result[U, E]`\n\nChains a computation that itself returns a `Result`.\n\nOn success `transform` is called; on error the original error is returned unchanged.\nThis is the monadic bind for `Result`.\n"
         },
@@ -5415,8 +5695,8 @@
           "anchor": "fn-tooptionalt-eresult-resultt-e---t--nil",
           "title": "fn toOptional[T, E](result: Result[T, E]) -> T | Nil",
           "level": 3,
-          "line_start": 49,
-          "line_end": 54,
+          "line_start": 53,
+          "line_end": 58,
           "url": "https://loxia-lang.github.io/loxia/stdlib/results/#fn-tooptionalt-eresult-resultt-e---t--nil",
           "text": "### `fn toOptional[T, E](result: Result[T, E]) -> T | Nil`\n\nReturns the success value, or `nil` when the result is an error.\n\nThe error value is discarded; use `match` when it must be inspected.\n"
         }
@@ -6477,22 +6757,72 @@
           "text": "## API\n"
         },
         {
+          "id": "stdlib/timex#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#classes",
+          "text": "## Classes\n\n### `class TimeError`\n\nFailure to parse an ISO-8601 UTC instant.\n\n#### `val kind: String`\n\nStable token: `invalidIso`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/timex#class-timeerror",
+          "anchor": "class-timeerror",
+          "title": "class TimeError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#class-timeerror",
+          "text": "### `class TimeError`\n\nFailure to parse an ISO-8601 UTC instant.\n\n#### `val kind: String`\n\nStable token: `invalidIso`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/timex#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable token: `invalidIso`.\n"
+        },
+        {
+          "id": "stdlib/timex#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#val-message-string",
+          "text": "#### `val message: String`\n\nDetail without path/locale text.\n"
+        },
+        {
+          "id": "stdlib/timex#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
           "id": "stdlib/timex#functions",
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 14,
-          "line_end": 55,
+          "line_start": 32,
+          "line_end": 78,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#functions",
-          "text": "## Functions\n\n### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`\n\nReturns days since 1970-01-01 for a civil date.\n\nUses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is\n1..31; invalid combinations are not rejected here.\n\n### `fn civilFromDays(days: Int) -> (Int, Int, Int)`\n\nReturns `(year, month, day)` for days since 1970-01-01.\n\nInverse of `daysFromCivil` and likewise proleptic Gregorian.\n\n### `fn iso(seconds: Int) -> String`\n\nFormats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.\n\nRaises `RuntimeError` when the year falls outside 0..9999. The instant is floored\ninto its civil day, so pre-epoch values still format consistently.\n\n### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` when the length, separators, digits, field ranges or calendar date are\ninvalid. Leap seconds are not accepted: `second` must be 0..59.\n\n### `fn addDays(seconds: Int, days: Int) -> Int`\n\nAdds `days` days to the instant `seconds` and returns the new instant.\n\nDays are exactly 86400 seconds and there is no DST handling because the module is\nUTC-only.\n\n### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`\n\nSplits an instant into `(year, month, day, hour, minute, second)` UTC.\n\nUses floor division, so instants before the epoch still produce a valid civil date.\n"
+          "text": "## Functions\n\n### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`\n\nReturns days since 1970-01-01 for a civil date.\n\nUses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is\n1..31; invalid combinations are not rejected here.\n\n### `fn civilFromDays(days: Int) -> (Int, Int, Int)`\n\nReturns `(year, month, day)` for days since 1970-01-01.\n\nInverse of `daysFromCivil` and likewise proleptic Gregorian.\n\n### `fn iso(seconds: Int) -> String`\n\nFormats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.\n\nRaises `RuntimeError` when the year falls outside 0..9999. The instant is floored\ninto its civil day, so pre-epoch values still format consistently.\n\n### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` for malformed input; `parseIsoResult` preserves the cause.\n\n### `fn parseIsoResult(text: String) -> Result[Int, TimeError]`\n\nParses an ISO-8601 UTC instant, preserving the cause of a malformed input.\n\nLeap seconds are not accepted: `second` must be 0..59.\n\n### `fn addDays(seconds: Int, days: Int) -> Int`\n\nAdds `days` days to the instant `seconds` and returns the new instant.\n\nDays are exactly 86400 seconds and there is no DST handling because the module is\nUTC-only.\n\n### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`\n\nSplits an instant into `(year, month, day, hour, minute, second)` UTC.\n\nUses floor division, so instants before the epoch still produce a valid civil date.\n"
         },
         {
           "id": "stdlib/timex#fn-daysfromcivilyear-int-month-int-day-int---int",
           "anchor": "fn-daysfromcivilyear-int-month-int-day-int---int",
           "title": "fn daysFromCivil(year: Int, month: Int, day: Int) -> Int",
           "level": 3,
-          "line_start": 16,
-          "line_end": 23,
+          "line_start": 34,
+          "line_end": 41,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-daysfromcivilyear-int-month-int-day-int---int",
           "text": "### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`\n\nReturns days since 1970-01-01 for a civil date.\n\nUses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is\n1..31; invalid combinations are not rejected here.\n"
         },
@@ -6501,8 +6831,8 @@
           "anchor": "fn-civilfromdaysdays-int---int-int-int",
           "title": "fn civilFromDays(days: Int) -> (Int, Int, Int)",
           "level": 3,
-          "line_start": 23,
-          "line_end": 29,
+          "line_start": 41,
+          "line_end": 47,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-civilfromdaysdays-int---int-int-int",
           "text": "### `fn civilFromDays(days: Int) -> (Int, Int, Int)`\n\nReturns `(year, month, day)` for days since 1970-01-01.\n\nInverse of `daysFromCivil` and likewise proleptic Gregorian.\n"
         },
@@ -6511,8 +6841,8 @@
           "anchor": "fn-isoseconds-int---string",
           "title": "fn iso(seconds: Int) -> String",
           "level": 3,
-          "line_start": 29,
-          "line_end": 36,
+          "line_start": 47,
+          "line_end": 54,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-isoseconds-int---string",
           "text": "### `fn iso(seconds: Int) -> String`\n\nFormats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.\n\nRaises `RuntimeError` when the year falls outside 0..9999. The instant is floored\ninto its civil day, so pre-epoch values still format consistently.\n"
         },
@@ -6521,18 +6851,28 @@
           "anchor": "fn-parseisotext-string---int--nil",
           "title": "fn parseIso(text: String) -> Int | Nil",
           "level": 3,
-          "line_start": 36,
-          "line_end": 43,
+          "line_start": 54,
+          "line_end": 60,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-parseisotext-string---int--nil",
-          "text": "### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` when the length, separators, digits, field ranges or calendar date are\ninvalid. Leap seconds are not accepted: `second` must be 0..59.\n"
+          "text": "### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` for malformed input; `parseIsoResult` preserves the cause.\n"
+        },
+        {
+          "id": "stdlib/timex#fn-parseisoresulttext-string---resultint-timeerror",
+          "anchor": "fn-parseisoresulttext-string---resultint-timeerror",
+          "title": "fn parseIsoResult(text: String) -> Result[Int, TimeError]",
+          "level": 3,
+          "line_start": 60,
+          "line_end": 66,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-parseisoresulttext-string---resultint-timeerror",
+          "text": "### `fn parseIsoResult(text: String) -> Result[Int, TimeError]`\n\nParses an ISO-8601 UTC instant, preserving the cause of a malformed input.\n\nLeap seconds are not accepted: `second` must be 0..59.\n"
         },
         {
           "id": "stdlib/timex#fn-adddaysseconds-int-days-int---int",
           "anchor": "fn-adddaysseconds-int-days-int---int",
           "title": "fn addDays(seconds: Int, days: Int) -> Int",
           "level": 3,
-          "line_start": 43,
-          "line_end": 50,
+          "line_start": 66,
+          "line_end": 73,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-adddaysseconds-int-days-int---int",
           "text": "### `fn addDays(seconds: Int, days: Int) -> Int`\n\nAdds `days` days to the instant `seconds` and returns the new instant.\n\nDays are exactly 86400 seconds and there is no DST handling because the module is\nUTC-only.\n"
         },
@@ -6541,8 +6881,8 @@
           "anchor": "fn-partsseconds-int---int-int-int-int-int-int",
           "title": "fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)",
           "level": 3,
-          "line_start": 50,
-          "line_end": 55,
+          "line_start": 73,
+          "line_end": 78,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-partsseconds-int---int-int-int-int-int-int",
           "text": "### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`\n\nSplits an instant into `(year, month, day, hour, minute, second)` UTC.\n\nUses floor division, so instants before the epoch still produce a valid civil date.\n"
         }

@@ -455,6 +455,7 @@ extern int32_t lox_any_compare (int32_t op, int64_t left_tag, int64_t left_paylo
 extern void lox_print_any (int64_t tag, int64_t payload);
 extern int64_t utf8_code_points (const char *data, size_t length);
 extern int utf8_valid (const unsigned char *data, size_t length);
+extern size_t utf8_complete_prefix (const unsigned char *data, size_t length);
 extern int compare_dir_names (const void *left, const void *right);
 
 #endif /* LOX_RUNTIME_H */

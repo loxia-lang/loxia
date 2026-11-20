@@ -2,8 +2,26 @@
 # std.proc — processes and streams (T2, ambient: outside I1/I3), thin Lox shell.
 #
 # Wraps `proc.*`: no shell and no threads; `poll` is the concurrency primitive. Handles
-# are opaque ids that must be closed explicitly, and `run` can block when writing more
-# than the pipe buffer (~64 KiB) to a child that is not reading.
+# are opaque ids that must be closed explicitly (close is idempotent), and `run` can block
+# when writing more than the pipe buffer (~64 KiB) to a child that is not reading.
+# Host failures are `Result[T, ProcError]` (ADR-0119), and a timeout is an error kind,
+# not the same `nil` as a failed spawn.
+
+import std.results as results
+
+/// Host failure of a process operation.
+class ProcError {
+  /// Stable token: `spawnFailed`, `closed`, `pipeClosed`, `timeout`, `io`.
+  val kind: String
+  /// Human-readable detail; no PID, path or locale text.
+  val message: String
+
+  /// Builds a failure from a stable kind and a message.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
+}
 
 /// Byte stream of a child process (`stdin`, `stdout` or `stderr`).
 class Stream {
@@ -15,24 +33,45 @@ class Stream {
     this.id = id
   }
 
-  /// Reads up to `n` bytes, or `nil` at end of stream.
+  /// Reads up to `n` bytes, or `Ok(nil)` at end of stream.
   ///
   /// Reading stops at a UTF-8 boundary, so the returned text is always valid even when
   /// `n` lands inside a multi-byte code point.
-  fn read(n: Int) -> String? {
-    return process.read(this.id, n)
+  fn read(n: Int) -> Result[String?, ProcError] {
+    var out: Result[String?, ProcError]
+    try {
+      out = Result.Ok(process.read(this.id, n))
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
   }
 
-  /// Writes all text, returning `false` when the other side closed the pipe.
-  fn write(text: String) -> Bool {
-    return process.write(this.id, text)
+  /// Writes all text; `pipeClosed` when the other side closed the pipe.
+  fn write(text: String) -> Result[Nil, ProcError] {
+    var out: Result[Nil, ProcError]
+    try {
+      if (process.write(this.id, text)) {
+        out = Result.Ok(nil)
+      } else {
+        out = Result.Err(ProcError("pipeClosed", "process.write: the pipe is closed."))
+      }
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
   }
 
-  /// Closes the descriptor; using the stream afterwards is an error.
-  ///
-  /// Close each handle once: a second close raises for an unknown handle.
-  fn close() -> Nil {
-    process.close(this.id)
+  /// Closes the descriptor; closing twice is a no-op.
+  fn close() -> Result[Nil, ProcError] {
+    var out: Result[Nil, ProcError]
+    try {
+      process.close(this.id)
+      out = Result.Ok(nil)
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
   }
 }
 
@@ -58,8 +97,14 @@ class Process {
   /// Waits for the process to exit and returns its status.
   ///
   /// A negative status means the child was terminated by a signal.
-  fn wait() -> Int {
-    return process.wait(this.id)
+  fn wait() -> Result[Int, ProcError] {
+    var out: Result[Int, ProcError]
+    try {
+      out = Result.Ok(process.wait(this.id))
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
   }
 
   /// Sends `SIGKILL`, returning `false` when the process already exited.
@@ -67,11 +112,16 @@ class Process {
     return process.kill(this.id)
   }
 
-  /// Closes the channels and releases the handle.
-  ///
-  /// Does not kill a process that is still running; call `kill` first if needed.
-  fn close() -> Nil {
-    process.close(this.id)
+  /// Closes the channels and releases the handle; closing twice is a no-op.
+  fn close() -> Result[Nil, ProcError] {
+    var out: Result[Nil, ProcError]
+    try {
+      process.close(this.id)
+      out = Result.Ok(nil)
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
   }
 }
 
@@ -94,34 +144,46 @@ class Output {
 
 /// Starts `argv` without a shell, with pipes on all three channels.
 ///
-/// Returns `nil` when the process cannot be started. `argv[0]` is resolved by the OS,
-/// not by a shell, so no quoting or command interpolation happens.
-fn spawn(argv: List[String]) -> Process? {
-  val id = process.spawn(argv)
-  if (id == 0) {
-    return nil
+/// `argv[0]` is resolved by the OS, not by a shell, so no quoting or command
+/// interpolation happens.
+fn spawn(argv: List[String]) -> Result[Process, ProcError] {
+  var out: Result[Process, ProcError]
+  try {
+    val id = process.spawn(argv)
+    if (id == 0) {
+      out = Result.Err(ProcError("spawnFailed", "process.spawn: can't start the process."))
+    } else {
+      out = Result.Ok(Process(id))
+    }
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
   }
-  return Process(id)
+  return out
 }
 
 /// Runs `argv` to completion and returns its exit code and captured output.
 ///
 /// `stdin` is written before the first `poll` (practical limit: the pipe buffer,
 /// ~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the
-/// process and returns `nil`. There is no shell and no command interpolation; `nil` also
-/// means the process could not be started.
-fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Output? {
-  val child = spawn(argv)
+/// process and returns `Err(ProcError("timeout", ...))`. There is no shell.
+fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Result[Output, ProcError] {
+  val spawned = spawn(argv)
+  val child = results.toOptional(spawned)
   if (child == nil) {
-    return nil
+    return Result.Err(results.errorOf(spawned) ?? ProcError("spawnFailed", "can't start."))
   }
+  val childProcess = child as Process
   if (stdin != "") {
-    child.stdin.write(stdin)
+    val wrote = childProcess.stdin.write(stdin)
+    if (not results.isOk(wrote)) {
+      _discard(childProcess)
+      return Result.Err(results.errorOf(wrote) ?? ProcError("io", "stdin write failed."))
+    }
   }
-  child.stdin.close()
+  childProcess.stdin.close()
 
-  val outId = child.stdout.id
-  val errId = child.stderr.id
+  val outId = childProcess.stdout.id
+  val errId = childProcess.stderr.id
   val outParts: List[String] = []
   val errParts: List[String] = []
   var outOpen = true
@@ -129,56 +191,99 @@ fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Output? {
   var done = false
   var code = 0
   var deadline = 0
+  var failure: ProcError? = nil
   if (timeoutMs > 0) {
     deadline = time.now() + timeoutMs
   }
 
   while (not done or outOpen or errOpen) {
-    val handles: List[Int] = []
-    if (not done) {
-      handles.push(child.id)
-    }
-    if (outOpen) {
-      handles.push(outId)
-    }
-    if (errOpen) {
-      handles.push(errId)
-    }
-    var timeout = -1
-    if (deadline != 0) {
-      timeout = deadline - time.now()
-      if (timeout < 0) {
-        timeout = 0
+    if (failure != nil) {
+      done = true
+      outOpen = false
+      errOpen = false
+    } else {
+      val handles: List[Int] = []
+      if (not done) {
+        handles.push(childProcess.id)
       }
-    }
-    val ready = process.poll(handles, timeout)
-    if (len(ready) == 0) {
-      child.kill()
-      child.wait()
-      child.close()
-      return nil
-    }
-    for id in ready {
-      if (id == child.id) {
-        code = child.wait()
-        done = true
-      } else if (id == outId) {
-        val chunk = child.stdout.read(4096)
-        if (chunk == nil) {
-          outOpen = false
-        } else {
-          outParts.push(chunk)
+      if (outOpen) {
+        handles.push(outId)
+      }
+      if (errOpen) {
+        handles.push(errId)
+      }
+      var timeout = -1
+      if (deadline != 0) {
+        timeout = deadline - time.now()
+        if (timeout < 0) {
+          timeout = 0
         }
-      } else if (id == errId) {
-        val chunk = child.stderr.read(4096)
-        if (chunk == nil) {
-          errOpen = false
-        } else {
-          errParts.push(chunk)
+      }
+      val ready = process.poll(handles, timeout)
+      if (len(ready) == 0) {
+        failure = ProcError("timeout", "process.run: timed out.")
+      } else {
+        for id in ready {
+          if (id == childProcess.id) {
+            val waited = childProcess.wait()
+            if (results.isOk(waited)) {
+              code = results.unwrapOr(waited, 0)
+            } else {
+              failure = results.errorOf(waited) ?? ProcError("io", "wait failed.")
+            }
+            done = true
+          } else if (id == outId) {
+            val chunk = childProcess.stdout.read(4096)
+            if (not results.isOk(chunk)) {
+              failure = results.errorOf(chunk) ?? ProcError("io", "stdout read failed.")
+            } else {
+              val text = results.unwrapOr(chunk, "")
+              if (text == nil or text == "") {
+                outOpen = false
+              } else {
+                outParts.push(text)
+              }
+            }
+          } else if (id == errId) {
+            val chunk = childProcess.stderr.read(4096)
+            if (not results.isOk(chunk)) {
+              failure = results.errorOf(chunk) ?? ProcError("io", "stderr read failed.")
+            } else {
+              val text = results.unwrapOr(chunk, "")
+              if (text == nil or text == "") {
+                errOpen = false
+              } else {
+                errParts.push(text)
+              }
+            }
+          }
         }
       }
     }
   }
-  child.close()
-  return Output(code, join(outParts, ""), join(errParts, ""))
+  if (failure != nil) {
+    childProcess.kill()
+    childProcess.wait()
+    _discard(childProcess)
+    return Result.Err(failure ?? ProcError("io", "process.run failed."))
+  }
+  _discard(childProcess)
+  return Result.Ok(Output(code, join(outParts, ""), join(errParts, "")))
+}
+
+fn _discard(target: Process) -> Nil {
+  target.stdout.close()
+  target.stderr.close()
+  target.close()
+}
+
+fn _failure(message: String) -> ProcError {
+  var index = 0
+  while (index + 1 < len(message)) {
+    if (charCodeAt(message, index) == 58 and charCodeAt(message, index + 1) == 32) {
+      return ProcError(substr(message, 0, index), substr(message, index + 2, len(message)))
+    }
+    index = index + 1
+  }
+  return ProcError("io", message)
 }

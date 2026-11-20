@@ -7,6 +7,24 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **`fs.open` com handles e erro de host em `Result`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md),
+  issue [#16](https://github.com/loxia-lang/loxia/issues/16)): `fs.open/read/write/close`
+  no kernel (4 primitivas), `std.fs.File` + `withOpen[T]` com `FileError.kind` estável,
+  modos `r`/`w`/`a`, leitura em fronteira UTF-8 e `close` idempotente. `appendText` deixa
+  de reler o arquivo. **Breaking:** `readText`/`readLines`/`writeText`/`appendText`/
+  `listDir` agora devolvem `Result[T, FileError]` (sem bump de major; não há consumidor
+  externo). `seek`/`tell`/`+modos`/binário ficam adiados com gatilhos.
+
+- **`std.proc` em `Result`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md)):
+  `spawn`/`run`/`Stream.read`/`Stream.write`/`close` e `Process.wait`/`close` devolvem
+  `Result[T, ProcError]` (`spawnFailed`, `pipeClosed`, `closed`, `timeout`, `io`); timeout
+  deixa de ser `nil` e `close` fica idempotente. **Breaking:** chamadas antigas precisam
+  de `match`/`std.results`.
+
+- **`csv.parseResult` e `timex.parseIsoResult`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md)):
+  erros de parse ganham `CsvError`/`TimeError` com `kind` estável; `parse`/`parseIso`
+  continuam devolvendo `T?` como atalho legado.
+
 - **LSP: navegação, robustez e hierarquia de tipos** ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md),
   [ADR-0114](docs/adr/0114-ast-recuperada-para-tooling.md); issue
   [#46](https://github.com/loxia-lang/loxia/issues/46)): `textDocument/references` e
