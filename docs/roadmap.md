@@ -41,7 +41,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
   highlight, `typeDefinition`/`implementation`, tags de não usado, fix-all, AST recuperada
   para tooling, buffers não salvos nos imports, rename de arquivo e hierarquia de tipos
   (fases 1–4; inspirado no pyrefly, sem herdar código Rust).
-- Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) — **em andamento** em `std.numeric` e `std.paths`.
+- Piloto de `std.contracts` em módulos da stdlib/exemplos e property tests ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) — **em andamento** em `std.numeric`, `std.paths`, `std.convert` e `std.lists`.
 - Spike de `std.toml` (dados, paridade com `tomllib`): [ADR-0118](adr/0118-toml-na-toolchain-e-edicao-de-manifest.md) separou dados de edição; promoção só com consumidor real ([#53](https://github.com/loxia-lang/loxia/issues/53)).
 - ~~Lacunas do runner de testes: `--json`, cobertura e localização de falha
   ([#11](https://github.com/loxia-lang/loxia/issues/11)).~~ **Fechado**: protocolo v2,

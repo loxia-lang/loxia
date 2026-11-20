@@ -1,7 +1,8 @@
 # std.contracts pilot: postconditions in std.numeric and std.paths + properties.
+import std.convert as convert
 import std.numeric as numeric
 import std.paths as paths
-from std.property import Gen, forAll, intRange, listOf, oneOf
+from std.property import Gen, forAll, intRange, listOf, oneOf, stringOf
 from std.test import expect
 
 fn pathPart() -> Gen[String] {
@@ -36,6 +37,16 @@ forAll(intRange(-25, 25), fn(base: Int) {
     }, 8, 7)
   }, 8, 5)
 }, 8, 2)
+
+forAll(stringOf(20), fn(text: String) {
+  val encoded = convert.base64Encode(text)
+  expect(len(encoded) % 4 == 0).toBe(true)
+  val decoded = convert.base64Decode(encoded)
+  expect(decoded != nil).toBe(true)
+  if (decoded != nil) {
+    expect(decoded ?? "").toBe(text)
+  }
+}, 25, 13)
 
 forAll(listOf(pathPart(), 6), fn(parts: List[String]) {
   val raw = pathOf(parts)

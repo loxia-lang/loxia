@@ -37,8 +37,9 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 ### Ferramentas
 
 - **Piloto de `std.contracts`:** pós-condições internas em `numeric.gcd`,
-  `numeric.powMod` e `paths.normalize`, com property test determinístico nos dois motores
-  (`std_contracts_pilot.lx`). Entradas inválidas continuam `RuntimeError`.
+  `numeric.powMod`, `paths.normalize`, `convert.base64Encode` e `lists.sort`, com property
+  test determinístico nos dois motores (`std_contracts_pilot.lx`). Entradas inválidas
+  continuam `RuntimeError`; `sort` separa `_sort` para checar só na fronteira pública.
 
 - **CI macOS/Windows:** macOS roda a suíte não-backend como gate; Windows roda a mesma
   suíte em modo experimental (falhas de plataforma conhecidas). O backend nativo continua

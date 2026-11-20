@@ -122,9 +122,17 @@ usuário. Assim nenhum chamador válido passa a ver `ContractError`. O caso
 `tests/cases/std_contracts_pilot.lx` (t2) roda nos dois motores e usa `forAll` para
 gcd, powMod e idempotência de `normalize`.
 
-O piloto toca **2 módulos**, abaixo do gatilho de 3+ módulos do ADR; a próxima onda
-(`std.convert`/`std.lists.sort`) só entra se estes contratos pegarem regressões sem custo
-relevante.
+A primeira onda tocou **2 módulos**. A segunda adicionou:
+
+- `std.convert.base64Encode`: garante tamanho múltiplo de 4, alfabeto e padding válidos;
+  `base64Decode(base64Encode(s))` é property test.
+- `std.lists.sort`: separa `_sort` recursivo da fronteira pública e garante tamanho
+  preservado e resultado ordenado por `compare`.
+
+Com **4 módulos**, o gatilho de revisão de sintaxe do ADR foi atingido. A decisão
+continua **biblioteca**: o piloto não mostrou necessidade de `requires`/`ensures`
+automáticos, e qualquer sintaxe continua exigindo o portão do ADR-0066. A revisão fica
+registrada como próximo passo, não como implementação automática.
 
 ## Consequências
 
