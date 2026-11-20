@@ -1,0 +1,8 @@
+basic = "line\nbreak\ttab \"quote\" \\ \u00e9"
+literal = 'no \n escapes'
+multi = """
+first
+second"""
+raw = '''
+linha 1
+linha 2'''
