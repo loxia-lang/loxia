@@ -13,6 +13,22 @@ Processes, streams and `poll` (POSIX, ambient: outside I1/I3).
 
 ## Classes
 
+### `class ProcError`
+
+Host failure of a process operation.
+
+#### `val kind: String`
+
+Stable token: `spawnFailed`, `closed`, `pipeClosed`, `timeout`, `io`.
+
+#### `val message: String`
+
+Human-readable detail; no PID, path or locale text.
+
+#### `fn init(kind: String, message: String)`
+
+Builds a failure from a stable kind and a message.
+
 ### `class Stream`
 
 Byte stream of a child process (`stdin`, `stdout` or `stderr`).
@@ -25,22 +41,20 @@ Stream handle used by `proc.*`.
 
 Wraps an existing stream handle.
 
-#### `fn read(n: Int) -> String | Nil`
+#### `fn read(n: Int) -> Result[String | Nil, ProcError]`
 
-Reads up to `n` bytes, or `nil` at end of stream.
+Reads up to `n` bytes, or `Ok(nil)` at end of stream.
 
 Reading stops at a UTF-8 boundary, so the returned text is always valid even when
 `n` lands inside a multi-byte code point.
 
-#### `fn write(text: String) -> Bool`
+#### `fn write(text: String) -> Result[Nil, ProcError]`
 
-Writes all text, returning `false` when the other side closed the pipe.
+Writes all text; `pipeClosed` when the other side closed the pipe.
 
-#### `fn close() -> Nil`
+#### `fn close() -> Result[Nil, ProcError]`
 
-Closes the descriptor; using the stream afterwards is an error.
-
-Close each handle once: a second close raises for an unknown handle.
+Closes the descriptor; closing twice is a no-op.
 
 ### `class Process`
 
@@ -66,7 +80,7 @@ Child's standard error.
 
 Wraps an already-started process handle; prefer `spawn`.
 
-#### `fn wait() -> Int`
+#### `fn wait() -> Result[Int, ProcError]`
 
 Waits for the process to exit and returns its status.
 
@@ -76,11 +90,9 @@ A negative status means the child was terminated by a signal.
 
 Sends `SIGKILL`, returning `false` when the process already exited.
 
-#### `fn close() -> Nil`
+#### `fn close() -> Result[Nil, ProcError]`
 
-Closes the channels and releases the handle.
-
-Does not kill a process that is still running; call `kill` first if needed.
+Closes the channels and releases the handle; closing twice is a no-op.
 
 ### `class Output`
 
@@ -104,18 +116,17 @@ Builds the result of a finished run.
 
 ## Functions
 
-### `fn spawn(argv: List[String]) -> Process | Nil`
+### `fn spawn(argv: List[String]) -> Result[Process, ProcError]`
 
 Starts `argv` without a shell, with pipes on all three channels.
 
-Returns `nil` when the process cannot be started. `argv[0]` is resolved by the OS,
-not by a shell, so no quoting or command interpolation happens.
+`argv[0]` is resolved by the OS, not by a shell, so no quoting or command
+interpolation happens.
 
-### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Output | Nil`
+### `fn run(argv: List[String], stdin: String = ..., timeoutMs: Int = ...) -> Result[Output, ProcError]`
 
 Runs `argv` to completion and returns its exit code and captured output.
 
 `stdin` is written before the first `poll` (practical limit: the pipe buffer,
 ~64 KiB; larger text can block if the child does not read). `timeoutMs > 0` kills the
-process and returns `nil`. There is no shell and no command interpolation; `nil` also
-means the process could not be started.
+process and returns `Err(ProcError("timeout", ...))`. There is no shell.

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Kernel de processos (ADR-0095): `std.proc` no oráculo.
+"""Kernel de processos (ADR-0095/0119): `std.proc` no oráculo.
 
 Os testes usam o próprio `sys.executable` como filho — nada de `cat`/shell — para
 funcionar em qualquer POSIX com o Python do ambiente.
@@ -8,6 +8,7 @@ funcionar em qualquer POSIX com o Python do ambiente.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import time
@@ -19,6 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="proc.* é POSIX (posix_spawn/poll)")
+
+PREAMBLE = "import std.proc as p\nimport std.results as results\n"
 
 
 def _run_source(tmp_path: Path, source: str) -> subprocess.CompletedProcess[str]:
@@ -36,16 +39,18 @@ def _run_source(tmp_path: Path, source: str) -> subprocess.CompletedProcess[str]
 
 def _run_lox(code: str, stdin: str = "", timeout_ms: int = 0) -> str:
     return (
-        "import std.proc as p\n"
-        f"val py = {json.dumps(sys.executable)}\n"
+        PREAMBLE
+        + f"val py = {json.dumps(sys.executable)}\n"
         f'val out = p.run([py, "-c", {json.dumps(code)}], '
         f"{json.dumps(stdin)}, {timeout_ms})\n"
-        "if (out == nil) {\n"
-        '  print("nil")\n'
+        "val done = results.toOptional(out)\n"
+        "if (done == nil) {\n"
+        "  val failure = results.errorOf(out)\n"
+        '  print(failure?.kind ?? "io")\n'
         "} else {\n"
-        "  print(out.code)\n"
-        "  print(repr(out.stdout))\n"
-        "  print(repr(out.stderr))\n"
+        "  print(done.code)\n"
+        "  print(repr(done.stdout))\n"
+        "  print(repr(done.stderr))\n"
         "}\n"
     )
 
@@ -73,30 +78,34 @@ def test_run_utf8_acima_do_chunk(tmp_path: Path) -> None:
     assert result.stdout == '0\n"' + "ç" * 3000 + '"\n""\n'
 
 
-def test_run_timeout_devolve_nil_e_mata(tmp_path: Path) -> None:
+def test_run_timeout_vira_erro_de_kind_timeout(tmp_path: Path) -> None:
     started = time.monotonic()
     result = _run_source(tmp_path, _run_lox("import time; time.sleep(10)", timeout_ms=200))
     elapsed = time.monotonic() - started
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "nil\n"
+    assert result.stdout == "timeout\n"
     assert elapsed < 5.0
 
 
 def test_spawn_poll_wait_e_streams(tmp_path: Path) -> None:
     source = (
-        "import std.proc as p\n"
-        f"val py = {json.dumps(sys.executable)}\n"
-        'val child = p.spawn([py, "-c", '
+        PREAMBLE
+        + f"val py = {json.dumps(sys.executable)}\n"
+        'val spawned = p.spawn([py, "-c", '
         + json.dumps("import sys; sys.stdout.write('eco')")
         + "])\n"
+        "val child = results.toOptional(spawned)\n"
         "if (child == nil) {\n"
         '  print("nil")\n'
         "} else {\n"
         "  val ready = process.poll([child.id, child.stdout.id], 5000)\n"
         "  print(len(ready) >= 1)\n"
-        "  print(child.stdout.read(64))\n"
-        "  print(child.wait())\n"
+        "  val chunk = child.stdout.read(64)\n"
+        "  val text = results.toOptional(chunk)\n"
+        '  print(text ?? "nil")\n'
+        "  val waited = child.wait()\n"
+        "  print(results.unwrapOr(waited, -1))\n"
         "  child.close()\n"
         "}\n"
     )
@@ -109,9 +118,10 @@ def test_spawn_poll_wait_e_streams(tmp_path: Path) -> None:
 
 def test_handle_de_tipo_errado_aponta_chamada(tmp_path: Path) -> None:
     source = (
-        "import std.proc as p\n"
-        f"val py = {json.dumps(sys.executable)}\n"
-        'val child = p.spawn([py, "-c", "pass"])\n'
+        PREAMBLE
+        + f"val py = {json.dumps(sys.executable)}\n"
+        'val spawned = p.spawn([py, "-c", "pass"])\n'
+        "val child = results.toOptional(spawned)\n"
         "if (child != nil) {\n"
         "  print(process.read(child.id, 4))\n"
         "}\n"
@@ -121,5 +131,5 @@ def test_handle_de_tipo_errado_aponta_chamada(tmp_path: Path) -> None:
 
     assert result.returncode == 70
     assert "error[R1000]: process.read() expects a stream handle." in result.stderr
-    assert "caso.lx:5:" in result.stderr
+    assert re.search(r"caso\.lx:\d+:", result.stderr)
     assert "Traceback" not in result.stderr

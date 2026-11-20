@@ -266,8 +266,12 @@ int32_t lox_proc_kill(int64_t id, int32_t line, int32_t column) {
 /* `process.close`: closes the stream fd, or all three child streams, and frees
  * the slot. It does not kill a running child. */
 void lox_proc_close(int64_t id, int32_t line, int32_t column) {
-    LoxProcHandle *handle = proc_handle_at(id, line, column);
-    if (handle == NULL) {
+    if (id < 1 || id > LOX_MAX_PROC_HANDLES) {
+        lox_panic(line, column, "R1000", "proc: invalid handle.");
+        return;
+    }
+    LoxProcHandle *handle = &lox_proc_handles[id - 1];
+    if (handle->kind == 0) {
         return;
     }
     if (handle->kind == 1) {

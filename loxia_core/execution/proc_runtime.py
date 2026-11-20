@@ -163,8 +163,9 @@ class ProcTable:
         return True
 
     def close(self, identifier: int) -> None:
-        handle = self._get(identifier)
-        del self._handles[identifier]
+        if identifier not in self._handles:
+            return
+        handle = self._handles.pop(identifier)
         if handle.kind == "stream":
             self._close_fd(handle.fd)
             return
