@@ -194,7 +194,7 @@ Or let the client fetch the package from PyPI:
 }
 ```
 
-The MCP Registry manifest is [`server.json`](server.json); the PyPI package
+The MCP Registry manifest is [`server.json`](https://github.com/loxia-lang/loxia/blob/main/server.json); the PyPI package
 `loxia` carries the `loxia-mcp` console script and the packaged docs index.
 
 The server is zero-dependency; check/run/ast results are byte-identical to the CLI. See
