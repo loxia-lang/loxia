@@ -18,6 +18,7 @@ import tarfile
 import tomllib
 from pathlib import Path
 
+from loxia_core.loader.gitenv import git_env
 from loxia_core.loader.loader import SOURCE_SUFFIX
 from loxia_core.loader.lock import Lock, LockedPackage, render_lock
 from loxia_core.loader.manifest import (
@@ -332,8 +333,7 @@ def _require_git() -> None:
 
 def _git_run(args: list[str], *, git_dir: Path | None = None) -> subprocess.CompletedProcess[bytes]:
     _require_git()
-    environment = dict(os.environ)
-    environment["GIT_TERMINAL_PROMPT"] = "0"
+    environment = git_env()
     command = ["git"]
     if git_dir is not None:
         command.extend(["--git-dir", str(git_dir)])

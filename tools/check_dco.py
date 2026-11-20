@@ -8,6 +8,8 @@ import os
 import subprocess
 import sys
 
+from loxia_core.loader.gitenv import git_env
+
 
 def has_signoff(message: str) -> bool:
     """True when at least one Signed-off-by trailer has a non-empty value."""
@@ -25,6 +27,7 @@ def _git(*args: str) -> str:
         capture_output=True,
         text=True,
         check=False,
+        env=git_env(),
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"git {' '.join(args)} failed")

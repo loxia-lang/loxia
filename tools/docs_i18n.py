@@ -18,6 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from loxia_core.loader.gitenv import git_env
+
 ROOT = Path(__file__).resolve().parents[1]
 I18N = ROOT / "docs" / "i18n"
 
@@ -43,6 +45,7 @@ def _commit(path: str) -> str:
         capture_output=True,
         text=True,
         check=False,
+        env=git_env(),
     )
     return result.stdout.strip() if result.returncode == 0 else ""
 
