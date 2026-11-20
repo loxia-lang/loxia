@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Harness Lox do spike de TOML: lê um arquivo e imprime a forma canônica, ou
+# `ERR linha:coluna: mensagem` com exit 65 (ver tests/test_toml_parity.py).
+
+import std.fs as fs
+import toml
+
+fn main() -> Nil {
+  val argv = args()
+  if (len(argv) != 1) {
+    print("ERR 0:0: expected exactly one .toml path")
+    os.exit(2)
+  }
+  val text = fs.readText(argv[0])
+  if (text == nil) {
+    print("ERR 0:0: can't read the input file")
+    os.exit(2)
+  }
+  val result = toml.parse(text)
+  if (not result.ok) {
+    print("ERR ${result.error}")
+    os.exit(65)
+  }
+  print(toml.stringify(result.value))
+}
+
+main()
