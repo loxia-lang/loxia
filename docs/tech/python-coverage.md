@@ -3,7 +3,10 @@ sources:
   - pyproject.toml
   - Makefile
   - .gitignore
-  - tests/test_test_runner.py
+  - coverage-baseline.toml
+  - tools/coverage_ratchet.py
+  - .github/workflows/ci.yml
+  - tests/test_coverage_config.py
 ---
 
 # Python coverage
@@ -18,9 +21,14 @@ Lox programs and not of language features. The feature matrix lives in
 make coverage
 ```
 
-The target runs the non-backend suite under `coverage run`, combines the per-process data
-files and prints a branch report. It is **measurement only**: there is no `fail-under`
-yet, and the target is not part of `make check`.
+`make coverage` runs the non-backend suite under `coverage run`, combines the per-process
+data files and prints a branch report. It is **measurement only**: the gate is a separate
+target, `make coverage-ratchet`.
+
+The two `--timeout` CLI tests are deselected from the coverage run: they assert a
+wall-clock watchdog against an infinite loop, and the instrumentation overhead makes the
+test harness's 20 s timeout fire instead. They still run in the normal unit job; excluding
+them from the measurement is deliberate and does not hide a product regression.
 
 `[tool.coverage.run]` in `pyproject.toml` sets:
 
@@ -48,9 +56,24 @@ well covered; the checker's diagnostic branches and the host/process runtime are
 largest gaps. Use `coverage report -m` for the missing lines and
 `coverage html` for the annotated source.
 
-## Why no gate yet
+## Ratchet
 
-A gate before the baseline is understood would either fail constantly or force tests for
-code that is intentionally defensive (platform-specific host paths, error branches of the
-native kernel). The next step is a **ratchet** on selected modules (`checker`, `backend`,
-`test_runner`) after the coverage report has been triaged, not a global percentage.
+`coverage-baseline.toml` stores an integer floor per selected module: parser, scanner,
+resolver, checker, interpreter, numeric, the value objects (`list`, `map`, `class`,
+`exception`, `instance`), the CLI/engine and `test_runner`. `make coverage-ratchet` runs
+the measurement, converts the report to `.coverage.json` and fails when a module is below
+its floor:
+
+```bash
+make coverage-ratchet   # gate (also runs in the CI "Coverage ratchet" job)
+make coverage-update    # raises floors to the measured value; never lowers
+```
+
+The floors only go up (`tools/coverage_ratchet.py --update` uses `max`). A new module is
+not in the baseline yet, so it does not fail; add it after triaging its gaps. There is no
+global `fail-under`: a high-level percentage lets one module drop while another rises.
+`make check` does not run the ratchet (it would run the suite a third time); CI does.
+
+The selection is intentionally [the hot path and the compiler
+surface](../../coverage-baseline.toml), not every file. `checker` is the most sensitive
+floor: a diagnostic branch without a test fails the ratchet.

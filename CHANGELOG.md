@@ -39,8 +39,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - `loxia test --junit` emite JUnit XML com `time="0"`; `--json-lines` emite um evento por
   teste e um `summary` final.
 - **`make coverage`**: medição de cobertura Python por branch, com `patch = ["subprocess"]`
-  para incluir o CLI em subprocessos. Primeira medição local: 65% (sem gate); guia em
+  para incluir o CLI em subprocessos. Primeira medição local: 65%; guia em
   [`docs/tech/python-coverage.md`](docs/tech/python-coverage.md).
+- **Ratchet de cobertura:** `coverage-baseline.toml` fixa pisos por módulo crítico,
+  `make coverage-ratchet` falha abaixo deles (job "Coverage ratchet" no CI) e
+  `make coverage-update` só sobe os pisos.
 - Triagem de frescor de 2026-11-20 registrada em [`docs/log.md`](docs/log.md); o teste de
   âncoras do site ignora `site/dist` defasado.
 

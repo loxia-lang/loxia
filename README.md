@@ -271,7 +271,8 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
 uv sync --all-groups --extra llvm   # dev environment, including the native backend
 make check-fast                     # lint + format + mypy + tests (no native builds) + docs
 make check                          # everything, including the native backend
-make coverage                       # Python branch coverage (measurement; no gate)
+make coverage                       # Python branch coverage (measurement)
+make coverage-ratchet               # coverage gate (selected modules)
 make bench                          # benchmarks vs the baseline
 ```
 

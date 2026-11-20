@@ -31,7 +31,35 @@ def test_coverage_artifacts_are_ignored() -> None:
     assert "htmlcov/" in ignored
 
 
-def test_make_target_exists() -> None:
+def test_make_targets_exist() -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "\ncoverage:\n" in makefile
     assert "coverage report" in makefile
+    assert "\ncoverage-ratchet: coverage\n" in makefile
+    assert "coverage_ratchet.py --check" in makefile
+
+
+def test_ratchet_baseline_covers_existing_modules() -> None:
+    from tools.coverage_ratchet import BASELINE, load_baseline
+
+    baseline = load_baseline()
+    assert BASELINE.is_file()
+    assert baseline
+    for path, floor in baseline.items():
+        assert (ROOT / path).is_file(), path
+        assert isinstance(floor, int)
+        assert 0 <= floor <= 100
+
+
+def test_ratchet_compare_reports_regressions() -> None:
+    from tools.coverage_ratchet import compare
+
+    actual = {
+        "a.py": 95.9,
+        "b.py": 80.0,
+    }
+    assert compare(actual, {"a.py": 95, "b.py": 80}) == []
+    problems = compare(actual, {"a.py": 96, "b.py": 81, "c.py": 50})
+    assert any("a.py" in problem for problem in problems)
+    assert any("b.py" in problem for problem in problems)
+    assert any("c.py" in problem for problem in problems)
