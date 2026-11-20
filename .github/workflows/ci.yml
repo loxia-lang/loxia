@@ -66,10 +66,9 @@ jobs:
         run: make coverage-ratchet
 
   portable:
-    name: Portable (${{ matrix.os }}, experimental)
-    # Non-blocking on purpose: the interpreter is not ported/tested on these
-    # platforms yet. This job exposes the real failures without lying about the
-    # native backend, which remains Linux-only. Not part of ci-success.
+    name: Portable (${{ matrix.os }})
+    # Interpreter-only coverage on hosted macOS/Windows. The native backend
+    # remains Linux-only; this job deliberately runs `-m "not backend"`.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
@@ -84,13 +83,7 @@ jobs:
           python-version: "3.13"
       - run: uv sync --locked --all-groups --extra llvm
       - name: Non-backend suite
-        id: suite
-        continue-on-error: true
         run: uv run pytest -m "not backend and not install" --maxfail=20 -ra
-      - name: Note experimental failures
-        if: steps.suite.outcome == 'failure'
-        shell: bash
-        run: echo "::warning title=Portable CI::macOS/Windows failures are expected until the interpreter is ported; see the suite log."
 
   backend:
     name: Native backend
@@ -195,7 +188,7 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [lint, typecheck, unit, backend, docs, site, package, commits]
+    needs: [lint, typecheck, unit, portable, backend, docs, site, package, commits]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs

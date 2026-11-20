@@ -75,7 +75,7 @@ not in the baseline yet, so it does not fail; add it after triaging its gaps. Th
 global `fail-under`: a high-level percentage lets one module drop while another rises.
 `make check` does not run the ratchet (it would run the suite a third time); CI does, in the
 3.13 unit job. That job uses four xdist workers; there is no separate coverage job. The
-experimental macOS/Windows portable job is non-blocking and does not run coverage.
+macOS/Windows portable job runs the non-backend suite and does not run coverage.
 
 The selection is intentionally [the hot path and the compiler
 surface](../../coverage-baseline.toml), not every file. `checker` is the most sensitive
