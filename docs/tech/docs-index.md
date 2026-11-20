@@ -96,10 +96,11 @@ protocol/sandbox decisions live in the MCP ADR, not here.
 
 `tools/docs_common.py` owns `SPEC_PAGES`, `SPEC_SLUGS`, `slugify`, `spec_url`,
 `stdlib_url` and the front-matter helpers. `tools/docs_site.py` imports them too, so a
-change to a slug or URL affects both outputs. When `site/dist` exists, the test suite
-compares every index anchor with the ids in the generated HTML; in CI the algorithm
-fixtures (`grammar-ebnf`, `type-checker---check`, `equality--`, duplicate `syntax-1`) plus
-the sync gate cover the same contract without a Node build.
+change to a slug or URL affects both outputs. When `site/dist` exists **and is not older
+than the docs**, the test suite compares every index anchor with the ids in the generated
+HTML; a stale local build is skipped (run `npm run build --prefix site`). In CI the
+algorithm fixtures (`grammar-ebnf`, `type-checker---check`, `equality--`, duplicate
+`syntax-1`) plus the sync gate cover the same contract without a Node build.
 
 ## Non-goals
 
