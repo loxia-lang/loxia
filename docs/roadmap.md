@@ -33,7 +33,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
    **Implementado** (ADR-0112: modern-only 2026-07-28, zero-dep, `--sandbox`); falta
    validar com os clientes-alvo e publicar.
-3. **Decisões abertas**: `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)). Contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos; o gerador de AST foi decidido como manual + guard ([ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md)).
+3. **Decisões abertas**: contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos; o gerador de AST foi decidido como manual + guard ([ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md)). `fs.open` foi entregue com handles ([#16](https://github.com/loxia-lang/loxia/issues/16), [ADR-0119](adr/0119-fs-open-handles-e-erro-de-host.md)).
 
 ## Próximo (Next)
 
@@ -48,7 +48,7 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 ## Depois (Later)
 
-- Self-hosting do `loxia fmt` (começar pelo formatter), depois do `fs.open`.
+- Self-hosting do `loxia fmt` (começar pelo formatter); `fs.open` já está disponível ([ADR-0119](adr/0119-fs-open-handles-e-erro-de-host.md)).
 - Corpus de conformidade como artefato `lox-core` ([#10](https://github.com/loxia-lang/loxia/issues/10)):
   adiado até existir spec `lox-core` publicada e implementação externa pedindo
   ([ADR-0115](adr/0115-corpus-de-conformidade-adiado.md)).

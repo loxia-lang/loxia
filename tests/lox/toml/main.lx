@@ -11,12 +11,16 @@ fn main() -> Nil {
     print("ERR 0:0: expected exactly one .toml path")
     os.exit(2)
   }
-  val text = fs.readText(argv[0])
-  if (text == nil) {
+  val read = fs.readText(argv[0])
+  val content = match read {
+    Result.Ok(text) => text
+    Result.Err(_error) => nil
+  }
+  if (content == nil) {
     print("ERR 0:0: can't read the input file")
     os.exit(2)
   }
-  val result = toml.parse(text)
+  val result = toml.parse(content as String)
   if (not result.ok) {
     print("ERR ${result.error}")
     os.exit(65)
