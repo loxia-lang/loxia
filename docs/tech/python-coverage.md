@@ -60,7 +60,8 @@ the missing lines and `coverage html` for the annotated source.
 
 `coverage-baseline.toml` stores an integer floor per selected module: parser, scanner,
 resolver, checker, interpreter, numeric, the value objects (`list`, `map`, `class`,
-`exception`, `instance`), the CLI/engine and `test_runner`. `make coverage-ratchet` runs
+`exception`, `instance`), the loader, host primitives, `source_index`, the CLI/engine and
+`test_runner`. `make coverage-ratchet` runs
 the measurement, converts the report to `.coverage.json` and fails when a module is below
 its floor:
 

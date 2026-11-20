@@ -81,7 +81,9 @@ final `summary` object:
 ```
 
 It is mutually exclusive with `--json` (exit 2). Use it when the consumer wants to start
-processing before the suite ends; the final summary is still authoritative.
+processing before the suite ends; the final summary is still authoritative. JSONL uses
+ASCII escapes for non-ASCII text, so Unicode line separators such as U+0085 never split a
+record.
 
 ## JUnit XML (`--junit PATH`)
 

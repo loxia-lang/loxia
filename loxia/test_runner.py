@@ -636,7 +636,6 @@ def _json_lines(runs: list[FileRun], *, exit_code: int, capture: bool = False) -
     lines = [
         json.dumps(
             {"schema_version": 1, "type": "test", **_test_payload(result, capture)},
-            ensure_ascii=False,
         )
         for result in results
     ]
@@ -649,7 +648,6 @@ def _json_lines(runs: list[FileRun], *, exit_code: int, capture: bool = False) -
                 "exit_code": exit_code,
                 **_summary(runs, results),
             },
-            ensure_ascii=False,
         )
     )
     return "\n".join(lines)

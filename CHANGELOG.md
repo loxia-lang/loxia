@@ -44,6 +44,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - **Ratchet de cobertura:** `coverage-baseline.toml` fixa pisos por módulo crítico,
   `make coverage-ratchet` falha abaixo deles (job "Coverage ratchet" no CI) e
   `make coverage-update` só sobe os pisos.
+- **Ratchet expandido:** loader, primitivas de host, `source_index` e mais objetos de valor
+  entraram no `coverage-baseline.toml`.
+- **Fuzz do runner:** property tests para TAP, protocolo v2, JSON/JSONL e JUnit. O fuzz
+  revelou que `--json-lines` com U+0085 quebrava o record em duas linhas; a saída agora usa
+  escapes ASCII.
 - **Ratchet do backend Python:** `coverage-baseline-backend.toml` cobre o lowering; o job
   "Native backend" roda `make coverage-ratchet-backend` (exige libgc/llvmlite).
 - **TIPOS.md atualizado:** remove as lacunas de L5/L6/T7 já fechadas e deixa só generics
