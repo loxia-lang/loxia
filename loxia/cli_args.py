@@ -667,6 +667,16 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         )
         groups.general.add_argument("--json", action="store_true", help="relatório em JSON")
         groups.general.add_argument(
+            "--json-lines",
+            action="store_true",
+            help="um evento JSON por linha (testes + summary)",
+        )
+        groups.general.add_argument(
+            "--junit",
+            metavar="PATH",
+            help="grava o relatório JUnit XML no arquivo",
+        )
+        groups.general.add_argument(
             "--capture",
             action="store_true",
             help="inclui no JSON o stdout do teste que falhou",
@@ -674,9 +684,9 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         groups.execution.add_argument(
             "--jobs",
             type=int,
-            default=1,
+            default=None,
             metavar="N",
-            help="arquivos em paralelo (default: 1)",
+            help="arquivos em paralelo (default: min(4, CPUs))",
         )
         groups.execution.add_argument(
             "--timeout",

@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -295,3 +296,77 @@ def test_location_nativa_igual_ao_interpretador(tmp_path: Path) -> None:
 
     assert interpreted["tests"][0]["location"] == native["tests"][0]["location"]
     assert interpreted["tests"][0]["location"] is not None
+
+
+def test_junit_xml(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    (tests / "skip_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("pula", fn() { suite.skip("sem rede") })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+    report = tmp_path / "junit.xml"
+
+    result = run_test(str(tests), "--junit", str(report))
+
+    assert result.returncode == 1
+    root = ET.parse(report).getroot()
+    assert root.tag == "testsuites"
+    assert root.attrib["tests"] == "3"
+    assert root.attrib["failures"] == "1"
+    assert root.attrib["skipped"] == "1"
+    failures = root.findall(".//failure")
+    assert len(failures) == 1
+    assert "expected 2, got 1" in (failures[0].text or "")
+    assert failures[0].attrib["type"] == "assertion"
+    assert len(root.findall(".//skipped")) == 1
+
+
+def test_json_lines_tem_testes_e_summary(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    result = run_test(str(tests), "--json-lines")
+
+    assert result.returncode == 1
+    lines = [json.loads(line) for line in result.stdout.splitlines() if line]
+    assert [line["type"] for line in lines] == ["test", "test", "summary"]
+    assert lines[-1]["tests"] == 2
+    assert lines[-1]["fail"] == 1
+    assert lines[-1]["exit_code"] == 1
+
+
+def test_json_e_json_lines_sao_exclusivos(tmp_path: Path) -> None:
+    result = run_test(str(tmp_path), "--json", "--json-lines")
+    assert result.returncode == 2
+    assert "mutuamente exclusivos" in result.stderr
+
+
+def test_tap_escapa_hash_no_nome(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "hash_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("a # SKIP b", fn() { t.expect(1).toBe(2) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+
+    result = run_test(str(tests))
+
+    assert "a \\# SKIP b" in result.stdout
+
+
+@pytest.mark.backend
+def test_build_nativo_em_paralelo(tmp_path: Path) -> None:
+    pytest.importorskip("llvmlite")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    for name in ("a", "b"):
+        (tests / f"{name}_test.lx").write_text(PASS, encoding="utf-8")
+
+    result = run_test(str(tests), "--native", "--jobs", "2")
+
+    assert result.returncode == 0, result.stderr
+    assert "# files 2" in result.stdout

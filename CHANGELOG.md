@@ -30,6 +30,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - `loxia test` exibe caminhos relativos ao CWD (não à raiz do pacote) e mata o process
   group no timeout. A suíte local ganhou `pytest-timeout`/`pytest-xdist`, o pytest foi
   para o pre-push e o teste de âncoras do site ignora `site/dist` defasado.
+- **Performance e relatório do `loxia test`:** `--jobs` passa a default `min(4, CPUs)`,
+  builds nativos rodam em paralelo, e o runner ganhou `--json-lines`, `--junit PATH` e
+  escape de `#`/newline no TAP humano.
+
+### Ferramentas
+
+- `loxia test --junit` emite JUnit XML com `time="0"`; `--json-lines` emite um evento por
+  teste e um `summary` final.
 
 - **`fs.open` com handles e erro de host em `Result`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md),
   issue [#16](https://github.com/loxia-lang/loxia/issues/16)): `fs.open/read/write/close`

@@ -100,8 +100,9 @@ Sem matcher fluente completo (uma classe por tipo); sem `.not` (keyword).
   teste não matam a suíte; `--timeout` é por unidade (arquivo ou teste);
 - `--filter SUB` e `--only NAME` repassados como `-- --filter=...`; a lib ignora o que não
   casa;
-- `--jobs N` (unidades em paralelo; no isolamento por teste são N processos), `--fail-fast`,
-  `--json`, `--native` (compila uma vez por arquivo e roda o binário);
+- `--jobs N` (unidades em paralelo; default `min(4, CPUs)`; no isolamento por teste são N
+  processos), `--fail-fast`, `--json`, `--json-lines`, `--junit PATH`, `--native`
+  (compila uma vez por arquivo, em paralelo, e roda o binário);
 - `--json`: envelope estável (`schema_version`, `command`, `success`, `exit_code`,
   `tests[]` com `file`, `name`, `status`, `kind`, `message`, `location`, `output` e
   `summary`), **sem duração/timestamp** por padrão (I3); contrato em
@@ -109,14 +110,17 @@ Sem matcher fluente completo (uma classe por tipo); sem `.not` (keyword).
   [`schema/test-report-v1.json`](../../schema/test-report-v1.json);
 - exit code: 0 se todos passaram, 1 se algum falhou, 2 para erro do runner (path inválido),
   5 para `--require-tests` sem nenhum teste selecionado;
-- `--capture`: inclui o stdout do teste que falhou no JSON (fora do default por tamanho).
+- `--capture`: inclui o stdout do teste que falhou no JSON (fora do default por tamanho);
+- `--json-lines`: um evento compacto por teste + `summary` final; `--junit PATH` grava
+  JUnit XML com `time="0"` (sem relógio, I3).
 
 > **Atualização (2026-11-19):** o runner passou a falar um protocolo de eventos com nonce
 > (`--protocol=json --token=...`) com `std.test`; o TAP humano é renderizado no Python, o
 > que fecha spoofing/escape sem mudar a saída de `loxia run`. O envelope ganhou
 > `command`/`success`/`exit_code`/`kind`/`location`/`output`; `--require-tests` evita falso
-> verde. A localização de falha (`location`) fica `null` até o
-> [ADR-0120](0120-localizacao-de-falha-em-excecoes.md).
+> verde. A localização de falha (`location`) é preenchida por
+> [`e.site`](0120-localizacao-de-falha-em-excecoes.md); `--junit`/`--json-lines` completam
+> o relatório para CI, e o default de `--jobs` passou a usar `min(4, CPUs)`.
 
 O runner em Lox (dogfooding com `proc` + `poll`) fica para quando houver uso real; a lib já
 roda nos dois motores, então o custo de trocar é só o orquestrador.
