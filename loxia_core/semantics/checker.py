@@ -298,10 +298,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["Result"] = EnumObjectTy("Result")
 
         message_token = Token(TokenType.IDENTIFIER, "message", None, 0)
+        site_token = Token(TokenType.IDENTIFIER, "site", None, 0)
         self._classes["Exception"] = ClassInfo(
             "Exception",
             None,
-            fields={"message": FieldBinding(STRING, False, message_token)},
+            fields={
+                "message": FieldBinding(STRING, False, message_token),
+                "site": FieldBinding(STRING, False, site_token),
+            },
             init=FnTy((STRING,), ClassTy("Exception"), 1),
         )
         self._classes["RuntimeError"] = ClassInfo(

@@ -22,7 +22,11 @@ from loxia_core.execution.limits import (
 from loxia_core.execution.lox_callable import LoxCallable
 from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumObject, LoxEnumValue
-from loxia_core.execution.lox_exception import LoxExceptionClass, LoxExceptionValue
+from loxia_core.execution.lox_exception import (
+    LoxExceptionClass,
+    LoxExceptionValue,
+    format_site,
+)
 from loxia_core.execution.lox_function import LoxFunction
 from loxia_core.execution.lox_instance import LoxInstance
 from loxia_core.execution.lox_interface import LoxInterface
@@ -256,6 +260,17 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         omitted = len(frames) - TRACE_HEAD - TRACE_TAIL
         kept = frames[:TRACE_HEAD] + frames[-TRACE_TAIL:]
         return Trace(tuple(kept), omitted=omitted, head=TRACE_HEAD)
+
+    def current_site(self) -> str:
+        """`arquivo:linha:coluna` do call site do frame atual (ADR-0120).
+
+        Para `t.expect(1).toBe(2)` o frame atual é `toBe` e o call site é a linha do
+        `expect` no teste; sem frame (topo), usa o call site da chamada em curso.
+        """
+        if self._frames:
+            _name, file, line, column = self._frames[-1]
+            return format_site(file, line, column)
+        return ""
 
     def resolve(self, expr: Expr, depth: int) -> None:
         self.locals[expr] = depth
@@ -900,7 +915,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 if not self._run_handlers(stmt, raised.value):
                     raise
             except LoxRuntimeError as runtime:
-                value = LoxExceptionValue("RuntimeError", runtime.message)
+                value = LoxExceptionValue(
+                    "RuntimeError",
+                    runtime.message,
+                    format_site(
+                        runtime.token.file or self.reporter.file,
+                        runtime.token.line,
+                        runtime.token.column,
+                    ),
+                )
                 if not self._run_handlers(stmt, value):
                     raise
         finally:
@@ -957,9 +980,18 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "No exception to re-raise.",
                 code=Code.INVALID_VALUE,
             )
+        site = self.current_site() or format_site(
+            stmt.keyword.file or self.reporter.file,
+            stmt.keyword.line,
+            stmt.keyword.column,
+        )
         if isinstance(value, LoxExceptionValue):
-            raise LoxRaise(stmt.keyword, value)
+            raise LoxRaise(
+                stmt.keyword,
+                LoxExceptionValue(value.type_name, value.message, site or value.site),
+            )
         if isinstance(value, LoxInstance) and value.is_instance_of("Exception"):
+            value.set_exception_site(site)
             raise LoxRaise(stmt.keyword, value)
 
         raise LoxRuntimeError(
@@ -1100,6 +1132,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return None
 
         if isinstance(ob, LoxInstance):
+            if expr.name.lexeme == "site" and ob.is_instance_of("Exception"):
+                return ob.exception_site()
             return ob.get(expr.name)
 
         if isinstance(ob, LoxList):
@@ -1111,6 +1145,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if isinstance(ob, LoxExceptionValue):
             if expr.name.lexeme == "message":
                 return ob.message
+            if expr.name.lexeme == "site":
+                return ob.site
             raise LoxRuntimeError(
                 expr.name,
                 f"Undefined property '{expr.name.lexeme}'.",

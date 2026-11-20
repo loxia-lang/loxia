@@ -666,6 +666,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             help="exit 5 quando nenhum teste for selecionado (evita falso verde)",
         )
         groups.general.add_argument("--json", action="store_true", help="relatório em JSON")
+        groups.general.add_argument(
+            "--capture",
+            action="store_true",
+            help="inclui no JSON o stdout do teste que falhou",
+        )
         groups.execution.add_argument(
             "--jobs",
             type=int,

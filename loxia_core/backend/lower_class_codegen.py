@@ -569,6 +569,13 @@ class ClassCodegenLowering(LoweringBase):
             field = layout.field("message")
             assert field is not None
             self._store_field(instance, field, Value(ValueType.STRING, ctor.args[0]))
+            site_field = layout.field("site")
+            if site_field is not None:
+                site = self.builder.call(
+                    self._function("lox_exception_site", _I8_PTR, [_I32, _I32]),
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
+                )
+                self._store_field(instance, site_field, Value(ValueType.STRING, site))
             self._ctor_require_fields(layout, instance)
             self.builder.ret(instance.llvm)
             return

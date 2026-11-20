@@ -383,6 +383,9 @@ extern void *lox_exception_instance (const void *pointer);
 extern const char *lox_exception_message (const void *pointer);
 extern int32_t lox_exception_matches (const void *pointer, const void *expected,
                                      const char *type_name);
+/* ADR-0120: `file:line:column` strings for caught exceptions. */
+extern void *lox_exception_site (int32_t line, int32_t column);
+extern void *lox_exception_site_at (const void *pointer);
 /* ---------------------------------------------------------------------------
  * Runtime diagnostics and panic
  * --------------------------------------------------------------------------- */

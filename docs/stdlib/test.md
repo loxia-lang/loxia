@@ -73,11 +73,19 @@ Hooks run after each `it`, in reverse registration order.
 
 `--list`: print `# test <name>` only, without executing (per-test isolation).
 
+#### `var protocol: Bool`
+
+`--protocol=json`: emit framed events instead of TAP (machine protocol).
+
+#### `var token: String`
+
+Nonce prefix for control lines; prevents user `print` from spoofing events.
+
 #### `fn init()`
 
 Creates an empty suite and reads `--filter=`/`--only=` from `args()`.
 
-Also detects `--list` and enables list mode.
+Also detects `--list`, `--protocol=json` and `--token=`.
 
 #### `fn describe(name: String, body: fn() -> Nil) -> Nil`
 
@@ -110,6 +118,8 @@ Raises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.
 #### `fn report() -> Int`
 
 Prints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).
+
+In protocol mode it emits the `end` event and stays silent instead.
 
 #### `fn done() -> Nil`
 

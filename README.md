@@ -137,7 +137,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
 | `loxia mcp` | MCP server over stdio (tools) | — |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
+| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
@@ -243,6 +243,10 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
   [semantics](docs/spec/semantica.md), [errors](docs/spec/erros.md) and
   [guarantees](docs/spec/garantias.md).
 - **Architecture:** [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
+- **Test report:** [`docs/tech/test-report.md`](docs/tech/test-report.md) and
+  [`schema/test-report-v1.json`](schema/test-report-v1.json).
+- **Test coverage:** [`docs/tech/test-coverage.md`](docs/tech/test-coverage.md)
+  (feature → golden/differential matrix).
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
 - **Documentation site:** <https://loxia-lang.github.io/loxia/> — Starlight build from
   `docs/`; run `make docs-dev` for the local server.

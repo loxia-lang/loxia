@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "features": {
+    "checker": {
+      "differential": "none",
+      "golden": [
+        "tests/cases/typed_functions.lx",
+        "tests/cases/is_union_parens.lx",
+        "tests/cases/optional_refs.lx"
+      ]
+    },
+    "classes": {
+      "differential": "l5",
+      "golden": [
+        "tests/cases/classes.lx",
+        "tests/cases/class_fields.lx",
+        "tests/cases/class_initializer.lx",
+        "tests/cases/inheritance.lx",
+        "tests/cases/super.lx",
+        "tests/cases/class_bound_method.lx"
+      ]
+    },
+    "control_flow": {
+      "differential": "l2",
+      "golden": [
+        "tests/cases/if_else.lx",
+        "tests/cases/elif.lx",
+        "tests/cases/while.lx",
+        "tests/cases/for.lx",
+        "tests/cases/for_in.lx",
+        "tests/cases/range_value.lx",
+        "tests/cases/range_inclusive.lx"
+      ]
+    },
+    "enums": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/enums.lx",
+        "tests/cases/result.lx",
+        "tests/cases/result_nil.lx"
+      ]
+    },
+    "exceptions": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/exceptions.lx",
+        "tests/cases/exception_site.lx",
+        "tests/cases/try_return_cleanup.lx",
+        "tests/cases/stack_exception.lx"
+      ]
+    },
+    "functions": {
+      "differential": "l4",
+      "golden": [
+        "tests/cases/functions.lx",
+        "tests/cases/closures.lx",
+        "tests/cases/function_values.lx",
+        "tests/cases/local_function.lx",
+        "tests/cases/default_params.lx",
+        "tests/cases/variadic.lx"
+      ]
+    },
+    "generics": {
+      "differential": "t7",
+      "golden": [
+        "tests/cases/generic_functions.lx",
+        "tests/cases/generic_class.lx",
+        "tests/cases/generic_constraints.lx",
+        "tests/cases/generics.lx"
+      ]
+    },
+    "interfaces": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/interfaces.lx",
+        "tests/cases/interface_decl.lx"
+      ]
+    },
+    "kernel": {
+      "differential": "k0",
+      "golden": [
+        "tests/cases/kernel_io.lx",
+        "tests/cases/kernel_strings.lx"
+      ]
+    },
+    "lists": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/list_literal.lx",
+        "tests/cases/list_index.lx",
+        "tests/cases/list_methods.lx",
+        "tests/cases/list_iteration.lx",
+        "tests/cases/list_equality.lx"
+      ]
+    },
+    "maps": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/map_literal.lx",
+        "tests/cases/map_keys.lx",
+        "tests/cases/map_methods.lx",
+        "tests/cases/map_iteration.lx",
+        "tests/cases/map_equality.lx"
+      ]
+    },
+    "operators": {
+      "differential": "l1",
+      "golden": [
+        "tests/cases/arithmetic.lx",
+        "tests/cases/precedence.lx",
+        "tests/cases/bitwise.lx",
+        "tests/cases/exponentiation.lx",
+        "tests/cases/unary.lx"
+      ]
+    },
+    "optionals": {
+      "differential": "l2.5",
+      "golden": [
+        "tests/cases/optional_scalars.lx",
+        "tests/cases/optional_functions.lx",
+        "tests/cases/nil_aware.lx",
+        "tests/cases/optional_receiver.lx",
+        "tests/cases/nil_value.lx"
+      ]
+    },
+    "stdlib": {
+      "differential": "t1",
+      "golden": [
+        "tests/cases/std_json.lx",
+        "tests/cases/std_lists.lx",
+        "tests/cases/std_maps.lx",
+        "tests/cases/std_strings.lx",
+        "tests/cases/std_property.lx",
+        "tests/cases/std_rand.lx"
+      ]
+    },
+    "stdlib_data": {
+      "differential": "t2",
+      "golden": [
+        "tests/cases/std_json.lx",
+        "tests/cases/std_csv.lx",
+        "tests/cases/std_fmt.lx",
+        "tests/cases/std_utf8.lx"
+      ]
+    },
+    "strings": {
+      "differential": "l3",
+      "golden": [
+        "tests/cases/strings.lx",
+        "tests/cases/string_escapes.lx",
+        "tests/cases/multiline_strings.lx",
+        "tests/cases/raw_strings.lx",
+        "tests/cases/interpolation.lx",
+        "tests/cases/string_order.lx"
+      ]
+    },
+    "syntax": {
+      "differential": "l0",
+      "golden": [
+        "tests/cases/comments.lx",
+        "tests/cases/optional_semicolons.lx",
+        "tests/cases/one_line_block.lx",
+        "tests/cases/leading_operator_brackets.lx",
+        "tests/cases/trailing_comma.lx"
+      ]
+    },
+    "test_runner": {
+      "differential": "t3",
+      "golden": [
+        "tests/cases/std_test.lx",
+        "tests/cases/std_test_hooks.lx",
+        "tests/cases/exception_site.lx"
+      ]
+    },
+    "tuples": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/tuples.lx",
+        "tests/cases/tuple_destructure.lx",
+        "tests/cases/nested_destructure.lx",
+        "tests/cases/tuple_iteration.lx"
+      ]
+    },
+    "type_alias": {
+      "differential": "l6",
+      "golden": [
+        "tests/cases/type_alias.lx"
+      ]
+    },
+    "values": {
+      "differential": "l1",
+      "golden": [
+        "tests/cases/numbers.lx",
+        "tests/cases/literals.lx",
+        "tests/cases/comparison.lx",
+        "tests/cases/equality.lx"
+      ]
+    },
+    "variables": {
+      "differential": "l2.5",
+      "golden": [
+        "tests/cases/val_var.lx",
+        "tests/cases/variables.lx",
+        "tests/cases/scope_identity.lx",
+        "tests/cases/block_scope.lx",
+        "tests/cases/val_shadowing.lx"
+      ]
+    }
+  }
+}

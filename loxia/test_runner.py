@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import signal
 import subprocess
 import sys
@@ -43,6 +44,15 @@ _TAP_HEAD = re.compile(r"^(ok|not ok) (\d+) - (.*)$")
 
 
 @dataclass(frozen=True)
+class Location:
+    """Posição da falha, relativa ao CWD (nunca caminho absoluto, I3)."""
+
+    file: str
+    line: int
+    column: int
+
+
+@dataclass(frozen=True)
 class TestResult:
     """Um teste individual, já normalizado para o relatório."""
 
@@ -50,6 +60,9 @@ class TestResult:
     name: str
     status: str  # pass | fail | skip
     message: str = ""
+    kind: str = ""  # assertion | exception | hook | crash | timeout | skip
+    location: Location | None = None
+    output: str = ""
 
 
 @dataclass
@@ -137,6 +150,95 @@ def _parse_tap(path: Path, stdout: str, returncode: int) -> list[TestResult]:
             )
         )
     return results
+
+
+def _parse_events(path: Path, stdout: str, returncode: int, token: str) -> list[TestResult]:
+    """Lê o protocolo v2: linhas `<token>{json}` e o stdout do usuário.
+
+    O token (nonce passado ao processo) separa controle de saída do teste; um
+    `print("ok 1 - falso")` do usuário nunca vira resultado.
+    """
+    display = _display(path)
+    results: list[TestResult] = []
+    current: str | None = None
+    output: list[str] = []
+    for line in stdout.splitlines():
+        if token and line.startswith(token):
+            try:
+                event = json.loads(line[len(token) :])
+            except json.JSONDecodeError:
+                if current is not None:
+                    output.append(line)
+                continue
+            if not isinstance(event, dict):
+                continue
+            kind = event.get("event")
+            if kind == "start":
+                current = str(event.get("name", ""))
+                output = []
+            elif kind == "result":
+                name = str(event.get("name", ""))
+                status = str(event.get("status", "fail"))
+                if status not in {"pass", "fail", "skip"}:
+                    status = "fail"
+                results.append(
+                    TestResult(
+                        file=display,
+                        name=name,
+                        status=status,
+                        message=str(event.get("message", "")),
+                        kind=str(event.get("kind", "")),
+                        location=_location(event.get("location")) or _site(event.get("site")),
+                        output="\n".join(output),
+                    )
+                )
+                current = None
+                output = []
+            continue
+        if current is not None:
+            output.append(line)
+    if returncode != 0 and not any(result.status == "fail" for result in results):
+        results.append(
+            TestResult(
+                display,
+                f"<{display}>",
+                "fail",
+                f"exit {returncode}",
+                kind="crash",
+                output="\n".join(output),
+            )
+        )
+    return results
+
+
+def _location(value: object) -> Location | None:
+    if not isinstance(value, dict):
+        return None
+    file = value.get("file")
+    line = value.get("line")
+    column = value.get("column")
+    if not isinstance(file, str) or not isinstance(line, int) or not isinstance(column, int):
+        return None
+    return Location(file, line, column)
+
+
+def _site(value: object) -> Location | None:
+    """Converte o `"arquivo:linha:coluna"` do std.test em `Location`."""
+    if not isinstance(value, str) or not value:
+        return None
+    parts = value.rsplit(":", 2)
+    if len(parts) != 3:
+        return None
+    file, line, column = parts
+    if not line.isdigit() or not column.isdigit():
+        return None
+    return Location(file, int(line), int(column))
+
+
+def _parse_output(path: Path, stdout: str, returncode: int, token: str) -> list[TestResult]:
+    if token and any(line.startswith(token) for line in stdout.splitlines()):
+        return _parse_events(path, stdout, returncode, token)
+    return _parse_tap(path, stdout, returncode)
 
 
 def _last_line(text: str) -> str:
@@ -227,7 +329,10 @@ def _build(path: Path, binary: Path, deps: tuple[str, ...] = ()) -> str | None:
 
 def _file_failure(path: Path, reason: str) -> FileRun:
     display = _display(path)
-    return FileRun(path, [TestResult(display, f"<{display}>", "fail", reason)])
+    return FileRun(
+        path,
+        [TestResult(display, f"<{display}>", "fail", reason, kind="crash")],
+    )
 
 
 def _run_file_unit(
@@ -236,6 +341,7 @@ def _run_file_unit(
     build_error: str | None,
     script_args: list[str],
     timeout_s: float | None,
+    token: str,
     deps: tuple[str, ...] = (),
 ) -> FileRun:
     if build_error is not None:
@@ -243,7 +349,7 @@ def _run_file_unit(
     invocation = _invoke(path, script_args, binary, timeout_s, deps)
     if invocation.timed_out:
         return _file_failure(path, "timeout")
-    return FileRun(path, _parse_tap(path, invocation.stdout, invocation.returncode))
+    return FileRun(path, _parse_output(path, invocation.stdout, invocation.returncode, token))
 
 
 def _list_names(
@@ -252,6 +358,7 @@ def _list_names(
     build_error: str | None,
     script_args: list[str],
     timeout_s: float | None,
+    token: str,
     deps: tuple[str, ...] = (),
 ) -> tuple[list[str], str | None]:
     if build_error is not None:
@@ -261,11 +368,22 @@ def _list_names(
         return [], "timeout"
     if invocation.returncode != 0:
         return [], _last_line(invocation.stderr) or f"exit {invocation.returncode}"
-    names = [
-        line[len("# test ") :]
-        for line in invocation.stdout.splitlines()
-        if line.startswith("# test ")
-    ]
+    names: list[str] = []
+    for line in invocation.stdout.splitlines():
+        if not token or not line.startswith(token):
+            continue
+        try:
+            event = json.loads(line[len(token) :])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("event") == "discover":
+            names.append(str(event.get("name", "")))
+    if not names:
+        names = [
+            line[len("# test ") :]
+            for line in invocation.stdout.splitlines()
+            if line.startswith("# test ")
+        ]
     return names, None
 
 
@@ -274,17 +392,19 @@ def _run_single_test(
     name: str,
     binary: str | None,
     timeout_s: float | None,
+    token: str,
+    script_args: list[str],
     deps: tuple[str, ...] = (),
 ) -> TestResult:
-    invocation = _invoke(path, [f"--only={name}"], binary, timeout_s, deps)
+    invocation = _invoke(path, [f"--only={name}", *script_args], binary, timeout_s, deps)
     display = _display(path)
     if invocation.timed_out:
-        return TestResult(display, name, "fail", "timeout")
-    for result in _parse_tap(path, invocation.stdout, invocation.returncode):
+        return TestResult(display, name, "fail", "timeout", kind="timeout")
+    for result in _parse_output(path, invocation.stdout, invocation.returncode, token):
         if result.name == name:
             return result
     reason = f"exit {invocation.returncode}" if invocation.returncode else "no output"
-    return TestResult(display, name, "fail", reason)
+    return TestResult(display, name, "fail", reason, kind="crash")
 
 
 def _run_files(
@@ -295,6 +415,7 @@ def _run_files(
     timeout_s: float | None,
     jobs: int,
     fail_fast: bool,
+    token: str,
     deps: tuple[str, ...] = (),
 ) -> list[FileRun]:
     runs: list[FileRun] = []
@@ -306,6 +427,7 @@ def _run_files(
                 build_errors.get(path),
                 script_args,
                 timeout_s,
+                token,
                 deps,
             )
             runs.append(run)
@@ -321,6 +443,7 @@ def _run_files(
                 build_errors.get(path),
                 script_args,
                 timeout_s,
+                token,
                 deps,
             )
             for path in files
@@ -335,6 +458,7 @@ def _collect_names(
     script_args: list[str],
     timeout_s: float | None,
     jobs: int,
+    token: str,
     deps: tuple[str, ...] = (),
 ) -> tuple[dict[Path, list[str]], dict[Path, str]]:
     names: dict[Path, list[str]] = {}
@@ -347,6 +471,7 @@ def _collect_names(
             build_errors.get(path),
             script_args,
             timeout_s,
+            token,
             deps,
         )
 
@@ -375,23 +500,35 @@ def _run_isolated(
     timeout_s: float | None,
     jobs: int,
     fail_fast: bool,
+    token: str,
     deps: tuple[str, ...] = (),
 ) -> list[FileRun]:
     names, errors = _collect_names(
-        files, binaries, build_errors, script_args, timeout_s, jobs, deps
+        files, binaries, build_errors, script_args, timeout_s, jobs, token, deps
     )
     units = [(path, name) for path in files for name in names.get(path, []) if path not in errors]
     results: list[TestResult] = []
     if jobs == 1:
         for path, name in units:
-            result = _run_single_test(path, name, binaries[path], timeout_s, deps)
+            result = _run_single_test(
+                path, name, binaries[path], timeout_s, token, script_args, deps
+            )
             results.append(result)
             if fail_fast and result.status == "fail":
                 break
     else:
         with ThreadPoolExecutor(max_workers=jobs) as pool:
             futures = [
-                pool.submit(_run_single_test, path, name, binaries[path], timeout_s, deps)
+                pool.submit(
+                    _run_single_test,
+                    path,
+                    name,
+                    binaries[path],
+                    timeout_s,
+                    token,
+                    script_args,
+                    deps,
+                )
                 for path, name in units
             ]
             results = [future.result() for future in futures]
@@ -434,16 +571,32 @@ def _render_human(runs: list[FileRun]) -> tuple[str, int]:
     return "\n".join(lines), failed
 
 
-def _payload(runs: list[FileRun]) -> dict[str, object]:
+def _payload(runs: list[FileRun], *, exit_code: int, capture: bool = False) -> dict[str, object]:
     results = [result for run in runs for result in run.results]
     return {
         "schema_version": 1,
+        "command": "test",
+        "success": exit_code == 0,
+        "exit_code": exit_code,
         "tests": [
             {
                 "file": result.file,
                 "name": result.name,
                 "status": result.status,
+                "kind": result.kind,
                 "message": result.message,
+                "location": (
+                    {
+                        "file": result.location.file,
+                        "line": result.location.line,
+                        "column": result.location.column,
+                    }
+                    if result.location is not None
+                    else None
+                ),
+                "output": (
+                    result.output if capture and result.status == "fail" and result.output else None
+                ),
             }
             for result in results
         ],
@@ -470,11 +623,13 @@ def run_tests(args: argparse.Namespace) -> int:
         return 2
     timeout_s = args.timeout / 1000 if args.timeout else None
     jobs = 1 if args.fail_fast else max(1, args.jobs)
+    token = secrets.token_hex(8)
     script_args: list[str] = []
     if args.filter:
         script_args.append(f"--filter={args.filter}")
     if args.only:
         script_args.append(f"--only={args.only}")
+    script_args.extend(["--protocol=json", f"--token={token}"])
     deps: list[str] = []
     if getattr(args, "frozen", False):
         deps.append("--frozen")
@@ -502,6 +657,7 @@ def run_tests(args: argparse.Namespace) -> int:
                 timeout_s,
                 jobs,
                 args.fail_fast,
+                token,
                 tuple(deps),
             )
         else:
@@ -513,20 +669,32 @@ def run_tests(args: argparse.Namespace) -> int:
                 timeout_s,
                 jobs,
                 args.fail_fast,
+                token,
                 tuple(deps),
             )
-    if args.json:
-        print(json.dumps(_payload(runs), ensure_ascii=False, indent=2))
-    else:
-        text, _failed = _render_human(runs)
-        print(text)
     total = sum(len(run.results) for run in runs)
+    failed = sum(1 for run in runs for result in run.results if result.status == "fail")
+    exit_code = 1 if failed else 0
     if total == 0:
         print(
             "warning: no tests were selected (use --require-tests to exit 5).",
             file=sys.stderr,
         )
         if getattr(args, "require_tests", False):
-            return 5
-    failed = sum(1 for run in runs for result in run.results if result.status == "fail")
-    return 1 if failed else 0
+            exit_code = 5
+    if args.json:
+        print(
+            json.dumps(
+                _payload(
+                    runs,
+                    exit_code=exit_code,
+                    capture=getattr(args, "capture", False),
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        text, _failed = _render_human(runs)
+        print(text)
+    return exit_code

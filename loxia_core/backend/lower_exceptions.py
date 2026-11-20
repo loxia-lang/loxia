@@ -16,9 +16,11 @@ from loxia_core.backend.lower_model import (
     ClassLayout,
     FieldLayout,
     TypeDesc,
+    Value,
     ValueType,
 )
 from loxia_core.diagnostics.codes import Code
+from loxia_core.frontend.expr import Literal
 from loxia_core.frontend.stmt import Raise, Stmt, Try
 
 
@@ -36,11 +38,21 @@ class ExceptionLowering(LoweringBase):
             0,
             0,
         )
-        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, _INT])
+        # ADR-0120: posição do throw. O initializer garante que subclasses de
+        # `Exception` (TestFailure/Skip) passem no bitmap sem declarar o campo.
+        site = FieldLayout(
+            "site",
+            TypeDesc(ValueType.STRING),
+            False,
+            Literal(""),
+            1,
+            0,
+        )
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, _INT, _INT])
         exception = ClassLayout(
             "Exception",
             900,
-            [message],
+            [message, site],
             [],
             None,
             instance_type=instance_type,
@@ -113,6 +125,14 @@ class ExceptionLowering(LoweringBase):
                     self._function("lox_str_data", _I8_PTR, [_I8_PTR]),
                     [string],
                 )
+        if layout is not None:
+            site_field = layout.field("site")
+            if site_field is not None:
+                site = self.builder.call(
+                    self._function("lox_exception_site", _I8_PTR, [_I32, _I32]),
+                    [llvm_ir.constant(_I32, line), llvm_ir.constant(_I32, column)],
+                )
+                self._store_field(value, site_field, Value(ValueType.STRING, site))
         self.builder.call(
             self._function("lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32, _I32]),
             [
@@ -264,6 +284,17 @@ class ExceptionLowering(LoweringBase):
         layout = self._classes["RuntimeError"]
         assert layout.ctor is not None
         constructed = self.builder.call(layout.ctor, [text])
+        site_field = layout.field("site")
+        if site_field is not None:
+            site = self.builder.call(
+                self._function("lox_exception_site_at", _I8_PTR, [_I8_PTR]),
+                [exception],
+            )
+            self._store_field(
+                Value(ValueType.INSTANCE, constructed, class_name="RuntimeError"),
+                site_field,
+                Value(ValueType.STRING, site),
+            )
         runtime_end = self.builder.block
         self.builder.branch(bound_block)
 

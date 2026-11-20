@@ -5,7 +5,7 @@ FILE ?=
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -26,6 +26,7 @@ help:
 	@echo "make docs-version VERSION=1.0 TAG=v1.0.0  congela uma referência"
 	@echo "make docs-i18n-check          valida translated_from/source"
 	@echo "make stdlib-docs               regenera docs/stdlib/"
+	@echo "make features                  regenera a matriz/snapshot de cobertura de features"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
 	@echo "make primitives                regenera runtime/kernel_gen.h da tabela"
 	@echo "make grammar                   regenera a grammar TextMate de editors/grammar/"
@@ -70,7 +71,11 @@ docs-sync:
 	uv run python docs/_hooks/levels.py --write
 	uv run python docs/_hooks/codes.py --write
 	uv run python docs/_hooks/stdlib.py --write
+	uv run python tools/feature_coverage.py --write
 	uv run python tools/docs_index.py --write
+
+features:
+	uv run python tools/feature_coverage.py --write
 
 docs-index:
 	uv run python tools/docs_index.py --write

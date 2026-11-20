@@ -191,3 +191,107 @@ def test_filtro_sem_match_nao_e_falso_verde(tmp_path: Path) -> None:
 
     required = run_test(str(tests), "--filter", "nao-existe", "--require-tests")
     assert required.returncode == 5
+
+
+def test_saida_do_teste_nao_vira_resultado(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "spoof_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'print("ok 1 - falso")\n'
+        'suite.it("real", fn() { t.expect(1).toBe(1) })\n'
+        'print("not ok 2 - falso")\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+
+    result = run_test(str(tests), "--json")
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert [item["name"] for item in payload["tests"]] == ["real"]
+    assert payload["summary"]["tests"] == 1
+
+
+def test_nome_com_hash_nao_quebra_o_json(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "hash_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("a # SKIP b", fn() { t.expect(1).toBe(2) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+
+    result = run_test(str(tests), "--json")
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["tests"][0]["name"] == "a # SKIP b"
+    assert payload["tests"][0]["status"] == "fail"
+    assert payload["tests"][0]["kind"] == "assertion"
+
+
+def test_jobs_preserva_ordem_e_conteudo(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    serial = run_test(str(tests), "--json", "--jobs", "1")
+    parallel = run_test(str(tests), "--json", "--jobs", "4")
+
+    def strip(result: subprocess.CompletedProcess[str]) -> list[tuple[str, str, str]]:
+        return [
+            (item["file"], item["name"], item["status"])
+            for item in json.loads(result.stdout)["tests"]
+        ]
+
+    assert strip(serial) == strip(parallel)
+
+
+def test_capture_inclui_stdout_da_falha(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "print_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("falha", fn() { print("antes"); t.expect(1).toBe(2) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+
+    plain = run_test(str(tests), "--json")
+    captured = run_test(str(tests), "--json", "--capture")
+
+    assert json.loads(plain.stdout)["tests"][0]["output"] is None
+    assert json.loads(captured.stdout)["tests"][0]["output"] == "antes"
+
+
+def test_json_tem_envelope_de_resultado(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    payload = json.loads(run_test(str(tests), "--json").stdout)
+    assert payload["command"] == "test"
+    assert payload["success"] is False
+    assert payload["exit_code"] == 1
+    assert set(payload["tests"][0]) == {
+        "file",
+        "name",
+        "status",
+        "kind",
+        "message",
+        "location",
+        "output",
+    }
+
+
+@pytest.mark.backend
+def test_location_nativa_igual_ao_interpretador(tmp_path: Path) -> None:
+    pytest.importorskip("llvmlite")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "fail_test.lx").write_text(FAIL, encoding="utf-8")
+
+    interpreted = json.loads(run_test(str(tests), "--json").stdout)
+    native = json.loads(run_test(str(tests), "--json", "--native").stdout)
+
+    assert interpreted["tests"][0]["location"] == native["tests"][0]["location"]
+    assert interpreted["tests"][0]["location"] is not None

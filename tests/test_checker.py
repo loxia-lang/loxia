@@ -2505,14 +2505,15 @@ def test_exceptions_typed_catch_and_finally() -> None:
         }
 
         try { print(1 / 0) }
-        except RuntimeError as e { print(e.message) }
+        except RuntimeError as e { print(e.message); print(e.site) }
 
         try { raise MyError("x") }
         except RuntimeError as e { print("runtime") }
-        except Exception as e { print("generico") }
+        except Exception as e { print("generico"); print(e.site) }
 
         print(first())
         print(Exception("base").message)
+        print(Exception("base").site)
         print(RuntimeError("runtime").message)
         """
     )

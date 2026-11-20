@@ -63,6 +63,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/exponentiation.lx",
         "tests/cases/enums.lx",
         "tests/cases/exceptions.lx",
+        "tests/cases/exception_site.lx",
         "tests/cases/stack_overflow_caught.lx",
         "tests/cases/stack_overflow_finally.lx",
         "tests/cases/stack_exception.lx",
