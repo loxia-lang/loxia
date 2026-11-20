@@ -1216,3 +1216,18 @@ Intervalo: `61d308e`..`577e321`. O benchmark removeu as pós-condições caras.
   absolute; API documentada igual.
 
 <!-- triaged: 577e321 -->
+
+## 2026-11-20 — empacotamento MCP 1.2.0
+
+Intervalo: `38cfb05`..`228252e`. `server.json`, README e versão 1.2.0.
+
+- `docs/decisoes.md` — **no-change**: a decisão de publicar o MCP não é uma decisão de
+  arquitetura; o ADR-0112 continua sendo a fonte.
+- `docs/spec/semantica.md` — **no-change**: a linguagem não mudou.
+- `docs/stdlib/convert.md` — **no-change**: página gerada; sem mudança de API.
+- `docs/stdlib/index.md` — **no-change**: catálogo igual.
+- `docs/stdlib/paths.md` — **no-change**: página gerada; sem mudança de API.
+- `docs/tech/python-coverage.md` — **no-change**: os números de cobertura e o comando não
+  mudaram; só a versão do projeto subiu.
+
+<!-- triaged: 228252e -->
