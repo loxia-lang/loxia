@@ -695,6 +695,18 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             help="timeout por arquivo em milissegundos",
         )
         groups.execution.add_argument(
+            "--changed",
+            nargs="?",
+            const="HEAD",
+            metavar="REF",
+            help="só testes afetados por mudanças desde REF (default: HEAD)",
+        )
+        groups.execution.add_argument(
+            "--shard",
+            metavar="INDEX/TOTAL",
+            help="roda só um shard dos arquivos selecionados (1-based)",
+        )
+        groups.execution.add_argument(
             "--native",
             action="store_true",
             help="compila cada arquivo e roda o binário",

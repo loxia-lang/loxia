@@ -1,6 +1,7 @@
 ---
 sources:
   - loxia/test_runner.py
+  - loxia/test_selection.py
   - loxia/cli_args.py
   - std/test.lx
   - schema/test-report-v1.json
@@ -62,6 +63,20 @@ only changes concurrency: the order and the content are identical for `--jobs 1`
 escape hatch for tests that share process-wide resources. Durations are intentionally out
 of the default payload; if they are ever added, it will be behind an explicit flag and
 outside the deterministic contract.
+
+## Selection (`--changed` and `--shard`)
+
+`--changed[=REF]` runs only tests affected by changes since `REF` (default `HEAD`), using
+`git diff` plus untracked files. The runner follows imports from each test's own directory
+(the same root `loxia run` uses): if a changed `.lx` is in the transitive closure, the test
+runs. A change to a non-Lox file, a deleted/missing `.lx`, or a file outside the project is
+conservative and runs all tests; no changes selects zero tests (exit 5 with
+`--require-tests`). Without a git repository the command exits 2.
+
+`--shard=INDEX/TOTAL` is 1-based, validates `1 <= INDEX <= TOTAL`, and slices the already
+selected, sorted file list round-robin. It applies after `--changed` and after the
+`--filter`/`--only` selection; shards contain files, not individual `it` cases. Use it in
+CI with a matrix `INDEX=1..TOTAL`.
 
 ## Native cache
 

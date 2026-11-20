@@ -34,3 +34,4 @@ schema_version = 1
 "loxia_core/loader/loader.py" = 90
 "loxia_core/loader/lock.py" = 84
 "loxia_core/loader/manifest.py" = 86
+"loxia/test_selection.py" = 91

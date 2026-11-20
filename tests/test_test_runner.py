@@ -499,3 +499,141 @@ def test_build_all_usa_cache_por_conteudo(tmp_path: Path, monkeypatch: pytest.Mo
     assert errors == {}
     assert binaries[source] is not None
     assert calls == 2
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _git_project(tmp_path: Path) -> tuple[Path, Path]:
+    tests = tmp_path / "tests"
+    lib = tests / "lib"
+    tests.mkdir()
+    lib.mkdir()
+    (lib / "math.lx").write_text("fn double(x: Int) -> Int { return x * 2 }\n", encoding="utf-8")
+    (tests / "uses_test.lx").write_text(
+        "import std.test as t\n"
+        "import lib.math as m\n"
+        "val suite = t.Suite()\n"
+        'suite.it("usa lib", fn() { t.expect(m.double(2)).toBe(4) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+    (tests / "other_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("independente", fn() { t.expect(1).toBe(1) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "test@example.com")
+    _git(tmp_path, "config", "user.name", "test")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-qm", "init")
+    return tests, lib
+
+
+def _files(payload: str) -> list[str]:
+    return [item["file"] for item in json.loads(payload)["tests"]]
+
+
+def test_changed_seleciona_dependentes(tmp_path: Path) -> None:
+    tests, lib = _git_project(tmp_path)
+
+    empty = run_test(str(tests), "--changed", "--json", cwd=tmp_path)
+    assert empty.returncode == 0
+    assert _files(empty.stdout) == []
+    required = run_test(str(tests), "--changed", "--require-tests", "--json", cwd=tmp_path)
+    assert required.returncode == 5
+
+    (lib / "math.lx").write_text(
+        "fn double(x: Int) -> Int { return x * 2 }\n# mudou\n", encoding="utf-8"
+    )
+    changed = run_test(str(tests), "--changed", "--json", cwd=tmp_path)
+    assert changed.returncode == 0
+    assert _files(changed.stdout) == ["tests/uses_test.lx"]
+
+
+def test_changed_inclui_teste_alterado_e_untracked(tmp_path: Path) -> None:
+    tests, _ = _git_project(tmp_path)
+    (tests / "other_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("mudou", fn() { t.expect(1).toBe(1) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+
+    payload = run_test(str(tests), "--changed=HEAD", "--json", cwd=tmp_path)
+    assert payload.returncode == 0
+    assert _files(payload.stdout) == ["tests/other_test.lx"]
+
+    new = tests / "new_test.lx"
+    new.write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("novo", fn() { t.expect(1).toBe(1) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+    payload = run_test(str(tests), "--changed", "--json", cwd=tmp_path)
+    assert payload.returncode == 0
+    assert "tests/new_test.lx" in _files(payload.stdout)
+
+
+def test_changed_arquivo_nao_lox_roda_tudo(tmp_path: Path) -> None:
+    tests, _ = _git_project(tmp_path)
+    readme = tmp_path / "README.md"
+    readme.write_text("antes\n", encoding="utf-8")
+    _git(tmp_path, "add", "README.md")
+    _git(tmp_path, "commit", "-qm", "readme")
+    readme.write_text("depois\n", encoding="utf-8")
+
+    payload = run_test(str(tests), "--changed", "--json", cwd=tmp_path)
+    assert payload.returncode == 0
+    assert _files(payload.stdout) == ["tests/other_test.lx", "tests/uses_test.lx"]
+
+
+def test_changed_fora_de_repo_e_erro(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    result = run_test(str(tests), "--changed", cwd=tmp_path)
+    assert result.returncode == 2
+    assert "git" in result.stderr.lower()
+
+
+def test_shard_particiona_arquivos_sem_sobrepor(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    (tests / "third_test.lx").write_text(
+        "import std.test as t\n"
+        "val suite = t.Suite()\n"
+        'suite.it("terceiro", fn() { t.expect(1).toBe(1) })\n'
+        "suite.done()\n",
+        encoding="utf-8",
+    )
+
+    first = run_test(str(tests), "--shard=1/2", "--json", cwd=tmp_path)
+    second = run_test(str(tests), "--shard=2/2", "--json", cwd=tmp_path)
+    first_files = _files(first.stdout)
+    second_files = _files(second.stdout)
+
+    assert set(first_files).isdisjoint(second_files)
+    assert set(first_files) | set(second_files) == {
+        "tests/fail_test.lx",
+        "tests/pass_test.lx",
+        "tests/third_test.lx",
+    }
+
+
+@pytest.mark.parametrize("value", ["0/2", "3/2", "1/0", "1", "a/b"])
+def test_shard_invalido_e_erro(tmp_path: Path, value: str) -> None:
+    tests = project(tmp_path)
+    result = run_test(str(tests), f"--shard={value}", cwd=tmp_path)
+    assert result.returncode == 2
+    assert "--shard" in result.stderr
