@@ -36,8 +36,9 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Ferramentas
 
-- **CI macOS/Windows:** job `portable` roda a suíte não-backend em `macos-latest` e
-  `windows-latest`; o backend nativo continua Linux-only.
+- **CI macOS/Windows:** macOS roda a suíte não-backend como gate; Windows roda a mesma
+  suíte em modo experimental (falhas de plataforma conhecidas). O backend nativo continua
+  Linux-only.
 
 - `loxia test --junit` emite JUnit XML com `time="0"`; `--json-lines` emite um evento por
   teste e um `summary` final.

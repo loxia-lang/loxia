@@ -96,8 +96,9 @@ The interpreter has no runtime dependencies. The native backend is opt-in: `--em
 `llvmlite` (`uv sync --extra llvm`); `--emit=exe` also needs a C compiler and the Boehm GC
 development headers (`libgc-dev` on Debian/Ubuntu, `brew install bdw-gc` on macOS).
 
-Linux x86_64 is the supported platform for the native backend. The non-backend suite also
-runs on macOS and Windows in CI; the native backend is not promised there.
+Linux x86_64 is the supported platform for the native backend. The non-backend suite runs
+on macOS (blocking) and Windows (experimental; known platform failures); the native
+backend is not promised there.
 
 ## Quick start
 
