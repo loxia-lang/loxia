@@ -637,3 +637,32 @@ def test_shard_invalido_e_erro(tmp_path: Path, value: str) -> None:
     result = run_test(str(tests), f"--shard={value}", cwd=tmp_path)
     assert result.returncode == 2
     assert "--shard" in result.stderr
+
+
+def test_binary_cache_key_inclui_dependencia_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mudança em dependência externa precisa invalidar o binário nativo."""
+    from loxia.test_runner import _binary_cache_key
+
+    project = tmp_path / "proj"
+    tests = project / "tests"
+    tests.mkdir(parents=True)
+    dependency = tmp_path / "dep"
+    dependency.mkdir()
+    (project / "loxia.toml").write_text(
+        '[package]\nname = "demo"\nversion = "0.1.0"\n\n'
+        '[dependencies]\ndep = { path = "../dep" }\n',
+        encoding="utf-8",
+    )
+    dep_file = dependency / "lib.lx"
+    dep_file.write_text("fn value() -> Int { return 1 }\n", encoding="utf-8")
+    test = tests / "dep_test.lx"
+    test.write_text("print(1)\n", encoding="utf-8")
+
+    monkeypatch.chdir(project)
+    before = _binary_cache_key([test], ())
+    dep_file.write_text("fn value() -> Int { return 2 }\n", encoding="utf-8")
+    after = _binary_cache_key([test], ())
+
+    assert before != after

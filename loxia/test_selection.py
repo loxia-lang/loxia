@@ -15,6 +15,7 @@ import subprocess
 from pathlib import Path
 
 from loxia_core.loader.loader import SOURCE_SUFFIX, STD_ROOT
+from loxia_core.loader.manifest import ManifestError, discover_manifest, parse_manifest
 
 SKIP_DIRS = frozenset(
     {
@@ -87,25 +88,40 @@ def _project_sources(root: Path) -> list[Path]:
     return files
 
 
-def _resolve_import(module: str, root: Path) -> Path | None:
+def _project_roots(test: Path) -> tuple[Path, ...]:
+    """Raízes de módulo da execução: a do manifest quando existe."""
+    manifest_path = discover_manifest(test.parent)
+    if manifest_path is None:
+        return (test.parent,)
+    try:
+        manifest = parse_manifest(manifest_path, manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ManifestError):
+        return (test.parent,)
+    return tuple(dict.fromkeys((manifest.path.parent, *manifest.module_paths)))
+
+
+def _resolve_import(module: str, roots: tuple[Path, ...]) -> Path | None:
     parts = module.split(".")
     if parts[0] == "std":
         if len(parts) == 1:
             return None
         candidate = STD_ROOT.joinpath(*parts[1:]).with_suffix(SOURCE_SUFFIX)
-    else:
+        return candidate.resolve() if candidate.is_file() else None
+    for root in roots:
         candidate = root.joinpath(*parts).with_suffix(SOURCE_SUFFIX)
-    return candidate.resolve() if candidate.is_file() else None
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
 
 
-def _imports(path: Path, root: Path) -> set[Path]:
+def _imports(path: Path, roots: tuple[Path, ...]) -> set[Path]:
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return set()
     result: set[Path] = set()
     for match in _IMPORT.finditer(text):
-        resolved = _resolve_import(match.group(1), root)
+        resolved = _resolve_import(match.group(1), roots)
         if resolved is not None:
             result.add(resolved)
     return result
@@ -133,15 +149,15 @@ def select_changed(tests: list[Path], changed: list[Path]) -> list[Path]:
     ):
         return list(tests)
 
-    graphs: dict[Path, dict[Path, set[Path]]] = {}
+    graphs: dict[tuple[Path, ...], dict[Path, set[Path]]] = {}
     selected: list[Path] = []
     for test in tests:
         resolved = test.resolve()
-        test_root = resolved.parent
-        if test_root not in graphs:
-            sources = [path.resolve() for path in _project_sources(test_root)]
-            graphs[test_root] = {path: _imports(path, test_root) for path in sources}
-        closure = _closure(resolved, graphs[test_root], set())
+        roots = _project_roots(resolved)
+        if roots not in graphs:
+            sources = {path.resolve() for root in roots for path in _project_sources(root)}
+            graphs[roots] = {path: _imports(path, roots) for path in sources}
+        closure = _closure(resolved, graphs[roots], set())
         if closure & changed_set:
             selected.append(test)
     return selected

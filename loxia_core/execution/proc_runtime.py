@@ -174,6 +174,10 @@ class ProcTable:
             if stream is not None:
                 self._close_fd(stream.fd)
 
+    def close_all(self) -> None:
+        for identifier in list(self._handles):
+            self.close(identifier)
+
     # -- streams ---------------------------------------------------------
     def read(self, identifier: int, count: int) -> str | None:
         handle = self._stream(identifier, "process.read")

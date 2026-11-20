@@ -105,6 +105,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/range_value.lx",
         "tests/cases/leading_operator_brackets.lx",
         "tests/cases/result_nil.lx",
+        "tests/cases/match_capture.lx",
     ),
     "t7": (
         "tests/cases/generic_class.lx",
@@ -132,6 +133,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/inheritance_init.lx",
         "tests/cases/inheritance_override.lx",
         "tests/cases/this_in_lambda.lx",
+        "tests/cases/super_in_closure.lx",
         "tests/cases/inheritance_super_init.lx",
         "tests/cases/optional_receiver.lx",
         "tests/cases/optional_refs.lx",

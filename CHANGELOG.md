@@ -169,6 +169,24 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **Backend: `super` em lambdas/funções locais e bindings de `match` capturados**
+  (ADR-0022): o passe de captura agora marca o receptor de `super` e declara os bindings
+  de pattern; funções internas herdam a classe léxica e o binding vira célula. Antes o
+  `--check` passava e o lowering nativo falhava com `E4002` (`super_in_closure.lx`,
+  `match_capture.lx`).
+- **fs: `read(n)` respeita o teto de bytes e mantém UTF-8 pendente**: o tree-walk
+  devolvia até 4 bytes extras por chamada e descartava `pending`; agora espelha o runtime
+  C, e `tests/test_fs_runtime.py` cobre `é` com `read(1)`/`read(2)`.
+- **fs/proc: handles não sobrevivem a uma execução**: `Interpreter.interpret` fecha as
+  tabelas no `finally`; `FileTable.close_all` existia sem chamador e handles antigos
+  continuavam legíveis na execução seguinte.
+- **`loxia test --changed` com `loxia.toml`**: a seleção passa a resolver imports na raiz
+  do manifest e em `modules.paths`, não no diretório do teste.
+- **Cache nativo do `loxia test`**: a chave inclui dependências `path`/cache git e
+  manifestos/locks, evitando falso verde depois de mudar uma dependência externa.
+- **`std.framing.readFrame`**: um reader que devolve `""` (sequência UTF-8 pendente)
+  agora falha com `truncated` em vez de girar para sempre.
+
 - **Backend: payload `Nil` no `match` de `Result`** ([ADR-0113](docs/adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)):
   `Result[Nil, E]` passava no `--check` e o lowering nativo falhava com `E4002` ao ligar o
   payload `nil` do braço. O braço agora usa um slot dummy e carrega `Value(NIL)`; regressão

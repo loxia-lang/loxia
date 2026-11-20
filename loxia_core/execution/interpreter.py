@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 from collections.abc import Callable, Iterator
+from typing import Any
 
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import Frame, Trace
@@ -213,6 +214,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         except LoxRuntimeError as e:
             self._capture_trace(e)
             self.reporter.runtime_error(e)
+        finally:
+            self.close_handles()
+
+    def close_handles(self) -> None:
+        """Fecha handles ambientais de uma execução (I3/ADR-0119)."""
+        for attribute in ("fs_handles", "proc_handles"):
+            table: Any = getattr(self, attribute, None)
+            if table is not None:
+                table.close_all()
 
     def _enter_call(self, name: str, token: Token | None) -> None:
         """Registra uma ativação Lox (ADR-0077) e o frame para o stack trace.

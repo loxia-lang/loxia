@@ -37,6 +37,7 @@ from loxia_core.frontend.expr import (
     Match,
     Range,
     Set,
+    Super,
     This,
     TupleLiteral,
     Unary,
@@ -282,7 +283,8 @@ class _Analyzer:
             self._use(expr.name.lexeme)
             return
 
-        if isinstance(expr, This):
+        if isinstance(expr, (This, Super)):
+            # `super` é léxico como `this`: usa o receptor da classe envolvente.
             self._use("this")
             return
 
@@ -383,10 +385,17 @@ class _Analyzer:
         if isinstance(expr, Match):
             self._expr(expr.scrutinee)
             for arm in expr.arms:
-                self._expr(arm.body)
+                self._scopes.append({})
+                try:
+                    pattern = arm.pattern
+                    for binding in getattr(pattern, "bindings", ()):
+                        self._declare(binding.lexeme, binding)
+                    self._expr(arm.body)
+                finally:
+                    self._scopes.pop()
             return
 
-        # Literal, This, Super e padrões não introduzem captura.
+        # Literal e padrões sem bindings não introduzem captura.
 
 
 def analyze_captures(statements: list[Stmt]) -> CaptureAnalysis:

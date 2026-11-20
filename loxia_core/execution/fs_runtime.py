@@ -93,27 +93,36 @@ class FileTable:
             raise NativeError("fs.read() expects a non-negative size.")
         if count == 0:
             return ""
-        try:
-            chunk = os.read(handle.fd, count)
-        except OSError as error:
-            raise NativeError(f"{_kind(error)}: read failed.") from None
-        data = handle.pending + chunk
+        # O mesmo contrato do runtime C: `n` é um teto de bytes; uma sequência
+        # incompleta fica pendente e não pode ser devolvida antes de completar.
+        if handle.pending and count <= len(handle.pending):
+            return ""
+        data = bytearray(handle.pending)
         handle.pending = b""
+        eof = False
+        while len(data) < count:
+            try:
+                chunk = os.read(handle.fd, count - len(data))
+            except OSError as error:
+                raise NativeError(f"{_kind(error)}: read failed.") from None
+            if not chunk:
+                eof = True
+                break
+            data += chunk
         if not data:
             return None
-        while True:
-            try:
-                return data.decode("utf-8")
-            except UnicodeDecodeError as error:
-                if error.reason != "unexpected end of data":
-                    raise NativeError("io: file is not valid UTF-8.") from None
-                try:
-                    extra = os.read(handle.fd, 4)
-                except OSError as failure:
-                    raise NativeError(f"{_kind(failure)}: read failed.") from None
-                if not extra:
-                    raise NativeError("io: file ends inside a UTF-8 sequence.") from None
-                data += extra
+        cut = _complete_prefix(bytes(data))
+        if cut < len(data):
+            handle.pending = bytes(data[cut:])
+            del data[cut:]
+        if not data:
+            if eof:
+                raise NativeError("io: file ends inside a UTF-8 sequence.") from None
+            return ""
+        try:
+            return data.decode("utf-8")
+        except UnicodeDecodeError:
+            raise NativeError("io: file is not valid UTF-8.") from None
 
     def write(self, identifier: int, text: str) -> None:
         handle = self._slot(identifier)
@@ -140,3 +149,25 @@ class FileTable:
     def close_all(self) -> None:
         for identifier in range(1, MAX_HANDLES + 1):
             self.close(identifier)
+
+
+def _complete_prefix(data: bytes) -> int:
+    """Maior prefixo de `data` que termina em fronteira de caractere UTF-8."""
+    cut = len(data)
+    back = 0
+    while cut > 0 and back < 3 and (data[cut - 1] & 0xC0) == 0x80:
+        cut -= 1
+        back += 1
+    if cut == 0:
+        return 0
+    lead = data[cut - 1]
+    if lead < 0x80:
+        need = 1
+    elif (lead & 0xE0) == 0xC0:
+        need = 2
+    elif (lead & 0xF0) == 0xE0:
+        need = 3
+    else:
+        need = 4
+    have = len(data) - (cut - 1)
+    return len(data) if have >= need else cut - 1
