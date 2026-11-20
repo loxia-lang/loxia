@@ -179,6 +179,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_property.lx",
         "tests/cases/std_contracts.lx",
         "tests/cases/std_contracts_property.lx",
+        "tests/cases/std_contracts_pilot.lx",
         "tests/cases/std_rand.lx",
         "tests/cases/std_sets.lx",
         "tests/cases/std_utf8.lx",

@@ -5,6 +5,7 @@
 # variance is population variance (divides by n). Integer arithmetic follows the language
 # rules, so `Int` products wrap on overflow outside `--debug`.
 
+import std.contracts as contracts
 import std.lists as lists
 
 fn _abs(value: Int) -> Int {
@@ -35,6 +36,10 @@ fn gcd(left: Int, right: Int) -> Int {
     a = b
     b = rest
   }
+  contracts.ensure(
+    (left == 0 or left % a == 0) and (right == 0 or right % a == 0),
+    "gcd: result does not divide its inputs"
+  )
   return a
 }
 
@@ -125,6 +130,10 @@ fn powMod(base: Int, exponent: Int, modulus: Int) -> Int {
     power = power // 2
     factor = (factor * factor) % modulus
   }
+  contracts.ensure(
+    result >= 0 and result < modulus,
+    "powMod: result out of range"
+  )
   return result
 }
 

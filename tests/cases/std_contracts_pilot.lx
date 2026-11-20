@@ -1,0 +1,62 @@
+# std.contracts pilot: postconditions in std.numeric and std.paths + properties.
+import std.numeric as numeric
+import std.paths as paths
+from std.property import Gen, forAll, intRange, listOf, oneOf
+from std.test import expect
+
+fn pathPart() -> Gen[String] {
+  return oneOf([".", "..", "a", "b", "/", ""])
+}
+
+fn pathOf(parts: List[String]) -> String {
+  var result = ""
+  for part in parts {
+    result = paths.joinPath(result, part)
+  }
+  return result
+}
+
+forAll(intRange(-50, 50), fn(left: Int) {
+  forAll(intRange(-50, 50), fn(right: Int) {
+    val divisor = numeric.gcd(left, right)
+    expect(divisor >= 0).toBe(true)
+    if (divisor != 0) {
+      expect(left % divisor == 0).toBe(true)
+      expect(right % divisor == 0).toBe(true)
+    }
+  }, 8, 11)
+}, 8, 3)
+
+forAll(intRange(-25, 25), fn(base: Int) {
+  forAll(intRange(0, 12), fn(exponent: Int) {
+    forAll(intRange(1, 31), fn(modulus: Int) {
+      val result = numeric.powMod(base, exponent, modulus)
+      expect(result >= 0).toBe(true)
+      expect(result < modulus).toBe(true)
+    }, 8, 7)
+  }, 8, 5)
+}, 8, 2)
+
+forAll(listOf(pathPart(), 6), fn(parts: List[String]) {
+  val raw = pathOf(parts)
+  val normalized = paths.normalize(raw)
+  expect(paths.normalize(normalized)).toBe(normalized)
+  expect(paths.isAbsolute(normalized)).toBe(paths.isAbsolute(raw))
+  expect(paths.normalize("")).toBe(".")
+}, 25, 9)
+
+try {
+  numeric.powMod(2, -1, 5)
+} except RuntimeError as error {
+  print(error.message)
+}
+# expect: powMod() expects a non-negative exponent.
+
+try {
+  numeric.powMod(2, 2, 0)
+} except RuntimeError as error {
+  print(error.message)
+}
+# expect: powMod() expects a positive modulus.
+
+print("property ok")  # expect: property ok

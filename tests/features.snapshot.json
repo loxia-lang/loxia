@@ -20,6 +20,14 @@
         "tests/cases/class_bound_method.lx"
       ]
     },
+    "contracts": {
+      "differential": "t2",
+      "golden": [
+        "tests/cases/std_contracts.lx",
+        "tests/cases/std_contracts_property.lx",
+        "tests/cases/std_contracts_pilot.lx"
+      ]
+    },
     "control_flow": {
       "differential": "l2",
       "golden": [

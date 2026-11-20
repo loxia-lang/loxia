@@ -1,6 +1,6 @@
 # ADR-0108 — Contratos como biblioteca (sintaxe adiada)
 
-- **Status:** accepted (biblioteca implementada; adoção na stdlib pendente)
+- **Status:** accepted (biblioteca implementada; piloto de adoção na stdlib em andamento)
 - **Data:** 2026-11-18
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md) (portão),
@@ -104,6 +104,28 @@ interino e o experimento que produz evidência para a decisão futura.
   do `except`) é boxed e chega ao `env`. Sem isso, `check` dentro de `try` falhava no
   lowering nativo com “Undefined variable”.
 
+## Piloto de adoção (2026-11-20)
+
+O primeiro piloto usa contratos **só como pós-condições internas**, sem trocar a validação
+de entrada pública:
+
+- `std.numeric.gcd`: garante que o resultado divide os dois argumentos (inclusive nos
+  casos de zero); entradas inválidas continuam com o comportamento atual.
+- `std.numeric.powMod`: garante `0 <= result < modulus`; `modulus <= 0` e `exponent < 0`
+  continuam `RuntimeError`.
+- `std.paths.normalize`: preserva absolute/relative e garante que o resultado não tem
+  segmento vazio/`.` nem `..` fora do prefixo relativo. `normalize` foi separada em
+  `_normalize` para a pós-condição ficar na fronteira pública.
+
+A regra é deliberada: contrato é para **bug de implementação**, não para entrada do
+usuário. Assim nenhum chamador válido passa a ver `ContractError`. O caso
+`tests/cases/std_contracts_pilot.lx` (t2) roda nos dois motores e usa `forAll` para
+gcd, powMod e idempotência de `normalize`.
+
+O piloto toca **2 módulos**, abaixo do gatilho de 3+ módulos do ADR; a próxima onda
+(`std.convert`/`std.lists.sort`) só entra se estes contratos pegarem regressões sem custo
+relevante.
+
 ## Consequências
 
 ### Positivas
@@ -156,6 +178,8 @@ interino e o experimento que produz evidência para a decisão futura.
   `checkVoid`/`checkMethodVoid`, `check` com `Nil`, e `ContractError` não capturado por
   `RuntimeError`; `--check` limpo e os três canais iguais no corpus (`t2`).
 - `tests/cases/std_contracts_property.lx`: `forAll` + contrato, com seed/shrinking.
+- `tests/cases/std_contracts_pilot.lx`: contratos nas funções da stdlib e properties de
+  gcd, powMod e `normalize`, nos dois motores.
 - `tests/cases/this_in_lambda.lx` (`l5`): `this` em lambda direto, lambda retornado e
   função local, nos dois motores.
 - `make check` (com backend) e `make stdlib-docs`; página gerada em
