@@ -26,6 +26,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from xml.sax.saxutils import escape, quoteattr
 
+from loxia.test_selection import (
+    SelectionError,
+    changed_paths,
+    select_changed,
+    shard_files,
+)
+
 if TYPE_CHECKING:
     import argparse
 
@@ -882,6 +889,20 @@ def run_tests(args: argparse.Namespace) -> int:
     if not files:
         print("Erro: nenhum arquivo *_test.lx encontrado.", file=sys.stderr)
         return 2
+    changed = getattr(args, "changed", None)
+    if changed is not None:
+        try:
+            files = select_changed(files, changed_paths(changed))
+        except SelectionError as error:
+            print(f"Erro: --changed: {error}", file=sys.stderr)
+            return 2
+    shard = getattr(args, "shard", None)
+    if shard is not None:
+        try:
+            files = shard_files(files, shard)
+        except ValueError as error:
+            print(f"Erro: --shard: {error}", file=sys.stderr)
+            return 2
     timeout_s = args.timeout / 1000 if args.timeout else None
     requested_jobs = args.jobs if args.jobs is not None else _default_jobs()
     jobs = 1 if args.fail_fast else max(1, requested_jobs)

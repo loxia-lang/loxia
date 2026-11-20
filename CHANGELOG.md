@@ -49,6 +49,9 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - **Fuzz do runner:** property tests para TAP, protocolo v2, JSON/JSONL e JUnit. O fuzz
   revelou que `--json-lines` com U+0085 quebrava o record em duas linhas; a saída agora usa
   escapes ASCII.
+- **`loxia test --changed[=REF]`:** seleciona testes pelo grafo de imports desde `REF`
+  (default `HEAD`), incluindo worktree e untracked; mudanças não-Lox/deletadas rodam tudo.
+- **`loxia test --shard=INDEX/TOTAL`:** particiona a lista final de arquivos para CI.
 - **Ratchet do backend Python:** `coverage-baseline-backend.toml` cobre o lowering; o job
   "Native backend" roda `make coverage-ratchet-backend` (exige libgc/llvmlite).
 - **TIPOS.md atualizado:** remove as lacunas de L5/L6/T7 já fechadas e deixa só generics

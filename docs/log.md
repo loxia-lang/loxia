@@ -1130,3 +1130,25 @@ cobertura passou para o job Unit 3.13.
   `--no-cache`, deixando explícito que o relatório não muda.
 
 <!-- triaged: 6a370e5 -->
+
+## 2026-11-20 — seleção por mudança e shard
+
+Intervalo: `9aa8929`..`bcc00db`. `loxia test` ganhou `--changed` e `--shard`.
+
+- `docs/spec/erros.md` — **no-change**: `cli_args.py` ganhou duas flags de seleção; não há
+  mensagem, código ou categoria de diagnóstico nova.
+- `docs/tech/mcp.md` — **no-change**: as flags são do subcomando `test`; a superfície MCP
+  não mudou.
+
+<!-- triaged: bcc00db -->
+
+## 2026-11-20 — retriagem após rebase da seleção
+
+Intervalo: `0c85580`..`a7d0458`. O rebase sobre `dev` mudou os SHAs; as duas páginas
+continuam sem mudança de conteúdo.
+
+- `docs/spec/erros.md` — **no-change**: `cli_args.py` só ganhou `--changed`/`--shard`;
+  nenhuma mensagem ou código de diagnóstico mudou.
+- `docs/tech/mcp.md` — **no-change**: as flags são do subcomando `test`, não do MCP.
+
+<!-- triaged: a7d0458 -->
