@@ -8,13 +8,15 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
 
 ## Onde estamos (2026-11-20)
 
-- Repositório público; **1.1.0** lançada (PyPI + GitHub Release).
+- Repositório público; **1.2.0** é a release atual (MCP, PyPI + GitHub Release);
+  **1.1.0** foi a primeira release pública.
 - Linguagem 1.0 congelada; backend **L0–L6 + T7** fechado; **M8** (performance) fechado.
 - **M9** (ecossistema) em andamento: MCP, cliente de editor e distribuição. O cliente
   VS Code já vive em `loxia-lang/loxia-vscode` (ADR-0109) e a grammar é asset de release;
   falta criar publisher/namespace e publicar a 1.1.0. O servidor MCP foi implementado
   (`loxia mcp`/`loxia-mcp`, ADR-0112), validado no MCP Inspector e empacotado para a
-  **1.2.0** com `server.json`; falta publicar no PyPI e no MCP Registry.
+  **1.2.0** com `server.json`; a publicação no PyPI e no MCP Registry é o passo manual
+  do release.
 - **Site no ar**: <https://loxia-lang.github.io/loxia/> ([#4](https://github.com/loxia-lang/loxia/issues/4)).
 - **LSP sem as lacunas P1**: completion herdada, signature importado/herdado, `inlayHint` e
   rename cross-file semântico ([#7](https://github.com/loxia-lang/loxia/issues/7)).
@@ -33,8 +35,9 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
    o split, os testes, o CI e o empacotamento já estão implementados.
 2. **M9 — MCP**: servidor `loxia-mcp` fino sobre o CLI ([#6](https://github.com/loxia-lang/loxia/issues/6)).
    **Implementado e validado no Inspector** (ADR-0112: modern-only 2026-07-28, zero-dep,
-   `--sandbox`); a release 1.2.0 leva o pacote e o `server.json`; falta publicar no PyPI
-   e no MCP Registry e testar com os demais clientes-alvo.
+   `--sandbox`); a release 1.2.0 leva o pacote e o `server.json`; a publicação no PyPI e
+   no MCP Registry é o passo manual do release, seguida de validação com os demais
+   clientes-alvo.
 3. **Decisões abertas**: contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos; o gerador de AST foi decidido como manual + guard ([ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md)). `fs.open` foi entregue com handles ([#16](https://github.com/loxia-lang/loxia/issues/16), [ADR-0119](adr/0119-fs-open-handles-e-erro-de-host.md)).
 
 ## Próximo (Next)
