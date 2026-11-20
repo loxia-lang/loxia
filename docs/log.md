@@ -1161,3 +1161,23 @@ Intervalo: `1d63a8b`..`1d63a8b` (base `dev`; o job novo é documentação/CI).
 - `docs/tech/mcp.md` — **no-change**: as flags continuam restritas ao subcomando `test`.
 
 <!-- triaged: 1d63a8b -->
+
+## 2026-11-20 — piloto de `std.contracts`
+
+Intervalo: `1d63a8b`..`809deb7`. Contratos em `std.numeric`/`std.paths` e caso de
+property `std_contracts_pilot.lx`.
+
+- `docs/spec/erros.md` — **no-change**: nenhuma mensagem ou código de diagnóstico novo;
+  o bloco de contagem foi regenerado pelo `docs-sync`.
+- `docs/spec/garantias.md` — **updated**: contagem de casos/níveis inclui o novo caso t2.
+- `docs/spec/semantica.md` — **no-change**: pós-condições internas de stdlib não mudam a
+  semântica da linguagem.
+- `docs/stdlib/framing.md` — **no-change**: a página gerada não mudou; o arquivo foi
+  reescrito pelo `make stdlib-docs`.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual; a entrada de feature
+  de contratos vive em `docs/tech/test-coverage.md`.
+- `docs/tech/mcp.md` — **no-change**: nenhuma mudança de CLI/MCP.
+- `docs/tech/test-coverage.md` — **updated**: nova feature `contracts` e golden do piloto.
+- `docs/tech/test-report.md` — **no-change**: runner/relatório não mudaram.
+
+<!-- triaged: 809deb7 -->
