@@ -699,6 +699,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help="compila cada arquivo e roda o binário",
         )
+        groups.execution.add_argument(
+            "--no-cache",
+            action="store_true",
+            help="não reusa binários nativos em cache",
+        )
         _add_dependency_options(groups.modules)
     elif command == "lock":
         _add_diagnostics_options(groups.diagnostics)

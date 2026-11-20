@@ -1116,3 +1116,17 @@ protocolo v2, `e.site`, JUnit/JSONL e paralelismo; a suíte local ganhou cobertu
   por que ainda não há gate.
 
 <!-- triaged: 29b56bf -->
+
+## 2026-11-20 — cache nativo e CI de coverage
+
+Intervalo: `1a783d7`..`6a370e5`. `loxia test --native` ganhou cache de binário e a
+cobertura passou para o job Unit 3.13.
+
+- `docs/spec/erros.md` — **no-change**: `interpreter.py` passou a carregar `e.site`, mas
+  nenhuma mensagem, código ou categoria de diagnóstico mudou.
+- `docs/tech/mcp.md` — **no-change**: `--no-cache` é uma flag do subcomando `test`; as
+  tools e a superfície MCP continuam iguais.
+- `docs/tech/test-report.md` — **updated**: seção curta sobre o cache de `--native` e
+  `--no-cache`, deixando explícito que o relatório não muda.
+
+<!-- triaged: 6a370e5 -->

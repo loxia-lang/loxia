@@ -63,6 +63,13 @@ escape hatch for tests that share process-wide resources. Durations are intentio
 of the default payload; if they are ever added, it will be behind an explicit flag and
 outside the deterministic contract.
 
+## Native cache
+
+`--native` builds one binary per file; the runner caches those executables by content
+(project `.lx` files, implementation, compiler and flags). A cache hit skips compilation;
+`--no-cache` forces a fresh build. The cache is invisible in the report: it never changes
+order, counts, messages or exit codes, and a cache failure falls back to a normal build.
+
 ## Streaming (`--json-lines`)
 
 `--json-lines` emits one compact JSON object per test, in the same order, followed by a
