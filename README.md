@@ -137,7 +137,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
 | `loxia mcp` | MCP server over stdio (tools) | — |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
+| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |

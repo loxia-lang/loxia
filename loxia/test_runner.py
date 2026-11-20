@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
+from xml.sax.saxutils import escape, quoteattr
 
 if TYPE_CHECKING:
     import argparse
@@ -551,15 +552,16 @@ def _render_human(runs: list[FileRun]) -> tuple[str, int]:
         lines.append(f"# {_display(run.path)}")
         for result in run.results:
             total += 1
+            name = _tap_text(result.name)
             if result.status == "pass":
                 passed += 1
-                lines.append(f"ok {total} - {result.name}")
+                lines.append(f"ok {total} - {name}")
             elif result.status == "skip":
                 skipped += 1
-                lines.append(f"ok {total} - {result.name} # SKIP {result.message}")
+                lines.append(f"ok {total} - {name} # SKIP {_tap_text(result.message)}")
             else:
                 failed += 1
-                lines.append(f"not ok {total} - {result.name}")
+                lines.append(f"not ok {total} - {name}")
                 for diagnostic in result.message.splitlines() or [""]:
                     lines.append(f"  # {diagnostic}")
     lines.append(f"1..{total}")
@@ -571,6 +573,39 @@ def _render_human(runs: list[FileRun]) -> tuple[str, int]:
     return "\n".join(lines), failed
 
 
+def _tap_text(value: str) -> str:
+    """Mantém o TAP humano em uma linha; `#` não vira diretiva por acidente."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+        .replace("#", "\\#")
+    )
+
+
+def _test_payload(result: TestResult, capture: bool) -> dict[str, object]:
+    return {
+        "file": result.file,
+        "name": result.name,
+        "status": result.status,
+        "kind": result.kind,
+        "message": result.message,
+        "location": (
+            {
+                "file": result.location.file,
+                "line": result.location.line,
+                "column": result.location.column,
+            }
+            if result.location is not None
+            else None
+        ),
+        "output": (
+            result.output if capture and result.status == "fail" and result.output else None
+        ),
+    }
+
+
 def _payload(runs: list[FileRun], *, exit_code: int, capture: bool = False) -> dict[str, object]:
     results = [result for run in runs for result in run.results]
     return {
@@ -578,40 +613,143 @@ def _payload(runs: list[FileRun], *, exit_code: int, capture: bool = False) -> d
         "command": "test",
         "success": exit_code == 0,
         "exit_code": exit_code,
-        "tests": [
-            {
-                "file": result.file,
-                "name": result.name,
-                "status": result.status,
-                "kind": result.kind,
-                "message": result.message,
-                "location": (
-                    {
-                        "file": result.location.file,
-                        "line": result.location.line,
-                        "column": result.location.column,
-                    }
-                    if result.location is not None
-                    else None
-                ),
-                "output": (
-                    result.output if capture and result.status == "fail" and result.output else None
-                ),
-            }
-            for result in results
-        ],
-        "summary": {
-            "files": len(runs),
-            "tests": len(results),
-            "pass": sum(1 for result in results if result.status == "pass"),
-            "fail": sum(1 for result in results if result.status == "fail"),
-            "skip": sum(1 for result in results if result.status == "skip"),
-        },
+        "tests": [_test_payload(result, capture) for result in results],
+        "summary": _summary(runs, results),
     }
+
+
+def _summary(runs: list[FileRun], results: list[TestResult]) -> dict[str, int]:
+    return {
+        "files": len(runs),
+        "tests": len(results),
+        "pass": sum(1 for result in results if result.status == "pass"),
+        "fail": sum(1 for result in results if result.status == "fail"),
+        "skip": sum(1 for result in results if result.status == "skip"),
+    }
+
+
+def _json_lines(runs: list[FileRun], *, exit_code: int, capture: bool = False) -> str:
+    results = [result for run in runs for result in run.results]
+    lines = [
+        json.dumps(
+            {"schema_version": 1, "type": "test", **_test_payload(result, capture)},
+            ensure_ascii=False,
+        )
+        for result in results
+    ]
+    lines.append(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "type": "summary",
+                "success": exit_code == 0,
+                "exit_code": exit_code,
+                **_summary(runs, results),
+            },
+            ensure_ascii=False,
+        )
+    )
+    return "\n".join(lines)
+
+
+def _xml_text(value: str) -> str:
+    """Remove caracteres inválidos em XML 1.0 e escapa o resto."""
+    cleaned = "".join(
+        ch
+        for ch in value
+        if ch in "\t\n\r"
+        or 0x20 <= ord(ch) <= 0xD7FF
+        or 0xE000 <= ord(ch) <= 0xFFFD
+        or 0x10000 <= ord(ch) <= 0x10FFFF
+    )
+    return escape(cleaned)
+
+
+def _junit(runs: list[FileRun], *, capture: bool = False) -> str:
+    results = [result for run in runs for result in run.results]
+    summary = _summary(runs, results)
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        (
+            '<testsuites name="loxia-test" '
+            f'tests="{summary["tests"]}" failures="{summary["fail"]}" '
+            f'skipped="{summary["skip"]}" time="0">'
+        ),
+    ]
+    for run in runs:
+        failures = sum(1 for result in run.results if result.status == "fail")
+        skipped = sum(1 for result in run.results if result.status == "skip")
+        lines.append(
+            "  <testsuite "
+            f"name={quoteattr(_xml_text(_display(run.path)))} "
+            f'tests="{len(run.results)}" failures="{failures}" '
+            f'skipped="{skipped}" time="0">'
+        )
+        for result in run.results:
+            name = quoteattr(_xml_text(result.name))
+            file = quoteattr(_xml_text(result.file))
+            if result.status == "pass":
+                lines.append(f'    <testcase classname={file} name={name} time="0"/>')
+            elif result.status == "skip":
+                lines.append(
+                    f'    <testcase classname={file} name={name} time="0">'
+                    f"<skipped message={quoteattr(_xml_text(result.message))}/>"
+                    "</testcase>"
+                )
+            else:
+                body = result.message
+                if capture and result.output:
+                    body = f"{body}\n{result.output}" if body else result.output
+                kind = quoteattr(_xml_text(result.kind or "failure"))
+                lines.append(
+                    f'    <testcase classname={file} name={name} time="0">'
+                    f"<failure message={quoteattr(_xml_text(result.message))} type={kind}>"
+                    f"{_xml_text(body)}</failure></testcase>"
+                )
+        lines.append("  </testsuite>")
+    lines.append("</testsuites>")
+    return "\n".join(lines) + "\n"
+
+
+def _default_jobs() -> int:
+    """Paralelismo conservador: 4 é o bastante para esconder o boot do Python."""
+    return max(1, min(4, os.cpu_count() or 1))
+
+
+def _build_all(
+    files: list[Path],
+    directory: str,
+    deps: tuple[str, ...],
+    jobs: int,
+) -> tuple[dict[Path, str | None], dict[Path, str]]:
+    binaries: dict[Path, str | None] = {path: None for path in files}
+    build_errors: dict[Path, str] = {}
+
+    def build_one(item: tuple[int, Path]) -> tuple[Path, str | None, str | None]:
+        index, path = item
+        binary = Path(directory) / f"{index}-{path.stem}"
+        error = _build(path, binary, deps)
+        return path, (str(binary) if error is None else None), error
+
+    items = list(enumerate(files))
+    if jobs == 1:
+        built = [build_one(item) for item in items]
+    else:
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            built = list(pool.map(build_one, items))
+    for path, binary, error in built:
+        if error is None and binary is not None:
+            binaries[path] = binary
+        else:
+            build_errors[path] = error or "native build failed"
+    return binaries, build_errors
 
 
 def run_tests(args: argparse.Namespace) -> int:
     """Executa o subcomando `loxia test`; devolve o código de saída."""
+    if getattr(args, "json", False) and getattr(args, "json_lines", False):
+        print("Erro: --json e --json-lines são mutuamente exclusivos.", file=sys.stderr)
+        return 2
     paths: list[str] = args.paths or (["tests"] if Path("tests").is_dir() else ["."])
     try:
         files = discover(paths)
@@ -622,7 +760,8 @@ def run_tests(args: argparse.Namespace) -> int:
         print("Erro: nenhum arquivo *_test.lx encontrado.", file=sys.stderr)
         return 2
     timeout_s = args.timeout / 1000 if args.timeout else None
-    jobs = 1 if args.fail_fast else max(1, args.jobs)
+    requested_jobs = args.jobs if args.jobs is not None else _default_jobs()
+    jobs = 1 if args.fail_fast else max(1, requested_jobs)
     token = secrets.token_hex(8)
     script_args: list[str] = []
     if args.filter:
@@ -641,13 +780,7 @@ def run_tests(args: argparse.Namespace) -> int:
         binaries: dict[Path, str | None] = {path: None for path in files}
         build_errors: dict[Path, str] = {}
         if args.native:
-            for index, path in enumerate(files):
-                binary = Path(directory) / f"{index}-{path.stem}"
-                error = _build(path, binary, tuple(deps))
-                if error is None:
-                    binaries[path] = str(binary)
-                else:
-                    build_errors[path] = error
+            binaries, build_errors = _build_all(files, directory, tuple(deps), jobs)
         if args.isolate == "test":
             runs = _run_isolated(
                 files,
@@ -682,14 +815,19 @@ def run_tests(args: argparse.Namespace) -> int:
         )
         if getattr(args, "require_tests", False):
             exit_code = 5
-    if args.json:
+    capture = bool(getattr(args, "capture", False))
+    if getattr(args, "junit", None):
+        try:
+            Path(args.junit).write_text(_junit(runs, capture=capture), encoding="utf-8")
+        except OSError as error:
+            print(f"Erro: não foi possível escrever {args.junit}: {error}", file=sys.stderr)
+            return 2
+    if getattr(args, "json_lines", False):
+        print(_json_lines(runs, exit_code=exit_code, capture=capture))
+    elif args.json:
         print(
             json.dumps(
-                _payload(
-                    runs,
-                    exit_code=exit_code,
-                    capture=getattr(args, "capture", False),
-                ),
+                _payload(runs, exit_code=exit_code, capture=capture),
                 ensure_ascii=False,
                 indent=2,
             )
