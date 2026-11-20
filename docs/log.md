@@ -1152,3 +1152,12 @@ continuam sem mudança de conteúdo.
 - `docs/tech/mcp.md` — **no-change**: as flags são do subcomando `test`, não do MCP.
 
 <!-- triaged: a7d0458 -->
+
+## 2026-11-20 — CI portátil macOS/Windows
+
+Intervalo: `1d63a8b`..`1d63a8b` (base `dev`; o job novo é documentação/CI).
+
+- `docs/spec/erros.md` — **no-change**: `--changed`/`--shard` não criaram diagnóstico novo.
+- `docs/tech/mcp.md` — **no-change**: as flags continuam restritas ao subcomando `test`.
+
+<!-- triaged: 1d63a8b -->

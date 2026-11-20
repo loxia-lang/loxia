@@ -36,6 +36,9 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Ferramentas
 
+- **CI macOS/Windows experimental:** job `portable` roda a suíte não-backend em
+  `macos-latest` e `windows-latest`, não-bloqueante. O backend nativo continua Linux-only.
+
 - `loxia test --junit` emite JUnit XML com `time="0"`; `--json-lines` emite um evento por
   teste e um `summary` final.
 - **`make coverage`**: medição de cobertura Python por branch, com `patch = ["subprocess"]`
