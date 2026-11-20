@@ -2010,3 +2010,31 @@ def test_goldens_de_runtime_error_batem_bytes(tmp_path: Path) -> None:
         assert compiled.stdout == interpreted.stdout, path
         assert compiled.stderr == interpreted.stderr, path
         assert compiled.returncode == interpreted.returncode, path
+
+
+@pytest.mark.backend
+def test_fs_read_utf8_pending_bate_com_o_binario(tmp_path: Path) -> None:
+    target = tmp_path / "utf8.txt"
+    target.write_text("éxABCD", encoding="utf-8")
+    path = _write(
+        tmp_path,
+        "import std.fs as fs\n"
+        f'val r = fs.open("{target}", "r")\n'
+        "val f = match r { Result.Ok(h) => h, Result.Err(_) => nil }\n"
+        "if (f != nil) {\n"
+        "  print(repr(f.read(1)))\n"
+        "  print(repr(f.read(2)))\n"
+        "  print(repr(f.read(1)))\n"
+        "  print(repr(f.read(2)))\n"
+        "  print(repr(f.read(2)))\n"
+        "  print(repr(f.read(1)))\n"
+        "}\n",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode

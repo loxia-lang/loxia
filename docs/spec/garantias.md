@@ -53,15 +53,15 @@ monotonic and the differential test never compares against a hand-written expect
 | `l2.5` | 4 |
 | `l3` | 14 |
 | `l4` | 12 |
-| `l5` | 29 |
-| `l6` | 60 |
+| `l5` | 30 |
+| `l6` | 61 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 16 |
 | `t3` | 6 |
 | `t7` | 3 |
 
-**173 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
+**175 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

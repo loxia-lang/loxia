@@ -57,6 +57,9 @@ fn readFrame(read: Reader) -> Result[String?, FrameFailure] {
       return _fail("truncated", "End of input inside the header.")
     }
     val byte = chunk
+    if (byte == "") {
+      return _fail("truncated", "Reader made no progress.")
+    }
     if (byte == "\n") {
       if (len(header) < 1 or substr(header, len(header) - 1, len(header)) != "\r") {
         return _fail("bad_header", "Header lines must end with CRLF.")

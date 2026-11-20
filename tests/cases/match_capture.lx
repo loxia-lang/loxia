@@ -1,0 +1,11 @@
+# A pattern binding captured by a lambda keeps its cell (backend/L6).
+enum E { A(Int) }
+
+fn make(e: E) -> fn() -> Int {
+  return match e {
+    E.A(x) => fn() => x
+  }
+}
+
+print(make(E.A(42))())
+# expect: 42

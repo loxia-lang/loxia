@@ -253,16 +253,28 @@ class EnumLowering(LoweringBase):
                         if desc.ty is ValueType.NIL:
                             # `Nil` has no value representation: keep a dummy slot so the
                             # arm can name the binding, and load it as `Value(NIL)`.
-                            slot = self.builder.alloca(_I32, name=binding.lexeme)
-                            self.builder.store(llvm_ir.constant(_I32, 0), slot)
-                            self._scopes[-1][binding.lexeme] = Binding(
-                                slot,
-                                desc.ty,
-                                desc.fn,
-                                desc.optional,
-                                class_name=desc.class_name,
-                                interface_name=desc.interface_name,
-                            )
+                            if self._analysis.is_captured(binding):
+                                cell = self._alloc_cell()
+                                self._scopes[-1][binding.lexeme] = Binding(
+                                    cell,
+                                    desc.ty,
+                                    desc.fn,
+                                    desc.optional,
+                                    cell=True,
+                                    class_name=desc.class_name,
+                                    interface_name=desc.interface_name,
+                                )
+                            else:
+                                slot = self.builder.alloca(_I32, name=binding.lexeme)
+                                self.builder.store(llvm_ir.constant(_I32, 0), slot)
+                                self._scopes[-1][binding.lexeme] = Binding(
+                                    slot,
+                                    desc.ty,
+                                    desc.fn,
+                                    desc.optional,
+                                    class_name=desc.class_name,
+                                    interface_name=desc.interface_name,
+                                )
                             continue
                         raw = self.builder.call(
                             self._function(
@@ -278,6 +290,20 @@ class EnumLowering(LoweringBase):
                             ],
                         )
                         value = self._unbox_value(raw, desc, binding.line)
+                        if self._analysis.is_captured(binding):
+                            cell = self._alloc_cell()
+                            typed = self._cell_pointer(cell, desc)
+                            self.builder.store(value.llvm, typed)
+                            self._scopes[-1][binding.lexeme] = Binding(
+                                cell,
+                                desc.ty,
+                                desc.fn,
+                                desc.optional,
+                                cell=True,
+                                class_name=desc.class_name,
+                                interface_name=desc.interface_name,
+                            )
+                            continue
                         slot = self.builder.alloca(
                             self._storage_llvm_type(desc), name=binding.lexeme
                         )

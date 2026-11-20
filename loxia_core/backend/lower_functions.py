@@ -55,6 +55,7 @@ class FunctionLowering(LoweringBase):
         llvm_name: str | None = None,
         this_class: str | None = None,
         this_interface: str | None = None,
+        method_class: str | None = None,
         is_init: bool = False,
         allow_generic: bool = False,
     ) -> FunctionInfo:
@@ -107,6 +108,7 @@ class FunctionLowering(LoweringBase):
             sig,
             this_class=this_class,
             this_interface=this_interface,
+            method_class=method_class,
             is_init=is_init,
             trace_name=stmt.display_name or stmt.name.lexeme,
             decl_file=stmt.name.file,
@@ -144,7 +146,7 @@ class FunctionLowering(LoweringBase):
         self.builder.store(closure.llvm, binding.storage)
 
     def _local_function(self, stmt: Function) -> None:
-        info = self._function_info(stmt)
+        info = self._function_info(stmt, method_class=self._method_class)
         captured = self._analysis.is_captured(stmt)
 
         if captured:
@@ -217,6 +219,7 @@ class FunctionLowering(LoweringBase):
             signature,
             expr.params,
             sig,
+            method_class=self._method_class,
             trace_name="<lambda>",
             decl_file=expr.keyword.file,
             decl_line=expr.keyword.line,
@@ -290,7 +293,7 @@ class FunctionLowering(LoweringBase):
         self._type_subst = {**self._type_subst, **(info.type_subst or {})}
         self._return_type_desc = info.fn_sig.ret
         self._in_init = info.is_init
-        self._method_class = info.this_class
+        self._method_class = info.this_class or info.method_class
         self._scopes = [{}]
         self._captures = {}
         self._cleanup_stack = []

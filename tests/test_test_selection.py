@@ -61,3 +61,24 @@ def test_shard_files_round_robin() -> None:
 
     assert shard_files(files, "1/2") == [files[0], files[2], files[4]]
     assert shard_files(files, "2/2") == [files[1], files[3]]
+
+
+def test_changed_respeita_manifest_e_modules_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """O loader resolve imports na raiz do manifest, não no diretório do teste."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "loxia.toml").write_text(
+        '[package]\nname = "demo"\nversion = "0.1.0"\n\n[modules]\npaths = ["src"]\n',
+        encoding="utf-8",
+    )
+    src = tmp_path / "src"
+    src.mkdir()
+    lib = src / "lib.lx"
+    lib.write_text("fn value() -> Int { return 1 }\n", encoding="utf-8")
+    tests = tmp_path / "tests" / "sub"
+    tests.mkdir(parents=True)
+    test = tests / "uses_test.lx"
+    test.write_text("import lib\nval value = 1\n", encoding="utf-8")
+
+    assert select_changed([test], [lib]) == [test]

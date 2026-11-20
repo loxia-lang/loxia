@@ -32,6 +32,7 @@ from loxia.test_selection import (
     select_changed,
     shard_files,
 )
+from loxia_core.loader.manifest import ManifestError, discover_manifest, parse_manifest
 
 if TYPE_CHECKING:
     import argparse
@@ -724,14 +725,61 @@ def _default_jobs() -> int:
     return max(1, min(4, os.cpu_count() or 1))
 
 
-def _cache_files() -> list[Path]:
-    """Fontes que podem mudar um binário: projeto atual + implementação embarcada."""
+def _dependency_roots() -> list[Path]:
+    """Raízes que o loader pode importar e que não vivem no CWD.
+
+    Inclui dependências `path` (recursivamente) e o cache git padrão do projeto.
+    Qualquer mudança em `.lx`/manifesto dessas raízes precisa invalidar o binário.
+    """
+    roots: list[Path] = []
+    pending: list[Path] = []
+    seen: set[Path] = set()
+    manifest_path = discover_manifest(Path.cwd())
+    if manifest_path is not None:
+        pending.append(manifest_path)
+    while pending:
+        path = pending.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        try:
+            manifest = parse_manifest(path, path.read_text(encoding="utf-8"))
+        except (OSError, ManifestError):
+            continue
+        roots.append(manifest.path.parent)
+        for dependency in manifest.dependencies.values():
+            if dependency.path is not None:
+                roots.append(dependency.path)
+                child = dependency.path / "loxia.toml"
+                if child.is_file():
+                    pending.append(child)
+        cache = manifest.path.parent / ".loxia" / "cache"
+        if cache.is_dir():
+            roots.append(cache)
+    return list(dict.fromkeys(roots))
+
+
+def _cache_dir_from_args(deps: tuple[str, ...]) -> Path | None:
+    for index, argument in enumerate(deps):
+        if argument == "--cache-dir" and index + 1 < len(deps):
+            return Path(deps[index + 1])
+    return None
+
+
+def _cache_files(deps: tuple[str, ...] = ()) -> list[Path]:
+    """Fontes que podem mudar um binário: projeto, deps e runtime embarcado."""
     package = Path(__file__).resolve().parent.parent
-    roots = (
-        (Path.cwd(), (".lx",)),
+    roots = [
+        (Path.cwd(), (".lx", ".toml", ".lock")),
         (package / "loxia", (".py", ".lx")),
         (package / "loxia_core", (".py", ".lx", ".c", ".h")),
-    )
+        (package / "runtime", (".c", ".h")),
+    ]
+    for root in _dependency_roots():
+        roots.append((root, (".lx", ".toml", ".lock")))
+    cache = _cache_dir_from_args(deps)
+    if cache is not None:
+        roots.append((cache, (".lx", ".toml", ".lock")))
     files: set[Path] = set()
     for root, suffixes in roots:
         if not root.is_dir():
@@ -777,7 +825,7 @@ def _binary_cache_key(files: list[Path], deps: tuple[str, ...]) -> str:
     digest.update(os.environ.get("CPATH", "").encode("utf-8"))
     digest.update(os.environ.get("LIBRARY_PATH", "").encode("utf-8"))
     digest.update("\0".join(deps).encode("utf-8"))
-    for path in _cache_files():
+    for path in _cache_files(deps):
         try:
             payload = path.read_bytes()
         except OSError:
