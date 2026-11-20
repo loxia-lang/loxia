@@ -1181,3 +1181,19 @@ property `std_contracts_pilot.lx`.
 - `docs/tech/test-report.md` — **no-change**: runner/relatório não mudaram.
 
 <!-- triaged: 809deb7 -->
+
+## 2026-11-20 — segunda onda de `std.contracts`
+
+Intervalo: `809deb7`..`d0e3539`. Contratos em `std.convert`/`std.lists`.
+
+- `docs/decisoes.md` — **no-change**: a decisão “contratos como biblioteca” não mudou; a
+  adoção piloto é registrada no ADR-0108/roadmap.
+- `docs/spec/semantica.md` — **no-change**: pós-condições internas de stdlib não alteram a
+  semântica da linguagem.
+- `docs/stdlib/convert.md` — **no-change**: comentários `///` e API não mudaram; o contrato
+  é interno.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual.
+- `docs/stdlib/lists.md` — **no-change**: API/documentação de `sort` não mudaram; `_sort`
+  é detalhe interno.
+
+<!-- triaged: d0e3539 -->
