@@ -4,6 +4,7 @@ sources:
   - Makefile
   - .gitignore
   - coverage-baseline.toml
+  - coverage-baseline-backend.toml
   - tools/coverage_ratchet.py
   - .github/workflows/ci.yml
   - tests/test_coverage_config.py
@@ -50,11 +51,10 @@ Local run with the non-backend suite:
 TOTAL   20190 statements   6403 missed   8596 branches   1048 partial   65%
 ```
 
-That is the baseline, not a target. The backend suite and the native runtime are excluded,
-and a single number hides the important split: the parser, resolver and value types are
-well covered; the checker's diagnostic branches and the host/process runtime are the
-largest gaps. Use `coverage report -m` for the missing lines and
-`coverage html` for the annotated source.
+That is the baseline, not a target. This frontend measurement excludes the backend tests;
+the parser, resolver and value types are well covered, while the checker's diagnostic
+branches and the host/process runtime are the largest gaps. Use `coverage report -m` for
+the missing lines and `coverage html` for the annotated source.
 
 ## Ratchet
 
@@ -77,3 +77,21 @@ global `fail-under`: a high-level percentage lets one module drop while another 
 The selection is intentionally [the hot path and the compiler
 surface](../../coverage-baseline.toml), not every file. `checker` is the most sensitive
 floor: a diagnostic branch without a test fails the ratchet.
+
+## Backend
+
+The backend is measured separately because it needs `llvmlite` and `libgc`:
+
+```bash
+make coverage-backend           # measurement (4 workers; needs libgc)
+make coverage-ratchet-backend   # gate used by the CI "Native backend" job
+make coverage-update-backend    # raises backend floors
+```
+
+`coverage-baseline-backend.toml` has floors for the Python lowering: `lower.py`,
+`lower_calls`, `lower_class_codegen`, `lower_exceptions`, `driver`, `llvm_ir` and friends.
+The native binaries and the C runtime are not Python and are outside coverage; what is
+measured is the lowering/emission code that the backend tests exercise. The CI backend job
+runs `make coverage-ratchet-backend` instead of a plain `pytest -m backend`, so the same
+run proves the backend suite and the floors. `COVERAGE_JOBS` (default 4) controls the
+worker count.

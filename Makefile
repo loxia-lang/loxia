@@ -2,10 +2,11 @@
 .DEFAULT_GOAL := help
 
 FILE ?=
+COVERAGE_JOBS ?= 4
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast coverage coverage-ratchet coverage-update docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -21,6 +22,7 @@ help:
 	@echo "make coverage                  mede cobertura Python (sem gate; não roda backend)"
 	@echo "make coverage-ratchet          mede e falha abaixo dos pisos por arquivo"
 	@echo "make coverage-update           sobe os pisos até a cobertura medida"
+	@echo "make coverage-ratchet-backend  piso do backend Python (exige libgc)"
 	@echo "make docs-sync                 regenera níveis, catálogo, stdlib e índice"
 	@echo "make docs-index                regenera loxia/_spec/index.json e site/public/llms.txt"
 	@echo "make docs-build                build do site Starlight em site/dist"
@@ -85,6 +87,20 @@ coverage-ratchet: coverage
 coverage-update: coverage
 	uv run coverage json -o .coverage.json
 	uv run python tools/coverage_ratchet.py --update
+
+coverage-backend:
+	rm -f .coverage.backend*
+	COVERAGE_FILE=.coverage.backend uv run coverage run -m pytest -m backend -n $(COVERAGE_JOBS)
+	COVERAGE_FILE=.coverage.backend uv run coverage combine
+	COVERAGE_FILE=.coverage.backend uv run coverage report
+
+coverage-ratchet-backend: coverage-backend
+	COVERAGE_FILE=.coverage.backend uv run coverage json -o .coverage.backend.json
+	uv run python tools/coverage_ratchet.py --baseline coverage-baseline-backend.toml --report .coverage.backend.json --check
+
+coverage-update-backend: coverage-backend
+	COVERAGE_FILE=.coverage.backend uv run coverage json -o .coverage.backend.json
+	uv run python tools/coverage_ratchet.py --baseline coverage-baseline-backend.toml --report .coverage.backend.json --update
 
 docs-sync:
 	uv run python docs/_hooks/levels.py --write

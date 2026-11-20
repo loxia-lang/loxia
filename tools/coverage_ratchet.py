@@ -21,33 +21,33 @@ BASELINE = ROOT / "coverage-baseline.toml"
 REPORT = ROOT / ".coverage.json"
 
 
-def load_baseline() -> dict[str, int]:
-    payload = tomllib.loads(BASELINE.read_text(encoding="utf-8"))
+def load_baseline(path: Path = BASELINE) -> dict[str, int]:
+    payload = tomllib.loads(path.read_text(encoding="utf-8"))
     if payload.get("schema_version") != 1:
-        raise SystemExit("coverage-baseline.toml: schema_version deve ser 1")
+        raise SystemExit(f"{path.name}: schema_version deve ser 1")
     files = payload.get("files")
     if not isinstance(files, dict) or not files:
-        raise SystemExit("coverage-baseline.toml: tabela [files] vazia")
+        raise SystemExit(f"{path.name}: tabela [files] vazia")
     baseline: dict[str, int] = {}
-    for path, value in files.items():
-        if not isinstance(path, str) or not isinstance(value, int):
-            raise SystemExit(f"coverage-baseline.toml: entrada inválida {path!r}")
-        baseline[path] = value
+    for name, value in files.items():
+        if not isinstance(name, str) or not isinstance(value, int):
+            raise SystemExit(f"{path.name}: entrada inválida {name!r}")
+        baseline[name] = value
     return baseline
 
 
-def load_report() -> dict[str, float]:
-    if not REPORT.is_file():
-        raise SystemExit(f"relatório ausente: {REPORT}; rode `make coverage` antes")
-    payload = json.loads(REPORT.read_text(encoding="utf-8"))
+def load_report(path: Path = REPORT) -> dict[str, float]:
+    if not path.is_file():
+        raise SystemExit(f"relatório ausente: {path}; rode `make coverage` antes")
+    payload = json.loads(path.read_text(encoding="utf-8"))
     files = payload.get("files")
     if not isinstance(files, dict):
         raise SystemExit("relatório de cobertura sem `files`")
     result: dict[str, float] = {}
-    for path, entry in files.items():
+    for file_path, entry in files.items():
         summary = entry.get("summary") if isinstance(entry, dict) else None
         if isinstance(summary, dict) and isinstance(summary.get("percent_covered"), (int, float)):
-            result[path] = float(summary["percent_covered"])
+            result[file_path] = float(summary["percent_covered"])
     return result
 
 
@@ -76,30 +76,32 @@ def update(actual: dict[str, float], baseline: dict[str, int]) -> tuple[dict[str
     return updated, changed
 
 
-def write_baseline(baseline: dict[str, int]) -> None:
+def write_baseline(baseline: dict[str, int], baseline_path: Path = BASELINE) -> None:
     lines = [
         "schema_version = 1",
         "",
         "# Pisos inteiros de cobertura por arquivo (branch). Só sobem (ADR-0122).",
         "[files]",
     ]
-    for path in sorted(baseline):
-        lines.append(f'"{path}" = {baseline[path]}')
-    BASELINE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    for name in sorted(baseline):
+        lines.append(f'"{name}" = {baseline[name]}')
+    baseline_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tools.coverage_ratchet")
     parser.add_argument("--check", action="store_true", help="falha abaixo do piso")
     parser.add_argument("--update", action="store_true", help="sobe o piso até o medido")
+    parser.add_argument("--baseline", type=Path, default=BASELINE, help="arquivo TOML de pisos")
+    parser.add_argument("--report", type=Path, default=REPORT, help="coverage JSON")
     args = parser.parse_args(argv)
-    baseline = load_baseline()
-    actual = load_report()
+    baseline = load_baseline(args.baseline)
+    actual = load_report(args.report)
     problems = compare(actual, baseline)
     if args.update:
         updated, changed = update(actual, baseline)
         if changed:
-            write_baseline(updated)
+            write_baseline(updated, args.baseline)
             for line in changed:
                 print(f"ratchet: {line}")
         else:
@@ -108,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     if problems:
         for problem in problems:
             print(f"ratchet: {problem}")
-        print("Rode `make coverage` para ver o relatório; suba o piso só com teste.")
+        print("Rode o alvo de coverage correspondente; suba o piso só com teste.")
         return 1
     for path in sorted(baseline):
         print(f"ratchet: {path}: {actual[path]:.1f}% (piso {baseline[path]}%)")

@@ -63,3 +63,21 @@ def test_ratchet_compare_reports_regressions() -> None:
     assert any("a.py" in problem for problem in problems)
     assert any("b.py" in problem for problem in problems)
     assert any("c.py" in problem for problem in problems)
+
+
+def test_backend_ratchet_has_its_own_baseline() -> None:
+    from tools.coverage_ratchet import load_baseline
+
+    baseline = load_baseline(ROOT / "coverage-baseline-backend.toml")
+    assert baseline
+    for path, floor in baseline.items():
+        assert path.startswith("loxia_core/backend/"), path
+        assert (ROOT / path).is_file(), path
+        assert 0 <= floor <= 100
+
+
+def test_makefile_has_backend_targets() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "\ncoverage-backend:\n" in makefile
+    assert "\ncoverage-ratchet-backend: coverage-backend\n" in makefile
+    assert "coverage-baseline-backend.toml" in makefile

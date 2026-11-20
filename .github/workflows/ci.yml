@@ -91,11 +91,11 @@ jobs:
           restore-keys: |
             lox-runtime-${{ runner.os }}-
       - run: uv sync --locked --all-groups --extra llvm
-      - name: Backend suite
+      - name: Backend suite + coverage ratchet
         env:
           LOX_REQUIRE_LLVM: "1"
           LOX_BUILD_CACHE: ${{ runner.temp }}/lox-build-cache
-        run: uv run pytest -m backend -n auto
+        run: make coverage-ratchet-backend
 
   docs:
     name: Docs and generated files

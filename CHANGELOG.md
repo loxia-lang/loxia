@@ -44,6 +44,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - **Ratchet de cobertura:** `coverage-baseline.toml` fixa pisos por módulo crítico,
   `make coverage-ratchet` falha abaixo deles (job "Coverage ratchet" no CI) e
   `make coverage-update` só sobe os pisos.
+- **Ratchet do backend Python:** `coverage-baseline-backend.toml` cobre o lowering; o job
+  "Native backend" roda `make coverage-ratchet-backend` (exige libgc/llvmlite).
+- **TIPOS.md atualizado:** remove as lacunas de L5/L6/T7 já fechadas e deixa só generics
+  além do MVP, gaps de checker e L7. Issue #11 fechada.
 - Triagem de frescor de 2026-11-20 registrada em [`docs/log.md`](docs/log.md); o teste de
   âncoras do site ignora `site/dist` defasado.
 
