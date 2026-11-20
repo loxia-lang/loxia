@@ -6,6 +6,8 @@ sources:
   - loxia_core/execution/primitives.py
   - loxia_core/execution/interpreter.py
   - tests/test_mcp.py
+  - server.json
+  - pyproject.toml
 ---
 
 # MCP server
@@ -77,6 +79,35 @@ server never reimplements parsing, checking or diagnostics.
 
 This is a capability profile, not an OS jail: without bwrap/namespaces the host can still
 read whatever the loader reads. The residual risk is documented in the ADR.
+
+## Packaging and registry
+
+The server ships in the `loxia` wheel; there is no separate MCP download:
+
+```bash
+uvx --from loxia loxia-mcp     # fetch from PyPI and run
+pip install loxia               # then use `loxia mcp` or `loxia-mcp`
+```
+
+`server.json` at the repository root is the MCP Registry manifest:
+
+- name: `io.github.loxia-lang/loxia`;
+- package: PyPI `loxia`, stdio transport;
+- runtime: `uvx`, with the positional argument `mcp` (so the client runs `loxia mcp`);
+- version must match `pyproject.toml`.
+
+The README carries the matching `<!-- mcp-name: io.github.loxia-lang/loxia -->` marker,
+which is what the registry uses to verify PyPI ownership. Publishing is an explicit
+release step: the registry preview requires its publisher CLI and the PyPI release must
+already exist.
+
+### MCP Inspector
+
+Inspector defaults to the legacy handshake. Loxia is modern-only (`2026-07-28`), so select
+**Protocol era: modern** (or pass `--protocol-era modern`) and use `server/discover`, not
+`initialize`. For a local checkout, the command is the absolute path to
+`.venv/bin/loxia-mcp` with no arguments; `--from loxia loxia-mcp` belongs to `uvx`, not to
+`loxia-mcp`.
 
 ## What is intentionally out of scope
 

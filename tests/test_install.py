@@ -56,6 +56,7 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
         sdist_names = archive.getnames()
 
     assert any(name.endswith("/std/json.lx") and "/loxia_core/" not in name for name in sdist_names)
+    assert any(name.endswith("/server.json") for name in sdist_names)
     assert not any("/loxia_core/std/" in name for name in sdist_names)
 
     venv = tmp_path / "venv"

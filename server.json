@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.loxia-lang/loxia",
+  "title": "Loxia",
+  "description": "Type-check, run in a sandbox, inspect the AST and search the Loxia language reference.",
+  "version": "1.2.0",
+  "websiteUrl": "https://loxia-lang.github.io/loxia/",
+  "repository": {
+    "url": "https://github.com/loxia-lang/loxia",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "loxia",
+      "version": "1.2.0",
+      "runtimeHint": "uvx",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

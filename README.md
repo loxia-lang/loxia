@@ -13,8 +13,9 @@ stdout, stderr and exit codes on a declared corpus. The lineage is declared, not
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
 > **Status:** 1.x, released. The language semantics are frozen; tooling and packaging are
-> still moving. 1.1.0 is on PyPI. The specification is in English; the ADRs and roadmap are
-> in Portuguese (pt-BR). See [Documentation](#documentation).
+> still moving. 1.1.0 is the latest public release; 1.2.0 prepares MCP packaging. The
+> specification is in English; the ADRs and roadmap are in Portuguese (pt-BR). See
+> [Documentation](#documentation).
 
 ## Why Loxia
 
@@ -70,7 +71,7 @@ area = 6.0
 | Tooling | formatter, LSP, MCP, test runner, `fix`, `doc`, `explain`, `capabilities` |
 | Packaging | on PyPI since 1.1.0 |
 
-Current version: **1.1.0**. The detailed, generated status by level is in
+Current version: **1.2.0**. The detailed, generated status by level is in
 [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Install
@@ -110,7 +111,7 @@ loxia run hello/src/main.lx
 loxia hello.lx                     # run a file
 loxia check hello.lx               # type-check only
 loxia build hello.lx --emit=exe -o hello
-loxia --version                    # loxia 1.1.0
+loxia --version                    # loxia 1.2.0
 ```
 
 ## CLI
@@ -157,6 +158,8 @@ on an uncaught runtime error.
 
 ## MCP server
 
+<!-- mcp-name: io.github.loxia-lang/loxia -->
+
 `loxia mcp` (or the `loxia-mcp` console script) is a thin
 [Model Context Protocol](https://modelcontextprotocol.io/) server over the CLI. It speaks
 MCP `2026-07-28` on stdio and exposes:
@@ -177,6 +180,22 @@ Point your client at it:
   }
 }
 ```
+
+Or let the client fetch the package from PyPI:
+
+```json
+{
+  "mcpServers": {
+    "loxia": {
+      "command": "uvx",
+      "args": ["--from", "loxia", "loxia-mcp"]
+    }
+  }
+}
+```
+
+The MCP Registry manifest is [`server.json`](https://github.com/loxia-lang/loxia/blob/main/server.json); the PyPI package
+`loxia` carries the `loxia-mcp` console script and the packaged docs index.
 
 The server is zero-dependency; check/run/ast results are byte-identical to the CLI. See
 [`docs/tech/mcp.md`](docs/tech/mcp.md) for the protocol, sandbox and limits (ADR-0112).

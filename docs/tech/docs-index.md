@@ -34,7 +34,7 @@ uv run python tools/docs_index.py --check   # CI gate: must be up to date
 ```json
 {
   "schema_version": 1,
-  "loxia_version": "1.1.0",
+  "loxia_version": "1.2.0",
   "pages": [
     {
       "id": "spec/syntax",
