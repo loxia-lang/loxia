@@ -78,9 +78,10 @@ e necessidade medida de buffer de escrita.
 
 `fs.readText`/`readLines`/`writeText`/`appendText`/`listDir` passam a devolver `Result`
 (quebra de assinatura na 1.1.0; sem bump de major por decisão do mantenedor, porque não há
-consumidor externo). `proc` (Stream/Process/run/spawn) e `csv`/`timex` migram para o mesmo
-padrão nesta série de PRs; `json.parse`/`csv.parse` mantêm o par `parseResult` quando
-existir, e nenhuma API antiga permanece como wrapper duplicado.
+consumidor externo). `proc` (Stream/Process/run/spawn) migra para `Result` nesta série de PRs;
+`csv` e `timex` ganham `parseResult`/`parseIsoResult` e mantêm a forma `T?` legada
+delegando para ela (o padrão do `json.parse`/`parseResult`). Nenhuma API de **host**
+mantém `T?`/`Bool`: a regra vale para IO, processos e rede.
 
 ## Consequências
 

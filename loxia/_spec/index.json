@@ -2449,32 +2449,92 @@
           "text": "## API\n"
         },
         {
+          "id": "stdlib/csv#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#classes",
+          "text": "## Classes\n\n### `class CsvError`\n\nFailure to parse CSV text.\n\n#### `val kind: String`\n\nStable token: `invalidCsv`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/csv#class-csverror",
+          "anchor": "class-csverror",
+          "title": "class CsvError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#class-csverror",
+          "text": "### `class CsvError`\n\nFailure to parse CSV text.\n\n#### `val kind: String`\n\nStable token: `invalidCsv`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/csv#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable token: `invalidCsv`.\n"
+        },
+        {
+          "id": "stdlib/csv#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#val-message-string",
+          "text": "#### `val message: String`\n\nDetail without path/locale text.\n"
+        },
+        {
+          "id": "stdlib/csv#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
           "id": "stdlib/csv#functions",
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 14,
-          "line_end": 32,
+          "line_start": 32,
+          "line_end": 57,
           "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#functions",
-          "text": "## Functions\n\n### `fn parse(text: String) -> List[List[String]] | Nil`\n\nParses RFC 4180 CSV text into rows of fields.\n\nAccepts LF and CRLF line endings and preserves empty fields. Returns `nil` on\nmalformed input, including a stray quote in an unquoted field or an unterminated\nquoted field. Empty text parses to `[]`; a blank line is a record with one empty\nfield, not an empty row.\n\n### `fn stringify(rows: List[List[String]]) -> String`\n\nSerializes rows as RFC 4180 CSV, quoting fields when needed.\n\nFields are quoted when they contain `,`, `\"`, CR or LF, and embedded quotes are\ndoubled. Every row ends with CRLF, including the last one; an empty row raises\n`RuntimeError` because RFC 4180 has no representation for it. `[]` yields `\"\"`.\n"
+          "text": "## Functions\n\n### `fn parse(text: String) -> List[List[String]] | Nil`\n\nParses RFC 4180 CSV text into rows of fields.\n\nAccepts LF and CRLF line endings and preserves empty fields. Returns `nil` on\nmalformed input, including a stray quote in an unquoted field or an unterminated\nquoted field. Empty text parses to `[]`; a blank line is a record with one empty\nfield, not an empty row.\n\n### `fn parseResult(text: String) -> Result[List[List[String]], CsvError]`\n\nParses CSV text, preserving the cause of a malformed input.\n\nEmpty text is `Ok([])`; a stray quote or an unterminated quoted field is\n`Err(CsvError(\"invalidCsv\", ...))`.\n\n### `fn stringify(rows: List[List[String]]) -> String`\n\nSerializes rows as RFC 4180 CSV, quoting fields when needed.\n\nFields are quoted when they contain `,`, `\"`, CR or LF, and embedded quotes are\ndoubled. Every row ends with CRLF, including the last one; an empty row raises\n`RuntimeError` because RFC 4180 has no representation for it. `[]` yields `\"\"`.\n"
         },
         {
           "id": "stdlib/csv#fn-parsetext-string---listliststring--nil",
           "anchor": "fn-parsetext-string---listliststring--nil",
           "title": "fn parse(text: String) -> List[List[String]] | Nil",
           "level": 3,
-          "line_start": 16,
-          "line_end": 25,
+          "line_start": 34,
+          "line_end": 43,
           "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-parsetext-string---listliststring--nil",
           "text": "### `fn parse(text: String) -> List[List[String]] | Nil`\n\nParses RFC 4180 CSV text into rows of fields.\n\nAccepts LF and CRLF line endings and preserves empty fields. Returns `nil` on\nmalformed input, including a stray quote in an unquoted field or an unterminated\nquoted field. Empty text parses to `[]`; a blank line is a record with one empty\nfield, not an empty row.\n"
+        },
+        {
+          "id": "stdlib/csv#fn-parseresulttext-string---resultlistliststring-csverror",
+          "anchor": "fn-parseresulttext-string---resultlistliststring-csverror",
+          "title": "fn parseResult(text: String) -> Result[List[List[String]], CsvError]",
+          "level": 3,
+          "line_start": 43,
+          "line_end": 50,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-parseresulttext-string---resultlistliststring-csverror",
+          "text": "### `fn parseResult(text: String) -> Result[List[List[String]], CsvError]`\n\nParses CSV text, preserving the cause of a malformed input.\n\nEmpty text is `Ok([])`; a stray quote or an unterminated quoted field is\n`Err(CsvError(\"invalidCsv\", ...))`.\n"
         },
         {
           "id": "stdlib/csv#fn-stringifyrows-listliststring---string",
           "anchor": "fn-stringifyrows-listliststring---string",
           "title": "fn stringify(rows: List[List[String]]) -> String",
           "level": 3,
-          "line_start": 25,
-          "line_end": 32,
+          "line_start": 50,
+          "line_end": 57,
           "url": "https://loxia-lang.github.io/loxia/stdlib/csv/#fn-stringifyrows-listliststring---string",
           "text": "### `fn stringify(rows: List[List[String]]) -> String`\n\nSerializes rows as RFC 4180 CSV, quoting fields when needed.\n\nFields are quoted when they contain `,`, `\"`, CR or LF, and embedded quotes are\ndoubled. Every row ends with CRLF, including the last one; an empty row raises\n`RuntimeError` because RFC 4180 has no representation for it. `[]` yields `\"\"`.\n"
         }
@@ -6697,22 +6757,72 @@
           "text": "## API\n"
         },
         {
+          "id": "stdlib/timex#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#classes",
+          "text": "## Classes\n\n### `class TimeError`\n\nFailure to parse an ISO-8601 UTC instant.\n\n#### `val kind: String`\n\nStable token: `invalidIso`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/timex#class-timeerror",
+          "anchor": "class-timeerror",
+          "title": "class TimeError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#class-timeerror",
+          "text": "### `class TimeError`\n\nFailure to parse an ISO-8601 UTC instant.\n\n#### `val kind: String`\n\nStable token: `invalidIso`.\n\n#### `val message: String`\n\nDetail without path/locale text.\n\n#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
+          "id": "stdlib/timex#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable token: `invalidIso`.\n"
+        },
+        {
+          "id": "stdlib/timex#val-message-string",
+          "anchor": "val-message-string",
+          "title": "val message: String",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#val-message-string",
+          "text": "#### `val message: String`\n\nDetail without path/locale text.\n"
+        },
+        {
+          "id": "stdlib/timex#fn-initkind-string-message-string",
+          "anchor": "fn-initkind-string-message-string",
+          "title": "fn init(kind: String, message: String)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-initkind-string-message-string",
+          "text": "#### `fn init(kind: String, message: String)`\n\nBuilds a parse failure.\n"
+        },
+        {
           "id": "stdlib/timex#functions",
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 14,
-          "line_end": 55,
+          "line_start": 32,
+          "line_end": 78,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#functions",
-          "text": "## Functions\n\n### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`\n\nReturns days since 1970-01-01 for a civil date.\n\nUses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is\n1..31; invalid combinations are not rejected here.\n\n### `fn civilFromDays(days: Int) -> (Int, Int, Int)`\n\nReturns `(year, month, day)` for days since 1970-01-01.\n\nInverse of `daysFromCivil` and likewise proleptic Gregorian.\n\n### `fn iso(seconds: Int) -> String`\n\nFormats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.\n\nRaises `RuntimeError` when the year falls outside 0..9999. The instant is floored\ninto its civil day, so pre-epoch values still format consistently.\n\n### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` when the length, separators, digits, field ranges or calendar date are\ninvalid. Leap seconds are not accepted: `second` must be 0..59.\n\n### `fn addDays(seconds: Int, days: Int) -> Int`\n\nAdds `days` days to the instant `seconds` and returns the new instant.\n\nDays are exactly 86400 seconds and there is no DST handling because the module is\nUTC-only.\n\n### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`\n\nSplits an instant into `(year, month, day, hour, minute, second)` UTC.\n\nUses floor division, so instants before the epoch still produce a valid civil date.\n"
+          "text": "## Functions\n\n### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`\n\nReturns days since 1970-01-01 for a civil date.\n\nUses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is\n1..31; invalid combinations are not rejected here.\n\n### `fn civilFromDays(days: Int) -> (Int, Int, Int)`\n\nReturns `(year, month, day)` for days since 1970-01-01.\n\nInverse of `daysFromCivil` and likewise proleptic Gregorian.\n\n### `fn iso(seconds: Int) -> String`\n\nFormats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.\n\nRaises `RuntimeError` when the year falls outside 0..9999. The instant is floored\ninto its civil day, so pre-epoch values still format consistently.\n\n### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` for malformed input; `parseIsoResult` preserves the cause.\n\n### `fn parseIsoResult(text: String) -> Result[Int, TimeError]`\n\nParses an ISO-8601 UTC instant, preserving the cause of a malformed input.\n\nLeap seconds are not accepted: `second` must be 0..59.\n\n### `fn addDays(seconds: Int, days: Int) -> Int`\n\nAdds `days` days to the instant `seconds` and returns the new instant.\n\nDays are exactly 86400 seconds and there is no DST handling because the module is\nUTC-only.\n\n### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`\n\nSplits an instant into `(year, month, day, hour, minute, second)` UTC.\n\nUses floor division, so instants before the epoch still produce a valid civil date.\n"
         },
         {
           "id": "stdlib/timex#fn-daysfromcivilyear-int-month-int-day-int---int",
           "anchor": "fn-daysfromcivilyear-int-month-int-day-int---int",
           "title": "fn daysFromCivil(year: Int, month: Int, day: Int) -> Int",
           "level": 3,
-          "line_start": 16,
-          "line_end": 23,
+          "line_start": 34,
+          "line_end": 41,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-daysfromcivilyear-int-month-int-day-int---int",
           "text": "### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`\n\nReturns days since 1970-01-01 for a civil date.\n\nUses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is\n1..31; invalid combinations are not rejected here.\n"
         },
@@ -6721,8 +6831,8 @@
           "anchor": "fn-civilfromdaysdays-int---int-int-int",
           "title": "fn civilFromDays(days: Int) -> (Int, Int, Int)",
           "level": 3,
-          "line_start": 23,
-          "line_end": 29,
+          "line_start": 41,
+          "line_end": 47,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-civilfromdaysdays-int---int-int-int",
           "text": "### `fn civilFromDays(days: Int) -> (Int, Int, Int)`\n\nReturns `(year, month, day)` for days since 1970-01-01.\n\nInverse of `daysFromCivil` and likewise proleptic Gregorian.\n"
         },
@@ -6731,8 +6841,8 @@
           "anchor": "fn-isoseconds-int---string",
           "title": "fn iso(seconds: Int) -> String",
           "level": 3,
-          "line_start": 29,
-          "line_end": 36,
+          "line_start": 47,
+          "line_end": 54,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-isoseconds-int---string",
           "text": "### `fn iso(seconds: Int) -> String`\n\nFormats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.\n\nRaises `RuntimeError` when the year falls outside 0..9999. The instant is floored\ninto its civil day, so pre-epoch values still format consistently.\n"
         },
@@ -6741,18 +6851,28 @@
           "anchor": "fn-parseisotext-string---int--nil",
           "title": "fn parseIso(text: String) -> Int | Nil",
           "level": 3,
-          "line_start": 36,
-          "line_end": 43,
+          "line_start": 54,
+          "line_end": 60,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-parseisotext-string---int--nil",
-          "text": "### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` when the length, separators, digits, field ranges or calendar date are\ninvalid. Leap seconds are not accepted: `second` must be 0..59.\n"
+          "text": "### `fn parseIso(text: String) -> Int | Nil`\n\nParses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.\n\nReturns `nil` for malformed input; `parseIsoResult` preserves the cause.\n"
+        },
+        {
+          "id": "stdlib/timex#fn-parseisoresulttext-string---resultint-timeerror",
+          "anchor": "fn-parseisoresulttext-string---resultint-timeerror",
+          "title": "fn parseIsoResult(text: String) -> Result[Int, TimeError]",
+          "level": 3,
+          "line_start": 60,
+          "line_end": 66,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-parseisoresulttext-string---resultint-timeerror",
+          "text": "### `fn parseIsoResult(text: String) -> Result[Int, TimeError]`\n\nParses an ISO-8601 UTC instant, preserving the cause of a malformed input.\n\nLeap seconds are not accepted: `second` must be 0..59.\n"
         },
         {
           "id": "stdlib/timex#fn-adddaysseconds-int-days-int---int",
           "anchor": "fn-adddaysseconds-int-days-int---int",
           "title": "fn addDays(seconds: Int, days: Int) -> Int",
           "level": 3,
-          "line_start": 43,
-          "line_end": 50,
+          "line_start": 66,
+          "line_end": 73,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-adddaysseconds-int-days-int---int",
           "text": "### `fn addDays(seconds: Int, days: Int) -> Int`\n\nAdds `days` days to the instant `seconds` and returns the new instant.\n\nDays are exactly 86400 seconds and there is no DST handling because the module is\nUTC-only.\n"
         },
@@ -6761,8 +6881,8 @@
           "anchor": "fn-partsseconds-int---int-int-int-int-int-int",
           "title": "fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)",
           "level": 3,
-          "line_start": 50,
-          "line_end": 55,
+          "line_start": 73,
+          "line_end": 78,
           "url": "https://loxia-lang.github.io/loxia/stdlib/timex/#fn-partsseconds-int---int-int-int-int-int-int",
           "text": "### `fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int)`\n\nSplits an instant into `(year, month, day, hour, minute, second)` UTC.\n\nUses floor division, so instants before the epoch still produce a valid civil date.\n"
         }

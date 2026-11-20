@@ -11,6 +11,24 @@ UTC date/time helpers over integer epoch seconds; no timezones.
 
 ## API
 
+## Classes
+
+### `class TimeError`
+
+Failure to parse an ISO-8601 UTC instant.
+
+#### `val kind: String`
+
+Stable token: `invalidIso`.
+
+#### `val message: String`
+
+Detail without path/locale text.
+
+#### `fn init(kind: String, message: String)`
+
+Builds a parse failure.
+
 ## Functions
 
 ### `fn daysFromCivil(year: Int, month: Int, day: Int) -> Int`
@@ -37,8 +55,13 @@ into its civil day, so pre-epoch values still format consistently.
 
 Parses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.
 
-Returns `nil` when the length, separators, digits, field ranges or calendar date are
-invalid. Leap seconds are not accepted: `second` must be 0..59.
+Returns `nil` for malformed input; `parseIsoResult` preserves the cause.
+
+### `fn parseIsoResult(text: String) -> Result[Int, TimeError]`
+
+Parses an ISO-8601 UTC instant, preserving the cause of a malformed input.
+
+Leap seconds are not accepted: `second` must be 0..59.
 
 ### `fn addDays(seconds: Int, days: Int) -> Int`
 
