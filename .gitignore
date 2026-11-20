@@ -29,6 +29,7 @@ build/
 
 # Cobertura e profiling
 .coverage
+.coverage.*
 coverage.xml
 htmlcov/
 .hypothesis/

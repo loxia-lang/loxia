@@ -60,6 +60,18 @@ jobs:
       - run: uv sync --locked --all-groups --extra llvm
       - run: uv run pytest -m "not backend and not install"
 
+  coverage:
+    name: Coverage ratchet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-groups --extra llvm
+      - run: make coverage-ratchet
+
   backend:
     name: Native backend
     runs-on: ubuntu-latest
@@ -163,7 +175,7 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [lint, typecheck, unit, backend, docs, site, package, commits]
+    needs: [lint, typecheck, unit, coverage, backend, docs, site, package, commits]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs

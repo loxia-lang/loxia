@@ -246,7 +246,8 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
 - **Test report:** [`docs/tech/test-report.md`](docs/tech/test-report.md) and
   [`schema/test-report-v1.json`](schema/test-report-v1.json).
 - **Test coverage:** [`docs/tech/test-coverage.md`](docs/tech/test-coverage.md)
-  (feature → golden/differential matrix).
+  (feature → golden/differential matrix) and
+  [`docs/tech/python-coverage.md`](docs/tech/python-coverage.md) (`make coverage`).
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
 - **Documentation site:** <https://loxia-lang.github.io/loxia/> — Starlight build from
   `docs/`; run `make docs-dev` for the local server.
@@ -270,6 +271,8 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
 uv sync --all-groups --extra llvm   # dev environment, including the native backend
 make check-fast                     # lint + format + mypy + tests (no native builds) + docs
 make check                          # everything, including the native backend
+make coverage                       # Python branch coverage (measurement)
+make coverage-ratchet               # coverage gate (selected modules)
 make bench                          # benchmarks vs the baseline
 ```
 

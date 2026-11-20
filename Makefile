@@ -5,7 +5,7 @@ FILE ?=
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast coverage coverage-ratchet coverage-update docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -18,6 +18,9 @@ help:
 	@echo "make fmt-check                 ruff format --check (gate)"
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
 	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
+	@echo "make coverage                  mede cobertura Python (sem gate; não roda backend)"
+	@echo "make coverage-ratchet          mede e falha abaixo dos pisos por arquivo"
+	@echo "make coverage-update           sobe os pisos até a cobertura medida"
 	@echo "make docs-sync                 regenera níveis, catálogo, stdlib e índice"
 	@echo "make docs-index                regenera loxia/_spec/index.json e site/public/llms.txt"
 	@echo "make docs-build                build do site Starlight em site/dist"
@@ -66,6 +69,22 @@ fmt-check:
 check: lint fmt-check type test docs-fresh
 
 check-fast: lint fmt-check type test-fast docs-fresh
+
+coverage:
+	rm -f .coverage .coverage.*
+	uv run coverage run -m pytest -m "not backend and not install" \
+		--deselect tests/test_cli.py::test_timeout_exits_124_with_c0001 \
+		--deselect tests/test_cli.py::test_timeout_json_lines_emits_c0001
+	uv run coverage combine
+	uv run coverage report
+
+coverage-ratchet: coverage
+	uv run coverage json -o .coverage.json
+	uv run python tools/coverage_ratchet.py --check
+
+coverage-update: coverage
+	uv run coverage json -o .coverage.json
+	uv run python tools/coverage_ratchet.py --update
 
 docs-sync:
 	uv run python docs/_hooks/levels.py --write

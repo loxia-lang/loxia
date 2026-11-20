@@ -1098,3 +1098,21 @@ gerador de schema fica adiado com gatilho.
   tipagem/guard de tooling.
 
 <!-- triaged: 0159177 -->
+
+## 2026-11-20 — runner de testes, cobertura Python e frescor
+
+Intervalo: `0159177`..`29b56bf` (#60/#61 e a medição de cobertura). O runner ganhou
+protocolo v2, `e.site`, JUnit/JSONL e paralelismo; a suíte local ganhou cobertura Python.
+
+- `docs/spec/sintaxe.md` — **no-change**: o parser, os tokens e a gramática não mudaram;
+  `ast_printer.py` só passou a herdar os protocols de visitante.
+- `docs/stdlib/index.md` — **no-change**: o catálogo de módulos não mudou; `std.test`
+  ganhou detalhes na página gerada `docs/stdlib/test.md`.
+- `docs/tech/docs-index.md` — **updated**: o teste de âncoras agora ignora `site/dist`
+  defasado; o texto passou a dizer "quando atualizado" e como rebuildar.
+- `docs/tech/mcp.md` — **no-change**: o MCP não expõe as flags novas de `loxia test` nem
+  `e.site`; tools e superfície continuam iguais.
+- `docs/tech/python-coverage.md` — **new**: como rodar `make coverage`, o que é medido e
+  por que ainda não há gate.
+
+<!-- triaged: 29b56bf -->
