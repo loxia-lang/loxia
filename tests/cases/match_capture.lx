@@ -8,4 +8,16 @@ fn make(e: E) -> fn() -> Int {
 }
 
 print(make(E.A(42))())
+
+enum F { A(Nil), B(Int) }
+
+fn makeNil(e: F) -> fn() -> Nil {
+  return match e {
+    F.A(x) => fn() => x
+    F.B(_) => fn() => nil
+  }
+}
+
+print(makeNil(F.A(nil))())
 # expect: 42
+# expect: nil

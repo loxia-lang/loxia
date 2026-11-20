@@ -82,3 +82,34 @@ def test_changed_respeita_manifest_e_modules_paths(
     test.write_text("import lib\nval value = 1\n", encoding="utf-8")
 
     assert select_changed([test], [lib]) == [test]
+
+
+def test_helpers_de_selecao_cobrem_bordas(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia.test_selection import (
+        SelectionError,
+        _closure,
+        _imports,
+        _project_roots,
+        _resolve_import,
+        changed_paths,
+    )
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "loxia.toml").write_text("[package\n", encoding="utf-8")
+    test = tmp_path / "tests" / "borda_test.lx"
+    test.parent.mkdir()
+    test.write_text("import std\nimport nao_existe\n", encoding="utf-8")
+
+    assert _project_roots(test) == (test.parent,)
+    assert _resolve_import("std", (tmp_path,)) is None
+    assert _resolve_import("nao_existe", (tmp_path,)) is None
+    assert _imports(tmp_path / "ausente.lx", (tmp_path,)) == set()
+    assert _closure(test.resolve(), {}, set()) == {test.resolve()}
+    assert _closure(test.resolve(), {test.resolve(): {test.resolve()}}, set()) == {test.resolve()}
+
+    outside = tmp_path.parent / "fora.lx"
+    outside.write_text("print(1)\n", encoding="utf-8")
+    assert select_changed([test], [outside]) == [test]
+
+    with pytest.raises(SelectionError):
+        changed_paths("--help")
