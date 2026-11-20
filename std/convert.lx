@@ -148,42 +148,9 @@ fn base64Encode(text: String) -> String {
   }
   val result = join(parts, "")
   contracts.ensure(len(result) % 4 == 0, "base64Encode: output length is not a multiple of 4")
-  contracts.ensure(_isBase64Text(result), "base64Encode: invalid output text")
   return result
 }
 
-fn _isBase64Text(text: String) -> Bool {
-  if (len(text) % 4 != 0) {
-    return false
-  }
-  var padding = 0
-  var index = 0
-  while (index < len(text)) {
-    val code = charCodeAt(text, index)
-    val letter = (code >= 65 and code <= 90)
-    val lower = (code >= 97 and code <= 122)
-    val digit = (code >= 48 and code <= 57)
-    if (code == 61) {
-      if (index < len(text) - 2) {
-        return false
-      }
-      padding = padding + 1
-    } elif (not (letter or lower or digit or code == 43 or code == 47)) {
-      return false
-    }
-    index = index + 1
-  }
-  if (padding > 2) {
-    return false
-  }
-  if (padding == 1 and charCodeAt(text, len(text) - 1) != 61) {
-    return false
-  }
-  if (padding == 2 and (charCodeAt(text, len(text) - 2) != 61 or charCodeAt(text, len(text) - 1) != 61)) {
-    return false
-  }
-  return true
-}
 
 fn _base64Value(code: Int) -> Int {
   if (code >= 65 and code <= 90) {

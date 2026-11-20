@@ -5,8 +5,6 @@
 # mutating it. Callbacks run in list order, and functions that have no result for an
 # empty list return `nil` instead of raising.
 
-import std.contracts as contracts
-
 /// Returns `true` when the list has no elements.
 fn isEmpty(xs: List[Any]) -> Bool {
   return len(xs) == 0
@@ -316,19 +314,12 @@ fn getOr[T](xs: List[T], index: Int, fallback: T) -> T {
 /// `compare(a, b)` returns a negative number when `a` comes first, zero for ties and a
 /// positive number otherwise. The merge sort is stable and does not mutate the input.
 fn sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
-  val result = _sort(xs, compare)
-  contracts.ensure(len(result) == len(xs), "sort: length changed")
-  contracts.ensure(_isSorted(result, compare), "sort: result is not sorted")
-  return result
-}
-
-fn _sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
   if (len(xs) <= 1) {
     return slice(xs, 0, len(xs))
   }
   val middle = len(xs) // 2
-  val left = _sort(slice(xs, 0, middle), compare)
-  val right = _sort(slice(xs, middle, len(xs)), compare)
+  val left = sort(slice(xs, 0, middle), compare)
+  val right = sort(slice(xs, middle, len(xs)), compare)
   val result: List[T] = []
   var i = 0
   var j = 0
@@ -350,17 +341,6 @@ fn _sort[T](xs: List[T], compare: fn(T, T) -> Int) -> List[T] {
     j = j + 1
   }
   return result
-}
-
-fn _isSorted[T](xs: List[T], compare: fn(T, T) -> Int) -> Bool {
-  var index = 1
-  while (index < len(xs)) {
-    if (compare(xs[index - 1], xs[index]) > 0) {
-      return false
-    }
-    index = index + 1
-  }
-  return true
 }
 
 /// Returns a new list sorted by natural ordering (`<=`).

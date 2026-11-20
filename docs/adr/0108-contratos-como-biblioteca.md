@@ -106,33 +106,42 @@ interino e o experimento que produz evidência para a decisão futura.
 
 ## Piloto de adoção (2026-11-20)
 
-O primeiro piloto usa contratos **só como pós-condições internas**, sem trocar a validação
-de entrada pública:
+O piloto usou contratos **só como pós-condições internas**, sem trocar a validação de
+entrada pública. A regra é deliberada: contrato é para **bug de implementação**, não para
+entrada do usuário; nenhum chamador válido passa a ver `ContractError`.
 
-- `std.numeric.gcd`: garante que o resultado divide os dois argumentos (inclusive nos
-  casos de zero); entradas inválidas continuam com o comportamento atual.
-- `std.numeric.powMod`: garante `0 <= result < modulus`; `modulus <= 0` e `exponent < 0`
-  continuam `RuntimeError`.
-- `std.paths.normalize`: preserva absolute/relative e garante que o resultado não tem
-  segmento vazio/`.` nem `..` fora do prefixo relativo. `normalize` foi separada em
-  `_normalize` para a pós-condição ficar na fronteira pública.
+Ficaram na stdlib as checagens de custo O(1):
 
-A regra é deliberada: contrato é para **bug de implementação**, não para entrada do
-usuário. Assim nenhum chamador válido passa a ver `ContractError`. O caso
-`tests/cases/std_contracts_pilot.lx` (t2) roda nos dois motores e usa `forAll` para
-gcd, powMod e idempotência de `normalize`.
+- `std.paths.normalize`: preserva absolute/relative; `_normalize` foi separado para a
+  pós-condição ficar na fronteira pública. A checagem estrutural completa e a
+  idempotência ficam no property test, não no caminho quente.
+- `std.convert.base64Encode`: saída com tamanho múltiplo de 4. Alfabeto/padding e o
+  roundtrip `base64Decode(base64Encode(s))` ficam no property test.
 
-A primeira onda tocou **2 módulos**. A segunda adicionou:
+`std.numeric.gcd`, `std.numeric.powMod` e `std.lists.sort` foram avaliados, mas as
+pós-condições de produção foram **revertidas** por custo acima do orçamento de 5%. As
+propriedades continuam no caso `tests/cases/std_contracts_pilot.lx` (t2), que roda nos
+dois motores.
 
-- `std.convert.base64Encode`: garante tamanho múltiplo de 4, alfabeto e padding válidos;
-  `base64Decode(base64Encode(s))` é property test.
-- `std.lists.sort`: separa `_sort` recursivo da fronteira pública e garante tamanho
-  preservado e resultado ordenado por `compare`.
+### Benchmark
 
-Com **4 módulos**, o gatilho de revisão de sintaxe do ADR foi atingido. A decisão
-continua **biblioteca**: o piloto não mostrou necessidade de `requires`/`ensures`
-automáticos, e qualquer sintaxe continua exigindo o portão do ADR-0066. A revisão fica
-registrada como próximo passo, não como implementação automática.
+Mediana local, Python 3.13, mesmo script nos dois checkouts; interpreter e binário nativo
+(`-O2`). Números de `dev` → contratos:
+
+| Caso | Interpretador | Nativo | Decisão |
+| --- | --- | --- | --- |
+| `sort` (512 elementos × 40) | 5,11 s → 5,45 s (**+6,6%**) | ~10,8 ms → ~10,7 ms | revertido |
+| `powMod` (50k chamadas) | 7,01 s → 7,42 s (**+5,9%**) | 5,7 ms → 6,3 ms | revertido |
+| `normalize` (3k chamadas) | 2,10 s → 2,18 s (**+4,0%**) | 8,0 ms → 8,2 ms | mantido |
+| `base64Encode` (2k) | 5,34 s → 5,48 s (**+2,7%**) | ~25 ms (ruído) | mantido |
+| `normalize` com checagem estrutural completa | +28,7% | +13,6% | removida |
+| `base64Encode` com alfabeto/padding | +39,2% | ~+3% | removida |
+
+O orçamento adotado é **<5% no interpretador** para contratos sempre-ligados. Isso deixa
+o piloto em **2 módulos** (`std.paths`, `std.convert`), abaixo do gatilho de 3+ módulos
+do ADR. A decisão continua **biblioteca**: não há evidência para `requires`/`ensures`
+automáticos, e qualquer sintaxe continua exigindo o ADR-0066. Adoção ampla fica parada até
+existir um modo opt-in/debug ou uma medição que caiba no orçamento.
 
 ## Consequências
 

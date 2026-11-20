@@ -153,7 +153,6 @@ fn normalize(path: String) -> String {
     isAbsolute(result) == isAbsolute(path),
     "normalize: absoluteness changed"
   )
-  contracts.ensure(_isNormalized(result), "normalize: unresolved path segment")
   return result
 }
 
@@ -188,23 +187,3 @@ fn _normalize(path: String) -> String {
   return _joinParts(stack)
 }
 
-fn _isNormalized(path: String) -> Bool {
-  if (path == "." or path == "/") {
-    return true
-  }
-  val absolute = isAbsolute(path)
-  var seenSegment = false
-  for part in split(path) {
-    if (part == "" or part == ".") {
-      return false
-    }
-    if (part == "..") {
-      if (absolute or seenSegment) {
-        return false
-      }
-    } else {
-      seenSegment = true
-    }
-  }
-  return true
-}
