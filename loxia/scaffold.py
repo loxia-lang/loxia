@@ -14,6 +14,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from loxia_core.loader.gitenv import git_env
 from loxia_core.loader.lock import Lock, write_lock
 
 PROJECT_VERSION = "0.1.0"
@@ -139,6 +140,7 @@ def _git_init(target: Path) -> None:
             text=True,
             timeout=60,
             check=False,
+            env=git_env(),
         )
     except (OSError, subprocess.TimeoutExpired):
         raise ScaffoldError("Can't initialize the git repository.") from None

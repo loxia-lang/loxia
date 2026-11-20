@@ -6,6 +6,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from loxia_core.loader.gitenv import git_env
+
 ROOT = Path(__file__).resolve().parents[1]
 SPDX = "SPDX-License-Identifier: MIT OR Apache-2.0"
 
@@ -32,6 +34,7 @@ def tracked_files() -> list[str]:
         ["git", "-C", str(ROOT), "ls-files", "-z"],
         capture_output=True,
         check=True,
+        env=git_env(),
     )
     return [item for item in result.stdout.decode("utf-8").split("\0") if item]
 

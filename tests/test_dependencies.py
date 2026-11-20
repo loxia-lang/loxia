@@ -13,6 +13,8 @@ from typing import cast
 
 import pytest
 
+from loxia_core.loader.gitenv import git_env
+
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 _GIT_REQUIRED = pytest.mark.skipif(shutil.which("git") is None, reason="git não está no PATH")
@@ -278,6 +280,7 @@ def _git(*args: str, cwd: Path) -> str:
         text=True,
         timeout=60,
         check=True,
+        env=git_env(),
     ).stdout.strip()
 
 
