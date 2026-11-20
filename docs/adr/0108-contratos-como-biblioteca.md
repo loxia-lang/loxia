@@ -1,6 +1,6 @@
 # ADR-0108 — Contratos como biblioteca (sintaxe adiada)
 
-- **Status:** accepted (biblioteca implementada; adoção na stdlib pendente)
+- **Status:** accepted (biblioteca implementada; piloto de adoção na stdlib em andamento)
 - **Data:** 2026-11-18
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md) (portão),
@@ -104,6 +104,45 @@ interino e o experimento que produz evidência para a decisão futura.
   do `except`) é boxed e chega ao `env`. Sem isso, `check` dentro de `try` falhava no
   lowering nativo com “Undefined variable”.
 
+## Piloto de adoção (2026-11-20)
+
+O piloto usou contratos **só como pós-condições internas**, sem trocar a validação de
+entrada pública. A regra é deliberada: contrato é para **bug de implementação**, não para
+entrada do usuário; nenhum chamador válido passa a ver `ContractError`.
+
+Ficaram na stdlib as checagens de custo O(1):
+
+- `std.paths.normalize`: preserva absolute/relative; `_normalize` foi separado para a
+  pós-condição ficar na fronteira pública. A checagem estrutural completa e a
+  idempotência ficam no property test, não no caminho quente.
+- `std.convert.base64Encode`: saída com tamanho múltiplo de 4. Alfabeto/padding e o
+  roundtrip `base64Decode(base64Encode(s))` ficam no property test.
+
+`std.numeric.gcd`, `std.numeric.powMod` e `std.lists.sort` foram avaliados, mas as
+pós-condições de produção foram **revertidas** por custo acima do orçamento de 5%. As
+propriedades continuam no caso `tests/cases/std_contracts_pilot.lx` (t2), que roda nos
+dois motores.
+
+### Benchmark
+
+Mediana local, Python 3.13, mesmo script nos dois checkouts; interpreter e binário nativo
+(`-O2`). Números de `dev` → contratos:
+
+| Caso | Interpretador | Nativo | Decisão |
+| --- | --- | --- | --- |
+| `sort` (512 elementos × 40) | 5,11 s → 5,45 s (**+6,6%**) | ~10,8 ms → ~10,7 ms | revertido |
+| `powMod` (50k chamadas) | 7,01 s → 7,42 s (**+5,9%**) | 5,7 ms → 6,3 ms | revertido |
+| `normalize` (3k chamadas) | 2,10 s → 2,18 s (**+4,0%**) | 8,0 ms → 8,2 ms | mantido |
+| `base64Encode` (2k) | 5,34 s → 5,48 s (**+2,7%**) | ~25 ms (ruído) | mantido |
+| `normalize` com checagem estrutural completa | +28,7% | +13,6% | removida |
+| `base64Encode` com alfabeto/padding | +39,2% | ~+3% | removida |
+
+O orçamento adotado é **<5% no interpretador** para contratos sempre-ligados. Isso deixa
+o piloto em **2 módulos** (`std.paths`, `std.convert`), abaixo do gatilho de 3+ módulos
+do ADR. A decisão continua **biblioteca**: não há evidência para `requires`/`ensures`
+automáticos, e qualquer sintaxe continua exigindo o ADR-0066. Adoção ampla fica parada até
+existir um modo opt-in/debug ou uma medição que caiba no orçamento.
+
 ## Consequências
 
 ### Positivas
@@ -156,6 +195,8 @@ interino e o experimento que produz evidência para a decisão futura.
   `checkVoid`/`checkMethodVoid`, `check` com `Nil`, e `ContractError` não capturado por
   `RuntimeError`; `--check` limpo e os três canais iguais no corpus (`t2`).
 - `tests/cases/std_contracts_property.lx`: `forAll` + contrato, com seed/shrinking.
+- `tests/cases/std_contracts_pilot.lx`: contratos nas funções da stdlib e properties de
+  gcd, powMod e `normalize`, nos dois motores.
 - `tests/cases/this_in_lambda.lx` (`l5`): `this` em lambda direto, lambda retornado e
   função local, nos dois motores.
 - `make check` (com backend) e `make stdlib-docs`; página gerada em

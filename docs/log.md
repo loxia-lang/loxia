@@ -1161,3 +1161,58 @@ Intervalo: `1d63a8b`..`1d63a8b` (base `dev`; o job novo é documentação/CI).
 - `docs/tech/mcp.md` — **no-change**: as flags continuam restritas ao subcomando `test`.
 
 <!-- triaged: 1d63a8b -->
+
+## 2026-11-20 — piloto de `std.contracts`
+
+Intervalo: `1d63a8b`..`809deb7`. Contratos em `std.numeric`/`std.paths` e caso de
+property `std_contracts_pilot.lx`.
+
+- `docs/spec/erros.md` — **no-change**: nenhuma mensagem ou código de diagnóstico novo;
+  o bloco de contagem foi regenerado pelo `docs-sync`.
+- `docs/spec/garantias.md` — **updated**: contagem de casos/níveis inclui o novo caso t2.
+- `docs/spec/semantica.md` — **no-change**: pós-condições internas de stdlib não mudam a
+  semântica da linguagem.
+- `docs/stdlib/framing.md` — **no-change**: a página gerada não mudou; o arquivo foi
+  reescrito pelo `make stdlib-docs`.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual; a entrada de feature
+  de contratos vive em `docs/tech/test-coverage.md`.
+- `docs/tech/mcp.md` — **no-change**: nenhuma mudança de CLI/MCP.
+- `docs/tech/test-coverage.md` — **updated**: nova feature `contracts` e golden do piloto.
+- `docs/tech/test-report.md` — **no-change**: runner/relatório não mudaram.
+
+<!-- triaged: 809deb7 -->
+
+## 2026-11-20 — segunda onda de `std.contracts`
+
+Intervalo: `809deb7`..`d0e3539`. Contratos em `std.convert`/`std.lists`.
+
+- `docs/decisoes.md` — **no-change**: a decisão “contratos como biblioteca” não mudou; a
+  adoção piloto é registrada no ADR-0108/roadmap.
+- `docs/spec/semantica.md` — **no-change**: pós-condições internas de stdlib não alteram a
+  semântica da linguagem.
+- `docs/stdlib/convert.md` — **no-change**: comentários `///` e API não mudaram; o contrato
+  é interno.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual.
+- `docs/stdlib/lists.md` — **no-change**: API/documentação de `sort` não mudaram; `_sort`
+  é detalhe interno.
+
+<!-- triaged: d0e3539 -->
+
+## 2026-11-20 — contratos dentro do orçamento de performance
+
+Intervalo: `61d308e`..`577e321`. O benchmark removeu as pós-condições caras.
+
+- `docs/decisoes.md` — **no-change**: contratos continuam biblioteca; o benchmark não muda
+  a decisão.
+- `docs/spec/semantica.md` — **no-change**: nenhuma semântica da linguagem mudou.
+- `docs/stdlib/convert.md` — **no-change**: API/comentários `///` iguais; `base64Encode`
+  só perdeu a checagem interna de alfabeto.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual.
+- `docs/stdlib/lists.md` — **no-change**: `sort` voltou à implementação sem contrato; API
+  documentada igual.
+- `docs/stdlib/numeric.md` — **no-change**: `gcd`/`powMod` voltaram à implementação sem
+  contrato; API documentada igual.
+- `docs/stdlib/paths.md` — **no-change**: `normalize` mantém só a checagem O(1) de
+  absolute; API documentada igual.
+
+<!-- triaged: 577e321 -->

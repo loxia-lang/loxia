@@ -6,6 +6,7 @@
 # repeated separators and resolve `.`/`..` lexically. Operations are deterministic:
 # the same input produces the same output in the tree-walk and the native backend.
 
+import std.contracts as contracts
 import std.strings as strings
 
 /// Returns whether the POSIX path is absolute.
@@ -147,6 +148,15 @@ fn stem(path: String) -> String {
 /// `normalize("a/../..")` is `".."`. The empty path normalizes to `.`. No filesystem
 /// access and no symlink resolution: the result depends only on the input text.
 fn normalize(path: String) -> String {
+  val result = _normalize(path)
+  contracts.ensure(
+    isAbsolute(result) == isAbsolute(path),
+    "normalize: absoluteness changed"
+  )
+  return result
+}
+
+fn _normalize(path: String) -> String {
   if (len(path) == 0) {
     return "."
   }
@@ -176,3 +186,4 @@ fn normalize(path: String) -> String {
   }
   return _joinParts(stack)
 }
+

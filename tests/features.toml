@@ -113,6 +113,12 @@ golden = ["tests/cases/std_json.lx", "tests/cases/std_lists.lx", "tests/cases/st
 differential = "t1"
 backend = true
 
+[features.contracts]
+title = "Contratos como biblioteca e adoção na stdlib"
+golden = ["tests/cases/std_contracts.lx", "tests/cases/std_contracts_property.lx", "tests/cases/std_contracts_pilot.lx"]
+differential = "t2"
+backend = true
+
 [features.test_runner]
 title = "std.test e o runner loxia test"
 golden = ["tests/cases/std_test.lx", "tests/cases/std_test_hooks.lx", "tests/cases/exception_site.lx"]

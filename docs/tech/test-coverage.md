@@ -13,12 +13,13 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**22 features**, **95 golden references** across **13 levels**.
+**23 features**, **98 golden references** across **13 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
 | **checker** — Anotações, inferência e diagnósticos do --check | [`typed_functions.lx`](../../tests/cases/typed_functions.lx), [`is_union_parens.lx`](../../tests/cases/is_union_parens.lx), [`optional_refs.lx`](../../tests/cases/optional_refs.lx) | `—` |
 | **classes** — Classes, campos, métodos, this, init, herança e super | [`classes.lx`](../../tests/cases/classes.lx), [`class_fields.lx`](../../tests/cases/class_fields.lx), [`class_initializer.lx`](../../tests/cases/class_initializer.lx), [`inheritance.lx`](../../tests/cases/inheritance.lx), [`super.lx`](../../tests/cases/super.lx), [`class_bound_method.lx`](../../tests/cases/class_bound_method.lx) | `l5` |
+| **contracts** — Contratos como biblioteca e adoção na stdlib | [`std_contracts.lx`](../../tests/cases/std_contracts.lx), [`std_contracts_property.lx`](../../tests/cases/std_contracts_property.lx), [`std_contracts_pilot.lx`](../../tests/cases/std_contracts_pilot.lx) | `t2` |
 | **control_flow** — if/elif/while/for, ranges e for-in | [`if_else.lx`](../../tests/cases/if_else.lx), [`elif.lx`](../../tests/cases/elif.lx), [`while.lx`](../../tests/cases/while.lx), [`for.lx`](../../tests/cases/for.lx), [`for_in.lx`](../../tests/cases/for_in.lx), [`range_value.lx`](../../tests/cases/range_value.lx), [`range_inclusive.lx`](../../tests/cases/range_inclusive.lx) | `l2` |
 | **enums** — Enums, match e Result | [`enums.lx`](../../tests/cases/enums.lx), [`result.lx`](../../tests/cases/result.lx), [`result_nil.lx`](../../tests/cases/result_nil.lx) | `l6` |
 | **exceptions** — try/except/finally, raise e e.site | [`exceptions.lx`](../../tests/cases/exceptions.lx), [`exception_site.lx`](../../tests/cases/exception_site.lx), [`try_return_cleanup.lx`](../../tests/cases/try_return_cleanup.lx), [`stack_exception.lx`](../../tests/cases/stack_exception.lx) | `l6` |
@@ -53,7 +54,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l5` | 30 |
 | `l4` | 12 |
 | `t1` | 6 |
-| `t2` | 16 |
+| `t2` | 17 |
 | `t3` | 6 |
 | `k0` | 2 |
 | `l2` | 14 |

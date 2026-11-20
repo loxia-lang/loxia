@@ -5,6 +5,8 @@
 # of a `String`, and decoding returns `nil` when the bytes are not valid UTF-8 or the
 # text is malformed. Every function is deterministic.
 
+import std.contracts as contracts
+
 /// Parses a decimal integer, returning `nil` when invalid.
 ///
 /// Delegates to `Int.parse`: an optional `+`/`-` followed by ASCII digits, with no
@@ -144,8 +146,11 @@ fn base64Encode(text: String) -> String {
     }
     index = index + 3
   }
-  return join(parts, "")
+  val result = join(parts, "")
+  contracts.ensure(len(result) % 4 == 0, "base64Encode: output length is not a multiple of 4")
+  return result
 }
+
 
 fn _base64Value(code: Int) -> Int {
   if (code >= 65 and code <= 90) {
