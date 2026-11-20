@@ -9,10 +9,13 @@ em envelope estável, sem duração/timestamp (I3).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import platform
 import re
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -716,20 +719,142 @@ def _default_jobs() -> int:
     return max(1, min(4, os.cpu_count() or 1))
 
 
+def _cache_files() -> list[Path]:
+    """Fontes que podem mudar um binário: projeto atual + implementação embarcada."""
+    package = Path(__file__).resolve().parent.parent
+    roots = (
+        (Path.cwd(), (".lx",)),
+        (package / "loxia", (".py", ".lx")),
+        (package / "loxia_core", (".py", ".lx", ".c", ".h")),
+    )
+    files: set[Path] = set()
+    for root, suffixes in roots:
+        if not root.is_dir():
+            continue
+        for directory, dirnames, filenames in os.walk(root):
+            dirnames[:] = sorted(
+                name for name in dirnames if name not in SKIP_DIRS and not name.startswith(".")
+            )
+            for name in filenames:
+                if name.endswith(suffixes):
+                    files.add(Path(directory) / name)
+    return sorted(files)
+
+
+def _compiler_identity() -> str:
+    compiler = os.environ.get("CC") or shutil.which("cc") or "cc"
+    try:
+        process = subprocess.run(
+            [compiler, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return compiler
+    version = process.stdout.splitlines()[0] if process.stdout else ""
+    return f"{compiler}\0{version}"
+
+
+def _binary_cache_key(files: list[Path], deps: tuple[str, ...]) -> str:
+    """Hash de tudo que entra no binário, não só do arquivo de teste.
+
+    O loader resolve imports em tempo de build; hashear o projeto inteiro é conservador
+    e evita cache velho quando um módulo importado muda. O custo é ler alguns MB.
+    """
+    from loxia import __version__
+
+    digest = hashlib.sha256()
+    digest.update(__version__.encode("utf-8"))
+    digest.update(sys.platform.encode("utf-8"))
+    digest.update(platform.machine().encode("utf-8"))
+    digest.update(_compiler_identity().encode("utf-8"))
+    digest.update(os.environ.get("CPATH", "").encode("utf-8"))
+    digest.update(os.environ.get("LIBRARY_PATH", "").encode("utf-8"))
+    digest.update("\0".join(deps).encode("utf-8"))
+    for path in _cache_files():
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            continue
+        digest.update(str(path).encode("utf-8"))
+        digest.update(payload)
+    for path in files:
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            payload = b""
+        digest.update(str(path.resolve()).encode("utf-8"))
+        digest.update(payload)
+    return digest.hexdigest()[:32]
+
+
+def _binary_cache_dir() -> Path | None:
+    configured = os.environ.get("LOX_BUILD_CACHE")
+    if configured:
+        base = Path(configured)
+    else:
+        user = str(os.getuid()) if hasattr(os, "getuid") else "user"
+        base = Path(tempfile.gettempdir()) / f"loxia-build-{user}"
+    try:
+        base.mkdir(mode=0o700, parents=True, exist_ok=True)
+    except OSError:
+        return None
+    return base / "tests"
+
+
+def _cached_build(
+    path: Path,
+    binary: Path,
+    deps: tuple[str, ...],
+    cache_dir: Path | None,
+    key: str | None,
+) -> tuple[str | None, str | None]:
+    """Builda uma vez por conteúdo; devolve (binário, erro)."""
+    if cache_dir is None or key is None:
+        error = _build(path, binary, deps)
+        return (str(binary) if error is None else None), error
+    target = (
+        cache_dir
+        / key
+        / (hashlib.sha256(str(path.resolve()).encode("utf-8")).hexdigest()[:16] + "-" + path.stem)
+    )
+    if target.is_file() and target.stat().st_size > 0 and os.access(target, os.X_OK):
+        return str(target), None
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    try:
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        error = _build(path, temporary, deps)
+        if error is None:
+            temporary.chmod(0o755)
+            os.replace(temporary, target)
+            return str(target), None
+        return None, error
+    except OSError:
+        # Cache é só desempenho; qualquer falha cai no build temporário normal.
+        error = _build(path, binary, deps)
+        return (str(binary) if error is None else None), error
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _build_all(
     files: list[Path],
     directory: str,
     deps: tuple[str, ...],
     jobs: int,
+    use_cache: bool = True,
 ) -> tuple[dict[Path, str | None], dict[Path, str]]:
     binaries: dict[Path, str | None] = {path: None for path in files}
     build_errors: dict[Path, str] = {}
+    cache_dir = _binary_cache_dir() if use_cache else None
+    cache_key = _binary_cache_key(files, deps) if cache_dir is not None else None
 
     def build_one(item: tuple[int, Path]) -> tuple[Path, str | None, str | None]:
         index, path = item
         binary = Path(directory) / f"{index}-{path.stem}"
-        error = _build(path, binary, deps)
-        return path, (str(binary) if error is None else None), error
+        built, error = _cached_build(path, binary, deps, cache_dir, cache_key)
+        return path, built, error
 
     items = list(enumerate(files))
     if jobs == 1:
@@ -780,7 +905,13 @@ def run_tests(args: argparse.Namespace) -> int:
         binaries: dict[Path, str | None] = {path: None for path in files}
         build_errors: dict[Path, str] = {}
         if args.native:
-            binaries, build_errors = _build_all(files, directory, tuple(deps), jobs)
+            binaries, build_errors = _build_all(
+                files,
+                directory,
+                tuple(deps),
+                jobs,
+                use_cache=not getattr(args, "no_cache", False),
+            )
         if args.isolate == "test":
             runs = _run_isolated(
                 files,

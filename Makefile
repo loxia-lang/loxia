@@ -74,7 +74,7 @@ check-fast: lint fmt-check type test-fast docs-fresh
 
 coverage:
 	rm -f .coverage .coverage.*
-	uv run coverage run -m pytest -m "not backend and not install" \
+	uv run coverage run -m pytest -m "not backend and not install" -n $(COVERAGE_JOBS) \
 		--deselect tests/test_cli.py::test_timeout_exits_124_with_c0001 \
 		--deselect tests/test_cli.py::test_timeout_json_lines_emits_c0001
 	uv run coverage combine

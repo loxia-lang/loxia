@@ -48,6 +48,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   "Native backend" roda `make coverage-ratchet-backend` (exige libgc/llvmlite).
 - **TIPOS.md atualizado:** remove as lacunas de L5/L6/T7 já fechadas e deixa só generics
   além do MVP, gaps de checker e L7. Issue #11 fechada.
+- **CI de coverage:** a medição virou parte do job Unit 3.13 (com `-n 4`), removendo o job
+  separado que duplicava a suíte.
+- **Cache de binário nativo:** `loxia test --native` reusa executáveis por hash de conteúdo
+  (projeto, implementação, compilador e flags); `--no-cache` desliga. O cache do runtime
+  continua separado.
 - Triagem de frescor de 2026-11-20 registrada em [`docs/log.md`](docs/log.md); o teste de
   âncoras do site ignora `site/dist` defasado.
 

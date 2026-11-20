@@ -28,7 +28,7 @@ target, `make coverage-ratchet`.
 
 The two `--timeout` CLI tests are deselected from the coverage run: they assert a
 wall-clock watchdog against an infinite loop, and the instrumentation overhead makes the
-test harness's 20 s timeout fire instead. They still run in the normal unit job; excluding
+test harness's 20 s timeout fire instead. They still run in the Python 3.14 unit job; excluding
 them from the measurement is deliberate and does not hide a product regression.
 
 `[tool.coverage.run]` in `pyproject.toml` sets:
@@ -65,14 +65,15 @@ the measurement, converts the report to `.coverage.json` and fails when a module
 its floor:
 
 ```bash
-make coverage-ratchet   # gate (also runs in the CI "Coverage ratchet" job)
+make coverage-ratchet   # gate (also runs in the CI Unit Python 3.13 job)
 make coverage-update    # raises floors to the measured value; never lowers
 ```
 
 The floors only go up (`tools/coverage_ratchet.py --update` uses `max`). A new module is
 not in the baseline yet, so it does not fail; add it after triaging its gaps. There is no
 global `fail-under`: a high-level percentage lets one module drop while another rises.
-`make check` does not run the ratchet (it would run the suite a third time); CI does.
+`make check` does not run the ratchet (it would run the suite a third time); CI does, in the
+3.13 unit job. That job uses four xdist workers; there is no separate coverage job.
 
 The selection is intentionally [the hot path and the compiler
 surface](../../coverage-baseline.toml), not every file. `checker` is the most sensitive

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -28,13 +29,19 @@ suite.done()
 """
 
 
-def run_test(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
+def run_test(
+    *args: str,
+    cwd: Path = ROOT,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    environment = None if env is None else {**os.environ, **env}
     return subprocess.run(
         [sys.executable, "-m", "loxia", "test", *args],
         cwd=cwd,
         capture_output=True,
         text=True,
         check=False,
+        env=environment,
     )
 
 
@@ -370,3 +377,125 @@ def test_build_nativo_em_paralelo(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "# files 2" in result.stdout
+
+
+def test_binary_cache_key_muda_com_a_fonte(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia.test_runner import _binary_cache_key
+
+    monkeypatch.chdir(tmp_path)
+    source = tmp_path / "cache_test.lx"
+    source.write_text("print(1)\n", encoding="utf-8")
+    before = _binary_cache_key([source], ())
+    source.write_text("print(2)\n", encoding="utf-8")
+    after = _binary_cache_key([source], ())
+
+    assert before != after
+
+
+@pytest.mark.backend
+def test_native_cache_reusa_o_mesmo_binario(tmp_path: Path) -> None:
+    pytest.importorskip("llvmlite")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "pass_test.lx").write_text(PASS, encoding="utf-8")
+    cache = tmp_path / "cache"
+    env = {"LOX_BUILD_CACHE": str(cache)}
+
+    first = run_test(str(tests), "--native", "--jobs", "1", cwd=tmp_path, env=env)
+    assert first.returncode == 0, first.stderr
+    binaries = [path for path in (cache / "tests").glob("*/*") if path.is_file()]
+    assert binaries, "o binário nativo deveria estar no cache"
+    inode = binaries[0].stat().st_ino
+
+    second = run_test(str(tests), "--native", "--jobs", "1", cwd=tmp_path, env=env)
+    assert second.returncode == 0, second.stderr
+    assert binaries[0].stat().st_ino == inode
+
+
+@pytest.mark.backend
+def test_native_no_cache_nao_escreve_cache(tmp_path: Path) -> None:
+    pytest.importorskip("llvmlite")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "pass_test.lx").write_text(PASS, encoding="utf-8")
+    cache = tmp_path / "cache"
+
+    result = run_test(
+        str(tests),
+        "--native",
+        "--no-cache",
+        cwd=tmp_path,
+        env={"LOX_BUILD_CACHE": str(cache)},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not (cache / "tests").exists()
+
+
+def test_cached_build_publica_e_reusa(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia import test_runner
+
+    source = tmp_path / "cache_test.lx"
+    source.write_text("print(1)\n", encoding="utf-8")
+    calls = 0
+
+    def fake_build(path: Path, binary: Path, deps: tuple[str, ...] = ()) -> None:
+        nonlocal calls
+        calls += 1
+        binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        binary.chmod(0o755)
+        return None
+
+    monkeypatch.setattr(test_runner, "_build", fake_build)
+    cache_dir = tmp_path / "cache"
+    binary, error = test_runner._cached_build(source, tmp_path / "fallback", (), cache_dir, "key")
+    assert error is None
+    assert binary is not None
+    assert Path(binary).is_file()
+    assert calls == 1
+
+    reused, error = test_runner._cached_build(source, tmp_path / "fallback", (), cache_dir, "key")
+    assert error is None
+    assert reused == binary
+    assert calls == 1
+
+
+def test_binary_cache_dir_respeita_variavel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from loxia import test_runner
+
+    monkeypatch.setenv("LOX_BUILD_CACHE", str(tmp_path / "cache"))
+    assert test_runner._binary_cache_dir() == tmp_path / "cache" / "tests"
+
+
+def test_build_all_usa_cache_por_conteudo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia import test_runner
+
+    monkeypatch.setenv("LOX_BUILD_CACHE", str(tmp_path / "cache"))
+    source = tmp_path / "suite_test.lx"
+    source.write_text("print(1)\n", encoding="utf-8")
+    calls = 0
+
+    def fake_build(path: Path, binary: Path, deps: tuple[str, ...] = ()) -> None:
+        nonlocal calls
+        calls += 1
+        binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        binary.chmod(0o755)
+        return None
+
+    monkeypatch.setattr(test_runner, "_build", fake_build)
+    binaries, errors = test_runner._build_all(
+        [source], str(tmp_path / "tmp"), (), 1, use_cache=True
+    )
+    assert errors == {}
+    assert binaries[source] is not None
+    assert calls == 1
+
+    source.write_text("print(2)\n", encoding="utf-8")
+    binaries, errors = test_runner._build_all(
+        [source], str(tmp_path / "tmp"), (), 1, use_cache=True
+    )
+    assert errors == {}
+    assert binaries[source] is not None
+    assert calls == 2
