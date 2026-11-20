@@ -39,8 +39,7 @@ def _run_source(tmp_path: Path, source: str) -> subprocess.CompletedProcess[str]
 
 def _run_lox(code: str, stdin: str = "", timeout_ms: int = 0) -> str:
     return (
-        PREAMBLE
-        + f"val py = {json.dumps(sys.executable)}\n"
+        PREAMBLE + f"val py = {json.dumps(sys.executable)}\n"
         f'val out = p.run([py, "-c", {json.dumps(code)}], '
         f"{json.dumps(stdin)}, {timeout_ms})\n"
         "val done = results.toOptional(out)\n"
@@ -90,8 +89,7 @@ def test_run_timeout_vira_erro_de_kind_timeout(tmp_path: Path) -> None:
 
 def test_spawn_poll_wait_e_streams(tmp_path: Path) -> None:
     source = (
-        PREAMBLE
-        + f"val py = {json.dumps(sys.executable)}\n"
+        PREAMBLE + f"val py = {json.dumps(sys.executable)}\n"
         'val spawned = p.spawn([py, "-c", '
         + json.dumps("import sys; sys.stdout.write('eco')")
         + "])\n"
@@ -118,8 +116,7 @@ def test_spawn_poll_wait_e_streams(tmp_path: Path) -> None:
 
 def test_handle_de_tipo_errado_aponta_chamada(tmp_path: Path) -> None:
     source = (
-        PREAMBLE
-        + f"val py = {json.dumps(sys.executable)}\n"
+        PREAMBLE + f"val py = {json.dumps(sys.executable)}\n"
         'val spawned = p.spawn([py, "-c", "pass"])\n'
         "val child = results.toOptional(spawned)\n"
         "if (child != nil) {\n"
