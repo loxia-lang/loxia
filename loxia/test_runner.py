@@ -10,7 +10,9 @@ em envelope estável, sem duração/timestamp (I3).
 from __future__ import annotations
 
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -69,8 +71,15 @@ class Invocation:
 
 
 def _display(path: Path) -> str:
+    """Caminho exibido no relatório, sempre relativo ao diretório de execução.
+
+    O runner roda em projetos fora do repositório; usar a raiz do pacote fazia
+    `tests/sub/a_test.lx` virar `a_test.lx` (e dois arquivos homônimos ficavam
+    indistinguíveis no JSON). Fora do CWD, degrada para o basename — a mesma regra
+    dos diagnósticos (I3: nunca caminho absoluto).
+    """
     try:
-        return path.resolve().relative_to(ROOT).as_posix()
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
         return path.name
 
@@ -135,6 +144,24 @@ def _last_line(text: str) -> str:
     return lines[-1] if lines else ""
 
 
+def _terminate(process: subprocess.Popen[str]) -> None:
+    """Mata a unidade inteira, não só o processo direto.
+
+    Um teste pode criar filhos (`std.proc`); com o timeout matando apenas o pai, os
+    netos continuariam rodando e segurando pipes. No POSIX o filho nasce em sessão
+    própria e o grupo inteiro é morto.
+    """
+    if process.poll() is not None:
+        return
+    if os.name == "posix":
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            return
+        except OSError:
+            pass
+    process.kill()
+
+
 def _invoke(
     path: Path,
     script_args: list[str],
@@ -148,17 +175,24 @@ def _invoke(
         else [sys.executable, "-m", "loxia", "run", *deps, str(path), "--"]
     )
     command = [*command, *script_args]
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=os.name == "posix",
+    )
     try:
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as expired:
-        return Invocation(124, _text(expired.stdout), _text(expired.stderr), True)
-    return Invocation(completed.returncode, completed.stdout, completed.stderr)
+        stdout, stderr = process.communicate(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        _terminate(process)
+        stdout, stderr = process.communicate()
+        return Invocation(124, _text(stdout), _text(stderr), True)
+    except BaseException:
+        _terminate(process)
+        process.wait()
+        raise
+    return Invocation(process.returncode, _text(stdout), _text(stderr))
 
 
 def _text(value: str | bytes | None) -> str:
@@ -486,5 +520,13 @@ def run_tests(args: argparse.Namespace) -> int:
     else:
         text, _failed = _render_human(runs)
         print(text)
+    total = sum(len(run.results) for run in runs)
+    if total == 0:
+        print(
+            "warning: no tests were selected (use --require-tests to exit 5).",
+            file=sys.stderr,
+        )
+        if getattr(args, "require_tests", False):
+            return 5
     failed = sum(1 for run in runs for result in run.results if result.status == "fail")
     return 1 if failed else 0

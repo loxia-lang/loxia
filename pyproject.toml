@@ -51,12 +51,16 @@ dev = [
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.17.4",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers -m 'not install'"
+# Trava um teste que pendura o processo (subprocessos já têm timeout próprio).
+timeout = 180
 markers = [
     "bench: benchmarks lentos, não rodam na suíte padrão",
     "backend: compila e executa binários nativos (precisa de llvmlite, cc e libgc)",

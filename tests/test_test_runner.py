@@ -27,10 +27,10 @@ suite.done()
 """
 
 
-def run_test(*args: str) -> subprocess.CompletedProcess[str]:
+def run_test(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "loxia", "test", *args],
-        cwd=ROOT,
+        cwd=cwd,
         capture_output=True,
         text=True,
         check=False,
@@ -151,3 +151,43 @@ def test_isolamento_por_teste_nativo(tmp_path: Path) -> None:
     result = run_test(str(tests), "--native", "--isolate", "test")
     assert result.returncode == 0, result.stderr
     assert "ok 1 - passa" in result.stdout
+
+
+def test_json_exibe_caminho_relativo_ao_cwd(tmp_path: Path) -> None:
+    tests = tmp_path / "tests" / "sub"
+    tests.mkdir(parents=True)
+    (tests / "pass_test.lx").write_text(PASS, encoding="utf-8")
+
+    result = run_test("tests", "--json", cwd=tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["tests"][0]["file"] == "tests/sub/pass_test.lx"
+
+
+def test_suite_vazia_avisa_e_require_tests_sai_cinco(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "empty_test.lx").write_text(
+        "import std.test as t\nval suite = t.Suite()\nsuite.done()\n",
+        encoding="utf-8",
+    )
+
+    result = run_test(str(tests))
+    assert result.returncode == 0
+    assert "warning: no tests were selected" in result.stderr
+
+    required = run_test(str(tests), "--require-tests")
+    assert required.returncode == 5
+    assert "warning: no tests were selected" in required.stderr
+
+
+def test_filtro_sem_match_nao_e_falso_verde(tmp_path: Path) -> None:
+    tests = project(tmp_path)
+    result = run_test(str(tests), "--filter", "nao-existe", "--json")
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["summary"]["tests"] == 0
+    assert "warning: no tests were selected" in result.stderr
+
+    required = run_test(str(tests), "--filter", "nao-existe", "--require-tests")
+    assert required.returncode == 5

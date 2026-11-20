@@ -137,7 +137,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
 | `loxia mcp` | MCP server over stdio (tools) | — |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
+| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
@@ -269,7 +269,8 @@ make check                          # everything, including the native backend
 make bench                          # benchmarks vs the baseline
 ```
 
-`make hooks` installs the local pre-commit and commit-msg hooks. The full contribution
+`make hooks` installs the local pre-commit, commit-msg and pre-push hooks. The fast suite
+runs on pre-push; the native backend stays in CI and in `make check`. The full contribution
 rules, commit convention and review checklist are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing

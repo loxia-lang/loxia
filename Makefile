@@ -112,6 +112,7 @@ docs-fresh:
 hooks:
 	uv run pre-commit install
 	uv run pre-commit install --hook-type commit-msg
+	uv run pre-commit install --hook-type pre-push
 
 bench:
 	uv run python bench/run.py

@@ -660,6 +660,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         groups.selection.add_argument(
             "--fail-fast", action="store_true", help="para no primeiro arquivo com falha"
         )
+        groups.selection.add_argument(
+            "--require-tests",
+            action="store_true",
+            help="exit 5 quando nenhum teste for selecionado (evita falso verde)",
+        )
         groups.general.add_argument("--json", action="store_true", help="relatório em JSON")
         groups.execution.add_argument(
             "--jobs",
