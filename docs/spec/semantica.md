@@ -904,7 +904,10 @@ try {
 
 - `Exception` is the built-in base; `RuntimeError` is a built-in subclass and represents
   any runtime error (division by zero, index, etc.). The user may declare
-  `class MyError(Exception)` with `message`.
+  `class MyError(Exception)` with `message`. Every exception also exposes
+  `site: String` — `arquivo:linha:coluna` of the throw's caller (for `t.expect(...).toBe(...)`
+  this is the `expect` line) or `""` when there is no position
+  ([ADR-0120](../adr/0120-localizacao-de-falha-em-excecoes.md)).
 - `raise Expr` requires an `Exception` instance; `raise;` inside `except` re-raises the
   current exception. Outside `except`, `raise;` is an error.
 - `try` is a statement; `except Type as e` is typed, multiple and evaluated in order;

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/loxia-lang/loxia/schema/test-report-v1.json",
+  "title": "Loxia test report v1",
+  "description": "Machine-readable output of `loxia test --json` (schema_version 1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "command",
+    "success",
+    "exit_code",
+    "tests",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "command": { "const": "test" },
+    "success": { "type": "boolean" },
+    "exit_code": { "type": "integer", "enum": [0, 1, 2, 5] },
+    "tests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/test" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "name",
+        "status",
+        "kind",
+        "message",
+        "location",
+        "output"
+      ],
+      "properties": {
+        "file": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "enum": ["pass", "fail", "skip"] },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "assertion",
+            "exception",
+            "hook",
+            "crash",
+            "timeout",
+            "skip",
+            ""
+          ]
+        },
+        "message": { "type": "string" },
+        "location": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/location" }
+          ]
+        },
+        "output": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "line", "column"],
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "tests", "pass", "fail", "skip"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 0 },
+        "tests": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "skip": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

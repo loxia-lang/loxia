@@ -1,0 +1,203 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+"""Matriz de cobertura por feature da linguagem (ADR-0121).
+
+`tests/features.toml` é a fonte curada: cada feature aponta para casos golden e para
+um nível do corpus diferencial. O comando valida a matriz, compara o snapshot
+(`tests/features.snapshot.json`) e gera `docs/tech/test-coverage.md`.
+
+    uv run python tools/feature_coverage.py --write
+    uv run python tools/feature_coverage.py --check
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
+
+ROOT = Path(__file__).resolve().parents[1]
+FEATURES = ROOT / "tests" / "features.toml"
+SNAPSHOT = ROOT / "tests" / "features.snapshot.json"
+DOC = ROOT / "docs" / "tech" / "test-coverage.md"
+CASES = ROOT / "tests" / "cases"
+LEVELS_FILE = ROOT / "tests" / "corpus_manifest.py"
+
+
+@dataclass(frozen=True)
+class Feature:
+    id: str
+    title: str
+    golden: tuple[str, ...]
+    differential: str
+    backend: bool
+
+
+def _levels() -> dict[str, tuple[str, ...]]:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("corpus_manifest", LEVELS_FILE)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return cast(dict[str, tuple[str, ...]], module.LEVELS)
+
+
+def load_features() -> dict[str, Feature]:
+    payload = tomllib.loads(FEATURES.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 1:
+        raise SystemExit("tests/features.toml: schema_version deve ser 1")
+    table = payload.get("features")
+    if not isinstance(table, dict) or not table:
+        raise SystemExit("tests/features.toml: tabela [features] vazia")
+    features: dict[str, Feature] = {}
+    for feature_id, raw in table.items():
+        if not isinstance(raw, dict):
+            raise SystemExit(f"tests/features.toml: [{feature_id}] inválida")
+        title = raw.get("title")
+        golden = raw.get("golden")
+        differential = raw.get("differential")
+        backend = raw.get("backend")
+        if not isinstance(title, str) or not title:
+            raise SystemExit(f"tests/features.toml: [{feature_id}] sem title")
+        if (
+            not isinstance(golden, list)
+            or not golden
+            or not all(isinstance(x, str) for x in golden)
+        ):
+            raise SystemExit(f"tests/features.toml: [{feature_id}] sem golden")
+        if not isinstance(differential, str):
+            raise SystemExit(f"tests/features.toml: [{feature_id}] sem differential")
+        if not isinstance(backend, bool):
+            raise SystemExit(f"tests/features.toml: [{feature_id}] sem backend")
+        features[feature_id] = Feature(feature_id, title, tuple(golden), differential, backend)
+    return features
+
+
+def validate(features: dict[str, Feature]) -> list[str]:
+    problems: list[str] = []
+    levels = _levels()
+    covered_levels: set[str] = set()
+    for feature in features.values():
+        for case in feature.golden:
+            path = ROOT / case
+            if not path.is_file():
+                problems.append(f"{feature.id}: golden inexistente: {case}")
+            if CASES not in path.parents:
+                problems.append(f"{feature.id}: golden fora de tests/cases: {case}")
+        if feature.backend:
+            if feature.differential == "none":
+                problems.append(f"{feature.id}: backend=true com differential=none")
+            elif feature.differential not in levels:
+                problems.append(f"{feature.id}: nível desconhecido {feature.differential!r}")
+            else:
+                covered_levels.add(feature.differential)
+                if not any(case in levels[feature.differential] for case in feature.golden):
+                    problems.append(f"{feature.id}: nenhum golden está em {feature.differential}")
+        elif feature.differential != "none":
+            problems.append(f"{feature.id}: backend=false exige differential=none")
+    for level in levels:
+        if level not in covered_levels:
+            problems.append(f"nível {level!r} não coberto por nenhuma feature")
+    return problems
+
+
+def snapshot(features: dict[str, Feature]) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "features": {
+            feature.id: {
+                "differential": feature.differential,
+                "golden": list(feature.golden),
+            }
+            for feature in sorted(features.values(), key=lambda item: item.id)
+        },
+    }
+
+
+def render(features: dict[str, Feature]) -> str:
+    levels = _levels()
+    lines = [
+        "---",
+        "sources:",
+        "  - tests/features.toml",
+        "  - tests/features.snapshot.json",
+        "  - tests/corpus_manifest.py",
+        "  - tools/feature_coverage.py",
+        "---",
+        "",
+        "# Test coverage — language features",
+        "",
+        "Generated by `tools/feature_coverage.py`; do not edit by hand. `make features`",
+        "rewrites this page and the snapshot. A feature is covered when it has at least one",
+        "golden case and, for backend features, one case in the differential corpus",
+        "([`../../docs/spec/garantias.md`](../spec/garantias.md)).",
+        "",
+        f"**{len(features)} features**, "
+        f"**{sum(len(feature.golden) for feature in features.values())} golden references** "
+        f"across **{len({feature.differential for feature in features.values() if feature.differential != 'none'})} levels**.",
+        "",
+        "| Feature | Golden cases | Differential |",
+        "| --- | --- | --- |",
+    ]
+    for feature in sorted(features.values(), key=lambda item: item.id):
+        cases = ", ".join(f"[`{Path(case).name}`](../../{case})" for case in feature.golden)
+        level = feature.differential if feature.differential != "none" else "—"
+        lines.append(f"| **{feature.id}** — {feature.title} | {cases} | `{level}` |")
+    lines.extend(
+        [
+            "",
+            "## Levels",
+            "",
+            "| Level | Cases |",
+            "| --- | --- |",
+            *[f"| `{level}` | {len(cases)} |" for level, cases in levels.items()],
+            "",
+            "A feature with `backend = false` is tree-walk-only by design (for example the",
+            "checker diagnostics); it must not claim a differential level.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _expected(features: dict[str, Feature]) -> tuple[str, str]:
+    return (
+        json.dumps(snapshot(features), indent=2, ensure_ascii=False) + "\n",
+        render(features),
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="tools.feature_coverage")
+    parser.add_argument("--write", action="store_true", help="grava snapshot e doc")
+    parser.add_argument("--check", action="store_true", help="falha se estiverem defasados")
+    args = parser.parse_args(argv)
+    features = load_features()
+    problems = validate(features)
+    if problems:
+        for problem in problems:
+            print(f"feature coverage: {problem}")
+        return 2
+    snapshot_text, doc_text = _expected(features)
+    if args.write:
+        SNAPSHOT.write_text(snapshot_text, encoding="utf-8")
+        DOC.write_text(doc_text, encoding="utf-8")
+        print(f"features: {len(features)}; snapshot e doc atualizados")
+        return 0
+    stale: list[str] = []
+    if not SNAPSHOT.is_file() or SNAPSHOT.read_text(encoding="utf-8") != snapshot_text:
+        stale.append(str(SNAPSHOT.relative_to(ROOT)))
+    if not DOC.is_file() or DOC.read_text(encoding="utf-8") != doc_text:
+        stale.append(str(DOC.relative_to(ROOT)))
+    if stale:
+        print("desatualizado: " + ", ".join(stale))
+        print("Rode: make features")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -6,6 +6,7 @@
 # files. State lives on the object because modules cannot declare top-level `var`:
 # `val suite = t.Suite()`.
 import std.strings as strings
+import std.io as io
 
 /// Test failure (distinct from `RuntimeError`, which is an infrastructure bug).
 class TestFailure(Exception) {
@@ -45,10 +46,14 @@ class Suite {
   var afterHooks: List[fn() -> Nil]
   /// `--list`: print `# test <name>` only, without executing (per-test isolation).
   var listMode: Bool
+  /// `--protocol=json`: emit framed events instead of TAP (machine protocol).
+  var protocol: Bool
+  /// Nonce prefix for control lines; prevents user `print` from spoofing events.
+  var token: String
 
   /// Creates an empty suite and reads `--filter=`/`--only=` from `args()`.
   ///
-  /// Also detects `--list` and enables list mode.
+  /// Also detects `--list`, `--protocol=json` and `--token=`.
   init() {
     this.total = 0
     this.passed = 0
@@ -60,6 +65,8 @@ class Suite {
     this.beforeHooks = []
     this.afterHooks = []
     this.listMode = false
+    this.protocol = false
+    this.token = ""
     for argument in args() {
       if (argument == "--list") {
         this.listMode = true
@@ -70,7 +77,14 @@ class Suite {
         this.filter = strings.slice(argument, 9, len(argument))
       } else if (strings.startsWith(argument, "--only=")) {
         this.only = strings.slice(argument, 7, len(argument))
+      } else if (argument == "--protocol=json") {
+        this.protocol = true
+      } else if (strings.startsWith(argument, "--token=")) {
+        this.token = strings.slice(argument, 8, len(argument))
       }
+    }
+    if (this.protocol and this.token == "") {
+      this.token = "##lox-test##"
     }
   }
 
@@ -111,11 +125,20 @@ class Suite {
       return
     }
     if (this.listMode) {
-      print("# test ${full}")
+      if (this.protocol) {
+        this._emit(this._eventDiscover(full))
+      } else {
+        print("# test ${full}")
+      }
       return
     }
     this.total = this.total + 1
+    if (this.protocol) {
+      this._emit(this._eventStart(full))
+    }
     var message = ""
+    var site = ""
+    var failureKind = ""
     var skipped = false
     var skipReason = ""
     var beforeFailed = false
@@ -126,6 +149,8 @@ class Suite {
       skipReason = e.message
     } except Exception as e {
       message = "beforeEach: " + e.message
+      site = e.site
+      failureKind = "hook"
       beforeFailed = true
     }
     if (not beforeFailed and not skipped) {
@@ -136,6 +161,12 @@ class Suite {
         skipReason = e.message
       } except Exception as e {
         message = e.message
+        site = e.site
+        if (e is TestFailure) {
+          failureKind = "assertion"
+        } else {
+          failureKind = "exception"
+        }
       }
     }
     try {
@@ -148,19 +179,41 @@ class Suite {
     } except Exception as e {
       if (message == "") {
         message = "afterEach: " + e.message
+        site = e.site
+        failureKind = "hook"
       } else {
         message = message + "\nafterEach: " + e.message
       }
     }
     if (skipped) {
       this.skipped = this.skipped + 1
-      print("ok ${this.total} - ${full} # SKIP ${skipReason}")
+      if (this.protocol) {
+        this._emit(this._eventResult(full, "skip", "skip", skipReason, ""))
+      } else {
+        print("ok ${this.total} - ${full} # SKIP ${skipReason}")
+      }
     } else if (message == "") {
       this.passed = this.passed + 1
-      print("ok ${this.total} - ${full}")
+      if (this.protocol) {
+        this._emit(this._eventResult(full, "pass", "pass", "", ""))
+      } else {
+        print("ok ${this.total} - ${full}")
+      }
     } else {
       this.failed = this.failed + 1
-      this._reportFailure(this.total, full, message)
+      if (this.protocol) {
+        this._emit(
+          this._eventResult(
+            full,
+            "fail",
+            (failureKind if failureKind != "" else "exception"),
+            message,
+            site
+          )
+        )
+      } else {
+        this._reportFailure(this.total, full, message, site)
+      }
     }
   }
 
@@ -172,7 +225,16 @@ class Suite {
   }
 
   /// Prints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).
+  ///
+  /// In protocol mode it emits the `end` event and stays silent instead.
   fn report() -> Int {
+    if (this.protocol) {
+      this._emit(this._eventEnd())
+      if (this.failed > 0) {
+        return 1
+      }
+      return 0
+    }
     print("1..${this.total}")
     print("# tests ${this.total}")
     print("# pass ${this.passed}")
@@ -189,6 +251,9 @@ class Suite {
   /// In `--list` mode it exits 0 immediately.
   fn done() -> Nil {
     if (this.listMode) {
+      if (this.protocol) {
+        this._emit(this._eventEnd())
+      }
       os.exit(0)
     }
     os.exit(this.report())
@@ -225,12 +290,87 @@ class Suite {
     return true
   }
 
-  fn _reportFailure(number: Int, name: String, message: String) -> Nil {
+  fn _reportFailure(number: Int, name: String, message: String, site: String) -> Nil {
     print("not ok ${number} - ${name}")
+    if (site != "") {
+      print("  # at ${site}")
+    }
     for line in strings.splitLines(message) {
       print("  # ${line}")
     }
   }
+
+  /// Writes one framed control line. `io.write` flushes, so the runner sees events
+  /// while the test is still running and user `print` output stays in order.
+  fn _emit(payload: String) -> Nil {
+    io.write(this.token + payload + "\n")
+  }
+
+  fn _eventStart(name: String) -> String {
+    return "{\"event\":\"start\",\"name\":" + _quote(name) + "}"
+  }
+
+  fn _eventResult(
+    name: String,
+    status: String,
+    kind: String,
+    message: String,
+    site: String
+  ) -> String {
+    return "{\"event\":\"result\",\"name\":" + _quote(name) + ",\"status\":" + _quote(status) + ",\"kind\":" + _quote(kind) + ",\"message\":" + _quote(message) + ",\"site\":" + _quote(site) + ",\"location\":null}"
+  }
+
+  fn _eventDiscover(name: String) -> String {
+    return "{\"event\":\"discover\",\"name\":" + _quote(name) + "}"
+  }
+
+  fn _eventEnd() -> String {
+    return "{\"event\":\"end\",\"tests\":${this.total},\"pass\":${this.passed},\"fail\":${this.failed},\"skip\":${this.skipped}}"
+  }
+}
+
+/// JSON string literal for protocol events. Only `"`, `\` and control characters
+/// need escaping; UTF-8 passes through (the report is deterministic).
+fn _quote(text: String) -> String {
+  var out = "\""
+  for ch in chars(text) {
+    val code = charCodeAt(ch, 0)
+    if (ch == "\"") {
+      out = out + "\\" + "\""
+    } else if (ch == "\\") {
+      out = out + "\\" + "\\"
+    } else if (ch == "\n") {
+      out = out + "\\" + "n"
+    } else if (ch == "\r") {
+      out = out + "\\" + "r"
+    } else if (ch == "\t") {
+      out = out + "\\" + "t"
+    } else if (code < 32) {
+      out = out + "\\" + "u" + _hex4(code)
+    } else {
+      out = out + ch
+    }
+  }
+  return out + "\""
+}
+
+fn _hex4(code: Int) -> String {
+  var value = code
+  var out = ""
+  var index = 0
+  while (index < 4) {
+    out = _hexDigit(value % 16) + out
+    value = value // 16
+    index = index + 1
+  }
+  return out
+}
+
+fn _hexDigit(value: Int) -> String {
+  if (value < 10) {
+    return fromCodePoint(48 + value)
+  }
+  return fromCodePoint(87 + value)
 }
 
 fn _truncate[T](items: List[T], size: Int) -> Nil {

@@ -1,0 +1,18 @@
+class E(Exception) {
+  init(m: String) {
+    this.message = m
+  }
+}
+try {
+  raise E("x")
+} except E as e {
+  print(e.site)
+}
+try {
+  val z = 0
+  print(1 // z)
+} except RuntimeError as e {
+  print(e.site)
+}
+# expect: tests/cases/exception_site.lx:7:3
+# expect: tests/cases/exception_site.lx:13:11

@@ -139,7 +139,7 @@ TODO item.
 | [0085](0085-print-como-funcao.md) | `print` as a builtin function (`Any -> Nil`); statement removed | accepted (implemented) | 2026-11-15 |
 | [0086](0086-narrowing-captura-e-merge.md) | Narrowing: invalidation of captured `var` and flow merge | accepted (implemented) | 2026-11-15 |
 | [0087](0087-heap-cap-e-self-hosting.md) | Heap: 512 MiB default and build-time `--max-heap` | accepted (implemented) | 2026-11-15 |
-| [0088](0088-distribuicao-e-raizes-de-modulo.md) | Distribution: `loxia` command, embedded stdlib and declared module roots | accepted (implementation pending) | 2026-11-15 |
+| [0088](0088-distribuicao-e-raizes-de-modulo.md) | Distribution: `loxia` command, embedded stdlib and declared module roots | accepted (implemented) | 2026-11-15 |
 | [0089](0089-stack-trace-de-runtime.md) | Runtime stack trace: frames, call site and R1015 position | accepted (implemented) | 2026-11-15 |
 | [0090](0090-lsp-escopo-e-hospedagem.md) | LSP: Python in the repo, JSON-RPC, diagnostics and phases | accepted (partial implementation) | 2026-11-16 |
 | [0091](0091-doc-comments-e-geracao-de-docs.md) | Documentation: `///` doc comments, Markdown and generation | accepted (partial implementation) | 2026-11-16 |
@@ -169,8 +169,10 @@ TODO item.
 | [0115](0115-corpus-de-conformidade-adiado.md) | Conformance corpus artifact: deferred until a published `lox-core` spec exists | accepted (deferred) | 2026-11-19 |
 | [0116](0116-benchmarks-publicos-adiados.md) | Public benchmarks: deferred until a reproducible protocol and a performance-led release exist | accepted (deferred) | 2026-11-19 |
 | [0117](0117-ast-manual-e-cobertura-de-visitantes.md) | AST stays manual: visitor coverage enforced by protocols and a hierarchy guard | accepted (implemented) | 2026-11-19 |
-| [0118](0118-toml-na-toolchain-e-edicao-de-manifest.md) | TOML: data model in the language (spike first), comment-preserving editing in the tool | accepted (implementation pending) | 2026-11-19 |
+| [0118](0118-toml-na-toolchain-e-edicao-de-manifest.md) | TOML: data model in the language (spike first), comment-preserving editing in the tool | accepted (implemented) | 2026-11-19 |
 | [0119](0119-fs-open-handles-e-erro-de-host.md) | File handles plus one `Result` pattern for host failures across the stdlib | accepted (implementation partial) | 2026-11-19 |
+| [0120](0120-localizacao-de-falha-em-excecoes.md) | Caught exceptions expose `e.site` (`file:line:column`) for test failure location | accepted (implemented) | 2026-11-19 |
+| [0121](0121-matriz-de-cobertura-de-features.md) | Curated feature → golden/differential matrix, snapshot and generated coverage page | accepted (implemented) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR

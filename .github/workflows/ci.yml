@@ -83,7 +83,7 @@ jobs:
         env:
           LOX_REQUIRE_LLVM: "1"
           LOX_BUILD_CACHE: ${{ runner.temp }}/lox-build-cache
-        run: uv run pytest -m backend
+        run: uv run pytest -m backend -n auto
 
   docs:
     name: Docs and generated files

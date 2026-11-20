@@ -7,6 +7,30 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **Localização de falha em exceções capturadas** ([ADR-0120](docs/adr/0120-localizacao-de-falha-em-excecoes.md),
+  issue [#11](https://github.com/loxia-lang/loxia/issues/11)): `e.site` expõe
+  `arquivo:linha:coluna` (relativo) da chamada que lançou a exceção, nos dois motores.
+  `std.test` reporta a linha do `expect` no TAP (`# at ...`) e em `tests[].location` no
+  JSON. Sem mudança de sintaxe.
+
+- **Protocolo v2 do `loxia test`** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
+  `std.test` emite eventos JSON com nonce (`start`/`result`/`discover`/`end`); o runner
+  renderiza TAP/JSON e não confunde `print` do teste com resultado. `--require-tests`
+  (exit 5) evita falso verde, `--capture` inclui o stdout da falha, e o relatório ganhou
+  `command`, `success`, `exit_code`, `kind`, `location` e `output`
+  ([`docs/tech/test-report.md`](docs/tech/test-report.md),
+  [`schema/test-report-v1.json`](schema/test-report-v1.json)).
+
+- **Matriz de cobertura por feature** ([ADR-0121](docs/adr/0121-matriz-de-cobertura-de-features.md)):
+  `tests/features.toml` mapeia feature → goldens + nível diferencial, com snapshot
+  congelado e página gerada em [`docs/tech/test-coverage.md`](docs/tech/test-coverage.md).
+
+### Mudado
+
+- `loxia test` exibe caminhos relativos ao CWD (não à raiz do pacote) e mata o process
+  group no timeout. A suíte local ganhou `pytest-timeout`/`pytest-xdist`, o pytest foi
+  para o pre-push e o teste de âncoras do site ignora `site/dist` defasado.
+
 - **`fs.open` com handles e erro de host em `Result`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md),
   issue [#16](https://github.com/loxia-lang/loxia/issues/16)): `fs.open/read/write/close`
   no kernel (4 primitivas), `std.fs.File` + `withOpen[T]` com `FileError.kind` estável,

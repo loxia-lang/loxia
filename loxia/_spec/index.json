@@ -434,17 +434,17 @@
           "title": "Exceptions",
           "level": 2,
           "line_start": 887,
-          "line_end": 920,
+          "line_end": 923,
           "url": "https://loxia-lang.github.io/loxia/reference/semantics/#exceptions",
-          "text": "## Exceptions\n\n```lox\nclass MyError(Exception) {\n  init(msg: String) { this.message = msg }\n}\n\ntry {\n  raise MyError(\"falhou\")\n} except MyError as e {\n  print(\"meu: ${e.message}\")\n} except RuntimeError as e {\n  print(\"runtime: ${e.message}\")\n} finally {\n  print(\"sempre\")\n}\n```\n\n- `Exception` is the built-in base; `RuntimeError` is a built-in subclass and represents\n  any runtime error (division by zero, index, etc.). The user may declare\n  `class MyError(Exception)` with `message`.\n- `raise Expr` requires an `Exception` instance; `raise;` inside `except` re-raises the\n  current exception. Outside `except`, `raise;` is an error.\n- `try` is a statement; `except Type as e` is typed, multiple and evaluated in order;\n  `except Exception as e` is catch-all and must be last. At least one `except` or\n  `finally` is mandatory.\n- Runtime errors are converted to `RuntimeError` in `try`; catching specific types\n  (`DivisionByZero`) is left for later. `finally` always runs and its\n  `return`/`raise` wins over the previous flow.\n- Uncaught exception: `file:line:col: error[R1010]: Unhandled exception: <type>:\n  <msg>`, exit 70, followed by the stack trace ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n  The L6 backend implements `try`/`raise` with the same output ([ADR-0062](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0062-l6-excecoes-unwinding.md)).\n"
+          "text": "## Exceptions\n\n```lox\nclass MyError(Exception) {\n  init(msg: String) { this.message = msg }\n}\n\ntry {\n  raise MyError(\"falhou\")\n} except MyError as e {\n  print(\"meu: ${e.message}\")\n} except RuntimeError as e {\n  print(\"runtime: ${e.message}\")\n} finally {\n  print(\"sempre\")\n}\n```\n\n- `Exception` is the built-in base; `RuntimeError` is a built-in subclass and represents\n  any runtime error (division by zero, index, etc.). The user may declare\n  `class MyError(Exception)` with `message`. Every exception also exposes\n  `site: String` — `arquivo:linha:coluna` of the throw's caller (for `t.expect(...).toBe(...)`\n  this is the `expect` line) or `\"\"` when there is no position\n  ([ADR-0120](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0120-localizacao-de-falha-em-excecoes.md)).\n- `raise Expr` requires an `Exception` instance; `raise;` inside `except` re-raises the\n  current exception. Outside `except`, `raise;` is an error.\n- `try` is a statement; `except Type as e` is typed, multiple and evaluated in order;\n  `except Exception as e` is catch-all and must be last. At least one `except` or\n  `finally` is mandatory.\n- Runtime errors are converted to `RuntimeError` in `try`; catching specific types\n  (`DivisionByZero`) is left for later. `finally` always runs and its\n  `return`/`raise` wins over the previous flow.\n- Uncaught exception: `file:line:col: error[R1010]: Unhandled exception: <type>:\n  <msg>`, exit 70, followed by the stack trace ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n  The L6 backend implements `try`/`raise` with the same output ([ADR-0062](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0062-l6-excecoes-unwinding.md)).\n"
         },
         {
           "id": "spec/semantics#errors",
           "anchor": "errors",
           "title": "Errors",
           "level": 2,
-          "line_start": 920,
-          "line_end": 944,
+          "line_start": 923,
+          "line_end": 947,
           "url": "https://loxia-lang.github.io/loxia/reference/semantics/#errors",
           "text": "## Errors\n\n| Phase | When | Exit code (file) |\n| --- | --- | --- |\n| lexical/syntax/resolver | before executing | **65** |\n| runtime | during execution | **70** |\n| file not found | before everything | **66** |\n\n- Compilation format: `file:line:col: error[CODE]: message` + a snippet with a caret\n  (`human`) or only the header (`short`); catalog and JSON envelope in\n  [`erros.md`](https://loxia-lang.github.io/loxia/reference/errors/) ([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md)).\n- Runtime format: `file:line:col: error[CODE]: message` (no caret, same as the binary).\n- Messages are in English (compatibility with the book and tests).\n- Compile errors are **accumulated** (the parser tries to recover; the resolver reports\n  all of them), ordered by `(file, offset, code)`, without duplicates and limited by\n  `--max-errors`; runtime errors stop at the first one.\n- Error codes are stable; columns, spans, JSON, stack trace, `fixes[]`, provenance\n  `notes` and LSP exist\n  ([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md),\n  [ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md),\n  [ADR-0099](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0099-notas-de-proveniencia.md),\n  [ADR-0090](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0090-lsp-escopo-e-hospedagem.md)).\n- In the REPL, each line starts with a clean error state and the environment remains.\n"
         },
@@ -453,8 +453,8 @@
           "anchor": "deliberate-differences-from-the-book",
           "title": "Deliberate differences from the book",
           "level": 2,
-          "line_start": 944,
-          "line_end": 960,
+          "line_start": 947,
+          "line_end": 963,
           "url": "https://loxia-lang.github.io/loxia/reference/semantics/#deliberate-differences-from-the-book",
           "text": "## Deliberate differences from the book\n\n- Division by zero is an error (the book returns `inf`).\n- The REPL accepts an optional trailing `;` and prints the value of expressions.\n- `return` at the top level is a compile error as early as ch. 11 (in the book, the resolver does this).\n- Numbers are separate `Int` and `Float` (the book uses only `float`); `/` is always `Float`,\n  `%` is truncated and `Int` wraps — see [ADR-0006](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0006-int-float-separados.md).\n- `val`/`var` do not exist in the book (which has only mutable `var`); see [ADR-0005](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0005-val-var-imutabilidade.md).\n- `for x in` and `Range` (`0..10`) do not exist in the book; see\n  [ADR-0007](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0007-ranges-e-iteracao.md).\n- `List[T]` (literal, indexing, `push`/`pop`, `len` and structural equality) does not exist in the\n  book; see [ADR-0015](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0015-listas-tipadas.md).\n\nEverything else follows the book's jlox, including the messages.\n"
         },
@@ -463,8 +463,8 @@
           "anchor": "modules",
           "title": "Modules",
           "level": 2,
-          "line_start": 960,
-          "line_end": 1126,
+          "line_start": 963,
+          "line_end": 1129,
           "url": "https://loxia-lang.github.io/loxia/reference/semantics/#modules",
           "text": "## Modules\n\n### stdlib T1\n\n> Per-module reference, generated from the signatures/doc comments and the builtins\n> registry: [`../stdlib/`](https://github.com/loxia-lang/loxia/blob/main/docs/stdlib).\n\n- `std.strings`: `isEmpty`, `isBlank`, `trim`/`ltrim`/`rtrim`, `startsWith`/`endsWith`,\n  `contains`/`indexOf`/`lastIndexOf`, `split`/`splitLines`/`lines`/`words`,\n  `repeat`, `upper`/`lower`/`capitalize`, `reverse`, `count`, `replaceFirst`/`replaceAll`,\n  `slice`, `padStart`/`padEnd`.\n- `std.lists`: `isEmpty`, `length`, `map`, `filter`, `each`, `fold`, `reduce`, `any`,\n  `all`, `none`, `find`, `findIndex`, `contains`, `indexOf`, `reverse`, `take`, `drop`,\n  `slice`, `sum`, `first`, `last`, `count`, `min`, `max`, `getOr`.\n- `std.maps`: `entries`/`toList` (`(String, V)` pairs), `fromEntries`, `merge` (the right\n  one wins), `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`\n  (`Map[String, String]`), `hasValue`, `getOr`. The API is `Map[String, V]`: the checker\n  does not yet express generic key constraints (post-MVP); `Int`/`Bool` keys use\n  the language methods.\n- `std.numeric`: `gcd`/`lcm`, `isPrime`/`primes`, `factorial`, `powMod`, `digitSum`,\n  `isEven`/`isOdd`/`sign`, `mean`/`median`/`mode`/`variance`/`stddev` (statistics of\n  `List[Int]`; an empty list returns `nil`; population variance) and\n  `roundTo`/`toBase`/`fromBase` (base 2..36). An invalid domain (negative `factorial`,\n  base out of range) raises `RuntimeError`; invalid `fromBase` returns `nil`.\n- `std.asserts`: `assert`, `assertEq`, `assertNotNil` (returns the narrowed value) and\n  `fail`; the failure is a `RuntimeError`, catchable by `except RuntimeError as e`.\n- `std.results`: `isOk`/`isErr`, `map`/`mapErr`, `unwrapOr`, `andThen` and `toOptional`\n  for `Result[T, E]`. Since `andThen` receives `fn(T) -> Result[U, E]`, a lambda that\n  constructs `Result.Ok`/`Result.Err` does not infer the generic enum yet; use a named\n  function with an annotated return (post-MVP checker gap).\n- `lists.sort(xs, compare)` requires `compare: fn(T, T) -> Int` (negative/zero/positive),\n  is stable and returns a new list. `sortBy`/`groupBy` do not exist yet.\n- `lists.zip`, `flatten`, `flatMap`, `unique`, `chunk` and `partition` are generic;\n  `partition` returns `(yes, no)`.\n- These functions are pure Lox over the kernel; they are deterministic and enter the T1 corpus.\n\n### stdlib T2\n\nThe eleven T2 modules are pure Lox over the kernel and add no syntax\n([ADR-0079](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0079-stdlib-t2.md)). The deterministic ones enter the `t2` corpus; the\n**ambient** ones ([ADR-0072](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0072-stdlib-batteries.md) §5) are outside I1 and have tests\nwith fixed input.\n\n- `std.json`: `parse(text) -> Any`, `stringify(value) -> String` and\n  `pretty(value, indent = 2) -> String`. Objects become `Map[String, Any]` (insertion\n  order), arrays become `List[Any]`, `Int`/`Float` are distinct and `null` becomes `nil`.\n  Invalid JSON also becomes `nil`; nesting above 16 is invalid. `stringify`\n  raises `RuntimeError` for a non-finite `Float` or a value that is not JSON.\n- `std.fmt`: `format(template, List[Any])` with `{}` and `{{`/`}}`, `pad(text, width,\n  fill = \" \")` (on the left), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`\n  and `bytes(n)` (B/KiB/MiB/GiB/TiB). No locale; extra/missing arguments and `fixed` outside\n  0..15 raise `RuntimeError`.\n- `std.paths` (POSIX, lexical, does not touch the disk): `join` (an absolute second argument wins,\n  without normalizing), `dirname`, `basename`, `ext`/`stem` (a leading dot does not count as an\n  extension), `normalize` (collapses slashes, resolves `.`/`..`), `isAbsolute` and `split`.\n- `std.fs` **ambient**: `readText -> String?`, `readLines -> List[String]?` (drops the\n  final newline), `writeText -> Bool`, `appendText -> Bool` (reads and rewrites; creates the\n  file if absent), `exists -> Bool` and `listDir -> List[String]?` (sorted, without\n  `.`/`..`, `nil` if it is not a readable directory).\n- `std.io`: `write`/`writeErr` (deterministic), `readLine -> String?`, `readAll ->\n  String` and `prompt(message) -> String?` (writes and reads a line); reading is ambient.\n  Input that is not valid UTF-8 is a `RuntimeError` (without a traceback), not corrupted text.\n- `std.cli`: `parse(args, spec) -> Map[String, Any]` with `spec` as a `List[String]` of\n  `flag:NAME`, `option:NAME` and `positional:NAME` entries; accepts `--name value`,\n  `--name=value` and `--`; flags become `Bool`, options/positionals become `String` or `nil`.\n  `flag`/`option`/`positional` read the result and `usage(program, spec)` generates the text.\n  Invalid usage (unknown option, missing value, flag with a value) is a `RuntimeError`.\n- `std.sets`: `Set[T]` with `add`, `has`, `remove` (returns `Bool`, no error if absent),\n  `len`, `toList` (insertion order), `union`, `intersect`, `difference` and\n  `fromList(List[T])`. The internal field is `Map[Any, Bool]`: `T` must be `String`, `Int`\n  or `Bool` at runtime; `Set[Float].add` fails with the `Map` key error (generic\n  constraints are post-MVP).\n- `std.csv`: `parse(text) -> List[List[String]]?` (RFC 4180; accepts CRLF/LF, quotes with\n  `\"\"`, newlines inside a field; `nil` if malformed) and `stringify(rows) -> String` (CRLF,\n  final newline, quoting when needed; an empty list generates empty text and an empty row is\n  an error).\n- `std.utf8`: `byteLen(text) -> Int` (UTF-8 bytes), `utf16Len(text) -> Int` and\n  `utf16Column(text, index) -> Int` (UTF-16 width of the prefix of `index` code points,\n  limited to `0..len(text)`). Pure Lox over `charCodeAt`, deterministic, in the `t2` corpus.\n- `std.proc` **ambient** (POSIX, [ADR-0095](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0095-processos-streams-poll.md)):\n  `Stream` (`read`, `write`, `close`), `Process` (`stdin`/`stdout`/`stderr`, `wait`,\n  `kill`, `close`), `Output` (`code`, `stdout`, `stderr`), `spawn(argv) -> Process?` and\n  `run(argv, stdin = \"\", timeoutMs = 0) -> Output?`. No shell; `run` drains stdout/stderr\n  with `poll`, kills on timeout and returns `nil`; `stdin` has the practical limit of the pipe\n  buffer (~64 KiB). Outside the I1/I3 corpus.\n- `std.iter`: `enumerate(items)`, `zip(left, right)`, `sum(List[Int])`,\n  `sumFloat(List[Float])`, `contains`, `any`, `all` and `find` (the first match or `nil`).\n  The `Step[T]` enum (`Step.Item(value)`) allows iterating `nil` elements:\n  `next() -> Step[T]?` terminates on `nil` and the body matches `Step.Item(value)`.\n- `std.rand`: `Rand(seed)` (xorshift64*), `nextInt`, `int(min, max)` inclusive,\n  `float` in `[0, 1)`, `bool` and `shuffle(items, r)`; deterministic by seed.\n- `std.log` **ambient**: `Level` enum (`Debug`/`Info`/`Warn`/`Error`) and `Logger`, which\n  writes `[LEVEL] message` to stderr; no timestamp.\n- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; the 64-bit one returns the bit\n  pattern in i64 (it may be negative). It is not cryptographic.\n- `std.collections`: generic `Stack`, `Queue`, `Deque` and `PriorityQueue` (heap with an\n  explicit comparator `fn(T, T) -> Bool`).\n- `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (strict,\n  returns `Int?`), `addDays` and `parts`; no timezone and no clock.\n- `std.property` ([ADR-0098](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0098-property-based-testing.md)): `Gen[T]` with\n  `generate`/`shrink`, `forAll(gen, check, runs = 100, seed = 0)` and generators\n  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOf[T]` (with\n  `listOfInt`/`listOfString` as aliases) and `oneOf`; a failure shrinks the counterexample and\n  reports the seed.\n- `std.test` ([ADR-0096](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0096-testes-biblioteca-e-runner.md)): `Suite` (explicit state,\n  because a module does not accept top-level `var`) with `describe`, `it` (runs immediately),\n  `beforeEach`/`afterEach` (scoped to `describe`; outer→inner `before`,\n  inner→outer `after`, even on failure), `skip`, `report` (TAP + 0/1) and `done`\n  (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`), `expectGt/Ge/Lt/Le`\n  (`T: Ord`), `expectNil`/`expectNotNil`, `expectList`/`toContain`,\n  `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip` and `Recorder`. No\n  reflection/registry; `--filter=`/`--only=` and `--list` (only prints `# test <name>`) come\n  from `args()`. The test body is `fn() -> Nil`; an unhandled exception becomes `not ok`.\n- `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`\"true\"`/`\"false\"`),\n  `base64Encode/Decode` and `hexEncode/Decode`. No `Bytes` type: they operate on the UTF-8\n  bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)\n  returns `nil`. Hex is lowercase.\n\nInstance fields may have a container type (`List`, `Map`, tuple, `Range`, enum) since\nADR-0079; `Any` as a field is not yet supported by the backend.\n\n\n- A module is a `.lx` file; a folder is a path namespace, not a module.\n- Modules contain only imports, `fn`, `class` and `enum`; no `val`/`var` or top-level\n  statement. Import is static, with no initialization order.\n- `import m`/`import m as x` creates a namespace; `from m import name [as y]` binds public names.\n- A top-level name starting with `_` is private to the module; outside it `_x` is an error, including\n  through the namespace (`m._x`).\n- `std.` resolves in the bundle; user modules are relative to the project root.\n- Without `loxia.toml`, the root is the entry's directory. With a manifest, the root is the manifest\n  folder and the order is: project → dependencies → `[modules].paths` → `--module-path` →\n  `std` ([ADR-0100](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0100-dependencias-path.md)).\n- `[dependencies] acme = { path = \"../acme\" }` makes `import acme.foo` look for\n  `../acme/foo.lx` (the package name is not the directory name). The path is relative to the\n  manifest and must exist; `std` is a reserved name and `import acme` alone is an error.\n- `loxia.lock`, next to the manifest, pins each dependency by name, origin, optional\n  `[package].version` (`X.Y.Z`) and the `sha256` of its `.lx` tree ([ADR-0104](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0104-lock-e-frozen.md)).\n  It is generated by `loxia lock` (canonical bytes: entries sorted by name, fixed key order,\n  relative posix paths, no timestamp) and verified by `loxia lock --check` (exit `1` when\n  stale) and `loxia fetch`.\n- `--frozen` resolves dependencies only from the lock: a missing lock (when dependencies\n  exist), a missing/extra package, or a different path/version/hash is an error `C0002`\n  (exit 65). Without `--frozen`, `path` dependencies are read live from disk.\n  `--offline` forbids the network and `--cache-dir` selects the dependency cache\n  (default `.loxia/cache/` in the project root). `run`, `check`, `build`, `ast` and `test`\n  never access the network; only `loxia lock` and `loxia fetch` may, and `--offline`\n  forbids it there too. Only the root manifest declares dependencies: the lock is flat,\n  `std` and `[modules].paths` never appear in it.\n- A git dependency is `acme = { git = \"https://github.com/acme/acme\", rev = \"v1.2.3\" }`\n  ([ADR-0105](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0105-dependencias-git.md)). `rev` is required and is a full commit or a\n  tag (never a branch); exactly one of `path`/`git` is allowed. `loxia lock` resolves the tag\n  to a commit and records `git`, `rev`, `commit`, `version` (required in the dependency's\n  `loxia.toml`) and the tree `sha256`. `loxia fetch` populates the cache (bare mirror plus a\n  clean `git archive` checkout, no `.git`/hooks/submodules); `run`/`check`/`build` use the\n  locked commit only and fail with `C0002` when the checkout is missing (\"run `loxia fetch`\").\n  `--offline` restricts `lock`/`fetch` to the cache, and `file://` URLs are dev/test only and\n  stored verbatim in the lock.\n- A dependency imports its own package by name (`acme.base`) or another declared\n  dependency; it does not see the project or `[modules].paths`. `[modules].paths` are loose\n  roots (vendor/monorepo): `import shared.util` resolves `<root>/shared/util.lx`.\n- `..` and absolute paths remain forbidden in `import`; they only appear in the manifest\n  `path` or in `--module-path`. The same module in two roots is an **ambiguity error**\n  (never “first wins”), with relative paths in the diagnostic.\n- No `*`, no re-export and no module as a value.\n- A module is **pure by construction**: only top-level declarations, so importing executes no\n  effect; an unused import is `W1002` and removing the line is `safe` (fix).\n"
         },
@@ -473,8 +473,8 @@
           "anchor": "stdlib-t1",
           "title": "stdlib T1",
           "level": 3,
-          "line_start": 962,
-          "line_end": 996,
+          "line_start": 965,
+          "line_end": 999,
           "url": "https://loxia-lang.github.io/loxia/reference/semantics/#stdlib-t1",
           "text": "### stdlib T1\n\n> Per-module reference, generated from the signatures/doc comments and the builtins\n> registry: [`../stdlib/`](https://github.com/loxia-lang/loxia/blob/main/docs/stdlib).\n\n- `std.strings`: `isEmpty`, `isBlank`, `trim`/`ltrim`/`rtrim`, `startsWith`/`endsWith`,\n  `contains`/`indexOf`/`lastIndexOf`, `split`/`splitLines`/`lines`/`words`,\n  `repeat`, `upper`/`lower`/`capitalize`, `reverse`, `count`, `replaceFirst`/`replaceAll`,\n  `slice`, `padStart`/`padEnd`.\n- `std.lists`: `isEmpty`, `length`, `map`, `filter`, `each`, `fold`, `reduce`, `any`,\n  `all`, `none`, `find`, `findIndex`, `contains`, `indexOf`, `reverse`, `take`, `drop`,\n  `slice`, `sum`, `first`, `last`, `count`, `min`, `max`, `getOr`.\n- `std.maps`: `entries`/`toList` (`(String, V)` pairs), `fromEntries`, `merge` (the right\n  one wins), `pick`, `omit`, `mapValues`, `filterKeys`, `filterValues`, `invert`\n  (`Map[String, String]`), `hasValue`, `getOr`. The API is `Map[String, V]`: the checker\n  does not yet express generic key constraints (post-MVP); `Int`/`Bool` keys use\n  the language methods.\n- `std.numeric`: `gcd`/`lcm`, `isPrime`/`primes`, `factorial`, `powMod`, `digitSum`,\n  `isEven`/`isOdd`/`sign`, `mean`/`median`/`mode`/`variance`/`stddev` (statistics of\n  `List[Int]`; an empty list returns `nil`; population variance) and\n  `roundTo`/`toBase`/`fromBase` (base 2..36). An invalid domain (negative `factorial`,\n  base out of range) raises `RuntimeError`; invalid `fromBase` returns `nil`.\n- `std.asserts`: `assert`, `assertEq`, `assertNotNil` (returns the narrowed value) and\n  `fail`; the failure is a `RuntimeError`, catchable by `except RuntimeError as e`.\n- `std.results`: `isOk`/`isErr`, `map`/`mapErr`, `unwrapOr`, `andThen` and `toOptional`\n  for `Result[T, E]`. Since `andThen` receives `fn(T) -> Result[U, E]`, a lambda that\n  constructs `Result.Ok`/`Result.Err` does not infer the generic enum yet; use a named\n  function with an annotated return (post-MVP checker gap).\n- `lists.sort(xs, compare)` requires `compare: fn(T, T) -> Int` (negative/zero/positive),\n  is stable and returns a new list. `sortBy`/`groupBy` do not exist yet.\n- `lists.zip`, `flatten`, `flatMap`, `unique`, `chunk` and `partition` are generic;\n  `partition` returns `(yes, no)`.\n- These functions are pure Lox over the kernel; they are deterministic and enter the T1 corpus.\n"
         },
@@ -483,8 +483,8 @@
           "anchor": "stdlib-t2",
           "title": "stdlib T2",
           "level": 3,
-          "line_start": 996,
-          "line_end": 1126,
+          "line_start": 999,
+          "line_end": 1129,
           "url": "https://loxia-lang.github.io/loxia/reference/semantics/#stdlib-t2",
           "text": "### stdlib T2\n\nThe eleven T2 modules are pure Lox over the kernel and add no syntax\n([ADR-0079](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0079-stdlib-t2.md)). The deterministic ones enter the `t2` corpus; the\n**ambient** ones ([ADR-0072](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0072-stdlib-batteries.md) §5) are outside I1 and have tests\nwith fixed input.\n\n- `std.json`: `parse(text) -> Any`, `stringify(value) -> String` and\n  `pretty(value, indent = 2) -> String`. Objects become `Map[String, Any]` (insertion\n  order), arrays become `List[Any]`, `Int`/`Float` are distinct and `null` becomes `nil`.\n  Invalid JSON also becomes `nil`; nesting above 16 is invalid. `stringify`\n  raises `RuntimeError` for a non-finite `Float` or a value that is not JSON.\n- `std.fmt`: `format(template, List[Any])` with `{}` and `{{`/`}}`, `pad(text, width,\n  fill = \" \")` (on the left), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`\n  and `bytes(n)` (B/KiB/MiB/GiB/TiB). No locale; extra/missing arguments and `fixed` outside\n  0..15 raise `RuntimeError`.\n- `std.paths` (POSIX, lexical, does not touch the disk): `join` (an absolute second argument wins,\n  without normalizing), `dirname`, `basename`, `ext`/`stem` (a leading dot does not count as an\n  extension), `normalize` (collapses slashes, resolves `.`/`..`), `isAbsolute` and `split`.\n- `std.fs` **ambient**: `readText -> String?`, `readLines -> List[String]?` (drops the\n  final newline), `writeText -> Bool`, `appendText -> Bool` (reads and rewrites; creates the\n  file if absent), `exists -> Bool` and `listDir -> List[String]?` (sorted, without\n  `.`/`..`, `nil` if it is not a readable directory).\n- `std.io`: `write`/`writeErr` (deterministic), `readLine -> String?`, `readAll ->\n  String` and `prompt(message) -> String?` (writes and reads a line); reading is ambient.\n  Input that is not valid UTF-8 is a `RuntimeError` (without a traceback), not corrupted text.\n- `std.cli`: `parse(args, spec) -> Map[String, Any]` with `spec` as a `List[String]` of\n  `flag:NAME`, `option:NAME` and `positional:NAME` entries; accepts `--name value`,\n  `--name=value` and `--`; flags become `Bool`, options/positionals become `String` or `nil`.\n  `flag`/`option`/`positional` read the result and `usage(program, spec)` generates the text.\n  Invalid usage (unknown option, missing value, flag with a value) is a `RuntimeError`.\n- `std.sets`: `Set[T]` with `add`, `has`, `remove` (returns `Bool`, no error if absent),\n  `len`, `toList` (insertion order), `union`, `intersect`, `difference` and\n  `fromList(List[T])`. The internal field is `Map[Any, Bool]`: `T` must be `String`, `Int`\n  or `Bool` at runtime; `Set[Float].add` fails with the `Map` key error (generic\n  constraints are post-MVP).\n- `std.csv`: `parse(text) -> List[List[String]]?` (RFC 4180; accepts CRLF/LF, quotes with\n  `\"\"`, newlines inside a field; `nil` if malformed) and `stringify(rows) -> String` (CRLF,\n  final newline, quoting when needed; an empty list generates empty text and an empty row is\n  an error).\n- `std.utf8`: `byteLen(text) -> Int` (UTF-8 bytes), `utf16Len(text) -> Int` and\n  `utf16Column(text, index) -> Int` (UTF-16 width of the prefix of `index` code points,\n  limited to `0..len(text)`). Pure Lox over `charCodeAt`, deterministic, in the `t2` corpus.\n- `std.proc` **ambient** (POSIX, [ADR-0095](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0095-processos-streams-poll.md)):\n  `Stream` (`read`, `write`, `close`), `Process` (`stdin`/`stdout`/`stderr`, `wait`,\n  `kill`, `close`), `Output` (`code`, `stdout`, `stderr`), `spawn(argv) -> Process?` and\n  `run(argv, stdin = \"\", timeoutMs = 0) -> Output?`. No shell; `run` drains stdout/stderr\n  with `poll`, kills on timeout and returns `nil`; `stdin` has the practical limit of the pipe\n  buffer (~64 KiB). Outside the I1/I3 corpus.\n- `std.iter`: `enumerate(items)`, `zip(left, right)`, `sum(List[Int])`,\n  `sumFloat(List[Float])`, `contains`, `any`, `all` and `find` (the first match or `nil`).\n  The `Step[T]` enum (`Step.Item(value)`) allows iterating `nil` elements:\n  `next() -> Step[T]?` terminates on `nil` and the body matches `Step.Item(value)`.\n- `std.rand`: `Rand(seed)` (xorshift64*), `nextInt`, `int(min, max)` inclusive,\n  `float` in `[0, 1)`, `bool` and `shuffle(items, r)`; deterministic by seed.\n- `std.log` **ambient**: `Level` enum (`Debug`/`Info`/`Warn`/`Error`) and `Logger`, which\n  writes `[LEVEL] message` to stderr; no timestamp.\n- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; the 64-bit one returns the bit\n  pattern in i64 (it may be negative). It is not cryptographic.\n- `std.collections`: generic `Stack`, `Queue`, `Deque` and `PriorityQueue` (heap with an\n  explicit comparator `fn(T, T) -> Bool`).\n- `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (strict,\n  returns `Int?`), `addDays` and `parts`; no timezone and no clock.\n- `std.property` ([ADR-0098](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0098-property-based-testing.md)): `Gen[T]` with\n  `generate`/`shrink`, `forAll(gen, check, runs = 100, seed = 0)` and generators\n  `int`, `intRange`, `bool`, `float`, `stringOf`, `listOf[T]` (with\n  `listOfInt`/`listOfString` as aliases) and `oneOf`; a failure shrinks the counterexample and\n  reports the seed.\n- `std.test` ([ADR-0096](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0096-testes-biblioteca-e-runner.md)): `Suite` (explicit state,\n  because a module does not accept top-level `var`) with `describe`, `it` (runs immediately),\n  `beforeEach`/`afterEach` (scoped to `describe`; outer→inner `before`,\n  inner→outer `after`, even on failure), `skip`, `report` (TAP + 0/1) and `done`\n  (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`), `expectGt/Ge/Lt/Le`\n  (`T: Ord`), `expectNil`/`expectNotNil`, `expectList`/`toContain`,\n  `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip` and `Recorder`. No\n  reflection/registry; `--filter=`/`--only=` and `--list` (only prints `# test <name>`) come\n  from `args()`. The test body is `fn() -> Nil`; an unhandled exception becomes `not ok`.\n- `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`\"true\"`/`\"false\"`),\n  `base64Encode/Decode` and `hexEncode/Decode`. No `Bytes` type: they operate on the UTF-8\n  bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)\n  returns `nil`. Hex is lowercase.\n\nInstance fields may have a container type (`List`, `Map`, tuple, `Range`, enum) since\nADR-0079; `Any` as a field is not yet supported by the backend.\n\n\n- A module is a `.lx` file; a folder is a path namespace, not a module.\n- Modules contain only imports, `fn`, `class` and `enum`; no `val`/`var` or top-level\n  statement. Import is static, with no initialization order.\n- `import m`/`import m as x` creates a namespace; `from m import name [as y]` binds public names.\n- A top-level name starting with `_` is private to the module; outside it `_x` is an error, including\n  through the namespace (`m._x`).\n- `std.` resolves in the bundle; user modules are relative to the project root.\n- Without `loxia.toml`, the root is the entry's directory. With a manifest, the root is the manifest\n  folder and the order is: project → dependencies → `[modules].paths` → `--module-path` →\n  `std` ([ADR-0100](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0100-dependencias-path.md)).\n- `[dependencies] acme = { path = \"../acme\" }` makes `import acme.foo` look for\n  `../acme/foo.lx` (the package name is not the directory name). The path is relative to the\n  manifest and must exist; `std` is a reserved name and `import acme` alone is an error.\n- `loxia.lock`, next to the manifest, pins each dependency by name, origin, optional\n  `[package].version` (`X.Y.Z`) and the `sha256` of its `.lx` tree ([ADR-0104](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0104-lock-e-frozen.md)).\n  It is generated by `loxia lock` (canonical bytes: entries sorted by name, fixed key order,\n  relative posix paths, no timestamp) and verified by `loxia lock --check` (exit `1` when\n  stale) and `loxia fetch`.\n- `--frozen` resolves dependencies only from the lock: a missing lock (when dependencies\n  exist), a missing/extra package, or a different path/version/hash is an error `C0002`\n  (exit 65). Without `--frozen`, `path` dependencies are read live from disk.\n  `--offline` forbids the network and `--cache-dir` selects the dependency cache\n  (default `.loxia/cache/` in the project root). `run`, `check`, `build`, `ast` and `test`\n  never access the network; only `loxia lock` and `loxia fetch` may, and `--offline`\n  forbids it there too. Only the root manifest declares dependencies: the lock is flat,\n  `std` and `[modules].paths` never appear in it.\n- A git dependency is `acme = { git = \"https://github.com/acme/acme\", rev = \"v1.2.3\" }`\n  ([ADR-0105](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0105-dependencias-git.md)). `rev` is required and is a full commit or a\n  tag (never a branch); exactly one of `path`/`git` is allowed. `loxia lock` resolves the tag\n  to a commit and records `git`, `rev`, `commit`, `version` (required in the dependency's\n  `loxia.toml`) and the tree `sha256`. `loxia fetch` populates the cache (bare mirror plus a\n  clean `git archive` checkout, no `.git`/hooks/submodules); `run`/`check`/`build` use the\n  locked commit only and fail with `C0002` when the checkout is missing (\"run `loxia fetch`\").\n  `--offline` restricts `lock`/`fetch` to the cache, and `file://` URLs are dev/test only and\n  stored verbatim in the lock.\n- A dependency imports its own package by name (`acme.base`) or another declared\n  dependency; it does not see the project or `[modules].paths`. `[modules].paths` are loose\n  roots (vendor/monorepo): `import shared.util` resolves `<root>/shared/util.lx`.\n- `..` and absolute paths remain forbidden in `import`; they only appear in the manifest\n  `path` or in `--module-path`. The same module in two roots is an **ambiguity error**\n  (never “first wins”), with relative paths in the diagnostic.\n- No `*`, no re-export and no module as a value.\n- A module is **pure by construction**: only top-level declarations, so importing executes no\n  effect; an unused import is `W1002` and removing the line is `safe` (fix).\n"
         }
@@ -523,17 +523,17 @@
           "title": "Format and exit codes",
           "level": 2,
           "line_start": 28,
-          "line_end": 219,
+          "line_end": 221,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#format-and-exit-codes",
-          "text": "## Format and exit codes\n\nEvery compilation diagnostic has a **stable code** (`error[E3001]`), a position and, in the\n`human` format, a source snippet with a caret:\n\n```\nexample.lx:3:7: error[E2001]: Already a variable with this name in this scope.\n  |\n3 |   var a = 2;\n  |       ^\n```\n\n| Phase | `human` format | Exit code |\n| --- | --- | --- |\n| lexical | `file:line:col: error[E0xxx]: message` + caret | 65 |\n| syntax | `file:line:col: error[E1xxx]: message` + caret | 65 |\n| resolver | `file:line:col: error[E2xxx]: message` + caret | 65 |\n| checker (`--check`) | `file:line:col: error[E3xxx]: message` + caret | 65 |\n| backend | `file:line: error[E4xxx]: message` (no column/caret) | 65 |\n| runtime | `file:line:col: error[R1xxx]: message` (no caret) | 70 |\n| CLI/timeout | `error[C0001]: message` (no location) | 124 |\n| missing file | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |\n\nBackend internal errors (`E4002`) are prefixed with `internal lowering error:` or\n`internal error:`; `E4001` is reserved for declared gaps (`... is not supported by\nthe backend yet.`). C compiler failures are sanitized so temporary paths are not leaked.\n\n- `human` (default) shows header + snippet; `short` shows only the header; `json` shows\n  the v1 envelope; `--json-lines` emits `start`/`diagnostic`/`summary` per line. Flags:\n  `--error-format=human|short|json`, `--json`, `--color=auto|always|never` (respects\n  `NO_COLOR`) and `--max-errors N` (default 20; `0` = unlimited).\n- **Warnings** (`W1xxx`, today `W1001` local never read) have `severity: warning`, exit 0 and\n  appear in the `summary`; `-Werror` turns them into an error (exit 65) only in `check`/`build`.\n  `run` does not emit warnings to preserve I1 (the binary does not have them).\n- `--timeout=MS` applies to `run`/`check`; the timeout is `C0001` + exit 124. `--watch` only in\n  `check`; changes re-emit diagnostics with an incremental `revision`.\n- Compilation errors go to **stderr** (`check`'s JSON goes to stdout). In `run`, stdout is the\n  program's; in `build --emit=ll`, stdout is the IR's — that is why the JSON of these commands\n  stays on stderr.\n- Compilation (lexing, parser, resolver and checker): the program **does not execute**. The\n  parser recovers (`synchronize`) and the resolver walks the whole AST, so one run can list\n  several errors; they come out sorted by `(file, offset, code)` and without duplicates.\n- Runtime: stops at the **first** uncaught error. Without `try`, the error is **fatal**\n  (exit 70) and whatever was already printed remains ([ADR-0026](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0026-freeze-1.0.md)).\n  Inside `try`, the error becomes a catchable `RuntimeError` and `except ... as e` exposes\n  `e.message` ([ADR-0042](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0042-excecoes.md)); `Result` is the explicit alternative\n  for expected errors ([ADR-0041](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0041-enums-match.md)). The runtime uses the\n  **same header** as compilation (`file:line:col: error[CODE]:`), without a caret — the\n  binary can run without the source. When the position is synthetic (internal field), the\n  header degrades to `error[CODE]: message`. After the header come the stack trace\n  frames ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n- In the REPL there is no exit code; the line with the error is discarded and the session\n  continues. The file is `<repl>`.\n- The displayed path is relative to the CWD; if the file is outside the CWD, only the basename.\n  An absolute path never appears (I3). `std.*` modules use the logical name\n  (`std/strings.lx`) so as not to depend on the CWD or collide with a user file.\n- A **compilation** error in a module points to the module's file, with a snippet and caret for\n  that file: the token carries the origin, so the checker and the resolver do not inherit the\n  entry file. The **runtime** error also points to the module, because the frame carries the\n  function's file (ADR-0089).\n\n### Runtime stack trace\n\nAn uncaught runtime error prints, after the header, one frame per Lox activation (innermost\nfirst). The name is the function's display name (`f`, `init`, `<lambda>`, `C` in the\nconstructor) and the position is the **call site** — where that activation was called:\n\n```text\nmod.lx:2:12: error[R1002]: Division by zero not allowed\n  at inner (main.lx:7:14)\n  at outer (main.lx:9:3)\n```\n\n- The innermost frame is the one that was executing the error; its position is the call that\n  activated it. The top (script code) is not a frame.\n- More than 10 frames: it shows the **5 innermost**, a line\n  `  ... N frames omitted` and the **5 outermost** (`TRACE_HEAD`/`TRACE_TAIL` in\n  [`limits.py`](https://github.com/loxia-lang/loxia/blob/main/loxia_core/execution/limits.py)). The trimming is deterministic.\n- `--error-format=short` keeps one line per diagnostic and **omits** the frames; `json`\n  exposes them in `trace` (`frames[]`, `omitted`, `head`). In the binary the format is always\n  the human one.\n- The runtime error in a module points to the function's file (not the entry one). A caught\n  exception prints nothing; `raise;` re-raises from the point of the `raise`.\n- `R1015` has a position: the declaration of the function whose activation overflowed\n  ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md), which revisits\n  [ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md)).\n\n### Labels, notes and help\n\nThe model already had `labels`, `notes` and `help`; now they have producers in resolution and\nchecker errors. `E2001` (duplicate variable) and `E2002` (assignment to `val`) point to the\nprevious declaration with a second snippet (`-`):\n\n```text\ndup.lx:3:7: error[E2001]: Already a variable with this name in this scope.\n  |\n3 |   val a = 2\n  |       ^\n  |\n2 |   val a = 1\n  |       - first declared here\n```\n\n`E3003` (undefined name) gains `help` when there is a close visible name — the suggestion is\ndeterministic (sorted candidates) and ignores mangled module symbols:\n\n```text\nsuggestion.lx:2:7: error[E3003]: Undefined variable 'nam'.\n  |\n2 | print(nom)\n  |       ^^^\nhelp: did you mean 'name'?\n```\n\n**Type** errors gain a provenance note when the value has a name or path\n(`Variable`, `Get`, `Index`, `Call`) and the caret points to the destination — the variable\nname, the call parenthesis, the `=`. The note shows the source text and the line of the\n**start of the expression**, normalized to one line and truncated at 80 characters\n([ADR-0099](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0099-notas-de-proveniencia.md)):\n\n```text\nprovenance.lx:6:5: error[E3001]: Expected Int, found String.\n  |\n6 | val total: Int = person.name\n  |     ^^^^^\nnote: the value comes from `person.name` (line 6)\n```\n\nThe note covers annotated `val`/`var`, destructuring, field, `return`, assignment, call\narguments, `len`/`chars`/`math.*`, list index and map key/value. Literals and compound\nexpressions do not get a note (it would only repeat the caret); without the source loaded,\nno note is emitted. Arity, undefined name, property and runtime errors do not use\nprovenance.\n\n`--error-format=short` remains one line (without labels/notes/help); `json` always includes\nall three. A label without the source loaded degrades to `note: file:line:col: message`.\n\n### JSON envelope (v1)\n\n`schema_version` is an integer and changes only on a breaking change. `span.start`/`end` are\nhalf-open; `column` is 1-based in code points and `offset` is 0-based in UTF-8 bytes.\n`summary.suppressed` counts the diagnostics cut by `--max-errors`.\n\n```json\n{\n  \"schema_version\": 1,\n  \"command\": \"check\",\n  \"success\": false,\n  \"exit_code\": 65,\n  \"diagnostics\": [\n    {\n      \"code\": \"E2001\",\n      \"phase\": \"resolver\",\n      \"severity\": \"error\",\n      \"message\": \"Already a variable with this name in this scope.\",\n      \"span\": {\n        \"file\": \"example.lx\",\n        \"start\": { \"line\": 3, \"column\": 7, \"offset\": 24 },\n        \"end\": { \"line\": 3, \"column\": 8, \"offset\": 25 }\n      },\n      \"labels\": [],\n      \"notes\": [],\n      \"help\": null,\n      \"trace\": null,\n      \"fixes\": []\n    }\n  ],\n  \"summary\": { \"errors\": 1, \"warnings\": 0, \"suppressed\": 0 }\n}\n```\n\n`fixes` is an additive list (it may stay empty): each item has `applicability`\n(`safe`/`unsafe`), `message` and `edits[]` with `span` + `new_text`. W1001/W1002 and local\nE3004 emit `safe`; E3003, E2001, E2002, E2009, E3002, E3015, E3016, E3018 and E3004 in a\npublic API emit `unsafe`; `safe` is only applied automatically when there is proof of\nbehavior preservation\n([ADR-0093](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0093-cli-agent-friendly-e-reparo.md), analysis in\n[`tech/fixes.md`](https://github.com/loxia-lang/loxia/blob/main/docs/tech/fixes.md)).\n\n`trace` is `null` outside the runtime; in a runtime error it has the frames already trimmed:\n\n```json\n\"trace\": {\n  \"frames\": [\n    { \"name\": \"f\", \"file\": \"main.lx\", \"line\": 7, \"column\": 14 }\n  ],\n  \"omitted\": 0,\n  \"head\": 0\n}\n```\n"
+          "text": "## Format and exit codes\n\nEvery compilation diagnostic has a **stable code** (`error[E3001]`), a position and, in the\n`human` format, a source snippet with a caret:\n\n```\nexample.lx:3:7: error[E2001]: Already a variable with this name in this scope.\n  |\n3 |   var a = 2;\n  |       ^\n```\n\n| Phase | `human` format | Exit code |\n| --- | --- | --- |\n| lexical | `file:line:col: error[E0xxx]: message` + caret | 65 |\n| syntax | `file:line:col: error[E1xxx]: message` + caret | 65 |\n| resolver | `file:line:col: error[E2xxx]: message` + caret | 65 |\n| checker (`--check`) | `file:line:col: error[E3xxx]: message` + caret | 65 |\n| backend | `file:line: error[E4xxx]: message` (no column/caret) | 65 |\n| runtime | `file:line:col: error[R1xxx]: message` (no caret) | 70 |\n| CLI/timeout | `error[C0001]: message` (no location) | 124 |\n| missing file | `Erro: Arquivo 'x' não encontrado.` (stderr) | 66 |\n\nBackend internal errors (`E4002`) are prefixed with `internal lowering error:` or\n`internal error:`; `E4001` is reserved for declared gaps (`... is not supported by\nthe backend yet.`). C compiler failures are sanitized so temporary paths are not leaked.\n\n- `human` (default) shows header + snippet; `short` shows only the header; `json` shows\n  the v1 envelope; `--json-lines` emits `start`/`diagnostic`/`summary` per line. Flags:\n  `--error-format=human|short|json`, `--json`, `--color=auto|always|never` (respects\n  `NO_COLOR`) and `--max-errors N` (default 20; `0` = unlimited).\n- **Warnings** (`W1xxx`, today `W1001` local never read) have `severity: warning`, exit 0 and\n  appear in the `summary`; `-Werror` turns them into an error (exit 65) only in `check`/`build`.\n  `run` does not emit warnings to preserve I1 (the binary does not have them).\n- `--timeout=MS` applies to `run`/`check`; the timeout is `C0001` + exit 124. `--watch` only in\n  `check`; changes re-emit diagnostics with an incremental `revision`.\n- Compilation errors go to **stderr** (`check`'s JSON goes to stdout). In `run`, stdout is the\n  program's; in `build --emit=ll`, stdout is the IR's — that is why the JSON of these commands\n  stays on stderr.\n- Compilation (lexing, parser, resolver and checker): the program **does not execute**. The\n  parser recovers (`synchronize`) and the resolver walks the whole AST, so one run can list\n  several errors; they come out sorted by `(file, offset, code)` and without duplicates.\n- Runtime: stops at the **first** uncaught error. Without `try`, the error is **fatal**\n  (exit 70) and whatever was already printed remains ([ADR-0026](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0026-freeze-1.0.md)).\n  Inside `try`, the error becomes a catchable `RuntimeError` and `except ... as e` exposes\n  `e.message` and `e.site` (`file:line:column` of the throw, `\"\"` when unknown)\n  ([ADR-0042](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0042-excecoes.md), [ADR-0120](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0120-localizacao-de-falha-em-excecoes.md));\n  `Result` is the explicit alternative for expected errors\n  ([ADR-0041](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0041-enums-match.md)). The runtime uses the\n  **same header** as compilation (`file:line:col: error[CODE]:`), without a caret — the\n  binary can run without the source. When the position is synthetic (internal field), the\n  header degrades to `error[CODE]: message`. After the header come the stack trace\n  frames ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n- In the REPL there is no exit code; the line with the error is discarded and the session\n  continues. The file is `<repl>`.\n- The displayed path is relative to the CWD; if the file is outside the CWD, only the basename.\n  An absolute path never appears (I3). `std.*` modules use the logical name\n  (`std/strings.lx`) so as not to depend on the CWD or collide with a user file.\n- A **compilation** error in a module points to the module's file, with a snippet and caret for\n  that file: the token carries the origin, so the checker and the resolver do not inherit the\n  entry file. The **runtime** error also points to the module, because the frame carries the\n  function's file (ADR-0089).\n\n### Runtime stack trace\n\nAn uncaught runtime error prints, after the header, one frame per Lox activation (innermost\nfirst). The name is the function's display name (`f`, `init`, `<lambda>`, `C` in the\nconstructor) and the position is the **call site** — where that activation was called:\n\n```text\nmod.lx:2:12: error[R1002]: Division by zero not allowed\n  at inner (main.lx:7:14)\n  at outer (main.lx:9:3)\n```\n\n- The innermost frame is the one that was executing the error; its position is the call that\n  activated it. The top (script code) is not a frame.\n- More than 10 frames: it shows the **5 innermost**, a line\n  `  ... N frames omitted` and the **5 outermost** (`TRACE_HEAD`/`TRACE_TAIL` in\n  [`limits.py`](https://github.com/loxia-lang/loxia/blob/main/loxia_core/execution/limits.py)). The trimming is deterministic.\n- `--error-format=short` keeps one line per diagnostic and **omits** the frames; `json`\n  exposes them in `trace` (`frames[]`, `omitted`, `head`). In the binary the format is always\n  the human one.\n- The runtime error in a module points to the function's file (not the entry one). A caught\n  exception prints nothing; `raise;` re-raises from the point of the `raise`.\n- `R1015` has a position: the declaration of the function whose activation overflowed\n  ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md), which revisits\n  [ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md)).\n\n### Labels, notes and help\n\nThe model already had `labels`, `notes` and `help`; now they have producers in resolution and\nchecker errors. `E2001` (duplicate variable) and `E2002` (assignment to `val`) point to the\nprevious declaration with a second snippet (`-`):\n\n```text\ndup.lx:3:7: error[E2001]: Already a variable with this name in this scope.\n  |\n3 |   val a = 2\n  |       ^\n  |\n2 |   val a = 1\n  |       - first declared here\n```\n\n`E3003` (undefined name) gains `help` when there is a close visible name — the suggestion is\ndeterministic (sorted candidates) and ignores mangled module symbols:\n\n```text\nsuggestion.lx:2:7: error[E3003]: Undefined variable 'nam'.\n  |\n2 | print(nom)\n  |       ^^^\nhelp: did you mean 'name'?\n```\n\n**Type** errors gain a provenance note when the value has a name or path\n(`Variable`, `Get`, `Index`, `Call`) and the caret points to the destination — the variable\nname, the call parenthesis, the `=`. The note shows the source text and the line of the\n**start of the expression**, normalized to one line and truncated at 80 characters\n([ADR-0099](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0099-notas-de-proveniencia.md)):\n\n```text\nprovenance.lx:6:5: error[E3001]: Expected Int, found String.\n  |\n6 | val total: Int = person.name\n  |     ^^^^^\nnote: the value comes from `person.name` (line 6)\n```\n\nThe note covers annotated `val`/`var`, destructuring, field, `return`, assignment, call\narguments, `len`/`chars`/`math.*`, list index and map key/value. Literals and compound\nexpressions do not get a note (it would only repeat the caret); without the source loaded,\nno note is emitted. Arity, undefined name, property and runtime errors do not use\nprovenance.\n\n`--error-format=short` remains one line (without labels/notes/help); `json` always includes\nall three. A label without the source loaded degrades to `note: file:line:col: message`.\n\n### JSON envelope (v1)\n\n`schema_version` is an integer and changes only on a breaking change. `span.start`/`end` are\nhalf-open; `column` is 1-based in code points and `offset` is 0-based in UTF-8 bytes.\n`summary.suppressed` counts the diagnostics cut by `--max-errors`.\n\n```json\n{\n  \"schema_version\": 1,\n  \"command\": \"check\",\n  \"success\": false,\n  \"exit_code\": 65,\n  \"diagnostics\": [\n    {\n      \"code\": \"E2001\",\n      \"phase\": \"resolver\",\n      \"severity\": \"error\",\n      \"message\": \"Already a variable with this name in this scope.\",\n      \"span\": {\n        \"file\": \"example.lx\",\n        \"start\": { \"line\": 3, \"column\": 7, \"offset\": 24 },\n        \"end\": { \"line\": 3, \"column\": 8, \"offset\": 25 }\n      },\n      \"labels\": [],\n      \"notes\": [],\n      \"help\": null,\n      \"trace\": null,\n      \"fixes\": []\n    }\n  ],\n  \"summary\": { \"errors\": 1, \"warnings\": 0, \"suppressed\": 0 }\n}\n```\n\n`fixes` is an additive list (it may stay empty): each item has `applicability`\n(`safe`/`unsafe`), `message` and `edits[]` with `span` + `new_text`. W1001/W1002 and local\nE3004 emit `safe`; E3003, E2001, E2002, E2009, E3002, E3015, E3016, E3018 and E3004 in a\npublic API emit `unsafe`; `safe` is only applied automatically when there is proof of\nbehavior preservation\n([ADR-0093](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0093-cli-agent-friendly-e-reparo.md), analysis in\n[`tech/fixes.md`](https://github.com/loxia-lang/loxia/blob/main/docs/tech/fixes.md)).\n\n`trace` is `null` outside the runtime; in a runtime error it has the frames already trimmed:\n\n```json\n\"trace\": {\n  \"frames\": [\n    { \"name\": \"f\", \"file\": \"main.lx\", \"line\": 7, \"column\": 14 }\n  ],\n  \"omitted\": 0,\n  \"head\": 0\n}\n```\n"
         },
         {
           "id": "spec/errors#runtime-stack-trace",
           "anchor": "runtime-stack-trace",
           "title": "Runtime stack trace",
           "level": 3,
-          "line_start": 89,
-          "line_end": 115,
+          "line_start": 91,
+          "line_end": 117,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#runtime-stack-trace",
           "text": "### Runtime stack trace\n\nAn uncaught runtime error prints, after the header, one frame per Lox activation (innermost\nfirst). The name is the function's display name (`f`, `init`, `<lambda>`, `C` in the\nconstructor) and the position is the **call site** — where that activation was called:\n\n```text\nmod.lx:2:12: error[R1002]: Division by zero not allowed\n  at inner (main.lx:7:14)\n  at outer (main.lx:9:3)\n```\n\n- The innermost frame is the one that was executing the error; its position is the call that\n  activated it. The top (script code) is not a frame.\n- More than 10 frames: it shows the **5 innermost**, a line\n  `  ... N frames omitted` and the **5 outermost** (`TRACE_HEAD`/`TRACE_TAIL` in\n  [`limits.py`](https://github.com/loxia-lang/loxia/blob/main/loxia_core/execution/limits.py)). The trimming is deterministic.\n- `--error-format=short` keeps one line per diagnostic and **omits** the frames; `json`\n  exposes them in `trace` (`frames[]`, `omitted`, `head`). In the binary the format is always\n  the human one.\n- The runtime error in a module points to the function's file (not the entry one). A caught\n  exception prints nothing; `raise;` re-raises from the point of the `raise`.\n- `R1015` has a position: the declaration of the function whose activation overflowed\n  ([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md), which revisits\n  [ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md)).\n"
         },
@@ -542,8 +542,8 @@
           "anchor": "labels-notes-and-help",
           "title": "Labels, notes and help",
           "level": 3,
-          "line_start": 115,
-          "line_end": 165,
+          "line_start": 117,
+          "line_end": 167,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#labels-notes-and-help",
           "text": "### Labels, notes and help\n\nThe model already had `labels`, `notes` and `help`; now they have producers in resolution and\nchecker errors. `E2001` (duplicate variable) and `E2002` (assignment to `val`) point to the\nprevious declaration with a second snippet (`-`):\n\n```text\ndup.lx:3:7: error[E2001]: Already a variable with this name in this scope.\n  |\n3 |   val a = 2\n  |       ^\n  |\n2 |   val a = 1\n  |       - first declared here\n```\n\n`E3003` (undefined name) gains `help` when there is a close visible name — the suggestion is\ndeterministic (sorted candidates) and ignores mangled module symbols:\n\n```text\nsuggestion.lx:2:7: error[E3003]: Undefined variable 'nam'.\n  |\n2 | print(nom)\n  |       ^^^\nhelp: did you mean 'name'?\n```\n\n**Type** errors gain a provenance note when the value has a name or path\n(`Variable`, `Get`, `Index`, `Call`) and the caret points to the destination — the variable\nname, the call parenthesis, the `=`. The note shows the source text and the line of the\n**start of the expression**, normalized to one line and truncated at 80 characters\n([ADR-0099](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0099-notas-de-proveniencia.md)):\n\n```text\nprovenance.lx:6:5: error[E3001]: Expected Int, found String.\n  |\n6 | val total: Int = person.name\n  |     ^^^^^\nnote: the value comes from `person.name` (line 6)\n```\n\nThe note covers annotated `val`/`var`, destructuring, field, `return`, assignment, call\narguments, `len`/`chars`/`math.*`, list index and map key/value. Literals and compound\nexpressions do not get a note (it would only repeat the caret); without the source loaded,\nno note is emitted. Arity, undefined name, property and runtime errors do not use\nprovenance.\n\n`--error-format=short` remains one line (without labels/notes/help); `json` always includes\nall three. A label without the source loaded degrades to `note: file:line:col: message`.\n"
         },
@@ -552,8 +552,8 @@
           "anchor": "json-envelope-v1",
           "title": "JSON envelope (v1)",
           "level": 3,
-          "line_start": 165,
-          "line_end": 219,
+          "line_start": 167,
+          "line_end": 221,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#json-envelope-v1",
           "text": "### JSON envelope (v1)\n\n`schema_version` is an integer and changes only on a breaking change. `span.start`/`end` are\nhalf-open; `column` is 1-based in code points and `offset` is 0-based in UTF-8 bytes.\n`summary.suppressed` counts the diagnostics cut by `--max-errors`.\n\n```json\n{\n  \"schema_version\": 1,\n  \"command\": \"check\",\n  \"success\": false,\n  \"exit_code\": 65,\n  \"diagnostics\": [\n    {\n      \"code\": \"E2001\",\n      \"phase\": \"resolver\",\n      \"severity\": \"error\",\n      \"message\": \"Already a variable with this name in this scope.\",\n      \"span\": {\n        \"file\": \"example.lx\",\n        \"start\": { \"line\": 3, \"column\": 7, \"offset\": 24 },\n        \"end\": { \"line\": 3, \"column\": 8, \"offset\": 25 }\n      },\n      \"labels\": [],\n      \"notes\": [],\n      \"help\": null,\n      \"trace\": null,\n      \"fixes\": []\n    }\n  ],\n  \"summary\": { \"errors\": 1, \"warnings\": 0, \"suppressed\": 0 }\n}\n```\n\n`fixes` is an additive list (it may stay empty): each item has `applicability`\n(`safe`/`unsafe`), `message` and `edits[]` with `span` + `new_text`. W1001/W1002 and local\nE3004 emit `safe`; E3003, E2001, E2002, E2009, E3002, E3015, E3016, E3018 and E3004 in a\npublic API emit `unsafe`; `safe` is only applied automatically when there is proof of\nbehavior preservation\n([ADR-0093](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0093-cli-agent-friendly-e-reparo.md), analysis in\n[`tech/fixes.md`](https://github.com/loxia-lang/loxia/blob/main/docs/tech/fixes.md)).\n\n`trace` is `null` outside the runtime; in a runtime error it has the frames already trimmed:\n\n```json\n\"trace\": {\n  \"frames\": [\n    { \"name\": \"f\", \"file\": \"main.lx\", \"line\": 7, \"column\": 14 }\n  ],\n  \"omitted\": 0,\n  \"head\": 0\n}\n```\n"
         },
@@ -562,8 +562,8 @@
           "anchor": "codes",
           "title": "Codes",
           "level": 2,
-          "line_start": 219,
-          "line_end": 342,
+          "line_start": 221,
+          "line_end": 344,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#codes",
           "text": "## Codes\n\nCodes identify **families**, not messages; they are never reused and the catalog is\nclosed (emitting a code outside this list does not compile). The checker's long tail uses\n`E3000` until it is refined into more specific codes. The per-phase tables below are\n**generated** from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.\n\n| Range | Phase | Meaning |\n| --- | --- | --- |\n| `E0xxx` | lexical | scanner |\n| `E1xxx` | syntax | parser |\n| `E2xxx` | resolver | scopes and declarations |\n| `E3xxx` | checker | types and semantics |\n| `E4xxx` | backend | lowering/emission |\n| `R1xxx` | runtime | interpretation and binary |\n\n<!-- codes:start -->\n### Lexicon\n\n| Code | Family |\n| --- | --- |\n| `E0001` | unexpected character |\n| `E0002` | unterminated string |\n| `E0003` | invalid string escape |\n| `E0004` | invalid numeric literal (separator or literal overflow) |\n| `E0005` | unterminated block comment |\n| `E0006` | unterminated interpolation |\n| `E0007` | invalid Unicode escape |\n\n### Syntax\n\n| Code | Family |\n| --- | --- |\n| `E1001` | unexpected token (the `Expect …` family) |\n| `E1002` | invalid assignment target (including `?.` in assignments) |\n| `E1003` | limit of 255 parameters/arguments |\n| `E1004` | invalid declaration (`val` without initializer, non-constant default, …) |\n| `E1005` | invalid type annotation (`List`/`Map` arity, union in `is`, generic) |\n| `E1006` | invalid literal (map at the start of a statement) |\n| `E1007` | invalid `match` |\n\n### Resolver\n\n| Code | Family |\n| --- | --- |\n| `E2001` | duplicate variable in scope |\n| `E2002` | assignment to `val`/immutable parameter |\n| `E2003` | invalid `return` (top level or value in `init`) |\n| `E2004` | `this` outside a class |\n| `E2005` | `super` outside a class or without a superclass |\n| `E2006` | invalid inheritance (class inherits from itself) |\n| `E2007` | field conflict (duplicate or with a method) |\n| `E2008` | local read in its own initializer |\n| `E2009` | assignment to a `val` field |\n| `W1001` | local declared and never read (warning) |\n| `W1002` | import declared and never used (warning) |\n\n### Checker\n\n| Code | Family |\n| --- | --- |\n| `E3000` | generic semantic error (checker fallback) |\n| `E3001` | type mismatch |\n| `E3002` | call arity |\n| `E3003` | undefined name (variable, property or field) |\n| `E3004` | missing annotation |\n| `E3005` | unknown type, class or superclass |\n| `E3006` | value is not callable |\n| `E3007` | invalid operands |\n| `E3008` | invalid list (common type, empty element, index) |\n| `E3009` | invalid map (key, common type) |\n| `E3010` | invalid iteration |\n| `E3011` | generic type inference |\n| `E3012` | generic feature not supported yet |\n| `E3013` | invalid cast |\n| `E3014` | builtin/reserved name redefined |\n| `E3015` | override/method conflict |\n| `E3016` | field not initialized |\n| `E3017` | invalid declaration (type param, enum, `init`) |\n| `E3018` | missing return on some path |\n| `E3019` | `math.*` argument |\n| `E3020` | type arguments (generic/enum/class arity) |\n\n### Backend\n\n| Code | Family |\n| --- | --- |\n| `E4001` | not supported by the backend yet |\n| `E4002` | backend internal error/verification/link |\n| `E4003` | generic instantiation budget exceeded |\n\n### Runtime\n\n| Code | Family |\n| --- | --- |\n| `R1000` | generic runtime error |\n| `R1001` | value is not callable |\n| `R1002` | division or modulo by zero |\n| `R1003` | undefined variable |\n| `R1004` | undefined property, field or variant |\n| `R1005` | runtime arity |\n| `R1006` | invalid operands or index type |\n| `R1007` | index out of bounds |\n| `R1008` | key not found in map |\n| `R1009` | assignment to immutable binding |\n| `R1010` | uncaught exception |\n| `R1011` | invalid cast |\n| `R1012` | invalid iteration or mutation during iteration |\n| `R1013` | field not initialized |\n| `R1014` | invalid value (map key, superclass, …) |\n| `R1015` | call depth above the limit |\n\n### CLI\n\n| Code | Family |\n| --- | --- |\n| `C0001` | execution timeout exceeded |\n| `C0002` | lockfile or dependency state (missing, stale, not fetched) |\n| `C0003` | project scaffolding (existing target, conflict, git) |\n| `C0004` | manifest edit refused (unsupported shape, conflict) |\n\n<!-- codes:end -->\n"
         },
@@ -572,8 +572,8 @@
           "anchor": "lexicon",
           "title": "Lexicon",
           "level": 3,
-          "line_start": 236,
-          "line_end": 248,
+          "line_start": 238,
+          "line_end": 250,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#lexicon",
           "text": "### Lexicon\n\n| Code | Family |\n| --- | --- |\n| `E0001` | unexpected character |\n| `E0002` | unterminated string |\n| `E0003` | invalid string escape |\n| `E0004` | invalid numeric literal (separator or literal overflow) |\n| `E0005` | unterminated block comment |\n| `E0006` | unterminated interpolation |\n| `E0007` | invalid Unicode escape |\n"
         },
@@ -582,8 +582,8 @@
           "anchor": "syntax",
           "title": "Syntax",
           "level": 3,
-          "line_start": 248,
-          "line_end": 260,
+          "line_start": 250,
+          "line_end": 262,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#syntax",
           "text": "### Syntax\n\n| Code | Family |\n| --- | --- |\n| `E1001` | unexpected token (the `Expect …` family) |\n| `E1002` | invalid assignment target (including `?.` in assignments) |\n| `E1003` | limit of 255 parameters/arguments |\n| `E1004` | invalid declaration (`val` without initializer, non-constant default, …) |\n| `E1005` | invalid type annotation (`List`/`Map` arity, union in `is`, generic) |\n| `E1006` | invalid literal (map at the start of a statement) |\n| `E1007` | invalid `match` |\n"
         },
@@ -592,8 +592,8 @@
           "anchor": "resolver",
           "title": "Resolver",
           "level": 3,
-          "line_start": 260,
-          "line_end": 276,
+          "line_start": 262,
+          "line_end": 278,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#resolver",
           "text": "### Resolver\n\n| Code | Family |\n| --- | --- |\n| `E2001` | duplicate variable in scope |\n| `E2002` | assignment to `val`/immutable parameter |\n| `E2003` | invalid `return` (top level or value in `init`) |\n| `E2004` | `this` outside a class |\n| `E2005` | `super` outside a class or without a superclass |\n| `E2006` | invalid inheritance (class inherits from itself) |\n| `E2007` | field conflict (duplicate or with a method) |\n| `E2008` | local read in its own initializer |\n| `E2009` | assignment to a `val` field |\n| `W1001` | local declared and never read (warning) |\n| `W1002` | import declared and never used (warning) |\n"
         },
@@ -602,8 +602,8 @@
           "anchor": "checker",
           "title": "Checker",
           "level": 3,
-          "line_start": 276,
-          "line_end": 302,
+          "line_start": 278,
+          "line_end": 304,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#checker",
           "text": "### Checker\n\n| Code | Family |\n| --- | --- |\n| `E3000` | generic semantic error (checker fallback) |\n| `E3001` | type mismatch |\n| `E3002` | call arity |\n| `E3003` | undefined name (variable, property or field) |\n| `E3004` | missing annotation |\n| `E3005` | unknown type, class or superclass |\n| `E3006` | value is not callable |\n| `E3007` | invalid operands |\n| `E3008` | invalid list (common type, empty element, index) |\n| `E3009` | invalid map (key, common type) |\n| `E3010` | invalid iteration |\n| `E3011` | generic type inference |\n| `E3012` | generic feature not supported yet |\n| `E3013` | invalid cast |\n| `E3014` | builtin/reserved name redefined |\n| `E3015` | override/method conflict |\n| `E3016` | field not initialized |\n| `E3017` | invalid declaration (type param, enum, `init`) |\n| `E3018` | missing return on some path |\n| `E3019` | `math.*` argument |\n| `E3020` | type arguments (generic/enum/class arity) |\n"
         },
@@ -612,8 +612,8 @@
           "anchor": "backend",
           "title": "Backend",
           "level": 3,
-          "line_start": 302,
-          "line_end": 310,
+          "line_start": 304,
+          "line_end": 312,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#backend",
           "text": "### Backend\n\n| Code | Family |\n| --- | --- |\n| `E4001` | not supported by the backend yet |\n| `E4002` | backend internal error/verification/link |\n| `E4003` | generic instantiation budget exceeded |\n"
         },
@@ -622,8 +622,8 @@
           "anchor": "runtime",
           "title": "Runtime",
           "level": 3,
-          "line_start": 310,
-          "line_end": 331,
+          "line_start": 312,
+          "line_end": 333,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#runtime",
           "text": "### Runtime\n\n| Code | Family |\n| --- | --- |\n| `R1000` | generic runtime error |\n| `R1001` | value is not callable |\n| `R1002` | division or modulo by zero |\n| `R1003` | undefined variable |\n| `R1004` | undefined property, field or variant |\n| `R1005` | runtime arity |\n| `R1006` | invalid operands or index type |\n| `R1007` | index out of bounds |\n| `R1008` | key not found in map |\n| `R1009` | assignment to immutable binding |\n| `R1010` | uncaught exception |\n| `R1011` | invalid cast |\n| `R1012` | invalid iteration or mutation during iteration |\n| `R1013` | field not initialized |\n| `R1014` | invalid value (map key, superclass, …) |\n| `R1015` | call depth above the limit |\n"
         },
@@ -632,8 +632,8 @@
           "anchor": "cli",
           "title": "CLI",
           "level": 3,
-          "line_start": 331,
-          "line_end": 342,
+          "line_start": 333,
+          "line_end": 344,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#cli",
           "text": "### CLI\n\n| Code | Family |\n| --- | --- |\n| `C0001` | execution timeout exceeded |\n| `C0002` | lockfile or dependency state (missing, stale, not fetched) |\n| `C0003` | project scaffolding (existing target, conflict, git) |\n| `C0004` | manifest edit refused (unsupported shape, conflict) |\n\n<!-- codes:end -->\n"
         },
@@ -642,8 +642,8 @@
           "anchor": "lexical",
           "title": "Lexical",
           "level": 2,
-          "line_start": 342,
-          "line_end": 355,
+          "line_start": 344,
+          "line_end": 357,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#lexical",
           "text": "## Lexical\n\n| Message | When |\n| --- | --- |\n| `Unexpected character: X` | character outside the alphabet (e.g. `@`, `$`) |\n| `Unexpected character: ! (use 'not' for negation).` | lone `!`; negation is `not` ([ADR-0068](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0068-not-substitui-bang.md)) |\n| `Unterminated string.` | `\"`/`\"\"\"` without closing until EOF |\n| `Unterminated string; multiline strings use '\"\"\"'.` | line break inside `\"...\"` ([ADR-0070](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0070-strings-multilinha-e-raw.md)) |\n| `Unterminated interpolation.` | `${...}` without `}` until EOF |\n| `Unknown escape sequence '\\q'.` | unknown string escape |\n| `Invalid Unicode escape.` | invalid `\\u{...}` or outside `0..10FFFF` |\n| `Unterminated block comment.` | `/*` without `*/` until EOF |\n"
         },
@@ -652,8 +652,8 @@
           "anchor": "syntax-1",
           "title": "Syntax",
           "level": 2,
-          "line_start": 355,
-          "line_end": 408,
+          "line_start": 357,
+          "line_end": 410,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#syntax-1",
           "text": "## Syntax\n\nMessages in the `Expect … .` pattern; the most common ones:\n\n| Message | When |\n| --- | --- |\n| `Expect expression.` | `primary` found no start of expression |\n| `Expect expression; '//' is integer division, and comments start with '#'.` | `//` where an expression is expected (it is not a comment) |\n| `Type unions in 'is' need parentheses: 'is (A \\| B)'.` | `x is Int \\| String` without parentheses in the union |\n| `Unexpected ':'. Map literals can't start a statement; use 'val m = { ... }' or parentheses.` | `{ \"a\": 1 }` at the start of a statement |\n| `Expect end of interpolation.` | leftover token after the `${...}` expression |\n| `Expect 'else' after conditional expression.` | ternary without `else` |\n| `Expect property name after '?.'.` | `a?.` without a name |\n| `Can't assign through optional chaining.` | `a?.b = 1` |\n| `Expect ';' after expression.` | bare expression without `;` on the same line |\n| `Expect ';' after variable declaration.` | `var`/`val` without `;` on the same line |\n| `Expect ';' after return value.` | `return` followed by another statement on the same line (before `}` or a new line, the `;` is optional) |\n| `Expect ';' after loop condition.` | `for` without `;` in the condition |\n| `Expect ')' after for clauses.` | `for` without `)` |\n| `Expect ')' after if condition.` | `if`/`elif` without `)` |\n| `Expect ')' after condition.` | `while` without `)` |\n| `Expect ')' after arguments.` | call without `)` |\n| `Expect ')' after expression.` | grouping without `)` |\n| `Expect '(' after ...` | `for`, `if`, `while`, function/method declaration |\n| `Expect '{' before function body.` / `method body.` | function without `{` |\n| `Expect '{' before class body.` | class without `{` |\n| `Expect '}' after block.` / `after class body.` | block/class without `}` |\n| `Expect variable name.` | `var`/`val` without an identifier |\n| `Expect initializer for 'val' declaration.` | `val x;` without `=` |\n| `Expect function name.` / `method name.` | `fn`/method without a name |\n| `Expect parameter name.` | missing parameter |\n| `Expect class name.` | `class` without a name |\n| `Expect superclass name.` | `class B(` without a name |\n| `Expect ')' after superclass.` | `class B(A` without `)` |\n| `Expect ';' after field declaration.` | field without `;` |\n| `Field initializer must be a constant.` | `var x = 1 + 2;` in the class body |\n| `Default value must be a constant.` | `fn f(x = 1 + 2)` |\n| `Required parameter can't follow an optional parameter.` | `fn f(a = 1, b)` |\n| `Variadic parameter must be last.` | `fn f(...xs, y)` |\n| `Type aliases can't be generic yet.` | `type BoxAlias[T] = ...` |\n| `Spread argument must be last.` | `f(...xs, 2)` |\n| `Expect '.' after 'super'.` | `super` without a dot |\n| `Expect superclass method name.` | `super.` without a name |\n| `Expect property name after '.'.` | `obj.` without a name |\n| `Expect index expression.` | `xs[]` |\n| `Expect ']' after index.` | `xs[0` without `]` |\n| `Expect ']' after list elements.` | `[1, 2` without `]` |\n| `List expects 1 type argument(s), got 0.` | `val xs: List = [];` |\n| `Unknown generic type 'list'. Did you mean 'List'?` | `list[int]` (lowercase name) |\n| `Invalid assignment target.` | `1 = 2`, `f() = 3` |\n| `Can't have more than 255 arguments.` | giant call |\n| `Can't have more than 255 parameters.` | giant function |\n"
         },
@@ -662,8 +662,8 @@
           "anchor": "resolver-1",
           "title": "Resolver",
           "level": 2,
-          "line_start": 408,
-          "line_end": 425,
+          "line_start": 410,
+          "line_end": 427,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#resolver-1",
           "text": "## Resolver\n\n| Message | When |\n| --- | --- |\n| `Already a variable with this name in this scope.` | `val`/`var` repeated in the same scope; parameter + local; repeated parameter |\n| `'x' is immutable; declare it with 'var' to allow assignment.` | assignment to a local `val` or immutable parameter (compilation) |\n| `Can't read local variable in its own initializer.` | `{ var a = a; }` |\n| `Can't return from top-level code.` | `return` outside a function |\n| `Can't return a value from an initializer.` | `return value;` inside `init` |\n| `Can't use 'this' outside of a class.` | `this` outside a method |\n| `A class can't inherit from itself.` | `class A(A)` |\n| `Can't use 'super' outside of a class.` | `super.m` outside a class |\n| `Can't use 'super' in a class with no superclass.` | `super.m` in a class without a superclass |\n| `Field 'x' already declared.` | field repeated in the same body or in the subclass |\n| `Field 'x' conflicts with a method.` | field and method with the same name |\n| `Can't assign to immutable field 'x'.` | `this.x = ...` of a `val` field outside `init` |\n"
         },
@@ -672,8 +672,8 @@
           "anchor": "runtime-1",
           "title": "Runtime",
           "level": 2,
-          "line_start": 425,
-          "line_end": 476,
+          "line_start": 427,
+          "line_end": 478,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#runtime-1",
           "text": "## Runtime\n\n| Message | When |\n| --- | --- |\n| `Undefined variable 'x'.` | read/assignment of a nonexistent name |\n| `'x' is immutable; declare it with 'var' to allow assignment.` | assignment to a global `val` |\n| `Can't redeclare immutable variable 'x'.` | redeclaring a global `val` **or a builtin** (`len`, `str`, `repr`, `range`) |\n| `Operand must be a number.` | `-\"a\"` |\n| `Operand must be an integer.` | `~1.0` |\n| `Operands must be numbers.` | `1 < \"a\"` |\n| `Operands must be integers.` | `1.0 & 1`, `7 // 2.0`, `1 << 2.0` |\n| `Operands must be two numbers or two strings.` | `1 + \"a\"` |\n| `Division by zero not allowed` | `/ 0` or `// 0` |\n| `Modulo by zero not allowed` | `% 0` |\n| `Negative exponent not allowed for integer power.` | `2 ** -1`; use `2.0 ** -1` |\n| `Invalid exponentiation.` | `0.0 ** -1.0`, `(-1.0) ** 0.5` |\n| `Exponentiation overflow.` | `1e308 ** 2` |\n| `Integer overflow.` | `--debug` with `9223372036854775807 + 1`; exit 70 |\n| `Can't cast this Float to Int.` | `math.sqrt(-1.0) as Int` (NaN/Inf/out of range) |\n| `Can't cast value to Int.` | `\"1\" as Int` at runtime |\n| `math.floor() requires a finite Float in Int range.` | `math.floor(1e100)`; same for ceil/round/trunc |\n| `math.floor() expects numbers.` | `math.floor(\"1\")` at runtime |\n| `Shift count must be between 0 and 63.` | `1 << 64`, `1 >> -1` |\n| `Can only call functions and classes.` | `1()` |\n| `Expected N arguments but got M.` | fixed arity of a function/class |\n| `Expected at least N arguments but got M.` | short call with defaults |\n| `Expected N to M arguments but got K.` | long call with defaults |\n| `Only instances have properties.` | `1.x` |\n| `Only instances have fields.` | `1.x = 2` |\n| `Undefined property 'x'.` | nonexistent field/method; nonexistent `super.x` |\n| `Undefined field 'x'.` | assignment to an undeclared field |\n| `Field 'x' must be initialized.` | instance created without initializing the field |\n| `Can't assign to immutable field 'x'.` | second assignment to a `val` field |\n| `Superclass must be a class.` | `class B(A)` with `A = 1` |\n| `Only lists and maps can be indexed.` | `xs[i]`/`xs[i] = v` with a value that is neither a list nor a map |\n| `List index must be an integer.` | `xs[\"0\"]` |\n| `List index N out of bounds for length M.` | negative index or `>= len(xs)` |\n| `Can't pop from an empty list.` | `[].pop()` |\n| `Can't modify a list while iterating over it.` | `for x in xs { xs.push(x) }` |\n| `Map keys must be strings, integers or booleans.` | `m[1.5]`, `{1.5: 1}`, `m[nil]` |\n| `Key not found in map.` | `m[\"missing\"]`, `m.remove(\"missing\")` |\n| `Duplicate key in map literal.` | `{\"a\": 1, \"a\": 2}` |\n| `Can't modify a map while iterating over it.` | `for k in m { m[\"b\"] = 2 }` |\n| `len() expects a string, a list or a map.` | `len(3)` |\n| `Can only iterate over a range, a list, a map or a string.` | `for x in 42` |\n| `iter() must return an instance with next() -> T?.` | `iter()` returns a non-instance |\n| `iter() must take no arguments.` / `next() must take no arguments.` | protocol with parameters |\n\nThe immutability message appears in **two phases**: compilation for locals/parameters\n(65) and runtime for globals (70). The text is the same on purpose.\n"
         },
@@ -682,8 +682,8 @@
           "anchor": "type-checker---check",
           "title": "Type checker (--check)",
           "level": 2,
-          "line_start": 476,
-          "line_end": 531,
+          "line_start": 478,
+          "line_end": 533,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#type-checker---check",
           "text": "## Type checker (`--check`)\n\n| Message | When |\n| --- | --- |\n| `Expected X, found Y.` | assignment/argument/return/field with an incompatible type |\n| `Unknown type 'X'.` / `Unknown superclass 'X'.` | annotation with a nonexistent name |\n| `Parameter 'x' needs a type annotation.` | parameter without a type in `--check` |\n| `Function 'f' needs a return type annotation.` | function without a return in `--check` |\n| `Field 'x' needs a type annotation.` | field without a type and without an initializer |\n| `Can't infer type of 'x'; add an annotation.` | `var` without initializer and without a type |\n| `Can only call functions and classes.` | call of a non-callable value |\n| `Expected N arguments but got M.` (+ variants with default) | wrong arity |\n| `Undefined variable 'x'.` / `Undefined property 'x'.` / `Undefined field 'x'.` | nonexistent name |\n| `Can't assign to immutable field 'x'.` | `val` field outside `init` |\n| `Operands must be numbers.` / `Operand must be a number.` | arithmetic operator with a non-number |\n| `Operands must be integers.` / `Operand must be an integer.` | `//`, bits or `~` with non-`Int` |\n| `Operands must be two numbers or two strings.` | `+` mixing types |\n| `Range bounds must be integers.` | non-`Int` bound of `..` |\n| `Can only iterate over a range, a list, a map or a string.` | `for-in` on a non-iterable type |\n| `'C' is not iterable: define iter() returning an iterator with next() -> T?.` | class without `iter()` |\n| `iter() must return an iterator with next() -> T?.` | `iter()` returns a type without `next()` |\n| `next() must return T?` / `next() must return T? with a concrete T.` | invalid `next()` return |\n| `List elements must have a common type; found X and Y. ...` | mixed literal without an annotation |\n| `Can't infer the element type of an empty list; annotate it as List[T].` | `val xs = []` |\n| `List index must be an integer, found X.` | `xs[\"0\"]` in `--check` |\n| `Map keys must be String, Int or Bool.` | `Map[Float, Int]`, `{1.5: 1}` |\n| `Map keys must have a common type; found X and Y. ...` | `{1: 1, \"a\": 2}` without an annotation |\n| `Map values must have a common type; found X and Y. ...` | `{\"a\": 1, \"b\": \"x\"}` without an annotation |\n| `Can't infer the key and value types of an empty map; annotate it as Map[K, V].` | `val m = {}` |\n| `Map method requires a single key/value type.` | union of maps with different `K`/`V` |\n| `Expected a string, a list or a map, found X.` | `len(3)` in `--check` |\n| `Can't infer type argument(s) 'T'.` | generic call without a context/argument that determines `T` |\n| `Can't infer type argument 'T' from Any.` | `Any` argument for a `T` parameter |\n| `Recursive type inferred for 'T'.` | `T` would be `List[T]` etc. |\n| `Generic function 'id' can't be used as a value yet; ...` | `val f = id`, `id` callback without a call |\n| `Generic methods aren't supported yet.` | `get[T] (...)` in a class |\n| `Type parameter 'T' is already declared.` | `fn f[T, T]` |\n| `Type alias 'A' is recursive.` | `type A = B; type B = A` |\n| `Type alias 'A' isn't generic.` | `A[Int]` with `type A = Int` |\n| `Type aliases must be declared at the top level.` | `fn f() { type A = Int }` |\n| `Name 'A' is already declared.` | alias × class/interface/enum/alias |\n| `Variadic parameter can't have a default value.` | `fn f(...xs = 1)` |\n| `Variadic parameters aren't supported in 'init' yet.` | `init(...xs)` |\n| `Spread arguments are only supported for variadic functions.` | `f(...xs)` in a non-variadic function |\n| `Spread arguments only fill the variadic parameter; pass the fixed parameters explicitly.` | `f(...xs)` missing fixed parameters |\n| `Expected List[T], found List[U].` | spread with the wrong element |\n| `Type parameter can't be named 'Int'.` | reserved type name as a parameter |\n| `Polymorphic recursion is not supported yet; ...` | `grow[T]` calling `grow([x])` |\n| `Type arguments on a call aren't supported; ...` | `id[Int] (1)` (use inference) |\n| `Can't redefine builtin 'x'.` | `fn len`, `val str`, `class range`, `val math` in global scope |\n| `Can't cast X to Y.` | `\"1\" as Int` in `--check` |\n| `as doesn't support union types yet; narrow first.` | `1 as Int \\| String` |\n| `as doesn't support this type yet.` | `x as fn(Int) -> Int` |\n| `math.abs() expects numbers.` | `math.abs(\"1\")` |\n"
         },
@@ -692,8 +692,8 @@
           "anchor": "how-to-test",
           "title": "How to test",
           "level": 2,
-          "line_start": 531,
-          "line_end": 540,
+          "line_start": 533,
+          "line_end": 542,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#how-to-test",
           "text": "## How to test\n\n- Golden cases in [`tests/cases/errors/`](https://github.com/loxia-lang/loxia/blob/main/tests/cases/errors) use the markers\n  `# expect error:` (65) and `# expect runtime error:` (70). The runner ignores the snippet's\n  code lines when matching the message, so that an `# expect` on the same line as the code does\n  not turn into a false positive. See [skill `lox-testing`](https://github.com/loxia-lang/loxia/blob/main/.dsh/skills/lox-testing/SKILL.md).\n- `tests/test_diagnostics.py` covers the model and the three renderers without capturing stderr;\n  `tests/test_determinism.py` requires identical bytes across seeds.\n"
         },
@@ -702,8 +702,8 @@
           "anchor": "what-is-still-missing",
           "title": "What is still missing",
           "level": 2,
-          "line_start": 540,
-          "line_end": 554,
+          "line_start": 542,
+          "line_end": 556,
           "url": "https://loxia-lang.github.io/loxia/reference/errors/#what-is-still-missing",
           "text": "## What is still missing\n\nAlready implemented: `Diagnostic` model, stable codes, spans (line/column/offset),\n`human`/`short`/`json`, dedup/ordering/cap, deterministic relative path, the same runtime\nheader in the interpreter and in the binary\n([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md)), stack trace\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)), provenance `notes`\n([ADR-0099](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0099-notas-de-proveniencia.md)), fixes/warnings/JSONL\n([ADR-0093](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0093-cli-agent-friendly-e-reparo.md)) and LSP\n([ADR-0090](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0090-lsp-escopo-e-hospedagem.md)).\n\nNo open diagnostic work item: `E3004` closed with a fix conditioned on the exact\ntype ([`../tech/fixes.md`](https://github.com/loxia-lang/loxia/blob/main/docs/tech/fixes.md)); what remains of tooling lives in\n[`../roadmap.md`](https://github.com/loxia-lang/loxia/blob/main/docs/roadmap.md).\n"
         }
@@ -733,7 +733,7 @@
           "line_start": 24,
           "line_end": 209,
           "url": "https://loxia-lang.github.io/loxia/reference/guarantees/#the-four-guarantees",
-          "text": "## The four guarantees\n\n| # | Guarantee | Status |\n| --- | --- | --- |\n| **I1** | Same program, same result: the interpreter **is** the specification | 🟡 covers the declared corpus (table below) |\n| **I2** | Nothing happens implicitly | ✅ holds today |\n| **I3** | Observable determinism: same input ⇒ same bytes | ✅ holds today and is tested in CI |\n| **I4** | Clean `--check` ⇒ the backend compiles (or refuses only the declared gap) | ✅ holds today and is tested in CI |\n\n### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 59 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 6 |\n| `t7` | 3 |\n\n**172 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n\n### I2 — Nothing happens implicitly\n\nNo conversion, coercion, truncation, rounding, truthiness or fallback happens\nwithout being written in the code.\n\n```lox\nprint(1 + 2.0)      # 3.0  — Int -> Float promotion, arithmetic only\nprint(1 + \"1\")      # error — no coercion between number and string\nprint(4 / 2)        # 2.0  — `/` is always Float\nprint(-7 // 2)      # -3   — truncated\nprint(1 == 1.0)     # true — numeric equality with promotion\nprint(1 == \"1\")     # false — different types are never equal\nif (\"\") { print(\"empty is truthy\") }  # prints: only nil and false are falsy\nprint((nil ?? 0))   # 0    — `??` replaces nil only\nprint(3.9 as Int)   # 3    — explicit cast, truncated\n```\n\nIn **storage** there is no promotion: `val x: Float = 2`, `x = 2`, `f(2)` and `return 2` in a\n`-> Float` function are type errors; write `2.0` or `2 as Float`\n([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n\nIf you want the conversion, it is written: there is no \"the compiler sorts it out\".\n\n### I3 — Observable determinism\n\nSame input + same flags ⇒ **same bytes** of output and of diagnostics. This holds for\nstdout, stderr, exit code and `--dump-ast`. The following are forbidden in the output: memory\naddress, PID, timestamp, absolute path, `set`/`dict` order, locale and directory order.\n\nThe 1.0 prelude does not read the clock or other ambient inputs: `clock` was removed\n([ADR-0026](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0026-freeze-1.0.md)). The **ambient functions** declared in\n[ADR-0072](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,\n`time.sleep`, `std.fs`, `std.io` reads, `std.proc`/`process.*` and kernel\nfile opening — are explicitly **outside** this guarantee and the differential corpus; they\nhave their own test with fixed input. `std.fs.listDir` sorts entries by byte precisely so as\nnot to leak the directory order.\n\n**Streaming (not I3, it is an I/O contract):** `io.write`/`io.writeErr` flush on every\ncall in both engines, and `io.flush()` forces both channels. `print` follows the stdio\nbuffer (block on a pipe, line on a tty) — as in the oracle. Without the flush, a process that\nreads another's output (pipe, JSONL, MCP, LSP) hangs waiting for bytes that stay in the buffer\n([ADR-0094](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0094-kernel-io-flush-e-read-utf8.md)); the\n`test_io_write_flush_antes_de_bloquear_no_stdin` test polices this, because the byte comparison\nat the end of the process does not distinguish \"flushed\" from \"flushed on exit\".\n\nThe implemented `math.*` is deterministic: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,\n`round`, `trunc` and `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` and `pow` depend on libm and\nstay **outside** 1.0/I3 ([ADR-0029](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0029-conversoes-math.md)). `--debug` changes\noverflow behavior by design; the guarantee holds for the same flags.\n\n```bash\n./lox program.lx > a.txt 2>&1   # twice, on different machines/flags\n./lox program.lx > b.txt 2>&1\ncmp a.txt b.txt                   # identical\n```\n\nThe wording of an error message **may change between versions**; the exit code does not\n(`65` compilation, `70` runtime). Diagnostic **codes** are stable and never\nreused ([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md)); the output is sorted\nby `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path\nis always relative. The JSON carries `schema_version`.\n\n### I4 — Clean `--check` ⇒ it compiles\n\nEvery program that passes `--check` compiles. The **only** acceptable refusal in lowering is the\ngap already declared and classified:\n\n```\n... is not supported by the backend yet.\n```\n\nAny other error after a clean check is an I4 violation. The checker is the **source of\ntruth** for types; the backend consumes the published types and does not invent its own rule.\n\n```bash\nuv run main.py --check prog.lx      # exit 0 …\nuv run main.py --emit=exe prog.lx   # … so this compiles (or refuses only \"not supported\")\n```\n\nIt is the operational corollary of I1: without it, the same program could give `2` in the\ninterpreter and a type error in the compiler, with the user receiving two contradictory\ndiagnostics ([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n"
+          "text": "## The four guarantees\n\n| # | Guarantee | Status |\n| --- | --- | --- |\n| **I1** | Same program, same result: the interpreter **is** the specification | 🟡 covers the declared corpus (table below) |\n| **I2** | Nothing happens implicitly | ✅ holds today |\n| **I3** | Observable determinism: same input ⇒ same bytes | ✅ holds today and is tested in CI |\n| **I4** | Clean `--check` ⇒ the backend compiles (or refuses only the declared gap) | ✅ holds today and is tested in CI |\n\n### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 60 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 6 |\n| `t7` | 3 |\n\n**173 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n\n### I2 — Nothing happens implicitly\n\nNo conversion, coercion, truncation, rounding, truthiness or fallback happens\nwithout being written in the code.\n\n```lox\nprint(1 + 2.0)      # 3.0  — Int -> Float promotion, arithmetic only\nprint(1 + \"1\")      # error — no coercion between number and string\nprint(4 / 2)        # 2.0  — `/` is always Float\nprint(-7 // 2)      # -3   — truncated\nprint(1 == 1.0)     # true — numeric equality with promotion\nprint(1 == \"1\")     # false — different types are never equal\nif (\"\") { print(\"empty is truthy\") }  # prints: only nil and false are falsy\nprint((nil ?? 0))   # 0    — `??` replaces nil only\nprint(3.9 as Int)   # 3    — explicit cast, truncated\n```\n\nIn **storage** there is no promotion: `val x: Float = 2`, `x = 2`, `f(2)` and `return 2` in a\n`-> Float` function are type errors; write `2.0` or `2 as Float`\n([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n\nIf you want the conversion, it is written: there is no \"the compiler sorts it out\".\n\n### I3 — Observable determinism\n\nSame input + same flags ⇒ **same bytes** of output and of diagnostics. This holds for\nstdout, stderr, exit code and `--dump-ast`. The following are forbidden in the output: memory\naddress, PID, timestamp, absolute path, `set`/`dict` order, locale and directory order.\n\nThe 1.0 prelude does not read the clock or other ambient inputs: `clock` was removed\n([ADR-0026](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0026-freeze-1.0.md)). The **ambient functions** declared in\n[ADR-0072](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0072-stdlib-batteries.md) §5 — `args`, `os.getenv`, `time.now`,\n`time.sleep`, `std.fs`, `std.io` reads, `std.proc`/`process.*` and kernel\nfile opening — are explicitly **outside** this guarantee and the differential corpus; they\nhave their own test with fixed input. `std.fs.listDir` sorts entries by byte precisely so as\nnot to leak the directory order.\n\n**Streaming (not I3, it is an I/O contract):** `io.write`/`io.writeErr` flush on every\ncall in both engines, and `io.flush()` forces both channels. `print` follows the stdio\nbuffer (block on a pipe, line on a tty) — as in the oracle. Without the flush, a process that\nreads another's output (pipe, JSONL, MCP, LSP) hangs waiting for bytes that stay in the buffer\n([ADR-0094](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0094-kernel-io-flush-e-read-utf8.md)); the\n`test_io_write_flush_antes_de_bloquear_no_stdin` test polices this, because the byte comparison\nat the end of the process does not distinguish \"flushed\" from \"flushed on exit\".\n\nThe implemented `math.*` is deterministic: `abs`, `min`, `max`, `clamp`, `floor`, `ceil`,\n`round`, `trunc` and `sqrt`. `log`, `exp`, `sin`, `cos`, `tan` and `pow` depend on libm and\nstay **outside** 1.0/I3 ([ADR-0029](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0029-conversoes-math.md)). `--debug` changes\noverflow behavior by design; the guarantee holds for the same flags.\n\n```bash\n./lox program.lx > a.txt 2>&1   # twice, on different machines/flags\n./lox program.lx > b.txt 2>&1\ncmp a.txt b.txt                   # identical\n```\n\nThe wording of an error message **may change between versions**; the exit code does not\n(`65` compilation, `70` runtime). Diagnostic **codes** are stable and never\nreused ([ADR-0075](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0075-diagnosticos-estruturados.md)); the output is sorted\nby `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path\nis always relative. The JSON carries `schema_version`.\n\n### I4 — Clean `--check` ⇒ it compiles\n\nEvery program that passes `--check` compiles. The **only** acceptable refusal in lowering is the\ngap already declared and classified:\n\n```\n... is not supported by the backend yet.\n```\n\nAny other error after a clean check is an I4 violation. The checker is the **source of\ntruth** for types; the backend consumes the published types and does not invent its own rule.\n\n```bash\nuv run main.py --check prog.lx      # exit 0 …\nuv run main.py --emit=exe prog.lx   # … so this compiles (or refuses only \"not supported\")\n```\n\nIt is the operational corollary of I1: without it, the same program could give `2` in the\ninterpreter and a type error in the compiler, with the user receiving two contradictory\ndiagnostics ([ADR-0059](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0059-i4-check-limpo-compila.md)).\n"
         },
         {
           "id": "spec/guarantees#i1--executable-equivalence",
@@ -743,7 +743,7 @@
           "line_start": 33,
           "line_end": 126,
           "url": "https://loxia-lang.github.io/loxia/reference/guarantees/#i1--executable-equivalence",
-          "text": "### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 59 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 6 |\n| `t7` | 3 |\n\n**172 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n"
+          "text": "### I1 — Executable equivalence\n\nThe tree-walk is the **normative definition** of the language. Every program in the declared\ncorpus must produce the **same stdout (bytes)**, the **same stderr** and the **same exit code**\nin both engines; if they diverge, the bug is in the backend.\n\nThe corpus is the entire conformance corpus, **annotated and classified by level** in\n`tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),\n`PENDING` (the `--check` passes, the backend still refuses with **65** and the message\n`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the\n`--check`). A case only enters `LEVELS` when the three channels match; promotion is\nmonotonic and the differential test never compares against a hand-written expectation. The\n`PENDING` list is public: it is the honest record of what is missing, not a secret.\n\n<!-- levels:start -->\n| Level | Cases that compile and agree (I1) |\n| --- | --- |\n| `l0` | 4 |\n| `l1` | 3 |\n| `l2` | 14 |\n| `l2.5` | 4 |\n| `l3` | 14 |\n| `l4` | 12 |\n| `l5` | 29 |\n| `l6` | 60 |\n| `k0` | 2 |\n| `t1` | 6 |\n| `t2` | 16 |\n| `t3` | 6 |\n| `t7` | 3 |\n\n**173 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.\n<!-- levels:end -->\n\nLevels not yet implemented reject with an **explicit compilation error**\n(exit 65), never with silent lowering.\n\nThe comparison is per channel: when stdout and stderr go to the **same** descriptor\n(`2>&1`), the interleaving order of the two outputs is not part of the guarantee.\n\nThere is no promise that interpreted and compiled code have the same **speed**\nor the same memory consumption. The same observable result includes **stderr byte for byte**,\nso the runtime stack trace is also identical in both engines\n([ADR-0089](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0089-stack-trace-de-runtime.md)).\n\n#### Stack budget ([ADR-0077](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0077-limite-de-pilha.md))\n\nThe binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and\nconstructor) against the same limit: **10,000 calls**. Call 10,001 is `R1015`\n(`Stack overflow.`), exit 70, catchable by `try`/`except RuntimeError`, with the position of the\ncallee's declaration and the stack trace of the active frames. Native calls and built-in\nexception constructors do not count. Constructor + `init` count as two activations.\n\n- The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the\n  declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.\n- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a\n  contract).\n- Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5\n  outermost + elision), with no address/time in the output.\n\n#### Memory budget ([ADR-0074](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0074-gc-boehm-e-contrato-de-memoria.md), [ADR-0087](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0087-heap-cap-e-self-hosting.md))\n\nThe binary uses a conservative **Boehm GC**, with a **default hard cap of 512 MiB** of collected\nheap (ADR-0074 set 128 MiB; ADR-0087 raised the default). Exceeding the cap is `exit 70`\n+ `Out of memory.` on stderr, without a traceback, and the ceiling does **not** depend on the\nenvironment.\n\n- The build can choose another ceiling with `--max-heap=SIZE` (only `--emit=exe`; default `512M`,\n  range `32M..8G`). The value is embedded in the binary; it is neither an env var nor a runtime flag.\n- **I1 covers programs whose peak live memory fits in 64 MiB**. Above that, the\n  program is outside the corpus: it may run (up to the cap), but there is no guarantee of result\n  or of failure point. Self-hosting is declared outside I1 until its own corpus exists.\n- The interpreter has **no** ceiling (Python GC) and can run programs that the binary\n  refuses — the asymmetry is declared.\n- Because Boehm is conservative, the **exact point** at which a program above the cap overflows\n  is not deterministic: false roots depend on the stack and on ASLR. What is stable is the\n  channel, the message and the exit code. Programs that print before overflowing do not have the\n  stdout prefix covered by I1.\n\n#### Monomorphization budget ([ADR-0063](https://github.com/loxia-lang/loxia/blob/main/docs/adr/0063-orcamento-monomorfizacao.md))\n\nThe native backend monomorphizes generics; each specialization costs code. Per compilation:\n\n- at most **256** specialized functions and **256** specialized class layouts;\n- generic type nesting up to **8** constructors;\n- a mangled generic name up to **1024 bytes**.\n\nExceeding any limit is a declared backend gap, not a type error: exit 65, code `E4003`, and\nno partial object/binary. The checker still accepts the program and the tree-walk is\nunaffected. The initial limits were validated against the corpus and a synthetic nesting\ncase (max 15 functions/4 classes/depth 1 in the corpus; the ceiling costs ~1.2 MiB and\n~0.33 s locally); see [`bench/README.md`](https://github.com/loxia-lang/loxia/blob/main/bench/README.md).\n"
         },
         {
           "id": "spec/guarantees#stack-budget-adr-0077",
@@ -6178,9 +6178,9 @@
           "title": "Classes",
           "level": 2,
           "line_start": 14,
-          "line_end": 200,
+          "line_end": 210,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#classes",
-          "text": "## Classes\n\n### `class TestFailure(Exception)`\n\nTest failure (distinct from `RuntimeError`, which is an infrastructure bug).\n\n#### `fn init(message: String)`\n\nCreates the failure with the message shown in the report.\n\n### `class Skip(Exception)`\n\nTest skipped on purpose; the runner counts it as `skip`, not as a failure.\n\n#### `fn init(reason: String)`\n\nCreates the skip with the given reason.\n\n### `class Suite`\n\nTest suite: `describe`, `it`, `report` and `done`.\n\n#### `var total: Int`\n\nNumber of tests executed (filtered-out tests do not count).\n\n#### `var passed: Int`\n\nTests that passed.\n\n#### `var failed: Int`\n\nTests that failed.\n\n#### `var skipped: Int`\n\nTests skipped with `skip`.\n\n#### `var prefixes: List[String]`\n\nGroup names opened by `describe`, innermost last.\n\n#### `var filter: String`\n\nSubstring filter read from `--filter=` in the script arguments.\n\n#### `var only: String`\n\nExact test name read from `--only=` in the script arguments.\n\n#### `var beforeHooks: List[fn() -> Nil]`\n\nHooks run before each `it`, in registration order.\n\n#### `var afterHooks: List[fn() -> Nil]`\n\nHooks run after each `it`, in reverse registration order.\n\n#### `var listMode: Bool`\n\n`--list`: print `# test <name>` only, without executing (per-test isolation).\n\n#### `fn init()`\n\nCreates an empty suite and reads `--filter=`/`--only=` from `args()`.\n\nAlso detects `--list` and enables list mode.\n\n#### `fn describe(name: String, body: fn() -> Nil) -> Nil`\n\nOpens a group; its name prefixes every `it` and its hooks apply only here.\n\nHooks registered inside the body are removed when the body returns.\n\n#### `fn beforeEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run before each `it` in this `describe`.\n\n#### `fn afterEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run after each `it` in this `describe`.\n\n#### `fn it(name: String, body: fn() -> Nil) -> Nil`\n\nRuns a test immediately and prints `ok`/`not ok` in TAP.\n\nFiltered tests do not run or count. A skipped test still counts in `total` but not\nas passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test\nfailure.\n\n#### `fn skip(reason: String) -> Nil`\n\nSkips the current test with `reason`.\n\nRaises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.\n\n#### `fn report() -> Int`\n\nPrints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).\n\n#### `fn done() -> Nil`\n\nCalls `report()` and exits the process with its code.\n\nIn `--list` mode it exits 0 immediately.\n\n### `class Expectation[T]`\n\nEquality assertion for a concrete value (scalar, string, list, map or tuple).\n\n#### `val value: T`\n\nObserved value.\n\n#### `fn init(value: T)`\n\nWraps the observed value.\n\n#### `fn toBe(other: T) -> Nil`\n\nFails when `value != other`.\n\n#### `fn notToBe(other: T) -> Nil`\n\nFails when `value == other`.\n\n### `class ListExpectation[T]`\n\nAssertion over the elements of a list.\n\n#### `val items: List[T]`\n\nObserved list.\n\n#### `fn init(items: List[T])`\n\nWraps the observed list.\n\n#### `fn toContain(item: T) -> Nil`\n\nFails when `item` is not in the list (structural equality).\n\n### `class StringExpectation`\n\nAssertion over the contents of a string.\n\n#### `val text: String`\n\nObserved text.\n\n#### `fn init(text: String)`\n\nWraps the observed text.\n\n#### `fn contains(needle: String) -> Nil`\n\nFails when `text` does not contain `needle`.\n\n### `class Recorder`\n\nRecords calls of a spy/fake: `record`, `count`, `order` and `clear`.\n\n#### `val calls: List[String]`\n\nCalls in registration order.\n\n#### `fn init()`\n\nCreates an empty recorder.\n\n#### `fn record(name: String) -> Nil`\n\nRecords one call by name.\n\n#### `fn count(name: String) -> Int`\n\nReturns how many times `name` was recorded.\n\n#### `fn order() -> List[String]`\n\nReturns a copy of the calls in registration order.\n\n#### `fn clear() -> Nil`\n\nEmpties the record.\n"
+          "text": "## Classes\n\n### `class TestFailure(Exception)`\n\nTest failure (distinct from `RuntimeError`, which is an infrastructure bug).\n\n#### `fn init(message: String)`\n\nCreates the failure with the message shown in the report.\n\n### `class Skip(Exception)`\n\nTest skipped on purpose; the runner counts it as `skip`, not as a failure.\n\n#### `fn init(reason: String)`\n\nCreates the skip with the given reason.\n\n### `class Suite`\n\nTest suite: `describe`, `it`, `report` and `done`.\n\n#### `var total: Int`\n\nNumber of tests executed (filtered-out tests do not count).\n\n#### `var passed: Int`\n\nTests that passed.\n\n#### `var failed: Int`\n\nTests that failed.\n\n#### `var skipped: Int`\n\nTests skipped with `skip`.\n\n#### `var prefixes: List[String]`\n\nGroup names opened by `describe`, innermost last.\n\n#### `var filter: String`\n\nSubstring filter read from `--filter=` in the script arguments.\n\n#### `var only: String`\n\nExact test name read from `--only=` in the script arguments.\n\n#### `var beforeHooks: List[fn() -> Nil]`\n\nHooks run before each `it`, in registration order.\n\n#### `var afterHooks: List[fn() -> Nil]`\n\nHooks run after each `it`, in reverse registration order.\n\n#### `var listMode: Bool`\n\n`--list`: print `# test <name>` only, without executing (per-test isolation).\n\n#### `var protocol: Bool`\n\n`--protocol=json`: emit framed events instead of TAP (machine protocol).\n\n#### `var token: String`\n\nNonce prefix for control lines; prevents user `print` from spoofing events.\n\n#### `fn init()`\n\nCreates an empty suite and reads `--filter=`/`--only=` from `args()`.\n\nAlso detects `--list`, `--protocol=json` and `--token=`.\n\n#### `fn describe(name: String, body: fn() -> Nil) -> Nil`\n\nOpens a group; its name prefixes every `it` and its hooks apply only here.\n\nHooks registered inside the body are removed when the body returns.\n\n#### `fn beforeEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run before each `it` in this `describe`.\n\n#### `fn afterEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run after each `it` in this `describe`.\n\n#### `fn it(name: String, body: fn() -> Nil) -> Nil`\n\nRuns a test immediately and prints `ok`/`not ok` in TAP.\n\nFiltered tests do not run or count. A skipped test still counts in `total` but not\nas passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test\nfailure.\n\n#### `fn skip(reason: String) -> Nil`\n\nSkips the current test with `reason`.\n\nRaises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.\n\n#### `fn report() -> Int`\n\nPrints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).\n\nIn protocol mode it emits the `end` event and stays silent instead.\n\n#### `fn done() -> Nil`\n\nCalls `report()` and exits the process with its code.\n\nIn `--list` mode it exits 0 immediately.\n\n### `class Expectation[T]`\n\nEquality assertion for a concrete value (scalar, string, list, map or tuple).\n\n#### `val value: T`\n\nObserved value.\n\n#### `fn init(value: T)`\n\nWraps the observed value.\n\n#### `fn toBe(other: T) -> Nil`\n\nFails when `value != other`.\n\n#### `fn notToBe(other: T) -> Nil`\n\nFails when `value == other`.\n\n### `class ListExpectation[T]`\n\nAssertion over the elements of a list.\n\n#### `val items: List[T]`\n\nObserved list.\n\n#### `fn init(items: List[T])`\n\nWraps the observed list.\n\n#### `fn toContain(item: T) -> Nil`\n\nFails when `item` is not in the list (structural equality).\n\n### `class StringExpectation`\n\nAssertion over the contents of a string.\n\n#### `val text: String`\n\nObserved text.\n\n#### `fn init(text: String)`\n\nWraps the observed text.\n\n#### `fn contains(needle: String) -> Nil`\n\nFails when `text` does not contain `needle`.\n\n### `class Recorder`\n\nRecords calls of a spy/fake: `record`, `count`, `order` and `clear`.\n\n#### `val calls: List[String]`\n\nCalls in registration order.\n\n#### `fn init()`\n\nCreates an empty recorder.\n\n#### `fn record(name: String) -> Nil`\n\nRecords one call by name.\n\n#### `fn count(name: String) -> Int`\n\nReturns how many times `name` was recorded.\n\n#### `fn order() -> List[String]`\n\nReturns a copy of the calls in registration order.\n\n#### `fn clear() -> Nil`\n\nEmpties the record.\n"
         },
         {
           "id": "stdlib/test#class-testfailureexception",
@@ -6228,9 +6228,9 @@
           "title": "class Suite",
           "level": 3,
           "line_start": 32,
-          "line_end": 120,
+          "line_end": 130,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#class-suite",
-          "text": "### `class Suite`\n\nTest suite: `describe`, `it`, `report` and `done`.\n\n#### `var total: Int`\n\nNumber of tests executed (filtered-out tests do not count).\n\n#### `var passed: Int`\n\nTests that passed.\n\n#### `var failed: Int`\n\nTests that failed.\n\n#### `var skipped: Int`\n\nTests skipped with `skip`.\n\n#### `var prefixes: List[String]`\n\nGroup names opened by `describe`, innermost last.\n\n#### `var filter: String`\n\nSubstring filter read from `--filter=` in the script arguments.\n\n#### `var only: String`\n\nExact test name read from `--only=` in the script arguments.\n\n#### `var beforeHooks: List[fn() -> Nil]`\n\nHooks run before each `it`, in registration order.\n\n#### `var afterHooks: List[fn() -> Nil]`\n\nHooks run after each `it`, in reverse registration order.\n\n#### `var listMode: Bool`\n\n`--list`: print `# test <name>` only, without executing (per-test isolation).\n\n#### `fn init()`\n\nCreates an empty suite and reads `--filter=`/`--only=` from `args()`.\n\nAlso detects `--list` and enables list mode.\n\n#### `fn describe(name: String, body: fn() -> Nil) -> Nil`\n\nOpens a group; its name prefixes every `it` and its hooks apply only here.\n\nHooks registered inside the body are removed when the body returns.\n\n#### `fn beforeEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run before each `it` in this `describe`.\n\n#### `fn afterEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run after each `it` in this `describe`.\n\n#### `fn it(name: String, body: fn() -> Nil) -> Nil`\n\nRuns a test immediately and prints `ok`/`not ok` in TAP.\n\nFiltered tests do not run or count. A skipped test still counts in `total` but not\nas passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test\nfailure.\n\n#### `fn skip(reason: String) -> Nil`\n\nSkips the current test with `reason`.\n\nRaises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.\n\n#### `fn report() -> Int`\n\nPrints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).\n\n#### `fn done() -> Nil`\n\nCalls `report()` and exits the process with its code.\n\nIn `--list` mode it exits 0 immediately.\n"
+          "text": "### `class Suite`\n\nTest suite: `describe`, `it`, `report` and `done`.\n\n#### `var total: Int`\n\nNumber of tests executed (filtered-out tests do not count).\n\n#### `var passed: Int`\n\nTests that passed.\n\n#### `var failed: Int`\n\nTests that failed.\n\n#### `var skipped: Int`\n\nTests skipped with `skip`.\n\n#### `var prefixes: List[String]`\n\nGroup names opened by `describe`, innermost last.\n\n#### `var filter: String`\n\nSubstring filter read from `--filter=` in the script arguments.\n\n#### `var only: String`\n\nExact test name read from `--only=` in the script arguments.\n\n#### `var beforeHooks: List[fn() -> Nil]`\n\nHooks run before each `it`, in registration order.\n\n#### `var afterHooks: List[fn() -> Nil]`\n\nHooks run after each `it`, in reverse registration order.\n\n#### `var listMode: Bool`\n\n`--list`: print `# test <name>` only, without executing (per-test isolation).\n\n#### `var protocol: Bool`\n\n`--protocol=json`: emit framed events instead of TAP (machine protocol).\n\n#### `var token: String`\n\nNonce prefix for control lines; prevents user `print` from spoofing events.\n\n#### `fn init()`\n\nCreates an empty suite and reads `--filter=`/`--only=` from `args()`.\n\nAlso detects `--list`, `--protocol=json` and `--token=`.\n\n#### `fn describe(name: String, body: fn() -> Nil) -> Nil`\n\nOpens a group; its name prefixes every `it` and its hooks apply only here.\n\nHooks registered inside the body are removed when the body returns.\n\n#### `fn beforeEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run before each `it` in this `describe`.\n\n#### `fn afterEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run after each `it` in this `describe`.\n\n#### `fn it(name: String, body: fn() -> Nil) -> Nil`\n\nRuns a test immediately and prints `ok`/`not ok` in TAP.\n\nFiltered tests do not run or count. A skipped test still counts in `total` but not\nas passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test\nfailure.\n\n#### `fn skip(reason: String) -> Nil`\n\nSkips the current test with `reason`.\n\nRaises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.\n\n#### `fn report() -> Int`\n\nPrints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).\n\nIn protocol mode it emits the `end` event and stays silent instead.\n\n#### `fn done() -> Nil`\n\nCalls `report()` and exits the process with its code.\n\nIn `--list` mode it exits 0 immediately.\n"
         },
         {
           "id": "stdlib/test#var-total-int",
@@ -6333,22 +6333,42 @@
           "text": "#### `var listMode: Bool`\n\n`--list`: print `# test <name>` only, without executing (per-test isolation).\n"
         },
         {
+          "id": "stdlib/test#var-protocol-bool",
+          "anchor": "var-protocol-bool",
+          "title": "var protocol: Bool",
+          "level": 4,
+          "line_start": 76,
+          "line_end": 80,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/test/#var-protocol-bool",
+          "text": "#### `var protocol: Bool`\n\n`--protocol=json`: emit framed events instead of TAP (machine protocol).\n"
+        },
+        {
+          "id": "stdlib/test#var-token-string",
+          "anchor": "var-token-string",
+          "title": "var token: String",
+          "level": 4,
+          "line_start": 80,
+          "line_end": 84,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/test/#var-token-string",
+          "text": "#### `var token: String`\n\nNonce prefix for control lines; prevents user `print` from spoofing events.\n"
+        },
+        {
           "id": "stdlib/test#fn-init",
           "anchor": "fn-init",
           "title": "fn init()",
           "level": 4,
-          "line_start": 76,
-          "line_end": 82,
+          "line_start": 84,
+          "line_end": 90,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-init",
-          "text": "#### `fn init()`\n\nCreates an empty suite and reads `--filter=`/`--only=` from `args()`.\n\nAlso detects `--list` and enables list mode.\n"
+          "text": "#### `fn init()`\n\nCreates an empty suite and reads `--filter=`/`--only=` from `args()`.\n\nAlso detects `--list`, `--protocol=json` and `--token=`.\n"
         },
         {
           "id": "stdlib/test#fn-describename-string-body-fn---nil---nil",
           "anchor": "fn-describename-string-body-fn---nil---nil",
           "title": "fn describe(name: String, body: fn() -> Nil) -> Nil",
           "level": 4,
-          "line_start": 82,
-          "line_end": 88,
+          "line_start": 90,
+          "line_end": 96,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-describename-string-body-fn---nil---nil",
           "text": "#### `fn describe(name: String, body: fn() -> Nil) -> Nil`\n\nOpens a group; its name prefixes every `it` and its hooks apply only here.\n\nHooks registered inside the body are removed when the body returns.\n"
         },
@@ -6357,8 +6377,8 @@
           "anchor": "fn-beforeeachbody-fn---nil---nil",
           "title": "fn beforeEach(body: fn() -> Nil) -> Nil",
           "level": 4,
-          "line_start": 88,
-          "line_end": 92,
+          "line_start": 96,
+          "line_end": 100,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-beforeeachbody-fn---nil---nil",
           "text": "#### `fn beforeEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run before each `it` in this `describe`.\n"
         },
@@ -6367,8 +6387,8 @@
           "anchor": "fn-aftereachbody-fn---nil---nil",
           "title": "fn afterEach(body: fn() -> Nil) -> Nil",
           "level": 4,
-          "line_start": 92,
-          "line_end": 96,
+          "line_start": 100,
+          "line_end": 104,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-aftereachbody-fn---nil---nil",
           "text": "#### `fn afterEach(body: fn() -> Nil) -> Nil`\n\nRegisters a hook run after each `it` in this `describe`.\n"
         },
@@ -6377,8 +6397,8 @@
           "anchor": "fn-itname-string-body-fn---nil---nil",
           "title": "fn it(name: String, body: fn() -> Nil) -> Nil",
           "level": 4,
-          "line_start": 96,
-          "line_end": 104,
+          "line_start": 104,
+          "line_end": 112,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-itname-string-body-fn---nil---nil",
           "text": "#### `fn it(name: String, body: fn() -> Nil) -> Nil`\n\nRuns a test immediately and prints `ok`/`not ok` in TAP.\n\nFiltered tests do not run or count. A skipped test still counts in `total` but not\nas passed or failed. A failure in `beforeEach`/`afterEach` is reported as a test\nfailure.\n"
         },
@@ -6387,8 +6407,8 @@
           "anchor": "fn-skipreason-string---nil",
           "title": "fn skip(reason: String) -> Nil",
           "level": 4,
-          "line_start": 104,
-          "line_end": 110,
+          "line_start": 112,
+          "line_end": 118,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-skipreason-string---nil",
           "text": "#### `fn skip(reason: String) -> Nil`\n\nSkips the current test with `reason`.\n\nRaises `Skip`, which `it` turns into a `# SKIP` line rather than a failure.\n"
         },
@@ -6397,18 +6417,18 @@
           "anchor": "fn-report---int",
           "title": "fn report() -> Int",
           "level": 4,
-          "line_start": 110,
-          "line_end": 114,
+          "line_start": 118,
+          "line_end": 124,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-report---int",
-          "text": "#### `fn report() -> Int`\n\nPrints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).\n"
+          "text": "#### `fn report() -> Int`\n\nPrints the TAP plan and summary, returning 0 (all passed) or 1 (any failure).\n\nIn protocol mode it emits the `end` event and stays silent instead.\n"
         },
         {
           "id": "stdlib/test#fn-done---nil",
           "anchor": "fn-done---nil",
           "title": "fn done() -> Nil",
           "level": 4,
-          "line_start": 114,
-          "line_end": 120,
+          "line_start": 124,
+          "line_end": 130,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-done---nil",
           "text": "#### `fn done() -> Nil`\n\nCalls `report()` and exits the process with its code.\n\nIn `--list` mode it exits 0 immediately.\n"
         },
@@ -6417,8 +6437,8 @@
           "anchor": "class-expectationt",
           "title": "class Expectation[T]",
           "level": 3,
-          "line_start": 120,
-          "line_end": 140,
+          "line_start": 130,
+          "line_end": 150,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#class-expectationt",
           "text": "### `class Expectation[T]`\n\nEquality assertion for a concrete value (scalar, string, list, map or tuple).\n\n#### `val value: T`\n\nObserved value.\n\n#### `fn init(value: T)`\n\nWraps the observed value.\n\n#### `fn toBe(other: T) -> Nil`\n\nFails when `value != other`.\n\n#### `fn notToBe(other: T) -> Nil`\n\nFails when `value == other`.\n"
         },
@@ -6427,8 +6447,8 @@
           "anchor": "val-value-t",
           "title": "val value: T",
           "level": 4,
-          "line_start": 124,
-          "line_end": 128,
+          "line_start": 134,
+          "line_end": 138,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#val-value-t",
           "text": "#### `val value: T`\n\nObserved value.\n"
         },
@@ -6437,8 +6457,8 @@
           "anchor": "fn-initvalue-t",
           "title": "fn init(value: T)",
           "level": 4,
-          "line_start": 128,
-          "line_end": 132,
+          "line_start": 138,
+          "line_end": 142,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-initvalue-t",
           "text": "#### `fn init(value: T)`\n\nWraps the observed value.\n"
         },
@@ -6447,8 +6467,8 @@
           "anchor": "fn-tobeother-t---nil",
           "title": "fn toBe(other: T) -> Nil",
           "level": 4,
-          "line_start": 132,
-          "line_end": 136,
+          "line_start": 142,
+          "line_end": 146,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-tobeother-t---nil",
           "text": "#### `fn toBe(other: T) -> Nil`\n\nFails when `value != other`.\n"
         },
@@ -6457,8 +6477,8 @@
           "anchor": "fn-nottobeother-t---nil",
           "title": "fn notToBe(other: T) -> Nil",
           "level": 4,
-          "line_start": 136,
-          "line_end": 140,
+          "line_start": 146,
+          "line_end": 150,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-nottobeother-t---nil",
           "text": "#### `fn notToBe(other: T) -> Nil`\n\nFails when `value == other`.\n"
         },
@@ -6467,8 +6487,8 @@
           "anchor": "class-listexpectationt",
           "title": "class ListExpectation[T]",
           "level": 3,
-          "line_start": 140,
-          "line_end": 156,
+          "line_start": 150,
+          "line_end": 166,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#class-listexpectationt",
           "text": "### `class ListExpectation[T]`\n\nAssertion over the elements of a list.\n\n#### `val items: List[T]`\n\nObserved list.\n\n#### `fn init(items: List[T])`\n\nWraps the observed list.\n\n#### `fn toContain(item: T) -> Nil`\n\nFails when `item` is not in the list (structural equality).\n"
         },
@@ -6477,8 +6497,8 @@
           "anchor": "val-items-listt",
           "title": "val items: List[T]",
           "level": 4,
-          "line_start": 144,
-          "line_end": 148,
+          "line_start": 154,
+          "line_end": 158,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#val-items-listt",
           "text": "#### `val items: List[T]`\n\nObserved list.\n"
         },
@@ -6487,8 +6507,8 @@
           "anchor": "fn-inititems-listt",
           "title": "fn init(items: List[T])",
           "level": 4,
-          "line_start": 148,
-          "line_end": 152,
+          "line_start": 158,
+          "line_end": 162,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-inititems-listt",
           "text": "#### `fn init(items: List[T])`\n\nWraps the observed list.\n"
         },
@@ -6497,8 +6517,8 @@
           "anchor": "fn-tocontainitem-t---nil",
           "title": "fn toContain(item: T) -> Nil",
           "level": 4,
-          "line_start": 152,
-          "line_end": 156,
+          "line_start": 162,
+          "line_end": 166,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-tocontainitem-t---nil",
           "text": "#### `fn toContain(item: T) -> Nil`\n\nFails when `item` is not in the list (structural equality).\n"
         },
@@ -6507,8 +6527,8 @@
           "anchor": "class-stringexpectation",
           "title": "class StringExpectation",
           "level": 3,
-          "line_start": 156,
-          "line_end": 172,
+          "line_start": 166,
+          "line_end": 182,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#class-stringexpectation",
           "text": "### `class StringExpectation`\n\nAssertion over the contents of a string.\n\n#### `val text: String`\n\nObserved text.\n\n#### `fn init(text: String)`\n\nWraps the observed text.\n\n#### `fn contains(needle: String) -> Nil`\n\nFails when `text` does not contain `needle`.\n"
         },
@@ -6517,8 +6537,8 @@
           "anchor": "val-text-string",
           "title": "val text: String",
           "level": 4,
-          "line_start": 160,
-          "line_end": 164,
+          "line_start": 170,
+          "line_end": 174,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#val-text-string",
           "text": "#### `val text: String`\n\nObserved text.\n"
         },
@@ -6527,8 +6547,8 @@
           "anchor": "fn-inittext-string",
           "title": "fn init(text: String)",
           "level": 4,
-          "line_start": 164,
-          "line_end": 168,
+          "line_start": 174,
+          "line_end": 178,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-inittext-string",
           "text": "#### `fn init(text: String)`\n\nWraps the observed text.\n"
         },
@@ -6537,8 +6557,8 @@
           "anchor": "fn-containsneedle-string---nil",
           "title": "fn contains(needle: String) -> Nil",
           "level": 4,
-          "line_start": 168,
-          "line_end": 172,
+          "line_start": 178,
+          "line_end": 182,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-containsneedle-string---nil",
           "text": "#### `fn contains(needle: String) -> Nil`\n\nFails when `text` does not contain `needle`.\n"
         },
@@ -6547,8 +6567,8 @@
           "anchor": "class-recorder",
           "title": "class Recorder",
           "level": 3,
-          "line_start": 172,
-          "line_end": 200,
+          "line_start": 182,
+          "line_end": 210,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#class-recorder",
           "text": "### `class Recorder`\n\nRecords calls of a spy/fake: `record`, `count`, `order` and `clear`.\n\n#### `val calls: List[String]`\n\nCalls in registration order.\n\n#### `fn init()`\n\nCreates an empty recorder.\n\n#### `fn record(name: String) -> Nil`\n\nRecords one call by name.\n\n#### `fn count(name: String) -> Int`\n\nReturns how many times `name` was recorded.\n\n#### `fn order() -> List[String]`\n\nReturns a copy of the calls in registration order.\n\n#### `fn clear() -> Nil`\n\nEmpties the record.\n"
         },
@@ -6557,8 +6577,8 @@
           "anchor": "val-calls-liststring",
           "title": "val calls: List[String]",
           "level": 4,
-          "line_start": 176,
-          "line_end": 180,
+          "line_start": 186,
+          "line_end": 190,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#val-calls-liststring",
           "text": "#### `val calls: List[String]`\n\nCalls in registration order.\n"
         },
@@ -6567,8 +6587,8 @@
           "anchor": "fn-init-1",
           "title": "fn init()",
           "level": 4,
-          "line_start": 180,
-          "line_end": 184,
+          "line_start": 190,
+          "line_end": 194,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-init-1",
           "text": "#### `fn init()`\n\nCreates an empty recorder.\n"
         },
@@ -6577,8 +6597,8 @@
           "anchor": "fn-recordname-string---nil",
           "title": "fn record(name: String) -> Nil",
           "level": 4,
-          "line_start": 184,
-          "line_end": 188,
+          "line_start": 194,
+          "line_end": 198,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-recordname-string---nil",
           "text": "#### `fn record(name: String) -> Nil`\n\nRecords one call by name.\n"
         },
@@ -6587,8 +6607,8 @@
           "anchor": "fn-countname-string---int",
           "title": "fn count(name: String) -> Int",
           "level": 4,
-          "line_start": 188,
-          "line_end": 192,
+          "line_start": 198,
+          "line_end": 202,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-countname-string---int",
           "text": "#### `fn count(name: String) -> Int`\n\nReturns how many times `name` was recorded.\n"
         },
@@ -6597,8 +6617,8 @@
           "anchor": "fn-order---liststring",
           "title": "fn order() -> List[String]",
           "level": 4,
-          "line_start": 192,
-          "line_end": 196,
+          "line_start": 202,
+          "line_end": 206,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-order---liststring",
           "text": "#### `fn order() -> List[String]`\n\nReturns a copy of the calls in registration order.\n"
         },
@@ -6607,8 +6627,8 @@
           "anchor": "fn-clear---nil",
           "title": "fn clear() -> Nil",
           "level": 4,
-          "line_start": 196,
-          "line_end": 200,
+          "line_start": 206,
+          "line_end": 210,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-clear---nil",
           "text": "#### `fn clear() -> Nil`\n\nEmpties the record.\n"
         },
@@ -6617,8 +6637,8 @@
           "anchor": "functions",
           "title": "Functions",
           "level": 2,
-          "line_start": 200,
-          "line_end": 250,
+          "line_start": 210,
+          "line_end": 260,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#functions",
           "text": "## Functions\n\n### `fn fail(message: String) -> Nil`\n\nFails the current test with `message`.\n\n### `fn expect[T](value: T) -> Expectation[T]`\n\nWraps a concrete value for `toBe`/`notToBe`.\n\n### `fn expectGt[T](actual: T, expected: T) -> Nil`\n\nFails when `actual <= expected` (natural order of `T: Ord`).\n\n### `fn expectGe[T](actual: T, expected: T) -> Nil`\n\nFails when `actual < expected`.\n\n### `fn expectLt[T](actual: T, expected: T) -> Nil`\n\nFails when `actual >= expected`.\n\n### `fn expectLe[T](actual: T, expected: T) -> Nil`\n\nFails when `actual > expected`.\n\n### `fn expectNil[T](value: T | Nil) -> Nil`\n\nFails when `value` is not `nil`.\n\nPass a typed optional (`val x: Int? = nil`): `expectNil(nil)` is a nested optional and\nthe backend rejects it.\n\n### `fn expectNotNil[T](value: T | Nil) -> T`\n\nFails when `value` is `nil`; returns the narrowed value.\n\n### `fn expectList[T](items: List[T]) -> ListExpectation[T]`\n\nWraps a list for `toContain`.\n\n### `fn expectString(text: String) -> StringExpectation`\n\nWraps a string for `contains`.\n\n### `fn expectRaise(body: fn() -> Nil) -> String`\n\nRuns `body` and returns the exception message; fails when nothing is raised.\n\nCatches any `Exception`, including `Skip` and `TestFailure`.\n"
         },
@@ -6627,8 +6647,8 @@
           "anchor": "fn-failmessage-string---nil",
           "title": "fn fail(message: String) -> Nil",
           "level": 3,
-          "line_start": 202,
-          "line_end": 206,
+          "line_start": 212,
+          "line_end": 216,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-failmessage-string---nil",
           "text": "### `fn fail(message: String) -> Nil`\n\nFails the current test with `message`.\n"
         },
@@ -6637,8 +6657,8 @@
           "anchor": "fn-expecttvalue-t---expectationt",
           "title": "fn expect[T](value: T) -> Expectation[T]",
           "level": 3,
-          "line_start": 206,
-          "line_end": 210,
+          "line_start": 216,
+          "line_end": 220,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expecttvalue-t---expectationt",
           "text": "### `fn expect[T](value: T) -> Expectation[T]`\n\nWraps a concrete value for `toBe`/`notToBe`.\n"
         },
@@ -6647,8 +6667,8 @@
           "anchor": "fn-expectgttactual-t-expected-t---nil",
           "title": "fn expectGt[T](actual: T, expected: T) -> Nil",
           "level": 3,
-          "line_start": 210,
-          "line_end": 214,
+          "line_start": 220,
+          "line_end": 224,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectgttactual-t-expected-t---nil",
           "text": "### `fn expectGt[T](actual: T, expected: T) -> Nil`\n\nFails when `actual <= expected` (natural order of `T: Ord`).\n"
         },
@@ -6657,8 +6677,8 @@
           "anchor": "fn-expectgetactual-t-expected-t---nil",
           "title": "fn expectGe[T](actual: T, expected: T) -> Nil",
           "level": 3,
-          "line_start": 214,
-          "line_end": 218,
+          "line_start": 224,
+          "line_end": 228,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectgetactual-t-expected-t---nil",
           "text": "### `fn expectGe[T](actual: T, expected: T) -> Nil`\n\nFails when `actual < expected`.\n"
         },
@@ -6667,8 +6687,8 @@
           "anchor": "fn-expectlttactual-t-expected-t---nil",
           "title": "fn expectLt[T](actual: T, expected: T) -> Nil",
           "level": 3,
-          "line_start": 218,
-          "line_end": 222,
+          "line_start": 228,
+          "line_end": 232,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectlttactual-t-expected-t---nil",
           "text": "### `fn expectLt[T](actual: T, expected: T) -> Nil`\n\nFails when `actual >= expected`.\n"
         },
@@ -6677,8 +6697,8 @@
           "anchor": "fn-expectletactual-t-expected-t---nil",
           "title": "fn expectLe[T](actual: T, expected: T) -> Nil",
           "level": 3,
-          "line_start": 222,
-          "line_end": 226,
+          "line_start": 232,
+          "line_end": 236,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectletactual-t-expected-t---nil",
           "text": "### `fn expectLe[T](actual: T, expected: T) -> Nil`\n\nFails when `actual > expected`.\n"
         },
@@ -6687,8 +6707,8 @@
           "anchor": "fn-expectniltvalue-t--nil---nil",
           "title": "fn expectNil[T](value: T | Nil) -> Nil",
           "level": 3,
-          "line_start": 226,
-          "line_end": 233,
+          "line_start": 236,
+          "line_end": 243,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectniltvalue-t--nil---nil",
           "text": "### `fn expectNil[T](value: T | Nil) -> Nil`\n\nFails when `value` is not `nil`.\n\nPass a typed optional (`val x: Int? = nil`): `expectNil(nil)` is a nested optional and\nthe backend rejects it.\n"
         },
@@ -6697,8 +6717,8 @@
           "anchor": "fn-expectnotniltvalue-t--nil---t",
           "title": "fn expectNotNil[T](value: T | Nil) -> T",
           "level": 3,
-          "line_start": 233,
-          "line_end": 237,
+          "line_start": 243,
+          "line_end": 247,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectnotniltvalue-t--nil---t",
           "text": "### `fn expectNotNil[T](value: T | Nil) -> T`\n\nFails when `value` is `nil`; returns the narrowed value.\n"
         },
@@ -6707,8 +6727,8 @@
           "anchor": "fn-expectlisttitems-listt---listexpectationt",
           "title": "fn expectList[T](items: List[T]) -> ListExpectation[T]",
           "level": 3,
-          "line_start": 237,
-          "line_end": 241,
+          "line_start": 247,
+          "line_end": 251,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectlisttitems-listt---listexpectationt",
           "text": "### `fn expectList[T](items: List[T]) -> ListExpectation[T]`\n\nWraps a list for `toContain`.\n"
         },
@@ -6717,8 +6737,8 @@
           "anchor": "fn-expectstringtext-string---stringexpectation",
           "title": "fn expectString(text: String) -> StringExpectation",
           "level": 3,
-          "line_start": 241,
-          "line_end": 245,
+          "line_start": 251,
+          "line_end": 255,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectstringtext-string---stringexpectation",
           "text": "### `fn expectString(text: String) -> StringExpectation`\n\nWraps a string for `contains`.\n"
         },
@@ -6727,8 +6747,8 @@
           "anchor": "fn-expectraisebody-fn---nil---string",
           "title": "fn expectRaise(body: fn() -> Nil) -> String",
           "level": 3,
-          "line_start": 245,
-          "line_end": 250,
+          "line_start": 255,
+          "line_end": 260,
           "url": "https://loxia-lang.github.io/loxia/stdlib/test/#fn-expectraisebody-fn---nil---string",
           "text": "### `fn expectRaise(body: fn() -> Nil) -> String`\n\nRuns `body` and returns the exception message; fails when nothing is raised.\n\nCatches any `Exception`, including `Skip` and `TestFailure`.\n"
         }

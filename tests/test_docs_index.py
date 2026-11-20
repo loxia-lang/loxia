@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 from loxia import __version__
 from loxia.docs_index import load_index
 from tools.docs_common import (
@@ -124,6 +126,15 @@ def test_anchor_algorithm_matches_starlight() -> None:
 def test_anchors_match_the_built_site_when_available() -> None:
     if not (DIST / "reference").is_dir():
         return
+    built = max((path.stat().st_mtime for path in DIST.rglob("index.html")), default=0.0)
+    sources = [
+        INDEX,
+        ROOT / "tools" / "docs_common.py",
+        *(path for path in (ROOT / "docs").rglob("*.md") if path.is_file()),
+    ]
+    newest = max(path.stat().st_mtime for path in sources)
+    if built < newest:
+        pytest.skip("site/dist is older than the docs; run `npm run build --prefix site`")
     for page in cast(list[dict[str, Any]], _raw()["pages"]):
         if page["kind"] == "spec":
             slug = cast(str, page["url"]).rstrip("/").rsplit("/", 1)[-1]

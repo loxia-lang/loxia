@@ -102,9 +102,21 @@ Sem matcher fluente completo (uma classe por tipo); sem `.not` (keyword).
   casa;
 - `--jobs N` (unidades em paralelo; no isolamento por teste são N processos), `--fail-fast`,
   `--json`, `--native` (compila uma vez por arquivo e roda o binário);
-- `--json`: envelope estável (`schema_version`, `tests[]` com `file`, `name`, `status`,
-  `message`), **sem duração/timestamp** por padrão (I3);
-- exit code: 0 se todos passaram, 1 se algum falhou, 2 para erro do runner (path inválido).
+- `--json`: envelope estável (`schema_version`, `command`, `success`, `exit_code`,
+  `tests[]` com `file`, `name`, `status`, `kind`, `message`, `location`, `output` e
+  `summary`), **sem duração/timestamp** por padrão (I3); contrato em
+  [`docs/tech/test-report.md`](../tech/test-report.md) e
+  [`schema/test-report-v1.json`](../../schema/test-report-v1.json);
+- exit code: 0 se todos passaram, 1 se algum falhou, 2 para erro do runner (path inválido),
+  5 para `--require-tests` sem nenhum teste selecionado;
+- `--capture`: inclui o stdout do teste que falhou no JSON (fora do default por tamanho).
+
+> **Atualização (2026-11-19):** o runner passou a falar um protocolo de eventos com nonce
+> (`--protocol=json --token=...`) com `std.test`; o TAP humano é renderizado no Python, o
+> que fecha spoofing/escape sem mudar a saída de `loxia run`. O envelope ganhou
+> `command`/`success`/`exit_code`/`kind`/`location`/`output`; `--require-tests` evita falso
+> verde. A localização de falha (`location`) fica `null` até o
+> [ADR-0120](0120-localizacao-de-falha-em-excecoes.md).
 
 O runner em Lox (dogfooding com `proc` + `poll`) fica para quando houver uso real; a lib já
 roda nos dois motores, então o custo de trocar é só o orquestrador.

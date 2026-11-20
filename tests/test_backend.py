@@ -419,7 +419,6 @@ def test_binario_concorda_com_interpretador(tmp_path: Path, source: str, label: 
 
 
 @pytest.mark.backend
-@pytest.mark.backend
 @pytest.mark.parametrize(
     ("level", "case"),
     MANIFEST_CASES,
