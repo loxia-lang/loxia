@@ -5,7 +5,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-20
+
 ### Adicionado
+
+- **Empacotamento MCP:** `server.json` para o MCP Registry (`io.github.loxia-lang/loxia`,
+  pacote PyPI `loxia`, transporte stdio), `mcp-name` no README e instruções `uvx`/Inspector
+  em [`docs/tech/mcp.md`](docs/tech/mcp.md). A 1.2.0 é a primeira versão de PyPI com o
+  servidor MCP; a 1.1.0 foi publicada antes dele.
 
 - **Localização de falha em exceções capturadas** ([ADR-0120](docs/adr/0120-localizacao-de-falha-em-excecoes.md),
   issue [#11](https://github.com/loxia-lang/loxia/issues/11)): `e.site` expõe

@@ -47,6 +47,7 @@ NON_CLI_FLAGS = {
     "--all",
     "--all-groups",
     "--extra",
+    "--from",
     "--repeat",
     "--strict",
     "--write",
