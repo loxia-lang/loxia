@@ -439,6 +439,22 @@ def test_capabilities_json_is_deterministic() -> None:
     assert payload["fixes"]["implemented"] is True
 
 
+def test_capabilities_publishes_primitives_and_budget() -> None:
+    payload = json.loads(run_cli("capabilities", "--json").stdout)
+    primitives = payload["primitives"]
+
+    assert len(primitives) == 33
+    assert primitives[0] == {
+        "name": "substr",
+        "group": "core",
+        "ambient": False,
+        "site": True,
+    }
+    assert payload["kernel_budget"]["total"] == 40
+    assert payload["kernel_budget"]["groups"]["fs"] == 11
+    assert "primitives: 33 (" in run_cli("capabilities").stdout
+
+
 def test_explain_known_and_unknown_code() -> None:
     known = run_cli("explain", "E2001")
     warning = run_cli("explain", "W1001")
