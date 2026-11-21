@@ -48,6 +48,8 @@ print(timex.parseIso("2024-01-01T00:00:00.1234Z") ?? -1)
 print(timex.parseIso("2024-01-01T00:00:00") ?? -1)
 print(timex.parseIso("2024-01-01T24:00:00Z") ?? -1)
 print(timex.parseIso("2024-01-01T00:00:60Z") ?? -1)
+print(-1 == timex.parseIso("2024-01-01"))
+print(1704067200000 == timex.parseIso("2024-01-01"))
 var outOfRange = "no"
 try {
   timex.iso(timex.daysFromCivil(10000, 1, 1) * 86400000)
@@ -122,6 +124,8 @@ print(isoRoundTrip)
 # expect: -1
 # expect: -1
 # expect: -1
+# expect: false
+# expect: true
 # expect: raised
 # expect: true
 # expect: true
