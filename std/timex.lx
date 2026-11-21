@@ -1,18 +1,33 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # std.timex — UTC date/time helpers (T3), pure Lox; no timezones and no timestamps.
 #
-# Instants are integer seconds since 1970-01-01T00:00:00Z. The civil-date conversions use
-# Howard Hinnant's algorithms and are valid across the `Int` range, although `iso` only
-# formats years 0..9999. `time.now()` is ambient and belongs outside the I1 corpus.
+# Instants are integer milliseconds since 1970-01-01T00:00:00Z (the same unit as
+# `time.now()`). The civil-date conversions use Howard Hinnant's algorithms and are
+# valid across the `Int` range, although formatting only accepts years 0..9999.
+# Offsets are explicit parameters; there is no timezone database.
+
+import std.results as results
 
 import std.strings as strings
 
-import std.results as results
+/// Failure to parse an ISO-8601 UTC instant or to build a civil date.
+class TimeError {
+  /// Stable token: `invalidIso` or `invalidDate`.
+  val kind: String
+  /// Detail without path/locale text.
+  val message: String
+
+  /// Builds a failure.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
+}
 
 /// Returns days since 1970-01-01 for a civil date.
 ///
 /// Uses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is
-/// 1..31; invalid combinations are not rejected here.
+/// 1..31; invalid combinations are not rejected here (use `date` for that).
 fn daysFromCivil(year: Int, month: Int, day: Int) -> Int {
   var adjusted = month + 9
   var y = year
@@ -50,105 +65,322 @@ fn civilFromDays(days: Int) -> (Int, Int, Int) {
   return (year, month, day)
 }
 
-/// Formats an instant (seconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.
+/// Returns whether `year` is a leap year in the proleptic Gregorian calendar.
+fn isLeapYear(year: Int) -> Bool {
+  return (year % 4 == 0 and year % 100 != 0) or year % 400 == 0
+}
+
+/// Returns the number of days in `month` of `year` (28..31).
+///
+/// `month` is expected to be 1..12; the result is undefined outside that range.
+fn daysInMonth(year: Int, month: Int) -> Int {
+  if (month == 2) {
+    if (isLeapYear(year)) {
+      return 29
+    }
+    return 28
+  }
+  if (month == 4 or month == 6 or month == 9 or month == 11) {
+    return 30
+  }
+  return 31
+}
+
+/// Validates a civil date and returns it as `(year, month, day)`.
+///
+/// `year` must be 0..9999 (the formatting range), `month` 1..12 and `day` within the
+/// month. Invalid input is `Result.Err(TimeError("invalidDate", ...))`.
+fn date(year: Int, month: Int, day: Int) -> Result[(Int, Int, Int), TimeError] {
+  if (year < 0 or year > 9999) {
+    return Result.Err(TimeError("invalidDate", "year out of 0..9999."))
+  }
+  if (month < 1 or month > 12) {
+    return Result.Err(TimeError("invalidDate", "month out of 1..12."))
+  }
+  if (day < 1 or day > daysInMonth(year, month)) {
+    return Result.Err(TimeError("invalidDate", "day out of range for the month."))
+  }
+  return Result.Ok((year, month, day))
+}
+
+/// Formats an instant (milliseconds since the epoch) as `YYYY-MM-DDTHH:MM:SSZ`.
 ///
 /// Raises `RuntimeError` when the year falls outside 0..9999. The instant is floored
-/// into its civil day, so pre-epoch values still format consistently.
-fn iso(seconds: Int) -> String {
-  val (year, month, day, hour, minute, second) = parts(seconds)
-  if (year < 0 or year > 9999) {
-    raise RuntimeError("timex.iso() year out of range.")
-  }
-  return _pad4(year) + "-" + _pad2(month) + "-" + _pad2(day) +
-    "T" + _pad2(hour) + ":" + _pad2(minute) + ":" + _pad2(second) + "Z"
+/// into its civil day and the milliseconds are truncated, so pre-epoch values still
+/// format consistently (`-1` ms is `1969-12-31T23:59:59Z`).
+fn iso(ms: Int) -> String {
+  return _formatIso(ms, 0, false)
 }
 
-/// Failure to parse an ISO-8601 UTC instant.
-class TimeError {
-  /// Stable token: `invalidIso`.
-  val kind: String
-  /// Detail without path/locale text.
-  val message: String
-
-  /// Builds a parse failure.
-  init(kind: String, message: String) {
-    this.kind = kind
-    this.message = message
-  }
+/// Formats an instant as `YYYY-MM-DDTHH:MM:SS.mmmZ`.
+///
+/// Like `iso`, but keeps the three millisecond digits (floored, so `-1` ms is
+/// `1969-12-31T23:59:59.999Z`).
+fn isoMillis(ms: Int) -> String {
+  return _formatIso(ms, 0, true)
 }
 
-/// Parses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.
+/// Formats the civil date of an instant as `YYYY-MM-DD`.
+fn isoDate(ms: Int) -> String {
+  val (year, month, day) = civilFromDays(_floorDiv(ms, _msPerDay()))
+  _checkFormatYear(year)
+  return _pad(year, 4) + "-" + _pad(month, 2) + "-" + _pad(day, 2)
+}
+
+/// Formats an instant in an explicit offset, e.g. `2024-01-01T00:00:00+03:00`.
+///
+/// `offsetMinutes` is `-720..840`; zero formats as `Z`. The instant is shifted before
+/// formatting, so the civil fields are the local ones at that offset.
+fn isoIn(ms: Int, offsetMinutes: Int) -> String {
+  return _formatIso(ms, offsetMinutes, false)
+}
+
+/// Splits an instant into `(year, month, day, hour, minute, second)` UTC.
+///
+/// Uses floor division, so instants before the epoch still produce a valid civil date;
+/// milliseconds are dropped.
+fn parts(ms: Int) -> (Int, Int, Int, Int, Int, Int) {
+  val days = _floorDiv(ms, _msPerDay())
+  val rest = ms - days * _msPerDay()
+  val (year, month, day) = civilFromDays(days)
+  return (
+    year,
+    month,
+    day,
+    rest // _msPerHour(),
+    (rest % _msPerHour()) // _msPerMinute(),
+    (rest % _msPerMinute()) // _msPerSecond()
+  )
+}
+
+/// Splits an instant into civil fields at an explicit offset.
+///
+/// `offsetMinutes` is `-720..840`; the returned fields are local to that offset.
+fn partsIn(ms: Int, offsetMinutes: Int) -> (Int, Int, Int, Int, Int, Int) {
+  _checkOffset(offsetMinutes)
+  return parts(ms + offsetMinutes * _msPerMinute())
+}
+
+/// Returns the ISO weekday of an instant: 1 = Monday … 7 = Sunday.
+fn weekday(ms: Int) -> Int {
+  val days = _floorDiv(ms, _msPerDay())
+  return _floorMod(days + 3, 7) + 1
+}
+
+/// Returns the day of the year of an instant: 1..365 (366 in a leap year).
+fn dayOfYear(ms: Int) -> Int {
+  val days = _floorDiv(ms, _msPerDay())
+  val civil = civilFromDays(days)
+  return days - daysFromCivil(civil[0], 1, 1) + 1
+}
+
+/// Adds `days` days of exactly 86.400.000 ms to an instant.
+fn addDays(ms: Int, days: Int) -> Int {
+  return ms + days * _msPerDay()
+}
+
+/// Adds calendar months to an instant, clamping the day to the target month.
+///
+/// The time of day is preserved. `2024-01-31 + 1 month` is `2024-02-29`, and
+/// `2024-03-31 - 1 month` is `2024-02-29`; the operation is not invertible at month
+/// ends (that is the price of a calendar month, not a 30-day duration).
+fn addMonths(ms: Int, months: Int) -> Int {
+  val days = _floorDiv(ms, _msPerDay())
+  val rest = ms - days * _msPerDay()
+  val (year, month, day) = civilFromDays(days)
+  val total = year * 12 + (month - 1) + months
+  val newYear = _floorDiv(total, 12)
+  val newMonth = _floorMod(total, 12) + 1
+  var newDay = day
+  val last = daysInMonth(newYear, newMonth)
+  if (newDay > last) {
+    newDay = last
+  }
+  return daysFromCivil(newYear, newMonth, newDay) * _msPerDay() + rest
+}
+
+/// Adds calendar years to an instant, clamping 29 February in a non-leap year.
+///
+/// Equivalent to `addMonths(ms, years * 12)`.
+fn addYears(ms: Int, years: Int) -> Int {
+  return addMonths(ms, years * 12)
+}
+
+/// Returns the difference `a - b` in civil days (floor), not in 24 h periods.
+fn diffDays(a: Int, b: Int) -> Int {
+  return _floorDiv(a, _msPerDay()) - _floorDiv(b, _msPerDay())
+}
+
+/// Parses an ISO-8601 instant string into milliseconds since the epoch.
 ///
 /// Returns `nil` for malformed input; `parseIsoResult` preserves the cause.
 fn parseIso(text: String) -> Int? {
   return results.toOptional(parseIsoResult(text))
 }
 
-/// Parses an ISO-8601 UTC instant, preserving the cause of a malformed input.
+/// Parses an ISO-8601 instant, preserving the cause of a malformed input.
 ///
-/// Leap seconds are not accepted: `second` must be 0..59.
+/// Accepts `YYYY-MM-DD` (midnight UTC) and
+/// `YYYY-MM-DDTHH:MM:SS[.mmm](Z|+HH:MM|-HH:MM)`; `t`/`z` may be lowercase. The
+/// fraction is 1..3 digits (`.5` is 500 ms) and more than three is rejected. Leap
+/// seconds are not accepted: `second` must be 0..59. The returned instant is UTC.
 fn parseIsoResult(text: String) -> Result[Int, TimeError] {
-  if (len(text) != 20) {
-    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
+  if (len(text) < 10) {
+    return _badIso()
   }
-  if (
-    strings.slice(text, 4, 5) != "-" or
-    strings.slice(text, 7, 8) != "-" or
-    strings.slice(text, 10, 11) != "T" or
-    strings.slice(text, 13, 14) != ":" or
-    strings.slice(text, 16, 17) != ":" or
-    strings.slice(text, 19, 20) != "Z"
-  ) {
-    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
+  if (_charCode(text, 4) != 45 or _charCode(text, 7) != 45) {
+    return _badIso()
   }
   val year = _digits(text, 0, 4)
   val month = _digits(text, 5, 2)
   val day = _digits(text, 8, 2)
+  if (year == nil or month == nil or day == nil) {
+    return _badIso()
+  }
+  if (results.isErr(date(year, month, day))) {
+    return _badIso()
+  }
+  val days = daysFromCivil(year, month, day)
+  if (len(text) == 10) {
+    return Result.Ok(days * _msPerDay())
+  }
+  if (len(text) < 19) {
+    return _badIso()
+  }
+  if (_charCode(text, 10) != 84 and _charCode(text, 10) != 116) {
+    return _badIso()
+  }
+  if (_charCode(text, 13) != 58 or _charCode(text, 16) != 58) {
+    return _badIso()
+  }
   val hour = _digits(text, 11, 2)
   val minute = _digits(text, 14, 2)
   val second = _digits(text, 17, 2)
-  if (
-    year == nil or month == nil or day == nil or
-    hour == nil or minute == nil or second == nil
-  ) {
-    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
-  }
-  if (month < 1 or month > 12 or day < 1 or day > 31) {
-    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
+  if (hour == nil or minute == nil or second == nil) {
+    return _badIso()
   }
   if (hour > 23 or minute > 59 or second > 59) {
-    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
+    return _badIso()
   }
-  val days = daysFromCivil(year, month, day)
-  val (checkYear, checkMonth, checkDay) = civilFromDays(days)
-  if (checkYear != year or checkMonth != month or checkDay != day) {
-    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
+  var index = 19
+  var millis = 0
+  if (index < len(text) and _charCode(text, index) == 46) {
+    index = index + 1
+    var digits = 0
+    var value = 0
+    while (index < len(text) and digits < 3 and _isDigit(_charCode(text, index))) {
+      value = value * 10 + (_charCode(text, index) - 48)
+      index = index + 1
+      digits = digits + 1
+    }
+    if (digits == 0) {
+      return _badIso()
+    }
+    if (index < len(text) and _isDigit(_charCode(text, index))) {
+      return _badIso()
+    }
+    while (digits < 3) {
+      value = value * 10
+      digits = digits + 1
+    }
+    millis = value
   }
-  return Result.Ok(days * 86400 + hour * 3600 + minute * 60 + second)
+  if (index >= len(text)) {
+    return _badIso()
+  }
+  val marker = _charCode(text, index)
+  var offset = 0
+  if (marker == 90 or marker == 122) {
+    if (index + 1 != len(text)) {
+      return _badIso()
+    }
+  } else if (marker == 43 or marker == 45) {
+    val parsed = _parseOffset(text, index)
+    if (parsed == nil) {
+      return _badIso()
+    }
+    offset = parsed
+  } else {
+    return _badIso()
+  }
+  val instant = days * _msPerDay() + hour * _msPerHour() + minute * _msPerMinute() +
+    second * _msPerSecond() + millis - offset * _msPerMinute()
+  return Result.Ok(instant)
 }
 
-/// Adds `days` days to the instant `seconds` and returns the new instant.
-///
-/// Days are exactly 86400 seconds and there is no DST handling because the module is
-/// UTC-only.
-fn addDays(seconds: Int, days: Int) -> Int {
-  return seconds + days * 86400
+fn _parseOffset(text: String, start: Int) -> Int? {
+  if (start + 6 != len(text)) {
+    return nil
+  }
+  if (_charCode(text, start + 3) != 58) {
+    return nil
+  }
+  val hours = _digits(text, start + 1, 2)
+  val minutes = _digits(text, start + 4, 2)
+  if (hours == nil or minutes == nil) {
+    return nil
+  }
+  if (hours > 14 or minutes > 59) {
+    return nil
+  }
+  var total = hours * 60 + minutes
+  if (_charCode(text, start) == 45) {
+    total = -total
+  }
+  if (total < -720 or total > 840) {
+    return nil
+  }
+  return total
 }
 
-/// Splits an instant into `(year, month, day, hour, minute, second)` UTC.
-///
-/// Uses floor division, so instants before the epoch still produce a valid civil date.
-fn parts(seconds: Int) -> (Int, Int, Int, Int, Int, Int) {
-  val days = _floorDiv(seconds, 86400)
-  val rest = seconds - days * 86400
-  val (year, month, day) = civilFromDays(days)
-  return (
-    year,
-    month,
-    day,
-    rest // 3600,
-    (rest % 3600) // 60,
-    rest % 60
+fn _formatIso(ms: Int, offsetMinutes: Int, withMillis: Bool) -> String {
+  _checkOffset(offsetMinutes)
+  val local = ms + offsetMinutes * _msPerMinute()
+  val (year, month, day, hour, minute, second) = parts(local)
+  _checkFormatYear(year)
+  var text = _pad(year, 4) + "-" + _pad(month, 2) + "-" + _pad(day, 2) +
+    "T" + _pad(hour, 2) + ":" + _pad(minute, 2) + ":" + _pad(second, 2)
+  if (withMillis) {
+    text = text + "." + _pad(_millisOf(ms), 3)
+  }
+  return text + _offsetSuffix(offsetMinutes)
+}
+
+fn _offsetSuffix(offsetMinutes: Int) -> String {
+  if (offsetMinutes == 0) {
+    return "Z"
+  }
+  var sign = "+"
+  var magnitude = offsetMinutes
+  if (magnitude < 0) {
+    sign = "-"
+    magnitude = -magnitude
+  }
+  return sign + _pad(magnitude // 60, 2) + ":" + _pad(magnitude % 60, 2)
+}
+
+fn _millisOf(ms: Int) -> Int {
+  return ms - _floorDiv(ms, _msPerSecond()) * _msPerSecond()
+}
+
+fn _checkFormatYear(year: Int) -> Nil {
+  if (year < 0 or year > 9999) {
+    raise RuntimeError("timex.iso() year out of range.")
+  }
+}
+
+fn _checkOffset(offsetMinutes: Int) -> Nil {
+  if (offsetMinutes < -720 or offsetMinutes > 840) {
+    raise RuntimeError("timex offset out of range.")
+  }
+}
+
+fn _badIso() -> Result[Int, TimeError] {
+  return Result.Err(
+    TimeError(
+      "invalidIso",
+      "expected YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS[.mmm](Z|+HH:MM|-HH:MM)."
+    )
   )
 }
 
@@ -160,6 +392,34 @@ fn _floorDiv(left: Int, right: Int) -> Int {
   return quotient
 }
 
+fn _floorMod(left: Int, right: Int) -> Int {
+  return left - _floorDiv(left, right) * right
+}
+
+fn _msPerSecond() -> Int {
+  return 1000
+}
+
+fn _msPerMinute() -> Int {
+  return 60000
+}
+
+fn _msPerHour() -> Int {
+  return 3600000
+}
+
+fn _msPerDay() -> Int {
+  return 86400000
+}
+
+fn _charCode(text: String, index: Int) -> Int {
+  return charCodeAt(text, index)
+}
+
+fn _isDigit(code: Int) -> Bool {
+  return code >= 48 and code <= 57
+}
+
 fn _digits(text: String, start: Int, count: Int) -> Int? {
   val part = strings.slice(text, start, start + count)
   if (len(part) != count) {
@@ -168,16 +428,9 @@ fn _digits(text: String, start: Int, count: Int) -> Int? {
   return Int.parse(part)
 }
 
-fn _pad2(value: Int) -> String {
-  if (value < 10) {
-    return "0" + str(value)
-  }
-  return str(value)
-}
-
-fn _pad4(value: Int) -> String {
+fn _pad(value: Int, width: Int) -> String {
   var text = str(value)
-  while (len(text) < 4) {
+  while (len(text) < width) {
     text = "0" + text
   }
   return text
