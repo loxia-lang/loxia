@@ -6,15 +6,20 @@ from __future__ import annotations
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
+from loxia_core.diagnostics.errors import NativeError
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.primitives import (
     GROUP_BUDGET,
     KERNEL_BUDGET,
     NATIVE_MODULE_BUDGET,
+    PRIMITIVE_BY_LOX,
     PRIMITIVES,
     Primitive,
     PrimitiveCallable,
     budget_violations,
+    is_sandbox_denied,
     primitive_group,
 )
 from loxia_core.frontend.ty import INT, NIL, STRING, ListTy
@@ -145,3 +150,37 @@ def test_orcamento_detecta_estouro_de_grupo_e_de_total() -> None:
         "kernel has 9 primitives, budget 8",
     ]
     assert budget_violations([fake("nope.fake")], {"io": 8}) == ["group 'nope' has no budget"]
+
+
+def _primitive(*, ambient: bool = False, native_only: bool = False) -> Primitive:
+    return Primitive(
+        "fake.fn",
+        "lox_fake",
+        (),
+        NIL,
+        lambda: None,
+        ambient=ambient,
+        native_only=native_only,
+    )
+
+
+def test_camada_deriva_dos_dois_eixos() -> None:
+    assert _primitive().layer == "core"
+    assert _primitive(ambient=True).layer == "ambient"
+    assert _primitive(native_only=True).layer == "native-only"
+    # Nativo e ambient (ex.: thread) continua native-only: o rótulo projeta o motor.
+    assert _primitive(ambient=True, native_only=True).layer == "native-only"
+
+
+def test_sandbox_nega_native_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert is_sandbox_denied("io.readFile")
+    assert is_sandbox_denied("process.spawn")
+    assert not is_sandbox_denied("io.write")
+
+    monkeypatch.setitem(PRIMITIVE_BY_LOX, "fake.fn", _primitive(native_only=True))
+    assert is_sandbox_denied("fake.fn")
+
+
+def test_backstop_recusa_native_only_no_dispatch() -> None:
+    with pytest.raises(NativeError, match="not supported by the interpreter"):
+        PrimitiveCallable(_primitive(native_only=True)).call(None, [])

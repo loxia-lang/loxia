@@ -134,7 +134,7 @@ decisão.
 | `Bytes` | Tipo de valor **imutável** (tag 13), distinto de `String`, sem sintaxe nova; `len`/índice/igualdade/`0x<hex>` na linguagem, construção e conversão no namespace `Bytes`; é o buffer da ABI de módulo nativo. | [ADR-0125](adr/0125-bytes-tipo-binario.md) |
 | Módulo nativo embutido | Camada fora de `std/`: o módulo entra por `import`, com orçamento próprio e **link condicional**; SQLite vendorizado (amalgamation pinada). API pull na v1; callback C→Lox só com guarda (`try`/`setjmp` na fronteira) e native-only. | [ADR-0126](adr/0126-modulo-nativo-embutido-sqlite.md) |
 | Pacotes nativos | Adiados: pacote de terceiro continua só `.lx`. A forma fica registrada (`[native]`, hash no lock, sandbox, plataformas) com quatro gatilhos; Postgres via `libpq` primeiro. | [ADR-0127](adr/0127-pacotes-com-codigo-nativo.md) |
-| Camadas de motor | **core** (I1+I3, corpus), **ambient** (fora do corpus, teste fixo) e **native-only** (só binário). O interpretador **recusa** native-only com `E3021`; `check` é agnóstico; `capabilities --json` publica a camada; sandbox nega por camada. | [ADR-0128](adr/0128-contrato-de-motores.md) |
+| Camadas de motor | Dois eixos independentes — `ambient` (determinismo) e `native_only` (motor) — com rótulo derivado **core** (I1+I3, corpus), **ambient** (fora do corpus, teste fixo) e **native-only** (só binário). O interpretador **recusa** native-only com `E3021` antes de executar (passe estático + backstop); `check` é agnóstico; `capabilities --json` publica os dois flags e o rótulo. Sandbox é política explícita de capacidade (native-only entra nela). | [ADR-0128](adr/0128-contrato-de-motores.md) |
 
 ## Processo e escopo
 

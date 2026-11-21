@@ -153,6 +153,19 @@ Critério para revisitar: um `--target` no `check` (LSP/MCP), uma feature que pr
 semântica nova nos dois motores (vira core, com corpus), ou um caso em que native-only seja
 a única saída para algo que o interpretador *poderia* fazer — aí a justificativa é reexaminada.
 
+## Nota de implementação (2026-11-21)
+
+A implementação ([#82](https://github.com/loxia-lang/loxia/issues/82)) separa os **dois eixos**
+que a tabela acima projeta: `ambient` (determinismo) e `native_only` (motor), com `layer`
+derivada (`native-only` > `ambient` > `core`). Assim uma capacidade nativa e ambient (thread)
+ou nativa e determinística (SIMD puro) não precisa sacrificar um eixo para caber no rótulo.
+
+O sandbox continua sendo **política explícita de capacidade** (§6): a camada não decide o que
+é perigoso (`time.now` e `args` são ambient e seguros); o que é `native_only` entra
+automaticamente na lista de negação. Nesta rodada o tier `module.funcao` (`API_LAYERS`) fica
+vazio — as capacidades nativas ainda são primitivas de namespace — e a recusa tem passe
+estático em `run`/REPL mais backstop no dispatch.
+
 ## Referências
 
 - [ADR-0014](0014-identidade-e-invariantes.md) — invariantes e portão de admissão.

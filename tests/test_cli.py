@@ -447,12 +447,16 @@ def test_capabilities_publishes_primitives_and_budget() -> None:
     assert primitives[0] == {
         "name": "substr",
         "group": "core",
+        "layer": "core",
         "ambient": False,
+        "native_only": False,
         "site": True,
     }
     assert payload["kernel_budget"]["total"] == 40
     assert payload["kernel_budget"]["groups"]["fs"] == 11
-    assert "primitives: 33 (" in run_cli("capabilities").stdout
+    human = run_cli("capabilities").stdout
+    assert "primitives: 33 (" in human
+    assert "layers: " in human
 
 
 def test_explain_known_and_unknown_code() -> None:
