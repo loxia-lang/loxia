@@ -62,17 +62,16 @@ tooling e documentação leiam a tabela em vez de repeti-la.
 | --- | --- | --- | --- |
 | `core` | 5 | 5 | `substr`, `join`, `charCodeAt`, `fromCodePoint`, `args` |
 | `io` | 8 | 8 | stdio, arquivo inteiro, UTF-8, `flush` |
-| `fs` | 6 | **11** | `+ rename`, `+ remove`, `+ mkdir`, `+ stat` (+ `readBytes` quando `Bytes`) |
+| `fs` | 11 | **11** | `+ rename`, `+ remove`, `+ mkdir`, `+ stat`, `readBytes` |
 | `os` | 2 | 2 | `exit`, `getenv` |
 | `proc` | 10 | 10 | spawn, streams, `poll` |
 | `time` | 2 | 2 | `monotonic` só com consumidor e ADR (sem reserva) |
-| `digest` | 0 | 2 | `+ sha256` (+ `sha256Bytes` quando `Bytes`) |
+| `digest` | 2 | 2 | `sha256`, `sha256Bytes` |
 | **total** | **33** | **40** | |
 
 > **Emenda por [ADR-0125](0125-bytes-tipo-binario.md):** `fs.readBytes` (+1 em `fs`) e
 > `digest.sha256Bytes` (+1 em `digest`) entram com o tipo `Bytes`; para o total caber em 40,
-> `time.monotonic` deixa de ser reserva e só entra com consumidor. Os dois ainda não têm
-> implementação.
+> `time.monotonic` deixa de ser reserva e só entra com consumidor. Implementados no 79c.
 
 Módulos nativos **não** entram nesses 40: cada um tem a própria tabela e orçamento
 (`NATIVE_MODULE_BUDGET`), porque não são SO/representação e não poluem o kernel. O primeiro

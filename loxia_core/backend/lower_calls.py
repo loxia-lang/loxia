@@ -71,7 +71,11 @@ class CallLowering(LoweringBase):
         )
 
     def _call(self, expr: Call) -> Value:
-        if isinstance(expr.callee, Get) and isinstance(expr.callee.object, Variable):
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
+            and self.depths.get(expr.callee.object) is None
+        ):
             primitive = PRIMITIVE_BY_LOX.get(
                 f"{expr.callee.object.name.lexeme}.{expr.callee.name.lexeme}"
             )
@@ -83,18 +87,21 @@ class CallLowering(LoweringBase):
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float"}
             and expr.callee.name.lexeme == "parse"
+            and self.depths.get(expr.callee.object) is None
         ):
             return self._parse_call(expr, self._expr_type_desc(expr, expr.paren.line))
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme == "math"
+            and self.depths.get(expr.callee.object) is None
         ):
             return self._math_call(expr)
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme == "Bytes"
+            and self.depths.get(expr.callee.object) is None
         ):
             result = self._bytes_static(expr)
             if result is not None:
@@ -103,6 +110,7 @@ class CallLowering(LoweringBase):
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float", "math"}
+            and self.depths.get(expr.callee.object) is None
         ):
             raise _unsupported("Native modules in the backend", expr.paren.line)
 
@@ -117,6 +125,7 @@ class CallLowering(LoweringBase):
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in self._enum_layouts
+            and self.depths.get(expr.callee.object) is None
         ):
             return self._enum_construct(expr)
 

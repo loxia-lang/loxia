@@ -44,6 +44,7 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "fs.listDir",
         "fs.open",
         "fs.read",
+        "fs.readBytes",
         "fs.write",
         "fs.close",
         "fs.rename",
@@ -65,6 +66,7 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "time.now",
         "time.sleep",
         "digest.sha256",
+        "digest.sha256Bytes",
     ]
     signatures = {primitive.lox: (primitive.params, primitive.result) for primitive in PRIMITIVES}
     assert signatures["substr"] == ((STRING, INT, INT), STRING)
@@ -134,8 +136,8 @@ def test_orcamento_do_kernel_por_grupo() -> None:
     assert budget_violations(PRIMITIVES, GROUP_BUDGET, KERNEL_BUDGET) == []
 
     counts = Counter(primitive.group for primitive in PRIMITIVES)
-    assert counts == {"core": 5, "io": 8, "fs": 10, "os": 2, "proc": 10, "time": 2, "digest": 1}
-    assert sum(counts.values()) == len(PRIMITIVES) == 38
+    assert counts == {"core": 5, "io": 8, "fs": 11, "os": 2, "proc": 10, "time": 2, "digest": 2}
+    assert sum(counts.values()) == len(PRIMITIVES) == 40
     assert sum(GROUP_BUDGET.values()) == KERNEL_BUDGET
 
 
@@ -184,6 +186,7 @@ def test_sandbox_nega_native_only(monkeypatch: pytest.MonkeyPatch) -> None:
     assert is_sandbox_denied("fs.remove")
     assert is_sandbox_denied("fs.mkdir")
     assert is_sandbox_denied("fs.stat")
+    assert is_sandbox_denied("fs.readBytes")
     assert not is_sandbox_denied("io.write")
     assert not is_sandbox_denied("digest.sha256")
 
@@ -194,6 +197,15 @@ def test_sandbox_nega_native_only(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_backstop_recusa_native_only_no_dispatch() -> None:
     with pytest.raises(NativeError, match="not supported by the interpreter"):
         PrimitiveCallable(_primitive(native_only=True)).call(None, [])
+
+
+def test_oraculo_de_sha256_bytes_bate_com_hashlib() -> None:
+    import hashlib
+
+    sha256_bytes = PRIMITIVE_BY_LOX["digest.sha256Bytes"].py
+
+    for data in [b"", b"abc", "olá".encode()]:
+        assert sha256_bytes(data) == hashlib.sha256(data).digest()
 
 
 def test_oraculo_de_sha256_bate_com_hashlib() -> None:

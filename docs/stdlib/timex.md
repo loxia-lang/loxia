@@ -7,7 +7,7 @@ sources:
 
 # std.timex
 
-UTC date/time helpers over integer epoch seconds; no timezones.
+UTC date/time helpers over integer epoch milliseconds; no timezones.
 
 ## API
 

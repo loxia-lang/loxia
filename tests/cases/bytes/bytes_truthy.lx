@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Bytes is truthy like String/List (only nil/false are falsy), including and/or.
+val empty = Bytes.empty()
+if (empty) {
+  print("truthy")
+}
+if (not empty) {
+  print("unreachable")
+}
+print((empty and Bytes.empty()).toHex())
+print((empty or Bytes.fromText("x")).toHex())
+print((Bytes.fromText("x") and empty).toHex())
+# expect: truthy
+# expect:
+# expect:
+# expect:

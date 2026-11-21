@@ -443,7 +443,7 @@ def test_capabilities_publishes_primitives_and_budget() -> None:
     payload = json.loads(run_cli("capabilities", "--json").stdout)
     primitives = payload["primitives"]
 
-    assert len(primitives) == 38
+    assert len(primitives) == 40
     assert primitives[0] == {
         "name": "substr",
         "group": "core",
@@ -455,7 +455,7 @@ def test_capabilities_publishes_primitives_and_budget() -> None:
     assert payload["kernel_budget"]["total"] == 40
     assert payload["kernel_budget"]["groups"]["fs"] == 11
     human = run_cli("capabilities").stdout
-    assert "primitives: 38 (" in human
+    assert "primitives: 40 (" in human
     assert "layers: " in human
 
 

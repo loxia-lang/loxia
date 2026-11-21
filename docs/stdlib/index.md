@@ -14,6 +14,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | Module | Summary |
 | --- | --- |
 | [`std.asserts`](asserts.md) | Explicit failures for tests and contracts. Every helper raises `RuntimeError`. |
+| [`std.bytes`](bytes.md) | Byte buffers: incremental Builder, comparison and big/little-endian helpers. |
 | [`std.cli`](cli.md) | Deterministic command-line parsing from a declarative spec. |
 | [`std.collections`](collections.md) | Stack, Queue, Deque and PriorityQueue, backed by lists. |
 | [`std.contracts`](contracts.md) | Design by contract as a library: precondition, postcondition and invariant checks. |
@@ -40,7 +41,7 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.sets`](sets.md) | `Set[T]` backed by `Map[Any, Bool]`, preserving insertion order. |
 | [`std.strings`](strings.md) | UTF-8 text operations over code points, not bytes or UTF-16 units. |
 | [`std.test`](test.md) | Mini test harness with TAP output, hooks, matchers and a recorder. |
-| [`std.timex`](timex.md) | UTC date/time helpers over integer epoch seconds; no timezones. |
+| [`std.timex`](timex.md) | UTC date/time helpers over integer epoch milliseconds; no timezones. |
 | [`std.utf8`](utf8.md) | UTF-8 and UTF-16 widths (bytes, code units, columns). |
 
 ## Builtins

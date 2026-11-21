@@ -1039,7 +1039,7 @@ Everything else follows the book's jlox, including the messages.
 
 ### stdlib T2
 
-The eleven T2 modules are pure Lox over the kernel and add no syntax
+The T2 modules are pure Lox over the kernel and add no syntax
 ([ADR-0079](../adr/0079-stdlib-t2.md)). The deterministic ones enter the `t2` corpus; the
 **ambient** ones ([ADR-0072](../adr/0072-stdlib-batteries.md) §5) are outside I1 and have tests
 with fixed input.
@@ -1053,13 +1053,21 @@ with fixed input.
   fill = " ")` (on the left), `commas`, `fixed(value, digits)`, `percent(value, digits = 0)`
   and `bytes(n)` (B/KiB/MiB/GiB/TiB). No locale; extra/missing arguments and `fixed` outside
   0..15 raise `RuntimeError`.
+- `std.bytes`: `Builder` (incremental byte a byte over `List[Int]`; `push`, `pushByte`,
+  `len`, `build`), `ChunkBuilder` (whole `Bytes` chunks with balanced concatenation; better
+  for large blocks), `compare` (lexicographic, returns -1/0/1), encoders `u16be`/`u16le`/
+  `u32be`/`u32le`/`u64be`/`u64le` and decoders `readU16be`/`readU16le`/`readU32be`/
+  `readU32le`/`readU64be`/`readU64le` (the 64-bit helpers use the two's-complement bit
+  pattern; decoders return `Int?`, nil when the bytes do not fit). Pure and deterministic;
+  in the `t2` corpus.
 - `std.paths` (POSIX, lexical, does not touch the disk): `join` (an absolute second argument wins,
   without normalizing), `dirname`, `basename`, `ext`/`stem` (a leading dot does not count as an
   extension), `normalize` (collapses slashes, resolves `.`/`..`), `isAbsolute` and `split`.
 - `std.fs` **ambient**: `readText -> String?`, `readLines -> List[String]?` (drops the
   final newline), `writeText -> Bool`, `appendText -> Bool` (reads and rewrites; creates the
   file if absent), `exists -> Bool` and `listDir -> List[String]?` (sorted, without
-  `.`/`..`, `nil` if it is not a readable directory).
+  `.`/`..`, `nil` if it is not a readable directory). `File.readBytes(n)` reads up to `n`
+  raw bytes (`Ok(nil)` at EOF), without UTF-8 validation.
 - `std.io`: `write`/`writeErr` (deterministic), `readLine -> String?`, `readAll ->
   String` and `prompt(message) -> String?` (writes and reads a line); reading is ambient.
   Input that is not valid UTF-8 is a `RuntimeError` (without a traceback), not corrupted text.
@@ -1094,8 +1102,9 @@ with fixed input.
   `float` in `[0, 1)`, `bool` and `shuffle(items, r)`; deterministic by seed.
 - `std.log` **ambient**: `Level` enum (`Debug`/`Info`/`Warn`/`Error`) and `Logger`, which
   writes `[LEVEL] message` to stderr; no timestamp.
-- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; the 64-bit one returns the bit
-  pattern in i64 (it may be negative). It is not cryptographic.
+- `std.hash`: `fnv1a32`, `fnv1a64` and `djb2` over the **UTF-8 bytes**; `sha256(text) ->
+  String` (hex) and `sha256Bytes(Bytes) -> Bytes` (raw 32 bytes) are the cryptographic
+  digests. The 64-bit fnv returns the bit pattern in i64 (it may be negative).
 - `std.collections`: generic `Stack`, `Queue`, `Deque` and `PriorityQueue` (heap with an
   explicit comparator `fn(T, T) -> Bool`).
 - `std.timex` **UTC-only**: `daysFromCivil`, `civilFromDays`, `iso`, `parseIso` (strict,
@@ -1115,9 +1124,9 @@ with fixed input.
   reflection/registry; `--filter=`/`--only=` and `--list` (only prints `# test <name>`) come
   from `args()`. The test body is `fn() -> Nil`; an unhandled exception becomes `not ok`.
 - `std.convert`: `toInt`/`toFloat` (`T?`), `toBool` (`"true"`/`"false"`),
-  `base64Encode/Decode` and `hexEncode/Decode`. No `Bytes` type: they operate on the UTF-8
-  bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)
-  returns `nil`. Hex is lowercase.
+  `base64Encode/Decode` and `hexEncode/Decode`. They are text-based and operate on the
+  UTF-8 bytes of the text; decoding bytes that are not valid UTF-8 (or malformed text)
+  returns `nil`. Hex is lowercase. For raw binary use `Bytes`/`std.bytes`.
 
 Instance fields may have a container type (`List`, `Map`, tuple, `Range`, enum) since
 ADR-0079; `Any` as a field is not yet supported by the backend.

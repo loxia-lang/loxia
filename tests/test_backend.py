@@ -2073,3 +2073,24 @@ def test_fs_nul_e_rename_kind_batem_com_o_binario(tmp_path: Path) -> None:
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
     assert "notEmpty" in interpreted.stdout
+
+
+@pytest.mark.backend
+def test_fs_read_bytes_erro_de_diretorio_bate_com_o_binario(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "import std.fs as fs\n"
+        f'val opened = fs.open("{tmp_path}", "r")\n'
+        "val file = match opened { Result.Ok(value) => value, Result.Err(_) => fs.File(0) }\n"
+        'print(match file.read(1) { Result.Ok(value) => value ?? "nil", Result.Err(e) => e.kind })\n'
+        'print(match file.readBytes(1) { Result.Ok(value) => value?.toHex() ?? "nil", Result.Err(e) => e.kind })\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "isDirectory" in interpreted.stdout

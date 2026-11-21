@@ -64,6 +64,17 @@ class File {
     return out
   }
 
+  /// Reads up to `n` raw bytes; `Ok(nil)` means end of file.
+  fn readBytes(n: Int) -> Result[Bytes?, FileError] {
+    var out: Result[Bytes?, FileError]
+    try {
+      out = Result.Ok(fs.readBytes(this.id, n))
+    } except RuntimeError as error {
+      out = Result.Err(_failure(error.message))
+    }
+    return out
+  }
+
   /// Writes all of `text`.
   fn write(text: String) -> Result[Nil, FileError] {
     var out: Result[Nil, FileError]

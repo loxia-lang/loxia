@@ -67,6 +67,10 @@ Wraps an existing handle; prefer `open`.
 
 Reads up to `n` bytes at a UTF-8 boundary; `Ok(nil)` means end of file.
 
+#### `fn readBytes(n: Int) -> Result[Bytes | Nil, FileError]`
+
+Reads up to `n` raw bytes; `Ok(nil)` means end of file.
+
 #### `fn write(text: String) -> Result[Nil, FileError]`
 
 Writes all of `text`.

@@ -28,6 +28,7 @@ class BytesLowering(LoweringBase):
             isinstance(callee, Get)
             and isinstance(callee.object, Variable)
             and callee.object.name.lexeme == "Bytes"
+            and self.depths.get(callee.object) is None
         ):
             return None
         name = callee.name.lexeme
@@ -35,7 +36,6 @@ class BytesLowering(LoweringBase):
         if signature is None:
             raise _unsupported(f"Bytes member '{name}'", callee.name.line)
         line = callee.name.line
-        column = callee.name.column
         if len(expr.arguments) != len(signature.params):
             self._poison(
                 expr.paren,
@@ -65,8 +65,8 @@ class BytesLowering(LoweringBase):
                     ),
                     [
                         value.llvm,
-                        llvm_ir.constant(_I32, line),
-                        llvm_ir.constant(_I32, column),
+                        llvm_ir.constant(_I32, expr.paren.line),
+                        llvm_ir.constant(_I32, expr.paren.column),
                     ],
                 )
                 return Value(ValueType.BYTES, call)

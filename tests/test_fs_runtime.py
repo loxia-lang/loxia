@@ -143,3 +143,64 @@ def test_paths_com_nul_nao_derrubam_o_interpretador(tmp_path: Path) -> None:
 
     assert exists("a\0x") is False
     assert list_dir("a\0x") is None
+
+
+def test_read_bytes_cru_e_pending(tmp_path: Path) -> None:
+    target = tmp_path / "bin.dat"
+    target.write_bytes(b"\x00\x01\xff\xfe")
+    table = FileTable()
+    identifier = table.open(str(target), "r")
+    try:
+        assert table.read_bytes(identifier, 2) == b"\x00\x01"
+        assert table.read_bytes(identifier, 2) == b"\xff\xfe"
+        assert table.read_bytes(identifier, 1) is None
+        assert table.read_bytes(identifier, 0) == b""
+        from loxia_core.diagnostics.errors import NativeError
+
+        with pytest.raises(NativeError, match=r"fs\.readBytes"):
+            table.read_bytes(identifier, -1)
+    finally:
+        table.close_all()
+
+
+def test_read_bytes_preserva_pending_de_utf8(tmp_path: Path) -> None:
+    target = tmp_path / "utf8.dat"
+    target.write_bytes("éx".encode())
+    table = FileTable()
+    identifier = table.open(str(target), "r")
+    try:
+        assert table.read(identifier, 1) == ""
+        assert table.read_bytes(identifier, 2) == "é".encode()
+        assert table.read_bytes(identifier, 1) == b"x"
+        assert table.read_bytes(identifier, 1) is None
+    finally:
+        table.close_all()
+
+
+def test_std_fs_read_bytes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    target = tmp_path / "bin.dat"
+    target.write_bytes(b"\x00\xff")
+    lox = Loxia()
+    lox.use_file("<fs>", module_root=tmp_path)
+    lox.run(
+        "import std.fs as fs\n"
+        f'val opened = fs.open("{target}", "r")\n'
+        "val file = match opened { Result.Ok(value) => value, Result.Err(_) => fs.File(0) }\n"
+        'print(match file.readBytes(2) { Result.Ok(value) => value?.toHex() ?? "nil", '
+        "Result.Err(error) => error.kind })\n"
+        'print(match file.readBytes(1) { Result.Ok(value) => value?.toHex() ?? "nil", '
+        "Result.Err(error) => error.kind })\n"
+    )
+    assert capsys.readouterr().out == "00ff\nnil\n"
+
+
+def test_read_bytes_de_diretorio_e_erro_de_host(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.errors import NativeError
+
+    table = FileTable()
+    identifier = table.open(str(tmp_path), "r")
+    try:
+        with pytest.raises(NativeError, match=r"isDirectory: read failed\."):
+            table.read_bytes(identifier, 1)
+    finally:
+        table.close_all()

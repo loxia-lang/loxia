@@ -49,12 +49,12 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 3 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 68 |
+| `l6` | 72 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |
 | `t1` | 6 |
-| `t2` | 18 |
+| `t2` | 20 |
 | `t3` | 7 |
 | `k0` | 2 |
 | `l2` | 14 |

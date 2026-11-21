@@ -45,6 +45,8 @@ void * lox_fs_list_dir(const void *);
 int64_t lox_fs_open(const void *, const void *, int32_t, int32_t);
 /* fs.read */
 void * lox_fs_read(int64_t, int64_t, int32_t, int32_t);
+/* fs.readBytes */
+void * lox_fs_read_bytes(int64_t, int64_t, int32_t, int32_t);
 /* fs.write */
 void lox_fs_write(int64_t, const void *, int32_t, int32_t);
 /* fs.close */
@@ -87,5 +89,7 @@ int64_t lox_time_now(void);
 void lox_time_sleep(int64_t, int32_t, int32_t);
 /* digest.sha256 */
 void * lox_digest_sha256(const void *);
+/* digest.sha256Bytes */
+void * lox_digest_sha256_bytes(const void *);
 
 #endif /* LOX_KERNEL_GEN_H */
