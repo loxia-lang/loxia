@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 # Bytes: construção, len/índice, métodos e formatação (interpretador; backend no 79b).
 val text = Bytes.fromText("é")
 print(len(text))
