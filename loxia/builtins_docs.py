@@ -330,6 +330,37 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         ambient=True,
     ),
     BuiltinDoc(
+        "fs.rename",
+        "fs.rename(source: String, target: String) -> Nil",
+        "Renames `source` to `target` with POSIX semantics: atomic and replacing an "
+        "existing `target`.\n\n"
+        "Ambient. Failure raises `RuntimeError` with a stable kind prefix "
+        "(`notFound: ...`); across filesystems the kind is `crossDevice`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.remove",
+        "fs.remove(path: String) -> Nil",
+        "Removes a file or symlink.\n\n"
+        "Ambient. A directory is an `isDirectory` error; failure raises `RuntimeError`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.mkdir",
+        "fs.mkdir(path: String) -> Nil",
+        "Creates one directory level.\n\n"
+        "Ambient. An existing path is `alreadyExists`; a missing parent is `notFound`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
+        "fs.stat",
+        "fs.stat(path: String) -> (Int, Int, Bool)",
+        "Returns `(size, mtimeMs, isDir)` for `path`, following symlinks.\n\n"
+        "Ambient. `mtimeMs` is floor milliseconds since the epoch; the filesystem may "
+        "have coarser resolution. Failure raises `RuntimeError`.",
+        ambient=True,
+    ),
+    BuiltinDoc(
         "fs.listDir",
         "fs.listDir(path: String) -> List[String]?",
         "Returns the entry names of a directory, sorted, or `nil` when unreadable.\n\n"
@@ -464,6 +495,14 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Suspends the current process for at least `milliseconds`.\n\n"
         "Ambient. A negative duration raises `RuntimeError`.",
         ambient=True,
+    ),
+    BuiltinDoc(
+        "digest.sha256",
+        "digest.sha256(text: String) -> String",
+        "Returns the SHA-256 of the UTF-8 bytes of `text` as 64 lowercase hex "
+        "characters.\n\n"
+        "Deterministic (`core`): same bytes in both engines. This is an integrity "
+        "digest, not a password hash; for a human API use `std.hash.sha256`.",
     ),
     # ------------------------------------------------------------------
     # Built-in types

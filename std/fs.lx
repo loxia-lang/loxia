@@ -6,14 +6,15 @@
 # (ADR-0119): `FileError.kind` is a stable token (`notFound`, `permission`, ...), never
 # `strerror`/locale text. `exists` is a question, so it stays `Bool`.
 
+import std.paths as paths
 import std.results as results
 import std.strings as strings
 
 /// Host failure of a filesystem operation.
 class FileError {
   /// Stable token: `notFound`, `permission`, `isDirectory`, `notDirectory`,
-  /// `alreadyExists`, `tooManyFiles`, `noSpace`, `badMode`, `closed`, `invalidHandle`,
-  /// `io`.
+  /// `alreadyExists`, `tooManyFiles`, `noSpace`, `notEmpty`, `crossDevice`, `badMode`,
+  /// `closed`, `invalidHandle`, `io`.
   val kind: String
   /// Human-readable detail; never contains an absolute path.
   val message: String
@@ -22,6 +23,23 @@ class FileError {
   init(kind: String, message: String) {
     this.kind = kind
     this.message = message
+  }
+}
+
+/// Metadata returned by `stat`.
+class FileStat {
+  /// Size in bytes.
+  val size: Int
+  /// Last modification time in milliseconds since the epoch (filesystem resolution).
+  val mtimeMs: Int
+  /// Whether the path is a directory.
+  val isDir: Bool
+
+  /// Builds the metadata; prefer `stat`.
+  init(size: Int, mtimeMs: Int, isDir: Bool) {
+    this.size = size
+    this.mtimeMs = mtimeMs
+    this.isDir = isDir
   }
 }
 
@@ -166,6 +184,113 @@ fn listDir(path: String) -> Result[List[String], FileError] {
     out = Result.Err(_failure(error.message))
   }
   return out
+}
+
+/// Returns metadata for `path`, following symlinks.
+fn stat(path: String) -> Result[FileStat, FileError] {
+  var out: Result[FileStat, FileError]
+  try {
+    val (size, mtimeMs, isDir) = fs.stat(path)
+    out = Result.Ok(FileStat(size, mtimeMs, isDir))
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+/// Renames `source` to `target`, replacing an existing target (POSIX `rename`).
+fn rename(source: String, target: String) -> Result[Nil, FileError] {
+  var out: Result[Nil, FileError]
+  try {
+    fs.rename(source, target)
+    out = Result.Ok(nil)
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+/// Removes a file or symlink; a directory is an `isDirectory` error.
+fn remove(path: String) -> Result[Nil, FileError] {
+  var out: Result[Nil, FileError]
+  try {
+    fs.remove(path)
+    out = Result.Ok(nil)
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+/// Creates one directory level; an existing path is `Err(alreadyExists)`.
+fn mkdir(path: String) -> Result[Nil, FileError] {
+  var out: Result[Nil, FileError]
+  try {
+    fs.mkdir(path)
+    out = Result.Ok(nil)
+  } except RuntimeError as error {
+    out = Result.Err(_failure(error.message))
+  }
+  return out
+}
+
+/// Creates `path` and any missing parents.
+///
+/// Idempotent for an existing directory. Lexical POSIX paths; no symlink resolution.
+fn mkdirAll(path: String) -> Result[Nil, FileError] {
+  if (path == "" or path == "." or path == "/") {
+    return Result.Ok(nil)
+  }
+  val parent = paths.dirname(path)
+  if (parent != "." and parent != path and parent != "/") {
+    val created = mkdirAll(parent)
+    if (results.isErr(created)) {
+      return created
+    }
+  }
+  val made = mkdir(path)
+  val failure = results.errorOf(made)
+  if (failure == nil) {
+    return Result.Ok(nil)
+  }
+  if (failure.kind != "alreadyExists") {
+    return made
+  }
+  val info = results.toOptional(stat(path))
+  if (info == nil) {
+    return made
+  }
+  if (info.isDir) {
+    return Result.Ok(nil)
+  }
+  return made
+}
+
+/// Writes `text` to `path` through a temporary file and a rename.
+///
+/// The temporary is `path + suffix`, or `path + suffix + N` when taken (up to 100
+/// attempts), so concurrent writers are unlikely to collide; the destination is
+/// replaced atomically. There is no `fsync`: this is atomicity, not durability.
+fn writeAtomic(path: String, text: String, suffix: String = ".tmp") -> Result[Nil, FileError] {
+  var candidate = path + suffix
+  var attempt = 1
+  while (exists(candidate) and attempt <= 100) {
+    candidate = path + suffix + str(attempt)
+    attempt = attempt + 1
+  }
+  if (exists(candidate)) {
+    return Result.Err(FileError("alreadyExists", "can't create a temporary file."))
+  }
+  val written = writeText(candidate, text)
+  if (results.isErr(written)) {
+    return written
+  }
+  val moved = rename(candidate, path)
+  if (results.isErr(moved)) {
+    remove(candidate)
+    return moved
+  }
+  return Result.Ok(nil)
 }
 
 fn _write(path: String, mode: String, text: String) -> Result[Nil, FileError] {

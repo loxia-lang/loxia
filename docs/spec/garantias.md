@@ -57,11 +57,11 @@ monotonic and the differential test never compares against a hand-written expect
 | `l6` | 61 |
 | `k0` | 2 |
 | `t1` | 6 |
-| `t2` | 17 |
+| `t2` | 18 |
 | `t3` | 6 |
 | `t7` | 3 |
 
-**176 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
+**177 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

@@ -46,6 +46,10 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "fs.read",
         "fs.write",
         "fs.close",
+        "fs.rename",
+        "fs.remove",
+        "fs.mkdir",
+        "fs.stat",
         "os.exit",
         "os.getenv",
         "process.spawn",
@@ -60,6 +64,7 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "process.poll",
         "time.now",
         "time.sleep",
+        "digest.sha256",
     ]
     signatures = {primitive.lox: (primitive.params, primitive.result) for primitive in PRIMITIVES}
     assert signatures["substr"] == ((STRING, INT, INT), STRING)
@@ -129,8 +134,8 @@ def test_orcamento_do_kernel_por_grupo() -> None:
     assert budget_violations(PRIMITIVES, GROUP_BUDGET, KERNEL_BUDGET) == []
 
     counts = Counter(primitive.group for primitive in PRIMITIVES)
-    assert counts == {"core": 5, "io": 8, "fs": 6, "os": 2, "proc": 10, "time": 2}
-    assert sum(counts.values()) == len(PRIMITIVES) == 33
+    assert counts == {"core": 5, "io": 8, "fs": 10, "os": 2, "proc": 10, "time": 2, "digest": 1}
+    assert sum(counts.values()) == len(PRIMITIVES) == 38
     assert sum(GROUP_BUDGET.values()) == KERNEL_BUDGET
 
 
@@ -175,7 +180,12 @@ def test_camada_deriva_dos_dois_eixos() -> None:
 def test_sandbox_nega_native_only(monkeypatch: pytest.MonkeyPatch) -> None:
     assert is_sandbox_denied("io.readFile")
     assert is_sandbox_denied("process.spawn")
+    assert is_sandbox_denied("fs.rename")
+    assert is_sandbox_denied("fs.remove")
+    assert is_sandbox_denied("fs.mkdir")
+    assert is_sandbox_denied("fs.stat")
     assert not is_sandbox_denied("io.write")
+    assert not is_sandbox_denied("digest.sha256")
 
     monkeypatch.setitem(PRIMITIVE_BY_LOX, "fake.fn", _primitive(native_only=True))
     assert is_sandbox_denied("fake.fn")
@@ -184,3 +194,12 @@ def test_sandbox_nega_native_only(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_backstop_recusa_native_only_no_dispatch() -> None:
     with pytest.raises(NativeError, match="not supported by the interpreter"):
         PrimitiveCallable(_primitive(native_only=True)).call(None, [])
+
+
+def test_oraculo_de_sha256_bate_com_hashlib() -> None:
+    import hashlib
+
+    sha256 = PRIMITIVE_BY_LOX["digest.sha256"].py
+
+    for text in ["", "abc", "olá", "a" * 1000]:
+        assert sha256(text) == hashlib.sha256(text.encode("utf-8")).hexdigest()

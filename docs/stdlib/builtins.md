@@ -253,6 +253,30 @@ Closes a file handle; closing it again is a no-op.
 
 Ambient. An id that never existed raises.
 
+#### `fs.rename(source: String, target: String) -> Nil`
+
+Renames `source` to `target` with POSIX semantics: atomic and replacing an existing `target`.
+
+Ambient. Failure raises `RuntimeError` with a stable kind prefix (`notFound: ...`); across filesystems the kind is `crossDevice`.
+
+#### `fs.remove(path: String) -> Nil`
+
+Removes a file or symlink.
+
+Ambient. A directory is an `isDirectory` error; failure raises `RuntimeError`.
+
+#### `fs.mkdir(path: String) -> Nil`
+
+Creates one directory level.
+
+Ambient. An existing path is `alreadyExists`; a missing parent is `notFound`.
+
+#### `fs.stat(path: String) -> (Int, Int, Bool)`
+
+Returns `(size, mtimeMs, isDir)` for `path`, following symlinks.
+
+Ambient. `mtimeMs` is floor milliseconds since the epoch; the filesystem may have coarser resolution. Failure raises `RuntimeError`.
+
 #### `fs.listDir(path: String) -> List[String]?`
 
 Returns the entry names of a directory, sorted, or `nil` when unreadable.

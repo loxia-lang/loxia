@@ -11,7 +11,10 @@ página `docs/stdlib/builtins.md`); este módulo guarda a implementação/orácu
 
 from __future__ import annotations
 
+import errno
+import hashlib
 import os
+import stat
 import sys
 import time
 from collections import Counter
@@ -21,8 +24,9 @@ from dataclasses import dataclass
 from loxia_core.diagnostics.errors import NativeError
 from loxia_core.execution.fs_runtime import FileTable
 from loxia_core.execution.lox_list import LoxList
+from loxia_core.execution.lox_tuple import LoxTuple
 from loxia_core.execution.proc_runtime import ProcTable
-from loxia_core.frontend.ty import BOOL, INT, NIL, STRING, ListTy, Ty, union
+from loxia_core.frontend.ty import BOOL, INT, NIL, STRING, ListTy, TupleTy, Ty, union
 
 
 def _substr(text: str, start: int, end: int) -> str:
@@ -197,6 +201,61 @@ def _fs_write(interpreter: object, identifier: int, text: str) -> None:
 
 def _fs_close(interpreter: object, identifier: int) -> None:
     _fs_table(interpreter).close(identifier)
+
+
+_FS_ERROR_KINDS = {
+    errno.ENOENT: "notFound",
+    errno.EACCES: "permission",
+    errno.EPERM: "permission",
+    errno.EISDIR: "isDirectory",
+    errno.ENOTDIR: "notDirectory",
+    errno.EEXIST: "alreadyExists",
+    errno.EMFILE: "tooManyFiles",
+    errno.ENFILE: "tooManyFiles",
+    errno.ENOSPC: "noSpace",
+    errno.ENOTEMPTY: "notEmpty",
+    errno.EXDEV: "crossDevice",
+}
+
+
+def _fs_failure(action: str, error: OSError) -> NativeError:
+    """Erro de host com `kind` estável; nunca `strerror`/locale (ADR-0119)."""
+    kind = _FS_ERROR_KINDS.get(error.errno or 0, "io")
+    return NativeError(f"{kind}: {action}.")
+
+
+def _fs_rename(source: str, target: str) -> None:
+    try:
+        os.replace(source, target)
+    except OSError as error:
+        raise _fs_failure("can't rename", error) from None
+
+
+def _fs_remove(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError as error:
+        raise _fs_failure("can't remove", error) from None
+
+
+def _fs_mkdir(path: str) -> None:
+    try:
+        os.mkdir(path)
+    except OSError as error:
+        raise _fs_failure("can't create the directory", error) from None
+
+
+def _fs_stat(path: str) -> LoxTuple:
+    try:
+        info = os.stat(path)
+    except OSError as error:
+        raise _fs_failure("can't stat", error) from None
+    mtime_ms = info.st_mtime_ns // 1_000_000
+    return LoxTuple((info.st_size, mtime_ms, stat.S_ISDIR(info.st_mode)))
+
+
+def _sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _proc_table(interpreter: object) -> ProcTable:
@@ -391,6 +450,26 @@ PRIMITIVES: tuple[Primitive, ...] = (
         needs_interpreter=True,
         site=True,
     ),
+    Primitive(
+        "fs.rename",
+        "lox_fs_rename",
+        (STRING, STRING),
+        NIL,
+        _fs_rename,
+        ambient=True,
+        site=True,
+    ),
+    Primitive("fs.remove", "lox_fs_remove", (STRING,), NIL, _fs_remove, ambient=True, site=True),
+    Primitive("fs.mkdir", "lox_fs_mkdir", (STRING,), NIL, _fs_mkdir, ambient=True, site=True),
+    Primitive(
+        "fs.stat",
+        "lox_fs_stat",
+        (STRING,),
+        TupleTy((INT, INT, BOOL)),
+        _fs_stat,
+        ambient=True,
+        site=True,
+    ),
     Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit, site=True),
     Primitive("os.getenv", "lox_os_getenv", (STRING,), union(STRING, NIL), _getenv, ambient=True),
     Primitive(
@@ -494,6 +573,7 @@ PRIMITIVES: tuple[Primitive, ...] = (
     ),
     Primitive("time.now", "lox_time_now", (), INT, _now, ambient=True),
     Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True, site=True),
+    Primitive("digest.sha256", "lox_digest_sha256", (STRING,), STRING, _sha256),
 )
 
 
@@ -535,6 +615,10 @@ SANDBOX_DENIED_NAMES = frozenset(
         "fs.read",
         "fs.write",
         "fs.close",
+        "fs.rename",
+        "fs.remove",
+        "fs.mkdir",
+        "fs.stat",
     }
 )
 SANDBOX_DENIED_PREFIXES = ("process.",)

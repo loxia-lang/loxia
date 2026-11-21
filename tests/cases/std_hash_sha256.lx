@@ -1,0 +1,16 @@
+# std.hash.sha256: FIPS 180-4 vectors over UTF-8 bytes, including padding boundaries.
+import std.hash as hash
+import std.strings as strings
+
+print(hash.sha256(""))
+print(hash.sha256("abc"))
+print(hash.sha256(strings.repeat("a", 55)))
+print(hash.sha256(strings.repeat("a", 56)))
+print(hash.sha256(strings.repeat("a", 64)))
+print(hash.sha256("olá"))
+# expect: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+# expect: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+# expect: 9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318
+# expect: b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a
+# expect: ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb
+# expect: 9b186e077c7c6d044f5789d76e6d8070a5b0aaa902ebc608bc34170722dba903

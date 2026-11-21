@@ -550,6 +550,8 @@ static const char *fs_kind(int error) {
         case EMFILE:
         case ENFILE: return "tooManyFiles";
         case ENOSPC: return "noSpace";
+        case ENOTEMPTY: return "notEmpty";
+        case EXDEV: return "crossDevice";
         default: return "io";
     }
 }
@@ -579,12 +581,116 @@ static const char *fs_write_message(int error) {
     }
 }
 
+static const char *fs_rename_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't rename.";
+        case EACCES:
+        case EPERM: return "permission: can't rename.";
+        case EISDIR: return "isDirectory: can't rename over a directory.";
+        case ENOTDIR: return "notDirectory: can't rename.";
+        case EXDEV: return "crossDevice: can't rename across filesystems.";
+        case ENOSPC: return "noSpace: can't rename.";
+        default: return "io: can't rename.";
+    }
+}
+
+static const char *fs_remove_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't remove.";
+        case EACCES:
+        case EPERM: return "permission: can't remove.";
+        case EISDIR: return "isDirectory: can't remove a directory.";
+        case ENOTDIR: return "notDirectory: can't remove.";
+        default: return "io: can't remove.";
+    }
+}
+
+static const char *fs_mkdir_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't create the directory.";
+        case EACCES:
+        case EPERM: return "permission: can't create the directory.";
+        case EEXIST: return "alreadyExists: can't create the directory.";
+        case ENOTDIR: return "notDirectory: can't create the directory.";
+        case ENOSPC: return "noSpace: can't create the directory.";
+        default: return "io: can't create the directory.";
+    }
+}
+
+static const char *fs_stat_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't stat.";
+        case EACCES:
+        case EPERM: return "permission: can't stat.";
+        case ENOTDIR: return "notDirectory: can't stat.";
+        default: return "io: can't stat.";
+    }
+}
+
 static char *fs_c_string(const void *pointer) {
     const LoxStr *string = pointer;
     char *copy = lox_alloc_atomic((size_t)string->byte_len + 1);
     memcpy(copy, string->data, (size_t)string->byte_len);
     copy[string->byte_len] = '\0';
     return copy;
+}
+
+/* `fs.rename(src, dst)`: POSIX rename semantics — atomic, replaces the target. */
+void lox_fs_rename(const void *source_pointer, const void *target_pointer, int32_t line,
+                   int32_t column) {
+    char *source = fs_c_string(source_pointer);
+    char *target = fs_c_string(target_pointer);
+    if (rename(source, target) != 0) {
+        lox_panic(line, column, "R1000", fs_rename_message(errno));
+    }
+}
+
+/* `fs.remove(path)`: file or symlink; a directory is `isDirectory`. */
+void lox_fs_remove(const void *path_pointer, int32_t line, int32_t column) {
+    char *path = fs_c_string(path_pointer);
+    if (unlink(path) != 0) {
+        lox_panic(line, column, "R1000", fs_remove_message(errno));
+    }
+}
+
+/* `fs.mkdir(path)`: one level; an existing path is `alreadyExists`. */
+void lox_fs_mkdir(const void *path_pointer, int32_t line, int32_t column) {
+    char *path = fs_c_string(path_pointer);
+    if (mkdir(path, 0777) != 0) {
+        lox_panic(line, column, "R1000", fs_mkdir_message(errno));
+    }
+}
+
+/* `fs.stat(path)`: `(size, mtimeMs, isDir)`, following symlinks. */
+void *lox_fs_stat(const void *path_pointer, int32_t line, int32_t column) {
+    char *path = fs_c_string(path_pointer);
+    struct stat info;
+    if (stat(path, &info) != 0) {
+        lox_panic(line, column, "R1000", fs_stat_message(errno));
+        return NULL;
+    }
+    void *tuple = lox_tuple_new(3);
+    /* Tags mirror ANY_TAG_INT/ANY_TAG_BOOL (lower_model.py). */
+    lox_tuple_set(tuple, 0, 1, (int64_t)info.st_size);
+    int64_t mtime_ms = (int64_t)info.st_mtim.tv_sec * 1000 +
+                       (int64_t)(info.st_mtim.tv_nsec / 1000000L);
+    lox_tuple_set(tuple, 1, 1, mtime_ms);
+    lox_tuple_set(tuple, 2, 3, S_ISDIR(info.st_mode) ? 1 : 0);
+    return tuple;
+}
+
+/* `digest.sha256(text)`: lowercase hex of the UTF-8 bytes (FIPS 180-4). */
+void *lox_digest_sha256(const void *text_pointer) {
+    const LoxStr *text = text_pointer;
+    unsigned char digest[32];
+    lox_sha256((const unsigned char *)text->data, (size_t)text->byte_len, digest);
+    static const char hex_digits[] = "0123456789abcdef";
+    char output[64];
+    for (int index = 0; index < 32; index++) {
+        output[index * 2] = hex_digits[digest[index] >> 4];
+        output[index * 2 + 1] = hex_digits[digest[index] & 0x0F];
+    }
+    return string_from_bytes(output, 64, 64);
 }
 
 static LoxFsHandle *fs_handle_at(int64_t id, int32_t line, int32_t column) {

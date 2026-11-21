@@ -25,6 +25,7 @@ from loxia_core.frontend.ty import (  # noqa: E402
     NIL,
     STRING,
     ListTy,
+    TupleTy,
     Ty,
     UnionTy,
 )
@@ -33,7 +34,7 @@ OUT = ROOT / "runtime" / "kernel_gen.h"
 
 
 def _c_type(ty: Ty, *, result: bool) -> str:
-    if ty is STRING or isinstance(ty, ListTy):
+    if ty is STRING or isinstance(ty, (ListTy, TupleTy)):
         return "void *" if result else "const void *"
     if isinstance(ty, UnionTy):
         return "void *"

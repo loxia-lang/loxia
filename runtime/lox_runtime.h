@@ -326,6 +326,8 @@ extern void lox_tuple_set (void *pointer, int64_t index, int64_t tag, int64_t pa
 extern LoxValue lox_tuple_get (const void *pointer, int64_t index, int32_t line, int32_t column);
 extern int64_t lox_tuple_len (const void *pointer);
 extern int lox_tuple_equal (const void *left_pointer, const void *right_pointer);
+/* digest.c — FIPS 180-4 SHA-256; the kernel wrapper renders lowercase hex. */
+extern void lox_sha256 (const unsigned char *data, size_t length, unsigned char out[32]);
 extern void *lox_chars (const void *pointer);
 extern int lox_any_equal (int64_t left_tag, int64_t left_payload, int64_t right_tag, int64_t right_payload);
 extern int lox_tuple_is2 (const void *pointer, int64_t tag0, int64_t tag1);
