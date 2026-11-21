@@ -54,14 +54,14 @@ monotonic and the differential test never compares against a hand-written expect
 | `l3` | 14 |
 | `l4` | 12 |
 | `l5` | 30 |
-| `l6` | 61 |
+| `l6` | 68 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 18 |
 | `t3` | 7 |
 | `t7` | 3 |
 
-**178 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
+**185 cases** across 13 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

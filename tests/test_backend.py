@@ -448,7 +448,8 @@ CASES_DIR = ROOT / "tests" / "cases"
 
 
 def _corpus_paths() -> set[str]:
-    return {path.relative_to(ROOT).as_posix() for path in CASES_DIR.glob("*.lx")}
+    paths = set(CASES_DIR.glob("*.lx")) | set((CASES_DIR / "bytes").glob("*.lx"))
+    return {path.relative_to(ROOT).as_posix() for path in paths}
 
 
 def test_corpus_classificado() -> None:
@@ -715,7 +716,11 @@ def test_stack_reserve_cobre_frame_gordo_com_soft_limit_de_8_mib(
 
 def _checkable_sources() -> list[tuple[str, str]]:
     """Casos do corpus que podem passar no `--check` (sem `errors/`)."""
-    paths = sorted(CASES_DIR.glob("*.lx")) + sorted((ROOT / "examples").glob("*.lx"))
+    paths = (
+        sorted(CASES_DIR.glob("*.lx"))
+        + sorted((CASES_DIR / "bytes").glob("*.lx"))
+        + sorted((ROOT / "examples").glob("*.lx"))
+    )
     return [(path.relative_to(ROOT).as_posix(), path.read_text(encoding="utf-8")) for path in paths]
 
 

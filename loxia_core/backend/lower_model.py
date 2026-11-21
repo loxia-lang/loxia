@@ -43,6 +43,7 @@ ANY_TAG_LIST = 9
 ANY_TAG_MAP = 10
 ANY_TAG_TUPLE = 11
 ANY_TAG_ENUM = 12
+ANY_TAG_BYTES = 13
 
 # Mensagens que o interpretador usa em runtime para operando de tipo errado.
 # O checker também reporta esses casos; o backend rebaixa para panic site (ADR-0031).
@@ -83,6 +84,7 @@ class ValueType(Enum):
     FLOAT = auto()
     BOOL = auto()
     STRING = auto()
+    BYTES = auto()
     NIL = auto()
     FUNCTION = auto()
     CLASS = auto()

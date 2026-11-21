@@ -45,6 +45,7 @@ RUNTIME_NAMES = (
     "kernel.c",
     "proc.c",
     "digest.c",
+    "bytes.c",
 )
 RUNTIME_SOURCES = tuple(RUNTIME_DIR / name for name in RUNTIME_NAMES)
 RUNTIME_HEADERS = tuple(sorted(RUNTIME_DIR.glob("*.h")))

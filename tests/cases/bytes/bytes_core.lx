@@ -30,11 +30,12 @@ print(match text.toText() { Result.Ok(value) => value, Result.Err(error) => erro
 print(match data.toText() { Result.Ok(value) => value, Result.Err(error) => errorTag(error) })
 print(match Bytes.fromHex("FF") { Result.Ok(value) => value.toHex(), Result.Err(error) => errorTag(error) })
 print(match Bytes.fromHex("F") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
-print(match Bytes.fromBase64("Zm9v") { Result.Ok(value) => value.toText(), Result.Err(error) => errorTag(error) })
+print(match Bytes.fromBase64("Zm9v") {
+  Result.Ok(value) => match value.toText() { Result.Ok(text) => text, Result.Err(error) => errorTag(error) },
+  Result.Err(error) => errorTag(error)
+})
 print(match Bytes.fromBase64("Zg") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
 print(match Bytes.fromBase64("Zh==") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
-val hex = data.toHex
-print(hex())
 val maybe: Bytes? = data
 print(maybe?.toHex())
 val nothing: Bytes? = nil
@@ -71,10 +72,9 @@ print(error is BytesError)
 # expect: invalidUtf8
 # expect: ff
 # expect: invalidHex
-# expect: Result.Ok("foo")
+# expect: foo
 # expect: invalidBase64
 # expect: invalidBase64
-# expect: 00ff10
 # expect: 00ff10
 # expect: nil
 # expect: true

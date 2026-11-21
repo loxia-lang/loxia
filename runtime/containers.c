@@ -269,6 +269,9 @@ int lox_value_equal(LoxValue left, LoxValue right) {
         case 12:
             return lox_enum_equal((const void *)left.payload,
                                   (const void *)right.payload);
+        case 13:
+            return lox_bytes_equal((const void *)left.payload,
+                                   (const void *)right.payload);
         default:
             return left.payload == right.payload;
     }

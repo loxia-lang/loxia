@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Bytes in Any/List/optional, casts, equality and formatting across engines.
+val b = Bytes.fromText("é")
+val any: Any = b
+print(any is Bytes)
+print((any as Bytes).toHex())
+print(any)
+val list: List[Bytes] = [b, Bytes.empty()]
+print(list)
+print(list[0].toHex())
+print(b == Bytes.fromText("é"))
+print(b == "é")
+val maybe: Bytes? = b
+print(maybe?.toHex())
+val none: Bytes? = nil
+print(none?.toHex())
+print(str(b))
+print("${b}")
+print(repr(b))
+val empty = Bytes.empty()
+print(empty)
+print(len(empty))
+print(empty.toHex())
+
+# expect: true
+# expect: c3a9
+# expect: 0xc3a9
+# expect: [0xc3a9, 0x]
+# expect: c3a9
+# expect: true
+# expect: false
+# expect: c3a9
+# expect: nil
+# expect: 0xc3a9
+# expect: 0xc3a9
+# expect: 0xc3a9
+# expect: 0x
+# expect: 0
+# expect:

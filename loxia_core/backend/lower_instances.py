@@ -95,6 +95,7 @@ class InstanceLowering(LoweringBase):
                 | ValueType.MAP
                 | ValueType.TUPLE
                 | ValueType.ENUM
+                | ValueType.BYTES
             ):
                 return Value(
                     desc.ty,
@@ -135,6 +136,7 @@ class InstanceLowering(LoweringBase):
                 | ValueType.MAP
                 | ValueType.TUPLE
                 | ValueType.ENUM
+                | ValueType.BYTES
                 | ValueType.FUNCTION
                 | ValueType.CLASS
                 | ValueType.INSTANCE
@@ -168,6 +170,8 @@ class InstanceLowering(LoweringBase):
         if isinstance(expr.object, Variable) and expr.object.name.lexeme in self._enum_layouts:
             return self._enum_get(expr)
         obj = self._expr(expr.object)
+        if obj.ty is ValueType.BYTES:
+            return cast("Value", self._bytes_method_value(expr))
         if expr.optional:
             if obj.ty is ValueType.NIL:
                 return self._zero_desc(self._expr_type_desc(expr, expr.name.line))

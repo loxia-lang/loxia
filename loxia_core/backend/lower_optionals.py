@@ -15,6 +15,7 @@ from loxia_core.backend.lower_model import (
     _I32,
     _INT,
     ANY_TAG_BOOL,
+    ANY_TAG_BYTES,
     ANY_TAG_CLASS,
     ANY_TAG_ENUM,
     ANY_TAG_FLOAT,
@@ -40,6 +41,7 @@ from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import BOOL as TY_BOOL
+from loxia_core.frontend.ty import BYTES as TY_BYTES
 from loxia_core.frontend.ty import FLOAT as TY_FLOAT
 from loxia_core.frontend.ty import INT as TY_INT
 from loxia_core.frontend.ty import NIL as TY_NIL
@@ -71,6 +73,8 @@ class OptionalLowering(LoweringBase):
             return TypeDesc(ValueType.BOOL)
         if ty is TY_STRING:
             return TypeDesc(ValueType.STRING)
+        if ty is TY_BYTES:
+            return TypeDesc(ValueType.BYTES)
         if ty is TY_NIL:
             return TypeDesc(ValueType.NIL)
         if ty is TY_ANY:
@@ -176,6 +180,8 @@ class OptionalLowering(LoweringBase):
                 return _BOOL
             case ValueType.STRING:
                 return _I8_PTR
+            case ValueType.BYTES:
+                return _I8_PTR
             case ValueType.FUNCTION:
                 return _I8_PTR
             case (
@@ -186,6 +192,7 @@ class OptionalLowering(LoweringBase):
                 | ValueType.MAP
                 | ValueType.TUPLE
                 | ValueType.ENUM
+                | ValueType.BYTES
             ):
                 return _I8_PTR
             case ValueType.ANY:
@@ -250,6 +257,8 @@ class OptionalLowering(LoweringBase):
                 return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, 0))
             case ValueType.STRING:
                 return Value(ValueType.STRING, llvm_ir.null_pointer())
+            case ValueType.BYTES:
+                return Value(ValueType.BYTES, llvm_ir.null_pointer())
             case ValueType.FUNCTION:
                 return Value(ValueType.FUNCTION, llvm_ir.null_pointer())
             case (
@@ -331,6 +340,7 @@ class OptionalLowering(LoweringBase):
             ValueType.MAP: ANY_TAG_MAP,
             ValueType.TUPLE: ANY_TAG_TUPLE,
             ValueType.ENUM: ANY_TAG_ENUM,
+            ValueType.BYTES: ANY_TAG_BYTES,
         }.get(ty)
         if tag is None:
             raise _unsupported(f"Boxing {ty.name}", line)

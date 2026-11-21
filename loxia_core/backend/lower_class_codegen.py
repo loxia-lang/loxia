@@ -37,6 +37,7 @@ from loxia_core.frontend.ty import ANY as TY_ANY
 from loxia_core.frontend.ty import (
     BOOL as TY_BOOL,
 )
+from loxia_core.frontend.ty import BYTES as TY_BYTES
 from loxia_core.frontend.ty import (
     FLOAT as TY_FLOAT,
 )
@@ -751,6 +752,8 @@ class ClassCodegenLowering(LoweringBase):
             return "F"
         if ty is TY_STRING:
             return "S"
+        if ty is TY_BYTES:
+            return "Y"
         if ty is TY_RANGE:
             return "R"
         if isinstance(ty, ListTy):
@@ -791,6 +794,7 @@ class ClassCodegenLowering(LoweringBase):
     def _tag_of(self, desc: TypeDesc) -> int:
         from loxia_core.backend.lower_model import (
             ANY_TAG_BOOL,
+            ANY_TAG_BYTES,
             ANY_TAG_CLASS,
             ANY_TAG_ENUM,
             ANY_TAG_FLOAT,
@@ -819,6 +823,7 @@ class ClassCodegenLowering(LoweringBase):
             ValueType.MAP: ANY_TAG_MAP,
             ValueType.TUPLE: ANY_TAG_TUPLE,
             ValueType.ENUM: ANY_TAG_ENUM,
+            ValueType.BYTES: ANY_TAG_BYTES,
         }[desc.ty]
 
     def _as_any(
@@ -967,6 +972,7 @@ class ClassCodegenLowering(LoweringBase):
                 ValueType.MAP,
                 ValueType.TUPLE,
                 ValueType.ENUM,
+                ValueType.BYTES,
             )
             and value.ty is target_desc.ty
             and not value.optional

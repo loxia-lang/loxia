@@ -23,6 +23,7 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
 from loxia_core.backend.lower_base import CleanupContext
+from loxia_core.backend.lower_bytes import BytesLowering
 from loxia_core.backend.lower_calls import CallLowering
 from loxia_core.backend.lower_class_codegen import ClassCodegenLowering
 from loxia_core.backend.lower_class_layout import ClassLayoutLowering
@@ -113,6 +114,7 @@ class Lowerer(
     EnumLowering,
     GenericLowering,
     MathLowering,
+    BytesLowering,
     TupleLowering,
     ContainerLowering,
     RangeLowering,
@@ -361,6 +363,8 @@ class Lowerer(
                 self.builder.call(self._function("lox_print_tuple", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.ENUM:
                 self.builder.call(self._function("lox_print_enum", _VOID, [_I8_PTR]), [value.llvm])
+            case ValueType.BYTES:
+                self.builder.call(self._function("lox_print_bytes", _VOID, [_I8_PTR]), [value.llvm])
             case ValueType.FUNCTION:
                 self.builder.call(
                     self._function("lox_print_function", _VOID, [_I8_PTR]),
@@ -1116,6 +1120,14 @@ class Lowerer(
                 self._function("lox_range_equal", _I32, [_I8_PTR, _I8_PTR]),
                 [left.llvm, right.llvm],
             )
+            result = self.builder.icmp_signed(
+                "!=" if equal else "==", comparison, llvm_ir.constant(_I32, 0)
+            )
+            return Value(ValueType.BOOL, result)
+
+        if left.ty is ValueType.BYTES and right.ty is ValueType.BYTES:
+            function = self._function("lox_bytes_equal", _I32, [_I8_PTR, _I8_PTR])
+            comparison = self.builder.call(function, [left.llvm, right.llvm])
             result = self.builder.icmp_signed(
                 "!=" if equal else "==", comparison, llvm_ir.constant(_I32, 0)
             )

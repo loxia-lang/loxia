@@ -87,6 +87,9 @@ class RangeLowering(LoweringBase):
         if iterable.ty is ValueType.TUPLE:
             self._for_tuple(stmt, iterable)
             return
+        if iterable.ty is ValueType.BYTES:
+            self._for_bytes(stmt, iterable)
+            return
         if iterable.ty is ValueType.INSTANCE:
             self._for_instance(stmt, iterable)
             return
@@ -386,6 +389,39 @@ class RangeLowering(LoweringBase):
         below = self.builder.select(flag, below_in, below)
         above = self.builder.select(flag, above_in, above)
         return self.builder.select(negative, above, below)
+
+    def _for_bytes(self, stmt: ForIn, iterable: Value) -> None:
+        index = self.builder.alloca(_INT, name="for.bytes")
+        self.builder.store(llvm_ir.constant(_INT, 0), index)
+        length = self.builder.call(
+            self._function("lox_bytes_len", _INT, [_I8_PTR]), [iterable.llvm]
+        )
+
+        def condition() -> Any:
+            return self.builder.icmp_signed("<", self.builder.load(index), length)
+
+        def load() -> Any:
+            return self.builder.call(
+                self._function(
+                    "lox_bytes_at",
+                    _INT,
+                    [_I8_PTR, _INT, _I32, _I32],
+                ),
+                [
+                    iterable.llvm,
+                    self.builder.load(index),
+                    llvm_ir.constant(_I32, stmt.name.line),
+                    llvm_ir.constant(_I32, stmt.name.column),
+                ],
+            )
+
+        def advance() -> None:
+            self.builder.store(
+                self.builder.add(self.builder.load(index), llvm_ir.constant(_INT, 1)),
+                index,
+            )
+
+        self._for_loop(stmt, TypeDesc(ValueType.INT), condition, load, advance)
 
     def _for_string(self, stmt: ForIn, iterable: Value) -> None:
         index = self.builder.alloca(_INT, name="for.str")
