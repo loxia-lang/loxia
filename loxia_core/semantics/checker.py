@@ -18,6 +18,7 @@ from loxia_core.diagnostics.diagnostic import (
     Span,
 )
 from loxia_core.diagnostics.error_reporter import ErrorReporter
+from loxia_core.execution.bytes_api import BYTES_METHODS, BYTES_STATICS
 from loxia_core.execution.prelude import BUILTIN_NAMES
 from loxia_core.execution.primitives import PRIMITIVES
 from loxia_core.frontend.destructuring import (
@@ -84,6 +85,7 @@ from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import (
     ANY,
     BOOL,
+    BYTES,
     ERROR,
     FLOAT,
     INT,
@@ -122,6 +124,8 @@ RESERVED_TYPE_PARAM_NAMES = frozenset(
         "Int",
         "List",
         "Map",
+        "Bytes",
+        "BytesError",
         "Never",
         "Nil",
         "Num",
@@ -316,7 +320,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["Exception"] = ClassObjectTy("Exception")
         self._scopes[0]["RuntimeError"] = ClassObjectTy("RuntimeError")
 
+        kind_token = Token(TokenType.IDENTIFIER, "kind", None, 0)
+        bytes_message_token = Token(TokenType.IDENTIFIER, "message", None, 0)
+        self._classes["BytesError"] = ClassInfo(
+            "BytesError",
+            None,
+            fields={
+                "kind": FieldBinding(STRING, False, kind_token),
+                "message": FieldBinding(STRING, False, bytes_message_token),
+            },
+            init=FnTy((STRING, STRING), ClassTy("BytesError"), 2),
+        )
+        self._scopes[0]["BytesError"] = ClassObjectTy("BytesError")
+
         self._native_modules = {
+            "Bytes": dict(BYTES_STATICS),
             "Int": {
                 "parse": FnTy((STRING,), union(INT, NIL), 1),
             },
@@ -1495,6 +1513,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Unknown superclass '{superclass}'.",
                 code=Code.UNKNOWN_TYPE,
             )
+        if superclass == "BytesError" and superclass_token is not None:
+            self._error(
+                superclass_token,
+                "Can't subclass built-in class 'BytesError'.",
+                code=Code.RESERVED_NAME,
+            )
 
         info = self._classes.get(name)
         if info is None:
@@ -2431,7 +2455,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.INVALID_CAST,
             )
             return
-        if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
+        if ty in (NIL, BOOL, INT, FLOAT, STRING, BYTES, RANGE):
             return
         if isinstance(ty, ClassTy):
             if ty.args:
@@ -2476,7 +2500,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.INVALID_TYPE_ANNOTATION,
             )
             return
-        if ty in (NIL, BOOL, INT, FLOAT, STRING, RANGE):
+        if ty in (NIL, BOOL, INT, FLOAT, STRING, BYTES, RANGE):
             return
         if isinstance(ty, ClassTy):
             if ty.args:
@@ -3736,7 +3760,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return union(INT, FLOAT)
 
     def _is_len_able(self, ty: Ty) -> bool:
-        if ty is ANY or ty is STRING or ty is ERROR or isinstance(ty, ListTy):
+        if ty is ANY or ty is STRING or ty is BYTES or ty is ERROR or isinstance(ty, ListTy):
             return True
         if isinstance(ty, MapTy):
             return True
@@ -4564,6 +4588,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         elif all(isinstance(member, MapTy) for member in members):
             maps = [member for member in members if isinstance(member, MapTy)]
             result = self._map_property(maps, name)
+        elif all(member is BYTES for member in members):
+            result = self._bytes_property(name)
         elif all(isinstance(member, ClassTy) for member in members):
             classes = [member for member in members if isinstance(member, ClassTy)]
             if len(classes) == 1:
@@ -4593,6 +4619,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ERROR
 
         return union(result, NIL) if optional and nilable else result
+
+    def _bytes_property(self, name: Token) -> Ty:
+        signature = BYTES_METHODS.get(name.lexeme)
+        if signature is None:
+            self._error(name, f"Undefined property '{name.lexeme}'.")
+            return ERROR
+        return signature
 
     def _list_property(self, lists: list[ListTy], name: Token) -> Ty:
         element = lists[0].element
@@ -5051,6 +5084,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     notes=self._provenance_notes(expr.index, expr.bracket),
                 )
             return obj.value
+        if obj is BYTES:
+            self._check_index_type(index, expr, expr.index, owner="Bytes")
+            return INT
         if not isinstance(obj, ListTy):
             self._error(expr.bracket, "Only lists and maps can be indexed.")
             return ERROR
@@ -5101,7 +5137,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return value
 
     def _check_index_type(
-        self, index: Ty, expr: Index | IndexSet, index_expr: Expr | None = None
+        self,
+        index: Ty,
+        expr: Index | IndexSet,
+        index_expr: Expr | None = None,
+        *,
+        owner: str = "List",
     ) -> None:
         if index is INT or index is ERROR:
             return
@@ -5109,7 +5150,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         notes = self._provenance_notes(index_expr, expr.bracket) if index_expr is not None else ()
         self._error(
             expr.bracket,
-            f"List index must be an integer, found {display(index)}.",
+            f"{owner} index must be an integer, found {display(index)}.",
             code=Code.INVALID_LIST,
             notes=notes,
         )

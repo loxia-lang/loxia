@@ -34,6 +34,8 @@ def _stringify(value: object, stack: set[int]) -> str:
         return str(value)
     if is_float(value):
         return _stringify_float(value)
+    if isinstance(value, bytes):
+        return "0x" + value.hex()
     if isinstance(value, LoxList):
         return _stringify_list(value, stack)
     if isinstance(value, LoxMap):

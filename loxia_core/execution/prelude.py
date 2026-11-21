@@ -26,6 +26,8 @@ BUILTIN_NAMES = frozenset(
         "time",
         "Int",
         "Float",
+        "Bytes",
+        "BytesError",
         "math",
         "os",
         "Result",

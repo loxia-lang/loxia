@@ -504,6 +504,85 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Deterministic (`core`): same bytes in both engines. This is an integrity "
         "digest, not a password hash; for a human API use `std.hash.sha256`.",
     ),
+    BuiltinDoc(
+        "Bytes",
+        "Bytes",
+        "Immutable sequence of bytes (0..255).\n\n"
+        "`len(b)` counts bytes; `b[i]` is an `Int` 0..255; `str`/`repr` render "
+        "`0x<hex>`; equality is structural and `b == s` is `false`. `Bytes` is not a "
+        "`Map` key and has no literal syntax. Build with `Bytes.fromText`, `fromList`, "
+        "`fromHex` or `fromBase64`; slice/concat and conversions are value methods.",
+        kind="module",
+    ),
+    BuiltinDoc(
+        "Bytes.empty",
+        "Bytes.empty() -> Bytes",
+        "Returns the empty `Bytes`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromList",
+        "Bytes.fromList(xs: List[Int]) -> Bytes",
+        "Copies a list of integers 0..255 into `Bytes`.\n\n"
+        "A value outside 0..255 (or a non-integer element) raises `RuntimeError`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromText",
+        "Bytes.fromText(text: String) -> Bytes",
+        "Encodes the UTF-8 bytes of `text`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromHex",
+        "Bytes.fromHex(text: String) -> Result[Bytes, BytesError]",
+        "Decodes RFC 4648 base16.\n\n"
+        "Accepts lowercase and uppercase digits; an odd length or a non-hex "
+        "character is `Err(BytesError('invalidHex', ...))`.",
+    ),
+    BuiltinDoc(
+        "Bytes.fromBase64",
+        "Bytes.fromBase64(text: String) -> Result[Bytes, BytesError]",
+        "Decodes canonical RFC 4648 base64 (standard alphabet, padding required).\n\n"
+        "Invalid, unpadded or non-canonical input is "
+        "`Err(BytesError('invalidBase64', ...))`.",
+    ),
+    BuiltinDoc(
+        "Bytes.slice",
+        "Bytes.slice(start: Int, end: Int) -> Bytes",
+        "Returns the half-open byte range `start..end`.\n\n"
+        "Same bounds rules as `substr`: negative, inverted or past-the-end ranges "
+        "raise `RuntimeError`.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.concat",
+        "Bytes.concat(other: Bytes) -> Bytes",
+        "Returns a new `Bytes` with `other` appended; neither operand is mutated.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toList",
+        "Bytes.toList() -> List[Int]",
+        "Copies the bytes into a new `List[Int]`.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toText",
+        "Bytes.toText() -> Result[String, BytesError]",
+        "Decodes strict UTF-8; invalid input is "
+        "`Err(BytesError('invalidUtf8', ...))` and is never replaced.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toHex",
+        "Bytes.toHex() -> String",
+        "Returns lowercase RFC 4648 base16.",
+        kind="method",
+    ),
+    BuiltinDoc(
+        "Bytes.toBase64",
+        "Bytes.toBase64() -> String",
+        "Returns canonical RFC 4648 base64 with padding.",
+        kind="method",
+    ),
     # ------------------------------------------------------------------
     # Built-in types
     # ------------------------------------------------------------------
@@ -513,6 +592,14 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Built-in generic sum type with `Result.Ok(value)` and `Result.Err(error)`.\n\n"
         "Use an exhaustive `match` to inspect it, or the combinators in "
         "`std.results`.",
+        kind="type",
+    ),
+    BuiltinDoc(
+        "BytesError",
+        "BytesError",
+        "Failure of a `Bytes` conversion with `kind` and `message`.\n\n"
+        "Kinds: `invalidHex`, `invalidBase64`, `invalidUtf8`. Available without an "
+        "import, like `RuntimeError`.",
         kind="type",
     ),
     BuiltinDoc(

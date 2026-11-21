@@ -21,6 +21,7 @@ from loxia_core.execution.lox_tuple import LoxTuple
 from loxia_core.frontend.ty import (
     ANY,
     BOOL,
+    BYTES,
     ERROR,
     FLOAT,
     INT,
@@ -67,6 +68,8 @@ def matches_type(
         return numeric.is_float(value)
     if ty is STRING:
         return isinstance(value, str)
+    if ty is BYTES:
+        return isinstance(value, bytes)
     if ty is RANGE:
         return isinstance(value, LoxRange)
     if isinstance(ty, ListTy):

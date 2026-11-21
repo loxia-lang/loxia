@@ -15,6 +15,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **`Bytes` (fase 79a)** ([ADR-0125](docs/adr/0125-bytes-tipo-binario.md),
+  [#79](https://github.com/loxia-lang/loxia/issues/79)): tipo de valor imutável para dados
+  binários, distinto de `String`; `len` em bytes, `b[i] -> Int`, igualdade estrutural,
+  `str`/`repr` em `0x<hex>`, `is`/`as`, `Any`, `List` e `Bytes?`. Namespace `Bytes`
+  (`empty`, `fromList`, `fromText`, `fromHex`, `fromBase64`) e métodos (`slice`, `concat`,
+  `toList`, `toText`, `toHex`, `toBase64`), com `BytesError` global. Hex aceita ambas as
+  caixas; base64 é canônico; `toText` é UTF-8 estrito. Ainda sem backend/tag 13 e sem
+  iteração (79b), e sem chave de `Map`.
+
 - **`std.timex` v2**: `date` com validação (`Result[(Int, Int, Int), TimeError]`),
   `isLeapYear`, `daysInMonth`, `weekday` (ISO 1..7), `dayOfYear`, `addMonths`/`addYears` com
   clamp de calendário, `diffDays` (dias civis), `isoMillis`, `isoDate`, `isoIn`/`partsIn`

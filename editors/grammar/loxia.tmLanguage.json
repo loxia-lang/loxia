@@ -261,7 +261,7 @@
       "name": "punctuation.loxia"
     },
     "builtin-class": {
-      "match": "\\b(?:Exception|Float|Int|Result|RuntimeError)\\b",
+      "match": "\\b(?:Bytes|BytesError|Exception|Float|Int|Result|RuntimeError)\\b",
       "name": "support.class.builtin.loxia"
     },
     "builtin-function": {

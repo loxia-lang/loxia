@@ -37,6 +37,8 @@ class Len:
             return len(value.items)
         if isinstance(value, str):
             return len(value)
+        if isinstance(value, bytes):
+            return len(value)
 
         raise NativeError("len() expects a string, a list or a map.")
 
