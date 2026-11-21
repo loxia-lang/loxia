@@ -720,6 +720,14 @@ void *lox_digest_sha256(const void *text_pointer) {
     return string_from_bytes(output, 64, 64);
 }
 
+/* `digest.sha256Bytes(data)`: the raw 32-byte digest (FIPS 180-4). */
+void *lox_digest_sha256_bytes(const void *bytes_pointer) {
+    const LoxBytes *data = bytes_pointer;
+    LoxBytes *output = lox_bytes_new(32);
+    lox_sha256(data->data, (size_t)data->len, output->data);
+    return output;
+}
+
 static LoxFsHandle *fs_handle_at(int64_t id, int32_t line, int32_t column) {
     if (id < 1 || id > LOX_MAX_FS_HANDLES) {
         lox_panic(line, column, "R1000", "fs: invalid handle.");
@@ -845,6 +853,55 @@ void *lox_fs_read(int64_t id, int64_t count, int32_t line, int32_t column) {
     }
     return string_from_bytes((const char *)buffer, total,
                              utf8_code_points((const char *)buffer, total));
+}
+
+/* `fs.readBytes(id, n)`: at most `n` raw bytes (no UTF-8), or NULL at EOF. */
+void *lox_fs_read_bytes(int64_t id, int64_t count, int32_t line, int32_t column) {
+    LoxFsHandle *handle = fs_handle_at(id, line, column);
+    if (handle == NULL) {
+        return NULL;
+    }
+    if (handle->writable) {
+        lox_panic(line, column, "R1000", "badMode: handle is not open for reading.");
+        return NULL;
+    }
+    if (count < 0) {
+        lox_panic(line, column, "R1000",
+                  "fs.readBytes() expects a non-negative size.");
+        return NULL;
+    }
+    if (count == 0) {
+        return lox_bytes_new(0);
+    }
+    LoxBytes *value = lox_bytes_new(count);
+    size_t total = 0;
+    if (handle->pending_len > 0) {
+        size_t take = handle->pending_len < (size_t)count ? handle->pending_len
+                                                           : (size_t)count;
+        memcpy(value->data, handle->pending, take);
+        if (handle->pending_len > take) {
+            memmove(handle->pending, handle->pending + take,
+                    handle->pending_len - take);
+            handle->pending_len -= take;
+        } else {
+            handle->pending_len = 0;
+        }
+        total = take;
+    }
+    if (total < (size_t)count) {
+        ssize_t got;
+        do {
+            got = read(handle->fd, value->data + total, (size_t)count - total);
+        } while (got < 0 && errno == EINTR);
+        if (got > 0) {
+            total += (size_t)got;
+        }
+    }
+    if (total == 0) {
+        return NULL;
+    }
+    value->len = (int64_t)total;
+    return value;
 }
 
 /* `fs.write(id, text)`: writes every byte, retrying EINTR. */

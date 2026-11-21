@@ -23,6 +23,7 @@ STD = bundle_dir("std")
 
 MODULES = {
     "asserts": "Explicit failures for tests and contracts. Every helper raises `RuntimeError`.",
+    "bytes": "Byte buffers: incremental Builder, comparison and big/little-endian helpers.",
     "cli": "Deterministic command-line parsing from a declarative spec.",
     "contracts": "Design by contract as a library: precondition, postcondition and invariant checks.",
     "convert": "Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes.",
@@ -36,7 +37,7 @@ MODULES = {
     "collections": "Stack, Queue, Deque and PriorityQueue, backed by lists.",
     "hash": "Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes.",
     "rand": "Deterministic xorshift64* PRNG with an explicit seed.",
-    "timex": "UTC date/time helpers over integer epoch seconds; no timezones.",
+    "timex": "UTC date/time helpers over integer epoch milliseconds; no timezones.",
     "iter": "Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`).",
     "json": "RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.",
     "jsonrpc": "JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages.",

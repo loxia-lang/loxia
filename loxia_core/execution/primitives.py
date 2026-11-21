@@ -26,7 +26,7 @@ from loxia_core.execution.fs_runtime import FileTable
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.lox_tuple import LoxTuple
 from loxia_core.execution.proc_runtime import ProcTable
-from loxia_core.frontend.ty import BOOL, INT, NIL, STRING, ListTy, TupleTy, Ty, union
+from loxia_core.frontend.ty import BOOL, BYTES, INT, NIL, STRING, ListTy, TupleTy, Ty, union
 
 
 def _substr(text: str, start: int, end: int) -> str:
@@ -207,6 +207,10 @@ def _fs_close(interpreter: object, identifier: int) -> None:
     _fs_table(interpreter).close(identifier)
 
 
+def _fs_read_bytes(interpreter: object, identifier: int, count: int) -> bytes | None:
+    return _fs_table(interpreter).read_bytes(identifier, count)
+
+
 _FS_ERROR_KINDS = {
     errno.ENOENT: "notFound",
     errno.EACCES: "permission",
@@ -276,6 +280,10 @@ def _fs_stat(path: str) -> LoxTuple:
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _sha256_bytes(data: bytes) -> bytes:
+    return hashlib.sha256(data).digest()
 
 
 def _proc_table(interpreter: object) -> ProcTable:
@@ -451,6 +459,16 @@ PRIMITIVES: tuple[Primitive, ...] = (
         site=True,
     ),
     Primitive(
+        "fs.readBytes",
+        "lox_fs_read_bytes",
+        (INT, INT),
+        union(BYTES, NIL),
+        _fs_read_bytes,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
         "fs.write",
         "lox_fs_write",
         (INT, STRING),
@@ -594,6 +612,7 @@ PRIMITIVES: tuple[Primitive, ...] = (
     Primitive("time.now", "lox_time_now", (), INT, _now, ambient=True),
     Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True, site=True),
     Primitive("digest.sha256", "lox_digest_sha256", (STRING,), STRING, _sha256),
+    Primitive("digest.sha256Bytes", "lox_digest_sha256_bytes", (BYTES,), BYTES, _sha256_bytes),
 )
 
 
@@ -635,6 +654,7 @@ SANDBOX_DENIED_NAMES = frozenset(
         "fs.read",
         "fs.write",
         "fs.close",
+        "fs.readBytes",
         "fs.rename",
         "fs.remove",
         "fs.mkdir",

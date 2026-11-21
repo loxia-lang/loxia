@@ -199,6 +199,9 @@ O 79a/79b (interpretador/checker e backend) fica com:
   registrada na Discussions #92;
 - `BytesError` é enum com payload de mensagem (id reservado -1), e o C constrói
   `Result`/`BytesError` com `lox_enum_new`/`lox_enum_set`, sem classe sintética.
+- O 79c fecha a superfície: `std.bytes` (`Builder` sobre `List[Int]`, `compare`, helpers
+  `u16be/le`, `u32be/le`, `u64be/le`), `fs.readBytes`/`File.readBytes` (grupo `fs` 11) e
+  `digest.sha256Bytes`/`std.hash.sha256Bytes` (grupo `digest` 2), total **40** primitivas.
 
 ## Referências
 

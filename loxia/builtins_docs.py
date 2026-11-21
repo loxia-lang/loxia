@@ -316,6 +316,14 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         ambient=True,
     ),
     BuiltinDoc(
+        "fs.readBytes",
+        "fs.readBytes(id: Int, n: Int) -> Bytes?",
+        "Reads at most `n` raw bytes from a file handle, without UTF-8 validation.\n\n"
+        "Ambient. `nil` is immediate end of file and `n == 0` is the empty `Bytes`; a "
+        "handle not open for reading or a negative `n` raises.",
+        ambient=True,
+    ),
+    BuiltinDoc(
         "fs.write",
         "fs.write(id: Int, text: String) -> Nil",
         "Writes all of `text` to a file handle.\n\n"
@@ -503,6 +511,13 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "characters.\n\n"
         "Deterministic (`core`): same bytes in both engines. This is an integrity "
         "digest, not a password hash; for a human API use `std.hash.sha256`.",
+    ),
+    BuiltinDoc(
+        "digest.sha256Bytes",
+        "digest.sha256Bytes(data: Bytes) -> Bytes",
+        "Returns the raw 32-byte SHA-256 of `data`.\n\n"
+        "Deterministic (`core`): same bytes in both engines. Use `toHex()` for the "
+        "printable form or `std.hash.sha256Bytes` for the wrapper.",
     ),
     BuiltinDoc(
         "Bytes",

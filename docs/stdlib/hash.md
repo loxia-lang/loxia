@@ -39,3 +39,9 @@ Returns the SHA-256 of the UTF-8 bytes of `text` as 64 lowercase hex characters.
 A cryptographic digest (FIPS 180-4) for integrity and content addressing, computed
 by the kernel primitive `digest.sha256`; deterministic in both engines. It is not a
 password hash — use a dedicated KDF for secrets.
+
+### `fn sha256Bytes(data: Bytes) -> Bytes`
+
+Returns the raw 32-byte SHA-256 of `data`.
+
+The binary counterpart of `sha256`; use `toHex` when a printable digest is needed.

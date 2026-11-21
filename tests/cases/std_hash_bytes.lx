@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.hash.sha256Bytes: raw 32-byte SHA-256, same vectors as the text wrapper.
+import std.hash as hash
+
+print(hash.sha256Bytes(Bytes.fromText("abc")).toHex())
+print(hash.sha256Bytes(Bytes.empty()).toHex())
+print(hash.sha256Bytes(Bytes.fromList([0, 255])).toHex())
+print(hash.sha256("abc"))
+
+# expect: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+# expect: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+# expect: 06eb7d6a69ee19e5fbdf749018d3d2abfa04bcbd1365db312eb86dc7169389b8
+# expect: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad

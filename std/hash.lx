@@ -50,6 +50,13 @@ fn sha256(text: String) -> String {
   return digest.sha256(text)
 }
 
+/// Returns the raw 32-byte SHA-256 of `data`.
+///
+/// The binary counterpart of `sha256`; use `toHex` when a printable digest is needed.
+fn sha256Bytes(data: Bytes) -> Bytes {
+  return digest.sha256Bytes(data)
+}
+
 fn _utf8Bytes(text: String) -> List[Int] {
   val bytes: List[Int] = []
   var index = 0
