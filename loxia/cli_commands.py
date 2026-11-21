@@ -12,6 +12,7 @@ import os
 import signal
 import sys
 import time
+from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -40,6 +41,7 @@ from loxia_core.execution.limits import (
     MAX_CALL_DEPTH,
     STACK_BUDGET_BYTES,
 )
+from loxia_core.execution.primitives import GROUP_BUDGET, KERNEL_BUDGET, PRIMITIVES
 from loxia_core.loader.deps import (
     DependencyError,
     fetch_dependencies,
@@ -663,6 +665,16 @@ def _capabilities_payload() -> dict[str, object]:
             "stack_budget_bytes": STACK_BUDGET_BYTES,
             "default_heap_bytes": DEFAULT_HEAP_BYTES,
         },
+        "primitives": [
+            {
+                "name": primitive.lox,
+                "group": primitive.group,
+                "ambient": primitive.ambient,
+                "site": primitive.site,
+            }
+            for primitive in PRIMITIVES
+        ],
+        "kernel_budget": {"total": KERNEL_BUDGET, "groups": GROUP_BUDGET},
         "warnings": {"codes": ["W1001"], "werror": True},
         "fixes": {
             "applicability": ["safe", "unsafe"],
@@ -677,10 +689,17 @@ def _print_capabilities(as_json: bool) -> None:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
     commands = cast(list[dict[str, object]], payload["commands"])
+    primitives = cast(list[dict[str, object]], payload["primitives"])
+    groups = Counter(str(primitive["group"]) for primitive in primitives)
     print(f"loxia {payload['version']}")
     print("commands: " + ", ".join(str(command["name"]) for command in commands))
     print("error formats: " + ", ".join(cast(list[str], payload["error_formats"])))
     print("jsonl events: " + ", ".join(cast(list[str], payload["jsonl_events"])))
+    print(
+        f"primitives: {len(primitives)} ("
+        + ", ".join(f"{group} {count}" for group, count in sorted(groups.items()))
+        + ")"
+    )
     print(f"max call depth: {MAX_CALL_DEPTH}")
     print(f"default heap: {DEFAULT_HEAP_BYTES // 1024**2}M")
 

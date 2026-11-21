@@ -14,7 +14,8 @@ from __future__ import annotations
 import os
 import sys
 import time
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 from loxia_core.diagnostics.errors import NativeError
@@ -252,6 +253,35 @@ def _sleep(milliseconds: int) -> None:
     time.sleep(milliseconds / 1000.0)
 
 
+# Orçamento do kernel por grupo (ADR-0123). O grupo é o prefixo do namespace da
+# primitiva (`io.*` → `io`); sem prefixo, é `core`. `process` é o namespace e `proc`
+# é o grupo histórico.
+_GROUP_ALIASES = {"process": "proc"}
+
+KERNEL_BUDGET = 40
+
+GROUP_BUDGET: dict[str, int] = {
+    "core": 5,
+    "io": 8,
+    "fs": 11,
+    "os": 2,
+    "proc": 10,
+    "time": 2,
+    "digest": 2,
+}
+
+# Módulos nativos têm orçamento próprio, fora dos 40 do kernel (ADR-0126).
+NATIVE_MODULE_BUDGET: dict[str, int] = {"sqlite3": 20}
+
+
+def primitive_group(name: str) -> str:
+    """Grupo de orçamento de uma primitiva: namespace, ou `core` sem prefixo."""
+    namespace, separator, _ = name.partition(".")
+    if not separator:
+        return "core"
+    return _GROUP_ALIASES.get(namespace, namespace)
+
+
 @dataclass(frozen=True)
 class Primitive:
     lox: str
@@ -263,6 +293,11 @@ class Primitive:
     needs_interpreter: bool = False
     # O símbolo C recebe `(line, column)` no fim, para o panic apontar a chamada.
     site: bool = False
+
+    @property
+    def group(self) -> str:
+        """Grupo de orçamento (ADR-0123): o namespace da primitiva."""
+        return primitive_group(self.lox)
 
 
 PRIMITIVES: tuple[Primitive, ...] = (
@@ -444,6 +479,30 @@ PRIMITIVES: tuple[Primitive, ...] = (
     Primitive("time.now", "lox_time_now", (), INT, _now, ambient=True),
     Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True, site=True),
 )
+
+
+def budget_violations(
+    primitives: Iterable[Primitive],
+    budget: Mapping[str, int],
+    total: int | None = None,
+) -> list[str]:
+    """Grupos ou total acima do orçamento; lista vazia quando tudo cabe.
+
+    Usado pelo teste de orçamento (ADR-0123); é uma função pura para o próprio teste
+    conseguir simular estouro sem tocar na tabela real.
+    """
+    counts = Counter(primitive.group for primitive in primitives)
+    problems: list[str] = []
+    for group, count in sorted(counts.items()):
+        limit = budget.get(group)
+        if limit is None:
+            problems.append(f"group '{group}' has no budget")
+        elif count > limit:
+            problems.append(f"group '{group}' has {count}, budget {limit}")
+    if total is not None and sum(counts.values()) > total:
+        problems.append(f"kernel has {sum(counts.values())} primitives, budget {total}")
+    return problems
+
 
 PRIMITIVE_BY_LOX: dict[str, Primitive] = {primitive.lox: primitive for primitive in PRIMITIVES}
 

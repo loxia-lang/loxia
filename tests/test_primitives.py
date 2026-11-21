@@ -3,11 +3,21 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 from loxia_core.execution.lox_list import LoxList
-from loxia_core.execution.primitives import PRIMITIVES, PrimitiveCallable
-from loxia_core.frontend.ty import INT, STRING, ListTy
+from loxia_core.execution.primitives import (
+    GROUP_BUDGET,
+    KERNEL_BUDGET,
+    NATIVE_MODULE_BUDGET,
+    PRIMITIVES,
+    Primitive,
+    PrimitiveCallable,
+    budget_violations,
+    primitive_group,
+)
+from loxia_core.frontend.ty import INT, NIL, STRING, ListTy
 
 
 def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
@@ -101,3 +111,37 @@ def test_oraculo_de_args_usa_o_interpretador() -> None:
     result = PRIMITIVE_BY_LOX["args"].py(_Interpreter())
     assert isinstance(result, LoxList)
     assert result.elements == ["a", "b"]
+
+
+def test_grupo_e_o_namespace_da_primitiva() -> None:
+    assert primitive_group("substr") == "core"
+    assert primitive_group("io.write") == "io"
+    assert primitive_group("process.spawn") == "proc"
+    assert primitive_group("digest.sha256") == "digest"
+
+
+def test_orcamento_do_kernel_por_grupo() -> None:
+    assert budget_violations(PRIMITIVES, GROUP_BUDGET, KERNEL_BUDGET) == []
+
+    counts = Counter(primitive.group for primitive in PRIMITIVES)
+    assert counts == {"core": 5, "io": 8, "fs": 6, "os": 2, "proc": 10, "time": 2}
+    assert sum(counts.values()) == len(PRIMITIVES) == 33
+    assert sum(GROUP_BUDGET.values()) == KERNEL_BUDGET
+
+
+def test_orcamento_de_modulo_nativo_e_separado() -> None:
+    assert "sqlite3" not in GROUP_BUDGET
+    assert NATIVE_MODULE_BUDGET == {"sqlite3": 20}
+    assert {primitive.group for primitive in PRIMITIVES}.isdisjoint(NATIVE_MODULE_BUDGET)
+
+
+def test_orcamento_detecta_estouro_de_grupo_e_de_total() -> None:
+    def fake(name: str) -> Primitive:
+        return Primitive(name, "lox_fake", (), NIL, lambda: None)
+
+    overflow = [fake("io.fake") for _ in range(9)]
+    assert budget_violations(overflow, {"io": 8}, 8) == [
+        "group 'io' has 9, budget 8",
+        "kernel has 9 primitives, budget 8",
+    ]
+    assert budget_violations([fake("nope.fake")], {"io": 8}) == ["group 'nope' has no budget"]

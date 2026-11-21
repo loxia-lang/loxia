@@ -478,6 +478,15 @@ essentials for anyone who opens the file directly.
 the compilation, not the test. `tests/test_primitives_gen.py` polices the freshness of the
 generated file.
 
+The table also carries the **budget**
+([ADR-0123](../adr/0123-orcamento-do-kernel-por-grupo.md)): a primitive's group is its
+namespace (`io.*`, `fs.*`, `process.*` → `proc`) or `core` when there is no prefix.
+`GROUP_BUDGET` caps each group and `KERNEL_BUDGET` caps the total (core 5, io 8, fs 11,
+os 2, proc 10, time 2, digest 2; total 40). `tests/test_primitives.py` fails when a group
+or the total overflows, and `loxia capabilities --json` publishes the table with the group
+and the budget. Native modules keep their own `NATIVE_MODULE_BUDGET`, outside the 40
+([ADR-0126](../adr/0126-modulo-nativo-embutido-sqlite.md)).
+
 The differential test (`tests/test_backend.py`) compiles, runs and compares stdout, stderr
 and exit code with the interpreter — the oracle is always the tree-walk.
 
