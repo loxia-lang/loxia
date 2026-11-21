@@ -20,8 +20,8 @@ Host failure of a filesystem operation.
 #### `val kind: String`
 
 Stable token: `notFound`, `permission`, `isDirectory`, `notDirectory`,
-`alreadyExists`, `tooManyFiles`, `noSpace`, `badMode`, `closed`, `invalidHandle`,
-`io`.
+`alreadyExists`, `tooManyFiles`, `noSpace`, `notEmpty`, `crossDevice`, `badMode`,
+`closed`, `invalidHandle`, `io`.
 
 #### `val message: String`
 
@@ -30,6 +30,26 @@ Human-readable detail; never contains an absolute path.
 #### `fn init(kind: String, message: String)`
 
 Builds a failure from a stable kind and a message.
+
+### `class FileStat`
+
+Metadata returned by `stat`.
+
+#### `val size: Int`
+
+Size in bytes.
+
+#### `val mtimeMs: Int`
+
+Last modification time in milliseconds since the epoch (filesystem resolution).
+
+#### `val isDir: Bool`
+
+Whether the path is a directory.
+
+#### `fn init(size: Int, mtimeMs: Int, isDir: Bool)`
+
+Builds the metadata; prefer `stat`.
 
 ### `class File`
 
@@ -93,3 +113,33 @@ Returns whether `path` exists (file, directory or other entry).
 ### `fn listDir(path: String) -> Result[List[String], FileError]`
 
 Lists directory entry names in sorted order.
+
+### `fn stat(path: String) -> Result[FileStat, FileError]`
+
+Returns metadata for `path`, following symlinks.
+
+### `fn rename(source: String, target: String) -> Result[Nil, FileError]`
+
+Renames `source` to `target`, replacing an existing target (POSIX `rename`).
+
+### `fn remove(path: String) -> Result[Nil, FileError]`
+
+Removes a file or symlink; a directory is an `isDirectory` error.
+
+### `fn mkdir(path: String) -> Result[Nil, FileError]`
+
+Creates one directory level; an existing path is `Err(alreadyExists)`.
+
+### `fn mkdirAll(path: String) -> Result[Nil, FileError]`
+
+Creates `path` and any missing parents.
+
+Idempotent for an existing directory. Lexical POSIX paths; no symlink resolution.
+
+### `fn writeAtomic(path: String, text: String, suffix: String = ...) -> Result[Nil, FileError]`
+
+Writes `text` to `path` through a temporary file and a rename.
+
+The temporary is `path + suffix`, or `path + suffix + N` when taken (up to 100
+attempts), so concurrent writers are unlikely to collide; the destination is
+replaced atomically. There is no `fsync`: this is atomicity, not durability.

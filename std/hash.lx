@@ -41,6 +41,15 @@ fn djb2(text: String) -> Int {
   return hash
 }
 
+/// Returns the SHA-256 of the UTF-8 bytes of `text` as 64 lowercase hex characters.
+///
+/// A cryptographic digest (FIPS 180-4) for integrity and content addressing, computed
+/// by the kernel primitive `digest.sha256`; deterministic in both engines. It is not a
+/// password hash — use a dedicated KDF for secrets.
+fn sha256(text: String) -> String {
+  return digest.sha256(text)
+}
+
 fn _utf8Bytes(text: String) -> List[Int] {
   val bytes: List[Int] = []
   var index = 0

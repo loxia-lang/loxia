@@ -173,6 +173,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_csv.lx",
         "tests/cases/std_fmt.lx",
         "tests/cases/std_hash.lx",
+        "tests/cases/std_hash_sha256.lx",
         "tests/cases/std_iter.lx",
         "tests/cases/std_json.lx",
         "tests/cases/std_paths.lx",

@@ -49,6 +49,14 @@ void * lox_fs_read(int64_t, int64_t, int32_t, int32_t);
 void lox_fs_write(int64_t, const void *, int32_t, int32_t);
 /* fs.close */
 void lox_fs_close(int64_t, int32_t, int32_t);
+/* fs.rename */
+void lox_fs_rename(const void *, const void *, int32_t, int32_t);
+/* fs.remove */
+void lox_fs_remove(const void *, int32_t, int32_t);
+/* fs.mkdir */
+void lox_fs_mkdir(const void *, int32_t, int32_t);
+/* fs.stat */
+void * lox_fs_stat(const void *, int32_t, int32_t);
 /* os.exit */
 void lox_os_exit(int64_t, int32_t, int32_t);
 /* os.getenv */
@@ -77,5 +85,7 @@ void * lox_proc_poll(const void *, int64_t, int32_t, int32_t);
 int64_t lox_time_now(void);
 /* time.sleep */
 void lox_time_sleep(int64_t, int32_t, int32_t);
+/* digest.sha256 */
+void * lox_digest_sha256(const void *);
 
 #endif /* LOX_KERNEL_GEN_H */
