@@ -197,6 +197,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **`std.timex.parseIso` rejeita sinais em campos ISO**: `_digits` agora valida
+  dígitos ASCII de largura fixa em vez de delegar ao `Int.parse` (que aceita `+`/`-`);
+  `+123-01-01` e `2024-01-01T-1:00:00Z` voltam a ser `nil`.
+- **`std.fs` rejeita caminhos com NUL nos dois motores**: as primitivas de mutação,
+  `fs.open`, `fs.exists` e `fs.listDir` não derrubam mais o Python com `ValueError`;
+  o C também não trunca silenciosamente o caminho. O `kind` é `io`.
+- **`std.fs.rename` mantém o mesmo `kind` no tree-walk e no binário** para
+  `ENOTEMPTY`/`EEXIST` (`notEmpty`/`alreadyExists`).
+
 - **Backend: `super` em lambdas/funções locais e bindings de `match` capturados**
   (ADR-0022): o passe de captura agora marca o receptor de `super` e declara os bindings
   de pattern; funções internas herdam a classe léxica e o binding vira célula. Antes o

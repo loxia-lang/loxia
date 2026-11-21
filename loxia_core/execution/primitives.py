@@ -144,10 +144,14 @@ def _flush() -> None:
 
 
 def _exists(path: str) -> bool:
+    if "\0" in path:
+        return False
     return os.path.exists(path)
 
 
 def _list_dir(path: str) -> LoxList | None:
+    if "\0" in path:
+        return None
     try:
         entries = sorted(os.listdir(path))
     except OSError:
@@ -224,9 +228,15 @@ def _fs_failure(action: str, error: OSError) -> NativeError:
     return NativeError(f"{kind}: {action}.")
 
 
+def _fs_invalid_path() -> NativeError:
+    return NativeError("io: invalid path.")
+
+
 def _fs_rename(source: str, target: str) -> None:
     try:
         os.replace(source, target)
+    except ValueError:
+        raise _fs_invalid_path() from None
     except OSError as error:
         raise _fs_failure("can't rename", error) from None
 
@@ -234,6 +244,8 @@ def _fs_rename(source: str, target: str) -> None:
 def _fs_remove(path: str) -> None:
     try:
         os.remove(path)
+    except ValueError:
+        raise _fs_invalid_path() from None
     except OSError as error:
         # macOS returns EPERM for unlink(directory); normalize to the same kind as
         # Linux (EISDIR) so the public `kind` does not depend on the platform.
@@ -245,6 +257,8 @@ def _fs_remove(path: str) -> None:
 def _fs_mkdir(path: str) -> None:
     try:
         os.mkdir(path)
+    except ValueError:
+        raise _fs_invalid_path() from None
     except OSError as error:
         raise _fs_failure("can't create the directory", error) from None
 
@@ -252,6 +266,8 @@ def _fs_mkdir(path: str) -> None:
 def _fs_stat(path: str) -> LoxTuple:
     try:
         info = os.stat(path)
+    except ValueError:
+        raise _fs_invalid_path() from None
     except OSError as error:
         raise _fs_failure("can't stat", error) from None
     mtime_ms = info.st_mtime_ns // 1_000_000

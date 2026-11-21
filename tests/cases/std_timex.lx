@@ -78,6 +78,12 @@ while (instant <= 2000000000000) {
   instant = instant + 86400000 * 37
 }
 print(isoRoundTrip)
+print(timex.parseIso("+123-01-01") ?? -1)
+print(timex.parseIso("2024-+1-01") ?? -1)
+print(timex.parseIso("2024-01-+1") ?? -1)
+print(timex.parseIso("2024-01-01T-1:00:00Z") ?? -1)
+print(timex.parseIso("2024-01-01T00:+1:00Z") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:-1Z") ?? -1)
 # expect: 0
 # expect: -1
 # expect: (1970, 1, 1)
@@ -129,3 +135,9 @@ print(isoRoundTrip)
 # expect: raised
 # expect: true
 # expect: true
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1

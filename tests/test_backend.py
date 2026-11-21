@@ -2038,3 +2038,33 @@ def test_fs_read_utf8_pending_bate_com_o_binario(tmp_path: Path) -> None:
     assert compiled.stdout == interpreted.stdout
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_fs_nul_e_rename_kind_batem_com_o_binario(tmp_path: Path) -> None:
+    empty = tmp_path / "vazio"
+    occupied = tmp_path / "ocupado"
+    empty.mkdir()
+    occupied.mkdir()
+    (occupied / "arquivo").write_text("x", encoding="utf-8")
+    path = _write(
+        tmp_path,
+        "import std.fs as fs\n"
+        'print(match fs.stat("nao\\0existe") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.rename("a\\0x", "b") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.remove("a\\0x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.mkdir("a\\0x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(match fs.open("a\\0x", "r") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        'print(fs.exists("a\\0x"))\n'
+        'print(match fs.listDir("a\\0x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })\n'
+        f'print(match fs.rename("{empty}", "{occupied}") {{ Result.Ok(_) => "ok", Result.Err(e) => e.kind }})\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "notEmpty" in interpreted.stdout
