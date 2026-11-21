@@ -1,0 +1,15 @@
+# std.timex: ISO fields are fixed-width ASCII digits; signs are not accepted.
+import std.timex as timex
+
+print(timex.parseIso("+123-01-01") ?? -1)
+print(timex.parseIso("2024-+1-01") ?? -1)
+print(timex.parseIso("2024-01-+1") ?? -1)
+print(timex.parseIso("2024-01-01T-1:00:00Z") ?? -1)
+print(timex.parseIso("2024-01-01T00:+1:00Z") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:-1Z") ?? -1)
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
