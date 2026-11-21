@@ -273,6 +273,11 @@ GROUP_BUDGET: dict[str, int] = {
 # Módulos nativos têm orçamento próprio, fora dos 40 do kernel (ADR-0126).
 NATIVE_MODULE_BUDGET: dict[str, int] = {"sqlite3": 20}
 
+# Camada de APIs públicas de módulo (`modulo.funcao`), para quando um wrapper Lox
+# expuser uma capacidade que o interpretador não tem (ADR-0128). Vazio na v1: as
+# capacidades nativas ainda são primitivas de namespace. Preenchido pelo #83.
+API_LAYERS: dict[str, str] = {}
+
 
 def primitive_group(name: str) -> str:
     """Grupo de orçamento de uma primitiva: namespace, ou `core` sem prefixo."""
@@ -293,11 +298,22 @@ class Primitive:
     needs_interpreter: bool = False
     # O símbolo C recebe `(line, column)` no fim, para o panic apontar a chamada.
     site: bool = False
+    # Capacidade que só existe no binário (ADR-0128): o interpretador recusa.
+    native_only: bool = False
 
     @property
     def group(self) -> str:
         """Grupo de orçamento (ADR-0123): o namespace da primitiva."""
         return primitive_group(self.lox)
+
+    @property
+    def layer(self) -> str:
+        """Rótulo derivado dos dois eixos (ADR-0128): motor e determinismo."""
+        if self.native_only:
+            return "native-only"
+        if self.ambient:
+            return "ambient"
+        return "core"
 
 
 PRIMITIVES: tuple[Primitive, ...] = (
@@ -525,6 +541,9 @@ SANDBOX_DENIED_PREFIXES = ("process.",)
 
 
 def is_sandbox_denied(name: str) -> bool:
+    primitive = PRIMITIVE_BY_LOX.get(name)
+    if primitive is not None and primitive.native_only:
+        return True
     return name in SANDBOX_DENIED_NAMES or name.startswith(SANDBOX_DENIED_PREFIXES)
 
 
@@ -542,6 +561,11 @@ class PrimitiveCallable:
         return len(self.primitive.params)
 
     def call(self, interpreter: object, arguments: list[object]) -> object:
+        if self.primitive.native_only:
+            raise NativeError(
+                f"`{self.primitive.lox}` is not supported by the interpreter; "
+                "build with `--emit=exe`."
+            )
         if self.sandboxed:
             raise NativeError(f"{self.primitive.lox}() is not available in sandbox mode.")
         if self.primitive.needs_interpreter:

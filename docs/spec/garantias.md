@@ -87,6 +87,11 @@ corpus. Two other layers are declared, and neither promises equivalence
 | **ambient** | outside I1/I3; fixed-input tests | wherever the host allows | denied by `--sandbox` when it is a host capability |
 | **native-only** | no equivalence promise; binary semantics only | `--emit=exe` | **the interpreter refuses at compile time** |
 
+The three labels are a **projection of two independent axes**: determinism (`ambient`) and
+engine support (`native_only`). A capability may be native-only and ambient at the same time
+(a thread) or native-only and deterministic (pure SIMD); the label only decides the display,
+never the promise.
+
 A native-only capability is **refused**, never silently different:
 
 ```
@@ -96,7 +101,7 @@ error[E3021]: `sqlite.createFunction` is not supported by the interpreter; build
 The refusal is a compilation error (exit 65), points at the call site and happens before any
 execution. `loxia check` is engine-agnostic and accepts every layer; `run`/REPL refuse
 native-only, and `build` only refuses the declared backend gap (`E4001`, I4). The layer of
-every public primitive and module is published by `loxia capabilities --json`.
+every public primitive is published by `loxia capabilities --json`.
 
 #### Stack budget ([ADR-0077](../adr/0077-limite-de-pilha.md))
 

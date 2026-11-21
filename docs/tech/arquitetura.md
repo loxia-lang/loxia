@@ -487,6 +487,15 @@ or the total overflows, and `loxia capabilities --json` publishes the table with
 and the budget. Native modules keep their own `NATIVE_MODULE_BUDGET`, outside the 40
 ([ADR-0126](../adr/0126-modulo-nativo-embutido-sqlite.md)).
 
+Each primitive also carries its **layer** ([ADR-0128](../adr/0128-contrato-de-motores.md)),
+derived from two independent axes: `ambient` (determinism) and `native_only` (engine). The
+label is a projection (`native-only` > `ambient` > `core`). A native-only capability is
+refused by the interpreter **before execution**: `loxia/engine.py` runs
+`loxia_core/semantics/layers.py` after the resolver and reports `E3021` at the call site
+(exit 65). `PrimitiveCallable.call` keeps a runtime backstop with the same message for the
+case an alias or shadowing hides the call from the static pass. `loxia check` stays
+engine-agnostic; `build` only refuses the backend gap (`E4001`, I4).
+
 The differential test (`tests/test_backend.py`) compiles, runs and compares stdout, stderr
 and exit code with the interpreter — the oracle is always the tree-walk.
 

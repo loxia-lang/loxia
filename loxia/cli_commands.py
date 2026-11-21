@@ -669,7 +669,9 @@ def _capabilities_payload() -> dict[str, object]:
             {
                 "name": primitive.lox,
                 "group": primitive.group,
+                "layer": primitive.layer,
                 "ambient": primitive.ambient,
+                "native_only": primitive.native_only,
                 "site": primitive.site,
             }
             for primitive in PRIMITIVES
@@ -691,6 +693,7 @@ def _print_capabilities(as_json: bool) -> None:
     commands = cast(list[dict[str, object]], payload["commands"])
     primitives = cast(list[dict[str, object]], payload["primitives"])
     groups = Counter(str(primitive["group"]) for primitive in primitives)
+    layers = Counter(str(primitive["layer"]) for primitive in primitives)
     print(f"loxia {payload['version']}")
     print("commands: " + ", ".join(str(command["name"]) for command in commands))
     print("error formats: " + ", ".join(cast(list[str], payload["error_formats"])))
@@ -700,6 +703,7 @@ def _print_capabilities(as_json: bool) -> None:
         + ", ".join(f"{group} {count}" for group, count in sorted(groups.items()))
         + ")"
     )
+    print("layers: " + ", ".join(f"{layer} {count}" for layer, count in sorted(layers.items())))
     print(f"max call depth: {MAX_CALL_DEPTH}")
     print(f"default heap: {DEFAULT_HEAP_BYTES // 1024**2}M")
 

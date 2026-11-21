@@ -41,6 +41,7 @@ from loxia_core.loader.manifest import (
     parse_manifest,
 )
 from loxia_core.semantics.checker import Checker
+from loxia_core.semantics.layers import native_only_uses
 from loxia_core.semantics.resolver import Resolver
 
 if TYPE_CHECKING:
@@ -259,6 +260,17 @@ class Loxia:
     def _execute(self, statements: list[Stmt]) -> None:
         # Em run não há warnings: o binário não os emite e o I1 compara stderr.
         Resolver(self.interpreter, self.reporter, warn_unused=False).resolve(statements)
+
+        if self.reporter.had_error:
+            return
+
+        # ADR-0128: o interpretador recusa capacidade native-only antes de executar.
+        for use in native_only_uses(statements, self.interpreter.locals):
+            self.reporter.error(
+                use.token,
+                f"`{use.name}` is not supported by the interpreter; build with `--emit=exe`.",
+                code=Code.INTERPRETER_UNSUPPORTED,
+            )
 
         if self.reporter.had_error:
             return
