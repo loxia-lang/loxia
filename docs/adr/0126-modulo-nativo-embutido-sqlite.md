@@ -1,6 +1,6 @@
 # ADR-0126 — Módulo nativo embutido: SQLite
 
-- **Status:** proposed
+- **Status:** accepted
 - **Data:** 2026-11-21
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0071](0071-primitivas-de-runtime.md) (kernel sem FFI genérica),

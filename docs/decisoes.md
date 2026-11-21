@@ -124,6 +124,18 @@ decisão.
 | Processos e `poll` | `process.*` no kernel (handles `Int` 1-based) + `std.proc` (`Stream`/`Process`/`Output`, `spawn`, `run`): sem shell, pipes, `poll` mistura streams e processos, leitura em fronteira UTF-8, `SIGPIPE` ignorado e `wait` idempotente. POSIX/ambiente; kernel 19 → 29. | [ADR-0095](adr/0095-processos-streams-poll.md) |
 | Stdio por bytes | `io.write`/`io.writeErr` flusham por chamada e `io.flush()` força stdout/stderr; `io.readUtf8(n)` lê exatamente `n` bytes UTF-8 estrito (`nil` só no EOF imediato, erro com posição nos demais casos). Kernel vai de 17 para **19**; `site` na tabela dá `(line, column)` ao símbolo C das primitivas falíveis. | [ADR-0094](adr/0094-kernel-io-flush-e-read-utf8.md) |
 
+## Stdlib, kernel e motores
+
+| Decisão | Resumo | Fonte |
+| --- | --- | --- |
+| Data e instante | Instante em **milissegundos** (casa com `time.now`); data civil como tupla `(Int, Int, Int)`; validação explícita (`date(...) -> Result`), calendário com clamp (`addMonths`/`addYears`), `weekday`/`dayOfYear`, offset `±HH:MM`; sem classe (igualdade por identidade) e sem tzdb. | [ADR-0122](adr/0122-contrato-de-data-e-instante.md) |
+| Orçamento do kernel | Cada primitiva tem `group`; `GROUP_BUDGET` (core 5, io 8, fs 11, os 2, proc 10, time 2, digest 2; total **40**) com teste executável, e `NATIVE_MODULE_BUDGET` (sqlite3 20) fora do kernel. A tabela fica em Python; o #33 fecha. | [ADR-0123](adr/0123-orcamento-do-kernel-por-grupo.md) |
+| Front-end e `fmt` | O self-host começa pelo **front-end em Lox** (scanner/parser/AST), com `loxia ast` como oráculo e `format_source` para paridade byte a byte; fases A–D. Ferramenta vira pacote em repo próprio; `glob` é o piloto. | [ADR-0124](adr/0124-fmt-self-host-e-pacotes-por-repo.md) |
+| `Bytes` | Tipo de valor **imutável** (tag 13), distinto de `String`, sem sintaxe nova; `len`/índice/igualdade/`0x<hex>` na linguagem, construção e conversão no namespace `Bytes`; é o buffer da ABI de módulo nativo. | [ADR-0125](adr/0125-bytes-tipo-binario.md) |
+| Módulo nativo embutido | Camada fora de `std/`: o módulo entra por `import`, com orçamento próprio e **link condicional**; SQLite vendorizado (amalgamation pinada). API pull na v1; callback C→Lox só com guarda (`try`/`setjmp` na fronteira) e native-only. | [ADR-0126](adr/0126-modulo-nativo-embutido-sqlite.md) |
+| Pacotes nativos | Adiados: pacote de terceiro continua só `.lx`. A forma fica registrada (`[native]`, hash no lock, sandbox, plataformas) com quatro gatilhos; Postgres via `libpq` primeiro. | [ADR-0127](adr/0127-pacotes-com-codigo-nativo.md) |
+| Camadas de motor | **core** (I1+I3, corpus), **ambient** (fora do corpus, teste fixo) e **native-only** (só binário). O interpretador **recusa** native-only com `E3021`; `check` é agnóstico; `capabilities --json` publica a camada; sandbox nega por camada. | [ADR-0128](adr/0128-contrato-de-motores.md) |
+
 ## Processo e escopo
 
 | Decisão | Resumo | Fonte |
