@@ -1,6 +1,6 @@
 # ADR-0128 — Contrato de motores: core, ambient e native-only
 
-- **Status:** proposed
+- **Status:** accepted
 - **Data:** 2026-11-21
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md) (portão e invariantes),

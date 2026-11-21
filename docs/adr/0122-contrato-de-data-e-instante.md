@@ -1,6 +1,6 @@
 # ADR-0122 — Contrato de data e instante: milissegundos, tupla civil e `timex` v2
 
-- **Status:** proposed
+- **Status:** accepted
 - **Data:** 2026-11-20
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0029](0029-conversoes-math.md) (números e math),

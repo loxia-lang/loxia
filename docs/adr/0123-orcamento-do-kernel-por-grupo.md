@@ -1,6 +1,6 @@
 # ADR-0123 — Orçamento do kernel por grupo, tabela única e SHA-256 vendorizado
 
-- **Status:** proposed
+- **Status:** accepted
 - **Data:** 2026-11-20
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0071](0071-primitivas-de-runtime.md) (kernel),

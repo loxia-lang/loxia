@@ -1,6 +1,6 @@
 # ADR-0124 — Front-end e `loxia fmt` em Lox: escopo, oráculo e pacotes por repositório
 
-- **Status:** proposed
+- **Status:** accepted
 - **Data:** 2026-11-20
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0092](0092-estilo-e-formatter.md) (formatter e fase Lox),
