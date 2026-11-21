@@ -1,5 +1,20 @@
 # ADR-0090 — LSP: hospedagem, escopo e fases
 
+> **Atualização (2026-11-19):** o framing `Content-Length`, os envelopes JSON-RPC e o
+> `DocumentStore` viraram três módulos de stdlib em Lox puro — `std.framing`,
+> `std.jsonrpc` e `std.documents` ([ADR-0113](0113-protocolo-stdio-jsonrpc-framing-documents.md)).
+> Eles são primitivas de protocolo, não um servidor LSP em Loxia: a decisão de hospedagem
+> abaixo continua valendo, e `std/lsp` só nasce com política de servidor (capabilities,
+> diagnóstico, `positionEncoding`).
+
+> **Atualização (2026-11-19, issue #46):** entraram `textDocument/references` e
+> `documentHighlight`, `typeDefinition`/`implementation`, `typeHierarchy/*`,
+> `DiagnosticTag.Unnecessary` (W1001/W1002), `source.fixAll.loxia`, a AST recuperada para
+> tooling ([ADR-0114](0114-ast-recuperada-para-tooling.md)), o overlay de buffers não
+> salvos no loader (com recheck dos importadores abertos) e `workspace/willRenameFiles`.
+> O `diagnosticProvider` (pull) foi **removido**: o servidor é push-only, e um teste de
+> drift compara capabilities e handlers.
+
 > **Implementação (2026-11-16; ampliada em 2026-11-18):** LSP-0 em Python
 > (`loxia lsp`, JSON-RPC stdio à mão): `initialize`/`shutdown`/`exit`, full sync,
 > `publishDiagnostics` e `documentSymbol`. LSP-1 básico: `SymbolIndex`/`Resolver.references`
@@ -14,7 +29,7 @@
 > e um `SourceIndex` de spans de expressão (agora em
 > `loxia_core/frontend/source_index.py`, também consumido pelas `notes` de proveniência do
 > checker — [ADR-0099](0099-notas-de-proveniencia.md)). O cliente VS Code vive em
-> `editors/vscode/` e está pronto para virar repo próprio.
+> `loxia-lang/loxia-vscode` (ADR-0109); o servidor continua neste repo.
 
 - **Status:** accepted (implementado; DAP fora de escopo)
 - **Data:** 2026-11-15
@@ -28,7 +43,7 @@
   `loxia/cli.py` (`lsp`), `loxia_core/semantics/resolver.py` (`references`),
   `loxia/formatter.py` (formatting) e `tests/test_lsp.py` (transcrições JSON-RPC).
   `codeAction`, `rename` (locais/parâmetros e top-level cross-file) e
-  `loxia_core/frontend/source_index.py` e o cliente em `editors/vscode/` já existem.
+  `loxia_core/frontend/source_index.py` e o cliente em `loxia-lang/loxia-vscode` já existem (ADR-0109).
 
 ## Contexto
 
@@ -167,7 +182,9 @@ mensagem ao usuário.
 - LSP-1 é trabalho de compilador (spans + índice + referências), não só de servidor.
 - Full sync e recheck do documento inteiro ficam mais lentos em arquivos grandes; medir
   antes de otimizar.
-- Módulos alterados fora do documento aberto não atualizam até o próximo `didChange`.
+- Módulos **abertos** agora alimentam o loader e os importadores abertos são rechecados no
+  `didChange`/`didClose`; mudanças fora do editor continuam invisíveis até o próximo
+  `didChange` (file watching segue fora do MVP).
 - O repo ganha uma superfície (subcomando) que não pode quebrar o CLI/JSON.
 
 ### Neutras
@@ -192,7 +209,7 @@ mensagem ao usuário.
 
 - `uv run pytest tests/test_lsp.py` — transcrições JSON-RPC e paridade com
   `check --error-format=json`.
-- Teste manual no VS Code com `editors/` (cliente LSP) em um projeto com módulos.
+- Teste manual no VS Code com o repo `loxia-vscode` (cliente LSP) em um projeto com módulos.
 - `uv run main.py --check --error-format=json` como oráculo; divergência é bug.
 - `make check`; nenhum stdout fora do framing; nenhum caminho absoluto em mensagem.
 - Critério para revisitar: LSP-0/LSP-1 em uso real; necessidade de incremental, file

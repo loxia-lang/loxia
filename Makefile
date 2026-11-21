@@ -2,10 +2,11 @@
 .DEFAULT_GOAL := help
 
 FILE ?=
+COVERAGE_JOBS ?= 4
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast docs-sync docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes primitives grammar docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -18,16 +19,23 @@ help:
 	@echo "make fmt-check                 ruff format --check (gate)"
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
 	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
-	@echo "make docs-sync                 regenera níveis, catálogo e stdlib"
+	@echo "make coverage                  mede cobertura Python (sem gate; não roda backend)"
+	@echo "make coverage-ratchet          mede e falha abaixo dos pisos por arquivo"
+	@echo "make coverage-update           sobe os pisos até a cobertura medida"
+	@echo "make coverage-ratchet-backend  piso do backend Python (exige libgc)"
+	@echo "make docs-sync                 regenera níveis, catálogo, stdlib e índice"
+	@echo "make docs-index                regenera loxia/_spec/index.json e site/public/llms.txt"
 	@echo "make docs-build                build do site Starlight em site/dist"
 	@echo "make docs-links                valida links internos do HTML gerado"
 	@echo "make docs-dev                  dev server do site (gera o conteúdo antes)"
 	@echo "make docs-version VERSION=1.0 TAG=v1.0.0  congela uma referência"
 	@echo "make docs-i18n-check          valida translated_from/source"
 	@echo "make stdlib-docs               regenera docs/stdlib/"
+	@echo "make features                  regenera a matriz/snapshot de cobertura de features"
 	@echo "make codes                     regenera o catálogo em docs/spec/erros.md"
 	@echo "make primitives                regenera runtime/kernel_gen.h da tabela"
-	@echo "make grammar                   regenera a grammar TextMate de editors/"
+	@echo "make grammar                   regenera a grammar TextMate de editors/grammar/"
+	@echo "make grammar-assets            empacota a grammar + SHA256SUMS em dist/ (release)"
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
@@ -64,10 +72,48 @@ check: lint fmt-check type test docs-fresh
 
 check-fast: lint fmt-check type test-fast docs-fresh
 
+coverage:
+	rm -f .coverage .coverage.*
+	uv run coverage run -m pytest -m "not backend and not install" -n $(COVERAGE_JOBS) \
+		--deselect tests/test_cli.py::test_timeout_exits_124_with_c0001 \
+		--deselect tests/test_cli.py::test_timeout_json_lines_emits_c0001
+	uv run coverage combine
+	uv run coverage report
+
+coverage-ratchet: coverage
+	uv run coverage json -o .coverage.json
+	uv run python tools/coverage_ratchet.py --check
+
+coverage-update: coverage
+	uv run coverage json -o .coverage.json
+	uv run python tools/coverage_ratchet.py --update
+
+coverage-backend:
+	rm -f .coverage.backend*
+	COVERAGE_FILE=.coverage.backend uv run coverage run -m pytest -m backend -n $(COVERAGE_JOBS)
+	COVERAGE_FILE=.coverage.backend uv run coverage combine
+	COVERAGE_FILE=.coverage.backend uv run coverage report
+
+coverage-ratchet-backend: coverage-backend
+	COVERAGE_FILE=.coverage.backend uv run coverage json -o .coverage.backend.json
+	uv run python tools/coverage_ratchet.py --baseline coverage-baseline-backend.toml --report .coverage.backend.json --check
+
+coverage-update-backend: coverage-backend
+	COVERAGE_FILE=.coverage.backend uv run coverage json -o .coverage.backend.json
+	uv run python tools/coverage_ratchet.py --baseline coverage-baseline-backend.toml --report .coverage.backend.json --update
+
 docs-sync:
 	uv run python docs/_hooks/levels.py --write
 	uv run python docs/_hooks/codes.py --write
 	uv run python docs/_hooks/stdlib.py --write
+	uv run python tools/feature_coverage.py --write
+	uv run python tools/docs_index.py --write
+
+features:
+	uv run python tools/feature_coverage.py --write
+
+docs-index:
+	uv run python tools/docs_index.py --write
 
 docs-build: docs-sync
 	npm --prefix site run build
@@ -97,12 +143,16 @@ primitives:
 grammar:
 	uv run python editors/build_grammar.py --write
 
+grammar-assets:
+	uv run python editors/build_grammar.py --assets dist-grammar
+
 docs-fresh:
 	uv run python docs/_hooks/freshness.py --quiet || true
 
 hooks:
 	uv run pre-commit install
 	uv run pre-commit install --hook-type commit-msg
+	uv run pre-commit install --hook-type pre-push
 
 bench:
 	uv run python bench/run.py

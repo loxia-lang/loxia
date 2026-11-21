@@ -18,6 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from loxia_core.diagnostics.errors import NativeError
+from loxia_core.execution.fs_runtime import FileTable
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.proc_runtime import ProcTable
 from loxia_core.frontend.ty import BOOL, INT, NIL, STRING, ListTy, Ty, union
@@ -173,6 +174,30 @@ def _now() -> int:
     return time.time_ns() // 1_000_000
 
 
+def _fs_table(interpreter: object) -> FileTable:
+    table = getattr(interpreter, "fs_handles", None)
+    if not isinstance(table, FileTable):
+        table = FileTable()
+        setattr(interpreter, "fs_handles", table)  # noqa: B010
+    return table
+
+
+def _fs_open(interpreter: object, path: str, mode: str) -> int:
+    return _fs_table(interpreter).open(path, mode)
+
+
+def _fs_read(interpreter: object, identifier: int, count: int) -> str | None:
+    return _fs_table(interpreter).read(identifier, count)
+
+
+def _fs_write(interpreter: object, identifier: int, text: str) -> None:
+    _fs_table(interpreter).write(identifier, text)
+
+
+def _fs_close(interpreter: object, identifier: int) -> None:
+    _fs_table(interpreter).close(identifier)
+
+
 def _proc_table(interpreter: object) -> ProcTable:
     table = getattr(interpreter, "proc_handles", None)
     if not isinstance(table, ProcTable):
@@ -274,6 +299,46 @@ PRIMITIVES: tuple[Primitive, ...] = (
         union(ListTy(STRING), NIL),
         _list_dir,
         ambient=True,
+    ),
+    Primitive(
+        "fs.open",
+        "lox_fs_open",
+        (STRING, STRING),
+        INT,
+        _fs_open,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "fs.read",
+        "lox_fs_read",
+        (INT, INT),
+        union(STRING, NIL),
+        _fs_read,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "fs.write",
+        "lox_fs_write",
+        (INT, STRING),
+        NIL,
+        _fs_write,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
+    ),
+    Primitive(
+        "fs.close",
+        "lox_fs_close",
+        (INT,),
+        NIL,
+        _fs_close,
+        ambient=True,
+        needs_interpreter=True,
+        site=True,
     ),
     Primitive("os.exit", "lox_os_exit", (INT,), NIL, _os_exit, site=True),
     Primitive("os.getenv", "lox_os_getenv", (STRING,), union(STRING, NIL), _getenv, ambient=True),
@@ -382,12 +447,34 @@ PRIMITIVES: tuple[Primitive, ...] = (
 
 PRIMITIVE_BY_LOX: dict[str, Primitive] = {primitive.lox: primitive for primitive in PRIMITIVES}
 
+# Perfil `--sandbox` (ADR-0112): o programa não lê/escreve arquivos nem cria processos.
+# O loader de módulos continua lendo `std/` e arquivos do projeto pelo host; só as
+# primitivas ambientais do programa são negadas.
+SANDBOX_DENIED_NAMES = frozenset(
+    {
+        "io.readFile",
+        "io.writeFile",
+        "fs.exists",
+        "fs.listDir",
+        "fs.open",
+        "fs.read",
+        "fs.write",
+        "fs.close",
+    }
+)
+SANDBOX_DENIED_PREFIXES = ("process.",)
+
+
+def is_sandbox_denied(name: str) -> bool:
+    return name in SANDBOX_DENIED_NAMES or name.startswith(SANDBOX_DENIED_PREFIXES)
+
 
 class PrimitiveCallable:
     """Adaptador do corpo Python para o protocolo `LoxCallable`."""
 
-    def __init__(self, primitive: Primitive) -> None:
+    def __init__(self, primitive: Primitive, *, sandboxed: bool = False) -> None:
         self.primitive = primitive
+        self.sandboxed = sandboxed
 
     def min_arity(self) -> int:
         return len(self.primitive.params)
@@ -396,6 +483,8 @@ class PrimitiveCallable:
         return len(self.primitive.params)
 
     def call(self, interpreter: object, arguments: list[object]) -> object:
+        if self.sandboxed:
+            raise NativeError(f"{self.primitive.lox}() is not available in sandbox mode.")
         if self.primitive.needs_interpreter:
             return self.primitive.py(interpreter, *arguments)
         return self.primitive.py(*arguments)

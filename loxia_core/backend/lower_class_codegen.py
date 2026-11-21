@@ -141,7 +141,7 @@ class ClassCodegenLowering(LoweringBase):
             self.module,
             f"lox.bound.interface.{interface}.{method_name}",
             result,
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
         saved = (
             self.builder,
@@ -479,7 +479,7 @@ class ClassCodegenLowering(LoweringBase):
         ctor_params = (
             []
             if effective is None
-            else [self._storage_llvm_type(param) for param in effective.fn_sig.params]
+            else [self._param_llvm_type(param) for param in effective.fn_sig.params]
         )
         layout.ctor = llvm_ir.declare(
             self.module,
@@ -569,6 +569,13 @@ class ClassCodegenLowering(LoweringBase):
             field = layout.field("message")
             assert field is not None
             self._store_field(instance, field, Value(ValueType.STRING, ctor.args[0]))
+            site_field = layout.field("site")
+            if site_field is not None:
+                site = self.builder.call(
+                    self._function("lox_exception_site", _I8_PTR, [_I32, _I32]),
+                    [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 0)],
+                )
+                self._store_field(instance, site_field, Value(ValueType.STRING, site))
             self._ctor_require_fields(layout, instance)
             self.builder.ret(instance.llvm)
             return
@@ -814,7 +821,9 @@ class ClassCodegenLowering(LoweringBase):
             ValueType.ENUM: ANY_TAG_ENUM,
         }[desc.ty]
 
-    def _as_any(self, expr: As, value: Value, target_desc: TypeDesc) -> Value:
+    def _as_any(
+        self, expr: As, value: Value, target_desc: TypeDesc, target_ty: Ty | None = None
+    ) -> Value:
         """`Any as T`: checa a tag antes de extrair o payload (ADR-0075).
 
         O tree-walk levanta `R1011` quando o valor não satisfaz `T`; sem a checagem o
@@ -830,14 +839,15 @@ class ClassCodegenLowering(LoweringBase):
         if target_desc.ty is ValueType.FLOAT:
             return self._as_any_float(expr, value, line, column)
 
-        matches = self._is_any(value, self._expand_alias(expr.target_type), target_desc, line)
+        resolved = target_ty if target_ty is not None else expr.target_type
+        matches = self._is_any(value, self._expand_alias(resolved), target_desc, line)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
         bad = llvm_ir.append_block(self._function_ir, "as.bad")
         self.builder.cbranch(matches.llvm, ok, bad)
         self.builder = llvm_ir.builder(bad)
         self._poison(
             expr.operator,
-            f"Can't cast value to {display(self._expand_alias(expr.target_type))}.",
+            f"Can't cast value to {display(self._expand_alias(resolved))}.",
             code=Code.RUNTIME_CAST,
         )
         self.builder = llvm_ir.builder(ok)
@@ -915,10 +925,11 @@ class ClassCodegenLowering(LoweringBase):
         return Value(ValueType.FLOAT, merged)
 
     def _as_expr(self, expr: As) -> Value:
-        target_desc = self._type_desc(expr.target_type, expr.operator.line)
+        target_ty = self._subst_ty(expr.target_type)
+        target_desc = self._type_desc(target_ty, expr.operator.line)
         value = self._expr(expr.left)
         if value.ty is ValueType.ANY:
-            return self._as_any(expr, value, target_desc)
+            return self._as_any(expr, value, target_desc, target_ty)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
             if value.optional:
@@ -962,7 +973,7 @@ class ClassCodegenLowering(LoweringBase):
         ):
             return value
 
-        target = self._target_class(expr.target_type, expr.operator.line)
+        target = self._target_class(target_ty, expr.operator.line)
         if value.optional:
             value = self._unwrap(
                 value,
@@ -1033,7 +1044,7 @@ class ClassCodegenLowering(LoweringBase):
             self.module,
             f"lox.bound.{layout.ir_name or layout.name}.{method.name}",
             result,
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
 
         saved = (
@@ -1098,7 +1109,7 @@ class ClassCodegenLowering(LoweringBase):
             [
                 _I8_PTR,
                 _I8_PTR,
-                *[self._storage_llvm_type(param) for param in sig.params],
+                *[self._param_llvm_type(param) for param in sig.params],
             ],
         )
         args = [thunk.args[index + 1] for index in range(len(sig.params))]

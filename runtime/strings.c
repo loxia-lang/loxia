@@ -646,22 +646,25 @@ void format_value(LoxBuffer *buffer, LoxValue value) {
             buffer_text(buffer, " instance");
             break;
         }
-        case 7:
-            buffer_text(buffer, "<fn>");
+        case 7: {
+            const LoxClosure *closure = (const void *)value.payload;
+            buffer_text(buffer, closure->display);
             break;
+        }
         case 8: {
             const LoxRange *range = (const void *)value.payload;
+            const char *operator = range->inclusive ? "..=" : "..";
             char text[128];
             int length;
             if (range->step == 1) {
                 length = snprintf(text, sizeof text,
-                                  "<range %" PRId64 "..%" PRId64 ">",
-                                  range->start, range->end);
+                                  "<range %" PRId64 "%s%" PRId64 ">",
+                                  range->start, operator, range->end);
             } else {
                 length = snprintf(
                     text, sizeof text,
-                    "<range %" PRId64 "..%" PRId64 " step %" PRId64 ">",
-                    range->start, range->end, range->step);
+                    "<range %" PRId64 "%s%" PRId64 " step %" PRId64 ">",
+                    range->start, operator, range->end, range->step);
             }
             buffer_bytes(buffer, text, (size_t)length);
             break;
@@ -771,6 +774,17 @@ void *lox_str_from_any(int64_t tag, int64_t payload) {
     return string_from_ascii(buffer.data, buffer.length);
 }
 
+/* `repr(Any)`: strings precisam de aspas; `format_value` já as cita (case 4). */
+void *lox_repr_from_any(int64_t tag, int64_t payload) {
+    LoxBuffer buffer;
+    buffer_init(&buffer);
+    LoxValue value;
+    value.tag = tag;
+    value.payload = payload;
+    format_value(&buffer, value);
+    return string_from_ascii(buffer.data, buffer.length);
+}
+
 
 /* `print` of a boxed value: `{tag, payload}` of 64 bits. Tags are the same as in
  * format_value/LoxValue; an unknown tag is R1000. */
@@ -798,19 +812,18 @@ void lox_print_any(int64_t tag, int64_t payload) {
             void *descriptor = (void *)payload;
             void *name = ((void **)descriptor)[2];
             lox_print_str(name);
-            fputc('\n', stdout);
             break;
         }
         case 6: {
             void *instance = (void *)payload;
             void *descriptor = ((void **)instance)[0];
-            void *name = ((void **)descriptor)[2];
-            lox_print_str(name);
+            const LoxStr *name = ((void **)descriptor)[2];
+            fwrite(name->data, 1, (size_t)name->byte_len, stdout);
             fputs(" instance\n", stdout);
             break;
         }
         case 7:
-            printf("%s\n", (const char *)payload);
+            lox_print_function((const void *)payload);
             break;
         case 8:
             lox_print_range((const void *)payload);

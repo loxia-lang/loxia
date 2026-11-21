@@ -6,6 +6,8 @@
 # `parse` returns `nil` on malformed input (stray or unterminated quotes); a blank line
 # is a record with a single empty field.
 
+import std.results as results
+
 class _Parser {
   val text: String
   var index: Int
@@ -89,6 +91,20 @@ class _Parser {
   }
 }
 
+/// Failure to parse CSV text.
+class CsvError {
+  /// Stable token: `invalidCsv`.
+  val kind: String
+  /// Detail without path/locale text.
+  val message: String
+
+  /// Builds a parse failure.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
+}
+
 /// Parses RFC 4180 CSV text into rows of fields.
 ///
 /// Accepts LF and CRLF line endings and preserves empty fields. Returns `nil` on
@@ -96,8 +112,16 @@ class _Parser {
 /// quoted field. Empty text parses to `[]`; a blank line is a record with one empty
 /// field, not an empty row.
 fn parse(text: String) -> List[List[String]]? {
+  return results.toOptional(parseResult(text))
+}
+
+/// Parses CSV text, preserving the cause of a malformed input.
+///
+/// Empty text is `Ok([])`; a stray quote or an unterminated quoted field is
+/// `Err(CsvError("invalidCsv", ...))`.
+fn parseResult(text: String) -> Result[List[List[String]], CsvError] {
   if (len(text) == 0) {
-    return []
+    return Result.Ok([])
   }
   try {
     val parser = _Parser(text)
@@ -105,9 +129,9 @@ fn parse(text: String) -> List[List[String]]? {
     while (parser.index < len(text)) {
       rows.push(parser._parseRow())
     }
-    return rows
-  } except RuntimeError as _error {
-    return nil
+    return Result.Ok(rows)
+  } except RuntimeError as error {
+    return Result.Err(CsvError("invalidCsv", error.message))
   }
 }
 

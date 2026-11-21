@@ -114,3 +114,20 @@ suite.done()
     only = run_script(path, "--only=um")
     assert only.returncode == 0
     assert only.stdout.splitlines()[:1] == ["ok 1 - um"]
+
+
+def test_site_da_falha_aponta_para_a_linha_do_teste(tmp_path: Path) -> None:
+    source = """
+import std.test as t
+
+val suite = t.Suite()
+suite.it("falha", fn() {
+  t.expect(1 + 1).toBe(3)
+})
+suite.done()
+"""
+    result = run_script(write(tmp_path, source))
+    assert result.returncode == 1
+    assert "caso_test.lx:" in result.stdout
+    assert "std/test.lx" not in result.stdout
+    assert "  # at " in result.stdout

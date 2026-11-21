@@ -266,8 +266,12 @@ int32_t lox_proc_kill(int64_t id, int32_t line, int32_t column) {
 /* `process.close`: closes the stream fd, or all three child streams, and frees
  * the slot. It does not kill a running child. */
 void lox_proc_close(int64_t id, int32_t line, int32_t column) {
-    LoxProcHandle *handle = proc_handle_at(id, line, column);
-    if (handle == NULL) {
+    if (id < 1 || id > LOX_MAX_PROC_HANDLES) {
+        lox_panic(line, column, "R1000", "proc: invalid handle.");
+        return;
+    }
+    LoxProcHandle *handle = &lox_proc_handles[id - 1];
+    if (handle->kind == 0) {
         return;
     }
     if (handle->kind == 1) {
@@ -292,25 +296,6 @@ void lox_proc_close(int64_t id, int32_t line, int32_t column) {
  * --------------------------------------------------------------------------- */
 
 /* Longest prefix that ends on a UTF-8 character boundary (see proc_runtime.py). */
-static size_t utf8_complete_prefix(const unsigned char *data, size_t length) {
-    size_t cut = length;
-    size_t back = 0;
-    while (cut > 0 && back < 3 && (data[cut - 1] & 0xC0) == 0x80) {
-        cut -= 1;
-        back += 1;
-    }
-    if (cut == 0) {
-        return 0;
-    }
-    unsigned char lead = data[cut - 1];
-    size_t need = lead < 0x80   ? 1
-                  : (lead & 0xE0) == 0xC0 ? 2
-                  : (lead & 0xF0) == 0xE0 ? 3
-                                          : 4;
-    size_t have = length - (cut - 1);
-    return have >= need ? length : cut - 1;
-}
-
 /* `process.read`: up to `count` bytes, carrying an incomplete UTF-8 sequence in
  * `pending`. Returns NULL at EOF with no bytes; invalid UTF-8 is R1000. */
 void *lox_proc_read(int64_t id, int64_t count, int32_t line, int32_t column) {

@@ -1,0 +1,38 @@
+# `this` is lexical in lambdas/local functions (ADR-0022), including returned closures.
+class Counter {
+  var value: Int
+
+  init(value: Int) {
+    this.value = value
+  }
+
+  fn reader() -> fn() -> Int {
+    return fn() => this.value
+  }
+
+  fn incrementer() -> fn() -> Nil {
+    return fn() -> Nil {
+      this.value = this.value + 1
+    }
+  }
+
+  fn localRead() -> Int {
+    fn inner() -> Int {
+      return this.value
+    }
+    return inner()
+  }
+}
+
+val counter = Counter(1)
+val read = counter.reader()
+val increment = counter.incrementer()
+print(read())
+print(counter.localRead())
+increment()
+print(read())
+print(counter.localRead())
+# expect: 1
+# expect: 1
+# expect: 2
+# expect: 2

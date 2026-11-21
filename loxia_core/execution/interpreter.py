@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 from collections.abc import Callable, Iterator
+from typing import Any
 
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import Frame, Trace
@@ -22,7 +23,11 @@ from loxia_core.execution.limits import (
 from loxia_core.execution.lox_callable import LoxCallable
 from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumObject, LoxEnumValue
-from loxia_core.execution.lox_exception import LoxExceptionClass, LoxExceptionValue
+from loxia_core.execution.lox_exception import (
+    LoxExceptionClass,
+    LoxExceptionValue,
+    format_site,
+)
 from loxia_core.execution.lox_function import LoxFunction
 from loxia_core.execution.lox_instance import LoxInstance
 from loxia_core.execution.lox_interface import LoxInterface
@@ -38,7 +43,11 @@ from loxia_core.execution.natives.print import Print
 from loxia_core.execution.natives.range import RangeNative
 from loxia_core.execution.natives.repr import Repr
 from loxia_core.execution.natives.str import Str
-from loxia_core.execution.primitives import PRIMITIVES, PrimitiveCallable
+from loxia_core.execution.primitives import (
+    PRIMITIVES,
+    PrimitiveCallable,
+    is_sandbox_denied,
+)
 from loxia_core.execution.type_test import matches_type
 from loxia_core.execution.values import stringify
 from loxia_core.frontend.destructuring import (
@@ -109,6 +118,7 @@ from loxia_core.frontend.ty import (
     MapTy,
     TupleTy,
     Ty,
+    TyVar,
     UnionTy,
     display,
 )
@@ -130,11 +140,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         *,
         checked_overflow: bool = False,
         argv: list[str] | None = None,
+        sandbox: bool = False,
     ) -> None:
         ensure_recursion_budget()
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
         self.checked_overflow = checked_overflow
         self.argv = list(argv or [])
+        self.sandbox = sandbox
         self._call_depth = 0
         # Tuplas leves no caminho feliz; `Frame` só é materializado ao capturar o trace.
         self._frames: list[tuple[str, str, int, int]] = []
@@ -153,11 +165,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals.define("str", Str(), mutable=False)
         primitive_modules: dict[str, dict[str, object]] = {}
         for primitive in PRIMITIVES:
+            callable_ = PrimitiveCallable(
+                primitive,
+                sandboxed=sandbox and is_sandbox_denied(primitive.lox),
+            )
             if "." in primitive.lox:
                 module, member = primitive.lox.split(".", 1)
-                primitive_modules.setdefault(module, {})[member] = PrimitiveCallable(primitive)
+                primitive_modules.setdefault(module, {})[member] = callable_
             else:
-                self.globals.define(primitive.lox, PrimitiveCallable(primitive), mutable=False)
+                self.globals.define(primitive.lox, callable_, mutable=False)
         for module, members in primitive_modules.items():
             self.globals.define(module, NativeModule(module, members), mutable=False)
         self.globals.define("Int", int_module(), mutable=False)
@@ -198,6 +214,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         except LoxRuntimeError as e:
             self._capture_trace(e)
             self.reporter.runtime_error(e)
+        finally:
+            self.close_handles()
+
+    def close_handles(self) -> None:
+        """Fecha handles ambientais de uma execução (I3/ADR-0119)."""
+        for attribute in ("fs_handles", "proc_handles"):
+            table: Any = getattr(self, attribute, None)
+            if table is not None:
+                table.close_all()
 
     def _enter_call(self, name: str, token: Token | None) -> None:
         """Registra uma ativação Lox (ADR-0077) e o frame para o stack trace.
@@ -245,6 +270,17 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         omitted = len(frames) - TRACE_HEAD - TRACE_TAIL
         kept = frames[:TRACE_HEAD] + frames[-TRACE_TAIL:]
         return Trace(tuple(kept), omitted=omitted, head=TRACE_HEAD)
+
+    def current_site(self) -> str:
+        """`arquivo:linha:coluna` do call site do frame atual (ADR-0120).
+
+        Para `t.expect(1).toBe(2)` o frame atual é `toBe` e o call site é a linha do
+        `expect` no teste; sem frame (topo), usa o call site da chamada em curso.
+        """
+        if self._frames:
+            _name, file, line, column = self._frames[-1]
+            return format_site(file, line, column)
+        return ""
 
     def resolve(self, expr: Expr, depth: int) -> None:
         self.locals[expr] = depth
@@ -640,6 +676,14 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "as doesn't support type arguments on enums yet.",
                 code=Code.RUNTIME_CAST,
             )
+        if isinstance(target, TyVar) or (
+            isinstance(target, ClassTy) and self._class_for_type(target.name) is None
+        ):
+            # Tipos apagados: o cast dinâmico para um parâmetro de tipo é
+            # identidade no tree-walk; o backend o resolve na monomorfização.
+            # Um nome de classe sem binding também é um parâmetro apagado
+            # (o checker já validou o alvo).
+            return value
 
         if target is INT:
             if numeric.is_int(value):
@@ -881,7 +925,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 if not self._run_handlers(stmt, raised.value):
                     raise
             except LoxRuntimeError as runtime:
-                value = LoxExceptionValue("RuntimeError", runtime.message)
+                value = LoxExceptionValue(
+                    "RuntimeError",
+                    runtime.message,
+                    format_site(
+                        runtime.token.file or self.reporter.file,
+                        runtime.token.line,
+                        runtime.token.column,
+                    ),
+                )
                 if not self._run_handlers(stmt, value):
                     raise
         finally:
@@ -938,9 +990,18 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "No exception to re-raise.",
                 code=Code.INVALID_VALUE,
             )
+        site = self.current_site() or format_site(
+            stmt.keyword.file or self.reporter.file,
+            stmt.keyword.line,
+            stmt.keyword.column,
+        )
         if isinstance(value, LoxExceptionValue):
-            raise LoxRaise(stmt.keyword, value)
+            raise LoxRaise(
+                stmt.keyword,
+                LoxExceptionValue(value.type_name, value.message, site or value.site),
+            )
         if isinstance(value, LoxInstance) and value.is_instance_of("Exception"):
+            value.set_exception_site(site)
             raise LoxRaise(stmt.keyword, value)
 
         raise LoxRuntimeError(
@@ -1081,6 +1142,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return None
 
         if isinstance(ob, LoxInstance):
+            if expr.name.lexeme == "site" and ob.is_instance_of("Exception"):
+                return ob.exception_site()
             return ob.get(expr.name)
 
         if isinstance(ob, LoxList):
@@ -1092,6 +1155,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if isinstance(ob, LoxExceptionValue):
             if expr.name.lexeme == "message":
                 return ob.message
+            if expr.name.lexeme == "site":
+                return ob.site
             raise LoxRuntimeError(
                 expr.name,
                 f"Undefined property '{expr.name.lexeme}'.",

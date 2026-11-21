@@ -6,6 +6,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from loxia_core.loader.gitenv import git_env
+
 ROOT = Path(__file__).resolve().parents[1]
 SPDX = "SPDX-License-Identifier: MIT OR Apache-2.0"
 
@@ -19,11 +21,12 @@ EXCLUDED_PREFIXES = (
 )
 EXCLUDED_FILES = {
     "runtime/kernel_gen.h",
-    "editors/dsh/loxia.ts",
-    "editors/shiki/loxia.mjs",
+    "editors/grammar/loxia.ts",
+    "editors/grammar/loxia.mjs",
 }
 SOURCE_SUFFIXES = {".py", ".c", ".h", ".lx", ".mjs", ".ts", ".css"}
-EXTRA_SOURCES = {"editors/vscode/extension.js"}
+# O cliente VS Code agora vive em loxia-lang/loxia-vscode (ADR-0109).
+EXTRA_SOURCES: set[str] = set()
 
 
 def tracked_files() -> list[str]:
@@ -31,6 +34,7 @@ def tracked_files() -> list[str]:
         ["git", "-C", str(ROOT), "ls-files", "-z"],
         capture_output=True,
         check=True,
+        env=git_env(),
     )
     return [item for item in result.stdout.decode("utf-8").split("\0") if item]
 

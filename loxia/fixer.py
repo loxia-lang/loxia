@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia_core.diagnostics.diagnostic import (
     Applicability,
     Diagnostic,
@@ -45,9 +45,7 @@ class FixResult:
 
 def _check(path: Path, source: str) -> list[Diagnostic]:
     lox = Loxia(error_format="json")
-    lox._file = display_path(str(path))
-    lox._module_root = path.resolve().parent
-    lox._sources.add(lox._file, source)
+    lox.use_file(display_path(str(path)), module_root=path.resolve().parent)
     lox.check(source, emit=False)
     return list(lox.reporter.batch().diagnostics)
 

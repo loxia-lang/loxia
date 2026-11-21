@@ -1,0 +1,37 @@
+schema_version = 1
+
+# Pisos inteiros de cobertura por arquivo (branch). Só sobem (ADR-0122).
+# `make coverage-ratchet` compara `.coverage.json` com estes valores.
+[files]
+"loxia/cli.py" = 95
+"loxia/cli_args.py" = 87
+"loxia/cli_commands.py" = 81
+"loxia/engine.py" = 91
+"loxia/test_runner.py" = 71
+"loxia_core/execution/interpreter.py" = 92
+"loxia_core/execution/lox_class.py" = 97
+"loxia_core/execution/lox_exception.py" = 94
+"loxia_core/execution/lox_instance.py" = 96
+"loxia_core/execution/lox_list.py" = 96
+"loxia_core/execution/lox_map.py" = 95
+"loxia_core/execution/numeric.py" = 98
+"loxia_core/frontend/parser.py" = 96
+"loxia_core/frontend/scanner.py" = 94
+"loxia_core/semantics/checker.py" = 81
+"loxia_core/semantics/resolver.py" = 96
+"loxia_core/execution/lox_callable.py" = 76
+"loxia_core/execution/lox_enum.py" = 95
+"loxia_core/execution/lox_interface.py" = 84
+"loxia_core/execution/lox_range.py" = 99
+"loxia_core/execution/lox_tuple.py" = 85
+"loxia_core/execution/natives/math.py" = 75
+"loxia_core/execution/primitives.py" = 84
+"loxia_core/execution/proc_runtime.py" = 73
+"loxia_core/execution/type_test.py" = 83
+"loxia_core/execution/values.py" = 93
+"loxia_core/frontend/source_index.py" = 86
+"loxia_core/loader/deps.py" = 81
+"loxia_core/loader/loader.py" = 90
+"loxia_core/loader/lock.py" = 84
+"loxia_core/loader/manifest.py" = 86
+"loxia/test_selection.py" = 91

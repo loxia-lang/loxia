@@ -12,6 +12,9 @@ sources:
   - loxia_core/loader/loader.py
   - runtime/**
   - loxia/cli.py
+  - loxia/cli_args.py
+  - loxia/cli_commands.py
+  - loxia/engine.py
   - tests/test_diagnostics.py
   - tests/test_provenance.py
 ---
@@ -67,8 +70,10 @@ the backend yet.`). C compiler failures are sanitized so temporary paths are not
 - Runtime: stops at the **first** uncaught error. Without `try`, the error is **fatal**
   (exit 70) and whatever was already printed remains ([ADR-0026](../adr/0026-freeze-1.0.md)).
   Inside `try`, the error becomes a catchable `RuntimeError` and `except ... as e` exposes
-  `e.message` ([ADR-0042](../adr/0042-excecoes.md)); `Result` is the explicit alternative
-  for expected errors ([ADR-0041](../adr/0041-enums-match.md)). The runtime uses the
+  `e.message` and `e.site` (`file:line:column` of the throw, `""` when unknown)
+  ([ADR-0042](../adr/0042-excecoes.md), [ADR-0120](../adr/0120-localizacao-de-falha-em-excecoes.md));
+  `Result` is the explicit alternative for expected errors
+  ([ADR-0041](../adr/0041-enums-match.md)). The runtime uses the
   **same header** as compilation (`file:line:col: error[CODE]:`), without a caret — the
   binary can run without the source. When the position is synthetic (internal field), the
   header degrades to `error[CODE]: message`. After the header come the stack trace
@@ -332,6 +337,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `C0001` | execution timeout exceeded |
 | `C0002` | lockfile or dependency state (missing, stale, not fetched) |
 | `C0003` | project scaffolding (existing target, conflict, git) |
+| `C0004` | manifest edit refused (unsupported shape, conflict) |
 
 <!-- codes:end -->
 

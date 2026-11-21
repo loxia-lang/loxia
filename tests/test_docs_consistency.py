@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 from loxia import __version__
-from loxia.cli import COMMANDS, _build_subcommand_parser, build_parser
+from loxia.cli_args import COMMANDS, _build_subcommand_parser, build_parser
 from loxia_core.frontend.keywords import KEYWORDS
 from tests.corpus_manifest import PENDING
 
@@ -47,6 +47,7 @@ NON_CLI_FLAGS = {
     "--all",
     "--all-groups",
     "--extra",
+    "--from",
     "--repeat",
     "--strict",
     "--write",
@@ -171,7 +172,8 @@ def test_flags_do_cli_estao_documentadas_no_readme() -> None:
     missing = sorted(flag for flag in flags if flag not in readme)
     assert missing == [], f"flags sem documentação no README: {missing}"
 
-    documented = set(re.findall(r"--[a-z][a-z-]+", readme)) - NON_CLI_FLAGS
+    # `--help` existe em todo parser mas é omitido de `flags`; o README pode citá-lo.
+    documented = set(re.findall(r"--[a-z][a-z-]+", readme)) - NON_CLI_FLAGS - {"--help"}
     invented = sorted(documented - flags)
     assert invented == [], f"README documenta flags que o CLI não tem: {invented}"
 

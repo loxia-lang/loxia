@@ -1,0 +1,8 @@
+hex = 0xDEAD_BEEF
+oct = 0o755
+bin = 0b1010
+dec = 1_000_000
+float = 3.14
+exp = 1e3
+neg = -42
+plus = +17

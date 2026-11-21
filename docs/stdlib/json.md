@@ -11,6 +11,24 @@ RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.
 
 ## API
 
+## Enums
+
+### `enum JsonResult`
+
+Result of `parseResult`: the parsed value or the reason the text is invalid.
+
+It is not a `Result[Any, String]` because the checker refuses to instantiate a type
+variable with `Any` (`E3011`); the enum carries the same information and can become a
+`Result` if that restriction is lifted.
+
+#### `Ok(Any)`
+
+_No documentation._
+
+#### `Err(String)`
+
+_No documentation._
+
 ## Functions
 
 ### `fn parse(text: String) -> Any`
@@ -21,7 +39,31 @@ Accepts `null`, booleans, numbers, strings, arrays and objects. A number without
 fraction or exponent stays `Int` when it fits, otherwise it becomes `Float`;
 non-finite values are rejected. Objects preserve key order and a repeated key keeps
 the last value. Invalid input (bad escapes, trailing characters, nesting deeper than
-16) returns `nil`; a valid JSON `null` also returns `nil`.
+16) returns `nil`; a valid JSON `null` also returns `nil`. Use `parseResult` when the
+caller must distinguish malformed text from a valid `null`.
+
+### `fn parseResult(text: String) -> JsonResult`
+
+Parses JSON text, preserving the difference between `null` and invalid text.
+
+Returns `JsonResult.Ok(nil)` for the JSON literal `null` and `JsonResult.Err(message)`
+for malformed input, including the 16-level nesting cap. The message is the same one
+`parse` used to hide and never contains a path, timestamp or address.
+
+### `fn isOk(result: JsonResult) -> Bool`
+
+Returns `true` when `result` came from a valid JSON text.
+
+Exists because an enum type exported by a module cannot be named in another module's
+annotations; callers use these helpers instead of writing a typed wrapper function.
+
+### `fn value(result: JsonResult) -> Any`
+
+Returns the parsed value, or `nil` when the text was invalid.
+
+### `fn error(result: JsonResult) -> String | Nil`
+
+Returns the error message, or `nil` when the text was valid.
 
 ### `fn stringify(value: Any) -> String`
 

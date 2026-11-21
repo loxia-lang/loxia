@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from loxia.cli import Loxia
 from loxia.completion import complete
+from loxia.engine import Loxia
 from loxia.symbols import SymbolIndex
 
 

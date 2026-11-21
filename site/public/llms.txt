@@ -1,0 +1,52 @@
+# Loxia
+
+> Loxia is a small, statically checked Lox dialect with a tree-walk interpreter and an optional LLVM backend.
+
+## Language reference
+
+- [Lexicon](https://loxia-lang.github.io/loxia/reference/lexicon/): How the source code is split into tokens. Implementation: loxia_core/frontend/scanner.py, loxia_core/frontend/keywords.py, loxia_core/frontend/token_type.py.
+- [Syntax](https://loxia-lang.github.io/loxia/reference/syntax/): Grammar of the current parser (loxia_core/frontend/parser.py) — recursive descent, one function per precedence level.
+- [Semantics](https://loxia-lang.github.io/loxia/reference/semantics/): Observable behavior of the interpreter.
+- [Errors](https://loxia-lang.github.io/loxia/reference/errors/): Catalog of what the interpreter reports today, with phase and consequence. Messages are in English; CLI text remains in Portuguese, and this documentation is in English. The decision behind the format is in the ADR-0075.
+- [Guarantees — what the language promises](https://loxia-lang.github.io/loxia/reference/guarantees/): This page is the contract with whoever uses the language (or builds tooling on top of it). It does not describe syntax or semantics — that is in lexicon, syntax, semantics and errors. Here live the promises that survive new features.
+
+## Standard library
+
+- [Standard library](https://loxia-lang.github.io/loxia/stdlib/): Reference generated from /// in std/*.lx and the builtins registry.
+- [std.asserts](https://loxia-lang.github.io/loxia/stdlib/asserts/): Explicit failures for tests and contracts. Every helper raises RuntimeError.
+- [Builtins and kernel](https://loxia-lang.github.io/loxia/stdlib/builtins/): Global names available without an import, generated from loxia/builtins_docs.py. Namespaces are read-only. std.* modules are documented separately.
+- [std.cli](https://loxia-lang.github.io/loxia/stdlib/cli/): Deterministic command-line parsing from a declarative spec.
+- [std.collections](https://loxia-lang.github.io/loxia/stdlib/collections/): Stack, Queue, Deque and PriorityQueue, backed by lists.
+- [std.contracts](https://loxia-lang.github.io/loxia/stdlib/contracts/): Design by contract as a library: precondition, postcondition and invariant checks.
+- [std.convert](https://loxia-lang.github.io/loxia/stdlib/convert/): Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes.
+- [std.csv](https://loxia-lang.github.io/loxia/stdlib/csv/): RFC 4180 CSV parsing and serialization, with CRLF output.
+- [std.documents](https://loxia-lang.github.io/loxia/stdlib/documents/): Full-sync document store: opaque URIs, versions and text, without JSON or I/O.
+- [std.fmt](https://loxia-lang.github.io/loxia/stdlib/fmt/): Locale-free formatting helpers (templates, padding, numbers, byte sizes).
+- [std.framing](https://loxia-lang.github.io/loxia/stdlib/framing/): Content-Length framing over an injected byte reader; stdin/stdout only at the edge.
+- [std.fs](https://loxia-lang.github.io/loxia/stdlib/fs/): File reading and writing. Ambient: outside the I1 corpus.
+- [std.hash](https://loxia-lang.github.io/loxia/stdlib/hash/): Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes.
+- [std.io](https://loxia-lang.github.io/loxia/stdlib/io/): Standard input/output. The read functions are ambient where they block.
+- [std.iter](https://loxia-lang.github.io/loxia/stdlib/iter/): Iteration helpers (enumerate, zip, sum, contains, Step).
+- [std.json](https://loxia-lang.github.io/loxia/stdlib/json/): RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap.
+- [std.jsonrpc](https://loxia-lang.github.io/loxia/stdlib/jsonrpc/): JSON-RPC 2.0 envelopes: validation, construction, error codes and Map messages.
+- [std.lists](https://loxia-lang.github.io/loxia/stdlib/lists/): Generic list combinators; every function leaves the input unchanged.
+- [std.log](https://loxia-lang.github.io/loxia/stdlib/log/): Leveled logging to stderr, without timestamps.
+- [std.maps](https://loxia-lang.github.io/loxia/stdlib/maps/): Helpers for Map[String, V] that preserve insertion order.
+- [std.numeric](https://loxia-lang.github.io/loxia/stdlib/numeric/): Integer number theory and population statistics.
+- [std.paths](https://loxia-lang.github.io/loxia/stdlib/paths/): Lexical POSIX path helpers; no filesystem access.
+- [std.proc](https://loxia-lang.github.io/loxia/stdlib/proc/): Processes, streams and poll (POSIX, ambient: outside I1/I3).
+- [std.property](https://loxia-lang.github.io/loxia/stdlib/property/): Deterministic property-based testing with generators, shrinking and seeds.
+- [std.rand](https://loxia-lang.github.io/loxia/stdlib/rand/): Deterministic xorshift64* PRNG with an explicit seed.
+- [std.results](https://loxia-lang.github.io/loxia/stdlib/results/): Combinators for Result[T, E].
+- [std.sets](https://loxia-lang.github.io/loxia/stdlib/sets/): Set[T] backed by Map[Any, Bool], preserving insertion order.
+- [std.strings](https://loxia-lang.github.io/loxia/stdlib/strings/): UTF-8 text operations over code points, not bytes or UTF-16 units.
+- [std.test](https://loxia-lang.github.io/loxia/stdlib/test/): Mini test harness with TAP output, hooks, matchers and a recorder.
+- [std.timex](https://loxia-lang.github.io/loxia/stdlib/timex/): UTC date/time helpers over integer epoch seconds; no timezones.
+- [std.utf8](https://loxia-lang.github.io/loxia/stdlib/utf8/): UTF-8 and UTF-16 widths (bytes, code units, columns).
+
+## Optional
+
+- [Architecture](https://github.com/loxia-lang/loxia/blob/main/docs/tech/arquitetura.md)
+- [ADRs](https://github.com/loxia-lang/loxia/tree/main/docs/adr)
+- [Changelog](https://github.com/loxia-lang/loxia/blob/main/CHANGELOG.md)
+- [Repository](https://github.com/loxia-lang/loxia)

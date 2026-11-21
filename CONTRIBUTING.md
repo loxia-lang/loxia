@@ -84,7 +84,9 @@ not edit its cases to make a test pass.
 ## Commit messages
 
 The project uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
-Messages are in English, imperative, and describe **why** the change exists.
+All Git-facing text is in English: commit messages, branch names, PR titles and
+descriptions, review comments, tags and release notes. Messages are imperative and describe
+**why** the change exists.
 
 ```
 <type>(<scope>): <subject>
@@ -113,9 +115,29 @@ chore(deps): bump llvmlite to 0.51
 A breaking change uses `!` after the type/scope and a `BREAKING CHANGE:` footer. Explain
 the migration and update the relevant ADR and `docs/spec/` in the same PR.
 
-The PR title becomes the squash commit, so it must follow the same convention. The CI check
-rejects titles that do not. DCO sign-off is checked on the commits in the PR; configure your
-client with `git commit -s` (or add the trailer when editing the commit message).
+Feature PRs are squash-merged into `dev`; the PR title becomes the squash commit, so it must
+follow the same convention. The CI check rejects titles that do not. Release PRs from
+`dev` to `main` use a merge commit. DCO sign-off is checked on the commits in the PR;
+configure your client with `git commit -s` (or add the trailer when editing the commit
+message).
+
+## Branches
+
+| Branch | Role | Rules |
+| --- | --- | --- |
+| `main` | release, default | protected: no deletion/force-push, PR required, `CI success` |
+| `dev` | long-lived integration | protected: no deletion/force-push, PR required, `CI success` |
+| `feat/*`, `fix/*`, `docs/*`, `test/*`, `chore/*` | work | branched from `dev`, deleted after merge |
+
+- Every feature/fix starts from `dev` and lands in `dev` by pull request. Do not commit
+  directly to `main` or `dev`.
+- `dev` is permanent: never merge it with `--delete-branch`. Automatic branch deletion is
+  disabled in the repository; delete only the feature branch after its PR merges.
+- A release is a PR from `dev` to `main` (merge commit), followed by a tag from `main`.
+  Issues close in the feature PR, not in the release PR.
+- Exceptional hotfixes branch from `main`, merge into `main`, and are synced back into
+  `dev`.
+- The full procedure is in the [`lox-git-flow`](.dsh/skills/lox-git-flow/SKILL.md) skill.
 
 ## Pull requests
 

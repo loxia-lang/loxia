@@ -40,25 +40,25 @@ def test_fs_escrita_leitura_listagem(tmp_path: Path) -> None:
         f'val pasta = "{data}"\n'
         """print(fs.exists(alvo))
 """
-        """print(fs.writeText(alvo, "a\\nb\\n"))
+        """print(match fs.writeText(alvo, "a\\nb\\n") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })
 """
         """print(fs.exists(alvo))
 """
-        """print(fs.readText(alvo))
+        """print(match fs.readText(alvo) { Result.Ok(text) => text, Result.Err(e) => e.kind })
 """
-        """print(fs.readLines(alvo))
+        """print(match fs.readLines(alvo) { Result.Ok(lines) => lines, Result.Err(e) => e.kind })
 """
-        """print(fs.appendText(alvo, "c\\n"))
+        """print(match fs.appendText(alvo, "c\\n") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })
 """
-        """print(fs.readLines(alvo))
+        """print(match fs.readLines(alvo) { Result.Ok(lines) => lines, Result.Err(e) => e.kind })
 """
-        """print(fs.readText(pasta + "/nao-existe.txt"))
+        """print(match fs.readText(pasta + "/nao-existe.txt") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })
 """
-        """print(fs.readLines(pasta + "/nao-existe.txt"))
+        """print(match fs.readLines(pasta + "/nao-existe.txt") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })
 """
-        """print(fs.listDir(pasta))
+        """print(match fs.listDir(pasta) { Result.Ok(names) => names, Result.Err(e) => e.kind })
 """
-        """print(fs.listDir(pasta + "/nao-existe"))
+        """print(match fs.listDir(pasta + "/nao-existe") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })
 """
         """print(fs.exists(pasta + "/nao-existe"))
 """,
@@ -72,16 +72,16 @@ def test_fs_escrita_leitura_listagem(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout == (
         "false\n"
-        "true\n"
+        "ok\n"
         "true\n"
         "a\nb\n\n"
         '["a", "b"]\n'
-        "true\n"
+        "ok\n"
         '["a", "b", "c"]\n'
-        "nil\n"
-        "nil\n"
+        "notFound\n"
+        "notFound\n"
         '["arquivo.txt"]\n'
-        "nil\n"
+        "io\n"
         "false\n"
     )
 
@@ -91,9 +91,9 @@ def test_fs_append_cria_arquivo_ausente(tmp_path: Path) -> None:
         tmp_path,
         "import std.fs as fs\n"
         'val alvo = "novo.txt"\n'
-        """print(fs.appendText(alvo, "x"))
+        """print(match fs.appendText(alvo, "x") { Result.Ok(_) => "ok", Result.Err(e) => e.kind })
 """
-        """print(fs.readText(alvo))
+        """print(match fs.readText(alvo) { Result.Ok(text) => text, Result.Err(e) => e.kind })
 """,
     )
 
@@ -106,7 +106,7 @@ def test_fs_append_cria_arquivo_ausente(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "true\nx\n"
+    assert result.stdout == "ok\nx\n"
 
 
 def test_io_stdin_e_write(tmp_path: Path) -> None:

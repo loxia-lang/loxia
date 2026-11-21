@@ -14,9 +14,16 @@ from loxia_core.backend.lower_model import (
     _unsupported,
 )
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.errors import (
+    immutable_assignment_message,
+    immutable_redeclare_message,
+)
+from loxia_core.execution.prelude import BUILTIN_NAMES
 from loxia_core.frontend.expr import Assign, Expr, Variable
 from loxia_core.frontend.stmt import Var
 from loxia_core.frontend.ty import ListTy, MapTy
+
+_NATIVE_VALUE_GAPS = BUILTIN_NAMES - {"Exception", "RuntimeError", "Result"}
 
 
 class VariableLowering(LoweringBase):
@@ -29,6 +36,9 @@ class VariableLowering(LoweringBase):
         return self._captures.get(name)
 
     def _load_binding(self, binding: Binding) -> Value:
+        if binding.ty is ValueType.NIL:
+            # `Nil` has no value representation: the slot only exists so the name exists.
+            return Value(ValueType.NIL)
         if binding.cell:
             pointer = self._cell_pointer(binding.storage, binding.desc)
             loaded = self.builder.load(pointer)
@@ -50,9 +60,9 @@ class VariableLowering(LoweringBase):
     def _store_binding(self, binding: Binding, value: Value) -> None:
         if binding.cell:
             pointer = self._cell_pointer(binding.storage, binding.desc)
-            self.builder.store(value.llvm, pointer)
+            self.builder.store(self._arg_llvm(value, binding.desc), pointer)
         else:
-            self.builder.store(value.llvm, binding.storage)
+            self.builder.store(self._arg_llvm(value, binding.desc), binding.storage)
 
     def _guard_closure(self, value: Value, name: str, line: int, column: int = 0) -> Value:
         is_null = self.builder.icmp_signed("==", value.llvm, llvm_ir.null_pointer())
@@ -132,20 +142,21 @@ class VariableLowering(LoweringBase):
                     # guarda `Int` e imprime `2`.
                     declared = value.desc
             else:
-                if value.ty is ValueType.NIL:
-                    raise BackendError(
-                        "Variables of type Nil are not supported by the backend yet.",
-                        stmt.name.line,
-                        code=Code.BACKEND_UNSUPPORTED,
-                    )
                 declared = value.desc
 
         if self._function_ir is self.main and len(self._scopes) == 1:
             existing = self._globals.get(stmt.name.lexeme)
             if existing is not None:
-                # Redeclaração de global (`var x = 1; var x = 2;`): o interpretador
+                # Redeclaração de global (`var x = 1; var x = 2)`): o interpretador
                 # mantém um único binding e sobrescreve o valor; reusar o slot é o
                 # que preserva a leitura dinâmica em funções já compiladas.
+                if not existing.mutable:
+                    self._poison(
+                        stmt.name,
+                        immutable_redeclare_message(stmt.name.lexeme),
+                        code=Code.RUNTIME_IMMUTABLE,
+                    )
+                    return
                 if not existing.desc.same_as(declared):
                     raise BackendError(
                         f"Global '{stmt.name.lexeme}' was already declared as "
@@ -165,9 +176,10 @@ class VariableLowering(LoweringBase):
                     function=value.function,
                     generic=value.generic,
                     generic_node=value.generic_node,
+                    mutable=stmt.mutable,
                 )
                 self._globals[stmt.name.lexeme] = binding
-                self.builder.store(value.llvm, binding.storage)
+                self.builder.store(self._arg_llvm(value, declared), binding.storage)
                 return
 
             name = f"g.{stmt.name.lexeme}"
@@ -182,15 +194,16 @@ class VariableLowering(LoweringBase):
                 function=value.function,
                 generic=value.generic,
                 generic_node=value.generic_node,
+                mutable=stmt.mutable,
             )
             self._globals[stmt.name.lexeme] = binding
-            self.builder.store(value.llvm, global_)
+            self.builder.store(self._arg_llvm(value, declared), global_)
             return
 
         if self._analysis.is_captured(stmt):
             cell = self._alloc_cell()
             cell_pointer = self._cell_pointer(cell, declared)
-            self.builder.store(value.llvm, cell_pointer)
+            self.builder.store(self._arg_llvm(value, declared), cell_pointer)
             self._scopes[-1][stmt.name.lexeme] = Binding(
                 cell,
                 declared.ty,
@@ -202,11 +215,12 @@ class VariableLowering(LoweringBase):
                 function=value.function,
                 generic=value.generic,
                 generic_node=value.generic_node,
+                mutable=stmt.mutable,
             )
             return
 
         slot = self.builder.alloca(self._storage_llvm_type(declared), name=stmt.name.lexeme)
-        self.builder.store(value.llvm, slot)
+        self.builder.store(self._arg_llvm(value, declared), slot)
         self._scopes[-1][stmt.name.lexeme] = Binding(
             slot,
             declared.ty,
@@ -217,11 +231,16 @@ class VariableLowering(LoweringBase):
             function=value.function,
             generic=value.generic,
             generic_node=value.generic_node,
+            mutable=stmt.mutable,
         )
 
     def _variable(self, expr: Variable) -> Value:
         depth = self.depths.get(expr)
         if depth is None and expr.name.lexeme not in self._globals:
+            if expr.name.lexeme in self._enum_layouts:
+                raise _unsupported("Enum object as value", expr.name.line)
+            if expr.name.lexeme in _NATIVE_VALUE_GAPS:
+                raise _unsupported(f"Native value '{expr.name.lexeme}'", expr.name.line)
             self._poison(
                 expr.name,
                 f"Undefined variable '{expr.name.lexeme}'.",
@@ -249,6 +268,13 @@ class VariableLowering(LoweringBase):
             return value
 
         binding = self._lookup(expr, expr.name.lexeme, expr.name.line)
+        if not binding.mutable:
+            self._poison(
+                expr.name,
+                immutable_assignment_message(expr.name.lexeme),
+                code=Code.RUNTIME_IMMUTABLE,
+            )
+            return value
         value = self._coerce(value, binding.desc, expr.name.line)
         self._store_binding(binding, value)
 

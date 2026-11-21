@@ -34,7 +34,9 @@ TODO item.
   code identifiers stay in English.
 - Every ADR lists **negative** consequences or costs. A decision with no cost is suspect.
 - Open discussion is **not** an ADR — it lives in Discussions › Ideas or in a `decision`
-  issue. A deferred decision is recorded in [ADR-0107](0107-adiados-e-nao-objetivos.md).
+  issue. A deferred language/runtime decision is recorded in
+  [ADR-0107](0107-adiados-e-nao-objetivos.md); a deferred process/release decision gets its
+  own ADR and is cross-referenced there.
 
 ## Status
 
@@ -137,7 +139,7 @@ TODO item.
 | [0085](0085-print-como-funcao.md) | `print` as a builtin function (`Any -> Nil`); statement removed | accepted (implemented) | 2026-11-15 |
 | [0086](0086-narrowing-captura-e-merge.md) | Narrowing: invalidation of captured `var` and flow merge | accepted (implemented) | 2026-11-15 |
 | [0087](0087-heap-cap-e-self-hosting.md) | Heap: 512 MiB default and build-time `--max-heap` | accepted (implemented) | 2026-11-15 |
-| [0088](0088-distribuicao-e-raizes-de-modulo.md) | Distribution: `loxia` command, embedded stdlib and declared module roots | accepted (implementation pending) | 2026-11-15 |
+| [0088](0088-distribuicao-e-raizes-de-modulo.md) | Distribution: `loxia` command, embedded stdlib and declared module roots | accepted (implemented) | 2026-11-15 |
 | [0089](0089-stack-trace-de-runtime.md) | Runtime stack trace: frames, call site and R1015 position | accepted (implemented) | 2026-11-15 |
 | [0090](0090-lsp-escopo-e-hospedagem.md) | LSP: Python in the repo, JSON-RPC, diagnostics and phases | accepted (partial implementation) | 2026-11-16 |
 | [0091](0091-doc-comments-e-geracao-de-docs.md) | Documentation: `///` doc comments, Markdown and generation | accepted (partial implementation) | 2026-11-16 |
@@ -157,16 +159,29 @@ TODO item.
 | [0105](0105-dependencias-git.md) | Git dependencies: pinned `rev`, bare mirror, clean checkout and offline fetch | accepted (implemented) | 2026-11-17 |
 | [0106](0106-scaffolding-new-init.md) | Scaffolding: `loxia new`/`init`, minimal template, git and name rules | accepted (implemented) | 2026-11-17 |
 | [0107](0107-adiados-e-nao-objetivos.md) | Deferred and non-goals: consolidated reopen triggers | accepted (consolidation) | 2026-11-18 |
+| [0108](0108-contratos-como-biblioteca.md) | Contracts as a library: `std.contracts`, no syntax yet | accepted (library implemented; adoption pending) | 2026-11-18 |
+| [0109](0109-editor-repo-e-assets.md) | Editor client in its own repo; generated grammar as a release asset | accepted (implemented; publishing pending accounts) | 2026-11-18 |
+| [0110](0110-help-do-cli-e-modulos.md) | CLI help per command; CLI split into args/commands/engine | accepted (implemented) | 2026-11-19 |
+| [0111](0111-indice-de-documentacao.md) | Deterministic documentation index for agents, site and MCP | accepted (implemented) | 2026-11-19 |
+| [0112](0112-mcp-servidor-stdio.md) | MCP server over the CLI: modern-only stdio, sandbox profile, zero-dep | accepted (implemented) | 2026-11-19 |
+| [0113](0113-protocolo-stdio-jsonrpc-framing-documents.md) | Stdio protocol as three modules: JSON-RPC envelopes, `Content-Length` framing and document store | accepted (implemented) | 2026-11-19 |
+| [0114](0114-ast-recuperada-para-tooling.md) | Recovered AST for tooling: strict CLI, parser prefix for the LSP | accepted (implemented) | 2026-11-19 |
+| [0115](0115-corpus-de-conformidade-adiado.md) | Conformance corpus artifact: deferred until a published `lox-core` spec exists | accepted (deferred) | 2026-11-19 |
+| [0116](0116-benchmarks-publicos-adiados.md) | Public benchmarks: deferred until a reproducible protocol and a performance-led release exist | accepted (deferred) | 2026-11-19 |
+| [0117](0117-ast-manual-e-cobertura-de-visitantes.md) | AST stays manual: visitor coverage enforced by protocols and a hierarchy guard | accepted (implemented) | 2026-11-19 |
+| [0118](0118-toml-na-toolchain-e-edicao-de-manifest.md) | TOML: data model in the language (spike first), comment-preserving editing in the tool | accepted (implemented) | 2026-11-19 |
+| [0119](0119-fs-open-handles-e-erro-de-host.md) | File handles plus one `Result` pattern for host failures across the stdlib | accepted (implementation partial) | 2026-11-19 |
+| [0120](0120-localizacao-de-falha-em-excecoes.md) | Caught exceptions expose `e.site` (`file:line:column`) for test failure location | accepted (implemented) | 2026-11-19 |
+| [0121](0121-matriz-de-cobertura-de-features.md) | Curated feature → golden/differential matrix, snapshot and generated coverage page | accepted (implemented) | 2026-11-19 |
 
 
 ## Next decisions that call for an ADR
 
 Open decisions have an issue labeled `decision`; the ADR is written when the issue closes.
 
-- contracts/DbC — [#14](https://github.com/loxia-lang/loxia/issues/14), with the
-  [ADR-0066](0066-orcamento-e-gate-sintatico.md) syntax gate;
-- `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16);
-- AST generator — [#15](https://github.com/loxia-lang/loxia/issues/15).
+- contracts/DbC — decided as a library in [ADR-0108](0108-contratos-como-biblioteca.md);
+  the syntax remains deferred with triggers (issue #14 closes with this ADR);
+- `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16).
 
 Language decisions still open: `if`/blocks as an expression, recoverable exceptions,
 generic methods/inheritance/reification, constraints in classes and mutable unification.

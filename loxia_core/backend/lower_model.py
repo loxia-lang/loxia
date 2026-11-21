@@ -148,6 +148,7 @@ class Binding:
     generic: Any = None
     generic_node: Any = None
     interface_name: str | None = None
+    mutable: bool = True
 
     @property
     def desc(self) -> TypeDesc:
@@ -168,6 +169,8 @@ class FunctionInfo:
     params: list[Param]
     fn_sig: FnSig
     this_class: str | None = None
+    # Classe léxica para `super` em funções locais/lambdas: não implica ABI de `this`.
+    method_class: str | None = None
     is_init: bool = False
     type_subst: dict[str, Any] | None = None
     this_interface: str | None = None

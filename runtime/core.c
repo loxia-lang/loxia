@@ -127,12 +127,8 @@ void lox_print_frames(int64_t depth) {
     int64_t head = LOX_TRACE_HEAD;
     int64_t tail = LOX_TRACE_TAIL;
     int64_t show_head = depth < head ? depth : head;
-    int64_t show_tail = 0;
-    int64_t omitted = 0;
-    if (depth > head + tail) {
-        omitted = depth - head - tail;
-        show_tail = tail;
-    }
+    int64_t show_tail = depth <= head + tail ? depth - show_head : tail;
+    int64_t omitted = depth > head + tail ? depth - head - tail : 0;
 
     for (int64_t index = 0; index < show_head; index++) {
         lox_print_frame(&lox_frames[depth - 1 - index]);
@@ -175,16 +171,23 @@ void lox_reserve_stack(void) {
 
 /* Boehm OOM callback: fixed message and exit 70. */
 
+static void lox_oom_exit(void) {
+    fflush(stdout);
+    fputs("error[R1000]: Out of memory.\n", stderr);
+    fflush(stderr);
+    exit(70);
+}
+
 void *lox_oom(size_t size) {
     (void)size;
-    lox_panic(0, 0, "R1000", "Out of memory.");
+    lox_oom_exit();
     return NULL;
 }
 
 void *lox_alloc(size_t size) {
     void *pointer = GC_MALLOC(size > 0 ? size : 1u);
     if (pointer == NULL) {
-        lox_panic(0, 0, "R1000", "Out of memory.");
+        lox_oom_exit();
     }
     return pointer;
 }
@@ -193,7 +196,7 @@ void *lox_alloc(size_t size) {
 void *lox_alloc_atomic(size_t size) {
     void *pointer = GC_MALLOC_ATOMIC(size > 0 ? size : 1u);
     if (pointer == NULL) {
-        lox_panic(0, 0, "R1000", "Out of memory.");
+        lox_oom_exit();
     }
     return pointer;
 }
@@ -324,6 +327,41 @@ int32_t lox_exception_matches(const void *pointer, const void *expected,
     return strcmp(type_name, "Exception") == 0;
 }
 
+/* ADR-0120: `file:line:column` for caught exceptions. No address, PID or
+ * absolute path is introduced here; `file` comes from the lowering (relative). */
+static void *site_string(const char *file, int32_t line, int32_t column) {
+    if (file == NULL || line <= 0) {
+        return lox_str_from_cstr("");
+    }
+    char buffer[4096];
+    snprintf(buffer, sizeof(buffer), "%s:%" PRId32 ":%" PRId32, file, line,
+             column > 0 ? column : 1);
+    return lox_str_from_cstr(buffer);
+}
+
+/* Call site of the current activation (the line that called `f`, not the
+ * `raise` inside it). For a top-level constructor, the pending call site. */
+void *lox_exception_site(int32_t line, int32_t column) {
+    if (lox_call_depth > 0) {
+        const LoxFrame *frame = &lox_frames[lox_call_depth - 1];
+        return site_string(frame->call_file, frame->call_line, frame->call_column);
+    }
+    if (line > 0) {
+        return site_string(lox_source_path, line, column);
+    }
+    if (lox_call_file != NULL && lox_call_line > 0) {
+        return site_string(lox_call_file, lox_call_line, lox_call_column);
+    }
+    return site_string(NULL, 0, 0);
+}
+
+/* Position recorded on a panic (`LoxException`), used when it is materialized
+ * as a `RuntimeError` for `except`. */
+void *lox_exception_site_at(const void *pointer) {
+    const LoxException *exception = pointer;
+    return site_string(exception->file, exception->line, exception->column);
+}
+
 /* ---------------------------------------------------------------------------
  * Runtime diagnostics and panic
  * --------------------------------------------------------------------------- */
@@ -409,6 +447,15 @@ void lox_rethrow(void *exception_pointer, int32_t line, int32_t column) {
     lox_throw_internal_at(file, exception->code, exception->instance,
                           exception->type_name, exception->message, line,
                           column, trace_depth);
+}
+
+/* `raise;` dentro de `except`: reemite a exceção como valor de usuário
+ * (R1010), não como o panic original (R1002/R1014 etc.). */
+void lox_raise_value(void *pointer, int32_t line, int32_t column) {
+    LoxException *exception = pointer;
+    lox_throw_internal_at(lox_current_file(), NULL, exception->instance,
+                          exception->type_name, exception->message, line,
+                          column, lox_call_depth);
 }
 
 void lox_raise_current(int32_t line, int32_t column) {

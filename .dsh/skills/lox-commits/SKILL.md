@@ -4,6 +4,14 @@ Use this skill whenever you create, amend or review a commit or a pull request t
 The rules are also in [`CONTRIBUTING.md`](../../../CONTRIBUTING.md); this file is the
 agent-facing checklist.
 
+## Language
+
+**Everything that reaches Git is English**: commit headers, bodies and footers (including
+`Signed-off-by`), branch names, PR titles, PR descriptions, review comments, issue comments,
+tag names and release notes. Portuguese belongs in local conversations and non-Git docs;
+never in a commit, PR or review thread. This applies even when the user writes in
+Portuguese.
+
 ## Format
 
 ```
@@ -45,11 +53,14 @@ git commit -s -m "fix(io): decode stdin as strict UTF-8"
 The trailer is `Signed-off-by: Name <email>` in the body. Dependabot and GitHub Actions
 commits are exempt. A PR without sign-off on its commits fails the DCO check.
 
-## PR titles and squash
+## PR titles and merge strategy
 
-The repository squash-merges pull requests; the **PR title becomes the squash commit**.
-Write the title exactly like a commit header. The CI check validates it, so a good local
-commit does not save a bad PR title.
+Feature/fix PRs target `dev` and are **squash-merged**; the **PR title becomes the squash
+commit**. Write the title exactly like a commit header. The CI check validates it, so a
+good local commit does not save a bad PR title.
+
+Release PRs go `dev` → `main` with a **merge commit**, not squash. Never delete `dev` when
+merging it. See [`lox-git-flow`](../lox-git-flow/SKILL.md) for the branch model.
 
 ## Splitting work
 
@@ -69,7 +80,7 @@ uv run python tools/check_pr_title.py "feat(cli): add a flag"
 ```
 
 Never commit `AGENTS.md`, `__pycache__`, `.venv`, caches, `dist/` or secrets. Do not
-force-push `main`, rewrite published history or bypass the syntax/feature gates in
+force-push `main` or `dev`, rewrite published history or bypass the syntax/feature gates in
 [`docs/adr/0014`](../../../docs/adr/0014-identidade-e-invariantes.md) and
 [`docs/adr/0066`](../../../docs/adr/0066-orcamento-e-gate-sintatico.md).
 

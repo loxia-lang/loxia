@@ -15,7 +15,7 @@ from contextlib import redirect_stderr
 from dataclasses import dataclass
 from pathlib import Path
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia_core.backend.lower_generics import (
     MAX_GENERIC_FUNCTIONS,
     MAX_GENERIC_TYPE_DEPTH,

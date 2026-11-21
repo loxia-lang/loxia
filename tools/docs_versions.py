@@ -21,9 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tools.docs_common import SPEC_PAGES, VERSIONS  # noqa: E402
 from tools.docs_site import (  # noqa: E402
-    SPEC_PAGES,
-    VERSIONS,
     _rewrite_links,
     _spec_link,
     _split_front_matter,

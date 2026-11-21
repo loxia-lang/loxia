@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.expr import Get, Variable
@@ -2505,14 +2505,15 @@ def test_exceptions_typed_catch_and_finally() -> None:
         }
 
         try { print(1 / 0) }
-        except RuntimeError as e { print(e.message) }
+        except RuntimeError as e { print(e.message); print(e.site) }
 
         try { raise MyError("x") }
         except RuntimeError as e { print("runtime") }
-        except Exception as e { print("generico") }
+        except Exception as e { print("generico"); print(e.site) }
 
         print(first())
         print(Exception("base").message)
+        print(Exception("base").site)
         print(RuntimeError("runtime").message)
         """
     )
@@ -3084,3 +3085,44 @@ def test_narrowing_try_joins_falling_through_handler(
 
     assert lox.reporter.had_error is True
     assert "Expected String, found Int | String." in captured.err
+
+
+def test_any_nao_e_atribuivel_a_tipo_concreto(capsys: pytest.CaptureFixture[str]) -> None:
+    """`Any` é top type; o caminho de volta exige `as` (I2/I1)."""
+    lox = check(
+        """
+        fn f(x: Int) -> Nil { print(x) }
+        val a: Any = "x"
+        f(a)
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Argument 1: Expected Int, found Any." in captured.err
+
+
+def test_any_nao_e_indice_sem_cast(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(
+        """
+        val xs = [1, 2]
+        val i: Any = 0.0
+        print(xs[i])
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "List index must be an integer" in captured.err
+
+
+def test_nil_nao_e_tipo_de_armazenamento(capsys: pytest.CaptureFixture[str]) -> None:
+    for source in (
+        "val n: Nil = nil",
+        "fn f(n: Nil) -> Nil { return n }",
+        "class C { var n: Nil }",
+    ):
+        lox = check(source)
+        captured = capsys.readouterr()
+        assert lox.reporter.had_error is True, source
+        assert "of type Nil are not supported; use `Any`." in captured.err

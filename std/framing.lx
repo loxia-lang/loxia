@@ -1,0 +1,189 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.framing — `Content-Length` framing for stdio protocols (T3).
+#
+# The codec is pure: it takes a reader function, never touches stdin/stdout directly.
+# `readStdin`/`writeStdout` are the only adapters that do I/O (ambient, outside I1/I3).
+# Reader contract: returns up to `count` bytes without splitting a UTF-8 sequence, `nil`
+# at clean end of input, and may return `""` when a partial sequence is pending.
+
+import std.strings as strings
+import std.utf8 as utf8
+
+/// Reader of at most `count` bytes, never splitting a code point.
+///
+/// `nil` means clean end of input. A returned text has one or more code points and at
+/// most `count` UTF-8 bytes. `std.framing.readStdin` is the stdin implementation.
+type Reader = fn(Int) -> String?
+
+/// Framing failure; `kind` is stable, `message` is for humans.
+///
+/// Kinds: `truncated` (input ended inside a frame), `bad_header` (malformed or missing
+/// `Content-Length`), `too_large` (header or body above the caps), `read` (the reader
+/// raised, e.g. invalid UTF-8).
+class FrameFailure {
+  /// Stable machine-readable kind.
+  val kind: String
+
+  /// Human-readable reason; never contains a path, timestamp or address.
+  val message: String
+
+  /// Creates a failure with an explicit kind and message.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
+}
+
+/// Reads one frame, returning its body.
+///
+/// `Result.Ok(nil)` is a clean end of input at a frame boundary. Headers must be ASCII
+/// and end with CRLF; `Content-Length` is required, unique and counts UTF-8 bytes;
+/// `Content-Type` is accepted and ignored. The body is returned as text, still
+/// unparsed; pair with `std.jsonrpc.decode` for JSON-RPC.
+fn readFrame(read: Reader) -> Result[String?, FrameFailure] {
+  var header = ""
+  var complete = false
+  while (not complete) {
+    var chunk: String? = nil
+    try {
+      chunk = read(1)
+    } except RuntimeError as error {
+      return _fail("read", error.message)
+    }
+    if (chunk == nil) {
+      if (len(header) == 0) {
+        return Result.Ok(nil)
+      }
+      return _fail("truncated", "End of input inside the header.")
+    }
+    val byte = chunk
+    if (byte == "") {
+      return _fail("truncated", "Reader made no progress.")
+    }
+    if (byte == "\n") {
+      if (len(header) < 1 or substr(header, len(header) - 1, len(header)) != "\r") {
+        return _fail("bad_header", "Header lines must end with CRLF.")
+      }
+    }
+    header = header + byte
+    if (len(header) > _maxHeader()) {
+      return _fail("too_large", "Header exceeds ${_maxHeader()} bytes.")
+    }
+    if (len(header) >= 4) {
+      val tail = substr(header, len(header) - 4, len(header))
+      if (tail == "\r\n\r\n") {
+        complete = true
+      }
+    }
+  }
+  return _readBody(read, header)
+}
+
+/// Serializes one frame: `Content-Length` counts UTF-8 bytes, then the body.
+fn encodeFrame(text: String) -> String {
+  return "Content-Length: ${str(utf8.byteLen(text))}\r\n\r\n${text}"
+}
+
+/// Reads from stdin with `io.readUtf8`, the exact-bytes reader.
+///
+/// Ambient: blocks until `count` bytes or end of input. A truncated body is normalized
+/// to `nil` (the codec reports `truncated`); invalid UTF-8 raises `RuntimeError`, which
+/// `readFrame` turns into a `read` failure.
+fn readStdin(count: Int) -> String? {
+  try {
+    return io.readUtf8(count)
+  } except RuntimeError as error {
+    # `io.readUtf8` reports a truncated body as "expects exactly N bytes"; the codec
+    # needs that as end of input so it can report `truncated` instead of a read error.
+    if (strings.contains(error.message, "expects exactly")) {
+      return nil
+    }
+    raise RuntimeError(error.message)
+  }
+}
+
+/// Writes a complete frame to stdout and flushes it.
+///
+/// Ambient. `io.write` flushes on every call (ADR-0094), so a client waiting for the
+/// response never deadlocks. Never use `print` for protocol output.
+fn writeStdout(text: String) -> Nil {
+  io.write(text)
+}
+
+fn _readBody(read: Reader, header: String) -> Result[String?, FrameFailure] {
+  val length = _contentLength(header)
+  if (length == nil) {
+    return _fail("bad_header", "Missing or invalid Content-Length header.")
+  }
+  val count = length
+  if (count > _maxBody()) {
+    return _fail("too_large", "Body exceeds ${_maxBody()} bytes.")
+  }
+  var body = ""
+  var got = 0
+  while (got < count) {
+    var chunk: String? = nil
+    try {
+      chunk = read(count - got)
+    } except RuntimeError as error {
+      return _fail("read", error.message)
+    }
+    if (chunk == nil) {
+      return _fail("truncated", "End of input inside the body.")
+    }
+    val text = chunk
+    if (text == "") {
+      return _fail("truncated", "Reader made no progress.")
+    }
+    val width = utf8.byteLen(text)
+    if (width > count - got) {
+      return _fail("read", "Reader returned more bytes than requested.")
+    }
+    body = body + text
+    got = got + width
+  }
+  return Result.Ok(body)
+}
+
+fn _contentLength(header: String) -> Int? {
+  val lines = strings.split(header, "\r\n")
+  var length: Int? = nil
+  for line in lines {
+    if (line != "") {
+      val colon = strings.indexOf(line, ":")
+      if (colon <= 0) {
+        return nil
+      }
+      val rawName = substr(line, 0, colon)
+      val name = strings.lower(strings.trim(rawName))
+      val rawValue = substr(line, colon + 1, len(line))
+      val value = strings.trim(rawValue)
+      if (name == "content-length") {
+        if (length != nil) {
+          return nil
+        }
+        val parsed = Int.parse(value)
+        if (parsed == nil) {
+          return nil
+        }
+        if (parsed < 0) {
+          return nil
+        }
+        length = parsed
+      }
+    }
+  }
+  return length
+}
+
+fn _fail(kind: String, message: String) -> Result[String?, FrameFailure] {
+  return Result.Err(FrameFailure(kind, message))
+}
+
+fn _maxHeader() -> Int {
+  return 8192
+}
+
+fn _maxBody() -> Int {
+  return 16777216
+}

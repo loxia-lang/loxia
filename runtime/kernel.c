@@ -21,6 +21,10 @@
 #include "lox_runtime.h"
 #include "kernel_gen.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 /* ---------------------------------------------------------------------------
  * Kernel strings
  * --------------------------------------------------------------------------- */
@@ -496,4 +500,258 @@ void lox_time_sleep(int64_t milliseconds, int32_t line, int32_t column) {
     while (nanosleep(&duration, &duration) == -1) {
         /* interrupted by a signal: continue with the remaining time */
     }
+}
+
+size_t utf8_complete_prefix(const unsigned char *data, size_t length) {
+    size_t cut = length;
+    size_t back = 0;
+    while (cut > 0 && back < 3 && (data[cut - 1] & 0xC0) == 0x80) {
+        cut -= 1;
+        back += 1;
+    }
+    if (cut == 0) {
+        return 0;
+    }
+    unsigned char lead = data[cut - 1];
+    size_t need = lead < 0x80   ? 1
+                  : (lead & 0xE0) == 0xC0 ? 2
+                  : (lead & 0xF0) == 0xE0 ? 3
+                                          : 4;
+    size_t have = length - (cut - 1);
+    return have >= need ? length : cut - 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * File handles: `fs.open`, `fs.read`, `fs.write`, `fs.close` (ADR-0119)
+ * --------------------------------------------------------------------------- */
+
+#define LOX_MAX_FS_HANDLES 128
+
+/* `pending` guards UTF-8 boundaries: an incomplete sequence from the previous
+ * read waits here (up to 3 bytes) and is completed by the next call. */
+typedef struct {
+    int used;
+    int fd;
+    int writable;
+    unsigned char pending[4];
+    size_t pending_len;
+} LoxFsHandle;
+
+static LoxFsHandle lox_fs_handles[LOX_MAX_FS_HANDLES];
+
+static const char *fs_kind(int error) {
+    switch (error) {
+        case ENOENT: return "notFound";
+        case EACCES:
+        case EPERM: return "permission";
+        case EISDIR: return "isDirectory";
+        case ENOTDIR: return "notDirectory";
+        case EEXIST: return "alreadyExists";
+        case EMFILE:
+        case ENFILE: return "tooManyFiles";
+        case ENOSPC: return "noSpace";
+        default: return "io";
+    }
+}
+
+/* Panic messages must outlive `lox_panic` (it stores the pointer in a catchable
+ * error), so they are static strings chosen by kind — never a stack buffer. */
+static const char *fs_open_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: can't open the file.";
+        case EACCES:
+        case EPERM: return "permission: can't open the file.";
+        case EISDIR: return "isDirectory: can't open a directory.";
+        case ENOTDIR: return "notDirectory: can't open the file.";
+        case EMFILE:
+        case ENFILE: return "tooManyFiles: can't open the file.";
+        case ENOSPC: return "noSpace: can't open the file.";
+        default: return "io: can't open the file.";
+    }
+}
+
+static const char *fs_write_message(int error) {
+    switch (error) {
+        case EACCES:
+        case EPERM: return "permission: write failed.";
+        case ENOSPC: return "noSpace: write failed.";
+        default: return "io: write failed.";
+    }
+}
+
+static char *fs_c_string(const void *pointer) {
+    const LoxStr *string = pointer;
+    char *copy = lox_alloc_atomic((size_t)string->byte_len + 1);
+    memcpy(copy, string->data, (size_t)string->byte_len);
+    copy[string->byte_len] = '\0';
+    return copy;
+}
+
+static LoxFsHandle *fs_handle_at(int64_t id, int32_t line, int32_t column) {
+    if (id < 1 || id > LOX_MAX_FS_HANDLES) {
+        lox_panic(line, column, "R1000", "fs: invalid handle.");
+        return NULL;
+    }
+    LoxFsHandle *handle = &lox_fs_handles[id - 1];
+    if (!handle->used) {
+        lox_panic(line, column, "R1000", "closed: handle is already closed.");
+        return NULL;
+    }
+    return handle;
+}
+
+/* `fs.open(path, mode)`: 1-based handle, or R1000 with a stable kind prefix. */
+int64_t lox_fs_open(const void *path_pointer, const void *mode_pointer, int32_t line,
+                    int32_t column) {
+    const LoxStr *mode = mode_pointer;
+    char *path = fs_c_string(path_pointer);
+    int flags;
+    int writable = 0;
+    if (mode->byte_len == 1 && mode->data[0] == 'r') {
+        flags = O_RDONLY;
+    } else if (mode->byte_len == 1 && mode->data[0] == 'w') {
+        flags = O_WRONLY | O_CREAT | O_TRUNC;
+        writable = 1;
+    } else if (mode->byte_len == 1 && mode->data[0] == 'a') {
+        flags = O_WRONLY | O_CREAT | O_APPEND;
+        writable = 1;
+    } else {
+        lox_panic(line, column, "R1000", "badMode: expected 'r', 'w' or 'a'.");
+        return 0;
+    }
+    int fd;
+    do {
+        fd = open(path, flags, 0644);
+    } while (fd < 0 && errno == EINTR);
+    if (fd < 0) {
+        lox_panic(line, column, "R1000", fs_open_message(errno));
+        return 0;
+    }
+    for (int index = 0; index < LOX_MAX_FS_HANDLES; index++) {
+        if (lox_fs_handles[index].used) {
+            continue;
+        }
+        lox_fs_handles[index].used = 1;
+        lox_fs_handles[index].fd = fd;
+        lox_fs_handles[index].writable = writable;
+        lox_fs_handles[index].pending_len = 0;
+        return (int64_t)index + 1;
+    }
+    close(fd);
+    lox_panic(line, column, "R1000", "tooManyFiles: too many open files.");
+    return 0;
+}
+
+/* `fs.read(id, n)`: at most n bytes, always a complete UTF-8 prefix; NULL is EOF. */
+void *lox_fs_read(int64_t id, int64_t count, int32_t line, int32_t column) {
+    LoxFsHandle *handle = fs_handle_at(id, line, column);
+    if (handle == NULL) {
+        return NULL;
+    }
+    if (handle->writable) {
+        lox_panic(line, column, "R1000", "badMode: handle is not open for reading.");
+        return NULL;
+    }
+    if (count < 0) {
+        lox_panic(line, column, "R1000", "fs.read() expects a non-negative size.");
+        return NULL;
+    }
+    if (count == 0) {
+        return string_from_bytes("", 0, 0);
+    }
+    if (handle->pending_len > 0 && (size_t)count <= handle->pending_len) {
+        return string_from_bytes("", 0, 0);
+    }
+    size_t want = (size_t)count;
+    unsigned char *buffer = lox_alloc_atomic(want);
+    size_t total = 0;
+    if (handle->pending_len > 0) {
+        total = handle->pending_len < want ? handle->pending_len : want;
+        memcpy(buffer, handle->pending, total);
+        if (handle->pending_len > total) {
+            memmove(handle->pending, handle->pending + total, handle->pending_len - total);
+            handle->pending_len -= total;
+        } else {
+            handle->pending_len = 0;
+        }
+    }
+    int eof = 0;
+    while (total < want) {
+        ssize_t got;
+        do {
+            got = read(handle->fd, buffer + total, want - total);
+        } while (got < 0 && errno == EINTR);
+        if (got <= 0) {
+            eof = 1;
+            break;
+        }
+        total += (size_t)got;
+    }
+    if (total == 0) {
+        return NULL;
+    }
+    size_t cut = utf8_complete_prefix(buffer, total);
+    if (cut < total) {
+        size_t keep = total - cut;
+        if (keep > sizeof handle->pending) {
+            keep = sizeof handle->pending;
+        }
+        memcpy(handle->pending, buffer + cut, keep);
+        handle->pending_len = keep;
+        total = cut;
+    }
+    if (total == 0) {
+        if (eof) {
+            lox_panic(line, column, "R1000", "io: file ends inside a UTF-8 sequence.");
+        }
+        return string_from_bytes("", 0, 0);
+    }
+    if (!utf8_valid(buffer, total)) {
+        lox_panic(line, column, "R1000", "io: file is not valid UTF-8.");
+        return NULL;
+    }
+    return string_from_bytes((const char *)buffer, total,
+                             utf8_code_points((const char *)buffer, total));
+}
+
+/* `fs.write(id, text)`: writes every byte, retrying EINTR. */
+void lox_fs_write(int64_t id, const void *text_pointer, int32_t line, int32_t column) {
+    LoxFsHandle *handle = fs_handle_at(id, line, column);
+    if (handle == NULL) {
+        return;
+    }
+    if (!handle->writable) {
+        lox_panic(line, column, "R1000", "badMode: handle is not open for writing.");
+        return;
+    }
+    const LoxStr *text = text_pointer;
+    const char *cursor = text->data;
+    size_t remaining = (size_t)text->byte_len;
+    while (remaining > 0) {
+        ssize_t written = write(handle->fd, cursor, remaining);
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            lox_panic(line, column, "R1000", fs_write_message(errno));
+            return;
+        }
+        cursor += written;
+        remaining -= (size_t)written;
+    }
+}
+
+/* `fs.close(id)`: idempotent; an id that never existed is R1000. */
+void lox_fs_close(int64_t id, int32_t line, int32_t column) {
+    if (id < 1 || id > LOX_MAX_FS_HANDLES) {
+        lox_panic(line, column, "R1000", "fs: invalid handle.");
+        return;
+    }
+    LoxFsHandle *handle = &lox_fs_handles[id - 1];
+    if (!handle->used) {
+        return;
+    }
+    close(handle->fd);
+    handle->used = 0;
+    handle->pending_len = 0;
 }

@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass, fields, is_dataclass
 from pathlib import Path
 
-from loxia.cli import Loxia
+from loxia.engine import Loxia
 from loxia.source_symbols import imports_of, parse_source
 from loxia.symbols import SymbolIndex
 from loxia_core.diagnostics.source import display_path
@@ -33,6 +33,14 @@ class Target:
     mangled: frozenset[str]
     direct_names: dict[Path, frozenset[str]]
     aliases: dict[Path, frozenset[str]]
+
+
+@dataclass(frozen=True)
+class References:
+    """Declaração alvo e todas as ocorrências que um rename editaria."""
+
+    declaration: tuple[Path, int]
+    occurrences: tuple[tuple[Path, int, str], ...]
 
 
 @dataclass
@@ -81,6 +89,31 @@ def semantic_rename(
     return _edits(workspace, target, new_name)
 
 
+def semantic_references(
+    root: Path, files: dict[Path, str], target_path: Path, token: Token
+) -> References | None:
+    """Ocorrências semânticas do alvo, na mesma resolução do rename cross-file."""
+    workspace = _workspace(root, files)
+    if isinstance(workspace, str):
+        return None
+    target = _target(workspace, target_path, token)
+    if target is None:
+        return None
+    offsets = _occurrence_offsets(workspace, target)
+    occurrences: list[tuple[Path, int, str]] = []
+    for path, path_offsets in offsets.items():
+        text = workspace.files[path]
+        for offset in path_offsets:
+            identifier = _identifier_at(text, offset)
+            if identifier is not None:
+                occurrences.append((path, offset, identifier))
+    occurrences.sort(key=lambda item: (str(item[0]), item[1]))
+    return References(
+        declaration=(target.declaration_file, target.declaration_offset),
+        occurrences=tuple(occurrences),
+    )
+
+
 def _workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
     analyses: dict[Path, _Analysis] = {}
     positions: dict[tuple[Path, int], set[str]] = {}
@@ -92,8 +125,7 @@ def _workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
         if original is None:
             return f"Can't rename across files: parse error in {path.name}."
         lox = Loxia(error_format="json", color="never", max_errors=0)
-        lox._file = display_path(str(path))
-        lox._module_root = root
+        lox.use_file(display_path(str(path)), module_root=root)
         lox.check(text, emit=False)
         merged = lox.last_statements
         if merged is None:
@@ -181,17 +213,16 @@ def _candidate_from_import(analysis: _Analysis, token: Token) -> set[str]:
     return candidates
 
 
-def _edits(workspace: _Workspace, target: Target, new_name: str) -> dict[str, object] | str:
-    edits: dict[Path, dict[int, str]] = {}
-    affected: set[Path] = {target.declaration_file}
+def _occurrence_offsets(workspace: _Workspace, target: Target) -> dict[Path, set[int]]:
+    """Offsets de declaração e usos que pertencem ao alvo (a mesma regra do rename)."""
+    offsets: dict[Path, set[int]] = {}
     for name in target.mangled:
         for path, offset in workspace.tokens_by_lexeme.get(name, set()):
             identifier = _identifier_at(workspace.files[path], offset)
             if identifier in target.aliases.get(path, frozenset()):
                 continue
-            edits.setdefault(path, {})[offset] = new_name
-            affected.add(path)
-    edits.setdefault(target.declaration_file, {})[target.declaration_offset] = new_name
+            offsets.setdefault(path, set()).add(offset)
+    offsets.setdefault(target.declaration_file, set()).add(target.declaration_offset)
 
     for path, analysis in workspace.analyses.items():
         for statement in analysis.original:
@@ -201,20 +232,23 @@ def _edits(workspace: _Workspace, target: Target, new_name: str) -> dict[str, ob
             for item in statement.names:
                 candidate = module.replace(".", "$") + "$" + item.name.lexeme
                 if candidate in target.mangled:
-                    edits.setdefault(path, {})[item.name.offset] = new_name
-                    affected.add(path)
+                    offsets.setdefault(path, set()).add(item.name.offset)
 
     for path, names in target.direct_names.items():
         local_analysis = workspace.analyses.get(path)
         if local_analysis is None:
             continue
-        affected.add(path)
         for statement in local_analysis.original:
             for type_token in _class_type_tokens(statement):
                 if type_token.lexeme in names:
-                    edits.setdefault(path, {})[type_token.offset] = new_name
+                    offsets.setdefault(path, set()).add(type_token.offset)
+    return offsets
 
-    for path in affected:
+
+def _edits(workspace: _Workspace, target: Target, new_name: str) -> dict[str, object] | str:
+    edits = _occurrence_offsets(workspace, target)
+
+    for path in edits:
         collision_analysis = workspace.analyses.get(path)
         if collision_analysis is None:
             continue
@@ -227,10 +261,10 @@ def _edits(workspace: _Workspace, target: Target, new_name: str) -> dict[str, ob
                     )
 
     changes: dict[str, list[dict[str, object]]] = {}
-    for path, offsets in edits.items():
+    for path, path_offsets in edits.items():
         text = workspace.files[path]
         entries: list[dict[str, object]] = []
-        for offset, replacement in sorted(offsets.items()):
+        for offset in sorted(path_offsets):
             identifier = _identifier_at(text, offset)
             if identifier is None:
                 continue
@@ -239,7 +273,7 @@ def _edits(workspace: _Workspace, target: Target, new_name: str) -> dict[str, ob
             entries.append(
                 {
                     "range": {"start": start, "end": end},
-                    "newText": replacement,
+                    "newText": new_name,
                 }
             )
         if entries:

@@ -16,6 +16,14 @@ class LoxInstance:
         self._klass = klass
         self._fields: dict[str, object] = {}
         self._initialized: set[str] = set()
+        # ADR-0120: posição do throw; não é um campo Lox (não entra no bitmap).
+        self._exception_site: str = ""
+
+    def exception_site(self) -> str:
+        return self._exception_site
+
+    def set_exception_site(self, site: str) -> None:
+        self._exception_site = site
 
     def get(self, name: Token) -> object:
         if name.lexeme in self._fields:

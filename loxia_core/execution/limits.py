@@ -25,8 +25,10 @@ TRACE_TAIL = 5
 STACK_BUDGET_BYTES = 64 * 1024 * 1024
 NATIVE_STACK_RESERVE_BYTES = 128 * 1024 * 1024
 
-# ~13 frames Python por chamada Lox; 200k dá margem para 10k chamadas + try/finally.
-PYTHON_RECURSION_BUDGET = 200_000
+# Cada `try/finally` aninhado acrescenta frames Python por ativação Lox. O
+# contrato é 10.000 ativações independentemente da aninhagem; 500k cobre o pior
+# caso do corpus (3 try aninhados) com folga.
+PYTHON_RECURSION_BUDGET = 500_000
 
 # ADR-0087: hard cap de heap do binário. `--max-heap` pode aumentar/diminuir no build.
 DEFAULT_HEAP_BYTES = 512 * 1024 * 1024

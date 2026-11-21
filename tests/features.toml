@@ -1,0 +1,144 @@
+schema_version = 1
+
+# Matriz curada de features da linguagem (ADR-0121).
+# `differential` aponta para um nível de tests/corpus_manifest.py que contém pelo
+# menos um dos `golden`; `backend = false` só vale para features que o backend ainda
+# não cobre (com `differential = "none"`).
+
+[features.values]
+title = "Int, Float, Bool, nil e literais"
+golden = ["tests/cases/numbers.lx", "tests/cases/literals.lx", "tests/cases/comparison.lx", "tests/cases/equality.lx"]
+differential = "l1"
+backend = true
+
+[features.operators]
+title = "Aritmética, precedência, unários e bits"
+golden = ["tests/cases/arithmetic.lx", "tests/cases/precedence.lx", "tests/cases/bitwise.lx", "tests/cases/exponentiation.lx", "tests/cases/unary.lx"]
+differential = "l1"
+backend = true
+
+[features.strings]
+title = "Strings, escapes, multilinha, raw e interpolação"
+golden = ["tests/cases/strings.lx", "tests/cases/string_escapes.lx", "tests/cases/multiline_strings.lx", "tests/cases/raw_strings.lx", "tests/cases/interpolation.lx", "tests/cases/string_order.lx"]
+differential = "l3"
+backend = true
+
+[features.variables]
+title = "val/var, escopo, sombreamento e atribuição"
+golden = ["tests/cases/val_var.lx", "tests/cases/variables.lx", "tests/cases/scope_identity.lx", "tests/cases/block_scope.lx", "tests/cases/val_shadowing.lx"]
+differential = "l2.5"
+backend = true
+
+[features.control_flow]
+title = "if/elif/while/for, ranges e for-in"
+golden = ["tests/cases/if_else.lx", "tests/cases/elif.lx", "tests/cases/while.lx", "tests/cases/for.lx", "tests/cases/for_in.lx", "tests/cases/range_value.lx", "tests/cases/range_inclusive.lx"]
+differential = "l2"
+backend = true
+
+[features.functions]
+title = "Funções, closures, lambdas, defaults e variádicos"
+golden = ["tests/cases/functions.lx", "tests/cases/closures.lx", "tests/cases/function_values.lx", "tests/cases/local_function.lx", "tests/cases/default_params.lx", "tests/cases/variadic.lx"]
+differential = "l4"
+backend = true
+
+[features.classes]
+title = "Classes, campos, métodos, this, init, herança e super"
+golden = ["tests/cases/classes.lx", "tests/cases/class_fields.lx", "tests/cases/class_initializer.lx", "tests/cases/inheritance.lx", "tests/cases/super.lx", "tests/cases/class_bound_method.lx"]
+differential = "l5"
+backend = true
+
+[features.interfaces]
+title = "Interfaces nominais e métodos default"
+golden = ["tests/cases/interfaces.lx", "tests/cases/interface_decl.lx"]
+differential = "l6"
+backend = true
+
+[features.generics]
+title = "Generics de funções/classes e constraints"
+golden = ["tests/cases/generic_functions.lx", "tests/cases/generic_class.lx", "tests/cases/generic_constraints.lx", "tests/cases/generics.lx"]
+differential = "t7"
+backend = true
+
+[features.exceptions]
+title = "try/except/finally, raise e e.site"
+golden = ["tests/cases/exceptions.lx", "tests/cases/exception_site.lx", "tests/cases/try_return_cleanup.lx", "tests/cases/stack_exception.lx"]
+differential = "l6"
+backend = true
+
+[features.enums]
+title = "Enums, match e Result"
+golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx"]
+differential = "l6"
+backend = true
+
+[features.tuples]
+title = "Tuplas, destructuring e iteração"
+golden = ["tests/cases/tuples.lx", "tests/cases/tuple_destructure.lx", "tests/cases/nested_destructure.lx", "tests/cases/tuple_iteration.lx"]
+differential = "l6"
+backend = true
+
+[features.lists]
+title = "List[T], índice, métodos e iteração"
+golden = ["tests/cases/list_literal.lx", "tests/cases/list_index.lx", "tests/cases/list_methods.lx", "tests/cases/list_iteration.lx", "tests/cases/list_equality.lx"]
+differential = "l6"
+backend = true
+
+[features.maps]
+title = "Map[K, V], índice, métodos e iteração"
+golden = ["tests/cases/map_literal.lx", "tests/cases/map_keys.lx", "tests/cases/map_methods.lx", "tests/cases/map_iteration.lx", "tests/cases/map_equality.lx"]
+differential = "l6"
+backend = true
+
+[features.optionals]
+title = "T?, narrowing, ?? e ?."
+golden = ["tests/cases/optional_scalars.lx", "tests/cases/optional_functions.lx", "tests/cases/nil_aware.lx", "tests/cases/optional_receiver.lx", "tests/cases/nil_value.lx"]
+differential = "l2.5"
+backend = true
+
+[features.type_alias]
+title = "type Nome = Tipo"
+golden = ["tests/cases/type_alias.lx"]
+differential = "l6"
+backend = true
+
+[features.checker]
+title = "Anotações, inferência e diagnósticos do --check"
+golden = ["tests/cases/typed_functions.lx", "tests/cases/is_union_parens.lx", "tests/cases/optional_refs.lx"]
+differential = "none"
+backend = false
+
+[features.stdlib]
+title = "Módulos da stdlib (json, lists, maps, strings, property, rand)"
+golden = ["tests/cases/std_json.lx", "tests/cases/std_lists.lx", "tests/cases/std_maps.lx", "tests/cases/std_strings.lx", "tests/cases/std_property.lx", "tests/cases/std_rand.lx"]
+differential = "t1"
+backend = true
+
+[features.contracts]
+title = "Contratos como biblioteca e adoção na stdlib"
+golden = ["tests/cases/std_contracts.lx", "tests/cases/std_contracts_property.lx", "tests/cases/std_contracts_pilot.lx"]
+differential = "t2"
+backend = true
+
+[features.test_runner]
+title = "std.test e o runner loxia test"
+golden = ["tests/cases/std_test.lx", "tests/cases/std_test_hooks.lx", "tests/cases/exception_site.lx"]
+differential = "t3"
+backend = true
+
+[features.kernel]
+title = "Primitivas de kernel (io, strings)"
+golden = ["tests/cases/kernel_io.lx", "tests/cases/kernel_strings.lx"]
+differential = "k0"
+backend = true
+
+[features.syntax]
+title = "Comentários, ; opcional, quebra de linha e trailing comma"
+golden = ["tests/cases/comments.lx", "tests/cases/optional_semicolons.lx", "tests/cases/one_line_block.lx", "tests/cases/leading_operator_brackets.lx", "tests/cases/trailing_comma.lx"]
+differential = "l0"
+backend = true
+
+[features.stdlib_data]
+title = "Stdlib de dados: json, csv, fmt e utf8"
+golden = ["tests/cases/std_json.lx", "tests/cases/std_csv.lx", "tests/cases/std_fmt.lx", "tests/cases/std_utf8.lx"]
+differential = "t2"
+backend = true

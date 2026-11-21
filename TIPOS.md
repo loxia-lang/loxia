@@ -4,52 +4,45 @@ Só o que ainda está **pendente**. O comportamento atual está em [`docs/spec/`
 decisões fechadas, em [`docs/decisoes.md`](docs/decisoes.md) e nos [ADRs](docs/adr/). Este
 arquivo não descreve o que já funciona.
 
-## 1. Implementação pendente
+> Atualizado em 2026-11-20: o backend **L0–L6 + T7** está fechado e o `PENDING` do corpus
+> está vazio. Não há lacuna de tipo no lowering; o que resta abaixo é checker/generics
+> além do MVP ou trabalho de performance (L7).
 
-### 1.1 M5 — fechado
+## 1. Generics além do MVP
 
-T6a/T6c foram implementados; restam no pós-MVP:
+Decididos como adiados no [ADR-0040](docs/adr/0040-generics-classes-desenho.md) e no
+[ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md); cada um exige um programa real e um
+ADR próprio:
 
-- **T6a (restante)** — métodos genéricos (`fn map[U]`), herança de `Box[Int]` e `is/as`
-  reificado: **adiados** por decisão ([TODO.md](TODO.md) §10;
-  [ADR-0040](docs/adr/0040-generics-classes-desenho.md)).
-- **T6b** — interfaces nominais (item "traits" do Lox2): `implements`, métodos default e
-  constraints. O modelo está no [ADR-0038](docs/adr/0038-traits-nominais.md); a v1 das
-  interfaces no [ADR-0080](docs/adr/0080-interfaces-nominais-implementacao.md) e as
-  constraints de função (`T: Ord + Num + Interface`) no
-  [ADR-0081](docs/adr/0081-constraints-generics.md) — tree-walk/checker e backend
-  implementados. Falta constraints em classes/enums e interfaces genéricas.
+- métodos genéricos (`fn map[U]`);
+- herança de `Box[Int]` e interfaces genéricas;
+- `is`/`as` reificado e type application explícita;
+- função genérica como valor (`val f = id` continua erro; [semântica](docs/spec/semantica.md));
+- recursão polimórfica e variance.
 
-### 1.2 Checker
+As **constraints** existem em funções (`T: Ord + Num + Interface`,
+[ADR-0081](docs/adr/0081-constraints-generics.md)); faltam constraints em classes/enums.
 
-- **Narrowing**: invalidação em chamada/atribuição a campo/índice implementada
-  ([ADR-0045](docs/adr/0045-narrowing-representacao.md)); `var` capturado e merge de
-  fluxo implementados ([ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)); resta
-  aliasing/efeitos/CFG completo, declarado fora.
-- **Função genérica como valor** (T3b só permite chamada).
-- **Enum genérico em lambda/match**: `fn(x) => Result.Ok(x)` não infere `U`/`E`; exige
-  função nomeada com retorno anotado. (O `T?` contra `Int?` já unifica `T = Int`.)
+## 2. Checker
 
-### 1.3 L5 — desenho fechado, backend pendente
+- **Narrowing**: invalidação em chamada/atribuição a campo/índice, `var` capturado e merge
+  de fluxo estão implementados ([ADR-0045](docs/adr/0045-narrowing-representacao.md),
+  [ADR-0086](docs/adr/0086-narrowing-captura-e-merge.md)). Restam **aliasing, efeitos e
+  CFG completo**, declarados fora do escopo atual
+  ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md)).
+- **Enum genérico em lambda/match**: `fn(x) => Result.Ok(x)` ainda exige função nomeada
+  com retorno anotado para inferir `U`/`E`; `T?` contra `Int?` já unifica `T = Int`.
 
-- **Layout** de classe/campos/vtable/init em
-  [ADR-0043](docs/adr/0043-layout-l5-classes.md).
-- **Identidade** de classe por objeto em `is`/`as`/`except`
-  ([ADR-0044](docs/adr/0044-identidade-classe.md)).
-- **Representação** × narrowing: `storage_types` publicado, lowering usa o declarado
-  ([ADR-0045](docs/adr/0045-narrowing-representacao.md)).
+## 3. Backend
 
-### 1.4 Tipos
+Sem lacunas de tipo: `L0–L6 + T7` cobre escalares, classes/herança, closures, containers,
+tuplas, enums, exceções, `Any`, generics monomorfizados e `T?`. O `PENDING` do corpus está
+vazio ([`tests/corpus_manifest.py`](tests/corpus_manifest.py)). O próximo passo do backend é
+**L7** (passes/benchmarks), não uma regra de tipo.
 
-- **Aliases `type`**: transparentes, sem generics, implementados no [ADR-0084](docs/adr/0084-type-alias.md)
-  ([ADR-0039](docs/adr/0039-decisoes-tipos-pendentes.md)).
-- **Padrões avançados** de `match` (literais/nil, guards, aninhamento, `|`) e enum genérico
-  com variante nula; backend L6 ([ADR-0041](docs/adr/0041-enums-match.md)).
+## 4. Como reabrir
 
-### 1.5 Backend
-
-- **L2.5** — `T?` escalar/referência e `var x;` (`variables.lx` está `PENDING` l2);
-  desbloqueia campos opcionais do L5.
-- **T7** — monomorfização.
-- **Layout de tupla** (L6) e **chamada via interface** (vtable/type-id, L6).
-- **`Any` boxeado** (pós-MVP).
+Um item só volta a esta lista com issue de decisão e o portão do
+[ADR-0014](docs/adr/0014-identidade-e-invariantes.md); se mexer em sintaxe, também o
+[ADR-0066](docs/adr/0066-orcamento-e-gate-sintatico.md). Ao fechar uma lacuna, remova o
+bullet e atualize o caso diferencial no mesmo commit.

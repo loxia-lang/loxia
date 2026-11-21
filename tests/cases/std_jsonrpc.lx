@@ -1,0 +1,57 @@
+# std.jsonrpc (T3): envelopes JSON-RPC 2.0, validação e construção.
+from std.jsonrpc import RpcFailure, decode, encode, failure, hasId, idOf, isNotification, isRequest, isResponse, methodOf, notification, request, success
+
+fn show(result: Result[Map[String, Any], RpcFailure]) -> String {
+  return match result {
+    Result.Ok(message) => "ok:" + encode(message)
+    Result.Err(error) => "err:${error.code}:${error.message}"
+  }
+}
+
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":null,\"result\":[1,2]}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"error\":{\"code\":-32601,\"message\":\"nope\",\"data\":{\"x\":1}}}")))
+print(show(decode("{")))
+print(show(decode("[{\"jsonrpc\":\"2.0\",\"method\":\"x\"}]")))
+print(show(decode("{\"id\":1,\"method\":\"x\"}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1.5,\"method\":\"x\"}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":1,\"error\":{\"code\":1,\"message\":\"x\"}}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"x\"}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"x\",\"params\":3}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"x\",\"result\":null}")))
+print(show(decode("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":1}}")))
+print(encode(request(7, "initialize", {"capabilities": {}})))
+print(encode(notification("exit")))
+print(encode(success("abc", nil)))
+print(encode(failure(nil, -32700, "Parse error")))
+val mensagem = request(1, "x")
+print(isRequest(mensagem))
+print(isNotification(mensagem))
+print(isResponse(mensagem))
+print(methodOf(mensagem))
+print(idOf(mensagem))
+print(hasId(mensagem))
+# expect: ok:{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}
+# expect: ok:{"jsonrpc":"2.0","method":"initialized","params":{}}
+# expect: ok:{"jsonrpc":"2.0","id":null,"result":[1,2]}
+# expect: ok:{"jsonrpc":"2.0","id":"a","error":{"code":-32601,"message":"nope","data":{"x":1}}}
+# expect: err:-32700:Parse error
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: err:-32600:Invalid Request
+# expect: {"jsonrpc":"2.0","id":7,"method":"initialize","params":{"capabilities":{}}}
+# expect: {"jsonrpc":"2.0","method":"exit"}
+# expect: {"jsonrpc":"2.0","id":"abc","result":null}
+# expect: {"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error"}}
+# expect: true
+# expect: false
+# expect: false
+# expect: x
+# expect: 1
+# expect: true

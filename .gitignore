@@ -16,6 +16,7 @@ AGENTS.md
 IDEIAS-REDDIT.md
 
 dist/
+dist-grammar/
 build/
 *.egg-info/
 
@@ -28,6 +29,7 @@ build/
 
 # Cobertura e profiling
 .coverage
+.coverage.*
 coverage.xml
 htmlcov/
 .hypothesis/

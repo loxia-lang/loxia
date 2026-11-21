@@ -1,12 +1,16 @@
 # ADR-0107 — Adiados e não-objetivos: gatilhos de reabertura
 
-- **Status:** accepted (consolidação; sem mudança de semântica)
+- **Status:** accepted (consolidação; sem mudança de semântica; atualizado por
+  [ADR-0115](0115-corpus-de-conformidade-adiado.md) e
+  [ADR-0116](0116-benchmarks-publicos-adiados.md) para os artefatos de release)
 - **Data:** 2026-11-18
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0014](0014-identidade-e-invariantes.md) (portão),
   [ADR-0021](0021-tipos-de-funcao.md), [ADR-0029](0029-conversoes-math.md),
   [ADR-0037](0037-async-direcao.md), [ADR-0040](0040-generics-classes-desenho.md),
-  [ADR-0066](0066-orcamento-e-gate-sintatico.md), [ADR-0081](0081-constraints-generics.md)
+  [ADR-0066](0066-orcamento-e-gate-sintatico.md), [ADR-0081](0081-constraints-generics.md),
+  [ADR-0115](0115-corpus-de-conformidade-adiado.md),
+  [ADR-0116](0116-benchmarks-publicos-adiados.md) (processo/release)
 - **Implementação:** nenhuma (registro de decisão)
 
 ## Contexto
@@ -22,7 +26,10 @@ avaliação, decisões de "não agora" e backlog já aceito. Com o repositório 
 Este ADR consolida os itens de linguagem/runtime que continuam **deferidos** e estavam
 espalhados entre `IDEIAS.md`, o [ADR-0040](0040-generics-classes-desenho.md) e o
 [ADR-0066](0066-orcamento-e-gate-sintatico.md). Ele não reabre nenhuma decisão: só torna
-o gatilho explícito e impede que o assunto volte como ideia solta.
+o gatilho explícito e impede que o assunto volte como ideia solta. Decisão adiada de
+processo/release fica em ADR próprio, referenciado aqui — é o caso do corpus de
+conformidade ([ADR-0115](0115-corpus-de-conformidade-adiado.md)) e dos benchmarks
+públicos ([ADR-0116](0116-benchmarks-publicos-adiados.md)).
 
 ## Decisão
 
@@ -42,10 +49,18 @@ gatilho descrito **e** uma issue de decisão que responda ao portão do
 | Math transcendentais e constantes (`log`, `exp`, `sin`, `cos`, `tan`, `pow`, `math.pi`) | [ADR-0029](0029-conversoes-math.md), [ADR-0066](0066-orcamento-e-gate-sintatico.md) | Biblioteca determinística com testes de I3, ou API explicitamente ambient fora do I1/I3. |
 | Paralelismo (multithread) | [ADR-0037](0037-async-direcao.md) (async single-thread) | Async implementado + caso de uso CPU-bound + benchmark; ADR de modelo de memória antes de qualquer sintaxe. |
 
-> **Fora desta lista:** contratos ([issue #14](https://github.com/loxia-lang/loxia/issues/14)),
-> `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16)) e o gerador de AST
-> ([#15](https://github.com/loxia-lang/loxia/issues/15)) saíram para decisão; são trabalho,
-> não adiados.
+> **Fora desta lista:** contratos ([issue #14](https://github.com/loxia-lang/loxia/issues/14))
+> foram decididos como biblioteca no [ADR-0108](0108-contratos-como-biblioteca.md), com a
+> sintaxe adiada por gatilhos; `fs.open` ([#16](https://github.com/loxia-lang/loxia/issues/16))
+> continua em decisão; é trabalho, não adiado. O gerador de AST
+> ([#15](https://github.com/loxia-lang/loxia/issues/15)) foi decidido como manual + guard
+> ([ADR-0117](0117-ast-manual-e-cobertura-de-visitantes.md)), não como codegen agora. O
+> corpus de conformidade
+> ([#10](https://github.com/loxia-lang/loxia/issues/10)) foi adiado por decisão própria
+> ([ADR-0115](0115-corpus-de-conformidade-adiado.md)) e os benchmarks públicos
+> ([#13](https://github.com/loxia-lang/loxia/issues/13)) também
+> ([ADR-0116](0116-benchmarks-publicos-adiados.md)): são artefatos de release, não itens
+> de linguagem/runtime.
 
 ## Consequências
 

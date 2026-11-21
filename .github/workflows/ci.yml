@@ -58,7 +58,49 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       - run: uv sync --locked --all-groups --extra llvm
-      - run: uv run pytest -m "not backend and not install"
+      - name: Unit tests
+        if: matrix.python != '3.13'
+        run: uv run pytest -m "not backend and not install"
+      - name: Unit tests + coverage ratchet
+        if: matrix.python == '3.13'
+        run: make coverage-ratchet
+
+  portable-macos:
+    name: Portable (macOS)
+    # Interpreter-only coverage; the native backend remains Linux-only.
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - run: uv sync --locked --all-groups --extra llvm
+      - name: Non-backend suite
+        run: uv run pytest -m "not backend and not install" --maxfail=20 -ra
+
+  portable-windows:
+    name: Portable (Windows, experimental)
+    # Known platform failures: this job is informational until the interpreter
+    # is ported. It is intentionally not part of ci-success.
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - run: uv sync --locked --all-groups --extra llvm
+      - name: Non-backend suite
+        id: suite
+        continue-on-error: true
+        run: uv run pytest -m "not backend and not install" --maxfail=20 -ra
+      - name: Note experimental failures
+        if: steps.suite.outcome == 'failure'
+        shell: bash
+        run: echo "::warning title=Windows portable CI::known platform failures; see the suite log."
 
   backend:
     name: Native backend
@@ -79,11 +121,11 @@ jobs:
           restore-keys: |
             lox-runtime-${{ runner.os }}-
       - run: uv sync --locked --all-groups --extra llvm
-      - name: Backend suite
+      - name: Backend suite + coverage ratchet
         env:
           LOX_REQUIRE_LLVM: "1"
           LOX_BUILD_CACHE: ${{ runner.temp }}/lox-build-cache
-        run: uv run pytest -m backend
+        run: make coverage-ratchet-backend
 
   docs:
     name: Docs and generated files
@@ -163,7 +205,7 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [lint, typecheck, unit, backend, docs, site, package, commits]
+    needs: [lint, typecheck, unit, portable-macos, backend, docs, site, package, commits]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loxia"
-version = "1.1.0"
+version = "1.2.0"
 description = "Loxia: a small, statically checked language descended from Lox, with a tree-walk interpreter and an optional LLVM backend"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
@@ -21,6 +21,8 @@ keywords = [
     "loxia",
     "programming-language",
     "tree-walk",
+    "mcp",
+    "model-context-protocol",
 ]
 classifiers = [
     "Programming Language :: Python :: 3.13",
@@ -38,6 +40,7 @@ Changelog = "https://github.com/loxia-lang/loxia/blob/main/CHANGELOG.md"
 
 [project.scripts]
 loxia = "loxia.cli:main"
+loxia-mcp = "loxia.mcp:main"
 
 [project.optional-dependencies]
 # Backend nativo (ADR-0031). O interpretador continua sem dependências: `uv sync`
@@ -46,20 +49,41 @@ llvm = ["llvmlite>=0.50"]
 
 [dependency-groups]
 dev = [
+    "coverage>=7.17.3",
     "hypothesis>=6.170.15",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.17.4",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers -m 'not install'"
+# Trava um teste que pendura o processo (subprocessos já têm timeout próprio).
+timeout = 180
 markers = [
     "bench: benchmarks lentos, não rodam na suíte padrão",
     "backend: compila e executa binários nativos (precisa de llvmlite, cc e libgc)",
     "install: builda o wheel e instala num venv fora do repo (lento; rode com `pytest -m install`)",
+]
+
+[tool.coverage.run]
+source = ["loxia", "loxia_core"]
+branch = true
+# Mede também o CLI/engine em subprocessos (golden, loxia test, LSP/MCP).
+patch = ["subprocess"]
+parallel = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "pragma: no cover",
 ]
 
 [tool.ruff]
@@ -98,6 +122,21 @@ packages = ["loxia", "loxia_core"]
 "NOTICE" = "NOTICE"
 
 [tool.hatch.build.targets.sdist]
+# O wheel materializa `loxia_core/std` e `loxia_core/runtime` como force-include;
+# se um build em andamento deixar a cópia na árvore, a sdist não pode capturá-la
+# (o teste de instalação exige um `std/` só, na raiz).
+exclude = [
+    ".uv-cache",
+    ".uv-cache/**",
+    ".venv",
+    ".venv/**",
+    "build",
+    "dist",
+    "loxia_core/std",
+    "loxia_core/std/**",
+    "loxia_core/runtime",
+    "loxia_core/runtime/**",
+]
 include = [
     "loxia",
     "loxia_core",
@@ -109,5 +148,6 @@ include = [
     "LICENSE-APACHE",
     "NOTICE",
     "CHANGELOG.md",
+    "server.json",
     "pyproject.toml",
 ]

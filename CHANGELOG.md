@@ -5,7 +5,132 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-20
+
 ### Adicionado
+
+- **Empacotamento MCP:** `server.json` para o MCP Registry (`io.github.loxia-lang/loxia`,
+  pacote PyPI `loxia`, transporte stdio), `mcp-name` no README e instruções `uvx`/Inspector
+  em [`docs/tech/mcp.md`](docs/tech/mcp.md). A 1.2.0 é a primeira versão de PyPI com o
+  servidor MCP; a 1.1.0 foi publicada antes dele.
+
+- **Localização de falha em exceções capturadas** ([ADR-0120](docs/adr/0120-localizacao-de-falha-em-excecoes.md),
+  issue [#11](https://github.com/loxia-lang/loxia/issues/11)): `e.site` expõe
+  `arquivo:linha:coluna` (relativo) da chamada que lançou a exceção, nos dois motores.
+  `std.test` reporta a linha do `expect` no TAP (`# at ...`) e em `tests[].location` no
+  JSON. Sem mudança de sintaxe.
+
+- **Protocolo v2 do `loxia test`** ([ADR-0096](docs/adr/0096-testes-biblioteca-e-runner.md)):
+  `std.test` emite eventos JSON com nonce (`start`/`result`/`discover`/`end`); o runner
+  renderiza TAP/JSON e não confunde `print` do teste com resultado. `--require-tests`
+  (exit 5) evita falso verde, `--capture` inclui o stdout da falha, e o relatório ganhou
+  `command`, `success`, `exit_code`, `kind`, `location` e `output`
+  ([`docs/tech/test-report.md`](docs/tech/test-report.md),
+  [`schema/test-report-v1.json`](schema/test-report-v1.json)).
+
+- **Matriz de cobertura por feature** ([ADR-0121](docs/adr/0121-matriz-de-cobertura-de-features.md)):
+  `tests/features.toml` mapeia feature → goldens + nível diferencial, com snapshot
+  congelado e página gerada em [`docs/tech/test-coverage.md`](docs/tech/test-coverage.md).
+
+### Mudado
+
+- `loxia test` exibe caminhos relativos ao CWD (não à raiz do pacote) e mata o process
+  group no timeout. A suíte local ganhou `pytest-timeout`/`pytest-xdist`, o pytest foi
+  para o pre-push e o teste de âncoras do site ignora `site/dist` defasado.
+- **Performance e relatório do `loxia test`:** `--jobs` passa a default `min(4, CPUs)`,
+  builds nativos rodam em paralelo, e o runner ganhou `--json-lines`, `--junit PATH` e
+  escape de `#`/newline no TAP humano.
+
+### Ferramentas
+
+- **Piloto de `std.contracts`:** pós-condições de custo O(1) em `paths.normalize` e
+  `convert.base64Encode`; `numeric.gcd`/`powMod` e `lists.sort` foram avaliados e
+  revertidos por custo acima de 5% no interpretador. As propriedades continuam em
+  `std_contracts_pilot.lx` nos dois motores. Entradas inválidas continuam `RuntimeError`.
+
+- **CI macOS/Windows:** macOS roda a suíte não-backend como gate; Windows roda a mesma
+  suíte em modo experimental (falhas de plataforma conhecidas). O backend nativo continua
+  Linux-only.
+
+- `loxia test --junit` emite JUnit XML com `time="0"`; `--json-lines` emite um evento por
+  teste e um `summary` final.
+- **`make coverage`**: medição de cobertura Python por branch, com `patch = ["subprocess"]`
+  para incluir o CLI em subprocessos. Primeira medição local: 65%; guia em
+  [`docs/tech/python-coverage.md`](docs/tech/python-coverage.md).
+- **Ratchet de cobertura:** `coverage-baseline.toml` fixa pisos por módulo crítico,
+  `make coverage-ratchet` falha abaixo deles (job "Coverage ratchet" no CI) e
+  `make coverage-update` só sobe os pisos.
+- **Ratchet expandido:** loader, primitivas de host, `source_index` e mais objetos de valor
+  entraram no `coverage-baseline.toml`.
+- **Fuzz do runner:** property tests para TAP, protocolo v2, JSON/JSONL e JUnit. O fuzz
+  revelou que `--json-lines` com U+0085 quebrava o record em duas linhas; a saída agora usa
+  escapes ASCII.
+- **`loxia test --changed[=REF]`:** seleciona testes pelo grafo de imports desde `REF`
+  (default `HEAD`), incluindo worktree e untracked; mudanças não-Lox/deletadas rodam tudo.
+- **`loxia test --shard=INDEX/TOTAL`:** particiona a lista final de arquivos para CI.
+- **Ratchet do backend Python:** `coverage-baseline-backend.toml` cobre o lowering; o job
+  "Native backend" roda `make coverage-ratchet-backend` (exige libgc/llvmlite).
+- **TIPOS.md atualizado:** remove as lacunas de L5/L6/T7 já fechadas e deixa só generics
+  além do MVP, gaps de checker e L7. Issue #11 fechada.
+- **CI de coverage:** a medição virou parte do job Unit 3.13 (com `-n 4`), removendo o job
+  separado que duplicava a suíte.
+- **Cache de binário nativo:** `loxia test --native` reusa executáveis por hash de conteúdo
+  (projeto, implementação, compilador e flags); `--no-cache` desliga. O cache do runtime
+  continua separado.
+- Triagem de frescor de 2026-11-20 registrada em [`docs/log.md`](docs/log.md); o teste de
+  âncoras do site ignora `site/dist` defasado.
+
+- **`fs.open` com handles e erro de host em `Result`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md),
+  issue [#16](https://github.com/loxia-lang/loxia/issues/16)): `fs.open/read/write/close`
+  no kernel (4 primitivas), `std.fs.File` + `withOpen[T]` com `FileError.kind` estável,
+  modos `r`/`w`/`a`, leitura em fronteira UTF-8 e `close` idempotente. `appendText` deixa
+  de reler o arquivo. **Breaking:** `readText`/`readLines`/`writeText`/`appendText`/
+  `listDir` agora devolvem `Result[T, FileError]` (sem bump de major; não há consumidor
+  externo). `seek`/`tell`/`+modos`/binário ficam adiados com gatilhos.
+
+- **`std.proc` em `Result`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md)):
+  `spawn`/`run`/`Stream.read`/`Stream.write`/`close` e `Process.wait`/`close` devolvem
+  `Result[T, ProcError]` (`spawnFailed`, `pipeClosed`, `closed`, `timeout`, `io`); timeout
+  deixa de ser `nil` e `close` fica idempotente. **Breaking:** chamadas antigas precisam
+  de `match`/`std.results`.
+
+- **`csv.parseResult` e `timex.parseIsoResult`** ([ADR-0119](docs/adr/0119-fs-open-handles-e-erro-de-host.md)):
+  erros de parse ganham `CsvError`/`TimeError` com `kind` estável; `parse`/`parseIso`
+  continuam devolvendo `T?` como atalho legado.
+
+- **LSP: navegação, robustez e hierarquia de tipos** ([ADR-0090](docs/adr/0090-lsp-escopo-e-hospedagem.md),
+  [ADR-0114](docs/adr/0114-ast-recuperada-para-tooling.md); issue
+  [#46](https://github.com/loxia-lang/loxia/issues/46)): `textDocument/references` e
+  `documentHighlight` reusam as referências do resolver e o índice do rename;
+  `typeDefinition`/`implementation` e `typeHierarchy/*` cobrem classes e interfaces;
+  W1001/W1002 ganham `DiagnosticTag.Unnecessary`; `source.fixAll.loxia` aplica os fixes
+  `safe`; a AST recuperada do parser mantém hover/definition no prefixo de um arquivo com
+  erro de sintaxe; buffers não salvos alimentam o loader (importadores rechecados);
+  `workspace/willRenameFiles` reescreve imports; e o `diagnosticProvider` anunciado sem
+  handler de pull foi removido, com teste de drift capability↔handler. Testes em
+  `tests/test_lsp_navigation.py`.
+
+- **Protocolo stdio em Lox puro** ([ADR-0113](docs/adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)):
+  `std.jsonrpc` valida e constrói envelopes JSON-RPC 2.0; `std.framing` lê e escreve
+  `Content-Length` sobre um reader injetado, contando bytes UTF-8 e com caps de 8 KiB/16 MiB;
+  `std.documents` guarda documentos full sync com URI opaca e versão crescente. `std.json`
+  ganhou `parseResult`/`JsonResult` (separa `null` de JSON malformado) e o harness
+  `tests/test_protocol_lox.py` fala o protocolo com stdin binário real; os três módulos
+  entram no diferencial (t3).
+
+- **Servidor MCP** ([ADR-0112](docs/adr/0112-mcp-servidor-stdio.md)): `loxia mcp` e
+  `loxia-mcp` falam MCP 2026-07-28 modern-only em stdio, sem dependência; tools
+  `loxia_check`, `loxia_run`, `loxia_ast`, `loxia_spec`, `loxia_explain` e
+  `loxia_version`, com paridade CLI×MCP. `loxia run --sandbox` nega fs/process e o
+  servidor aplica timeout, process group e limites de processo; testes em
+  `tests/test_mcp.py` e `tests/test_cli.py`.
+
+- **Índice determinístico da documentação** ([ADR-0111](docs/adr/0111-indice-de-documentacao.md)):
+  `make docs-index` gera `loxia/_spec/index.json` (spec + stdlib, 33 páginas/542 seções) e
+  `site/public/llms.txt`; IDs, âncoras e URLs são os mesmos do Starlight, os links viram
+  URLs canônicas e não há timestamp/caminho absoluto. O índice viaja no wheel, é validado
+  por `loxia/docs_index.py` (`section`/`find_page`/`search`) e tem gate de sincronia em
+  `tests/test_docs_index.py`; o site compartilha `tools/docs_common.py` com o gerador.
 
 - **LSP: completion herdada, signature importado e inlay hints** (ADR-0090): completion
   inclui campos/métodos de superclasse e de interfaces implementadas; `signatureHelp`
@@ -25,6 +150,69 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   opcional de parser (`compare=False`) para atualizar anotações de tipo sem mudar
   igualdade/hash. Cobertura nova em `tests/test_lsp.py` (homônimo, alias, namespace,
   tipo e colisão) e em `tests/test_parser.py` (token sem regressão de igualdade).
+
+- **Contratos como biblioteca** ([ADR-0108](docs/adr/0108-contratos-como-biblioteca.md)):
+  `std.contracts` traz `ContractError` (distinto de `RuntimeError`), `require`/`ensure`/
+  `checkInvariant`, `check`/`checkMethod` e as variantes `checkVoid`/`checkMethodVoid`;
+  `old` é um local capturado e `result` é o parâmetro de `post`. O mesmo predicado serve
+  de contrato de runtime e oráculo de property tests; a sintaxe de
+  `requires`/`ensures`/`invariant` continua adiada com gatilhos.
+
+### Mudado
+
+- **CLI: help per command and split modules** ([ADR-0110](docs/adr/0110-help-do-cli-e-modulos.md)):
+  `loxia --help` lists the commands and global options; each subcommand documents only
+  its own flags, grouped, with examples. The compatibility mode (`loxia [flag]
+  file.lx`) keeps parsing the legacy flags and is summarized in the epilog.
+  `loxia/cli.py` was split into `cli_args.py`, `cli_commands.py` and `engine.py`;
+  `Loxia` exposes `use_file`/`sources`/`flush` and the dead `run_file` is gone.
+
+- **Editor: cliente VS Code em repo próprio e grammar como asset** (ADR-0109): o cliente
+  saiu de `editors/vscode/` para `loxia-lang/loxia-vscode` (TypeScript + esbuild, testes
+  unitários e smoke de integração, CI, VSIX, Marketplace/Open VSX). A grammar gerada
+  passou para `editors/grammar/` (`loxia.tmLanguage.json`, `loxia.mjs`, `loxia.ts`) e o
+  release do main anexa os três arquivos + `SHA256SUMS`; o repo novo pina a release em
+  `grammar.lock.json` (versão + SHA-256) e sincroniza por `npm run grammar:sync`, sem
+  submódulo e sem cópia manual. O servidor LSP continua no main (ADR-0090). O cliente
+  ganhou play button interpretado/compilado, settings por feature, autodetecção do CLI e
+  testes; `editors/README.md` foi reescrito para o contrato de asset.
+- **`make grammar-assets`**: `editors/build_grammar.py --assets DIR` grava os três
+  artefatos e `SHA256SUMS` para o release; `--check` continua sendo o gate de drift.
+
+### Corrigido
+
+- **Backend: `super` em lambdas/funções locais e bindings de `match` capturados**
+  (ADR-0022): o passe de captura agora marca o receptor de `super` e declara os bindings
+  de pattern; funções internas herdam a classe léxica e o binding vira célula. Antes o
+  `--check` passava e o lowering nativo falhava com `E4002` (`super_in_closure.lx`,
+  `match_capture.lx`).
+- **fs: `read(n)` respeita o teto de bytes e mantém UTF-8 pendente**: o tree-walk
+  devolvia até 4 bytes extras por chamada e descartava `pending`; agora espelha o runtime
+  C, e `tests/test_fs_runtime.py` cobre `é` com `read(1)`/`read(2)`.
+- **fs/proc: handles não sobrevivem a uma execução**: `Interpreter.interpret` fecha as
+  tabelas no `finally`; `FileTable.close_all` existia sem chamador e handles antigos
+  continuavam legíveis na execução seguinte.
+- **`loxia test --changed` com `loxia.toml`**: a seleção passa a resolver imports na raiz
+  do manifest e em `modules.paths`, não no diretório do teste.
+- **Cache nativo do `loxia test`**: a chave inclui dependências `path`/cache git e
+  manifestos/locks, evitando falso verde depois de mudar uma dependência externa.
+- **`std.framing.readFrame`**: um reader que devolve `""` (sequência UTF-8 pendente)
+  agora falha com `truncated` em vez de girar para sempre.
+
+- **Backend: payload `Nil` no `match` de `Result`** ([ADR-0113](docs/adr/0113-protocolo-stdio-jsonrpc-framing-documents.md)):
+  `Result[Nil, E]` passava no `--check` e o lowering nativo falhava com `E4002` ao ligar o
+  payload `nil` do braço. O braço agora usa um slot dummy e carrega `Value(NIL)`; regressão
+  em `tests/cases/result_nil.lx` (l6).
+- **Backend: `this` lexical em lambdas e funções locais** (ADR-0022): o receptor agora é
+  capturado em célula quando uma função interna o usa, cobrindo lambda direto, closure
+  retornada e função local (`tests/cases/this_in_lambda.lx`). Antes o `--check` passava e
+  o lowering nativo falhava com `E4002`.
+- **Backend: `Nil` em parâmetro de tipo de função e em local**: `Nil` ganhou um slot
+  `i32` sem payload, permitindo `check[T]` com `T = Nil` e `val x = nil`
+  (`tests/cases/nil_value.lx`); parâmetro nomeado `Nil` continua recusado pelo checker.
+- **Backend: captura de locais dentro de `try`/`raise`**: o passe de captura percorre
+  corpo, handlers e `finally`, então closures dentro de `try` enxergam os locais
+  capturados no binário nativo (`tests/cases/std_contracts.lx`).
 
 ## [1.1.0] — 2026-11-17
 

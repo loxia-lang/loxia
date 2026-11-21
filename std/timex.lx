@@ -7,6 +7,8 @@
 
 import std.strings as strings
 
+import std.results as results
+
 /// Returns days since 1970-01-01 for a civil date.
 ///
 /// Uses Howard Hinnant's proleptic-Gregorian algorithm. `month` is 1..12 and `day` is
@@ -61,13 +63,33 @@ fn iso(seconds: Int) -> String {
     "T" + _pad2(hour) + ":" + _pad2(minute) + ":" + _pad2(second) + "Z"
 }
 
+/// Failure to parse an ISO-8601 UTC instant.
+class TimeError {
+  /// Stable token: `invalidIso`.
+  val kind: String
+  /// Detail without path/locale text.
+  val message: String
+
+  /// Builds a parse failure.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
+}
+
 /// Parses a strict `YYYY-MM-DDTHH:MM:SSZ` string into seconds since the epoch.
 ///
-/// Returns `nil` when the length, separators, digits, field ranges or calendar date are
-/// invalid. Leap seconds are not accepted: `second` must be 0..59.
+/// Returns `nil` for malformed input; `parseIsoResult` preserves the cause.
 fn parseIso(text: String) -> Int? {
+  return results.toOptional(parseIsoResult(text))
+}
+
+/// Parses an ISO-8601 UTC instant, preserving the cause of a malformed input.
+///
+/// Leap seconds are not accepted: `second` must be 0..59.
+fn parseIsoResult(text: String) -> Result[Int, TimeError] {
   if (len(text) != 20) {
-    return nil
+    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
   }
   if (
     strings.slice(text, 4, 5) != "-" or
@@ -77,7 +99,7 @@ fn parseIso(text: String) -> Int? {
     strings.slice(text, 16, 17) != ":" or
     strings.slice(text, 19, 20) != "Z"
   ) {
-    return nil
+    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
   }
   val year = _digits(text, 0, 4)
   val month = _digits(text, 5, 2)
@@ -89,20 +111,20 @@ fn parseIso(text: String) -> Int? {
     year == nil or month == nil or day == nil or
     hour == nil or minute == nil or second == nil
   ) {
-    return nil
+    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
   }
   if (month < 1 or month > 12 or day < 1 or day > 31) {
-    return nil
+    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
   }
   if (hour > 23 or minute > 59 or second > 59) {
-    return nil
+    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
   }
   val days = daysFromCivil(year, month, day)
   val (checkYear, checkMonth, checkDay) = civilFromDays(days)
   if (checkYear != year or checkMonth != month or checkDay != day) {
-    return nil
+    return Result.Err(TimeError("invalidIso", "expected YYYY-MM-DDTHH:MM:SSZ."))
   }
-  return days * 86400 + hour * 3600 + minute * 60 + second
+  return Result.Ok(days * 86400 + hour * 3600 + minute * 60 + second)
 }
 
 /// Adds `days` days to the instant `seconds` and returns the new instant.

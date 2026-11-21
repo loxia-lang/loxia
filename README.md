@@ -13,8 +13,9 @@ stdout, stderr and exit codes on a declared corpus. The lineage is declared, not
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
 > **Status:** 1.x, released. The language semantics are frozen; tooling and packaging are
-> still moving. 1.1.0 is on PyPI. The specification is in English; the ADRs and roadmap are
-> in Portuguese (pt-BR). See [Documentation](#documentation).
+> still moving. **1.2.0** is the current release, the first PyPI release with the MCP
+> server. The specification is in English; the ADRs and roadmap are in Portuguese
+> (pt-BR). See [Documentation](#documentation).
 
 ## Why Loxia
 
@@ -67,10 +68,10 @@ area = 6.0
 | Interpreter | Lox core from *Crafting Interpreters* plus Loxia's own syntax and semantics |
 | Native backend | L0–L6 + T7: strings, classes, closures, containers, enums, exceptions |
 | Standard library | T1–T3: `json`, `fmt`, `fs`, `io`, `proc`, `sets`, `csv`, `hash`, `property`… |
-| Tooling | formatter, LSP, test runner, `fix`, `doc`, `explain`, `capabilities` |
-| Packaging | on PyPI since 1.1.0 |
+| Tooling | formatter, LSP, MCP, test runner, `fix`, `doc`, `explain`, `capabilities` |
+| Packaging | on PyPI (1.1.0 and 1.2.0) |
 
-Current version: **1.1.0**. The detailed, generated status by level is in
+Current version: **1.2.0**. The detailed, generated status by level is in
 [`docs/spec/garantias.md`](docs/spec/garantias.md).
 
 ## Install
@@ -96,8 +97,9 @@ The interpreter has no runtime dependencies. The native backend is opt-in: `--em
 `llvmlite` (`uv sync --extra llvm`); `--emit=exe` also needs a C compiler and the Boehm GC
 development headers (`libgc-dev` on Debian/Ubuntu, `brew install bdw-gc` on macOS).
 
-Linux x86_64 is the CI platform. macOS and Windows are not tested; the interpreter may
-work, the native backend is not promised there.
+Linux x86_64 is the supported platform for the native backend. The non-backend suite runs
+on macOS (blocking) and Windows (experimental; known platform failures); the native
+backend is not promised there.
 
 ## Quick start
 
@@ -109,19 +111,25 @@ loxia run hello/src/main.lx
 loxia hello.lx                     # run a file
 loxia check hello.lx               # type-check only
 loxia build hello.lx --emit=exe -o hello
-loxia --version                    # loxia 1.1.0
+loxia --version                    # loxia 1.2.0
 ```
 
 ## CLI
 
-`loxia` exposes subcommands; the legacy flags remain available for compatibility.
+`loxia --help` lists the commands; `loxia <command> --help` documents only that
+command's flags (grouped by purpose) and examples. The legacy invocation
+`loxia [flags] file.lx` remains supported: its flags are summarized at the end of
+`loxia --help` under compatibility mode and map to subcommands (`--check` → `check`,
+`--dump-ast` → `ast`, `--emit` → `build`).
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
-| `loxia run FILE` | Execute a program | `--debug`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia run FILE` | Execute a program | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--json` |
 | `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--json` |
+| `loxia add NAME` | Declare a `path` or `git` dependency in `loxia.toml` | `--path`, `--git`, `--rev`, `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia remove NAME` | Remove a dependency from `loxia.toml` | `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
@@ -130,12 +138,14 @@ loxia --version                    # loxia 1.1.0
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--native`, `--frozen`, `--offline`, `--cache-dir`, `--json` |
+| `loxia mcp` | MCP server over stdio (tools) | — |
+| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--changed[=REF]`, `--shard=INDEX/TOTAL`, `--native`, `--no-cache`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |
 
-Global compatibility flags: `--check`, `--dump-ast`, `--debug`, `--version`, `--color`.
+Global flag: `--version`. Every other flag belongs to a command; run
+`loxia <command> --help` for the authoritative list and the grouped descriptions.
 
 `loxia new` writes a minimal, deterministic template and runs `git init` unless
 `--no-git` is given (never inside an existing repository); `loxia init` does the same in an
@@ -145,6 +155,50 @@ Exit codes: `65` compilation error, `70` runtime error, `66` missing file, `2` i
 usage, `1` for a `--check`/`lock --check` difference, `124` timeout, `130` interrupted
 `--watch`. The generated binary follows the same runtime contract: `0` on success and `70`
 on an uncaught runtime error.
+
+## MCP server
+
+<!-- mcp-name: io.github.loxia-lang/loxia -->
+
+`loxia mcp` (or the `loxia-mcp` console script) is a thin
+[Model Context Protocol](https://modelcontextprotocol.io/) server over the CLI. It speaks
+MCP `2026-07-28` on stdio and exposes:
+
+- `loxia_check` — type-check a source and return the CLI JSON diagnostics;
+- `loxia_run` — run a source in the sandbox profile (no filesystem/process primitives,
+  timeout and resource limits);
+- `loxia_ast` — parse and return the S-expression AST;
+- `loxia_spec` — search the packaged language reference and stdlib;
+- `loxia_explain` and `loxia_version`.
+
+Point your client at it:
+
+```json
+{
+  "mcpServers": {
+    "loxia": { "command": "loxia", "args": ["mcp"] }
+  }
+}
+```
+
+Or let the client fetch the package from PyPI:
+
+```json
+{
+  "mcpServers": {
+    "loxia": {
+      "command": "uvx",
+      "args": ["--from", "loxia", "loxia-mcp"]
+    }
+  }
+}
+```
+
+The MCP Registry manifest is [`server.json`](https://github.com/loxia-lang/loxia/blob/main/server.json); the PyPI package
+`loxia` carries the `loxia-mcp` console script and the packaged docs index.
+
+The server is zero-dependency; check/run/ast results are byte-identical to the CLI. See
+[`docs/tech/mcp.md`](docs/tech/mcp.md) for the protocol, sandbox and limits (ADR-0112).
 
 ## Packages
 
@@ -163,11 +217,21 @@ acme = { path = "../acme" }
 ```
 
 ```bash
+loxia add acme --path ../acme          # inserts the entry, preserving comments/order
+loxia add acme --git URL --rev v1.2.3  # pinned git dependency
+loxia remove acme --dry-run            # unified diff; add `--lock` to relock afterwards
 loxia lock                 # writes loxia.lock (name, origin, version, sha256)
 loxia lock --check         # exit 1 if the lock is stale
 loxia fetch                # verifies path deps; downloads/materializes git deps
 loxia run --frozen app.lx  # resolves only from the lock; fails on drift
 ```
+
+`loxia add`/`remove` edit only the `[dependencies]` entry: comments, order and line
+endings are preserved, the edited manifest is re-parsed before writing, and a shape the
+editor does not understand (a `[dependencies.NAME]` sub-table, a dotted key) fails with
+`C0004` instead of rewriting the file. Adding an already-declared dependency with the same
+spec is a no-op (`"changed": false` with `--json`); with a different spec it fails. Neither
+command touches the network unless `--lock` is given.
 
 The lock pins the `sha256` of each dependency's `.lx` tree, so `--frozen` detects any
 content change and `run`/`check`/`build` never touch the network. Git dependencies are
@@ -199,9 +263,19 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
   [semantics](docs/spec/semantica.md), [errors](docs/spec/erros.md) and
   [guarantees](docs/spec/garantias.md).
 - **Architecture:** [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md).
+- **Test report:** [`docs/tech/test-report.md`](docs/tech/test-report.md) and
+  [`schema/test-report-v1.json`](schema/test-report-v1.json).
+- **Test coverage:** [`docs/tech/test-coverage.md`](docs/tech/test-coverage.md)
+  (feature → golden/differential matrix) and
+  [`docs/tech/python-coverage.md`](docs/tech/python-coverage.md) (`make coverage`).
 - **Standard library:** [`docs/stdlib/`](docs/stdlib/) (generated).
 - **Documentation site:** <https://loxia-lang.github.io/loxia/> — Starlight build from
   `docs/`; run `make docs-dev` for the local server.
+- **Editors:** [VS Code](https://marketplace.visualstudio.com/items?itemName=loxia-lang.loxia)
+  (also on [Open VSX](https://open-vsx.org/extension/loxia-lang/loxia)) — syntax
+  highlighting, LSP and Run; the client lives in
+  [`loxia-lang/loxia-vscode`](https://github.com/loxia-lang/loxia-vscode) and consumes the
+  grammar asset attached to each release (ADR-0109).
 - **Style guide:** [`docs/guia-estilo.md`](docs/guia-estilo.md).
 - **Design decisions:** [`docs/adr/`](docs/adr/).
 - **Roadmap:** [`docs/roadmap.md`](docs/roadmap.md) · **open ideas:**
@@ -217,10 +291,13 @@ types. This is what makes the differential corpus meaningful instead of cosmetic
 uv sync --all-groups --extra llvm   # dev environment, including the native backend
 make check-fast                     # lint + format + mypy + tests (no native builds) + docs
 make check                          # everything, including the native backend
+make coverage                       # Python branch coverage (measurement)
+make coverage-ratchet               # coverage gate (selected modules)
 make bench                          # benchmarks vs the baseline
 ```
 
-`make hooks` installs the local pre-commit and commit-msg hooks. The full contribution
+`make hooks` installs the local pre-commit, commit-msg and pre-push hooks. The fast suite
+runs on pre-push; the native backend stays in CI and in `make check`. The full contribution
 rules, commit convention and review checklist are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing

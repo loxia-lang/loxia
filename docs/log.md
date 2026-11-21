@@ -983,3 +983,251 @@ o rename atualizar anotações de tipo; é metadado de posição, não uma regra
   mudou; igualdade/hash de tipos continuam iguais.
 
 <!-- triaged: 5108074 -->
+
+## 2026-11-18 — cliente VS Code em repo próprio (ADR-0109)
+
+Intervalo: commits deste PR. Não há marcador `triaged:` global: as três páginas
+pré-existentes continuam abertas (ver a última linha) e seriam silenciadas por ele.
+
+- `editors/README.md` — **updated**: caminhos de `editors/grammar/`, contrato de asset de
+  release, sync do repo novo e remoção da seção de instalação do cliente.
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md` — **updated**: o cliente aponta para
+  `loxia-lang/loxia-vscode` (ADR-0109); o servidor continua no main.
+- `docs/adr/0109-editor-repo-e-assets.md` — **new**: split, asset de grammar, pin,
+  distribuição, settings/run e o que sai do main.
+- `docs/decisoes.md`, `docs/roadmap.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md` —
+  **updated**: resumo da decisão, status M9, link do editor, entrada de changelog e mapa
+  de arquitetura.
+- `docs/spec/*.md` — **no-change**: a linguagem, I1–I4 e os diagnósticos não mudaram; o
+  trabalho é de empacotamento/editor. `docs/spec/erros.md`, `docs/spec/semantica.md` e
+  `docs/stdlib/sets.md` já estavam defasados antes deste PR (as fontes mudaram em #39/#40)
+  e não foram tocados aqui; ficam para a triagem de quem mexer naquelas fontes, sem
+  marcador `triaged:` que os silencie.
+
+## 2026-11-19 — servidor MCP e perfil `--sandbox` (ADR-0112)
+
+Intervalo: `1982773`. O CLI ganhou `loxia mcp`/`loxia-mcp`, tools MCP sobre o contrato
+existente e o perfil `--sandbox` no `run`; a spec e a stdlib não mudaram.
+
+- `docs/spec/garantias.md` — **no-change**: I1–I4, corpus, orçamentos e backend intactos;
+  a candidata é pré-existente de #39/#40.
+- `docs/spec/semantica.md` — **no-change**: `--sandbox` é um perfil de capacidade do host
+  (opt-in, nega fs/process); a semântica default da linguagem e os exemplos continuam
+  iguais. A candidata também é pré-existente de #39/#40.
+- `docs/stdlib/sets.md` — **no-change**: `std/sets.lx` e `loxia/docgen.py` não foram
+  tocados; a candidata é pré-existente de #39/#40.
+- `docs/decisoes.md`, `docs/roadmap.md`, `docs/tech/arquitetura.md`, `docs/README.md`,
+  `README.md`, `CHANGELOG.md` — **updated**: status MCP, decisão, arquitetura e uso.
+- `docs/tech/mcp.md`, `docs/adr/0112-mcp-servidor-stdio.md` — **new**: protocolo,
+  ferramentas, sandbox e limites.
+- `docs/spec/erros.md` — **no-change**: nenhum código, mensagem ou fase de diagnóstico
+  mudou; o sandbox reusa `R1000`.
+
+<!-- triaged: 1982773 -->
+
+## 2026-11-19 — protocolo stdio: `std.jsonrpc`, `std.framing` e `std.documents` (ADR-0113)
+
+Intervalo: `23bd1d3`..working tree. A stdlib ganhou os três módulos de protocolo, o
+`std.json.parseResult`/`JsonResult` e a correção do lowering de `Result[Nil, E]`; o
+harness de transcrição usa stdin binário real e os casos entram no diferencial.
+
+- `docs/stdlib/jsonrpc.md`, `docs/stdlib/framing.md`, `docs/stdlib/documents.md` — **new**:
+  API e contrato de cada módulo, gerados dos doc comments.
+- `docs/stdlib/json.md` — **updated**: enum `JsonResult`, `parseResult` e os helpers
+  `isOk`/`value`/`error`.
+- `docs/stdlib/index.md`, `docs/decisoes.md`, `docs/roadmap.md`, `docs/spec/garantias.md`
+  — **updated**: catálogo de módulos, decisão, status e bloco de níveis gerado.
+- `docs/spec/erros.md`, `docs/spec/semantica.md`, `docs/stdlib/builtins.md` — **no-change**:
+  candidatas pré-existentes de #39/#40; nenhum código de diagnóstico, regra semântica da
+  linguagem ou builtin mudou neste trabalho.
+
+<!-- triaged: 23bd1d3 -->
+
+## 2026-11-19 — LSP: navegação, buffers e hierarquia (ADR-0114, issue #46)
+
+Intervalo: `6300032`..`b4d33a3`. O servidor ganhou references/highlight, typeDefinition/
+implementation, type hierarchy, tags `Unnecessary`, fix-all, AST recuperada para tooling,
+overlays de buffer não salvo e `willRenameFiles`; o CLI, o backend e a semântica da
+linguagem não mudaram.
+
+- `docs/spec/semantica.md` — **no-change**: o overlay de módulos é caminho de tooling (o
+  loader só o consulta quando o LSP passa `module_overrides`); `run`/`check` continuam
+  lendo o disco e a AST recuperada não entra no caminho normativo.
+- `docs/spec/erros.md` — **no-change**: nenhum código, mensagem, severidade ou exit code
+  mudou; W1001/W1002 ganharam `tags` apenas no payload LSP (apresentação).
+- `docs/adr/0114-ast-recuperada-para-tooling.md` — **new**: contrato da AST recuperada.
+- `docs/adr/0090-lsp-escopo-e-hospedagem.md`, `docs/adr/README.md`, `docs/decisoes.md`,
+  `docs/roadmap.md`, `docs/tech/arquitetura.md`, `CHANGELOG.md` — **updated**: fases,
+  índice, decisão, status, arquitetura e release notes.
+
+<!-- triaged: b4d33a3 -->
+
+## 2026-11-19 — corpus e benchmarks públicos: artefatos adiados (ADR-0115/0116, issues #10/#13)
+
+Intervalo: `20630d5`..working tree. A #10 e a #13 foram fechadas como *not planned*; a
+extração do corpus `lox-core` e a publicação da suíte de benchmarks saíram de **Next** para
+**Later**; nenhum código, semântica ou garantia mudou.
+
+- `docs/adr/0115-corpus-de-conformidade-adiado.md`,
+  `docs/adr/0116-benchmarks-publicos-adiados.md` — **new**: decisão, gatilho, custos e
+  alternativas de cada artefato.
+- `docs/roadmap.md` — **updated**: #10 e #13 saem de Next e entram em Later com os gatilhos.
+- `docs/decisoes.md` — **updated**: linhas do corpus de conformidade e dos benchmarks
+  públicos em Processo e escopo.
+- `docs/adr/README.md`, `docs/adr/0107-adiados-e-nao-objetivos.md` — **updated**: índice,
+  regra de adiados e referências cruzadas para os ADRs próprios.
+- `docs/spec/` — **no-change**: I1–I4, corpus declarado, orçamentos, semântica e a seção
+  "Speed" intactos; são artefatos de release, não comportamento observável.
+
+<!-- triaged: 20630d5 -->
+
+## 2026-11-19 — AST manual e cobertura de visitantes (ADR-0117, issue #15)
+
+Intervalo: `0159177`..working tree. O `AstPrinter` passou a herdar os protocols de
+`Visitor`, `Variable` voltou para a hierarquia `Expr` e um teste trava a hierarquia; o
+gerador de schema fica adiado com gatilho.
+
+- `loxia_core/frontend/ast_printer.py`, `loxia_core/frontend/expr.py` — **updated**:
+  `AstPrinter` herda `Visitor[str]`; `Variable(Expr)`.
+- `tests/test_ast_hierarchy.py` — **new**: nós herdam `Expr`/`Stmt` e o printer herda os
+  protocols.
+- `docs/adr/0117-ast-manual-e-cobertura-de-visitantes.md` — **new**: decisão e gatilho.
+- `docs/roadmap.md`, `docs/decisoes.md`, `docs/adr/README.md`,
+  `docs/adr/0107-adiados-e-nao-objetivos.md` — **updated**: decisão, índice e referências.
+- `docs/spec/` — **no-change**: nenhuma semântica, diagnóstico ou garantia mudou; é
+  tipagem/guard de tooling.
+
+<!-- triaged: 0159177 -->
+
+## 2026-11-20 — runner de testes, cobertura Python e frescor
+
+Intervalo: `0159177`..`29b56bf` (#60/#61 e a medição de cobertura). O runner ganhou
+protocolo v2, `e.site`, JUnit/JSONL e paralelismo; a suíte local ganhou cobertura Python.
+
+- `docs/spec/sintaxe.md` — **no-change**: o parser, os tokens e a gramática não mudaram;
+  `ast_printer.py` só passou a herdar os protocols de visitante.
+- `docs/stdlib/index.md` — **no-change**: o catálogo de módulos não mudou; `std.test`
+  ganhou detalhes na página gerada `docs/stdlib/test.md`.
+- `docs/tech/docs-index.md` — **updated**: o teste de âncoras agora ignora `site/dist`
+  defasado; o texto passou a dizer "quando atualizado" e como rebuildar.
+- `docs/tech/mcp.md` — **no-change**: o MCP não expõe as flags novas de `loxia test` nem
+  `e.site`; tools e superfície continuam iguais.
+- `docs/tech/python-coverage.md` — **new**: como rodar `make coverage`, o que é medido e
+  por que ainda não há gate.
+
+<!-- triaged: 29b56bf -->
+
+## 2026-11-20 — cache nativo e CI de coverage
+
+Intervalo: `1a783d7`..`6a370e5`. `loxia test --native` ganhou cache de binário e a
+cobertura passou para o job Unit 3.13.
+
+- `docs/spec/erros.md` — **no-change**: `interpreter.py` passou a carregar `e.site`, mas
+  nenhuma mensagem, código ou categoria de diagnóstico mudou.
+- `docs/tech/mcp.md` — **no-change**: `--no-cache` é uma flag do subcomando `test`; as
+  tools e a superfície MCP continuam iguais.
+- `docs/tech/test-report.md` — **updated**: seção curta sobre o cache de `--native` e
+  `--no-cache`, deixando explícito que o relatório não muda.
+
+<!-- triaged: 6a370e5 -->
+
+## 2026-11-20 — seleção por mudança e shard
+
+Intervalo: `9aa8929`..`bcc00db`. `loxia test` ganhou `--changed` e `--shard`.
+
+- `docs/spec/erros.md` — **no-change**: `cli_args.py` ganhou duas flags de seleção; não há
+  mensagem, código ou categoria de diagnóstico nova.
+- `docs/tech/mcp.md` — **no-change**: as flags são do subcomando `test`; a superfície MCP
+  não mudou.
+
+<!-- triaged: bcc00db -->
+
+## 2026-11-20 — retriagem após rebase da seleção
+
+Intervalo: `0c85580`..`a7d0458`. O rebase sobre `dev` mudou os SHAs; as duas páginas
+continuam sem mudança de conteúdo.
+
+- `docs/spec/erros.md` — **no-change**: `cli_args.py` só ganhou `--changed`/`--shard`;
+  nenhuma mensagem ou código de diagnóstico mudou.
+- `docs/tech/mcp.md` — **no-change**: as flags são do subcomando `test`, não do MCP.
+
+<!-- triaged: a7d0458 -->
+
+## 2026-11-20 — CI portátil macOS/Windows
+
+Intervalo: `1d63a8b`..`1d63a8b` (base `dev`; o job novo é documentação/CI).
+
+- `docs/spec/erros.md` — **no-change**: `--changed`/`--shard` não criaram diagnóstico novo.
+- `docs/tech/mcp.md` — **no-change**: as flags continuam restritas ao subcomando `test`.
+
+<!-- triaged: 1d63a8b -->
+
+## 2026-11-20 — piloto de `std.contracts`
+
+Intervalo: `1d63a8b`..`809deb7`. Contratos em `std.numeric`/`std.paths` e caso de
+property `std_contracts_pilot.lx`.
+
+- `docs/spec/erros.md` — **no-change**: nenhuma mensagem ou código de diagnóstico novo;
+  o bloco de contagem foi regenerado pelo `docs-sync`.
+- `docs/spec/garantias.md` — **updated**: contagem de casos/níveis inclui o novo caso t2.
+- `docs/spec/semantica.md` — **no-change**: pós-condições internas de stdlib não mudam a
+  semântica da linguagem.
+- `docs/stdlib/framing.md` — **no-change**: a página gerada não mudou; o arquivo foi
+  reescrito pelo `make stdlib-docs`.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual; a entrada de feature
+  de contratos vive em `docs/tech/test-coverage.md`.
+- `docs/tech/mcp.md` — **no-change**: nenhuma mudança de CLI/MCP.
+- `docs/tech/test-coverage.md` — **updated**: nova feature `contracts` e golden do piloto.
+- `docs/tech/test-report.md` — **no-change**: runner/relatório não mudaram.
+
+<!-- triaged: 809deb7 -->
+
+## 2026-11-20 — segunda onda de `std.contracts`
+
+Intervalo: `809deb7`..`d0e3539`. Contratos em `std.convert`/`std.lists`.
+
+- `docs/decisoes.md` — **no-change**: a decisão “contratos como biblioteca” não mudou; a
+  adoção piloto é registrada no ADR-0108/roadmap.
+- `docs/spec/semantica.md` — **no-change**: pós-condições internas de stdlib não alteram a
+  semântica da linguagem.
+- `docs/stdlib/convert.md` — **no-change**: comentários `///` e API não mudaram; o contrato
+  é interno.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual.
+- `docs/stdlib/lists.md` — **no-change**: API/documentação de `sort` não mudaram; `_sort`
+  é detalhe interno.
+
+<!-- triaged: d0e3539 -->
+
+## 2026-11-20 — contratos dentro do orçamento de performance
+
+Intervalo: `61d308e`..`577e321`. O benchmark removeu as pós-condições caras.
+
+- `docs/decisoes.md` — **no-change**: contratos continuam biblioteca; o benchmark não muda
+  a decisão.
+- `docs/spec/semantica.md` — **no-change**: nenhuma semântica da linguagem mudou.
+- `docs/stdlib/convert.md` — **no-change**: API/comentários `///` iguais; `base64Encode`
+  só perdeu a checagem interna de alfabeto.
+- `docs/stdlib/index.md` — **no-change**: catálogo de módulos igual.
+- `docs/stdlib/lists.md` — **no-change**: `sort` voltou à implementação sem contrato; API
+  documentada igual.
+- `docs/stdlib/numeric.md` — **no-change**: `gcd`/`powMod` voltaram à implementação sem
+  contrato; API documentada igual.
+- `docs/stdlib/paths.md` — **no-change**: `normalize` mantém só a checagem O(1) de
+  absolute; API documentada igual.
+
+<!-- triaged: 577e321 -->
+
+## 2026-11-20 — empacotamento MCP 1.2.0
+
+Intervalo: `38cfb05`..`228252e`. `server.json`, README e versão 1.2.0.
+
+- `docs/decisoes.md` — **no-change**: a decisão de publicar o MCP não é uma decisão de
+  arquitetura; o ADR-0112 continua sendo a fonte.
+- `docs/spec/semantica.md` — **no-change**: a linguagem não mudou.
+- `docs/stdlib/convert.md` — **no-change**: página gerada; sem mudança de API.
+- `docs/stdlib/index.md` — **no-change**: catálogo igual.
+- `docs/stdlib/paths.md` — **no-change**: página gerada; sem mudança de API.
+- `docs/tech/python-coverage.md` — **no-change**: os números de cobertura e o comando não
+  mudaram; só a versão do projeto subiu.
+
+<!-- triaged: 228252e -->

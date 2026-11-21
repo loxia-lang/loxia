@@ -99,6 +99,8 @@ itself prints `{"self": {...}}`. Outside a list/map, a string remains unquoted.
 
 - `val x = expr;` creates an **immutable** binding and **requires an initializer**.
 - `var x;` creates a mutable binding with `nil`; `var x = expr;` does the same with a value.
+- `Nil` não é um tipo de **armazenamento** (variável, parâmetro ou campo): use `Any` ou
+  `T?`. `-> Nil` continua válido como retorno.
 - Under `--check`, every binding is **monomorphic**: `var x = 1` is `Int` forever; `x = 2.0`
   is an error. `var x = nil` without an annotation is an error (`Can't infer type of 'x' from nil; add an
   annotation.`); use `var x: Int? = nil` or `var x: Any = nil`. A mutable field with a
@@ -508,7 +510,9 @@ val d = anyValue as Dog   # runtime check
 - `Float as Int` truncates toward zero; `NaN`, `Inf` or outside `[INT_MIN, INT_MAX]`
   is a fatal error (`Can't cast this Float to Int.`).
 - `Any as T` checks at runtime: numbers convert to `Int`/`Float`; classes, lists and
-  maps use the same check as `is`.
+  maps use the same check as `is`. `Any` é **top type**: `T` é atribuível a `Any`, mas
+  `Any` não é atribuível implicitamente a `T` (armazenamento, argumento, retorno ou
+  índice); escreva `x as T` ou estreite com `is`/nil.
 - `T as T` is the identity; `as Any` returns the value. A union target (`Int?`, `Int | String`)
   does not exist yet; use narrowing/`is`.
 - A string does not become a number through a cast; use `parse`.
@@ -900,7 +904,10 @@ try {
 
 - `Exception` is the built-in base; `RuntimeError` is a built-in subclass and represents
   any runtime error (division by zero, index, etc.). The user may declare
-  `class MyError(Exception)` with `message`.
+  `class MyError(Exception)` with `message`. Every exception also exposes
+  `site: String` — `arquivo:linha:coluna` of the throw's caller (for `t.expect(...).toBe(...)`
+  this is the `expect` line) or `""` when there is no position
+  ([ADR-0120](../adr/0120-localizacao-de-falha-em-excecoes.md)).
 - `raise Expr` requires an `Exception` instance; `raise;` inside `except` re-raises the
   current exception. Outside `except`, `raise;` is an error.
 - `try` is a statement; `except Type as e` is typed, multiple and evaluated in order;

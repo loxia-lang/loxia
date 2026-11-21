@@ -229,7 +229,7 @@ class GenericLowering(LoweringBase):
             f"lox.ctor.{key}",
             _I8_PTR,
             [
-                self._storage_llvm_type(param)
+                self._param_llvm_type(param)
                 for param in (init.fn_sig.params if init is not None else ())
             ],
         )
@@ -361,7 +361,17 @@ class GenericLowering(LoweringBase):
             ]
         _ = class_ptr
         self._set_call_site(expr.paren)
-        call = self.builder.call(layout.ctor, [argument.llvm for argument in arguments])
+        call = self.builder.call(
+            layout.ctor,
+            [
+                self._arg_llvm(argument, param)
+                for argument, param in zip(
+                    arguments,
+                    [] if init is None else init.fn_sig.params,
+                    strict=True,
+                )
+            ],
+        )
         return Value(ValueType.INSTANCE, call, class_name=layout.name)
 
     def _mangled(self, name: str, type_args: tuple[Ty, ...]) -> str:
@@ -448,7 +458,13 @@ class GenericLowering(LoweringBase):
         self._set_call_site(expr.paren)
         call = self.builder.call(
             info.ir,
-            [llvm_ir.null_pointer(), *[argument.llvm for argument in arguments]],
+            [
+                llvm_ir.null_pointer(),
+                *[
+                    self._arg_llvm(argument, param)
+                    for argument, param in zip(arguments, info.fn_sig.params, strict=True)
+                ],
+            ],
         )
         return Value(
             info.fn_sig.ret.ty,

@@ -7,6 +7,11 @@ import argparse
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from loxia_core.loader.gitenv import git_env
 
 
 def has_signoff(message: str) -> bool:
@@ -25,6 +30,7 @@ def _git(*args: str) -> str:
         capture_output=True,
         text=True,
         check=False,
+        env=git_env(),
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"git {' '.join(args)} failed")

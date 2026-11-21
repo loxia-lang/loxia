@@ -13,8 +13,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis
 from loxia_core.backend.lower_model import (
+    _I32,
     Binding,
     ClassLayout,
     FieldLayout,
@@ -196,6 +198,23 @@ class LoweringBase:
 
     def _storage_llvm_type(self, desc: TypeDesc) -> Any:
         raise NotImplementedError
+
+    def _param_llvm_type(self, desc: TypeDesc) -> Any:
+        """Tipo LLVM de um parâmetro; `Nil` vira um `i32` dummy.
+
+        `Nil` não tem representação de valor: como parâmetro, ele precisa de um
+        slot concreto para o ABI e para a captura em célula. O valor em si continua
+        sendo `ValueType.NIL` (sem payload).
+        """
+        if desc.ty is ValueType.NIL:
+            return _I32
+        return self._storage_llvm_type(desc)
+
+    def _arg_llvm(self, value: Value, desc: TypeDesc) -> Any:
+        """Valor LLVM de um argumento; `nil` vira `0` no slot dummy."""
+        if desc.ty is ValueType.NIL:
+            return llvm_ir.constant(_I32, 0)
+        return value.llvm
 
     def _zero_desc(self, desc: TypeDesc) -> Value:
         raise NotImplementedError

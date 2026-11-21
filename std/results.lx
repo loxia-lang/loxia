@@ -60,6 +60,14 @@ fn mapErr[T, E, F](
   return out
 }
 
+/// Returns the error value, or `nil` when the result is a success.
+fn errorOf[T, E](result: Result[T, E]) -> E? {
+  return match result {
+    Result.Ok(_) => nil
+    Result.Err(error) => error
+  }
+}
+
 /// Returns the success value, or `fallback` for an error.
 ///
 /// `fallback` is an ordinary argument, so it is evaluated before the call.

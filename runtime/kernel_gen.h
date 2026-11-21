@@ -41,6 +41,14 @@ void lox_io_flush(void);
 int32_t lox_fs_exists(const void *);
 /* fs.listDir */
 void * lox_fs_list_dir(const void *);
+/* fs.open */
+int64_t lox_fs_open(const void *, const void *, int32_t, int32_t);
+/* fs.read */
+void * lox_fs_read(int64_t, int64_t, int32_t, int32_t);
+/* fs.write */
+void lox_fs_write(int64_t, const void *, int32_t, int32_t);
+/* fs.close */
+void lox_fs_close(int64_t, int32_t, int32_t);
 /* os.exit */
 void lox_os_exit(int64_t, int32_t, int32_t);
 /* os.getenv */

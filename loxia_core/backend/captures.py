@@ -37,6 +37,8 @@ from loxia_core.frontend.expr import (
     Match,
     Range,
     Set,
+    Super,
+    This,
     TupleLiteral,
     Unary,
     Variable,
@@ -50,8 +52,10 @@ from loxia_core.frontend.stmt import (
     Function,
     If,
     Param,
+    Raise,
     Return,
     Stmt,
+    Try,
     Var,
     While,
 )
@@ -147,7 +151,14 @@ class _Analyzer:
 
     # --- funções ---
 
-    def _function(self, node: FunctionNode, params: list[Param], body: list[Stmt]) -> None:
+    def _function(
+        self,
+        node: FunctionNode,
+        params: list[Param],
+        body: list[Stmt],
+        *,
+        is_method: bool = False,
+    ) -> None:
         unit = _Unit(node, self._unit)
         self._units[node] = unit
 
@@ -155,6 +166,10 @@ class _Analyzer:
         self._unit = unit
         self._scopes.append({})
         try:
+            if is_method:
+                # `this` é um binding sintético do método: lambdas/funções locais
+                # dentro dele capturam o receptor como qualquer outra variável.
+                self._scopes[-1]["this"] = _Binding("this", node, unit)
             for param in params:
                 self._declare(param.name.lexeme, param)
             for statement in body:
@@ -186,7 +201,7 @@ class _Analyzer:
                 if field.initializer is not None:
                     self._expr(field.initializer)
             for method in stmt.methods:
-                self._function(method, method.params, method.body)
+                self._function(method, method.params, method.body, is_method=True)
             return
 
         if isinstance(stmt, Var):
@@ -232,14 +247,45 @@ class _Analyzer:
                 self._scopes.pop()
             return
 
-        # Enums, try/raise e destructuring ainda não têm lowering no L4/L5;
-        # ignorar aqui é seguro porque o lowering falha antes de precisar do passe.
+        if isinstance(stmt, Try):
+            self._scopes.append({})
+            try:
+                for statement in stmt.body:
+                    self._stmt(statement)
+            finally:
+                self._scopes.pop()
+            for handler in stmt.handlers:
+                self._scopes.append({})
+                try:
+                    self._declare(handler.binding.lexeme, handler.binding)
+                    for statement in handler.body:
+                        self._stmt(statement)
+                finally:
+                    self._scopes.pop()
+            if stmt.finally_body is not None:
+                self._scopes.append({})
+                try:
+                    for statement in stmt.finally_body:
+                        self._stmt(statement)
+                finally:
+                    self._scopes.pop()
+            return
+
+        if isinstance(stmt, Raise):
+            if stmt.value is not None:
+                self._expr(stmt.value)
+            return
 
     # --- expressões ---
 
     def _expr(self, expr: Expr) -> None:
         if isinstance(expr, Variable):
             self._use(expr.name.lexeme)
+            return
+
+        if isinstance(expr, (This, Super)):
+            # `super` é léxico como `this`: usa o receptor da classe envolvente.
+            self._use("this")
             return
 
         if isinstance(expr, Assign):
@@ -339,10 +385,17 @@ class _Analyzer:
         if isinstance(expr, Match):
             self._expr(expr.scrutinee)
             for arm in expr.arms:
-                self._expr(arm.body)
+                self._scopes.append({})
+                try:
+                    pattern = arm.pattern
+                    for binding in getattr(pattern, "bindings", ()):
+                        self._declare(binding.lexeme, binding)
+                    self._expr(arm.body)
+                finally:
+                    self._scopes.pop()
             return
 
-        # Literal, This, Super e padrões não introduzem captura.
+        # Literal e padrões sem bindings não introduzem captura.
 
 
 def analyze_captures(statements: list[Stmt]) -> CaptureAnalysis:

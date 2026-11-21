@@ -16,13 +16,17 @@ from loxia_core.backend.lower_model import (
     ClassLayout,
     FieldLayout,
     TypeDesc,
+    Value,
     ValueType,
 )
 from loxia_core.diagnostics.codes import Code
+from loxia_core.frontend.expr import Literal
 from loxia_core.frontend.stmt import Raise, Stmt, Try
 
 
 class ExceptionLowering(LoweringBase):
+    _handler_exception: Any | None
+
     def _prepare_exception_classes(self) -> None:
         if "Exception" in self._classes:
             return
@@ -34,11 +38,21 @@ class ExceptionLowering(LoweringBase):
             0,
             0,
         )
-        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, _INT])
+        # ADR-0120: posição do throw. O initializer garante que subclasses de
+        # `Exception` (TestFailure/Skip) passem no bitmap sem declarar o campo.
+        site = FieldLayout(
+            "site",
+            TypeDesc(ValueType.STRING),
+            False,
+            Literal(""),
+            1,
+            0,
+        )
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, _INT, _INT])
         exception = ClassLayout(
             "Exception",
             900,
-            [message],
+            [message, site],
             [],
             None,
             instance_type=instance_type,
@@ -75,13 +89,23 @@ class ExceptionLowering(LoweringBase):
         line = stmt.keyword.line
         column = stmt.keyword.column
         if stmt.value is None:
-            self.builder.call(
-                self._function("lox_raise_current", _VOID, [_I32, _I32]),
-                [
-                    llvm_ir.constant(_I32, line),
-                    llvm_ir.constant(_I32, column),
-                ],
-            )
+            if self._handler_exception is not None:
+                self.builder.call(
+                    self._function("lox_raise_value", _VOID, [_I8_PTR, _I32, _I32]),
+                    [
+                        self._handler_exception,
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
+                )
+            else:
+                self.builder.call(
+                    self._function("lox_raise_current", _VOID, [_I32, _I32]),
+                    [
+                        llvm_ir.constant(_I32, line),
+                        llvm_ir.constant(_I32, column),
+                    ],
+                )
             self.builder.unreachable()
             self._new_block("raise.next")
             return
@@ -101,6 +125,14 @@ class ExceptionLowering(LoweringBase):
                     self._function("lox_str_data", _I8_PTR, [_I8_PTR]),
                     [string],
                 )
+        if layout is not None:
+            site_field = layout.field("site")
+            if site_field is not None:
+                site = self.builder.call(
+                    self._function("lox_exception_site", _I8_PTR, [_I32, _I32]),
+                    [llvm_ir.constant(_I32, line), llvm_ir.constant(_I32, column)],
+                )
+                self._store_field(value, site_field, Value(ValueType.STRING, site))
         self.builder.call(
             self._function("lox_throw", _VOID, [_I8_PTR, _I8_PTR, _I8_PTR, _I32, _I32]),
             [
@@ -175,23 +207,38 @@ class ExceptionLowering(LoweringBase):
             self.builder = llvm_ir.builder(body)
             self._scopes.append({})
             handler_context = self._push_cleanup(None, stmt.finally_body)
+            previous_handler = self._handler_exception
+            self._handler_exception = exception
             try:
-                binding = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
-                self._bind_handler_exception(exception, binding)
-                self._scopes[-1][clause.binding.lexeme] = Binding(
-                    binding,
-                    ValueType.INSTANCE,
-                    class_name=clause.type_name.lexeme,
-                )
+                binding_desc = TypeDesc(ValueType.INSTANCE, class_name=clause.type_name.lexeme)
+                if self._analysis.is_captured(clause.binding):
+                    cell = self._alloc_cell()
+                    self._bind_handler_exception(exception, self._cell_pointer(cell, binding_desc))
+                    handler_binding = Binding(
+                        cell,
+                        ValueType.INSTANCE,
+                        cell=True,
+                        class_name=clause.type_name.lexeme,
+                    )
+                else:
+                    slot = self.builder.alloca(_I8_PTR, name=clause.binding.lexeme)
+                    self._bind_handler_exception(exception, slot)
+                    handler_binding = Binding(
+                        slot,
+                        ValueType.INSTANCE,
+                        class_name=clause.type_name.lexeme,
+                    )
+                self._scopes[-1][clause.binding.lexeme] = handler_binding
                 for statement in clause.body:
                     if self.builder.block.is_terminated:
                         break
                     self._stmt(statement)
+                if not self.builder.block.is_terminated:
+                    self._emit_finally(stmt, end, None)
             finally:
+                self._handler_exception = previous_handler
                 self._scopes.pop()
                 self._pop_cleanup(handler_context)
-            if not self.builder.block.is_terminated:
-                self._emit_finally(stmt, end, None)
             self.builder = llvm_ir.builder(next_block)
 
         # Nenhum handler: finally e rethrow.
@@ -237,6 +284,17 @@ class ExceptionLowering(LoweringBase):
         layout = self._classes["RuntimeError"]
         assert layout.ctor is not None
         constructed = self.builder.call(layout.ctor, [text])
+        site_field = layout.field("site")
+        if site_field is not None:
+            site = self.builder.call(
+                self._function("lox_exception_site_at", _I8_PTR, [_I8_PTR]),
+                [exception],
+            )
+            self._store_field(
+                Value(ValueType.INSTANCE, constructed, class_name="RuntimeError"),
+                site_field,
+                Value(ValueType.STRING, site),
+            )
         runtime_end = self.builder.block
         self.builder.branch(bound_block)
 
@@ -250,7 +308,7 @@ class ExceptionLowering(LoweringBase):
         if stmt.finally_body is None:
             if pending is not None:
                 self.builder.call(
-                    self._function("lox_rethrow", _VOID, [_I8_PTR, _I32, _I32]),
+                    self._function("lox_raise_value", _VOID, [_I8_PTR, _I32, _I32]),
                     [
                         pending,
                         llvm_ir.constant(_I32, stmt.keyword.line),

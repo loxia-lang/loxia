@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 
 from loxia import __version__
-from loxia.cli import parse_heap_size
+from loxia.cli_args import COMMANDS, _build_subcommand_parser, parse_heap_size
+from loxia.cli_commands import HANDLERS
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -475,6 +476,108 @@ def test_stdin_run_and_check_use_file_name(tmp_path: Path) -> None:
     assert "entrada.lx:1:11" in check_result.stderr
 
 
+def test_stdin_run_passes_script_args_after_double_dash() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "run", "--stdin", "--", "alpha", "beta"],
+        cwd=ROOT,
+        input="print(args())\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == '["alpha", "beta"]'
+
+
+def test_stdin_run_keeps_file_name_and_args_together() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ENTRYPOINT),
+            "run",
+            "--stdin",
+            "--file-name",
+            "demo.lx",
+            "--",
+            "--flag",
+            "value",
+        ],
+        cwd=ROOT,
+        input="print(args())\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == '["--flag", "value"]'
+
+
+def test_stdin_check_still_rejects_a_script_positional() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "check", "--stdin", "--", "a"],
+        cwd=ROOT,
+        input="print(1)\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "--stdin cannot be combined with a script" in result.stderr
+
+
+def test_legacy_stdin_run_passes_script_args() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "--stdin", "--", "alpha", "beta"],
+        cwd=ROOT,
+        input="print(args())\n",
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == '["alpha", "beta"]'
+
+
+def _run_sandbox(source: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(ENTRYPOINT), "run", "--stdin", "--sandbox"],
+        cwd=ROOT,
+        input=source,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
+def test_sandbox_allows_pure_programs() -> None:
+    result = _run_sandbox("print(1 + 2)\n")
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "3"
+
+
+def test_sandbox_denies_filesystem_and_process_primitives() -> None:
+    cases = {
+        'io.writeFile("x", "y")\n': "io.writeFile() is not available in sandbox mode.",
+        'io.readFile("README.md")\n': "io.readFile() is not available in sandbox mode.",
+        'fs.exists("README.md")\n': "fs.exists() is not available in sandbox mode.",
+        'process.spawn(["true"])\n': "process.spawn() is not available in sandbox mode.",
+    }
+    for source, message in cases.items():
+        result = _run_sandbox(source)
+        assert result.returncode == 70, source
+        assert message in result.stderr, (source, result.stderr)
+
+
 def test_json_lines_check_has_start_diagnostic_summary(tmp_path: Path) -> None:
     script = tmp_path / "linhas.lx"
     script.write_text("print(1 + )\n", encoding="utf-8")
@@ -817,3 +920,49 @@ def test_capabilities_lists_the_repl_subcommand() -> None:
 
     commands = {item["name"] for item in payload["commands"]}
     assert "repl" in commands
+
+
+def test_help_do_topo_lista_comandos_sem_as_flags_do_modo_compativel() -> None:
+    result = run_cli("--help")
+
+    assert result.returncode == 0
+    assert "loxia <comando> [opções]" in result.stdout
+    assert "loxia <comando> --help" in result.stdout
+    for command in COMMANDS:
+        assert command in result.stdout
+
+    before_compat = result.stdout.split("modo compatível:", 1)[0]
+    for flag in ("--dump-ast", "--check", "--emit", "--max-heap", "--stdin", "--watch"):
+        assert flag not in before_compat
+
+
+def test_help_do_topo_resume_o_modo_compativel() -> None:
+    compat = run_cli("--help").stdout.split("modo compatível:", 1)[1]
+
+    assert "--dump-ast" in compat
+    assert "--emit" in compat
+    assert "--watch" in compat
+
+
+def test_help_de_cada_comando_mostra_so_as_suas_flags() -> None:
+    run_help = run_cli("run", "--help")
+
+    assert run_help.returncode == 0
+    assert "executa um script Loxia" in run_help.stdout
+    assert "módulos e dependências" in run_help.stdout
+    assert "exemplos:" in run_help.stdout
+    assert "--watch" not in run_help.stdout
+
+    check_help = run_cli("check", "--help").stdout
+    assert "--watch" in check_help
+    assert "--emit" not in check_help
+
+    fmt_help = run_cli("fmt", "--help").stdout
+    assert "--timeout" not in fmt_help
+    assert "options:" not in fmt_help
+
+
+def test_todo_comando_tem_handler_e_parser() -> None:
+    assert set(HANDLERS) == set(COMMANDS)
+    for command in COMMANDS:
+        assert _build_subcommand_parser(command).prog == f"loxia {command}"

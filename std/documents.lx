@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.documents — full-sync document store (T3), pure Lox.
+#
+# No JSON and no I/O: the store only knows URIs, language ids, versions and text. It is
+# the piece an editor/LSP adapter reuses; notification names live in the adapter, not
+# here. URIs are opaque strings: no percent-decoding and no `file://` to path mapping.
+
+import std.lists as lists
+
+/// One open document and its last known version.
+class Document {
+  /// Opaque document identifier, usually a `file://` URI.
+  val uri: String
+
+  /// Editor language id, e.g. `loxia`.
+  val languageId: String
+
+  /// Monotonically increasing version supplied by the client.
+  val version: Int
+
+  /// Full text of the document.
+  val text: String
+
+  /// Creates a document snapshot.
+  init(uri: String, languageId: String, version: Int, text: String) {
+    this.uri = uri
+    this.languageId = languageId
+    this.version = version
+    this.text = text
+  }
+}
+
+/// Why a store operation failed; `kind` is stable and `message` is for humans.
+///
+/// Kinds: `already_open` (opening an open URI), `not_open` (changing/closing an unknown
+/// URI), `stale_version` (change not newer than the stored version), `invalid_version`
+/// (negative version on open).
+class DocumentError {
+  /// Stable machine-readable kind.
+  val kind: String
+
+  /// Human-readable reason; a fixed message plus the caller-provided URI.
+  val message: String
+
+  /// Creates an error with an explicit kind and message.
+  init(kind: String, message: String) {
+    this.kind = kind
+    this.message = message
+  }
+}
+
+/// Full-sync store keyed by opaque URI.
+///
+/// `change` replaces the whole text: range-based changes are not representable here and
+/// belong to the adapter that parses the notification. Versions must increase on every
+/// change; a stale version is rejected instead of silently overwriting newer text.
+class DocumentStore {
+  /// Open documents keyed by URI, in insertion order.
+  var docs: Map[String, Document]
+
+  /// Creates an empty store.
+  init() {
+    this.docs = {}
+  }
+
+  /// Registers a document; fails when the URI is already open or the version is negative.
+  fn open(uri: String, languageId: String, version: Int, text: String) -> Result[Bool, DocumentError] {
+    if (this.docs.has(uri)) {
+      return _fail("already_open", "Document is already open: ${uri}")
+    }
+    if (version < 0) {
+      return _fail("invalid_version", "Document version must be non-negative: ${uri}")
+    }
+    this.docs[uri] = Document(uri, languageId, version, text)
+    return Result.Ok(true)
+  }
+
+  /// Replaces the full text of an open document.
+  ///
+  /// `version` must be strictly greater than the stored one; otherwise the change is
+  /// rejected and the stored text is left untouched.
+  fn change(uri: String, version: Int, text: String) -> Result[Bool, DocumentError] {
+    if (not this.docs.has(uri)) {
+      return _fail("not_open", "Document is not open: ${uri}")
+    }
+    val current = this.docs[uri]
+    if (version <= current.version) {
+      return _fail("stale_version", "Document version did not increase: ${uri}")
+    }
+    this.docs[uri] = Document(uri, current.languageId, version, text)
+    return Result.Ok(true)
+  }
+
+  /// Removes an open document; fails when the URI is unknown.
+  fn close(uri: String) -> Result[Bool, DocumentError] {
+    if (not this.docs.has(uri)) {
+      return _fail("not_open", "Document is not open: ${uri}")
+    }
+    this.docs.remove(uri)
+    return Result.Ok(true)
+  }
+
+  /// Returns the document snapshot, or `nil` when the URI is not open.
+  fn get(uri: String) -> Document? {
+    if (not this.docs.has(uri)) {
+      return nil
+    }
+    return this.docs[uri]
+  }
+
+  /// Returns the current text, or `nil` when the URI is not open.
+  fn text(uri: String) -> String? {
+    val document = this.get(uri)
+    if (document == nil) {
+      return nil
+    }
+    return document.text
+  }
+
+  /// Returns the last version, or `nil` when the URI is not open.
+  fn version(uri: String) -> Int? {
+    val document = this.get(uri)
+    if (document == nil) {
+      return nil
+    }
+    return document.version
+  }
+
+  /// Returns the language id, or `nil` when the URI is not open.
+  fn languageId(uri: String) -> String? {
+    val document = this.get(uri)
+    if (document == nil) {
+      return nil
+    }
+    return document.languageId
+  }
+
+  /// Returns `true` when the URI is open.
+  fn has(uri: String) -> Bool {
+    return this.docs.has(uri)
+  }
+
+  /// Returns the open URIs in ascending order, independent of insertion order.
+  fn uris() -> List[String] {
+    val result: List[String] = []
+    for uri in this.docs {
+      result.push(uri)
+    }
+    return lists.sortNatural(result)
+  }
+
+  /// Returns the number of open documents.
+  fn len() -> Int {
+    return len(this.docs)
+  }
+}
+
+fn _fail(kind: String, message: String) -> Result[Bool, DocumentError] {
+  return Result.Err(DocumentError(kind, message))
+}

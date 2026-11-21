@@ -55,6 +55,7 @@ class FunctionLowering(LoweringBase):
         llvm_name: str | None = None,
         this_class: str | None = None,
         this_interface: str | None = None,
+        method_class: str | None = None,
         is_init: bool = False,
         allow_generic: bool = False,
     ) -> FunctionInfo:
@@ -99,7 +100,7 @@ class FunctionLowering(LoweringBase):
             self.module,
             llvm_name,
             result,
-            [*prefix, *[self._storage_llvm_type(param) for param in params]],
+            [*prefix, *[self._param_llvm_type(param) for param in params]],
         )
         return FunctionInfo(
             signature,
@@ -107,6 +108,7 @@ class FunctionLowering(LoweringBase):
             sig,
             this_class=this_class,
             this_interface=this_interface,
+            method_class=method_class,
             is_init=is_init,
             trace_name=stmt.display_name or stmt.name.lexeme,
             decl_file=stmt.name.file,
@@ -144,7 +146,7 @@ class FunctionLowering(LoweringBase):
         self.builder.store(closure.llvm, binding.storage)
 
     def _local_function(self, stmt: Function) -> None:
-        info = self._function_info(stmt)
+        info = self._function_info(stmt, method_class=self._method_class)
         captured = self._analysis.is_captured(stmt)
 
         if captured:
@@ -211,12 +213,13 @@ class FunctionLowering(LoweringBase):
             self.module,
             llvm_name,
             result,
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
         return FunctionInfo(
             signature,
             expr.params,
             sig,
+            method_class=self._method_class,
             trace_name="<lambda>",
             decl_file=expr.keyword.file,
             decl_line=expr.keyword.line,
@@ -290,7 +293,7 @@ class FunctionLowering(LoweringBase):
         self._type_subst = {**self._type_subst, **(info.type_subst or {})}
         self._return_type_desc = info.fn_sig.ret
         self._in_init = info.is_init
-        self._method_class = info.this_class
+        self._method_class = info.this_class or info.method_class
         self._scopes = [{}]
         self._captures = {}
         self._cleanup_stack = []
@@ -319,14 +322,33 @@ class FunctionLowering(LoweringBase):
 
         offset = 1
         if info.this_class is not None or info.this_interface is not None:
-            this_slot = self.builder.alloca(_I8_PTR, name="this")
-            self.builder.store(info.ir.args[1], this_slot)
-            self._scopes[-1]["this"] = Binding(
-                this_slot,
+            this_desc = TypeDesc(
                 ValueType.INSTANCE,
                 class_name=info.this_class,
                 interface_name=info.this_interface,
             )
+            if self._analysis.is_captured(stmt):
+                # Lambdas/funções locais capturam `this` como qualquer variável:
+                # o receptor precisa viver em célula para atravessar o `env`.
+                this_slot = self._alloc_cell()
+                self.builder.store(info.ir.args[1], self._cell_pointer(this_slot, this_desc))
+                this_binding = Binding(
+                    this_slot,
+                    ValueType.INSTANCE,
+                    cell=True,
+                    class_name=info.this_class,
+                    interface_name=info.this_interface,
+                )
+            else:
+                this_slot = self.builder.alloca(_I8_PTR, name="this")
+                self.builder.store(info.ir.args[1], this_slot)
+                this_binding = Binding(
+                    this_slot,
+                    ValueType.INSTANCE,
+                    class_name=info.this_class,
+                    interface_name=info.this_interface,
+                )
+            self._scopes[-1]["this"] = this_binding
             offset = 2
 
         for index, param in enumerate(info.params):
@@ -346,7 +368,7 @@ class FunctionLowering(LoweringBase):
                     interface_name=desc.interface_name,
                 )
             else:
-                slot = self.builder.alloca(self._storage_llvm_type(desc), name=param.name.lexeme)
+                slot = self.builder.alloca(self._param_llvm_type(desc), name=param.name.lexeme)
                 self.builder.store(argument, slot)
                 binding = Binding(
                     slot,
@@ -396,7 +418,7 @@ class FunctionLowering(LoweringBase):
         return self.builder.call(self._function("lox_alloc_cell", _I8_PTR, []), [])
 
     def _cell_pointer(self, cell: Any, desc: TypeDesc) -> Any:
-        return self.builder.bitcast(cell, self._storage_llvm_type(desc).as_pointer())
+        return self.builder.bitcast(cell, self._param_llvm_type(desc).as_pointer())
 
     def _store_null_cell(self, cell: Any) -> None:
         pointer = self.builder.bitcast(cell, _I8_PTR.as_pointer())

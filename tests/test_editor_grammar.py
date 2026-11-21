@@ -1,15 +1,19 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Drift gate da grammar de editor (VS Code / Sublime / TextMate).
+"""Drift gate da grammar de editor (VS Code / Sublime / TextMate / Shiki).
 
-A grammar `editors/vscode/syntaxes/loxia.tmLanguage.json` é **gerada** por
+A grammar `editors/grammar/loxia.tmLanguage.json` é **gerada** por
 `editors/build_grammar.py` a partir de `loxia_core/frontend/keywords.py`,
 `loxia_core/frontend/token_type.py` e `loxia_core/execution/prelude.py`. Este teste falha quando alguém
 edita o JSON à mão, adiciona keyword/operador sem rodar `make grammar`, ou quebra o
 contrato do `.gitattributes` (fontes fora das estatísticas do GitHub).
+
+O cliente VS Code não mora mais aqui: ele vive em `loxia-lang/loxia-vscode` e consome
+estes arquivos como asset de release (ver `editors/README.md` e ADR-0109).
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -21,9 +25,10 @@ from loxia_core.execution.prelude import BUILTIN_NAMES
 from loxia_core.frontend.keywords import KEYWORDS
 
 ROOT = Path(__file__).resolve().parents[1]
-VSCODE = ROOT / "editors" / "vscode"
-GRAMMAR = VSCODE / "syntaxes" / "loxia.tmLanguage.json"
-PACKAGE = VSCODE / "package.json"
+GRAMMAR_DIR = ROOT / "editors" / "grammar"
+GRAMMAR = GRAMMAR_DIR / "loxia.tmLanguage.json"
+SHIKI = GRAMMAR_DIR / "loxia.mjs"
+DSH = GRAMMAR_DIR / "loxia.ts"
 GITATTRIBUTES = ROOT / ".gitattributes"
 
 
@@ -133,28 +138,49 @@ def test_regexes_compilam() -> None:
 
 def test_shim_do_shiki_aponta_para_a_grammar() -> None:
     """O shim `.mjs` (site/DSH) importa o mesmo JSON, sem copiar a grammar."""
-    shim = ROOT / "editors" / "shiki" / "loxia.mjs"
-    text = shim.read_text(encoding="utf-8")
+    text = SHIKI.read_text(encoding="utf-8")
     match = re.search(r"from '([^']+\.json)'", text)
 
     assert match is not None, "shim sem import do .tmLanguage.json"
-    assert (shim.parent / match.group(1)).resolve() == GRAMMAR
+    assert (SHIKI.parent / match.group(1)).resolve() == GRAMMAR
     assert "name: 'loxia'" in text
     assert "aliases: ['lx']" in text
 
 
-def test_extensao_vscode_esta_ligada() -> None:
-    package = json.loads(PACKAGE.read_text(encoding="utf-8"))
-    grammar = _grammar()
-    language = package["contributes"]["languages"][0]
-    entry = package["contributes"]["grammars"][0]
+def test_assets_de_release_sao_reproduziveis(tmp_path: Path) -> None:
+    """`--assets DIR` empacota os três artefatos + SHA256SUMS para o release."""
+    result = subprocess.run(
+        [sys.executable, "editors/build_grammar.py", "--assets", str(tmp_path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
 
-    assert language["id"] == "loxia"
-    assert language["extensions"] == [".lx"]
-    assert grammar["fileTypes"] == ["lx"]
-    assert entry["scopeName"] == grammar["scopeName"]
-    assert (VSCODE / entry["path"]).resolve() == GRAMMAR
-    assert (VSCODE / language["configuration"]).is_file()
+    assert result.returncode == 0, result.stdout + result.stderr
+    for name in ("loxia.tmLanguage.json", "loxia.mjs", "loxia.ts"):
+        assert (tmp_path / name).read_bytes() == (GRAMMAR_DIR / name).read_bytes()
+
+    sums = (tmp_path / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
+    assert [line.split("  ", 1)[1] for line in sums] == [
+        "loxia.tmLanguage.json",
+        "loxia.mjs",
+        "loxia.ts",
+    ]
+    for line in sums:
+        digest, name = line.split("  ", 1)
+        expected = hashlib.sha256((tmp_path / name).read_bytes()).hexdigest()
+        assert digest == expected
+
+
+def test_release_anexa_os_assets_da_grammar() -> None:
+    """O workflow de release publica a grammar junto do wheel/sdist (issue #5)."""
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+
+    assert "build_grammar.py --assets" in workflow
+    assert "gh release create" in workflow
+    assert "grammar/*" in workflow
 
 
 def test_gitattributes_mantem_lx_fora_do_linguist() -> None:

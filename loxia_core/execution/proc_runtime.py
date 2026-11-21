@@ -163,8 +163,9 @@ class ProcTable:
         return True
 
     def close(self, identifier: int) -> None:
-        handle = self._get(identifier)
-        del self._handles[identifier]
+        if identifier not in self._handles:
+            return
+        handle = self._handles.pop(identifier)
         if handle.kind == "stream":
             self._close_fd(handle.fd)
             return
@@ -172,6 +173,10 @@ class ProcTable:
             stream = self._handles.pop(stream_id, None)
             if stream is not None:
                 self._close_fd(stream.fd)
+
+    def close_all(self) -> None:
+        for identifier in list(self._handles):
+            self.close(identifier)
 
     # -- streams ---------------------------------------------------------
     def read(self, identifier: int, count: int) -> str | None:

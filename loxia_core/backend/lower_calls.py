@@ -42,8 +42,10 @@ class CallLowering(LoweringBase):
             for argument, desc in zip(expr.arguments, params, strict=True)
         ]
         result = self._type_desc(primitive.result, expr.paren.line)
-        param_types = [self._storage_llvm_type(desc) for desc in params]
-        call_arguments = [argument.llvm for argument in arguments]
+        param_types = [self._param_llvm_type(desc) for desc in params]
+        call_arguments = [
+            self._arg_llvm(argument, desc) for argument, desc in zip(arguments, params, strict=True)
+        ]
         if primitive.site:
             # Primitivas que podem falhar recebem o call site para o panic.
             param_types.extend([_I32, _I32])
@@ -55,7 +57,7 @@ class CallLowering(LoweringBase):
             )
         function = self._function(
             primitive.c_symbol,
-            self._storage_llvm_type(result),
+            _VOID if result.ty is ValueType.NIL else self._storage_llvm_type(result),
             param_types,
         )
         call = self.builder.call(function, call_arguments)
@@ -205,12 +207,18 @@ class CallLowering(LoweringBase):
         env = self._closure_field(callee, 1)
         function_type = llvm_ir.function_pointer(
             _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret),
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
         self._set_call_site(expr.paren)
         call = self.builder.call(
             self.builder.bitcast(fnptr, function_type),
-            [env, *[argument.llvm for argument in arguments]],
+            [
+                env,
+                *[
+                    self._arg_llvm(argument, param)
+                    for argument, param in zip(arguments, sig.params, strict=True)
+                ],
+            ],
         )
         if sig.ret.ty is ValueType.NIL:
             return Value(ValueType.NIL)
@@ -376,12 +384,18 @@ class CallLowering(LoweringBase):
         env = self._closure_field(payload, 1)
         function_type = llvm_ir.function_pointer(
             _VOID if sig.ret.ty is ValueType.NIL else self._storage_llvm_type(sig.ret),
-            [_I8_PTR, *[self._storage_llvm_type(param) for param in sig.params]],
+            [_I8_PTR, *[self._param_llvm_type(param) for param in sig.params]],
         )
         self._set_call_site(expr.paren)
         call = self.builder.call(
             self.builder.bitcast(fnptr, function_type),
-            [env, *[argument.llvm for argument in arguments]],
+            [
+                env,
+                *[
+                    self._arg_llvm(argument, param)
+                    for argument, param in zip(arguments, sig.params, strict=True)
+                ],
+            ],
         )
         if sig.ret.ty is ValueType.NIL:
             self.builder.branch(end)
@@ -470,7 +484,14 @@ class CallLowering(LoweringBase):
                 for argument, expected in zip(arguments, init.fn_sig.params, strict=True)
             ]
 
-        call_args = [argument.llvm for argument in arguments]
+        call_args = (
+            [
+                self._arg_llvm(argument, param)
+                for argument, param in zip(arguments, init.fn_sig.params, strict=True)
+            ]
+            if init is not None
+            else []
+        )
         if binding.layout_key is not None:
             call_args.insert(0, class_ptr.llvm)
         self._set_call_site(expr.paren)

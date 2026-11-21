@@ -27,9 +27,9 @@
 /* Immutable Range `{start, end, step, inclusive}`; step 0 is R1014. `inclusive`
  * makes the end participate in iteration and in the `..=` format. */
 void *lox_range_new(int64_t start, int64_t end, int64_t step,
-                    int32_t inclusive) {
+                    int32_t inclusive, int32_t line, int32_t column) {
     if (step == 0) {
-        lox_panic(0, 0, "R1014", "range() step can't be zero.");
+        lox_panic(line, column, "R1000", "range() step can't be zero.");
     }
     LoxRange *range = lox_alloc(sizeof(LoxRange));
     range->start = start;
@@ -84,15 +84,17 @@ void lox_print_range(const void *pointer) {
  * if you fix this, add the differential golden with it. */
 void *lox_str_from_range(const void *pointer) {
     const LoxRange *range = pointer;
+    const char *operator = range->inclusive ? "..=" : "..";
     char buffer[128];
     int length;
     if (range->step == 1) {
-        length = snprintf(buffer, sizeof buffer, "<range %" PRId64 "..%" PRId64 ">",
-                          range->start, range->end);
+        length = snprintf(buffer, sizeof buffer,
+                          "<range %" PRId64 "%s%" PRId64 ">",
+                          range->start, operator, range->end);
     } else {
         length = snprintf(buffer, sizeof buffer,
-                          "<range %" PRId64 "..%" PRId64 " step %" PRId64 ">",
-                          range->start, range->end, range->step);
+                          "<range %" PRId64 "%s%" PRId64 " step %" PRId64 ">",
+                          range->start, operator, range->end, range->step);
     }
     return string_from_ascii(buffer, (size_t)length);
 }
@@ -145,12 +147,28 @@ int64_t lox_list_len(const void *pointer) {
     return ((const LoxList *)pointer)->count;
 }
 
-/* `xs[i]`; an index outside 0..count-1 is R1007. */
+/* `for-in` guard: mutation while iterating is R1012, as in the tree-walk. */
+int64_t lox_list_version(const void *pointer) {
+    return ((const LoxList *)pointer)->version;
+}
+
+/* `xs[i]`; an index outside 0..count-1 is R1007, com índice e tamanho como
+ * no tree-walk (`List index 2 out of bounds for length 1.`). */
+static void panic_index(const char *kind, int64_t index, int64_t count,
+                        int32_t line, int32_t column) {
+    char message[128];
+    int length = snprintf(message, sizeof message,
+                          "%s index %" PRId64 " out of bounds for length %" PRId64 ".",
+                          kind, index, count);
+    lox_panic(line, column, "R1007", message);
+    (void)length;
+}
+
 LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line,
                       int32_t column) {
     const LoxList *list = pointer;
     if (index < 0 || index >= list->count) {
-        lox_panic(line, column, "R1007", "List index out of bounds.");
+        panic_index("List", index, list->count, line, column);
     }
     return list->items[index];
 }
@@ -160,7 +178,7 @@ void lox_list_set(void *pointer, int64_t index, int64_t tag, int64_t payload,
                   int32_t line, int32_t column) {
     LoxList *list = pointer;
     if (index < 0 || index >= list->count) {
-        lox_panic(line, column, "R1007", "List index out of bounds.");
+        panic_index("List", index, list->count, line, column);
     }
     list->items[index].tag = tag;
     list->items[index].payload = payload;
@@ -340,9 +358,28 @@ void lox_map_set(void *pointer, int64_t key_tag, int64_t key_payload,
     map->version += 1;
 }
 
+/* `Map` literal: chave duplicada é R1014 (o interpretador é o oráculo). */
+void lox_map_set_literal(void *pointer, int64_t key_tag, int64_t key_payload,
+                         int64_t value_tag, int64_t value_payload,
+                         int32_t line, int32_t column) {
+    LoxMap *map = pointer;
+    LoxValue key = {key_tag, key_payload};
+    lox_map_check_key(key_tag, line, column);
+    if (lox_map_find(map, key) >= 0) {
+        lox_panic(line, column, "R1014", "Duplicate key in map literal.");
+    }
+    lox_map_set(pointer, key_tag, key_payload, value_tag, value_payload, line,
+                column);
+}
+
 /* `len(m)`: number of entries. */
 int64_t lox_map_len(const void *pointer) {
     return ((const LoxMap *)pointer)->count;
+}
+
+/* `for-in` guard: mutation while iterating is R1012, as in the tree-walk. */
+int64_t lox_map_version(const void *pointer) {
+    return ((const LoxMap *)pointer)->version;
 }
 
 /* `m.has(k)`: checks the key without creating an entry. */
@@ -481,7 +518,7 @@ LoxValue lox_tuple_get(const void *pointer, int64_t index, int32_t line,
                        int32_t column) {
     const LoxTuple *tuple = pointer;
     if (index < 0 || index >= tuple->count) {
-        lox_panic(line, column, "R1007", "Tuple index out of bounds.");
+        panic_index("Tuple", index, tuple->count, line, column);
     }
     return tuple->items[index];
 }

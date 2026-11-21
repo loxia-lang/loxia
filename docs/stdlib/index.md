@@ -16,14 +16,18 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.asserts`](asserts.md) | Explicit failures for tests and contracts. Every helper raises `RuntimeError`. |
 | [`std.cli`](cli.md) | Deterministic command-line parsing from a declarative spec. |
 | [`std.collections`](collections.md) | Stack, Queue, Deque and PriorityQueue, backed by lists. |
+| [`std.contracts`](contracts.md) | Design by contract as a library: precondition, postcondition and invariant checks. |
 | [`std.convert`](convert.md) | Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes. |
 | [`std.csv`](csv.md) | RFC 4180 CSV parsing and serialization, with CRLF output. |
+| [`std.documents`](documents.md) | Full-sync document store: opaque URIs, versions and text, without JSON or I/O. |
 | [`std.fmt`](fmt.md) | Locale-free formatting helpers (templates, padding, numbers, byte sizes). |
+| [`std.framing`](framing.md) | `Content-Length` framing over an injected byte reader; stdin/stdout only at the edge. |
 | [`std.fs`](fs.md) | File reading and writing. Ambient: outside the I1 corpus. |
 | [`std.hash`](hash.md) | Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes. |
 | [`std.io`](io.md) | Standard input/output. The read functions are ambient where they block. |
 | [`std.iter`](iter.md) | Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`). |
 | [`std.json`](json.md) | RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap. |
+| [`std.jsonrpc`](jsonrpc.md) | JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages. |
 | [`std.lists`](lists.md) | Generic list combinators; every function leaves the input unchanged. |
 | [`std.log`](log.md) | Leveled logging to stderr, without timestamps. |
 | [`std.maps`](maps.md) | Helpers for `Map[String, V]` that preserve insertion order. |

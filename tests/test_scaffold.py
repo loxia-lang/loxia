@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from loxia_core.loader.gitenv import git_env
+
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 _GIT_REQUIRED = pytest.mark.skipif(shutil.which("git") is None, reason="git não está no PATH")
@@ -156,7 +158,7 @@ def test_init_recusa_projeto_existente(tmp_path: Path) -> None:
 
 @_GIT_REQUIRED
 def test_init_nao_cria_repositorio_aninhado(tmp_path: Path) -> None:
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, timeout=60)
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, timeout=60, env=git_env())
     project = tmp_path / "sub"
     project.mkdir()
 

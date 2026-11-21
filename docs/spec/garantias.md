@@ -50,18 +50,18 @@ monotonic and the differential test never compares against a hand-written expect
 | `l0` | 4 |
 | `l1` | 3 |
 | `l2` | 14 |
-| `l2.5` | 3 |
+| `l2.5` | 4 |
 | `l3` | 14 |
 | `l4` | 12 |
-| `l5` | 28 |
-| `l6` | 58 |
+| `l5` | 30 |
+| `l6` | 61 |
 | `k0` | 2 |
 | `t1` | 6 |
-| `t2` | 14 |
-| `t3` | 3 |
+| `t2` | 17 |
+| `t3` | 6 |
 | `t7` | 3 |
 
-**164 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
+**176 cases** across 13 levels compile and agree; **0 in `PENDING`** (); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**
