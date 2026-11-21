@@ -75,6 +75,29 @@ or the same memory consumption. The same observable result includes **stderr byt
 so the runtime stack trace is also identical in both engines
 ([ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
 
+#### Engine layers: core, ambient and native-only
+
+I1 covers **core**: features whose semantics both engines implement and that are in the
+corpus. Two other layers are declared, and neither promises equivalence
+([ADR-0128](../adr/0128-contrato-de-motores.md)):
+
+| Layer | Promise | Runs on | Refusal |
+| --- | --- | --- | --- |
+| **core** | I1 + I3, in the corpus | interpreter and native | — |
+| **ambient** | outside I1/I3; fixed-input tests | wherever the host allows | denied by `--sandbox` when it is a host capability |
+| **native-only** | no equivalence promise; binary semantics only | `--emit=exe` | **the interpreter refuses at compile time** |
+
+A native-only capability is **refused**, never silently different:
+
+```
+error[E3021]: `sqlite.createFunction` is not supported by the interpreter; build with `--emit=exe`.
+```
+
+The refusal is a compilation error (exit 65), points at the call site and happens before any
+execution. `loxia check` is engine-agnostic and accepts every layer; `run`/REPL refuse
+native-only, and `build` only refuses the declared backend gap (`E4001`, I4). The layer of
+every public primitive and module is published by `loxia capabilities --json`.
+
 #### Stack budget ([ADR-0077](../adr/0077-limite-de-pilha.md))
 
 The binary and the tree-walk count **Lox activations** (function, method, lambda, `init` and
@@ -254,6 +277,9 @@ and stdlib decisions. What is still aspirational is marked.
   exist they will not be a public contract in the first version.
 - **Timing.** Nothing promises when a `nil`/object is freed, nor finalization order —
   precisely so as not to break I1.
+- **Native-only capabilities under `run`/REPL.** They are refused at compile time
+  (`E3021`); there is no interpreted fallback and no promise that the interpreter can run
+  every program ([ADR-0128](../adr/0128-contrato-de-motores.md)).
 - **Programs above the memory budget** in the binary (default hard cap of 512 MiB and
   I1 up to 64 MiB of live memory) and **above 10,000 Lox calls** (R1015 is the limit).
 

@@ -173,6 +173,13 @@ TODO item.
 | [0119](0119-fs-open-handles-e-erro-de-host.md) | File handles plus one `Result` pattern for host failures across the stdlib | accepted (implementation partial) | 2026-11-19 |
 | [0120](0120-localizacao-de-falha-em-excecoes.md) | Caught exceptions expose `e.site` (`file:line:column`) for test failure location | accepted (implemented) | 2026-11-19 |
 | [0121](0121-matriz-de-cobertura-de-features.md) | Curated feature → golden/differential matrix, snapshot and generated coverage page | accepted (implemented) | 2026-11-19 |
+| [0122](0122-contrato-de-data-e-instante.md) | Time is milliseconds; civil date is an `(Int, Int, Int)` tuple; `timex` v2 validates, formats offsets and does calendar arithmetic | proposed | 2026-11-20 |
+| [0123](0123-orcamento-do-kernel-por-grupo.md) | Kernel budget per group with an executable test; `fs` mutation and vendored SHA-256 approved, table stays in Python | proposed | 2026-11-20 |
+| [0124](0124-fmt-self-host-e-pacotes-por-repo.md) | Lox front-end and formatter as the first self-hosted consumer; tooling packages are born as org repos, `glob` is the pilot | proposed | 2026-11-20 |
+| [0125](0125-bytes-tipo-binario.md) | `Bytes`: immutable binary value type, no new syntax, native-module buffer ABI | proposed | 2026-11-21 |
+| [0126](0126-modulo-nativo-embutido-sqlite.md) | Bundled native modules, SQLite first: separate budget, conditional link, vendored amalgamation | proposed | 2026-11-21 |
+| [0127](0127-pacotes-com-codigo-nativo.md) | Third-party native packages: contract recorded, implementation deferred with four triggers | proposed | 2026-11-21 |
+| [0128](0128-contrato-de-motores.md) | Three engine layers (core/ambient/native-only) with an explicit interpreter refusal instead of silent divergence | proposed | 2026-11-21 |
 
 
 ## Next decisions that call for an ADR
