@@ -176,6 +176,26 @@ Critério para revisitar: necessidade de construção incremental eficiente (aí
 nativo, não mutabilidade), slice sintático, ou `Bytes` como chave de `Map` (mudança de
 [ADR-0017](0017-mapas-hash.md)).
 
+## Nota de implementação (2026-11-21)
+
+O 79a (interpretador/checker) fica com:
+
+- `Bytes` como `Prim("Bytes")`, namespace `Bytes` e o enum built-in `BytesError`
+  (`InvalidHex`/`InvalidBase64`/`InvalidUtf8`, cada um com `message`, sem import). A
+  decisão inicial era uma classe com `kind`/`message`; o 79b trocou por enum porque o
+  backend constrói enums em C (`lox_enum_new`/`lox_enum_set`) sem sintetizar uma classe
+  com ctor/layout, e porque o conjunto de erros é fechado e casa com `match` exaustivo;
+- métodos como **tabela nativa** (`bytes_api.py`), compartilhada por checker e dispatcher —
+  `b.slice` é um valor chamável, como `List.push`;
+- decode **hex em ambas as caixas** e **base64 canônico** (padding obrigatório, sem espaços,
+  bits de padding não-zero rejeitados); `toText` é UTF-8 estrito;
+- `Bytes` **não** é chave de `Map` no checker e `_canonical_key` também a recusa em runtime
+  (`Map[Any, V]`);
+- `--emit` de um programa com `Bytes` ainda recusa com `not supported by the backend yet`;
+  tag 13, `runtime/bytes.c` e o corpus entram no 79b;
+- `for byte in b` (produzindo `Int`) entra no 79b junto com o lowering; no 79a o checker
+  ainda recusa iteração, e o ADR-0125 fica com esta nota.
+
 ## Referências
 
 - [ADR-0035](0035-strings-texto.md) — por que `String` é texto.

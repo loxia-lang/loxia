@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Bytes: construção, len/índice, métodos e formatação (interpretador; backend no 79b).
+fn errorTag(error: BytesError) -> String {
+  return match error {
+    BytesError.InvalidHex(_) => "invalidHex",
+    BytesError.InvalidBase64(_) => "invalidBase64",
+    BytesError.InvalidUtf8(_) => "invalidUtf8"
+  }
+}
+val text = Bytes.fromText("é")
+print(len(text))
+print(text[0])
+print(text[1])
+print(text)
+print(repr(text))
+print("${text}")
+val data = Bytes.fromList([0, 255, 16])
+print(data.toHex())
+print(data.toList())
+print(data.slice(1, 3).toHex())
+print(data.concat(Bytes.fromText("A")).toHex())
+print(data == Bytes.fromList([0, 255, 16]))
+print(data == Bytes.fromList([0, 255]))
+print(data == text)
+print(len("é"))
+print(len(data))
+print(data.toBase64())
+print(Bytes.empty().toHex())
+print(match text.toText() { Result.Ok(value) => value, Result.Err(error) => errorTag(error) })
+print(match data.toText() { Result.Ok(value) => value, Result.Err(error) => errorTag(error) })
+print(match Bytes.fromHex("FF") { Result.Ok(value) => value.toHex(), Result.Err(error) => errorTag(error) })
+print(match Bytes.fromHex("F") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
+print(match Bytes.fromBase64("Zm9v") { Result.Ok(value) => value.toText(), Result.Err(error) => errorTag(error) })
+print(match Bytes.fromBase64("Zg") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
+print(match Bytes.fromBase64("Zh==") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
+val hex = data.toHex
+print(hex())
+val maybe: Bytes? = data
+print(maybe?.toHex())
+val nothing: Bytes? = nil
+print(nothing?.toHex())
+val any: Any = data
+print(any is Bytes)
+print((any as Bytes).toHex())
+val error = BytesError.InvalidHex("detail")
+print(errorTag(error))
+print(match error {
+  BytesError.InvalidHex(message) => message,
+  BytesError.InvalidBase64(message) => message,
+  BytesError.InvalidUtf8(message) => message
+})
+print(error is BytesError)
+# expect: 2
+# expect: 195
+# expect: 169
+# expect: 0xc3a9
+# expect: 0xc3a9
+# expect: 0xc3a9
+# expect: 00ff10
+# expect: [0, 255, 16]
+# expect: ff10
+# expect: 00ff1041
+# expect: true
+# expect: false
+# expect: false
+# expect: 1
+# expect: 3
+# expect: AP8Q
+# expect:
+# expect: é
+# expect: invalidUtf8
+# expect: ff
+# expect: invalidHex
+# expect: Result.Ok("foo")
+# expect: invalidBase64
+# expect: invalidBase64
+# expect: 00ff10
+# expect: 00ff10
+# expect: nil
+# expect: true
+# expect: 00ff10
+# expect: invalidHex
+# expect: detail
+# expect: true

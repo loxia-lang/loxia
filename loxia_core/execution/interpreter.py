@@ -20,6 +20,7 @@ from loxia_core.execution.limits import (
     TRACE_TAIL,
     ensure_recursion_budget,
 )
+from loxia_core.execution.lox_bytes import bytes_method, bytes_module
 from loxia_core.execution.lox_callable import LoxCallable
 from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumObject, LoxEnumValue
@@ -191,6 +192,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             LoxExceptionClass("RuntimeError", exception_class),
             mutable=False,
         )
+        self.globals.define(
+            "BytesError",
+            LoxEnumObject(
+                "BytesError",
+                {"InvalidHex": 1, "InvalidBase64": 1, "InvalidUtf8": 1},
+            ),
+            mutable=False,
+        )
+        self.globals.define("Bytes", bytes_module(), mutable=False)
 
     def interpret(self, statements: list[Stmt]) -> None:
         self._call_depth = 0
@@ -323,6 +333,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return True
         if a is None or b is None:
             return False
+
+        if isinstance(a, bytes) or isinstance(b, bytes):
+            return isinstance(a, bytes) and isinstance(b, bytes) and a == b
 
         if isinstance(a, LoxList) or isinstance(b, LoxList):
             if not isinstance(a, LoxList) or not isinstance(b, LoxList):
@@ -552,6 +565,22 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_index_expr(self, expr: Index) -> object:
         ob = self._evaluate(expr.object)
+
+        if isinstance(ob, bytes):
+            index = self._evaluate(expr.index)
+            if not numeric.is_int(index):
+                raise LoxRuntimeError(
+                    expr.bracket,
+                    "Bytes index must be an integer.",
+                    code=Code.RUNTIME_OPERANDS,
+                )
+            if index < 0 or index >= len(ob):
+                raise LoxRuntimeError(
+                    expr.bracket,
+                    f"Bytes index {index} out of bounds for length {len(ob)}.",
+                    code=Code.INDEX_OUT_OF_BOUNDS,
+                )
+            return ob[index]
 
         if isinstance(ob, LoxList):
             index = self._evaluate(expr.index)
@@ -1077,7 +1106,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                     "Superclass must be a class.",
                     code=Code.INVALID_VALUE,
                 )
-
             superclass = candidate
 
         interfaces: list[LoxInterface] = []
@@ -1140,6 +1168,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         if expr.optional and ob is None:
             return None
+
+        if isinstance(ob, bytes):
+            return bytes_method(ob, expr.name)
 
         if isinstance(ob, LoxInstance):
             if expr.name.lexeme == "site" and ob.is_instance_of("Exception"):

@@ -45,6 +45,7 @@ A pure expression such as `1 + 1` is wrapped in `print(1 + 1)` and shows `2`; de
 | `List` | `[...]` literal | `[1, 2, 3]` (strings quoted inside the list) |
 | `Map` | `{...}` literal | `{"a": 1, "b": 2}` (insertion order) |
 | `Range` | `a..b`, `a..=b`, `range(a, b, step)` | `<range 0..10>`, `<range 0..=10>` |
+| `Bytes` | `Bytes.fromText`/`fromList`/`fromHex`/`fromBase64` | `0x<lowercase hex>` |
 | string | literals, `+`, interpolation | contents |
 | function | `fn` | `<fn name>` |
 | native function | `len` | `<native fn>` |
@@ -76,7 +77,7 @@ Only `nil` and `false` are falsy. `0`, `0.0`, `""`, lists and maps (including em
   `{"a": 1, "b": 2} == {"b": 2, "a": 1}` → `true`; the number of entries and the equality of
   each value count, with a cycle guard. `Map` is not hashable;
 - `true == 1` → `false` (a boolean is never a number);
-- strings compare by content;
+- strings compare by content; `Bytes` compares by content (O(n), identity short-circuit) and `b == s` is `false` (different types);
 - functions, classes and instances compare by **identity** (the same object);
 - `NaN != NaN` (IEEE); no literal produces `NaN` today.
 
@@ -260,7 +261,8 @@ for x in xs { print(x) }
   last element, and an empty list is an error (`Can't pop from an empty list.`). `xs.len()` does not exist;
   use `len(xs)`.
 - **`len`**: `len(xs)` is O(1) and returns `Int`; `len(s)` returns the number of code points in the
-  string, and `len(m)` the number of map entries. `len` of another type is a runtime error in the
+  string, `len(b)` the number of bytes in a `Bytes`, and `len(m)` the number of map entries.
+  `len` of another type is a runtime error in the
   tree-walk and a type error under `--check`.
 - **Iteration**: `for x in xs` traverses in insertion order; mutating the list during the loop is an
   error (`Can't modify a list while iterating over it.`), not a silent snapshot.
@@ -278,6 +280,43 @@ for x in xs { print(x) }
 - **Limits**: no slice, list `+`, `map`/`filter`, `contains`, `sort` or string indexing in
   v1. A list literal is not a parameter default or a field initializer; in
   `init`, `this.xs = []` works.
+
+## Bytes
+
+`Bytes` is an **immutable, contiguous sequence of bytes 0..255** — binary data, not text.
+`String` stays UTF-8 text with `len` in code points; `Bytes` has `len` in bytes and no
+UTF-8 validation. See [ADR-0125](../adr/0125-bytes-tipo-binario.md).
+
+```lox
+val data = Bytes.fromText("é")   # UTF-8: 2 bytes
+print(len(data))                 # 2
+print(data[0])                   # 195
+print(data)                      # 0xc3a9
+print(data.toHex())              # c3a9
+```
+
+- **Construction**: `Bytes.empty()`, `Bytes.fromList(xs: List[Int])` (elements 0..255; out of
+  range raises `RuntimeError`), `Bytes.fromText(s)` (UTF-8 encode), `Bytes.fromHex(s)` and
+  `Bytes.fromBase64(s)` (both `Result[Bytes, BytesError]`). Hex accepts lowercase and
+  uppercase; base64 is canonical RFC 4648 (standard alphabet, padding required, no
+  whitespace, non-canonical trailing bits rejected).
+- **Access**: `b[i]` is an `Int` 0..255; a negative or past-the-end index is a runtime error.
+  There is no slice syntax; use `b.slice(start, end)` (half-open, same bounds rules as
+  `substr`).
+- **Methods**: `slice`, `concat(other)`, `toList()`, `toText()`, `toHex()`, `toBase64()`.
+  Methods are values too (`val f = b.toHex`).
+- **Text conversion**: `toText()` is strict UTF-8 and returns `Result[String, BytesError]`;
+  invalid input is never replaced. `BytesError` is a built-in enum with
+  `InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`, available
+  without an import; match it to get the detail.
+- **`len` and equality**: `len(b)` counts bytes; `b == c` is structural and O(n), with an
+  identity short-circuit; `b == s` is `false`. Bytes in `Any`, `List`, `Bytes?` and `?.`
+  work like any other value.
+- **Not a `Map` key**: keys remain `String`, `Int` and `Bool` ([ADR-0017](../adr/0017-mapas-hash.md));
+  `Map[Bytes, V]` is a checker error. Use `toHex()` as a key when grouping by content.
+- **No literal or slice syntax**: `b"..."` and `b[a..z]` are not part of the language
+  ([ADR-0066](../adr/0066-orcamento-e-gate-sintatico.md)).
+- **Iteration**: not supported in v1; `b.toList()` copies when a loop is needed.
 
 ## Tuples
 

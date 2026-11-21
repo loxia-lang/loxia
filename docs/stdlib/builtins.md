@@ -383,6 +383,64 @@ Suspends the current process for at least `milliseconds`.
 
 Ambient. A negative duration raises `RuntimeError`.
 
+### `Bytes`
+
+Immutable sequence of bytes (0..255).
+
+`len(b)` counts bytes; `b[i]` is an `Int` 0..255; `str`/`repr` render `0x<hex>`; equality is structural and `b == s` is `false`. `Bytes` is not a `Map` key and has no literal syntax. Build with `Bytes.fromText`, `fromList`, `fromHex` or `fromBase64`; slice/concat and conversions are value methods.
+
+#### `Bytes.empty() -> Bytes`
+
+Returns the empty `Bytes`.
+
+#### `Bytes.fromList(xs: List[Int]) -> Bytes`
+
+Copies a list of integers 0..255 into `Bytes`.
+
+A value outside 0..255 (or a non-integer element) raises `RuntimeError`.
+
+#### `Bytes.fromText(text: String) -> Bytes`
+
+Encodes the UTF-8 bytes of `text`.
+
+#### `Bytes.fromHex(text: String) -> Result[Bytes, BytesError]`
+
+Decodes RFC 4648 base16.
+
+Accepts lowercase and uppercase digits; an odd length or a non-hex character is `Err(BytesError.InvalidHex(message))`.
+
+#### `Bytes.fromBase64(text: String) -> Result[Bytes, BytesError]`
+
+Decodes canonical RFC 4648 base64 (standard alphabet, padding required).
+
+Invalid, unpadded or non-canonical input is `Err(BytesError.InvalidBase64(message))`.
+
+#### `Bytes.slice(start: Int, end: Int) -> Bytes`
+
+Returns the half-open byte range `start..end`.
+
+Same bounds rules as `substr`: negative, inverted or past-the-end ranges raise `RuntimeError`.
+
+#### `Bytes.concat(other: Bytes) -> Bytes`
+
+Returns a new `Bytes` with `other` appended; neither operand is mutated.
+
+#### `Bytes.toList() -> List[Int]`
+
+Copies the bytes into a new `List[Int]`.
+
+#### `Bytes.toText() -> Result[String, BytesError]`
+
+Decodes strict UTF-8; invalid input is `Err(BytesError.InvalidUtf8(message))` and is never replaced.
+
+#### `Bytes.toHex() -> String`
+
+Returns lowercase RFC 4648 base16.
+
+#### `Bytes.toBase64() -> String`
+
+Returns canonical RFC 4648 base64 with padding.
+
 ## Built-in types
 
 ### `Result[T, E]`
@@ -390,6 +448,12 @@ Ambient. A negative duration raises `RuntimeError`.
 Built-in generic sum type with `Result.Ok(value)` and `Result.Err(error)`.
 
 Use an exhaustive `match` to inspect it, or the combinators in `std.results`.
+
+### `BytesError`
+
+Failure of a `Bytes` conversion.
+
+Variants: `BytesError.InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`. Available without an import; use `match` to inspect it.
 
 ### `Exception`
 

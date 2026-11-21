@@ -34,6 +34,7 @@ BOOL = Prim("Bool")
 INT = Prim("Int")
 FLOAT = Prim("Float")
 STRING = Prim("String")
+BYTES = Prim("Bytes")
 RANGE = Prim("Range")
 
 PRIMITIVES: dict[str, Ty] = {
@@ -44,6 +45,7 @@ PRIMITIVES: dict[str, Ty] = {
     "Int": INT,
     "Float": FLOAT,
     "String": STRING,
+    "Bytes": BYTES,
     "Range": RANGE,
 }
 

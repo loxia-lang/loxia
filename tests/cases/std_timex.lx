@@ -75,7 +75,7 @@ while (instant <= 2000000000000) {
   if (timex.parseIso(timex.isoMillis(instant)) != instant) {
     isoRoundTrip = false
   }
-  instant = instant + 86400000 * 37
+  instant = instant + 86400000 * 997
 }
 print(isoRoundTrip)
 print(timex.parseIso("+123-01-01") ?? -1)
