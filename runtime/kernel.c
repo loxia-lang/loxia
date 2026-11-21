@@ -578,6 +578,21 @@ static const char *fs_open_message(int error) {
     }
 }
 
+static const char *fs_read_message(int error) {
+    switch (error) {
+        case ENOENT: return "notFound: read failed.";
+        case EACCES:
+        case EPERM: return "permission: read failed.";
+        case EISDIR: return "isDirectory: read failed.";
+        case ENOTDIR: return "notDirectory: read failed.";
+        case EEXIST: return "alreadyExists: read failed.";
+        case EMFILE:
+        case ENFILE: return "tooManyFiles: read failed.";
+        case ENOSPC: return "noSpace: read failed.";
+        default: return "io: read failed.";
+    }
+}
+
 static const char *fs_write_message(int error) {
     switch (error) {
         case EACCES:
@@ -822,7 +837,11 @@ void *lox_fs_read(int64_t id, int64_t count, int32_t line, int32_t column) {
         do {
             got = read(handle->fd, buffer + total, want - total);
         } while (got < 0 && errno == EINTR);
-        if (got <= 0) {
+        if (got < 0) {
+            lox_panic(line, column, "R1000", fs_read_message(errno));
+            return NULL;
+        }
+        if (got == 0) {
             eof = 1;
             break;
         }
@@ -893,6 +912,10 @@ void *lox_fs_read_bytes(int64_t id, int64_t count, int32_t line, int32_t column)
         do {
             got = read(handle->fd, value->data + total, (size_t)count - total);
         } while (got < 0 && errno == EINTR);
+        if (got < 0) {
+            lox_panic(line, column, "R1000", fs_read_message(errno));
+            return NULL;
+        }
         if (got > 0) {
             total += (size_t)got;
         }

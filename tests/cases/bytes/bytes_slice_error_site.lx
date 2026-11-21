@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# The panic site is the method name token, shared by both engines.
+print(Bytes.empty().slice(0, 1))
+# expect runtime error: Bytes.slice() index out of bounds.

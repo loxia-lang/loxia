@@ -1541,6 +1541,7 @@ class Lowerer(
                 | ValueType.MAP
                 | ValueType.TUPLE
                 | ValueType.ENUM
+                | ValueType.BYTES
             ):
                 # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
                 return llvm_ir.constant(_BOOL, 1)

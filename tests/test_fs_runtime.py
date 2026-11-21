@@ -192,3 +192,15 @@ def test_std_fs_read_bytes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
         "Result.Err(error) => error.kind })\n"
     )
     assert capsys.readouterr().out == "00ff\nnil\n"
+
+
+def test_read_bytes_de_diretorio_e_erro_de_host(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.errors import NativeError
+
+    table = FileTable()
+    identifier = table.open(str(tmp_path), "r")
+    try:
+        with pytest.raises(NativeError, match=r"isDirectory: read failed\."):
+            table.read_bytes(identifier, 1)
+    finally:
+        table.close_all()

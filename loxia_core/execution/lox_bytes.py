@@ -18,7 +18,6 @@ from loxia_core.execution.bytes_api import BYTES_METHODS, BYTES_STATICS
 from loxia_core.execution.lox_enum import LoxEnumValue
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.native_module import NativeModule
-from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 
 _HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
@@ -71,10 +70,10 @@ class BytesStatic:
 class BytesMethod:
     """Método ligado a um valor `bytes` (`b.slice(0, 1)`)."""
 
-    def __init__(self, value: bytes, name: str) -> None:
+    def __init__(self, value: bytes, name: Token) -> None:
         self._value = value
-        self._name = name
-        self._token = Token(TokenType.IDENTIFIER, name, None, 0)
+        self._name = name.lexeme
+        self._token = name
 
     def min_arity(self) -> int:
         return len(BYTES_METHODS[self._name].params)
@@ -148,7 +147,7 @@ def bytes_method(value: bytes, name: Token) -> BytesMethod:
             f"Undefined property '{name.lexeme}'.",
             code=Code.UNDEFINED_PROPERTY,
         )
-    return BytesMethod(value, name.lexeme)
+    return BytesMethod(value, name)
 
 
 def _from_list(value: object) -> bytes:

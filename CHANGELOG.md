@@ -38,6 +38,16 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   (offset explícito `-720..840`) e parse de `YYYY-MM-DD`, fração de 1–3 dígitos, offset
   `±HH:MM` e `t`/`z` minúsculos (RFC 3339). `TimeError.kind` ganha `invalidDate`.
 
+### Corrigido
+
+- **`Bytes` é truthy no backend**: `if (b)`, `not b` e `and`/`or` sobre `Bytes` deixam de
+  falhar no lowering; só `nil`/`false` são falsy, como no tree-walk.
+- **Namespace nativo sombreado**: `val Bytes = ...`, `val fs = ...`, `val Int = ...` e
+  equivalentes locais não são mais despachados como namespace global no backend.
+- **Localização de panic de `Bytes`**: erros de `Bytes.fromList` apontam para o `(` da
+  chamada (como o `NativeError` do tree-walk) e erros de método (`slice`, `concat`) usam o
+  token do nome, em vez de linha/coluna 0.
+
 ## [1.2.0] - 2026-11-20
 
 ### Adicionado
