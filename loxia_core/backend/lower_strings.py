@@ -59,6 +59,9 @@ class StringLowering(LoweringBase):
         match value.ty:
             case ValueType.STRING:
                 return value
+            case ValueType.BYTES:
+                function = self._function("lox_bytes_str", _I8_PTR, [_I8_PTR])
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.INT:
                 function = self._function("lox_str_from_int", _I8_PTR, [_INT])
                 return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
@@ -234,6 +237,9 @@ class StringLowering(LoweringBase):
             return self._map_len(argument)
         if argument.ty is ValueType.TUPLE:
             return self._tuple_len(argument)
+        if argument.ty is ValueType.BYTES:
+            function = self._function("lox_bytes_len", _INT, [_I8_PTR])
+            return Value(ValueType.INT, self.builder.call(function, [argument.llvm]))
         if argument.ty is ValueType.ENUM:
             raise _unsupported("len of Enum", expr.paren.line)
         if argument.ty is not ValueType.STRING:

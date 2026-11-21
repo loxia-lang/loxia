@@ -1289,6 +1289,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return iter(range(iterable.start, stop, iterable.step))
         if isinstance(iterable, str):
             return iter(iterable)
+        if isinstance(iterable, bytes):
+            return iter(iterable)
         if isinstance(iterable, LoxList):
             return self._iterate_list(name, iterable)
         if isinstance(iterable, LoxMap):

@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Caught runtime errors keep their messages (panic text must survive unwinding).
+var first = "no"
+try {
+  print(Bytes.empty()[0])
+} except RuntimeError as error {
+  first = error.message
+}
+print(first)
+var second = "no"
+try {
+  print(Bytes.fromText("ab").slice(1, 3))
+} except RuntimeError as error {
+  second = error.message
+}
+print(second)
+var third = "no"
+try {
+  Bytes.fromList([256])
+} except RuntimeError as error {
+  third = error.message
+}
+print(third)
+
+# expect: Bytes index 0 out of bounds for length 0.
+# expect: Bytes.slice() index out of bounds.
+# expect: Bytes.fromList() expects integers in 0..255.

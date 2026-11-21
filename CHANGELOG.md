@@ -22,8 +22,9 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   (`empty`, `fromList`, `fromText`, `fromHex`, `fromBase64`) e métodos (`slice`, `concat`,
   `toList`, `toText`, `toHex`, `toBase64`), com `BytesError` global
   (`InvalidHex`/`InvalidBase64`/`InvalidUtf8`). Hex aceita ambas as
-  caixas; base64 é canônico; `toText` é UTF-8 estrito. Ainda sem backend/tag 13 e sem
-  iteração (79b), e sem chave de `Map`.
+  caixas; base64 é canônico; `toText` é UTF-8 estrito. Backend com tag 13
+  (`runtime/bytes.c`), boxe em `Any`/`List`, `Bytes?`, `is`/`as` e `for byte in b`
+  produzindo `Int`. Referência de método permanece lacuna declarada no backend (PENDING).
 
 - **`std.timex` v2**: `date` com validação (`Result[(Int, Int, Int), TimeError]`),
   `isLeapYear`, `daysInMonth`, `weekday` (ISO 1..7), `dayOfYear`, `addMonths`/`addYears` com

@@ -29,6 +29,7 @@ from loxia_core.frontend.expr import (
     WildcardPattern,
 )
 from loxia_core.frontend.stmt import EnumDecl
+from loxia_core.frontend.ty import STRING as TY_STRING
 from loxia_core.frontend.ty import EnumTy, Ty, TyVar
 
 
@@ -63,6 +64,16 @@ class EnumLowering(LoweringBase):
             (
                 EnumVariantLayout("Ok", (TyVar("T", -1),)),
                 EnumVariantLayout("Err", (TyVar("E", -2),)),
+            ),
+        )
+        layouts["BytesError"] = EnumLayout(
+            "BytesError",
+            -1,
+            (),
+            (
+                EnumVariantLayout("InvalidHex", (TY_STRING,)),
+                EnumVariantLayout("InvalidBase64", (TY_STRING,)),
+                EnumVariantLayout("InvalidUtf8", (TY_STRING,)),
             ),
         )
         next_id = 1

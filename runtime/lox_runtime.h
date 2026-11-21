@@ -136,7 +136,7 @@ typedef struct {
  * Boxed value used by the dynamic path and containers. Tag table (keep in sync
  * with strings.c, objects.c and containers.c):
  *   0 nil, 1 Int, 2 Float, 3 Bool, 4 String, 5 Class, 6 Instance,
- *   7 Function, 8 Range, 9 List, 10 Map, 11 Tuple, 12 Enum.
+ *   7 Function, 8 Range, 9 List, 10 Map, 11 Tuple, 12 Enum, 13 Bytes.
  * Float stores its bit pattern in `payload`; tags 0..3 carry immediates, tag 4
  * carries a LoxStr pointer, and tags 5..12 carry object/container pointers.
  */
@@ -170,6 +170,13 @@ typedef struct {
     int64_t count;
     LoxValue *items;
 } LoxTuple;
+
+/* L6 Bytes: immutable contiguous 0..255 buffer (ADR-0125); `data` is NULL iff
+ * `len == 0`. The payload is atomic (no pointers for the GC to scan). */
+typedef struct {
+    int64_t len;
+    unsigned char *data;
+} LoxBytes;
 
 /* L6 Enum: identity + variant + boxed payload. */
 typedef struct {
@@ -326,6 +333,23 @@ extern void lox_tuple_set (void *pointer, int64_t index, int64_t tag, int64_t pa
 extern LoxValue lox_tuple_get (const void *pointer, int64_t index, int32_t line, int32_t column);
 extern int64_t lox_tuple_len (const void *pointer);
 extern int lox_tuple_equal (const void *left_pointer, const void *right_pointer);
+/* L6 Bytes (ADR-0125). */
+extern void *lox_bytes_new (int64_t len);
+extern int64_t lox_bytes_len (const void *pointer);
+extern int64_t lox_bytes_at (const void *pointer, int64_t index, int32_t line, int32_t column);
+extern void *lox_bytes_slice (const void *pointer, int64_t start, int64_t end, int32_t line, int32_t column);
+extern void *lox_bytes_concat (const void *left_pointer, const void *right_pointer);
+extern int lox_bytes_equal (const void *left_pointer, const void *right_pointer);
+extern void *lox_bytes_from_text (const void *text_pointer);
+extern void *lox_bytes_from_list (const void *list_pointer, int32_t line, int32_t column);
+extern void *lox_bytes_from_hex (const void *text_pointer);
+extern void *lox_bytes_from_base64 (const void *text_pointer);
+extern void *lox_bytes_to_text (const void *pointer);
+extern void *lox_bytes_to_list (const void *pointer);
+extern void *lox_bytes_to_hex (const void *pointer);
+extern void *lox_bytes_str (const void *pointer);
+extern void *lox_bytes_to_base64 (const void *pointer);
+extern void lox_print_bytes (const void *pointer);
 /* digest.c — FIPS 180-4 SHA-256; the kernel wrapper renders lowercase hex. */
 extern void lox_sha256 (const unsigned char *data, size_t length, unsigned char out[32]);
 extern void *lox_chars (const void *pointer);
@@ -427,6 +451,7 @@ extern void buffer_text (LoxBuffer *buffer, const char *text);
 extern void buffer_bytes (LoxBuffer *buffer, const char *data, size_t length);
 extern void format_enum (LoxBuffer *buffer, const LoxEnumValue *value);
 extern void format_tuple (LoxBuffer *buffer, const LoxTuple *tuple);
+extern void format_bytes (LoxBuffer *buffer, const LoxBytes *value);
 extern void format_map (LoxBuffer *buffer, const LoxMap *map);
 extern void format_list (LoxBuffer *buffer, const LoxList *list);
 extern void format_value (LoxBuffer *buffer, LoxValue value);

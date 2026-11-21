@@ -155,6 +155,22 @@ class ContainerLowering(LoweringBase):
             return Value(result.ty, merged, result.sig, result.optional, result.class_name)
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
+        if obj.ty is ValueType.BYTES:
+            index = self._coerce(self._expr(expr.index), TypeDesc(ValueType.INT), expr.bracket.line)
+            call = self.builder.call(
+                self._function(
+                    "lox_bytes_at",
+                    _INT,
+                    [_I8_PTR, _INT, _I32, _I32],
+                ),
+                [
+                    obj.llvm,
+                    index.llvm,
+                    llvm_ir.constant(_I32, expr.bracket.line),
+                    llvm_ir.constant(_I32, expr.bracket.column),
+                ],
+            )
+            return Value(ValueType.INT, call)
         if obj.ty is ValueType.MAP:
             _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
             key = self._box_value(self._expr(expr.index), None)
@@ -398,7 +414,13 @@ class ContainerLowering(LoweringBase):
                         ValueType.STRING,
                         self.builder.inttoptr(payload, _I8_PTR),
                     )
-                case ValueType.LIST | ValueType.MAP | ValueType.RANGE | ValueType.TUPLE:
+                case (
+                    ValueType.LIST
+                    | ValueType.MAP
+                    | ValueType.RANGE
+                    | ValueType.TUPLE
+                    | ValueType.BYTES
+                ):
                     return Value(inner.ty, self.builder.inttoptr(payload, _I8_PTR))
                 case ValueType.CLASS | ValueType.INSTANCE:
                     return Value(

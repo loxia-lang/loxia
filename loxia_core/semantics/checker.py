@@ -2029,6 +2029,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return INT
         if iterable is STRING:
             return STRING
+        if iterable is BYTES:
+            return INT
         if isinstance(iterable, ListTy):
             return iterable.element
         if isinstance(iterable, MapTy):

@@ -681,6 +681,9 @@ void format_value(LoxBuffer *buffer, LoxValue value) {
         case 12:
             format_enum(buffer, (const void *)value.payload);
             break;
+        case 13:
+            format_bytes(buffer, (const LoxBytes *)value.payload);
+            break;
         default:
             buffer_text(buffer, "<value>");
             break;
@@ -839,6 +842,9 @@ void lox_print_any(int64_t tag, int64_t payload) {
             break;
         case 12:
             lox_print_enum((const void *)payload);
+            break;
+        case 13:
+            lox_print_bytes((const void *)payload);
             break;
         default:
             lox_panic(0, 0, "R1000", "Unknown Any tag");

@@ -112,6 +112,9 @@ const char *lox_parse_type(const char *cursor, LoxTypeDesc *desc) {
     case 'R':
         desc->kind = 8;
         return cursor;
+    case 'Y':
+        desc->kind = 13;
+        return cursor;
     case 'L':
         desc->kind = 9;
         cursor++; /* '<' */
@@ -304,6 +307,8 @@ int lox_type_matches_desc(int64_t tag, int64_t payload,
     }
     case 12: /* enum */
         return ((const LoxEnumValue *)payload)->enum_id == type->count;
+    case 13: /* bytes */
+        return 1;
     default:
         return 0;
     }

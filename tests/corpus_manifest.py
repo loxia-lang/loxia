@@ -45,6 +45,13 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/variables.lx",
     ),
     "l6": (
+        "tests/cases/bytes/bytes_any.lx",
+        "tests/cases/bytes/bytes_core.lx",
+        "tests/cases/bytes/bytes_empty.lx",
+        "tests/cases/bytes/bytes_errors.lx",
+        "tests/cases/bytes/bytes_for.lx",
+        "tests/cases/bytes/bytes_result.lx",
+        "tests/cases/bytes/bytes_shapes.lx",
         "tests/cases/any_box.lx",
         "tests/cases/any_casts.lx",
         "tests/cases/bitwise.lx",
@@ -221,6 +228,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
 PENDING: dict[str, str] = {
     # Check-clean, mas o backend ainda recusa (exit 65). O nível é a expectativa,
     # não uma promessa: o teste diferencial só roda o que está em LEVELS.
+    "tests/cases/bytes/bytes_method_value.lx": "l6",
 }
 
 NEGATIVE: frozenset[str] = frozenset(

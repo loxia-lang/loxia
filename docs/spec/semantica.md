@@ -304,7 +304,8 @@ print(data.toHex())              # c3a9
   There is no slice syntax; use `b.slice(start, end)` (half-open, same bounds rules as
   `substr`).
 - **Methods**: `slice`, `concat(other)`, `toList()`, `toText()`, `toHex()`, `toBase64()`.
-  Methods are values too (`val f = b.toHex`).
+  They are called with `b.slice(...)`; a method reference (`val f = b.toHex`) works in the
+  interpreter and is a declared backend gap (PENDING), like `List.push`.
 - **Text conversion**: `toText()` is strict UTF-8 and returns `Result[String, BytesError]`;
   invalid input is never replaced. `BytesError` is a built-in enum with
   `InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`, available
@@ -316,7 +317,8 @@ print(data.toHex())              # c3a9
   `Map[Bytes, V]` is a checker error. Use `toHex()` as a key when grouping by content.
 - **No literal or slice syntax**: `b"..."` and `b[a..z]` are not part of the language
   ([ADR-0066](../adr/0066-orcamento-e-gate-sintatico.md)).
-- **Iteration**: not supported in v1; `b.toList()` copies when a loop is needed.
+- **Iteration**: `for byte in b` yields each byte as an `Int` 0..255; `b.toList()` copies
+  when a `List[Int]` is needed.
 
 ## Tuples
 

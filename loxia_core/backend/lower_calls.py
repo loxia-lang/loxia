@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
@@ -94,6 +94,14 @@ class CallLowering(LoweringBase):
         if (
             isinstance(expr.callee, Get)
             and isinstance(expr.callee.object, Variable)
+            and expr.callee.object.name.lexeme == "Bytes"
+        ):
+            result = self._bytes_static(expr)
+            if result is not None:
+                return cast("Value", result)
+        if (
+            isinstance(expr.callee, Get)
+            and isinstance(expr.callee.object, Variable)
             and expr.callee.object.name.lexeme in {"Int", "Float", "math"}
         ):
             raise _unsupported("Native modules in the backend", expr.paren.line)
@@ -121,12 +129,18 @@ class CallLowering(LoweringBase):
                 return self._call_list_method(expr, precomputed)
             if precomputed.ty is ValueType.MAP:
                 return self._call_map_method(expr, precomputed)
+            if precomputed.ty is ValueType.BYTES:
+                return cast("Value", self._call_bytes_method(expr, precomputed))
         elif isinstance(expr.callee, Get):
             receiver = self._expr(expr.callee.object)
             if receiver.ty is ValueType.LIST:
                 return self._call_list_method(expr, receiver)
             if receiver.ty is ValueType.MAP:
                 return self._call_map_method(expr, receiver)
+            if receiver.ty is ValueType.BYTES:
+                if receiver.optional:
+                    return cast("Value", self._call_optional_bytes_method(expr, receiver))
+                return cast("Value", self._call_bytes_method(expr, receiver))
 
         if isinstance(expr.callee, Variable):
             name = expr.callee.name.lexeme

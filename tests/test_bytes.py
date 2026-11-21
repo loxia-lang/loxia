@@ -13,7 +13,7 @@ from tests.runner import check_case
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
-GOLDEN = ROOT / "tests" / "bytes" / "bytes_core.lx"
+GOLDEN = ROOT / "tests" / "cases" / "bytes" / "bytes_core.lx"
 
 
 def _run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
@@ -40,17 +40,6 @@ def test_check_rejeita_bytes_como_chave_de_map(tmp_path: Path) -> None:
     checked = _run(["--check", str(_write(tmp_path, "val m: Map[Bytes, Int] = {}\n"))])
     assert checked.returncode == 65
     assert "Map keys must be String, Int or Bool." in checked.stderr
-
-
-def test_check_rejeita_for_in_em_bytes_no_79a(tmp_path: Path) -> None:
-    checked = _run(
-        [
-            "--check",
-            str(_write(tmp_path, "for byte in Bytes.empty() {\n  print(byte)\n}\n")),
-        ]
-    )
-    assert checked.returncode == 65
-    assert "Can only iterate over a range, a list, a map or a string." in checked.stderr
 
 
 def test_check_rejeita_tipos_e_aridades_erradas(tmp_path: Path) -> None:

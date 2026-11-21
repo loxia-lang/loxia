@@ -178,7 +178,7 @@ nativo, não mutabilidade), slice sintático, ou `Bytes` como chave de `Map` (mu
 
 ## Nota de implementação (2026-11-21)
 
-O 79a (interpretador/checker) fica com:
+O 79a/79b (interpretador/checker e backend) fica com:
 
 - `Bytes` como `Prim("Bytes")`, namespace `Bytes` e o enum built-in `BytesError`
   (`InvalidHex`/`InvalidBase64`/`InvalidUtf8`, cada um com `message`, sem import). A
@@ -191,10 +191,14 @@ O 79a (interpretador/checker) fica com:
   bits de padding não-zero rejeitados); `toText` é UTF-8 estrito;
 - `Bytes` **não** é chave de `Map` no checker e `_canonical_key` também a recusa em runtime
   (`Map[Any, V]`);
-- `--emit` de um programa com `Bytes` ainda recusa com `not supported by the backend yet`;
-  tag 13, `runtime/bytes.c` e o corpus entram no 79b;
-- `for byte in b` (produzindo `Int`) entra no 79b junto com o lowering; no 79a o checker
-  ainda recusa iteração, e o ADR-0125 fica com esta nota.
+- o 79b acrescenta o tag 13, `runtime/bytes.c` (9ª unidade), boxe em `Any`/`List`,
+  `Bytes?`, `is`/`as`, formatação e o corpus diferencial em `tests/cases/bytes/`;
+- `for byte in b` produz `Int` 0..255 nos dois motores (laço de índice no lowering);
+- método como **valor** (`val f = b.toHex`) continua lacuna declarada no backend, igual a
+  `List.push`: o caso fica em `PENDING`, e a ABI de method values para List/Map/Bytes está
+  registrada na Discussions #92;
+- `BytesError` é enum com payload de mensagem (id reservado -1), e o C constrói
+  `Result`/`BytesError` com `lox_enum_new`/`lox_enum_set`, sem classe sintética.
 
 ## Referências
 

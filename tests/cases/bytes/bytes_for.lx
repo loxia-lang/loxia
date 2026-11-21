@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# `for byte in b` yields Int 0..255; empty Bytes yields nothing.
+val data = Bytes.fromList([0, 1, 254, 255])
+for byte in data {
+  print(byte)
+}
+for byte in Bytes.empty() {
+  print(byte)
+}
+print(len(data))
+print(data[2])
+
+# expect: 0
+# expect: 1
+# expect: 254
+# expect: 255
+# expect: 4
+# expect: 254
