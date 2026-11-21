@@ -37,6 +37,31 @@ Número de bytes acumulados.
 
 Materializa uma cópia imutável; o Builder continua utilizável.
 
+### `class ChunkBuilder`
+
+Acumula blocos `Bytes` e materializa um `Bytes` por concatenação balanceada.
+
+Para montar byte a byte use `Builder`; este evita a `List[Int]` e é indicado para
+blocos grandes. O `build` copia O(n log k) no total (k = número de blocos), sem
+manter uma cópia intermediária de todos os bytes; um único bloco é devolvido como
+está (Bytes é imutável).
+
+#### `fn init()`
+
+Cria um ChunkBuilder vazio.
+
+#### `fn push(data: Bytes) -> ChunkBuilder`
+
+Anexa um bloco (blocos vazios são ignorados) e devolve o próprio builder.
+
+#### `fn len() -> Int`
+
+Número total de bytes acumulados.
+
+#### `fn build() -> Bytes`
+
+Materializa os blocos; o builder continua utilizável.
+
 ## Functions
 
 ### `fn compare(left: Bytes, right: Bytes) -> Int`

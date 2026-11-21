@@ -4,6 +4,8 @@
   "plataforma": "Linux-7.2.6-76070206-generic-x86_64-with-glibc2.39",
   "cases": {
     "branchy": 502.54,
+    "bytes_builder": 2492.3,
+    "bytes_chunked": 133.2,
     "calls_closures": 532.14,
     "classes_methods": 480.66,
     "collections": 254.74,

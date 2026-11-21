@@ -25,6 +25,16 @@ try {
 }
 print(invalid)
 
+val chunks = bytes.ChunkBuilder()
+chunks.push(Bytes.fromText("ab")).push(Bytes.fromText("cd")).push(Bytes.empty())
+print(chunks.len())
+print(chunks.build().toHex())
+print(chunks.build().toHex())
+print(bytes.ChunkBuilder().build().toHex())
+val odd = bytes.ChunkBuilder()
+odd.push(Bytes.fromText("ab")).push(Bytes.fromText("cd")).push(Bytes.fromText("ef"))
+print(odd.build().toHex())
+
 # expect: 5
 # expect: c3a94100ff
 # expect: w6lBAP8=
@@ -38,3 +48,8 @@ print(invalid)
 # expect: ffffffffffffffff
 # expect: ffffffffffffffff
 # expect: Builder.pushByte() expects 0..255.
+# expect: 4
+# expect: 61626364
+# expect: 61626364
+# expect:
+# expect: 616263646566
