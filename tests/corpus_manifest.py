@@ -193,6 +193,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/std_test.lx",
         "tests/cases/std_test_hooks.lx",
         "tests/cases/std_timex.lx",
+        "tests/cases/std_timex_invalid.lx",
     ),
     "k0": (
         "tests/cases/kernel_io.lx",

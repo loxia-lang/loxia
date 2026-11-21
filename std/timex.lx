@@ -8,7 +8,6 @@
 
 import std.results as results
 
-import std.strings as strings
 
 /// Failure to parse an ISO-8601 UTC instant or to build a civil date.
 class TimeError {
@@ -421,11 +420,21 @@ fn _isDigit(code: Int) -> Bool {
 }
 
 fn _digits(text: String, start: Int, count: Int) -> Int? {
-  val part = strings.slice(text, start, start + count)
-  if (len(part) != count) {
+  # Campos ISO têm largura fixa e só dígitos ASCII; `Int.parse` aceitaria sinais.
+  if (start < 0 or count < 0 or start + count > len(text)) {
     return nil
   }
-  return Int.parse(part)
+  var value = 0
+  var index = start
+  while (index < start + count) {
+    val code = _charCode(text, index)
+    if (not _isDigit(code)) {
+      return nil
+    }
+    value = value * 10 + (code - 48)
+    index = index + 1
+  }
+  return value
 }
 
 fn _pad(value: Int, width: Int) -> String {

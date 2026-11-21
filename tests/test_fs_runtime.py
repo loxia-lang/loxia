@@ -115,3 +115,31 @@ def test_std_fs_stat_e_write_atomic(tmp_path: Path, capsys: pytest.CaptureFixtur
     )
 
     assert capsys.readouterr().out == "true\ntrue\n4\nfalse\n"
+
+
+def test_paths_com_nul_nao_derrubam_o_interpretador(tmp_path: Path) -> None:
+    from loxia_core.diagnostics.errors import NativeError
+    from loxia_core.execution.primitives import PRIMITIVE_BY_LOX
+
+    stat = PRIMITIVE_BY_LOX["fs.stat"].py
+    rename = PRIMITIVE_BY_LOX["fs.rename"].py
+    remove = PRIMITIVE_BY_LOX["fs.remove"].py
+    mkdir = PRIMITIVE_BY_LOX["fs.mkdir"].py
+    exists = PRIMITIVE_BY_LOX["fs.exists"].py
+    list_dir = PRIMITIVE_BY_LOX["fs.listDir"].py
+
+    for call in (
+        lambda: stat("nao\0existe"),
+        lambda: rename("a\0x", str(tmp_path / "b")),
+        lambda: remove("a\0x"),
+        lambda: mkdir("a\0x"),
+    ):
+        with pytest.raises(NativeError, match="io: invalid path"):
+            call()
+
+    table = FileTable()
+    with pytest.raises(NativeError, match="io: invalid path"):
+        table.open("a\0x", "r")
+
+    assert exists("a\0x") is False
+    assert list_dir("a\0x") is None

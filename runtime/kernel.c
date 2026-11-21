@@ -385,6 +385,9 @@ void *lox_io_read_all(void) {
 /* `fs.exists`: `stat`-based check for any file, directory or other entry. */
 int32_t lox_fs_exists(const void *path_pointer) {
     const LoxStr *path = path_pointer;
+    if (memchr(path->data, '\0', (size_t)path->byte_len) != NULL) {
+        return 0;
+    }
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
     memcpy(path_copy, path->data, (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
@@ -406,6 +409,9 @@ int compare_dir_names(const void *left, const void *right) {
  */
 void *lox_fs_list_dir(const void *path_pointer) {
     const LoxStr *path = path_pointer;
+    if (memchr(path->data, '\0', (size_t)path->byte_len) != NULL) {
+        return NULL;
+    }
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
     memcpy(path_copy, path->data, (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
@@ -588,6 +594,8 @@ static const char *fs_rename_message(int error) {
         case EPERM: return "permission: can't rename.";
         case EISDIR: return "isDirectory: can't rename over a directory.";
         case ENOTDIR: return "notDirectory: can't rename.";
+        case ENOTEMPTY: return "notEmpty: can't rename.";
+        case EEXIST: return "alreadyExists: can't rename.";
         case EXDEV: return "crossDevice: can't rename across filesystems.";
         case ENOSPC: return "noSpace: can't rename.";
         default: return "io: can't rename.";
@@ -627,8 +635,14 @@ static const char *fs_stat_message(int error) {
     }
 }
 
-static char *fs_c_string(const void *pointer) {
+/* Copia uma string Lox para `char *`; NUL interno é caminho inválido, não
+ * um truncamento silencioso (o Python rejeita com ValueError). */
+static char *fs_c_string(const void *pointer, int32_t line, int32_t column) {
     const LoxStr *string = pointer;
+    if (memchr(string->data, '\0', (size_t)string->byte_len) != NULL) {
+        lox_panic(line, column, "R1000", "io: invalid path.");
+        return NULL;
+    }
     char *copy = lox_alloc_atomic((size_t)string->byte_len + 1);
     memcpy(copy, string->data, (size_t)string->byte_len);
     copy[string->byte_len] = '\0';
@@ -638,8 +652,8 @@ static char *fs_c_string(const void *pointer) {
 /* `fs.rename(src, dst)`: POSIX rename semantics — atomic, replaces the target. */
 void lox_fs_rename(const void *source_pointer, const void *target_pointer, int32_t line,
                    int32_t column) {
-    char *source = fs_c_string(source_pointer);
-    char *target = fs_c_string(target_pointer);
+    char *source = fs_c_string(source_pointer, line, column);
+    char *target = fs_c_string(target_pointer, line, column);
     if (rename(source, target) != 0) {
         lox_panic(line, column, "R1000", fs_rename_message(errno));
     }
@@ -647,7 +661,7 @@ void lox_fs_rename(const void *source_pointer, const void *target_pointer, int32
 
 /* `fs.remove(path)`: file or symlink; a directory is `isDirectory`. */
 void lox_fs_remove(const void *path_pointer, int32_t line, int32_t column) {
-    char *path = fs_c_string(path_pointer);
+    char *path = fs_c_string(path_pointer, line, column);
     if (unlink(path) != 0) {
         /* macOS returns EPERM for unlink(directory); normalize the kind to match
          * Linux (EISDIR), so the public `kind` is platform independent. */
@@ -663,7 +677,7 @@ void lox_fs_remove(const void *path_pointer, int32_t line, int32_t column) {
 
 /* `fs.mkdir(path)`: one level; an existing path is `alreadyExists`. */
 void lox_fs_mkdir(const void *path_pointer, int32_t line, int32_t column) {
-    char *path = fs_c_string(path_pointer);
+    char *path = fs_c_string(path_pointer, line, column);
     if (mkdir(path, 0777) != 0) {
         lox_panic(line, column, "R1000", fs_mkdir_message(errno));
     }
@@ -671,7 +685,7 @@ void lox_fs_mkdir(const void *path_pointer, int32_t line, int32_t column) {
 
 /* `fs.stat(path)`: `(size, mtimeMs, isDir)`, following symlinks. */
 void *lox_fs_stat(const void *path_pointer, int32_t line, int32_t column) {
-    char *path = fs_c_string(path_pointer);
+    char *path = fs_c_string(path_pointer, line, column);
     struct stat info;
     if (stat(path, &info) != 0) {
         lox_panic(line, column, "R1000", fs_stat_message(errno));
@@ -723,7 +737,6 @@ static LoxFsHandle *fs_handle_at(int64_t id, int32_t line, int32_t column) {
 int64_t lox_fs_open(const void *path_pointer, const void *mode_pointer, int32_t line,
                     int32_t column) {
     const LoxStr *mode = mode_pointer;
-    char *path = fs_c_string(path_pointer);
     int flags;
     int writable = 0;
     if (mode->byte_len == 1 && mode->data[0] == 'r') {
@@ -738,6 +751,7 @@ int64_t lox_fs_open(const void *path_pointer, const void *mode_pointer, int32_t 
         lox_panic(line, column, "R1000", "badMode: expected 'r', 'w' or 'a'.");
         return 0;
     }
+    char *path = fs_c_string(path_pointer, line, column);
     int fd;
     do {
         fd = open(path, flags, 0644);

@@ -76,6 +76,8 @@ class FileTable:
                 | (os.O_CREAT | os.O_TRUNC if mode == "w" else 0)
                 | (os.O_CREAT | os.O_APPEND if mode == "a" else 0),
             )
+        except ValueError:
+            raise NativeError("io: invalid path.") from None
         except OSError as error:
             raise NativeError(f"{_kind(error)}: can't open the file.") from None
         for index, slot in enumerate(self._handles):
