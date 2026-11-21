@@ -62,9 +62,9 @@ def test_check_rejeita_tipos_e_aridades_erradas(tmp_path: Path) -> None:
     assert checked.returncode == 65
     assert "Expected 2 arguments but got 1." in checked.stderr
 
-    checked = _run(["--check", str(_write(tmp_path, 'print(BytesError("kind"))\n'))])
+    checked = _run(["--check", str(_write(tmp_path, "print(BytesError.InvalidHex())\n"))])
     assert checked.returncode == 65
-    assert "Expected 2 arguments but got 1." in checked.stderr
+    assert "Expected 1 arguments but got 0." in checked.stderr
 
     checked = _run(["--check", str(_write(tmp_path, "print(Bytes.fromHex(1))\n"))])
     assert checked.returncode == 65
@@ -116,12 +116,6 @@ def test_concat_com_tipo_errado_vindo_de_any(tmp_path: Path) -> None:
     assert executed.stdout == "Bytes.concat() expects Bytes.\n"
 
 
-def test_check_rejeita_subclasse_de_bytes_error(tmp_path: Path) -> None:
-    checked = _run(["--check", str(_write(tmp_path, "class MyError(BytesError) {\n}\n"))])
-    assert checked.returncode == 65
-    assert "Can't subclass built-in class 'BytesError'." in checked.stderr
-
-
 def test_bytes_nao_e_chave_de_map_em_runtime(tmp_path: Path) -> None:
     program = _write(
         tmp_path,
@@ -147,12 +141,17 @@ def test_is_bytes_estreita_any(tmp_path: Path) -> None:
 def test_bytes_error_nao_e_exception(tmp_path: Path) -> None:
     program = _write(
         tmp_path,
-        'val error = BytesError("invalidHex", "detail")\n'
-        "print(error.kind)\nprint(error is Exception)\nprint(error is BytesError)\n",
+        'val error = BytesError.InvalidHex("detail")\n'
+        "print(error is BytesError)\nprint(error is Exception)\n"
+        "print(match error {\n"
+        "  BytesError.InvalidHex(message) => message,\n"
+        "  BytesError.InvalidBase64(message) => message,\n"
+        "  BytesError.InvalidUtf8(message) => message\n"
+        "})\n",
     )
     executed = _run([str(program)])
     assert executed.returncode == 0
-    assert executed.stdout == "invalidHex\nfalse\ntrue\n"
+    assert executed.stdout == "true\nfalse\ndetail\n"
 
 
 def test_check_limpo_com_bytes_opcional_e_any(tmp_path: Path) -> None:
@@ -174,8 +173,14 @@ def test_check_limpo_com_bytes_opcional_e_any(tmp_path: Path) -> None:
 def test_base64_canonico_rejeita_entradas_invalidas(tmp_path: Path, text: str) -> None:
     program = _write(
         tmp_path,
-        f'print(match Bytes.fromBase64("{text}") '
-        '{ Result.Ok(_) => "ok", Result.Err(error) => error.kind })\n',
+        f'print(match Bytes.fromBase64("{text}") {{\n'
+        '  Result.Ok(_) => "ok",\n'
+        "  Result.Err(error) => match error {\n"
+        '    BytesError.InvalidHex(_) => "invalidHex",\n'
+        '    BytesError.InvalidBase64(_) => "invalidBase64",\n'
+        '    BytesError.InvalidUtf8(_) => "invalidUtf8"\n'
+        "  }\n"
+        "})\n",
     )
     executed = _run([str(program)])
     assert executed.returncode == 0

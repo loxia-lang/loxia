@@ -320,18 +320,17 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._scopes[0]["Exception"] = ClassObjectTy("Exception")
         self._scopes[0]["RuntimeError"] = ClassObjectTy("RuntimeError")
 
-        kind_token = Token(TokenType.IDENTIFIER, "kind", None, 0)
-        bytes_message_token = Token(TokenType.IDENTIFIER, "message", None, 0)
-        self._classes["BytesError"] = ClassInfo(
+        self._enums["BytesError"] = EnumInfo(
             "BytesError",
-            None,
-            fields={
-                "kind": FieldBinding(STRING, False, kind_token),
-                "message": FieldBinding(STRING, False, bytes_message_token),
+            (),
+            (),
+            {
+                "InvalidHex": EnumVariantInfo("InvalidHex", (STRING,)),
+                "InvalidBase64": EnumVariantInfo("InvalidBase64", (STRING,)),
+                "InvalidUtf8": EnumVariantInfo("InvalidUtf8", (STRING,)),
             },
-            init=FnTy((STRING, STRING), ClassTy("BytesError"), 2),
         )
-        self._scopes[0]["BytesError"] = ClassObjectTy("BytesError")
+        self._scopes[0]["BytesError"] = EnumObjectTy("BytesError")
 
         self._native_modules = {
             "Bytes": dict(BYTES_STATICS),
@@ -1512,12 +1511,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 superclass_token,
                 f"Unknown superclass '{superclass}'.",
                 code=Code.UNKNOWN_TYPE,
-            )
-        if superclass == "BytesError" and superclass_token is not None:
-            self._error(
-                superclass_token,
-                "Can't subclass built-in class 'BytesError'.",
-                code=Code.RESERVED_NAME,
             )
 
         info = self._classes.get(name)

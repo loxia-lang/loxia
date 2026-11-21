@@ -180,8 +180,11 @@ nativo, não mutabilidade), slice sintático, ou `Bytes` como chave de `Map` (mu
 
 O 79a (interpretador/checker) fica com:
 
-- `Bytes` como `Prim("Bytes")`, namespace `Bytes` e a classe built-in `BytesError`
-  (`kind`/`message`, sem import), em vez de enum ou classe em `std.bytes`;
+- `Bytes` como `Prim("Bytes")`, namespace `Bytes` e o enum built-in `BytesError`
+  (`InvalidHex`/`InvalidBase64`/`InvalidUtf8`, cada um com `message`, sem import). A
+  decisão inicial era uma classe com `kind`/`message`; o 79b trocou por enum porque o
+  backend constrói enums em C (`lox_enum_new`/`lox_enum_set`) sem sintetizar uma classe
+  com ctor/layout, e porque o conjunto de erros é fechado e casa com `match` exaustivo;
 - métodos como **tabela nativa** (`bytes_api.py`), compartilhada por checker e dispatcher —
   `b.slice` é um valor chamável, como `List.push`;
 - decode **hex em ambas as caixas** e **base64 canônico** (padding obrigatório, sem espaços,

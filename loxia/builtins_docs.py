@@ -535,14 +535,14 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Bytes.fromHex(text: String) -> Result[Bytes, BytesError]",
         "Decodes RFC 4648 base16.\n\n"
         "Accepts lowercase and uppercase digits; an odd length or a non-hex "
-        "character is `Err(BytesError('invalidHex', ...))`.",
+        "character is `Err(BytesError.InvalidHex(message))`.",
     ),
     BuiltinDoc(
         "Bytes.fromBase64",
         "Bytes.fromBase64(text: String) -> Result[Bytes, BytesError]",
         "Decodes canonical RFC 4648 base64 (standard alphabet, padding required).\n\n"
         "Invalid, unpadded or non-canonical input is "
-        "`Err(BytesError('invalidBase64', ...))`.",
+        "`Err(BytesError.InvalidBase64(message))`.",
     ),
     BuiltinDoc(
         "Bytes.slice",
@@ -568,7 +568,7 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Bytes.toText",
         "Bytes.toText() -> Result[String, BytesError]",
         "Decodes strict UTF-8; invalid input is "
-        "`Err(BytesError('invalidUtf8', ...))` and is never replaced.",
+        "`Err(BytesError.InvalidUtf8(message))` and is never replaced.",
         kind="method",
     ),
     BuiltinDoc(
@@ -597,9 +597,9 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
     BuiltinDoc(
         "BytesError",
         "BytesError",
-        "Failure of a `Bytes` conversion with `kind` and `message`.\n\n"
-        "Kinds: `invalidHex`, `invalidBase64`, `invalidUtf8`. Available without an "
-        "import, like `RuntimeError`.",
+        "Failure of a `Bytes` conversion.\n\n"
+        "Variants: `BytesError.InvalidHex(message)`, `InvalidBase64(message)` and "
+        "`InvalidUtf8(message)`. Available without an import; use `match` to inspect it.",
         kind="type",
     ),
     BuiltinDoc(

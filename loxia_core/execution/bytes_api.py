@@ -7,9 +7,9 @@ métodos). O backend, no 79b, lê os mesmos nomes/aridades em `lower_bytes.py`.
 
 from __future__ import annotations
 
-from loxia_core.frontend.ty import BYTES, INT, STRING, ClassTy, EnumTy, FnTy, ListTy, Ty
+from loxia_core.frontend.ty import BYTES, INT, STRING, EnumTy, FnTy, ListTy, Ty
 
-BYTES_ERROR = ClassTy("BytesError")
+BYTES_ERROR = EnumTy("BytesError")
 
 
 def _result(ok: Ty) -> EnumTy:

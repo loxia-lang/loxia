@@ -306,8 +306,9 @@ print(data.toHex())              # c3a9
 - **Methods**: `slice`, `concat(other)`, `toList()`, `toText()`, `toHex()`, `toBase64()`.
   Methods are values too (`val f = b.toHex`).
 - **Text conversion**: `toText()` is strict UTF-8 and returns `Result[String, BytesError]`;
-  invalid input is never replaced. `BytesError` has `kind` (`invalidHex`, `invalidBase64`,
-  `invalidUtf8`) and `message`, and is available without an import.
+  invalid input is never replaced. `BytesError` is a built-in enum with
+  `InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`, available
+  without an import; match it to get the detail.
 - **`len` and equality**: `len(b)` counts bytes; `b == c` is structural and O(n), with an
   identity short-circuit; `b == s` is `false`. Bytes in `Any`, `List`, `Bytes?` and `?.`
   work like any other value.

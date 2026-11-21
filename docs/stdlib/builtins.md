@@ -407,13 +407,13 @@ Encodes the UTF-8 bytes of `text`.
 
 Decodes RFC 4648 base16.
 
-Accepts lowercase and uppercase digits; an odd length or a non-hex character is `Err(BytesError('invalidHex', ...))`.
+Accepts lowercase and uppercase digits; an odd length or a non-hex character is `Err(BytesError.InvalidHex(message))`.
 
 #### `Bytes.fromBase64(text: String) -> Result[Bytes, BytesError]`
 
 Decodes canonical RFC 4648 base64 (standard alphabet, padding required).
 
-Invalid, unpadded or non-canonical input is `Err(BytesError('invalidBase64', ...))`.
+Invalid, unpadded or non-canonical input is `Err(BytesError.InvalidBase64(message))`.
 
 #### `Bytes.slice(start: Int, end: Int) -> Bytes`
 
@@ -431,7 +431,7 @@ Copies the bytes into a new `List[Int]`.
 
 #### `Bytes.toText() -> Result[String, BytesError]`
 
-Decodes strict UTF-8; invalid input is `Err(BytesError('invalidUtf8', ...))` and is never replaced.
+Decodes strict UTF-8; invalid input is `Err(BytesError.InvalidUtf8(message))` and is never replaced.
 
 #### `Bytes.toHex() -> String`
 
@@ -451,9 +451,9 @@ Use an exhaustive `match` to inspect it, or the combinators in `std.results`.
 
 ### `BytesError`
 
-Failure of a `Bytes` conversion with `kind` and `message`.
+Failure of a `Bytes` conversion.
 
-Kinds: `invalidHex`, `invalidBase64`, `invalidUtf8`. Available without an import, like `RuntimeError`.
+Variants: `BytesError.InvalidHex(message)`, `InvalidBase64(message)` and `InvalidUtf8(message)`. Available without an import; use `match` to inspect it.
 
 ### `Exception`
 

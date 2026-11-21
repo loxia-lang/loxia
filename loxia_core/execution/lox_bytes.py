@@ -2,7 +2,7 @@
 """Valor `Bytes` e a superfície de `Bytes` no interpretador (ADR-0125).
 
 O valor em runtime é `bytes` do Python: imutável, contíguo e com igualdade/hash
-estruturais. Este módulo concentra o namespace estático, os métodos do valor e a classe
+estruturais. Este módulo concentra o namespace estático, os métodos do valor e o enum
 `BytesError`; o checker lê as assinaturas de `bytes_api.py`.
 """
 
@@ -15,9 +15,7 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.errors import LoxRuntimeError, NativeError
 from loxia_core.execution import numeric
 from loxia_core.execution.bytes_api import BYTES_METHODS, BYTES_STATICS
-from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumValue
-from loxia_core.execution.lox_instance import LoxInstance
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.native_module import NativeModule
 from loxia_core.frontend.token_type import TokenType
@@ -34,50 +32,15 @@ def make_err(error: object) -> LoxEnumValue:
     return LoxEnumValue("Result", "Err", (error,), "Result")
 
 
-class BytesErrorClass(LoxClass):
-    """Classe built-in `BytesError(kind, message)` (sem import)."""
-
-    def __init__(self) -> None:
-        self._kind_token = Token(TokenType.IDENTIFIER, "kind", None, 0)
-        self._message_token = Token(TokenType.IDENTIFIER, "message", None, 0)
-        super().__init__(
-            "BytesError",
-            None,
-            {},
-            {
-                "kind": FieldInfo(self._kind_token, None, False),
-                "message": FieldInfo(self._message_token, None, False),
-            },
-        )
-
-    def make(self, kind: str, message: str) -> LoxInstance:
-        instance = LoxInstance(self)
-        instance.set(self._kind_token, kind)
-        instance.set(self._message_token, message)
-        return instance
-
-    def min_arity(self) -> int:
-        return 2
-
-    def max_arity(self) -> int:
-        return 2
-
-    def call(self, interpreter: object, arguments: list[object]) -> object:
-        kind, message = arguments
-        if not isinstance(kind, str) or not isinstance(message, str):
-            raise NativeError("BytesError() expects two strings.")
-        return self.make(kind, message)
-
-    def __str__(self) -> str:
-        return "<class BytesError>"
+def make_bytes_error(variant: str, message: str) -> LoxEnumValue:
+    return LoxEnumValue("BytesError", variant, (message,), "BytesError")
 
 
 class BytesStatic:
     """Membro do namespace `Bytes` (`Bytes.fromHex`, ...)."""
 
-    def __init__(self, name: str, errors: BytesErrorClass) -> None:
+    def __init__(self, name: str) -> None:
         self._name = name
-        self._errors = errors
         self._arity = len(BYTES_STATICS[name].params)
 
     def min_arity(self) -> int:
@@ -95,9 +58,9 @@ class BytesStatic:
             case "fromText":
                 return _from_text(arguments[0])
             case "fromHex":
-                return _from_hex(arguments[0], self._errors)
+                return _from_hex(arguments[0])
             case "fromBase64":
-                return _from_base64(arguments[0], self._errors)
+                return _from_base64(arguments[0])
             case _:  # pragma: no cover - a tabela e o match são fechados
                 raise NativeError(f"Unknown Bytes member '{self._name}'.")
 
@@ -168,29 +131,14 @@ class BytesMethod:
         try:
             return make_ok(self._value.decode("utf-8"))
         except UnicodeDecodeError:
-            return make_err(self._error("invalidUtf8", "expected valid UTF-8."))
-
-    def _error(self, kind: str, message: str) -> LoxInstance:
-        return _ERRORS.make(kind, message)
+            return make_err(make_bytes_error("InvalidUtf8", "expected valid UTF-8."))
 
     def __str__(self) -> str:
         return "<native fn>"
 
 
-# Compartilhado por métodos e estáticos: as instâncias de erro não carregam estado
-# mutável, então uma única classe basta e evita threading pelo interpretador.
-_ERRORS = BytesErrorClass()
-
-
 def bytes_module() -> NativeModule:
-    return NativeModule(
-        "Bytes",
-        {name: BytesStatic(name, _ERRORS) for name in BYTES_STATICS},
-    )
-
-
-def bytes_error_class() -> BytesErrorClass:
-    return _ERRORS
+    return NativeModule("Bytes", {name: BytesStatic(name) for name in BYTES_STATICS})
 
 
 def bytes_method(value: bytes, name: Token) -> BytesMethod:
@@ -223,23 +171,23 @@ def _from_text(value: object) -> bytes:
         raise NativeError("Bytes.fromText() expects valid Unicode.") from None
 
 
-def _from_hex(value: object, errors: BytesErrorClass) -> LoxEnumValue:
+def _from_hex(value: object) -> LoxEnumValue:
     if not isinstance(value, str):
         raise NativeError("Bytes.fromHex() expects a string.")
     if len(value) % 2 != 0:
-        return make_err(errors.make("invalidHex", "expected an even number of hex digits."))
+        return make_err(make_bytes_error("InvalidHex", "expected an even number of hex digits."))
     if any(char not in _HEX_DIGITS for char in value):
-        return make_err(errors.make("invalidHex", "expected hexadecimal digits."))
+        return make_err(make_bytes_error("InvalidHex", "expected hexadecimal digits."))
     return make_ok(bytes.fromhex(value))
 
 
-def _from_base64(value: object, errors: BytesErrorClass) -> LoxEnumValue:
+def _from_base64(value: object) -> LoxEnumValue:
     if not isinstance(value, str):
         raise NativeError("Bytes.fromBase64() expects a string.")
     try:
         decoded = base64.b64decode(value, validate=True)
     except (binascii.Error, ValueError):
-        return make_err(errors.make("invalidBase64", "expected canonical base64."))
+        return make_err(make_bytes_error("InvalidBase64", "expected canonical base64."))
     if base64.b64encode(decoded).decode("ascii") != value:
-        return make_err(errors.make("invalidBase64", "expected canonical base64."))
+        return make_err(make_bytes_error("InvalidBase64", "expected canonical base64."))
     return make_ok(decoded)

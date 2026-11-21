@@ -20,12 +20,7 @@ from loxia_core.execution.limits import (
     TRACE_TAIL,
     ensure_recursion_budget,
 )
-from loxia_core.execution.lox_bytes import (
-    BytesErrorClass,
-    bytes_error_class,
-    bytes_method,
-    bytes_module,
-)
+from loxia_core.execution.lox_bytes import bytes_method, bytes_module
 from loxia_core.execution.lox_callable import LoxCallable
 from loxia_core.execution.lox_class import FieldInfo, LoxClass
 from loxia_core.execution.lox_enum import LoxEnumObject, LoxEnumValue
@@ -197,7 +192,14 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             LoxExceptionClass("RuntimeError", exception_class),
             mutable=False,
         )
-        self.globals.define("BytesError", bytes_error_class(), mutable=False)
+        self.globals.define(
+            "BytesError",
+            LoxEnumObject(
+                "BytesError",
+                {"InvalidHex": 1, "InvalidBase64": 1, "InvalidUtf8": 1},
+            ),
+            mutable=False,
+        )
         self.globals.define("Bytes", bytes_module(), mutable=False)
 
     def interpret(self, statements: list[Stmt]) -> None:
@@ -1104,13 +1106,6 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                     "Superclass must be a class.",
                     code=Code.INVALID_VALUE,
                 )
-            if isinstance(candidate, BytesErrorClass):
-                raise LoxRuntimeError(
-                    stmt.superclass.name,
-                    "Can't subclass built-in class 'BytesError'.",
-                    code=Code.INVALID_VALUE,
-                )
-
             superclass = candidate
 
         interfaces: list[LoxInterface] = []
