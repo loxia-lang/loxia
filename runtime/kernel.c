@@ -649,7 +649,15 @@ void lox_fs_rename(const void *source_pointer, const void *target_pointer, int32
 void lox_fs_remove(const void *path_pointer, int32_t line, int32_t column) {
     char *path = fs_c_string(path_pointer);
     if (unlink(path) != 0) {
-        lox_panic(line, column, "R1000", fs_remove_message(errno));
+        /* macOS returns EPERM for unlink(directory); normalize the kind to match
+         * Linux (EISDIR), so the public `kind` is platform independent. */
+        int error = errno;
+        struct stat info;
+        if (stat(path, &info) == 0 && S_ISDIR(info.st_mode)) {
+            lox_panic(line, column, "R1000", "isDirectory: can't remove a directory.");
+            return;
+        }
+        lox_panic(line, column, "R1000", fs_remove_message(error));
     }
 }
 
@@ -672,8 +680,13 @@ void *lox_fs_stat(const void *path_pointer, int32_t line, int32_t column) {
     void *tuple = lox_tuple_new(3);
     /* Tags mirror ANY_TAG_INT/ANY_TAG_BOOL (lower_model.py). */
     lox_tuple_set(tuple, 0, 1, (int64_t)info.st_size);
+#if defined(__APPLE__)
+    int64_t mtime_ms = (int64_t)info.st_mtimespec.tv_sec * 1000 +
+                       (int64_t)(info.st_mtimespec.tv_nsec / 1000000L);
+#else
     int64_t mtime_ms = (int64_t)info.st_mtim.tv_sec * 1000 +
                        (int64_t)(info.st_mtim.tv_nsec / 1000000L);
+#endif
     lox_tuple_set(tuple, 1, 1, mtime_ms);
     lox_tuple_set(tuple, 2, 3, S_ISDIR(info.st_mode) ? 1 : 0);
     return tuple;

@@ -235,6 +235,10 @@ def _fs_remove(path: str) -> None:
     try:
         os.remove(path)
     except OSError as error:
+        # macOS returns EPERM for unlink(directory); normalize to the same kind as
+        # Linux (EISDIR) so the public `kind` does not depend on the platform.
+        if os.path.isdir(path):
+            raise NativeError("isDirectory: can't remove a directory.") from None
         raise _fs_failure("can't remove", error) from None
 
 
