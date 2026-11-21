@@ -1,18 +1,81 @@
-# std.timex: dias civis, ISO/parse, addDays e parts (UTC-only).
-from std.timex import daysFromCivil, civilFromDays, iso, parseIso, addDays, parts
-print(daysFromCivil(1970, 1, 1))
-print(daysFromCivil(1969, 12, 31))
-print(civilFromDays(0))
-print(iso(0))
-print(iso(-1))
-print(iso(951782400))
-print(iso(1709210096))
-print(parseIso("2000-02-29T00:00:00Z") ?? -1)
-print(parseIso("2023-02-29T00:00:00Z") ?? -1)
-print(parseIso("2024-02-29T12:34:56Z") ?? -1)
-print(addDays(0, 1))
-print(iso(addDays(0, 1)))
-print(parts(1709210096))
+# std.timex: instantes em ms, calendário, offsets e parse ISO (UTC-only).
+import std.timex as timex
+import std.results as results
+
+print(timex.daysFromCivil(1970, 1, 1))
+print(timex.daysFromCivil(1969, 12, 31))
+print(timex.civilFromDays(0))
+print(timex.iso(0))
+print(timex.iso(-1))
+print(timex.iso(951782400000))
+print(timex.iso(1709210096000))
+print(timex.parseIso("2000-02-29T00:00:00Z") ?? -1)
+print(timex.parseIso("2023-02-29T00:00:00Z") ?? -1)
+print(timex.parseIso("2024-02-29T12:34:56Z") ?? -1)
+print(timex.addDays(0, 1))
+print(timex.iso(timex.addDays(0, 1)))
+print(timex.parts(1709210096000))
+print(timex.isLeapYear(1900))
+print(timex.isLeapYear(2000))
+print(timex.isLeapYear(2024))
+print(timex.daysInMonth(2023, 2))
+print(timex.daysInMonth(2024, 2))
+print(results.toOptional(timex.date(2024, 2, 29)))
+print(results.toOptional(timex.date(2023, 2, 29)))
+print(results.toOptional(timex.date(2024, 13, 1)))
+print(timex.weekday(0))
+print(timex.weekday(951782400000))
+print(timex.dayOfYear(951782400000))
+print(timex.isoMillis(1))
+print(timex.isoMillis(-1))
+print(timex.isoDate(951782400000))
+print(timex.isoIn(0, -180))
+print(timex.isoIn(0, 180))
+print(timex.partsIn(0, 180))
+print(timex.diffDays(86400000, 0))
+print(timex.diffDays(0, 86400000))
+print(timex.diffDays(1, 0))
+print(timex.iso(timex.addMonths(0, 1)))
+print(timex.iso(timex.addMonths(timex.daysFromCivil(2024, 1, 31) * 86400000, 1)))
+print(timex.iso(timex.addMonths(timex.daysFromCivil(2023, 1, 31) * 86400000, 1)))
+print(timex.iso(timex.addMonths(timex.daysFromCivil(2024, 3, 31) * 86400000, -1)))
+print(timex.iso(timex.addYears(timex.daysFromCivil(2024, 2, 29) * 86400000, 1)))
+print(timex.parseIso("2024-01-01") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:00.5Z") ?? -1)
+print(timex.parseIso("2024-01-01t00:00:00z") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:00+03:00") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:00.1234Z") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:00") ?? -1)
+print(timex.parseIso("2024-01-01T24:00:00Z") ?? -1)
+print(timex.parseIso("2024-01-01T00:00:60Z") ?? -1)
+var outOfRange = "no"
+try {
+  timex.iso(timex.daysFromCivil(10000, 1, 1) * 86400000)
+} except RuntimeError as error {
+  if (error.message != "") {
+    outOfRange = "raised"
+  }
+}
+print(outOfRange)
+var civilRoundTrip = true
+var day = -1000
+while (day <= 1000) {
+  val (year, month, dateDay) = timex.civilFromDays(day)
+  if (timex.daysFromCivil(year, month, dateDay) != day) {
+    civilRoundTrip = false
+  }
+  day = day + 1
+}
+print(civilRoundTrip)
+var isoRoundTrip = true
+var instant = -2000000000000
+while (instant <= 2000000000000) {
+  if (timex.parseIso(timex.isoMillis(instant)) != instant) {
+    isoRoundTrip = false
+  }
+  instant = instant + 86400000 * 37
+}
+print(isoRoundTrip)
 # expect: 0
 # expect: -1
 # expect: (1970, 1, 1)
@@ -20,9 +83,45 @@ print(parts(1709210096))
 # expect: 1969-12-31T23:59:59Z
 # expect: 2000-02-29T00:00:00Z
 # expect: 2024-02-29T12:34:56Z
-# expect: 951782400
+# expect: 951782400000
 # expect: -1
-# expect: 1709210096
-# expect: 86400
+# expect: 1709210096000
+# expect: 86400000
 # expect: 1970-01-02T00:00:00Z
 # expect: (2024, 2, 29, 12, 34, 56)
+# expect: false
+# expect: true
+# expect: true
+# expect: 28
+# expect: 29
+# expect: (2024, 2, 29)
+# expect: nil
+# expect: nil
+# expect: 4
+# expect: 2
+# expect: 60
+# expect: 1970-01-01T00:00:00.001Z
+# expect: 1969-12-31T23:59:59.999Z
+# expect: 2000-02-29
+# expect: 1969-12-31T21:00:00-03:00
+# expect: 1970-01-01T03:00:00+03:00
+# expect: (1970, 1, 1, 3, 0, 0)
+# expect: 1
+# expect: -1
+# expect: 0
+# expect: 1970-02-01T00:00:00Z
+# expect: 2024-02-29T00:00:00Z
+# expect: 2023-02-28T00:00:00Z
+# expect: 2024-02-29T00:00:00Z
+# expect: 2025-02-28T00:00:00Z
+# expect: 1704067200000
+# expect: 1704067200500
+# expect: 1704067200000
+# expect: 1704056400000
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: raised
+# expect: true
+# expect: true

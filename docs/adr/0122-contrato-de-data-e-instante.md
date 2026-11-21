@@ -178,6 +178,23 @@ Critério para revisitar: um consumidor que precise de métodos em data (três c
 a decisão de igualdade estrutural para classes ([ADR-0044](0044-identidade-classe.md));
 nesse momento a classe entra sem quebrar as funções.
 
+## Nota de implementação (2026-11-21)
+
+Implementado em [#78](https://github.com/loxia-lang/loxia/issues/78) com três decisões de
+detalhe que o texto acima não fixava:
+
+- **Faixa de `date`**: `0..9999`, como acima — é a faixa formatável. `civilFromDays` e
+  `addMonths`/`addYears` continuam prolepticos no domínio do `Int`; um instante fora da
+  faixa só falha na formatação (`RuntimeError`), não na aritmética.
+- **Fração de segundo no parse**: 1–3 dígitos (`.5` = 500 ms, `.50` = 500 ms); mais de três
+  dígitos é `invalidIso`, para não descartar precisão em silêncio.
+- **Tolerância do parse**: `t`/`z` minúsculos são aceitos (RFC 3339); a saída continua
+  canônica com `T`/`Z`. Não há `timex.now()`: `time.now()` já é ms e o módulo fica puro.
+
+Os round-trips civil e ISO são checados em laço determinístico no golden; um property test
+com `std.property` fica para quando houver gerador de data (o gerador de `Int` não cobre
+meses válidos).
+
 ## Referências
 
 - Howard Hinnant, *chrono-Compatible Low-Level Date Algorithms*.

@@ -5,6 +5,22 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ## [Unreleased]
 
+### Mudado (quebra)
+
+- **`std.timex` em milissegundos** ([ADR-0122](docs/adr/0122-contrato-de-data-e-instante.md),
+  [#78](https://github.com/loxia-lang/loxia/issues/78)): `iso`, `parts`, `parseIso` e `addDays`
+  passam a receber/devolver ms, a mesma unidade de `time.now()`. A migração é `x * 1000`; não
+  há aliases em segundos. A formatação continua truncando para o segundo (`iso`) ou expondo
+  `.mmm` (`isoMillis`).
+
+### Adicionado
+
+- **`std.timex` v2**: `date` com validação (`Result[(Int, Int, Int), TimeError]`),
+  `isLeapYear`, `daysInMonth`, `weekday` (ISO 1..7), `dayOfYear`, `addMonths`/`addYears` com
+  clamp de calendário, `diffDays` (dias civis), `isoMillis`, `isoDate`, `isoIn`/`partsIn`
+  (offset explícito `-720..840`) e parse de `YYYY-MM-DD`, fração de 1–3 dígitos, offset
+  `±HH:MM` e `t`/`z` minúsculos (RFC 3339). `TimeError.kind` ganha `invalidDate`.
+
 ## [1.2.0] - 2026-11-20
 
 ### Adicionado
