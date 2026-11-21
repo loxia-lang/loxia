@@ -1055,9 +1055,11 @@ with fixed input.
   0..15 raise `RuntimeError`.
 - `std.bytes`: `Builder` (incremental byte a byte over `List[Int]`; `push`, `pushByte`,
   `len`, `build`), `ChunkBuilder` (whole `Bytes` chunks with balanced concatenation; better
-  for large blocks), `compare` (lexicographic, returns -1/0/1) and `u16be`/`u16le`/
-  `u32be`/`u32le`/`u64be`/`u64le` (the 64-bit helpers encode the two's-complement bit
-  pattern). Pure and deterministic; in the `t2` corpus.
+  for large blocks), `compare` (lexicographic, returns -1/0/1), encoders `u16be`/`u16le`/
+  `u32be`/`u32le`/`u64be`/`u64le` and decoders `readU16be`/`readU16le`/`readU32be`/
+  `readU32le`/`readU64be`/`readU64le` (the 64-bit helpers use the two's-complement bit
+  pattern; decoders return `Int?`, nil when the bytes do not fit). Pure and deterministic;
+  in the `t2` corpus.
 - `std.paths` (POSIX, lexical, does not touch the disk): `join` (an absolute second argument wins,
   without normalizing), `dirname`, `basename`, `ext`/`stem` (a leading dot does not count as an
   extension), `normalize` (collapses slashes, resolves `.`/`..`), `isAbsolute` and `split`.

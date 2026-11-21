@@ -178,6 +178,69 @@ fn u64le(value: Int) -> Bytes {
   ])
 }
 
+/// Reads a big-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
+fn readU16be(data: Bytes, offset: Int) -> Int? {
+  if (offset < 0 or offset > len(data) - 2) {
+    return nil
+  }
+  return (data[offset] << 8) | data[offset + 1]
+}
+
+/// Reads a little-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
+fn readU16le(data: Bytes, offset: Int) -> Int? {
+  if (offset < 0 or offset > len(data) - 2) {
+    return nil
+  }
+  return data[offset] | (data[offset + 1] << 8)
+}
+
+/// Reads a big-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
+fn readU32be(data: Bytes, offset: Int) -> Int? {
+  if (offset < 0 or offset > len(data) - 4) {
+    return nil
+  }
+  return (data[offset] << 24) | (data[offset + 1] << 16) |
+    (data[offset + 2] << 8) | data[offset + 3]
+}
+
+/// Reads a little-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
+fn readU32le(data: Bytes, offset: Int) -> Int? {
+  if (offset < 0 or offset > len(data) - 4) {
+    return nil
+  }
+  return data[offset] | (data[offset + 1] << 8) |
+    (data[offset + 2] << 16) | (data[offset + 3] << 24)
+}
+
+/// Reads a big-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+///
+/// The result is the 64-bit pattern in an `Int`: a value with the high bit set
+/// appears negative, exactly like `u64be`.
+fn readU64be(data: Bytes, offset: Int) -> Int? {
+  if (offset < 0 or offset > len(data) - 8) {
+    return nil
+  }
+  var value = 0
+  for index in 0..8 {
+    value = (value << 8) | data[offset + index]
+  }
+  return value
+}
+
+/// Reads a little-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+///
+/// The high bit appears as a negative `Int`, exactly like `u64le`.
+fn readU64le(data: Bytes, offset: Int) -> Int? {
+  if (offset < 0 or offset > len(data) - 8) {
+    return nil
+  }
+  var value = 0
+  for index in 0..8 {
+    value = (value << 8) | data[offset + 7 - index]
+  }
+  return value
+}
+
 fn _unsigned(value: Int, maximum: Int, name: String) -> Nil {
   if (value < 0 or value > maximum) {
     raise RuntimeError(name + "() expects 0.." + str(maximum) + ".")

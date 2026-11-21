@@ -27,8 +27,8 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   produzindo `Int`. Referência de método permanece lacuna declarada no backend (PENDING).
 
 - **`Bytes` (fase 79c)**: `std.bytes` (`Builder` incremental sobre `List[Int]`,
-  `ChunkBuilder` para blocos, `compare` lexicográfico e `u16be/le`, `u32be/le`, `u64be/le`),
-  `fs.readBytes`/`File.readBytes`
+  `ChunkBuilder` para blocos, `compare` lexicográfico, encoders `u16be/le`, `u32be/le`,
+  `u64be/le` e decoders `readU16/32/64be/le` com `Int?`), `fs.readBytes`/`File.readBytes`
   (binário cru, grupo `fs` 11) e `digest.sha256Bytes`/`std.hash.sha256Bytes` (32 bytes
   crus, grupo `digest` 2). O kernel fecha em **40** primitivas.
 

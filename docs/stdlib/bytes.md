@@ -91,3 +91,32 @@ Encodes the 64-bit two's-complement pattern of `value` as eight big-endian bytes
 ### `fn u64le(value: Int) -> Bytes`
 
 Encodes the 64-bit two's-complement pattern of `value` as eight little-endian bytes.
+
+### `fn readU16be(data: Bytes, offset: Int) -> Int | Nil`
+
+Reads a big-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
+
+### `fn readU16le(data: Bytes, offset: Int) -> Int | Nil`
+
+Reads a little-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
+
+### `fn readU32be(data: Bytes, offset: Int) -> Int | Nil`
+
+Reads a big-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
+
+### `fn readU32le(data: Bytes, offset: Int) -> Int | Nil`
+
+Reads a little-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
+
+### `fn readU64be(data: Bytes, offset: Int) -> Int | Nil`
+
+Reads a big-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+
+The result is the 64-bit pattern in an `Int`: a value with the high bit set
+appears negative, exactly like `u64be`.
+
+### `fn readU64le(data: Bytes, offset: Int) -> Int | Nil`
+
+Reads a little-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+
+The high bit appears as a negative `Int`, exactly like `u64le`.

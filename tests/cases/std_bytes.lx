@@ -35,6 +35,18 @@ val odd = bytes.ChunkBuilder()
 odd.push(Bytes.fromText("ab")).push(Bytes.fromText("cd")).push(Bytes.fromText("ef"))
 print(odd.build().toHex())
 
+val words = Bytes.fromList([18, 52, 86, 120, 255, 255, 255, 255, 255, 255, 255, 255])
+print(bytes.readU16be(words, 0))
+print(bytes.readU16le(words, 0))
+print(bytes.readU32be(words, 0))
+print(bytes.readU32le(words, 0))
+print(bytes.readU64be(words, 4))
+print(bytes.readU64le(words, 4))
+print(bytes.readU16be(words, len(words) - 1) ?? -1)
+print(bytes.readU32be(words, -1) ?? -1)
+print(bytes.readU16be(words, 9223372036854775807) ?? -1)
+print(bytes.readU32be(bytes.u32be(305419896), 0))
+
 # expect: 5
 # expect: c3a94100ff
 # expect: w6lBAP8=
@@ -53,3 +65,13 @@ print(odd.build().toHex())
 # expect: 61626364
 # expect:
 # expect: 616263646566
+# expect: 4660
+# expect: 13330
+# expect: 305419896
+# expect: 2018915346
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: -1
+# expect: 305419896
