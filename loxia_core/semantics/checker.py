@@ -33,6 +33,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -64,6 +65,7 @@ from loxia_core.frontend.stmt import (
     Class,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     Field,
     ForIn,
@@ -3280,6 +3282,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         self._define(stmt.name, inferred)
 
+    def visit_error_stmt(self, stmt: ErrorStmt) -> None:
+        return
+
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)
         base = dict(self._narrowings)
@@ -5302,6 +5307,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return right
 
         self._error(expr.operator, "Operand must be a number.", lowerable=True)
+        return ERROR
+
+    def visit_error_expr(self, expr: ErrorExpr) -> Ty:
         return ERROR
 
     def visit_variable_expr(self, expr: Variable) -> Ty:

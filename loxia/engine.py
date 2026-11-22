@@ -317,17 +317,27 @@ class Loxia:
 
         self.flush("repl", exit_code=self._exit_code())
 
-    def parse_file(self, source: str) -> tuple[list[Token], list[Stmt]] | None:
+    def parse_file(
+        self,
+        source: str,
+        *,
+        allow_errors: bool = False,
+    ) -> tuple[list[Token], list[Stmt]] | None:
         """Parse de **um arquivo**, sem loader e sem mangling (ADR-0129).
 
-        Devolve tokens e statements na ordem do fonte; `None` quando há erro. É a base do
-        oráculo `loxia ast --file-only` e do snapshot do front-end.
+        Devolve tokens e statements na ordem do fonte; `None` quando há erro e
+        `allow_errors` é falso. Com `allow_errors`, devolve a árvore recuperada (com
+        `ErrorStmt`/`ErrorExpr`), mas o reporter continua com erro e o CLI sai 65.
         """
         statements = self._parse(source, file_only=True)
         tokens = self.last_tokens
-        if statements is None or tokens is None:
+        if tokens is None:
             return None
-        return tokens, statements
+        if statements is not None:
+            return tokens, statements
+        if allow_errors and self.last_recovered_statements is not None:
+            return tokens, self.last_recovered_statements
+        return None
 
     def dump_ast(
         self,
@@ -335,6 +345,7 @@ class Loxia:
         *,
         file_only: bool = False,
         output_format: str = "sexp",
+        allow_errors: bool = False,
     ) -> None:
         if output_format not in {"sexp", "json"}:
             raise ValueError(f"unknown AST format: {output_format}")
@@ -342,6 +353,8 @@ class Loxia:
             raise ValueError("AST JSON requires file_only parsing")
 
         statements = self._parse(source, file_only=file_only)
+        if statements is None and allow_errors:
+            statements = self.last_recovered_statements
         if statements is not None:
             if output_format == "json":
                 tokens = self.last_tokens or []

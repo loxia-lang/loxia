@@ -33,6 +33,7 @@ class Visitor[R](Protocol):
     def visit_try_stmt(self, stmt: Try) -> R: ...
     def visit_raise_stmt(self, stmt: Raise) -> R: ...
     def visit_while_stmt(self, stmt: While) -> R: ...
+    def visit_error_stmt(self, stmt: ErrorStmt) -> R: ...
 
 
 class Stmt(Protocol):
@@ -181,6 +182,18 @@ class Raise(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_raise_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ErrorStmt(Stmt):
+    """Declaração que falhou; inerte e usada só na árvore recuperada."""
+
+    start: Token
+    end: Token | None = None
+    message: str = ""
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_error_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)

@@ -5,7 +5,12 @@ from loxia_core.frontend.tokens import Token
 
 
 class ParseError(Exception):
-    pass
+    """Erro de sintaxe com o token e a mensagem, para a recuperação do parser."""
+
+    def __init__(self, token: Token | None = None, message: str = "") -> None:
+        super().__init__(message)
+        self.token = token
+        self.message = message
 
 
 def immutable_assignment_message(name: str) -> str:

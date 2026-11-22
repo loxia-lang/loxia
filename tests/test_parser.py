@@ -5,15 +5,17 @@ import sys
 
 import pytest
 
+from loxia_core.diagnostics.errors import ParseError
 from loxia_core.frontend.ast_printer import AstPrinter
 from loxia_core.frontend.destructuring import NamePattern, TuplePattern, pattern_names
-from loxia_core.frontend.expr import Call, Is, Lambda, MapLiteral, Match, Variable
+from loxia_core.frontend.expr import Call, Expr, Is, Lambda, MapLiteral, Match, Variable
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.stmt import (
     Class,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     ForIn,
     Function,
@@ -159,8 +161,9 @@ def test_error_recovery_keeps_parsing_after_bad_declaration() -> None:
 
     assert parser.reporter.had_error
     assert statements is not None
-    assert len(statements) == 1
-    assert isinstance(statements[0], Expression)
+    assert len(statements) == 2
+    assert isinstance(statements[0], ErrorStmt)
+    assert isinstance(statements[1], Expression)
 
 
 @pytest.mark.parametrize("source", ["1 + 1", "1 + 1;", "print(1)", "var x = 5"])
@@ -726,3 +729,37 @@ def test_deeply_nested_input_is_a_syntax_error_and_not_a_crash() -> None:
     assert "Too deeply nested." in [
         diagnostic.message for diagnostic in parser.reporter.batch().diagnostics
     ]
+
+
+def test_parse_progress_guard_advances_when_a_declaration_does_not_move() -> None:
+    class StuckParser(Parser):
+        def _declaration(self) -> Stmt | None:
+            return None
+
+    parser = StuckParser(Scanner("1\n").scan_tokens())
+    assert parser.parse() == []
+    assert parser._current > 0
+
+
+def test_parse_expression_rejects_trailing_tokens() -> None:
+    parser = parser_for("1 2")
+    with pytest.raises(ParseError, match="Expect end of interpolation"):
+        parser.parse_expression()
+
+
+class _RecursionParser(Parser):
+    def _expression(self) -> Expr:
+        raise RecursionError
+
+
+def test_parse_expression_reports_too_deeply_nested() -> None:
+    parser = _RecursionParser(Scanner("1\n").scan_tokens())
+    with pytest.raises(ParseError, match="Too deeply nested"):
+        parser.parse_expression()
+
+
+def test_parse_repl_falls_back_on_too_deeply_nested() -> None:
+    parser = _RecursionParser(Scanner("1\n").scan_tokens(), repl=True)
+    statements = parser.parse_repl()
+    assert statements is not None
+    assert parser.reporter.had_error

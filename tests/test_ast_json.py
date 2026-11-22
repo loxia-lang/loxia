@@ -509,6 +509,36 @@ def test_flags_are_only_accepted_by_ast(tmp_path: Path) -> None:
         assert result.stdout == ""
 
 
+def test_allow_errors_requires_file_only(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("ast", "--allow-errors", str(script))
+
+    assert result.returncode == 2
+    assert "--allow-errors requires --file-only" in result.stderr
+
+
+def test_allow_errors_emits_recovered_sexp(tmp_path: Path) -> None:
+    script = tmp_path / "bad.lx"
+    script.write_text("print(1 + )\n", encoding="utf-8")
+
+    result = _run("ast", "--file-only", "--allow-errors", str(script))
+
+    assert result.returncode == 65
+    assert "(error" in result.stdout
+
+
+def test_legacy_allow_errors_requires_file_only(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("--dump-ast", "--allow-errors", str(script))
+
+    assert result.returncode == 2
+    assert "--allow-errors requires --file-only" in result.stderr
+
+
 def test_default_ast_still_loads_modules(tmp_path: Path) -> None:
     script = tmp_path / "imports.lx"
     script.write_text('import std.strings\nprint(trim(" x "))\n', encoding="utf-8")

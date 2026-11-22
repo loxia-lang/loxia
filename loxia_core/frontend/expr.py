@@ -39,6 +39,7 @@ class Visitor[R](Protocol):
     def visit_super_expr(self, expr: Super) -> R: ...
     def visit_this_expr(self, expr: This) -> R: ...
     def visit_variable_expr(self, expr: Variable) -> R: ...
+    def visit_error_expr(self, expr: ErrorExpr) -> R: ...
 
 
 class Expr(Protocol):
@@ -90,6 +91,18 @@ class As(Expr):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_as_expr(self)
+
+
+@dataclass(frozen=True, eq=False)
+class ErrorExpr(Expr):
+    """Expressão que não pôde ser parseada; inerte e usada só na árvore recuperada."""
+
+    start: Token
+    end: Token | None = None
+    message: str = ""
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_error_expr(self)
 
 
 @dataclass(frozen=True, eq=False)

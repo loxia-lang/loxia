@@ -62,6 +62,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -91,6 +92,7 @@ from loxia_core.frontend.stmt import (
     Class,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     ForIn,
     Function,
@@ -1423,6 +1425,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         self.environment.define(stmt.name.lexeme, val, stmt.mutable)
 
+    def visit_error_expr(self, expr: ErrorExpr) -> object:
+        raise LoxRuntimeError(expr.start, expr.message or "Invalid syntax.")
+
     def visit_variable_expr(self, expr: Variable) -> object:
         return self.look_up_variable(expr.name, expr)
 
@@ -1466,6 +1471,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return left
 
         return self._evaluate(expr.right)
+
+    def visit_error_stmt(self, stmt: ErrorStmt) -> None:
+        raise LoxRuntimeError(stmt.start, stmt.message or "Invalid syntax.")
 
     def visit_while_stmt(self, stmt: While) -> None:
         while self._is_truthy(self._evaluate(stmt.condition)):

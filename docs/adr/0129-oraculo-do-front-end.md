@@ -41,7 +41,8 @@ reescrita silenciosa do oráculo.
 
 `loxia ast --file-only` transforma **exatamente um arquivo**, sem loader, sem resolução de
 `import` e sem mangling. O padrão de `loxia ast` continua o programa inteiro (compatível), e
-`--file-only` também vale para o modo legado `--dump-ast`.
+`--file-only` também vale para o modo legado `--dump-ast`. `--allow-errors` é opt-in:
+devolve a árvore recuperada do ADR-0132, mas mantém exit 65.
 
 ### 2. `--format=json` v1 é o contrato de máquina e exige `--file-only`
 
