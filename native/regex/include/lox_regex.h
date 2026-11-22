@@ -16,7 +16,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define LOXR_ABI_VERSION 1u
+#define LOXR_ABI_VERSION 2u
 
 /* Modes (ADR-0131): linear is the safe default. */
 #define LOXR_MODE_LINEAR 0u
@@ -62,6 +62,14 @@ int32_t loxr_compile(const uint8_t *pattern, size_t len, uint32_t flags,
  */
 int32_t loxr_match(int64_t handle, const uint8_t *subject, size_t len,
                    size_t start, int64_t *out_spans, size_t capacity);
+
+/*
+ * Writes the capture-group names of `handle`, each followed by a NUL byte (group
+ * 0 is empty; an unnamed group is empty). With `out == NULL` returns the needed
+ * byte count; with a smaller `capacity` returns LOXR_ERR_CAPACITY. On success
+ * returns the number of bytes written.
+ */
+int32_t loxr_group_names(int64_t handle, uint8_t *out, size_t capacity);
 
 /* Releases a handle. Idempotent; safe on an unknown handle. */
 void loxr_free(int64_t handle);

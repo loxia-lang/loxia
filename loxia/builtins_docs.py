@@ -539,6 +539,13 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "Exceeding the backtracking limit raises `RuntimeError`.",
     ),
     BuiltinDoc(
+        "regex_engine.groupNames",
+        "regex_engine.groupNames(handle: Int) -> List[String]",
+        "Capture-group names of a compiled pattern, one entry per group.\n\n"
+        "Index `0` is always the empty string; unnamed groups are empty too, so a "
+        "name maps to its index and the public `regex` module expands `$name`.",
+    ),
+    BuiltinDoc(
         "regex_engine.free",
         "regex_engine.free(handle: Int) -> Nil",
         "Releases a compiled pattern.\n\n"

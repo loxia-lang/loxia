@@ -363,6 +363,12 @@ def _regex_find(handle: int, subject: str, start: int) -> LoxList | None:
     return LoxList(values)
 
 
+def _regex_group_names(handle: int) -> LoxList:
+    if handle < 1:
+        raise NativeError("regex_engine.groupNames() expects a handle from compile.")
+    return LoxList(list(regex_runtime.group_names(handle)))
+
+
 def _regex_free(handle: int) -> None:
     if handle < 1:
         raise NativeError("regex_engine.free() expects a handle from compile.")
@@ -664,6 +670,14 @@ PRIMITIVES: tuple[Primitive, ...] = (
         (INT, STRING, INT),
         union(ListTy(INT), NIL),
         _regex_find,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.groupNames",
+        "lox_regex_engine_group_names",
+        (INT,),
+        ListTy(STRING),
+        _regex_group_names,
         site=True,
     ),
     Primitive(

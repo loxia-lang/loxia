@@ -52,10 +52,12 @@ class Match {
 class Regex {
   var _handle: Int
   var _closed: Bool
+  var _names: List[String]
 
   /// Wraps a native handle; prefer `compile` or `tryCompile`.
-  init(handle: Int) {
+  init(handle: Int, names: List[String]) {
     this._handle = handle
+    this._names = names
     this._closed = false
   }
 
@@ -107,12 +109,14 @@ class Regex {
     return out
   }
 
-  /// Replaces the first match. `$0` is the whole match, `$1`.. the groups and
-  /// `$$` a literal dollar; an unmatched group expands to the empty string.
+  /// Replaces the first match. `$0` is the whole match, `$1`.. the numbered
+  /// groups, `$name`/`${name}` the named ones and `$$` a literal dollar (use
+  /// `\${name}` in a Loxia string: `${...}` is interpolation). An unmatched
+  /// group expands to the empty string.
   fn replace(text: String, replacement: String) -> String {
     val found = this.find(text)
     if (found != nil) {
-      return substr(text, 0, found.start) + _expand(replacement, found) +
+      return substr(text, 0, found.start) + _expand(replacement, found, this._names) +
         substr(text, found.end, len(text))
     }
     return text
@@ -126,7 +130,7 @@ class Regex {
     while (offset <= len(text)) {
       val found = this.findFrom(text, offset)
       if (found != nil) {
-        out = out + substr(text, last, found.start) + _expand(replacement, found)
+        out = out + substr(text, last, found.start) + _expand(replacement, found, this._names)
         last = found.end
         if (found.end == found.start) {
           offset = found.end + 1
@@ -232,7 +236,8 @@ fn _compile(
   val flags = _flags(caseless, multiline, dotall, extended)
   val result = regex_engine.compile(pattern, flags, mode)
   if (result[0] == 1) {
-    return Result.Ok(Regex(result[1]))
+    val handle = result[1]
+    return Result.Ok(Regex(handle, regex_engine.groupNames(handle)))
   }
   return Result.Err(RegexError(_error_kind(result[1])))
 }
@@ -281,19 +286,38 @@ fn _from_spans(text: String, spans: List[Int]) -> Match {
   return Match(substr(text, spans[0], spans[1]), spans[0], spans[1], groups)
 }
 
-fn _expand(replacement: String, found: Match) -> String {
+fn _expand(replacement: String, found: Match, names: List[String]) -> String {
   var out = ""
   var index = 0
   while (index < len(replacement)) {
     if (charCodeAt(replacement, index) == 36) {
       if (index + 1 < len(replacement)) {
         val next = charCodeAt(replacement, index + 1)
-        if (next == 36) {
+        if (next == 123) {
+          var end = index + 2
+          while (end < len(replacement) and charCodeAt(replacement, end) != 125) {
+            end = end + 1
+          }
+          if (end < len(replacement)) {
+            out = out + _named_text(found, names, substr(replacement, index + 2, end))
+            index = end + 1
+          } else {
+            out = out + "$"
+            index = index + 1
+          }
+        } elif (next == 36) {
           out = out + "$"
           index = index + 2
         } elif (next >= 48 and next <= 57) {
           out = out + _group_text(found, next - 48)
           index = index + 2
+        } elif (_is_name_start(next)) {
+          var end = index + 1
+          while (end < len(replacement) and _is_name_char(charCodeAt(replacement, end))) {
+            end = end + 1
+          }
+          out = out + _named_text(found, names, substr(replacement, index + 1, end))
+          index = end
         } else {
           out = out + "$"
           index = index + 1
@@ -308,6 +332,34 @@ fn _expand(replacement: String, found: Match) -> String {
     }
   }
   return out
+}
+
+fn _is_name_start(code: Int) -> Bool {
+  if (code >= 65 and code <= 90) {
+    return true
+  }
+  if (code >= 97 and code <= 122) {
+    return true
+  }
+  return code == 95
+}
+
+fn _is_name_char(code: Int) -> Bool {
+  if (_is_name_start(code)) {
+    return true
+  }
+  return code >= 48 and code <= 57
+}
+
+fn _named_text(found: Match, names: List[String], name: String) -> String {
+  var index = 0
+  while (index < len(names)) {
+    if (len(names[index]) > 0 and names[index] == name) {
+      return _group_text(found, index)
+    }
+    index = index + 1
+  }
+  return ""
 }
 
 fn _group_text(found: Match, group: Int) -> String {

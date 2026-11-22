@@ -2188,6 +2188,11 @@ def test_regex_module_diferencial_nativo(
         '  print(len(words.findAll("café ☕")))\n'
         "  words.close()\n"
         "}\n"
+        'val named = regex.tryCompile("(?P<a>[a-z]+)-(?P<b>[0-9]+)")\n'
+        "if (named != nil) {\n"
+        '  print(named.replaceAll("x-1 y-2", "$b/$a"))\n'
+        "  named.close()\n"
+        "}\n"
         'print(regex.tryCompile("("))\n',
     )
     interpreted = _interpret(path)
@@ -2200,3 +2205,4 @@ def test_regex_module_diferencial_nativo(
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
     assert "<a>1 <b>2" in interpreted.stdout
+    assert "1/x 2/y" in interpreted.stdout

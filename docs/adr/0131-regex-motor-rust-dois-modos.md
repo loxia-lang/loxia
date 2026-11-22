@@ -75,9 +75,13 @@ própria, num crate do monorepo, distribuído em dois estágios.**
   `find(handle, subject, start)`, `free(handle)`. Três primitivas, teto 4, fora dos 40 do
   kernel. O nome é `find`, não `match`: `match` é palavra-chave da linguagem e não pode ser
   membro acessado; a função C correspondente continua `loxr_match`.
-- `bundled/regex.lx`: `Regex`, `Match`, `RegexError`, `Mode`; `compile`,
-  `isMatch`, `find`, `findAll`, `replace`, `replaceAll`, `split`; `$1`/`${name}` expandido
-  em Lox; sem callback C→Lox na v1.
+- `bundled/regex.lx`: `Regex`, `Match`, `RegexError`; `compile`/`compileFull` e
+  `tryCompile`/`tryCompileFull`, `isMatch`, `find`/`findFrom`, `findAll`, `replace`,
+  `replaceAll`, `split`; `$1`/`$name`/`${name}` expandido em Lox; sem callback C→Lox na v1.
+  Notas de implementação (2026-11): `Mode` virou `compile`/`compileFull` porque variante de
+  enum não pode ser valor default; `find` + `findFrom` porque parâmetro default em método é
+  `E4001`; `$name` é a forma prática de substituição, `${name}` exige `\$` no fonte por
+  causa da interpolação; `regex_engine.groupNames` é a quarta primitiva do orçamento.
 - Compile devolve `Result[Regex, RegexError]`; o primitivo usa um protocolo `List[Int]`
   (`[1, handle]` / `[0, offset]`) porque a tabela de primitivas não tem tipo algébrico.
 - Classificação `core` (I1/I3). Sem `cargo` na máquina, `E3022` antes de executar.

@@ -20,7 +20,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   (`import regex`) com motor Rust — linear por padrão (`compile`) e `Mode.Full`
   (`compileFull`, backrefs/lookaround com limite de backtracking). `Regex`, `Match`,
   `RegexError`, `tryCompile`/`tryCompileFull`, `find`/`findFrom`/`findAll`,
-  `replace`/`replaceAll`/`split`, offsets em code points e substituição `$0`..`$9`.
+  `replace`/`replaceAll`/`split`, offsets em code points e substituição `$0`..`$9`/`$name`.
   Roda nos dois motores; exige o toolchain Rust (`E3022` sem `cargo`; `check` não
   exige). `tools/check_pr_title.lx` passa a ser o primeiro check de CI escrito em Loxia.
 

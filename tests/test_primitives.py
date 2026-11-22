@@ -70,6 +70,7 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "digest.sha256Bytes",
         "regex_engine.compile",
         "regex_engine.find",
+        "regex_engine.groupNames",
         "regex_engine.free",
     ]
     signatures = {primitive.lox: (primitive.params, primitive.result) for primitive in PRIMITIVES}

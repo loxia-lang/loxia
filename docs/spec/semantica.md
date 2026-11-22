@@ -1142,7 +1142,8 @@ same name. Today: `regex`.
   limit; `tryCompile`/`tryCompileFull` return `nil` instead of the error. `Regex.isMatch`,
   `find(text)`, `findFrom(text, start)`, `findAll(text)`, `replace`, `replaceAll`, `split`
   and `close` (idempotent; there is no finalizer). `Match` carries group 0 (`text`, `start`,
-  `end`) and `groups: List[String?]` for groups 1..n. Replacement expands `$0`..`$9` and
+  `end`) and `groups: List[String?]` for groups 1..n. Replacement expands `$0`..`$9`,
+  `$name` and `${name}` (escape as `\${name}`: `${...}` is string interpolation) and
   `$$`; an unmatched group expands to the empty string. Offsets count code points.
   Exceeding the backtracking limit raises `RuntimeError`. The module requires the Rust
   toolchain: without `cargo`, `run`/`build` refuse with `E3022` before executing, while

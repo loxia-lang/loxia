@@ -95,6 +95,8 @@ void * lox_digest_sha256_bytes(const void *);
 void * lox_regex_engine_compile(const void *, int64_t, int64_t, int32_t, int32_t);
 /* regex_engine.find */
 void * lox_regex_engine_find(int64_t, const void *, int64_t, int32_t, int32_t);
+/* regex_engine.groupNames */
+void * lox_regex_engine_group_names(int64_t, int32_t, int32_t);
 /* regex_engine.free */
 void lox_regex_engine_free(int64_t, int32_t, int32_t);
 

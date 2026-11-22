@@ -47,6 +47,12 @@ if (words != nil) {
   print(words.replaceAll("a1 b2", "<$0>"))
   words.close()
 }
+val named = regex.tryCompile("(?P<a>[a-z]+)-(?P<b>[0-9]+)")
+if (named != nil) {
+  print(named.replaceAll("x-1 y-2", "$b/$a"))
+  print(named.replace("x-1", "\${b}:\${a}"))
+  named.close()
+}
 print(regex.tryCompile("("))
 val bad = regex.compile("(")
 print(match bad {
@@ -60,7 +66,7 @@ print(match bad {
     result = _run(script)
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "café\n<a>1 <b>2\nnil\nsyntax\n"
+    assert result.stdout == "café\n<a>1 <b>2\n1/x 2/y\n1:x\nnil\nsyntax\n"
 
 
 def test_bundled_name_wins_over_the_project(

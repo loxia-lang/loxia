@@ -58,7 +58,7 @@ Creates a match; prefer the values returned by `find`/`findAll`.
 
 A compiled pattern. Close it to release the native handle.
 
-#### `fn init(handle: Int)`
+#### `fn init(handle: Int, names: List[String])`
 
 Wraps a native handle; prefer `compile` or `tryCompile`.
 
@@ -85,8 +85,10 @@ code point, so `findAll` always terminates.
 
 #### `fn replace(text: String, replacement: String) -> String`
 
-Replaces the first match. `$0` is the whole match, `$1`.. the groups and
-`$$` a literal dollar; an unmatched group expands to the empty string.
+Replaces the first match. `$0` is the whole match, `$1`.. the numbered
+groups, `$name`/`${name}` the named ones and `$$` a literal dollar (use
+`\${name}` in a Loxia string: `${...}` is interpolation). An unmatched
+group expands to the empty string.
 
 #### `fn replaceAll(text: String, replacement: String) -> String`
 

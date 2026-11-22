@@ -94,6 +94,14 @@ def test_unknown_handle_raises(built: Path) -> None:
         match_fn(999_999, "abc", 0)
 
 
+def test_group_names(built: Path) -> None:
+    code, handle = regex_runtime.compile_pattern("(?P<word>[a-z]+)(?P<num>[0-9]+)", 0, 0)
+    assert code == 0
+
+    assert regex_runtime.group_names(handle) == ["", "word", "num"]
+    regex_runtime.free_pattern(handle)
+
+
 def test_build_is_cached(built: Path) -> None:
     assert built.is_file()
     assert regex_runtime.library_path() == built

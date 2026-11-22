@@ -15,7 +15,7 @@ from typing import Final
 from loxia_core.diagnostics.errors import NativeError
 from loxia_core.native_build import library as native_library
 
-ABI_VERSION: Final = 1
+ABI_VERSION: Final = 2
 MODE_LINEAR: Final = 0
 MODE_FULL: Final = 1
 
@@ -56,6 +56,14 @@ def _load() -> ctypes.CDLL:
             ctypes.c_size_t,
             ctypes.c_size_t,
             ctypes.POINTER(ctypes.c_int64),
+            ctypes.c_size_t,
+        ]
+
+        names_fn = loaded.loxr_group_names
+        names_fn.restype = ctypes.c_int32
+        names_fn.argtypes = [
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_uint8),
             ctypes.c_size_t,
         ]
 
@@ -102,6 +110,21 @@ def match_pattern(handle: int, subject: str, start: int) -> tuple[int, list[int]
     if code < 0:
         return code, []
     return code, [int(spans[index]) for index in range(code)]
+
+
+def group_names(handle: int) -> list[str]:
+    """Nomes dos grupos de captura (índice 0 vazio); `[]` quando não há grupos."""
+    engine = _load()
+    needed = int(engine.loxr_group_names(handle, None, 0))
+    if needed < 0:
+        raise NativeError("regex engine internal error.")
+    if needed == 0:
+        return []
+    buffer = (ctypes.c_uint8 * needed)()
+    written = int(engine.loxr_group_names(handle, buffer, needed))
+    if written != needed:
+        raise NativeError("regex engine internal error.")
+    return [part.decode("utf-8") for part in bytes(buffer)[:-1].split(b"\0")]
 
 
 def free_pattern(handle: int) -> None:

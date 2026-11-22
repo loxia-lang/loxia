@@ -99,6 +99,33 @@ void *lox_regex_engine_find(int64_t handle, const void *subject_pointer, int64_t
     return result;
 }
 
+void *lox_regex_engine_group_names(int64_t handle, int32_t line, int32_t column) {
+    int32_t needed = loxr_group_names(handle, NULL, 0);
+    if (needed < 0) {
+        lox_panic(line, column, "R1000", regex_error_message(needed));
+        return NULL;
+    }
+    LoxList *result = lox_list_new();
+    if (needed == 0) {
+        return result;
+    }
+    uint8_t *buffer = lox_alloc_atomic((size_t)needed);
+    if (loxr_group_names(handle, buffer, (size_t)needed) != needed) {
+        lox_panic(line, column, "R1000", "regex engine internal error.");
+        return NULL;
+    }
+    int32_t start = 0;
+    for (int32_t index = 0; index < needed; index++) {
+        if (buffer[index] != 0) {
+            continue;
+        }
+        void *name = lox_str_from_cstr((const char *)buffer + start);
+        lox_list_push(result, 4, (int64_t)name);
+        start = index + 1;
+    }
+    return result;
+}
+
 void lox_regex_engine_free(int64_t handle, int32_t line, int32_t column) {
     if (handle < 1) {
         lox_panic(line, column, "R1000",

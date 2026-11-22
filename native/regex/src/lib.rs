@@ -15,7 +15,7 @@ use std::sync::{Mutex, Once, OnceLock};
 use fancy_regex::RegexBuilder as FullBuilder;
 use regex::RegexBuilder as LinearBuilder;
 
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 
 pub const MODE_LINEAR: u32 = 0;
 pub const MODE_FULL: u32 = 1;
@@ -270,6 +270,46 @@ pub extern "C" fn loxr_match(
     .unwrap_or(ERR_PANIC)
 }
 
+/// Writes the capture-group names of `handle`, each followed by a NUL byte: group
+/// 0 is always empty, an unnamed group is empty. With `out == NULL` returns the
+/// needed byte count (so the caller can size the buffer); with a smaller
+/// `capacity` returns `ERR_CAPACITY`.
+#[no_mangle]
+pub extern "C" fn loxr_group_names(handle: i64, out: *mut u8, capacity: usize) -> i32 {
+    init();
+    catch_unwind(AssertUnwindSafe(|| {
+        if handle < 1 {
+            return ERR_ARGS;
+        }
+        let state = slots().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(Some(engine)) = state.engines.get((handle - 1) as usize) else {
+            return ERR_HANDLE;
+        };
+        let names: Vec<Option<&str>> = match engine {
+            Engine::Linear(re) => re.capture_names().collect(),
+            Engine::Full(re) => re.capture_names().collect(),
+        };
+        let mut buffer = Vec::with_capacity(names.len());
+        for name in &names {
+            if let Some(name) = name {
+                buffer.extend_from_slice(name.as_bytes());
+            }
+            buffer.push(0);
+        }
+        if out.is_null() {
+            return buffer.len() as i32;
+        }
+        if buffer.len() > capacity {
+            return ERR_CAPACITY;
+        }
+        if !buffer.is_empty() {
+            unsafe { std::ptr::copy_nonoverlapping(buffer.as_ptr(), out, buffer.len()) };
+        }
+        buffer.len() as i32
+    }))
+    .unwrap_or(ERR_PANIC)
+}
+
 #[no_mangle]
 pub extern "C" fn loxr_free(handle: i64) {
     init();
@@ -399,6 +439,30 @@ mod tests {
     }
 
     #[test]
+    fn group_names_are_reported() {
+        let names = |pattern: &str, mode: u32| {
+            let handle = compile(pattern, 0, mode);
+            let needed = loxr_group_names(handle, std::ptr::null_mut(), 0);
+            assert!(needed > 0, "pattern {pattern} has at least group 0");
+            let mut buffer = vec![0u8; needed as usize];
+            assert_eq!(loxr_group_names(handle, buffer.as_mut_ptr(), buffer.len()), needed);
+            loxr_free(handle);
+            buffer[..buffer.len() - 1]
+                .split(|byte| *byte == 0)
+                .map(|part| String::from_utf8(part.to_vec()).unwrap())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(names("([a-z]+) +([0-9]+)", MODE_LINEAR), vec!["", "", ""]);
+        assert_eq!(
+            names("(?P<word>[a-z]+)(?P<num>[0-9]+)", MODE_LINEAR),
+            vec!["", "word", "num"]
+        );
+        assert_eq!(
+            names("(?P<a>a)(?P<b>b)", MODE_FULL),
+            vec!["", "a", "b"]
+        );
+    }
+
     fn free_is_idempotent() {
         let handle = compile("a", 0, MODE_LINEAR);
         loxr_free(handle);
