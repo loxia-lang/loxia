@@ -13,12 +13,17 @@ mudança de oráculo, não flake.
 
 from __future__ import annotations
 
+import io
 import json
+from contextlib import redirect_stderr
 from pathlib import Path
 from typing import cast
 
 import pytest
 
+from loxia.engine import Loxia
+from loxia.formatter import format_source
+from tests.corpus_manifest import COMPILE_ERRORS
 from tools.oracle_snapshot import (
     MANIFEST,
     _diagnostics,
@@ -98,6 +103,32 @@ def test_diagnostics_are_cwd_independent(monkeypatch: pytest.MonkeyPatch, tmp_pa
     span = cast(dict[str, object], items[0]["span"])
 
     assert span["file"] == "tests/cases/errors/division_by_zero.lx"
+
+
+def test_compile_errors_are_check_errors() -> None:
+    for relative in sorted(COMPILE_ERRORS):
+        path = MANIFEST.parents[2] / relative
+        lox = Loxia(max_errors=0)
+        lox.use_file(relative)
+        with redirect_stderr(io.StringIO()):
+            lox.check(path.read_text(encoding="utf-8"))
+
+        assert lox.reporter.had_error, relative
+
+
+def test_formatter_is_idempotent_over_corpus() -> None:
+    parseable = 0
+    for path in corpus_files():
+        source = path.read_text(encoding="utf-8")
+        first = format_source(source)
+        if first is None:
+            continue
+        second = format_source(first.text)
+        assert second is not None, path
+        assert second.text == first.text, path
+        parseable += 1
+
+    assert parseable >= 300
 
 
 def test_manifest_is_canonical_json() -> None:

@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from loxia.engine import Loxia
-from tests.corpus_manifest import LEVELS, NEGATIVE, PENDING
+from tests.corpus_manifest import COMPILE_ERRORS, LEVELS, NEGATIVE, PENDING
 
 MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
 
@@ -442,13 +442,15 @@ def test_manifesto_referencia_casos_existentes() -> None:
     for cases in LEVELS.values():
         for case in cases:
             assert (ROOT / case).exists(), case
+    for case in COMPILE_ERRORS:
+        assert (ROOT / case).exists(), case
 
 
 CASES_DIR = ROOT / "tests" / "cases"
 
 
 def _corpus_paths() -> set[str]:
-    paths = set(CASES_DIR.glob("*.lx")) | set((CASES_DIR / "bytes").glob("*.lx"))
+    paths = set(CASES_DIR.rglob("*.lx"))
     return {path.relative_to(ROOT).as_posix() for path in paths}
 
 
@@ -459,8 +461,8 @@ def test_corpus_classificado() -> None:
     pending = set(PENDING)
     negative = set(NEGATIVE)
 
-    assert levels | pending | negative == paths
-    assert len(levels) + len(pending) + len(negative) == len(paths)
+    assert levels | pending | negative | COMPILE_ERRORS == paths
+    assert len(levels) + len(pending) + len(negative) + len(COMPILE_ERRORS) == len(paths)
     for case, level in PENDING.items():
         assert level in {"l2", "l4", "l5", "l6"}, case
 
