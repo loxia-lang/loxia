@@ -3,6 +3,8 @@
 
 FILE ?=
 COVERAGE_JOBS ?= 4
+# Workers do pytest-xdist no loop local. `auto` usa o número de CPUs; `0` desliga.
+TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
@@ -11,7 +13,8 @@ TAG ?= v1.0.0
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
 	@echo "make test                      pytest (suite completa)"
-	@echo "make test-fast                 pytest sem os testes nativos (loop local)"
+	@echo "make test-fast                 pytest sem nativos/instalação, em paralelo (loop local)"
+	@echo "make test-fast TEST_JOBS=0     pytest sem paralelismo (depurar um caso)"
 	@echo "make case                      runner golden, sem pytest"
 	@echo "make lint                      ruff"
 	@echo "make type                      mypy strict"
@@ -54,7 +57,7 @@ test:
 	uv run pytest
 
 test-fast:
-	uv run pytest -m "not backend"
+	uv run pytest -m "not backend and not install" -n $(TEST_JOBS)
 
 oracle:
 	uv run python tools/oracle_snapshot.py --check

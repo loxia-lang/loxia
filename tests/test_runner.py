@@ -72,3 +72,17 @@ def test_main_exits_2_when_every_case_is_skipped(
     assert exit_code == 2
     assert "skip" in captured.out
     assert "0 casos executados" in captured.err
+
+
+@pytest.mark.parametrize(
+    "name", ["arithmetic.lx", "errors/undefined_variable.lx", "errors/assign_val_global.lx"]
+)
+def test_fast_path_bate_com_subprocesso(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = runner.CASES_DIR / name
+
+    fast = runner.execute(path)
+
+    monkeypatch.setattr(runner, "USE_SUBPROCESS", True)
+    slow = runner.execute(path)
+
+    assert fast == slow
