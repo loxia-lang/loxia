@@ -103,6 +103,7 @@ class Loxia:
             Path(path).resolve() for path in (module_paths or ())
         )
         self._watched_files: set[Path] = set()
+        self._module_files: dict[str, Path] = {}
         self._warn_unused_imports = False
         self._jsonl_started = False
         self._revision = 0
@@ -138,6 +139,7 @@ class Loxia:
         self.reporter.file = self._file
         self._sources.add(self._file, source)
         self._watched_files = set()
+        self._module_files = {}
 
         scanner = Scanner(source, self.reporter)
         tokens = scanner.scan_tokens()
@@ -208,6 +210,10 @@ class Loxia:
             if loaded is None:
                 return None
             self._watched_files = {module.path for module in loader.modules.values()}
+            self._module_files = {
+                ModuleLoader.display_path(name): module.path
+                for name, module in loader.modules.items()
+            }
             if manifest_path is not None:
                 self._watched_files.add(manifest_path)
             statements = loaded
@@ -443,6 +449,11 @@ class Loxia:
     @property
     def watched_files(self) -> set[Path]:
         return set(self._watched_files)
+
+    @property
+    def module_files(self) -> dict[str, Path]:
+        """Caminho lógico (`std/io.lx`) -> caminho absoluto dos módulos da última análise."""
+        return dict(self._module_files)
 
     @property
     def sources(self) -> SourceMap:

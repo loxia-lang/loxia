@@ -445,7 +445,7 @@ class ModuleLoader:
                 self._error(token, f"Can't read module '{name}'.")
         # Nome lógico é único (dois roots com o mesmo módulo viram ambiguidade), então
         # o display não colide e não depende de CWD/absoluto (I3).
-        display = self._display_path(name)
+        display = self.display_path(name)
         self.sources.add(display, source)
         previous = self.reporter.file
         self.reporter.file = display
@@ -503,7 +503,7 @@ class ModuleLoader:
         self._order.append(name)
 
     @staticmethod
-    def _display_path(name: str) -> str:
+    def display_path(name: str) -> str:
         """Nome lógico do módulo; único e sem depender de CWD/absoluto (I3)."""
         return name.replace(".", "/") + SOURCE_SUFFIX
 
