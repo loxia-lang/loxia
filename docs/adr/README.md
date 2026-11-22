@@ -184,6 +184,7 @@ TODO item.
 | [0130](0130-regex-pcre2-embutido.md) | Regex: vendored PCRE2, one engine behind `run` (ctypes) and `--emit=exe`, `bundled/regex` | superseded by ADR-0131 | 2026-11-22 |
 | [0131](0131-regex-motor-rust-dois-modos.md) | Regex: Rust engine (`regex` linear by default, `fancy-regex` opt-in), own C ABI, two-stage distribution | accepted (implemented in #119) | 2026-11-22 |
 | [0132](0132-nos-de-erro-na-arvore-recuperada.md) | Recovered AST: inert `ErrorStmt`/`ErrorExpr`, line-aware recovery, `--allow-errors` opt-in | accepted (implemented) | 2026-11-22 |
+| [0133](0133-suite-rapida-in-process-e-xdist.md) | Fast suite: CLI in-process for case tests, xdist in the local loop, real processes where they matter | accepted (implemented) | 2026-11-22 |
 
 
 ## Next decisions that call for an ADR

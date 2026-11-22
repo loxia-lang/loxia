@@ -191,7 +191,7 @@ uv run main.py --dump-ast s.lx  # AST as S-expression, no execution
 uv run main.py --check s.lx     # type check (does not run)
 uv run main.py --debug s.lx     # check Int overflow at runtime
 make test                       # full suite (includes native backend)
-make test-fast                  # pytest without native tests (~2 min)
+make test-fast                  # pytest without native/install tests, xdist (~15-20 s)
 make check                      # full gate: lint + format + types + tests
 make check-fast                 # local loop: lint + format + types + tests without native
 make bench                      # benchmarks vs baseline
@@ -260,21 +260,30 @@ a `dev` → `main` PR with a merge commit, then a tag from `main`. Never commit 
 
 ```bash
 make test                              # everything (unit + golden + native backend)
-make test-fast                         # without `-m backend` (local loop)
+make test-fast                         # without backend/install; xdist (local loop)
+make test-fast TEST_JOBS=0             # serial, to debug one case
 uv run pytest -m backend               # native builds only
 uv run pytest -k block                 # subset
 uv run python -m tests.runner <filter> # golden cases without pytest
 ```
 
-The backend dominates the suite (~80%): each manifest case builds a binary. Runtime units are
+The backend dominates `make test` (~80%): each manifest case builds a binary. Runtime units are
 cached by a hash of sources+headers/compiler/flags, so each build drops from ~0.55 s to
-~0.15 s. Use `make check-fast` while iterating and `make check` before committing.
+~0.15 s. `make test-fast` runs the ~1.8k non-backend tests in **parallel** (`-n auto`) and
+skips the wheel-install test; the loop is ~15-20 s. Use `make check-fast` while iterating and
+`make check` before committing.
+
+Golden, official-suite and TOML-parity cases call `loxia.cli.main()` **in the pytest
+process** (`tests/inprocess.py`) instead of one Python boot per case. That keeps the same
+observable contract (stdout/stderr/exit code) at a fraction of the cost. Tests that need a
+real process (hash seeds, signals/timeout, REPL stdin, sandbox, native backend) still use
+`subprocess`; `LOX_GOLDEN_SUBPROCESS=1` forces the old golden path for debugging.
 
 - `tests/cases/*.lx` are self-explanatory golden cases: `print(1 + 2)  # expect: 3`; errors use
   `# expect runtime error: MSG` (exit 70) or `# expect error: MSG` (exit 65).
 - `tests/official/` is the Crafting Interpreters suite (chapters 10–13), adapted in
   `tests/test_official_suite.py`; 112 pass and 8 are documented `xfail`.
-- `tests/runner.py` runs the CLI in a subprocess and compares stdout, stderr and exit code.
+- `tests/runner.py` runs the CLI and compares stdout, stderr and exit code.
 - There is no global error state: each `Loxia.run` creates its own reporter. In tests inspect
   `lox.reporter`, `scanner.reporter` or `parser.reporter`.
 - **Every fixed bug gets a regression case in the same commit.**

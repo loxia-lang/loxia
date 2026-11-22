@@ -10,10 +10,17 @@ whenToUse: Ao adicionar um teste, fazer a suíte passar, investigar uma falha ou
 
 ```bash
 make test                          # pytest (unit + golden)
+make test-fast                     # sem backend/install, xdist (~15-20 s)
+make test-fast TEST_JOBS=0         # serial (depurar um caso)
 uv run pytest -k block             # subconjunto
 make case                          # runner golden sem pytest
 uv run python -m tests.runner for  # um caso (filtro por substring)
 ```
+
+O runner golden e a suíte oficial executam o CLI **no processo do pytest**
+(`tests/inprocess.py`); `LOX_GOLDEN_SUBPROCESS=1` volta ao processo por caso. Use
+`subprocess` só quando o teste precisa de processo real (hash seed, sinal/timeout,
+stdin de REPL, sandbox, backend).
 
 ## Caso golden (`tests/cases/*.lx`)
 

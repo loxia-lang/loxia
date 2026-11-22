@@ -8,12 +8,11 @@ e os `xfail` de campos dinâmicos não entram.
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
+from tests.inprocess import run_cli
 from tests.official_annotations import annotate_case
 from tests.test_official_suite import (
     CASES,
@@ -22,10 +21,6 @@ from tests.test_official_suite import (
     adapt_source,
     parse_expectations,
 )
-
-ROOT = Path(__file__).resolve().parents[1]
-ENTRYPOINT = ROOT / "main.py"
-TIMEOUT_SECONDS = 60
 
 # Sintaxe antiga de superclasse (`< (Foo)`) testada de propósito: não é
 # adaptável para a nossa gramática.
@@ -66,14 +61,7 @@ def test_oficial_positivo_passa_no_check(path: Path, relative: str, tmp_path: Pa
     script = tmp_path / "caso.lx"
     script.write_text(annotated, encoding="utf-8")
 
-    result = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), "--check", str(script)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=TIMEOUT_SECONDS,
-        check=False,
-    )
+    result = run_cli("--check", str(script))
 
     assert result.returncode == 0, result.stderr
     assert "Traceback" not in result.stderr, result.stderr

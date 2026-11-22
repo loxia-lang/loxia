@@ -8,22 +8,31 @@ Formato aceito (qualquer posição no arquivo, na ordem em que aparecem):
     # expect error: Expect ';' after expression.
     # expect exit: 65
 
-O runner executa `main.py` como subprocesso para testar o CLI de verdade
-(exit codes e stderr incluídos), não só a AST.
+O runner executa o CLI (`loxia.cli.main`) para testar a saída e o exit code de
+verdade. Por padrão roda no próprio processo do pytest — o import é pago uma vez e
+cada caso custa poucos milissegundos; `LOX_GOLDEN_SUBPROCESS=1` restaura um
+processo por caso (boot do Python incluído) para depurar isolamento.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from tests.inprocess import Result, run_cli
+
 ROOT = Path(__file__).resolve().parents[1]
 CASES_DIR = Path(__file__).resolve().parent / "cases"
 ENTRYPOINT = ROOT / "main.py"
 TIMEOUT_SECONDS = 20
+# O caminho rápido executa o CLI no processo do pytest (sem boot de Python por
+# caso). `LOX_GOLDEN_SUBPROCESS=1` força o caminho antigo, útil para depurar uma
+# diferença de comportamento que só aparece em processo separado.
+USE_SUBPROCESS = os.environ.get("LOX_GOLDEN_SUBPROCESS") == "1"
 # Casos que compilam o crate na primeira execução precisam de folga.
 REQUIREMENT_TIMEOUTS = {"rust": 180}
 REQUIRES_LINE = re.compile(r"^#\s*requires:\s*([a-z0-9_-]+)\s*$")
@@ -126,6 +135,13 @@ def _without_snippet(stderr: str) -> str:
 
 
 def execute(path: Path, timeout: int = TIMEOUT_SECONDS) -> Executed:
+    if not USE_SUBPROCESS:
+        result: Result = run_cli(str(path))
+        return Executed(
+            stdout=result.stdout.splitlines(),
+            stderr=result.stderr,
+            exit_code=result.returncode,
+        )
     process = subprocess.run(
         [sys.executable, str(ENTRYPOINT), str(path)],
         cwd=ROOT,

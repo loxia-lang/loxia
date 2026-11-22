@@ -13,15 +13,14 @@ Os `.lx` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:
 from __future__ import annotations
 
 import re
-import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from tests.inprocess import Result, run_cli
+
 CASES = Path(__file__).resolve().parent / "official" / "cases"
 
 OUTPUT_RE = re.compile(r"//\s*expect:\s?(.*)")
@@ -246,7 +245,7 @@ def _cases() -> list[pytest.ParameterSet]:
 CASES_PARAMS = _cases()
 
 
-def _execute(path: Path) -> subprocess.CompletedProcess[str]:
+def _execute(path: Path) -> Result:
     source = path.read_text(encoding="utf-8")
     adapted = adapt_source(source)
 
@@ -255,14 +254,7 @@ def _execute(path: Path) -> subprocess.CompletedProcess[str]:
         temporary = Path(file.name)
 
     try:
-        return subprocess.run(
-            [sys.executable, str(ROOT / "main.py"), str(temporary)],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
-        )
+        return run_cli(str(temporary))
     finally:
         temporary.unlink(missing_ok=True)
 

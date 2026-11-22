@@ -3,24 +3,16 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from pathlib import Path
 
+from tests.inprocess import Result, run_cli
+
 ROOT = Path(__file__).resolve().parents[1]
-ENTRYPOINT = ROOT / "main.py"
 CASES = ROOT / "tests" / "cases"
 
 
-def _run(arguments: list[str], input: str | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(ENTRYPOINT), *arguments],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-        input=input,
-    )
+def _run(arguments: list[str], input: str | None = None) -> Result:
+    return run_cli(*arguments, stdin=input or "")
 
 
 def _write(tmp_path: Path, source: str) -> Path:
@@ -97,13 +89,7 @@ def test_fs_append_cria_arquivo_ausente(tmp_path: Path) -> None:
 """,
     )
 
-    result = subprocess.run(
-        [sys.executable, str(ENTRYPOINT), str(path)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = run_cli(str(path), cwd=tmp_path)
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "ok\nx\n"

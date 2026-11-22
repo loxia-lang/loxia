@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.inprocess import Result, run_cli
+
 ROOT = Path(__file__).resolve().parent.parent
 
 PASS = """
@@ -33,16 +35,21 @@ def run_test(
     *args: str,
     cwd: Path = ROOT,
     env: dict[str, str] | None = None,
-) -> subprocess.CompletedProcess[str]:
-    environment = None if env is None else {**os.environ, **env}
-    return subprocess.run(
-        [sys.executable, "-m", "loxia", "test", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
-    )
+) -> Result:
+    # `--native` compila e executa binários: mantém o processo real para o teste
+    # não herdar cache/handles do pytest (o runner em si já isola cada arquivo).
+    if "--native" in args:
+        environment = None if env is None else {**os.environ, **env}
+        process = subprocess.run(
+            [sys.executable, "-m", "loxia", "test", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=environment,
+        )
+        return Result(returncode=process.returncode, stdout=process.stdout, stderr=process.stderr)
+    return run_cli("test", *args, cwd=cwd, env=env)
 
 
 def project(tmp_path: Path) -> Path:
@@ -247,7 +254,7 @@ def test_jobs_preserva_ordem_e_conteudo(tmp_path: Path) -> None:
     serial = run_test(str(tests), "--json", "--jobs", "1")
     parallel = run_test(str(tests), "--json", "--jobs", "4")
 
-    def strip(result: subprocess.CompletedProcess[str]) -> list[tuple[str, str, str]]:
+    def strip(result: Result) -> list[tuple[str, str, str]]:
         return [
             (item["file"], item["name"], item["status"])
             for item in json.loads(result.stdout)["tests"]

@@ -36,8 +36,10 @@ Exit codes: 65 syntax, 70 runtime, 66 file not found.
   a private helper.
 - Use the existing helpers (`run`, `parse`, `ast`, `scan`) instead of duplicating setup; there
   is no global error state, so inspect `lox.reporter`/`scanner.reporter`/`parser.reporter`.
-- `tests/runner.py` runs the CLI in a subprocess and compares stdout, stderr and exit code;
-  `pytest -k <substring>` and `uv run python -m tests.runner <filter>` are the fast paths.
+- `tests/runner.py` runs the CLI in-process (same stdout/stderr/exit contract) and compares the
+  three channels; `LOX_GOLDEN_SUBPROCESS=1` forces one process per case. Use `subprocess` only
+  when the test needs a real process (hash seed, signals/timeout, REPL stdin, sandbox,
+  backend). `pytest -k <substring>` is the fast path; `make test-fast` uses xdist.
 
 ## Differential corpus (I1)
 

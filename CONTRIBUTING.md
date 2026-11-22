@@ -64,13 +64,14 @@ local notebook (gitignored).
 ```bash
 make check-fast     # ruff + format + mypy + pytest (no native builds) + docs freshness
 make check          # everything, including the native backend suite
-make test-fast      # pytest without backend builds
+make test-fast      # pytest without backend/install, parallel (~15-20 s)
 make bench          # performance vs bench/baseline.json (run when touching hot paths)
 ```
 
 `make check-fast` is the loop while iterating. `make check` is the gate before opening a
 PR. If the backend is not installed, the backend tests are skipped locally; CI always runs
-them with `libgc` and fails if `llvmlite` is missing.
+them with `libgc` and fails if `llvmlite` is missing. `make test-fast TEST_JOBS=0` runs the
+same selection serially when debugging a single case.
 
 The golden cases live in `tests/cases/*.lx` and are self-explanatory:
 
