@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Índice de spans de expressão (ADR-0090).
+"""Índice de spans de nós (ADR-0090).
 
 O parser não guarda spans em todo nó; o índice deriva a extensão a partir dos tokens
 do próprio nó e dos filhos. Parênteses de agrupamento entram no span porque `Grouping`
-guarda os dois tokens. É a base formal para hover/definition/diagnósticos por expressão.
+guarda os dois tokens. Ele indexa expressões, declarações, parâmetros, campos, variantes
+e anotações de tipo; é a base formal para navegação, diagnósticos e edições.
 
 O índice também sabe devolver o texto e a linha de um span, desde que receba o
 `SourceMap` da execução (módulos incluídos). É o que o checker consome para as `notes`
@@ -15,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, cast
 
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.diagnostics.source import SourceMap
 from loxia_core.frontend.expr import (
     As,
@@ -35,6 +37,7 @@ from loxia_core.frontend.expr import (
     Logical,
     MapLiteral,
     Match,
+    MatchArm,
     Range,
     Set,
     Super,
@@ -42,8 +45,25 @@ from loxia_core.frontend.expr import (
     TupleLiteral,
     Unary,
     Variable,
+    VariantPattern,
+    WildcardPattern,
 )
-from loxia_core.frontend.stmt import Stmt
+from loxia_core.frontend.stmt import (
+    Class,
+    Destructure,
+    EnumDecl,
+    EnumVariant,
+    ErrorStmt,
+    Field,
+    Function,
+    Import,
+    ImportName,
+    Interface,
+    Param,
+    Stmt,
+    TypeAlias,
+    Var,
+)
 from loxia_core.frontend.tokens import Token
 
 EXPR_TYPES = (
@@ -73,18 +93,67 @@ EXPR_TYPES = (
     Variable,
 )
 
+NODE_TYPES = (
+    *EXPR_TYPES,
+    Class,
+    Destructure,
+    EnumDecl,
+    EnumVariant,
+    ErrorStmt,
+    Field,
+    Function,
+    Import,
+    ImportName,
+    Interface,
+    Param,
+    TypeAlias,
+    Var,
+    MatchArm,
+    VariantPattern,
+    WildcardPattern,
+)
+
 # (start, end, file) em bytes UTF-8.
 type Extent = tuple[int, int, str]
 
 
-@dataclass(frozen=True)
-class ExprSpan:
-    """Extensão half-open de uma expressão, em offsets de bytes UTF-8."""
+@dataclass(frozen=True, init=False)
+class NodeSpan:
+    """Extensão half-open de um nó de sintaxe, em offsets de bytes UTF-8."""
 
-    expression: Expr
+    node: object
     start: int
     end: int
     file: str = ""
+
+    def __init__(
+        self,
+        node: object = None,
+        start: int = 0,
+        end: int = 0,
+        file: str = "",
+        *,
+        expression: object = None,
+    ) -> None:
+        # `expression=` mantém o construtor antigo de `ExprSpan` funcionando.
+        if expression is not None:
+            if node is not None:
+                raise TypeError("pass either node or expression, not both")
+            node = expression
+        object.__setattr__(self, "node", node)
+        object.__setattr__(self, "start", start)
+        object.__setattr__(self, "end", end)
+        object.__setattr__(self, "file", file)
+
+    @property
+    def expression(self) -> Expr:
+        """Compatibilidade com o uso antigo, que só indexava expressões."""
+        if not isinstance(self.node, EXPR_TYPES):
+            raise TypeError("this span does not wrap an Expr")
+        return self.node
+
+
+ExprSpan = NodeSpan
 
 
 class SourceIndex:
@@ -99,8 +168,8 @@ class SourceIndex:
     ) -> None:
         self.source = source
         self.sources = sources
-        self.spans: list[ExprSpan] = []
-        self._by_expression: dict[Expr, ExprSpan] = {}
+        self.spans: list[NodeSpan] = []
+        self._by_node: dict[object, NodeSpan] = {}
         for statement in statements:
             self._walk(statement)
 
@@ -108,13 +177,20 @@ class SourceIndex:
         if isinstance(value, Token):
             offset = value.offset or 0
             return offset, offset + len(value.lexeme.encode("utf-8")), value.file
-        if isinstance(value, EXPR_TYPES):
+        if isinstance(value, Span):
+            start = value.start.offset or 0
+            end = value.end.offset or 0
+            span = NodeSpan(value, start, end, value.file)
+            self.spans.append(span)
+            self._by_node[value] = span
+            return start, end, value.file
+        if isinstance(value, NODE_TYPES):
             own = self._own_extent(value)
             if own is None:
                 return None
-            span = ExprSpan(value, own[0], own[1], own[2])
+            span = NodeSpan(value, own[0], own[1], own[2])
             self.spans.append(span)
-            self._by_expression[value] = span
+            self._by_node[value] = span
             return own
         if is_dataclass(value) and not isinstance(value, type):
             return self._merge(
@@ -138,12 +214,16 @@ class SourceIndex:
         file = first[2] or next((item[2] for item in extents if item[2]), "")
         return first[0], max(item[1] for item in extents), file
 
-    def _own_extent(self, expression: Expr) -> Extent | None:
+    def _own_extent(self, expression: object) -> Extent | None:
         if (
             isinstance(expression, Grouping)
             and expression.start is not None
             and expression.end is not None
         ):
+            # Indexa os filhos também: o `at()` precisa devolver o menor span dentro
+            # dos parênteses, não o Grouping inteiro.
+            for item in fields(cast(Any, expression)):
+                self._walk(getattr(expression, item.name))
             start = expression.start.offset or 0
             end = (expression.end.offset or 0) + len(expression.end.lexeme.encode("utf-8"))
             return start, end, expression.start.file or expression.end.file
@@ -162,18 +242,18 @@ class SourceIndex:
                 extents.append(extent)
         return self._merge(extents)
 
-    def at(self, offset: int) -> ExprSpan | None:
+    def at(self, offset: int) -> NodeSpan | None:
         """Menor expressão que contém `offset` (half-open)."""
         found = [span for span in self.spans if span.start <= offset < span.end]
         if not found:
             return None
         return min(found, key=lambda span: span.end - span.start)
 
-    def span_of(self, expression: Expr) -> ExprSpan | None:
-        """Span registrado para uma expressão específica, se ela foi indexada."""
-        return self._by_expression.get(expression)
+    def span_of(self, node: object) -> NodeSpan | None:
+        """Span registrado para um nó específico, se ele foi indexado."""
+        return self._by_node.get(node)
 
-    def text_of(self, span: ExprSpan) -> str | None:
+    def text_of(self, span: NodeSpan) -> str | None:
         """Texto-fonte do span, ou `None` se a fonte daquele arquivo não está carregada."""
         source = self._source_of(span.file)
         if source is None:
@@ -186,7 +266,7 @@ class SourceIndex:
         except UnicodeDecodeError:
             return None
 
-    def line_of(self, span: ExprSpan) -> int | None:
+    def line_of(self, span: NodeSpan) -> int | None:
         """Linha 1-based do início do span, ou `None` sem a fonte carregada."""
         source = self._source_of(span.file)
         if source is None:
