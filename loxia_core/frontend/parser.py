@@ -861,16 +861,19 @@ class Parser:
             return_type = self._type()
 
         body: list[Stmt]
+        end: Token
         if self._match(TokenType.FAT_ARROW):
             arrow = self._previous()
             expression = self._expression()
             body = [Return(arrow, expression)]
+            end = self._previous()
         elif self._match(TokenType.LEFT_BRACE):
             body = self._block()
+            end = self._previous()
         else:
             raise self._error(self._peek(), "Expect '=>' or '{' after lambda parameters.")
 
-        return Lambda(keyword, parameters, body, return_type)
+        return Lambda(keyword, parameters, body, return_type, end=end)
 
     def _type(self, *, allow_union: bool = True) -> Ty:
         ty = self._postfix_type()
@@ -1355,7 +1358,7 @@ class Parser:
                         break
 
             self._consume(TokenType.RIGHT_BRACE, "Expect '}' after map entries.")
-            return MapLiteral(entries, brace)
+            return MapLiteral(entries, brace, end=self._previous())
 
     def _primary(self) -> Expr:
 
@@ -1404,7 +1407,7 @@ class Parser:
                             break
 
                 self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after list elements.")
-                return ListLiteral(elements, bracket)
+                return ListLiteral(elements, bracket, end=self._previous())
 
         if self._match(TokenType.LEFT_BRACE):
             return self._map_literal(self._previous())
@@ -1427,7 +1430,7 @@ class Parser:
                             break
 
                     self._consume(TokenType.RIGHT_PAREN, "Expect ')' after tuple elements.")
-                    return TupleLiteral(elements, paren)
+                    return TupleLiteral(elements, paren, end=self._previous())
 
                 self._consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
                 return Grouping(first, paren, self._previous())

@@ -75,9 +75,9 @@ Regras:
   bytes UTF-8. O fim do token é calculado pelo lexema inteiro, inclusive strings
   multi-linha (`span_of_token_exact`); spans de nó são o menor intervalo que contém os
   tokens do nó (ou `null` quando não há token).
-- o fonte entra **normalizado** (universal newlines): `\r\n` vira `\n` antes do scanner, então
-  offsets são do texto normalizado, não do arquivo cru. Um port que leia bytes precisa
-  normalizar antes de comparar spans.
+- o fonte entra **normalizado** (universal newlines) tanto no arquivo quanto em `--stdin`:
+  `\r\n` vira `\n` antes do scanner, então offsets são do texto normalizado, não do arquivo
+  cru. Um port que leia bytes precisa normalizar antes de comparar spans.
 - `Ty` não tem span próprio: é forma semântica, não sintática; o span do nó cobre os tokens
   do construto (keyword, delimitadores e `end` quando existem), mas a posição interna da
   anotação não é publicada. Para `param x: Int`, o span do `Param` cobre `x`; o `params_end`

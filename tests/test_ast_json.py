@@ -148,6 +148,23 @@ def test_construct_spans_include_keywords_and_delimiters() -> None:
         }
 
 
+def test_literal_spans_include_closing_delimiters() -> None:
+    cases = {
+        "val t = (1, 2)\n": (8, 14),
+        "val xs = [1, 2]\n": (9, 15),
+        'val m = {"a": 1}\n': (8, 16),
+        "val f = fn(x) { return x }\n": (8, 26),
+    }
+    for source, (start_offset, end_offset) in cases.items():
+        payload = _program(source)
+        statements = payload["statements"]
+        assert isinstance(statements, list)
+        span = statements[0]["initializer"]["span"]
+
+        assert span["start"]["offset"] == start_offset
+        assert span["end"]["offset"] == end_offset
+
+
 def test_type_annotation_is_canonical_text() -> None:
     payload = _program("val xs: List[Int] = [1]\n")
     statements = payload["statements"]
@@ -203,13 +220,37 @@ def test_synthetic_line_zero_is_rejected() -> None:
         program_payload([statement], [token], "<repl>")
 
 
-def test_crlf_offsets_follow_the_normalized_source() -> None:
-    payload = _program("val x = 1\r\nprint(x)\r\n")
-    tokens = payload["tokens"]
-    assert isinstance(tokens, list)
-    second_line = next(token for token in tokens if token["lexeme"] == "print")
+def test_crlf_is_normalized_for_file_and_stdin(tmp_path: Path) -> None:
+    raw = b"val x = 1\r\nprint(x)\r\n"
+    script = tmp_path / "crlf.lx"
+    script.write_bytes(raw)
 
-    assert second_line["span"]["start"] == {"line": 2, "column": 1, "offset": 11}
+    file_result = _run("ast", "--file-only", "--format=json", str(script))
+    stdin_result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "main.py"),
+            "ast",
+            "--file-only",
+            "--format=json",
+            "--stdin",
+        ],
+        cwd=ROOT,
+        input=raw.decode("utf-8"),
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert file_result.returncode == 0, file_result.stderr
+    assert stdin_result.returncode == 0, stdin_result.stderr
+    for result in (file_result, stdin_result):
+        payload = json.loads(result.stdout)
+        tokens = payload["tokens"]
+        assert isinstance(tokens, list)
+        second_line = next(token for token in tokens if token["lexeme"] == "print")
+        assert second_line["span"]["start"] == {"line": 2, "column": 1, "offset": 10}
 
 
 def test_wildcard_pattern_is_serialized() -> None:

@@ -121,6 +121,11 @@ def make_loxia(args: argparse.Namespace) -> Loxia:
     )
 
 
+def _normalize_source(text: str) -> str:
+    """Universal newlines também para stdin: o contrato de spans é do texto normalizado."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _read_source(path: str) -> str:
     try:
         with open(path, encoding="utf-8") as file:
@@ -142,7 +147,7 @@ def _set_source(
 ) -> str:
     if stdin:
         lox.use_file(file_name or "<stdin>", module_root=Path.cwd())
-        return sys.stdin.read()
+        return _normalize_source(sys.stdin.read())
     assert path is not None
     source = _read_source(path)
     lox.use_file(display_path(path), module_root=Path(path).resolve().parent)
