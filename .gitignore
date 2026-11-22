@@ -11,8 +11,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 
-# Contexto local para agentes de IA (não versionado de propósito)
-AGENTS.md
+# Notas locais do mantenedor (não versionadas)
+NOTAS.local.md
 IDEIAS-REDDIT.md
 
 dist/
