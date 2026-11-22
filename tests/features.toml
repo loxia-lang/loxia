@@ -43,13 +43,13 @@ backend = true
 
 [features.classes]
 title = "Classes, campos, métodos, this, init, herança e super"
-golden = ["tests/cases/classes.lx", "tests/cases/class_fields.lx", "tests/cases/class_initializer.lx", "tests/cases/inheritance.lx", "tests/cases/super.lx", "tests/cases/class_bound_method.lx"]
+golden = ["tests/cases/classes.lx", "tests/cases/class_fields.lx", "tests/cases/class_initializer.lx", "tests/cases/inheritance.lx", "tests/cases/super.lx", "tests/cases/class_bound_method.lx", "tests/cases/selfhost_recursive_class.lx"]
 differential = "l5"
 backend = true
 
 [features.interfaces]
 title = "Interfaces nominais e métodos default"
-golden = ["tests/cases/interfaces.lx", "tests/cases/interface_decl.lx"]
+golden = ["tests/cases/interfaces.lx", "tests/cases/interface_decl.lx", "tests/cases/selfhost_ast_interface.lx"]
 differential = "l6"
 backend = true
 
@@ -67,7 +67,7 @@ backend = true
 
 [features.enums]
 title = "Enums, match e Result"
-golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx"]
+golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx", "tests/cases/selfhost_ast_enum.lx"]
 differential = "l6"
 backend = true
 

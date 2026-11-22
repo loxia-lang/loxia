@@ -13,19 +13,19 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**23 features**, **98 golden references** across **13 levels**.
+**23 features**, **101 golden references** across **13 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
 | **checker** — Anotações, inferência e diagnósticos do --check | [`typed_functions.lx`](../../tests/cases/typed_functions.lx), [`is_union_parens.lx`](../../tests/cases/is_union_parens.lx), [`optional_refs.lx`](../../tests/cases/optional_refs.lx) | `—` |
-| **classes** — Classes, campos, métodos, this, init, herança e super | [`classes.lx`](../../tests/cases/classes.lx), [`class_fields.lx`](../../tests/cases/class_fields.lx), [`class_initializer.lx`](../../tests/cases/class_initializer.lx), [`inheritance.lx`](../../tests/cases/inheritance.lx), [`super.lx`](../../tests/cases/super.lx), [`class_bound_method.lx`](../../tests/cases/class_bound_method.lx) | `l5` |
+| **classes** — Classes, campos, métodos, this, init, herança e super | [`classes.lx`](../../tests/cases/classes.lx), [`class_fields.lx`](../../tests/cases/class_fields.lx), [`class_initializer.lx`](../../tests/cases/class_initializer.lx), [`inheritance.lx`](../../tests/cases/inheritance.lx), [`super.lx`](../../tests/cases/super.lx), [`class_bound_method.lx`](../../tests/cases/class_bound_method.lx), [`selfhost_recursive_class.lx`](../../tests/cases/selfhost_recursive_class.lx) | `l5` |
 | **contracts** — Contratos como biblioteca e adoção na stdlib | [`std_contracts.lx`](../../tests/cases/std_contracts.lx), [`std_contracts_property.lx`](../../tests/cases/std_contracts_property.lx), [`std_contracts_pilot.lx`](../../tests/cases/std_contracts_pilot.lx) | `t2` |
 | **control_flow** — if/elif/while/for, ranges e for-in | [`if_else.lx`](../../tests/cases/if_else.lx), [`elif.lx`](../../tests/cases/elif.lx), [`while.lx`](../../tests/cases/while.lx), [`for.lx`](../../tests/cases/for.lx), [`for_in.lx`](../../tests/cases/for_in.lx), [`range_value.lx`](../../tests/cases/range_value.lx), [`range_inclusive.lx`](../../tests/cases/range_inclusive.lx) | `l2` |
-| **enums** — Enums, match e Result | [`enums.lx`](../../tests/cases/enums.lx), [`result.lx`](../../tests/cases/result.lx), [`result_nil.lx`](../../tests/cases/result_nil.lx) | `l6` |
+| **enums** — Enums, match e Result | [`enums.lx`](../../tests/cases/enums.lx), [`result.lx`](../../tests/cases/result.lx), [`result_nil.lx`](../../tests/cases/result_nil.lx), [`selfhost_ast_enum.lx`](../../tests/cases/selfhost_ast_enum.lx) | `l6` |
 | **exceptions** — try/except/finally, raise e e.site | [`exceptions.lx`](../../tests/cases/exceptions.lx), [`exception_site.lx`](../../tests/cases/exception_site.lx), [`try_return_cleanup.lx`](../../tests/cases/try_return_cleanup.lx), [`stack_exception.lx`](../../tests/cases/stack_exception.lx) | `l6` |
 | **functions** — Funções, closures, lambdas, defaults e variádicos | [`functions.lx`](../../tests/cases/functions.lx), [`closures.lx`](../../tests/cases/closures.lx), [`function_values.lx`](../../tests/cases/function_values.lx), [`local_function.lx`](../../tests/cases/local_function.lx), [`default_params.lx`](../../tests/cases/default_params.lx), [`variadic.lx`](../../tests/cases/variadic.lx) | `l4` |
 | **generics** — Generics de funções/classes e constraints | [`generic_functions.lx`](../../tests/cases/generic_functions.lx), [`generic_class.lx`](../../tests/cases/generic_class.lx), [`generic_constraints.lx`](../../tests/cases/generic_constraints.lx), [`generics.lx`](../../tests/cases/generics.lx) | `t7` |
-| **interfaces** — Interfaces nominais e métodos default | [`interfaces.lx`](../../tests/cases/interfaces.lx), [`interface_decl.lx`](../../tests/cases/interface_decl.lx) | `l6` |
+| **interfaces** — Interfaces nominais e métodos default | [`interfaces.lx`](../../tests/cases/interfaces.lx), [`interface_decl.lx`](../../tests/cases/interface_decl.lx), [`selfhost_ast_interface.lx`](../../tests/cases/selfhost_ast_interface.lx) | `l6` |
 | **kernel** — Primitivas de kernel (io, strings) | [`kernel_io.lx`](../../tests/cases/kernel_io.lx), [`kernel_strings.lx`](../../tests/cases/kernel_strings.lx) | `k0` |
 | **lists** — List[T], índice, métodos e iteração | [`list_literal.lx`](../../tests/cases/list_literal.lx), [`list_index.lx`](../../tests/cases/list_index.lx), [`list_methods.lx`](../../tests/cases/list_methods.lx), [`list_iteration.lx`](../../tests/cases/list_iteration.lx), [`list_equality.lx`](../../tests/cases/list_equality.lx) | `l6` |
 | **maps** — Map[K, V], índice, métodos e iteração | [`map_literal.lx`](../../tests/cases/map_literal.lx), [`map_keys.lx`](../../tests/cases/map_keys.lx), [`map_methods.lx`](../../tests/cases/map_methods.lx), [`map_iteration.lx`](../../tests/cases/map_iteration.lx), [`map_equality.lx`](../../tests/cases/map_equality.lx) | `l6` |
@@ -49,7 +49,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 7 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 86 |
+| `l6` | 89 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |

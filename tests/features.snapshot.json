@@ -17,7 +17,8 @@
         "tests/cases/class_initializer.lx",
         "tests/cases/inheritance.lx",
         "tests/cases/super.lx",
-        "tests/cases/class_bound_method.lx"
+        "tests/cases/class_bound_method.lx",
+        "tests/cases/selfhost_recursive_class.lx"
       ]
     },
     "contracts": {
@@ -45,7 +46,8 @@
       "golden": [
         "tests/cases/enums.lx",
         "tests/cases/result.lx",
-        "tests/cases/result_nil.lx"
+        "tests/cases/result_nil.lx",
+        "tests/cases/selfhost_ast_enum.lx"
       ]
     },
     "exceptions": {
@@ -81,7 +83,8 @@
       "differential": "l6",
       "golden": [
         "tests/cases/interfaces.lx",
-        "tests/cases/interface_decl.lx"
+        "tests/cases/interface_decl.lx",
+        "tests/cases/selfhost_ast_interface.lx"
       ]
     },
     "kernel": {
