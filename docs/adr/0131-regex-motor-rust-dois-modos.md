@@ -58,6 +58,9 @@ própria, num crate do monorepo, distribuído em dois estágios.**
 - **Todo** símbolo `extern "C"` é envolvido em `std::panic::catch_unwind`; panic nunca
   cruza a FFI (desde o Rust 1.81 o unwind através de `extern "C"` aborta o processo). Erro
   interno vira código de retorno + mensagem estática.
+- O **hook de panic é silenciado** no init do crate: `catch_unwind` sozinho não impede o
+  hook padrão de escrever `thread ... panicked` no stderr — e stderr é canal do I1. O hook
+  é instalado uma vez (`Once`) e não afeta o processo host.
 - Perfil de release com `panic = "unwind"` (nunca `abort`): o `catch_unwind` é o que
   transforma bug interno em erro do Loxia.
 - Tabela de handles 1-based, `free` idempotente, sem finalizer (Boehm não é
@@ -83,7 +86,8 @@ própria, num crate do monorepo, distribuído em dois estágios.**
 **A — agora (dogfood/CI).** Crates vendorizados (`cargo vendor`) + `Cargo.lock` +
 `rust-toolchain.toml`; `cargo build --release --locked --offline` no primeiro import.
 
-- Cache **persistente**, porque o build a frio custa 15–40 s: `$XDG_CACHE_HOME/loxia/regex/<chave>`
+- Cache **persistente**, porque o build a frio custa segundos (medido: 5,4 s com download;
+  ~10 s com LTO): `$XDG_CACHE_HOME/loxia/regex/<chave>`
   (fallback `~/.cache/loxia/regex`, depois `$TMPDIR`), com `LOX_BUILD_CACHE` de override.
   Chave = hash de `Cargo.lock` + fontes do crate + `rustc -vV` + target triple + perfil/flags.
 - Build atômico (diretório temporário + rename) e *lock* de arquivo: dois `loxia`
@@ -122,14 +126,39 @@ Crate mínimo (`regex` + `fancy-regex`) exportando o C ABI, carregado por `ctype
 - medir `cargo build --release` a frio e a quente, e o tamanho de `cdylib`/`staticlib`;
 - medir a latência por match via `ctypes` e o custo de conversão de offsets;
 - confirmar `\p{L}`, grupos nomeados, `\p{...}` e offsets multibyte;
-- `(a+)+$` sobre entrada longa: `Linear` termina, `Full` bate no `backtrack_limit` com erro
-  estável;
+- `(a+)+$` sobre entrada longa: `Linear` termina; em `Full`, o limite precisa de um padrão
+  com backref (`(a+)\1$`), porque o `fancy-regex` delega padrões regulares ao motor linear;
 - injetar um panic de teste e provar que ele vira código de erro, não abort;
 - capturar `native-static-libs` e linkar um binário de teste.
 
-Se o build a frio e a latência forem aceitáveis e o modo linear se comportar como esperado,
-a fase 1 começa; caso contrário, o ADR volta para revisão antes de qualquer código de
-produção.
+### 7.1 Resultado do spike (2026-11-22, Linux x86_64, rustc 1.93.1)
+
+**GO**, com duas correções registradas abaixo.
+
+| Medida | Valor |
+| --- | --- |
+| `cargo build --release` a frio (`CARGO_HOME` e target vazios, com download) | **5,4 s** |
+| build com `lto = true` + `opt-level = "z"` | 10,1 s |
+| `cdylib` | 3,2 MB → **1,7 MB** com LTO/z |
+| `staticlib` | 27,9 MB → 10,6 MB |
+| binário de teste linkado (staticlib) | 8,2 MB → **3,4 MB** (1,7 MB stripped) |
+| binário Loxia sem regex, para comparação | 99 KB (84 KB stripped) |
+| latência por match via `ctypes` | **1,4 µs** (padrão real, subject de 50 chars) |
+| `native-static-libs` (Linux) | `-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc` |
+
+Correções que o spike trouxe:
+
+1. **`(a+)+$` não exercita o `backtrack_limit`**: o `fancy-regex` delega padrões regulares
+   ao motor linear. O teste de limite usa backref (`(a+)\1$`): com `backtrack_limit(10)` o
+   erro volta estável em 0,03 ms. De positivo, o `Mode.Full` herda a linearidade nos
+   padrões regulares.
+2. **`catch_unwind` sozinho não silencia o hook de panic**: a mensagem vaza no stderr. O
+   hook precisa ser instalado no init (§2), senão o I1 quebra no primeiro bug interno.
+
+O custo que sobra é tamanho: **+1,6 MB por binário que importa regex** (1,7 MB stripped
+contra 84 KB sem regex), mesmo com LTO/`opt-level="z"`. O link é condicional — quem não
+importa não paga — e o estágio B pode linkar a `cdylib` em vez da `staticlib` se o tamanho
+do binário virar requisito.
 
 ## Consequências
 
@@ -146,7 +175,10 @@ produção.
 ### Negativas / custos
 
 - `cargo` passa a ser pré-requisito de `run` para quem usa regex (estágio A).
-- Build a frio de 15–40 s: mitigado por cache persistente, aviso em TTY e, depois, wheels.
+- Build a frio de ~5 s (10 s com LTO): mitigado por cache persistente, aviso em TTY e,
+  depois, wheels.
+- **+1,6 MB por binário que importa regex** (1,7 MB stripped contra 84 KB sem regex). É o
+  custo real da decisão; o link condicional garante que quem não importa não paga.
 - Matriz de 6 alvos e supply chain de binário no estágio B.
 - `rust-toolchain.toml` + MSRV + `cargo vendor` (~5 crates) + auditoria de dependências.
 - Link estático exige repassar `native-static-libs`; é fácil de esquecer e quebra só no
