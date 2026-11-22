@@ -1,3 +1,9 @@
+---
+name: lox-commits
+description: Formato de commit e PR na Loxia — Conventional Commits, DCO, escopos, títulos de PR e divisão do trabalho em commits.
+whenToUse: Ao criar, emendar ou revisar um commit ou título de PR; ao decidir em quantos commits dividir uma mudança.
+---
+
 # Conventional commits (Loxia)
 
 Use this skill whenever you create, amend or review a commit or a pull request title.
@@ -79,7 +85,7 @@ uv run python tools/check_commit_msg.py .git/COMMIT_EDITMSG
 uv run python tools/check_pr_title.py "feat(cli): add a flag"
 ```
 
-Never commit `AGENTS.md`, `__pycache__`, `.venv`, caches, `dist/` or secrets. Do not
+Never commit `NOTAS.local.md`, `__pycache__`, `.venv`, caches, `dist/` or secrets. Do not
 force-push `main` or `dev`, rewrite published history or bypass the syntax/feature gates in
 [`docs/adr/0014`](../../../docs/adr/0014-identidade-e-invariantes.md) and
 [`docs/adr/0066`](../../../docs/adr/0066-orcamento-e-gate-sintatico.md).
