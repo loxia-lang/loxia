@@ -3,6 +3,10 @@
 > **Atualizado por** [ADR-0078](0078-nome-loxia-extensao-lx.md): o `LoxRuntimeError` do
 > prelúdio passou a se chamar `RuntimeError`. O corpo abaixo é o registro histórico da decisão
 > da época.
+>
+> **Atualizado por** [ADR-0130](0130-regex-pcre2-embutido.md): regex deixa de ser
+> não-objetivo — vira módulo nativo embutido (PCRE2), fora de `std/`. As demais linhas de
+> "fora da stdlib" continuam valendo.
 
 - **Status:** accepted (plano; implementação pendente)
 - **Data:** 2026-11-14
