@@ -67,7 +67,7 @@ tooling e documentação leiam a tabela em vez de repeti-la.
 | `proc` | 10 | 10 | spawn, streams, `poll` |
 | `time` | 2 | 2 | `monotonic` só com consumidor e ADR (sem reserva) |
 | `digest` | 2 | 2 | `sha256`, `sha256Bytes` |
-| **total** | **33** | **40** | |
+| **total** | **40** | **40** | |
 
 > **Emenda por [ADR-0125](0125-bytes-tipo-binario.md):** `fs.readBytes` (+1 em `fs`) e
 > `digest.sha256Bytes` (+1 em `digest`) entram com o tipo `Bytes`; para o total caber em 40,

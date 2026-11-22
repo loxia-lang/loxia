@@ -47,16 +47,21 @@ Packages by phase (dependency only downward):
 | [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`) and gradual `checker` |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
+| [`loxia_core/loader/`](../../loxia_core/loader) | module loader, manifest, lock and dependency resolution (ADR-0073/0104) |
 | [`loxia_core/backend/`](../../loxia_core/backend) | lowering and LLVM emission (opt-in via `--emit`) |
 
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
+| [`loxia_core/bundle.py`](../../loxia_core/bundle.py) | resources shipped with the package: resolves `std/` and `runtime/` in the clone and in the wheel (ADR-0088) |
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI entry point: picks a subcommand or compatibility mode and dispatches to `HANDLERS` |
 | [`loxia/cli_args.py`](../../loxia/cli_args.py) | CLI surface: `COMMANDS`, `build_parser`/`_build_subcommand_parser`, option groups, per-command help and `_validate*` |
 | [`loxia/cli_commands.py`](../../loxia/cli_commands.py) | subcommand runners (`run`, `check`, `build`, `fmt`, `doc`, `lock`, `fetch`, `capabilities`, ...), timeout/watch and the `HANDLERS` table |
 | [`loxia/engine.py`](../../loxia/engine.py) | `Loxia` engine: parse + modules, resolver, checker, execution, `build` and diagnostic flushing |
 | [`loxia/scaffold.py`](../../loxia/scaffold.py) | `loxia new`/`init` (ADR-0106): minimal deterministic template, name normalization, `git init` and empty lock |
+| [`loxia/fixer.py`](../../loxia/fixer.py) | `loxia fix`: applies only `safe` fixes, with reparse/check per round (ADR-0093) |
+| [`loxia/manifest_edit.py`](../../loxia/manifest_edit.py) | scoped `loxia.toml` editing for `loxia add`/`remove` (ADR-0118) |
+| [`loxia/test_selection.py`](../../loxia/test_selection.py) | test selection by change (`--changed`) and by shard (`--shard`) |
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
 | [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
@@ -77,11 +82,13 @@ Packages by phase (dependency only downward):
 | [`loxia_core/frontend/expr.py`](../../loxia_core/frontend/expr.py) | expression nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | statement nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recovery; optional `;` at end of line; `elif`, `fn` and `[T]` |
+| [`loxia_core/frontend/destructuring.py`](../../loxia_core/frontend/destructuring.py) | destructuring patterns (`val (a, (b, c)) = t`), recursive (ADR-0069) |
 | [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of expression spans (offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
 | [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py) | module loader (ADR-0073/0100): file = module, folder = namespace, inlining, import cycles and isolation |
 | [`loxia_core/loader/manifest.py`](../../loxia_core/loader/manifest.py) | `loxia.toml`: discovery, `[package]` (name/version), `[dependencies]` specs and `[modules].paths` |
 | [`loxia_core/loader/lock.py`](../../loxia_core/loader/lock.py) | `loxia.lock` (ADR-0104): strict parse and canonical rendering (sorted, relative posix paths, no timestamp) |
 | [`loxia_core/loader/deps.py`](../../loxia_core/loader/deps.py) | dependency resolution: `.lx` tree hash, lock generation, `--frozen` verification, `fetch`, git mirror/checkout cache and `C0002` |
+| [`loxia_core/loader/gitenv.py`](../../loxia_core/loader/gitenv.py) | clean environment for the `git` calls Loxia spawns (product and tests) |
 | [`loxia_core/backend/llvm_ir.py`](../../loxia_core/backend/llvm_ir.py) | single boundary with `llvmlite` (module, target machine, object file) |
 | [`loxia_core/backend/lower.py`](../../loxia_core/backend/lower.py) | lowering coordination: program, statements, expressions, arithmetic and control flow |
 | [`loxia_core/backend/lower_model.py`](../../loxia_core/backend/lower_model.py) | types, values, bindings and field/class layouts (ABI from ADR-0048) |
@@ -94,6 +101,14 @@ Packages by phase (dependency only downward):
 | [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py) | descriptor, vtable, constructor (top-level and local), bound methods, `super`, `is`/`as` |
 | [`loxia_core/backend/lower_instances.py`](../../loxia_core/backend/lower_instances.py) | field reads/writes, bitmap and `get`/`set` |
 | [`loxia_core/backend/lower_calls.py`](../../loxia_core/backend/lower_calls.py) | calls, callable classes, methods and short-circuiting `?.` |
+| [`loxia_core/backend/lower_bytes.py`](../../loxia_core/backend/lower_bytes.py) | `Bytes`: method calls, static namespace and `for-in` (ADR-0125) |
+| [`loxia_core/backend/lower_containers.py`](../../loxia_core/backend/lower_containers.py) | lists (L6): boxed runtime, literals, index, methods, `len` and equality |
+| [`loxia_core/backend/lower_enums.py`](../../loxia_core/backend/lower_enums.py) | enums, `Result` and `match` (L6i, ADR-0061) |
+| [`loxia_core/backend/lower_exceptions.py`](../../loxia_core/backend/lower_exceptions.py) | L6j exceptions: try/raise/finally with the setjmp/longjmp ABI (ADR-0062) |
+| [`loxia_core/backend/lower_generics.py`](../../loxia_core/backend/lower_generics.py) | monomorphization of generic functions (T7) |
+| [`loxia_core/backend/lower_math.py`](../../loxia_core/backend/lower_math.py) | `math.*`, `Int.parse` and `Float.parse` (L6) |
+| [`loxia_core/backend/lower_range.py`](../../loxia_core/backend/lower_range.py) | `Range` and `for-in` (L6): runtime pointer, direct iteration lowering |
+| [`loxia_core/backend/lower_tuples.py`](../../loxia_core/backend/lower_tuples.py) | tuples (L6): boxed runtime, index, equality, destructuring and `len` |
 | [`loxia_core/backend/driver.py`](../../loxia_core/backend/driver.py) | `--emit=ll|obj|exe` and linking with the system `cc` |
 | [`runtime/lox_runtime.h`](../../runtime/lox_runtime.h) | types, limits and internal prototypes of the C runtime (one header common to the units) |
 | [`runtime/core.c`](../../runtime/core.c) | initialization, Boehm GC, stack, panic and exceptions |
@@ -118,6 +133,11 @@ Packages by phase (dependency only downward):
 | [`loxia_core/execution/lox_exception.py`](../../loxia_core/execution/lox_exception.py) | `Exception`/`RuntimeError` and exception values |
 | [`loxia_core/execution/lox_list.py`](../../loxia_core/execution/lox_list.py) | mutable `List`: elements, `version`, `push`/`pop`, index |
 | [`loxia_core/execution/lox_map.py`](../../loxia_core/execution/lox_map.py) | mutable `Map`: entries, `version`, `get`/`has`/`remove`/`keys`/`values` |
+| [`loxia_core/execution/bytes_api.py`](../../loxia_core/execution/bytes_api.py) | `Bytes` signatures and methods (ADR-0125) |
+| [`loxia_core/execution/lox_bytes.py`](../../loxia_core/execution/lox_bytes.py) | `Bytes` value and surface in the interpreter (ADR-0125) |
+| [`loxia_core/execution/lox_enum.py`](../../loxia_core/execution/lox_enum.py) | enum and variant values (ADR-0041) |
+| [`loxia_core/execution/fs_runtime.py`](../../loxia_core/execution/fs_runtime.py) | `fs.open` handles for files (1-based; 0 is never valid) |
+| [`loxia_core/execution/proc_runtime.py`](../../loxia_core/execution/proc_runtime.py) | `proc.*` handles: processes and streams (1-based; 0 = failure) |
 | [`loxia_core/diagnostics/error_reporter.py`](../../loxia_core/diagnostics/error_reporter.py) | collection/printing of diagnostics |
 | [`loxia_core/diagnostics/errors.py`](../../loxia_core/diagnostics/errors.py) | `ParseError`, `LoxRuntimeError`, `NativeError`, `ReturnSignal` |
 | [`loxia_core/execution/lox_callable.py`](../../loxia_core/execution/lox_callable.py) | `min_arity`/`max_arity`/`call` Protocol |
@@ -127,6 +147,7 @@ Packages by phase (dependency only downward):
 | [`loxia_core/execution/lox_interface.py`](../../loxia_core/execution/lox_interface.py) | nominal interface (defaults bound to the environment) |
 | [`loxia_core/execution/lox_instance.py`](../../loxia_core/execution/lox_instance.py) | instance (fields + bound methods) |
 | [`loxia_core/execution/natives/len.py`](../../loxia_core/execution/natives/len.py) | `len(xs)` / `len(m)` / `len(s)` |
+| [`loxia_core/execution/natives/chars.py`](../../loxia_core/execution/natives/chars.py) | `chars`: splits a string into one-code-point strings |
 | [`loxia_core/execution/natives/repr.py`](../../loxia_core/execution/natives/repr.py) | `repr(x)` |
 | [`loxia_core/execution/natives/range.py`](../../loxia_core/execution/natives/range.py) | `range(a, b, step)` |
 | [`loxia_core/execution/natives/str.py`](../../loxia_core/execution/natives/str.py) | `str(x)` |

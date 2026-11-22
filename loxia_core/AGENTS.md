@@ -9,6 +9,7 @@ The dependency direction is a contract, not a suggestion:
 
 ```
 diagnostics, frontend      (base)
+loader                     may import base + bundle
 execution                  may import base
 semantics                  may import base + execution
 backend                    may import anything in loxia_core
