@@ -1,6 +1,10 @@
 # ADR-0130 — Regex: PCRE2 embutido, um só motor para interpretador e binário
 
-- **Status:** accepted (decisão; implementação pendente)
+> **Superseded por** [ADR-0131](0131-regex-motor-rust-dois-modos.md): o motor é Rust
+> (`regex` no modo linear padrão + `fancy-regex` opt-in), com ABI C própria. O corpo abaixo
+> fica como registro histórico da decisão.
+
+- **Status:** superseded by [ADR-0131](0131-regex-motor-rust-dois-modos.md)
 - **Data:** 2026-11-22
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0072](0072-stdlib-batteries.md) (não-objetivo reaberto),
