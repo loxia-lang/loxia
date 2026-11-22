@@ -1038,7 +1038,7 @@ class Parser:
                         Code.INVALID_ASSIGNMENT_TARGET,
                     )
                     return expr
-                return IndexSet(expr.object, expr.index, value, expr.bracket)
+                return IndexSet(expr.object, expr.index, value, expr.bracket, expr.end)
 
             self._error(equals, "Invalid assignment target.", Code.INVALID_ASSIGNMENT_TARGET)
 
@@ -1271,8 +1271,8 @@ class Parser:
                         raise self._error(self._peek(), "Expect index expression.")
 
                     index = self._expression()
-                    self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
-                    expr = Index(expr, index, bracket)
+                    end = self._consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.")
+                    expr = Index(expr, index, bracket, end)
                 optional_call = False
             else:
                 break
@@ -1450,16 +1450,16 @@ class Parser:
         arms: list[MatchArm] = []
         while not self._check(TokenType.RIGHT_BRACE):
             pattern = self._pattern()
-            self._consume(TokenType.FAT_ARROW, "Expect '=>' after match pattern.")
+            arrow = self._consume(TokenType.FAT_ARROW, "Expect '=>' after match pattern.")
             body = self._expression()
-            arms.append(MatchArm(pattern, body))
+            arms.append(MatchArm(pattern, body, arrow))
             self._match(TokenType.SEMICOLON)
             self._match(TokenType.COMMA)
 
-        self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
+        end = self._consume(TokenType.RIGHT_BRACE, "Expect '}' after match arms.")
         if not arms:
             raise self._error(keyword, "Match needs at least one arm.", Code.INVALID_MATCH)
-        return Match(keyword, scrutinee, arms)
+        return Match(keyword, scrutinee, arms, end)
 
     def _pattern(self) -> Pattern:
         token = self._consume(TokenType.IDENTIFIER, "Expect match pattern.")

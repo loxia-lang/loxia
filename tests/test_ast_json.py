@@ -148,6 +148,65 @@ def test_construct_spans_include_keywords_and_delimiters() -> None:
         }
 
 
+@pytest.mark.parametrize(
+    ("source", "end"),
+    [
+        ("val x = 1 if true else 2\n", 24),
+        ('val s = "é" if true else "x"\n', 29),
+        ("val x = 1 if (true and\n false) else 2\n", 37),
+    ],
+)
+def test_conditional_spans_cover_both_branches(source: str, end: int) -> None:
+    payload = _program(source)
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    expression = statements[0]["initializer"]
+
+    assert expression["kind"] == "conditional"
+    assert expression["span"]["start"]["offset"] == 8
+    assert expression["span"]["end"]["offset"] == end
+
+
+def test_index_spans_include_closing_bracket() -> None:
+    payload = _program("xs[0]\n")
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    expression = statements[0]["expression"]
+
+    assert expression["kind"] == "index"
+    assert expression["span"] == {
+        "start": {"line": 1, "column": 1, "offset": 0},
+        "end": {"line": 1, "column": 6, "offset": 5},
+    }
+    assert expression["end"]["type"] == "RIGHT_BRACKET"
+
+
+def test_match_spans_include_closing_brace_and_arrow() -> None:
+    payload = _program("match x { _ => 1 }\n")
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    expression = statements[0]["expression"]
+
+    assert expression["kind"] == "match"
+    assert expression["span"] == {
+        "start": {"line": 1, "column": 1, "offset": 0},
+        "end": {"line": 1, "column": 19, "offset": 18},
+    }
+    assert expression["end"]["type"] == "RIGHT_BRACE"
+    assert expression["arms"][0]["arrow"]["type"] == "FAT_ARROW"
+    assert expression["arms"][0]["arrow"]["lexeme"] == "=>"
+
+
+def test_index_set_keeps_the_closing_bracket_token() -> None:
+    payload = _program("xs[0] = 1\n")
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    expression = statements[0]["expression"]
+
+    assert expression["kind"] == "index_set"
+    assert expression["end"]["type"] == "RIGHT_BRACKET"
+
+
 def test_literal_spans_include_closing_delimiters() -> None:
     cases = {
         "val t = (1, 2)\n": (8, 14),
