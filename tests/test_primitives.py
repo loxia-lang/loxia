@@ -20,6 +20,7 @@ from loxia_core.execution.primitives import (
     PrimitiveCallable,
     budget_violations,
     is_sandbox_denied,
+    kernel_primitives,
     primitive_group,
 )
 from loxia_core.frontend.ty import INT, NIL, STRING, ListTy
@@ -67,6 +68,10 @@ def test_tabela_tem_ordem_e_assinaturas_estaveis() -> None:
         "time.sleep",
         "digest.sha256",
         "digest.sha256Bytes",
+        "regex_engine.compile",
+        "regex_engine.find",
+        "regex_engine.groupNames",
+        "regex_engine.free",
     ]
     signatures = {primitive.lox: (primitive.params, primitive.result) for primitive in PRIMITIVES}
     assert signatures["substr"] == ((STRING, INT, INT), STRING)
@@ -133,18 +138,25 @@ def test_grupo_e_o_namespace_da_primitiva() -> None:
 
 
 def test_orcamento_do_kernel_por_grupo() -> None:
-    assert budget_violations(PRIMITIVES, GROUP_BUDGET, KERNEL_BUDGET) == []
+    # O kernel fechou nos 40 (ADR-0123); módulos nativos têm orçamento separado.
+    kernel = kernel_primitives()
+    assert budget_violations(kernel, GROUP_BUDGET, KERNEL_BUDGET) == []
 
-    counts = Counter(primitive.group for primitive in PRIMITIVES)
+    counts = Counter(primitive.group for primitive in kernel)
     assert counts == {"core": 5, "io": 8, "fs": 11, "os": 2, "proc": 10, "time": 2, "digest": 2}
-    assert sum(counts.values()) == len(PRIMITIVES) == 40
+    assert sum(counts.values()) == len(kernel) == 40
     assert sum(GROUP_BUDGET.values()) == KERNEL_BUDGET
 
 
 def test_orcamento_de_modulo_nativo_e_separado() -> None:
     assert "sqlite3" not in GROUP_BUDGET
-    assert NATIVE_MODULE_BUDGET == {"sqlite3": 20}
-    assert {primitive.group for primitive in PRIMITIVES}.isdisjoint(NATIVE_MODULE_BUDGET)
+    assert "regex_engine" not in GROUP_BUDGET
+    assert NATIVE_MODULE_BUDGET == {"sqlite3": 20, "regex_engine": 4}
+    modules = {primitive.group for primitive in PRIMITIVES} & set(NATIVE_MODULE_BUDGET)
+    assert modules == {"regex_engine"}
+    for module in modules:
+        used = sum(1 for primitive in PRIMITIVES if primitive.group == module)
+        assert used <= NATIVE_MODULE_BUDGET[module]
 
 
 def test_orcamento_detecta_estouro_de_grupo_e_de_total() -> None:

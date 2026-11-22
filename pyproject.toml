@@ -89,6 +89,10 @@ exclude_lines = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+# Crates vendorizados do motor de regex (ADR-0131): código de terceiro, com os
+# checksums do `cargo vendor`. O ruff format formata blocos Python em Markdown e
+# alteraria um README do upstream.
+extend-exclude = ["native/regex/vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
@@ -114,15 +118,33 @@ disallow_untyped_calls = false
 [tool.hatch.build.targets.wheel]
 packages = ["loxia", "loxia_core"]
 
-# O wheel precisa levar a stdlib e o runtime C: eles são resolvidos por
-# `loxia_core.bundle` (dev: raiz do repo; instalado: dentro do pacote). ADR-0088.
+# O wheel precisa levar a stdlib, o runtime C e o motor nativo: eles são resolvidos
+# por `loxia_core.bundle` (dev: raiz do repo; instalado: dentro do pacote). ADR-0088,
+# ADR-0126/0131. `native/regex/target` é artefato de build e nunca entra.
+[tool.hatch.build]
+exclude = [
+    "native/regex/target",
+    "native/regex/target/**",
+]
+
 [tool.hatch.build.targets.wheel.force-include]
 "std" = "loxia_core/std"
 "runtime" = "loxia_core/runtime"
+"bundled" = "loxia_core/bundled"
+# O crate entra arquivo a arquivo: `native/regex/target` é artefato local e não
+# pode ir para o wheel (force-include de diretório copiaria tudo).
+"native/regex/Cargo.toml" = "loxia_core/native/regex/Cargo.toml"
+"native/regex/Cargo.lock" = "loxia_core/native/regex/Cargo.lock"
+"native/regex/rust-toolchain.toml" = "loxia_core/native/regex/rust-toolchain.toml"
+"native/regex/.cargo" = "loxia_core/native/regex/.cargo"
+"native/regex/src" = "loxia_core/native/regex/src"
+"native/regex/include" = "loxia_core/native/regex/include"
+"native/regex/vendor" = "loxia_core/native/regex/vendor"
+"native/regex/BUILD.md" = "loxia_core/native/regex/BUILD.md"
 "NOTICE" = "NOTICE"
 
 [tool.hatch.build.targets.sdist]
-# O wheel materializa `loxia_core/std` e `loxia_core/runtime` como force-include;
+# O wheel materializa `loxia_core/{std,runtime,bundled,native}` como force-include;
 # se um build em andamento deixar a cópia na árvore, a sdist não pode capturá-la
 # (o teste de instalação exige um `std/` só, na raiz).
 exclude = [
@@ -136,12 +158,20 @@ exclude = [
     "loxia_core/std/**",
     "loxia_core/runtime",
     "loxia_core/runtime/**",
+    "loxia_core/bundled",
+    "loxia_core/bundled/**",
+    "loxia_core/native",
+    "loxia_core/native/**",
+    "native/regex/target",
+    "native/regex/target/**",
 ]
 include = [
     "loxia",
     "loxia_core",
     "std",
     "runtime",
+    "bundled",
+    "native",
     "tests",
     "README.md",
     "LICENSE-MIT",

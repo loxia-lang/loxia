@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from loxia.engine import Loxia
@@ -81,3 +83,67 @@ def test_run_aceita_programa_sem_capacidade_nativa(capsys: pytest.CaptureFixture
 
     assert not lox.reporter.had_error
     assert capsys.readouterr().out == "3\n"
+
+
+def test_run_recusa_regex_sem_o_toolchain(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    lox.run('print(1)\nregex_engine.compile("a", 0, 0)\n')
+
+    captured = capsys.readouterr()
+    assert lox.reporter.had_error
+    assert captured.out == ""
+    assert "E3022" in captured.err
+    assert "Rust toolchain" in captured.err
+
+
+def test_check_nao_exige_o_toolchain_do_regex(monkeypatch: pytest.MonkeyPatch) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    exit_code = lox.check('val r = regex_engine.compile("a", 0, 0)\nprint(r[1])\n')
+
+    assert exit_code == 0
+    assert not lox.reporter.had_error
+
+
+def test_run_recusa_group_names_sem_o_toolchain(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    lox.run("print(regex_engine.groupNames(1))\n")
+
+    captured = capsys.readouterr()
+    assert lox.reporter.had_error
+    assert "E3022" in captured.err
+
+
+def test_build_recusa_regex_sem_o_toolchain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    built = lox.build(
+        'regex_engine.compile("a", 0, 0)\n',
+        emit="exe",
+        output=tmp_path / "app",
+        stem="app",
+    )
+
+    assert built is False
+    assert "E3022" in capsys.readouterr().err
+    assert not (tmp_path / "app").exists()

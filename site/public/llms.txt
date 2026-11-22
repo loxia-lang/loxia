@@ -38,6 +38,7 @@
 - [std.proc](https://loxia-lang.github.io/loxia/stdlib/proc/): Processes, streams and poll (POSIX, ambient: outside I1/I3).
 - [std.property](https://loxia-lang.github.io/loxia/stdlib/property/): Deterministic property-based testing with generators, shrinking and seeds.
 - [std.rand](https://loxia-lang.github.io/loxia/stdlib/rand/): Deterministic xorshift64* PRNG with an explicit seed.
+- [regex](https://loxia-lang.github.io/loxia/stdlib/regex/): Unicode regular expressions: linear by default, backtracking opt-in.
 - [std.results](https://loxia-lang.github.io/loxia/stdlib/results/): Combinators for Result[T, E].
 - [std.sets](https://loxia-lang.github.io/loxia/stdlib/sets/): Set[T] backed by Map[Any, Bool], preserving insertion order.
 - [std.strings](https://loxia-lang.github.io/loxia/stdlib/strings/): UTF-8 text operations over code points, not bytes or UTF-16 units.

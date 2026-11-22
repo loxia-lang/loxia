@@ -15,6 +15,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **`regex` nativo** ([ADR-0131](docs/adr/0131-regex-motor-rust-dois-modos.md),
+  [#118](https://github.com/loxia-lang/loxia/issues/118)): módulo embutido `regex`
+  (`import regex`) com motor Rust — linear por padrão (`compile`) e `Mode.Full`
+  (`compileFull`, backrefs/lookaround com limite de backtracking). `Regex`, `Match`,
+  `RegexError`, `tryCompile`/`tryCompileFull`, `find`/`findFrom`/`findAll`,
+  `replace`/`replaceAll`/`split`, offsets em code points e substituição `$0`..`$9`/`$name`.
+  Roda nos dois motores; exige o toolchain Rust (`E3022` sem `cargo`; `check` não
+  exige). `tools/check_pr_title.lx` passa a ser o primeiro check de CI escrito em Loxia.
+
 - **`loxia new --lib`**: scaffold de biblioteca com o módulo `<nome>.lx` na raiz (sem
   `src/main.lx`), `loxia.toml`, lock e `.gitignore`; `init --lib` funciona em diretório
   existente e não sobrescreve o módulo. Fecha a lacuna do

@@ -22,6 +22,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 from loxia_core.diagnostics.errors import NativeError
+from loxia_core.execution import regex_runtime
 from loxia_core.execution.fs_runtime import FileTable
 from loxia_core.execution.lox_list import LoxList
 from loxia_core.execution.lox_tuple import LoxTuple
@@ -340,6 +341,44 @@ def _sleep(milliseconds: int) -> None:
     time.sleep(milliseconds / 1000.0)
 
 
+def _regex_compile(pattern: str, flags: int, mode: int) -> LoxList:
+    if flags < 0:
+        raise NativeError("regex_engine.compile() expects a non-negative flags mask.")
+    if mode not in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
+        raise NativeError("regex_engine.compile() expects mode 0 (linear) or 1 (full).")
+    code, handle = regex_runtime.compile_pattern(pattern, flags, mode)
+    values: list[object] = [1, handle] if code == 0 else [0, code]
+    return LoxList(values)
+
+
+def _regex_find(handle: int, subject: str, start: int) -> LoxList | None:
+    if start < 0:
+        raise NativeError("regex_engine.find() expects a non-negative start.")
+    code, spans = regex_runtime.match_pattern(handle, subject, start)
+    if code == regex_runtime.NO_MATCH:
+        return None
+    if code < 0:
+        raise NativeError(_regex_error(code))
+    values: list[object] = list(spans)
+    return LoxList(values)
+
+
+def _regex_group_names(handle: int) -> LoxList:
+    if handle < 1:
+        raise NativeError("regex_engine.groupNames() expects a handle from compile.")
+    return LoxList(list(regex_runtime.group_names(handle)))
+
+
+def _regex_free(handle: int) -> None:
+    if handle < 1:
+        raise NativeError("regex_engine.free() expects a handle from compile.")
+    regex_runtime.free_pattern(handle)
+
+
+def _regex_error(code: int) -> str:
+    return regex_runtime.error_message(code)
+
+
 # Orçamento do kernel por grupo (ADR-0123). O grupo é o prefixo do namespace da
 # primitiva (`io.*` → `io`); sem prefixo, é `core`. `process` é o namespace e `proc`
 # é o grupo histórico.
@@ -358,7 +397,7 @@ GROUP_BUDGET: dict[str, int] = {
 }
 
 # Módulos nativos têm orçamento próprio, fora dos 40 do kernel (ADR-0126).
-NATIVE_MODULE_BUDGET: dict[str, int] = {"sqlite3": 20}
+NATIVE_MODULE_BUDGET: dict[str, int] = {"sqlite3": 20, "regex_engine": 4}
 
 # Camada de APIs públicas de módulo (`modulo.funcao`), para quando um wrapper Lox
 # expuser uma capacidade que o interpretador não tem (ADR-0128). Vazio na v1: as
@@ -613,6 +652,38 @@ PRIMITIVES: tuple[Primitive, ...] = (
     Primitive("time.sleep", "lox_time_sleep", (INT,), NIL, _sleep, ambient=True, site=True),
     Primitive("digest.sha256", "lox_digest_sha256", (STRING,), STRING, _sha256),
     Primitive("digest.sha256Bytes", "lox_digest_sha256_bytes", (BYTES,), BYTES, _sha256_bytes),
+    Primitive(
+        "regex_engine.compile",
+        "lox_regex_engine_compile",
+        (STRING, INT, INT),
+        ListTy(INT),
+        _regex_compile,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.find",
+        "lox_regex_engine_find",
+        (INT, STRING, INT),
+        union(ListTy(INT), NIL),
+        _regex_find,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.groupNames",
+        "lox_regex_engine_group_names",
+        (INT,),
+        ListTy(STRING),
+        _regex_group_names,
+        site=True,
+    ),
+    Primitive(
+        "regex_engine.free",
+        "lox_regex_engine_free",
+        (INT,),
+        NIL,
+        _regex_free,
+        site=True,
+    ),
 )
 
 
@@ -640,6 +711,14 @@ def budget_violations(
 
 
 PRIMITIVE_BY_LOX: dict[str, Primitive] = {primitive.lox: primitive for primitive in PRIMITIVES}
+
+
+def kernel_primitives() -> tuple[Primitive, ...]:
+    """Primitivas do kernel: as de módulo nativo têm orçamento separado (ADR-0126)."""
+    return tuple(
+        primitive for primitive in PRIMITIVES if primitive.group not in NATIVE_MODULE_BUDGET
+    )
+
 
 # Perfil `--sandbox` (ADR-0112): o programa não lê/escreve arquivos nem cria processos.
 # O loader de módulos continua lendo `std/` e arquivos do projeto pelo host; só as

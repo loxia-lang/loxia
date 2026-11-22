@@ -41,7 +41,13 @@ from loxia_core.execution.limits import (
     MAX_CALL_DEPTH,
     STACK_BUDGET_BYTES,
 )
-from loxia_core.execution.primitives import GROUP_BUDGET, KERNEL_BUDGET, PRIMITIVES
+from loxia_core.execution.primitives import (
+    GROUP_BUDGET,
+    KERNEL_BUDGET,
+    NATIVE_MODULE_BUDGET,
+    PRIMITIVES,
+    kernel_primitives,
+)
 from loxia_core.loader.deps import (
     DependencyError,
     fetch_dependencies,
@@ -683,7 +689,15 @@ def _capabilities_payload() -> dict[str, object]:
                 "native_only": primitive.native_only,
                 "site": primitive.site,
             }
-            for primitive in PRIMITIVES
+            for primitive in kernel_primitives()
+        ],
+        "native_modules": [
+            {
+                "name": module,
+                "budget": budget,
+                "used": sum(1 for primitive in PRIMITIVES if primitive.group == module),
+            }
+            for module, budget in sorted(NATIVE_MODULE_BUDGET.items())
         ],
         "kernel_budget": {"total": KERNEL_BUDGET, "groups": GROUP_BUDGET},
         "warnings": {"codes": ["W1001"], "werror": True},
@@ -713,6 +727,11 @@ def _print_capabilities(as_json: bool) -> None:
         + ")"
     )
     print("layers: " + ", ".join(f"{layer} {count}" for layer, count in sorted(layers.items())))
+    modules = cast(list[dict[str, object]], payload["native_modules"])
+    print(
+        "native modules: "
+        + ", ".join(f"{module['name']} {module['used']}/{module['budget']}" for module in modules)
+    )
     print(f"max call depth: {MAX_CALL_DEPTH}")
     print(f"default heap: {DEFAULT_HEAP_BYTES // 1024**2}M")
 

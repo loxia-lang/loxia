@@ -2096,3 +2096,168 @@ def test_fs_read_bytes_erro_de_diretorio_bate_com_o_binario(tmp_path: Path) -> N
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
     assert "isDirectory" in interpreted.stdout
+
+
+@pytest.mark.backend
+def test_regex_engine_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        'val compiled = regex_engine.compile("([A-Za-z]+) +([0-9]+)", 0, 0)\n'
+        "print(compiled)\n"
+        "val handle = compiled[1]\n"
+        'print(regex_engine.find(handle, "abc 42", 0))\n'
+        'print(regex_engine.find(handle, "nada", 0))\n'
+        "regex_engine.free(handle)\n"
+        'print(regex_engine.find(handle, "abc 42", 0))\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70  # handle fechado é panic, nos dois motores
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_regex_engine_so_entra_no_binario_quando_usado(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    nm = shutil.which("nm")
+    if nm is None:
+        pytest.skip("nm não disponível")
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    plain_dir = tmp_path / "plain"
+    regex_dir = tmp_path / "regex"
+    plain_dir.mkdir()
+    regex_dir.mkdir()
+    plain = _write(plain_dir, "print(1)\n")
+    with_regex = _write(
+        regex_dir, 'val compiled = regex_engine.compile("a+", 0, 0)\nprint(compiled)\n'
+    )
+
+    plain_build, plain_binary = _build(plain, plain_dir)
+    regex_build, regex_binary = _build(with_regex, regex_dir)
+    assert plain_build.returncode == 0, plain_build.stderr
+    assert regex_build.returncode == 0, regex_build.stderr
+
+    def symbols(binary: Path) -> set[str]:
+        result = subprocess.run([nm, str(binary)], capture_output=True, text=True, check=False)
+        return set(result.stdout.split())
+
+    assert not {symbol for symbol in symbols(plain_binary) if symbol.startswith("loxr_")}
+    assert not {
+        symbol for symbol in symbols(plain_binary) if symbol.startswith("lox_regex_engine_")
+    }
+    assert any(symbol.startswith("loxr_compile") for symbol in symbols(regex_binary))
+    assert any(symbol.startswith("lox_regex_engine_compile") for symbol in symbols(regex_binary))
+    # Link acidental do motor: 99 KB x 3,8 MB hoje; 4x é folga suficiente e portátil.
+    assert plain_binary.stat().st_size * 4 < regex_binary.stat().st_size
+
+
+@pytest.mark.backend
+def test_regex_module_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        "import regex\n"
+        "\n"
+        'val words = regex.tryCompile("\\\\p{L}+")\n'
+        "if (words != nil) {\n"
+        '  print(words.replaceAll("a1 b2", "<$0>"))\n'
+        '  print(len(words.findAll("café ☕")))\n'
+        "  words.close()\n"
+        "}\n"
+        'val named = regex.tryCompile("(?P<a>[a-z]+)-(?P<b>[0-9]+)")\n'
+        "if (named != nil) {\n"
+        '  print(named.replaceAll("x-1 y-2", "$b/$a"))\n'
+        "  named.close()\n"
+        "}\n"
+        'print(regex.tryCompile("("))\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 0
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "<a>1 <b>2" in interpreted.stdout
+    assert "1/x 2/y" in interpreted.stdout
+
+
+@pytest.mark.backend
+def test_regex_group_names_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        'val compiled = regex_engine.compile("(?P<a>[a-z]+)-(?P<b>[0-9]+)", 0, 0)\n'
+        "val handle = compiled[1]\n"
+        "print(regex_engine.groupNames(handle))\n"
+        "regex_engine.free(handle)\n"
+        "print(regex_engine.groupNames(handle))\n",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70  # handle fechado é panic, nos dois motores
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert '["", "a", "b"]' in interpreted.stdout
+    assert "regex handle is closed or unknown." in interpreted.stderr
+
+
+@pytest.mark.backend
+def test_regex_group_names_sozinho_linka_o_motor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(tmp_path, "print(regex_engine.groupNames(1))\n")
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "regex handle is closed or unknown." in interpreted.stderr

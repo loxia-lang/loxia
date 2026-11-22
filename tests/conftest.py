@@ -55,3 +55,13 @@ def _repository_config_guard() -> Iterator[None]:
             "the test suite modified the repository's .git/config; "
             "make sure every git subprocess uses loxia_core.loader.gitenv.git_env()."
         )
+
+
+@pytest.fixture(scope="session")
+def regex_build_cache(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """Cache do build Rust compartilhado entre testes (a chave é o conteúdo).
+
+    O crate leva ~14 s para compilar; sem isso cada teste com regex pagaria o build
+    de novo. O cache é content-addressed, então compartilhar não esconde regressão.
+    """
+    return str(tmp_path_factory.mktemp("regex-build-cache"))

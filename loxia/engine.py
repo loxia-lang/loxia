@@ -42,8 +42,9 @@ from loxia_core.loader.manifest import (
     discover_manifest,
     parse_manifest,
 )
+from loxia_core.native_build import TOOLCHAIN_MESSAGE, cargo_binary
 from loxia_core.semantics.checker import Checker
-from loxia_core.semantics.layers import native_only_uses
+from loxia_core.semantics.layers import REGEX_PRIMITIVES, named_uses, native_only_uses
 from loxia_core.semantics.resolver import Resolver
 
 if TYPE_CHECKING:
@@ -288,6 +289,15 @@ class Loxia:
         if self.reporter.had_error:
             return
 
+        # ADR-0131: regex exige o toolchain Rust; a recusa é antes de executar.
+        if cargo_binary() is None:
+            for use in named_uses(statements, self.interpreter.locals, REGEX_PRIMITIVES):
+                self.reporter.error(use.token, TOOLCHAIN_MESSAGE, code=Code.TOOLCHAIN_MISSING)
+                break
+
+        if self.reporter.had_error:
+            return
+
         self.interpreter.interpret(statements)
 
     # -- comandos --------------------------------------------------------
@@ -435,6 +445,14 @@ class Loxia:
         if self.reporter.had_fatal_error:
             self.flush("build", exit_code=65, always=True)
             return False
+
+        # ADR-0131: sem cargo não há `staticlib` para linkar; falha antes do lowering.
+        if cargo_binary() is None:
+            for use in named_uses(statements, self.interpreter.locals, REGEX_PRIMITIVES):
+                self.reporter.error(use.token, TOOLCHAIN_MESSAGE, code=Code.TOOLCHAIN_MISSING)
+            if self.reporter.had_error:
+                self.flush("build", exit_code=65, always=True)
+                return False
 
         # Import tardio: `llvmlite` só é exigido quando o backend é usado.
         from loxia_core.backend.driver import build as build_native

@@ -23,6 +23,16 @@ from loxia_core.frontend.tokens import Token
 
 NATIVE_ONLY = "native-only"
 
+# Primitivas do motor de regex (ADR-0131): exigem o toolchain Rust no run/build.
+REGEX_PRIMITIVES = frozenset(
+    {
+        "regex_engine.compile",
+        "regex_engine.find",
+        "regex_engine.groupNames",
+        "regex_engine.free",
+    }
+)
+
 
 @dataclass(frozen=True)
 class NativeOnlyUse:
@@ -83,3 +93,52 @@ def _walk(
     if is_dataclass(node) and not isinstance(node, type):
         for value in vars(node).values():
             _walk(value, table, locals, uses)
+
+
+def uses_primitive(
+    statements: Iterable[Stmt],
+    locals: Mapping[Expr, int],
+    names: frozenset[str],
+) -> bool:
+    """`True` quando o programa referencia, no escopo global, um dos `names`."""
+    return bool(named_uses(statements, locals, names))
+
+
+def named_uses(
+    statements: Iterable[Stmt],
+    locals: Mapping[Expr, int],
+    names: frozenset[str],
+) -> list[NativeOnlyUse]:
+    """Referências globais a um dos `names`, com o token do membro.
+
+    Mesma regra de sombreamento de `native_only_uses`: um nome local que esconde o
+    namespace não conta. O engine usa o token para o `E3022`; o backend, para
+    decidir quais unidades nativas entram no link (ADR-0126).
+    """
+    uses: list[NativeOnlyUse] = []
+    for statement in statements:
+        _collect(statement, names, locals, uses)
+    return uses
+
+
+def _collect(
+    node: object,
+    names: frozenset[str],
+    locals: Mapping[Expr, int],
+    uses: list[NativeOnlyUse],
+) -> None:
+    if isinstance(node, (list, tuple)):
+        for item in node:
+            _collect(item, names, locals, uses)
+        return
+    if (
+        isinstance(node, Get)
+        and isinstance(node.object, Variable)
+        and locals.get(node.object) is None
+    ):
+        qualified = f"{node.object.name.lexeme}.{node.name.lexeme}"
+        if qualified in names:
+            uses.append(NativeOnlyUse(qualified, node.name))
+    if is_dataclass(node) and not isinstance(node, type):
+        for value in vars(node).values():
+            _collect(value, names, locals, uses)

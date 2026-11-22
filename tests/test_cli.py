@@ -454,9 +454,14 @@ def test_capabilities_publishes_primitives_and_budget() -> None:
     }
     assert payload["kernel_budget"]["total"] == 40
     assert payload["kernel_budget"]["groups"]["fs"] == 11
+    assert payload["native_modules"] == [
+        {"name": "regex_engine", "budget": 4, "used": 4},
+        {"name": "sqlite3", "budget": 20, "used": 0},
+    ]
     human = run_cli("capabilities").stdout
     assert "primitives: 40 (" in human
     assert "layers: " in human
+    assert "native modules: regex_engine 4/4" in human
 
 
 def test_explain_known_and_unknown_code() -> None:

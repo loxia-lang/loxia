@@ -38,6 +38,13 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
     assert any(name.endswith("loxia_core/std/json.lx") for name in names)
     assert any(name.endswith("loxia_core/runtime/lox_runtime.h") for name in names)
     assert any(name.endswith("loxia_core/runtime/kernel.c") for name in names)
+    # Módulo embutido e fontes do crate (ADR-0126/0131): sem eles o `import regex`
+    # instalado quebra e o build on-demand não tem o que compilar.
+    assert any(name.endswith("loxia_core/bundled/regex.lx") for name in names)
+    assert any(name.endswith("loxia_core/native/regex/Cargo.toml") for name in names)
+    assert any(name.endswith("loxia_core/native/regex/Cargo.lock") for name in names)
+    assert any("loxia_core/native/regex/vendor/" in name for name in names)
+    assert not any("/native/regex/target/" in name for name in names)
     # O índice de docs é um artefato gerado e precisa viajar no wheel (ADR-0111).
     assert any(name.endswith("loxia/_spec/index.json") for name in names)
     assert any(name.endswith("loxia/mcp.py") for name in names)
@@ -56,8 +63,12 @@ def test_wheel_instala_fora_do_repo_e_roda_stdlib(tmp_path: Path) -> None:
         sdist_names = archive.getnames()
 
     assert any(name.endswith("/std/json.lx") and "/loxia_core/" not in name for name in sdist_names)
+    assert any(name.endswith("/bundled/regex.lx") for name in sdist_names)
+    assert any(name.endswith("/native/regex/Cargo.toml") for name in sdist_names)
     assert any(name.endswith("/server.json") for name in sdist_names)
     assert not any("/loxia_core/std/" in name for name in sdist_names)
+    assert not any("/loxia_core/native/" in name for name in sdist_names)
+    assert not any("/native/regex/target/" in name for name in sdist_names)
 
     venv = tmp_path / "venv"
     _run("uv", "venv", str(venv), "--python", "3.13", cwd=tmp_path)

@@ -31,6 +31,8 @@ from loxia_core.execution.limits import (
 from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.ty import Ty
+from loxia_core.native_build import static_library as regex_static_library
+from loxia_core.semantics.layers import REGEX_PRIMITIVES, uses_primitive
 
 Emit = Literal["ll", "obj", "exe"]
 
@@ -50,6 +52,16 @@ RUNTIME_NAMES = (
 )
 RUNTIME_SOURCES = tuple(RUNTIME_DIR / name for name in RUNTIME_NAMES)
 RUNTIME_HEADERS = tuple(sorted(RUNTIME_DIR.glob("*.h")))
+
+# Unidades que só entram no link quando o programa usa a capacidade (ADR-0126).
+# `regex.c` chama o motor Rust (ADR-0131) e só é compilado com `regex_engine.*`.
+REGEX_UNIT = "regex.c"
+REGEX_SOURCE = RUNTIME_DIR / REGEX_UNIT
+# Capacidade → unidades extras. Lista explícita (ADR-0126): um `.c` novo não entra
+# no link por acidente.
+MODULE_RUNTIME_UNITS: dict[str, tuple[str, ...]] = {"regex": (REGEX_UNIT,)}
+REGEX_ABI_HEADER = bundle_dir("native") / "regex" / "include" / "lox_regex.h"
+REGEX_CRATE_LOCK = bundle_dir("native") / "regex" / "Cargo.lock"
 
 # Flags base do runtime; o cap de heap e o teto de pilha entram por build.
 RUNTIME_FLAGS = ("-O2", "-std=c11")
@@ -121,8 +133,9 @@ def build(
 
     target = output or Path(stem)
     heap_bytes = DEFAULT_HEAP_BYTES if max_heap is None else max_heap
+    regex_used = uses_primitive(statements, depths, REGEX_PRIMITIVES)
     try:
-        _link(object_bytes, target, heap_bytes)
+        _link(object_bytes, target, heap_bytes, regex_used)
     except BackendError:
         raise
     except Exception as error:
@@ -140,32 +153,43 @@ def _verify(module: Any) -> None:
         raise BackendError(f"internal error: generated invalid LLVM IR: {error}") from error
 
 
-def _link(object_bytes: bytes, target: Path, heap_bytes: int) -> None:
+def runtime_sources(regex: bool) -> tuple[Path, ...]:
+    """Unidades do runtime para um build: as base e, se usada, a do regex."""
+    names = RUNTIME_NAMES + (MODULE_RUNTIME_UNITS["regex"] if regex else ())
+    return tuple(RUNTIME_DIR / name for name in names)
+
+
+def _link(object_bytes: bytes, target: Path, heap_bytes: int, regex: bool) -> None:
     compiler = _compiler()
+    sources = runtime_sources(regex)
 
     with tempfile.TemporaryDirectory(prefix="lox-build-") as directory:
         build_dir = Path(directory)
         program_object = build_dir / "program.o"
         program_object.write_bytes(object_bytes)
-        runtime_objects = _runtime_objects(compiler, build_dir, heap_bytes)
+        runtime_objects = _runtime_objects(compiler, build_dir, heap_bytes, sources, regex)
+
+        command = [
+            compiler,
+            str(program_object),
+            *(str(object_) for object_ in runtime_objects),
+            "-o",
+            str(target),
+        ]
+        if regex:
+            archive, native_libs = regex_static_library()
+            command.extend([str(archive), *native_libs])
+        command.extend(["-lgc", "-lm"])
 
         try:
-            _run(
-                [
-                    compiler,
-                    str(program_object),
-                    *(str(object_) for object_ in runtime_objects),
-                    "-o",
-                    str(target),
-                    "-lm",
-                    "-lgc",
-                ]
-            )
+            _run(command)
         except BackendError as error:
             raise _with_gc_hint(_sanitize_compiler_error(error, build_dir)) from error
 
 
-def _runtime_objects(compiler: str, build_dir: Path, heap_bytes: int) -> tuple[Path, ...]:
+def _runtime_objects(
+    compiler: str, build_dir: Path, heap_bytes: int, sources: tuple[Path, ...], regex: bool
+) -> tuple[Path, ...]:
     """Compila as unidades do runtime uma vez por (fontes, compilador, flags).
 
     O runtime não depende do programa do usuário; recompilá-lo a cada `--emit=exe`
@@ -175,15 +199,15 @@ def _runtime_objects(compiler: str, build_dir: Path, heap_bytes: int) -> tuple[P
     """
     cache = _runtime_cache_dir()
     if cache is not None:
-        key = _runtime_key(compiler, heap_bytes)
+        key = _runtime_key(compiler, heap_bytes, sources, regex)
         directory = cache / f"runtime-{key}"
-        objects = tuple(directory / f"{source.stem}.o" for source in RUNTIME_SOURCES)
+        objects = tuple(directory / f"{source.stem}.o" for source in sources)
         if all(object_.is_file() and object_.stat().st_size > 0 for object_ in objects):
             return objects
 
         try:
             directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-            for source, object_ in zip(RUNTIME_SOURCES, objects, strict=True):
+            for source, object_ in zip(sources, objects, strict=True):
                 if object_.is_file() and object_.stat().st_size > 0:
                     continue
                 temporary = directory / f"{source.stem}.{os.getpid()}.tmp.o"
@@ -197,7 +221,7 @@ def _runtime_objects(compiler: str, build_dir: Path, heap_bytes: int) -> tuple[P
             pass
 
     fallback: list[Path] = []
-    for source in RUNTIME_SOURCES:
+    for source in sources:
         object_ = build_dir / f"runtime_{source.stem}.o"
         _compile_runtime_unit(compiler, source, object_, build_dir, heap_bytes)
         fallback.append(object_)
@@ -228,9 +252,9 @@ def _compile_runtime_unit(
         ) from error
 
 
-def _runtime_key(compiler: str, heap_bytes: int) -> str:
+def _runtime_key(compiler: str, heap_bytes: int, sources: tuple[Path, ...], regex: bool) -> str:
     digest = hashlib.sha256()
-    for path in (*RUNTIME_SOURCES, *RUNTIME_HEADERS):
+    for path in (*sources, *RUNTIME_HEADERS):
         try:
             source = path.read_bytes()
         except OSError as error:
@@ -243,6 +267,15 @@ def _runtime_key(compiler: str, heap_bytes: int) -> str:
     digest.update(" ".join(_runtime_flags(heap_bytes)).encode("utf-8"))
     # `CPATH` muda de onde vem o `gc.h`; incluir evita cache de header trocado.
     digest.update(os.environ.get("CPATH", "").encode("utf-8"))
+    if regex:
+        # O adaptador inclui o ABI do crate; a versão do motor entra pelo lock.
+        for path in (REGEX_ABI_HEADER, REGEX_CRATE_LOCK):
+            try:
+                digest.update(path.read_bytes())
+            except OSError as error:
+                raise BackendError(
+                    f"internal error: can't read the native regex sources: {error}"
+                ) from error
     return digest.hexdigest()[:32]
 
 
@@ -285,7 +318,7 @@ def _sanitize_compiler_error(
         # O nome do `.o` da cache carrega o PID do processo; nunca pode vazar.
         message = message.replace(str(output), "<build>/runtime.o")
     message = message.replace(str(build_dir), "<build>")
-    for source in RUNTIME_SOURCES:
+    for source in (*RUNTIME_SOURCES, REGEX_SOURCE):
         message = message.replace(str(source), f"runtime/{source.name}")
     message = message.replace(str(RUNTIME_DIR), "runtime")
     message = message.replace(str(RUNTIME_DIR.parent), "<repo>")

@@ -88,6 +88,10 @@ from loxia_core.loader.manifest import Manifest
 
 STD_ROOT = bundle_dir("std")
 
+# Módulos nativos embutidos (ADR-0126/0131): raiz reservada, ao lado de `std/`, mas
+# importada pelo nome curto (`import regex`). Não há sombreamento pelo projeto.
+BUNDLED_ROOT = bundle_dir("bundled")
+
 # Extensão canônica dos fontes da linguagem (ADR-0078). Um só lugar: o loader é quem
 # transforma `import a.b` no caminho `a/b.lx`.
 SOURCE_SUFFIX = ".lx"
@@ -282,6 +286,12 @@ class ModuleLoader:
             if not file.is_file():
                 self._error(token, f"Module '{name}' not found.")
             return ResolvedModule(name, file, "std")
+
+        # Módulo nativo embutido: o nome curto é reservado e vence o projeto
+        # (ADR-0126). Um `import regex` nunca resolve para um arquivo do usuário.
+        bundled = BUNDLED_ROOT.joinpath(*parts).with_suffix(SOURCE_SUFFIX)
+        if bundled.is_file():
+            return ResolvedModule(name, bundled, "bundled")
 
         if len(parts) == 1 and parts[0] in self.dependencies:
             self._error(token, f"Expect a module name after '{parts[0]}'.")

@@ -58,6 +58,10 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       - run: uv sync --locked --all-groups --extra llvm
+      # Os testes de regex constroem o crate; instale antes do xdist para o
+      # rustup não ser disparado por vários workers ao mesmo tempo.
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
       - name: Unit tests
         if: matrix.python != '3.13'
         run: uv run pytest -m "not backend and not install"
@@ -113,6 +117,15 @@ jobs:
           enable-cache: true
       - name: Install Boehm GC
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
+      # Instala o toolchain pinado ANTES do pytest: com xdist, vários workers
+      # disparam o rustup ao mesmo tempo e a instalação pode ficar pela metade
+      # ("missing manifest in toolchain"), como aconteceu no CI.
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
+      # A suíte cargo do crate é a única guarda do catch_unwind/panic hook e do free.
+      - name: Rust tests (regex ABI)
+        working-directory: native/regex
+        run: cargo test --release --locked --offline
       - name: Cache the runtime build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -201,6 +214,19 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python3 tools/check_dco.py
+      # Dogfood do `regex` (ADR-0131). O check em Python acima continua até este
+      # rodar verde por um release. O runner já traz Rust; o primeiro run compila
+      # o motor (~15 s, cacheado por conteúdo).
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
+      - name: Conventional PR title (Loxia, dogfood)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: uv run main.py tools/check_pr_title.lx
 
   ci-success:
     name: CI success
