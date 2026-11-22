@@ -142,7 +142,8 @@ environment.
 - **Native module allocations are outside this cap.** The Rust regex engine allocates outside
   Boehm: its contract is per compiled program (`size_limit` 10 MiB, `max_prog_size` 100,000
   and `delegate_dfa_size_limit` 2 MiB in `Mode.Full`; ADR-0131 §2.1), not a total byte budget.
-  Close regex handles to release the memory.
+  A variable lookbehind whose reverse DFA needs more than the 2 MiB cache fails with the
+  stable `size` kind instead of growing. Close regex handles to release the memory.
 
 #### Monomorphization budget ([ADR-0063](../adr/0063-orcamento-monomorfizacao.md))
 

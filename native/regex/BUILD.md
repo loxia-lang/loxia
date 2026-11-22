@@ -22,8 +22,10 @@ stay linear; the backtracking limit only matters for backreferences and lookarou
 - `loxr_abi_version()` — the loader refuses a mismatch.
 - `loxr_compile(pattern, len, flags, mode, out_handle, out_offset)` — 1-based handle on
   success, `LOXR_ERR_COMPILE` plus the byte offset of the first syntax error on a syntax
-  error (`0` for `"("`, `1` for `"a(b"` in both modes; `-1` when unknown), or
-  `LOXR_ERR_TOO_BIG` when a per-program compiled-memory limit is hit.
+  error (`0` for `"("`, `1` for `"a(b"` in both modes; `-1` when unknown), `LOXR_ERR_TOO_BIG`
+  when a per-program compiled-memory limit is hit, or `LOXR_ERR_ENGINE` for an
+  analysis/unsupported-pattern error. When both modes reject the pattern, the offset is the
+  linear parser's first error; a delegated-fragment span is never exposed.
 - `loxr_match(handle, subject, len, start, out_spans, capacity)` — `start` in code points;
   writes `(start, end)` pairs in code points and returns how many `int64` were written, or
   `LOXR_NO_MATCH`.
@@ -40,9 +42,11 @@ Flags: `CASELESS`, `MULTILINE`, `DOTALL`, `EXTENDED`.
 - Handle table: 1-based, idempotent `free`, a free list for reuse, cap of 4096 live patterns
   (`LOXR_ERR_HANDLES`). No finalizer.
 - Limits are constants, not settings: `backtrack_limit = 1_000_000`, `size_limit = 10 MiB`
-  (linear and delegated sub-regexes), `delegate_dfa_size_limit = 2 MiB` and
-  `max_prog_size = 100_000` instructions (full). Changing them changes behavior and needs a
-  spec/test update.
+  (linear) and the full program caps `delegate_size_limit = 10 MiB`,
+  `delegate_dfa_size_limit = 2 MiB`, `max_prog_size = 100_000` instructions plus a strict
+  lookbehind cache. The first two delegate limits are the `regex-automata` defaults made
+  explicit; the new behavior is the instruction cap and the strict cache. Changing them
+  changes behavior and needs a spec/test update.
 - Rust allocations are **outside** the Boehm heap cap of the binary (ADR-0131 §2): the
   contract is per compiled program, not a total byte budget across handles. Closing handles
   is the way to release memory.

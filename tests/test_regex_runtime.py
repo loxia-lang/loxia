@@ -75,6 +75,29 @@ def test_syntax_error_reports_the_byte_offset(built: Path) -> None:
         assert (code, offset) == (regex_runtime.ERR_COMPILE, 2)
 
 
+def test_delegated_fragment_offset_is_mapped_back_to_the_pattern(built: Path) -> None:
+    # fancy-regex compiles delegated fragments from their own substring; the
+    # public offset must still index the original pattern in both modes.
+    cases = [
+        (r"(?:a\p{Foo})", 4),
+        (r"(?i:a\p{Foo})", 5),
+        (r"x(?:y)\p{Foo}", 6),
+        (r"(x)\1\p{Foo}", 3),
+        (r"x(?<=a)\p{Foo}", 1),
+        (r"é\p{Foo}", 2),
+    ]
+    for pattern, offset in cases:
+        for mode in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
+            code, _, actual = regex_runtime.compile_pattern(pattern, 0, mode)
+            assert (code, actual) == (regex_runtime.ERR_COMPILE, offset), (pattern, mode)
+
+
+def test_analysis_errors_are_engine_without_offset(built: Path) -> None:
+    for pattern in (r"(?<x>\g<x>a)", r"(a\g<1>)"):
+        code, _, offset = regex_runtime.compile_pattern(pattern, 0, regex_runtime.MODE_FULL)
+        assert (code, offset) == (regex_runtime.ERR_ENGINE, -1)
+
+
 def test_size_limit_is_a_stable_error_without_offset(built: Path) -> None:
     for mode in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
         code, _, offset = regex_runtime.compile_pattern("a{1000000}", 0, mode)
@@ -84,6 +107,13 @@ def test_size_limit_is_a_stable_error_without_offset(built: Path) -> None:
 def test_full_mode_caps_recursive_subroutine_expansion(built: Path) -> None:
     code, _, offset = regex_runtime.compile_pattern(r"(a|b\g<1>\g<1>)", 0, regex_runtime.MODE_FULL)
     assert (code, offset) == (regex_runtime.ERR_TOO_BIG, -1)
+
+
+def test_full_mode_keeps_common_lookbehind_and_repetition(built: Path) -> None:
+    for pattern in (r"(?<=ab|abc)x", r"(?<x>a)\g<x>", r"(?:ab){1000}"):
+        code, handle, _ = regex_runtime.compile_pattern(pattern, 0, regex_runtime.MODE_FULL)
+        assert code == 0, pattern
+        regex_runtime.free_pattern(handle)
 
 
 def test_primitive_protocol_returns_a_tagged_list(built: Path) -> None:

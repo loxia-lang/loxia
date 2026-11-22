@@ -62,11 +62,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 - **`RegexError.offset`** ([#121](https://github.com/loxia-lang/loxia/issues/121)): o erro de
   sintaxe reporta o byte do primeiro erro nos dois modos (`"("` → `0`, `"a(b"` → `1`) em vez
-  de `-1`. Padrão que estoura o limite por programa deixa de ser `syntax` e vira o kind
-  estável `size`.
+  de `-1`, inclusive quando o `fancy-regex` compila um fragmento delegado. Padrão que estoura
+  o limite por programa vira o kind estável `size`; erro de análise (recursão à esquerda,
+  lookbehind não constante) vira `engine`, não `syntax`.
 - **Memória do regex no modo Full** ([#122](https://github.com/loxia-lang/loxia/issues/122)):
-  `compileFull` passa a limitar o programa compilado (sub-regex delegados, cache DFA e
-  expansão de subrotinas recursivas). A decisão registrada é que a memória do motor Rust
+  `compileFull` passa a explicitar os limites de sub-regex/cache e ganha um teto de instruções
+  (`max_prog_size`), que rejeita a expansão de subrotinas recursivas e o cache estrito de
+  lookbehind variável com o kind `size`. A decisão registrada é que a memória do motor Rust
   fica fora do heap Boehm: o limite é por programa, não um orçamento total.
 - **`Bytes` é truthy no backend**: `if (b)`, `not b` e `and`/`or` sobre `Bytes` deixam de
   falhar no lowering; só `nil`/`false` são falsy, como no tree-walk.

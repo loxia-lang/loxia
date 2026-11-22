@@ -37,6 +37,7 @@ pub const ERR_HANDLES: i32 = -7;
 pub const ERR_CAPACITY: i32 = -8;
 pub const ERR_TOO_BIG: i32 = -9;
 pub const ERR_COMPILE: i32 = -10;
+pub const ERR_ENGINE: i32 = -11;
 
 /// Upper bound on live compiled patterns; keeps the table bounded and the
 /// failure deterministic.
@@ -175,6 +176,15 @@ fn syntax_error_offset(error: &regex_syntax::Error) -> i64 {
     }
 }
 
+/// Build failure for a pattern the linear parser rejects: the byte offset is
+/// always taken from the original pattern, never from a delegated fragment.
+fn syntax_failure(pattern: &str, flags: u32) -> BuildFailure {
+    BuildFailure {
+        code: ERR_COMPILE,
+        offset: linear_offset(pattern, flags),
+    }
+}
+
 /// Maps a `FULL` build error to the ABI code and offset. When both parsers
 /// reject the pattern, the linear span is the canonical offset: `fancy-regex`
 /// points at the end of an unclosed group while `regex-syntax` points at the
@@ -185,34 +195,33 @@ fn full_failure(pattern: &str, flags: u32, error: &fancy_regex::Error) -> BuildF
             let linear = linear_offset(pattern, flags);
             BuildFailure {
                 code: ERR_COMPILE,
-                offset: if linear >= 0 {
-                    linear
-                } else {
-                    *position as i64
-                },
+                offset: if linear >= 0 { linear } else { *position as i64 },
             }
         }
-        fancy_regex::Error::CompileError(inner) => {
-            if let fancy_regex::CompileError::InnerError(build) = inner.as_ref() {
-                if let Some(syntax) = build.syntax_error() {
-                    return BuildFailure {
-                        code: ERR_COMPILE,
-                        offset: syntax_error_offset(syntax),
-                    };
+        fancy_regex::Error::CompileError(inner) => match inner.as_ref() {
+            fancy_regex::CompileError::InnerError(build) => {
+                // `fancy-regex` compiles each delegated fragment from its own
+                // substring, so the inner span is relative to the fragment.
+                // Only the linear parse of the original pattern is safe.
+                if build.syntax_error().is_some() {
+                    return syntax_failure(pattern, flags);
                 }
                 if build.size_limit().is_some() {
                     return BuildFailure::new(ERR_TOO_BIG);
                 }
+                BuildFailure::new(ERR_ENGINE)
             }
-            if matches!(
-                inner.as_ref(),
-                fancy_regex::CompileError::PatternTooComplex
-                    | fancy_regex::CompileError::DfaBuildError(..)
-            ) {
-                return BuildFailure::new(ERR_TOO_BIG);
+            fancy_regex::CompileError::PatternTooComplex
+            | fancy_regex::CompileError::DfaBuildError(..) => BuildFailure::new(ERR_TOO_BIG),
+            fancy_regex::CompileError::InvalidGroupName
+            | fancy_regex::CompileError::InvalidGroupNameBackref(_)
+            | fancy_regex::CompileError::InvalidBackref(_)
+            | fancy_regex::CompileError::NamedBackrefOnly
+            | fancy_regex::CompileError::SubroutineCallTargetNotFound(..) => {
+                syntax_failure(pattern, flags)
             }
-            BuildFailure::new(ERR_COMPILE)
-        }
+            _ => BuildFailure::new(ERR_ENGINE),
+        },
         _ => BuildFailure::new(ERR_COMPILE),
     }
 }
@@ -546,10 +555,47 @@ mod tests {
     }
 
     #[test]
+    fn delegated_fragment_offsets_are_mapped_back_to_the_pattern() {
+        // `fancy-regex` compiles delegated fragments from their own substring,
+        // so the inner span must never leak as the public offset.
+        let cases = [
+            (r"(?:a\p{Foo})", 4),
+            (r"(?i:a\p{Foo})", 5),
+            (r"x(?:y)\p{Foo}", 6),
+            (r"(x)\1\p{Foo}", 3),
+            (r"x(?<=a)\p{Foo}", 1),
+            (r"é\p{Foo}", 2),
+        ];
+        for (pattern, offset) in cases {
+            assert_eq!(
+                compile_error(pattern, 0, MODE_LINEAR),
+                (ERR_COMPILE, offset),
+                "linear offset for {pattern:?}"
+            );
+            assert_eq!(
+                compile_error(pattern, 0, MODE_FULL),
+                (ERR_COMPILE, offset),
+                "full offset for {pattern:?}"
+            );
+        }
+    }
+
+    #[test]
     fn full_only_syntax_error_uses_the_engine_offset() {
         // The linear parser accepts `a**`, so the fancy position (2) is the only
         // available offset.
         assert_eq!(compile_error("a**", 0, MODE_FULL), (ERR_COMPILE, 2));
+    }
+
+    #[test]
+    fn analysis_errors_are_engine_not_syntax() {
+        for pattern in [r"(?<x>\g<x>a)", r"(a\g<1>)"] {
+            assert_eq!(
+                compile_error(pattern, 0, MODE_FULL),
+                (ERR_ENGINE, -1),
+                "pattern {pattern:?}"
+            );
+        }
     }
 
     #[test]
@@ -565,6 +611,14 @@ mod tests {
             compile_error(r"(a|b\g<1>\g<1>)", 0, MODE_FULL),
             (ERR_TOO_BIG, -1)
         );
+    }
+
+    #[test]
+    fn full_mode_keeps_common_lookbehind_and_repetition() {
+        for pattern in [r"(?<=ab|abc)x", r"(?<x>a)\g<x>", r"(?:ab){1000}"] {
+            let handle = compile(pattern, 0, MODE_FULL);
+            loxr_free(handle);
+        }
     }
 
     #[test]

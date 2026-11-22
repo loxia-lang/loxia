@@ -145,6 +145,6 @@ backend = true
 
 [features.regex]
 title = "Módulo embutido regex (motor Rust, linear e Full)"
-golden = ["tests/cases/std_regex/basic.lx", "tests/cases/std_regex/limits.lx"]
+golden = ["tests/cases/std_regex/basic.lx", "tests/cases/std_regex/errors.lx", "tests/cases/std_regex/limits.lx"]
 differential = "t4"
 backend = true

@@ -14,8 +14,8 @@ class RegexError {
   /// Stable category: `syntax`, `arguments`, `mode`, `size` or `engine`.
   val kind: String
 
-  /// Byte offset of the first syntax error in the pattern; `-1` when the engine
-  /// cannot report one (arguments, mode, size limit).
+  /// Byte offset of the syntax error reported by `compile`; `-1` when the engine
+  /// cannot report one (arguments, mode, size or engine error).
   val offset: Int
 
   /// Creates the error; pass the offset reported by `compile` (`-1` when unknown).
@@ -185,7 +185,10 @@ fn compile(
 }
 
 /// Compiles `pattern` for `Mode.Full`: backreferences and lookaround, bounded by
-/// a fixed backtracking limit. Prefer `compile` for untrusted patterns.
+/// a fixed backtracking limit. The compiled program is also bounded per pattern
+/// (delegated sub-regexes, DFA cache and VM instructions); an oversized pattern
+/// or a variable lookbehind that needs more cache fails with kind `size`.
+/// Prefer `compile` for untrusted patterns.
 fn compileFull(
   pattern: String,
   caseless: Bool = false,

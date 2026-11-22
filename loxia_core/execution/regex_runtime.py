@@ -25,6 +25,7 @@ ERR_HANDLE: Final = -5
 ERR_CAPACITY: Final = -8
 ERR_TOO_BIG: Final = -9
 ERR_COMPILE: Final = -10
+ERR_ENGINE: Final = -11
 
 # Teto de grupos de captura que o binding aceita antes de desistir.
 MAX_GROUPS: Final = 4096

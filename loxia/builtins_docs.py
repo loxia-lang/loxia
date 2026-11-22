@@ -522,8 +522,10 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
     BuiltinDoc(
         "regex_engine.compile",
         "regex_engine.compile(pattern: String, flags: Int, mode: Int) -> List[Int]",
-        "Compiles a pattern and returns `[1, handle]`; on a syntax error it returns "
-        "`[0, code]` with a negative `code`.\n\n"
+        "Compiles a pattern and returns `[1, handle]`; on a failure it returns "
+        "`[0, code, offset]`, where `offset` is the byte offset of a syntax error "
+        "(`-1` when unavailable) and `code` is negative (`-9` is the per-program "
+        "size limit, reported as `size` by the public module).\n\n"
         "`mode` is `0` (linear, the default: guaranteed linear time) or `1` (full: "
         "backreferences and lookaround, bounded by a fixed backtracking limit). "
         "`flags` is a mask: `1` caseless, `2` multiline, `4` dot-all, `8` extended. "

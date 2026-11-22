@@ -17,6 +17,11 @@ print(report("a(b", false))
 print(report("a(b", true))
 print(report("é(", false))
 print(report("é(", true))
+print(report("(?:a\\p{Foo})", false))
+print(report("(?:a\\p{Foo})", true))
+print(report("(?i:a\\p{Foo})", false))
+print(report("(?i:a\\p{Foo})", true))
+print(report("(?<x>\\g<x>a)", true))
 print(report("a{1000000}", false))
 print(report("a{1000000}", true))
 # expect: syntax 0
@@ -25,5 +30,10 @@ print(report("a{1000000}", true))
 # expect: syntax 1
 # expect: syntax 2
 # expect: syntax 2
+# expect: syntax 4
+# expect: syntax 4
+# expect: syntax 5
+# expect: syntax 5
+# expect: engine -1
 # expect: size -1
 # expect: size -1

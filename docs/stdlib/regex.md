@@ -23,8 +23,8 @@ Stable category: `syntax`, `arguments`, `mode`, `size` or `engine`.
 
 #### `val offset: Int`
 
-Byte offset of the first syntax error in the pattern; `-1` when the engine
-cannot report one (arguments, mode, size limit).
+Byte offset of the syntax error reported by `compile`; `-1` when the engine
+cannot report one (arguments, mode, size or engine error).
 
 #### `fn init(kind: String, offset: Int = ...)`
 
@@ -111,7 +111,10 @@ newline) and `extended` (ignore whitespace and `#` comments).
 ### `fn compileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]`
 
 Compiles `pattern` for `Mode.Full`: backreferences and lookaround, bounded by
-a fixed backtracking limit. Prefer `compile` for untrusted patterns.
+a fixed backtracking limit. The compiled program is also bounded per pattern
+(delegated sub-regexes, DFA cache and VM instructions); an oversized pattern
+or a variable lookbehind that needs more cache fails with kind `size`.
+Prefer `compile` for untrusted patterns.
 
 ### `fn tryCompile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil`
 
