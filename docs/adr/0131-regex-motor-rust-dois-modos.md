@@ -217,9 +217,9 @@ do binário virar requisito.
 ## Como verificar
 
 - Spike da §7 com números registrados neste ADR (tempo, tamanho, latência).
-- `tests/cases/std_regex/*.lx` em `run` e `--emit=exe`, com `--check` limpo — **adiado**
-  para não tornar Rust pré-requisito do `make check-fast`; coberto hoje por
-  `tests/test_regex_module.py` e pelo diferencial do backend (#120).
+- `tests/cases/std_regex/*.lx` em `run` e `--emit=exe`, com `--check` limpo (nível `t4`).
+  A diretiva `# requires: rust` pula o caso sem `cargo`, então o corpus não torna Rust
+  pré-requisito do `make check-fast` (#120).
 - Teste de panic: cada `extern "C"` tem um gatilho só de teste que dispara panic interno
   → `ERR_PANIC` estável, processo vivo (`panic_does_not_escape_any_entry_point`).
 - Teste de limite: `(a+)\1$` em `Full` (backref, §7.1) → `RuntimeError` (limite de

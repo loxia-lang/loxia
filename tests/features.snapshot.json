@@ -135,6 +135,13 @@
         "tests/cases/nil_value.lx"
       ]
     },
+    "regex": {
+      "differential": "t4",
+      "golden": [
+        "tests/cases/std_regex/basic.lx",
+        "tests/cases/std_regex/limits.lx"
+      ]
+    },
     "stdlib": {
       "differential": "t1",
       "golden": [

@@ -23,6 +23,7 @@ import pytest
 
 from loxia.engine import Loxia
 from tests.corpus_manifest import COMPILE_ERRORS, LEVELS, NEGATIVE, PENDING
+from tests.runner import missing_requirements, requirements
 
 MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
 
@@ -426,6 +427,16 @@ def test_binario_concorda_com_interpretador(tmp_path: Path, source: str, label: 
 )
 def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
     path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
+    if "rust" in requirements(path.read_text(encoding="utf-8")):
+        # O build frio do crate não cabe no timeout de 60 s de cada chamada;
+        # aquece o cache uma vez no processo do teste.
+        from loxia_core import native_build
+
+        native_build.library()
+        native_build.static_library()
 
     interpreted = _interpret(path)
     result, binary = _build(path, tmp_path)
@@ -1996,6 +2007,8 @@ def test_goldens_de_runtime_error_batem_bytes(tmp_path: Path) -> None:
 
     cases = []
     for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
+        if missing_requirements(path):
+            continue
         expectations = parse_expectations(path.read_text(encoding="utf-8"))
         if expectations.exit_code != 70 or expectations.error is None:
             continue

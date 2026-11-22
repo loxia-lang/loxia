@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.runner import check_case, discover_cases
+from tests.runner import check_case, discover_cases, missing_requirements
 
 CASES = discover_cases()
 
@@ -14,6 +14,9 @@ CASES = discover_cases()
     "case", CASES, ids=lambda p: str(p.relative_to(Path(__file__).parent / "cases"))
 )
 def test_golden_case(case: Path) -> None:
+    missing = missing_requirements(case)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
     problems = check_case(case)
     assert not problems, "\n".join(problems)
 
