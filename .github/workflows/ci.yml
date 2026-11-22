@@ -58,6 +58,10 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       - run: uv sync --locked --all-groups --extra llvm
+      # Os testes de regex constroem o crate; instale antes do xdist para o
+      # rustup não ser disparado por vários workers ao mesmo tempo.
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
       - name: Unit tests
         if: matrix.python != '3.13'
         run: uv run pytest -m "not backend and not install"
