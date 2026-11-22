@@ -34,6 +34,7 @@ from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.trivia import Trivia
 from loxia_core.loader.deps import DependencyError, resolve_dependencies
 from loxia_core.loader.lock import LOCK_NAME, LockError, read_lock
 from loxia_core.loader.manifest import (
@@ -115,6 +116,8 @@ class Loxia:
         # Tokens do último parse (entrada, não módulos). Só o oráculo da AST
         # (`--file-only --format=json`) consome (ADR-0129).
         self.last_tokens: list[Token] | None = None
+        # Comentários/espaços do último parse; o formatter/LSP consome (ADR-0134).
+        self.last_trivia: list[Trivia] = []
         # Statements recuperados pelo parser quando há erro de sintaxe: só tooling
         # (LSP) consome; `run`/`check` continuam estritos (ADR-0113).
         self.last_recovered_statements: list[Stmt] | None = None
@@ -151,6 +154,7 @@ class Loxia:
         scanner = Scanner(source, self.reporter)
         tokens = scanner.scan_tokens()
         self.last_tokens = tokens
+        self.last_trivia = scanner.trivia
         parser = Parser(tokens, repl=repl, reporter=self.reporter)
         statements = parser.parse_repl() if repl else parser.parse()
         self.last_recovered_statements = statements

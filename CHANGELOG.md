@@ -15,6 +15,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **Trivia do front-end** ([ADR-0134](docs/adr/0134-trivia-side-table.md),
+  [#108](https://github.com/loxia-lang/loxia/issues/108)): o scanner passa a gravar
+  comentários e espaços numa side table sem alterar tokens/AST; `render` prova round-trip
+  do texto normalizado e `TriviaTable` define attachment para o formatter/LSP.
+
 - **`regex` nativo** ([ADR-0131](docs/adr/0131-regex-motor-rust-dois-modos.md),
   [#118](https://github.com/loxia-lang/loxia/issues/118)): módulo embutido `regex`
   (`import regex`) com motor Rust — linear por padrão (`compile`) e `Mode.Full`

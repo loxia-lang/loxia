@@ -84,7 +84,8 @@ Packages by phase (dependency only downward):
 | [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | statement nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recovery; optional `;` at end of line; `elif`, `fn` and `[T]` |
 | [`loxia_core/frontend/destructuring.py`](../../loxia_core/frontend/destructuring.py) | destructuring patterns (`val (a, (b, c)) = t`), recursive (ADR-0069) |
-| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of expression spans (offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of node/type spans (expressions, declarations, annotations; offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/frontend/trivia.py`](../../loxia_core/frontend/trivia.py) | scanner side table for comments/whitespace, normalized round-trip and deterministic attachment (ADR-0134) |
 | [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py) | module loader (ADR-0073/0100): file = module, folder = namespace, inlining, import cycles and isolation |
 | [`loxia_core/loader/manifest.py`](../../loxia_core/loader/manifest.py) | `loxia.toml`: discovery, `[package]` (name/version), `[dependencies]` specs and `[modules].paths` |
 | [`loxia_core/loader/lock.py`](../../loxia_core/loader/lock.py) | `loxia.lock` (ADR-0104): strict parse and canonical rendering (sorted, relative posix paths, no timestamp) |
