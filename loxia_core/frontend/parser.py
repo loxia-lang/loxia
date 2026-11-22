@@ -222,8 +222,9 @@ class Parser:
             )
         self._consume(TokenType.EQUAL, "Expect '=' after type alias name.")
         target = self._type()
+        end = self._previous()
         self._end_statement("Expect ';' after type alias.")
-        return TypeAlias(keyword, name, target, doc=keyword.doc)
+        return TypeAlias(keyword, name, target, doc=keyword.doc, end=end)
 
     def _module_path(self) -> tuple[Token, ...]:
         path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
@@ -314,6 +315,8 @@ class Parser:
             type_params,
             implements=implements,
             doc=keyword.doc,
+            keyword=keyword,
+            end=self._previous(),
         )
 
     def _interface_declaration(self, keyword: Token) -> Stmt:
@@ -339,7 +342,7 @@ class Parser:
             methods.append(self._function("method", allow_abstract=True, fn_token=fn_token))
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after interface body.")
-        return Interface(name, methods, doc=keyword.doc)
+        return Interface(name, methods, doc=keyword.doc, keyword=keyword, end=self._previous())
 
     def _enum_declaration(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect enum name.")
@@ -367,7 +370,14 @@ class Parser:
                     break
 
         self._consume(TokenType.RIGHT_BRACE, "Expect '}' after enum variants.")
-        return EnumDecl(name, type_params, variants, doc=keyword.doc)
+        return EnumDecl(
+            name,
+            type_params,
+            variants,
+            doc=keyword.doc,
+            keyword=keyword,
+            end=self._previous(),
+        )
 
     def _field_declaration(self, mutable: bool, *, keyword: Token) -> Field:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
@@ -397,7 +407,7 @@ class Parser:
             end=end,
         )
 
-    def _destructure(self, mutable: bool) -> Stmt:
+    def _destructure(self, mutable: bool, *, keyword: Token) -> Stmt:
         pattern = self._destructure_pattern()
 
         type_annotation: Ty | None = None
@@ -406,9 +416,17 @@ class Parser:
 
         self._consume(TokenType.EQUAL, "Expect '=' after destructuring pattern.")
         initializer = self._expression()
+        end = self._previous()
         self._end_statement("Expect ';' after destructuring.")
 
-        return Destructure(pattern, initializer, mutable, type_annotation)
+        return Destructure(
+            pattern,
+            initializer,
+            mutable,
+            type_annotation,
+            keyword=keyword,
+            end=end,
+        )
 
     def _destructure_pattern(self) -> DestructurePattern:
         if self._match(TokenType.LEFT_PAREN):
@@ -430,7 +448,7 @@ class Parser:
 
     def _var_declaration(self, mutable: bool, *, keyword: Token) -> Stmt:
         if self._check(TokenType.LEFT_PAREN):
-            return self._destructure(mutable)
+            return self._destructure(mutable, keyword=keyword)
 
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
 
@@ -449,6 +467,7 @@ class Parser:
                 Code.INVALID_DECLARATION,
             )
 
+        end = self._previous()
         self._end_statement("Expect ';' after variable declaration.")
 
         return Var(
@@ -458,19 +477,20 @@ class Parser:
             type_annotation,
             doc=keyword.doc,
             keyword=keyword,
+            end=end,
         )
 
     def _statement(self) -> Stmt:
         if self._match(TokenType.FOR):
-            return self._for_statement()
+            return self._for_statement(self._previous())
         if self._match(TokenType.IF):
-            return self._if_statement("if")
+            return self._if_statement(self._previous())
 
         if self._match(TokenType.RETURN):
             return self._return_statement()
 
         if self._match(TokenType.WHILE):
-            return self._while_statement()
+            return self._while_statement(self._previous())
 
         if self._match(TokenType.TRY):
             return self._try_statement(self._previous())
@@ -479,7 +499,9 @@ class Parser:
             return self._raise_statement(self._previous())
 
         if self._match(TokenType.LEFT_BRACE):
-            return Block(self._block())
+            start = self._previous()
+            statements = self._block()
+            return Block(statements, start=start, end=self._previous())
 
         return self._expression_statement()
 
@@ -489,11 +511,21 @@ class Parser:
 
         handlers: list[ExceptClause] = []
         while self._match(TokenType.EXCEPT):
+            except_keyword = self._previous()
             type_name = self._consume(TokenType.IDENTIFIER, "Expect exception type after 'except'.")
             self._consume(TokenType.AS, "Expect 'as' after exception type.")
             binding = self._consume(TokenType.IDENTIFIER, "Expect binding name after 'as'.")
             self._consume(TokenType.LEFT_BRACE, "Expect '{' after except binding.")
-            handlers.append(ExceptClause(type_name, binding, self._block()))
+            except_body = self._block()
+            handlers.append(
+                ExceptClause(
+                    type_name,
+                    binding,
+                    except_body,
+                    keyword=except_keyword,
+                    end=self._previous(),
+                )
+            )
 
         finally_body: list[Stmt] | None = None
         if self._match(TokenType.FINALLY):
@@ -507,7 +539,7 @@ class Parser:
                 Code.INVALID_DECLARATION,
             )
 
-        return Try(keyword, body, handlers, finally_body)
+        return Try(keyword, body, handlers, finally_body, end=self._previous())
 
     def _raise_statement(self, keyword: Token) -> Stmt:
         value: Expr | None = None
@@ -535,9 +567,9 @@ class Parser:
         finally:
             self._bracket_depth = saved_depth
 
-    def _for_statement(self) -> Stmt:
+    def _for_statement(self, keyword: Token) -> Stmt:
         if not self._check(TokenType.LEFT_PAREN):
-            return self._for_in_statement()
+            return self._for_in_statement(keyword)
 
         self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
         initializer: Stmt | None = None
@@ -573,28 +605,28 @@ class Parser:
         if cond is None:
             cond = Literal(True)
 
-        body = While(cond, body)
+        body = While(cond, body, keyword=keyword)
 
         if initializer is not None:
             body = Block([initializer, body])
 
         return body
 
-    def _for_in_statement(self) -> Stmt:
+    def _for_in_statement(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect loop variable name after 'for'.")
         self._consume(TokenType.IN, "Expect 'in' after loop variable.")
         iterable = self._expression()
         body = self._statement()
 
-        return ForIn(name, iterable, body)
+        return ForIn(name, iterable, body, keyword=keyword)
 
-    def _while_statement(self) -> Stmt:
+    def _while_statement(self, keyword: Token) -> Stmt:
         self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
         cond = self._expression()
         self._consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
         body = self._statement()
 
-        return While(cond, body)
+        return While(cond, body, keyword=keyword)
 
     def _return_statement(self) -> Stmt:
         keyword = self._previous()
@@ -610,10 +642,10 @@ class Parser:
         self._end_statement("Expect ';' after return value.")
         return Return(keyword, value)
 
-    def _if_statement(self, keyword: str) -> Stmt:
-        self._consume(TokenType.LEFT_PAREN, f"Expect '(' after '{keyword}'.")
+    def _if_statement(self, keyword: Token) -> Stmt:
+        self._consume(TokenType.LEFT_PAREN, f"Expect '(' after '{keyword.lexeme}'.")
         cond = self._expression()
-        self._consume(TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword}' condition.")
+        self._consume(TokenType.RIGHT_PAREN, f"Expect ')' after '{keyword.lexeme}' condition.")
 
         then_branch = self._statement()
         else_branch = None
@@ -621,9 +653,9 @@ class Parser:
         if self._match(TokenType.ELSE):
             else_branch = self._statement()
         elif self._match(TokenType.ELIF):
-            else_branch = self._if_statement("elif")
+            else_branch = self._if_statement(self._previous())
 
-        return If(cond, then_branch, else_branch)
+        return If(cond, then_branch, else_branch, keyword=keyword)
 
     def _expression_statement(self) -> Stmt:
         expr = self._expression()

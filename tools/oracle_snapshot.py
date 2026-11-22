@@ -29,14 +29,13 @@ from typing import Any, cast
 from loxia.engine import Loxia
 from loxia.formatter import format_source
 from loxia_core.diagnostics.diagnostic import Diagnostic, Severity, Span
-from loxia_core.diagnostics.source import display_path
 from loxia_core.frontend.ast_json import canonical, program_payload
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "tests" / "oracle" / "frontend.json"
 SCHEMA_VERSION = 1
 
-CORPUS_GLOBS = ("std/*.lx", "tests/cases/**/*.lx", "examples/*.lx")
+CORPUS_GLOBS = ("std/**/*.lx", "tests/cases/**/*.lx", "examples/**/*.lx")
 
 
 def corpus_files() -> list[Path]:
@@ -80,7 +79,7 @@ def _span_json(span: Span | None) -> dict[str, object] | None:
     if span is None:
         return None
     return {
-        "file": display_path(span.file),
+        "file": span.file,
         "start": {
             "line": span.start.line,
             "column": span.start.column,
@@ -145,7 +144,9 @@ def build_manifest() -> dict[str, object]:
         ast[key] = ast_hash
         fmt[key] = fmt_hash
 
-    diagnostics = {_key(path): _diagnostics(path) for path in error_cases()}
+    diagnostic_paths = {path for path in error_cases()}
+    diagnostic_paths.update(ROOT / path for path in parse_errors)
+    diagnostics = {_key(path): _diagnostics(path) for path in sorted(diagnostic_paths)}
     return {
         "schema_version": SCHEMA_VERSION,
         "ast": ast,

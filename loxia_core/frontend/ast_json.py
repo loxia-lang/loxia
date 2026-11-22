@@ -90,10 +90,11 @@ def _value(value: object, memo: dict[int, Span | None]) -> object:
 
 
 def _float(value: float) -> object:
-    # O scanner aceita `1e999` como Float; JSON estrito não tem Infinity/NaN.
+    # O scanner aceita `1e999` como Float; JSON estrito não tem Infinity/NaN. O marcador
+    # mantém a distinção entre o Float infinito e a String `"inf"`.
     if math.isfinite(value):
         return value
-    return repr(value)
+    return {"non_finite_float": repr(value)}
 
 
 def _record(value: object, memo: dict[int, Span | None]) -> dict[str, object]:
@@ -106,6 +107,8 @@ def _record(value: object, memo: dict[int, Span | None]) -> dict[str, object]:
 
 
 def _token(token: Token, *, full: bool) -> dict[str, object]:
+    if token.line < 1:
+        raise ValueError("AST JSON requires source tokens; synthetic line 0 is not allowed")
     payload: dict[str, object] = {
         "type": token.type.name,
         "lexeme": token.lexeme,

@@ -326,6 +326,8 @@ class Loxia:
         file_only: bool = False,
         output_format: str = "sexp",
     ) -> None:
+        if output_format not in {"sexp", "json"}:
+            raise ValueError(f"unknown AST format: {output_format}")
         if output_format == "json" and not file_only:
             raise ValueError("AST JSON requires file_only parsing")
 
@@ -333,7 +335,7 @@ class Loxia:
         if statements is not None:
             if output_format == "json":
                 tokens = self.last_tokens or []
-                payload = program_payload(statements, tokens, self._file)
+                payload = program_payload(statements, tokens, display_path(self._file))
                 sys.stdout.write(ast_dumps(payload))
                 sys.stdout.flush()
             else:

@@ -14,12 +14,14 @@ mudança de oráculo, não flake.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import cast
 
 import pytest
 
 from tools.oracle_snapshot import (
     MANIFEST,
+    _diagnostics,
     build_manifest,
     corpus_files,
     error_cases,
@@ -64,9 +66,10 @@ def test_formatter_snapshot(manifest: dict[str, object]) -> None:
 
 def test_diagnostics_snapshot(manifest: dict[str, object]) -> None:
     diagnostics = cast(dict[str, list[dict[str, object]]], _section(manifest, "diagnostics"))
-    assert set(diagnostics) == {
-        path.relative_to(MANIFEST.parents[2]).as_posix() for path in error_cases()
-    }
+    parse_errors = cast(list[str], manifest["parse_errors"])
+    expected = {path.relative_to(MANIFEST.parents[2]).as_posix() for path in error_cases()}
+    expected.update(parse_errors)
+    assert set(diagnostics) == expected
     for path, items in diagnostics.items():
         assert items, f"{path}: empty diagnostic snapshot"
         for item in items:
@@ -85,6 +88,16 @@ def test_parse_error_set_is_declared(manifest: dict[str, object]) -> None:
     assert set(ast) == set(fmt)
     assert set(ast) | set(parse_errors) == files
     assert set(ast) & set(parse_errors) == set()
+
+
+def test_diagnostics_are_cwd_independent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = MANIFEST.parents[2] / "tests" / "cases" / "errors" / "division_by_zero.lx"
+
+    items = _diagnostics(path)
+    span = cast(dict[str, object], items[0]["span"])
+
+    assert span["file"] == "tests/cases/errors/division_by_zero.lx"
 
 
 def test_manifest_is_canonical_json() -> None:
