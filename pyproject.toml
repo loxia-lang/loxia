@@ -89,6 +89,10 @@ exclude_lines = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+# Crates vendorizados do motor de regex (ADR-0131): código de terceiro, com os
+# checksums do `cargo vendor`. O ruff format formata blocos Python em Markdown e
+# alteraria um README do upstream.
+extend-exclude = ["native/regex/vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

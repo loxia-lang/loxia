@@ -1,0 +1,22 @@
+[package]
+name = "lox-regex"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "C ABI for the Loxia regex engine (ADR-0131)"
+
+[lib]
+name = "lox_regex"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+regex = "1.13"
+fancy-regex = "0.20"
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "debuginfo"

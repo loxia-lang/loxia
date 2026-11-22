@@ -18,6 +18,9 @@ EXCLUDED_PREFIXES = (
     "tests/official/",
     "bench/cases/",
     "examples/",
+    # Crates vendorizados do motor de regex (ADR-0131): cada um mantém a licença
+    # e o cabeçalho do upstream.
+    "native/regex/vendor/",
 )
 EXCLUDED_FILES = {
     "runtime/kernel_gen.h",

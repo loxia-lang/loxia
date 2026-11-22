@@ -1,0 +1,7 @@
+# Vendored crates (ADR-0131): builds are `--locked --offline`, never network.
+# Regenerate with `cargo vendor vendor` after a deliberate `cargo update`.
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
