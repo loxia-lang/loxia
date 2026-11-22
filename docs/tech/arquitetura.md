@@ -163,6 +163,14 @@ Packages by phase (dependency only downward):
 the phase package (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
 import wrap_int`). The program runs from the repository root.
 
+### Front-end baseline (2026-11-21)
+
+`make frontend-bench` roda [`tools/frontend_bench.py`](../../tools/frontend_bench.py) sem
+subprocesso e sem CI: no corpus de 2026-11-21 (338 arquivos, 309 parseáveis, 59 052 tokens,
+2 474 statements), parse ~400 ms e `format_source` ~690 ms (mediana de 3), com pico de
+~1,5 MiB no `tracemalloc` para parse+format. É medida Python; o port em Lox/nativo tem
+orçamento próprio (512 MiB/10k chamadas) e será medido na fase D.
+
 ## Visitor
 
 `Expr` and `Stmt` are Protocols with an `accept` method. Each node is a

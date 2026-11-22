@@ -6,7 +6,7 @@ COVERAGE_JOBS ?= 4
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph frontend-bench
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -44,6 +44,7 @@ help:
 	@echo "make bench-native              benchmarks do binário nativo (--emit=exe)"
 	@echo "make monomorph                 mede o orçamento de monomorfização (ADR-0063)"
 	@echo "make fuzz                      roda o fuzzing do scanner/parser (hypothesis)"
+	@echo "make frontend-bench            mede parse+format do corpus (ADR-0129)"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:
@@ -167,6 +168,9 @@ bench:
 
 bench-native:
 	uv run python bench/run.py --native
+
+frontend-bench:
+	uv run python tools/frontend_bench.py
 
 baseline:
 	uv run python bench/run.py --update
