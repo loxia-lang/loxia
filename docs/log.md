@@ -1267,3 +1267,20 @@ sintaxe ou semântica da linguagem.
 - `docs/tech/test-report.md` — **no-change**: protocolo e formato do runner de testes intocados.
 
 <!-- triaged: cdf6c58 -->
+
+## 2026-11-22 — P1–P3 do oráculo
+
+Intervalo: `61f9a7b`..`eb55f80`. Corpus, checker, self-host, scaffold `--lib` e baseline de
+front-end; sem mudança de sintaxe ou semântica da linguagem.
+
+- `docs/decisoes.md` — **no-change**: o ADR-0129 já resume a decisão; os ADRs 0087/0124
+  receberam notas de atualização, não decisões novas.
+- `docs/spec/erros.md` — **no-change**: bloco gerado; códigos e mensagens não mudaram.
+- `docs/spec/sintaxe.md` — **no-change**: gramática e forma canônica intocadas.
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou.
+- `docs/tech/python-coverage.md` — **no-change**: o piso do checker subiu de 81 para 83, mas a
+  página publica a política e o comando, não os pisos por arquivo.
+- `docs/tech/test-report.md` — **no-change**: o protocolo do runner não mudou; a suíte ganhou
+  testes de corpus/checker/scaffold.
+
+<!-- triaged: eb55f80 -->
