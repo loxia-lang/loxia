@@ -507,9 +507,6 @@ class ModuleLoader:
         """Nome lógico do módulo; único e sem depender de CWD/absoluto (I3)."""
         return name.replace(".", "/") + SOURCE_SUFFIX
 
-    def _entry_root(self) -> Path:
-        return self.root
-
     def _reject_nested_imports(self, statement: Stmt) -> None:
         for value in vars(statement).values():
             items = value if isinstance(value, list) else [value]
