@@ -11,10 +11,11 @@ from __future__ import annotations
 import math
 from typing import TypeGuard, cast
 
+from loxia_core.numeric_bounds import INT_MAX as INT_MAX
+from loxia_core.numeric_bounds import INT_MIN as INT_MIN
+
 type Number = int | float
 
-INT_MIN = -(2**63)
-INT_MAX = 2**63 - 1
 _UINT64 = 1 << 64
 _UINT64_MASK = _UINT64 - 1
 

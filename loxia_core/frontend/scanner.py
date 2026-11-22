@@ -4,10 +4,10 @@ from collections.abc import Callable
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import Position
 from loxia_core.diagnostics.error_reporter import ErrorReporter
-from loxia_core.execution.numeric import INT_MAX
 from loxia_core.frontend.keywords import KEYWORDS
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.numeric_bounds import INT_MAX
 
 
 class Scanner:

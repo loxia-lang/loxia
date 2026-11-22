@@ -109,6 +109,7 @@ Packages by phase (dependency only downward):
 | [`loxia_core/execution/environment.py`](../../loxia_core/execution/environment.py) | chained scopes (`values` + `enclosing`) |
 | [`loxia_core/execution/values.py`](../../loxia_core/execution/values.py) | single `stringify` |
 | [`loxia_core/execution/numeric.py`](../../loxia_core/execution/numeric.py) | `Int`/`Float`, promotion, wrapping, `//`, `**` and bits |
+| [`loxia_core/numeric_bounds.py`](../../loxia_core/numeric_bounds.py) | i64 bounds (`INT_MIN`/`INT_MAX`) shared by the scanner and the numeric model; leaf module (no `loxia_core` imports) |
 | [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py) | types (`Ty`), `TyVar`, `GenericFnTy`, unions, `T?`, `FnTy` and helpers |
 | [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | gradual static checker (`--check`) |
 | [`loxia_core/execution/type_test.py`](../../loxia_core/execution/type_test.py) | dynamic type test for `x is T` |
@@ -391,7 +392,7 @@ from the call site.
 The `;` is optional at the end of the line/EOF in any execution (`_end_statement`); it is only
 mandatory when there is another statement on the same line.
 
-## Native backend (L0–L5 + T7)
+## Native backend (L0–L6 + T7)
 
 The IR is intentionally small: `Int` is `i64`, `Float` is `double`, `Bool` is `i1`, `nil`
 has no value (it only affects `print`). `+ - *` become instructions (with `sitofp` in the

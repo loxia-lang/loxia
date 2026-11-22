@@ -55,8 +55,9 @@ uv sync --all-groups --extra llvm
 uv run loxia --version
 ```
 
-Run from the repository root; that is the supported layout. `.venv/`, caches and
-`AGENTS.md` are not versioned.
+Run from the repository root; that is the supported layout. `.venv/` and caches are not
+versioned. `AGENTS.md` is the versioned agent context; `NOTAS.local.md` is the maintainer's
+local notebook (gitignored).
 
 ## Checks
 
@@ -148,7 +149,7 @@ message).
   `docs/adr/README.md` and `docs/decisoes.md`, and link it from the PR.
 - Regenerate generated artifacts instead of editing them by hand: `make docs-sync`,
   `make grammar`, `make primitives`, `make codes`.
-- Do not commit `AGENTS.md`, `__pycache__`, `.venv`, caches or `dist/`.
+- Do not commit `NOTAS.local.md`, `__pycache__`, `.venv`, caches or `dist/`.
 - Keep the PR description short: what changed, why, how it was tested, and what is out of
   scope.
 - Use `Closes #N` when the PR resolves an issue.
@@ -186,6 +187,11 @@ AI assistance is welcome. The contributor remains responsible for the result: yo
 understand the change, run the tests, and be able to explain the diff in review. Disclose
 substantial AI assistance in the PR description. Do not submit unreviewed mass-generated
 PRs, and do not use an agent to bypass the syntax or feature gates.
+
+If you work with an agent, point it at [`AGENTS.md`](AGENTS.md) — the versioned agent
+context, with scoped files under `loxia_core/`, `runtime/`, `std/` and `tests/` — and at the
+task procedures in [`.dsh/skills/`](.dsh/skills/). `NOTAS.local.md` is the maintainer's
+notebook and is not part of the repository.
 
 ## Security
 

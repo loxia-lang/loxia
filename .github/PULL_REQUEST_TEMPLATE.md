@@ -23,7 +23,8 @@
 - [ ] An ADR was added or updated if this is a design decision.
 - [ ] Generated files were regenerated (`make docs-sync`, `make grammar`, `make primitives`), not hand-edited.
 - [ ] Commits are signed off (`git commit -s`) and the PR title follows Conventional Commits.
-- [ ] No secrets, private paths or `AGENTS.md` are included.
+- [ ] `AGENTS.md` (and the matching scoped file) updated if a command, layer or rule changed.
+- [ ] No secrets or private paths are included.
 
 ## Syntax change (only if applicable)
 

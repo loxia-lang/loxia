@@ -19,7 +19,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
    ADR-0066 e aprovação humana). Escolha de rumo da linguagem → issue `decision`/ADR
    **antes** de implementar; o que já foi adiado está no ADR-0107.
 5. Nunca implemente um capítulo futuro do livro "de passagem" (ex.: funções antes do
-   cap. 10). Ver `AGENTS.md` §8.
+   cap. 10). Ver `AGENTS.md` §9.
 
 ## Ordem de implementação
 
@@ -67,6 +67,7 @@ whenToUse: Ao implementar nova sintaxe, operador, statement ou nó de AST; ao mu
 - [ ] Sem regressão: suíte inteira verde.
 - [ ] Se mudou comportamento: `docs/spec/` atualizado; decisão de design → ADR em `docs/adr/`.
 - [ ] `tests/test_determinism.py` verde (nada volátil na saída).
+- [ ] Rodou `lox-converge` antes do PR (matriz promessa × entrega anexada).
 
 ## Armadilhas
 

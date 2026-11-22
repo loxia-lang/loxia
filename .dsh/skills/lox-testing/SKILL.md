@@ -80,7 +80,7 @@ uv run pytest tests/test_backend.py -q
 ```
 
 No CI o `libgc-dev` é a fonte da verdade. Nesta máquina, sem o header `gc.h`, use o shim
-local descrito no `AGENTS.md` §2.
+local descrito no `AGENTS.md` §4.
 
 ## Armadilhas
 
