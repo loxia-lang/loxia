@@ -14,6 +14,9 @@ from loxia.source_symbols import (
     class_signature as _class_signature,
 )
 from loxia.source_symbols import (
+    display_declaration_name,
+)
+from loxia.source_symbols import (
     field_signature as _field_signature,
 )
 from loxia.source_symbols import (
@@ -150,7 +153,7 @@ class SymbolIndex:
                     name=statement.name.lexeme,
                     kind="interface",
                     token=statement.name,
-                    signature=f"interface {statement.name.lexeme}",
+                    signature=f"interface {display_declaration_name(statement.name.lexeme)}",
                     doc=statement.doc,
                     container=container,
                 )
@@ -163,7 +166,7 @@ class SymbolIndex:
                     name=statement.name.lexeme,
                     kind="enum",
                     token=statement.name,
-                    signature=f"enum {statement.name.lexeme}",
+                    signature=f"enum {display_declaration_name(statement.name.lexeme)}",
                     doc=statement.doc,
                     container=container,
                 )

@@ -26,6 +26,7 @@ from loxia.formatter import format_source
 from loxia.rename import semantic_references, semantic_rename, semantic_target
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
 from loxia.symbols import Symbol, SymbolIndex, token_key
+from loxia_core.bundle import bundle_dir
 from loxia_core.diagnostics.diagnostic import (
     Diagnostic,
     Severity,
@@ -56,8 +57,8 @@ from loxia_core.frontend.ty import (
     InterfaceTy,
     Ty,
     UnionTy,
-    display,
 )
+from loxia_core.loader.loader import ModuleLoader
 from loxia_core.semantics.resolver import Resolver
 
 JSONRPC_VERSION = "2.0"
@@ -476,6 +477,7 @@ class Server:
         self.documents: dict[str, Document] = {}
         self.indexes: dict[str, SymbolIndex] = {}
         self.source_maps: dict[str, object] = {}
+        self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
@@ -834,6 +836,7 @@ class Server:
         batch = lox.reporter.batch()
         sources = lox.sources
         self.source_maps[document.uri] = sources
+        self.module_files[document.uri] = lox.module_files
         self.clean[document.uri] = not lox.reporter.had_error
         self.dependencies[document.uri] = frozenset(lox.watched_files)
         checker = lox.last_checker
@@ -896,10 +899,7 @@ class Server:
             uri = document.uri
             if span.file != lox._file:
                 source = _source_for(sources, span.file, document.text)
-                if self.root is not None:
-                    uri = _path_to_uri(self.root / span.file)
-                elif document.path is not None:
-                    uri = _path_to_uri(document.path.parent / span.file)
+                uri = self._uri_for_file(span.file, document)
             rng = _range(span, source)
 
         related = []
@@ -907,10 +907,7 @@ class Server:
             label_source = _source_for(sources, label.span.file, source)
             label_uri = uri
             if span is not None and label.span.file != span.file:
-                if self.root is not None:
-                    label_uri = _path_to_uri(self.root / label.span.file)
-                elif document.path is not None:
-                    label_uri = _path_to_uri(document.path.parent / label.span.file)
+                label_uri = self._uri_for_file(label.span.file, document)
             related.append(
                 {
                     "location": {
@@ -990,11 +987,7 @@ class Server:
         if span.file == lox._file:
             return document.uri, document.text
         source = _source_for(sources, span.file, document.text)
-        if self.root is not None:
-            return _path_to_uri(self.root / span.file), source
-        if document.path is not None:
-            return _path_to_uri(document.path.parent / span.file), source
-        return document.uri, source
+        return self._uri_for_file(span.file, document), source
 
     def _rename_target(
         self, index: SymbolIndex, token: Token
@@ -1539,7 +1532,7 @@ class Server:
             if symbol.doc:
                 parts.append(symbol.doc)
         elif ty is not None:
-            parts.append(f"```lox\n{display(ty)}\n```")
+            parts.append(f"```lox\n{display_source_type(ty)}\n```")
         else:
             return None
 
@@ -1569,7 +1562,7 @@ class Server:
             return None
         symbol = index.reference_target(token)
         if symbol is None:
-            return None
+            return self._module_definition(document, token)
 
         target_uri = self._uri_for_token(symbol.token, document)
         target_source = document.text
@@ -1582,6 +1575,44 @@ class Server:
         return {
             "uri": target_uri,
             "range": _token_range(symbol.token, target_source),
+        }
+
+    def _module_definition(self, document: Document, token: Token) -> dict[str, object] | None:
+        """Import/alias fora do `SymbolIndex`: resolve o arquivo do módulo."""
+        if document.path is None:
+            return None
+        statements = parse_for_completion(document.text, len(document.text))
+        if statements is None:
+            return None
+        context = SourceContext(statements, document.path)
+        imported = context.imports.get(token.lexeme)
+        if imported is None:
+            return None
+        module_file = self.module_files.get(document.uri, {}).get(
+            ModuleLoader.display_path(imported.module)
+        )
+        if module_file is None:
+            return None
+        if imported.public is not None:
+            found = context.declaration_with_context(token.lexeme)
+            if found is not None:
+                statement, module_context = found
+                name_token = getattr(statement, "name", None)
+                if isinstance(name_token, Token) and module_context.path is not None:
+                    try:
+                        text = module_context.path.read_text(encoding="utf-8")
+                    except OSError:
+                        text = ""
+                    return {
+                        "uri": _path_to_uri(module_context.path),
+                        "range": _token_range(name_token, text),
+                    }
+        return {
+            "uri": _path_to_uri(module_file),
+            "range": {
+                "start": {"line": 0, "character": 0},
+                "end": {"line": 0, "character": 0},
+            },
         }
 
     # -- referências, tipos e hierarquia ---------------------------------
@@ -2097,21 +2128,13 @@ class Server:
             return True
         if document.path is None:
             return True
-        token_path = Path(symbol.token.file)
-        candidates = [token_path]
-        if not token_path.is_absolute() and self.root is not None:
-            candidates.append(self.root / token_path)
+        token_path = self._file_path(symbol.token.file, document)
+        if token_path is None:
+            return False
         try:
-            target = document.path.resolve()
+            return token_path.resolve() == document.path.resolve()
         except OSError:
             return False
-        for candidate in candidates:
-            try:
-                if candidate.resolve() == target:
-                    return True
-            except OSError:
-                continue
-        return False
 
     def _after_name_position(self, document: Document, symbol: Symbol) -> dict[str, int] | None:
         data = document.text.encode("utf-8")
@@ -2206,14 +2229,38 @@ class Server:
             previous_character = character
         return {"data": data}
 
+    def _file_path(self, file: str, document: Document) -> Path | None:
+        """Caminho absoluto de um `token.file` lógico (`std/io.lx`, `lib/x.lx`)."""
+        if document.path is not None and file == display_path(str(document.path)):
+            return document.path
+        mapped = self.module_files.get(document.uri, {}).get(file)
+        if mapped is not None:
+            return mapped
+        path = Path(file)
+        if path.is_absolute():
+            return path
+        candidates: list[Path] = []
+        if self.root is not None:
+            candidates.append(self.root / path)
+        if document.path is not None:
+            candidates.append(document.path.parent / path)
+        if file.startswith("std/"):
+            candidates.append(bundle_dir("std") / path.relative_to("std"))
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0] if candidates else None
+
+    def _uri_for_file(self, file: str, document: Document) -> str:
+        path = self._file_path(file, document)
+        return document.uri if path is None else _path_to_uri(path)
+
     def _uri_for_token(self, token: Token, document: Document) -> str:
         if not token.file or document.path is None:
             return document.uri
         if token.file == display_path(str(document.path)):
             return document.uri
-        if self.root is not None:
-            return _path_to_uri(self.root / token.file)
-        return _path_to_uri(document.path.parent / token.file)
+        return self._uri_for_file(token.file, document)
 
     # -- símbolos --------------------------------------------------------
 

@@ -147,6 +147,11 @@ def display_source_type(ty: Ty) -> str:
     return _MANGLED.sub("", display(ty))
 
 
+def display_declaration_name(name: str) -> str:
+    """Nome do loader -> nome do usuário (``std$io$write`` -> ``std.io.write``)."""
+    return name.replace("$", ".")
+
+
 def function_signature(function: Function) -> str:
     params = ", ".join(param_signature(param) for param in function.params)
     type_params = (
@@ -154,7 +159,7 @@ def function_signature(function: Function) -> str:
         if function.type_params
         else ""
     )
-    signature = f"fn {function.name.lexeme}{type_params}({params})"
+    signature = f"fn {display_declaration_name(function.name.lexeme)}{type_params}({params})"
     if function.return_type is not None:
         signature += f" -> {display(function.return_type)}"
     return signature
@@ -187,7 +192,7 @@ def class_signature(statement: Class) -> str:
         if statement.implements
         else ""
     )
-    return f"class {statement.name.lexeme}{type_params}{superclass}{implements}"
+    return f"class {display_declaration_name(statement.name.lexeme)}{type_params}{superclass}{implements}"
 
 
 def declaration_name(statement: Stmt) -> str | None:
