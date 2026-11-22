@@ -20,9 +20,8 @@ mensagem". O oráculo atual não permite essa comparação:
 
 - `loxia ast` roda o **programa inteiro**: `_parse` carrega módulos e o loader renomeia
   símbolos (`std$strings$trim`). Em um arquivo com `import`, a saída começa pela AST da
-  stdlib, não pela do arquivo. Dos 335 arquivos de `std/`, `tests/cases/` e `examples/`,
-  **47 têm `import`** (verificado pela AST, em 2026-11-21) e não podem ser comparados por
-  arquivo.
+  stdlib, não pela do arquivo. Em `std/`, `tests/cases/` e `examples/`, **47 arquivos têm
+  `import`** (verificado pela AST, em 2026-11-21) e não podem ser comparados por arquivo.
 - a única saída de máquina é a S-expression do `AstPrinter`, declarada dump de debug
   ([`ast_printer.py`](../../loxia_core/frontend/ast_printer.py)). Ela não carrega spans, não
   distingue `fn` opcional de `fn` escrito, não expõe `params_end`/`arg_ends` (dos quais o
@@ -120,7 +119,8 @@ Lox passar.
 
 ### Positivas
 
-- A fase A passa a ter um alvo mensurável nos 335 arquivos, inclusive os 47 com `import`.
+- A fase A passa a ter um alvo mensurável no corpus inteiro, inclusive os 47 arquivos com
+  `import`.
 - Spans e detalhes de fonte entram no contrato; a paridade cobre posição, não só forma.
 - Qualquer drift do oráculo aparece como diff de hash/diagnóstico no PR, não como bug
   descoberto na fase B.
