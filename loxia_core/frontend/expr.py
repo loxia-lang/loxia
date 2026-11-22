@@ -146,6 +146,7 @@ class Index(Expr):
     object: Expr
     index: Expr
     bracket: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_index_expr(self)
@@ -157,6 +158,7 @@ class IndexSet(Expr):
     index: Expr
     value: Expr
     bracket: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_index_set_expr(self)
@@ -181,6 +183,7 @@ Pattern = VariantPattern | WildcardPattern
 class MatchArm:
     pattern: Pattern
     body: Expr
+    arrow: Token | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -188,6 +191,7 @@ class Match(Expr):
     keyword: Token
     scrutinee: Expr
     arms: list[MatchArm]
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_match_expr(self)
