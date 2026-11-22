@@ -20,8 +20,9 @@ mensagem". O oráculo atual não permite essa comparação:
 
 - `loxia ast` roda o **programa inteiro**: `_parse` carrega módulos e o loader renomeia
   símbolos (`std$strings$trim`). Em um arquivo com `import`, a saída começa pela AST da
-  stdlib, não pela do arquivo. Dos 333 arquivos de `std/`, `tests/cases/` e `examples/`,
-  **35 têm `import`** e não podem ser comparados por arquivo.
+  stdlib, não pela do arquivo. Dos 335 arquivos de `std/`, `tests/cases/` e `examples/`,
+  **47 têm `import`** (verificado pela AST, em 2026-11-21) e não podem ser comparados por
+  arquivo.
 - a única saída de máquina é a S-expression do `AstPrinter`, declarada dump de debug
   ([`ast_printer.py`](../../loxia_core/frontend/ast_printer.py)). Ela não carrega spans, não
   distingue `fn` opcional de `fn` escrito, não expõe `params_end`/`arg_ends` (dos quais o
@@ -74,6 +75,13 @@ Regras:
   bytes UTF-8. O fim do token é calculado pelo lexema inteiro, inclusive strings
   multi-linha (`span_of_token_exact`); spans de nó são o menor intervalo que contém os
   tokens do nó (ou `null` quando não há token).
+- o fonte entra **normalizado** (universal newlines): `\r\n` vira `\n` antes do scanner, então
+  offsets são do texto normalizado, não do arquivo cru. Um port que leia bytes precisa
+  normalizar antes de comparar spans.
+- `Ty` não tem span próprio: é forma semântica, não sintática; o span do nó cobre os tokens
+  do construto (keyword, delimitadores e `end` quando existem), mas a posição interna da
+  anotação não é publicada. Para `param x: Int`, o span do `Param` cobre `x`; o `params_end`
+  da função fecha o intervalo.
 - o array `tokens` é completo (inclusive `EOF`, `doc` e `literal`); tokens embutidos nos nós
   carregam só `type`/`lexeme`/`span`. Presença de `fn_token`, `params_end`, `arg_ends`,
   `commas`, brackets e `optional` fica explícita — é o que o formatter usa.
@@ -81,7 +89,8 @@ Regras:
 - `--format=json` sem `--file-only` é erro de CLI (exit 2): JSON e S-expression não podem
   descrever árvores diferentes.
 - a saída é determinística e não contém caminho absoluto, PID, timestamp nem ordem de
-  `set`/`dict`. Floats não finitos viram `"inf"`/`"-inf"`/`"nan"` (JSON estrito não os tem).
+  `set`/`dict`. Floats não finitos viram `{"non_finite_float": "inf"}` (JSON estrito não os
+  tem, e o marcador não se confunde com a String `"inf"`).
 - `schema_version` só muda em quebra do contrato.
 
 ### 3. Snapshot congela AST, formatter e diagnósticos
@@ -89,11 +98,13 @@ Regras:
 `tools/oracle_snapshot.py` percorre `std/`, `tests/cases/` e `examples/` e grava
 `tests/oracle/frontend.json`:
 
-- hash canônico do JSON da AST para cada arquivo parseável (304 hoje) e a lista declarada de
-  arquivos que não parseiam (29);
+- hash canônico do JSON da AST para cada arquivo parseável e a lista declarada de arquivos
+  que não parseiam;
 - hash dos bytes do `format_source` (o formatter Python é a referência do ADR-0092) e a
   exigência de que parser e formatter aceitem/recusem o mesmo conjunto;
-- diagnósticos estruturados `(phase, code, severity, span)` dos 98 casos de erro.
+- diagnósticos estruturados `(phase, code, severity, span)` dos casos de erro e de todos os
+  arquivos que não parseiam. A **mensagem** não entra no manifesto: o texto pode mudar
+  (`garantias.md`); código, severidade e span são o contrato.
 
 `tests/test_frontend_oracle.py` falha quando o manifesto diverge; `make oracle-update`
 regrava. Atualizar o snapshot é revisão consciente, não `pytest -k` verde.
@@ -109,22 +120,27 @@ Lox passar.
 
 ### Positivas
 
-- A fase A passa a ter um alvo mensurável nos 333 arquivos, inclusive os 35 com `import`.
+- A fase A passa a ter um alvo mensurável nos 335 arquivos, inclusive os 47 com `import`.
 - Spans e detalhes de fonte entram no contrato; a paridade cobre posição, não só forma.
 - Qualquer drift do oráculo aparece como diff de hash/diagnóstico no PR, não como bug
   descoberto na fase B.
-- O mesmo JSON serve ao MCP/LSP e a inspeção manual (`loxia ast --file-only --format=json`).
+- O JSON serve à inspeção manual e a consumidores futuros de tooling
+  (`loxia ast --file-only --format=json`); MCP/LSP só passam a usá-lo quando forem
+  migrados (não é parte deste ADR).
 
 ### Negativas / custos
 
 - O manifesto é hash para AST/formatter: o diff mostra **que** mudou, não **o que**; para
-  inspecionar, rode o comando no arquivo. Os 98 diagnósticos são legíveis.
+  inspecionar, rode o comando no arquivo. Os diagnósticos são legíveis.
 - Toda mudança de parser/formatter/corpus exige `make oracle-update` e revisão do diff; é
   atrito deliberado.
 - O JSON é verboso (tokens completos + tokens embutidos); é saída de ferramenta, não formato
   de armazenamento.
 - O snapshot não substitui o diferencial nativo (I1) nem o `--check` (I4); ele congela o
   **front**.
+- O `schema/ast-v1.json` valida o envelope, token, span e `kind`; os campos de cada `kind`
+  são garantidos pelo serializador e pelo snapshot, não por `$defs` por tipo. É um contrato
+  de forma, não um validador de semântica.
 
 ### Neutras
 
@@ -138,7 +154,7 @@ Lox passar.
 | Usar só a S-expression | Perde spans, `fn` opcional, `params_end`/`arg_ends` e offsets; não serve à fase B. |
 | Tornar o `AstPrinter` o contrato | É formato de debug, sem versão e sem os detalhes de fonte; congelaria a ferramenta errada. |
 | `--format=json` implicar `--file-only` | Mágica; o usuário não veria que a árvore deixou de ser o programa inteiro. |
-| Snapshot com JSON completo de 304 arquivos | Dezenas de MB no repositório e diff ilegível; hash + comando sob demanda resolve. |
+| Snapshot com JSON completo de cada arquivo | Dezenas de MB no repositório e diff ilegível; hash + comando sob demanda resolve. |
 | Esperar a fase B para criar o snapshot | O port começaria sem linha de base; o primeiro diff já seria ambíguo. |
 
 ## Como verificar
