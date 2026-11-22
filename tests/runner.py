@@ -145,14 +145,7 @@ def check_case(path: Path) -> list[str]:
     """Retorna a lista de divergências (vazia = caso passou)."""
     source = path.read_text(encoding="utf-8")
     expectations = parse_expectations(source)
-    timeout = max(
-        (
-            REQUIREMENT_TIMEOUTS.get(requirement, TIMEOUT_SECONDS)
-            for requirement in requirements(source)
-        ),
-        default=TIMEOUT_SECONDS,
-    )
-    executed = execute(path, timeout=timeout)
+    executed = execute(path, timeout=timeout_for(source))
     problems: list[str] = []
 
     if executed.stdout != expectations.stdout:

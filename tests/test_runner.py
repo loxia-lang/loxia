@@ -56,3 +56,19 @@ def test_requirement_must_be_in_the_header_block() -> None:
 def test_unknown_requirement_fails_loudly(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="gpu"):
         runner.missing_requirements(_case(tmp_path, "# requires: gpu\n"))
+
+
+def test_main_exits_2_when_every_case_is_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    case = _case(tmp_path, "# requires: rust\n# expect: 1\n")
+    monkeypatch.setattr(runner, "CASES_DIR", tmp_path)
+    monkeypatch.setattr(runner, "discover_cases", lambda: [case])
+    monkeypatch.setattr("loxia_core.native_build.cargo_binary", lambda: None)
+
+    exit_code = runner.main([])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "skip" in captured.out
+    assert "0 casos executados" in captured.err
