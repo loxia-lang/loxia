@@ -9,3 +9,9 @@
 *.jpg binary
 *.jpeg binary
 *.whl binary
+
+# Crates vendorizados (ADR-0131): conteúdo upstream, origem fixada no Cargo.lock.
+# `-diff` tira o conteúdo do diff do git; `linguist-generated` faz o GitHub recolher
+# o arquivo na aba "Files changed" (é o atributo que a UI lê); `linguist-vendored`
+# tira do breakdown de linguagem. Regenerar com `cargo vendor vendor`.
+native/regex/vendor/** -diff linguist-generated=true linguist-vendored
