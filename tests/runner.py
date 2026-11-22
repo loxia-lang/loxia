@@ -78,13 +78,33 @@ def parse_expectations(source: str) -> Expectations:
 
 
 def requirements(source: str) -> set[str]:
-    """Capacidades externas exigidas pelo caso (`# requires: rust`)."""
+    """Capacidades externas exigidas no bloco de comentários do topo.
+
+    A diretiva é uma linha própria, minúscula (`# requires: rust`). Qualquer
+    comentário desse bloco que mencione `requires` fora da forma canônica falha
+    alto, para um typo não virar "roda sem a capacidade".
+    """
     found: set[str] = set()
     for line in source.splitlines():
-        match = REQUIRES_LINE.match(line.strip())
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not stripped.startswith("#"):
+            break
+        match = REQUIRES_LINE.match(stripped)
         if match is not None:
             found.add(match.group(1))
+        elif "requires" in stripped.lower():
+            raise ValueError(f"malformed 'requires' directive: {stripped!r}")
     return found
+
+
+def timeout_for(source: str) -> int:
+    """Timeout do caso: o maior exigido pelas capacidades (build frio incluso)."""
+    timeout = TIMEOUT_SECONDS
+    for requirement in requirements(source):
+        timeout = max(timeout, REQUIREMENT_TIMEOUTS.get(requirement, TIMEOUT_SECONDS))
+    return timeout
 
 
 def missing_requirements(path: Path) -> set[str]:
@@ -198,6 +218,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ok   {name}")
 
     total = len(cases) - skipped
+    if total == 0:
+        print(f"\n0 casos executados ({skipped} pulados)", file=sys.stderr)
+        return 2
     print(f"\n{total - failures}/{total} casos passaram ({skipped} pulados)")
     return 1 if failures else 0
 
