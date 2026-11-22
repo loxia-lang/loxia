@@ -126,8 +126,8 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | --- | --- | --- |
 | `loxia run FILE` | Execute a program | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--json` |
-| `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--json` |
+| `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--lib`, `--json` |
+| `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--lib`, `--json` |
 | `loxia add NAME` | Declare a `path` or `git` dependency in `loxia.toml` | `--path`, `--git`, `--rev`, `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia remove NAME` | Remove a dependency from `loxia.toml` | `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |

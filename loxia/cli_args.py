@@ -93,10 +93,12 @@ _COMMAND_EXAMPLES = {
   loxia doc --json src/main.lx""",
     "new": """exemplos:
   loxia new hello
-  loxia new hello --name hello_world --no-git""",
+  loxia new hello --name hello_world --no-git
+  loxia new minha-lib --lib""",
     "init": """exemplos:
   loxia init
-  loxia init meu-projeto""",
+  loxia init meu-projeto
+  loxia init --lib""",
     "add": """exemplos:
   loxia add acme --path ../acme
   loxia add acme --git https://github.com/acme/acme --rev v1.2.3 --lock
@@ -351,6 +353,11 @@ def _add_scaffold_options(container: argparse._ActionsContainer) -> None:
         "--no-git",
         action="store_true",
         help="não inicializa um repositório git no projeto",
+    )
+    container.add_argument(
+        "--lib",
+        action="store_true",
+        help="cria uma biblioteca (módulo <nome>.lx na raiz, sem src/main.lx)",
     )
 
 

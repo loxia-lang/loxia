@@ -15,6 +15,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **`loxia new --lib`**: scaffold de biblioteca com o módulo `<nome>.lx` na raiz (sem
+  `src/main.lx`), `loxia.toml`, lock e `.gitignore`; `init --lib` funciona em diretório
+  existente e não sobrescreve o módulo. Fecha a lacuna do
+  [ADR-0124](docs/adr/0124-fmt-self-host-e-pacotes-por-repo.md).
+
 - **Oráculo do front-end** ([ADR-0129](docs/adr/0129-oraculo-do-front-end.md)): `loxia ast
   --file-only` transforma um único arquivo, sem loader nem mangling; `--format=json`
   (obrigatoriamente com `--file-only`) emite o contrato v1 com tokens, spans half-open e

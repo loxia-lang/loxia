@@ -279,6 +279,7 @@ def _run_scaffold(
             name=args.name,
             git=not args.no_git,
             require_new=command == "new",
+            library=args.lib,
         )
     except ScaffoldError as error:
         lox.reporter.error(
