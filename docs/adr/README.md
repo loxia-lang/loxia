@@ -181,7 +181,8 @@ TODO item.
 | [0127](0127-pacotes-com-codigo-nativo.md) | Third-party native packages: contract recorded, implementation deferred with four triggers | proposed | 2026-11-21 |
 | [0128](0128-contrato-de-motores.md) | Three engine layers (core/ambient/native-only) with an explicit interpreter refusal instead of silent divergence | proposed | 2026-11-21 |
 | [0129](0129-oraculo-do-front-end.md) | Front-end oracle: per-file AST, versioned JSON with spans, and a frozen AST/formatter/diagnostics snapshot | accepted (implemented) | 2026-11-21 |
-| [0130](0130-regex-pcre2-embutido.md) | Regex: vendored PCRE2, one engine behind `run` (ctypes) and `--emit=exe`, `bundled/regex` | accepted (decision; implementation pending) | 2026-11-22 |
+| [0130](0130-regex-pcre2-embutido.md) | Regex: vendored PCRE2, one engine behind `run` (ctypes) and `--emit=exe`, `bundled/regex` | superseded by ADR-0131 | 2026-11-22 |
+| [0131](0131-regex-motor-rust-dois-modos.md) | Regex: Rust engine (`regex` linear by default, `fancy-regex` opt-in), own C ABI, two-stage distribution | accepted (decision; implementation pending) | 2026-11-22 |
 
 
 ## Next decisions that call for an ADR
