@@ -208,6 +208,7 @@ def _build(cargo: str, directory: Path) -> None:
     if completed.returncode != 0:
         raise NativeError(
             f"regex: building the native engine failed (cargo exit {completed.returncode})."
+            + _cargo_detail(completed.stderr)
         )
 
     release = directory / "target" / "release"
@@ -223,6 +224,12 @@ def _build(cargo: str, directory: Path) -> None:
 
     if not (directory / _LIBRARY_NAME).is_file():
         raise NativeError("regex: cargo finished without producing the native library.")
+
+
+def _cargo_detail(stderr: str | None) -> str:
+    """Últimas linhas do stderr do cargo, para o E4002 dizer *por que* falhou."""
+    lines = [line.strip() for line in (stderr or "").splitlines() if line.strip()]
+    return f" {' | '.join(lines[-3:])}" if lines else ""
 
 
 def _capture_native_libs(cargo: str, directory: Path, target: Path) -> None:
