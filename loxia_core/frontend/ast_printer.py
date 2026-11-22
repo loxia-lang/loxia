@@ -7,6 +7,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -35,6 +36,7 @@ from loxia_core.frontend.stmt import (
     Class,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     ForIn,
     Function,
@@ -177,6 +179,9 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_variable_expr(self, expr: Variable) -> str:
         return expr.name.lexeme
+
+    def visit_error_expr(self, expr: ErrorExpr) -> str:
+        return f"(error {expr.message!r})"
 
     def visit_call_expr(self, expr: Call) -> str:
         name = "?call" if expr.optional else "call"
@@ -354,6 +359,9 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_while_stmt(self, stmt: While) -> str:
         return f"(while {stmt.condition.accept(self)} {stmt.body.accept(self)})"
+
+    def visit_error_stmt(self, stmt: ErrorStmt) -> str:
+        return f"(error {stmt.message!r})"
 
 
 # Teste manual do capítulo 6:

@@ -19,6 +19,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -51,6 +52,7 @@ from loxia_core.frontend.stmt import (
     Destructure,
     EnumDecl,
     EnumVariant,
+    ErrorStmt,
     ExceptClause,
     Expression,
     Field,
@@ -102,6 +104,7 @@ class Parser:
     def parse(self) -> list[Stmt] | None:
         statements: list[Stmt] = []
         while not self._is_at_end():
+            before = self._current
             try:
                 declaration = self._declaration()
             except RecursionError:
@@ -111,6 +114,9 @@ class Parser:
                 break
             if declaration is not None:
                 statements.append(declaration)
+            if self._current == before:
+                # Um `_synchronize` que não avançou não pode travar o parse inteiro.
+                self._advance()
 
         return statements
 
@@ -169,6 +175,7 @@ class Parser:
         return self.parse()
 
     def _declaration(self) -> Stmt | None:
+        start = self._peek()
         try:
             if self._match(TokenType.IMPORT):
                 return self._import_declaration(self._previous())
@@ -200,9 +207,12 @@ class Parser:
                 return self._var_declaration(mutable=True, keyword=self._previous())
 
             return self._statement()
-        except ParseError:
-            self._synchronize()
-            return None
+        except ParseError as error:
+            self._synchronize(error.token)
+            end = self._previous()
+            if (end.offset or 0) < (start.offset or 0):  # pragma: no cover - EOF guard
+                end = start
+            return ErrorStmt(start, end, error.message)
 
     def _is_type_alias_declaration(self) -> bool:
         if not self._check(TokenType.IDENTIFIER) or self._peek().lexeme != "type":
@@ -673,7 +683,15 @@ class Parser:
         return If(cond, then_branch, else_branch, keyword=keyword)
 
     def _expression_statement(self) -> Stmt:
-        expr = self._expression()
+        start = self._peek()
+        try:
+            expr = self._expression()
+        except ParseError as error:
+            self._synchronize(error.token)
+            end = self._previous()
+            if (end.offset or 0) < (start.offset or 0):  # pragma: no cover - EOF guard
+                end = start
+            return Expression(ErrorExpr(start, end, error.message))
         if self._check(TokenType.COLON):
             raise self._error(
                 self._peek(),
@@ -1583,13 +1601,52 @@ class Parser:
         code: Code = Code.SYNTAX_UNEXPECTED,
     ) -> ParseError:
         self.reporter.error(token, message, code=code)
-        return ParseError()
+        return ParseError(token, message)
 
-    def _synchronize(self) -> None:
+    @staticmethod
+    def _starts_statement(token: Token) -> bool:
+        return token.type is TokenType.IDENTIFIER or token.type in {
+            TokenType.IMPORT,
+            TokenType.FROM,
+            TokenType.CLASS,
+            TokenType.INTERFACE,
+            TokenType.ENUM,
+            TokenType.FN,
+            TokenType.VAL,
+            TokenType.VAR,
+            TokenType.FOR,
+            TokenType.IF,
+            TokenType.WHILE,
+            TokenType.RETURN,
+            TokenType.TRY,
+            TokenType.RAISE,
+            TokenType.LEFT_BRACE,
+            TokenType.NUMBER,
+            TokenType.STRING,
+            TokenType.LEFT_PAREN,
+            TokenType.LEFT_BRACKET,
+            TokenType.THIS,
+            TokenType.SUPER,
+            TokenType.NOT,
+            TokenType.MINUS,
+            TokenType.TILDE,
+        }
+
+    def _synchronize(self, error_token: Token | None = None) -> None:
+        if error_token is not None and error_token is self._peek():
+            if error_token.type is TokenType.EOF:
+                return
+            if error_token.line > self._previous().line and self._starts_statement(error_token):
+                # O token que falhou já inicia a próxima linha e pode ser um statement
+                # válido (lista/parentese aberta na linha anterior). Não o consuma.
+                return
         self._advance()
 
         while not self._is_at_end():
             if self._previous().type == TokenType.SEMICOLON:
+                return
+
+            if self._peek().line > self._previous().line:
                 return
 
             if self._peek().type in {

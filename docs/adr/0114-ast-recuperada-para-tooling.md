@@ -1,3 +1,7 @@
+> **Atualização (2026-11-22):** o [ADR-0132](0132-nos-de-erro-na-arvore-recuperada.md)
+> adiciona `ErrorStmt`/`ErrorExpr` inertes e `ast --file-only --allow-errors`; a recuperação
+> deixa de ser só prefixo. O texto abaixo é o registro histórico da decisão de 2026-11-19.
+
 # ADR-0114 — AST recuperada para tooling (LSP)
 
 - **Status:** accepted (implementado em 2026-11-19)

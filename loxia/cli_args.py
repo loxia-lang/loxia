@@ -463,6 +463,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="com --dump-ast: S-expression (padrão) ou JSON (exige --file-only)",
     )
     parser.add_argument(
+        "--allow-errors",
+        action="store_true",
+        help="com --dump-ast --file-only: emite a árvore recuperada; exit 65",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         help="caminho de saída do build (padrão: nome do script)",
@@ -603,6 +608,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             choices=("sexp", "json"),
             default="sexp",
             help="S-expression (padrão) ou JSON versionado (exige --file-only)",
+        )
+        groups.general.add_argument(
+            "--allow-errors",
+            action="store_true",
+            help="com --file-only: emite a árvore recuperada (ErrorStmt/ErrorExpr); exit 65",
         )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "fmt":
@@ -824,6 +834,8 @@ def _validate(
     if command == "ast":
         if ast_format == "json" and not file_only:
             parser.error("--format=json requires --file-only")
+        if getattr(args, "allow_errors", False) and not file_only:
+            parser.error("--allow-errors requires --file-only")
     elif file_only or ast_format != "sexp":
         parser.error("--file-only/--format are only supported by ast")
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
@@ -860,6 +872,8 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--format is only supported with --dump-ast")
     if args.format == "json" and not args.file_only:
         parser.error("--format=json requires --file-only")
+    if args.allow_errors and not args.file_only:
+        parser.error("--allow-errors requires --file-only")
     if args.stdin and args.script:
         if args.dump_ast or args.check or args.emit:
             parser.error("--stdin cannot be combined with a script")

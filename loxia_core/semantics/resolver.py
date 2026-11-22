@@ -20,6 +20,7 @@ from loxia_core.frontend.expr import (
     Binary,
     Call,
     Conditional,
+    ErrorExpr,
     Expr,
     Get,
     Grouping,
@@ -49,6 +50,7 @@ from loxia_core.frontend.stmt import (
     Class,
     Destructure,
     EnumDecl,
+    ErrorStmt,
     Expression,
     ForIn,
     Function,
@@ -498,6 +500,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
         self._define(stmt.name)
 
+    def visit_error_stmt(self, stmt: ErrorStmt) -> None:
+        return
+
     def visit_while_stmt(self, stmt: While) -> None:
         self._resolve_expr(stmt.condition)
         self._resolve_stmt(stmt.body)
@@ -679,6 +684,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_unary_expr(self, expr: Unary) -> None:
         self._resolve_expr(expr.right)
+
+    def visit_error_expr(self, expr: ErrorExpr) -> None:
+        return
 
     def visit_variable_expr(self, expr: Variable) -> None:
         if self._scopes:

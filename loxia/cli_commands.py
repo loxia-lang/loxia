@@ -177,6 +177,7 @@ def run_source(
             source,
             file_only=getattr(args, "file_only", False),
             output_format=getattr(args, "format", "sexp"),
+            allow_errors=getattr(args, "allow_errors", False),
         )
         sys.exit(lox.exit_code())
     if command == "check":
