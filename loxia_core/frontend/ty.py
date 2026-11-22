@@ -234,10 +234,6 @@ def union(*types: Ty) -> Ty:
     return UnionTy(tuple(members))
 
 
-def nullable(ty: Ty) -> Ty:
-    return union(ty, NIL)
-
-
 def is_nilable(ty: Ty) -> bool:
     if ty is ANY or ty is NIL:
         return True
@@ -245,10 +241,6 @@ def is_nilable(ty: Ty) -> bool:
         return any(member is NIL for member in ty.members)
 
     return False
-
-
-def is_union(ty: Ty) -> bool:
-    return isinstance(ty, UnionTy)
 
 
 def non_nil(ty: Ty) -> Ty:

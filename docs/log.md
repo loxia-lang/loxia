@@ -1231,3 +1231,22 @@ Intervalo: `38cfb05`..`228252e`. `server.json`, README e versão 1.2.0.
   mudaram; só a versão do projeto subiu.
 
 <!-- triaged: 228252e -->
+
+## 2026-11-21 — achados da auditoria estrutural
+
+Intervalo: `8158aaa`..`4d76a45`. Correções de contrato e documentação, sem mudança de
+comportamento observável da linguagem.
+
+- `docs/spec/garantias.md` — **updated**: limite de recursão do tree-walk 200.000 → 500.000.
+- `docs/spec/erros.md` — **no-change**: `INT_MAX` e o limite de handles mudaram de lugar,
+  mas as mensagens e os códigos de erro são os mesmos.
+- `docs/spec/lexico.md` — **no-change**: scanner e tokens intocados.
+- `docs/spec/semantica.md` — **no-change**: nenhuma regra de linguagem mudou; só helpers
+  mortos foram removidos.
+- `docs/decisoes.md` — **no-change**: nenhuma decisão nova; o ADR-0123 só teve o total
+  corrigido (33 → 40).
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou.
+- `docs/tech/python-coverage.md` — **no-change**: comando e números de cobertura iguais; a
+  suíte só ganhou um caso de handles.
+
+<!-- triaged: 4d76a45 -->

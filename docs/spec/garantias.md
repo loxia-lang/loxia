@@ -113,7 +113,7 @@ exception constructors do not count. Constructor + `init` count as two activatio
 
 - The binary reserves a 128 MiB stack soft limit (`setrlimit`) before running; the
   declared budget is 64 MiB. On platforms with a smaller hard limit, the limit is clamped.
-- The tree-walk raises `sys.setrecursionlimit` to 200,000 (internal budget, not a
+- The tree-walk raises `sys.setrecursionlimit` to 500,000 (internal budget, not a
   contract).
 - Above 10,000 calls the error is deterministic and the trace is trimmed (5 innermost + 5
   outermost + elision), with no address/time in the output.

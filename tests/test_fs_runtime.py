@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 from loxia.engine import Loxia
+from loxia_core.diagnostics.errors import NativeError
 from loxia_core.execution.fs_runtime import FileTable
+from loxia_core.execution.limits import MAX_FS_HANDLES
 
 
 def test_read_utf8_pending_respeita_o_teto_de_bytes(tmp_path: Path) -> None:
@@ -24,6 +26,21 @@ def test_read_utf8_pending_respeita_o_teto_de_bytes(tmp_path: Path) -> None:
         assert table.read(identifier, 2) == "AB"
         assert table.read(identifier, 2) == "CD"
         assert table.read(identifier, 1) is None
+    finally:
+        table.close_all()
+
+
+def test_tabela_de_handles_para_no_limite_do_kernel(tmp_path: Path) -> None:
+    """`fs.open` usa o mesmo número de handles no interpretador e no runtime C."""
+    target = tmp_path / "f.txt"
+    target.write_text("", encoding="utf-8")
+    table = FileTable()
+    for _ in range(MAX_FS_HANDLES):
+        table.open(str(target), "r")
+
+    try:
+        with pytest.raises(NativeError, match="tooManyFiles"):
+            table.open(str(target), "r")
     finally:
         table.close_all()
 

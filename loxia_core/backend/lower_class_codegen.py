@@ -791,41 +791,6 @@ class ClassCodegenLowering(LoweringBase):
             return "X"
         raise _unsupported(f"Type '{ty}'", line)
 
-    def _tag_of(self, desc: TypeDesc) -> int:
-        from loxia_core.backend.lower_model import (
-            ANY_TAG_BOOL,
-            ANY_TAG_BYTES,
-            ANY_TAG_CLASS,
-            ANY_TAG_ENUM,
-            ANY_TAG_FLOAT,
-            ANY_TAG_FUNCTION,
-            ANY_TAG_INSTANCE,
-            ANY_TAG_INT,
-            ANY_TAG_LIST,
-            ANY_TAG_MAP,
-            ANY_TAG_NIL,
-            ANY_TAG_RANGE,
-            ANY_TAG_STRING,
-            ANY_TAG_TUPLE,
-        )
-
-        return {
-            ValueType.INT: ANY_TAG_INT,
-            ValueType.FLOAT: ANY_TAG_FLOAT,
-            ValueType.BOOL: ANY_TAG_BOOL,
-            ValueType.STRING: ANY_TAG_STRING,
-            ValueType.NIL: ANY_TAG_NIL,
-            ValueType.CLASS: ANY_TAG_CLASS,
-            ValueType.INSTANCE: ANY_TAG_INSTANCE,
-            ValueType.FUNCTION: ANY_TAG_FUNCTION,
-            ValueType.RANGE: ANY_TAG_RANGE,
-            ValueType.LIST: ANY_TAG_LIST,
-            ValueType.MAP: ANY_TAG_MAP,
-            ValueType.TUPLE: ANY_TAG_TUPLE,
-            ValueType.ENUM: ANY_TAG_ENUM,
-            ValueType.BYTES: ANY_TAG_BYTES,
-        }[desc.ty]
-
     def _as_any(
         self, expr: As, value: Value, target_desc: TypeDesc, target_ty: Ty | None = None
     ) -> Value:

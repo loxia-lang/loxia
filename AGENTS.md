@@ -124,8 +124,10 @@ source .lx
 | `loxia/` | CLI, engine, LSP, MCP, formatter, test runner, docgen (tooling layer) |
 
 **Layer rule** (policed by `tests/test_package_layers.py`): `diagnostics` and `frontend` are
-the base; `execution` may import both; `semantics` may import those three; `backend` may
-import any of them; `loxia_core` **never** imports `loxia/`. One declared exception:
+the base; `loader` may import both plus the top-level `bundle` leaf; `execution` may import
+the base; `semantics` may import base + execution; `backend` may import any of them;
+top-level modules (`bundle`, `numeric_bounds`) are leaves; `loxia_core` **never** imports
+`loxia/`. One declared exception:
 `frontend/ast_printer.py` → `execution.values` (the debug dump formats dynamic values).
 A new upward edge fails the gate; add an exception there only with a reason.
 

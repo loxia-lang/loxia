@@ -30,6 +30,9 @@ NATIVE_STACK_RESERVE_BYTES = 128 * 1024 * 1024
 # caso do corpus (3 try aninhados) com folga.
 PYTHON_RECURSION_BUDGET = 500_000
 
+# ADR-0119: handles simultâneos de `fs.open`; o runtime C recebe o mesmo número por `-D`.
+MAX_FS_HANDLES = 128
+
 # ADR-0087: hard cap de heap do binário. `--max-heap` pode aumentar/diminuir no build.
 DEFAULT_HEAP_BYTES = 512 * 1024 * 1024
 MIN_HEAP_BYTES = 32 * 1024 * 1024
