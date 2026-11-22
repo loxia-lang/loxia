@@ -30,6 +30,13 @@ def span_of_token(token: Token, fallback_file: str = "") -> Span:
     )
 
 
+def span_of_token_range(start: Token, end: Token, fallback_file: str = "") -> Span:
+    """Span half-open do primeiro ao último token do intervalo."""
+    first = span_of_token_exact(start, fallback_file)
+    last = span_of_token_exact(end, fallback_file)
+    return Span(first.file or last.file, first.start, last.end)
+
+
 def span_of_token_exact(token: Token, fallback_file: str = "") -> Span:
     """Span half-open com o fim real do lexema, inclusive em strings multi-linha.
 

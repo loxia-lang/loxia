@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import Ty
 
@@ -74,6 +75,7 @@ class Is(Expr):
     left: Expr
     test_type: Ty
     operator: Token
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_is_expr(self)
@@ -84,6 +86,7 @@ class As(Expr):
     left: Expr
     target_type: Ty
     operator: Token
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_as_expr(self)
@@ -116,6 +119,7 @@ class Lambda(Expr):
     body: list[Stmt]
     return_type: Ty | None = None
     end: Token | None = None
+    return_type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_lambda_expr(self)

@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.frontend.destructuring import DestructurePattern
 from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.tokens import Token
@@ -76,6 +77,7 @@ class Field:
     doc: str | None = None
     keyword: Token | None = None
     end: Token | None = None
+    type_span: Span | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -104,6 +106,7 @@ class TypeAlias(Stmt):
     target: Ty
     doc: str | None = None
     end: Token | None = None
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_type_alias_stmt(self)
@@ -133,6 +136,7 @@ class EnumVariant:
     name: Token
     payload: list[Ty]
     doc: str | None = None
+    payload_spans: list[Span] = field(default_factory=list)
 
 
 @dataclass(frozen=True, eq=False)
@@ -194,6 +198,7 @@ class Param:
     default: Expr | None = None
     type_annotation: Ty | None = None
     variadic: bool = False
+    type_span: Span | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -210,6 +215,7 @@ class Function(Stmt):
     end: Token | None = None
     fn_token: Token | None = None
     params_end: Token | None = None
+    return_type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_function_stmt(self)
@@ -255,6 +261,7 @@ class Var(Stmt):
     doc: str | None = None
     keyword: Token | None = None
     end: Token | None = None
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)
@@ -268,6 +275,7 @@ class Destructure(Stmt):
     type_annotation: Ty | None = None
     keyword: Token | None = None
     end: Token | None = None
+    type_span: Span | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_destructure_stmt(self)

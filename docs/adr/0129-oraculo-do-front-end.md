@@ -77,10 +77,11 @@ Regras:
 - o fonte entra **normalizado** (universal newlines) tanto no arquivo quanto em `--stdin`:
   `\r\n` vira `\n` antes do scanner, então offsets são do texto normalizado, não do arquivo
   cru. Um port que leia bytes precisa normalizar antes de comparar spans.
-- `Ty` não tem span próprio: é forma semântica, não sintática; o span do nó cobre os tokens
-  do construto (keyword, delimitadores e `end` quando existem), mas a posição interna da
-  anotação não é publicada. Para `param x: Int`, o span do `Param` cobre `x`; o `params_end`
-  da função fecha o intervalo.
+- `Ty` continua sem span próprio: é forma semântica, não sintática. A posição lexical da
+  anotação é publicada em campos `type_span` (`Param`, `Field`, `Var`, `Destructure`,
+  `TypeAlias`, `As`, `Is`), `return_type_span` (`Function`, `Lambda`) e `payload_spans`
+  (`EnumVariant`). O span cobre a anotação inteira (ex.: `List[Map[String, Int?]]`), não o
+  nome da variável; `params_end` da função continua fechando a lista de parâmetros.
 - o array `tokens` é completo (inclusive `EOF`, `doc` e `literal`); tokens embutidos nos nós
   carregam só `type`/`lexeme`/`span`. Presença de `fn_token`, `params_end`, `arg_ends`,
   `commas`, brackets e `optional` fica explícita — é o que o formatter usa.

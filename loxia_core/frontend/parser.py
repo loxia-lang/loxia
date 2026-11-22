@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import cast
 
 from loxia_core.diagnostics.codes import Code
+from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.errors import ParseError
 from loxia_core.frontend.destructuring import (
@@ -43,6 +44,7 @@ from loxia_core.frontend.expr import (
     VariantPattern,
     WildcardPattern,
 )
+from loxia_core.frontend.spans import span_of_token_range
 from loxia_core.frontend.stmt import (
     Block,
     Class,
@@ -221,10 +223,10 @@ class Parser:
                 Code.INVALID_TYPE_ANNOTATION,
             )
         self._consume(TokenType.EQUAL, "Expect '=' after type alias name.")
-        target = self._type()
+        target, type_span = self._type_with_span()
         end = self._previous()
         self._end_statement("Expect ';' after type alias.")
-        return TypeAlias(keyword, name, target, doc=keyword.doc, end=end)
+        return TypeAlias(keyword, name, target, doc=keyword.doc, end=end, type_span=type_span)
 
     def _module_path(self) -> tuple[Token, ...]:
         path = [self._consume(TokenType.IDENTIFIER, "Expect module name.")]
@@ -355,17 +357,24 @@ class Parser:
             while True:
                 variant = self._consume(TokenType.IDENTIFIER, "Expect variant name.")
                 payload: list[Ty] = []
+                payload_spans: list[Span] = []
                 if self._match(TokenType.LEFT_PAREN):
                     if not self._check(TokenType.RIGHT_PAREN):
-                        payload.append(self._type())
+                        payload_ty, payload_span = self._type_with_span()
+                        payload.append(payload_ty)
+                        payload_spans.append(payload_span)
                         while self._match(TokenType.COMMA):
-                            payload.append(self._type())
+                            payload_ty, payload_span = self._type_with_span()
+                            payload.append(payload_ty)
+                            payload_spans.append(payload_span)
                     self._consume(
                         TokenType.RIGHT_PAREN,
                         "Expect ')' after variant payload.",
                     )
 
-                variants.append(EnumVariant(variant, payload, doc=variant.doc))
+                variants.append(
+                    EnumVariant(variant, payload, doc=variant.doc, payload_spans=payload_spans)
+                )
                 if not self._match(TokenType.COMMA):
                     break
 
@@ -383,8 +392,9 @@ class Parser:
         name = self._consume(TokenType.IDENTIFIER, "Expect field name.")
 
         type_annotation: Ty | None = None
+        type_span: Span | None = None
         if self._match(TokenType.COLON):
-            type_annotation = self._type()
+            type_annotation, type_span = self._type_with_span()
 
         initializer: Expr | None = None
         if self._match(TokenType.EQUAL):
@@ -405,14 +415,16 @@ class Parser:
             doc=keyword.doc,
             keyword=keyword,
             end=end,
+            type_span=type_span,
         )
 
     def _destructure(self, mutable: bool, *, keyword: Token) -> Stmt:
         pattern = self._destructure_pattern()
 
         type_annotation: Ty | None = None
+        type_span: Span | None = None
         if self._match(TokenType.COLON):
-            type_annotation = self._type()
+            type_annotation, type_span = self._type_with_span()
 
         self._consume(TokenType.EQUAL, "Expect '=' after destructuring pattern.")
         initializer = self._expression()
@@ -426,6 +438,7 @@ class Parser:
             type_annotation,
             keyword=keyword,
             end=end,
+            type_span=type_span,
         )
 
     def _destructure_pattern(self) -> DestructurePattern:
@@ -453,8 +466,9 @@ class Parser:
         name = self._consume(TokenType.IDENTIFIER, "Expect variable name.")
 
         type_annotation: Ty | None = None
+        type_span: Span | None = None
         if self._match(TokenType.COLON):
-            type_annotation = self._type()
+            type_annotation, type_span = self._type_with_span()
 
         initializer: Expr | None = None
 
@@ -478,6 +492,7 @@ class Parser:
             doc=keyword.doc,
             keyword=keyword,
             end=end,
+            type_span=type_span,
         )
 
     def _statement(self) -> Stmt:
@@ -705,8 +720,9 @@ class Parser:
         params_end = self._previous()
 
         return_type: Ty | None = None
+        return_type_span: Span | None = None
         if self._match(TokenType.ARROW):
-            return_type = self._type()
+            return_type, return_type_span = self._type_with_span()
 
         if allow_abstract and not self._check(TokenType.LEFT_BRACE):
             self._end_statement("Expect ';' after method signature.")
@@ -738,6 +754,7 @@ class Parser:
             end=end,
             fn_token=fn_token,
             params_end=params_end,
+            return_type_span=return_type_span,
         )
 
     def _type_parameters(
@@ -800,8 +817,9 @@ class Parser:
                 name_token = self._consume(TokenType.IDENTIFIER, "Expect parameter name.")
 
                 type_annotation: Ty | None = None
+                type_span: Span | None = None
                 if self._match(TokenType.COLON):
-                    type_annotation = self._type()
+                    type_annotation, type_span = self._type_with_span()
 
                 default: Expr | None = None
                 if self._match(TokenType.EQUAL):
@@ -827,6 +845,7 @@ class Parser:
                         default,
                         type_annotation,
                         variadic,
+                        type_span=type_span,
                     )
                 )
 
@@ -857,8 +876,9 @@ class Parser:
                 )
 
         return_type: Ty | None = None
+        return_type_span: Span | None = None
         if self._match(TokenType.ARROW):
-            return_type = self._type()
+            return_type, return_type_span = self._type_with_span()
 
         body: list[Stmt]
         end: Token
@@ -873,7 +893,19 @@ class Parser:
         else:
             raise self._error(self._peek(), "Expect '=>' or '{' after lambda parameters.")
 
-        return Lambda(keyword, parameters, body, return_type, end=end)
+        return Lambda(
+            keyword,
+            parameters,
+            body,
+            return_type,
+            end=end,
+            return_type_span=return_type_span,
+        )
+
+    def _type_with_span(self, *, allow_union: bool = True) -> tuple[Ty, Span]:
+        start = self._peek()
+        ty = self._type(allow_union=allow_union)
+        return ty, span_of_token_range(start, self._previous())
 
     def _type(self, *, allow_union: bool = True) -> Ty:
         ty = self._postfix_type()
@@ -1122,14 +1154,14 @@ class Parser:
                 expr = Binary(expr, operator, right)
             elif self._match_infix(TokenType.IS):
                 operator = self._previous()
-                test_type = self._type(allow_union=False)
+                test_type, type_span = self._type_with_span(allow_union=False)
                 if self._check(TokenType.PIPE):
                     raise self._error(
                         self._peek(),
                         "Type unions in 'is' need parentheses: 'is (A | B)'.",
                         Code.INVALID_TYPE_ANNOTATION,
                     )
-                expr = Is(expr, test_type, operator)
+                expr = Is(expr, test_type, operator, type_span=type_span)
             else:
                 break
 
@@ -1224,8 +1256,8 @@ class Parser:
 
         while self._match_infix(TokenType.AS):
             operator: Token = self._previous()
-            target = self._type()
-            expr = As(expr, target, operator)
+            target, type_span = self._type_with_span()
+            expr = As(expr, target, operator, type_span=type_span)
 
         return expr
 

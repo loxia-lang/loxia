@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -30,6 +31,14 @@ def _program(source: str, file: str = "case.lx") -> dict[str, object]:
     statements = Parser(tokens, reporter=reporter).parse()
     assert statements is not None
     return program_payload(statements, tokens, file)
+
+
+def _first_statement(payload: dict[str, object]) -> dict[str, Any]:
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    statement = statements[0]
+    assert isinstance(statement, dict)
+    return statement
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -222,6 +231,80 @@ def test_literal_spans_include_closing_delimiters() -> None:
 
         assert span["start"]["offset"] == start_offset
         assert span["end"]["offset"] == end_offset
+
+
+def test_type_spans_cover_annotations() -> None:
+    cases = {
+        "val xs: List[Map[String, Int?]] = []\n": (8, 31),
+        "type A = Int | Nil\n": (9, 18),
+        'val t: (Int, String) = (1, "a")\n': (7, 20),
+    }
+    for source, (start, end) in cases.items():
+        payload = _program(source)
+        statements = payload["statements"]
+        assert isinstance(statements, list)
+        span = statements[0]["type_span"]
+
+        assert span["start"]["offset"] == start
+        assert span["end"]["offset"] == end
+        assert "file" not in span
+
+
+def test_param_and_return_type_spans_are_separate() -> None:
+    payload = _program('fn f(x: Int) -> String { return "x" }\n')
+    statements = payload["statements"]
+    assert isinstance(statements, list)
+    function = statements[0]
+    param = function["params"][0]
+
+    assert param["type_span"]["start"]["offset"] == 8
+    assert param["type_span"]["end"]["offset"] == 11
+    assert function["return_type_span"]["start"]["offset"] == 16
+    assert function["return_type_span"]["end"]["offset"] == 22
+
+
+def test_field_lambda_destructure_and_multiline_type_spans() -> None:
+    class_payload = _program("class C { val n: Int = 1 }\n")
+    class_node = _first_statement(class_payload)
+    class_span = class_node["fields"][0]["type_span"]
+    assert (class_span["start"]["offset"], class_span["end"]["offset"]) == (17, 20)
+
+    lambda_payload = _program('val f = fn(x: Int) -> String => "x"\n')
+    lambda_node = _first_statement(lambda_payload)["initializer"]
+    lambda_span = lambda_node["return_type_span"]
+    assert (lambda_span["start"]["offset"], lambda_span["end"]["offset"]) == (22, 28)
+
+    destructure_payload = _program("val (a, b): (Int, Int) = (1, 2)\n")
+    destructure_span = _first_statement(destructure_payload)["type_span"]
+    assert (destructure_span["start"]["offset"], destructure_span["end"]["offset"]) == (12, 22)
+
+    multiline_payload = _program("fn f(\n  x: List[Int]\n) -> Int { return 1 }\n")
+    param_span = _first_statement(multiline_payload)["params"][0]["type_span"]
+    assert param_span["start"]["line"] == 2
+    assert (param_span["start"]["offset"], param_span["end"]["offset"]) == (11, 20)
+
+
+def test_as_is_and_enum_payload_type_spans() -> None:
+    as_payload = _program("val x = 1 as Int\n")
+    as_statements = as_payload["statements"]
+    assert isinstance(as_statements, list)
+    as_span = as_statements[0]["initializer"]["type_span"]
+    assert (as_span["start"]["offset"], as_span["end"]["offset"]) == (13, 16)
+
+    is_payload = _program("val y = x is Int\n")
+    is_statements = is_payload["statements"]
+    assert isinstance(is_statements, list)
+    is_span = is_statements[0]["initializer"]["type_span"]
+    assert (is_span["start"]["offset"], is_span["end"]["offset"]) == (13, 16)
+
+    enum_payload = _program("enum E { A(Int, String) }\n")
+    enum_statements = enum_payload["statements"]
+    assert isinstance(enum_statements, list)
+    spans = enum_statements[0]["variants"][0]["payload_spans"]
+    assert [(span["start"]["offset"], span["end"]["offset"]) for span in spans] == [
+        (11, 14),
+        (16, 22),
+    ]
 
 
 def test_type_annotation_is_canonical_text() -> None:

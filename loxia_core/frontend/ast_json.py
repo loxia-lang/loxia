@@ -74,6 +74,8 @@ def _value(value: object, memo: dict[int, Span | None]) -> object:
         return _token(value, full=False)
     if isinstance(value, Ty):
         return display(value)
+    if isinstance(value, Span):
+        return _span_json(value)
     if isinstance(value, (list, tuple)):
         return [_value(item, memo) for item in value]
     if isinstance(value, bool):
