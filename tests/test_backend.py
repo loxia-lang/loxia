@@ -2096,3 +2096,71 @@ def test_fs_read_bytes_erro_de_diretorio_bate_com_o_binario(tmp_path: Path) -> N
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
     assert "isDirectory" in interpreted.stdout
+
+
+@pytest.mark.backend
+def test_regex_engine_diferencial_nativo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", str(tmp_path / "cache"))
+
+    path = _write(
+        tmp_path,
+        'val compiled = regex_engine.compile("([A-Za-z]+) +([0-9]+)", 0, 0)\n'
+        "print(compiled)\n"
+        "val handle = compiled[1]\n"
+        'print(regex_engine.find(handle, "abc 42", 0))\n'
+        'print(regex_engine.find(handle, "nada", 0))\n'
+        "regex_engine.free(handle)\n"
+        'print(regex_engine.find(handle, "abc 42", 0))\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70  # handle fechado é panic, nos dois motores
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+@pytest.mark.backend
+def test_regex_engine_so_entra_no_binario_quando_usado(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    nm = shutil.which("nm")
+    if nm is None:
+        pytest.skip("nm não disponível")
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", str(tmp_path / "cache"))
+
+    plain_dir = tmp_path / "plain"
+    regex_dir = tmp_path / "regex"
+    plain_dir.mkdir()
+    regex_dir.mkdir()
+    plain = _write(plain_dir, "print(1)\n")
+    with_regex = _write(
+        regex_dir, 'val compiled = regex_engine.compile("a+", 0, 0)\nprint(compiled)\n'
+    )
+
+    plain_build, plain_binary = _build(plain, plain_dir)
+    regex_build, regex_binary = _build(with_regex, regex_dir)
+    assert plain_build.returncode == 0, plain_build.stderr
+    assert regex_build.returncode == 0, regex_build.stderr
+
+    def symbols(binary: Path) -> set[str]:
+        result = subprocess.run([nm, str(binary)], capture_output=True, text=True, check=False)
+        return set(result.stdout.split())
+
+    assert not {symbol for symbol in symbols(plain_binary) if symbol.startswith("loxr_")}
+    assert not {
+        symbol for symbol in symbols(plain_binary) if symbol.startswith("lox_regex_engine_")
+    }
+    assert any(symbol.startswith("loxr_compile") for symbol in symbols(regex_binary))
+    assert any(symbol.startswith("lox_regex_engine_compile") for symbol in symbols(regex_binary))

@@ -119,6 +119,7 @@ Packages by phase (dependency only downward):
 | [`runtime/numeric.c`](../../runtime/numeric.c) | guards for `//`/`%`/division, `**`, shifts, `math.*` and parse |
 | [`runtime/kernel.c`](../../runtime/kernel.c) | kernel 13.2 (ADR-0071): `args`, `io.*`, `fs.*`, `os.*`, `time.*` |
 | [`runtime/proc.c`](../../runtime/proc.c) | processes/streams (ADR-0095): `posix_spawnp`, pipes, `poll(2)` and handles |
+| [`runtime/regex.c`](../../runtime/regex.c) | `regex_engine.*` adapters over the Rust ABI (ADR-0131); compiled and linked only when the program uses the primitive |
 | [`native/regex/`](../../native/regex) | Rust engine (ADR-0131): `regex` + `fancy-regex`, C ABI in `include/lox_regex.h`, vendored crates and offline builds |
 | [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | primitive ABI, **generated** from `primitives.py` by `runtime/gen_kernel.py` |
 | [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | lexical scopes, static validations, `depth` |

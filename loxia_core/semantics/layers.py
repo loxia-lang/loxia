@@ -83,3 +83,32 @@ def _walk(
     if is_dataclass(node) and not isinstance(node, type):
         for value in vars(node).values():
             _walk(value, table, locals, uses)
+
+
+def uses_primitive(
+    statements: Iterable[Stmt],
+    locals: Mapping[Expr, int],
+    names: frozenset[str],
+) -> bool:
+    """`True` quando o programa referencia, no escopo global, um dos `names`.
+
+    Mesma regra de sombreamento de `native_only_uses`: um nome local que esconde o
+    namespace não conta. O backend usa isto para decidir quais unidades nativas
+    entram no link (ADR-0126).
+    """
+    return any(_mentions(statement, names, locals) for statement in statements)
+
+
+def _mentions(node: object, names: frozenset[str], locals: Mapping[Expr, int]) -> bool:
+    if isinstance(node, (list, tuple)):
+        return any(_mentions(item, names, locals) for item in node)
+    if (
+        isinstance(node, Get)
+        and isinstance(node.object, Variable)
+        and locals.get(node.object) is None
+        and f"{node.object.name.lexeme}.{node.name.lexeme}" in names
+    ):
+        return True
+    if is_dataclass(node) and not isinstance(node, type):
+        return any(_mentions(value, names, locals) for value in vars(node).values())
+    return False
