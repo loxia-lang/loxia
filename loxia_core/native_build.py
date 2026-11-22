@@ -31,10 +31,9 @@ CARGO_ENV = "LOX_CARGO"
 CACHE_ENV = "LOX_BUILD_CACHE"
 BUILD_TIMEOUT_SECONDS = 600
 
-E3022_MESSAGE = (
-    "regex requires the Rust toolchain (cargo). Install Rust or point LOX_CARGO at "
-    "the cargo binary; see docs/adr/0131-regex-motor-rust-dois-modos.md."
-)
+TOOLCHAIN_MESSAGE = "regex requires the Rust toolchain (cargo); install Rust or set LOX_CARGO."
+
+E3022_MESSAGE = f"{TOOLCHAIN_MESSAGE} See docs/adr/0131-regex-motor-rust-dois-modos.md."
 
 _LIBRARY_NAME = "liblox_regex.dylib" if sys.platform == "darwin" else "liblox_regex.so"
 _STATIC_NAME = "liblox_regex.a"

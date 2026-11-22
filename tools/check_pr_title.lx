@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# check_pr_title — valida o título de PR (Conventional Commits) em Loxia.
+#
+# Dogfood do módulo `regex` (ADR-0131). Lê o título de `args()[0]` ou de `PR_TITLE`;
+# exit 0 quando válido, 1 com a razão no stderr. O check em Python (`tools/
+# check_pr_title.py`) continua no CI até este rodar verde por um release.
+
+import regex
+import std.strings as strings
+
+val PATTERN = "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9][a-z0-9-]*\\))?!?: (\\S.*)$"
+
+fn first_line(message: String) -> String {
+  for line in strings.lines(message) {
+    val trimmed = strings.trim(line)
+    if (len(trimmed) > 0 and not strings.startsWith(trimmed, "#")) {
+      return trimmed
+    }
+  }
+  return ""
+}
+
+fn validate(title: String) -> String {
+  if (len(title) == 0) {
+    return "empty message"
+  }
+  for prefix in ["Merge ", "fixup! ", "squash! ", "amend! "] {
+    if (strings.startsWith(title, prefix)) {
+      return ""
+    }
+  }
+  val compiled = regex.tryCompile(PATTERN)
+  if (compiled == nil) {
+    return "invalid pattern"
+  }
+  val found = compiled.find(title)
+  if (found == nil) {
+    return "expected '<type>(<scope>): <subject>' (scope and ! are optional)"
+  }
+  val subject = found.groups[2]
+  if (subject == nil) {
+    return "empty subject"
+  }
+  if (len(subject) == 0) {
+    return "empty subject"
+  }
+  if (strings.endsWith(subject, ".")) {
+    return "subject must not end with a period"
+  }
+  if (len(title) > 100) {
+    return "header is " + str(len(title)) + " characters; keep it under 100"
+  }
+  return ""
+}
+
+fn main() -> Int {
+  val arguments = args()
+  var raw = os.getenv("PR_TITLE") ?? ""
+  if (len(arguments) > 0) {
+    raw = arguments[0]
+  }
+  val error = validate(first_line(raw))
+  if (len(error) == 0) {
+    return 0
+  }
+  io.writeErr("pr-title: " + error + "\n")
+  io.writeErr("see CONTRIBUTING.md § Commit messages\n")
+  return 1
+}
+
+os.exit(main())

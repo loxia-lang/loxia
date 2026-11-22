@@ -301,6 +301,7 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `E3019` | `math.*` argument |
 | `E3020` | type arguments (generic/enum/class arity) |
 | `E3021` | not supported by the interpreter |
+| `E3022` | capability requires the Rust toolchain (cargo) |
 
 ### Backend
 

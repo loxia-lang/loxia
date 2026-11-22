@@ -79,6 +79,7 @@ class Code(StrEnum):
     MATH_ARGUMENT = "E3019"
     TYPE_ARGUMENTS = "E3020"
     INTERPRETER_UNSUPPORTED = "E3021"
+    TOOLCHAIN_MISSING = "E3022"
 
     # Backend
     BACKEND_UNSUPPORTED = "E4001"
@@ -160,6 +161,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.MATH_ARGUMENT: Phase.CHECKER,
     Code.TYPE_ARGUMENTS: Phase.CHECKER,
     Code.INTERPRETER_UNSUPPORTED: Phase.CHECKER,
+    Code.TOOLCHAIN_MISSING: Phase.CHECKER,
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
@@ -236,6 +238,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.MATH_ARGUMENT: "`math.*` argument",
     Code.TYPE_ARGUMENTS: "type arguments (generic/enum/class arity)",
     Code.INTERPRETER_UNSUPPORTED: "not supported by the interpreter",
+    Code.TOOLCHAIN_MISSING: "capability requires the Rust toolchain (cargo)",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",

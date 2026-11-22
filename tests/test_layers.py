@@ -81,3 +81,32 @@ def test_run_aceita_programa_sem_capacidade_nativa(capsys: pytest.CaptureFixture
 
     assert not lox.reporter.had_error
     assert capsys.readouterr().out == "3\n"
+
+
+def test_run_recusa_regex_sem_o_toolchain(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    lox.run('print(1)\nregex_engine.compile("a", 0, 0)\n')
+
+    captured = capsys.readouterr()
+    assert lox.reporter.had_error
+    assert captured.out == ""
+    assert "E3022" in captured.err
+    assert "Rust toolchain" in captured.err
+
+
+def test_check_nao_exige_o_toolchain_do_regex(monkeypatch: pytest.MonkeyPatch) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    exit_code = lox.check('val r = regex_engine.compile("a", 0, 0)\nprint(r[1])\n')
+
+    assert exit_code == 0
+    assert not lox.reporter.had_error

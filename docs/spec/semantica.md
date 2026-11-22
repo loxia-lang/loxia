@@ -1131,6 +1131,23 @@ with fixed input.
 Instance fields may have a container type (`List`, `Map`, tuple, `Range`, enum) since
 ADR-0079; `Any` as a field is not yet supported by the backend.
 
+Bundled native modules ([ADR-0126](../adr/0126-modulo-nativo-embutido-sqlite.md),
+[ADR-0131](../adr/0131-regex-motor-rust-dois-modos.md)) live in `bundled/` and are imported by
+the short name (`import regex`). The name is reserved: it wins over a project file with the
+same name. Today: `regex`.
+
+- `regex.compile(pattern, caseless = false, multiline = false, dotall = false, extended =
+  false) -> Result[Regex, RegexError]` uses the linear engine (guaranteed linear time);
+  `regex.compileFull(...)` enables backreferences and lookaround with a fixed backtracking
+  limit; `tryCompile`/`tryCompileFull` return `nil` instead of the error. `Regex.isMatch`,
+  `find(text)`, `findFrom(text, start)`, `findAll(text)`, `replace`, `replaceAll`, `split`
+  and `close` (idempotent; there is no finalizer). `Match` carries group 0 (`text`, `start`,
+  `end`) and `groups: List[String?]` for groups 1..n. Replacement expands `$0`..`$9` and
+  `$$`; an unmatched group expands to the empty string. Offsets count code points.
+  Exceeding the backtracking limit raises `RuntimeError`. The module requires the Rust
+  toolchain: without `cargo`, `run`/`build` refuse with `E3022` before executing, while
+  `check` stays engine-agnostic.
+
 
 - A module is a `.lx` file; a folder is a path namespace, not a module.
 - Modules contain only imports, `fn`, `class` and `enum`; no `val`/`var` or top-level

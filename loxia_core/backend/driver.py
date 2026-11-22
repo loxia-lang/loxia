@@ -32,7 +32,7 @@ from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.ty import Ty
 from loxia_core.native_build import static_library as regex_static_library
-from loxia_core.semantics.layers import uses_primitive
+from loxia_core.semantics.layers import REGEX_PRIMITIVES, uses_primitive
 
 Emit = Literal["ll", "obj", "exe"]
 
@@ -62,7 +62,6 @@ REGEX_SOURCE = RUNTIME_DIR / REGEX_UNIT
 MODULE_RUNTIME_UNITS: dict[str, tuple[str, ...]] = {"regex": (REGEX_UNIT,)}
 REGEX_ABI_HEADER = bundle_dir("native") / "regex" / "include" / "lox_regex.h"
 REGEX_CRATE_LOCK = bundle_dir("native") / "regex" / "Cargo.lock"
-REGEX_PRIMITIVES = frozenset({"regex_engine.compile", "regex_engine.find", "regex_engine.free"})
 
 # Flags base do runtime; o cap de heap e o teto de pilha entram por build.
 RUNTIME_FLAGS = ("-O2", "-std=c11")
