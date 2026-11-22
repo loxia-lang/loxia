@@ -17,7 +17,7 @@ class RegexError {
   /// Reserved: always `-1` for now; the engine does not expose the error span yet.
   val offset: Int
 
-  /// Creates the error with its kind and, when known, the byte offset.
+  /// Creates the error with its kind; the offset is reserved (`-1`).
   init(kind: String, offset: Int = -1) {
     this.kind = kind
     this.offset = offset

@@ -76,3 +76,10 @@ def test_trims_the_subject_before_the_period_rule(regex_build_cache: str) -> Non
 
     assert result.returncode == 1
     assert "subject must not end with a period" in result.stderr
+
+
+def test_trims_unicode_whitespace_like_python(regex_build_cache: str) -> None:
+    result = _run("docs: update.\u00a0", regex_build_cache)
+
+    assert result.returncode == 1
+    assert "subject must not end with a period" in result.stderr

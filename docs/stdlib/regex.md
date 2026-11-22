@@ -27,7 +27,7 @@ Reserved: always `-1` for now; the engine does not expose the error span yet.
 
 #### `fn init(kind: String, offset: Int = ...)`
 
-Creates the error with its kind and, when known, the byte offset.
+Creates the error with its kind; the offset is reserved (`-1`).
 
 ### `class Match`
 

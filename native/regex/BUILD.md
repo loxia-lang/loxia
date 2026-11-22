@@ -62,6 +62,8 @@ from the staticlib **~1.7 MB stripped** (a binary without regex is ~84 KB).
   offline, and note it in `CHANGELOG.md` when it changes Unicode tables or semantics.
 - Vendored crates keep their own license files under `vendor/<crate>/` (all MIT/Apache-2.0);
   `tests/test_license_headers.py` excludes the `vendor/` prefix on purpose.
+- `vendor/` is upstream code: `.gitattributes` marks it `-diff linguist-vendored`, so the
+  PR lists the files instead of ~230k lines and reviewers check the versions in `Cargo.lock`.
 
 ## Not in this crate
 

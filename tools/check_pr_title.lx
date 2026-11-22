@@ -13,9 +13,41 @@ val PATTERN = "^([a-z]+)(\\([a-z0-9][a-z0-9-]*\\))?!?: (\\S.*)$"
 # Mesma ordem de `tools/conventional.py` (sorted(TYPES)) para a mensagem bater.
 val TYPES = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
 
+# `str.strip()` do Python remove Unicode White_Space; `strings.trim` só ASCII.
+fn is_space(code: Int) -> Bool {
+  if (code >= 9 and code <= 13) {
+    return true
+  }
+  if (code >= 28 and code <= 32) {
+    return true
+  }
+  if (code == 133 or code == 160 or code == 5760) {
+    return true
+  }
+  if (code >= 8192 and code <= 8202) {
+    return true
+  }
+  if (code == 8232 or code == 8233 or code == 8239 or code == 8287) {
+    return true
+  }
+  return code == 12288
+}
+
+fn trim_unicode(text: String) -> String {
+  var start = 0
+  while (start < len(text) and is_space(charCodeAt(text, start))) {
+    start = start + 1
+  }
+  var end = len(text)
+  while (end > start and is_space(charCodeAt(text, end - 1))) {
+    end = end - 1
+  }
+  return substr(text, start, end)
+}
+
 fn first_line(message: String) -> String {
   for line in strings.lines(message) {
-    val trimmed = strings.trim(line)
+    val trimmed = trim_unicode(line)
     if (len(trimmed) > 0 and not strings.startsWith(trimmed, "#")) {
       return trimmed
     }
@@ -71,7 +103,7 @@ fn validate(title: String) -> String {
   if (raw_subject == nil) {
     return "empty subject"
   }
-  val subject = strings.trim(raw_subject)
+  val subject = trim_unicode(raw_subject)
   if (len(subject) == 0) {
     return "empty subject"
   }

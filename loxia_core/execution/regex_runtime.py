@@ -22,7 +22,6 @@ MODE_FULL: Final = 1
 NO_MATCH: Final = -100
 ERR_LIMIT: Final = -4
 ERR_HANDLE: Final = -5
-ERR_ARGUMENTS: Final = -2
 ERR_CAPACITY: Final = -8
 
 # Teto de grupos de captura que o binding aceita antes de desistir.
@@ -133,7 +132,7 @@ def group_names(handle: int) -> list[str]:
     buffer = (ctypes.c_uint8 * needed)()
     written = int(engine.loxr_group_names(handle, buffer, needed))
     if written != needed:
-        raise NativeError(error_message(written))
+        raise NativeError("regex engine internal error.")
     return [part.decode("utf-8") for part in bytes(buffer)[:-1].split(b"\0")]
 
 

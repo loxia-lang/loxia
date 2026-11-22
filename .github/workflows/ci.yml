@@ -113,6 +113,15 @@ jobs:
           enable-cache: true
       - name: Install Boehm GC
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
+      # Instala o toolchain pinado ANTES do pytest: com xdist, vários workers
+      # disparam o rustup ao mesmo tempo e a instalação pode ficar pela metade
+      # ("missing manifest in toolchain"), como aconteceu no CI.
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
+      # A suíte cargo do crate é a única guarda do catch_unwind/panic hook e do free.
+      - name: Rust tests (regex ABI)
+        working-directory: native/regex
+        run: cargo test --release --locked --offline
       - name: Cache the runtime build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -208,6 +217,8 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.13"
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
       - name: Conventional PR title (Loxia, dogfood)
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}

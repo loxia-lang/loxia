@@ -2239,3 +2239,25 @@ def test_regex_group_names_diferencial_nativo(
     assert compiled.returncode == interpreted.returncode
     assert '["", "a", "b"]' in interpreted.stdout
     assert "regex handle is closed or unknown." in interpreted.stderr
+
+
+@pytest.mark.backend
+def test_regex_group_names_sozinho_linka_o_motor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(tmp_path, "print(regex_engine.groupNames(1))\n")
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "regex handle is closed or unknown." in interpreted.stderr

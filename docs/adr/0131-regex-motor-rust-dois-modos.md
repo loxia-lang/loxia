@@ -222,8 +222,8 @@ do binário virar requisito.
   `tests/test_regex_module.py` e pelo diferencial do backend (#120).
 - Teste de panic: cada `extern "C"` tem um gatilho só de teste que dispara panic interno
   → `ERR_PANIC` estável, processo vivo (`panic_does_not_escape_any_entry_point`).
-- Teste de limite: `(a+)+$` em `Full` → `RuntimeError` (limite de backtracking); em
-  `Linear` termina.
+- Teste de limite: `(a+)\1$` em `Full` (backref, §7.1) → `RuntimeError` (limite de
+  backtracking); em `Linear` termina. `(a+)+$` não serve: o `fancy-regex` delega ao linear.
 - Teste de link: `--emit=exe` de programa com regex passa com as libs de
   `native-static-libs`; sem elas, falha explícita (não é o caso).
 - `E3022` sem `cargo`; aviso de build só em TTY; stdout idêntico ao binário.
