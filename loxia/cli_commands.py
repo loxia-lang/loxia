@@ -162,7 +162,11 @@ def run_source(
         file_name=args.file_name,
     )
     if command == "ast":
-        lox.dump_ast(source)
+        lox.dump_ast(
+            source,
+            file_only=getattr(args, "file_only", False),
+            output_format=getattr(args, "format", "sexp"),
+        )
         sys.exit(lox.exit_code())
     if command == "check":
         _with_timeout(
