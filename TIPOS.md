@@ -4,9 +4,9 @@ Só o que ainda está **pendente**. O comportamento atual está em [`docs/spec/`
 decisões fechadas, em [`docs/decisoes.md`](docs/decisoes.md) e nos [ADRs](docs/adr/). Este
 arquivo não descreve o que já funciona.
 
-> Atualizado em 2026-11-20: o backend **L0–L6 + T7** está fechado e o `PENDING` do corpus
-> está vazio. Não há lacuna de tipo no lowering; o que resta abaixo é checker/generics
-> além do MVP ou trabalho de performance (L7).
+> Atualizado em 2026-11-21: o backend **L0–L6 + T7** está fechado. O `PENDING` do corpus
+> tem **1** caso (`bytes_method_value`, method value sem ABI nativa); não há lacuna de tipo
+> no lowering. O que resta abaixo é checker/generics além do MVP ou performance (L7).
 
 ## 1. Generics além do MVP
 
@@ -36,9 +36,10 @@ As **constraints** existem em funções (`T: Ord + Num + Interface`,
 ## 3. Backend
 
 Sem lacunas de tipo: `L0–L6 + T7` cobre escalares, classes/herança, closures, containers,
-tuplas, enums, exceções, `Any`, generics monomorfizados e `T?`. O `PENDING` do corpus está
-vazio ([`tests/corpus_manifest.py`](tests/corpus_manifest.py)). O próximo passo do backend é
-**L7** (passes/benchmarks), não uma regra de tipo.
+tuplas, enums, exceções, `Any`, generics monomorfizados e `T?`. O `PENDING` do corpus tem
+**1** caso (`bytes_method_value`: method value é interpreter-only até a ABI nativa;
+[`tests/corpus_manifest.py`](tests/corpus_manifest.py)). O próximo passo do backend é **L7**
+(passes/benchmarks), não uma regra de tipo.
 
 ## 4. Como reabrir
 
