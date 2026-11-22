@@ -67,7 +67,7 @@ backend = true
 
 [features.enums]
 title = "Enums, match e Result"
-golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx", "tests/cases/selfhost_ast_enum.lx"]
+golden = ["tests/cases/enums.lx", "tests/cases/result.lx", "tests/cases/result_nil.lx", "tests/cases/selfhost_ast_enum.lx", "tests/cases/selfhost_ast_generic_enum.lx"]
 differential = "l6"
 backend = true
 

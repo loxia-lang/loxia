@@ -47,7 +47,8 @@
         "tests/cases/enums.lx",
         "tests/cases/result.lx",
         "tests/cases/result_nil.lx",
-        "tests/cases/selfhost_ast_enum.lx"
+        "tests/cases/selfhost_ast_enum.lx",
+        "tests/cases/selfhost_ast_generic_enum.lx"
       ]
     },
     "exceptions": {

@@ -136,6 +136,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/errors/pow_overflow.lx",
         "tests/cases/errors/shift_count.lx",
         "tests/cases/selfhost_ast_enum.lx",
+        "tests/cases/selfhost_ast_generic_enum.lx",
         "tests/cases/selfhost_ast_interface.lx",
         "tests/cases/selfhost_recursive_class.lx",
     ),

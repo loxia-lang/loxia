@@ -56,14 +56,14 @@ missing, not a secret.
 | `l3` | 14 |
 | `l4` | 12 |
 | `l5` | 30 |
-| `l6` | 89 |
+| `l6` | 90 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 20 |
 | `t3` | 7 |
 | `t7` | 3 |
 
-**215 cases** across 13 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
+**216 cases** across 13 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

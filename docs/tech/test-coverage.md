@@ -13,7 +13,7 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**23 features**, **101 golden references** across **13 levels**.
+**23 features**, **102 golden references** across **13 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ golden case and, for backend features, one case in the differential corpus
 | **classes** — Classes, campos, métodos, this, init, herança e super | [`classes.lx`](../../tests/cases/classes.lx), [`class_fields.lx`](../../tests/cases/class_fields.lx), [`class_initializer.lx`](../../tests/cases/class_initializer.lx), [`inheritance.lx`](../../tests/cases/inheritance.lx), [`super.lx`](../../tests/cases/super.lx), [`class_bound_method.lx`](../../tests/cases/class_bound_method.lx), [`selfhost_recursive_class.lx`](../../tests/cases/selfhost_recursive_class.lx) | `l5` |
 | **contracts** — Contratos como biblioteca e adoção na stdlib | [`std_contracts.lx`](../../tests/cases/std_contracts.lx), [`std_contracts_property.lx`](../../tests/cases/std_contracts_property.lx), [`std_contracts_pilot.lx`](../../tests/cases/std_contracts_pilot.lx) | `t2` |
 | **control_flow** — if/elif/while/for, ranges e for-in | [`if_else.lx`](../../tests/cases/if_else.lx), [`elif.lx`](../../tests/cases/elif.lx), [`while.lx`](../../tests/cases/while.lx), [`for.lx`](../../tests/cases/for.lx), [`for_in.lx`](../../tests/cases/for_in.lx), [`range_value.lx`](../../tests/cases/range_value.lx), [`range_inclusive.lx`](../../tests/cases/range_inclusive.lx) | `l2` |
-| **enums** — Enums, match e Result | [`enums.lx`](../../tests/cases/enums.lx), [`result.lx`](../../tests/cases/result.lx), [`result_nil.lx`](../../tests/cases/result_nil.lx), [`selfhost_ast_enum.lx`](../../tests/cases/selfhost_ast_enum.lx) | `l6` |
+| **enums** — Enums, match e Result | [`enums.lx`](../../tests/cases/enums.lx), [`result.lx`](../../tests/cases/result.lx), [`result_nil.lx`](../../tests/cases/result_nil.lx), [`selfhost_ast_enum.lx`](../../tests/cases/selfhost_ast_enum.lx), [`selfhost_ast_generic_enum.lx`](../../tests/cases/selfhost_ast_generic_enum.lx) | `l6` |
 | **exceptions** — try/except/finally, raise e e.site | [`exceptions.lx`](../../tests/cases/exceptions.lx), [`exception_site.lx`](../../tests/cases/exception_site.lx), [`try_return_cleanup.lx`](../../tests/cases/try_return_cleanup.lx), [`stack_exception.lx`](../../tests/cases/stack_exception.lx) | `l6` |
 | **functions** — Funções, closures, lambdas, defaults e variádicos | [`functions.lx`](../../tests/cases/functions.lx), [`closures.lx`](../../tests/cases/closures.lx), [`function_values.lx`](../../tests/cases/function_values.lx), [`local_function.lx`](../../tests/cases/local_function.lx), [`default_params.lx`](../../tests/cases/default_params.lx), [`variadic.lx`](../../tests/cases/variadic.lx) | `l4` |
 | **generics** — Generics de funções/classes e constraints | [`generic_functions.lx`](../../tests/cases/generic_functions.lx), [`generic_class.lx`](../../tests/cases/generic_class.lx), [`generic_constraints.lx`](../../tests/cases/generic_constraints.lx), [`generics.lx`](../../tests/cases/generics.lx) | `t7` |
@@ -49,7 +49,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 7 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 89 |
+| `l6` | 90 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |

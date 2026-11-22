@@ -51,7 +51,8 @@ O risco de sequência é conhecido: módulo que nasce em `std.*` e depois vira p
 O AST do parser em Lox usa **enum recursivo + `match`**, não o visitor genérico do Python:
 método genérico (`accept[R]`) não existe na linguagem. Enum recursivo, enum genérico
 recursivo e payload `Any` compilam e rodam no backend; campo `Any` direto ainda é `E4001`.
-Casos diferenciais: `selfhost_ast_enum.lx` e `selfhost_ast_interface.lx`.
+Casos diferenciais: `selfhost_ast_enum.lx`, `selfhost_ast_generic_enum.lx` e
+`selfhost_ast_interface.lx`.
 
 ### 1. O programa self-hosted é o front-end em Lox; o fmt é o primeiro consumidor
 

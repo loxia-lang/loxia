@@ -10,4 +10,12 @@ val kind = match e {
   Expr.Bin(l, r) => "bin"
 }
 print(kind)
+
+val lit: Expr = Expr.Lit(7)
+val payload = match lit {
+  Expr.Lit(v) => str(v)
+  Expr.Bin(l, r) => "bin"
+}
+print(payload)
 # expect: bin
+# expect: 7
