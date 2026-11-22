@@ -383,7 +383,7 @@ Loadable procedures (`.dsh/skills/`), for specific tasks:
 | `lox-docs` | keep `docs/` in step with the code: freshness (git), triage, `docs/log.md` |
 | `lox-commits` | commit/PR format, DCO, splitting work |
 | `lox-git-flow` | branch model (`main` release, `dev` integration, feature→dev), PR, release, hotfix |
-| `lox-converge` | review a delivery before the PR: claim × implementation × test × doc, blast radius |
+| `lox-converge` | review a delivery before the PR: claim × implementation × test × doc, blast radius; an unresolved caveat needs an issue |
 | `lox-audit` | structural audit at a milestone: one lens per round (ABI, runtime, architecture, dead code/repetition, gates) |
 
 Automation:
