@@ -531,7 +531,9 @@ size_t utf8_complete_prefix(const unsigned char *data, size_t length) {
  * File handles: `fs.open`, `fs.read`, `fs.write`, `fs.close` (ADR-0119)
  * --------------------------------------------------------------------------- */
 
+#ifndef LOX_MAX_FS_HANDLES
 #define LOX_MAX_FS_HANDLES 128
+#endif
 
 /* `pending` guards UTF-8 boundaries: an incomplete sequence from the previous
  * read waits here (up to 3 bytes) and is completed by the next call. */

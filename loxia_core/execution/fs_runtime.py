@@ -25,8 +25,8 @@ import os
 from dataclasses import dataclass, field
 
 from loxia_core.diagnostics.errors import NativeError
+from loxia_core.execution.limits import MAX_FS_HANDLES
 
-MAX_HANDLES = 256
 KINDS = {
     errno.ENOENT: "notFound",
     errno.EACCES: "permission",
@@ -56,10 +56,10 @@ class FileTable:
     """Handles de arquivo da execução; ids são índices 1-based."""
 
     def __init__(self) -> None:
-        self._handles: list[_Handle | None] = [None] * MAX_HANDLES
+        self._handles: list[_Handle | None] = [None] * MAX_FS_HANDLES
 
     def _slot(self, identifier: int) -> _Handle:
-        if identifier < 1 or identifier > MAX_HANDLES:
+        if identifier < 1 or identifier > MAX_FS_HANDLES:
             raise NativeError("fs: invalid handle.")
         handle = self._handles[identifier - 1]
         if handle is None:
@@ -167,7 +167,7 @@ class FileTable:
             raise NativeError(f"{_kind(error)}: write failed.") from None
 
     def close(self, identifier: int) -> None:
-        if identifier < 1 or identifier > MAX_HANDLES:
+        if identifier < 1 or identifier > MAX_FS_HANDLES:
             raise NativeError("fs: invalid handle.")
         handle = self._handles[identifier - 1]
         if handle is None:
@@ -177,7 +177,7 @@ class FileTable:
             os.close(handle.fd)
 
     def close_all(self) -> None:
-        for identifier in range(1, MAX_HANDLES + 1):
+        for identifier in range(1, MAX_FS_HANDLES + 1):
             self.close(identifier)
 
 
