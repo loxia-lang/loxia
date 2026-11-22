@@ -203,16 +203,9 @@ def fetch_dependencies(
                 )
 
 
-def lock_is_current(
-    manifest: Manifest,
-    lock: Lock,
-    *,
-    offline: bool = False,
-    cache_dir: Path | None = None,
-) -> bool:
-    """`loxia lock --check`: o lock no disco é exatamente o que o manifest produz."""
-    expected = lock_manifest(manifest, offline=offline, cache_dir=cache_dir)
-    return render_lock(expected) == render_lock(lock)
+def lock_is_current(current: Lock | None, expected: Lock) -> bool:
+    """`loxia lock --check`: o lock no disco é exatamente o esperado."""
+    return current is not None and render_lock(current) == render_lock(expected)
 
 
 def _verify_lock(manifest: Manifest, lock: Lock) -> None:

@@ -45,13 +45,13 @@ from loxia_core.execution.primitives import GROUP_BUDGET, KERNEL_BUDGET, PRIMITI
 from loxia_core.loader.deps import (
     DependencyError,
     fetch_dependencies,
+    lock_is_current,
     lock_manifest,
 )
 from loxia_core.loader.lock import (
     LOCK_NAME,
     LockError,
     read_lock,
-    render_lock,
     write_lock,
 )
 from loxia_core.loader.manifest import (
@@ -461,8 +461,7 @@ def lock_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> N
     try:
         lock = lock_manifest(manifest, offline=args.offline, cache_dir=lox.cache_dir)
         if args.check:
-            current = read_lock(lock_path)
-            if current is None or render_lock(current) != render_lock(lock):
+            if not lock_is_current(read_lock(lock_path), lock):
                 print("loxia.lock is out of date; run 'loxia lock'.", file=sys.stderr)
                 sys.exit(1)
             return
