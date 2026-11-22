@@ -60,6 +60,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **Build sem cargo e erro rebaixável**: um erro que vira panic site (`print(1 + true)`,
+  `print(f())` antes da declaração) bloqueava o `--emit` com exit 65 e **sem diagnóstico**
+  quando o toolchain Rust não estava instalado; o gate do regex consultava `had_error`, que
+  já estava verdadeiro pelo erro deferido. Agora o build só recusa sem cargo se houver uso
+  real de `regex` (`E3022`); os demais casos compilam e o panic fica no ponto. Regressão em
+  `tests/test_layers.py`.
 - **`RegexError.offset`** ([#121](https://github.com/loxia-lang/loxia/issues/121)): o erro de
   sintaxe reporta o byte do primeiro erro nos dois modos (`"("` → `0`, `"a(b"` → `1`) em vez
   de `-1`, inclusive quando o `fancy-regex` compila um fragmento delegado. Padrão que estoura
