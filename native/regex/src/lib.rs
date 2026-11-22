@@ -43,8 +43,14 @@ pub const ERR_COMPILE: i32 = -10;
 const MAX_HANDLES: usize = 4096;
 /// Backtracking steps allowed in `FULL` mode, fixed for determinism.
 const BACKTRACK_LIMIT: usize = 1_000_000;
-/// Compiled-program memory cap for `LINEAR` mode.
+/// Compiled-program memory cap for `LINEAR` mode and for each delegated
+/// sub-regex of `FULL` mode.
 const SIZE_LIMIT: usize = 10 * 1024 * 1024;
+/// Lazy-DFA cache capacity for delegated sub-regexes in `FULL` mode.
+const DELEGATE_DFA_SIZE_LIMIT: usize = 2 * 1024 * 1024;
+/// Maximum VM instructions in a `FULL` program. Recursive subroutines are
+/// inlined at compile time, so this bounds the expansion.
+const MAX_PROG_SIZE: usize = 100_000;
 
 enum Engine {
     Linear(regex::Regex),
@@ -125,6 +131,10 @@ fn build(
         MODE_FULL => {
             let mut builder = FullBuilder::new(pattern);
             builder.backtrack_limit(backtrack_limit);
+            builder.delegate_size_limit(SIZE_LIMIT);
+            builder.delegate_dfa_size_limit(DELEGATE_DFA_SIZE_LIMIT);
+            builder.delegate_dfa_skip_cache_capacity_check(false);
+            builder.max_prog_size(MAX_PROG_SIZE);
             if flags & FLAG_CASELESS != 0 {
                 builder.case_insensitive(true);
             }
@@ -549,6 +559,13 @@ mod tests {
         }
     }
 
+    #[test]
+    fn full_mode_caps_recursive_subroutine_expansion() {
+        assert_eq!(
+            compile_error(r"(a|b\g<1>\g<1>)", 0, MODE_FULL),
+            (ERR_TOO_BIG, -1)
+        );
+    }
 
     #[test]
     fn invalid_mode_is_rejected() {

@@ -1147,7 +1147,9 @@ same name. Today: `regex`.
   `$$`; an unmatched group expands to the empty string. Match offsets count code points;
   `RegexError.offset` is the **byte** offset of the first syntax error in the pattern (`-1`
   when the failure is not a syntax error), and `RegexError.kind` is one of `syntax`,
-  `arguments`, `mode`, `size` or `engine`. Exceeding the backtracking limit raises `RuntimeError`.
+  `arguments`, `mode`, `size` or `engine`. A pattern that exceeds the per-program
+  compiled-memory limit is `size`; the Rust engine's allocations are outside the binary's
+  Boehm heap cap (ADR-0131 §2.1). Exceeding the backtracking limit raises `RuntimeError`.
   The module requires the Rust
   toolchain: without `cargo`, `run`/`build` refuse with `E3022` before executing, while
   `check` stays engine-agnostic.

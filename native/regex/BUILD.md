@@ -39,8 +39,13 @@ Flags: `CASELESS`, `MULTILINE`, `DOTALL`, `EXTENDED`.
   hook print `thread ... panicked` on stderr, which is an I1 channel.
 - Handle table: 1-based, idempotent `free`, a free list for reuse, cap of 4096 live patterns
   (`LOXR_ERR_HANDLES`). No finalizer.
-- Limits are constants, not settings: `backtrack_limit = 1_000_000`, `size_limit = 10 MiB`.
-  Changing them changes behavior and needs a spec/test update.
+- Limits are constants, not settings: `backtrack_limit = 1_000_000`, `size_limit = 10 MiB`
+  (linear and delegated sub-regexes), `delegate_dfa_size_limit = 2 MiB` and
+  `max_prog_size = 100_000` instructions (full). Changing them changes behavior and needs a
+  spec/test update.
+- Rust allocations are **outside** the Boehm heap cap of the binary (ADR-0131 §2): the
+  contract is per compiled program, not a total byte budget across handles. Closing handles
+  is the way to release memory.
 
 ## Build and test
 

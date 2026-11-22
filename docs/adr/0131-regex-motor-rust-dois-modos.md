@@ -66,9 +66,11 @@ com `RegexError.kind`; o limite de backtracking estourado em `find` vira `Runtim
 - Perfil de release com `panic = "unwind"` (nunca `abort`): o `catch_unwind` é o que
   transforma bug interno em erro do Loxia.
 - Tabela de handles 1-based, `free` idempotente, sem finalizer (Boehm não é
-  determinístico); `abi_version` é conferida na carga. O teto é de 4096 handles vivos,
-  sem teto de bytes totais: o `size_limit` de 10 MiB é por programa e só existe no modo
-  linear (backlog em #122).
+  determinístico); `abi_version` é conferida na carga. O teto é de 4096 handles vivos. A
+  memória do Rust fica **fora** do heap Boehm do binário: o contrato é por programa
+  (`size_limit` de 10 MiB no linear e nos sub-regex delegados do full, `max_prog_size` de
+  100.000 instruções e cache DFA de 2 MiB no full), não um orçamento total de bytes
+  (decisão do #122, §2.1).
 - Offsets: o `regex` devolve bytes UTF-8; a conversão para code points acontece no Rust,
   num lugar só. O `out_offset` do erro de compilação é o **byte** do primeiro erro de
   sintaxe (ou `-1` quando desconhecido); os dois modos reportam o mesmo valor (#121).
@@ -82,6 +84,14 @@ com `RegexError.kind`; o limite de backtracking estourado em `find` vira `Runtim
   sintaxe exclusiva do full. O offset é em **bytes**, como o resto do ABI; a API expõe em
   `RegexError.offset`. Padrão grande demais deixa de ser reportado como `syntax`: vira
   `LOXR_ERR_TOO_BIG` / `RegexError.kind == "size"`, com offset `-1`.
+- **#122 — memória.** `Mode.Full` ganha `delegate_size_limit(10 MiB)`,
+  `delegate_dfa_size_limit(2 MiB)`, `delegate_dfa_skip_cache_capacity_check(false)` e
+  `max_prog_size(100.000)`, fechando a expansão de subrotinas recursivas em tempo de
+  compilação. A decisão registrada é que a memória do Rust **não** entra no contrato de
+  heap de 512 MiB (ADR-0074/0087): o limite é por programa compilado, multiplicado pelos
+  4096 handles vivos, e `close()` é a forma de liberar. Um orçamento total de bytes exigiria
+  introspecção que o `fancy-regex` não oferece; o custo/benefício não paga trocar o motor
+  linear por uma camada própria só para medir.
 
 ### 3. Camada e superfície
 

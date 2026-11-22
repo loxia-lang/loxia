@@ -64,6 +64,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   sintaxe reporta o byte do primeiro erro nos dois modos (`"("` → `0`, `"a(b"` → `1`) em vez
   de `-1`. Padrão que estoura o limite por programa deixa de ser `syntax` e vira o kind
   estável `size`.
+- **Memória do regex no modo Full** ([#122](https://github.com/loxia-lang/loxia/issues/122)):
+  `compileFull` passa a limitar o programa compilado (sub-regex delegados, cache DFA e
+  expansão de subrotinas recursivas). A decisão registrada é que a memória do motor Rust
+  fica fora do heap Boehm: o limite é por programa, não um orçamento total.
 - **`Bytes` é truthy no backend**: `if (b)`, `not b` e `and`/`or` sobre `Bytes` deixam de
   falhar no lowering; só `nil`/`false` são falsy, como no tree-walk.
 - **Namespace nativo sombreado**: `val Bytes = ...`, `val fs = ...`, `val Int = ...` e
