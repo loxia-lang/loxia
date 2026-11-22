@@ -238,7 +238,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.MATH_ARGUMENT: "`math.*` argument",
     Code.TYPE_ARGUMENTS: "type arguments (generic/enum/class arity)",
     Code.INTERPRETER_UNSUPPORTED: "not supported by the interpreter",
-    Code.TOOLCHAIN_MISSING: "capability requires the Rust toolchain (cargo)",
+    Code.TOOLCHAIN_MISSING: "capability requires the Rust toolchain (cargo) at run/build",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",

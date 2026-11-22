@@ -2166,6 +2166,8 @@ def test_regex_engine_so_entra_no_binario_quando_usado(
     }
     assert any(symbol.startswith("loxr_compile") for symbol in symbols(regex_binary))
     assert any(symbol.startswith("lox_regex_engine_compile") for symbol in symbols(regex_binary))
+    # Link acidental do motor: 99 KB x 3,8 MB hoje; 4x é folga suficiente e portátil.
+    assert plain_binary.stat().st_size * 4 < regex_binary.stat().st_size
 
 
 @pytest.mark.backend
@@ -2206,3 +2208,34 @@ def test_regex_module_diferencial_nativo(
     assert compiled.returncode == interpreted.returncode
     assert "<a>1 <b>2" in interpreted.stdout
     assert "1/x 2/y" in interpreted.stdout
+
+
+@pytest.mark.backend
+def test_regex_group_names_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        'val compiled = regex_engine.compile("(?P<a>[a-z]+)-(?P<b>[0-9]+)", 0, 0)\n'
+        "val handle = compiled[1]\n"
+        "print(regex_engine.groupNames(handle))\n"
+        "regex_engine.free(handle)\n"
+        "print(regex_engine.groupNames(handle))\n",
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 70  # handle fechado é panic, nos dois motores
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert '["", "a", "b"]' in interpreted.stdout
+    assert "regex handle is closed or unknown." in interpreted.stderr

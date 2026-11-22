@@ -102,6 +102,15 @@ def test_group_names(built: Path) -> None:
     regex_runtime.free_pattern(handle)
 
 
+def test_too_many_groups_uses_the_shared_message(built: Path) -> None:
+    code, handle = regex_runtime.compile_pattern("()" * 4100, 0, 0)
+    assert code == 0
+
+    with pytest.raises(NativeError, match="too many capture groups"):
+        regex_runtime.match_pattern(handle, "x", 0)
+    regex_runtime.free_pattern(handle)
+
+
 def test_build_is_cached(built: Path) -> None:
     assert built.is_file()
     assert regex_runtime.library_path() == built

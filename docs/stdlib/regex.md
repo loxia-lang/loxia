@@ -23,7 +23,7 @@ Stable category: `syntax`, `arguments`, `mode` or `engine`.
 
 #### `val offset: Int`
 
-Byte offset reported by the engine, or `-1` when unknown.
+Reserved: always `-1` for now; the engine does not expose the error span yet.
 
 #### `fn init(kind: String, offset: Int = ...)`
 

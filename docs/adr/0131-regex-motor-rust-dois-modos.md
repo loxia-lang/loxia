@@ -1,6 +1,6 @@
 # ADR-0131 — Regex: motor Rust com dois modos (linear padrão, backtracking opt-in)
 
-- **Status:** accepted (decisão; implementação pendente) — supersede o [ADR-0130](0130-regex-pcre2-embutido.md)
+- **Status:** accepted (implementado no PR #119) — supersede o [ADR-0130](0130-regex-pcre2-embutido.md)
 - **Data:** 2026-11-22
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH); revisão técnica do Gemini
   incorporada (§2, §4 e §5)
@@ -48,31 +48,36 @@ própria, num crate do monorepo, distribuído em dois estágios.**
 | `Mode.Linear` (padrão) | `regex` | tempo linear, memória limitada por `size_limit` | padrão vindo de fora, uso geral |
 | `Mode.Full` (opt-in) | `fancy-regex` | backtracking com `backtrack_limit` (padrão 1.000.000 de passos) | backref, lookaround, atômico |
 
-`Mode.Full` é escolha do dev no `compile`, não default. A recusa/limite vira
-`RegexError.limit`, estável e determinístico.
+`Mode.Full` é escolha do dev no `compile`, não default. Erro de sintaxe vira `Result`
+com `RegexError.kind`; o limite de backtracking estourado em `find` vira `RuntimeError`
+(`regex match limit exceeded.`), estável e determinístico nos dois motores.
 
 ### 2. ABI C e segurança de FFI
 
 - O crate exporta `extern "C"` (`cdylib` para o `run`, `staticlib` para `--emit=exe`):
-  `loxr_compile`, `loxr_match`, `loxr_free`, `loxr_abi_version`.
+  `loxr_compile`, `loxr_match`, `loxr_group_names`, `loxr_free`, `loxr_abi_version`.
 - **Todo** símbolo `extern "C"` é envolvido em `std::panic::catch_unwind`; panic nunca
   cruza a FFI (desde o Rust 1.81 o unwind através de `extern "C"` aborta o processo). Erro
   interno vira código de retorno + mensagem estática.
 - O **hook de panic é silenciado** no init do crate: `catch_unwind` sozinho não impede o
   hook padrão de escrever `thread ... panicked` no stderr — e stderr é canal do I1. O hook
-  é instalado uma vez (`Once`) e não afeta o processo host.
+  é instalado uma vez (`Once`); como `set_hook` é global do processo, ele vale para todo
+  Rust carregado no host — hoje só este crate, mas é um efeito de processo, não local.
 - Perfil de release com `panic = "unwind"` (nunca `abort`): o `catch_unwind` é o que
   transforma bug interno em erro do Loxia.
 - Tabela de handles 1-based, `free` idempotente, sem finalizer (Boehm não é
-  determinístico); `abi_version` é conferida na carga.
+  determinístico); `abi_version` é conferida na carga. O teto é de 4096 handles vivos,
+  sem teto de bytes totais: o `size_limit` de 10 MiB é por programa e só existe no modo
+  linear (backlog em #122).
 - Offsets: o `regex` devolve bytes UTF-8; a conversão para code points acontece no Rust,
-  num lugar só.
+  num lugar só. O `out_offset` do erro de compilação é reservado (sempre `-1` hoje; #121).
 
 ### 3. Camada e superfície
 
 - Namespace primitivo **`regex_engine`** (neutro, evita colidir com o módulo público
   `regex`, mesmo padrão de `sqlite3`/`sqlite`): `compile(pattern, flags, mode)`,
-  `find(handle, subject, start)`, `free(handle)`. Três primitivas, teto 4, fora dos 40 do
+  `find(handle, subject, start)`, `groupNames(handle)`, `free(handle)`. Quatro primitivas,
+  teto 4, fora dos 40 do
   kernel. O nome é `find`, não `match`: `match` é palavra-chave da linguagem e não pode ser
   membro acessado; a função C correspondente continua `loxr_match`.
 - `bundled/regex.lx`: `Regex`, `Match`, `RegexError`; `compile`/`compileFull` e
@@ -83,7 +88,8 @@ própria, num crate do monorepo, distribuído em dois estágios.**
   `E4001`; `$name` é a forma prática de substituição, `${name}` exige `\$` no fonte por
   causa da interpolação; `regex_engine.groupNames` é a quarta primitiva do orçamento.
 - Compile devolve `Result[Regex, RegexError]`; o primitivo usa um protocolo `List[Int]`
-  (`[1, handle]` / `[0, offset]`) porque a tabela de primitivas não tem tipo algébrico.
+  (`[1, handle]` / `[0, code]`) porque a tabela de primitivas não tem tipo algébrico.
+  O `offset` do `RegexError` é reservado (`-1`; #121).
 - Classificação `core` (I1/I3). Sem `cargo` na máquina, `E3022` antes de executar.
 
 ### 4. Distribuição em dois estágios
@@ -211,10 +217,13 @@ do binário virar requisito.
 ## Como verificar
 
 - Spike da §7 com números registrados neste ADR (tempo, tamanho, latência).
-- `tests/cases/std_regex/*.lx` em `run` e `--emit=exe`, com `--check` limpo.
-- Teste de panic: símbolo `extern "C"` recebe entrada que dispara panic interno → erro
-  estável, processo vivo.
-- Teste de limite: `(a+)+$` em `Full` → `RegexError.limit`; em `Linear` termina.
+- `tests/cases/std_regex/*.lx` em `run` e `--emit=exe`, com `--check` limpo — **adiado**
+  para não tornar Rust pré-requisito do `make check-fast`; coberto hoje por
+  `tests/test_regex_module.py` e pelo diferencial do backend (#120).
+- Teste de panic: cada `extern "C"` tem um gatilho só de teste que dispara panic interno
+  → `ERR_PANIC` estável, processo vivo (`panic_does_not_escape_any_entry_point`).
+- Teste de limite: `(a+)+$` em `Full` → `RuntimeError` (limite de backtracking); em
+  `Linear` termina.
 - Teste de link: `--emit=exe` de programa com regex passa com as libs de
   `native-static-libs`; sem elas, falha explícita (não é o caso).
 - `E3022` sem `cargo`; aviso de build só em TTY; stdout idêntico ao binário.

@@ -14,7 +14,7 @@ class RegexError {
   /// Stable category: `syntax`, `arguments`, `mode` or `engine`.
   val kind: String
 
-  /// Byte offset reported by the engine, or `-1` when unknown.
+  /// Reserved: always `-1` for now; the engine does not expose the error span yet.
   val offset: Int
 
   /// Creates the error with its kind and, when known, the byte offset.

@@ -8,7 +8,10 @@
 import regex
 import std.strings as strings
 
-val PATTERN = "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9][a-z0-9-]*\\))?!?: (\\S.*)$"
+val PATTERN = "^([a-z]+)(\\([a-z0-9][a-z0-9-]*\\))?!?: (\\S.*)$"
+
+# Mesma ordem de `tools/conventional.py` (sorted(TYPES)) para a mensagem bater.
+val TYPES = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
 
 fn first_line(message: String) -> String {
   for line in strings.lines(message) {
@@ -18,6 +21,26 @@ fn first_line(message: String) -> String {
     }
   }
   return ""
+}
+
+fn known_type(kind: String) -> Bool {
+  for candidate in TYPES {
+    if (candidate == kind) {
+      return true
+    }
+  }
+  return false
+}
+
+fn allowed_types() -> String {
+  var out = ""
+  for candidate in TYPES {
+    if (len(out) > 0) {
+      out = out + ", "
+    }
+    out = out + candidate
+  }
+  return out
 }
 
 fn validate(title: String) -> String {
@@ -37,10 +60,18 @@ fn validate(title: String) -> String {
   if (found == nil) {
     return "expected '<type>(<scope>): <subject>' (scope and ! are optional)"
   }
-  val subject = found.groups[2]
-  if (subject == nil) {
+  val kind = found.groups[0]
+  if (kind == nil) {
+    return "empty type"
+  }
+  if (not known_type(kind)) {
+    return "unknown type '" + kind + "'; allowed: " + allowed_types()
+  }
+  val raw_subject = found.groups[2]
+  if (raw_subject == nil) {
     return "empty subject"
   }
+  val subject = strings.trim(raw_subject)
   if (len(subject) == 0) {
     return "empty subject"
   }

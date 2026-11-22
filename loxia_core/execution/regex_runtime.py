@@ -22,6 +22,7 @@ MODE_FULL: Final = 1
 NO_MATCH: Final = -100
 ERR_LIMIT: Final = -4
 ERR_HANDLE: Final = -5
+ERR_ARGUMENTS: Final = -2
 ERR_CAPACITY: Final = -8
 
 # Teto de grupos de captura que o binding aceita antes de desistir.
@@ -112,18 +113,27 @@ def match_pattern(handle: int, subject: str, start: int) -> tuple[int, list[int]
     return code, [int(spans[index]) for index in range(code)]
 
 
+def error_message(code: int) -> str:
+    """Mensagem estável de um código negativo do ABI (idêntica ao adaptador C)."""
+    if code == ERR_LIMIT:
+        return "regex match limit exceeded."
+    if code == ERR_HANDLE:
+        return "regex handle is closed or unknown."
+    return "regex engine internal error."
+
+
 def group_names(handle: int) -> list[str]:
     """Nomes dos grupos de captura (índice 0 vazio); `[]` quando não há grupos."""
     engine = _load()
     needed = int(engine.loxr_group_names(handle, None, 0))
     if needed < 0:
-        raise NativeError("regex engine internal error.")
+        raise NativeError(error_message(needed))
     if needed == 0:
         return []
     buffer = (ctypes.c_uint8 * needed)()
     written = int(engine.loxr_group_names(handle, buffer, needed))
     if written != needed:
-        raise NativeError("regex engine internal error.")
+        raise NativeError(error_message(written))
     return [part.decode("utf-8") for part in bytes(buffer)[:-1].split(b"\0")]
 
 

@@ -59,3 +59,20 @@ def test_reads_the_title_from_the_environment(regex_build_cache: str) -> None:
     result = _run(None, regex_build_cache, extra={"PR_TITLE": "docs: update"})
 
     assert result.returncode == 0, result.stderr
+
+
+def test_rejects_an_unknown_type(regex_build_cache: str) -> None:
+    result = _run("foo: bar", regex_build_cache)
+
+    assert result.returncode == 1
+    assert (
+        "unknown type 'foo'; allowed: build, chore, ci, docs, feat, fix, perf, "
+        "refactor, revert, style, test" in result.stderr
+    )
+
+
+def test_trims_the_subject_before_the_period_rule(regex_build_cache: str) -> None:
+    result = _run("docs: update. ", regex_build_cache)
+
+    assert result.returncode == 1
+    assert "subject must not end with a period" in result.stderr

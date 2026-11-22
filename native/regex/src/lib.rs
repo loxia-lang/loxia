@@ -189,6 +189,10 @@ pub extern "C" fn loxr_compile(
         let Ok(text) = std::str::from_utf8(bytes) else {
             return ERR_UTF8;
         };
+        #[cfg(test)]
+        if text == "__LOX_TEST_PANIC__" {
+            panic!("boom");
+        }
         let engine = match build(text, flags, mode, BACKTRACK_LIMIT) {
             Ok(engine) => engine,
             Err(code) => return code,
@@ -236,6 +240,10 @@ pub extern "C" fn loxr_match(
         let Ok(text) = std::str::from_utf8(bytes) else {
             return ERR_UTF8;
         };
+        #[cfg(test)]
+        if text == "__LOX_TEST_PANIC__" {
+            panic!("boom");
+        }
         let state = slots().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let Some(Some(engine)) = state.engines.get((handle - 1) as usize) else {
             return ERR_HANDLE;
@@ -278,6 +286,10 @@ pub extern "C" fn loxr_match(
 pub extern "C" fn loxr_group_names(handle: i64, out: *mut u8, capacity: usize) -> i32 {
     init();
     catch_unwind(AssertUnwindSafe(|| {
+        #[cfg(test)]
+        if handle == i64::MIN {
+            panic!("boom");
+        }
         if handle < 1 {
             return ERR_ARGS;
         }
@@ -314,6 +326,10 @@ pub extern "C" fn loxr_group_names(handle: i64, out: *mut u8, capacity: usize) -
 pub extern "C" fn loxr_free(handle: i64) {
     init();
     let _ = catch_unwind(AssertUnwindSafe(|| {
+        #[cfg(test)]
+        if handle == i64::MIN {
+            panic!("boom");
+        }
         if handle < 1 {
             return;
         }
@@ -463,6 +479,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn free_is_idempotent() {
         let handle = compile("a", 0, MODE_LINEAR);
         loxr_free(handle);
@@ -514,8 +531,35 @@ mod tests {
     }
 
     #[test]
-    fn panic_does_not_escape() {
-        let code = catch_unwind(|| panic!("boom")).unwrap_or(ERR_PANIC);
+    fn panic_does_not_escape_any_entry_point() {
+        let pattern = b"__LOX_TEST_PANIC__";
+        let mut handle = 0i64;
+        let mut offset = -1i64;
+        let code = loxr_compile(
+            pattern.as_ptr(),
+            pattern.len(),
+            0,
+            MODE_LINEAR,
+            &mut handle,
+            &mut offset,
+        );
         assert_eq!(code, ERR_PANIC);
+
+        let handle = compile("a", 0, MODE_LINEAR);
+        let subject = "__LOX_TEST_PANIC__";
+        let mut spans = [0i64; 2];
+        let code = loxr_match(
+            handle,
+            subject.as_ptr(),
+            subject.len(),
+            0,
+            spans.as_mut_ptr(),
+            spans.len(),
+        );
+        assert_eq!(code, ERR_PANIC);
+
+        assert_eq!(loxr_group_names(i64::MIN, std::ptr::null_mut(), 0), ERR_PANIC);
+        loxr_free(i64::MIN);
+        loxr_free(handle);
     }
 }

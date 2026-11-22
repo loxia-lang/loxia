@@ -342,10 +342,10 @@ def _sleep(milliseconds: int) -> None:
 
 
 def _regex_compile(pattern: str, flags: int, mode: int) -> LoxList:
-    if mode not in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
-        raise NativeError("regex_engine.compile() expects mode 0 (linear) or 1 (full).")
     if flags < 0:
         raise NativeError("regex_engine.compile() expects a non-negative flags mask.")
+    if mode not in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
+        raise NativeError("regex_engine.compile() expects mode 0 (linear) or 1 (full).")
     code, handle = regex_runtime.compile_pattern(pattern, flags, mode)
     values: list[object] = [1, handle] if code == 0 else [0, code]
     return LoxList(values)
@@ -376,11 +376,7 @@ def _regex_free(handle: int) -> None:
 
 
 def _regex_error(code: int) -> str:
-    if code == regex_runtime.ERR_LIMIT:
-        return "regex match limit exceeded."
-    if code == regex_runtime.ERR_HANDLE:
-        return "regex handle is closed or unknown."
-    return "regex engine internal error."
+    return regex_runtime.error_message(code)
 
 
 # Orçamento do kernel por grupo (ADR-0123). O grupo é o prefixo do namespace da

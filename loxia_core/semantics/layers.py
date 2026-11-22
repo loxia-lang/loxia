@@ -24,7 +24,14 @@ from loxia_core.frontend.tokens import Token
 NATIVE_ONLY = "native-only"
 
 # Primitivas do motor de regex (ADR-0131): exigem o toolchain Rust no run/build.
-REGEX_PRIMITIVES = frozenset({"regex_engine.compile", "regex_engine.find", "regex_engine.free"})
+REGEX_PRIMITIVES = frozenset(
+    {
+        "regex_engine.compile",
+        "regex_engine.find",
+        "regex_engine.groupNames",
+        "regex_engine.free",
+    }
+)
 
 
 @dataclass(frozen=True)

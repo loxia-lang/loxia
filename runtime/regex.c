@@ -87,6 +87,10 @@ void *lox_regex_engine_find(int64_t handle, const void *subject_pointer, int64_t
     if (code == LOXR_NO_MATCH) {
         return NULL;
     }
+    if (code == LOXR_ERR_CAPACITY) {
+        lox_panic(line, column, "R1000", "regex: pattern has too many capture groups.");
+        return NULL;
+    }
     if (code < 0) {
         lox_panic(line, column, "R1000", regex_error_message(code));
         return NULL;
@@ -100,6 +104,11 @@ void *lox_regex_engine_find(int64_t handle, const void *subject_pointer, int64_t
 }
 
 void *lox_regex_engine_group_names(int64_t handle, int32_t line, int32_t column) {
+    if (handle < 1) {
+        lox_panic(line, column, "R1000",
+                  "regex_engine.groupNames() expects a handle from compile.");
+        return NULL;
+    }
     int32_t needed = loxr_group_names(handle, NULL, 0);
     if (needed < 0) {
         lox_panic(line, column, "R1000", regex_error_message(needed));

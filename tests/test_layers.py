@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from loxia.engine import Loxia
@@ -110,3 +112,38 @@ def test_check_nao_exige_o_toolchain_do_regex(monkeypatch: pytest.MonkeyPatch) -
 
     assert exit_code == 0
     assert not lox.reporter.had_error
+
+
+def test_run_recusa_group_names_sem_o_toolchain(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    lox.run("print(regex_engine.groupNames(1))\n")
+
+    captured = capsys.readouterr()
+    assert lox.reporter.had_error
+    assert "E3022" in captured.err
+
+
+def test_build_recusa_regex_sem_o_toolchain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import loxia.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+
+    lox = Loxia()
+    built = lox.build(
+        'regex_engine.compile("a", 0, 0)\n',
+        emit="exe",
+        output=tmp_path / "app",
+        stem="app",
+    )
+
+    assert built is False
+    assert "E3022" in capsys.readouterr().err
+    assert not (tmp_path / "app").exists()
