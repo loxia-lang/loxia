@@ -8,7 +8,7 @@
  * precisam ser idênticas nos dois motores (I1).
  *
  * Invariantes:
- *  - `compile` devolve `[1, handle]` ou `[0, code]`; erro de sintaxe não é panic;
+ *  - `compile` devolve `[1, handle]` ou `[0, code, offset]`; erro de sintaxe não é panic;
  *  - `find` devolve `nil` (sem match) ou a lista de spans em code points;
  *  - `free` é idempotente; handle < 1 é panic, como no interpretador;
  *  - esta unidade só entra no link quando o programa usa `regex_engine.*`.
@@ -61,6 +61,7 @@ void *lox_regex_engine_compile(const void *pattern_pointer, int64_t flags, int64
     } else {
         lox_list_push(result, 1, 0);
         lox_list_push(result, 1, code);
+        lox_list_push(result, 1, offset);
     }
     return result;
 }

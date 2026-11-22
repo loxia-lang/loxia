@@ -233,6 +233,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
     # Módulo nativo embutido (ADR-0126/0131): constrói o crate no primeiro uso.
     "t4": (
         "tests/cases/std_regex/basic.lx",
+        "tests/cases/std_regex/errors.lx",
         "tests/cases/std_regex/limits.lx",
     ),
     "k0": (

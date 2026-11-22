@@ -66,11 +66,48 @@ com `RegexError.kind`; o limite de backtracking estourado em `find` vira `Runtim
 - Perfil de release com `panic = "unwind"` (nunca `abort`): o `catch_unwind` é o que
   transforma bug interno em erro do Loxia.
 - Tabela de handles 1-based, `free` idempotente, sem finalizer (Boehm não é
-  determinístico); `abi_version` é conferida na carga. O teto é de 4096 handles vivos,
-  sem teto de bytes totais: o `size_limit` de 10 MiB é por programa e só existe no modo
-  linear (backlog em #122).
+  determinístico); `abi_version` é conferida na carga. O teto é de 4096 handles vivos. A
+  memória do Rust fica **fora** do heap Boehm do binário: o contrato é por programa
+  (`size_limit` de 10 MiB no linear e nos sub-regex delegados do full, `max_prog_size` de
+  100.000 instruções e cache DFA de 2 MiB no full), não um orçamento total de bytes
+  (decisão do #122, §2.1).
 - Offsets: o `regex` devolve bytes UTF-8; a conversão para code points acontece no Rust,
-  num lugar só. O `out_offset` do erro de compilação é reservado (sempre `-1` hoje; #121).
+  num lugar só. O `out_offset` do erro de compilação é o **byte** do primeiro erro de
+  sintaxe (ou `-1` quando desconhecido); quando os dois modos rejeitam o padrão, reportam o
+  mesmo valor (#121).
+
+### 2.1 Atualização (2026-11-22, #121 e #122)
+
+- **#121 — span do erro de sintaxe.** `loxr_compile` passa a escrever `out_offset`:
+  `regex-syntax` fornece o começo do span no modo linear. No full, o span interno do
+  `fancy-regex`/`regex-automata` é **relativo ao fragmento delegado** (o build compila a
+  substring do `Delegate`), então nunca é usado como offset público: quando o parser linear
+  também rejeita o padrão, vale o primeiro erro dele (os dois modos reportam o mesmo byte);
+  quando o parser linear aceita (sintaxe exclusiva do full), vale a posição do
+  `fancy-regex`. O offset é em **bytes**, como o resto do ABI; a API expõe em
+  `RegexError.offset`.
+- **#121 — classificação estável.** Erro de análise do full que não é sintaxe nem tamanho
+  (recursão à esquerda, recursão infinita, lookbehind não constante, recurso não suportado)
+  vira `LOXR_ERR_ENGINE` / `RegexError.kind == "engine"` com offset `-1`; erro de sintaxe de
+  backref/grupo nomeado continua `syntax` com o offset canônico. Padrão grande demais deixa
+  de ser reportado como `syntax`: vira `LOXR_ERR_TOO_BIG` / kind `size`, com offset `-1`.
+- **#122 — memória.** `Mode.Full` passa a explicitar `delegate_size_limit(10 MiB)` e
+  `delegate_dfa_size_limit(2 MiB)` (que já eram os defaults do `regex-automata` por baixo),
+  `delegate_dfa_skip_cache_capacity_check(false)` e `max_prog_size(100.000)`. O que muda de
+  fato é o teto de instruções (a expansão de subrotinas recursivas é materializada em tempo
+  de compilação) e o cache estrito de lookbehind variável, que pode falhar com `size` em
+  vez de ser arredondado para cima; lookbehind comum e repetição contada continuam
+  compilando (teste de regressão). A decisão registrada é que a memória do Rust **não**
+  entra no contrato de heap de 512 MiB (ADR-0074/0087): o limite é por programa compilado,
+  multiplicado pelos 4096 handles vivos, e `close()` é a forma de liberar. Um orçamento
+  total de bytes exigiria introspecção que o `fancy-regex` não oferece; o custo/benefício
+  não paga trocar o motor linear por uma camada própria só para medir.
+- **ABI.** `LOXR_ABI_VERSION` continua 2: assinatura, layout e códigos existentes não
+  mudaram; os dois chamadores inicializam `out_offset` com `-1`, então uma lib antiga apenas
+  degrada para o comportamento anterior (offset sempre `-1`, sem `-9`) sem crash. O cache
+  de build é content-addressed pelo hash de `src/` + `include/`, então o fluxo normal nunca
+  pareia lib antiga com binding novo; subir a versão fica reservado a uma mudança de
+  assinatura/layout.
 
 ### 3. Camada e superfície
 
@@ -88,8 +125,10 @@ com `RegexError.kind`; o limite de backtracking estourado em `find` vira `Runtim
   `E4001`; `$name` é a forma prática de substituição, `${name}` exige `\$` no fonte por
   causa da interpolação; `regex_engine.groupNames` é a quarta primitiva do orçamento.
 - Compile devolve `Result[Regex, RegexError]`; o primitivo usa um protocolo `List[Int]`
-  (`[1, handle]` / `[0, code]`) porque a tabela de primitivas não tem tipo algébrico.
-  O `offset` do `RegexError` é reservado (`-1`; #121).
+  (`[1, handle]` / `[0, code, offset]`) porque a tabela de primitivas não tem tipo
+  algébrico. `RegexError.kind` é uma categoria estável (`syntax`, `arguments`, `mode`,
+  `size`, `engine`) e `RegexError.offset` é o byte do primeiro erro de sintaxe (`-1` quando
+  não se aplica).
 - Classificação `core` (I1/I3). Sem `cargo` na máquina, `E3022` antes de executar.
 
 ### 4. Distribuição em dois estágios

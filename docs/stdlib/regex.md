@@ -19,15 +19,16 @@ Why a pattern failed to compile.
 
 #### `val kind: String`
 
-Stable category: `syntax`, `arguments`, `mode` or `engine`.
+Stable category: `syntax`, `arguments`, `mode`, `size` or `engine`.
 
 #### `val offset: Int`
 
-Reserved: always `-1` for now; the engine does not expose the error span yet.
+Byte offset of the syntax error reported by `compile`; `-1` when the engine
+cannot report one (arguments, mode, size or engine error).
 
 #### `fn init(kind: String, offset: Int = ...)`
 
-Creates the error with its kind; the offset is reserved (`-1`).
+Creates the error; pass the offset reported by `compile` (`-1` when unknown).
 
 ### `class Match`
 
@@ -110,7 +111,10 @@ newline) and `extended` (ignore whitespace and `#` comments).
 ### `fn compileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]`
 
 Compiles `pattern` for `Mode.Full`: backreferences and lookaround, bounded by
-a fixed backtracking limit. Prefer `compile` for untrusted patterns.
+a fixed backtracking limit. The compiled program is also bounded per pattern
+(delegated sub-regexes, DFA cache and VM instructions); an oversized pattern
+or a variable lookbehind that needs more cache fails with kind `size`.
+Prefer `compile` for untrusted patterns.
 
 ### `fn tryCompile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil`
 

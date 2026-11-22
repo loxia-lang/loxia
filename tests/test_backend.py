@@ -2128,6 +2128,9 @@ def test_regex_engine_diferencial_nativo(
         "val handle = compiled[1]\n"
         'print(regex_engine.find(handle, "abc 42", 0))\n'
         'print(regex_engine.find(handle, "nada", 0))\n'
+        'print(regex_engine.compile("a(b", 0, 0))\n'
+        'print(regex_engine.compile("a(b", 0, 1))\n'
+        'print(regex_engine.compile("a{1000000}", 0, 0))\n'
         "regex_engine.free(handle)\n"
         'print(regex_engine.find(handle, "abc 42", 0))\n',
     )

@@ -139,6 +139,7 @@
       "differential": "t4",
       "golden": [
         "tests/cases/std_regex/basic.lx",
+        "tests/cases/std_regex/errors.lx",
         "tests/cases/std_regex/limits.lx"
       ]
     },

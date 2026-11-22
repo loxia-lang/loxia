@@ -39,7 +39,9 @@
 #define LOXR_ERR_UTF8 (-6)
 #define LOXR_ERR_HANDLES (-7)
 #define LOXR_ERR_CAPACITY (-8)
+#define LOXR_ERR_TOO_BIG (-9)
 #define LOXR_ERR_COMPILE (-10)
+#define LOXR_ERR_ENGINE (-11)
 
 /* ABI version; the loader refuses a mismatch. */
 uint32_t loxr_abi_version(void);
@@ -47,8 +49,11 @@ uint32_t loxr_abi_version(void);
 /*
  * Compiles `pattern` (UTF-8, `len` bytes). On success writes a 1-based handle
  * to `out_handle` and returns LOXR_OK. On a syntax error returns
- * LOXR_ERR_COMPILE; `out_offset` is reserved and stays -1 until the engine
- * exposes the error span (issue #121).
+ * LOXR_ERR_COMPILE and writes a byte offset to `out_offset` (-1 when unknown);
+ * when both modes reject the pattern, that offset is the linear parser's first
+ * error. LOXR_ERR_TOO_BIG means the pattern exceeded a per-program
+ * compiled-memory limit, and LOXR_ERR_ENGINE an analysis/unsupported-pattern
+ * error; both write -1 (ADR-0131).
  */
 int32_t loxr_compile(const uint8_t *pattern, size_t len, uint32_t flags,
                      uint32_t mode, int64_t *out_handle, int64_t *out_offset);

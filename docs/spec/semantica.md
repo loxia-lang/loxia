@@ -1144,8 +1144,16 @@ same name. Today: `regex`.
   and `close` (idempotent; there is no finalizer). `Match` carries group 0 (`text`, `start`,
   `end`) and `groups: List[String?]` for groups 1..n. Replacement expands `$0`..`$9`,
   `$name` and `${name}` (escape as `\${name}`: `${...}` is string interpolation) and
-  `$$`; an unmatched group expands to the empty string. Offsets count code points.
-  Exceeding the backtracking limit raises `RuntimeError`. The module requires the Rust
+  `$$`; an unmatched group expands to the empty string. Match offsets count code points;
+  `RegexError.offset` is a **byte** offset for the syntax error (`-1` when the failure is
+  not a syntax error); when both engines reject the pattern they report the same byte, taken
+  from the linear parser so a delegated fragment's relative span never leaks.
+  `RegexError.kind` is one of `syntax`, `arguments`, `mode`, `size` or `engine`. A pattern
+  that exceeds the per-program compiled-memory limit is `size`, and an analysis/
+  unsupported-pattern error (left recursion, non-constant lookbehind) is `engine`; the Rust
+  engine's allocations are outside the binary's Boehm heap cap (ADR-0131 §2.1). Exceeding the
+  backtracking limit raises `RuntimeError`.
+  The module requires the Rust
   toolchain: without `cargo`, `run`/`build` refuse with `E3022` before executing, while
   `check` stays engine-agnostic.
 
