@@ -2099,12 +2099,14 @@ def test_fs_read_bytes_erro_de_diretorio_bate_com_o_binario(tmp_path: Path) -> N
 
 
 @pytest.mark.backend
-def test_regex_engine_diferencial_nativo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_regex_engine_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
     from loxia_core.native_build import cargo_binary
 
     if cargo_binary() is None:
         pytest.skip("cargo não disponível")
-    monkeypatch.setenv("LOX_BUILD_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
 
     path = _write(
         tmp_path,
@@ -2129,7 +2131,7 @@ def test_regex_engine_diferencial_nativo(tmp_path: Path, monkeypatch: pytest.Mon
 
 @pytest.mark.backend
 def test_regex_engine_so_entra_no_binario_quando_usado(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
 ) -> None:
     from loxia_core.native_build import cargo_binary
 
@@ -2138,7 +2140,7 @@ def test_regex_engine_so_entra_no_binario_quando_usado(
         pytest.skip("nm não disponível")
     if cargo_binary() is None:
         pytest.skip("cargo não disponível")
-    monkeypatch.setenv("LOX_BUILD_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
 
     plain_dir = tmp_path / "plain"
     regex_dir = tmp_path / "regex"
@@ -2164,3 +2166,37 @@ def test_regex_engine_so_entra_no_binario_quando_usado(
     }
     assert any(symbol.startswith("loxr_compile") for symbol in symbols(regex_binary))
     assert any(symbol.startswith("lox_regex_engine_compile") for symbol in symbols(regex_binary))
+
+
+@pytest.mark.backend
+def test_regex_module_diferencial_nativo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
+) -> None:
+    from loxia_core.native_build import cargo_binary
+
+    if cargo_binary() is None:
+        pytest.skip("cargo não disponível")
+    monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
+
+    path = _write(
+        tmp_path,
+        "import regex\n"
+        "\n"
+        'val words = regex.tryCompile("\\\\p{L}+")\n'
+        "if (words != nil) {\n"
+        '  print(words.replaceAll("a1 b2", "<$0>"))\n'
+        '  print(len(words.findAll("café ☕")))\n'
+        "  words.close()\n"
+        "}\n"
+        'print(regex.tryCompile("("))\n',
+    )
+    interpreted = _interpret(path)
+    result, binary = _build(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+    assert interpreted.returncode == 0
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+    assert "<a>1 <b>2" in interpreted.stdout

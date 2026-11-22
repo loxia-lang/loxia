@@ -44,6 +44,15 @@ Reference generated from `///` in `std/*.lx` and the builtins registry.
 | [`std.timex`](timex.md) | UTC date/time helpers over integer epoch milliseconds; no timezones. |
 | [`std.utf8`](utf8.md) | UTF-8 and UTF-16 widths (bytes, code units, columns). |
 
+## Bundled native modules
+
+Imported by the short name (`import regex`); the engine ships with the
+toolchain (ADR-0126/0131).
+
+| Module | Summary |
+| --- | --- |
+| [`regex`](regex.md) | Unicode regular expressions: linear by default, backtracking opt-in. |
+
 ## Builtins
 
 See [builtins.md](builtins.md).

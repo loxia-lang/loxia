@@ -1,0 +1,324 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# regex — Unicode regular expressions (ADR-0131), bundled native module.
+#
+# Imported by the short name (`import regex`). `compile` uses the linear engine
+# (guaranteed linear time); `compileFull` enables backreferences and lookaround
+# with a bounded backtracking limit. There is no `/.../ ` literal (ADR-0066).
+#
+# `compile` returns `Result`; a match that hits the engine limit raises
+# `RuntimeError`. A `Regex` owns a native handle: call `close()` when done, there
+# is no finalizer.
+
+/// Why a pattern failed to compile.
+class RegexError {
+  /// Stable category: `syntax`, `arguments`, `mode` or `engine`.
+  val kind: String
+
+  /// Byte offset reported by the engine, or `-1` when unknown.
+  val offset: Int
+
+  /// Creates the error with its kind and, when known, the byte offset.
+  init(kind: String, offset: Int = -1) {
+    this.kind = kind
+    this.offset = offset
+  }
+}
+
+/// One match. `text` is group 0; `groups` holds 1..n, `nil` when a group did not
+/// participate.
+class Match {
+  /// Group 0: the whole match.
+  val text: String
+
+  /// Start offset in code points.
+  val start: Int
+
+  /// End offset in code points (exclusive).
+  val end: Int
+
+  /// Capture groups 1..n, in source order.
+  val groups: List[String?]
+
+  /// Creates a match; prefer the values returned by `find`/`findAll`.
+  init(text: String, start: Int, end: Int, groups: List[String?]) {
+    this.text = text
+    this.start = start
+    this.end = end
+    this.groups = groups
+  }
+}
+
+/// A compiled pattern. Close it to release the native handle.
+class Regex {
+  var _handle: Int
+  var _closed: Bool
+
+  /// Wraps a native handle; prefer `compile` or `tryCompile`.
+  init(handle: Int) {
+    this._handle = handle
+    this._closed = false
+  }
+
+  /// Releases the engine handle; idempotent.
+  fn close() -> Nil {
+    if (not this._closed) {
+      regex_engine.free(this._handle)
+      this._closed = true
+    }
+  }
+
+  /// `true` when the pattern matches anywhere in `text`.
+  fn isMatch(text: String) -> Bool {
+    return this.findFrom(text, 0) != nil
+  }
+
+  /// Leftmost match; `nil` when the pattern does not match.
+  fn find(text: String) -> Match? {
+    return this.findFrom(text, 0)
+  }
+
+  /// Leftmost match at or after `start` (code points); `nil` when none.
+  fn findFrom(text: String, start: Int) -> Match? {
+    val spans = regex_engine.find(this._handle, text, start)
+    if (spans != nil) {
+      return _from_spans(text, spans)
+    }
+    return nil
+  }
+
+  /// All non-overlapping matches, left to right. An empty match advances one
+  /// code point, so `findAll` always terminates.
+  fn findAll(text: String) -> List[Match] {
+    val out: List[Match] = []
+    var offset = 0
+    while (offset <= len(text)) {
+      val found = this.findFrom(text, offset)
+      if (found != nil) {
+        out.push(found)
+        if (found.end == found.start) {
+          offset = found.end + 1
+        } else {
+          offset = found.end
+        }
+      } else {
+        return out
+      }
+    }
+    return out
+  }
+
+  /// Replaces the first match. `$0` is the whole match, `$1`.. the groups and
+  /// `$$` a literal dollar; an unmatched group expands to the empty string.
+  fn replace(text: String, replacement: String) -> String {
+    val found = this.find(text)
+    if (found != nil) {
+      return substr(text, 0, found.start) + _expand(replacement, found) +
+        substr(text, found.end, len(text))
+    }
+    return text
+  }
+
+  /// Replaces every non-overlapping match; same expansion rules as `replace`.
+  fn replaceAll(text: String, replacement: String) -> String {
+    var out = ""
+    var last = 0
+    var offset = 0
+    while (offset <= len(text)) {
+      val found = this.findFrom(text, offset)
+      if (found != nil) {
+        out = out + substr(text, last, found.start) + _expand(replacement, found)
+        last = found.end
+        if (found.end == found.start) {
+          offset = found.end + 1
+        } else {
+          offset = found.end
+        }
+      } else {
+        return out + substr(text, last, len(text))
+      }
+    }
+    return out + substr(text, last, len(text))
+  }
+
+  /// Splits `text` on each match; empty fields are preserved.
+  fn split(text: String) -> List[String] {
+    val out: List[String] = []
+    var last = 0
+    var offset = 0
+    while (offset <= len(text)) {
+      val found = this.findFrom(text, offset)
+      if (found != nil) {
+        out.push(substr(text, last, found.start))
+        last = found.end
+        if (found.end == found.start) {
+          offset = found.end + 1
+        } else {
+          offset = found.end
+        }
+      } else {
+        out.push(substr(text, last, len(text)))
+        return out
+      }
+    }
+    out.push(substr(text, last, len(text)))
+    return out
+  }
+}
+
+/// Compiles `pattern` for `Mode.Linear` (guaranteed linear time).
+///
+/// Flags: `caseless`, `multiline` (`^`/`$` per line), `dotall` (`.` matches
+/// newline) and `extended` (ignore whitespace and `#` comments).
+fn compile(
+  pattern: String,
+  caseless: Bool = false,
+  multiline: Bool = false,
+  dotall: Bool = false,
+  extended: Bool = false
+) -> Result[Regex, RegexError] {
+  return _compile(pattern, caseless, multiline, dotall, extended, 0)
+}
+
+/// Compiles `pattern` for `Mode.Full`: backreferences and lookaround, bounded by
+/// a fixed backtracking limit. Prefer `compile` for untrusted patterns.
+fn compileFull(
+  pattern: String,
+  caseless: Bool = false,
+  multiline: Bool = false,
+  dotall: Bool = false,
+  extended: Bool = false
+) -> Result[Regex, RegexError] {
+  return _compile(pattern, caseless, multiline, dotall, extended, 1)
+}
+
+/// Like `compile`, but returns `nil` on a syntax error. Use `compile` when the
+/// error kind matters.
+fn tryCompile(
+  pattern: String,
+  caseless: Bool = false,
+  multiline: Bool = false,
+  dotall: Bool = false,
+  extended: Bool = false
+) -> Regex? {
+  return _attempt(_compile(pattern, caseless, multiline, dotall, extended, 0))
+}
+
+/// Like `compileFull`, but returns `nil` on a syntax error.
+fn tryCompileFull(
+  pattern: String,
+  caseless: Bool = false,
+  multiline: Bool = false,
+  dotall: Bool = false,
+  extended: Bool = false
+) -> Regex? {
+  return _attempt(_compile(pattern, caseless, multiline, dotall, extended, 1))
+}
+
+fn _attempt(compiled: Result[Regex, RegexError]) -> Regex? {
+  return match compiled {
+    Result.Ok(value) => value
+    Result.Err(_) => nil
+  }
+}
+
+fn _compile(
+  pattern: String,
+  caseless: Bool,
+  multiline: Bool,
+  dotall: Bool,
+  extended: Bool,
+  mode: Int
+) -> Result[Regex, RegexError] {
+  val flags = _flags(caseless, multiline, dotall, extended)
+  val result = regex_engine.compile(pattern, flags, mode)
+  if (result[0] == 1) {
+    return Result.Ok(Regex(result[1]))
+  }
+  return Result.Err(RegexError(_error_kind(result[1])))
+}
+
+fn _flags(caseless: Bool, multiline: Bool, dotall: Bool, extended: Bool) -> Int {
+  var flags = 0
+  if (caseless) {
+    flags = flags | 1
+  }
+  if (multiline) {
+    flags = flags | 2
+  }
+  if (dotall) {
+    flags = flags | 4
+  }
+  if (extended) {
+    flags = flags | 8
+  }
+  return flags
+}
+
+fn _error_kind(code: Int) -> String {
+  if (code == -10) {
+    return "syntax"
+  }
+  if (code == -3) {
+    return "mode"
+  }
+  if (code == -2) {
+    return "arguments"
+  }
+  return "engine"
+}
+
+fn _from_spans(text: String, spans: List[Int]) -> Match {
+  val groups: List[String?] = []
+  var index = 2
+  while (index + 1 < len(spans)) {
+    if (spans[index] >= 0) {
+      groups.push(substr(text, spans[index], spans[index + 1]))
+    } else {
+      groups.push(nil)
+    }
+    index = index + 2
+  }
+  return Match(substr(text, spans[0], spans[1]), spans[0], spans[1], groups)
+}
+
+fn _expand(replacement: String, found: Match) -> String {
+  var out = ""
+  var index = 0
+  while (index < len(replacement)) {
+    if (charCodeAt(replacement, index) == 36) {
+      if (index + 1 < len(replacement)) {
+        val next = charCodeAt(replacement, index + 1)
+        if (next == 36) {
+          out = out + "$"
+          index = index + 2
+        } elif (next >= 48 and next <= 57) {
+          out = out + _group_text(found, next - 48)
+          index = index + 2
+        } else {
+          out = out + "$"
+          index = index + 1
+        }
+      } else {
+        out = out + "$"
+        index = index + 1
+      }
+    } else {
+      out = out + substr(replacement, index, index + 1)
+      index = index + 1
+    }
+  }
+  return out
+}
+
+fn _group_text(found: Match, group: Int) -> String {
+  if (group == 0) {
+    return found.text
+  }
+  if (group <= len(found.groups)) {
+    val value = found.groups[group - 1]
+    if (value != nil) {
+      return value
+    }
+  }
+  return ""
+}

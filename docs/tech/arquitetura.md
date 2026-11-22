@@ -53,7 +53,7 @@ Packages by phase (dependency only downward):
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](../../main.py) | compatibility shim (`python main.py`) |
-| [`loxia_core/bundle.py`](../../loxia_core/bundle.py) | resources shipped with the package: resolves `std/` and `runtime/` in the clone and in the wheel (ADR-0088) |
+| [`loxia_core/bundle.py`](../../loxia_core/bundle.py) | resources shipped with the package: resolves `std/`, `bundled/`, `runtime/` and `native/` in the clone and in the wheel (ADR-0088) |
 | [`loxia_core/native_build.py`](../../loxia_core/native_build.py) | builds the Rust regex crate on demand (ADR-0131): finds `cargo`, caches the `cdylib` under `$XDG_CACHE_HOME/loxia`, always `--locked --offline` |
 | [`loxia/cli.py`](../../loxia/cli.py) | CLI entry point: picks a subcommand or compatibility mode and dispatches to `HANDLERS` |
 | [`loxia/cli_args.py`](../../loxia/cli_args.py) | CLI surface: `COMMANDS`, `build_parser`/`_build_subcommand_parser`, option groups, per-command help and `_validate*` |
@@ -121,6 +121,7 @@ Packages by phase (dependency only downward):
 | [`runtime/proc.c`](../../runtime/proc.c) | processes/streams (ADR-0095): `posix_spawnp`, pipes, `poll(2)` and handles |
 | [`runtime/regex.c`](../../runtime/regex.c) | `regex_engine.*` adapters over the Rust ABI (ADR-0131); compiled and linked only when the program uses the primitive |
 | [`native/regex/`](../../native/regex) | Rust engine (ADR-0131): `regex` + `fancy-regex`, C ABI in `include/lox_regex.h`, vendored crates and offline builds |
+| [`bundled/regex.lx`](../../bundled/regex.lx) | public Lox API over the native module: imported by the short name (`import regex`), reserved and never shadowed by the project (ADR-0126) |
 | [`runtime/kernel_gen.h`](../../runtime/kernel_gen.h) | primitive ABI, **generated** from `primitives.py` by `runtime/gen_kernel.py` |
 | [`loxia_core/semantics/resolver.py`](../../loxia_core/semantics/resolver.py) | lexical scopes, static validations, `depth` |
 | [`loxia_core/execution/interpreter.py`](../../loxia_core/execution/interpreter.py) | execution; `globals`, `environment`, `locals` |

@@ -21,10 +21,10 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
-def built(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
-    """Compila uma vez num cache isolado; os testes seguintes reusam."""
+def built(regex_build_cache: str) -> Iterator[Path]:
+    """Compila uma vez (cache da sessão); os testes seguintes reusam."""
     previous = os.environ.get("LOX_BUILD_CACHE")
-    os.environ["LOX_BUILD_CACHE"] = str(tmp_path_factory.mktemp("regex-cache"))
+    os.environ["LOX_BUILD_CACHE"] = regex_build_cache
     try:
         yield regex_runtime.library_path()
     finally:

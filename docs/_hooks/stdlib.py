@@ -20,6 +20,7 @@ from loxia_core.frontend.stmt import Stmt  # noqa: E402
 
 OUT = ROOT / "docs" / "stdlib"
 STD = bundle_dir("std")
+BUNDLED = bundle_dir("bundled")
 
 MODULES = {
     "asserts": "Explicit failures for tests and contracts. Every helper raises `RuntimeError`.",
@@ -54,6 +55,12 @@ MODULES = {
     "test": "Mini test harness with TAP output, hooks, matchers and a recorder.",
 }
 
+# Módulos nativos embutidos (ADR-0126/0131): documentados junto da stdlib, mas
+# importados pelo nome curto (`import regex`) e fora de `std/`.
+BUNDLED_MODULES = {
+    "regex": "Unicode regular expressions: linear by default, backtracking opt-in.",
+}
+
 
 def _parse(path: Path) -> list[Stmt]:
     reporter = ErrorReporter()
@@ -66,24 +73,27 @@ def _parse(path: Path) -> list[Stmt]:
     return statements
 
 
-def _module_page(module: str) -> str:
-    path = STD / f"{module}.lx"
+def _module_page(
+    root: Path, prefix: str, module: str, description: str, *, name: str | None = None
+) -> str:
+    path = root / f"{module}.lx"
+    display = name if name is not None else f"{prefix}.{module}"
     symbols = [
         symbol
         for symbol in docgen.extract(_parse(path))
         if symbol.visibility == "public"
         and (symbol.container is None or not symbol.container.startswith("_"))
     ]
-    body = docgen.render_markdown(f"std/{module}.lx", symbols)
-    title = f"# Loxia API — `std/{module}.lx`"
-    replacement = f"# std.{module}\n\n{MODULES[module]}\n\n## API"
+    body = docgen.render_markdown(f"{prefix}/{module}.lx", symbols)
+    title = f"# Loxia API — `{prefix}/{module}.lx`"
+    replacement = f"# {display}\n\n{description}\n\n## API"
     if title in body:
         body = body.replace(title, replacement, 1)
     return (
         "---\n"
-        f"title: std.{module}\n"
+        f"title: {display}\n"
         "sources:\n"
-        f"  - std/{module}.lx\n"
+        f"  - {prefix}/{module}.lx\n"
         "  - loxia/docgen.py\n"
         "---\n\n"
         f"{body}"
@@ -157,6 +167,20 @@ def _index_page() -> str:
     lines.extend(
         [
             "",
+            "## Bundled native modules",
+            "",
+            "Imported by the short name (`import regex`); the engine ships with the",
+            "toolchain (ADR-0126/0131).",
+            "",
+            "| Module | Summary |",
+            "| --- | --- |",
+        ]
+    )
+    for module in sorted(BUNDLED_MODULES):
+        lines.append(f"| [`{module}`]({module}.md) | {BUNDLED_MODULES[module]} |")
+    lines.extend(
+        [
+            "",
             "## Builtins",
             "",
             "See [builtins.md](builtins.md).",
@@ -172,7 +196,11 @@ def render() -> dict[Path, str]:
         OUT / "builtins.md": _builtins_page(),
     }
     for module in sorted(MODULES):
-        pages[OUT / f"{module}.md"] = _module_page(module)
+        pages[OUT / f"{module}.md"] = _module_page(STD, "std", module, MODULES[module])
+    for module in sorted(BUNDLED_MODULES):
+        pages[OUT / f"{module}.md"] = _module_page(
+            BUNDLED, "bundled", module, BUNDLED_MODULES[module], name=module
+        )
     return pages
 
 

@@ -890,12 +890,22 @@
           "text": "## Modules\n\n| Module | Summary |\n| --- | --- |\n| [`std.asserts`](https://loxia-lang.github.io/loxia/stdlib/asserts/) | Explicit failures for tests and contracts. Every helper raises `RuntimeError`. |\n| [`std.bytes`](https://loxia-lang.github.io/loxia/stdlib/bytes/) | Byte buffers: incremental Builder, comparison and big/little-endian helpers. |\n| [`std.cli`](https://loxia-lang.github.io/loxia/stdlib/cli/) | Deterministic command-line parsing from a declarative spec. |\n| [`std.collections`](https://loxia-lang.github.io/loxia/stdlib/collections/) | Stack, Queue, Deque and PriorityQueue, backed by lists. |\n| [`std.contracts`](https://loxia-lang.github.io/loxia/stdlib/contracts/) | Design by contract as a library: precondition, postcondition and invariant checks. |\n| [`std.convert`](https://loxia-lang.github.io/loxia/stdlib/convert/) | Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes. |\n| [`std.csv`](https://loxia-lang.github.io/loxia/stdlib/csv/) | RFC 4180 CSV parsing and serialization, with CRLF output. |\n| [`std.documents`](https://loxia-lang.github.io/loxia/stdlib/documents/) | Full-sync document store: opaque URIs, versions and text, without JSON or I/O. |\n| [`std.fmt`](https://loxia-lang.github.io/loxia/stdlib/fmt/) | Locale-free formatting helpers (templates, padding, numbers, byte sizes). |\n| [`std.framing`](https://loxia-lang.github.io/loxia/stdlib/framing/) | `Content-Length` framing over an injected byte reader; stdin/stdout only at the edge. |\n| [`std.fs`](https://loxia-lang.github.io/loxia/stdlib/fs/) | File reading and writing. Ambient: outside the I1 corpus. |\n| [`std.hash`](https://loxia-lang.github.io/loxia/stdlib/hash/) | Non-cryptographic hashes (FNV-1a, djb2) over UTF-8 bytes. |\n| [`std.io`](https://loxia-lang.github.io/loxia/stdlib/io/) | Standard input/output. The read functions are ambient where they block. |\n| [`std.iter`](https://loxia-lang.github.io/loxia/stdlib/iter/) | Iteration helpers (`enumerate`, `zip`, `sum`, `contains`, `Step`). |\n| [`std.json`](https://loxia-lang.github.io/loxia/stdlib/json/) | RFC 8259 JSON with insertion-ordered objects and a 16-level nesting cap. |\n| [`std.jsonrpc`](https://loxia-lang.github.io/loxia/stdlib/jsonrpc/) | JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages. |\n| [`std.lists`](https://loxia-lang.github.io/loxia/stdlib/lists/) | Generic list combinators; every function leaves the input unchanged. |\n| [`std.log`](https://loxia-lang.github.io/loxia/stdlib/log/) | Leveled logging to stderr, without timestamps. |\n| [`std.maps`](https://loxia-lang.github.io/loxia/stdlib/maps/) | Helpers for `Map[String, V]` that preserve insertion order. |\n| [`std.numeric`](https://loxia-lang.github.io/loxia/stdlib/numeric/) | Integer number theory and population statistics. |\n| [`std.paths`](https://loxia-lang.github.io/loxia/stdlib/paths/) | Lexical POSIX path helpers; no filesystem access. |\n| [`std.proc`](https://loxia-lang.github.io/loxia/stdlib/proc/) | Processes, streams and `poll` (POSIX, ambient: outside I1/I3). |\n| [`std.property`](https://loxia-lang.github.io/loxia/stdlib/property/) | Deterministic property-based testing with generators, shrinking and seeds. |\n| [`std.rand`](https://loxia-lang.github.io/loxia/stdlib/rand/) | Deterministic xorshift64* PRNG with an explicit seed. |\n| [`std.results`](https://loxia-lang.github.io/loxia/stdlib/results/) | Combinators for `Result[T, E]`. |\n| [`std.sets`](https://loxia-lang.github.io/loxia/stdlib/sets/) | `Set[T]` backed by `Map[Any, Bool]`, preserving insertion order. |\n| [`std.strings`](https://loxia-lang.github.io/loxia/stdlib/strings/) | UTF-8 text operations over code points, not bytes or UTF-16 units. |\n| [`std.test`](https://loxia-lang.github.io/loxia/stdlib/test/) | Mini test harness with TAP output, hooks, matchers and a recorder. |\n| [`std.timex`](https://loxia-lang.github.io/loxia/stdlib/timex/) | UTC date/time helpers over integer epoch milliseconds; no timezones. |\n| [`std.utf8`](https://loxia-lang.github.io/loxia/stdlib/utf8/) | UTF-8 and UTF-16 widths (bytes, code units, columns). |\n"
         },
         {
+          "id": "stdlib/index#bundled-native-modules",
+          "anchor": "bundled-native-modules",
+          "title": "Bundled native modules",
+          "level": 2,
+          "line_start": 47,
+          "line_end": 56,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/#bundled-native-modules",
+          "text": "## Bundled native modules\n\nImported by the short name (`import regex`); the engine ships with the\ntoolchain (ADR-0126/0131).\n\n| Module | Summary |\n| --- | --- |\n| [`regex`](https://loxia-lang.github.io/loxia/stdlib/regex/) | Unicode regular expressions: linear by default, backtracking opt-in. |\n"
+        },
+        {
           "id": "stdlib/index#builtins",
           "anchor": "builtins",
           "title": "Builtins",
           "level": 2,
-          "line_start": 47,
-          "line_end": 50,
+          "line_start": 56,
+          "line_end": 59,
           "url": "https://loxia-lang.github.io/loxia/stdlib/#builtins",
           "text": "## Builtins\n\nSee [builtins.md](https://loxia-lang.github.io/loxia/stdlib/builtins/).\n"
         }
@@ -6209,6 +6219,290 @@
           "line_end": 62,
           "url": "https://loxia-lang.github.io/loxia/stdlib/rand/#fn-shuffletitems-listt-generator-rand---nil",
           "text": "### `fn shuffle[T](items: List[T], generator: Rand) -> Nil`\n\nShuffles `items` in place with Fisher-Yates using `generator`.\n\nMutates the list and returns `nil`; the resulting order depends only on the\ngenerator state.\n"
+        }
+      ]
+    },
+    {
+      "id": "stdlib/regex",
+      "kind": "stdlib",
+      "title": "regex",
+      "path": "docs/stdlib/regex.md",
+      "url": "https://loxia-lang.github.io/loxia/stdlib/regex/",
+      "summary": "Unicode regular expressions: linear by default, backtracking opt-in.",
+      "sources": [
+        "bundled/regex.lx",
+        "loxia/docgen.py"
+      ],
+      "sections": [
+        {
+          "id": "stdlib/regex#api",
+          "anchor": "api",
+          "title": "API",
+          "level": 2,
+          "line_start": 12,
+          "line_end": 14,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#api",
+          "text": "## API\n"
+        },
+        {
+          "id": "stdlib/regex#classes",
+          "anchor": "classes",
+          "title": "Classes",
+          "level": 2,
+          "line_start": 14,
+          "line_end": 99,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#classes",
+          "text": "## Classes\n\n### `class RegexError`\n\nWhy a pattern failed to compile.\n\n#### `val kind: String`\n\nStable category: `syntax`, `arguments`, `mode` or `engine`.\n\n#### `val offset: Int`\n\nByte offset reported by the engine, or `-1` when unknown.\n\n#### `fn init(kind: String, offset: Int = ...)`\n\nCreates the error with its kind and, when known, the byte offset.\n\n### `class Match`\n\nOne match. `text` is group 0; `groups` holds 1..n, `nil` when a group did not\nparticipate.\n\n#### `val text: String`\n\nGroup 0: the whole match.\n\n#### `val start: Int`\n\nStart offset in code points.\n\n#### `val end: Int`\n\nEnd offset in code points (exclusive).\n\n#### `val groups: List[String | Nil]`\n\nCapture groups 1..n, in source order.\n\n#### `fn init(text: String, start: Int, end: Int, groups: List[String | Nil])`\n\nCreates a match; prefer the values returned by `find`/`findAll`.\n\n### `class Regex`\n\nA compiled pattern. Close it to release the native handle.\n\n#### `fn init(handle: Int)`\n\nWraps a native handle; prefer `compile` or `tryCompile`.\n\n#### `fn close() -> Nil`\n\nReleases the engine handle; idempotent.\n\n#### `fn isMatch(text: String) -> Bool`\n\n`true` when the pattern matches anywhere in `text`.\n\n#### `fn find(text: String) -> Match | Nil`\n\nLeftmost match; `nil` when the pattern does not match.\n\n#### `fn findFrom(text: String, start: Int) -> Match | Nil`\n\nLeftmost match at or after `start` (code points); `nil` when none.\n\n#### `fn findAll(text: String) -> List[Match]`\n\nAll non-overlapping matches, left to right. An empty match advances one\ncode point, so `findAll` always terminates.\n\n#### `fn replace(text: String, replacement: String) -> String`\n\nReplaces the first match. `$0` is the whole match, `$1`.. the groups and\n`$$` a literal dollar; an unmatched group expands to the empty string.\n\n#### `fn replaceAll(text: String, replacement: String) -> String`\n\nReplaces every non-overlapping match; same expansion rules as `replace`.\n\n#### `fn split(text: String) -> List[String]`\n\nSplits `text` on each match; empty fields are preserved.\n"
+        },
+        {
+          "id": "stdlib/regex#class-regexerror",
+          "anchor": "class-regexerror",
+          "title": "class RegexError",
+          "level": 3,
+          "line_start": 16,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#class-regexerror",
+          "text": "### `class RegexError`\n\nWhy a pattern failed to compile.\n\n#### `val kind: String`\n\nStable category: `syntax`, `arguments`, `mode` or `engine`.\n\n#### `val offset: Int`\n\nByte offset reported by the engine, or `-1` when unknown.\n\n#### `fn init(kind: String, offset: Int = ...)`\n\nCreates the error with its kind and, when known, the byte offset.\n"
+        },
+        {
+          "id": "stdlib/regex#val-kind-string",
+          "anchor": "val-kind-string",
+          "title": "val kind: String",
+          "level": 4,
+          "line_start": 20,
+          "line_end": 24,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#val-kind-string",
+          "text": "#### `val kind: String`\n\nStable category: `syntax`, `arguments`, `mode` or `engine`.\n"
+        },
+        {
+          "id": "stdlib/regex#val-offset-int",
+          "anchor": "val-offset-int",
+          "title": "val offset: Int",
+          "level": 4,
+          "line_start": 24,
+          "line_end": 28,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#val-offset-int",
+          "text": "#### `val offset: Int`\n\nByte offset reported by the engine, or `-1` when unknown.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-initkind-string-offset-int--",
+          "anchor": "fn-initkind-string-offset-int--",
+          "title": "fn init(kind: String, offset: Int = ...)",
+          "level": 4,
+          "line_start": 28,
+          "line_end": 32,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-initkind-string-offset-int--",
+          "text": "#### `fn init(kind: String, offset: Int = ...)`\n\nCreates the error with its kind and, when known, the byte offset.\n"
+        },
+        {
+          "id": "stdlib/regex#class-match",
+          "anchor": "class-match",
+          "title": "class Match",
+          "level": 3,
+          "line_start": 32,
+          "line_end": 57,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#class-match",
+          "text": "### `class Match`\n\nOne match. `text` is group 0; `groups` holds 1..n, `nil` when a group did not\nparticipate.\n\n#### `val text: String`\n\nGroup 0: the whole match.\n\n#### `val start: Int`\n\nStart offset in code points.\n\n#### `val end: Int`\n\nEnd offset in code points (exclusive).\n\n#### `val groups: List[String | Nil]`\n\nCapture groups 1..n, in source order.\n\n#### `fn init(text: String, start: Int, end: Int, groups: List[String | Nil])`\n\nCreates a match; prefer the values returned by `find`/`findAll`.\n"
+        },
+        {
+          "id": "stdlib/regex#val-text-string",
+          "anchor": "val-text-string",
+          "title": "val text: String",
+          "level": 4,
+          "line_start": 37,
+          "line_end": 41,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#val-text-string",
+          "text": "#### `val text: String`\n\nGroup 0: the whole match.\n"
+        },
+        {
+          "id": "stdlib/regex#val-start-int",
+          "anchor": "val-start-int",
+          "title": "val start: Int",
+          "level": 4,
+          "line_start": 41,
+          "line_end": 45,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#val-start-int",
+          "text": "#### `val start: Int`\n\nStart offset in code points.\n"
+        },
+        {
+          "id": "stdlib/regex#val-end-int",
+          "anchor": "val-end-int",
+          "title": "val end: Int",
+          "level": 4,
+          "line_start": 45,
+          "line_end": 49,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#val-end-int",
+          "text": "#### `val end: Int`\n\nEnd offset in code points (exclusive).\n"
+        },
+        {
+          "id": "stdlib/regex#val-groups-liststring--nil",
+          "anchor": "val-groups-liststring--nil",
+          "title": "val groups: List[String | Nil]",
+          "level": 4,
+          "line_start": 49,
+          "line_end": 53,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#val-groups-liststring--nil",
+          "text": "#### `val groups: List[String | Nil]`\n\nCapture groups 1..n, in source order.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-inittext-string-start-int-end-int-groups-liststring--nil",
+          "anchor": "fn-inittext-string-start-int-end-int-groups-liststring--nil",
+          "title": "fn init(text: String, start: Int, end: Int, groups: List[String | Nil])",
+          "level": 4,
+          "line_start": 53,
+          "line_end": 57,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-inittext-string-start-int-end-int-groups-liststring--nil",
+          "text": "#### `fn init(text: String, start: Int, end: Int, groups: List[String | Nil])`\n\nCreates a match; prefer the values returned by `find`/`findAll`.\n"
+        },
+        {
+          "id": "stdlib/regex#class-regex",
+          "anchor": "class-regex",
+          "title": "class Regex",
+          "level": 3,
+          "line_start": 57,
+          "line_end": 99,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#class-regex",
+          "text": "### `class Regex`\n\nA compiled pattern. Close it to release the native handle.\n\n#### `fn init(handle: Int)`\n\nWraps a native handle; prefer `compile` or `tryCompile`.\n\n#### `fn close() -> Nil`\n\nReleases the engine handle; idempotent.\n\n#### `fn isMatch(text: String) -> Bool`\n\n`true` when the pattern matches anywhere in `text`.\n\n#### `fn find(text: String) -> Match | Nil`\n\nLeftmost match; `nil` when the pattern does not match.\n\n#### `fn findFrom(text: String, start: Int) -> Match | Nil`\n\nLeftmost match at or after `start` (code points); `nil` when none.\n\n#### `fn findAll(text: String) -> List[Match]`\n\nAll non-overlapping matches, left to right. An empty match advances one\ncode point, so `findAll` always terminates.\n\n#### `fn replace(text: String, replacement: String) -> String`\n\nReplaces the first match. `$0` is the whole match, `$1`.. the groups and\n`$$` a literal dollar; an unmatched group expands to the empty string.\n\n#### `fn replaceAll(text: String, replacement: String) -> String`\n\nReplaces every non-overlapping match; same expansion rules as `replace`.\n\n#### `fn split(text: String) -> List[String]`\n\nSplits `text` on each match; empty fields are preserved.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-inithandle-int",
+          "anchor": "fn-inithandle-int",
+          "title": "fn init(handle: Int)",
+          "level": 4,
+          "line_start": 61,
+          "line_end": 65,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-inithandle-int",
+          "text": "#### `fn init(handle: Int)`\n\nWraps a native handle; prefer `compile` or `tryCompile`.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-close---nil",
+          "anchor": "fn-close---nil",
+          "title": "fn close() -> Nil",
+          "level": 4,
+          "line_start": 65,
+          "line_end": 69,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-close---nil",
+          "text": "#### `fn close() -> Nil`\n\nReleases the engine handle; idempotent.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-ismatchtext-string---bool",
+          "anchor": "fn-ismatchtext-string---bool",
+          "title": "fn isMatch(text: String) -> Bool",
+          "level": 4,
+          "line_start": 69,
+          "line_end": 73,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-ismatchtext-string---bool",
+          "text": "#### `fn isMatch(text: String) -> Bool`\n\n`true` when the pattern matches anywhere in `text`.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-findtext-string---match--nil",
+          "anchor": "fn-findtext-string---match--nil",
+          "title": "fn find(text: String) -> Match | Nil",
+          "level": 4,
+          "line_start": 73,
+          "line_end": 77,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-findtext-string---match--nil",
+          "text": "#### `fn find(text: String) -> Match | Nil`\n\nLeftmost match; `nil` when the pattern does not match.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-findfromtext-string-start-int---match--nil",
+          "anchor": "fn-findfromtext-string-start-int---match--nil",
+          "title": "fn findFrom(text: String, start: Int) -> Match | Nil",
+          "level": 4,
+          "line_start": 77,
+          "line_end": 81,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-findfromtext-string-start-int---match--nil",
+          "text": "#### `fn findFrom(text: String, start: Int) -> Match | Nil`\n\nLeftmost match at or after `start` (code points); `nil` when none.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-findalltext-string---listmatch",
+          "anchor": "fn-findalltext-string---listmatch",
+          "title": "fn findAll(text: String) -> List[Match]",
+          "level": 4,
+          "line_start": 81,
+          "line_end": 86,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-findalltext-string---listmatch",
+          "text": "#### `fn findAll(text: String) -> List[Match]`\n\nAll non-overlapping matches, left to right. An empty match advances one\ncode point, so `findAll` always terminates.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-replacetext-string-replacement-string---string",
+          "anchor": "fn-replacetext-string-replacement-string---string",
+          "title": "fn replace(text: String, replacement: String) -> String",
+          "level": 4,
+          "line_start": 86,
+          "line_end": 91,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-replacetext-string-replacement-string---string",
+          "text": "#### `fn replace(text: String, replacement: String) -> String`\n\nReplaces the first match. `$0` is the whole match, `$1`.. the groups and\n`$$` a literal dollar; an unmatched group expands to the empty string.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-replacealltext-string-replacement-string---string",
+          "anchor": "fn-replacealltext-string-replacement-string---string",
+          "title": "fn replaceAll(text: String, replacement: String) -> String",
+          "level": 4,
+          "line_start": 91,
+          "line_end": 95,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-replacealltext-string-replacement-string---string",
+          "text": "#### `fn replaceAll(text: String, replacement: String) -> String`\n\nReplaces every non-overlapping match; same expansion rules as `replace`.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-splittext-string---liststring",
+          "anchor": "fn-splittext-string---liststring",
+          "title": "fn split(text: String) -> List[String]",
+          "level": 4,
+          "line_start": 95,
+          "line_end": 99,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-splittext-string---liststring",
+          "text": "#### `fn split(text: String) -> List[String]`\n\nSplits `text` on each match; empty fields are preserved.\n"
+        },
+        {
+          "id": "stdlib/regex#functions",
+          "anchor": "functions",
+          "title": "Functions",
+          "level": 2,
+          "line_start": 99,
+          "line_end": 121,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#functions",
+          "text": "## Functions\n\n### `fn compile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]`\n\nCompiles `pattern` for `Mode.Linear` (guaranteed linear time).\n\nFlags: `caseless`, `multiline` (`^`/`$` per line), `dotall` (`.` matches\nnewline) and `extended` (ignore whitespace and `#` comments).\n\n### `fn compileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]`\n\nCompiles `pattern` for `Mode.Full`: backreferences and lookaround, bounded by\na fixed backtracking limit. Prefer `compile` for untrusted patterns.\n\n### `fn tryCompile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil`\n\nLike `compile`, but returns `nil` on a syntax error. Use `compile` when the\nerror kind matters.\n\n### `fn tryCompileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil`\n\nLike `compileFull`, but returns `nil` on a syntax error.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-compilepattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----resultregex-regexerror",
+          "anchor": "fn-compilepattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----resultregex-regexerror",
+          "title": "fn compile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]",
+          "level": 3,
+          "line_start": 101,
+          "line_end": 108,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-compilepattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----resultregex-regexerror",
+          "text": "### `fn compile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]`\n\nCompiles `pattern` for `Mode.Linear` (guaranteed linear time).\n\nFlags: `caseless`, `multiline` (`^`/`$` per line), `dotall` (`.` matches\nnewline) and `extended` (ignore whitespace and `#` comments).\n"
+        },
+        {
+          "id": "stdlib/regex#fn-compilefullpattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----resultregex-regexerror",
+          "anchor": "fn-compilefullpattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----resultregex-regexerror",
+          "title": "fn compileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]",
+          "level": 3,
+          "line_start": 108,
+          "line_end": 113,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-compilefullpattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----resultregex-regexerror",
+          "text": "### `fn compileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Result[Regex, RegexError]`\n\nCompiles `pattern` for `Mode.Full`: backreferences and lookaround, bounded by\na fixed backtracking limit. Prefer `compile` for untrusted patterns.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-trycompilepattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----regex--nil",
+          "anchor": "fn-trycompilepattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----regex--nil",
+          "title": "fn tryCompile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil",
+          "level": 3,
+          "line_start": 113,
+          "line_end": 118,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-trycompilepattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----regex--nil",
+          "text": "### `fn tryCompile(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil`\n\nLike `compile`, but returns `nil` on a syntax error. Use `compile` when the\nerror kind matters.\n"
+        },
+        {
+          "id": "stdlib/regex#fn-trycompilefullpattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----regex--nil",
+          "anchor": "fn-trycompilefullpattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----regex--nil",
+          "title": "fn tryCompileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil",
+          "level": 3,
+          "line_start": 118,
+          "line_end": 121,
+          "url": "https://loxia-lang.github.io/loxia/stdlib/regex/#fn-trycompilefullpattern-string-caseless-bool---multiline-bool---dotall-bool---extended-bool-----regex--nil",
+          "text": "### `fn tryCompileFull(pattern: String, caseless: Bool = ..., multiline: Bool = ..., dotall: Bool = ..., extended: Bool = ...) -> Regex | Nil`\n\nLike `compileFull`, but returns `nil` on a syntax error.\n"
         }
       ]
     },
