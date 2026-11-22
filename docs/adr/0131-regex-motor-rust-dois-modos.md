@@ -70,7 +70,18 @@ com `RegexError.kind`; o limite de backtracking estourado em `find` vira `Runtim
   sem teto de bytes totais: o `size_limit` de 10 MiB é por programa e só existe no modo
   linear (backlog em #122).
 - Offsets: o `regex` devolve bytes UTF-8; a conversão para code points acontece no Rust,
-  num lugar só. O `out_offset` do erro de compilação é reservado (sempre `-1` hoje; #121).
+  num lugar só. O `out_offset` do erro de compilação é o **byte** do primeiro erro de
+  sintaxe (ou `-1` quando desconhecido); os dois modos reportam o mesmo valor (#121).
+
+### 2.1 Atualização (2026-11-22, #121 e #122)
+
+- **#121 — span do erro de sintaxe.** `loxr_compile` passa a escrever `out_offset`:
+  `regex-syntax` fornece o começo do span no modo linear; no full, o span do parser linear
+  é a resposta canônica quando ele também rejeita o padrão (o `fancy-regex` aponta para o
+  fim de um grupo não fechado) e a posição do `fancy-regex` só é usada quando o padrão é
+  sintaxe exclusiva do full. O offset é em **bytes**, como o resto do ABI; a API expõe em
+  `RegexError.offset`. Padrão grande demais deixa de ser reportado como `syntax`: vira
+  `LOXR_ERR_TOO_BIG` / `RegexError.kind == "size"`, com offset `-1`.
 
 ### 3. Camada e superfície
 
@@ -88,8 +99,10 @@ com `RegexError.kind`; o limite de backtracking estourado em `find` vira `Runtim
   `E4001`; `$name` é a forma prática de substituição, `${name}` exige `\$` no fonte por
   causa da interpolação; `regex_engine.groupNames` é a quarta primitiva do orçamento.
 - Compile devolve `Result[Regex, RegexError]`; o primitivo usa um protocolo `List[Int]`
-  (`[1, handle]` / `[0, code]`) porque a tabela de primitivas não tem tipo algébrico.
-  O `offset` do `RegexError` é reservado (`-1`; #121).
+  (`[1, handle]` / `[0, code, offset]`) porque a tabela de primitivas não tem tipo
+  algébrico. `RegexError.kind` é uma categoria estável (`syntax`, `arguments`, `mode`,
+  `size`, `engine`) e `RegexError.offset` é o byte do primeiro erro de sintaxe (`-1` quando
+  não se aplica).
 - Classificação `core` (I1/I3). Sem `cargo` na máquina, `E3022` antes de executar.
 
 ### 4. Distribuição em dois estágios

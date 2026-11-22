@@ -35,7 +35,7 @@ def built(regex_build_cache: str) -> Iterator[Path]:
 
 
 def test_compile_and_match_count_code_points(built: Path) -> None:
-    code, handle = regex_runtime.compile_pattern(r"\p{L}+", 0, regex_runtime.MODE_LINEAR)
+    code, handle, _ = regex_runtime.compile_pattern(r"\p{L}+", 0, regex_runtime.MODE_LINEAR)
     assert code == 0
     assert handle >= 1
 
@@ -45,7 +45,7 @@ def test_compile_and_match_count_code_points(built: Path) -> None:
 
 
 def test_full_mode_supports_backreferences(built: Path) -> None:
-    code, handle = regex_runtime.compile_pattern(r"(\w+)\s+\1", 0, regex_runtime.MODE_FULL)
+    code, handle, _ = regex_runtime.compile_pattern(r"(\w+)\s+\1", 0, regex_runtime.MODE_FULL)
     assert code == 0
 
     code, spans = regex_runtime.match_pattern(handle, "hello hello world", 0)
@@ -56,7 +56,7 @@ def test_full_mode_supports_backreferences(built: Path) -> None:
 
 
 def test_no_match_is_not_an_error(built: Path) -> None:
-    code, handle = regex_runtime.compile_pattern("z+", 0, regex_runtime.MODE_LINEAR)
+    code, handle, _ = regex_runtime.compile_pattern("z+", 0, regex_runtime.MODE_LINEAR)
     assert code == 0
 
     code, spans = regex_runtime.match_pattern(handle, "abc", 0)
@@ -65,10 +65,25 @@ def test_no_match_is_not_an_error(built: Path) -> None:
     regex_runtime.free_pattern(handle)
 
 
-def test_syntax_error_returns_a_code(built: Path) -> None:
-    code, handle = regex_runtime.compile_pattern("(", 0, regex_runtime.MODE_LINEAR)
-    assert code != 0
-    assert handle == 0
+def test_syntax_error_reports_the_byte_offset(built: Path) -> None:
+    for mode in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
+        code, handle, offset = regex_runtime.compile_pattern("(", 0, mode)
+        assert (code, handle, offset) == (regex_runtime.ERR_COMPILE, 0, 0)
+        code, _, offset = regex_runtime.compile_pattern("a(b", 0, mode)
+        assert (code, offset) == (regex_runtime.ERR_COMPILE, 1)
+        code, _, offset = regex_runtime.compile_pattern("é(", 0, mode)
+        assert (code, offset) == (regex_runtime.ERR_COMPILE, 2)
+
+
+def test_size_limit_is_a_stable_error_without_offset(built: Path) -> None:
+    for mode in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
+        code, _, offset = regex_runtime.compile_pattern("a{1000000}", 0, mode)
+        assert (code, offset) == (regex_runtime.ERR_TOO_BIG, -1)
+
+
+def test_full_mode_caps_recursive_subroutine_expansion(built: Path) -> None:
+    code, _, offset = regex_runtime.compile_pattern(r"(a|b\g<1>\g<1>)", 0, regex_runtime.MODE_FULL)
+    assert (code, offset) == (regex_runtime.ERR_TOO_BIG, -1)
 
 
 def test_primitive_protocol_returns_a_tagged_list(built: Path) -> None:
@@ -88,6 +103,14 @@ def test_primitive_protocol_returns_a_tagged_list(built: Path) -> None:
     free_fn(handle)
 
 
+def test_primitive_protocol_reports_the_syntax_offset(built: Path) -> None:
+    compile_fn = PRIMITIVE_BY_LOX["regex_engine.compile"].py
+
+    failed = compile_fn("a(b", 0, 0)
+    assert isinstance(failed, LoxList)
+    assert failed.elements == [0, regex_runtime.ERR_COMPILE, 1]
+
+
 def test_unknown_handle_raises(built: Path) -> None:
     match_fn = PRIMITIVE_BY_LOX["regex_engine.find"].py
     with pytest.raises(NativeError, match="handle is closed or unknown"):
@@ -95,7 +118,7 @@ def test_unknown_handle_raises(built: Path) -> None:
 
 
 def test_group_names(built: Path) -> None:
-    code, handle = regex_runtime.compile_pattern("(?P<word>[a-z]+)(?P<num>[0-9]+)", 0, 0)
+    code, handle, _ = regex_runtime.compile_pattern("(?P<word>[a-z]+)(?P<num>[0-9]+)", 0, 0)
     assert code == 0
 
     assert regex_runtime.group_names(handle) == ["", "word", "num"]
@@ -103,7 +126,7 @@ def test_group_names(built: Path) -> None:
 
 
 def test_too_many_groups_uses_the_shared_message(built: Path) -> None:
-    code, handle = regex_runtime.compile_pattern("()" * 4100, 0, 0)
+    code, handle, _ = regex_runtime.compile_pattern("()" * 4100, 0, 0)
     assert code == 0
 
     with pytest.raises(NativeError, match="too many capture groups"):

@@ -23,6 +23,8 @@ NO_MATCH: Final = -100
 ERR_LIMIT: Final = -4
 ERR_HANDLE: Final = -5
 ERR_CAPACITY: Final = -8
+ERR_TOO_BIG: Final = -9
+ERR_COMPILE: Final = -10
 
 # Teto de grupos de captura que o binding aceita antes de desistir.
 MAX_GROUPS: Final = 4096
@@ -83,15 +85,19 @@ def library_path() -> Path:
     return native_library()
 
 
-def compile_pattern(pattern: str, flags: int, mode: int) -> tuple[int, int]:
-    """Compila o padrão; devolve `(código, handle)` como no ABI."""
+def compile_pattern(pattern: str, flags: int, mode: int) -> tuple[int, int, int]:
+    """Compila o padrão; devolve `(código, handle, offset)` como no ABI.
+
+    `offset` é o deslocamento em bytes do primeiro erro de sintaxe, ou `-1`
+    quando não há erro de sintaxe (sucesso, limites, argumentos).
+    """
     raw = pattern.encode("utf-8")
     handle = ctypes.c_int64(0)
     offset = ctypes.c_int64(-1)
     code = int(
         _load().loxr_compile(raw, len(raw), flags, mode, ctypes.byref(handle), ctypes.byref(offset))
     )
-    return code, int(handle.value)
+    return code, int(handle.value), int(offset.value)
 
 
 def match_pattern(handle: int, subject: str, start: int) -> tuple[int, list[int]]:

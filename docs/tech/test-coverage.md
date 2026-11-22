@@ -57,7 +57,7 @@ golden case and, for backend features, one case in the differential corpus
 | `t1` | 6 |
 | `t2` | 20 |
 | `t3` | 7 |
-| `t4` | 2 |
+| `t4` | 3 |
 | `k0` | 2 |
 | `l2` | 17 |
 

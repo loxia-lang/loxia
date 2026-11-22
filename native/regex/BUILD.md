@@ -21,7 +21,9 @@ stay linear; the backtracking limit only matters for backreferences and lookarou
 
 - `loxr_abi_version()` — the loader refuses a mismatch.
 - `loxr_compile(pattern, len, flags, mode, out_handle, out_offset)` — 1-based handle on
-  success, `LOXR_ERR_COMPILE` plus a best-effort byte offset on a syntax error.
+  success, `LOXR_ERR_COMPILE` plus the byte offset of the first syntax error on a syntax
+  error (`0` for `"("`, `1` for `"a(b"` in both modes; `-1` when unknown), or
+  `LOXR_ERR_TOO_BIG` when a per-program compiled-memory limit is hit.
 - `loxr_match(handle, subject, len, start, out_spans, capacity)` — `start` in code points;
   writes `(start, end)` pairs in code points and returns how many `int64` were written, or
   `LOXR_NO_MATCH`.

@@ -19,15 +19,16 @@ Why a pattern failed to compile.
 
 #### `val kind: String`
 
-Stable category: `syntax`, `arguments`, `mode` or `engine`.
+Stable category: `syntax`, `arguments`, `mode`, `size` or `engine`.
 
 #### `val offset: Int`
 
-Reserved: always `-1` for now; the engine does not expose the error span yet.
+Byte offset of the first syntax error in the pattern; `-1` when the engine
+cannot report one (arguments, mode, size limit).
 
 #### `fn init(kind: String, offset: Int = ...)`
 
-Creates the error with its kind; the offset is reserved (`-1`).
+Creates the error; pass the offset reported by `compile` (`-1` when unknown).
 
 ### `class Match`
 

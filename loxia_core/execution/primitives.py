@@ -346,8 +346,8 @@ def _regex_compile(pattern: str, flags: int, mode: int) -> LoxList:
         raise NativeError("regex_engine.compile() expects a non-negative flags mask.")
     if mode not in (regex_runtime.MODE_LINEAR, regex_runtime.MODE_FULL):
         raise NativeError("regex_engine.compile() expects mode 0 (linear) or 1 (full).")
-    code, handle = regex_runtime.compile_pattern(pattern, flags, mode)
-    values: list[object] = [1, handle] if code == 0 else [0, code]
+    code, handle, offset = regex_runtime.compile_pattern(pattern, flags, mode)
+    values: list[object] = [1, handle] if code == 0 else [0, code, offset]
     return LoxList(values)
 
 

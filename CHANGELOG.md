@@ -60,6 +60,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **`RegexError.offset`** ([#121](https://github.com/loxia-lang/loxia/issues/121)): o erro de
+  sintaxe reporta o byte do primeiro erro nos dois modos (`"("` → `0`, `"a(b"` → `1`) em vez
+  de `-1`. Padrão que estoura o limite por programa deixa de ser `syntax` e vira o kind
+  estável `size`.
 - **`Bytes` é truthy no backend**: `if (b)`, `not b` e `and`/`or` sobre `Bytes` deixam de
   falhar no lowering; só `nil`/`false` são falsy, como no tree-walk.
 - **Namespace nativo sombreado**: `val Bytes = ...`, `val fs = ...`, `val Int = ...` e

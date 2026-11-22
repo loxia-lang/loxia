@@ -1144,8 +1144,11 @@ same name. Today: `regex`.
   and `close` (idempotent; there is no finalizer). `Match` carries group 0 (`text`, `start`,
   `end`) and `groups: List[String?]` for groups 1..n. Replacement expands `$0`..`$9`,
   `$name` and `${name}` (escape as `\${name}`: `${...}` is string interpolation) and
-  `$$`; an unmatched group expands to the empty string. Offsets count code points.
-  Exceeding the backtracking limit raises `RuntimeError`. The module requires the Rust
+  `$$`; an unmatched group expands to the empty string. Match offsets count code points;
+  `RegexError.offset` is the **byte** offset of the first syntax error in the pattern (`-1`
+  when the failure is not a syntax error), and `RegexError.kind` is one of `syntax`,
+  `arguments`, `mode`, `size` or `engine`. Exceeding the backtracking limit raises `RuntimeError`.
+  The module requires the Rust
   toolchain: without `cargo`, `run`/`build` refuse with `E3022` before executing, while
   `check` stays engine-agnostic.
 

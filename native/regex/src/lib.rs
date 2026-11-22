@@ -35,6 +35,7 @@ pub const ERR_HANDLE: i32 = -5;
 pub const ERR_UTF8: i32 = -6;
 pub const ERR_HANDLES: i32 = -7;
 pub const ERR_CAPACITY: i32 = -8;
+pub const ERR_TOO_BIG: i32 = -9;
 pub const ERR_COMPILE: i32 = -10;
 
 /// Upper bound on live compiled patterns; keeps the table bounded and the
@@ -75,12 +76,26 @@ fn init() {
     });
 }
 
+/// Why a pattern failed to build: the stable ABI code plus the byte offset of a
+/// syntax error (`-1` when the failure is not a syntax error or is unknown).
+#[derive(Debug)]
+struct BuildFailure {
+    code: i32,
+    offset: i64,
+}
+
+impl BuildFailure {
+    fn new(code: i32) -> BuildFailure {
+        BuildFailure { code, offset: -1 }
+    }
+}
+
 fn build(
     pattern: &str,
     flags: u32,
     mode: u32,
     backtrack_limit: usize,
-) -> Result<Engine, i32> {
+) -> Result<Engine, BuildFailure> {
     match mode {
         MODE_LINEAR => {
             let mut builder = LinearBuilder::new(pattern);
@@ -97,7 +112,15 @@ fn build(
             if flags & FLAG_EXTENDED != 0 {
                 builder.ignore_whitespace(true);
             }
-            builder.build().map(Engine::Linear).map_err(|_| ERR_COMPILE)
+            match builder.build() {
+                Ok(regex) => Ok(Engine::Linear(regex)),
+                Err(regex::Error::CompiledTooBig(_)) => Err(BuildFailure::new(ERR_TOO_BIG)),
+                Err(regex::Error::Syntax(_)) => Err(BuildFailure {
+                    code: ERR_COMPILE,
+                    offset: linear_offset(pattern, flags),
+                }),
+                Err(_) => Err(BuildFailure::new(ERR_COMPILE)),
+            }
         }
         MODE_FULL => {
             let mut builder = FullBuilder::new(pattern);
@@ -114,9 +137,73 @@ fn build(
             if flags & FLAG_EXTENDED != 0 {
                 builder.ignore_whitespace(true);
             }
-            builder.build().map(Engine::Full).map_err(|_| ERR_COMPILE)
+            match builder.build() {
+                Ok(regex) => Ok(Engine::Full(regex)),
+                Err(error) => Err(full_failure(pattern, flags, &error)),
+            }
         }
-        _ => Err(ERR_MODE),
+        _ => Err(BuildFailure::new(ERR_MODE)),
+    }
+}
+
+/// Byte offset of the first syntax error according to `regex-syntax` (the parser
+/// behind the linear engine); `-1` when the pattern parses.
+fn linear_offset(pattern: &str, flags: u32) -> i64 {
+    let mut builder = regex_syntax::ParserBuilder::new();
+    builder.ignore_whitespace(flags & FLAG_EXTENDED != 0);
+    match builder.build().parse(pattern) {
+        Ok(_) => -1,
+        Err(error) => syntax_error_offset(&error),
+    }
+}
+
+fn syntax_error_offset(error: &regex_syntax::Error) -> i64 {
+    match error {
+        regex_syntax::Error::Parse(inner) => inner.span().start.offset as i64,
+        regex_syntax::Error::Translate(inner) => inner.span().start.offset as i64,
+        _ => -1,
+    }
+}
+
+/// Maps a `FULL` build error to the ABI code and offset. When both parsers
+/// reject the pattern, the linear span is the canonical offset: `fancy-regex`
+/// points at the end of an unclosed group while `regex-syntax` points at the
+/// opening delimiter, and I1 requires the same answer in both modes.
+fn full_failure(pattern: &str, flags: u32, error: &fancy_regex::Error) -> BuildFailure {
+    match error {
+        fancy_regex::Error::ParseError(position, _) => {
+            let linear = linear_offset(pattern, flags);
+            BuildFailure {
+                code: ERR_COMPILE,
+                offset: if linear >= 0 {
+                    linear
+                } else {
+                    *position as i64
+                },
+            }
+        }
+        fancy_regex::Error::CompileError(inner) => {
+            if let fancy_regex::CompileError::InnerError(build) = inner.as_ref() {
+                if let Some(syntax) = build.syntax_error() {
+                    return BuildFailure {
+                        code: ERR_COMPILE,
+                        offset: syntax_error_offset(syntax),
+                    };
+                }
+                if build.size_limit().is_some() {
+                    return BuildFailure::new(ERR_TOO_BIG);
+                }
+            }
+            if matches!(
+                inner.as_ref(),
+                fancy_regex::CompileError::PatternTooComplex
+                    | fancy_regex::CompileError::DfaBuildError(..)
+            ) {
+                return BuildFailure::new(ERR_TOO_BIG);
+            }
+            BuildFailure::new(ERR_COMPILE)
+        }
+        _ => BuildFailure::new(ERR_COMPILE),
     }
 }
 
@@ -182,6 +269,9 @@ pub extern "C" fn loxr_compile(
 ) -> i32 {
     init();
     catch_unwind(AssertUnwindSafe(|| {
+        if !out_offset.is_null() {
+            unsafe { *out_offset = -1 };
+        }
         if pattern.is_null() || out_handle.is_null() {
             return ERR_ARGS;
         }
@@ -195,7 +285,12 @@ pub extern "C" fn loxr_compile(
         }
         let engine = match build(text, flags, mode, BACKTRACK_LIMIT) {
             Ok(engine) => engine,
-            Err(code) => return code,
+            Err(failure) => {
+                if !out_offset.is_null() {
+                    unsafe { *out_offset = failure.offset };
+                }
+                return failure.code;
+            }
         };
         let mut state = slots().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let index = match state.free.pop() {
@@ -388,6 +483,21 @@ mod tests {
         state.engines.len() as i64
     }
 
+    fn compile_error(pattern: &str, flags: u32, mode: u32) -> (i32, i64) {
+        let bytes = pattern.as_bytes();
+        let mut handle = 0i64;
+        let mut offset = 0i64;
+        let code = loxr_compile(
+            bytes.as_ptr(),
+            bytes.len(),
+            flags,
+            mode,
+            &mut handle,
+            &mut offset,
+        );
+        (code, offset)
+    }
+
     #[test]
     fn linear_reports_code_point_offsets() {
         let handle = compile(r"\p{L}+", 0, MODE_LINEAR);
@@ -416,20 +526,29 @@ mod tests {
     }
 
     #[test]
-    fn syntax_error_returns_compile_code() {
-        let bytes = b"(";
-        let mut handle = 0i64;
-        let mut offset = 0i64;
-        let code = loxr_compile(
-            bytes.as_ptr(),
-            bytes.len(),
-            0,
-            MODE_LINEAR,
-            &mut handle,
-            &mut offset,
-        );
-        assert_eq!(code, ERR_COMPILE);
+    fn syntax_error_reports_the_byte_offset_in_both_modes() {
+        for mode in [MODE_LINEAR, MODE_FULL] {
+            assert_eq!(compile_error("(", 0, mode), (ERR_COMPILE, 0));
+            assert_eq!(compile_error("a(b", 0, mode), (ERR_COMPILE, 1));
+            assert_eq!(compile_error("é(", 0, mode), (ERR_COMPILE, 2));
+            assert_eq!(compile_error(r"\p{Foo}", 0, mode), (ERR_COMPILE, 0));
+        }
     }
+
+    #[test]
+    fn full_only_syntax_error_uses_the_engine_offset() {
+        // The linear parser accepts `a**`, so the fancy position (2) is the only
+        // available offset.
+        assert_eq!(compile_error("a**", 0, MODE_FULL), (ERR_COMPILE, 2));
+    }
+
+    #[test]
+    fn too_big_pattern_is_a_stable_error_without_offset() {
+        for mode in [MODE_LINEAR, MODE_FULL] {
+            assert_eq!(compile_error("a{1000000}", 0, mode), (ERR_TOO_BIG, -1));
+        }
+    }
+
 
     #[test]
     fn invalid_mode_is_rejected() {

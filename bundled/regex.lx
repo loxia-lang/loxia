@@ -11,13 +11,14 @@
 
 /// Why a pattern failed to compile.
 class RegexError {
-  /// Stable category: `syntax`, `arguments`, `mode` or `engine`.
+  /// Stable category: `syntax`, `arguments`, `mode`, `size` or `engine`.
   val kind: String
 
-  /// Reserved: always `-1` for now; the engine does not expose the error span yet.
+  /// Byte offset of the first syntax error in the pattern; `-1` when the engine
+  /// cannot report one (arguments, mode, size limit).
   val offset: Int
 
-  /// Creates the error with its kind; the offset is reserved (`-1`).
+  /// Creates the error; pass the offset reported by `compile` (`-1` when unknown).
   init(kind: String, offset: Int = -1) {
     this.kind = kind
     this.offset = offset
@@ -239,7 +240,7 @@ fn _compile(
     val handle = result[1]
     return Result.Ok(Regex(handle, regex_engine.groupNames(handle)))
   }
-  return Result.Err(RegexError(_error_kind(result[1])))
+  return Result.Err(RegexError(_error_kind(result[1]), result[2]))
 }
 
 fn _flags(caseless: Bool, multiline: Bool, dotall: Bool, extended: Bool) -> Int {
@@ -262,6 +263,9 @@ fn _flags(caseless: Bool, multiline: Bool, dotall: Bool, extended: Bool) -> Int 
 fn _error_kind(code: Int) -> String {
   if (code == -10) {
     return "syntax"
+  }
+  if (code == -9) {
+    return "size"
   }
   if (code == -3) {
     return "mode"

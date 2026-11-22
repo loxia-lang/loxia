@@ -1,0 +1,29 @@
+# std.regex (bundled, ADR-0131): erro de sintaxe reporta o offset em bytes
+# (#121) e o limite de memória por programa é um erro estável `size` (#122).
+# requires: rust
+import regex
+
+fn report(pattern: String, full: Bool) -> String {
+  val result = regex.compileFull(pattern) if full else regex.compile(pattern)
+  return match result {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => error.kind + " " + str(error.offset)
+  }
+}
+
+print(report("(", false))
+print(report("(", true))
+print(report("a(b", false))
+print(report("a(b", true))
+print(report("é(", false))
+print(report("é(", true))
+print(report("a{1000000}", false))
+print(report("a{1000000}", true))
+# expect: syntax 0
+# expect: syntax 0
+# expect: syntax 1
+# expect: syntax 1
+# expect: syntax 2
+# expect: syntax 2
+# expect: size -1
+# expect: size -1

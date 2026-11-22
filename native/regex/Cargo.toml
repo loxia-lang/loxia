@@ -12,6 +12,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 regex = "1.13"
+regex-syntax = "0.8"
 fancy-regex = "0.20"
 
 [profile.release]
