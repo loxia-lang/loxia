@@ -132,7 +132,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia remove NAME` | Remove a dependency from `loxia.toml` | `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia ast FILE` | Print the AST as an S-expression | `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia ast FILE` | Print the AST (S-expression; `--format=json` requires `--file-only`) | `--file-only`, `--format=sexp\|json`, `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia fmt FILE` | Format a file (`--check` does not write) | `--check`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia doc FILE` | Generate Markdown/JSON from `///` | `--stdin`, `--file-name`, `--json`, `--error-format`, `--max-errors`, `--color` |
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
@@ -146,6 +146,11 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 
 Global flag: `--version`. Every other flag belongs to a command; run
 `loxia <command> --help` for the authoritative list and the grouped descriptions.
+
+For the self-hosted parser, `loxia ast --file-only --format=json FILE` emits the versioned
+per-file AST contract (tokens, half-open spans and node fields) without loading modules or
+mangling names; `--format=json` requires `--file-only`. The contract and the frozen
+snapshot are in [ADR-0129](docs/adr/0129-oraculo-do-front-end.md).
 
 `loxia new` writes a minimal, deterministic template and runs `git init` unless
 `--no-git` is given (never inside an existing repository); `loxia init` does the same in an

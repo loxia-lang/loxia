@@ -15,6 +15,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Adicionado
 
+- **Oráculo do front-end** ([ADR-0129](docs/adr/0129-oraculo-do-front-end.md)): `loxia ast
+  --file-only` transforma um único arquivo, sem loader nem mangling; `--format=json`
+  (obrigatoriamente com `--file-only`) emite o contrato v1 com tokens, spans half-open e
+  campos de fonte. `tests/oracle/frontend.json` congela AST, bytes do formatter e
+  diagnósticos do corpus; `make oracle`/`make oracle-update`.
+
 - **`Bytes` (fase 79a)** ([ADR-0125](docs/adr/0125-bytes-tipo-binario.md),
   [#79](https://github.com/loxia-lang/loxia/issues/79)): tipo de valor imutável para dados
   binários, distinto de `String`; `len` em bytes, `b[i] -> Int`, igualdade estrutural,
