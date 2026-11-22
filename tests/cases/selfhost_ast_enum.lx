@@ -1,0 +1,21 @@
+# Recursive enum with Any payload: the self-hosted AST shape (ADR-0124 §1.1).
+enum Expr {
+  Lit(Any),
+  Bin(Expr, Expr)
+}
+
+val e: Expr = Expr.Bin(Expr.Lit(1), Expr.Lit("x"))
+val kind = match e {
+  Expr.Lit(v) => "lit ${v}"
+  Expr.Bin(l, r) => "bin"
+}
+print(kind)
+
+val lit: Expr = Expr.Lit(7)
+val payload = match lit {
+  Expr.Lit(v) => str(v)
+  Expr.Bin(l, r) => "bin"
+}
+print(payload)
+# expect: bin
+# expect: 7

@@ -39,29 +39,31 @@ in both engines; if they diverge, the bug is in the backend.
 The corpus is the entire conformance corpus, **annotated and classified by level** in
 `tests/corpus_manifest.py`. Each case is in `LEVELS` (the backend compiles and agrees),
 `PENDING` (the `--check` passes, the backend still refuses with **65** and the message
-`... is not supported by the backend yet.`) or `NEGATIVE` (fails on purpose in the
-`--check`). A case only enters `LEVELS` when the three channels match; promotion is
-monotonic and the differential test never compares against a hand-written expectation. The
-`PENDING` list is public: it is the honest record of what is missing, not a secret.
+`... is not supported by the backend yet.`), `NEGATIVE` (fails on purpose in the `--check`)
+or `COMPILE_ERRORS` (also fails on purpose in the `--check`, but is never executed: it is
+covered by the structured diagnostics snapshot). A case only enters `LEVELS` when the three
+channels match; promotion is monotonic and the differential test never compares against a
+hand-written expectation. The `PENDING` list is public: it is the honest record of what is
+missing, not a secret.
 
 <!-- levels:start -->
 | Level | Cases that compile and agree (I1) |
 | --- | --- |
 | `l0` | 4 |
-| `l1` | 3 |
-| `l2` | 14 |
+| `l1` | 7 |
+| `l2` | 17 |
 | `l2.5` | 4 |
 | `l3` | 14 |
 | `l4` | 12 |
 | `l5` | 30 |
-| `l6` | 72 |
+| `l6` | 90 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 20 |
 | `t3` | 7 |
 | `t7` | 3 |
 
-**191 cases** across 13 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
+**216 cases** across 13 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

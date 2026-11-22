@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/loxia-lang/loxia/schema/ast-v1.json",
+  "title": "Loxia AST v1",
+  "description": "Machine-readable AST of `loxia ast --file-only --format=json` (schema_version 1). Validates the envelope, tokens and spans; per-kind node fields are enforced by the serializer and the oracle snapshot, not by `$defs` per kind. Spans are half-open; column is 1-based in code points and offset is 0-based in UTF-8 bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "file", "statements", "tokens"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kind": { "const": "program" },
+    "file": { "type": "string" },
+    "statements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "tokens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/token" }
+    }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "column", "offset"],
+      "properties": {
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": ["integer", "null"], "minimum": 1 },
+        "offset": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/$defs/position" },
+        "end": { "$ref": "#/$defs/position" }
+      }
+    },
+    "token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "lexeme", "span", "doc", "literal"],
+      "properties": {
+        "type": { "type": "string" },
+        "lexeme": { "type": "string" },
+        "span": { "$ref": "#/$defs/span" },
+        "doc": { "type": ["string", "null"] },
+        "literal": {}
+      }
+    },
+    "token_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "lexeme", "span"],
+      "properties": {
+        "type": { "type": "string" },
+        "lexeme": { "type": "string" },
+        "span": { "$ref": "#/$defs/span" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind", "span"],
+      "properties": {
+        "kind": { "type": "string" },
+        "span": {
+          "oneOf": [{ "$ref": "#/$defs/span" }, { "type": "null" }]
+        }
+      }
+    }
+  }
+}

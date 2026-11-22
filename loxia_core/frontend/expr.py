@@ -115,6 +115,7 @@ class Lambda(Expr):
     params: list[Param]
     body: list[Stmt]
     return_type: Ty | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_lambda_expr(self)
@@ -124,6 +125,7 @@ class Lambda(Expr):
 class ListLiteral(Expr):
     elements: list[Expr]
     bracket: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_list_expr(self)
@@ -133,6 +135,7 @@ class ListLiteral(Expr):
 class MapLiteral(Expr):
     entries: list[tuple[Expr, Expr]]
     brace: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_map_expr(self)
@@ -194,6 +197,7 @@ class Match(Expr):
 class TupleLiteral(Expr):
     elements: list[Expr]
     paren: Token
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_tuple_expr(self)

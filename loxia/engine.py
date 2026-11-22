@@ -25,6 +25,8 @@ from loxia_core.diagnostics.render import (
 )
 from loxia_core.diagnostics.source import SourceMap, display_path
 from loxia_core.execution.interpreter import Interpreter
+from loxia_core.frontend.ast_json import dumps as ast_dumps
+from loxia_core.frontend.ast_json import program_payload
 from loxia_core.frontend.ast_printer import AstPrinter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
@@ -109,6 +111,9 @@ class Loxia:
         self._revision = 0
         # Estado da última análise, consumido pelo LSP (hover/definition).
         self.last_statements: list[Stmt] | None = None
+        # Tokens do último parse (entrada, não módulos). Só o oráculo da AST
+        # (`--file-only --format=json`) consome (ADR-0129).
+        self.last_tokens: list[Token] | None = None
         # Statements recuperados pelo parser quando há erro de sintaxe: só tooling
         # (LSP) consome; `run`/`check` continuam estritos (ADR-0113).
         self.last_recovered_statements: list[Stmt] | None = None
@@ -134,6 +139,7 @@ class Loxia:
         *,
         repl: bool = False,
         module_overrides: dict[Path, str] | None = None,
+        file_only: bool = False,
     ) -> list[Stmt] | None:
         self.reporter.reset()
         self.reporter.file = self._file
@@ -143,6 +149,7 @@ class Loxia:
 
         scanner = Scanner(source, self.reporter)
         tokens = scanner.scan_tokens()
+        self.last_tokens = tokens
         parser = Parser(tokens, repl=repl, reporter=self.reporter)
         statements = parser.parse_repl() if repl else parser.parse()
         self.last_recovered_statements = statements
@@ -151,7 +158,7 @@ class Loxia:
             self.last_statements = None
             return None
 
-        if self._module_root is not None:
+        if not file_only and self._module_root is not None:
             from loxia_core.loader.loader import ModuleLoader
 
             manifest = None
@@ -300,10 +307,39 @@ class Loxia:
 
         self.flush("repl", exit_code=self._exit_code())
 
-    def dump_ast(self, source: str) -> None:
-        statements = self._parse(source)
+    def parse_file(self, source: str) -> tuple[list[Token], list[Stmt]] | None:
+        """Parse de **um arquivo**, sem loader e sem mangling (ADR-0129).
+
+        Devolve tokens e statements na ordem do fonte; `None` quando há erro. É a base do
+        oráculo `loxia ast --file-only` e do snapshot do front-end.
+        """
+        statements = self._parse(source, file_only=True)
+        tokens = self.last_tokens
+        if statements is None or tokens is None:
+            return None
+        return tokens, statements
+
+    def dump_ast(
+        self,
+        source: str,
+        *,
+        file_only: bool = False,
+        output_format: str = "sexp",
+    ) -> None:
+        if output_format not in {"sexp", "json"}:
+            raise ValueError(f"unknown AST format: {output_format}")
+        if output_format == "json" and not file_only:
+            raise ValueError("AST JSON requires file_only parsing")
+
+        statements = self._parse(source, file_only=file_only)
         if statements is not None:
-            print(AstPrinter().print_program(statements))
+            if output_format == "json":
+                tokens = self.last_tokens or []
+                payload = program_payload(statements, tokens, display_path(self._file))
+                sys.stdout.write(ast_dumps(payload))
+                sys.stdout.flush()
+            else:
+                print(AstPrinter().print_program(statements))
 
         self.flush("ast", exit_code=self._exit_code())
 

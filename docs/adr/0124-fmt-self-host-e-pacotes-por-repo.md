@@ -46,6 +46,14 @@ O risco de sequência é conhecido: módulo que nasce em `std.*` e depois vira p
 
 ## Decisão
 
+### 1.1 Forma da AST em Lox (2026-11-21)
+
+O AST do parser em Lox usa **enum recursivo + `match`**, não o visitor genérico do Python:
+método genérico (`accept[R]`) não existe na linguagem. Enum recursivo, enum genérico
+recursivo e payload `Any` compilam e rodam no backend; campo `Any` direto ainda é `E4001`.
+Casos diferenciais: `selfhost_ast_enum.lx`, `selfhost_ast_generic_enum.lx` e
+`selfhost_ast_interface.lx`.
+
 ### 1. O programa self-hosted é o front-end em Lox; o fmt é o primeiro consumidor
 
 Escopo dividido em quatro fases, cada uma com oráculo e critério de paridade:
@@ -112,8 +120,8 @@ executando um programa Lox embarcado, já possível pelo interpretador).
   então renomear repo é quebra.
 - Docs geradas por `loxia doc` no próprio repo; CI com `--frozen` e cache offline.
 - Descoberta sem registry: repo índice `loxia-lang/packages` (README/tabela).
-- Lacunas a fechar: `loxia new --lib` (hoje o scaffold é só de aplicação), template de CI e
-  cache de `.loxia/cache` no CI.
+- Lacunas a fechar: template de CI e cache de `.loxia/cache` no CI. `loxia new --lib`
+  foi entregue em 2026-11-21 (módulo `<nome>.lx` na raiz, sem `src/main.lx`).
 
 ### 7. Não-objetivos desta rodada
 

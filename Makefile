@@ -6,7 +6,7 @@ COVERAGE_JOBS ?= 4
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph frontend-bench
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -19,6 +19,8 @@ help:
 	@echo "make fmt-check                 ruff format --check (gate)"
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
 	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
+	@echo "make oracle                    confere o snapshot de AST/formatter/diagnósticos"
+	@echo "make oracle-update             regrava tests/oracle/frontend.json"
 	@echo "make coverage                  mede cobertura Python (sem gate; não roda backend)"
 	@echo "make coverage-ratchet          mede e falha abaixo dos pisos por arquivo"
 	@echo "make coverage-update           sobe os pisos até a cobertura medida"
@@ -42,6 +44,7 @@ help:
 	@echo "make bench-native              benchmarks do binário nativo (--emit=exe)"
 	@echo "make monomorph                 mede o orçamento de monomorfização (ADR-0063)"
 	@echo "make fuzz                      roda o fuzzing do scanner/parser (hypothesis)"
+	@echo "make frontend-bench            mede parse+format do corpus (ADR-0129)"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:
@@ -52,6 +55,12 @@ test:
 
 test-fast:
 	uv run pytest -m "not backend"
+
+oracle:
+	uv run python tools/oracle_snapshot.py --check
+
+oracle-update:
+	uv run python tools/oracle_snapshot.py --update
 
 case:
 	uv run python -m tests.runner
@@ -159,6 +168,9 @@ bench:
 
 bench-native:
 	uv run python bench/run.py --native
+
+frontend-bench:
+	uv run python tools/frontend_bench.py
 
 baseline:
 	uv run python bench/run.py --update

@@ -93,10 +93,12 @@ _COMMAND_EXAMPLES = {
   loxia doc --json src/main.lx""",
     "new": """exemplos:
   loxia new hello
-  loxia new hello --name hello_world --no-git""",
+  loxia new hello --name hello_world --no-git
+  loxia new minha-lib --lib""",
     "init": """exemplos:
   loxia init
-  loxia init meu-projeto""",
+  loxia init meu-projeto
+  loxia init --lib""",
     "add": """exemplos:
   loxia add acme --path ../acme
   loxia add acme --git https://github.com/acme/acme --rev v1.2.3 --lock
@@ -352,6 +354,11 @@ def _add_scaffold_options(container: argparse._ActionsContainer) -> None:
         action="store_true",
         help="não inicializa um repositório git no projeto",
     )
+    container.add_argument(
+        "--lib",
+        action="store_true",
+        help="cria uma biblioteca (módulo <nome>.lx na raiz, sem src/main.lx)",
+    )
 
 
 def _option_groups(parser: argparse.ArgumentParser) -> _Groups:
@@ -443,6 +450,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--emit",
         choices=("ll", "obj", "exe"),
         help="compila para código nativo (ll: IR textual, obj: .o, exe: binário)",
+    )
+    parser.add_argument(
+        "--file-only",
+        action="store_true",
+        help="com --dump-ast: transforma só o arquivo, sem loader/mangling",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("sexp", "json"),
+        default="sexp",
+        help="com --dump-ast: S-expression (padrão) ou JSON (exige --file-only)",
     )
     parser.add_argument(
         "-o",
@@ -575,6 +593,17 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_module_options(groups.modules)
         _add_input_options(groups.input)
         _add_dependency_options(groups.modules)
+        groups.general.add_argument(
+            "--file-only",
+            action="store_true",
+            help="transforma só o arquivo, sem loader, módulos ou mangling",
+        )
+        groups.general.add_argument(
+            "--format",
+            choices=("sexp", "json"),
+            default="sexp",
+            help="S-expression (padrão) ou JSON versionado (exige --file-only)",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "fmt":
         _add_diagnostics_options(groups.diagnostics)
@@ -790,6 +819,13 @@ def _validate(
             parser.error("--stdin cannot be combined with a script")
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
+    ast_format = getattr(args, "format", "sexp")
+    file_only = getattr(args, "file_only", False)
+    if command == "ast":
+        if ast_format == "json" and not file_only:
+            parser.error("--format=json requires --file-only")
+    elif file_only or ast_format != "sexp":
+        parser.error("--file-only/--format are only supported by ast")
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
         parser.error(f"{command} requires a script (or --stdin)")
     if command == "build":
@@ -818,6 +854,12 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--watch requires a script")
     if args.watch and args.timeout:
         parser.error("--timeout cannot be combined with --watch")
+    if args.file_only and not args.dump_ast:
+        parser.error("--file-only requires --dump-ast")
+    if args.format != "sexp" and not args.dump_ast:
+        parser.error("--format is only supported with --dump-ast")
+    if args.format == "json" and not args.file_only:
+        parser.error("--format=json requires --file-only")
     if args.stdin and args.script:
         if args.dump_ast or args.check or args.emit:
             parser.error("--stdin cannot be combined with a script")

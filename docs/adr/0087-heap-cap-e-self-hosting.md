@@ -1,3 +1,8 @@
+> **Atualização (2026-11-21):** a limitação de campo do próprio tipo de classe foi
+> resolvida — `class Node { var next: Node? }` compila e roda no backend, com caso no
+> corpus. Campo `Any` direto continua `E4001`; para o AST self-hosted use enum com payload
+> `Any` ou `List[Any]`. O texto abaixo é o registro histórico da decisão original.
+
 # ADR-0087 — Hard cap de heap de 512 MiB e `--max-heap` de build
 
 - **Status:** accepted (implementado)

@@ -60,6 +60,8 @@ class Import(Stmt):
 @dataclass(frozen=True, eq=False)
 class Block(Stmt):
     statements: list[Stmt]
+    start: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_block_stmt(self)
@@ -86,6 +88,8 @@ class Class(Stmt):
     display_name: str | None = None
     implements: list[Token] = field(default_factory=list)
     doc: str | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_class_stmt(self)
@@ -99,6 +103,7 @@ class TypeAlias(Stmt):
     name: Token
     target: Ty
     doc: str | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_type_alias_stmt(self)
@@ -116,6 +121,8 @@ class Interface(Stmt):
     methods: list[Function]
     display_name: str | None = None
     doc: str | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_interface_stmt(self)
@@ -135,6 +142,8 @@ class EnumDecl(Stmt):
     variants: list[EnumVariant]
     display_name: str | None = None
     doc: str | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_enum_stmt(self)
@@ -145,6 +154,8 @@ class ExceptClause:
     type_name: Token
     binding: Token
     body: list[Stmt]
+    keyword: Token | None = None
+    end: Token | None = None
 
 
 @dataclass(frozen=True, eq=False)
@@ -153,6 +164,7 @@ class Try(Stmt):
     body: list[Stmt]
     handlers: list[ExceptClause]
     finally_body: list[Stmt] | None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_try_stmt(self)
@@ -208,6 +220,7 @@ class ForIn(Stmt):
     name: Token
     iterable: Expr
     body: Stmt
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_for_in_stmt(self)
@@ -218,6 +231,7 @@ class If(Stmt):
     condition: Expr
     then_branch: Stmt
     else_branch: Stmt | None
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_if_stmt(self)
@@ -240,6 +254,7 @@ class Var(Stmt):
     type_annotation: Ty | None = None
     doc: str | None = None
     keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_var_stmt(self)
@@ -251,6 +266,8 @@ class Destructure(Stmt):
     initializer: Expr
     mutable: bool
     type_annotation: Ty | None = None
+    keyword: Token | None = None
+    end: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_destructure_stmt(self)
@@ -260,6 +277,7 @@ class Destructure(Stmt):
 class While(Stmt):
     condition: Expr
     body: Stmt
+    keyword: Token | None = None
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_while_stmt(self)

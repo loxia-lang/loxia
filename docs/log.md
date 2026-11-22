@@ -1250,3 +1250,37 @@ comportamento observável da linguagem.
   suíte só ganhou um caso de handles.
 
 <!-- triaged: 4d76a45 -->
+
+## 2026-11-21 — oráculo do front-end
+
+Intervalo: `4d76a45`..`cdf6c58`. AST JSON, spans e snapshot do corpus; sem mudança de
+sintaxe ou semântica da linguagem.
+
+- `docs/decisoes.md` — **updated**: linha do ADR-0129 (oráculo do front-end).
+- `docs/spec/erros.md` — **no-change**: diagnóstico, códigos e formato não mudaram.
+- `docs/spec/semantica.md` — **no-change**: os nós ganharam tokens de fonte para spans; nenhuma
+  regra de execução, tipo ou escopo mudou.
+- `docs/spec/sintaxe.md` — **no-change**: gramática e forma canônica intocadas.
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou; o JSON é consumidor futuro.
+- `docs/tech/python-coverage.md` — **no-change**: o comando e os pisos de cobertura não mudaram;
+  a suíte ganhou testes do oráculo.
+- `docs/tech/test-report.md` — **no-change**: protocolo e formato do runner de testes intocados.
+
+<!-- triaged: cdf6c58 -->
+
+## 2026-11-22 — P1–P3 do oráculo
+
+Intervalo: `61f9a7b`..`eb55f80`. Corpus, checker, self-host, scaffold `--lib` e baseline de
+front-end; sem mudança de sintaxe ou semântica da linguagem.
+
+- `docs/decisoes.md` — **no-change**: o ADR-0129 já resume a decisão; os ADRs 0087/0124
+  receberam notas de atualização, não decisões novas.
+- `docs/spec/erros.md` — **no-change**: bloco gerado; códigos e mensagens não mudaram.
+- `docs/spec/sintaxe.md` — **no-change**: gramática e forma canônica intocadas.
+- `docs/tech/mcp.md` — **no-change**: nada de MCP mudou.
+- `docs/tech/python-coverage.md` — **no-change**: o piso do checker subiu de 81 para 83, mas a
+  página publica a política e o comando, não os pisos por arquivo.
+- `docs/tech/test-report.md` — **no-change**: o protocolo do runner não mudou; a suíte ganhou
+  testes de corpus/checker/scaffold.
+
+<!-- triaged: eb55f80 -->

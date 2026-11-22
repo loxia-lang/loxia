@@ -43,7 +43,7 @@ Packages by phase (dependency only downward):
 
 | Package | Phase |
 | --- | --- |
-| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`) and `ast_printer` |
+| [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`), `ast_printer` (debug) and `ast_json` (oracle, ADR-0129) |
 | [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`) and gradual `checker` |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
@@ -156,10 +156,20 @@ Packages by phase (dependency only downward):
 | [`loxia_core/execution/natives/math.py`](../../loxia_core/execution/natives/math.py) | deterministic `math.*` (abs/min/max/clamp/floor/ceil/round/trunc/sqrt) |
 | [`loxia_core/execution/natives/modules.py`](../../loxia_core/execution/natives/modules.py) | assembly of native namespaces |
 | [`loxia_core/frontend/ast_printer.py`](../../loxia_core/frontend/ast_printer.py) | S-expression dump (debug/tests) |
+| [`loxia_core/frontend/ast_json.py`](../../loxia_core/frontend/ast_json.py) | versioned AST JSON (tokens + spans + node fields) for the per-file oracle (ADR-0129) |
+| [`tools/oracle_snapshot.py`](../../tools/oracle_snapshot.py) | freezes AST/formatter/diagnostics over `std/`, `tests/cases/` and `examples/` (ADR-0129) |
 
 `loxia_core` is a normal package (`__init__.py`). Imports are always absolute and point to
 the phase package (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
 import wrap_int`). The program runs from the repository root.
+
+### Front-end baseline (2026-11-21)
+
+`make frontend-bench` roda [`tools/frontend_bench.py`](../../tools/frontend_bench.py) sem
+subprocesso e sem CI: no corpus de 2026-11-21 (339 arquivos, 310 parseáveis, 59 175 tokens,
+2 481 statements), parse ~400 ms e `format_source` ~690 ms (mediana de 3), com pico de
+~1,5 MiB no `tracemalloc` para parse+format. É medida Python; o port em Lox/nativo tem
+orçamento próprio (512 MiB/10k chamadas) e será medido na fase D.
 
 ## Visitor
 
