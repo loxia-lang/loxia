@@ -1,7 +1,7 @@
 ---
 name: lox-converge
 description: Auditoria de convergência pós-feature — confere se tudo o que o PR/issue/ADR prometeu foi implementado, testado, documentado e policiado, e caça bugs no raio de explosão da mudança.
-whenToUse: Ao terminar uma feature ou fix, antes de abrir ou mergear o PR, ou quando alguém perguntar "ficou tudo?". Não use para decidir design (isso é ADR/`lox-syntax`).
+whenToUse: Ao terminar uma feature ou fix, antes de abrir ou mergear o PR, ou quando alguém perguntar "ficou tudo?". Não use durante a implementação (congele o diff antes), nem para decidir design (isso é ADR/`lox-syntax`).
 ---
 
 # Convergência pós-feature
@@ -114,20 +114,114 @@ caso golden é lacuna de DoD, não "ressalva".
 
 - **BLOQUEIA** — promessa ausente, bug reproduzido, I1/I3/I4 violado, comportamento novo
   sem teste, gerado editado à mão.
-- **RESSALVA** — promessa parcial declarada, doc/ADR pendente com issue, follow-up fora do
-  diff.
+- **RESSALVA** — promessa parcial declarada **com issue aberta**, doc/ADR pendente com issue,
+  ou follow-up fora do diff com issue. Sem issue, não é RESSALVA: é BLOQUEIA.
 - **OK** — matriz completa e evidência em cada linha.
 
 Toda saída termina com **"não verificado"** (o que você não abriu nem rodou) e cada achado
 segue o formato: *o que o código faz / o que quebra / o fix / o que acontece se ignorar*.
 
+### Ressalva não corrigida vira issue — no mesmo PR
+
+O maior risco de uma RESSALVA é ela virar “aceita para sempre” porque ninguém lembra. Regra:
+
+1. **Abra a issue antes de fechar o PR** e linke no corpo do PR. Sem link, o veredito é
+   BLOQUEIA; não existe RESSALVA verbal.
+2. Se a correção for adiada, a issue precisa de contexto, evidência, impacto, critério de
+   aceite e origem (PR/ADR). Use este corpo:
+
+```text
+Contexto: <o que foi entregue e o que ficou parcial>
+Evidência: <arquivo:linha ou comando + saída>
+Impacto se ignorar: <o que quebra na fase seguinte / quem sente>
+Critério de aceite: <teste que falharia hoje; comportamento observável>
+Origem: <PR #N / ADR-XXXX>
+```
+
+```bash
+gh issue create --title "..." --label "area:<area>" --label "P2" --label "size:S" \
+  --body-file /tmp/ressalva.md
+```
+
+Labels: `P0–P3`, `area:*`, `size:*` (`docs/roadmap.md` §Regras). Se não houver acesso ao
+tracker, **peça ao humano para abrir** e mantenha o PR bloqueado; o roadmap não é backlog.
+3. Se a ressalva for uma **decisão de design** (não bug), ela não vira issue de follow-up:
+   vira Discussion › Ideas ou ADR próprio, e o PR declara qual dos dois.
+
 ## 7. Como rodar (DSH)
 
-- `subagent` com: contrato `C1..Cn`, `git diff`, os paths tocados e esta checklist. **Não**
-  passe a conversa de implementação — o valor é um par de olhos sem o vício do autor.
-- Diff grande (stack de 3 PRs) → um subagente por frente (semântica/checker, backend/
-  runtime, docs/CLI) e consolide a matriz no fim.
+### Escolha o modo
+
+| Mudança | Modo | Quem revisa |
+|---|---|---|
+| contrato público, CLI/schema, ABI, cross-layer, oráculo, self-host | **completo** | 2 subagentes + 1 re-check curto |
+| refactor interno, folha, docs, teste | **leve** | 1 revisor (ou checklist do autor), sem subagente |
+
+O modo completo é caro; use-o quando o custo de drift silencioso for alto. O leve ainda passa
+pela matriz e pelos gates — só não paga dois contextos independentes.
+
+### Congele antes de spawnar
+
+Converge sobre árvore em movimento produz relatório ambíguo (e retrabalho):
+
+```bash
+git status --short          # vazio, ou commit/stash antes
+git log --oneline dev..HEAD
+git diff dev...HEAD --stat
+```
+
+- **Não edite enquanto o revisor roda.** Achado que chega depois de um fix já aplicado é
+  ruído; o revisor não sabe o que é HEAD e o que é worktree.
+- Se precisar continuar trabalhando, materialize o HEAD (`git archive HEAD` em um diretório
+  temporário, ou worktree separada) e mande o revisor usar **aquela cópia**.
+- Congele o contrato `C1..Cn` no prompt. O revisor recebe promessas, não a conversa de
+  implementação.
+
+### Choreografia da rodada completa
+
+1. **Congele** o diff (acima) e escreva `C1..Cn`.
+2. **Spawne 2 em paralelo**: um de contrato/escopo/docs/CLI e um adversarial
+   (spans, bordas, determinismo, chamadores). Instrua **somente leitura**: não editar, não
+   stage/commit, não rodar `git init`/comandos que escrevem.
+3. **Time-box de 10–15 min** e orçamento de saída: matriz `C1..Cn`, no máximo 5 achados
+   ranqueados, lista de “não verificado”. Nada de rodar a suíte inteira; testes targeted.
+4. **Consolide** você mesmo: deduplique, separe bug de opinião de design, reproduza antes de
+   aceitar.
+5. **Corrija** BLOQUEIA/RESSALVA no mesmo PR; para cada RESSALVA que não for corrigida,
+   **abra a issue agora** (regra acima).
+6. **Commit** e só então um **re-check curto** no HEAD final: um revisor, só a tabela de
+   fechamento dos achados + regressões do raio. Não é uma terceira rodada completa.
+7. Feche o PR com a matriz, os links das issues e o que ficou “não verificado”.
+
+### Template do prompt (copiar)
+
+```text
+Repo: <path>  Branch: <branch>  HEAD: <sha>
+Read-only: não edite/stage/commit; não rode `git init` nem comandos que escrevem.
+Se a worktree estiver suja, use `git archive HEAD` e diga isso no relatório.
+Load skill lox-converge.
+
+Contrato (C1..Cn): <uma frase verificável por item>
+Arquivos tocados: <paths>
+Verifique implementação, teste, doc e gate de cada item; procure regressões no raio.
+Rode só testes targeted. Time-box: 15 min.
+
+Saída:
+- matriz C1..Cn (ok/parcial/ausente/fora) com evidência;
+- achados BLOQUEIA/RESSALVA (repro, impacto, fix);
+- lista “não verificado”.
+Não conserte nada.
+```
+
+- Diff grande (stack de 3 PRs) → um subagente por frente e consolide no fim.
 - `subagent_fork` só quando o auditor precisar do histórico da decisão; ele herda o viés.
+
+### Sinais de que o converge está caro demais
+
+- Revisor auditando worktree suja ou SHA diferente do HEAD do PR.
+- Revisor rodando `make check`/suíte inteira em vez de testes targeted.
+- Dois relatórios com os mesmos achados porque o prompt não delimitou a frente.
+- RESSALVA sem issue: daqui a duas sessões ninguém lembra; isso não é aceitável.
 
 ## Armadilhas
 
@@ -136,3 +230,5 @@ segue o formato: *o que o código faz / o que quebra / o fix / o que acontece se
 - Consertar durante a auditoria sem um caso que reproduza o bug primeiro.
 - Achar que `make check` verde é convergência: os gates provam invariantes, não completude.
 - Confundir "fora de escopo" com "não deu tempo".
+- Rodar converge no meio da implementação: o revisor audita um alvo que muda embaixo dele.
+- Aceitar RESSALVA sem issue: o passivo some do radar e volta como bug na fase seguinte.
