@@ -97,7 +97,9 @@ def create(
     package = validate_name(name) if name is not None else default_name(target)
     paths = template_paths(package, library=library)
     if not require_new:
-        conflicts = [relative for relative in paths if (target / relative).exists()]
+        conflicts = [
+            relative for relative in (*paths, "loxia.lock") if (target / relative).exists()
+        ]
         if conflicts:
             raise ScaffoldError(
                 "Directory already contains " + ", ".join(f"'{item}'" for item in conflicts) + "."

@@ -90,6 +90,19 @@ def test_init_lib_em_diretorio_existente(tmp_path: Path) -> None:
     assert _manifest(project)["package"] == {"name": "minha_lib", "version": "0.1.0"}
 
 
+def test_init_nao_sobrescreve_lock_existente(tmp_path: Path) -> None:
+    project = tmp_path / "app"
+    project.mkdir()
+    lock = project / "loxia.lock"
+    lock.write_text("# keep\n", encoding="utf-8")
+
+    result = _cli("init", "--no-git", cwd=project)
+
+    assert result.returncode == 65
+    assert "Directory already contains 'loxia.lock'." in result.stderr
+    assert lock.read_text(encoding="utf-8") == "# keep\n"
+
+
 def test_init_lib_nao_sobrescreve_modulo_existente(tmp_path: Path) -> None:
     project = tmp_path / "app"
     project.mkdir()
