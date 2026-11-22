@@ -520,6 +520,32 @@ BUILTIN_DOCS: tuple[BuiltinDoc, ...] = (
         "printable form or `std.hash.sha256Bytes` for the wrapper.",
     ),
     BuiltinDoc(
+        "regex_engine.compile",
+        "regex_engine.compile(pattern: String, flags: Int, mode: Int) -> List[Int]",
+        "Compiles a pattern and returns `[1, handle]`; on a syntax error it returns "
+        "`[0, code]` with a negative `code`.\n\n"
+        "`mode` is `0` (linear, the default: guaranteed linear time) or `1` (full: "
+        "backreferences and lookaround, bounded by a fixed backtracking limit). "
+        "`flags` is a mask: `1` caseless, `2` multiline, `4` dot-all, `8` extended. "
+        "Low level: most programs should use the `regex` module on top of it.",
+    ),
+    BuiltinDoc(
+        "regex_engine.find",
+        "regex_engine.find(handle: Int, subject: String, start: Int) -> List[Int]?",
+        "Matches a compiled pattern starting at the code-point offset `start`.\n\n"
+        "Returns `nil` when there is no match, otherwise the flat span list "
+        "`[start0, end0, start1, end1, ...]`, one pair per group, with `-1` for a group "
+        "that did not participate. Offsets count code points, like every string index. "
+        "Exceeding the backtracking limit raises `RuntimeError`.",
+    ),
+    BuiltinDoc(
+        "regex_engine.free",
+        "regex_engine.free(handle: Int) -> Nil",
+        "Releases a compiled pattern.\n\n"
+        "Idempotent: freeing twice, or freeing an unknown handle, is not an error. "
+        "There is no finalizer, so a program that compiles in a loop must free.",
+    ),
+    BuiltinDoc(
         "Bytes",
         "Bytes",
         "Immutable sequence of bytes (0..255).\n\n"

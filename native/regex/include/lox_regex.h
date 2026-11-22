@@ -38,6 +38,7 @@
 #define LOXR_ERR_HANDLE (-5)
 #define LOXR_ERR_UTF8 (-6)
 #define LOXR_ERR_HANDLES (-7)
+#define LOXR_ERR_CAPACITY (-8)
 #define LOXR_ERR_COMPILE (-10)
 
 /* ABI version; the loader refuses a mismatch. */

@@ -34,6 +34,7 @@ pub const ERR_LIMIT: i32 = -4;
 pub const ERR_HANDLE: i32 = -5;
 pub const ERR_UTF8: i32 = -6;
 pub const ERR_HANDLES: i32 = -7;
+pub const ERR_CAPACITY: i32 = -8;
 pub const ERR_COMPILE: i32 = -10;
 
 /// Upper bound on live compiled patterns; keeps the table bounded and the
@@ -143,6 +144,9 @@ fn write_spans<F>(
 where
     F: Fn(usize) -> Option<(usize, usize)>,
 {
+    if groups * 2 > capacity {
+        return ERR_CAPACITY;
+    }
     let mut written = 0usize;
     for index in 0..groups {
         if written + 2 > capacity {
@@ -398,6 +402,24 @@ mod tests {
     fn free_is_idempotent() {
         let handle = compile("a", 0, MODE_LINEAR);
         loxr_free(handle);
+        loxr_free(handle);
+    }
+
+    #[test]
+    fn insufficient_capacity_is_reported() {
+        let handle = compile(r"(a)(b)", 0, MODE_LINEAR);
+        let subject = "ab";
+        let bytes = subject.as_bytes();
+        let mut spans = vec![0i64; 2];
+        let code = loxr_match(
+            handle,
+            bytes.as_ptr(),
+            bytes.len(),
+            0,
+            spans.as_mut_ptr(),
+            spans.len(),
+        );
+        assert_eq!(code, ERR_CAPACITY);
         loxr_free(handle);
     }
 

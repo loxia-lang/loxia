@@ -91,5 +91,11 @@ void lox_time_sleep(int64_t, int32_t, int32_t);
 void * lox_digest_sha256(const void *);
 /* digest.sha256Bytes */
 void * lox_digest_sha256_bytes(const void *);
+/* regex_engine.compile */
+void * lox_regex_engine_compile(const void *, int64_t, int64_t, int32_t, int32_t);
+/* regex_engine.find */
+void * lox_regex_engine_find(int64_t, const void *, int64_t, int32_t, int32_t);
+/* regex_engine.free */
+void lox_regex_engine_free(int64_t, int32_t, int32_t);
 
 #endif /* LOX_KERNEL_GEN_H */

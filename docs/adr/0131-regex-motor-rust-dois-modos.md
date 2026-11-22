@@ -72,8 +72,9 @@ própria, num crate do monorepo, distribuído em dois estágios.**
 
 - Namespace primitivo **`regex_engine`** (neutro, evita colidir com o módulo público
   `regex`, mesmo padrão de `sqlite3`/`sqlite`): `compile(pattern, flags, mode)`,
-  `match(handle, subject, start)`, `free(handle)`. Três primitivas, teto 4, fora dos 40 do
-  kernel.
+  `find(handle, subject, start)`, `free(handle)`. Três primitivas, teto 4, fora dos 40 do
+  kernel. O nome é `find`, não `match`: `match` é palavra-chave da linguagem e não pode ser
+  membro acessado; a função C correspondente continua `loxr_match`.
 - `bundled/regex.lx`: `Regex`, `Match`, `RegexError`, `Mode`; `compile`,
   `isMatch`, `find`, `findAll`, `replace`, `replaceAll`, `split`; `$1`/`${name}` expandido
   em Lox; sem callback C→Lox na v1.
