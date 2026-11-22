@@ -24,6 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CASES_DIR = Path(__file__).resolve().parent / "cases"
 ENTRYPOINT = ROOT / "main.py"
 TIMEOUT_SECONDS = 20
+# Casos que compilam o crate na primeira execução precisam de folga.
+REQUIREMENT_TIMEOUTS = {"rust": 180}
+REQUIRES_LINE = re.compile(r"^#\s*requires:\s*([a-z0-9_-]+)\s*$")
 
 EXIT_SYNTAX_ERROR = 65
 EXIT_RUNTIME_ERROR = 70
@@ -74,17 +77,41 @@ def parse_expectations(source: str) -> Expectations:
     return Expectations(stdout=stdout, error=error, exit_code=exit_code)
 
 
+def requirements(source: str) -> set[str]:
+    """Capacidades externas exigidas pelo caso (`# requires: rust`)."""
+    found: set[str] = set()
+    for line in source.splitlines():
+        match = REQUIRES_LINE.match(line.strip())
+        if match is not None:
+            found.add(match.group(1))
+    return found
+
+
+def missing_requirements(path: Path) -> set[str]:
+    """Capacidades exigidas que não existem nesta máquina (vazio = roda)."""
+    from loxia_core.native_build import cargo_binary
+
+    missing: set[str] = set()
+    for requirement in requirements(path.read_text(encoding="utf-8")):
+        if requirement == "rust":
+            if cargo_binary() is None:
+                missing.add(requirement)
+        else:
+            raise ValueError(f"unknown requirement '{requirement}' in {path}")
+    return missing
+
+
 def _without_snippet(stderr: str) -> str:
     return "\n".join(line for line in stderr.splitlines() if not SNIPPET_LINE.match(line))
 
 
-def execute(path: Path) -> Executed:
+def execute(path: Path, timeout: int = TIMEOUT_SECONDS) -> Executed:
     process = subprocess.run(
         [sys.executable, str(ENTRYPOINT), str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,
-        timeout=TIMEOUT_SECONDS,
+        timeout=timeout,
         check=False,
     )
     return Executed(
@@ -96,8 +123,16 @@ def execute(path: Path) -> Executed:
 
 def check_case(path: Path) -> list[str]:
     """Retorna a lista de divergências (vazia = caso passou)."""
-    expectations = parse_expectations(path.read_text(encoding="utf-8"))
-    executed = execute(path)
+    source = path.read_text(encoding="utf-8")
+    expectations = parse_expectations(source)
+    timeout = max(
+        (
+            REQUIREMENT_TIMEOUTS.get(requirement, TIMEOUT_SECONDS)
+            for requirement in requirements(source)
+        ),
+        default=TIMEOUT_SECONDS,
+    )
+    executed = execute(path, timeout=timeout)
     problems: list[str] = []
 
     if executed.stdout != expectations.stdout:
@@ -144,8 +179,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     failures = 0
+    skipped = 0
 
     for case in cases:
+        missing = missing_requirements(case)
+        if missing:
+            skipped += 1
+            print(f"skip {case.relative_to(CASES_DIR)} (requer {', '.join(sorted(missing))})")
+            continue
         problems = check_case(case)
         name = case.relative_to(CASES_DIR)
         if problems:
@@ -156,7 +197,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"ok   {name}")
 
-    print(f"\n{len(cases) - failures}/{len(cases)} casos passaram")
+    total = len(cases) - skipped
+    print(f"\n{total - failures}/{total} casos passaram ({skipped} pulados)")
     return 1 if failures else 0
 
 

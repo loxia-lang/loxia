@@ -1,0 +1,77 @@
+# std.regex (bundled, ADR-0131): API pública sobre o motor nativo.
+# requires: rust
+import regex
+
+val compiled = regex.tryCompile("([A-Za-z]+) +([0-9]+)")
+if (compiled != nil) {
+  print(compiled.isMatch("abc 42"))
+  val found = compiled.find("x abc 42")
+  if (found != nil) {
+    print(found.text)
+    print(found.start)
+    print(found.end)
+    print(found.groups)
+  }
+  print(compiled.replace("abc 42", "<$0>"))
+  print(compiled.replaceAll("a 1 b 22", "<$2:$1>"))
+  print(compiled.split("a 1 b 22"))
+  val later = compiled.findFrom("a 1 b 22", 2)
+  if (later != nil) {
+    print(later.text)
+  }
+  print(compiled.findAll("a 1 b 22")[1].text)
+  compiled.close()
+  compiled.close()
+}
+
+val named = regex.tryCompile("(?P<word>[a-z]+)-(?P<num>[0-9]+)")
+if (named != nil) {
+  print(named.replace("abc-42", "$num:$word"))
+  print(named.replace("abc-42", "\${word}"))
+  named.close()
+}
+
+val unicode = regex.tryCompile("\\p{L}+")
+if (unicode != nil) {
+  for word in unicode.findAll("café ☕ abc") {
+    print(word.text)
+  }
+  unicode.close()
+}
+
+val caseless = regex.tryCompile("abc", true)
+if (caseless != nil) {
+  print(caseless.isMatch("ABC"))
+  caseless.close()
+}
+
+val full = regex.tryCompileFull("(\\w+) +\\1")
+if (full != nil) {
+  print(full.isMatch("oi oi"))
+  full.close()
+}
+
+print(regex.tryCompile("("))
+val bad = regex.compile("(")
+print(match bad {
+  Result.Ok(_) => "ok",
+  Result.Err(error) => error.kind
+})
+# expect: true
+# expect: abc 42
+# expect: 2
+# expect: 8
+# expect: ["abc", "42"]
+# expect: <abc 42>
+# expect: <1:a> <22:b>
+# expect: ["", " ", ""]
+# expect: b 22
+# expect: b 22
+# expect: 42:abc
+# expect: abc
+# expect: café
+# expect: abc
+# expect: true
+# expect: true
+# expect: nil
+# expect: syntax

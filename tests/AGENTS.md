@@ -19,8 +19,11 @@ print(inexistente);
 | `# expect runtime error: MSG` | stderr contains MSG; exit **70** |
 | `# expect error: MSG` | syntax/resolution error; exit **65** |
 | `# expect exit: N` | explicit exit code |
+| `# requires: rust` | skip when `cargo` is missing; the case gets a longer timeout |
 
 Without an error marker the case requires identical stdout, empty stderr and exit 0.
+A case that needs an external toolchain declares `# requires: rust`: the golden runner and
+the differential skip it when `cargo` is absent instead of failing the suite.
 Exit codes: 65 syntax, 70 runtime, 66 file not found.
 
 ## Rules

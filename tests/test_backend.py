@@ -23,6 +23,7 @@ import pytest
 
 from loxia.engine import Loxia
 from tests.corpus_manifest import COMPILE_ERRORS, LEVELS, NEGATIVE, PENDING
+from tests.runner import missing_requirements
 
 MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
 
@@ -426,6 +427,9 @@ def test_binario_concorda_com_interpretador(tmp_path: Path, source: str, label: 
 )
 def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
     path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
 
     interpreted = _interpret(path)
     result, binary = _build(path, tmp_path)

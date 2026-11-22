@@ -13,7 +13,7 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**23 features**, **102 golden references** across **13 levels**.
+**24 features**, **104 golden references** across **14 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
@@ -31,6 +31,7 @@ golden case and, for backend features, one case in the differential corpus
 | **maps** — Map[K, V], índice, métodos e iteração | [`map_literal.lx`](../../tests/cases/map_literal.lx), [`map_keys.lx`](../../tests/cases/map_keys.lx), [`map_methods.lx`](../../tests/cases/map_methods.lx), [`map_iteration.lx`](../../tests/cases/map_iteration.lx), [`map_equality.lx`](../../tests/cases/map_equality.lx) | `l6` |
 | **operators** — Aritmética, precedência, unários e bits | [`arithmetic.lx`](../../tests/cases/arithmetic.lx), [`precedence.lx`](../../tests/cases/precedence.lx), [`bitwise.lx`](../../tests/cases/bitwise.lx), [`exponentiation.lx`](../../tests/cases/exponentiation.lx), [`unary.lx`](../../tests/cases/unary.lx) | `l1` |
 | **optionals** — T?, narrowing, ?? e ?. | [`optional_scalars.lx`](../../tests/cases/optional_scalars.lx), [`optional_functions.lx`](../../tests/cases/optional_functions.lx), [`nil_aware.lx`](../../tests/cases/nil_aware.lx), [`optional_receiver.lx`](../../tests/cases/optional_receiver.lx), [`nil_value.lx`](../../tests/cases/nil_value.lx) | `l2.5` |
+| **regex** — Módulo embutido regex (motor Rust, linear e Full) | [`basic.lx`](../../tests/cases/std_regex/basic.lx), [`limits.lx`](../../tests/cases/std_regex/limits.lx) | `t4` |
 | **stdlib** — Módulos da stdlib (json, lists, maps, strings, property, rand) | [`std_json.lx`](../../tests/cases/std_json.lx), [`std_lists.lx`](../../tests/cases/std_lists.lx), [`std_maps.lx`](../../tests/cases/std_maps.lx), [`std_strings.lx`](../../tests/cases/std_strings.lx), [`std_property.lx`](../../tests/cases/std_property.lx), [`std_rand.lx`](../../tests/cases/std_rand.lx) | `t1` |
 | **stdlib_data** — Stdlib de dados: json, csv, fmt e utf8 | [`std_json.lx`](../../tests/cases/std_json.lx), [`std_csv.lx`](../../tests/cases/std_csv.lx), [`std_fmt.lx`](../../tests/cases/std_fmt.lx), [`std_utf8.lx`](../../tests/cases/std_utf8.lx) | `t2` |
 | **strings** — Strings, escapes, multilinha, raw e interpolação | [`strings.lx`](../../tests/cases/strings.lx), [`string_escapes.lx`](../../tests/cases/string_escapes.lx), [`multiline_strings.lx`](../../tests/cases/multiline_strings.lx), [`raw_strings.lx`](../../tests/cases/raw_strings.lx), [`interpolation.lx`](../../tests/cases/interpolation.lx), [`string_order.lx`](../../tests/cases/string_order.lx) | `l3` |
@@ -56,6 +57,7 @@ golden case and, for backend features, one case in the differential corpus
 | `t1` | 6 |
 | `t2` | 20 |
 | `t3` | 7 |
+| `t4` | 2 |
 | `k0` | 2 |
 | `l2` | 17 |
 

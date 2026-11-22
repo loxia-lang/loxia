@@ -61,9 +61,10 @@ missing, not a secret.
 | `t1` | 6 |
 | `t2` | 20 |
 | `t3` | 7 |
+| `t4` | 2 |
 | `t7` | 3 |
 
-**216 cases** across 13 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
+**218 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

@@ -1,0 +1,29 @@
+# std.regex (bundled, ADR-0131): linear termina; Full respeita o limite fixo.
+# requires: rust
+import regex
+
+val linear = regex.tryCompile("(a+)+$")
+if (linear != nil) {
+  var text = ""
+  var index = 0
+  while (index < 200) {
+    text = text + "a"
+    index = index + 1
+  }
+  print(linear.isMatch(text + "b"))
+  linear.close()
+}
+
+val full = regex.tryCompileFull("(a+)\\1b")
+if (full != nil) {
+  var subject = ""
+  var count = 0
+  while (count < 1500) {
+    subject = subject + "a"
+    count = count + 1
+  }
+  print(full.find(subject))
+  full.close()
+}
+# expect: false
+# expect runtime error: regex match limit exceeded.
