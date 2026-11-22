@@ -460,10 +460,14 @@ class Loxia:
             return False
 
         # ADR-0131: sem cargo não há `staticlib` para linkar; falha antes do lowering.
+        # A decisão olha só os usos de regex: `had_error` também fica verdadeiro para
+        # o erro rebaixável que virou panic site (deferred), e isso não é falta de
+        # toolchain — sem este recorte, um `print(1 + true)` sem cargo não compila.
         if cargo_binary() is None:
-            for use in named_uses(statements, self.interpreter.locals, REGEX_PRIMITIVES):
+            regex_uses = tuple(named_uses(statements, self.interpreter.locals, REGEX_PRIMITIVES))
+            for use in regex_uses:
                 self.reporter.error(use.token, TOOLCHAIN_MESSAGE, code=Code.TOOLCHAIN_MISSING)
-            if self.reporter.had_error:
+            if regex_uses:
                 self.flush("build", exit_code=65, always=True)
                 return False
 

@@ -147,3 +147,30 @@ def test_build_recusa_regex_sem_o_toolchain(
     assert built is False
     assert "E3022" in capsys.readouterr().err
     assert not (tmp_path / "app").exists()
+
+
+def test_build_nao_confunde_erro_rebaixavel_com_regex_sem_toolchain(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Sem cargo, um erro que vira panic (`1 + true`) não é falta de toolchain.
+
+    Regressão: o gate de regex consultava `reporter.had_error`, que já estava
+    verdadeiro pelo erro rebaixável deferido; o build saía 65 sem imprimir nada.
+    """
+    import loxia.engine as engine_module
+
+    pytest.importorskip("llvmlite")
+    import loxia_core.backend.driver as driver_module
+
+    monkeypatch.setattr(engine_module, "cargo_binary", lambda: None)
+    calls: list[str] = []
+    monkeypatch.setattr(driver_module, "build", lambda *args, **kwargs: calls.append("build"))
+
+    lox = Loxia()
+    built = lox.build("print(1 + true)\n", emit="ll", output=None, stem="caso")
+
+    assert built is True
+    assert calls == ["build"]
+    assert not lox.reporter.had_fatal_error
+    assert lox.reporter.batch().diagnostics == ()
+    assert capsys.readouterr().err == ""
