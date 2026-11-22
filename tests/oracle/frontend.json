@@ -1,0 +1,3004 @@
+{
+  "ast": {
+    "examples/classes.lx": "278331ef78c5a9ed290148fd9f9b64189ff34d9a24f96917a9465082edd6da0b",
+    "examples/closures.lx": "037f18e7ac362770ef2ef8c57012add9864d5e6b642df63904a57c4db858ded4",
+    "examples/fib.lx": "629d2dc1f4d0c00ca628ef3c32d0520736b205f09f5f733747e864a37a09f8a3",
+    "examples/fizzbuzz.lx": "a1c11706eacc7fbbf48eda8ba82d9a8b33ea78f61e49dadbc2b9dbfad282240d",
+    "examples/primes.lx": "8d40ad64d561167e4560769178041eed5c85976a909af3bd0aa9eb9d8fc1219b",
+    "examples/quicksort.lx": "85e67f7c077bc98f38201ee28797b630de07078f8738773aea0c496495fa4dff",
+    "examples/sales.lx": "82f4166e800e80bc0f84602652ea8bc43c7437ecd572e7d6bf9e3f29a99fbf24",
+    "std/asserts.lx": "b27e18244be060acc3c30707a3f777d9f1d32a100157f8f0d10a76acacb1670e",
+    "std/bytes.lx": "87795d0aba0317b6fc31ba6617bad1fb5acbc5bf2b65838511e3b74728a13f08",
+    "std/cli.lx": "8e7bb450dae6cbd20d2241ddb010e0f0973a177b02f6f4b5dbc227c2cbeaeff8",
+    "std/collections.lx": "9d18b2611fd25016da1b1d0c6a5cfd722cb3f45b0d0498c89dcf65a37f3ddaae",
+    "std/contracts.lx": "b12e197c3522e941ae01d36b6bba3d39c49c1bb73ae8ce4af808ab1e944b18d1",
+    "std/convert.lx": "15e5d62cc060bdbad2e368f5fc24d3ac001cf52901af1ac33e3fe28c58b54ff0",
+    "std/csv.lx": "5f3866e1cc30cf22e059de98ae8fad204443cf870bfd91150d743701dc0fc9f8",
+    "std/documents.lx": "0a9e759276f25b82e80bcb96c8c61c545d691937df01e812dae4c8b47dc46646",
+    "std/fmt.lx": "ee3ea5c8bc566c0456b11debb606d0dce27b7faac66af7c61a30a52713a3a569",
+    "std/framing.lx": "8f5e206327ef8bc197620cd359b7c174433e870069d92f8f92948785be26da96",
+    "std/fs.lx": "7e3c268b2775804d62bec6a384d534c2db7808e19ca77a8fead5c27c03de3cb8",
+    "std/hash.lx": "0fc5ea248eea53569d6c796507f8905d43e33067b918beea034e763a10e50774",
+    "std/io.lx": "f877863362fcde838cd0367ba049468352ec1cd17c974af259156e443fe03781",
+    "std/iter.lx": "c2dc2c128e92d86e5b4d4c3c4e2352bb152dd1309b0c447317f4d5832a7b36b1",
+    "std/json.lx": "3c1ab916fba9bad4a461fa1c81d16b731da946495079eb40965ba7b6c3dd7114",
+    "std/jsonrpc.lx": "9ce7d11ceb6f84a2c69b1b0731fdfb5515ea5362f06ccf77204fcfc2a24b429d",
+    "std/lists.lx": "d2e4417411a4b8aaa3519964578b124d9e70943828ca959b91bb626b690a80cc",
+    "std/log.lx": "b3d1e8a7ee56f3ef27597471fba4ff77eb02c1fb72df866c61bdc2ab3bea6082",
+    "std/maps.lx": "d5f136790a1e19805d9b22f8000e0e1c3fd5c55b9883fba11c2ad2b41a733901",
+    "std/numeric.lx": "e5c47a8eded3619b27e4750f9fd3b98c00a944513164d81e6a14045ba7e822ba",
+    "std/paths.lx": "04f2c4ea9b966fff9f390a873a77e0debdf3e5f792a2667874d4599aa14ea38b",
+    "std/proc.lx": "2e19ed0e2f196a01a828ca15fc1a8cabb0124b70e1f09fe2750079b10c7882c4",
+    "std/property.lx": "397b6dace749833dde6a49da0fff22cfbaf7e443aa2aabff5d38503c6c5080e1",
+    "std/rand.lx": "7c71a4fb6fbeecbff6766f025da1161a7c2f121fde6a8550ca042787b7edd23a",
+    "std/results.lx": "fef0b0bd47d86a17d77984a348746f86f464f0e6105713764af453866c4a52c3",
+    "std/sets.lx": "263d7882633261b5bc09f6044dc7941e9f07266d3108c46ca54c937c75a64d65",
+    "std/strings.lx": "2fe4e706b9a3f703c59fdb6f98d3eba3c88ab9e82f7fe020c683a649d40c44fc",
+    "std/test.lx": "aa180db1aabf71bd59e343e79df99efa823a7d4263ee6dc37f50d82737c619ed",
+    "std/timex.lx": "a702370113c6d7bebd6bc72a1f56d488c596b62e7a4378134984b5f35aca3df8",
+    "std/utf8.lx": "70156b6f0e0a946aecec1e1e4960cbcaf3d85db250d574419bf8c358e2ebf9fe",
+    "tests/cases/any_box.lx": "c2ca5428b1ba973e0f9582dfb4c31e22d4226bc6604dc535b5fe7b7be799297e",
+    "tests/cases/any_casts.lx": "74681d4774f7e2791e85ebe2b11f8dd37ca48ee133decb07b788546a10e8a47b",
+    "tests/cases/arguments_order.lx": "9a87a60e807ae44a82a44b021d9b154b2add744c29636dd0059ef78f3bbe3373",
+    "tests/cases/arithmetic.lx": "a0a951b4a7086bdfd8ed9c782c0971194e825cb779c543b7c955f17124ad6da6",
+    "tests/cases/assignment.lx": "75003919a76d819a7cc2f9cf38fbab9359a7bdc9b4ef003d7c8562e2521d2f49",
+    "tests/cases/bitwise.lx": "6d177aa166f6af3222bb10fee2cc9865355e373807b23ce5a2fe5024b6987ae6",
+    "tests/cases/bitwise_precedence.lx": "49c161ae5fd94cb6a7e99af6b3e9eef83755deb2eecf9b6b5543aa31ffe1d408",
+    "tests/cases/block_scope.lx": "d8b94a257fdbaa625995b30792cf4eabc03498936f1b4e68bc63c6b6bb4af5c3",
+    "tests/cases/builtin_shadow_local.lx": "9d3a11c16ffc5bf6691a34eed22537d636ff6e525803eade54777b90faff8b65",
+    "tests/cases/bytes/bytes_any.lx": "c3c22cc69ef2aeebdb37cebc08a50e9c29bb0327594cefc542faa60ffd38eaa7",
+    "tests/cases/bytes/bytes_core.lx": "4466bb33442ac749d854db770dbde965c8679afb338097901167d6da8aad6cc2",
+    "tests/cases/bytes/bytes_empty.lx": "62bfdba37ff25ddb38de79e599a0b5911206bf3f8f46f47a6dea01a801b18912",
+    "tests/cases/bytes/bytes_errors.lx": "525e7a798b4224758112168699dcd320b29d12a010eff305ca16028a78cdadf3",
+    "tests/cases/bytes/bytes_for.lx": "c591cd3587e4d862b94f718b525c219d30967e255b4743f45a433dadb20fd5a7",
+    "tests/cases/bytes/bytes_from_list_error_site.lx": "48c19f3849942c8d43a82a1e35acd43330bce5591720ee745d121a7154e837b8",
+    "tests/cases/bytes/bytes_method_value.lx": "72ce1a75a00abec820b7c594ca8615546eda74774410d0baec470e7d5a4eb60d",
+    "tests/cases/bytes/bytes_result.lx": "f6a0b60a1a6420faa1079c80942c62e60720b79dff35eb9e529e4b9046c6a83b",
+    "tests/cases/bytes/bytes_shadow.lx": "c0202aa174c878622fb164fb1bd203eff530179043b0e023b985090b708230af",
+    "tests/cases/bytes/bytes_shapes.lx": "3aed3019c99436224d0703c276f1ebbfd0d5470c68b3802e61bca49a15169f27",
+    "tests/cases/bytes/bytes_slice_error_site.lx": "fe457d8fa388bf09ea9c991278f6e45ce4b7dd7fc20887312549ee24369f2336",
+    "tests/cases/bytes/bytes_truthy.lx": "95b866aaf1eed068876b5c958dea4a06da801c4d27b3a7050ba3fc3f44fc858c",
+    "tests/cases/casts_math.lx": "f6d6ca6cd3bcf5dbef253f5d8852e4fd9a37a2a4d535fd9dbeb3a1525cba42f6",
+    "tests/cases/char_code_at_bounds.lx": "52fcfae863036a4d3e09a2ba9bc92913ecf0b43e5bcf18a3a88c29f03b18c035",
+    "tests/cases/class_bound_method.lx": "28210df1f4381eb22b3c9e2a27e8572e1b666d62d28f72764c51ddd5232a6704",
+    "tests/cases/class_fields.lx": "3926303b6308eff7bd188f6e55f01f1c29ab8c6f03f580f5d7833d1a106acc25",
+    "tests/cases/class_identity.lx": "ac0a90209071daca542ee919d2eaf0a4a4f7a28389fe8d8098fc99094f280728",
+    "tests/cases/class_identity_as.lx": "c58139b452609ec654516affab19f1d82a8604c14a3259dadba84ae6969caca7",
+    "tests/cases/class_initializer.lx": "73520b812bb1dbd2af1a5acdb2de6bfd2c85b01999546cfca615a8d3aff35f34",
+    "tests/cases/class_self_return.lx": "dc164a88b0d3aedfd86282c2009458e32688127cf9ba765948c07df2ec89ffeb",
+    "tests/cases/class_str_print.lx": "03151dd41b5b7f458d21167f1eb6784a96d9712385ebefe20df789f425845773",
+    "tests/cases/class_this.lx": "d63983e51245898e20c7bbb1609016fd1e02f40dad45a9661878ae8bcf5ffe85",
+    "tests/cases/class_uninitialized_read.lx": "587b78a50ba07a43380627451e91565dc662354d6a3ff3b210a1d56772d5d5ef",
+    "tests/cases/class_val_twice.lx": "5a56b80447f08962bde25a0e87a77154068eadc3ffb4d654331f91d0c13dce73",
+    "tests/cases/classes.lx": "1c7e064ac13fe80812335ec120c39c24df7659ed8a5cf1aa4426b0aa1a96cec6",
+    "tests/cases/closure_in_list.lx": "54c041dc4848f69d378ecc2e5b81e16eecfd08a157036d355c857e38af5c307c",
+    "tests/cases/closure_reassign.lx": "ff6b798ab5d012e7345a2906cce4c0b1e00c52df677e7d386605a0bda32eccae",
+    "tests/cases/closure_static_scope.lx": "f7b60c6f8a05ea796d0ec79c011fe5d16561a9f9821df7661ae2d4f736a807cd",
+    "tests/cases/closures.lx": "3b12831481903250bed0cc2fb4252ac82f96646db238b39edb84a4f6a0ba58e9",
+    "tests/cases/comments.lx": "ddb75c7466f291dc21312b8c583ab290474939a2196d7b6237ec58d6d7429a6d",
+    "tests/cases/comparison.lx": "7561e1b6700ec11814aea32b4b5cd9e0061890ef63c6e99a937c185168d2bd1b",
+    "tests/cases/default_params.lx": "65d15cea61f7dbad63febdcfd45a424db3165001d183511ef32cadadf56312e4",
+    "tests/cases/defaults_as_value.lx": "df05238d635b91d1fb0fa3432a97dc92ea9afcdcd24a8350f7de9dba1665c859",
+    "tests/cases/elif.lx": "3540e6a34220b2fdba25d6fb2ce4a83156ff744b0b156efb057c066d2383f627",
+    "tests/cases/enums.lx": "928a0dd0d9df5b6eaa2e6f614f53c2a2f4336d81aa89ae275930dea154ed9744",
+    "tests/cases/equality.lx": "3621cc6c4d70c09f3fa72fc3e8466a1a0db70bc9f0fed0fe06f19501b4cd18bf",
+    "tests/cases/errors/arity.lx": "5b48b2d7d1019291172b76e43ea919d6f38c7f5258d3cf3389635edda8e714eb",
+    "tests/cases/errors/arity_default_max.lx": "0af9a14a8cb70261b1b160d2fe2a98292909150a08414b2298acf100d87e3b32",
+    "tests/cases/errors/arity_default_min.lx": "e3c1a1bbe19b75397a423751993c7b380c329537d8552bc486693b4b199e2bdd",
+    "tests/cases/errors/assign_val_global.lx": "74f8f4ec87ff806db5292cc69f09ede7c61ecf71b2e6671949d7ee067bf7dbb1",
+    "tests/cases/errors/assign_val_local.lx": "2fb6bd8f93d69d524bf00d14a39bdfe7f9629f619a29d5253688313a5173dab7",
+    "tests/cases/errors/bitwise_type.lx": "80ecba526b042c6f12febfd6c628573546ff0f71dd08cc5d8de0fd784304b403",
+    "tests/cases/errors/builtin_redeclare.lx": "0a02fc0638e9a7a7b8bb5d42518cb50a98f44291633c93ea6cccc0782cdc96f3",
+    "tests/cases/errors/class_inherit_self.lx": "969972d67c0edd6a19a06bcfc3da47cd471f5d9169246e73ef53fcc0d07fedde",
+    "tests/cases/errors/division_by_zero.lx": "610da977983d2b4dae654aa5dd523224c6139b4825ba599bb93d4398626ffbc3",
+    "tests/cases/errors/division_by_zero_int.lx": "643e555ad7487e1495584ae43520ebf9a3ccb4c42101d1ffa2c23b89fa2669a2",
+    "tests/cases/errors/division_float_by_zero.lx": "ec5aaec1a13f136b25f8572e47b0324dd30f472c6f0ea7e11a2bd6e46386573a",
+    "tests/cases/errors/duplicate_parameter.lx": "393a23b3d76caa53f45d4b3f495793ec6ddbb6620e6ba328259582773d2a6929",
+    "tests/cases/errors/field_immutable.lx": "faf6c6e1cbe2906949a77da08a463e73d92473efd57c3501ecb8e3ffc61847c0",
+    "tests/cases/errors/field_inherit_redeclare.lx": "7ebdb98d3e445f47401028e95684618093112d67ccc1ef4cf2ec3ed730ee1896",
+    "tests/cases/errors/field_redeclare.lx": "a5e979df6473f7e8d2243d4cb11dc35a9fa421fc94970a97d2dd251b2ba72b74",
+    "tests/cases/errors/field_uninitialized.lx": "422932a241d6eb3d8c91cd3287529623af637a633a6fe06705e6e8ab347271d5",
+    "tests/cases/errors/field_unknown.lx": "2fa0b716d318e4ae9f8cec8c2a134d1ae350469c6513b11271784abaf781beba",
+    "tests/cases/errors/field_val_outside_init.lx": "2a28566d1d30beb4806581e9193cd72097931f157599cb0ac74e9eb319819f1d",
+    "tests/cases/errors/for_in_immutable.lx": "6a3af3895d582878ea3a2afad995f4c37dcc6561eab3a21b911213defd3fed02",
+    "tests/cases/errors/for_in_not_iterable.lx": "0795000d75b0c4a25dc2436f6e0c707aff1249e1e6535fb73f244baca5b3efe5",
+    "tests/cases/errors/initializer_arity.lx": "ac6316a7c68578cc0daa33cd5121d9e4559c97d8e0357b3f7082102e1905f54f",
+    "tests/cases/errors/initializer_return_value.lx": "b85a6d1b6d09142b098ec798adc0e98a1ae45d5d212075c1cc2df88b8eb9658b",
+    "tests/cases/errors/intdiv_type.lx": "0ca15a83941e6ba639f8f4175bb92249fc06a3cdb695b4fce35d483e59f9bd3b",
+    "tests/cases/errors/interpolation_undefined.lx": "8b1d980432fab2fdcfa18cde1d0d2c749b7f7294f9320b9d210f7e287989fec6",
+    "tests/cases/errors/list_index_assign_bounds.lx": "c9b9d7c6d869e671e41042db6d2aa0b6e60e600dd18c8cc6fafbe270fb58737c",
+    "tests/cases/errors/list_index_bounds.lx": "2543f07a19c3fc3e3d0fd6c34449533d3211f16be2a92a4a595dec9b3edb8bbe",
+    "tests/cases/errors/list_index_negative.lx": "f83bbe6a5ae5c91c70e95f670e7b02e0ad52b4898d5e7284e8a311460fa75707",
+    "tests/cases/errors/list_index_type.lx": "59afffe2208b188c1304e335f28aafbb6976c4606cfe82d0c33f574ae7c37f39",
+    "tests/cases/errors/list_len_type.lx": "101caa5e695b8102c5518fb3f2a83d2da81d68d4332bab41574f84e0ace54898",
+    "tests/cases/errors/list_mutate_iterating.lx": "de92cd7d20ece7cf442a48d57b68f5bfd2fd6b47652708106f6be6357e1e1030",
+    "tests/cases/errors/list_not_indexable.lx": "2817d12b70a67203177373bbe2844964ea33a40fc878818dd62a50d504daa1ec",
+    "tests/cases/errors/list_pop_empty.lx": "899da1167d31c9a18a77335e3de34a1e18c818398fc487dbc00e476062877aec",
+    "tests/cases/errors/list_push_arity.lx": "8b1ee3b58af32dc9cec7fb72c56a8c961d42978c9939bc1948fcf03880bb8d5d",
+    "tests/cases/errors/list_unknown_method.lx": "d1e4dfae1f5f757834990c2a0dd3b3d88138fd1f25b26c8650839cde99730913",
+    "tests/cases/errors/map_duplicate_key.lx": "c8d5e4a4acddd4d5eea591401117455af718de713c37d5d242f0955cc7a9a936",
+    "tests/cases/errors/map_iteration_mutation.lx": "ac0af12e33db7cf0ed557b04e5f8c2626a9b0fb300a20fb4df6b3f01f0fb294c",
+    "tests/cases/errors/map_key_type.lx": "b987cc94d01ef78a90e6ed7a821756b0daf42af4e7650acf0c3c4ba76a8ec6e0",
+    "tests/cases/errors/map_literal_key_type.lx": "880df30ad9931ddeafa2795ce371b6702b1d091dad0acc1fa9d221c6adea7c79",
+    "tests/cases/errors/map_literal_key_variable.lx": "217aef022c1ba114106bba16cdc080fe9f6e21b325a46f7543c0efa85c89541f",
+    "tests/cases/errors/map_missing_key.lx": "c79e4685b7936945b1db75d9f8455d4797b295446eb309160a25e47230c1be02",
+    "tests/cases/errors/map_remove_missing.lx": "7ebd2bd8d92ce4bb00dda09c9a8ad3ec92c2b82cae0cc7e0af603f5647d1e903",
+    "tests/cases/errors/method_arity.lx": "d8ae9a22d42e57c06932f2507407cc3bc0aefccb16731979383c7a1fa971a1c9",
+    "tests/cases/errors/modulo_by_zero.lx": "57593e3d89aa257a56bb6f39da35d35d496e2dfe48493854e6a14b1724957580",
+    "tests/cases/errors/modulo_type.lx": "a5282e136901ba9ce8661f85fe5bbd57e4c918cebbee37855c480176205b369f",
+    "tests/cases/errors/negative_int_exponent.lx": "85eece5d38f0f2a6e21f2c1e2b10428665db56d5953ae731fc7491b53e8ddd2d",
+    "tests/cases/errors/nested_destructure_arity.lx": "3b11662fe22a118557016119ac63177c15e21739b73cd6e1261620655a534cfe",
+    "tests/cases/errors/nested_destructure_non_tuple.lx": "6b6249dbb2cad01a4736c52fd3e19b1ec9ac4a7c6c3f844dfd8a72abfd36b2a9",
+    "tests/cases/errors/not_callable.lx": "a23d424e0f9182a82fb31460c0eb2c2f04217257098c0d61118bc35a17ed6292",
+    "tests/cases/errors/only_instances_have_fields.lx": "2c998fabfd697f3f7d696a42c938aec694bbf549b9739d12426c655415b4cf74",
+    "tests/cases/errors/only_instances_have_properties.lx": "84e6432c153b2cf74a50a5ef43f5022df3c0873ffdd04e4fcb12f10640874ce4",
+    "tests/cases/errors/optional_not_instance.lx": "bebe523b21cd787ef2f096e2f2c2d2da1215a64db7a04cb1e749d8d3a5dd1d37",
+    "tests/cases/errors/param_immutable.lx": "5912cbde6f20519b240d71d147f276db13aa0d7ad2cd36c224bc2b9002dbf26b",
+    "tests/cases/errors/parameter_redeclaration.lx": "39528eaf30898f5df22ba9f694904c393fbde775bfe3e8d2f721c48d0a720576",
+    "tests/cases/errors/pow_invalid_domain.lx": "4fb300ad5f7d66f0a7ea32676046662e7cd6fd2df77b91f2f13883fd7fa056dc",
+    "tests/cases/errors/pow_overflow.lx": "91fd61b19674f6c82b5f871274675b454045e96d6c26d19affc5f0752036887d",
+    "tests/cases/errors/range_args_type.lx": "cc291911d6348f59fb5f1e09296f023e1cac9504c99a8344dcb3fbf2715071af",
+    "tests/cases/errors/range_arity.lx": "0566531774fcc186fe0ce29b2f8e4c639e36314f9c547713204d7affa62e9a8d",
+    "tests/cases/errors/range_bounds.lx": "21f0c3c5d026434047e9469ba80390363bb6b34e29e28fcf8c7806c0eb0ba88f",
+    "tests/cases/errors/range_step_zero.lx": "83c48f3c95f1c338ceb27a02a71ff7a7df1ecae3e39567499c0572308d495e99",
+    "tests/cases/errors/redeclaration.lx": "d871fd9b654b681c94e8130c369ae61cc7029efd62452bebf47fefd979727ef5",
+    "tests/cases/errors/self_initializer.lx": "14aa7a5653e0e48bb9fa88975b9ff70b0aa94c093aa39462f84ac46586996ad9",
+    "tests/cases/errors/shift_count.lx": "21a5c6e80229fa327143cddf7c84169f80b2c49c1bef640993fda6aab0e1ce24",
+    "tests/cases/errors/super_outside_class.lx": "46a9265b2be70ae885add3665b9d71f2efe6040b1f499508fdd30d2c6fc5a001",
+    "tests/cases/errors/super_undefined_method.lx": "c3c1ad01358a4232096e8df68d0ddfb6e002ec05a90e0a2241dd6a08b21e8c4b",
+    "tests/cases/errors/super_without_superclass.lx": "1b18ad31115ee3ecaade1577214eea4cd9e715dc511ae1993d7f793a9355fef6",
+    "tests/cases/errors/superclass_not_class.lx": "eed6e83bc1b74d50acd56b0da28611acf847dd4ecf750e1054d084db5de7afce",
+    "tests/cases/errors/this_outside_class.lx": "95d80bea385aac8183664ac1f93f473148b6ab5b9fb267fa656d90b8c608ca6c",
+    "tests/cases/errors/top_level_return.lx": "21e7d3699234187667e57ac553aed9054e0e9ab586b676d74b10f638db6489e2",
+    "tests/cases/errors/type_mismatch_add.lx": "f1eea1a81aeac8824f76f2f0bbc1939b11d5ea3cdb70586c385f0df500a05f0e",
+    "tests/cases/errors/unary_not_number.lx": "b0aab31cf714bd4826dd8e0618af5ac152473d0f655a94e0bdcb7e76cb44925d",
+    "tests/cases/errors/undefined_assignment.lx": "0a5dd79258a005307194313c2a7bb153d3d0690d804ec5d540a2c4ac8374bb42",
+    "tests/cases/errors/undefined_property.lx": "5d05bb095d666fdc25eb3465db55917093cb562dd345525cc3db2e5424d4a29e",
+    "tests/cases/errors/undefined_variable.lx": "b0bd238014cf8aedd850601dfa1e00fffd4c8c2ce1d0171f8237222b2719b3e3",
+    "tests/cases/errors/val_redeclare_global.lx": "191715989a4e933c56101877bc8af5e9040661851a42ec12a690ff9bb20eac46",
+    "tests/cases/errors/val_redeclare_local.lx": "5fe2072c83553b62e4d5a6b59c49c32c0641a91c4ec3aefb432b1103d50750d7",
+    "tests/cases/exception_site.lx": "cd09d77d40a6db70f064614a5f5dfb005d9a28455b963d7b9c1074f1402552a5",
+    "tests/cases/exceptions.lx": "bb42f0e6a45c50275b83a3d40c3f7eea7e285b60d6fa7f04dea5186acba24acd",
+    "tests/cases/exponentiation.lx": "b15704dfc8bf74f4c5fa9079032745254d5996f51756d330cac52a3e4c9ec1df",
+    "tests/cases/fields_inheritance.lx": "a7c9e390cc56799de49df04d21b7e09237e0d136717c2b61ecc3f2f7c2428d28",
+    "tests/cases/fields_val_var.lx": "429c2f195a696e68e937ef70ba8c6e6a58a7e45f973be2fca5b8aaef4f45b995",
+    "tests/cases/for.lx": "7ce0dd64567e7d15a3761099f838d0c3313bba9378f8b73c02c7eff5014ee25a",
+    "tests/cases/for_in.lx": "749a0d798412df5a141a29afeffd10a3e319df4f7b13d225b5cc7f27bbccbe2d",
+    "tests/cases/for_in_capture.lx": "7cd8ecd8bc064f5397774ada5b8beb1034325f8a41080cdbb9e7cf915bf41148",
+    "tests/cases/function_values.lx": "ee6c5444e73d370098915216396ee33c9458243fc44da705af60ee487a900bbe",
+    "tests/cases/functions.lx": "6f2f1a670610c9edcfa11d8dce745250e63b6e0d9f74235b3fd493647d9a4801",
+    "tests/cases/generic_class.lx": "2db7b04cf59df98ef6e6baae044c6a6721738999a60535ab7383b83a102ede35",
+    "tests/cases/generic_constraints.lx": "cb0fef78dfa9d402ef60c39435b8f9c0458332583a0f1254940be40d77226950",
+    "tests/cases/generic_functions.lx": "7d3300bf2be0451c5f87a712105b0ea6e5871810332cbf8405c67ed4c7f7dff4",
+    "tests/cases/generic_lambda_value.lx": "b12f6fdedb501be5e60a10056eddc86ae157bc281500ef980e4a9f048df90631",
+    "tests/cases/generics.lx": "966de31991f1896708adf086aaa79e8a33d5329cf56651abc8a6cfa8e8ce6bce",
+    "tests/cases/if_else.lx": "94abd56703460e457bd999e0798300c9862412ae66e622fef5f9fdc5c2614249",
+    "tests/cases/inheritance.lx": "938a59a77c132a5a7bb7f29386a5b43a2340f9858f7a0cc0da9b38ba7017b717",
+    "tests/cases/inheritance_init.lx": "9353d604f66e05e4d7668b167677836e88bd3a674106d1437d0c5542e3465cc9",
+    "tests/cases/inheritance_override.lx": "4bb10aae9cbc9c279cd80225f6468ee3320381cec6b2c4c7b8a023b3608480ed",
+    "tests/cases/inheritance_super_init.lx": "7659d2ff8f29844c4a1ddba79b15a6fef16c270cfc11598b151025ce23f02374",
+    "tests/cases/int_division.lx": "30782f449931afba9a262ff2f021d0a767e6336c8a0a3708d8a0c0d48554698f",
+    "tests/cases/interface_decl.lx": "dbac21da4e311df29e057daf86481d1e5d99d750dc12a59aafeef40c525a25c1",
+    "tests/cases/interfaces.lx": "d13a58b248480835d477ec2f95151c3aff2e2cee83de28b7c471e616b4fad483",
+    "tests/cases/interpolation.lx": "0fc22c087847414b8acd626c1918c8497095bfaa98bcec8867cb883600466406",
+    "tests/cases/interpolation_scalars.lx": "28c6a87992457dffdc5641587de9bdab5ab9702673b0ebd147011d06c25d8771",
+    "tests/cases/is_union_parens.lx": "39fc503a43fcde1438efa930fe0bdb1cdefa93f0b0255ae89121cc2f1b0cccd5",
+    "tests/cases/kernel_io.lx": "4a2497ddd4a10fae3c219b57cf63c028e37cb8cddb440e961348b00dacbd10f0",
+    "tests/cases/kernel_strings.lx": "1bfe15eca16607025a81a335912e8c06085d06bca4b862384da9dfef13e219f0",
+    "tests/cases/lambda_closures.lx": "ee088c1c9d990cc5d0f080853c6d5e73bedd34bf1625c8a53b37434ed9ab4f0f",
+    "tests/cases/leading_operator_brackets.lx": "af2a431d90609b6857a510627d8d21a442be23cf532cdbbbe30ed56e6ecc18ea",
+    "tests/cases/list_cycle.lx": "5a60ad2a4f7827c200932d8061d4dc38c5a79f511350dfaa1c7eeeec71a34762",
+    "tests/cases/list_equality.lx": "42b60dc8297d4bedba291680b8bb912a0e26a7c9431ef709a9933446e241b49f",
+    "tests/cases/list_index.lx": "0bea6d436197371c9e3c071d6cd58ff1aa9c8b55cf5706ed941a92b54e625c43",
+    "tests/cases/list_iteration.lx": "9ab3a94a839941d1f326d62e9e6c5a91deb114222d4beca142ce6c10009b444f",
+    "tests/cases/list_literal.lx": "e87e9cdb320d851cb5ba03503755b2c2ee2f3f97bffff51f813671cabc107634",
+    "tests/cases/list_methods.lx": "c32db89ba8344aa5677687df2cd2ba7085319a65391845788bc9935d033d120a",
+    "tests/cases/list_stringify.lx": "5d5572b44c587928d32e549dfd6a44e179b91362e099bd6d63202932aa1b2416",
+    "tests/cases/literals.lx": "9339da0f629735bfdff54a2e37e85d32c073c38b5d0157808ecf7380b6ba92c4",
+    "tests/cases/local_class_capture.lx": "8edd7858d9d2138c69b377aa3cc5c144f63a6be49c08536ee98ae9e29430f5b2",
+    "tests/cases/local_class_fields.lx": "f05416e5db2d28a0a81b0488c529009f4b8fb2c25437fa724df5cb7fff547453",
+    "tests/cases/local_function.lx": "7b02c84672d826380ab25e7f38c3c143b200bc1f60add614a5dddf3b8f5dd3d7",
+    "tests/cases/logical.lx": "a7af27dd6345ca8e06f85ba497fd3319f30111afd4b7ec3ee72de385638d3648",
+    "tests/cases/map_cycle.lx": "243191efa64513a6c1282e00ba6fc0c3bd2f067dcc6c214442587659d2cb102d",
+    "tests/cases/map_equality.lx": "b2f6ba72115e364a3af7d09865695cf004b7798051d32cf191ae4f6f825f583b",
+    "tests/cases/map_equality_depth.lx": "3bfd191155d2c8152b9519fdb0d457ad0f1d33b2401d5f77e06cdfdf1a5c6401",
+    "tests/cases/map_iteration.lx": "80003f8b676925afab370af9ea553b1406b42b34082a857f7d930be97226d857",
+    "tests/cases/map_key_any_error.lx": "963ce9675d398d43b53a3a0b602d3f5693fb3e38edf05a34a7ba725f665f5b3b",
+    "tests/cases/map_keys.lx": "97c9a1c4ff1d113ede84463eab183600da411b3f7148b5241321baa821c83113",
+    "tests/cases/map_literal.lx": "1649024f0dfce0b2bff0558ea9e20109a1266932cfa55ab97b91acdb152e22b2",
+    "tests/cases/map_methods.lx": "778c621e482d85a936e7ca40a19a82f7a08189d63e9b1215d260aa25f3d4022f",
+    "tests/cases/map_stringify.lx": "65ef9774714df31a9d00437e40d4844d2a5b7974fbb86419b2a8297ff19f4471",
+    "tests/cases/match_capture.lx": "a8635c6df7c7a49c7f1b047ec709b5baa4a96dbcd7d0902b3251a98f5c94d65a",
+    "tests/cases/math_optional.lx": "98ec8cb79ebe3752e4a33d5fa36a670447c331b7283f2a79c51c7e36c5da73a4",
+    "tests/cases/method_fn_keyword.lx": "5a9bcd07cc32e34d0bbc480b37cc152df358f25545e2ea11e4c2395010cbc81f",
+    "tests/cases/multiline_strings.lx": "278457d27f21fb12affbc1d80be8167f1b4f65075ce95df3f0005bcd8f456751",
+    "tests/cases/nested_destructure.lx": "8b578ccd74434478eb63989dba9b3f7d47348894ace55ef0a1d3e8912e0777bb",
+    "tests/cases/nil_aware.lx": "f1468eea9aa664ed96d0ab4cc151e7c7b898ca5e78f68d747fd82417d72a4fce",
+    "tests/cases/nil_value.lx": "caa96091b33eb39b16d464446983b9374a4244522a4de3bc8e2f22b2179a97e9",
+    "tests/cases/numbers.lx": "0be2bee90bcc0f77ab828295ddf3c767280f701d43b2b75d505f81bbe5287b6b",
+    "tests/cases/one_line_block.lx": "4ee9b964c291834f57b4386eb58b8d3c6f3c04806ab9a8085b409fd6fd682c4f",
+    "tests/cases/operator_line.lx": "d77364beb0f057a384681f8564d72f3aa2c5733ff29deaac748b8789c56b8f2f",
+    "tests/cases/optional_functions.lx": "d36ae7c3c2ceaf66976c5b431cb486349863d34586e11f04befa6d760efd8845",
+    "tests/cases/optional_receiver.lx": "e99389ea153f1f5a7da91c997bae69d9fc98fde425ae0420288e488aa27232f7",
+    "tests/cases/optional_refs.lx": "64b4ae80797311e323c7eee98bf486d1883f1cabf12303c1d067c8c19524ea8a",
+    "tests/cases/optional_scalars.lx": "84b74bf410750588201e883a1f9efcdabd0a33bf7589b750f15553a9628667eb",
+    "tests/cases/optional_semicolons.lx": "1f0c15f3c66e363bd9a01944d1cc694927f30eb101e26278a7ac46f364437afe",
+    "tests/cases/precedence.lx": "a687caf3f7ac57e4326de8c0d686df9083604d1a2a0b93f647c2b8fc0aeb0193",
+    "tests/cases/print_function.lx": "f9002510995487b04fd9d02f3faf48697a20be1cd5da632f1234b2bb0c4050c1",
+    "tests/cases/range_inclusive.lx": "17e59254c48a17e303648ced4093aa8c3a962aa4997118e8ed4a25d9977c316f",
+    "tests/cases/range_value.lx": "930503a113000d4a7f1ae4af10101d1ec4b2b3a3c5f848a975feaf9736652729",
+    "tests/cases/raw_strings.lx": "18c2899842691d59ae1d174c1d913de5aba59e64a634ca62b9670a9d57474842",
+    "tests/cases/recursion.lx": "af76cfdbfaf16c6a3750f883cb425f504f023c1da0ed518d20d72b57b4f9e649",
+    "tests/cases/result.lx": "fbe2c41afc34448f4699337da9c3431fa91f230b8cdf1d31346a7cf224240310",
+    "tests/cases/result_nil.lx": "20e5e2ed446a29c7d7d7bcc4e3acaf45e0a555a4c46c27cf8b92222db92b09a9",
+    "tests/cases/return_in_loop.lx": "13e8df25db5139edf155758ec5884dc46ef95af7bc8c84482d15d5a5969f5dba",
+    "tests/cases/return_newline.lx": "153d29daa5f31a9563fa5d1ed6c72e5c98d495cfe37f600688bd5d5bac152ca2",
+    "tests/cases/same_line_semicolon.lx": "f05df38f84856a30dc81bd920764583b860184a1ffaa09dbadb633795ff86856",
+    "tests/cases/scope_identity.lx": "b6c2e5eb45e7b6e5e21bee1240334621d45be77fb92b4d698718d6fc4bfd0d35",
+    "tests/cases/stack_ctor.lx": "3678e2612611efac4e382f9a9441c60ed83de4d83023e1f44bc1ff0a277b41bd",
+    "tests/cases/stack_depth_ok.lx": "87eb6938badc03191b5c08f78b6b8d134240e5093ced4a5d620879b7166d658f",
+    "tests/cases/stack_exception.lx": "2086c2674c3975ba4dbb81aa90b9d4fe78f4ba9fb8f7e2259c0f416a05c786fd",
+    "tests/cases/stack_exception_user.lx": "3f65d9954a777729f5eb937074c14fb36a5107fc03f388845d7a91043f78cdd4",
+    "tests/cases/stack_methods.lx": "5da4622a08655e17856bd767c1bc0427b6b1c9a4fd857327aabfcf064db0f022",
+    "tests/cases/stack_overflow.lx": "a510386717225c3967830f71169fb996f21b105fe43fdd7eb72724f57ab93662",
+    "tests/cases/stack_overflow_caught.lx": "325a98e0981c16468bc118d97d2f9bf6dd7cf9e8ac12b41a95e787a5ed31d2e0",
+    "tests/cases/stack_overflow_finally.lx": "52aedb2faeec40c21049a13830824d9fd3c0e2b1fe4fe24725d1ceb333755422",
+    "tests/cases/stack_trace.lx": "eb2d9798982d1f83eb09b4428f702cd7ff4a52887cc26da6fe677c7446501fd5",
+    "tests/cases/stack_trace_cap.lx": "b0d0289fc923dd3a136cb3522df5ce14f0c4fe7b267181e25a0077ed11edfcf4",
+    "tests/cases/std_asserts.lx": "b1016b9aba68484c094ec1c347ee17550d4d2c37363bedeca0d2473e3b6ee80f",
+    "tests/cases/std_bytes.lx": "7aa3d5cd03eea4cfb9c4cbfc6eda9c7702b993c4fb956181781e8268d4eed609",
+    "tests/cases/std_cli.lx": "b8b710f21be61232c1f1e06fa514ca8740be5b4cc07c4341564c3288c7153818",
+    "tests/cases/std_collections.lx": "53e1726610c81d48d96797bf7949c6e3d3b20ff1337da8d6ca8f44d9327464ca",
+    "tests/cases/std_contracts.lx": "0d1a980e9a573d6b8c76821a813cce0accc3769e2ae21de787115ce7175e2408",
+    "tests/cases/std_contracts_pilot.lx": "452df3bded1ff653ed0e97e230398145dd929249779b1b94e6e660531701b6c1",
+    "tests/cases/std_contracts_property.lx": "9be2ccd2c4a116fc662b441161c13143c8e0cf08f14e2cb16c32508c4f97032c",
+    "tests/cases/std_convert.lx": "d34e4388d5653e6dd0db88103f099efba7b993d684cddcf453a5961a534b3c5d",
+    "tests/cases/std_csv.lx": "fb050f338f1d88fdde86e051efe23e69e5735710d00d8d1635e12a2db9c05b8c",
+    "tests/cases/std_documents.lx": "915f846e449e39f110dc8dcac16739a11432e707f7d6049ee31a30fd9fbacc79",
+    "tests/cases/std_fmt.lx": "1f15c753db66e64235486ba7f1be5349fc88a4860a57788009cd16fc5f84fec8",
+    "tests/cases/std_framing.lx": "8b2ae2dfc63df056c789f7dec3fe85d8c2d51f2bcac87f89ac04606997e5a384",
+    "tests/cases/std_hash.lx": "7b608c10d97f0be98d7bd573122ec73b8692fd3d030d9f6c715854b9737a2f6f",
+    "tests/cases/std_hash_bytes.lx": "8a48011e90b54e1c2bb400a490436872b135bf0cb8c3bd9a078f5b3c87b6e859",
+    "tests/cases/std_hash_sha256.lx": "21d88df2d3923ee8f47adb37463be3a2c405ab95399d486c984813671214afa2",
+    "tests/cases/std_iter.lx": "edb0fa3d75d36c536ff5b77c31783c202688d659b9dfd4e3dd23d038203b8ab9",
+    "tests/cases/std_json.lx": "62327ec6f310891c69a167735ef8d6898117b7cdf4c33b90b679fd3d5be740b7",
+    "tests/cases/std_jsonrpc.lx": "49144f7c9cb4413ff0c4b292dfd5f1a690cae2f802313beed5467399272acffc",
+    "tests/cases/std_lists.lx": "5a65e31a36886072c05d7d741048b2e627427b467c158f4163ccc5f019b0f2e7",
+    "tests/cases/std_maps.lx": "5b06009d729f478d434b16f35534c3562e25653399ace428c182202607429563",
+    "tests/cases/std_numeric.lx": "32bb167d67442461e026e2743d33508d2a068659e32c27be6c553c6fc7f72ad4",
+    "tests/cases/std_paths.lx": "3af51c3c79f5756e3fca727d107bbe3ecbe29ed19213c89d49f9b5ed21b671d5",
+    "tests/cases/std_property.lx": "67f1ac96212a35fd45787c10c074543a565670101667ab979cd5698fa716a88c",
+    "tests/cases/std_rand.lx": "e4370dab111811dfe13dbd684c3ebd872c7a714bce3731f440386282bcdf0833",
+    "tests/cases/std_results.lx": "d40dbeb6a25a4340b4299e9474e575edef2a49c470895b81d30a83710fd3f159",
+    "tests/cases/std_sets.lx": "7189901109523f88436c6cebc02e7225f4b29be49b6340575f5c3f48c6c48ef8",
+    "tests/cases/std_strings.lx": "a4d31ecc8479543371946afcf2977178cbf47c90e5c229caee93d0601dad0bd5",
+    "tests/cases/std_test.lx": "40298419fc1d652266c42ec5c4e5feae92b808b29d9a82e22d8d576197b37fba",
+    "tests/cases/std_test_hooks.lx": "0ab60fd76990d0a6bbfe1837729420cb6b01962b95001daa49a337e24d3dddab",
+    "tests/cases/std_timex.lx": "fa12c9af716a07a0254484c56e0baf61ded5f230024fd6fb85a1bf2f8bae3ca4",
+    "tests/cases/std_timex_invalid.lx": "fd5de092d44018ebc08cd6d9afd45503ee5a977b6705e0e37b629fa287957098",
+    "tests/cases/std_utf8.lx": "c76a8e42055138c1d99b37bd0e153d12317fe0806a603d621b15b1fb17b784a4",
+    "tests/cases/str_repr.lx": "57d74a3efa58c4ab18e29b6aacf08ba17f76fbaee6a3d7913a79abed84605eea",
+    "tests/cases/string_chars.lx": "c9eb6d3f8aaa38e9bec21cf9d60860dd4ddfd9c01b88afe525d9e4d9ffdd75c7",
+    "tests/cases/string_escapes.lx": "2e2119f042f73174d89cea3783adf7ef7202e3c3d3231e7e3494497b18d26e12",
+    "tests/cases/string_order.lx": "a699631472fba0a64d96a9d6bf50138a43fa854390c2a054b08cadf582be8806",
+    "tests/cases/strings.lx": "0fe8f464b63779230e4ca56dbcb0e018bd850ae53018cbac5f911cd3d236ceff",
+    "tests/cases/super.lx": "fae72b40e3c972ab12e546fb9119bc1be34c557748160aef1a408631e4161c8b",
+    "tests/cases/super_in_closure.lx": "d06fd29eb8c9fd37d3635b249e578bafe0ad79de44ab589f94af1c3a1bacdf09",
+    "tests/cases/super_with_this.lx": "abe37c36fc9a173aeb55add72974d9477809851c46b6ea87e48c2344ff8e49c3",
+    "tests/cases/ternary.lx": "bdb3f2751233020144206601cda51dd65cfc06b02f29fd74c6ba93bd03037955",
+    "tests/cases/this_in_lambda.lx": "62748deec35630a143b2eba49341538a6b9855eb17aa09aa9ef3c8999f144dd9",
+    "tests/cases/trailing_comma.lx": "436709dc659caa17c6b764d7e813a140f606d3a62687695e37fd66289510c05b",
+    "tests/cases/try_return_cleanup.lx": "04e6d13f1e2578b1673b5b896c8892e2448554d4bc204d663881497059f5f170",
+    "tests/cases/tuple_destructure.lx": "82159fb3c36e298d2ca091cd0f30af6da083cf3ff093e05164d9c48c153c86cb",
+    "tests/cases/tuple_iteration.lx": "fd693fc7594714ad5c46c58a057a14169f180263f9d2138b5f7f2e2e67702c4a",
+    "tests/cases/tuples.lx": "1307556ecc171a04e37f6cd1561bf33228df06bce4d3e4bc02c071127b4ef6cd",
+    "tests/cases/type_alias.lx": "1dc7c030a650810d3ec48e013e2fe5bde1b484336adc243bd3e126b7c9554e2e",
+    "tests/cases/typed_functions.lx": "996ead33257f09dc7c4eb0ae8f5bdb8571a7ae180b13ef7b559e4212d14fae1c",
+    "tests/cases/unary.lx": "8151145e32ac42d6393aad90a7af8ba17678eef87664e0c7d40b3c031a84c0fb",
+    "tests/cases/user_iterator.lx": "ee9bc7a1ed92d2444278b39da293b3520abb70d0ea3929d2d5557859f904e4fb",
+    "tests/cases/val_params.lx": "400709bbfaba481f0200b919798c9ed86987439350e33c6e86f9956d7a8b7d85",
+    "tests/cases/val_shadowing.lx": "92f3b77061ae6e5484b0a24174981bedf5dea9bbac80658205a74fd3c3f8ea61",
+    "tests/cases/val_var.lx": "ff3561c508874d0e4733d33a03701a121abb3cb1235d88256d3c79ce5ada5a61",
+    "tests/cases/var_redeclare.lx": "37f3cbcb628760a0ef5e5ab68ef932ab42a4380fc37f5df5dbc1e76dae5c0737",
+    "tests/cases/var_uninitialized_int.lx": "f724129cd8cf0907c769bbaf9b9a3f9e1b82a41fe430f24f0c0b8af6edead305",
+    "tests/cases/variables.lx": "a8e07f12d212c67448048261760c8a244be74e3b6a77f5334896dc19bb737a5f",
+    "tests/cases/variadic.lx": "7d5b48929fd6eab85d50e6438eab8f785cbcf685668d61f5670626ef343adb99",
+    "tests/cases/while.lx": "e8e80071184d519836950c6e7eda3206ada505c0d7ec0faca77809b5927b21e8"
+  },
+  "diagnostics": {
+    "tests/cases/errors/arity.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/arity.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/arity.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/arity.lx",
+          "start": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          }
+        }
+      },
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 4,
+            "offset": 41
+          },
+          "file": "tests/cases/errors/arity.lx",
+          "start": {
+            "column": 7,
+            "line": 4,
+            "offset": 40
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/arity_default_max.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/arity_default_max.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/arity_default_max.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/arity_default_max.lx",
+          "start": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          }
+        }
+      },
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 20,
+            "line": 5,
+            "offset": 59
+          },
+          "file": "tests/cases/errors/arity_default_max.lx",
+          "start": {
+            "column": 19,
+            "line": 5,
+            "offset": 58
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/arity_default_min.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/arity_default_min.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/arity_default_min.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/arity_default_min.lx",
+          "start": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          }
+        }
+      },
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 5,
+            "offset": 52
+          },
+          "file": "tests/cases/errors/arity_default_min.lx",
+          "start": {
+            "column": 12,
+            "line": 5,
+            "offset": 51
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/assign_val_global.lx": [
+      {
+        "code": "R1009",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 2,
+            "line": 2,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/assign_val_global.lx",
+          "start": {
+            "column": 1,
+            "line": 2,
+            "offset": 11
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/assign_val_local.lx": [
+      {
+        "code": "E2002",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 3,
+            "offset": 18
+          },
+          "file": "tests/cases/errors/assign_val_local.lx",
+          "start": {
+            "column": 3,
+            "line": 3,
+            "offset": 17
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/bitwise_type.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          },
+          "file": "tests/cases/errors/bitwise_type.lx",
+          "start": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/builtin_redeclare.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          },
+          "file": "tests/cases/errors/builtin_redeclare.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      },
+      {
+        "code": "E3014",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          },
+          "file": "tests/cases/errors/builtin_redeclare.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          },
+          "file": "tests/cases/errors/builtin_redeclare.lx",
+          "start": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/class_inherit_self.lx": [
+      {
+        "code": "E2006",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 14,
+            "line": 1,
+            "offset": 13
+          },
+          "file": "tests/cases/errors/class_inherit_self.lx",
+          "start": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/default_not_constant.lx": [
+      {
+        "code": "E1004",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          },
+          "file": "tests/cases/errors/default_not_constant.lx",
+          "start": {
+            "column": 6,
+            "line": 1,
+            "offset": 5
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/division_by_zero.lx": [
+      {
+        "code": "R1002",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/division_by_zero.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/division_by_zero_int.lx": [
+      {
+        "code": "R1002",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/division_by_zero_int.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/division_float_by_zero.lx": [
+      {
+        "code": "R1002",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          },
+          "file": "tests/cases/errors/division_float_by_zero.lx",
+          "start": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/duplicate_parameter.lx": [
+      {
+        "code": "E2001",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/duplicate_parameter.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/elif_without_if.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 5,
+            "line": 1,
+            "offset": 4
+          },
+          "file": "tests/cases/errors/elif_without_if.lx",
+          "start": {
+            "column": 1,
+            "line": 1,
+            "offset": 0
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_immutable.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 6,
+            "offset": 42
+          },
+          "file": "tests/cases/errors/field_immutable.lx",
+          "start": {
+            "column": 3,
+            "line": 6,
+            "offset": 41
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_inherit_redeclare.lx": [
+      {
+        "code": "E2007",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 6,
+            "offset": 42
+          },
+          "file": "tests/cases/errors/field_inherit_redeclare.lx",
+          "start": {
+            "column": 7,
+            "line": 6,
+            "offset": 41
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_initializer_not_constant.lx": [
+      {
+        "code": "E1004",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 2,
+            "offset": 17
+          },
+          "file": "tests/cases/errors/field_initializer_not_constant.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 16
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_redeclare.lx": [
+      {
+        "code": "E2007",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 3,
+            "offset": 26
+          },
+          "file": "tests/cases/errors/field_redeclare.lx",
+          "start": {
+            "column": 7,
+            "line": 3,
+            "offset": 25
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_uninitialized.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 2,
+            "offset": 17
+          },
+          "file": "tests/cases/errors/field_uninitialized.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 16
+          }
+        }
+      },
+      {
+        "code": "E3016",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 2,
+            "offset": 17
+          },
+          "file": "tests/cases/errors/field_uninitialized.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 16
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_unknown.lx": [
+      {
+        "code": "E3003",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 4,
+            "offset": 28
+          },
+          "file": "tests/cases/errors/field_unknown.lx",
+          "start": {
+            "column": 3,
+            "line": 4,
+            "offset": 27
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/field_val_outside_init.lx": [
+      {
+        "code": "E2009",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 9,
+            "offset": 73
+          },
+          "file": "tests/cases/errors/field_val_outside_init.lx",
+          "start": {
+            "column": 10,
+            "line": 9,
+            "offset": 72
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/for_in_immutable.lx": [
+      {
+        "code": "E2002",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 18,
+            "line": 1,
+            "offset": 17
+          },
+          "file": "tests/cases/errors/for_in_immutable.lx",
+          "start": {
+            "column": 17,
+            "line": 1,
+            "offset": 16
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/for_in_not_iterable.lx": [
+      {
+        "code": "E3010",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 1,
+            "offset": 5
+          },
+          "file": "tests/cases/errors/for_in_not_iterable.lx",
+          "start": {
+            "column": 5,
+            "line": 1,
+            "offset": 4
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/function_without_body.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/function_without_body.lx",
+          "start": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/initializer_arity.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 2,
+            "offset": 20
+          },
+          "file": "tests/cases/errors/initializer_arity.lx",
+          "start": {
+            "column": 8,
+            "line": 2,
+            "offset": 19
+          }
+        }
+      },
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 4,
+            "offset": 32
+          },
+          "file": "tests/cases/errors/initializer_arity.lx",
+          "start": {
+            "column": 5,
+            "line": 4,
+            "offset": 31
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/initializer_return_value.lx": [
+      {
+        "code": "E2003",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 3,
+            "offset": 33
+          },
+          "file": "tests/cases/errors/initializer_return_value.lx",
+          "start": {
+            "column": 5,
+            "line": 3,
+            "offset": 27
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/int_overflow.lx": [
+      {
+        "code": "E0004",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 26,
+            "line": 1,
+            "offset": 25
+          },
+          "file": "tests/cases/errors/int_overflow.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/intdiv_type.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/intdiv_type.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/interpolation_empty.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/interpolation_empty.lx",
+          "start": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/interpolation_undefined.lx": [
+      {
+        "code": "E3003",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 21,
+            "line": 1,
+            "offset": 20
+          },
+          "file": "tests/cases/errors/interpolation_undefined.lx",
+          "start": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/interpolation_unterminated.lx": [
+      {
+        "code": "E0006",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 3,
+            "offset": 59
+          },
+          "file": "tests/cases/errors/interpolation_unterminated.lx",
+          "start": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          }
+        }
+      },
+      {
+        "code": "E0002",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 15,
+            "line": 1,
+            "offset": 14
+          },
+          "file": "tests/cases/errors/interpolation_unterminated.lx",
+          "start": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 3,
+            "offset": 59
+          },
+          "file": "tests/cases/errors/interpolation_unterminated.lx",
+          "start": {
+            "column": 1,
+            "line": 3,
+            "offset": 59
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/invalid_assignment.lx": [
+      {
+        "code": "E1002",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          },
+          "file": "tests/cases/errors/invalid_assignment.lx",
+          "start": {
+            "column": 3,
+            "line": 1,
+            "offset": 2
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/invalid_number.lx": [
+      {
+        "code": "E0004",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/invalid_number.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/invalid_unicode_escape.lx": [
+      {
+        "code": "E0007",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 18,
+            "line": 1,
+            "offset": 17
+          },
+          "file": "tests/cases/errors/invalid_unicode_escape.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_bare_type.lx": [
+      {
+        "code": "E1005",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/list_bare_type.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_index_assign_bounds.lx": [
+      {
+        "code": "R1007",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 2,
+            "offset": 27
+          },
+          "file": "tests/cases/errors/list_index_assign_bounds.lx",
+          "start": {
+            "column": 3,
+            "line": 2,
+            "offset": 26
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_index_bounds.lx": [
+      {
+        "code": "R1007",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 2,
+            "offset": 33
+          },
+          "file": "tests/cases/errors/list_index_bounds.lx",
+          "start": {
+            "column": 9,
+            "line": 2,
+            "offset": 32
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_index_negative.lx": [
+      {
+        "code": "R1007",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 2,
+            "offset": 33
+          },
+          "file": "tests/cases/errors/list_index_negative.lx",
+          "start": {
+            "column": 9,
+            "line": 2,
+            "offset": 32
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_index_type.lx": [
+      {
+        "code": "E3008",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 2,
+            "offset": 33
+          },
+          "file": "tests/cases/errors/list_index_type.lx",
+          "start": {
+            "column": 9,
+            "line": 2,
+            "offset": 32
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_len_type.lx": [
+      {
+        "code": "E3007",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/list_len_type.lx",
+          "start": {
+            "column": 12,
+            "line": 1,
+            "offset": 11
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_lowercase_type.lx": [
+      {
+        "code": "E1005",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/list_lowercase_type.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_mutate_iterating.lx": [
+      {
+        "code": "R1012",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 2,
+            "offset": 32
+          },
+          "file": "tests/cases/errors/list_mutate_iterating.lx",
+          "start": {
+            "column": 5,
+            "line": 2,
+            "offset": 31
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_not_indexable.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          },
+          "file": "tests/cases/errors/list_not_indexable.lx",
+          "start": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_pop_empty.lx": [
+      {
+        "code": "R1007",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 2,
+            "offset": 35
+          },
+          "file": "tests/cases/errors/list_pop_empty.lx",
+          "start": {
+            "column": 10,
+            "line": 2,
+            "offset": 32
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_push_arity.lx": [
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 2,
+            "offset": 33
+          },
+          "file": "tests/cases/errors/list_push_arity.lx",
+          "start": {
+            "column": 9,
+            "line": 2,
+            "offset": 32
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/list_unknown_method.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 2,
+            "offset": 36
+          },
+          "file": "tests/cases/errors/list_unknown_method.lx",
+          "start": {
+            "column": 10,
+            "line": 2,
+            "offset": 33
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_duplicate_key.lx": [
+      {
+        "code": "R1014",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/map_duplicate_key.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_iteration_mutation.lx": [
+      {
+        "code": "R1012",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 2,
+            "offset": 22
+          },
+          "file": "tests/cases/errors/map_iteration_mutation.lx",
+          "start": {
+            "column": 5,
+            "line": 2,
+            "offset": 21
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_key_type.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 2,
+            "offset": 25
+          },
+          "file": "tests/cases/errors/map_key_type.lx",
+          "start": {
+            "column": 8,
+            "line": 2,
+            "offset": 24
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_literal_key_type.lx": [
+      {
+        "code": "R1014",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/map_literal_key_type.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_literal_key_variable.lx": [
+      {
+        "code": "E3003",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/map_literal_key_variable.lx",
+          "start": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_missing_key.lx": [
+      {
+        "code": "R1008",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 2,
+            "offset": 25
+          },
+          "file": "tests/cases/errors/map_missing_key.lx",
+          "start": {
+            "column": 8,
+            "line": 2,
+            "offset": 24
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/map_remove_missing.lx": [
+      {
+        "code": "R1008",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 15,
+            "line": 2,
+            "offset": 31
+          },
+          "file": "tests/cases/errors/map_remove_missing.lx",
+          "start": {
+            "column": 9,
+            "line": 2,
+            "offset": 25
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/method_arity.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 2,
+            "offset": 17
+          },
+          "file": "tests/cases/errors/method_arity.lx",
+          "start": {
+            "column": 3,
+            "line": 2,
+            "offset": 14
+          }
+        }
+      },
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 2,
+            "offset": 19
+          },
+          "file": "tests/cases/errors/method_arity.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 18
+          }
+        }
+      },
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 4,
+            "offset": 37
+          },
+          "file": "tests/cases/errors/method_arity.lx",
+          "start": {
+            "column": 11,
+            "line": 4,
+            "offset": 36
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/missing_semicolon.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 15,
+            "line": 1,
+            "offset": 14
+          },
+          "file": "tests/cases/errors/missing_semicolon.lx",
+          "start": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/modulo_by_zero.lx": [
+      {
+        "code": "R1002",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/modulo_by_zero.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/modulo_type.lx": [
+      {
+        "code": "E3007",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/modulo_type.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/negative_int_exponent.lx": [
+      {
+        "code": "R1006",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/negative_int_exponent.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/nested_destructure_arity.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 2,
+            "offset": 70
+          },
+          "file": "tests/cases/errors/nested_destructure_arity.lx",
+          "start": {
+            "column": 10,
+            "line": 2,
+            "offset": 69
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/nested_destructure_non_tuple.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 2,
+            "offset": 83
+          },
+          "file": "tests/cases/errors/nested_destructure_non_tuple.lx",
+          "start": {
+            "column": 10,
+            "line": 2,
+            "offset": 82
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/not_callable.lx": [
+      {
+        "code": "E3006",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 2,
+            "offset": 14
+          },
+          "file": "tests/cases/errors/not_callable.lx",
+          "start": {
+            "column": 3,
+            "line": 2,
+            "offset": 13
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/only_instances_have_fields.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 2,
+            "offset": 14
+          },
+          "file": "tests/cases/errors/only_instances_have_fields.lx",
+          "start": {
+            "column": 3,
+            "line": 2,
+            "offset": 13
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/only_instances_have_properties.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 2,
+            "offset": 20
+          },
+          "file": "tests/cases/errors/only_instances_have_properties.lx",
+          "start": {
+            "column": 9,
+            "line": 2,
+            "offset": 19
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/optional_assignment.lx": [
+      {
+        "code": "E1002",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 2,
+            "offset": 19
+          },
+          "file": "tests/cases/errors/optional_assignment.lx",
+          "start": {
+            "column": 6,
+            "line": 2,
+            "offset": 18
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/optional_not_instance.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/optional_not_instance.lx",
+          "start": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/param_immutable.lx": [
+      {
+        "code": "E2002",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 4,
+            "line": 2,
+            "offset": 13
+          },
+          "file": "tests/cases/errors/param_immutable.lx",
+          "start": {
+            "column": 3,
+            "line": 2,
+            "offset": 12
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/parameter_redeclaration.lx": [
+      {
+        "code": "E2001",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 2,
+            "offset": 21
+          },
+          "file": "tests/cases/errors/parameter_redeclaration.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 20
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/pow_invalid_domain.lx": [
+      {
+        "code": "R1006",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          },
+          "file": "tests/cases/errors/pow_invalid_domain.lx",
+          "start": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/pow_overflow.lx": [
+      {
+        "code": "R1014",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 15,
+            "line": 1,
+            "offset": 14
+          },
+          "file": "tests/cases/errors/pow_overflow.lx",
+          "start": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/range_args_type.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 27,
+            "line": 1,
+            "offset": 26
+          },
+          "file": "tests/cases/errors/range_args_type.lx",
+          "start": {
+            "column": 26,
+            "line": 1,
+            "offset": 25
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/range_arity.lx": [
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 19,
+            "line": 1,
+            "offset": 18
+          },
+          "file": "tests/cases/errors/range_arity.lx",
+          "start": {
+            "column": 18,
+            "line": 1,
+            "offset": 17
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/range_bounds.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/range_bounds.lx",
+          "start": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/range_step_zero.lx": [
+      {
+        "code": "R1000",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 25,
+            "line": 1,
+            "offset": 24
+          },
+          "file": "tests/cases/errors/range_step_zero.lx",
+          "start": {
+            "column": 24,
+            "line": 1,
+            "offset": 23
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/redeclaration.lx": [
+      {
+        "code": "E2001",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 3,
+            "offset": 22
+          },
+          "file": "tests/cases/errors/redeclaration.lx",
+          "start": {
+            "column": 7,
+            "line": 3,
+            "offset": 21
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/required_after_optional.lx": [
+      {
+        "code": "E1004",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 14,
+            "line": 1,
+            "offset": 13
+          },
+          "file": "tests/cases/errors/required_after_optional.lx",
+          "start": {
+            "column": 13,
+            "line": 1,
+            "offset": 12
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/return_same_line.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 24,
+            "line": 1,
+            "offset": 23
+          },
+          "file": "tests/cases/errors/return_same_line.lx",
+          "start": {
+            "column": 19,
+            "line": 1,
+            "offset": 18
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 3,
+            "offset": 76
+          },
+          "file": "tests/cases/errors/return_same_line.lx",
+          "start": {
+            "column": 1,
+            "line": 3,
+            "offset": 76
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/self_initializer.lx": [
+      {
+        "code": "E2008",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 2,
+            "offset": 13
+          },
+          "file": "tests/cases/errors/self_initializer.lx",
+          "start": {
+            "column": 11,
+            "line": 2,
+            "offset": 12
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/shift_count.lx": [
+      {
+        "code": "R1006",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/shift_count.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/string_newline.lx": [
+      {
+        "code": "E0002",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 2,
+            "offset": 80
+          },
+          "file": "tests/cases/errors/string_newline.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 78
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 5,
+            "offset": 143
+          },
+          "file": "tests/cases/errors/string_newline.lx",
+          "start": {
+            "column": 1,
+            "line": 5,
+            "offset": 143
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/super_outside_class.lx": [
+      {
+        "code": "E2005",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 1,
+            "offset": 5
+          },
+          "file": "tests/cases/errors/super_outside_class.lx",
+          "start": {
+            "column": 1,
+            "line": 1,
+            "offset": 0
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/super_undefined_method.lx": [
+      {
+        "code": "E3004",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 3,
+            "offset": 32
+          },
+          "file": "tests/cases/errors/super_undefined_method.lx",
+          "start": {
+            "column": 3,
+            "line": 3,
+            "offset": 26
+          }
+        }
+      },
+      {
+        "code": "E3003",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 15,
+            "line": 4,
+            "offset": 51
+          },
+          "file": "tests/cases/errors/super_undefined_method.lx",
+          "start": {
+            "column": 11,
+            "line": 4,
+            "offset": 47
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/super_without_superclass.lx": [
+      {
+        "code": "E2005",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 3,
+            "offset": 34
+          },
+          "file": "tests/cases/errors/super_without_superclass.lx",
+          "start": {
+            "column": 5,
+            "line": 3,
+            "offset": 29
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/superclass_not_class.lx": [
+      {
+        "code": "E3005",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 14,
+            "line": 2,
+            "offset": 26
+          },
+          "file": "tests/cases/errors/superclass_not_class.lx",
+          "start": {
+            "column": 11,
+            "line": 2,
+            "offset": 23
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/ternary_missing_else.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 19,
+            "line": 1,
+            "offset": 18
+          },
+          "file": "tests/cases/errors/ternary_missing_else.lx",
+          "start": {
+            "column": 18,
+            "line": 1,
+            "offset": 17
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/this_outside_class.lx": [
+      {
+        "code": "E2004",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/this_outside_class.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/top_level_return.lx": [
+      {
+        "code": "E2003",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          },
+          "file": "tests/cases/errors/top_level_return.lx",
+          "start": {
+            "column": 1,
+            "line": 1,
+            "offset": 0
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/type_mismatch_add.lx": [
+      {
+        "code": "E3007",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/type_mismatch_add.lx",
+          "start": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/unary_not_number.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/unary_not_number.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/undefined_assignment.lx": [
+      {
+        "code": "E3003",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          },
+          "file": "tests/cases/errors/undefined_assignment.lx",
+          "start": {
+            "column": 1,
+            "line": 1,
+            "offset": 0
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/undefined_property.lx": [
+      {
+        "code": "E3000",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 4,
+            "offset": 40
+          },
+          "file": "tests/cases/errors/undefined_property.lx",
+          "start": {
+            "column": 9,
+            "line": 4,
+            "offset": 37
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/undefined_variable.lx": [
+      {
+        "code": "E3003",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 16,
+            "line": 1,
+            "offset": 15
+          },
+          "file": "tests/cases/errors/undefined_variable.lx",
+          "start": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/unknown_escape.lx": [
+      {
+        "code": "E0003",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 1,
+            "offset": 10
+          },
+          "file": "tests/cases/errors/unknown_escape.lx",
+          "start": {
+            "column": 10,
+            "line": 1,
+            "offset": 9
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/unterminated_block_comment.lx": [
+      {
+        "code": "E0005",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 4,
+            "offset": 64
+          },
+          "file": "tests/cases/errors/unterminated_block_comment.lx",
+          "start": {
+            "column": 1,
+            "line": 2,
+            "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/unterminated_string.lx": [
+      {
+        "code": "E0002",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 2,
+            "offset": 86
+          },
+          "file": "tests/cases/errors/unterminated_string.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 81
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 5,
+            "offset": 171
+          },
+          "file": "tests/cases/errors/unterminated_string.lx",
+          "start": {
+            "column": 1,
+            "line": 5,
+            "offset": 171
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/unterminated_triple_string.lx": [
+      {
+        "code": "E0002",
+        "phase": "lexer",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 5,
+            "offset": 130
+          },
+          "file": "tests/cases/errors/unterminated_triple_string.lx",
+          "start": {
+            "column": 7,
+            "line": 2,
+            "offset": 64
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 1,
+            "line": 5,
+            "offset": 130
+          },
+          "file": "tests/cases/errors/unterminated_triple_string.lx",
+          "start": {
+            "column": 1,
+            "line": 5,
+            "offset": 130
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/val_redeclare_global.lx": [
+      {
+        "code": "R1009",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 2,
+            "offset": 16
+          },
+          "file": "tests/cases/errors/val_redeclare_global.lx",
+          "start": {
+            "column": 5,
+            "line": 2,
+            "offset": 15
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/val_redeclare_local.lx": [
+      {
+        "code": "E2001",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 3,
+            "offset": 22
+          },
+          "file": "tests/cases/errors/val_redeclare_local.lx",
+          "start": {
+            "column": 7,
+            "line": 3,
+            "offset": 21
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/val_without_initializer.lx": [
+      {
+        "code": "E1004",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 1,
+            "offset": 6
+          },
+          "file": "tests/cases/errors/val_without_initializer.lx",
+          "start": {
+            "column": 6,
+            "line": 1,
+            "offset": 5
+          }
+        }
+      }
+    ]
+  },
+  "fmt": {
+    "examples/classes.lx": "fe7c4e999e7f4cd1887cd4fda68c650add1b4388bdb26628456bc82f964d7df8",
+    "examples/closures.lx": "b8d972994152d88d942a21a48511c25e27b2896a20e9c58074cb3399b3cb632a",
+    "examples/fib.lx": "e3e3b91107d2e24c134b9791bce659d84b028a4a9ae163f915c55fcc90206590",
+    "examples/fizzbuzz.lx": "c09e8caddf87f7c3e7325550d0ade35f8378d7fd9a297bd6e2bd5c3957c0350f",
+    "examples/primes.lx": "1c238b5b50f739264df015e1f42e5cdc6e5c4e0fb6ad0f067b189d7593aa8ae4",
+    "examples/quicksort.lx": "2691ea080527a99b3f4bbe49dde644daa84c88b6f9eb636e4c46151ff425b7f0",
+    "examples/sales.lx": "ff819a2a9f6b78e4c472e968f941bb0b5144a9288fa66580a65745b473954c0e",
+    "std/asserts.lx": "93edaf26e9e3929265b9b714a513ffe53d037a271e5ba76cbbcba029d77f9ed7",
+    "std/bytes.lx": "6a8d0fcdcafec01927f8a30feda060db896f6dd84b1c86f1ed624029e872eb72",
+    "std/cli.lx": "13d934d102868ee7812ed03d97625fc6a59193caf069278a837b23ca9ec761d7",
+    "std/collections.lx": "73cfd0a9af323419d91ac8d65b12c23fdb17895df82d0786eeb37211426eefd4",
+    "std/contracts.lx": "e492c66f847e2a12d16b53d2cc5f63d7d40b442c806614bf18e5d11fc9a0f832",
+    "std/convert.lx": "f8b64ae3858f7717a7f72ecffd63768d6176d41dcaa9cc3d6533321ebca65517",
+    "std/csv.lx": "ef87be5d638876a9587e7f5f39a811abe5f02703a5be8c53894ac7ab88d83ecf",
+    "std/documents.lx": "41d5a15c532a0e915d0a128f0b4612da8444d49b3854dd325687f886002d09b7",
+    "std/fmt.lx": "ac58871dde7a6895d489274742c6d9f628a5d9bbc1345067fbc3e2d2f13fe938",
+    "std/framing.lx": "ea818460fa29edfdb7d3301e4a46cf44767e496ad92653052816e0b5b8ff9cd2",
+    "std/fs.lx": "803437ab8a2304acb68453341805453d33bdc1fc2e4219dc3b2933e374a993a3",
+    "std/hash.lx": "26b8900ec8eedd5edb30f8028db7a8c4d3ad74ee8bec632eec33993a3d0c2653",
+    "std/io.lx": "ae378633a590d1494da1c9507b4aec8ab4dec7361708c5349c6a2e0479fca2cf",
+    "std/iter.lx": "9fa45396059e09ccfeaf7a7a078ad1cd1dd0b4ce178dab59db6e435b2a7c0a6e",
+    "std/json.lx": "e56d7e5b2d627d884244d25421cbce2ef144a0dbbf4b4b62c8cf74e98df82331",
+    "std/jsonrpc.lx": "d8811608805741443ced787a8e980500cd82432de5be3d6d9dcb2cb5443f6030",
+    "std/lists.lx": "d764f4296433205b5787550dc4a170f90b26221246b17f85fdf1d21b19afecb8",
+    "std/log.lx": "bfee12c2a6948c9d8149ea7b7585b4a47dc0bf8d1a5cb73dda0dad7ae2f769aa",
+    "std/maps.lx": "c94fc661cb071c9bad31659f21b431e7f806fc2f0301cb79cd1f2918e71901e1",
+    "std/numeric.lx": "1818c3354b573df9ed2f424443fd8fb62562bd0878664cf8cd2cb47e474ccbfb",
+    "std/paths.lx": "d0fccf43d9d9d530097a85b5df0133d86953d82868f64f91cf04932d52981fa4",
+    "std/proc.lx": "b728380510a6c6f691557c52f244024d7b1c5ce18143dd344aed3b03d03ec37b",
+    "std/property.lx": "b11a0bfaf495ddb56d041f3510e4cde314c0970c7225c8b2abbd83970baf2152",
+    "std/rand.lx": "1d93c45e588961c9ba94065fd4be960b85c3519e47e926015c216332b7721310",
+    "std/results.lx": "5c2ec316533dc6712e52564bb79306218f2b4cb54070b7b2e519afbd41d9b5b1",
+    "std/sets.lx": "7de5db9025a494169e340f51c55cdcf2a70af33759aa94d152e27107024bdf11",
+    "std/strings.lx": "bb6ba3318f9c8c877446019e955eeba8c6576e8586de7f0cd4cc8dc79c77462d",
+    "std/test.lx": "0ea8ad5b21fc7ca54f43651039d943117d5ee1963e1ce247b4105a7868c296ba",
+    "std/timex.lx": "d937535081f779b573de713c4bb1616df15fa45fc8ecf15b7d506e6aa9fb8127",
+    "std/utf8.lx": "9ff8afc7294469e1ae2b35a3395b7808267cb117c150961e7fd1cc278b752594",
+    "tests/cases/any_box.lx": "fbefd311161c7e2133749d19de5cc05f404aa0c6bb93a7161e97dd84b201107f",
+    "tests/cases/any_casts.lx": "fac8a6a157734da909232a47ca1dfc3e8e0550a593300eac25368b475389c836",
+    "tests/cases/arguments_order.lx": "dc8899975307287352081a2c4a09b8d4f72a387d2fa52f998562789303b44b20",
+    "tests/cases/arithmetic.lx": "db02575b4a8d14c2deef424b76cfc0cc3cf17cae73a393c4444b8ed7b744fdbd",
+    "tests/cases/assignment.lx": "edd1e2f2c06b42ebbce2b1bf748efcfc89c00215c0a265c6fce28486d0171af7",
+    "tests/cases/bitwise.lx": "26fab0f4b8ce01f9aeeead5f04f7f6fb530781dd075d719577e4d0e7578a0a8f",
+    "tests/cases/bitwise_precedence.lx": "65f2b18078aa467ea2a5f3b97cea44f73ac5c3213b26a289ead8348e03399acb",
+    "tests/cases/block_scope.lx": "362fb19e5d20bbf03be696fc26ed6e619ae9ed39bc8f84b51dcc6c4aec919b78",
+    "tests/cases/builtin_shadow_local.lx": "b9b2e8aef04ad2caeafea2d7854e13ddc6849a8a8c3a3c636617f87ed11ce711",
+    "tests/cases/bytes/bytes_any.lx": "445124c9249c50281c5401e89da9525759138327dcaf5741cffe5b075c789c49",
+    "tests/cases/bytes/bytes_core.lx": "17f3cf12b69133e97dc3ba6884881b641b5e566a979c24dbc07609135850f229",
+    "tests/cases/bytes/bytes_empty.lx": "e3e41d6ab817a2d7880cfe8a227bd6277aee821f54cee061025d1a183cd245a8",
+    "tests/cases/bytes/bytes_errors.lx": "323422eb985112221f8aaf40bfd6bbc7278d68490ec474eff2b87c403b65463e",
+    "tests/cases/bytes/bytes_for.lx": "95e9374dcab3acd7006bf94fb278790160a48969f56e3d9c02698cb3710c5dfd",
+    "tests/cases/bytes/bytes_from_list_error_site.lx": "2c955e6b7153e4f8672052671c0156673757582d45d83ed1ca485fd81d4197e2",
+    "tests/cases/bytes/bytes_method_value.lx": "95d9a296f2fdf7ebee35106c9dee57d05f93c9e24390fc8e9f83dc3cec4c25a8",
+    "tests/cases/bytes/bytes_result.lx": "87a2d43d433c6541ffc726134ad0031d7948816884801db3e268e9811457d893",
+    "tests/cases/bytes/bytes_shadow.lx": "35c853e04ce13f875e857c9a7b5fe87b5d0a74f8d46240ce7739c280801e336e",
+    "tests/cases/bytes/bytes_shapes.lx": "4c62c313a02450b50ab2a5da12d56bd84a03e2c2c2e7b7fb8c87e8bff30a4649",
+    "tests/cases/bytes/bytes_slice_error_site.lx": "3df7f87491722e0fa7a17f03682e864d810ff6692a7cb77db4c4ce8360a5cd5f",
+    "tests/cases/bytes/bytes_truthy.lx": "9fee982af583d8e032254e392de8213d23c4de31b420f79513a250c791486f27",
+    "tests/cases/casts_math.lx": "5eb310c3d48c812daadc7e2cfd393310435456824458f84c58d1696d14e1e6bc",
+    "tests/cases/char_code_at_bounds.lx": "d4d60e19cc74f940c690692ed64928e12dfe48a7db5ae5c844dd1a2d09662ce9",
+    "tests/cases/class_bound_method.lx": "ea699bbf4ac296a3b99e0510db2f893d2a7cdb61ee333bc75b5b2eed7a8df6a4",
+    "tests/cases/class_fields.lx": "f33199706b0e7ad20d33eb0960adac0c02d33e5b9af641f19cc3abf5a885bee1",
+    "tests/cases/class_identity.lx": "439adc6ed498b662d39270595fa2b92b5c282d302ec7b8b0a56baad4aa058d18",
+    "tests/cases/class_identity_as.lx": "b52a21ac3b11c67c1b4135981fd16780028ec85b113caa19ad949ab0f13da6d5",
+    "tests/cases/class_initializer.lx": "273b98cd5cc181ff6e806a354ad8744198976084ac8d5be24cab5440c7e8dd39",
+    "tests/cases/class_self_return.lx": "fc0b791644f8b21c253803332117bc006300111236614a74ced6fdf7d326b6c6",
+    "tests/cases/class_str_print.lx": "df96adbcb6ffcf309e20db244b34eaf446b88174f6b94d1e06a22c5ed0536448",
+    "tests/cases/class_this.lx": "da9e7c83e5d4481e827b36e34a89d80b81184c106640ca0a949d85175358f4d8",
+    "tests/cases/class_uninitialized_read.lx": "1d3fe69fa52a54f7d9953b2295c4453b317bb0df63324a9f44c6c16ab7fedb05",
+    "tests/cases/class_val_twice.lx": "63f8a122b14e191e45f8dace703210b26419d2e0f0de73ffeef5c57c995654f4",
+    "tests/cases/classes.lx": "5d44b266cea7dc37a307974bbe93551ca3731cf643338ddca77d606241415355",
+    "tests/cases/closure_in_list.lx": "1a1f081ea34b7f9984269365f38d1eaaeb4519920e232fce83c39eb41c7c0179",
+    "tests/cases/closure_reassign.lx": "2a090f8388b1c0333983e8d48eadd9e019e519f45c3614aac4a5b85f98ff22f1",
+    "tests/cases/closure_static_scope.lx": "41a4e54c997180c7688549d7471f9c0c049ce2af780bec5637876b818169951e",
+    "tests/cases/closures.lx": "1d3132c27453d6defdd852d80ed8f601b57a81db03ee904e0efdfdf701889af0",
+    "tests/cases/comments.lx": "8eaf438323eb3ed8bbd84ac11cbda84241de07397a1460c8ceb6b9aba94511ae",
+    "tests/cases/comparison.lx": "be27c5916892b5c676f7c17be29114c784489e2a5c4122302db3a57af47aea2c",
+    "tests/cases/default_params.lx": "a62aaab4c50ceb135a2d7875aa50f6922a8391f9b9d009a0f20355966db18ce0",
+    "tests/cases/defaults_as_value.lx": "dd3f5922634e88d902ec882d318cf2780d710f06552c45c6f1f1b1fd1529a7c1",
+    "tests/cases/elif.lx": "d1b6823de4351f1b6713a6f0833cc5f4e7ecaf24995e40aac20be981c20820a5",
+    "tests/cases/enums.lx": "b90fbb47664cbff7ca56aab1e66e1631cf4929a4089da33a6494720540fc94b5",
+    "tests/cases/equality.lx": "7b3345eb04ae3317f651272ac3de7eb1193663686092ff9d460c8b2e8408e38f",
+    "tests/cases/errors/arity.lx": "1ab59da3d21c98f4011364bf85b6934ddd8b7650e345643159f9a49d386fa4e0",
+    "tests/cases/errors/arity_default_max.lx": "25203521cbbfa19fc408bbb9934dfefdb97bf61560ee5ad1083189a6b7928536",
+    "tests/cases/errors/arity_default_min.lx": "befac530687dc047bb4128b22c41d1a4a9ecc7f8db0b9e5cb5a43e58c9dd553b",
+    "tests/cases/errors/assign_val_global.lx": "d5b99b54190b16b44ca8f2b156bd338a87d20c18e78f5b5007f01e033316585d",
+    "tests/cases/errors/assign_val_local.lx": "c3e24fb32aae317ca2035561943a552e02f312cccf85d859b3b0548218ec5af3",
+    "tests/cases/errors/bitwise_type.lx": "f0c73971fb29b6ed944d5820f3e8cc112afd414d8ff02755d70634e772235218",
+    "tests/cases/errors/builtin_redeclare.lx": "e9668d39ffcdedf21d2951e679bfc42fc271fea0f0952ee063bb1a6408dc7d2b",
+    "tests/cases/errors/class_inherit_self.lx": "2b335e7ee83a2bc7dba60cb6302bc709a872a47537b29106e686566eb556177a",
+    "tests/cases/errors/division_by_zero.lx": "eaf64d16c6c9a74ef92efe3800318eb8c2c9c3277a36c1a42c4f89dc514f1784",
+    "tests/cases/errors/division_by_zero_int.lx": "ab6035124142e32ea4073df1d9c00ea5cb19385af769d61018a3ef5718847e25",
+    "tests/cases/errors/division_float_by_zero.lx": "6ad85a45a7079e52f839a84163d71ed9b763bdd06b5928f63e12f4d3df860362",
+    "tests/cases/errors/duplicate_parameter.lx": "e26f7ffcd9571bffbe81013e3ffc5bf709f11d79edc14a78e0d3b51ee3e88395",
+    "tests/cases/errors/field_immutable.lx": "f84353949355ea2c1c9504c03e6bc42cbb412f37fb6de81929295583b11bee7f",
+    "tests/cases/errors/field_inherit_redeclare.lx": "369c5d427f092d9e73310a440a42c58b4a794d0bcdb3f313b637897a2680bb9b",
+    "tests/cases/errors/field_redeclare.lx": "4f0e8c14281573eea12effcf3b8066f3c5ccf2428b92d6bd279b4f026626bd13",
+    "tests/cases/errors/field_uninitialized.lx": "b50c6a358efab848750010dd8b33fa2725e4855e1338cb5704286008adf95c06",
+    "tests/cases/errors/field_unknown.lx": "7ac0a751c8e8be6f21723c20be09edad26eb67c7aad2c95a89143578628aca9f",
+    "tests/cases/errors/field_val_outside_init.lx": "9c32ae545d3eee58ff53d909a779617ea87627b4921bf6d4bfe0b95329305b2b",
+    "tests/cases/errors/for_in_immutable.lx": "3ec6861b46d8c53701aa8ce8303a93aa1dda7adcd5d6f69e9a6dbe4527cf323d",
+    "tests/cases/errors/for_in_not_iterable.lx": "d0209ff474722d19666fa3f1e5106775be73d5bd0b923709da8d071c70af5ffa",
+    "tests/cases/errors/initializer_arity.lx": "1121b297d409b73bf7f25cd88cc3dc90bb06676da83ab588ecc8aa6a05f7d615",
+    "tests/cases/errors/initializer_return_value.lx": "c74156823ea5b0bffa3719c8d5c59ac73804846dd7406ce4bc6633a60efdee22",
+    "tests/cases/errors/intdiv_type.lx": "aaeb3dd24f79c86a63f357553d40773b649d62b0bcb357e9ac5675f3a7544bff",
+    "tests/cases/errors/interpolation_undefined.lx": "2e605f3063a5e0d88301ec7777d764eeb0694b52487c2bc3ce4ae1c6dcdf989b",
+    "tests/cases/errors/list_index_assign_bounds.lx": "28667257f3f09cf1564a7239f28ecab73512fe8639955c81d257879926754fd7",
+    "tests/cases/errors/list_index_bounds.lx": "0d3d4dc18c079c7875f2df86be789c575d5d0242f19deb5119d4d0f0b315de92",
+    "tests/cases/errors/list_index_negative.lx": "a2a56c17ae96505fdf0f9bfb898b589061c2a0a091f43356a50bfbb4be2d795a",
+    "tests/cases/errors/list_index_type.lx": "a2ee1829b1561ee2ffac09262a1cb28c8e1274cd88a2b53e3d4115db6e977cc9",
+    "tests/cases/errors/list_len_type.lx": "ca2a80aa45b0cf9ae5bd5edab761ca47b2f9bbdeb3a38360131fab1be5e69bd7",
+    "tests/cases/errors/list_mutate_iterating.lx": "e729bf97a26d7deb38a46b33ea13b10368bf802c378e0a185ac837d66cf31526",
+    "tests/cases/errors/list_not_indexable.lx": "3929980e1a807a495a65c58c504d2a65a9872df9ad75c7cab1394b38cdaaaad4",
+    "tests/cases/errors/list_pop_empty.lx": "e06eeffd13297270d0c993d89fc516e06fdda772b62ce2c5094c5ef5fa082576",
+    "tests/cases/errors/list_push_arity.lx": "f886bec8d7a32e128c43b1b560b997b3850f3ad35082b0948453889c7360125b",
+    "tests/cases/errors/list_unknown_method.lx": "510c8e85dd0df101e75afb23a64c33597c7d82c57c4a0228c6aa630be2ca049c",
+    "tests/cases/errors/map_duplicate_key.lx": "e7be60fee46c96ca1b1379c9064b6bca1abfe12c7ac863cb43d63c1162c5c431",
+    "tests/cases/errors/map_iteration_mutation.lx": "57b02f94f1c881055e8bd6bc38e7fdfeb053a0a825f9dd5da94c3b80f3f51e29",
+    "tests/cases/errors/map_key_type.lx": "5ffc2a05d30db77dd3646135b84e4968be858d648909bcb056c1676f44de2e41",
+    "tests/cases/errors/map_literal_key_type.lx": "0347b9ac451239509d7d4d443f26ed9acc8f6df94fd7583d648e67ec0b47fb3b",
+    "tests/cases/errors/map_literal_key_variable.lx": "d0e5ed4e567408afa95473100d83e23be580f35be448454af40c3fb2bdeaf936",
+    "tests/cases/errors/map_missing_key.lx": "36a88b5a23ca2a8a6f2f3cd97b730d506c1acba250824848bf1abbbddfc5dbb1",
+    "tests/cases/errors/map_remove_missing.lx": "f448d61c3e938559db5d74af5e0b612388b226e203b8041b50caf572da2445ac",
+    "tests/cases/errors/method_arity.lx": "3ff22956bf7f69d2692595020e65f05687eaf2fe79aeedcf28daf8984987b3fd",
+    "tests/cases/errors/modulo_by_zero.lx": "50c40e266287d7266bbdd92e5d4745b98f60a73aef69e96bf5086fedf0eb1018",
+    "tests/cases/errors/modulo_type.lx": "548b9f26bc20d4db90f9a75ab14f3ebdbeb40d282b2acfb357f325a4f63def03",
+    "tests/cases/errors/negative_int_exponent.lx": "83808ef4e3a942b26f8582c57479b5ad8532683a0a400ed09bc5cff6dfb8054f",
+    "tests/cases/errors/nested_destructure_arity.lx": "4a77cc03f719e92b9bdb9cbf6695bd4fbadb74dc84e62109697254502a9f915c",
+    "tests/cases/errors/nested_destructure_non_tuple.lx": "08fd8a72e67ac20b06b2c481771b6d487927d743679600c78d963293ac15363e",
+    "tests/cases/errors/not_callable.lx": "99990d6f15c44ddbcadfcbde35e5253aa2f15949df170de6779d76b99ab242f6",
+    "tests/cases/errors/only_instances_have_fields.lx": "f14d8dd8ecd5d1af90c7a5f161c58485078c6e93dcd673f799ba7e0fce2a2cda",
+    "tests/cases/errors/only_instances_have_properties.lx": "627ad58fa93b7e663f333815296a102025555b80b6954a1d2b7c98c28d653aed",
+    "tests/cases/errors/optional_not_instance.lx": "1bd8ceacf84b2e58f71a81430e8f0f5ad012284cc900dd419643c214a5828896",
+    "tests/cases/errors/param_immutable.lx": "7410b0c327782c2dce763873e802f24da157762fa0950f63baf12a13a2061794",
+    "tests/cases/errors/parameter_redeclaration.lx": "93333221b1e815407ab73d5c8979f093ce92ba36b3ae9e2c9fdb77f7af89c741",
+    "tests/cases/errors/pow_invalid_domain.lx": "4531650695939f16103cd6a7bf2ecdf0a79af2c9fafb2d82baba66c015ddef10",
+    "tests/cases/errors/pow_overflow.lx": "3956432e6ea002094a60d239ecedaf4ab5b31faf39cf71089a4d9e8282f54005",
+    "tests/cases/errors/range_args_type.lx": "f3d94a8258e49500f0037e9d2183601c4ed860c33ce452627a0f7cd4edc253cd",
+    "tests/cases/errors/range_arity.lx": "0ebf43c2a50c79daad23504c23eaaa12563e5e27eb992afe82451b3afa8e0424",
+    "tests/cases/errors/range_bounds.lx": "c7837e23465587efed755b36fb7b7686217983888cfcfb7083203874f4cb49f2",
+    "tests/cases/errors/range_step_zero.lx": "4191350a63d8f32c16bc90d37a3c24483d094496ef2013d22ad165df27384e99",
+    "tests/cases/errors/redeclaration.lx": "65f8eb56b7619104e3fd607a6e260658794d0b58172ce44f83f3741da347420b",
+    "tests/cases/errors/self_initializer.lx": "93948955616bfd82a123296e420270a76dd12966d93011d328f7265909aaebba",
+    "tests/cases/errors/shift_count.lx": "82b5bdbfe8d6b921189bf615fd40fe49d14c7b1eeab0de5869c5586950c4b2f7",
+    "tests/cases/errors/super_outside_class.lx": "063fba944274813b05581ea2980f05c89d28fdc8e14f348933010a17cd74bd74",
+    "tests/cases/errors/super_undefined_method.lx": "175569d488bb58482a707458bd2dd7a67392a909ab8160d2ed5bb341201195b0",
+    "tests/cases/errors/super_without_superclass.lx": "0d63c3cfb994a8aa5b1a39a8e1f7522e1ebe7c6a720a280756f80fe0f5ca6362",
+    "tests/cases/errors/superclass_not_class.lx": "a59075986e698e289d802291cf748cb62769f8ab2561f74b5da08ec5f6cac853",
+    "tests/cases/errors/this_outside_class.lx": "9b6ae15aaa101c5d5eceaa956190f42425b97a1842db967099a5f62e7f7591c9",
+    "tests/cases/errors/top_level_return.lx": "944256fbf98e8ad93ceea90bbd17b07943dd21d66e7991ace13f0ab6f7094ec6",
+    "tests/cases/errors/type_mismatch_add.lx": "f5680f6c14ffd5328808b5dab5d47da585454c19e1258fbd8c41b5116f9c1e34",
+    "tests/cases/errors/unary_not_number.lx": "a97fbd897c8d39d18330e377d5d72502898e806958a46424e462f20332d5e922",
+    "tests/cases/errors/undefined_assignment.lx": "a34cdfeae27a57e56a8940ea5a426ae65bb18152f147abadbf0dbc54c49fc164",
+    "tests/cases/errors/undefined_property.lx": "469c4329d439d1417d2f386378ee4669d4947ba10f9e51123a49da9e61b646f7",
+    "tests/cases/errors/undefined_variable.lx": "756921de24a50b7fd683bc68ce24e4fe5629ee1fb7b4cf63a6d0ed208efd5aa9",
+    "tests/cases/errors/val_redeclare_global.lx": "9994c1293634eb74acedc77540e901d3fb87c1c5e98dca3949ca9f468a8b44e4",
+    "tests/cases/errors/val_redeclare_local.lx": "9f66c88edef928c923fa3d9669616791d799a3789262ee35686b1eb66dc7dcc7",
+    "tests/cases/exception_site.lx": "79df86dc6611462665fd88b58e7fb6b84b1f6a4fd35ade19c99f793145f2141a",
+    "tests/cases/exceptions.lx": "efa61d20e8c56cc299374746f3c80aef362d07f3330c53ce301bf59a84e141f4",
+    "tests/cases/exponentiation.lx": "e6533f8922e1f1d4fd137260e3c2c1b4c3406577309a1a2eeb2f659f91fa1c4e",
+    "tests/cases/fields_inheritance.lx": "400bf2224bf42cd9ce20e54d34cb9232557fb7298b1597236b9817b69d638ac6",
+    "tests/cases/fields_val_var.lx": "9b156762f35cfd7ee9683a6c85196c1ea62baead6a8d114e6c4b50dc2c7c0b07",
+    "tests/cases/for.lx": "695ba0b68b79a8ee90a8e05fb181c2c2612ca2ca37b68ca3f5ad76035f69a7e9",
+    "tests/cases/for_in.lx": "c1be914a48c2c823de17b26b7c8cefa1c6e48e57814fdcc50be0bfc183c3f4f3",
+    "tests/cases/for_in_capture.lx": "50c29587ad2c5e47c9d22d61aaeecb1d71d7992542aca87ebe66439ede73c327",
+    "tests/cases/function_values.lx": "875f2cc53f272b1b4aa7e1544342e0550a1eaa797acc4b7786708107d6d2ddce",
+    "tests/cases/functions.lx": "bff35509c939e3c612ecb798b9d24cf57063d964fe15bfeec63dfcd5a87ad378",
+    "tests/cases/generic_class.lx": "c784b4568d5f547d6f7a1336c96033033ec7a5e6e24488126c82cdc66a926711",
+    "tests/cases/generic_constraints.lx": "af4bfd1fb724427808e3a6c5b5ef853fc2358c92e3441c7bf75853c825fd80c1",
+    "tests/cases/generic_functions.lx": "a013bd7ba2c825af5bbf08becc9c3982cb50ae948c77293da909bbe7a0b098e3",
+    "tests/cases/generic_lambda_value.lx": "5efbc5897159dafb386b26d68af71c89507ef50e29ab5b4659728cc94e03b4ca",
+    "tests/cases/generics.lx": "def28acaba1edc8ace7fccc2e121dfcba7e0a00b122d8eac06644f4d563020f0",
+    "tests/cases/if_else.lx": "273d726fa1c1d2298bb344802df4feaa2dad17e1811ec30c6dc871cb127257e5",
+    "tests/cases/inheritance.lx": "f9268dd266ef4ecf36a24cdb6ca170b2757d23c2b64babfdf141016cffd0c9ec",
+    "tests/cases/inheritance_init.lx": "0e5e12750d052de96ac4ea82ca4cee73dfa056151561f428d643bc39e5dd25c2",
+    "tests/cases/inheritance_override.lx": "5ed3c285590b61f1704f3effb109e1380a5e48c223c764608bc30ee713b95c8c",
+    "tests/cases/inheritance_super_init.lx": "e19e8c7267470b6c9a087bd6c92a40c5f090dd22659fc2ece7c9939430d8ccaf",
+    "tests/cases/int_division.lx": "d89abedd36d36fcab6e73047f09c49d70ec893748e6a78e2d7aedeb4697db157",
+    "tests/cases/interface_decl.lx": "353a708773f7fa0e072e6ec416d104e7a5b918b133e9869d1c0d919dac91cfd2",
+    "tests/cases/interfaces.lx": "ba44061c8eae37415681fe929f12688fa88a01cc9ba46bf1ed17563fc3290a92",
+    "tests/cases/interpolation.lx": "56bd1c23560e4ef1196f1bc93b4ecf00e534204f3dd67fc32c236aac3b5673db",
+    "tests/cases/interpolation_scalars.lx": "1dd6555335dea241ff597384df6086e032634a50815c96a8f2b5da24bae40b68",
+    "tests/cases/is_union_parens.lx": "d53f1b8d530641632ae1ed0aa755a37a935e8c418020899ec8d3607b983485e5",
+    "tests/cases/kernel_io.lx": "46b9cd7242fac52bb76693cf05f7a0fded40b3f41ccb60bfe40ddd056a45463b",
+    "tests/cases/kernel_strings.lx": "5f961b1f3685a4c748261d0cec62355296dae776439eea95b0c0cf854166eca9",
+    "tests/cases/lambda_closures.lx": "d2bdefac313633a151a4b621de45f65bffb52f44838443e2f1d2ad43a5039842",
+    "tests/cases/leading_operator_brackets.lx": "f0ac4ef9a1c4b755d5056b09c26503380cd18b4132102d438e11262ede95cc10",
+    "tests/cases/list_cycle.lx": "41c1970ad15280b5bbce1cbaecf6b103d9a00810236cbc235d7c4c0acba45bc4",
+    "tests/cases/list_equality.lx": "a94413d8943ef0a8f31c244dde9ffa099695297d2a77adb952039b1c5f0a94f0",
+    "tests/cases/list_index.lx": "535c1eb2977c75c38de9bd9adb1edd7c7a4ef3f271e5a4a3a4636850840b4495",
+    "tests/cases/list_iteration.lx": "b8b943a07e73d2c5cbf70c0a70b22c6dedae6deec48b5e333f2754736750ed5e",
+    "tests/cases/list_literal.lx": "c656a8debf8b29990f1c98474b4d8768b946a3169c74afeb5e142b395fc751fc",
+    "tests/cases/list_methods.lx": "f28bdfa39d7f23e89a83c961afb2c3be64b7557a39fa0206a8d3fff3b61a9df1",
+    "tests/cases/list_stringify.lx": "2b36037d28058e35864a559927927d839babe51b50577f601861eb5d35f28604",
+    "tests/cases/literals.lx": "04dc8b7af84f6b139cf93d532de6959a0669750d428fb25bafa750f6708be05f",
+    "tests/cases/local_class_capture.lx": "d4fddd2f8388aada6bd29ab9a2b6a4c7f47950caeaf2d0cbc89c13c791fd8372",
+    "tests/cases/local_class_fields.lx": "f94229ee079097f287b56e2f966dfb3021777432c5dcc6fdd1c745b38552381b",
+    "tests/cases/local_function.lx": "abe844633582fa5aba008227764541326501a200c1d60a5721b5d6fbf5452298",
+    "tests/cases/logical.lx": "fadc6725a0ecfccfdde25c77bad283d806e8ed42ec4e56da7735338bcea0c696",
+    "tests/cases/map_cycle.lx": "9fdf29f7366d01f71164eb2be26480c49007dd11e35933d62f4bdf97fac921a7",
+    "tests/cases/map_equality.lx": "32720ec4cd4dd2e1a4600503eeda93adac4dbfad7b76ec528a8c9c0784917eae",
+    "tests/cases/map_equality_depth.lx": "8bcd7d053ce88dc2bb71c2e26b17019af70f2c6a9f2265c0b704895d8c9c0e95",
+    "tests/cases/map_iteration.lx": "40dfaa7650b9a4025066205027426c3fe0e475db9fd28fee454ab2cc8c52706e",
+    "tests/cases/map_key_any_error.lx": "5658f0f40f14ec4628bbd2a0ab0cf1bbbf2be638404f7f27c8fbd64b1cee1943",
+    "tests/cases/map_keys.lx": "8dde0f6795ebd93184d91c6cb69f505c39c41ee16a86868e7657395763238da6",
+    "tests/cases/map_literal.lx": "4b98bece58df4ccd6da0fd9d9e371b8497e183e0792a5beb01012166ba5fed38",
+    "tests/cases/map_methods.lx": "ee8e814c9626bc676678741b28ba228bc1bedf7cafa05bb75a0c985eddd42912",
+    "tests/cases/map_stringify.lx": "50d5b2361258b588f81ca2b11452a66e481a346f3037cd1d87354e0ba5e41c63",
+    "tests/cases/match_capture.lx": "46e8cb8f582f64dbd250254e280e590b9a77d1eb60e6b4697f422113b334f554",
+    "tests/cases/math_optional.lx": "8d528e6cc781cbd68e17d38649009ef9f661344c691bd70b30a7642bb730a516",
+    "tests/cases/method_fn_keyword.lx": "91cde64ef3c80ccc1c185202f9cb781f4b3195935035b26faf879b564b4971be",
+    "tests/cases/multiline_strings.lx": "5d707a8e074d2feb61837ff091bcff3e4caa6df46418c4abc0cc81d1030ba2c5",
+    "tests/cases/nested_destructure.lx": "76f52d1b00b2c11aed1f30e4d2301351eb4035f7d8a63222b6716231472f833a",
+    "tests/cases/nil_aware.lx": "e9939be4b1924b6565b1d27693b814ecb55719557cdefc5fa8bb3d3b52f9dcac",
+    "tests/cases/nil_value.lx": "8197609d8b9de3b29ccf9a8a1df26d76dbb707c7cd8deaf94014235ae5fc1424",
+    "tests/cases/numbers.lx": "b90e25f808de3d1895aa6c864d8ebe099eaf4ea8aa43236c0cf653651dde5ffd",
+    "tests/cases/one_line_block.lx": "13bfec6da9bd3632f335b168048636d6325976e651184addb06508a06045b31f",
+    "tests/cases/operator_line.lx": "a8bcae350a05d07ce42bfe2e734e85bddb5b764c4fe2f80d962c214605b85e00",
+    "tests/cases/optional_functions.lx": "4963ca0381064f3cd14e52a8d8f536d253880d88c8892e8061424611aeb3bf12",
+    "tests/cases/optional_receiver.lx": "92b8def643422fdac6df16f8af7f14b812c79b8b3f08e143b86b9fb24be02852",
+    "tests/cases/optional_refs.lx": "a6d60c052ee21190c852d5fe62a394705db84dfa1fec38d8f3eea311c6499904",
+    "tests/cases/optional_scalars.lx": "992ff42be1902e0f936546603244fd46fc01411cf492774c071bcbee4ea66ab3",
+    "tests/cases/optional_semicolons.lx": "99e8ee5866b18e6f7f7959c1e760ec588a03ea8bdb8c80df0dc9caa3f1b45645",
+    "tests/cases/precedence.lx": "162e346d6403172f36e64561c432432a7d07f6939d67b10d973ac878a613248d",
+    "tests/cases/print_function.lx": "ee691a8370ac45fbd9c1637513a364ccfb69f9c87da75a296de1655e86212e9a",
+    "tests/cases/range_inclusive.lx": "7ea518c410d36df908eb6fd4ac071e8627d9a9fe4968d2cfdf6e76a8bff01a28",
+    "tests/cases/range_value.lx": "5d093471b30c36f1fa1a52075773fa471446b443ef0f331d6c5f18d9679ac161",
+    "tests/cases/raw_strings.lx": "c351d3aea74df1467ff2154173aa7cfd01d93760279a47c5473826db0b1338de",
+    "tests/cases/recursion.lx": "3cc5a226b325749b3969bd045f3ebc74d2deedc0f84d0392c82e1c5959c5d185",
+    "tests/cases/result.lx": "a1b8278519f3a141988cea03905254094adc08d73e96026335a586cca05cc118",
+    "tests/cases/result_nil.lx": "79006a75bcf058f90a6be39c7134cc85709ad96254503031ddd4c86b5530522e",
+    "tests/cases/return_in_loop.lx": "c2084a4356c15fed5723ce87f129db0d99da85bf0dc9c8372b8a864e0cd05fd3",
+    "tests/cases/return_newline.lx": "c9a105ba320e6c212de325e5f82c78d47a7d72f5484a7ee76d8cbd2b393b646f",
+    "tests/cases/same_line_semicolon.lx": "96fafe18bb66f1342f85b593cf89590084cd16e679c5a3ed09f032dacdec28db",
+    "tests/cases/scope_identity.lx": "34c4114984ca44760b32a697603523cb17db4d808b8a9aa758ab54bce0a5fad1",
+    "tests/cases/stack_ctor.lx": "64afe58140a50596cf49df1111c7562dba1ac1ce64a42727692ff40f229ece74",
+    "tests/cases/stack_depth_ok.lx": "21bde886e8eb9a2e789b1a5cc3000d88cc34746f47015fbf9846386cd93017f6",
+    "tests/cases/stack_exception.lx": "0efa3743892af22a9afeb6ac9c55f7f063ee41a10ce33d1f013316740f08bc1c",
+    "tests/cases/stack_exception_user.lx": "bed4332a14d5fead4784de4f27bfb6cbb30e3dd8b827f7605d5737d7cfe2c4b6",
+    "tests/cases/stack_methods.lx": "7a3c7e7fd43151f6af7773f0c8e9e4749be98cfe8935577a53ebfd456d13940e",
+    "tests/cases/stack_overflow.lx": "fde8248747bb728c8332cda938b17207012f3a5ecc756e48875d252ce99a66c2",
+    "tests/cases/stack_overflow_caught.lx": "9a8a8140ae6a48dbb48d9354c51714de9b7c1afdaa4833f472a7d3e25011999a",
+    "tests/cases/stack_overflow_finally.lx": "72eaf56ce7f3b9f68041f67dda8ef59f1fb3bf257547041e2daccabdd748b94a",
+    "tests/cases/stack_trace.lx": "c7c472fc582166ff9d2626eede1edc6ee3698b6f9c76178a3d5290888447f20b",
+    "tests/cases/stack_trace_cap.lx": "cf15a326d80023704129208d926ee0d613a540f9466e9163f093a5efef7a8231",
+    "tests/cases/std_asserts.lx": "af1174266d409301d9caf0671e31febdcb9bc08dff498e8ba030f4ee964cb42f",
+    "tests/cases/std_bytes.lx": "8a1985cf0b2e2215e5b57dc391ff5453a946ffc1a03e0d86bcd2cc0a8f919a9e",
+    "tests/cases/std_cli.lx": "d5930e532729d9b29df102f2bbc52793f8045df25e8c3f08e5b00ddc4ff322cd",
+    "tests/cases/std_collections.lx": "81398db6b692bbcf1256b6047683a40a0b1cf27c783fa788307725e9cf9dff38",
+    "tests/cases/std_contracts.lx": "4d4cb5a3b6a55864ec1a6780734ec3ee3f76b67ee63e94c24353020717678f01",
+    "tests/cases/std_contracts_pilot.lx": "8a48b922050a044baa73517b2036f7b09655a7f31cc0234b2015884e2703207b",
+    "tests/cases/std_contracts_property.lx": "78c3657c22aa0c7acba5c0e2bc0ae59a04604755136df0e2481868b3293e34f0",
+    "tests/cases/std_convert.lx": "70bbba0fadb49d4efd6bda70ff8232c50b5cad0a184d129dc8da68e138ee3340",
+    "tests/cases/std_csv.lx": "eff14ec2eb462486b3a2e8f3ed0f0759b40786245605d55116d6965d610962c6",
+    "tests/cases/std_documents.lx": "8419655c37919fb5bf5ed42803f935832f1ded089defab37f08f841005c72d09",
+    "tests/cases/std_fmt.lx": "5e8c07fe17747583c262c99801f5baf391aaed3f02311e6e8f555c60ef7dc11d",
+    "tests/cases/std_framing.lx": "56ad104147586264d2ba74d6dafd3858584085830c152382cace63307b32b7b2",
+    "tests/cases/std_hash.lx": "9403d998891661d5738a639dfdeca0d4e80dfee92bb53225574814b0ad5d427d",
+    "tests/cases/std_hash_bytes.lx": "38abf11fd19f73dd5e3c0168d4d4536cfe759320d95bb56886878123d7902f4b",
+    "tests/cases/std_hash_sha256.lx": "bb80dca24ea7f02b6434558565c94b70db66ca80ea38c488cb239f6287178643",
+    "tests/cases/std_iter.lx": "68af3c27eb059e90be35af5061e2edf0ebaf408701ef6d6a5491c5dfed7c76df",
+    "tests/cases/std_json.lx": "040224c82ef97e7af04b98f9f164f3b7b480ec7369cd4ac1ee46aac6ffc096d7",
+    "tests/cases/std_jsonrpc.lx": "ffc593a6d2a45e19fb7c764a4d5211fc4e0d92c8b1f86f8bad8de0fddd271fb4",
+    "tests/cases/std_lists.lx": "b168ed8f1f9268198ab4f369774a6470eecf16dfa4b15b23db7c34e3cb5d9e86",
+    "tests/cases/std_maps.lx": "1f19cb58f8d751f96f807c309b55a907973692b2f46a9a07536d961dcac3a73a",
+    "tests/cases/std_numeric.lx": "4f29575aafa907e807b54d1acae0e336ddde7e075e7e1c0953ffabc406edbc6a",
+    "tests/cases/std_paths.lx": "ce6ca5bd4288bf758d6b929c0db52f7fa472dd5979acbf06bfd8d985b8b3ecde",
+    "tests/cases/std_property.lx": "d24ab8a93bc517e9f43f568e33a0cef606d91dad6120481ab5665d87fe8121ca",
+    "tests/cases/std_rand.lx": "6239766c6af555a305d2cb89fb95e6c09407bc534a0396d058279bcb551c80c1",
+    "tests/cases/std_results.lx": "3f4d5cb6a4b9e18c2d4d85a590d04642a8eb21cc4f181bdd8361a54b4741cb2c",
+    "tests/cases/std_sets.lx": "bd5f340ca2400f25dac7fba08b0ffdf02e75dba28975cd148b136a2bae58191e",
+    "tests/cases/std_strings.lx": "8945c708099b1ecfc2aaf56da4f30f76e5aa8f5c10ab7d8ef1e1a488f25c1063",
+    "tests/cases/std_test.lx": "741c0026309039cb79191531eaa99ba454af22719c5c7a496e5a7491002d5ff2",
+    "tests/cases/std_test_hooks.lx": "fdc073854559c906f2712bd93dd7360b07ebe83abab1058be875b287cbe4d4ab",
+    "tests/cases/std_timex.lx": "3c421fa7c8118a2165161c0f85328e2a9ec0ee376d7fb2a60f5ef7e1477ec8ee",
+    "tests/cases/std_timex_invalid.lx": "b2db45726059331d676ea8f8298fe55730fc12b4a4dd08de45a5cfcfbacd055c",
+    "tests/cases/std_utf8.lx": "73da241fa4b6144a0de12c7824e65954fbcd3df12c0ee507d7b4b4700b8eb077",
+    "tests/cases/str_repr.lx": "18547747c467ddabc91ce307be11dcb175a3277df73781468d1e794c3dc82ad2",
+    "tests/cases/string_chars.lx": "0ed1d5b179d6e4305d7f2ee76dcdea662cbab84f47ba05b16861f48447c2adaf",
+    "tests/cases/string_escapes.lx": "279ed5e1447cf4caca6379af00bb60c8aac287b8917cc98aeaf0285771ebe97b",
+    "tests/cases/string_order.lx": "6b1e07f1f7ffacb4e771bfd3098748c3065d086ac87b73b20aa9d0e14ae81671",
+    "tests/cases/strings.lx": "d9a1b39219a5963d5d10a978cdd4a25b69ea9f4f6ae09dfdadfae5f2f5ae9d5a",
+    "tests/cases/super.lx": "3c1ceb372bbe33076e96a2abe64375e290630da6f551cb3eb0c6f34b777fb5e5",
+    "tests/cases/super_in_closure.lx": "fc9ed55726fe0dc1c5605d127ce87bcbddb6466b83eb34afb837036ebced5438",
+    "tests/cases/super_with_this.lx": "5ad8cc001080bb898115dfb019bdaf027a295e92cdaea84dc14d90aee1a761ec",
+    "tests/cases/ternary.lx": "c0c05933850649b4beb86d0546175ab20fb14dac629facc23cd708a958372a34",
+    "tests/cases/this_in_lambda.lx": "d0e6c1697121bfe77ec6287b231e2aead42b6fa7cfda3befd24a76720f96f8dd",
+    "tests/cases/trailing_comma.lx": "ac5820bc16f93bea684ec720b36f84ca7e65e99482ea930bb996e5248eb58bb2",
+    "tests/cases/try_return_cleanup.lx": "fbdc295b7b833453e25627bc976db135d9dbca6935f7f792f62e88edff829ed0",
+    "tests/cases/tuple_destructure.lx": "1bb2e814380a40f292c29a6d699aff06703cbb0d715ac0b940556450651c2e7d",
+    "tests/cases/tuple_iteration.lx": "22f27fcc90808f3c4dc932233c2a421e1a541244536607cb522ed2b8df39d5e6",
+    "tests/cases/tuples.lx": "86100b367e5cbc2b1b9ea7c9a387ef6b21831aa8aaaa2e3cd6b059507b990299",
+    "tests/cases/type_alias.lx": "482534889d5dc6f73d9a90884ab983821715d93185eb66438bf0d26b5c9b6d53",
+    "tests/cases/typed_functions.lx": "7d56266a07083a87965bb3fde99db358b5a8b3b79bd6a3a21884c32a3cb4aa37",
+    "tests/cases/unary.lx": "f072523739ea05510ff47290839e2c8dcd5a00327bd5c82579b214ef0f740fe7",
+    "tests/cases/user_iterator.lx": "43180d5de3e27d7f0c4247b27b7c2f343e0bd0d5ca5e87fd5a44b94fb2ad1617",
+    "tests/cases/val_params.lx": "5d2be98d71a8c5454e24ce68345d1f98a86bd358919681b99817425e19f97dcb",
+    "tests/cases/val_shadowing.lx": "89e93d0cfa67c5fd05b1ed97ddb2ebe2ae05e91d321aee3c10f5791fedce80ca",
+    "tests/cases/val_var.lx": "784d40430de1d597b52bc8f0a73dd59f4426603702465dfca752fed2f1f80c0c",
+    "tests/cases/var_redeclare.lx": "82a394990781c18e5d47570c698e311ff38ebc5f4caea94a142a8242f00424f0",
+    "tests/cases/var_uninitialized_int.lx": "6ab7b9b750d904727214293a7557191418c8010dd45bc72966c5f59421d4c3ac",
+    "tests/cases/variables.lx": "1c2f23116c5db77b2f467c5a8b0f0b972d0da94a1048226ac245259bc4d8d5c5",
+    "tests/cases/variadic.lx": "9dd5db130d164cb963b63914e79f4dd6097b196c1b1234b4f319d6bdbdfa31dc",
+    "tests/cases/while.lx": "2458f9a9981aad409a53c08fbc27a0e0af7f96db3db4a5e4a657d5f740b5c797"
+  },
+  "parse_errors": [
+    "tests/cases/bang_removed.lx",
+    "tests/cases/division_comment_hint.lx",
+    "tests/cases/errors/default_not_constant.lx",
+    "tests/cases/errors/elif_without_if.lx",
+    "tests/cases/errors/field_initializer_not_constant.lx",
+    "tests/cases/errors/function_without_body.lx",
+    "tests/cases/errors/int_overflow.lx",
+    "tests/cases/errors/interpolation_empty.lx",
+    "tests/cases/errors/interpolation_unterminated.lx",
+    "tests/cases/errors/invalid_assignment.lx",
+    "tests/cases/errors/invalid_number.lx",
+    "tests/cases/errors/invalid_unicode_escape.lx",
+    "tests/cases/errors/list_bare_type.lx",
+    "tests/cases/errors/list_lowercase_type.lx",
+    "tests/cases/errors/missing_semicolon.lx",
+    "tests/cases/errors/optional_assignment.lx",
+    "tests/cases/errors/required_after_optional.lx",
+    "tests/cases/errors/return_same_line.lx",
+    "tests/cases/errors/string_newline.lx",
+    "tests/cases/errors/ternary_missing_else.lx",
+    "tests/cases/errors/unknown_escape.lx",
+    "tests/cases/errors/unterminated_block_comment.lx",
+    "tests/cases/errors/unterminated_string.lx",
+    "tests/cases/errors/unterminated_triple_string.lx",
+    "tests/cases/errors/val_without_initializer.lx",
+    "tests/cases/is_union_needs_parens.lx",
+    "tests/cases/map_at_statement_start.lx",
+    "tests/cases/reserved_async.lx",
+    "tests/cases/reserved_await.lx"
+  ],
+  "schema_version": 1
+}
