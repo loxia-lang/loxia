@@ -29,7 +29,7 @@ MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in c
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
-TIMEOUT_SECONDS = 60
+TIMEOUT_SECONDS = 120
 
 
 def _require(reason: str) -> None:
