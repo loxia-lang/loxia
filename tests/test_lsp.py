@@ -455,6 +455,108 @@ def test_lsp_formatting_honors_max_width(tmp_path: Path) -> None:
             process.wait(timeout=5)
 
 
+def test_lsp_formatting_uses_utf16_columns(tmp_path: Path) -> None:
+    uri = (tmp_path / "utf16.lx").as_uri()
+    source = 'print("😀")'
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": source,
+                    }
+                },
+            },
+        )
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/formatting",
+                "params": {"textDocument": {"uri": uri}, "options": {}},
+            },
+        )
+        edits = read_response(process, 2)["result"]
+        assert edits
+        expected = len(source.encode("utf-16-le")) // 2
+        assert edits[0]["range"] == {
+            "start": {"line": 0, "character": 0},
+            "end": {"line": 0, "character": expected},
+        }
+        assert edits[0]["newText"] == source + "\n"
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_lsp_formatting_honors_did_change_configuration(tmp_path: Path) -> None:
+    uri = (tmp_path / "width-config.lx").as_uri()
+    process = start()
+    try:
+        send(process, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        read(process)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "workspace/didChangeConfiguration",
+                "params": {"settings": {"formatter": {"maxWidth": 20}}},
+            },
+        )
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "loxia",
+                        "version": 1,
+                        "text": "fn f(a: Int, bbbb: Int) -> Int { return 1 }\n",
+                    }
+                },
+            },
+        )
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "textDocument/formatting",
+                "params": {"textDocument": {"uri": uri}, "options": {}},
+            },
+        )
+        edits = read_response(process, 2)["result"]
+        assert edits
+        assert "fn f(\n  a: Int,\n  bbbb: Int,\n)" in edits[0]["newText"]
+
+        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        read(process)
+        send(process, {"jsonrpc": "2.0", "method": "exit"})
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
 def test_lsp_completion_global_and_property(tmp_path: Path) -> None:
     uri = (tmp_path / "comp.lx").as_uri()
     text = (

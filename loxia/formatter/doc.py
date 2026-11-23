@@ -80,10 +80,13 @@ class TrailingComment(Doc):
     """Comentário na mesma linha do código anterior.
 
     `render` registra a coluna em que ele começa, para o alinhamento de comentários
-    consecutivos; `value` já inclui o marcador (`# ...`).
+    consecutivos; `value` já inclui o marcador (`# ...`). `hard` marca o comentário de
+    linha (`#`/`///`), que encerra a linha e força o grupo a quebrar; um bloco `/* */`
+    de uma linha pode continuar plano.
     """
 
     value: str
+    hard: bool = True
 
 
 @dataclass(frozen=True)
@@ -312,6 +315,11 @@ class _Renderer:
             elif isinstance(node, IfBreak):
                 stack.append((doc_indent, mode, node.flat))
             elif isinstance(node, TrailingComment):
+                # Comentário de linha encerra a linha: o grupo que o contém não pode
+                # ficar plano, senão o texto seguinte vira parte do comentário. Bloco de
+                # uma linha pode continuar plano; bloco multilinha não.
+                if node.hard or "\n" in node.value:
+                    return mode is _Mode.BREAK
                 remaining -= 1 + len(node.value)
                 if remaining < 0:
                     return False

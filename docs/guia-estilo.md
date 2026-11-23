@@ -42,9 +42,10 @@ disso.
 - reflowa chamadas, listas, mapas, tuplas, params, enums, cadeias binárias/lógicas/`??`
   e condicionais para caber em **100 colunas** (`--max-width` 20..1000 é override de
   ferramenta/editor); strings, imports e comentários nunca são quebrados;
-- decide a linha em branco: exatamente uma entre declarações de topo, métodos de classe
-  e de interface; campos e statements preservam no máximo uma linha do autor; nenhuma
-  depois de `{`/antes de `}`;
+- decide a linha em branco: exatamente uma entre declarações de topo (`class`, `fn`,
+  `interface`, `enum`, `type alias`), métodos de classe e de interface; `val`/`var` de
+  topo e statements preservam no máximo uma linha do autor; nenhuma depois de `{`/antes
+  de `}`;
 - normaliza `# ` e alinha comentários trailing consecutivos no mesmo indent quando o
   alinhamento ainda cabe; `///` e `/* */` ficam verbatim (sem reflow);
 - usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém

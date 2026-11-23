@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,7 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 
 
-def run_cli(*args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+def run_cli(
+    *args: str,
+    input_text: str | None = None,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), *args],
         cwd=ROOT,
@@ -29,6 +34,7 @@ def run_cli(*args: str, input_text: str | None = None) -> subprocess.CompletedPr
         text=True,
         timeout=20,
         check=False,
+        env=env,
     )
 
 
@@ -182,3 +188,66 @@ def test_cli_diff_and_edits_are_mutually_exclusive(tmp_path: Path) -> None:
     result = run_cli("fmt", "--check", "--diff", "--edits=json", str(script))
 
     assert result.returncode == 2
+
+
+def test_json_positions_use_lf_line_boundaries() -> None:
+    for separator in ("\x0c", "\u2028", "\u2029"):
+        source = f'val s = "a{separator}b";\n'
+        target = formatted(source)
+        edits = build_edits(source, target)
+
+        assert edits
+        assert edits[0].start.line == 1
+        assert apply_edits(source, edits) == target
+
+
+def test_cli_edits_json_file_name_is_not_absolute() -> None:
+    result = run_cli(
+        "fmt",
+        "--stdin",
+        "--file-name",
+        "/tmp/abs/thing.lx",
+        "--check",
+        "--edits=json",
+        input_text="val x=1\n",
+    )
+
+    assert result.returncode == 1
+    payload = cast(dict[str, Any], json.loads(result.stdout))
+    assert payload["file"] == "thing.lx"
+    assert "/tmp" not in result.stdout
+
+
+def test_cli_diff_shows_final_newline_change(tmp_path: Path) -> None:
+    script = tmp_path / "a.lx"
+    script.write_text("print(1)", encoding="utf-8")
+
+    result = run_cli("fmt", "--diff", str(script))
+
+    assert result.returncode == 1
+    assert "No newline at end of file" in result.stdout
+    assert "print(1)" in result.stdout
+    assert script.read_text(encoding="utf-8") == "print(1)"
+
+
+def test_cli_diff_stdin_label_is_stable() -> None:
+    result = run_cli("fmt", "--stdin", "--diff", input_text="print(1)")
+
+    assert result.returncode == 1
+    assert result.stdout.startswith("--- a/<stdin>\n+++ b/<stdin>\n")
+
+
+def test_cli_output_is_deterministic_across_hash_seeds(tmp_path: Path) -> None:
+    script = tmp_path / "a.lx"
+    source = "fn f( a:Int )->Int{return a;}\n"
+    script.write_text(source, encoding="utf-8")
+    outputs: list[tuple[str, str, int, int]] = []
+
+    for seed in ("0", "11", "23"):
+        env = dict(os.environ, PYTHONHASHSEED=seed)
+        diff = run_cli("fmt", "--diff", str(script), env=env)
+        edits = run_cli("fmt", "--check", "--edits=json", str(script), env=env)
+        outputs.append((diff.stdout, edits.stdout, diff.returncode, edits.returncode))
+
+    assert len(set(outputs)) == 1
+    assert script.read_text(encoding="utf-8") == source

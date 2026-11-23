@@ -49,10 +49,11 @@ Sem uma decisão de layout, cada regra viraria uma heurística de linha diferent
    statement quando a linha começa com operador); condicional quebra depois do `if` e
    antes do `else`; lambda `fn(x) => expr` fica inline quando cabe; `match` é sempre
    multiline; C-style `for (;;)` é reconstruído a partir da AST dessugarizada.
-5. **Linhas em branco:** exatamente uma entre declarações de topo, métodos de classe e
-   de interface; campos e statements preservam no máximo uma linha do autor; nenhuma
-   depois de `{`/antes de `}`. Imports: zero dentro do grupo, uma entre `std.*` e locais,
-   sem reordenar.
+5. **Linhas em branco:** exatamente uma entre declarações de topo (`class`, `fn`,
+   `interface`, `enum`, `type alias`), métodos de classe e de interface; `val`/`var` de
+   topo contam como statements (preservam ≤ 1 do autor, como qualquer statement); campos
+   e statements preservam no máximo uma linha do autor; nenhuma depois de `{`/antes de
+   `}`. Imports: zero dentro do grupo, uma entre `std.*` e locais, sem reordenar.
 6. **Comentários:** comentário de linha normaliza `# `; `///` e `/* */` ficam verbatim
    (sem reflow); comentário força o grupo que o contém a quebrar. O printer mantém um
    cursor de fonte e drena a trivia de cada gap; nenhum comentário pode ser perdido ou

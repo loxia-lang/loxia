@@ -234,7 +234,10 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         lox.flush("fmt", exit_code=65, always=True)
         sys.exit(65)
 
-    label = (args.file_name or "<stdin>") if args.stdin else _display_path(Path(args.script))
+    if args.stdin:
+        label = _display_name(args.file_name) if args.file_name else "<stdin>"
+    else:
+        label = _display_path(Path(args.script))
     if args.diff:
         if result.changed:
             sys.stdout.write(unified_diff(label, source, result.text))
@@ -268,6 +271,12 @@ def _display_path(path: Path) -> str:
         return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
         return path.name
+
+
+def _display_name(name: str) -> str:
+    """`--file-name` lógico: preserva nomes relativos, corta qualquer path absoluto."""
+    path = Path(name)
+    return path.name if path.is_absolute() else name
 
 
 def doc_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

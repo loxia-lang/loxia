@@ -27,6 +27,15 @@ class TextEdit:
     new_text: str
 
 
+def _split_lines(text: str) -> list[str]:
+    """Divide só em `\n` (keepends), como o scanner; `splitlines` criaria linhas fantasma."""
+    pieces = text.split("\n")
+    lines = [piece + "\n" for piece in pieces[:-1]]
+    if pieces[-1]:
+        lines.append(pieces[-1])
+    return lines
+
+
 def _position(source: str, source_bytes: bytes, offsets: Sequence[int], index: int) -> EditPosition:
     line_count = len(offsets) - 1
     offset = offsets[index]
@@ -42,8 +51,8 @@ def build_edits(source: str, formatted: str) -> tuple[TextEdit, ...]:
     """Diff por linhas; cada hunk substitui um intervalo half-open da fonte."""
     if source == formatted:
         return ()
-    source_lines = source.splitlines(keepends=True)
-    formatted_lines = formatted.splitlines(keepends=True)
+    source_lines = _split_lines(source)
+    formatted_lines = _split_lines(formatted)
     source_bytes = source.encode("utf-8")
     offsets = [0]
     for line in source_lines:
@@ -91,14 +100,18 @@ def edits_json(edits: Sequence[TextEdit]) -> list[dict[str, object]]:
 
 
 def unified_diff(name: str, source: str, formatted: str) -> str:
-    """Diff unificado determinístico (sem timestamp, sem caminho absoluto)."""
-    lines = list(
-        difflib.unified_diff(
-            source.splitlines(),
-            formatted.splitlines(),
-            fromfile=f"a/{name}",
-            tofile=f"b/{name}",
-            lineterm="",
-        )
+    """Diff unificado determinístico, incluindo a mudança de newline final."""
+    lines = difflib.unified_diff(
+        _split_lines(source),
+        _split_lines(formatted),
+        fromfile=f"a/{name}",
+        tofile=f"b/{name}",
+        lineterm="\n",
     )
-    return "\n".join(lines) + ("\n" if lines else "")
+    out: list[str] = []
+    for line in lines:
+        if line.endswith("\n"):
+            out.append(line)
+        else:
+            out.append(line + "\n\\ No newline at end of file\n")
+    return "".join(out)

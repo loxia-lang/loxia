@@ -86,6 +86,12 @@ def test_text_width_counts_code_points() -> None:
     assert rendered(doc, 2) == ["é", "ü"]
 
 
+def test_trailing_comment_forces_the_group_to_break() -> None:
+    doc = group(concat(text("a"), TrailingComment("# c"), line(), text("b")))
+
+    assert rendered(doc, 100) == ["a # c", "b"]
+
+
 def test_trailing_comment_records_its_start_column() -> None:
     doc = concat(text("val x = 1"), TrailingComment("# note"))
 
