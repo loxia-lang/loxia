@@ -23,9 +23,9 @@ desenho: o `loxia fmt` Python é a referência e o dogfood em Lox vem depois, pr
 **bytes idênticos**; e anotou o custo real — o formatter Lox **depende do parser
 self-hosted**, "o exercício maior".
 
-Isso muda o que "self-host do fmt" significa. O `loxia/formatter.py` tem ~200 linhas, mas
+Isso muda o que "self-host do fmt" significa. O `loxia/formatter/` tem ~200 linhas de referência, mas
 não é um formatador de texto: ele roda o `Scanner` e o `Parser` do núcleo e usa a AST para
-decidir a estrutura ([`loxia/formatter.py`](../../loxia/formatter.py)). Portar o fmt para Lox
+decidir a estrutura ([`loxia/formatter/legacy.py`](../../loxia/formatter/legacy.py)). Portar o fmt para Lox
 é, antes de tudo, **escrever scanner + parser + AST em Lox** — o formatador é o primeiro
 consumidor, não o trabalho principal.
 
@@ -195,4 +195,4 @@ para pacote deixa de ser hipótese.
 - [ADR-0105](0105-dependencias-git.md) — `git` dep, lock e cache.
 - [ADR-0088](0088-distribuicao-e-raizes-de-modulo.md) — `std` reservado e raízes.
 - [`docs/roadmap.md`](../roadmap.md) — self-hosting na fase Later.
-- [`loxia/formatter.py`](../../loxia/formatter.py) — implementação de referência.
+- [`loxia/formatter/legacy.py`](../../loxia/formatter/legacy.py) — implementação de referência.
