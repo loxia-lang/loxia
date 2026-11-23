@@ -26,9 +26,11 @@ The boundary between the two channels is [ADR-0135](../adr/0135-politica-de-erro
 (division by zero, `R1015`, invalid index) surfaces as `RuntimeError` and is fatal unless caught;
 an **expected failure** is a `Result[T, E]` value in the signature; `raise`/`except` is for
 **user control flow**. A function declares one channel: a function returning `Result` does not
-raise for the same failure, and a core function uses the plain name while its raising shell uses
-the `OrRaise` suffix. The stdlib does not raise for expected failure (allowlist: `asserts`,
-`contracts`, `test`, `property`). There is no `main` entry point today: a discarded `Err` is just a value and does not change
+raise for the same failure. The naming rule (core uses the plain name, raising shell uses the
+`OrRaise` suffix) is the target for **new** shells; no stdlib function uses `OrRaise` yet — `json`
+migrates in ADR-0135's M2. The stdlib is migrating to "no raise for expected failure": today the
+allowlist by nature is `asserts`, `contracts`, `test`, `property`, and the remaining raises are
+tracked in M2-M3 by `tests/test_stdlib_error_policy.py`. There is no `main` entry point today: a discarded `Err` is just a value and does not change
 the exit code. When an entry point returning `Result` exists ([#142](https://github.com/loxia-lang/loxia/issues/142)),
 an unhandled `Err` will print `error: <msg>` to stderr and exit **70** (same code as an
 uncaught runtime error); that is the decided target, not current behavior.

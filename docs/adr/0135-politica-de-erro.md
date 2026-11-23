@@ -54,8 +54,9 @@ lançando como casca. O resultado é uma stdlib com três dialetos.
      (casca). `fs` já obedece ao nome simples.
    - **Estado:** a regra vale para as cascas novas. Nenhuma função usa `OrRaise` ainda; a migração
      do `json` é o lote M2 (a stdlib continua com `parse` lançando até lá).
-3. **A stdlib não lança por falha esperada.** A allowlist por natureza é exatamente
-   `asserts`, `contracts`, `test`, `property` — o contrato delas *é* falhar.
+3. **A stdlib não lança por falha esperada — regra-alvo, com migração rastreada.** Hoje restam
+   86 `raise` em 13 módulos (M2/M3); o ratchet impede crescimento. A allowlist por natureza é
+   exatamente `asserts`, `contracts`, `test`, `property` — o contrato delas *é* falhar.
 4. **`T?` sobrevive como casca ergonômica**, sob a regra determinística da seção "Casca `T?`"
    abaixo. `Result` é o veículo de falha com detalhe; `T?` fica onde a ausência é a resposta
    inteira e o uso típico é uma linha. Auditoria desta data: **40 funções** com retorno `T?` em
@@ -155,7 +156,7 @@ Cada lote diminui o orçamento no ratchet; o teste falha se um módulo **aumenta
   e precisa ser ensinada como "defeito e fluxo do usuário", não como tratamento de falha esperada.
 - **Quebra de API** em pré-1.0: `json.parse`/`parseResult` trocam de nome; `Int.parse`/`Float.parse`
   **não** mudam (seguem `T?`, casca canônica).
-- **8 irmãs `Result` novas** (as outras 2, `csv.parse` e `timex.parseIso`, já existiam):
+- **8 irmãs `Result` novas** (as outras 2, `csv.parseResult` e `timex.parseIsoResult`, já existiam):
   `bytes.read*Result` e `convert.{base64,hex}DecodeResult`, com `BytesError`/`DecodeError` e
   golden de erro.
 - `Result[Any, E]` continua limitado por `E3011`; até o checker relaxar, módulos com `Any` mantêm
