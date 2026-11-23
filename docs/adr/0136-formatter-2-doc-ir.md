@@ -82,9 +82,11 @@ Sem uma decisão de layout, cada regra viraria uma heurística de linha diferent
 
 - **Churn:** a primeira execução muda 178 dos 320 arquivos parseáveis do oráculo; a
   aplicação ao repositório é um PR `chore/reformat` separado.
-- **Custo:** formatar o corpus (349 arquivos, 320 parseáveis) passou de ~690 ms para
-  ~1,27 s (mediana de 3, `make frontend-bench`, 2026-11-23). É ferramenta offline; não é
-  gate de CI, mas a baseline de `docs/tech/arquitetura.md` é atualizada junto.
+- **Custo:** formatar o corpus (349 arquivos, 320 parseáveis) passou de ~690 ms (v1) para
+  ~1,27 s na primeira entrega e ~0,97 s depois do #152 (mediana de 5,
+  `make frontend-bench`, 2026-11-23). O #152 trocou o `SourceIndex` completo por starts
+  memoizados: o printer só precisa do offset de início, não de ends/merges. É ferramenta
+  offline; não é gate de CI, mas a baseline de `docs/tech/arquitetura.md` é atualizada junto.
 - O autor perde o controle de quebras manuais; só comentário e linha em branco (≤ 1)
   sobrevivem como intenção.
 - Comentários em posições incomuns (entre `for (;;)` e a condição, por exemplo) podem

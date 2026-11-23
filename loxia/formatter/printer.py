@@ -65,7 +65,6 @@ from loxia_core.frontend.expr import (
     VariantPattern,
     WildcardPattern,
 )
-from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.stmt import (
     Block,
     Class,
@@ -216,16 +215,15 @@ class Printer:
         *,
         source: str,
         trivia: Sequence[Trivia],
-        index: SourceIndex,
         width: int = 100,
     ) -> None:
         self.source_bytes = source.encode("utf-8")
         self.trivia = list(trivia)
         self.trivia_index = 0
-        self.index = index
         self.width = width
         self.last_token_line = 0
         self.last_token_end = 0
+        self._starts: dict[object, int] = {}
 
     # --- entrada ---------------------------------------------------------
 
@@ -539,15 +537,24 @@ class Printer:
         return token.offset
 
     def _start(self, node: object) -> int:
-        span = self.index.span_of(node)
-        if span is not None:
-            return span.start
-        if isinstance(node, Expression):
-            return self._start(node.expression)
-        return self._token_offset(self._first_token(node))
+        cached = self._starts.get(node)
+        if cached is not None:
+            return cached
+        offset = self._token_offset(self._first_token(node))
+        self._starts[node] = offset
+        return offset
 
     def _first_token(self, node: object) -> Token | None:
-        token: Token | None = None
+        """Primeiro token do nó, na ordem em que o printer o consome.
+
+        Substitui o `SourceIndex` completo: o printer só precisa do offset de início,
+        então uma caminhada memoizada pelos campos evita indexar ends/merges de toda a
+        AST. A ordem imita a que o índice produzia para não mudar bytes.
+        """
+        if isinstance(node, Token):
+            return node
+        if isinstance(node, Expression):
+            return self._first_token(node.expression)
         if isinstance(node, If):
             return node.keyword or self._first_token(node.condition)
         if isinstance(node, While):
@@ -568,17 +575,80 @@ class Printer:
             return node.start
         if isinstance(node, ErrorExpr):
             return node.start
+        if isinstance(node, Class):
+            return node.keyword or node.name
+        if isinstance(node, Interface):
+            return node.keyword or node.name
+        if isinstance(node, EnumDecl):
+            return node.keyword or node.name
+        if isinstance(node, TypeAlias):
+            return node.keyword or node.name
+        if isinstance(node, Import):
+            return node.start or (node.path[0] if node.path else None)
+        if isinstance(node, Function):
+            return node.fn_token or node.name
         if isinstance(node, Field):
-            token = node.keyword or node.name
-        elif isinstance(node, Function):
-            token = node.fn_token or node.name
-        elif isinstance(node, (Param, EnumVariant)):
-            token = node.name
-        elif isinstance(node, ExceptClause):
-            token = node.keyword or node.type_name
-        elif isinstance(node, ImportName):
-            token = node.name
-        return token
+            return node.keyword or node.name
+        if isinstance(node, Var):
+            return node.keyword or node.name
+        if isinstance(node, Destructure):
+            return node.keyword or self._destructure_first(node.pattern)
+        if isinstance(node, Param):
+            return node.name
+        if isinstance(node, EnumVariant):
+            return node.name
+        if isinstance(node, ImportName):
+            return node.name
+        if isinstance(node, ExceptClause):
+            return node.keyword or node.type_name
+        if isinstance(node, MatchArm):
+            return self._first_token(node.pattern)
+        if isinstance(node, VariantPattern):
+            return node.enum
+        if isinstance(node, WildcardPattern):
+            return node.token
+        if isinstance(node, Grouping):
+            return node.start or self._first_token(node.expression)
+        if isinstance(node, Literal):
+            return node.token
+        if isinstance(node, InterpolatedString):
+            return node.token
+        if isinstance(node, Conditional):
+            return self._first_token(node.then_branch)
+        if isinstance(node, Lambda):
+            return node.keyword
+        if isinstance(node, Match):
+            return node.keyword
+        if isinstance(node, ListLiteral):
+            return node.bracket
+        if isinstance(node, MapLiteral):
+            return node.brace
+        if isinstance(node, TupleLiteral):
+            return node.paren
+        if isinstance(node, Call):
+            return self._first_token(node.callee)
+        if isinstance(node, (Get, Set, Index, IndexSet)):
+            return self._first_token(node.object)
+        if isinstance(node, Assign):
+            return node.name
+        if isinstance(node, Unary):
+            return node.operator
+        if isinstance(node, (Binary, Logical, Is, As)):
+            return self._first_token(node.left)
+        if isinstance(node, Range):
+            return self._first_token(node.start)
+        if isinstance(node, Variable):
+            return node.name
+        if isinstance(node, This):
+            return node.keyword
+        if isinstance(node, Super):
+            return node.keyword
+        return None
+
+    def _destructure_first(self, pattern: NamePattern | TuplePattern) -> Token | None:
+        if isinstance(pattern, NamePattern):
+            return pattern.name
+        return self._destructure_first(pattern.elements[0])
 
     def _pattern_start(self, pattern: Pattern) -> int:
         if isinstance(pattern, VariantPattern):

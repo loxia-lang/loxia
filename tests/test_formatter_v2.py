@@ -379,6 +379,39 @@ def test_top_level_val_preserves_user_blank_lines() -> None:
     assert assert_roundtrip(source) == source
 
 
+def test_comment_between_keyword_and_name_keeps_source_order() -> None:
+    cases = [
+        ("val /*c*/ x = 1\n", "val /*c*/\nx = 1\n"),
+        ("class /*c*/ C {}\n", "class /*c*/\nC {}\n"),
+        ("fn /*c*/ f() {}\n", "fn /*c*/\nf() {}\n"),
+        ("import /*c*/ std.foo\n", "import /*c*/\nstd.foo\n"),
+        ("type /*c*/ T = Int\n", "type /*c*/\nT = Int\n"),
+        ("class C {\n  val /*c*/ x: Int\n}\n", "class C {\n  val /*c*/\n  x: Int\n}\n"),
+    ]
+
+    for source, expected in cases:
+        assert formatted(source) == expected
+
+
+def test_conditional_and_collection_starts_keep_comments_inside() -> None:
+    cases = [
+        (
+            "print([1, a if # c\n b else d])\n",
+            "print(\n  [\n    1,\n    a if # c\n      b\n    else d,\n  ],\n)\n",
+        ),
+        ("print([ # c\n 1])\n", "print(\n  [ # c\n    1,\n  ],\n)\n"),
+        ("print({ # c\n 1: 2})\n", "print(\n  { # c\n    1: 2,\n  },\n)\n"),
+        ("print(( # c\n 1, 2))\n", "print(\n  ( # c\n    1,\n    2,\n  ),\n)\n"),
+        (
+            "val x = [a if # c\n b else d]\n",
+            "val x = [\n  a if # c\n    b\n  else d,\n]\n",
+        ),
+    ]
+
+    for source, expected in cases:
+        assert formatted(source) == expected
+
+
 def test_corpus_idempotent_semantic_and_comment_preserving() -> None:
     checked = 0
     for path in corpus_files():
