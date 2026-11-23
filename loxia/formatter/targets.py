@@ -39,10 +39,7 @@ def _matches(rel: str, patterns: Sequence[str]) -> bool:
         base = pattern.rstrip("/")
         if candidate.full_match(base) or candidate.full_match(base + "/**"):
             return True
-        if any(
-            ancestor.full_match(base) or PurePosixPath(ancestor.name).full_match(base)
-            for ancestor in ancestors
-        ):
+        if any(ancestor.full_match(base) for ancestor in ancestors):
             return True
     return False
 

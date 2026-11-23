@@ -79,6 +79,21 @@ def test_resolve_excludes_discovered_but_not_explicit(tmp_path: Path) -> None:
     assert explicit == [tmp_path / "errors" / "bad.lx"]
 
 
+def test_exclude_ancestor_is_path_relative_not_basename(tmp_path: Path) -> None:
+    (tmp_path / "a.lx").write_text("val a = 1\n", encoding="utf-8")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.lx").write_text("val b = 2\n", encoding="utf-8")
+    (tmp_path / "x" / "sub").mkdir(parents=True)
+    (tmp_path / "x" / "sub" / "f.lx").write_text("val f = 3\n", encoding="utf-8")
+
+    resolved = resolve_targets([str(tmp_path)], excludes=["sub"], cwd=tmp_path)
+
+    assert [path.relative_to(tmp_path).as_posix() for path in resolved] == [
+        "a.lx",
+        "x/sub/f.lx",
+    ]
+
+
 def test_resolve_reports_missing_and_empty(tmp_path: Path) -> None:
     with pytest.raises(TargetNotFoundError):
         resolve_targets([str(tmp_path / "missing.lx")], cwd=tmp_path)
@@ -243,3 +258,28 @@ def test_cli_diff_disambiguates_same_basename_outside_cwd(tmp_path: Path) -> Non
     assert len(headers) == 2
     assert len(set(headers)) == 2
     assert all("one/same.lx" in header or "two/same.lx" in header for header in headers)
+
+
+def test_cli_missing_path_exits_66(tmp_path: Path) -> None:
+    result = run_cli("fmt", "--check", "missing.lx", cwd=tmp_path)
+
+    assert result.returncode == 66
+    assert "não encontrado" in result.stderr
+
+
+def test_cli_invalid_utf8_is_a_file_error(tmp_path: Path) -> None:
+    (tmp_path / "bad.lx").write_bytes(b"val x = \xff\n")
+
+    result = run_cli("fmt", "--check", "bad.lx", cwd=tmp_path)
+
+    assert result.returncode == 66
+    assert "UTF-8" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_help_describes_multi_targets() -> None:
+    result = run_cli("fmt", "--help")
+
+    assert "arquivos ou diretórios" in result.stdout
+    assert "--exclude" in result.stdout
+    assert "formata arquivos ou diretórios" in run_cli("--help").stdout

@@ -52,13 +52,15 @@ disso.
   sem), quebra binárias **depois** do operador e preserva C-style `for (;;)`;
 - aceita vários arquivos e diretórios recursivos (`loxia fmt std tests/cases`), em ordem
   determinística; diretórios ocultos e caches (`node_modules`, `.venv`, …) ficam de fora;
-  `--exclude GLOB` (repetível, relativo ao cwd, casa também ancestrais) tira
-  diretórios/arquivos descobertos, enquanto um path explícito sempre entra; com erro de
-  sintaxe em qualquer alvo **nada** é escrito (exit 65, diagnóstico por arquivo); nenhum
-  alvo encontrado é uso (exit 2) e path inexistente é 66; `--check` é silencioso (65 > 1 >
-  0), `--diff` imprime um diff por arquivo e `--json`/`--json-lines` agregam os
-  diagnósticos num único `start`/`summary`; labels são relativos ao cwd (basename fora
-  dele, com sufixo de diretório se dois colidirem);
+  `--exclude GLOB` (repetível, relativo ao cwd; casa o path e seus ancestrais) tira
+  diretórios/arquivos descobertos; use `**/nome/**` para qualquer profundidade. Um
+  **arquivo** explícito sempre entra; um **diretório** explícito ainda respeita
+  `--exclude`. Com erro de sintaxe em qualquer alvo **nada** é escrito (exit 65,
+  diagnóstico por arquivo); nenhum alvo encontrado é uso (exit 2), path inexistente ou
+  ilegível/não-UTF-8 é 66; `--check` é silencioso (65 > 1 > 0), `--diff` imprime um diff
+  por arquivo; `--json` agrega os diagnósticos num único documento e `--json-lines` num
+  único `start` + `summary`; labels são relativos ao cwd (basename fora dele, com sufixo
+  de diretório se dois colidirem);
 - `fmt --diff` mostra o diff unificado e não escreve; `fmt --check --edits=json` devolve
   `TextEdit[]` com posições exatas (line/column 1-based, offset em bytes) para editores e
   agentes, sem reler o arquivo, e exige um único arquivo resolvido;
@@ -66,8 +68,9 @@ disso.
   `=`/`:` e não formata range/seleção (isso fica em #110).
 
 No repositório, `loxia fmt .` encontra fixtures inválidas de propósito (`tests/cases/errors/`,
-suíte oficial); use `--exclude` para elas ou prefira o gate `tests/test_formatter_repo.py`
-(`make check-fast`), que pula parse errors por contrato.
+suíte oficial); use `--exclude` (por exemplo `--exclude 'tests/cases/errors/**'`) ou prefira
+o gate `tests/test_formatter_repo.py` (`make check-fast`), que pula parse errors por
+contrato.
 
 O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md),
 [ADR-0136](adr/0136-formatter-2-doc-ir.md)); o dogfood em Lox fica adiado até o repo

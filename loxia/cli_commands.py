@@ -294,7 +294,17 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     failed = False
     for target, label in zip(targets, labels, strict=True):
         lox.use_file(label, module_root=target.resolve().parent)
-        source = _read_source(str(target))
+        try:
+            source = _read_source(str(target))
+        except UnicodeDecodeError:
+            print(f"Erro: '{label}' não é UTF-8 válido.", file=sys.stderr)
+            sys.exit(66)
+        except OSError as exc:
+            print(
+                f"Erro: não foi possível ler '{label}': {exc.strerror or exc}",
+                file=sys.stderr,
+            )
+            sys.exit(66)
         result = flush_result(label, source)
         if result is None:
             failed = True

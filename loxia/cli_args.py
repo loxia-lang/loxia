@@ -56,7 +56,7 @@ _COMMAND_SUMMARIES = {
     "check": "checa os tipos sem executar",
     "build": "compila para código nativo (LLVM)",
     "ast": "imprime a AST como S-expression, sem executar",
-    "fmt": "formata um arquivo Loxia",
+    "fmt": "formata arquivos ou diretórios Loxia",
     "doc": "gera referência Markdown/JSON dos comentários `///`",
     "explain": "explica um código de diagnóstico",
     "capabilities": "descreve comandos, formatos e limites",
@@ -85,8 +85,8 @@ _COMMAND_EXAMPLES = {
     "ast": """exemplos:
   loxia ast prog.lx""",
     "fmt": """exemplos:
-  loxia fmt src/main.lx
-  loxia fmt --check src/main.lx
+  loxia fmt src examples
+  loxia fmt --check std tests/cases --exclude 'tests/cases/errors/**'
   loxia fmt --stdin < prog.lx""",
     "doc": """exemplos:
   loxia doc src/main.lx
