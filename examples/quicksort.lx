@@ -1,32 +1,32 @@
 # Quicksort with typed lists, indexing, push and for-in.
 fn quicksort(xs: List[Int]) -> List[Int] {
   if (len(xs) <= 1) {
-    return xs;
+    return xs
   }
 
-  val pivot = xs[0];
-  val smaller: List[Int] = [];
-  val larger: List[Int] = [];
+  val pivot = xs[0]
+  val smaller: List[Int] = []
+  val larger: List[Int] = []
 
-  var i = 1;
+  var i = 1
   while (i < len(xs)) {
     if (xs[i] < pivot) {
-      smaller.push(xs[i]);
+      smaller.push(xs[i])
     } else {
-      larger.push(xs[i]);
+      larger.push(xs[i])
     }
-    i = i + 1;
+    i = i + 1
   }
 
-  val sorted: List[Int] = quicksort(smaller);
-  sorted.push(pivot);
+  val sorted: List[Int] = quicksort(smaller)
+  sorted.push(pivot)
 
   for x in quicksort(larger) {
-    sorted.push(x);
+    sorted.push(x)
   }
 
-  return sorted;
+  return sorted
 }
 
-val xs: List[Int] = [5, 3, 8, 1, 9, 2, 7, 4, 6];
-print(quicksort(xs));
+val xs: List[Int] = [5, 3, 8, 1, 9, 2, 7, 4, 6]
+print(quicksort(xs))

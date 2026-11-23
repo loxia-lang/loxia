@@ -1,4 +1,3 @@
-interface Vazia {
-}
+interface Vazia {}
 
-print(1)  # expect: 1
+print(1) # expect: 1

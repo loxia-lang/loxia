@@ -1,4 +1,4 @@
 fn f(x) {
-  x = 2;
+  x = 2
 }
 # expect error: 'x' is immutable; declare it with 'var' to allow assignment.

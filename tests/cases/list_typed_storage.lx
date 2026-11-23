@@ -21,7 +21,9 @@ strs.push("c")
 print(strs)
 print(join(strs, "-"))
 var total = 0
-for x in ints { total = total + x }
+for x in ints {
+  total = total + x
+}
 print(total)
 print(ints == [1, 20])
 val any: List[Any] = ["x", 1]

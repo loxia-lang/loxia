@@ -1,18 +1,21 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 class Holder {
   val data: Bytes
-  init(data: Bytes) {
+
+  fn init(data: Bytes) {
     this.data = data
   }
 }
+
 fn identity(value: Bytes) -> Bytes {
   return value
 }
+
 val b = Bytes.fromText("é")
 val holder = Holder(b)
 print(holder.data.toHex())
 print(identity(b).toHex())
-val map: Map[String, Bytes] = {"a": b}
+val map: Map[String, Bytes] = { "a": b }
 print(map["a"].toHex())
 val tuple = (b, 1)
 print(tuple[0])

@@ -28,7 +28,7 @@ class FrameFailure {
   val message: String
 
   /// Creates a failure with an explicit kind and message.
-  init(kind: String, message: String) {
+  fn init(kind: String, message: String) {
     this.kind = kind
     this.message = message
   }

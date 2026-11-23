@@ -54,15 +54,19 @@ if (full != nil) {
 # Linear recusa backref; compileFull é a variante Result do modo Full.
 print(regex.tryCompile("(\\w+)\\s+\\1"))
 val full_ok = regex.compileFull("(\\w+)\\s+\\1")
-print(match full_ok {
-  Result.Ok(value) => value.isMatch("oi oi"),
-  Result.Err(_) => false
-})
+print(
+  match full_ok {
+    Result.Ok(value) => value.isMatch("oi oi")
+    Result.Err(_) => false
+  },
+)
 val full_bad = regex.compileFull("(")
-print(match full_bad {
-  Result.Ok(_) => "ok",
-  Result.Err(error) => error.kind
-})
+print(
+  match full_bad {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => error.kind
+  },
+)
 
 val multiline = regex.tryCompile("^b", false, true)
 if (multiline != nil) {
@@ -87,10 +91,12 @@ if (extended != nil) {
 
 print(regex.tryCompile("("))
 val bad = regex.compile("(")
-print(match bad {
-  Result.Ok(_) => "ok",
-  Result.Err(error) => error.kind
-})
+print(
+  match bad {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => error.kind
+  },
+)
 # expect: true
 # expect: abc 42
 # expect: 2

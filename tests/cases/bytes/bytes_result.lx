@@ -2,27 +2,70 @@
 # Result[Bytes, BytesError] and the BytesError variants.
 fn tag(error: BytesError) -> String {
   return match error {
-    BytesError.InvalidHex(_) => "badHex",
-    BytesError.InvalidBase64(_) => "badBase64",
+    BytesError.InvalidHex(_) => "badHex"
+    BytesError.InvalidBase64(_) => "badBase64"
     BytesError.InvalidUtf8(_) => "badUtf8"
   }
 }
-print(match Bytes.fromHex("FF") { Result.Ok(value) => value.toHex(), Result.Err(error) => tag(error) })
-print(match Bytes.fromHex("F") { Result.Ok(_) => "ok", Result.Err(error) => tag(error) })
-print(match Bytes.fromHex("GG") { Result.Ok(_) => "ok", Result.Err(error) => tag(error) })
-print(match Bytes.fromBase64("Zg==") { Result.Ok(value) => value.toHex(), Result.Err(error) => tag(error) })
-print(match Bytes.fromBase64("Zh==") { Result.Ok(_) => "ok", Result.Err(error) => tag(error) })
-print(match Bytes.fromBase64("Zg") { Result.Ok(_) => "ok", Result.Err(error) => tag(error) })
-print(match Bytes.fromText("é").toText() { Result.Ok(text) => text, Result.Err(error) => tag(error) })
-print(match Bytes.fromList([0, 255]).toText() { Result.Ok(_) => "ok", Result.Err(error) => tag(error) })
+
+print(
+  match Bytes.fromHex("FF") {
+    Result.Ok(value) => value.toHex()
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromHex("F") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromHex("GG") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromBase64("Zg==") {
+    Result.Ok(value) => value.toHex()
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromBase64("Zh==") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromBase64("Zg") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromText("é").toText() {
+    Result.Ok(text) => text
+    Result.Err(error) => tag(error)
+  },
+)
+print(
+  match Bytes.fromList([0, 255]).toText() {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => tag(error)
+  },
+)
 val error = BytesError.InvalidBase64("detail")
 print(error is BytesError)
 print(error is Exception)
-print(match error {
-  BytesError.InvalidHex(message) => message,
-  BytesError.InvalidBase64(message) => message,
-  BytesError.InvalidUtf8(message) => message
-})
+print(
+  match error {
+    BytesError.InvalidHex(message) => message
+    BytesError.InvalidBase64(message) => message
+    BytesError.InvalidUtf8(message) => message
+  },
+)
 
 # expect: ff
 # expect: badHex

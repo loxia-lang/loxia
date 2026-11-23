@@ -1,9 +1,15 @@
 # Iteração só de chaves, em ordem de inserção.
-val m = {"a": 1, "b": 2, "c": 3}
-for k in m { print(k) }
-for k in m { print(k + "=" + str(m[k])) }
+val m = { "a": 1, "b": 2, "c": 3 }
+for k in m {
+  print(k)
+}
+for k in m {
+  print(k + "=" + str(m[k]))
+}
 val vazio: Map[String, Int] = {}
-for k in vazio { print("nunca") }
+for k in vazio {
+  print("nunca")
+}
 # expect: a
 # expect: b
 # expect: c

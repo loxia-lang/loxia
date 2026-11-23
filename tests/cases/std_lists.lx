@@ -2,8 +2,12 @@
 import std.lists as lists
 
 fn compareInt(a: Int, b: Int) -> Int {
-  if (a < b) { return -1 }
-  if (a > b) { return 1 }
+  if (a < b) {
+    return -1
+  }
+  if (a > b) {
+    return 1
+  }
   return 0
 }
 

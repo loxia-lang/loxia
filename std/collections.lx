@@ -11,7 +11,7 @@ class Stack[T] {
   var items: List[T]
 
   /// Creates an empty stack.
-  init() {
+  fn init() {
     this.items = []
   }
 
@@ -70,7 +70,7 @@ class Queue[T] {
   var head: Int
 
   /// Creates an empty queue.
-  init() {
+  fn init() {
     this.items = []
     this.head = 0
   }
@@ -134,7 +134,7 @@ class Deque[T] {
   var back: List[T]
 
   /// Creates an empty deque.
-  init() {
+  fn init() {
     this.front = []
     this.back = []
   }
@@ -238,7 +238,7 @@ class PriorityQueue[T] {
   val less: fn(T, T) -> Bool
 
   /// Creates an empty queue; `less` defines the priority order.
-  init(less: fn(T, T) -> Bool) {
+  fn init(less: fn(T, T) -> Bool) {
     this.items = []
     this.less = less
   }

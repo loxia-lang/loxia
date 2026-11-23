@@ -1,8 +1,8 @@
 class A {
-  var x;
+  var x
 }
 
 class B(A) {
-  var x;
+  var x
 }
 # expect error: Field 'x' already declared.

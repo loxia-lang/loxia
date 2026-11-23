@@ -33,10 +33,7 @@ fn isErr[T, E](result: Result[T, E]) -> Bool {
 /// Applies `transform` to the success value; an error passes through unchanged.
 ///
 /// The error type `E` is preserved.
-fn map[T, U, E](
-  result: Result[T, E],
-  transform: fn(T) -> U
-) -> Result[U, E] {
+fn map[T, U, E](result: Result[T, E], transform: fn(T) -> U) -> Result[U, E] {
   var out: Result[U, E]
   match result {
     Result.Ok(value) => out = _ok(transform(value))
@@ -48,10 +45,7 @@ fn map[T, U, E](
 /// Applies `transform` to the error value; a success passes through unchanged.
 ///
 /// The success type `T` is preserved.
-fn mapErr[T, E, F](
-  result: Result[T, E],
-  transform: fn(E) -> F
-) -> Result[T, F] {
+fn mapErr[T, E, F](result: Result[T, E], transform: fn(E) -> F) -> Result[T, F] {
   var out: Result[T, F]
   match result {
     Result.Ok(value) => out = _ok(value)
@@ -82,10 +76,7 @@ fn unwrapOr[T, E](result: Result[T, E], fallback: T) -> T {
 ///
 /// On success `transform` is called; on error the original error is returned unchanged.
 /// This is the monadic bind for `Result`.
-fn andThen[T, U, E](
-  result: Result[T, E],
-  transform: fn(T) -> Result[U, E]
-) -> Result[U, E] {
+fn andThen[T, U, E](result: Result[T, E], transform: fn(T) -> Result[U, E]) -> Result[U, E] {
   var out: Result[U, E]
   match result {
     Result.Ok(value) => out = transform(value)

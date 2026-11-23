@@ -1,13 +1,11 @@
 # Bool, Int e String são chaves distintas.
-val m: Map[Bool | Int | String, String] = {
-  true: "bool", 1: "int", "1": "string"
-}
+val m: Map[Bool | Int | String, String] = { true: "bool", 1: "int", "1": "string" }
 print(m[true])
 print(m[1])
 print(m["1"])
 print(len(m))
 print(m)
-val n: Map[Bool | Int, String] = {false: "f", 0: "z"}
+val n: Map[Bool | Int, String] = { false: "f", 0: "z" }
 print(n[false])
 print(n[0])
 # expect: bool

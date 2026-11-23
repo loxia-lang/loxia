@@ -40,7 +40,11 @@ print(rebalance.isEmpty())
 print(rebalance.popFront())
 print(rebalance.isEmpty())
 
-val pq: PriorityQueue[Int] = PriorityQueue(fn(a: Int, b: Int) -> Bool { return a < b })
+val pq: PriorityQueue[Int] = PriorityQueue(
+  fn(a: Int, b: Int) -> Bool {
+    return a < b
+  },
+)
 pq.push(5)
 pq.push(1)
 pq.push(3)

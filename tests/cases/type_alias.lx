@@ -1,9 +1,13 @@
 # Type alias transparente, não-genérico: `type Nome = Tipo` (ADR-0039/0084).
 
 type UserId = Int
+
 type Nomes = List[String]
+
 type Callback = fn(Int) -> Int
+
 type MaybeNome = String?
+
 type Par = (Int, String)
 
 class Pessoa {
@@ -16,9 +20,13 @@ class Pessoa {
   }
 }
 
-fn dobro(x: Int) -> Int { return x * 2 }
+fn dobro(x: Int) -> Int {
+  return x * 2
+}
 
-fn eco(id: UserId) -> UserId { return id }
+fn eco(id: UserId) -> UserId {
+  return id
+}
 
 val nomes: Nomes = ["a", "b"]
 val cb: Callback = dobro
@@ -26,23 +34,24 @@ val par: Par = (1, "x")
 val nada: MaybeNome = nil
 val p = Pessoa(7, "ana")
 
-print(eco(3))                   # expect: 3
-print(nomes)                    # expect: ["a", "b"]
-print(cb(4))                    # expect: 8
-print(par)                      # expect: (1, "x")
-print(nada)                     # expect: nil
-print(p.id)                     # expect: 7
-print(p.nome)                   # expect: ana
+print(eco(3))  # expect: 3
+print(nomes)   # expect: ["a", "b"]
+print(cb(4))   # expect: 8
+print(par)     # expect: (1, "x")
+print(nada)    # expect: nil
+print(p.id)    # expect: 7
+print(p.nome)  # expect: ana
 
 val numero: Int = 5
-print(numero is UserId)         # expect: true
+print(numero is UserId) # expect: true
 
 val qualquer: Any = 9
-print(qualquer as UserId)       # expect: 9
+print(qualquer as UserId) # expect: 9
 
 type IntList = List[Int]
+
 val ints: IntList = [1, 2]
-print(ints)                     # expect: [1, 2]
+print(ints) # expect: [1, 2]
 val ids: List[UserId] = [3, 4]
-print(ids)                      # expect: [3, 4]
-print(ids is List[UserId])      # expect: true
+print(ids)                  # expect: [3, 4]
+print(ids is List[UserId])  # expect: true

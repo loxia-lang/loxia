@@ -1,12 +1,12 @@
 # Laço aninhado: mede custo de blocos e escopos internos.
-var i = 0;
-var total = 0;
+var i = 0
+var total = 0
 while (i < 250) {
-  var j = 0;
+  var j = 0
   while (j < 250) {
-    total = total + i * j;
-    j = j + 1;
+    total = total + i * j
+    j = j + 1
   }
-  i = i + 1;
+  i = i + 1
 }
-print(total);
+print(total)

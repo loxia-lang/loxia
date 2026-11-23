@@ -17,7 +17,7 @@ class ProcError {
   val message: String
 
   /// Builds a failure from a stable kind and a message.
-  init(kind: String, message: String) {
+  fn init(kind: String, message: String) {
     this.kind = kind
     this.message = message
   }
@@ -29,7 +29,7 @@ class Stream {
   val id: Int
 
   /// Wraps an existing stream handle.
-  init(id: Int) {
+  fn init(id: Int) {
     this.id = id
   }
 
@@ -87,7 +87,7 @@ class Process {
   val stderr: Stream
 
   /// Wraps an already-started process handle; prefer `spawn`.
-  init(id: Int) {
+  fn init(id: Int) {
     this.id = id
     this.stdin = Stream(process.stdin(id))
     this.stdout = Stream(process.stdout(id))
@@ -135,7 +135,7 @@ class Output {
   val stderr: String
 
   /// Builds the result of a finished run.
-  init(code: Int, stdout: String, stderr: String) {
+  fn init(code: Int, stdout: String, stderr: String) {
     this.code = code
     this.stdout = stdout
     this.stderr = stderr
@@ -232,7 +232,7 @@ fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Result[Out
               failure = results.errorOf(waited) ?? ProcError("io", "wait failed.")
             }
             done = true
-          } else if (id == outId) {
+          } elif (id == outId) {
             val chunk = childProcess.stdout.read(4096)
             if (not results.isOk(chunk)) {
               failure = results.errorOf(chunk) ?? ProcError("io", "stdout read failed.")
@@ -244,7 +244,7 @@ fn run(argv: List[String], stdin: String = "", timeoutMs: Int = 0) -> Result[Out
                 outParts.push(text)
               }
             }
-          } else if (id == errId) {
+          } elif (id == errId) {
             val chunk = childProcess.stderr.read(4096)
             if (not results.isOk(chunk)) {
               failure = results.errorOf(chunk) ?? ProcError("io", "stderr read failed.")

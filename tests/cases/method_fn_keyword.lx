@@ -1,4 +1,7 @@
 class A {
-  fn m() -> Int { return 7 }
+  fn m() -> Int {
+    return 7
+  }
 }
+
 print(A().m()) # expect: 7

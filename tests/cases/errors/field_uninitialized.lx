@@ -1,6 +1,6 @@
 class C {
-  var x;
+  var x
 }
 
-C();
+C()
 # expect runtime error: Field 'x' must be initialized.

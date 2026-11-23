@@ -4,22 +4,57 @@ import std.test as t
 val log = t.Recorder()
 val suite = t.Suite()
 
-suite.describe("hooks", fn() {
-  suite.beforeEach(fn() { log.record("before") })
-  suite.afterEach(fn() { log.record("after") })
-  suite.it("ordem", fn() { log.record("it") })
-  suite.describe("aninhado", fn() {
-    suite.beforeEach(fn() { log.record("inner") })
-    suite.afterEach(fn() { log.record("innerAfter") })
-    suite.it("herda", fn() { log.record("corpo") })
-  })
-})
+suite.describe(
+  "hooks",
+  fn() {
+    suite.beforeEach(
+      fn() {
+        log.record("before")
+      },
+    )
+    suite.afterEach(
+      fn() {
+        log.record("after")
+      },
+    )
+    suite.it(
+      "ordem",
+      fn() {
+        log.record("it")
+      },
+    )
+    suite.describe(
+      "aninhado",
+      fn() {
+        suite.beforeEach(
+          fn() {
+            log.record("inner")
+          },
+        )
+        suite.afterEach(
+          fn() {
+            log.record("innerAfter")
+          },
+        )
+        suite.it(
+          "herda",
+          fn() {
+            log.record("corpo")
+          },
+        )
+      },
+    )
+  },
+)
 
-suite.it("log", fn() {
-  t.expect(log.order()).toBe(
-    ["before", "it", "after", "before", "inner", "corpo", "innerAfter", "after"]
-  )
-})
+suite.it(
+  "log",
+  fn() {
+    t.expect(log.order()).toBe(
+      ["before", "it", "after", "before", "inner", "corpo", "innerAfter", "after"],
+    )
+  },
+)
 suite.done()
 # expect: ok 1 - hooks / ordem
 # expect: ok 2 - hooks / aninhado / herda

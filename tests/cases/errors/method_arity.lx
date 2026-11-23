@@ -1,5 +1,6 @@
 class Foo {
-  bar(a) {}
+  fn bar(a) {}
 }
-Foo().bar();
+
+Foo().bar()
 # expect runtime error: Expected 1 arguments but got 0.

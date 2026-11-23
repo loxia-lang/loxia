@@ -1,21 +1,22 @@
 class Base {
-  var x: Int;
-  init(x: Int) {
-    this.x = x;
+  var x: Int
+
+  fn init(x: Int) {
+    this.x = x
   }
 
-  soma(y: Int) -> Int {
-    return this.x + y;
+  fn soma(y: Int) -> Int {
+    return this.x + y
   }
 }
 
 class Derived(Base) {
-  init(x: Int) {
-    super.init(x);
-    this.x = this.x + 10;
+  fn init(x: Int) {
+    super.init(x)
+    this.x = this.x + 10
   }
 }
 
-var d = Derived(5);
-print(d.x);        # expect: 15
-print(d.soma(1));  # expect: 16
+var d = Derived(5)
+print(d.x)        # expect: 15
+print(d.soma(1))  # expect: 16

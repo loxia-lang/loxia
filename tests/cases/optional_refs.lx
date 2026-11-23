@@ -1,23 +1,23 @@
 class P {
-  var nome: String?;
+  var nome: String?
 
-  init(n: String?) {
-    this.nome = n;
+  fn init(n: String?) {
+    this.nome = n
   }
 
-  get() -> String? {
-    return this.nome;
+  fn get() -> String? {
+    return this.nome
   }
 }
 
-val vazio = P(nil);
-print(vazio.nome ?? "x");       # expect: x
-print(vazio.nome == nil);       # expect: true
-print(vazio.get() ?? "y");      # expect: y
+val vazio = P(nil)
+print(vazio.nome ?? "x")   # expect: x
+print(vazio.nome == nil)   # expect: true
+print(vazio.get() ?? "y")  # expect: y
 
-val ana = P("Ana");
-print(ana.nome ?? "x");         # expect: Ana
-print(ana.nome);                # expect: Ana
-print(ana.get() ?? "y");        # expect: Ana
-print(ana.nome == "Ana");       # expect: true
-print(ana.nome == "Bia");       # expect: false
+val ana = P("Ana")
+print(ana.nome ?? "x")    # expect: Ana
+print(ana.nome)           # expect: Ana
+print(ana.get() ?? "y")   # expect: Ana
+print(ana.nome == "Ana")  # expect: true
+print(ana.nome == "Bia")  # expect: false

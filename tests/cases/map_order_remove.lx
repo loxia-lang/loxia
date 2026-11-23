@@ -1,8 +1,10 @@
 # Ordem de inserção após remove e reinserção (o dict do Python é o oráculo).
-val m = {"a": 1, "b": 2, "c": 3}
+val m = { "a": 1, "b": 2, "c": 3 }
 m.remove("b")
 m["b"] = 9
-for k in m { print(k) }
+for k in m {
+  print(k)
+}
 print(m.keys())
 print(m.values())
 print(len(m))

@@ -8,7 +8,6 @@
 
 import std.results as results
 
-
 /// Failure to parse an ISO-8601 UTC instant or to build a civil date.
 class TimeError {
   /// Stable token: `invalidIso` or `invalidDate`.
@@ -17,7 +16,7 @@ class TimeError {
   val message: String
 
   /// Builds a failure.
-  init(kind: String, message: String) {
+  fn init(kind: String, message: String) {
     this.kind = kind
     this.message = message
   }
@@ -148,7 +147,7 @@ fn parts(ms: Int) -> (Int, Int, Int, Int, Int, Int) {
     day,
     rest // _msPerHour(),
     (rest % _msPerHour()) // _msPerMinute(),
-    (rest % _msPerMinute()) // _msPerSecond()
+    (rest % _msPerMinute()) // _msPerSecond(),
   )
 }
 
@@ -293,7 +292,7 @@ fn parseIsoResult(text: String) -> Result[Int, TimeError] {
     if (index + 1 != len(text)) {
       return _badIso()
     }
-  } else if (marker == 43 or marker == 45) {
+  } elif (marker == 43 or marker == 45) {
     val parsed = _parseOffset(text, index)
     if (parsed == nil) {
       return _badIso()
@@ -302,8 +301,12 @@ fn parseIsoResult(text: String) -> Result[Int, TimeError] {
   } else {
     return _badIso()
   }
-  val instant = days * _msPerDay() + hour * _msPerHour() + minute * _msPerMinute() +
-    second * _msPerSecond() + millis - offset * _msPerMinute()
+  val instant = days * _msPerDay() +
+    hour * _msPerHour() +
+    minute * _msPerMinute() +
+    second * _msPerSecond() +
+    millis -
+    offset * _msPerMinute()
   return Result.Ok(instant)
 }
 
@@ -337,8 +340,17 @@ fn _formatIso(ms: Int, offsetMinutes: Int, withMillis: Bool) -> String {
   val local = ms + offsetMinutes * _msPerMinute()
   val (year, month, day, hour, minute, second) = parts(local)
   _checkFormatYear(year)
-  var text = _pad(year, 4) + "-" + _pad(month, 2) + "-" + _pad(day, 2) +
-    "T" + _pad(hour, 2) + ":" + _pad(minute, 2) + ":" + _pad(second, 2)
+  var text = _pad(year, 4) +
+    "-" +
+    _pad(month, 2) +
+    "-" +
+    _pad(day, 2) +
+    "T" +
+    _pad(hour, 2) +
+    ":" +
+    _pad(minute, 2) +
+    ":" +
+    _pad(second, 2)
   if (withMillis) {
     text = text + "." + _pad(_millisOf(ms), 3)
   }
@@ -376,10 +388,7 @@ fn _checkOffset(offsetMinutes: Int) -> Nil {
 
 fn _badIso() -> Result[Int, TimeError] {
   return Result.Err(
-    TimeError(
-      "invalidIso",
-      "expected YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS[.mmm](Z|+HH:MM|-HH:MM)."
-    )
+    TimeError("invalidIso", "expected YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS[.mmm](Z|+HH:MM|-HH:MM)."),
   )
 }
 

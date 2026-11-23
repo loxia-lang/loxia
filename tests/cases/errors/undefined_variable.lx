@@ -1,2 +1,2 @@
-print(naoexiste);
+print(naoexiste)
 # expect runtime error: Undefined variable 'naoexiste'.

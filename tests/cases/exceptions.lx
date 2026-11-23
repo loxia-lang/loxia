@@ -1,6 +1,8 @@
 # try/except/finally com exceções tipadas e erros de runtime.
 class MyError(Exception) {
-  init(msg: String) { this.message = msg }
+  fn init(msg: String) {
+    this.message = msg
+  }
 }
 
 try {
@@ -17,13 +19,22 @@ try {
   print("runtime")
 }
 
-try { raise MyError("x") }
-except RuntimeError as e { print("errado") }
-except Exception as e { print("generico") }
+try {
+  raise MyError("x")
+} except RuntimeError as e {
+  print("errado")
+} except Exception as e {
+  print("generico")
+}
 
 fn f() -> Int {
-  try { return 1 } finally { return 2 }
+  try {
+    return 1
+  } finally {
+    return 2
+  }
 }
+
 print(f())
 # expect: meu: falhou
 # expect: fim

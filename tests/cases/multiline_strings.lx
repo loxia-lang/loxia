@@ -1,6 +1,8 @@
 # Strings com """ (ADR-0070): multilinha, aspas livres e interpolação.
-print("""linha 1
-linha 2""")
+print(
+  """linha 1
+linha 2""",
+)
 print("""ele disse "oi" e ""duas"" aspas""")
 print("""valor: ${1 + 2}""")
 print("""vazia: []""")

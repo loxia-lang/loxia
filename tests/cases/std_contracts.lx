@@ -2,28 +2,25 @@
 from std.contracts import ContractError, check, checkInvariant, checkMethod, checkMethodVoid, checkVoid, ensure, require
 
 fn div(a: Int, b: Int) -> Int {
-  return check(
-    "div",
-    fn() => a >= 0 and b > 0,
-    fn() => a // b,
-    fn(result: Int) => result * b <= a
-  )
+  return check("div", fn() => a >= 0 and b > 0, fn() => a // b, fn(result: Int) => result * b <= a)
 }
-print(div(7, 2))  # expect: 3
+
+print(div(7, 2)) # expect: 3
 
 try {
   div(7, 0)
 } except ContractError as e {
-  print("pre: " + e.message)  # expect: pre: div: precondition failed
+  print("pre: " + e.message) # expect: pre: div: precondition failed
 }
 
 fn badPost(n: Int) -> Int {
   return check("badPost", fn() => true, fn() => n, fn(result: Int) => result > 0)
 }
+
 try {
   badPost(0)
 } except ContractError as e {
-  print("post: " + e.message)  # expect: post: badPost: postcondition failed
+  print("post: " + e.message) # expect: post: badPost: postcondition failed
 }
 
 fn logTwice(message: String) -> Nil {
@@ -34,10 +31,12 @@ fn logTwice(message: String) -> Nil {
       print(message)
       print(message)
     },
-    fn() => true
+    fn() => true,
   )
 }
-logTwice("x")  # expect: x
+
+logTwice("x") # expect: x
+
 # expect: x
 
 fn noop(x: Int) -> Nil {
@@ -47,15 +46,16 @@ fn noop(x: Int) -> Nil {
     fn() -> Nil {
       print("noop ${x}")
     },
-    fn(_result: Nil) => true
+    fn(_result: Nil) => true,
   )
 }
-noop(4)  # expect: noop 4
+
+noop(4) # expect: noop 4
 
 class Counter {
   var n: Int
 
-  init(n: Int) {
+  fn init(n: Int) {
     require(n >= 0, "Counter: n >= 0")
     this.n = n
   }
@@ -68,7 +68,7 @@ class Counter {
       fn(c: Counter) -> Nil {
         c.n = c.n + 1
       },
-      fn(c: Counter) => c.n > 0
+      fn(c: Counter) => c.n > 0,
     )
   }
 
@@ -78,14 +78,14 @@ class Counter {
       this,
       fn(c: Counter) => c.n >= 0,
       fn(c: Counter) => c.n,
-      fn(c: Counter, result: Int) => result == c.n
+      fn(c: Counter, result: Int) => result == c.n,
     )
   }
 }
 
 val counter = Counter(1)
 counter.bump()
-print(counter.read())  # expect: 2
+print(counter.read()) # expect: 2
 
 fn keepNonNegative(xs: List[Int]) -> List[Int] {
   return check(
@@ -100,16 +100,17 @@ fn keepNonNegative(xs: List[Int]) -> List[Int] {
       }
       return out
     },
-    fn(result: List[Int]) => len(result) <= len(xs)
+    fn(result: List[Int]) => len(result) <= len(xs),
   )
 }
-print(keepNonNegative([1, -2, 3]))  # expect: [1, 3]
+
+print(keepNonNegative([1, -2, 3])) # expect: [1, 3]
 
 checkInvariant(1 < 2, "one")
 try {
   checkInvariant(false, "boom")
 } except ContractError as e {
-  print("inv: " + e.message)  # expect: inv: boom
+  print("inv: " + e.message) # expect: inv: boom
 }
 
 fn absSafe(value: Int) -> Int {
@@ -119,7 +120,8 @@ fn absSafe(value: Int) -> Int {
   }
   return value
 }
-print(absSafe(-7))  # expect: 7
+
+print(absSafe(-7)) # expect: 7
 
 # ContractError is not RuntimeError: the inner handler must not catch it.
 try {
@@ -129,7 +131,7 @@ try {
     print("wrong: " + e.message)
   }
 } except ContractError as e {
-  print("not runtime: " + e.message)  # expect: not runtime: boom
+  print("not runtime: " + e.message) # expect: not runtime: boom
 }
 
 fn preSkipsBody() -> Bool {
@@ -142,14 +144,15 @@ fn preSkipsBody() -> Bool {
         executed = true
         return 1
       },
-      fn(result: Int) => result == 1
+      fn(result: Int) => result == 1,
     )
   } except ContractError as e {
-    print("skip: " + e.message)  # expect: skip: skip: precondition failed
+    print("skip: " + e.message) # expect: skip: skip: precondition failed
   }
   return executed
 }
-print(preSkipsBody())  # expect: false
+
+print(preSkipsBody()) # expect: false
 
 fn catchCapture() -> String {
   try {
@@ -160,4 +163,5 @@ fn catchCapture() -> String {
   }
   return ""
 }
-print(catchCapture())  # expect: x
+
+print(catchCapture()) # expect: x

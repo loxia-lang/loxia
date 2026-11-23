@@ -1,2 +1,2 @@
-print(1 << 64);
+print(1 << 64)
 # expect runtime error: Shift count must be between 0 and 63.

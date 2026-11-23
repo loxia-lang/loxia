@@ -1,27 +1,35 @@
 # for-in sobre Range e String (List/Map ainda não existem).
 
-for i in 0..4 { print(i); }
+for i in 0..4 {
+  print(i)
+}
 # expect: 0
 # expect: 1
 # expect: 2
 # expect: 3
 
-for i in range(5, 0, -2) { print(i); }
+for i in range(5, 0, -2) {
+  print(i)
+}
 # expect: 5
 # expect: 3
 # expect: 1
 
-for c in "abc" { print(c); }
+for c in "abc" {
+  print(c)
+}
 # expect: a
 # expect: b
 # expect: c
 
 # Range vazio não executa o corpo.
-for i in 5..2 { print(i); }
+for i in 5..2 {
+  print(i)
+}
 
 for i in 0..2 {
   for j in 0..2 {
-    print(i * 10 + j);
+    print(i * 10 + j)
   }
 }
 # expect: 0

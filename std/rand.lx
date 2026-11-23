@@ -12,7 +12,7 @@ class Rand {
   /// Creates a generator; `seed == 0` maps to the fixed default state.
   ///
   /// The seed is the only source of variation, so sequences are reproducible.
-  init(seed: Int) {
+  fn init(seed: Int) {
     this.state = 88172645463325252 if seed == 0 else seed
   }
 

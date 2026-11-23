@@ -20,7 +20,7 @@ class FileError {
   val message: String
 
   /// Builds a failure from a stable kind and a message.
-  init(kind: String, message: String) {
+  fn init(kind: String, message: String) {
     this.kind = kind
     this.message = message
   }
@@ -36,7 +36,7 @@ class FileStat {
   val isDir: Bool
 
   /// Builds the metadata; prefer `stat`.
-  init(size: Int, mtimeMs: Int, isDir: Bool) {
+  fn init(size: Int, mtimeMs: Int, isDir: Bool) {
     this.size = size
     this.mtimeMs = mtimeMs
     this.isDir = isDir
@@ -49,7 +49,7 @@ class File {
   val id: Int
 
   /// Wraps an existing handle; prefer `open`.
-  init(id: Int) {
+  fn init(id: Int) {
     this.id = id
   }
 
