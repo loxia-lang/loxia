@@ -203,3 +203,43 @@ def test_cli_json_multi_is_one_document(tmp_path: Path) -> None:
         "a/bad.lx",
         "b/bad.lx",
     }
+
+
+def test_cli_json_lines_multi_has_one_summary(tmp_path: Path) -> None:
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "bad.lx").write_text("val =\n", encoding="utf-8")
+    (tmp_path / "b").mkdir()
+    (tmp_path / "b" / "bad.lx").write_text("val =\n", encoding="utf-8")
+
+    result = run_cli("fmt", "--check", "--json-lines", ".", cwd=tmp_path)
+
+    assert result.returncode == 65
+    events = [json.loads(line) for line in result.stderr.splitlines() if line.strip()]
+    assert [event["event"] for event in events] == [
+        "start",
+        "diagnostic",
+        "diagnostic",
+        "summary",
+    ]
+    assert events[-1]["errors"] == 2
+    assert {event["span"]["file"] for event in events if event["event"] == "diagnostic"} == {
+        "a/bad.lx",
+        "b/bad.lx",
+    }
+
+
+def test_cli_diff_disambiguates_same_basename_outside_cwd(tmp_path: Path) -> None:
+    first = tmp_path / "one" / "same.lx"
+    second = tmp_path / "two" / "same.lx"
+    first.parent.mkdir()
+    second.parent.mkdir()
+    first.write_text("val a=1\n", encoding="utf-8")
+    second.write_text("val b=2\n", encoding="utf-8")
+
+    result = run_cli("fmt", "--diff", str(first), str(second))
+
+    assert result.returncode == 1
+    headers = [line for line in result.stdout.splitlines() if line.startswith("--- a/")]
+    assert len(headers) == 2
+    assert len(set(headers)) == 2
+    assert all("one/same.lx" in header or "two/same.lx" in header for header in headers)

@@ -15,7 +15,7 @@ import signal
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
@@ -208,7 +208,6 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     from loxia.formatter.edits import build_edits, edits_json, unified_diff
     from loxia.formatter.targets import TargetError, TargetNotFoundError, resolve_targets
     from loxia_core.diagnostics.diagnostic import DiagnosticBatch
-    from loxia_core.diagnostics.render import render_json
 
     if args.stdin and args.paths:
         parser.error("--stdin cannot be combined with paths")
@@ -256,7 +255,7 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         lox.reporter.file = label
         result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
         if result is None:
-            if lox.error_format == "json" and not lox.json_lines:
+            if lox.error_format == "json":
                 json_batches.append(lox.reporter.batch())
                 lox.reporter.reset()
             else:
@@ -291,9 +290,9 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         return
 
     formatted: list[tuple[Path, str, str, Formatted]] = []
+    labels = _display_labels(targets)
     failed = False
-    for target in targets:
-        label = _display_path(target)
+    for target, label in zip(targets, labels, strict=True):
         lox.use_file(label, module_root=target.resolve().parent)
         source = _read_source(str(target))
         result = flush_result(label, source)
@@ -309,8 +308,7 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
             ),
             suppressed=sum(batch.suppressed for batch in json_batches),
         )
-        sys.stderr.write(render_json(combined, command="fmt", success=False, exit_code=65))
-        sys.stderr.flush()
+        lox.flush_batch(combined, "fmt", exit_code=65, always=True)
 
     if args.diff:
         changed = False
@@ -349,6 +347,31 @@ def _display_path(path: Path) -> str:
         return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
         return path.name
+
+
+def _display_labels(paths: Sequence[Path]) -> list[str]:
+    """Labels únicos: basename fora do cwd, com sufixo de diretório quando colidem."""
+    labels = [_display_path(path) for path in paths]
+    counts = Counter(labels)
+    result: list[str] = [""] * len(labels)
+    used: set[str] = set()
+    for index, label in enumerate(labels):
+        if counts[label] == 1:
+            result[index] = label
+            used.add(label)
+    for index, path in enumerate(paths):
+        label = labels[index]
+        if counts[label] == 1:
+            continue
+        parts = path.resolve().parts
+        candidate = label
+        for depth in range(2, len(parts) + 1):
+            candidate = "/".join(parts[-depth:])
+            if candidate not in used:
+                break
+        result[index] = candidate
+        used.add(candidate)
+    return result
 
 
 def _display_name(name: str) -> str:

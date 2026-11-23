@@ -51,14 +51,23 @@ disso.
 - usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém
   sem), quebra binárias **depois** do operador e preserva C-style `for (;;)`;
 - aceita vários arquivos e diretórios recursivos (`loxia fmt std tests/cases`), em ordem
-  determinística; `--exclude GLOB` (repetível, relativo ao cwd) tira diretórios/arquivos da
-  varredura, enquanto um path explícito sempre entra; com erro de sintaxe em qualquer alvo
-  **nada** é escrito (exit 65, diagnóstico por arquivo);
+  determinística; diretórios ocultos e caches (`node_modules`, `.venv`, …) ficam de fora;
+  `--exclude GLOB` (repetível, relativo ao cwd, casa também ancestrais) tira
+  diretórios/arquivos descobertos, enquanto um path explícito sempre entra; com erro de
+  sintaxe em qualquer alvo **nada** é escrito (exit 65, diagnóstico por arquivo); nenhum
+  alvo encontrado é uso (exit 2) e path inexistente é 66; `--check` é silencioso (65 > 1 >
+  0), `--diff` imprime um diff por arquivo e `--json`/`--json-lines` agregam os
+  diagnósticos num único `start`/`summary`; labels são relativos ao cwd (basename fora
+  dele, com sufixo de diretório se dois colidirem);
 - `fmt --diff` mostra o diff unificado e não escreve; `fmt --check --edits=json` devolve
   `TextEdit[]` com posições exatas (line/column 1-based, offset em bytes) para editores e
   agentes, sem reler o arquivo, e exige um único arquivo resolvido;
 - não remove parênteses, não reordena imports, não normaliza aspas/números, não alinha
   `=`/`:` e não formata range/seleção (isso fica em #110).
+
+No repositório, `loxia fmt .` encontra fixtures inválidas de propósito (`tests/cases/errors/`,
+suíte oficial); use `--exclude` para elas ou prefira o gate `tests/test_formatter_repo.py`
+(`make check-fast`), que pula parse errors por contrato.
 
 O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md),
 [ADR-0136](adr/0136-formatter-2-doc-ir.md)); o dogfood em Lox fica adiado até o repo
