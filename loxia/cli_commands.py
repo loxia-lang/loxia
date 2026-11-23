@@ -207,6 +207,8 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     from loxia.formatter import format_source
     from loxia.formatter.edits import build_edits, edits_json, unified_diff
     from loxia.formatter.targets import TargetError, TargetNotFoundError, resolve_targets
+    from loxia_core.diagnostics.diagnostic import DiagnosticBatch
+    from loxia_core.diagnostics.render import render_json
 
     if args.stdin and args.paths:
         parser.error("--stdin cannot be combined with paths")
@@ -247,12 +249,18 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         json_lines=args.json_lines,
     )
 
+    json_batches: list[DiagnosticBatch] = []
+
     def flush_result(label: str, source: str) -> Formatted | None:
         lox.reporter.reset()
         lox.reporter.file = label
         result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
         if result is None:
-            lox.flush("fmt", exit_code=65, always=True)
+            if lox.error_format == "json" and not lox.json_lines:
+                json_batches.append(lox.reporter.batch())
+                lox.reporter.reset()
+            else:
+                lox.flush("fmt", exit_code=65, always=True)
         return result
 
     if args.stdin:
@@ -293,6 +301,16 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
             failed = True
             continue
         formatted.append((target, label, source, result))
+
+    if json_batches:
+        combined = DiagnosticBatch(
+            diagnostics=tuple(
+                diagnostic for batch in json_batches for diagnostic in batch.diagnostics
+            ),
+            suppressed=sum(batch.suppressed for batch in json_batches),
+        )
+        sys.stderr.write(render_json(combined, command="fmt", success=False, exit_code=65))
+        sys.stderr.flush()
 
     if args.diff:
         changed = False

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -185,3 +186,20 @@ def test_cli_rejects_stdin_with_paths_and_empty_directory(tmp_path: Path) -> Non
     result = run_cli("fmt", "--check", "empty", cwd=tmp_path)
     assert result.returncode == 2
     assert "no .lx files found" in result.stderr
+
+
+def test_cli_json_multi_is_one_document(tmp_path: Path) -> None:
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "bad.lx").write_text("val =\n", encoding="utf-8")
+    (tmp_path / "b").mkdir()
+    (tmp_path / "b" / "bad.lx").write_text("val =\n", encoding="utf-8")
+
+    result = run_cli("fmt", "--check", "--json", ".", cwd=tmp_path)
+
+    assert result.returncode == 65
+    assert result.stdout == ""
+    payload = json.loads(result.stderr)
+    assert {item["span"]["file"] for item in payload["diagnostics"]} == {
+        "a/bad.lx",
+        "b/bad.lx",
+    }
