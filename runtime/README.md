@@ -58,9 +58,12 @@ Generated-code side of the contract lives in `loxia_core/backend/`:
 | 11 | Tuple | `LoxTuple *` |
 | 12 | Enum | `LoxEnumValue *` |
 
-`LoxStr` is `{byte_len, cp_len, data, cp_offsets}`. `data` points to UTF-8 bytes,
-`cp_len` counts code points, and `cp_offsets` is a lazy index allocated for strings
-with at least 64 code points. Public indices are code points, never bytes.
+`LoxStr` is `{byte_len, cp_len, flat, cp_offsets, hash, left, right}`. A leaf has
+`flat` pointing to UTF-8 bytes; a concatenation node has `flat == NULL` and
+`left`/`right`, and `lox_str_bytes` flattens it on first observation (cached).
+`cp_len` counts code points, `cp_offsets` is a lazy index allocated for strings
+with at least 64 code points, and `hash` caches FNV-1a for map keys. Public
+indices are code points, never bytes.
 
 A function uses `(i8* env, params...)`. A closure is `{fnptr, env, display}`. Class
 descriptors start with `{super, id, name, vtable, ...}`; an instance stores its
@@ -133,7 +136,6 @@ case; do not change them silently.
   rejects invalid input. `io.readUtf8` is the validating reader.
 - `lox_enum_variant` is unused; `match` compares variants by name through
   `lox_enum_variant_index`.
-- `lox_map_find` is a linear scan in insertion order; maps are not hash tables here.
 - The type cache is keyed by string pointer identity, so it assumes the string is an
   immutable global emitted by the lowering.
 

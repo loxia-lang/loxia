@@ -171,7 +171,7 @@ void lox_reserve_stack(void) {
 
 /* Boehm OOM callback: fixed message and exit 70. */
 
-static void lox_oom_exit(void) {
+void lox_oom_exit(void) {
     fflush(stdout);
     fputs("error[R1000]: Out of memory.\n", stderr);
     fflush(stderr);
@@ -310,7 +310,7 @@ int32_t lox_exception_matches(const void *pointer, const void *expected,
                 const LoxStr *name = ((const LoxStr **)descriptor)[2];
                 size_t length = strlen(type_name);
                 if (name->byte_len == (int64_t)length &&
-                    memcmp(name->data, type_name, length) == 0) {
+                    memcmp(lox_str_bytes(name), type_name, length) == 0) {
                     return 1;
                 }
             }

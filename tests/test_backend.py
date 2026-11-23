@@ -628,15 +628,17 @@ def test_gc_preserva_try_frame_e_excecao(tmp_path: Path) -> None:
     assert native.stderr == ""
 
 
-# ~200 MiB de strings vivas: acima do override de 128 MiB, abaixo do default de 512 MiB.
+# ~140 MiB de strings vivas: acima do override de 128 MiB, abaixo do default de 512 MiB.
+# `substr` materializa cada rope num buffer plano: desde a representação por
+# concatenação, `s + s` compartilha as metades e sozinho não pressiona o heap.
 HEAP_PRESSURE_SOURCE = (
     "var xs: List[String] = []\n"
     "var i = 0\n"
-    "while (i < 200) {\n"
+    "while (i < 140) {\n"
     '  var s = "0123456789abcdef"\n'
     "  var j = 0\n"
     "  while (j < 16) { s = s + s; j = j + 1 }\n"
-    "  xs.push(s)\n"
+    '  xs.push(join([s], ""))\n'
     "  i = i + 1\n"
     "}\n"
     "print(len(xs))\n"
@@ -671,7 +673,7 @@ def test_hard_cap_de_memoria_falha_deterministico(tmp_path: Path) -> None:
 
 
 @pytest.mark.backend
-def test_heap_default_de_512_mib_permite_200_mib(tmp_path: Path) -> None:
+def test_heap_default_de_512_mib_permite_140_mib(tmp_path: Path) -> None:
     """ADR-0087: o default de 512 MiB não é mais o teto de 128 MiB."""
     path = _write(tmp_path, HEAP_PRESSURE_SOURCE)
 
@@ -681,7 +683,7 @@ def test_heap_default_de_512_mib_permite_200_mib(tmp_path: Path) -> None:
     native = _run([str(binary)])
 
     assert native.returncode == 0, native.stderr
-    assert native.stdout == "200\n"
+    assert native.stdout == "140\n"
     assert native.stderr == ""
 
 

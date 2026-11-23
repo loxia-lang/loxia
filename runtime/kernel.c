@@ -43,12 +43,15 @@ void *lox_substr(const void *pointer, int64_t start, int64_t end,
     size_t length = (size_t)(finish - begin);
     LoxStr *result = lox_alloc(sizeof(LoxStr) + length + 1);
     char *data = (char *)(result + 1);
-    memcpy(data, string->data + begin, length);
+    memcpy(data, lox_str_bytes(string) + begin, length);
     data[length] = '\0';
     result->byte_len = (int64_t)length;
     result->cp_len = end - start;
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -73,10 +76,10 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     size_t used = 0;
     for (int64_t index = 0; index < parts->count; index++) {
         const LoxStr *item = (const LoxStr *)parts->items[index].payload;
-        memcpy(data + used, item->data, (size_t)item->byte_len);
+        memcpy(data + used, lox_str_bytes(item), (size_t)item->byte_len);
         used += (size_t)item->byte_len;
         if (index + 1 < parts->count) {
-            memcpy(data + used, separator->data, (size_t)separator->byte_len);
+            memcpy(data + used, lox_str_bytes(separator), (size_t)separator->byte_len);
             used += (size_t)separator->byte_len;
         }
     }
@@ -89,8 +92,11 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
             result->cp_len += separator->cp_len;
         }
     }
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -105,7 +111,7 @@ int64_t lox_char_code_at(const void *pointer, int64_t index, int32_t line,
     }
     int64_t offset = utf8_cp_offset(string, index);
     size_t length = 0;
-    return utf8_decode((const unsigned char *)string->data + offset, &length);
+    return utf8_decode((const unsigned char *)lox_str_bytes(string) + offset, &length);
 }
 
 /* `fromCodePoint`: builds a one-code-point String; rejects surrogates and values
@@ -143,8 +149,11 @@ void *lox_from_code_point(int64_t code_point, int32_t line, int32_t column) {
     data[length] = '\0';
     result->byte_len = (int64_t)length;
     result->cp_len = 1;
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -236,14 +245,14 @@ void *lox_args(void) {
 /* `io.write`: raw bytes + immediate flush (ordering with stderr matters). */
 void lox_io_write(const void *pointer) {
     const LoxStr *text = pointer;
-    fwrite(text->data, 1, (size_t)text->byte_len, stdout);
+    fwrite(lox_str_bytes(text), 1, (size_t)text->byte_len, stdout);
     fflush(stdout);
 }
 
 /* `io.writeErr`: raw bytes to stderr + immediate flush. */
 void lox_io_write_err(const void *pointer) {
     const LoxStr *text = pointer;
-    fwrite(text->data, 1, (size_t)text->byte_len, stderr);
+    fwrite(lox_str_bytes(text), 1, (size_t)text->byte_len, stderr);
     fflush(stderr);
 }
 
@@ -307,7 +316,7 @@ void *lox_io_read_utf8(int64_t count, int32_t line, int32_t column) {
 void *lox_io_read_file(const void *pointer) {
     const LoxStr *path = pointer;
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     FILE *file = fopen(path_copy, "rb");
     if (file == NULL) {
@@ -331,13 +340,13 @@ int32_t lox_io_write_file(const void *path_pointer, const void *text_pointer) {
     const LoxStr *path = path_pointer;
     const LoxStr *text = text_pointer;
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     FILE *file = fopen(path_copy, "wb");
     if (file == NULL) {
         return 0;
     }
-    size_t written = fwrite(text->data, 1, (size_t)text->byte_len, file);
+    size_t written = fwrite(lox_str_bytes(text), 1, (size_t)text->byte_len, file);
     int ok = written == (size_t)text->byte_len;
     if (fclose(file) != 0) {
         ok = 0;
@@ -385,11 +394,11 @@ void *lox_io_read_all(void) {
 /* `fs.exists`: `stat`-based check for any file, directory or other entry. */
 int32_t lox_fs_exists(const void *path_pointer) {
     const LoxStr *path = path_pointer;
-    if (memchr(path->data, '\0', (size_t)path->byte_len) != NULL) {
+    if (memchr(lox_str_bytes(path), '\0', (size_t)path->byte_len) != NULL) {
         return 0;
     }
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     struct stat info;
     return stat(path_copy, &info) == 0 ? 1 : 0;
@@ -409,11 +418,11 @@ int compare_dir_names(const void *left, const void *right) {
  */
 void *lox_fs_list_dir(const void *path_pointer) {
     const LoxStr *path = path_pointer;
-    if (memchr(path->data, '\0', (size_t)path->byte_len) != NULL) {
+    if (memchr(lox_str_bytes(path), '\0', (size_t)path->byte_len) != NULL) {
         return NULL;
     }
     char *path_copy = lox_alloc_atomic((size_t)path->byte_len + 1);
-    memcpy(path_copy, path->data, (size_t)path->byte_len);
+    memcpy(path_copy, lox_str_bytes(path), (size_t)path->byte_len);
     path_copy[path->byte_len] = '\0';
     DIR *dir = opendir(path_copy);
     if (dir == NULL) {
@@ -471,7 +480,7 @@ void lox_os_exit(int64_t code, int32_t line, int32_t column) {
 void *lox_os_getenv(const void *name_pointer) {
     const LoxStr *name = name_pointer;
     char *name_copy = lox_alloc_atomic((size_t)name->byte_len + 1);
-    memcpy(name_copy, name->data, (size_t)name->byte_len);
+    memcpy(name_copy, lox_str_bytes(name), (size_t)name->byte_len);
     name_copy[name->byte_len] = '\0';
     const char *value = getenv(name_copy);
     if (value == NULL) {
@@ -656,12 +665,12 @@ static const char *fs_stat_message(int error) {
  * um truncamento silencioso (o Python rejeita com ValueError). */
 static char *fs_c_string(const void *pointer, int32_t line, int32_t column) {
     const LoxStr *string = pointer;
-    if (memchr(string->data, '\0', (size_t)string->byte_len) != NULL) {
+    if (memchr(lox_str_bytes(string), '\0', (size_t)string->byte_len) != NULL) {
         lox_panic(line, column, "R1000", "io: invalid path.");
         return NULL;
     }
     char *copy = lox_alloc_atomic((size_t)string->byte_len + 1);
-    memcpy(copy, string->data, (size_t)string->byte_len);
+    memcpy(copy, lox_str_bytes(string), (size_t)string->byte_len);
     copy[string->byte_len] = '\0';
     return copy;
 }
@@ -727,7 +736,7 @@ void *lox_fs_stat(const void *path_pointer, int32_t line, int32_t column) {
 void *lox_digest_sha256(const void *text_pointer) {
     const LoxStr *text = text_pointer;
     unsigned char digest[32];
-    lox_sha256((const unsigned char *)text->data, (size_t)text->byte_len, digest);
+    lox_sha256((const unsigned char *)lox_str_bytes(text), (size_t)text->byte_len, digest);
     static const char hex_digits[] = "0123456789abcdef";
     char output[64];
     for (int index = 0; index < 32; index++) {
@@ -764,12 +773,12 @@ int64_t lox_fs_open(const void *path_pointer, const void *mode_pointer, int32_t 
     const LoxStr *mode = mode_pointer;
     int flags;
     int writable = 0;
-    if (mode->byte_len == 1 && mode->data[0] == 'r') {
+    if (mode->byte_len == 1 && lox_str_bytes(mode)[0] == 'r') {
         flags = O_RDONLY;
-    } else if (mode->byte_len == 1 && mode->data[0] == 'w') {
+    } else if (mode->byte_len == 1 && lox_str_bytes(mode)[0] == 'w') {
         flags = O_WRONLY | O_CREAT | O_TRUNC;
         writable = 1;
-    } else if (mode->byte_len == 1 && mode->data[0] == 'a') {
+    } else if (mode->byte_len == 1 && lox_str_bytes(mode)[0] == 'a') {
         flags = O_WRONLY | O_CREAT | O_APPEND;
         writable = 1;
     } else {
@@ -940,7 +949,7 @@ void lox_fs_write(int64_t id, const void *text_pointer, int32_t line, int32_t co
         return;
     }
     const LoxStr *text = text_pointer;
-    const char *cursor = text->data;
+    const char *cursor = lox_str_bytes(text);
     size_t remaining = (size_t)text->byte_len;
     while (remaining > 0) {
         ssize_t written = write(handle->fd, cursor, remaining);

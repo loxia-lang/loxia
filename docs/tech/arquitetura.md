@@ -476,10 +476,12 @@ prefixes the fields and resolves `super` through the class where the method was 
 class `is`/`as` and empty local classes work. `?.` with an optional receiver already works;
 general local classes and `nil_aware` (union/`Any`) stay in L6.
 
-`String` is `{byte_len, cp_len, data}`; literals become constant globals (UTF-8 bytes +
-header), concatenation allocates on the collected heap (Boehm GC,
+`String` is `{byte_len, cp_len, flat, cp_offsets, hash, left, right}`; literals become
+constant globals (UTF-8 bytes + header), concatenation allocates a rope node on the collected
+heap (Boehm GC,
 [ADR-0074](../adr/0074-gc-boehm-e-contrato-de-memoria.md)) and `len` returns `cp_len` (code
-points). Equality is `memcmp`; `print` is an `fwrite`. Interpolation concatenates the parts,
+points). `lox_str_bytes` flattens a rope on first observation and caches the buffer;
+equality is `memcmp` of the flat bytes and `print` is an `fwrite`. Interpolation concatenates the parts,
 converting scalars with `lox_str_from_int/double/bool` and `lox_str_nil`; `repr` quotes and
 escapes with `lox_str_quote`.
 

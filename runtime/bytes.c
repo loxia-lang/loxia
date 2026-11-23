@@ -95,7 +95,7 @@ int64_t lox_bytes_at(const void *pointer, int64_t index, int32_t line,
             "Bytes index %" PRId64 " out of bounds for length %" PRId64 ".",
             index, value->len);
         LoxStr *text = string_from_bytes(message, (size_t)length, length);
-        lox_panic(line, column, "R1007", text->data);
+        lox_panic(line, column, "R1007", lox_str_bytes(text));
         return 0;
     }
     return (int64_t)value->data[index];
@@ -147,7 +147,7 @@ void *lox_bytes_from_text(const void *text_pointer) {
     const LoxStr *text = text_pointer;
     LoxBytes *result = lox_bytes_new(text->byte_len);
     if (text->byte_len > 0) {
-        memcpy(result->data, text->data, (size_t)text->byte_len);
+        memcpy(result->data, lox_str_bytes(text), (size_t)text->byte_len);
     }
     return result;
 }
@@ -176,8 +176,8 @@ void *lox_bytes_from_hex(const void *text_pointer) {
     }
     LoxBytes *result = lox_bytes_new(text->byte_len / 2);
     for (int64_t index = 0; index < result->len; index++) {
-        int high = hex_digit(text->data[index * 2]);
-        int low = hex_digit(text->data[index * 2 + 1]);
+        int high = hex_digit(lox_str_bytes(text)[index * 2]);
+        int low = hex_digit(lox_str_bytes(text)[index * 2 + 1]);
         if (high < 0 || low < 0) {
             return result_err(
                 bytes_error("InvalidHex", "expected hexadecimal digits."));
@@ -198,14 +198,14 @@ void *lox_bytes_from_base64(const void *text_pointer) {
     }
 
     int64_t padding = 0;
-    if (text->data[length - 1] == '=') {
+    if (lox_str_bytes(text)[length - 1] == '=') {
         padding += 1;
     }
-    if (length > 1 && text->data[length - 2] == '=') {
+    if (length > 1 && lox_str_bytes(text)[length - 2] == '=') {
         padding += 1;
     }
     for (int64_t index = 0; index < length; index++) {
-        char value = text->data[index];
+        char value = lox_str_bytes(text)[index];
         if (value == '=') {
             if (index < length - 2) {
                 return result_err(
@@ -220,26 +220,26 @@ void *lox_bytes_from_base64(const void *text_pointer) {
     LoxBytes *result = lox_bytes_new(out_length);
     int64_t out = 0;
     for (int64_t index = 0; index < length; index += 4) {
-        int v0 = base64_digit(text->data[index]);
-        int v1 = base64_digit(text->data[index + 1]);
-        int v2 = text->data[index + 2] == '=' ? 0 : base64_digit(text->data[index + 2]);
-        int v3 = text->data[index + 3] == '=' ? 0 : base64_digit(text->data[index + 3]);
-        if (v0 < 0 || v1 < 0 || (v2 < 0 && text->data[index + 2] != '=') ||
-            (v3 < 0 && text->data[index + 3] != '=')) {
+        int v0 = base64_digit(lox_str_bytes(text)[index]);
+        int v1 = base64_digit(lox_str_bytes(text)[index + 1]);
+        int v2 = lox_str_bytes(text)[index + 2] == '=' ? 0 : base64_digit(lox_str_bytes(text)[index + 2]);
+        int v3 = lox_str_bytes(text)[index + 3] == '=' ? 0 : base64_digit(lox_str_bytes(text)[index + 3]);
+        if (v0 < 0 || v1 < 0 || (v2 < 0 && lox_str_bytes(text)[index + 2] != '=') ||
+            (v3 < 0 && lox_str_bytes(text)[index + 3] != '=')) {
             return result_err(bytes_error("InvalidBase64", "expected canonical base64."));
         }
         result->data[out++] = (unsigned char)((v0 << 2) | (v1 >> 4));
-        if (text->data[index + 2] != '=') {
+        if (lox_str_bytes(text)[index + 2] != '=') {
             result->data[out++] = (unsigned char)(((v1 & 0x0f) << 4) | (v2 >> 2));
         }
-        if (text->data[index + 3] != '=') {
+        if (lox_str_bytes(text)[index + 3] != '=') {
             result->data[out++] = (unsigned char)(((v2 & 0x03) << 6) | v3);
         }
     }
 
     LoxStr *encoded = lox_bytes_to_base64(result);
     if (encoded->byte_len != length ||
-        memcmp(encoded->data, text->data, (size_t)length) != 0) {
+        memcmp(lox_str_bytes(encoded), lox_str_bytes(text), (size_t)length) != 0) {
         return result_err(bytes_error("InvalidBase64", "expected canonical base64."));
     }
     return result_ok(result);

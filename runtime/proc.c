@@ -116,7 +116,7 @@ int64_t lox_proc_spawn(const void *argv_pointer) {
         }
         const LoxStr *text = (const LoxStr *)item->payload;
         char *copy = lox_alloc_atomic((size_t)text->byte_len + 1);
-        memcpy(copy, text->data, (size_t)text->byte_len);
+        memcpy(copy, lox_str_bytes(text), (size_t)text->byte_len);
         copy[text->byte_len] = '\0';
         arguments[index] = copy;
     }
@@ -384,7 +384,7 @@ int32_t lox_proc_write(int64_t id, const void *text_pointer, int32_t line,
         ssize_t written;
         do {
             written =
-                write(stream->fd, text->data + total,
+                write(stream->fd, lox_str_bytes(text) + total,
                       (size_t)text->byte_len - total);
         } while (written < 0 && errno == EINTR);
         if (written <= 0) {
