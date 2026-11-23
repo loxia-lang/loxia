@@ -19,8 +19,8 @@ one function per precedence level.
 
 
 Trailing comma is accepted (and canonical in the formatter) in parameters, calls,
-lists, maps and tuples **when the construct is multiline**; enums and `match` remain
-without a trailing comma.
+lists, maps and tuples **when the formatter lays the construct out multiline** (ADR-0136);
+enums and `match` remain without a trailing comma.
 
 ## Grammar (EBNF)
 

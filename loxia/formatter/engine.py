@@ -1,23 +1,32 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Engine do formatter v2: scanner → parser → SourceIndex → printer → render."""
+"""Engine do formatter: scanner → parser → SourceIndex → printer → render (ADR-0136)."""
 
 from __future__ import annotations
 
-from loxia.formatter.legacy import Formatted
+from dataclasses import dataclass
+
 from loxia.formatter.printer import Printer
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.source_index import SourceIndex
 
+DEFAULT_MAX_WIDTH = 100
 
-def format_source_v2(
+
+@dataclass(frozen=True)
+class Formatted:
+    text: str
+    changed: bool
+
+
+def format_source(
     source: str,
     *,
     reporter: ErrorReporter | None = None,
-    max_width: int = 100,
+    max_width: int = DEFAULT_MAX_WIDTH,
 ) -> Formatted | None:
-    """Formata `source` com o motor v2; `None` em erro léxico/sintático."""
+    """Formata `source`; `None` em erro léxico/sintático."""
     reporter = reporter or ErrorReporter()
     scanner = Scanner(source, reporter)
     tokens = scanner.scan_tokens()

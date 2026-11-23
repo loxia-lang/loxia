@@ -168,12 +168,13 @@ Packages by phase (dependency only downward):
 the phase package (`from loxia_core.frontend.expr import Binary`, `from loxia_core.execution.numeric
 import wrap_int`). The program runs from the repository root.
 
-### Front-end baseline (2026-11-21)
+### Front-end baseline (2026-11-23)
 
 `make frontend-bench` roda [`tools/frontend_bench.py`](../../tools/frontend_bench.py) sem
-subprocesso e sem CI: no corpus de 2026-11-21 (339 arquivos, 310 parseáveis, 59 175 tokens,
-2 481 statements), parse ~400 ms e `format_source` ~690 ms (mediana de 3), com pico de
-~1,5 MiB no `tracemalloc` para parse+format. É medida Python; o port em Lox/nativo tem
+subprocesso e sem CI: no corpus de 2026-11-23 (349 arquivos, 320 parseáveis, 62 500 tokens,
+2 663 statements), parse ~526 ms e `format_source` ~1 267 ms (mediana de 3), com pico de
+~3,7 MiB no `tracemalloc` para parse+format. O formatter v2 (ADR-0136) constrói Doc IR e
+`SourceIndex`; é ferramenta offline, não caminho quente. O port em Lox/nativo tem
 orçamento próprio (512 MiB/10k chamadas) e será medido na fase D.
 
 ## Visitor

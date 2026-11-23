@@ -187,6 +187,7 @@ TODO item.
 | [0134](0134-trivia-side-table.md) | Trivia as a scanner side table: exact comments/whitespace, normalized round-trip, deterministic attachment | accepted (implemented) | 2026-11-22 |
 | [0133](0133-suite-rapida-in-process-e-xdist.md) | Fast suite: CLI in-process for case tests, xdist in the local loop, real processes where they matter | accepted (implemented) | 2026-11-22 |
 | [0135](0135-politica-de-erro.md) | Error policy: defect (`RuntimeError`), expected failure (`Result`), user flow (`raise`); one channel per signature, `OrRaise` shell, stdlib allowlist, `Err` at top = exit 70 | accepted (migration tracked) | 2026-11-23 |
+| [0136](0136-formatter-2-doc-ir.md) | Formatter 2.0: Doc IR + item layer, width-aware wrapping, comment preservation, blank-line policy and the `format_source` contract | accepted (implemented) | 2026-11-23 |
 
 
 ## Next decisions that call for an ADR
