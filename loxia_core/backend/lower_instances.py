@@ -267,23 +267,23 @@ class InstanceLowering(LoweringBase):
 
     def _set(self, expr: Set) -> Value:
         obj = self._expr(expr.object)
+        field: FieldLayout | None = None
+        if obj.ty is ValueType.INSTANCE:
+            layout = self._layout_for(obj, expr.name.line)
+            field = layout.field(expr.name.lexeme)
+        # Resolve the field first so a `[]` initializer can inherit its element type;
+        # the value is still lowered exactly once, before either poison path.
+        value = self._expr_with_expected(expr.value, None if field is None else field.annotation)
         if obj.ty is not ValueType.INSTANCE:
-            value = self._expr(expr.value)
             self._poison(expr.name, "Only instances have fields.", code=Code.INVALID_VALUE)
             return value
-
-        layout = self._layout_for(obj, expr.name.line)
-        field = layout.field(expr.name.lexeme)
         if field is None:
-            value = self._expr(expr.value)
             self._poison(
                 expr.name, f"Undefined field '{expr.name.lexeme}'.", code=Code.UNDEFINED_PROPERTY
             )
             return value
 
-        value = self._coerce(
-            self._expr_with_expected(expr.value, field.annotation), field.ty, expr.name.line
-        )
+        value = self._coerce(value, field.ty, expr.name.line)
 
         if not field.mutable:
             if not self._in_init:
