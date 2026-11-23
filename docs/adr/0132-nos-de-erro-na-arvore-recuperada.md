@@ -43,7 +43,7 @@ com span, para que a ferramenta consiga continuar.
 5. **Tooling consome, I1 não.** O LSP usa `last_recovered_statements` como antes, agora com
    nós de erro; `last_statements` continua `None` no erro e o caminho normativo não lê a
    árvore recuperada.
-6. **Contrato de schema.** O JSON v1 serializa os nós genericamente; o v2 (#107) define
+6. **Contrato de schema.** O JSON v1 serializava os nós genericamente; o v2 (#107) define
    `error_expr`/`error_stmt` com `$defs` e campos obrigatórios.
 
 ## Consequências

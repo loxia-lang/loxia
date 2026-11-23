@@ -468,6 +468,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="com --dump-ast --file-only: emite a árvore recuperada; exit 65",
     )
     parser.add_argument(
+        "--typed",
+        action="store_true",
+        help="com --dump-ast --format=json: inclui o overlay de tipos do checker",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         help="caminho de saída do build (padrão: nome do script)",
@@ -613,6 +618,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             "--allow-errors",
             action="store_true",
             help="com --file-only: emite a árvore recuperada (ErrorStmt/ErrorExpr); exit 65",
+        )
+        groups.general.add_argument(
+            "--typed",
+            action="store_true",
+            help="com --format=json: inclui o overlay de tipos do checker",
         )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "fmt":
@@ -832,10 +842,16 @@ def _validate(
     ast_format = getattr(args, "format", "sexp")
     file_only = getattr(args, "file_only", False)
     if command == "ast":
-        if ast_format == "json" and not file_only:
-            parser.error("--format=json requires --file-only")
         if getattr(args, "allow_errors", False) and not file_only:
             parser.error("--allow-errors requires --file-only")
+        if getattr(args, "typed", False) and ast_format != "json":
+            parser.error("--typed requires --format=json")
+        if getattr(args, "typed", False) and not file_only:
+            parser.error("--typed requires --file-only")
+        if getattr(args, "typed", False) and getattr(args, "allow_errors", False):
+            parser.error("--typed cannot be combined with --allow-errors")
+        if ast_format == "json" and not file_only:
+            parser.error("--format=json requires --file-only")
     elif file_only or ast_format != "sexp":
         parser.error("--file-only/--format are only supported by ast")
     if command in {"run", "check", "ast"} and not args.stdin and not args.script:
@@ -870,10 +886,16 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--file-only requires --dump-ast")
     if args.format != "sexp" and not args.dump_ast:
         parser.error("--format is only supported with --dump-ast")
-    if args.format == "json" and not args.file_only:
-        parser.error("--format=json requires --file-only")
     if args.allow_errors and not args.file_only:
         parser.error("--allow-errors requires --file-only")
+    if args.typed and args.format != "json":
+        parser.error("--typed requires --format=json")
+    if args.typed and not args.file_only:
+        parser.error("--typed requires --file-only")
+    if args.typed and args.allow_errors:
+        parser.error("--typed cannot be combined with --allow-errors")
+    if args.format == "json" and not args.file_only:
+        parser.error("--format=json requires --file-only")
     if args.stdin and args.script:
         if args.dump_ast or args.check or args.emit:
             parser.error("--stdin cannot be combined with a script")

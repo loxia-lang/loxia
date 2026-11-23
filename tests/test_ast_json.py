@@ -33,8 +33,26 @@ def _program(source: str, file: str = "case.lx") -> dict[str, object]:
     return program_payload(statements, tokens, file)
 
 
+def _syntax(payload: dict[str, object]) -> dict[str, Any]:
+    syntax = payload["syntax"]
+    assert isinstance(syntax, dict)
+    return syntax
+
+
+def _statements(payload: dict[str, object]) -> list[dict[str, Any]]:
+    statements = _syntax(payload)["statements"]
+    assert isinstance(statements, list)
+    return statements
+
+
+def _tokens(payload: dict[str, object]) -> list[dict[str, Any]]:
+    tokens = _syntax(payload)["tokens"]
+    assert isinstance(tokens, list)
+    return tokens
+
+
 def _first_statement(payload: dict[str, object]) -> dict[str, Any]:
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     statement = statements[0]
     assert isinstance(statement, dict)
@@ -58,7 +76,7 @@ def test_program_envelope_and_token_spans() -> None:
     assert payload["schema_version"] == SCHEMA_VERSION
     assert payload["kind"] == "program"
     assert payload["file"] == "case.lx"
-    tokens = payload["tokens"]
+    tokens = _tokens(payload)
     assert isinstance(tokens, list)
     assert [token["type"] for token in tokens] == [
         "VAL",
@@ -73,7 +91,7 @@ def test_program_envelope_and_token_spans() -> None:
         "end": {"line": 1, "column": 4, "offset": 3},
     }
 
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     declaration = statements[0]
     assert declaration["kind"] == "var"
@@ -87,7 +105,7 @@ def test_program_envelope_and_token_spans() -> None:
 
 def test_multiline_token_end_is_exact() -> None:
     payload = _program('val s = """a\nb"""\n')
-    tokens = payload["tokens"]
+    tokens = _tokens(payload)
     assert isinstance(tokens, list)
     string = next(token for token in tokens if token["type"] == "STRING")
 
@@ -99,7 +117,7 @@ def test_multiline_token_end_is_exact() -> None:
 
 def test_utf8_offsets_are_bytes_not_code_points() -> None:
     payload = _program('print("é")\n')
-    tokens = payload["tokens"]
+    tokens = _tokens(payload)
     assert isinstance(tokens, list)
     string = next(token for token in tokens if token["type"] == "STRING")
 
@@ -121,7 +139,7 @@ def test_span_of_token_exact_handles_synthetic_token() -> None:
 
 def test_node_span_covers_children() -> None:
     payload = _program("print(1 + 2)\n")
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     expression = statements[0]["expression"]
 
@@ -144,7 +162,7 @@ def test_construct_spans_include_keywords_and_delimiters() -> None:
     }
     for source, (kind, end_column, end_offset) in cases.items():
         payload = _program(source)
-        statements = payload["statements"]
+        statements = _statements(payload)
         assert isinstance(statements, list)
         node = statements[0]
 
@@ -167,7 +185,7 @@ def test_construct_spans_include_keywords_and_delimiters() -> None:
 )
 def test_conditional_spans_cover_both_branches(source: str, end: int) -> None:
     payload = _program(source)
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     expression = statements[0]["initializer"]
 
@@ -178,7 +196,7 @@ def test_conditional_spans_cover_both_branches(source: str, end: int) -> None:
 
 def test_index_spans_include_closing_bracket() -> None:
     payload = _program("xs[0]\n")
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     expression = statements[0]["expression"]
 
@@ -192,7 +210,7 @@ def test_index_spans_include_closing_bracket() -> None:
 
 def test_match_spans_include_closing_brace_and_arrow() -> None:
     payload = _program("match x { _ => 1 }\n")
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     expression = statements[0]["expression"]
 
@@ -208,7 +226,7 @@ def test_match_spans_include_closing_brace_and_arrow() -> None:
 
 def test_index_set_keeps_the_closing_bracket_token() -> None:
     payload = _program("xs[0] = 1\n")
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     expression = statements[0]["expression"]
 
@@ -225,7 +243,7 @@ def test_literal_spans_include_closing_delimiters() -> None:
     }
     for source, (start_offset, end_offset) in cases.items():
         payload = _program(source)
-        statements = payload["statements"]
+        statements = _statements(payload)
         assert isinstance(statements, list)
         span = statements[0]["initializer"]["span"]
 
@@ -241,7 +259,7 @@ def test_type_spans_cover_annotations() -> None:
     }
     for source, (start, end) in cases.items():
         payload = _program(source)
-        statements = payload["statements"]
+        statements = _statements(payload)
         assert isinstance(statements, list)
         span = statements[0]["type_span"]
 
@@ -252,7 +270,7 @@ def test_type_spans_cover_annotations() -> None:
 
 def test_param_and_return_type_spans_are_separate() -> None:
     payload = _program('fn f(x: Int) -> String { return "x" }\n')
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     function = statements[0]
     param = function["params"][0]
@@ -286,19 +304,19 @@ def test_field_lambda_destructure_and_multiline_type_spans() -> None:
 
 def test_as_is_and_enum_payload_type_spans() -> None:
     as_payload = _program("val x = 1 as Int\n")
-    as_statements = as_payload["statements"]
+    as_statements = _statements(as_payload)
     assert isinstance(as_statements, list)
     as_span = as_statements[0]["initializer"]["type_span"]
     assert (as_span["start"]["offset"], as_span["end"]["offset"]) == (13, 16)
 
     is_payload = _program("val y = x is Int\n")
-    is_statements = is_payload["statements"]
+    is_statements = _statements(is_payload)
     assert isinstance(is_statements, list)
     is_span = is_statements[0]["initializer"]["type_span"]
     assert (is_span["start"]["offset"], is_span["end"]["offset"]) == (13, 16)
 
     enum_payload = _program("enum E { A(Int, String) }\n")
-    enum_statements = enum_payload["statements"]
+    enum_statements = _statements(enum_payload)
     assert isinstance(enum_statements, list)
     spans = enum_statements[0]["variants"][0]["payload_spans"]
     assert [(span["start"]["offset"], span["end"]["offset"]) for span in spans] == [
@@ -309,7 +327,7 @@ def test_as_is_and_enum_payload_type_spans() -> None:
 
 def test_type_annotation_is_canonical_text() -> None:
     payload = _program("val xs: List[Int] = [1]\n")
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
 
     assert statements[0]["type_annotation"] == "List[Int]"
@@ -317,7 +335,7 @@ def test_type_annotation_is_canonical_text() -> None:
 
 def test_interpolated_literal_serializes_embedded_tokens() -> None:
     payload = _program('print("a${1}b")\n')
-    tokens = payload["tokens"]
+    tokens = _tokens(payload)
     assert isinstance(tokens, list)
     string = next(token for token in tokens if token["type"] == "INTERPOLATED_STRING")
 
@@ -330,12 +348,12 @@ def test_interpolated_literal_serializes_embedded_tokens() -> None:
 
 def test_embedded_tokens_are_compact_and_top_level_is_full() -> None:
     payload = _program("val x = 1\n")
-    tokens = payload["tokens"]
+    tokens = _tokens(payload)
     assert isinstance(tokens, list)
     assert "literal" in tokens[1]
     assert "doc" in tokens[1]
 
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     embedded = statements[0]["name"]
     assert "type" in embedded
@@ -347,7 +365,7 @@ def test_embedded_tokens_are_compact_and_top_level_is_full() -> None:
 
 def test_non_finite_float_is_marked_not_string() -> None:
     payload = _program("print(1e999)\n")
-    statements = payload["statements"]
+    statements = _statements(payload)
     assert isinstance(statements, list)
     argument = statements[0]["expression"]["arguments"][0]
 
@@ -389,7 +407,7 @@ def test_crlf_is_normalized_for_file_and_stdin(tmp_path: Path) -> None:
     assert stdin_result.returncode == 0, stdin_result.stderr
     for result in (file_result, stdin_result):
         payload = json.loads(result.stdout)
-        tokens = payload["tokens"]
+        tokens = _tokens(payload)
         assert isinstance(tokens, list)
         second_line = next(token for token in tokens if token["lexeme"] == "print")
         assert second_line["span"]["start"] == {"line": 2, "column": 1, "offset": 10}
@@ -404,10 +422,10 @@ def test_wildcard_pattern_is_serialized() -> None:
 
 def test_empty_program_is_serialized() -> None:
     payload = _program("")
-    tokens = payload["tokens"]
+    tokens = _tokens(payload)
     assert isinstance(tokens, list)
 
-    assert payload["statements"] == []
+    assert _statements(payload) == []
     assert [token["type"] for token in tokens] == ["EOF"]
 
 
@@ -466,7 +484,7 @@ def test_file_only_json_does_not_load_imports(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
-    assert payload["statements"][0]["kind"] == "import"
+    assert _statements(payload)[0]["kind"] == "import"
     assert "std$" not in result.stdout
     assert str(tmp_path) not in result.stdout
 
@@ -562,3 +580,82 @@ def test_legacy_dump_ast_supports_file_only(tmp_path: Path) -> None:
     assert sexp.stdout == "(expr (call print 1))\n"
     assert json_result.returncode == 0
     assert json.loads(json_result.stdout)["kind"] == "program"
+
+
+def test_typed_requires_json_output(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("ast", "--file-only", "--typed", str(script))
+
+    assert result.returncode == 2
+    assert "--typed requires --format=json" in result.stderr
+
+
+def test_typed_requires_file_only(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("ast", "--format=json", "--typed", str(script))
+
+    assert result.returncode == 2
+    assert "--typed requires --file-only" in result.stderr
+
+
+def test_typed_cannot_combine_with_allow_errors(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("ast", "--file-only", "--format=json", "--typed", "--allow-errors", str(script))
+
+    assert result.returncode == 2
+    assert "--typed cannot be combined with --allow-errors" in result.stderr
+
+
+def test_legacy_typed_requires_json(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("--dump-ast", "--file-only", "--typed", str(script))
+
+    assert result.returncode == 2
+    assert "--typed requires --format=json" in result.stderr
+
+
+def test_legacy_typed_requires_file_only(tmp_path: Path) -> None:
+    script = tmp_path / "one.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = _run("--dump-ast", "--format=json", "--typed", str(script))
+
+    assert result.returncode == 2
+    assert "--typed requires --file-only" in result.stderr
+
+
+def test_typed_does_not_load_modules(tmp_path: Path) -> None:
+    script = tmp_path / "main.lx"
+    script.write_text("import foo\nval x: Int = 1\n", encoding="utf-8")
+
+    plain = _run("ast", "--file-only", "--format=json", str(script))
+    typed = _run("ast", "--file-only", "--format=json", "--typed", str(script))
+
+    assert plain.returncode == 0, plain.stderr
+    assert typed.returncode == 0, typed.stderr
+    assert json.loads(typed.stdout)["syntax"] == json.loads(plain.stdout)["syntax"]
+    typed_payload = json.loads(typed.stdout)["typed"]["expressions"]
+    assert typed_payload
+    assert max(item["span"]["end"]["offset"] for item in typed_payload) <= len(
+        script.read_text(encoding="utf-8").encode("utf-8")
+    )
+    assert "foo$" not in typed.stdout
+
+
+def test_typed_does_not_swallow_loader_errors(tmp_path: Path) -> None:
+    script = tmp_path / "main.lx"
+    script.write_text("import foo\nprint(foo.inc(1))\n", encoding="utf-8")
+
+    result = _run("ast", "--file-only", "--format=json", "--typed", str(script))
+
+    assert result.returncode == 65
+    assert "Undefined variable 'foo'" in result.stderr
+    assert "foo$" not in result.stdout

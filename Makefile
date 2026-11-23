@@ -8,7 +8,7 @@ TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph frontend-bench
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph frontend-bench ast-schema
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -48,6 +48,7 @@ help:
 	@echo "make monomorph                 mede o orçamento de monomorfização (ADR-0063)"
 	@echo "make fuzz                      roda o fuzzing do scanner/parser (hypothesis)"
 	@echo "make frontend-bench            mede parse+format do corpus (ADR-0129)"
+	@echo "make ast-schema                regenera schema/ast-v2.json a partir das dataclasses"
 	@echo "make baseline                  regrava o baseline de performance"
 
 run:
@@ -174,6 +175,9 @@ bench-native:
 
 frontend-bench:
 	uv run python tools/frontend_bench.py
+
+ast-schema:
+	uv run python tools/ast_schema.py --write
 
 baseline:
 	uv run python bench/run.py --update

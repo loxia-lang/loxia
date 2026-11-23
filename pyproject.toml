@@ -51,6 +51,7 @@ llvm = ["llvmlite>=0.50"]
 dev = [
     "coverage>=7.17.3",
     "hypothesis>=6.170.15",
+    "jsonschema>=4.26",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",

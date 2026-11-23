@@ -30,9 +30,11 @@ from loxia_core.diagnostics.diagnostic import Position, Span
 from loxia_core.frontend.spans import span_of_token_exact
 from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.trivia import Trivia
 from loxia_core.frontend.ty import Ty, display
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+_DISPLAY_ONLY = frozenset({"display_name"})
 
 _TOKEN_CAMEL = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -57,16 +59,26 @@ def program_payload(
     statements: list[Stmt],
     tokens: list[Token],
     file: str,
+    *,
+    trivia: list[Trivia] | tuple[Trivia, ...] = (),
+    typed: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
-    """Envelope `program` da AST em arquivo único."""
+    """Envelope `program` v2: `syntax` estável e `typed` opcional."""
     memo: dict[int, Span | None] = {}
-    return {
+    syntax: dict[str, object] = {
+        "statements": [_value(statement, memo) for statement in statements],
+        "tokens": [_token(token, full=True) for token in tokens],
+        "trivia": [_trivia(item) for item in trivia],
+    }
+    payload: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "kind": "program",
         "file": file,
-        "statements": [_value(statement, memo) for statement in statements],
-        "tokens": [_token(token, full=True) for token in tokens],
+        "syntax": syntax,
     }
+    if typed is not None:
+        payload["typed"] = {"expressions": typed}
+    return payload
 
 
 def _value(value: object, memo: dict[int, Span | None]) -> object:
@@ -104,6 +116,8 @@ def _record(value: object, memo: dict[int, Span | None]) -> dict[str, object]:
     span = _extent(value, memo)
     payload["span"] = _span_json(span) if span is not None else None
     for item in fields(cast(Any, value)):
+        if item.name in _DISPLAY_ONLY:
+            continue
         payload[item.name] = _value(getattr(value, item.name), memo)
     return payload
 
@@ -120,6 +134,19 @@ def _token(token: Token, *, full: bool) -> dict[str, object]:
         payload["doc"] = token.doc
         payload["literal"] = _value(token.literal, {})
     return payload
+
+
+def span_payload(span: Span) -> dict[str, object]:
+    """Forma pública de um Span para o overlay tipado e os testes."""
+    return _span_json(span)
+
+
+def _trivia(value: Trivia) -> dict[str, object]:
+    return {
+        "kind": value.kind.value,
+        "text": value.text,
+        "span": _span_json(value.span),
+    }
 
 
 def _span_json(span: Span) -> dict[str, object]:

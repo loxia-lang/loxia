@@ -95,7 +95,7 @@ def test_cli_allow_errors_emits_json_and_keeps_exit_65() -> None:
 
     assert result.returncode == 65
     payload = json.loads(result.stdout)
-    assert payload["statements"][0]["expression"]["kind"] == "error_expr"
+    assert payload["syntax"]["statements"][0]["expression"]["kind"] == "error_expr"
     assert "error_expr" in result.stdout or "error_expr" in result.stderr
 
 

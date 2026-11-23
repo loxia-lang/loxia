@@ -7,6 +7,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Mudado (quebra)
 
+- **AST JSON v2** ([ADR-0129](docs/adr/0129-oraculo-do-front-end.md),
+  [#107](https://github.com/loxia-lang/loxia/issues/107)): o envelope agora separa
+  `syntax` (statements, tokens e trivia) de `typed` (opcional, com `--typed`), tem
+  `$defs` por kind e rejeita campos desconhecidos. `schema/ast-v1.json` foi removido;
+  não há camada de compatibilidade.
+
 - **`std.timex` em milissegundos** ([ADR-0122](docs/adr/0122-contrato-de-data-e-instante.md),
   [#78](https://github.com/loxia-lang/loxia/issues/78)): `iso`, `parts`, `parseIso` e `addDays`
   passam a receber/devolver ms, a mesma unidade de `time.now()`. A migração é `x * 1000`; não
