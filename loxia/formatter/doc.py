@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import cast
 
 INDENT = 2
 
@@ -46,6 +47,16 @@ class SoftLine(Doc):
 @dataclass(frozen=True)
 class HardLine(Doc):
     """Quebra sempre e força o grupo que a contém a quebrar."""
+
+
+@dataclass(frozen=True)
+class BlankLine(Doc):
+    """Uma linha em branco de verdade; não carrega indentação."""
+
+
+@dataclass(frozen=True)
+class EnsureLine(Doc):
+    """Quebra só se a linha atual já tiver conteúdo (evita linha em branco espúria)."""
 
 
 @dataclass(frozen=True)
@@ -125,6 +136,14 @@ def hardline() -> Doc:
     return HardLine()
 
 
+def blankline() -> Doc:
+    return BlankLine()
+
+
+def ensure_line() -> Doc:
+    return EnsureLine()
+
+
 def indent(doc: Doc) -> Doc:
     return Indent(doc)
 
@@ -169,6 +188,11 @@ class _Renderer:
                     self._newline(doc_indent)
             elif isinstance(node, HardLine):
                 self._newline(doc_indent)
+            elif isinstance(node, BlankLine):
+                self._blank(doc_indent)
+            elif isinstance(node, EnsureLine):
+                if self._has_content():
+                    self._newline(doc_indent)
             elif isinstance(node, Indent):
                 stack.append((doc_indent + INDENT, mode, node.doc))
             elif isinstance(node, Group):
@@ -180,6 +204,11 @@ class _Renderer:
             elif isinstance(node, IfBreak):
                 stack.append((doc_indent, mode, node.broken if mode is _Mode.BREAK else node.flat))
             elif isinstance(node, TrailingComment):
+                # Um comentário trailing sempre tem exatamente um espaço antes; espaço
+                # pendente do layout (ex.: depois de um operador) é absorvido.
+                code = "".join(self.current).rstrip(" ")
+                self.current = [code]
+                self.col = len(code)
                 self.comment_col = self.col
                 self._text(" " + node.value)
             else:  # pragma: no cover - hierarquia fechada
@@ -202,9 +231,16 @@ class _Renderer:
             self.current.append(segment)
             self.col += len(segment)
 
+    def _has_content(self) -> bool:
+        return bool("".join(self.current).strip())
+
     def _newline(self, indent: int = 0, *, verbatim: bool = False) -> None:
-        self.lines.append("".join(self.current))
-        self.trailing.append(self.comment_col)
+        value = "".join(self.current)
+        # Linha só com indentação não vira linha em branco com espaços; texto verbatim
+        # (string multilinha/comentário de bloco) preserva espaços significativos.
+        if verbatim or value.strip():
+            self.lines.append(value)
+            self.trailing.append(self.comment_col)
         self.comment_col = None
         if verbatim:
             self.current = []
@@ -212,6 +248,14 @@ class _Renderer:
         else:
             self.current = [" " * indent] if indent else []
             self.col = indent
+
+    def _blank(self, indent: int) -> None:
+        if self._has_content():
+            self._newline(indent)
+        self.lines.append("")
+        self.trailing.append(None)
+        self.current = [" " * indent] if indent else []
+        self.col = indent
 
     def _finish(self) -> None:
         if not self.current:
@@ -259,6 +303,8 @@ class _Renderer:
             elif isinstance(node, HardLine):
                 # Na forma plana um hardline é impossível: o grupo precisa quebrar.
                 return mode is _Mode.BREAK
+            elif isinstance(node, (BlankLine, EnsureLine)):
+                return mode is _Mode.BREAK
             elif isinstance(node, Indent):
                 stack.append((doc_indent + INDENT, mode, node.doc))
             elif isinstance(node, Group):
@@ -279,3 +325,46 @@ def render(doc: Doc, width: int = 100) -> Rendered:
     if width < 1:
         raise ValueError("width must be >= 1")
     return _Renderer(width).run(doc)
+
+
+def align(rendered: Rendered, width: int) -> tuple[str, ...]:
+    """Alinha trailing comments consecutivos no mesmo indent (regra estrita)."""
+    lines = list(rendered.lines)
+    columns = list(rendered.trailing)
+    index = 0
+    while index < len(lines):
+        column = columns[index]
+        if column is None or not _line_comment_at(lines[index], column):
+            index += 1
+            continue
+        indent = len(lines[index]) - len(lines[index].lstrip(" "))
+        group = [index]
+        cursor = index + 1
+        while cursor < len(lines):
+            next_column = columns[cursor]
+            if next_column is None or not _line_comment_at(lines[cursor], next_column):
+                break
+            next_indent = len(lines[cursor]) - len(lines[cursor].lstrip(" "))
+            if next_indent != indent:
+                break
+            group.append(cursor)
+            cursor += 1
+        if len(group) > 1:
+            target = max(cast(int, columns[item]) for item in group) + 2
+            aligned: list[str] = []
+            for item in group:
+                column = cast(int, columns[item])
+                code = lines[item][:column].rstrip()
+                comment = lines[item][column:].strip()
+                aligned.append(code + " " * (target - column) + comment)
+            if all(len(item) <= width for item in aligned):
+                for item, value in zip(group, aligned, strict=False):
+                    lines[item] = value
+        index = cursor
+    return tuple(lines)
+
+
+def _line_comment_at(line: str, column: int) -> bool:
+    if not line[:column].strip():
+        return False
+    return line[column:].lstrip(" ").startswith("#")
