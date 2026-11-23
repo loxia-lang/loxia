@@ -47,6 +47,16 @@ print(bytes.readU32be(words, -1) ?? -1)
 print(bytes.readU16be(words, 9223372036854775807) ?? -1)
 print(bytes.readU32be(bytes.u32be(305419896), 0))
 
+# Builder: build idempotente, reuso depois do build e builder vazio
+val reuse = bytes.Builder()
+reuse.pushByte(65)
+print(reuse.build().toHex())
+print(reuse.build().toHex())
+reuse.push(Bytes.fromText("BC"))
+print(reuse.len())
+print(reuse.build().toHex())
+print(len(bytes.Builder().build()))
+
 # expect: 5
 # expect: c3a94100ff
 # expect: w6lBAP8=
@@ -75,3 +85,8 @@ print(bytes.readU32be(bytes.u32be(305419896), 0))
 # expect: -1
 # expect: -1
 # expect: 305419896
+# expect: 41
+# expect: 41
+# expect: 3
+# expect: 414243
+# expect: 0

@@ -41,6 +41,24 @@ print(convert.hexDecode("zz") ?? "nil")
 print(convert.base64Decode("Zm9") ?? "nil")
 print(convert.hexDecode("61c3a7") ?? "nil")
 
+# padding mal posicionado e caractere inválido nas quatro posições do quarteto
+match convert.base64DecodeResult("QQ==QQ==") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+match convert.base64DecodeResult("!AAA") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+match convert.base64DecodeResult("Z!AA") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+match convert.base64DecodeResult("QQQ!") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
 # expect: invalidHex at 2
 # expect: invalidHex at 1
 # expect: invalidUtf8 at -1
@@ -51,3 +69,7 @@ print(convert.hexDecode("61c3a7") ?? "nil")
 # expect: nil
 # expect: nil
 # expect: aç
+# expect: invalidBase64 at 2
+# expect: invalidBase64 at 0
+# expect: invalidBase64 at 1
+# expect: invalidBase64 at 3

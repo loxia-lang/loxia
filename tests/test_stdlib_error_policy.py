@@ -16,6 +16,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.token_type import TokenType
+
 ROOT = Path(__file__).resolve().parents[1]
 STD = ROOT / "std"
 
@@ -39,16 +42,17 @@ RAISE_BUDGET: dict[str, int] = {
     "timex": 2,
 }
 
-_RAISE = re.compile(r"^\s*raise\b")
-
 
 def raises_by_module() -> dict[str, int]:
-    """Conta comandos `raise` por módulo de `std/` (ignora comentários e strings)."""
+    """Conta tokens `raise` por módulo de `std/`.
+
+    O scanner é a fonte (não uma regex de linha): `if (x) { raise ... }` conta, e
+    comentário/string que citam `raise` não contam. Sem isso, a regra é burlável.
+    """
     counts: dict[str, int] = {}
     for path in sorted(STD.glob("*.lx")):
-        total = sum(
-            1 for line in path.read_text(encoding="utf-8").splitlines() if _RAISE.match(line)
-        )
+        tokens = Scanner(path.read_text(encoding="utf-8")).scan_tokens()
+        total = sum(1 for token in tokens if token.type is TokenType.RAISE)
         if total:
             counts[path.stem] = total
     return counts

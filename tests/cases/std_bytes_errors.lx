@@ -34,6 +34,11 @@ match bytes.readU64beResult(data, 0) {
   Result.Err(error) => print(error.wanted)
 }
 
+match bytes.readU32leResult(data, 3) {
+  Result.Ok(value) => print(value)
+  Result.Err(error) => print(error.kind + " " + str(error.offset) + " " + str(error.wanted))
+}
+
 print(bytes.readU32be(data, 2) ?? -1)
 print(bytes.readU32le(data, 0))
 print(bytes.readU16be(data, 2) ?? -1)
@@ -44,6 +49,7 @@ print(bytes.readU16be(data, 2) ?? -1)
 # expect: 2
 # expect: 13330
 # expect: 8
+# expect: outOfBounds 3 4
 # expect: -1
 # expect: 2018915346
 # expect: 22136

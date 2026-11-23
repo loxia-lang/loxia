@@ -18,7 +18,8 @@ Text conversions (integer/float/bool, Base64, hex) over UTF-8 bytes.
 Falha de decodificação de texto (`base64DecodeResult`, `hexDecodeResult`).
 
 `kind` é estável (`invalidBase64`, `invalidHex`, `invalidUtf8`); `index` é a posição
-no texto de entrada, ou `-1` quando o problema está nos bytes decodificados (UTF-8
+no texto de entrada; `len(text)` quando a falha é de comprimento (fim do texto, não uma
+posição dentro dele); ou `-1` quando o problema está nos bytes decodificados (UTF-8
 inválido) e não em um caractere. `message` é determinística, sem caminho nem locale.
 
 #### `val kind: String`
@@ -72,9 +73,9 @@ point is first expanded to its UTF-8 bytes, so the result depends only on the te
 Decodes standard Base64 into UTF-8 text, preserving the cause of a malformed input.
 
 Requires padded input whose length is a multiple of 4. `Err` carries a `DecodeError`
-with the position of the invalid character or of the misplaced padding; bytes that
-are not valid UTF-8 are `invalidUtf8` with `index` `-1`. The empty string decodes to
-`""`.
+with the position of the invalid character or of the misplaced padding; a length that
+is not a multiple of 4 uses `index == len(text)`; bytes that are not valid UTF-8 are
+`invalidUtf8` with `index` `-1`. The empty string decodes to `""`.
 
 ### `fn base64Decode(text: String) -> String | Nil`
 
@@ -96,8 +97,8 @@ byte sequence.
 Decodes hexadecimal into UTF-8 text, preserving the cause of a malformed input.
 
 Accepts lowercase and uppercase digits and requires an even number of them. `Err`
-carries a `DecodeError` with the position of the invalid digit; bytes that are not
-valid UTF-8 are `invalidUtf8` with `index` `-1`.
+carries a `DecodeError` with the position of the invalid digit; an odd length uses
+`index == len(text)`; bytes that are not valid UTF-8 are `invalidUtf8` with `index` `-1`.
 
 ### `fn hexDecode(text: String) -> String | Nil`
 

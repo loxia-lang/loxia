@@ -52,15 +52,20 @@ lançando como casca. O resultado é uma stdlib com três dialetos.
    fina, com sufixo `OrRaise`, documentada, testada e sem lógica própria.
    - Consequência: `json.parseResult` → `json.parse` (núcleo) e `json.parse` → `json.parseOrRaise`
      (casca). `fs` já obedece ao nome simples.
+   - **Estado:** a regra vale para as cascas novas. Nenhuma função usa `OrRaise` ainda; a migração
+     do `json` é o lote M2 (a stdlib continua com `parse` lançando até lá).
 3. **A stdlib não lança por falha esperada.** A allowlist por natureza é exatamente
    `asserts`, `contracts`, `test`, `property` — o contrato delas *é* falhar.
 4. **`T?` sobrevive como casca ergonômica**, sob a regra determinística da seção "Casca `T?`"
    abaixo. `Result` é o veículo de falha com detalhe; `T?` fica onde a ausência é a resposta
    inteira e o uso típico é uma linha. Auditoria desta data: **40 funções** com retorno `T?` em
-   `std/` — 26 cascas puras, 10 cascas com irmã `Result` (dívida declarada), 4 helpers privados.
-5. **Borda do processo.** `Err` não tratado no topo do programa → mensagem `error: <msg>` em
-   **stderr** e **exit 70** (mesmo código do erro de runtime não capturado). A mensagem é o valor do
-   erro; nada de caminho absoluto, timestamp ou PID (I3).
+   `std/` — 26 cascas puras, 10 cascas com irmã `Result` (todas implementadas), 4 helpers privados.
+5. **Borda do processo — alvo, não contrato observável.** A linguagem executa statements: não há
+   `main` e um `Err` descartado é só um valor (exit 0, hoje). Quando existir um ponto de entrada
+   que devolva `Result` ([issue #142](https://github.com/loxia-lang/loxia/issues/142), `needs-adr`),
+   o `Err` não tratado imprime `error: <msg>` em **stderr** e sai **70** (mesmo código do erro de
+   runtime não capturado), sem caminho absoluto, timestamp ou PID (I3). Até lá, esta regra é a
+   direção decidida, não uma promessa verificável — e `docs/spec/semantica.md` diz isso.
 6. **Fora de escopo.** O operador de propagação em posição de expressão (`expr?`, estilo Rust/Swift)
    **não** entra aqui: é sintaxe nova e passa pelo [ADR-0066](0066-orcamento-e-gate-sintatico.md),
    em ADR próprio. O `?` que existe hoje é **de tipo** (`String?` = pode ser `nil`), não de
@@ -89,7 +94,7 @@ Auditoria completa de `std/` (2026-11-23):
 | `bytes` | `readU16be`, `readU16le`, `readU32be`, `readU32le`, `readU64be`, `readU64le` | casca + irmã `readXResult` (implementadas; `BytesError` com offset/wanted/length) |
 | `cli` | `option`, `positional` | casca pura |
 | `convert` | `toInt`, `toFloat`, `toBool` | casca pura |
-| `convert` | `base64Decode`, `hexDecode` | casca + irmã (implementadas; `DecodeError` com kind/index) |
+| `convert` | `base64Decode`, `hexDecode` | casca + irmã (implementadas; `DecodeError` com kind/index; `index == len(text)` quando a falha é de comprimento) |
 | `convert` | `_utf8Text` | privada |
 | `csv` | `parse` | casca + irmã `parseResult` (já existe; `results.toOptional`) |
 | `framing` | `readStdin` | casca pura (EOF) |
@@ -115,8 +120,8 @@ fn parse(text: String) -> List[List[String]]? {
 }
 ```
 
-Ou seja: a casca não duplica lógica; ela só apaga o motivo. As 8 irmãs que faltam (`bytes.read*`,
-`convert.base64Decode`, `convert.hexDecode`) seguem esse molde.
+Ou seja: a casca não duplica lógica; ela só apaga o motivo. As 8 irmãs criadas nesta migração
+(`bytes.read*`, `convert.base64DecodeResult`/`hexDecodeResult`) seguem esse molde.
 
 `Int.parse`/`Float.parse` (namespace nativo) mantêm `T?`: são o caso canônico da casca — ausência
 sem detalhe, uso com `??`. Quem precisa do motivo usa a irmã `parseResult`, se/quando existir.
@@ -150,8 +155,9 @@ Cada lote diminui o orçamento no ratchet; o teste falha se um módulo **aumenta
   e precisa ser ensinada como "defeito e fluxo do usuário", não como tratamento de falha esperada.
 - **Quebra de API** em pré-1.0: `json.parse`/`parseResult` trocam de nome; `Int.parse`/`Float.parse`
   **não** mudam (seguem `T?`, casca canônica).
-- **10 irmãs `Result`** criadas (custo pago nesta migração): `bytes.read*Result` e
-  `convert.{base64,hex}DecodeResult`, com `BytesError`/`DecodeError` e golden de erro.
+- **8 irmãs `Result` novas** (as outras 2, `csv.parse` e `timex.parseIso`, já existiam):
+  `bytes.read*Result` e `convert.{base64,hex}DecodeResult`, com `BytesError`/`DecodeError` e
+  golden de erro.
 - `Result[Any, E]` continua limitado por `E3011`; até o checker relaxar, módulos com `Any` mantêm
   enum de domínio próprio (padrão permitido, mas declarado).
 

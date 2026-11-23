@@ -28,8 +28,10 @@ an **expected failure** is a `Result[T, E]` value in the signature; `raise`/`exc
 **user control flow**. A function declares one channel: a function returning `Result` does not
 raise for the same failure, and a core function uses the plain name while its raising shell uses
 the `OrRaise` suffix. The stdlib does not raise for expected failure (allowlist: `asserts`,
-`contracts`, `test`, `property`). An `Err` left unhandled at the program top prints `error: <msg>`
-to stderr and exits **70** (same code as an uncaught runtime error).
+`contracts`, `test`, `property`). There is no `main` entry point today: a discarded `Err` is just a value and does not change
+the exit code. When an entry point returning `Result` exists ([#142](https://github.com/loxia-lang/loxia/issues/142)),
+an unhandled `Err` will print `error: <msg>` to stderr and exit **70** (same code as an
+uncaught runtime error); that is the decided target, not current behavior.
 
 Call depth is limited to **10,000 Lox activations** (function, method, lambda,
 `init` and constructor); the next is `R1015` (`Stack overflow.`), exit 70, catchable by
