@@ -379,6 +379,20 @@ def test_top_level_val_preserves_user_blank_lines() -> None:
     assert assert_roundtrip(source) == source
 
 
+def test_comment_between_keyword_and_name_keeps_source_order() -> None:
+    cases = [
+        ("val /*c*/ x = 1\n", "val /*c*/\nx = 1\n"),
+        ("class /*c*/ C {}\n", "class /*c*/\nC {}\n"),
+        ("fn /*c*/ f() {}\n", "fn /*c*/\nf() {}\n"),
+        ("import /*c*/ std.foo\n", "import /*c*/\nstd.foo\n"),
+        ("type /*c*/ T = Int\n", "type /*c*/\nT = Int\n"),
+        ("class C {\n  val /*c*/ x: Int\n}\n", "class C {\n  val /*c*/\n  x: Int\n}\n"),
+    ]
+
+    for source, expected in cases:
+        assert formatted(source) == expected
+
+
 def test_corpus_idempotent_semantic_and_comment_preserving() -> None:
     checked = 0
     for path in corpus_files():

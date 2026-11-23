@@ -576,23 +576,23 @@ class Printer:
         if isinstance(node, ErrorExpr):
             return node.start
         if isinstance(node, Class):
-            return node.name
+            return node.keyword or node.name
         if isinstance(node, Interface):
-            return node.name
+            return node.keyword or node.name
         if isinstance(node, EnumDecl):
-            return node.name
+            return node.keyword or node.name
         if isinstance(node, TypeAlias):
             return node.keyword or node.name
         if isinstance(node, Import):
-            return node.path[0] if node.path else node.start
+            return node.start or (node.path[0] if node.path else None)
         if isinstance(node, Function):
-            return node.name or node.fn_token
+            return node.fn_token or node.name
         if isinstance(node, Field):
-            return node.name or node.keyword
+            return node.keyword or node.name
         if isinstance(node, Var):
-            return node.name or node.keyword
+            return node.keyword or node.name
         if isinstance(node, Destructure):
-            return self._destructure_first(node.pattern)
+            return node.keyword or self._destructure_first(node.pattern)
         if isinstance(node, Param):
             return node.name
         if isinstance(node, EnumVariant):
