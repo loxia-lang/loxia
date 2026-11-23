@@ -72,6 +72,11 @@ the `LoxValue`, and a push/set with a mismatching tag promotes the whole list to
 lowering picks the typed form for literals whose element type is a scalar; it is an
 optimization, never a semantic difference.
 
+`LoxMap` is `{count, capacity, entries, version, index, index_capacity}`. `entries` keeps
+insertion order (iteration, `keys`, `values`, `print`); `index` is an open-addressing table
+of entry indexes (0 = empty, entry index + 1 otherwise) rebuilt on remove/grow, so `m[k]` is
+O(1) without changing the order the interpreter observes.
+
 A function uses `(i8* env, params...)`. A closure is `{fnptr, env, display}`. Class
 descriptors start with `{super, id, name, vtable, ...}`; an instance stores its
 descriptor in the first field, then a field bitmap and i64 slots. See

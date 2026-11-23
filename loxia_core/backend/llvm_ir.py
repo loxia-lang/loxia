@@ -184,7 +184,7 @@ def cstring_pointer(builder: Any, global_: Any) -> Any:
 
 
 # Mirrors `LoxStr` in runtime/lox_runtime.h (ABI; change both together):
-# byte_len, cp_len, data, cp_offsets, hash, left, right. `data == NULL` marks a
+# byte_len, cp_len, flat, cp_offsets, hash, left, right. `flat == NULL` marks a
 # concatenation node (rope) whose halves are `left`/`right`; `hash` is the
 # cached FNV-1a used by maps.
 _STRING_STRUCT = ir.LiteralStructType(

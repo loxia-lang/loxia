@@ -69,9 +69,9 @@
  * Immutable String: UTF-8 bytes + code-point count (ADR-0031, decision 6).
  * The IR uses `i8*` for the pointer; this struct is the layout.
  *
- * A leaf has `data != NULL` (inline, NUL-terminated). A concatenation node has
- * `data == NULL` and `left`/`right`; `lox_str_bytes` flattens it on demand and
- * caches the buffer in `data`. `hash` caches FNV-1a (0 = not computed). The
+ * A leaf has `flat != NULL` (inline, NUL-terminated). A concatenation node has
+ * `flat == NULL` and `left`/`right`; `lox_str_bytes` flattens it on demand and
+ * caches the buffer in `flat`. `hash` caches FNV-1a (0 = not computed). The
  * constant headers emitted by llvm_ir.string_literal follow this order.
  */
 typedef struct LoxStr {
