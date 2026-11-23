@@ -93,7 +93,7 @@ from loxia_core.frontend.stmt import (
 )
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.trivia import Trivia
+from loxia_core.frontend.trivia import Trivia, TriviaKind
 from loxia_core.frontend.ty import Ty, display
 
 type DocBuilder = Callable[[], Doc]
@@ -312,7 +312,11 @@ class Printer:
     # --- comentários -----------------------------------------------------
 
     def _trailing(self, comments: Sequence[Trivia]) -> Doc:
-        return concat(*(TrailingComment(comment_text(item)) for item in comments))
+        docs: list[Doc] = []
+        for item in comments:
+            hard = item.kind is not TriviaKind.BLOCK_COMMENT or "\n" in item.text
+            docs.append(TrailingComment(comment_text(item), hard=hard))
+        return concat(*docs)
 
     def _leading(
         self,
@@ -581,12 +585,24 @@ class Printer:
             return self._token_offset(pattern.enum)
         return self._token_offset(pattern.token)
 
-    def _type_text(self, ty: Ty, span: Span | None) -> str:
-        if span is not None and span.start.offset is not None and span.end.offset is not None:
-            value = self.source_bytes[span.start.offset : span.end.offset].decode("utf-8")
-            self._skip_to(span.end.offset, span.end.line)
-            return value
-        return display(ty)
+    def _type_after(self, ty: Ty, span: Span | None, *, leading_space: bool = True) -> Doc:
+        """Tipo anotado a partir do span, preservando comentários que vêm antes dele."""
+        if span is None or span.start.offset is None or span.end.offset is None:
+            prefix = " " if leading_space else ""
+            return text(prefix + display(ty))
+        gap = self._take(span.start.offset)
+        value = self.source_bytes[span.start.offset : span.end.offset].decode("utf-8")
+        self._skip_to(span.end.offset, span.end.line)
+        if gap.empty:
+            return text((" " if leading_space else "") + value)
+        inner: list[Doc] = []
+        if gap.trailing:
+            inner.append(self._trailing(gap.trailing))
+            inner.append(hardline())
+        if gap.leading:
+            inner.append(self._leading(gap.leading, gap.blanks_between))
+        inner.append(text(value))
+        return indent(concat(*inner))
 
     def _file_kind(self, statement: Stmt) -> ItemKind:
         if isinstance(statement, Import):
@@ -633,8 +649,9 @@ class Printer:
             return concat(self._expr(expr.start), self._token(expr.operator), self._expr(expr.end))
         if isinstance(expr, Grouping):
             start = self._token(expr.start) if expr.start is not None else text("(")
+            inner = self._expr(expr.expression)
             end = self._token(expr.end) if expr.end is not None else text(")")
-            return concat(start, self._expr(expr.expression), end)
+            return concat(start, inner, end)
         if isinstance(expr, Unary):
             operator = self._token(expr.operator)
             if expr.operator.lexeme == "not":
@@ -685,16 +702,20 @@ class Printer:
         if isinstance(expr, TupleLiteral):
             return self._tuple(expr)
         if isinstance(expr, Index):
+            object_doc = self._expr(expr.object)
+            bracket = self._token(expr.bracket)
+            index_doc = self._expr(expr.index)
             end = self._token(expr.end) if expr.end is not None else text("]")
-            return concat(
-                self._expr(expr.object), self._token(expr.bracket), self._expr(expr.index), end
-            )
+            return concat(object_doc, bracket, index_doc, end)
         if isinstance(expr, IndexSet):
+            object_doc = self._expr(expr.object)
+            bracket = self._token(expr.bracket)
+            index_doc = self._expr(expr.index)
             end = self._token(expr.end) if expr.end is not None else text("]")
             return concat(
-                self._expr(expr.object),
-                self._token(expr.bracket),
-                self._expr(expr.index),
+                object_doc,
+                bracket,
+                index_doc,
                 end,
                 text(" ="),
                 self._value_after(self._start(expr.value), self._expr(expr.value)),
@@ -720,16 +741,8 @@ class Printer:
         return text(str(value))
 
     def _type_operator(self, left: Doc, operator: Token, ty: Ty, span: Span | None) -> Doc:
-        type_start = (
-            span.start.offset if span is not None and span.start.offset is not None else None
-        )
-        inner: list[Doc] = []
-        if type_start is not None:
-            inner.append(self._before_line(type_start))
-        else:
-            inner.append(text(" "))
-        inner.append(text(self._type_text(ty, span)))
-        return group(concat(left, text(" "), self._token(operator), indent(concat(*inner))))
+        op_doc = self._token(operator)
+        return group(concat(left, text(" "), op_doc, self._type_after(ty, span)))
 
     def _binary(self, expr: Binary) -> Doc:
         if expr.operator.type is TokenType.STAR_STAR:
@@ -774,13 +787,16 @@ class Printer:
         return self._chain(operands, operators)
 
     def _chain(self, operands: Sequence[Expr], operators: Sequence[Token]) -> Doc:
+        # A ordem de construção importa: `_expr` consome trivia, então o primeiro
+        # operando precisa ser emitido antes de qualquer lookahead do resto.
+        first = self._expr(operands[0])
         rest: list[Doc] = []
         for operator, operand in zip(operators, operands[1:], strict=True):
             rest.append(text(" "))
             rest.append(self._token(operator))
             rest.append(self._before_line(self._start(operand)))
             rest.append(self._expr(operand))
-        return group(concat(self._expr(operands[0]), indent(concat(*rest))))
+        return group(concat(first, indent(concat(*rest))))
 
     def _call(self, expr: Call) -> Doc:
         opener = concat(self._expr(expr.callee), text("("))
@@ -843,16 +859,30 @@ class Printer:
 
     def _conditional(self, expr: Conditional) -> Doc:
         then_doc = self._expr(expr.then_branch)
+        cond_gap = self._take(self._start(expr.condition))
         condition = self._expr(expr.condition)
+        else_gap = self._take(self._start(expr.else_branch))
+        else_doc = self._expr(expr.else_branch)
+
+        cond_inner: list[Doc] = []
+        if cond_gap.trailing:
+            cond_inner.append(self._trailing(cond_gap.trailing))
+        cond_inner.append(line())
+        if cond_gap.leading:
+            cond_inner.append(self._leading(cond_gap.leading, cond_gap.blanks_between))
+        cond_inner.append(condition)
+
+        else_inner: list[Doc] = []
+        if else_gap.trailing:
+            else_inner.append(self._trailing(else_gap.trailing))
+        else_inner.append(line())
+        if else_gap.leading:
+            else_inner.append(self._leading(else_gap.leading, else_gap.blanks_between))
+        else_inner.append(text("else "))
+        else_inner.append(else_doc)
+
         return group(
-            concat(
-                then_doc,
-                text(" if"),
-                indent(concat(self._before_line(self._start(expr.condition)), condition)),
-                self._before_line(self._start(expr.else_branch)),
-                text("else "),
-                self._expr(expr.else_branch),
-            )
+            concat(then_doc, text(" if"), indent(concat(*cond_inner)), concat(*else_inner))
         )
 
     def _match(self, expr: Match) -> Doc:
@@ -912,7 +942,7 @@ class Printer:
         return_doc = text("")
         if expr.return_type is not None:
             return_doc = concat(
-                text(" -> "), text(self._type_text(expr.return_type, expr.return_type_span))
+                text(" ->"), self._type_after(expr.return_type, expr.return_type_span)
             )
         if (
             len(expr.body) == 1
@@ -954,8 +984,8 @@ class Printer:
                 self._token(stmt.keyword),
                 text(" "),
                 self._token(stmt.name),
-                text(" = "),
-                text(self._type_text(stmt.target, stmt.type_span)),
+                text(" ="),
+                self._type_after(stmt.target, stmt.type_span),
             )
         if isinstance(stmt, Return):
             return self._return(stmt)
@@ -1097,7 +1127,7 @@ class Printer:
                 if index:
                     parts.append(text(", "))
                 span = variant.payload_spans[index] if index < len(variant.payload_spans) else None
-                parts.append(text(self._type_text(ty, span)))
+                parts.append(self._type_after(ty, span, leading_space=False))
             parts.append(text(")"))
         return concat(*parts)
 
@@ -1110,8 +1140,8 @@ class Printer:
         parts.append(self._type_params(stmt.type_params, stmt.type_param_bounds))
         parts.append(self._params(stmt.params, stmt.params_end))
         if stmt.return_type is not None:
-            parts.append(text(" -> "))
-            parts.append(text(self._type_text(stmt.return_type, stmt.return_type_span)))
+            parts.append(text(" ->"))
+            parts.append(self._type_after(stmt.return_type, stmt.return_type_span))
         if stmt.abstract:
             return concat(*parts)
         body = self._block_config(stmt.body, stmt.end, _stmt_policy)
@@ -1132,8 +1162,8 @@ class Printer:
             parts.append(text("var "))
         parts.append(self._token(param.name))
         if param.type_annotation is not None:
-            parts.append(text(": "))
-            parts.append(text(self._type_text(param.type_annotation, param.type_span)))
+            parts.append(text(":"))
+            parts.append(self._type_after(param.type_annotation, param.type_span))
         if param.default is not None:
             parts.append(text(" ="))
             parts.append(self._value_after(self._start(param.default), self._expr(param.default)))
@@ -1148,8 +1178,8 @@ class Printer:
             self._token(field.name),
         ]
         if field.type_annotation is not None:
-            parts.append(text(": "))
-            parts.append(text(self._type_text(field.type_annotation, field.type_span)))
+            parts.append(text(":"))
+            parts.append(self._type_after(field.type_annotation, field.type_span))
         if field.initializer is not None:
             parts.append(text(" ="))
             parts.append(
@@ -1166,8 +1196,8 @@ class Printer:
             self._token(stmt.name),
         ]
         if stmt.type_annotation is not None:
-            parts.append(text(": "))
-            parts.append(text(self._type_text(stmt.type_annotation, stmt.type_span)))
+            parts.append(text(":"))
+            parts.append(self._type_after(stmt.type_annotation, stmt.type_span))
         if stmt.initializer is not None:
             parts.append(text(" ="))
             parts.append(
@@ -1184,8 +1214,8 @@ class Printer:
             self._destructure_pattern(stmt.pattern),
         ]
         if stmt.type_annotation is not None:
-            parts.append(text(": "))
-            parts.append(text(self._type_text(stmt.type_annotation, stmt.type_span)))
+            parts.append(text(":"))
+            parts.append(self._type_after(stmt.type_annotation, stmt.type_span))
         parts.append(text(" ="))
         parts.append(self._value_after(self._start(stmt.initializer), self._expr(stmt.initializer)))
         return concat(*parts)

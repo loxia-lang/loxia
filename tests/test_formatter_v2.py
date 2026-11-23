@@ -339,6 +339,46 @@ def test_syntax_error_returns_none() -> None:
     assert format_source("fn f( {\n") is None
 
 
+def test_trailing_comment_positions_stay_valid() -> None:
+    cases = [
+        "val xs = [\n  1, # one\n  2,\n]\n",
+        "print(a, # c\n  b)\n",
+        'val m = { "a": 1, # c\n  "b": 2 }\n',
+        "fn f(a: Int, # a\n  b: Int) {}\n",
+        "print(a + # c\n  b)\n",
+        "val x = 1 if # c\n  true else 2\n",
+        "val x = (a if # c\n  b else c) + 1\n",
+        "for (var i = 0; # head\n  i < 10; i = i + 1) {\n  print(i)\n}\n",
+        "val f = fn(x) => # c\n  x + 1\n",
+    ]
+
+    for source in cases:
+        assert_roundtrip(source)
+
+
+def test_type_annotation_comments_are_preserved() -> None:
+    cases = [
+        "val x: # c\n  Int = 1\n",
+        "class C {\n  val x: # c\n    Int\n}\n",
+        "fn f(x: # c\n  Int) -> Int {\n  return x\n}\n",
+        "fn f() -> # c\n  Int {\n  return 1\n}\n",
+        "type T = # c\n  Int\n",
+        "enum E {\n  A( # c\n    Int)\n}\n",
+        "fn f(x: Any) -> Bool {\n  return x is # c\n    Int\n}\n",
+        "fn f(x: Any) -> Int {\n  return x as # c\n    Int\n}\n",
+        "val f = fn(x: Int) -> # c\n  Int => x\n",
+    ]
+
+    for source in cases:
+        assert_roundtrip(source)
+
+
+def test_top_level_val_preserves_user_blank_lines() -> None:
+    source = "val a = 1\nval b = 2\n\nval c = 3\n"
+
+    assert assert_roundtrip(source) == source
+
+
 def test_corpus_idempotent_semantic_and_comment_preserving() -> None:
     checked = 0
     for path in corpus_files():
