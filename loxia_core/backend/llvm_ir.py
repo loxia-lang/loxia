@@ -183,9 +183,16 @@ def cstring_pointer(builder: Any, global_: Any) -> Any:
     return builder.gep(global_, [index, index])
 
 
+# Mirrors `LoxStr` in runtime/lox_runtime.h (ABI; change both together):
+# byte_len, cp_len, data, cp_offsets, hash, left, right. `data == NULL` marks a
+# concatenation node (rope) whose halves are `left`/`right`; `hash` is the
+# cached FNV-1a used by maps.
 _STRING_STRUCT = ir.LiteralStructType(
     [
         ir.IntType(64),
+        ir.IntType(64),
+        ir.IntType(8).as_pointer(),
+        ir.IntType(8).as_pointer(),
         ir.IntType(64),
         ir.IntType(8).as_pointer(),
         ir.IntType(8).as_pointer(),
@@ -206,13 +213,17 @@ def string_literal(module: Any, value: str, index: int) -> Any:
     data_global.unnamed_addr = True
 
     i64 = ir.IntType(64)
+    null = ir.Constant(ir.IntType(8).as_pointer(), None)
     header = ir.Constant(
         _STRING_STRUCT,
         [
             i64(len(encoded)),
             i64(len(value)),
             data_global,
-            ir.Constant(ir.IntType(8).as_pointer(), None),
+            null,
+            i64(0),
+            null,
+            null,
         ],
     )
     # Não é `constant`: o header tem relocação e em .rodata geraria DT_TEXTREL.

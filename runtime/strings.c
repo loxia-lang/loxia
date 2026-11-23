@@ -42,6 +42,9 @@ void *lox_str_from_function(const void *pointer) {
     result->cp_len = (int64_t)length;
     result->data = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -87,6 +90,26 @@ int32_t lox_str_equal(const void *left_pointer, const void *right_pointer) {
     return memcmp(left->data, right->data, (size_t)left->byte_len) == 0;
 }
 
+/* FNV-1a over the bytes, cached in the LoxStr (0 means "not computed").
+ * Content-based, so it agrees with `lox_str_equal`; deterministic (I3). */
+uint64_t lox_str_hash(const void *pointer) {
+    LoxStr *string = (LoxStr *)pointer;
+    if (string->hash != 0) {
+        return string->hash;
+    }
+    const unsigned char *data = (const unsigned char *)string->data;
+    uint64_t hash = 14695981039346656037ULL;
+    for (int64_t index = 0; index < string->byte_len; index++) {
+        hash ^= (uint64_t)data[index];
+        hash *= 1099511628211ULL;
+    }
+    if (hash == 0) {
+        hash = 1;
+    }
+    string->hash = hash;
+    return hash;
+}
+
 /* String `+`: allocates a new LoxStr and adds `cp_len`. */
 void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
@@ -103,6 +126,9 @@ void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
     result->cp_len = left->cp_len + right->cp_len;
     result->data = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -369,6 +395,9 @@ LoxStr *string_from_bytes(const char *data, size_t length,
     result->cp_len = code_points;
     result->data = copy;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -459,6 +488,10 @@ void *lox_str_quote(const void *pointer) {
     result->byte_len = (int64_t)used;
     result->cp_len = source->cp_len + 2;
     result->data = data;
+    result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 

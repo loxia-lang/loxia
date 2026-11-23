@@ -68,12 +68,20 @@
 /*
  * Immutable String: UTF-8 bytes + code-point count (ADR-0031, decision 6).
  * The IR uses `i8*` for the pointer; this struct is the layout.
+ *
+ * A leaf has `data != NULL` (inline, NUL-terminated). A concatenation node has
+ * `data == NULL` and `left`/`right`; `lox_str_bytes` flattens it on demand and
+ * caches the buffer in `data`. `hash` caches FNV-1a (0 = not computed). The
+ * constant headers emitted by llvm_ir.string_literal follow this order.
  */
-typedef struct {
+typedef struct LoxStr {
     int64_t byte_len;
     int64_t cp_len;
     const char *data;
     int32_t *cp_offsets; /* lazy cache; NULL until the first random access */
+    uint64_t hash;       /* FNV-1a cache; 0 until the first map lookup */
+    struct LoxStr *left; /* rope node; NULL on a leaf */
+    struct LoxStr *right;
 } LoxStr;
 
 /*
@@ -152,7 +160,7 @@ typedef struct {
     int64_t version;
 } LoxList;
 
-/* L6 Map: boxed entries in insertion order. */
+/* L6 Map: boxed entries in insertion order, with a hashed index (ADR-0017). */
 typedef struct {
     LoxValue key;
     LoxValue value;
@@ -163,6 +171,10 @@ typedef struct {
     int64_t capacity;
     LoxMapEntry *entries;
     int64_t version;
+    /* Open-addressing index over `entries`: a slot holds the entry index + 1,
+     * 0 means empty. Rebuilt on remove/grow; capacity is a power of two. */
+    int32_t *index;
+    int64_t index_capacity;
 } LoxMap;
 
 /* L6 Tuple: boxed elements, fixed arity, immutable. */
@@ -287,6 +299,7 @@ extern void lox_print_str (const void *pointer);
 extern int64_t lox_str_len (const void *pointer);
 extern int32_t lox_str_compare (const void *left_pointer, const void *right_pointer);
 extern int32_t lox_str_equal (const void *left_pointer, const void *right_pointer);
+extern uint64_t lox_str_hash (const void *pointer);
 extern void *lox_str_concat (const void *left_pointer, const void *right_pointer);
 /* ---------------------------------------------------------------------------
  * Containers: Range, List, Map, Tuple, Enum

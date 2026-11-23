@@ -282,18 +282,24 @@ int lox_value_equal(LoxValue left, LoxValue right) {
 /* ---------------------------------------------------------------------------
  * Map (ADR-0017)
  *
- * Entries in insertion order, linear lookup (`lox_map_find`). Keys are
- * String/Int/Bool; `version` increments on every mutation. `set` on an existing
- * key keeps its position and replaces the value.
+ * Entries stay in insertion order; a separate open-addressing index maps a
+ * 64-bit hash to the entry, so lookup is O(1) and `keys`/`values`/`for-in` keep
+ * the insertion order the interpreter observes (I3). Keys are String/Int/Bool;
+ * `version` increments on every mutation. `set` on an existing key keeps its
+ * position and replaces the value; `remove` shifts the entries (O(n)) and
+ * rebuilds the index, matching the Python dict order on reinsertion.
  * --------------------------------------------------------------------------- */
 
-/* Empty map with initial capacity 4. */
+/* Empty map: 4 entries, 8 index slots (load factor <= 0.5). */
 void *lox_map_new(void) {
     LoxMap *map = lox_alloc(sizeof(LoxMap));
     map->count = 0;
     map->capacity = 4;
     map->entries = lox_alloc(sizeof(LoxMapEntry) * (size_t)map->capacity);
     map->version = 0;
+    map->index_capacity = 8;
+    map->index = lox_alloc(sizeof(int32_t) * (size_t)map->index_capacity);
+    memset(map->index, 0, sizeof(int32_t) * (size_t)map->index_capacity);
     return map;
 }
 
@@ -309,25 +315,75 @@ int lox_map_key_equal(LoxValue left, LoxValue right) {
     return left.payload == right.payload;
 }
 
-/* Linear lookup in insertion order; returns the index or -1. */
-int64_t lox_map_find(const LoxMap *map, LoxValue key) {
-    for (int64_t index = 0; index < map->count; index++) {
-        if (lox_map_key_equal(map->entries[index].key, key)) {
-            return index;
-        }
+/* 64-bit mix (splitmix64 finalizer) so sequential Int keys do not cluster. */
+static uint64_t map_hash(LoxValue key) {
+    uint64_t hash;
+    if (key.tag == 4) {
+        hash = lox_str_hash((const void *)key.payload);
+    } else {
+        hash = (uint64_t)key.payload ^
+               ((uint64_t)key.tag * 0x9e3779b97f4a7c15ULL);
     }
-    return -1;
+    hash ^= hash >> 30;
+    hash *= 0xbf58476d1ce4e5b9ULL;
+    hash ^= hash >> 27;
+    hash *= 0x94d049bb133111ebULL;
+    hash ^= hash >> 31;
+    return hash;
 }
 
-/* Doubles capacity and copies the entries. */
+/* Writes `entry + 1` in the first empty probe slot (the key is absent). */
+static void map_index_put(LoxMap *map, int64_t entry) {
+    uint64_t mask = (uint64_t)(map->index_capacity - 1);
+    uint64_t slot = map_hash(map->entries[entry].key) & mask;
+    while (map->index[slot] != 0) {
+        slot = (slot + 1) & mask;
+    }
+    map->index[slot] = (int32_t)(entry + 1);
+}
+
+/* Rebuilds the whole index (after remove/grow); O(count). */
+static void map_index_rebuild(LoxMap *map) {
+    memset(map->index, 0, sizeof(int32_t) * (size_t)map->index_capacity);
+    for (int64_t entry = 0; entry < map->count; entry++) {
+        map_index_put(map, entry);
+    }
+}
+
+/* Hashed lookup; returns the entry index or -1. */
+int64_t lox_map_find(const LoxMap *map, LoxValue key) {
+    if (map->count == 0) {
+        return -1;
+    }
+    uint64_t mask = (uint64_t)(map->index_capacity - 1);
+    uint64_t slot = map_hash(key) & mask;
+    for (;;) {
+        int32_t stored = map->index[slot];
+        if (stored == 0) {
+            return -1;
+        }
+        int64_t entry = (int64_t)stored - 1;
+        if (lox_map_key_equal(map->entries[entry].key, key)) {
+            return entry;
+        }
+        slot = (slot + 1) & mask;
+    }
+}
+
+/* Doubles the entries and rebuilds the index with the new capacity. */
 void lox_map_grow(LoxMap *map) {
     int64_t capacity = map->capacity * 2;
     LoxMapEntry *entries = lox_alloc(sizeof(LoxMapEntry) * (size_t)capacity);
-    for (int64_t index = 0; index < map->count; index++) {
-        entries[index] = map->entries[index];
-    }
+    memcpy(entries, map->entries, sizeof(LoxMapEntry) * (size_t)map->count);
     map->entries = entries;
     map->capacity = capacity;
+    int64_t index_capacity = map->index_capacity;
+    while (index_capacity < capacity * 2) {
+        index_capacity *= 2;
+    }
+    map->index = lox_alloc(sizeof(int32_t) * (size_t)index_capacity);
+    map->index_capacity = index_capacity;
+    map_index_rebuild(map);
 }
 
 /* ADR-0017: only String, Int and Bool are keys; the interpreter is the oracle. */
@@ -357,6 +413,7 @@ void lox_map_set(void *pointer, int64_t key_tag, int64_t key_payload,
     map->entries[map->count].key = key;
     map->entries[map->count].value.tag = value_tag;
     map->entries[map->count].value.payload = value_payload;
+    map_index_put(map, map->count);
     map->count += 1;
     map->version += 1;
 }
@@ -419,7 +476,7 @@ LoxValue lox_map_get_checked(const void *pointer, int64_t key_tag,
     return ((const LoxMap *)pointer)->entries[found].value;
 }
 
-/* `m.remove(k)`: R1008 when absent; shifts the following entries. */
+/* `m.remove(k)`: R1008 when absent; shifts the entries and rebuilds the index. */
 LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
                         int32_t line, int32_t column) {
     LoxMap *map = pointer;
@@ -435,6 +492,7 @@ LoxValue lox_map_remove(void *pointer, int64_t key_tag, int64_t key_payload,
     }
     map->count -= 1;
     map->version += 1;
+    map_index_rebuild(map);
     return value;
 }
 
