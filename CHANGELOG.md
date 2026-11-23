@@ -32,7 +32,8 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   diff unificado sem escrever e `loxia fmt --check --edits=json` devolve `TextEdit[]` com
   intervalos exatos (line/column 1-based, offset 0-based em bytes UTF-8), prontos para
   aplicar sem reler o arquivo. O LSP `textDocument/formatting` passa a devolver hunks
-  UTF-16 em vez do arquivo inteiro.
+  UTF-16 em vez do arquivo inteiro, e honra `loxia.formatter.maxWidth`
+  (`initializationOptions`/`didChangeConfiguration`, 20..1000, default 100).
 
 - **Trivia do front-end** ([ADR-0134](docs/adr/0134-trivia-side-table.md),
   [#108](https://github.com/loxia-lang/loxia/issues/108)): o scanner passa a gravar

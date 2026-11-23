@@ -39,8 +39,9 @@ Sem uma decisão de layout, cada regra viraria uma heurística de linha diferent
    vale uma camada de política: linhas em branco, alinhamento e posição de comentários.
 2. **O layout é função da AST + trivia + largura**, não das quebras do autor. A exceção
    deliberada é a linha em branco preservada (≤ 1) e o comentário, que é hard break.
-3. **Largura 100**, `--max-width` como override de ferramenta/editor (20..1000); sem
-   `.loxiafmt` e sem config por projeto. Strings, imports e comentários nunca são
+3. **Largura 100**, `--max-width` como override de ferramenta/editor (20..1000) e, no
+   LSP, `loxia.formatter.maxWidth` via `initializationOptions`/`didChangeConfiguration`;
+   sem `.loxiafmt` e sem config por projeto. Strings, imports e comentários nunca são
    quebrados.
 4. **Forma canônica:** chamadas, listas, mapas, tuplas, params e enums quebram
    verticalmente quando não cabem, com trailing comma (enums e `match` ficam sem, como na

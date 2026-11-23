@@ -22,7 +22,7 @@ from loxia.completion import declared_type as completion_declared_type
 from loxia.completion import enclosing_context as completion_context
 from loxia.completion import superclass_name as completion_superclass
 from loxia.engine import Loxia
-from loxia.formatter import format_source
+from loxia.formatter import DEFAULT_MAX_WIDTH, format_source
 from loxia.formatter.edits import build_edits
 from loxia.rename import semantic_references, semantic_rename, semantic_target
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
@@ -485,6 +485,7 @@ class Server:
         self.shutdown = False
         self.inlay_hints = True
         self.inherited_members = True
+        self.max_width = DEFAULT_MAX_WIDTH
 
     def _apply_settings(self, data: object) -> None:
         if not isinstance(data, dict):
@@ -495,6 +496,11 @@ class Server:
         completion = data.get("completion")
         if isinstance(completion, dict) and isinstance(completion.get("inheritedMembers"), bool):
             self.inherited_members = completion["inheritedMembers"]
+        formatter = data.get("formatter")
+        if isinstance(formatter, dict):
+            max_width = formatter.get("maxWidth")
+            if isinstance(max_width, int) and 20 <= max_width <= 1000:
+                self.max_width = max_width
 
     def run(self) -> int:
         while True:
@@ -2163,7 +2169,11 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return []
-        result = format_source(document.text, reporter=ErrorReporter(max_errors=0))
+        result = format_source(
+            document.text,
+            reporter=ErrorReporter(max_errors=0),
+            max_width=self.max_width,
+        )
         if result is None or not result.changed:
             return []
         return [
