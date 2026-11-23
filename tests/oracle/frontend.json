@@ -1,113 +1,113 @@
 {
   "ast": {
-    "examples/classes.lx": "2aaf598163fd68dd4dd45dcb4190450420e85557a677bb3235a1a497933e18c9",
-    "examples/closures.lx": "bbf2dfc246554ffcdaecd21a2fbc0ece2eff109aebb76270050897c76356892d",
-    "examples/fib.lx": "042a7de3e1fdd354732b32133c4a273aab1dc90a0d8f9605614c96a2304f4b89",
-    "examples/fizzbuzz.lx": "a8194f697d4611ca857eea95d85f3f8da8b355083000c36e10cda454b0630c82",
+    "examples/classes.lx": "bba8d92f6447aa63ac8e77fe0bc57e7407c52f336d11404647058ae229d8c985",
+    "examples/closures.lx": "03b5427c925e0151b261d54729b71742df67b973e5bc54da82fc2b1e28b1ca30",
+    "examples/fib.lx": "4cc8f519e0f24bac088821a5e10192f4c241779217d858d9db54c0a8eda2e9b1",
+    "examples/fizzbuzz.lx": "42bfb30b219c138c8794927131cfc3d3b62e3388f5600274da0b77eb86b3df0a",
     "examples/monorepo/app/main.lx": "3dc64701af687250d2afface06f79c94fda463700554ab54af8d8ba27ac6476e",
     "examples/monorepo/lib/util.lx": "9e5ce174811256d6b05f5f15231741050b018107a902e82ce06b4f5db8e15550",
-    "examples/primes.lx": "959478e6d4e871d7b43694efbfb2c462e58acc9ed3715cd077399f98cb0788ec",
-    "examples/quicksort.lx": "ce61a67445a33661429e46125a5b2827b9eb28029f4831748c6a6bef229ac8b5",
-    "examples/sales.lx": "ade84fd627b68f784e5511086ac32f0bcafcfd890efa6a2380a85e138cdcc014",
-    "std/asserts.lx": "e6191697d0a257033c057b458a02c4aaba6e44e0360c22d718690f7c100648c6",
-    "std/bytes.lx": "4278bbe9ca1032e8e7c5529307610ea63b07978f77b7c42e765f32256e6bdae5",
+    "examples/primes.lx": "46538bfe230b448ee8b875ce7c51f8801cf77b7f950c175126a75326492f4c1b",
+    "examples/quicksort.lx": "216d673040e6a2b0a7f17407e40ce9399b2bdfe0664fba0f91fe23e5b8fdadec",
+    "examples/sales.lx": "8ce379cd80394fda57e3f00965a3989e2a582ecbc669a6523011da7920125de2",
+    "std/asserts.lx": "1330cc2a526d14dd3cef5b5668b298fb0bff74fe317d98c646413ba26a776d5e",
+    "std/bytes.lx": "4882b172fccf27c0dbab64cffdd57a8a4eb52e4ad56a49a5ca858ba44fa1bf46",
     "std/cli.lx": "a2060d162c9c38327ad54d54b0acac2c893a803ec7398a2d7b6086fef93fab74",
-    "std/collections.lx": "c040ba1a6b60c286f6d8a598c1882127ed71e89b125b83d7ef28b557b3446fa3",
-    "std/contracts.lx": "148da19d06aa7db376897d0ccfeb018ba43937bf67d49ed888daad6233fdd1cb",
-    "std/convert.lx": "938f178ed59ef92e952df318444f4f46d814315d9253578e27ee346c9b54db31",
-    "std/csv.lx": "5d235da2727dba41ce29b8732b685094925cff062563574cf5f0ef76e1a7a339",
-    "std/documents.lx": "2d8f1adee617e3d7bb745243dadcf539092024467b7a5290ddda0a934dbefd6b",
+    "std/collections.lx": "9692ef8fe8039ad215827c0589af046e0037d0293c182bd3717c01927ace93d1",
+    "std/contracts.lx": "2e84c44c2a2a4d9f12aafd9991bca5d35ee6f2c86cd7964ad44f9fc2b6857235",
+    "std/convert.lx": "a50938f633209b0a518addb99bd08b7a268fd51df56ae288be481973784a2e20",
+    "std/csv.lx": "b3e55daecf0af4b7064f990211ba76fa02e0312d899a9a4146c0c2aa1e1e8171",
+    "std/documents.lx": "a2de8030a3e88b269d51f881e2c74be8dcb52ce82230ceab2a816173741aba10",
     "std/fmt.lx": "15d9549eb570e425648438852d3d4a027ba9b4231a81104965891f7e1fc7d2b8",
-    "std/framing.lx": "5f78ad5518f9ef5f42e925b1a1cb22819e6939076bcbf98688fd72a47c5af3c2",
-    "std/fs.lx": "42e54e6230c55c744a014f1adc5cbb369ec3a67d5ccac27a5f34db2511ba6474",
-    "std/hash.lx": "35cb57ce40c2c7be232b3c0564d89fc0e1abf1cc0e36c82b4c1593184749da50",
+    "std/framing.lx": "b171ed4a5088d66f54185683314d9ef2851c79d38bebde01847d11bfc6186c98",
+    "std/fs.lx": "aca4d9ab4fe4980900abb99fd617bb1b05c70116126e5f8b5a2d03ae5c6f3938",
+    "std/hash.lx": "a0ecdbaad3fb0a86c288fee28c5bb71445f1678469906368f0e69a74443d7c69",
     "std/io.lx": "5ab719af8115b343924eca8be3e7e00caa432ec92c8e710733e69d0d7a7accc7",
     "std/iter.lx": "988f7d1ccc6f65c8a0b1c24dba2af567e7e9ce986e92e0ce7db947862977b9ae",
-    "std/json.lx": "60bfab89c30fd4325a144b93acfb515601f21a7a2b0c32d2d75cf532702ce98e",
-    "std/jsonrpc.lx": "d69490adebc14a550837a52c75410999b5ec8741d4173411b7e745e0e90af813",
-    "std/lists.lx": "89b5deada10a6d441ab2f9a665fb891e4a2128d8fb43fc082e0b93d52b653a42",
-    "std/log.lx": "5a626421bcdfdfeb2afc1da9780e471a5f381db01a1e0916560e75ceb93a5197",
-    "std/maps.lx": "c9b47a37ac84569a045b29dceb3128781841e593aeca777d1142dda13bc080eb",
+    "std/json.lx": "120550f5d59182f2852d8cd021f21ae12ee6131dffb56c354263ac9fa2bf5ae2",
+    "std/jsonrpc.lx": "fb4a3bb2bc1412cfb465a120d6cb6628167e1d4c3949ecdb8adf89d82746393c",
+    "std/lists.lx": "8e8775dad01b15f95cdf7b96798f25724c78b00eb5b087c8fb87eb83a56519af",
+    "std/log.lx": "9454d012b407b8d05dd8322d9a076aa8e5f32210a9b3eecc2936daed33feceff",
+    "std/maps.lx": "d7253c60e74b4914386462eb926f3c89ffccc4d5feba13ddc5bd8606e0dcc232",
     "std/numeric.lx": "15bf51c71edb3470ad884f7951d62d3c412831a279214f31158750db746d2a14",
-    "std/paths.lx": "5603d5be316bc970031c7927256dd0351e4e87c8801dcc243148805865c8ba13",
-    "std/proc.lx": "e6a2d9bb418beae39cfaed69d276f64f78b57a684f79e3e3968ca8222cfd89ce",
-    "std/property.lx": "8d0d66a764706fd9e461edafb53df8278da55039e7c20654719b7af6d513590b",
-    "std/rand.lx": "fa8023d6160dd71381771cefe5d421a18a31e5e3d26e06fd3d8107622d908543",
-    "std/results.lx": "cd91357ce0f136e3d7a84c75fc349112b8a3288d2864dcf62792f80fbcb6bc39",
-    "std/sets.lx": "c06545e5f46f01a954fdaaebad587e2ada22b4d60c21d913ad0f397a6639c503",
-    "std/strings.lx": "f5e3f66ccbb32b07307817f9b9aaaa9bbdda5f47f63eb351378e7423becf9c99",
-    "std/test.lx": "f36a53d94a31dd6d0cac6455df6cddb7d83b3476016a4e8d2bb904ada5406bbb",
-    "std/timex.lx": "67a2e30eeb9efa45f306bbde16db6c3af0e771caba02e7ca7e38f078b4ab6e46",
-    "std/utf8.lx": "1199e56f2305174d3ddbd83027cdf7cfe1de00dc765c628eaeccd3dcfb6086c8",
-    "tests/cases/any_box.lx": "a5b68a4c6dd1178c5e542db330ef7acb204aa8943067ef955efd3c0701653388",
-    "tests/cases/any_casts.lx": "a48256258c2569d9466c9dd85ce7936defe79693ccb6b596cf0741a76d8898e5",
-    "tests/cases/arguments_order.lx": "bf3c7935688c30f1db70e94caea69e0dcb5e784c7ba009e7002dae70c47afb6e",
-    "tests/cases/arithmetic.lx": "99832298e1c6860e37199dcb04087eeb81330feb6d70eb0663109164eac504dd",
-    "tests/cases/assignment.lx": "d33e98de63bc58b5e59fc9e70df711dc1c0828d0bf2256be55135773f889502c",
-    "tests/cases/bitwise.lx": "3837ced292089e54e380896b56e02800af42a7943c7f086bac4e85ff10281a20",
-    "tests/cases/bitwise_precedence.lx": "34db88ad1d5f2b975328583a02a6df826629ae7674ca4e56473a2adb62397dfb",
-    "tests/cases/block_scope.lx": "4393285414eec6a4f7007ff749c6c54810ec536f49c30cf377f6346e078e8cc6",
-    "tests/cases/builtin_shadow_local.lx": "fd09ac9b77852db9a7464ed5d318b6510e2e5b9c98b6fd7b68ac733e1cf77a4d",
+    "std/paths.lx": "03a65368826a3f36a2cbbec235260cc33625df9771cce374f6af9a53586ddb46",
+    "std/proc.lx": "fc11228f494269750727fda56fa6ac1c75734b8a49bdbbeec44465234f3dafa3",
+    "std/property.lx": "db3cda0c0ebe631203ce190cef8b4dbdc3ae5b1546d0962f18172bceb3a09540",
+    "std/rand.lx": "c1d4c7da8199b8c822aa08b36c157e17e8ec77d4f9544378379bed75bab87fae",
+    "std/results.lx": "cf02718b5c90e0c1a13cf9cb49854f61dd16b564b52e3b367e1a076be72055bb",
+    "std/sets.lx": "488cd1f5d80a4967740be94737a23720745bedeac5a850aa6d99c9e783470728",
+    "std/strings.lx": "e24b8aa704a6df1eaae47213f6c7a0df0302d5e2e873e1ce2f11d8c2f303b815",
+    "std/test.lx": "243cb7a20821012a50574b50a03eca00140a72d796f2efd25356cc958834eb17",
+    "std/timex.lx": "4762bcc2408f8f0ce9d63984b119b630221c9dc127775810a01b7f0982090323",
+    "std/utf8.lx": "59cbb7164921a31549ade56690e3b2610543f154ae590c4704211457ee27ab47",
+    "tests/cases/any_box.lx": "246489c556cb2a4a51e5244e31174bd7b511dc685ffd8957a068c8f4ef7f3df5",
+    "tests/cases/any_casts.lx": "8f179ada0fcfac023a0bdcf460764b22c7b3956331831fe6dd5f0ee8fd57cb59",
+    "tests/cases/arguments_order.lx": "0a4fd631c07a14b26e7692384b29b5c7e076c97bc1bb6553c9b93539dea84578",
+    "tests/cases/arithmetic.lx": "be09c7a35b2711bff9966d6fa4c13f32b148d2a2138ed3ba0f5714129925cb14",
+    "tests/cases/assignment.lx": "e767dd86f1625d04b00ea7b128b8173959d0925eaf0f8e5f0aeb7bfee29f9074",
+    "tests/cases/bitwise.lx": "cbea9d015f83390d722aac02796fe6b1ab66e63a01f5165a380ce63972426f84",
+    "tests/cases/bitwise_precedence.lx": "c4779b976bf1199fb4cf1e74b7e2c4ea9e4e1441e6ef3a5ec0e2aee1c7d91189",
+    "tests/cases/block_scope.lx": "2fb9b14f1087e4f369a8eefe85c6db330cbf3effa768f32c05213da7706d83a4",
+    "tests/cases/builtin_shadow_local.lx": "99d8fcfcd6a677443f31ed3e0612e45b5d0c30384c9899f3dda1aa51229e9c59",
     "tests/cases/bytes/bytes_any.lx": "ef6887e6bc54d08c93c4b76a50b64e96d3f276b8ecb817e5e6ae01257140bda8",
-    "tests/cases/bytes/bytes_core.lx": "40086967f23e6d2a04bd05a3153fd43933da42b534bd7f5993a92afc6f205ffc",
-    "tests/cases/bytes/bytes_empty.lx": "babbdff0f7000029a4b900cbece17731110c97dad27989a9e663cf20520dfeed",
+    "tests/cases/bytes/bytes_core.lx": "8f40318978cd44d221768f3d6d0afcfec36bed072200a7818cbb19b803a096b8",
+    "tests/cases/bytes/bytes_empty.lx": "27468a5ecaabb5da422a146450a37f29c9a42217ab1a2f5f3953f3d40eadd579",
     "tests/cases/bytes/bytes_errors.lx": "da7e7d9ce216855cded81173b3e45c68b666aa7a636ece44545646bb8f00591c",
     "tests/cases/bytes/bytes_for.lx": "658754f24a4614f4aaad9ffcda9022cda8e66f323c6ca24110551953815ba808",
     "tests/cases/bytes/bytes_from_list_error_site.lx": "54d16c3e8a31ca2fb859691c899aac38f659225436ce18a87368c710b0fd1f23",
     "tests/cases/bytes/bytes_method_value.lx": "97df08b3c5b3629cfe14a66a09acaed0967d0579b1bcc8e73eccfa71251367a4",
-    "tests/cases/bytes/bytes_result.lx": "0a9a9a92c9de9f407370ffa0c4fbdb53955ba6558f2fe29b558c9a60a2c51a7d",
-    "tests/cases/bytes/bytes_shadow.lx": "02c7f34a0d709fbe4557f7eed9003bf52a8a17a9d75c824a08b1c62be2360c6c",
-    "tests/cases/bytes/bytes_shapes.lx": "e9380f119d38e4e57d3bf1989358105a9cb406c82f3221bd5f98ef399d708aef",
+    "tests/cases/bytes/bytes_result.lx": "a8f4a57cbef2dd68ae7055bfd199c985aaed37f2beffacd7c981a43e2d285f61",
+    "tests/cases/bytes/bytes_shadow.lx": "aa8bbf85b8448e9c56b324233c02b15e1ebf23650377196af2c5afce9ac2cf42",
+    "tests/cases/bytes/bytes_shapes.lx": "dd99b3dda5e8757e437987d1667ef30b2443dd54f564ad8a95fab35d07dd6ef6",
     "tests/cases/bytes/bytes_slice_error_site.lx": "6552893c01f1ff12ee62b684bddf4216257c8a35447d90c4995bc1fc904b8fea",
     "tests/cases/bytes/bytes_truthy.lx": "908b73b6f327ba51d68faec7e0eda7760a66a53dd5fb36d4090e491a0d4c0e8c",
-    "tests/cases/casts_math.lx": "527bb57c6ed89b5a4e87d9055737b62f1d4084886c3fa39c25aeebb23d9991c0",
+    "tests/cases/casts_math.lx": "8f52a499e0c1e0c092acca9b4f80f1ddc1780c77d1a4fdf9a358ac0c5988fbfe",
     "tests/cases/char_code_at_bounds.lx": "638e9de03b4128cda016c7e2f91a820188a31f0bc969b58d41b74260632c46a6",
-    "tests/cases/class_bound_method.lx": "820d6d6581c8d93b62dce55a7ca2fa425e422136a6b112a43dabb5c0a1367e92",
-    "tests/cases/class_field_typed_list.lx": "ab42a0c5231d2be32eb192bd309b7d987fcda1119962c321bf7306fccfbeac17",
-    "tests/cases/class_fields.lx": "6c235b8c163d6f141ba3d0247ccddeedb5123b83ef0f017107f9d110343531bc",
-    "tests/cases/class_identity.lx": "77605be43ee12a655c38004109459a1b304838f205264de025055ea6488c0a0c",
-    "tests/cases/class_identity_as.lx": "eeb36f815e3c2b1b0893b4651a34107f2a328944bcaa739b9819b87c4c84df93",
-    "tests/cases/class_initializer.lx": "cef78745a7a626fa017fb50976a08deb21d68db734c529de21e6596ab628c301",
-    "tests/cases/class_self_return.lx": "e78f0754291bb581b12fafbdb0f347f525fd000568ace8c583dd1eaadf9268f4",
-    "tests/cases/class_str_print.lx": "d6075e6ce7022717bf6a3bcacf9bc091dd49bc94064470fcae4048319410f2bc",
-    "tests/cases/class_this.lx": "be6823e412edb2b4bc464b3d09b3e985bed7fbf3152fe551bbdc5dfa13e477e1",
-    "tests/cases/class_uninitialized_read.lx": "19c6e2f7687558f171c8322b415692f4a1bfd280e50b747fabb857603f3d6b8b",
-    "tests/cases/class_val_twice.lx": "8a0a181f367199c37efa42e8090d02f1e265f2f2c7ee370248efd1c2a5a21bc8",
-    "tests/cases/classes.lx": "2a08f8aa0c3efca4c68b7793f58946906d827da5a1a2f6a5134d7434269fa7ea",
-    "tests/cases/closure_in_list.lx": "db1e5317fc1e53a8c990d0901db10c296ccf4aaa5733440f75a37e2be0ba3a47",
-    "tests/cases/closure_reassign.lx": "e1e6ead88053842b5589137e464207323f70487cba64cb8fe6a2f157047619ba",
-    "tests/cases/closure_static_scope.lx": "489c2a39b989206637a19ae56df03c209856e92cc77cf1ccd2db9daeeadb9590",
-    "tests/cases/closures.lx": "6640b81c1908235b7ca6ee5f2ad5f2f7ba7ce7985b69403a76e9794c42ff2ac0",
-    "tests/cases/comments.lx": "76016c2ea2c0366e9f47fb5d3e862262d25ce0e4741bb5186e26d8fd98f47845",
-    "tests/cases/comparison.lx": "9cd4dbff2b5e0320f3cf1f3b3201848749675dd7f2cd0b06df6bb468071b77e1",
-    "tests/cases/default_params.lx": "cd0ee4d28411d2969fcaa4b5f2201d2001c590af4a5d27737b8f1a84f1adf9a1",
-    "tests/cases/defaults_as_value.lx": "4fbe2c32e3d22527c537d832e94bb09a7a7a6de41e37633e5a392859de51c665",
-    "tests/cases/elif.lx": "ab212e75886a7c9af69e06aae02cdbbb87acde621180c7cba70a31f51d9f26ce",
-    "tests/cases/enums.lx": "e400df8d382a6c6019c37afd1867c39f8362aaf6c44da1be646afec0d0693363",
-    "tests/cases/equality.lx": "39fdb37da40a31303f093c31c542be452fe80b5981a9c6ad31d2e20816cdf5c2",
-    "tests/cases/errors/arity.lx": "c0a48796123f28d8cab91b3885a2b85b81a4fff534d853a11845caeba3da4c72",
-    "tests/cases/errors/arity_default_max.lx": "6638176b728b2d2ed67543af97c2f9d9ba76ba25eac9273a5d66accf060243bf",
-    "tests/cases/errors/arity_default_min.lx": "e5b264ec723ea9e4758b55707fa67481fd5486130dd80de25e5ec5aa26430323",
-    "tests/cases/errors/assign_val_global.lx": "089e2e90b3ccd2c270c1dd35cd941a93f385d39f5b3303b95c8ed2371e0a59ed",
-    "tests/cases/errors/assign_val_local.lx": "0a760ec48ba1e299f021209f11f3a8c6c1423184893f0666cdfe45b90e873100",
-    "tests/cases/errors/bitwise_type.lx": "94570507f5cb033bea9e1fa0d4f4002396b0632b153e64aa428415dfb971448f",
-    "tests/cases/errors/builtin_redeclare.lx": "846218624498faa10701ee3c55f85c2d1a6f926761047d568d8185fa47471d31",
+    "tests/cases/class_bound_method.lx": "0ed3903fde419fc777f454e811a656db2640ce45721b2e789d3b39f57978cbf8",
+    "tests/cases/class_field_typed_list.lx": "0587c702dabcb5b64c149066eb30ea5a7861193e1ab50246b088f12b9c476989",
+    "tests/cases/class_fields.lx": "79b660a4accb1a6fee1d3b39d8bf21a43c266b3bb4e7db1e01a7536c53b36bd2",
+    "tests/cases/class_identity.lx": "4840f1c692b9d3eae8e56072bfdf6355e71b1b0d7d2824fd80e2622e7fd74dc9",
+    "tests/cases/class_identity_as.lx": "174d5417927d3bcbd0daffcd0f93f5612afd1c010b4023ad5c699f0005b0e16c",
+    "tests/cases/class_initializer.lx": "2870213a1e6afbcdb66c223b71a660cd11c58dd3e7babbac4e62590cf50d8fb4",
+    "tests/cases/class_self_return.lx": "9371e0b437bb6945fae9d96923a060ff0a9a52c628652463e1a39decb98ccf03",
+    "tests/cases/class_str_print.lx": "f47f03a95d0125377a570abe6d3eb845af76931d12c5f29c508306931356aa75",
+    "tests/cases/class_this.lx": "ce233a6a7e0aa395dfafe736734abc50664f15a5ee9729c8c9f8f01e06aa0d5c",
+    "tests/cases/class_uninitialized_read.lx": "3e64a46dfe8a11f33fc1e413c8fb0faac5c0030917be3dde985e490c8f2203dd",
+    "tests/cases/class_val_twice.lx": "e56d6b5f52265f4757f4bf64438af6a1d324cc702735b304bcbc8ff6d2388d0d",
+    "tests/cases/classes.lx": "32935d9a3f13780af22cad7a9055f7e0275087cab2d845625b8f9284dd126ca9",
+    "tests/cases/closure_in_list.lx": "b455e96c741f5f52b49e6b1b2c121efb4f33cd72de7bc86c377361e8f5e4df22",
+    "tests/cases/closure_reassign.lx": "8720a3bffd268f848938f878e8be91caa146e137f45d4c45c625fd4a67dc612b",
+    "tests/cases/closure_static_scope.lx": "f948f2fa688ffe22808476af1cc072a7c767f42b2e97aa0ad79834a232fad6f4",
+    "tests/cases/closures.lx": "286be82d5de60e5a55a88e1b0ab971ba99ee7b85ef82785aca611c62e64252d1",
+    "tests/cases/comments.lx": "0b9cf0b2027ec0b3df1b8930223946a992151ccede6eff58fa709ae4e1461d89",
+    "tests/cases/comparison.lx": "5cb46ea085c04cf148999cc97ae7cc56f89a58f321fcd55129d8f75d73d85043",
+    "tests/cases/default_params.lx": "2c32780b56fcea1a890e5088f671db380928bf3bb3631d41730826a7a6eb89c2",
+    "tests/cases/defaults_as_value.lx": "0b58a99eb3a470e25519153246ecd810bd125ec9bb57433c969fa156aea38c2f",
+    "tests/cases/elif.lx": "5c4a8a8729097680a4dfab49a128da769b5898c81b110fa4e1d5d3b666bd655f",
+    "tests/cases/enums.lx": "921f4475de0d0c1870548fde3b37fbbc5d8d166c1bce8ea2e63bd14fe042d0f0",
+    "tests/cases/equality.lx": "8746702bfac2a8d2d9270089d46ce06cfd2adc8383a0c6e3d923863c1e335408",
+    "tests/cases/errors/arity.lx": "4356b7dca346926aac9e4279b34ae65c0723b9174d2e075ea7acd5e55d028949",
+    "tests/cases/errors/arity_default_max.lx": "771ad15af954af938431b82093332d393454db157e38f7f1d9462b36eb88be23",
+    "tests/cases/errors/arity_default_min.lx": "4a95abd083232e1742c90a0ca1fe5da8752c2cf454e1448c11310d84765dc4c8",
+    "tests/cases/errors/assign_val_global.lx": "7417dd4b014357e5d20a96904bfe133b00ee066c4c9bf812a03a0776dc51e0cb",
+    "tests/cases/errors/assign_val_local.lx": "19dde0f47cb254ce225c5548b24abd18f6f46492b8c4d057eef6128bcff6e80d",
+    "tests/cases/errors/bitwise_type.lx": "19ed4ce3afc5f1060533efbcf201697b066f0fdc65b9590602a9893ee6e06c29",
+    "tests/cases/errors/builtin_redeclare.lx": "e1265c8beb33e56a66a886a015c27aeb41d9417a57b5d588408d4f09e7d67177",
     "tests/cases/errors/class_inherit_self.lx": "c59b0ddb05fd56e944616dc4e55e65b49ea776b1768041faffec7a688605b87e",
-    "tests/cases/errors/division_by_zero.lx": "127d93dc2a378a3c342bf2bd8335146d01d1263d29518bd1899f775fc0dd5677",
-    "tests/cases/errors/division_by_zero_int.lx": "1db202454f2af622f810c46a10aaae65a578c05701a54759b91136e0f13ca43d",
-    "tests/cases/errors/division_float_by_zero.lx": "bbfb0d7a5b7697b361442292e1fe9b239ccf985adc0d1483fe52c5cf178b07fa",
-    "tests/cases/errors/duplicate_parameter.lx": "8b4d4c2302c6bcbda5182ea333a186b8c386eabee18fa16fb26facea180500a4",
-    "tests/cases/errors/field_immutable.lx": "97e946959de48e2f15c4ea36da3a18930c7e3173a9bda608f9f9410a6bddc52d",
-    "tests/cases/errors/field_inherit_redeclare.lx": "6b3798a634c7918d6f0dc9ecc7c0a1c34a68f52e3515328a9f6ab23c935f65f4",
-    "tests/cases/errors/field_redeclare.lx": "9fb21bc300dea438f7bb8008e32bd797c696aae628d0a7f46c8a039ba3d849ef",
-    "tests/cases/errors/field_uninitialized.lx": "dc8973b23113df552a0146bcbe4c20040cd255ec3dea6f594c1fa73482c776dc",
-    "tests/cases/errors/field_unknown.lx": "128c58dac896f5766b41f8bc6d8e9f49ec2cd7b829fc8e87b2a6a650063d8bf1",
-    "tests/cases/errors/field_val_outside_init.lx": "5735ccefe84b0afd8eaee1cb446e3a48badf743b8c5295b6fa387a0e2f0dab84",
-    "tests/cases/errors/for_in_immutable.lx": "3af353cfc51a121be72e7793de0139ff52ca4cc779a16cee8ecd830dd930be5c",
-    "tests/cases/errors/for_in_not_iterable.lx": "09dbc98c726839a4d08a1881705d395f182507c4491db10b1fcd5b95bb5f9480",
-    "tests/cases/errors/initializer_arity.lx": "915347b017820686af896ebcde9a20793710e824c6f67222c661d107d81b9870",
-    "tests/cases/errors/initializer_return_value.lx": "b01f8fcfa640dc1370a583aaccb6b20c2b2359017cd28a432c142ec33685710c",
-    "tests/cases/errors/intdiv_type.lx": "1c65f58622ecf4d12c3d41b92e21467518bd9233071733aad69da4ee6b60ecea",
+    "tests/cases/errors/division_by_zero.lx": "5e1ccdd0b860c4d2d1a5ffe70886fed1fa15056a7b5b62331f0a4c0df6ea158a",
+    "tests/cases/errors/division_by_zero_int.lx": "310209b89a41434979fec2ca7bcffbafc6883f5f2124a6ca12d7e21fbc80d6f9",
+    "tests/cases/errors/division_float_by_zero.lx": "e285cbc39ff6a8d0142088d175eaddf39f976ed6f4ebbda12a1a8d5342534cbd",
+    "tests/cases/errors/duplicate_parameter.lx": "db88e5242f982df2afa5511a52153c39a1d0c11b850db09bbc497999a75ffc9e",
+    "tests/cases/errors/field_immutable.lx": "840d6fcfc54eba64122d4300b3be9a0f91e3ea52592fc050fc573494cd3137a0",
+    "tests/cases/errors/field_inherit_redeclare.lx": "dbd848843a222e7b379a3681ecdbebd486f712f0dee4aacca6bdf6df18d900c6",
+    "tests/cases/errors/field_redeclare.lx": "64691ce1d91b954e88bda82353600876b2a164104e6a63c2290fa19c87b372c6",
+    "tests/cases/errors/field_uninitialized.lx": "b87c2447c50a7a05e625d7bf61fe6b7c99338276b0fa995eaca65c6f0e9e9352",
+    "tests/cases/errors/field_unknown.lx": "66180de03cd76f246a7e9e785fbec5ce6bdb474257fa179b2272d0d8a8b6c94c",
+    "tests/cases/errors/field_val_outside_init.lx": "ff263b98b45a5fe4ce3c96049f1bca1b4bb830b2b56beefa3f422cd8290abe3d",
+    "tests/cases/errors/for_in_immutable.lx": "f750e12644da7415fb8f1c0ad1565321736b0f61b646f84abe506ec802c1aa0b",
+    "tests/cases/errors/for_in_not_iterable.lx": "324ab9c85936c5df22b092db03fffa3c116fa5383ca657ead5e364f9618ce178",
+    "tests/cases/errors/initializer_arity.lx": "c4b61668f2ea5876689da6471b21d813c75a53ba66eb71ff5a46896d20a6660d",
+    "tests/cases/errors/initializer_return_value.lx": "0e4841666668a545866fc80142f140be0bdd8a8a675f9c9c8c6fc61faf4bfb45",
+    "tests/cases/errors/intdiv_type.lx": "ed136d6833ec7646440ba922ecd6cc61ebb86c58f97520e0331bf4fc8329d3cd",
     "tests/cases/errors/interpolation_undefined.lx": "5100cfc0c04fa6b6400a27c0c539df69a8e65a82949be46762b75bbee63798f0",
     "tests/cases/errors/list_index_assign_bounds.lx": "e238f9efa31038f2f3db1023d6525ffb0c9a8d17f6f5f8a6a9378e6085f65172",
     "tests/cases/errors/list_index_bounds.lx": "a21746e5a490ca52f32a66160472278e3a8caed55b81ef1151ea0e197f7daeec",
@@ -119,77 +119,77 @@
     "tests/cases/errors/list_pop_empty.lx": "3a4316b27d40dfd0ab95803a4969cad0c1c57c382680629101a5e1deb67cd89d",
     "tests/cases/errors/list_push_arity.lx": "886c06f87dfeb4d7e1b99527942ba64182918ec80a7219d698ca172978e7257e",
     "tests/cases/errors/list_unknown_method.lx": "be34e1bb6b26197a146c5689c083c98f8e0535abe6f9d23d25000c8ca3bfff7f",
-    "tests/cases/errors/map_duplicate_key.lx": "6129476609caa7d4def69291846ec8f2486f611fea10d8f8fb5fb2260b43b10e",
-    "tests/cases/errors/map_iteration_mutation.lx": "62a4d279a701b50ddd3fe398ff145cf23c56760cb4bbd23f058eaef826010931",
-    "tests/cases/errors/map_key_type.lx": "ef54c41d598dbac5562e5f4b88dabdbd888cedf2cccf296948d299ce6539966d",
-    "tests/cases/errors/map_literal_key_type.lx": "0c7b15e8d3f81a65a10521dc087ea616b7f13f9b118dc1b3efbf72e9758fae1f",
-    "tests/cases/errors/map_literal_key_variable.lx": "25c9b30f389ce85d17792233695e861fba3ff55fce7d7cd6cb5196b28aa8e61c",
-    "tests/cases/errors/map_missing_key.lx": "6c5638637851ceeaca78229ec4f3404e6b239a4f83db45374a43f05fecd319c7",
-    "tests/cases/errors/map_remove_missing.lx": "adc7f097245635543b202aff184ebe7e9e3537521f1c88168f15b7e51e823dfe",
-    "tests/cases/errors/method_arity.lx": "939451ebed3c75eab51259d223cc4e15947331fb26a06bd73646d4de2e9ac4dc",
-    "tests/cases/errors/modulo_by_zero.lx": "3f9cdd96573a14052d2700fc305466e47f14bac038bf19b802d9981ad96ad70d",
-    "tests/cases/errors/modulo_type.lx": "3410dd5d6b4cefb60879a3cbf258f364e0064255d71e7a8062c52ce3d735f698",
-    "tests/cases/errors/negative_int_exponent.lx": "d2ba1d9493c246c40f23bdc21bc27b5de4bd962f1c5d9b4ef9a14bbce0af1c64",
+    "tests/cases/errors/map_duplicate_key.lx": "258db05aef6c56e5205b02f059f684920b692edaacdf139aabdaeb0eea6520e1",
+    "tests/cases/errors/map_iteration_mutation.lx": "9a8c46afb1f7d57e6cf2d6b5dd06d80e868bed8bef0d55f91e68b632a4a710be",
+    "tests/cases/errors/map_key_type.lx": "0a18a963439ee99cd42816b69d10cb0e0235d7205f2533cf376d1ca829bd2c83",
+    "tests/cases/errors/map_literal_key_type.lx": "0c3ef88659955cd35d73daa04f0fd3115dff159a86202dbeb8612374e22d399b",
+    "tests/cases/errors/map_literal_key_variable.lx": "c84b30a8a31c3c291216c12dfc0357a5657c3365920017a01c8fb7ffaa8a4076",
+    "tests/cases/errors/map_missing_key.lx": "5adc412bcef77e9e81f7316792157fd4479da8e826dc21b52e753aabb6944090",
+    "tests/cases/errors/map_remove_missing.lx": "c68169bf6803482b35411a92ffa4ce5d0975af12c802ff360f688ac9199ab254",
+    "tests/cases/errors/method_arity.lx": "bd9655e57d9470231887613539783c6560c3ef6e63dbceb5772c1eca5329ed6c",
+    "tests/cases/errors/modulo_by_zero.lx": "0c772a8854e29cabbfb4319de9e3b247db75c18fb5c3d5a35e1a5946eaf3eaec",
+    "tests/cases/errors/modulo_type.lx": "d1b3f18fb710a922fa532785d6c3b9c516de5970c8dbb1623100e9baa14b87ab",
+    "tests/cases/errors/negative_int_exponent.lx": "ca2ce4fcb6c79d711df7e716fb52427737a5c86b0580d63dfe88bd386a2c283d",
     "tests/cases/errors/nested_destructure_arity.lx": "f5af25eee2160c08d26c5ad3f0b7913b2a15921f622958580c2e712db36f4ab9",
     "tests/cases/errors/nested_destructure_non_tuple.lx": "222f9a736f41d206e501b4d4b3d7aa5711a1f5064d9888dcc2f864f71ec5c042",
-    "tests/cases/errors/not_callable.lx": "9ffab73929bff4d2adffd5cbcc6c2e0e0dca130713231886e98468329c5efae9",
-    "tests/cases/errors/only_instances_have_fields.lx": "5a1f41410aa7b43e5cef3f6a40115ddba23da22d0dc5b83e123efd77d901189f",
-    "tests/cases/errors/only_instances_have_properties.lx": "e064b29f2ab9cf180df0435dfffbecf33e27f5da5bc5fa9ba2b449d350427372",
-    "tests/cases/errors/optional_not_instance.lx": "6cbb7195d8ea307237de8b3bab067cfd3597d90f85dc59bc95c56ac0cbf709de",
-    "tests/cases/errors/param_immutable.lx": "dccbd82e54bc16a5575f4dd671280c9550df06cf2ee89d1bc3fdbe9a03e2e163",
-    "tests/cases/errors/parameter_redeclaration.lx": "4a6bc539df275eea704219256cf8cddd825c5984b2a6f0a56408e84c2adf444b",
-    "tests/cases/errors/pow_invalid_domain.lx": "526db7f3e508fe7faeca9ff083c8e907a4b212c738b8143b0fc8422300058dc9",
-    "tests/cases/errors/pow_overflow.lx": "a0943e9da5cc7e4f9f11c83dab3af8b01f30bf3caa5ecac435bb08029ecf28b9",
-    "tests/cases/errors/range_args_type.lx": "aa8d095b9788d3f21eef8bce33502f1b3f750ed0c4c00780fc8dd5398a429867",
-    "tests/cases/errors/range_arity.lx": "0de092f788fed4a381b741b68985f7541e44e19a4d7095635a5afb73aadbc6b9",
-    "tests/cases/errors/range_bounds.lx": "a9b44294f2e95f05c2307fb7d3acdb6bd8d9c0c9babac59e1c5341256e7aba5f",
-    "tests/cases/errors/range_step_zero.lx": "f748cbdb7dcd083f4e51aa7c53adc033047fc736be024a863d21348015a619b2",
-    "tests/cases/errors/redeclaration.lx": "7b5af1185a6697a33842270a739c08af172ff39c6acb1821b43963300bef07e3",
-    "tests/cases/errors/self_initializer.lx": "0c6e609a5c5eab31c408743a05650e3a5d2d7c5c72ad0b75915c7081ac036839",
-    "tests/cases/errors/shift_count.lx": "08631669ab7ec509ebcf495d61bbd6360bf36dd965467cd405dfba1ef7836236",
-    "tests/cases/errors/super_outside_class.lx": "2363906e0e1ecd4f2ef4503eada0c5305ead7af760d2afeaf3bcab69101a5d63",
-    "tests/cases/errors/super_undefined_method.lx": "e0726d8cf5c053558006d270b49e91827c9fe44a9725c566f95d07c95b629952",
-    "tests/cases/errors/super_without_superclass.lx": "e0ba8250b9531fd0172af88378ee73a2c45d91db2e1eb4e5a8ee0eb0de8be000",
-    "tests/cases/errors/superclass_not_class.lx": "f0fca2b437aa37e291e38f3dfda77d2fb515926859921a38486c76c2bc8e2a1e",
-    "tests/cases/errors/this_outside_class.lx": "7d33912c526681065873b3d2a56146836471b3948ad73259d27b70f8fbf92d5c",
-    "tests/cases/errors/top_level_return.lx": "df145d196c979f22b8228a4f0aa33d25b05d686dc384b7e050dcb89f157b032e",
-    "tests/cases/errors/type_mismatch_add.lx": "0884735351cdecf19b3bdbcef6061e93a487fee594df7d7f7273cc261481ee4f",
-    "tests/cases/errors/unary_not_number.lx": "33b028351e6649c1dce519cddb49b38e0e04a82222625daea7cbee3babc1033e",
-    "tests/cases/errors/undefined_assignment.lx": "383271aa69a30364eca440bec1ca2a4ec1360a5e5d3674c21ddc3f9038724cd9",
-    "tests/cases/errors/undefined_property.lx": "04879feef4fd82b4feef54158a8d5e0020cdb333b8e82497f129d0bfaddc1646",
-    "tests/cases/errors/undefined_variable.lx": "8d4fcbff037e931487c499d3160500c18e19698483461214ecd848838b3bb678",
-    "tests/cases/errors/val_redeclare_global.lx": "bba213dd43cdec4deb4652d4df544147b019430806012e8f621d16954bf4858e",
-    "tests/cases/errors/val_redeclare_local.lx": "4524871ad6732f5805d4e87e7de452321b6eec4d519e103b068a50bf9d38d4c4",
-    "tests/cases/exception_site.lx": "6140a3ae071db73bdf4fe13170d619e06bb777ed31e36026c38aa1f7575a8e0f",
-    "tests/cases/exceptions.lx": "4f31e315c43e8c131b78f91dfc949370bb1822ef54431fc9a4406a0383d722f5",
-    "tests/cases/exponentiation.lx": "dd83d4c5f93b1881fd44cb4ef26d71c46e861085bb757544456005da32ba8df8",
-    "tests/cases/fields_inheritance.lx": "7693f4c1060f106f9d7da0ca4628cedb4aafc556311e77216080020d976e98ba",
-    "tests/cases/fields_val_var.lx": "9fca529cf23731fd2aa0adb0c6c38dacabb87fd35b9c874a29f01123d7aeaf28",
-    "tests/cases/for.lx": "cb1a319644f67b1ec2eeef5fed4bbc2cff4bca041e9b4c26ac00146fdc7dcf68",
-    "tests/cases/for_in.lx": "590cca693e34c2ceb6ecd415a66f7caa8cab90087760b476938dcc5c23777de5",
-    "tests/cases/for_in_capture.lx": "6f32fe65f5470bcdbdd5171eb5cb396b10a55fd2f91d3376b91927cbf37534b4",
-    "tests/cases/function_values.lx": "db87092e37288ed1d47e8e5fa3a4f6b8bdb075c09980ae3767b16c9126977a56",
-    "tests/cases/functions.lx": "fbbd77a98fd6e9dc18c0cc729ef7adec853123facfd35a9f9b7c546d438102f8",
-    "tests/cases/generic_class.lx": "010068c4d5c6d525b9452a79b5cc9ee9b41c701b31543c0e7f2ba98d1f5f6ca3",
-    "tests/cases/generic_constraints.lx": "3729e138e5731ed7442def0a20001ff6bed32d392a710fce2db19b0a40990cd7",
-    "tests/cases/generic_functions.lx": "4e610dcbf4311cc4ea94abc0bf030b1f77f53d8c36c8a22e707add5a303fbf8d",
-    "tests/cases/generic_lambda_value.lx": "1bd57085a18864e8b58fa9c6ff14d5cb6b240073c465249b15da6d42e4b399a3",
-    "tests/cases/generics.lx": "0016ece69389deee0c3a5e794b8e4657c277ac2a654060b545eb9ae01f49d264",
-    "tests/cases/if_else.lx": "bb6627d831c4468a8c0b7d4226c5cd110255835e7d33a10794c503f9bb904403",
-    "tests/cases/inheritance.lx": "c0369be5f63751e1739d767f106ed47919c481d62bcfea160630f61ca09ee35f",
-    "tests/cases/inheritance_init.lx": "b355ba323df126c5a473da6a58b247475f05e5ba48104924a5daa847d10e3104",
-    "tests/cases/inheritance_override.lx": "1cea524780e8938cfb9655656385737357a9837e1d42c45fda4cf4b588445acf",
-    "tests/cases/inheritance_super_init.lx": "3073ea9fd7cf09d94850abc47c74fa1919bf0e9e6a0b365b39bb73554b9aae66",
-    "tests/cases/int_division.lx": "a64e519bb09cfc6d9281a35a0abd24c2f4768b372e72f2db5b52a9ff7f108861",
-    "tests/cases/interface_decl.lx": "83258d7d1b23c9e4b8ccb7bd74fa387a0192888f70ec58ba9ece81c37a9d6a7d",
-    "tests/cases/interfaces.lx": "705b16cce5da79133d07498bee258609c2b0d68b42a480c644979407a7df2933",
+    "tests/cases/errors/not_callable.lx": "86dbac2dce778ea72a4ac46c556cffa0b4b9aefa3060c8b1739197edd8304669",
+    "tests/cases/errors/only_instances_have_fields.lx": "4fd310f8898c6285b8f3bcb9e355884baec7095accf39710df2e8c583f8c1f5c",
+    "tests/cases/errors/only_instances_have_properties.lx": "70f91666d7651c29ad1f73b9729fd0091aadf084c3e51b51adf16a81bda1b100",
+    "tests/cases/errors/optional_not_instance.lx": "3e5a34e6abb35bf53d704888e3b5f09677051e92c241b4fc85b374c2ef51ad39",
+    "tests/cases/errors/param_immutable.lx": "f892f74ccb0e27a5b86c7d4e03349f5d27d1e4a252c9c77fcd0c47520821a748",
+    "tests/cases/errors/parameter_redeclaration.lx": "6037148130282319e84a3093ed299096a14f8c6999f4b18ad78b9f3c1db60fc0",
+    "tests/cases/errors/pow_invalid_domain.lx": "62b4461bfeafbdee65371a694d6de3e5d3bc624a66c3463fb79395aeb23c6f9f",
+    "tests/cases/errors/pow_overflow.lx": "7e9b8656e3dbbd2ba03c1105319687d03e49c041fcaee2b16e126cf8a607bb6f",
+    "tests/cases/errors/range_args_type.lx": "1379a11621d4be9323a60e3a71abc53eb13fe4dd232dfb3535a48b1facb6ce2c",
+    "tests/cases/errors/range_arity.lx": "3685637cdeea5fdecd9207a29376dd606fb5ae131c9dba335de8fcbefb88b67e",
+    "tests/cases/errors/range_bounds.lx": "af664b13dc1ee78ec608b7742275342b4cf23f4ca1c01f4f86d7d1620d35cd6b",
+    "tests/cases/errors/range_step_zero.lx": "1a704017a96f1cd06e135601cdb47690c82368fdcb7e3084b6daef13a3c0f126",
+    "tests/cases/errors/redeclaration.lx": "d8759f55e2a4bd8f4e836c23fb4642e9ef453d226d6e52a2385b4464b2c725f8",
+    "tests/cases/errors/self_initializer.lx": "49eee060db48bc0a3fff06b9c2d7db33792c30e911b12c44eab57cf96b0debda",
+    "tests/cases/errors/shift_count.lx": "c671f61337845af380dca2161c715f2204eb648f9fbe654aef357be1e44b1414",
+    "tests/cases/errors/super_outside_class.lx": "49ea270175f9a5ed1ae108bbebf65de3c8f89db2398cfebec95c86dd16e47334",
+    "tests/cases/errors/super_undefined_method.lx": "184fcc7a7d1e81fc0c85a3429ef33df68af8884e5ef3488cd1d3a06262d52640",
+    "tests/cases/errors/super_without_superclass.lx": "010c7f7a8368a44fa8126fa3af0da8032e8d2246e9c67344daa1e2c4ec657743",
+    "tests/cases/errors/superclass_not_class.lx": "7b3fe1d2974474f67a3975fd164f7013fba897ffec5c65e2ca57fef8fd49af6a",
+    "tests/cases/errors/this_outside_class.lx": "fdf8f856b655c0d2f274f69fd391ccc529cb7a82b23b45cb1034c710d9427c2a",
+    "tests/cases/errors/top_level_return.lx": "23aa7f1489384e057820f54439da8926b40f1d7ea72a4955f40f507eb0f3659a",
+    "tests/cases/errors/type_mismatch_add.lx": "52f9347a511fe34a12bfdf9b7b54319cc03800f8dec177fd7aa1bb62e05f40ac",
+    "tests/cases/errors/unary_not_number.lx": "dbfc8d7ebbfc00f192c7e5c60e2efd9ad2903ccd185c7c05ec94b4ff466bb342",
+    "tests/cases/errors/undefined_assignment.lx": "8a407dcd4ee008c00184ab7fe5ce3e20f4d1f5d0052577979284631c920bd530",
+    "tests/cases/errors/undefined_property.lx": "471ca2b8b5549c9065a21e3351c0843d3eff76e53d244f046d37c8e8d9edd1fd",
+    "tests/cases/errors/undefined_variable.lx": "c40a4852d5a112238347057f0048faf34f2b4b1d1749d4287313da791ea7df08",
+    "tests/cases/errors/val_redeclare_global.lx": "6e1d001946fe200c73eb2f0834fe025074cc5099076207a13301a0be41970fe4",
+    "tests/cases/errors/val_redeclare_local.lx": "04f0ec87632aff5b3a5847d269d61cc8f3c8cfc5bf7a6d873fc7a4a1fb82b47e",
+    "tests/cases/exception_site.lx": "dfa2415b44668c3d1952c76485fe56e9cb102909885adac902ef61f0de473113",
+    "tests/cases/exceptions.lx": "8bae554db83297dda2587fdfb2cf0ee49f048c42374dd2e009927589f5612a28",
+    "tests/cases/exponentiation.lx": "5e4f8d2b2f1f3220fb630ed1f8667e37c185d06664dce7839c89901594e6dd05",
+    "tests/cases/fields_inheritance.lx": "5d91a8938193239af4c9457cb235e62b5d4b790ab668346d992a5f6338b6312f",
+    "tests/cases/fields_val_var.lx": "b12dd68ec71d45ba71d89de138117153949f431f03dd2c1fd2db0d763533c2a5",
+    "tests/cases/for.lx": "00f231b8b234764f2d36130b74c40f7904d40143019d1b1eabae64e09a2ea0c0",
+    "tests/cases/for_in.lx": "60690a05b59bfec1f39405a38c7cdb9d9ab4c0732e0f3e0cb415a5e39aad7beb",
+    "tests/cases/for_in_capture.lx": "730386ee5624fb3937b4f267548ca6dfd008eda4b9e3afa1b9da2c8889bfe0a2",
+    "tests/cases/function_values.lx": "d11bd3ecd3f83d751bb0cddc2fb578301acf44b74cade9d5a45565f05db3ddfc",
+    "tests/cases/functions.lx": "9d5a1c2f04f76dca3ed2f6f0a4bc5823e7700acd0486f8957b0d79b7520c3e5f",
+    "tests/cases/generic_class.lx": "40a2cbd14dc84a7edcc339bbc19eee48152e4d39e3d74d6f2490a07ba21f7e92",
+    "tests/cases/generic_constraints.lx": "7d3b8ba61e2c1fab550eee8c3bebed943098801cffd6fb7b5dc327bbbf3cce06",
+    "tests/cases/generic_functions.lx": "2745ccc6c3e7e2cca4f2776b6bef94c887f2b2383f10573cc22bee3d83c9ed1b",
+    "tests/cases/generic_lambda_value.lx": "97b50c5079fa0f14fcea621ae6df3b13c6823ec11376a93f962acde51f5778a7",
+    "tests/cases/generics.lx": "06c09fc24e244b8064755e7d3a958cfb1d546595013507e8749468a7721cf52c",
+    "tests/cases/if_else.lx": "d3cea060b435fe2a5b3ee3562b3f9f91cadf9c12fb4932e61530d4d239a0b685",
+    "tests/cases/inheritance.lx": "59f06e8a4ea1e49de5300aa9fac9cc528ffdd3f8e6ca76e7bed31efdf9af5c1a",
+    "tests/cases/inheritance_init.lx": "4d85855a993e9f9c980de54b00d29bfe3a7d4fee804090faf99bcce72ac16bd0",
+    "tests/cases/inheritance_override.lx": "b2816361fd9b9f7f27d47bc644ce8824c358bff6e8ac0ac7bb7717bf9a38644e",
+    "tests/cases/inheritance_super_init.lx": "fdab15acaa328b39114bc2c72887b53cacdc0bbbf868b8ba7b43bfeb9801ce4d",
+    "tests/cases/int_division.lx": "a44b232b830d83becf0c89f06e69208808e63270ce61a718dcdf940a338d8fce",
+    "tests/cases/interface_decl.lx": "df7076886e510ec1c20b417720229d47cc6fdb550bc67bc37df67a72dbf0ea72",
+    "tests/cases/interfaces.lx": "110d91368d9ed1ba427ff5f725fc999ec7d7e63910545abaa628f60589e5fac3",
     "tests/cases/interpolation.lx": "a144bb472b56247fe160f335ea877ca347b36823400f8f78f48c21bc54a1281d",
     "tests/cases/interpolation_scalars.lx": "42f53005491c1249a84305f63f889862fe5f0060633094d268da8781129c5c28",
-    "tests/cases/is_union_parens.lx": "fffe3b2ad03866ea0812fe5689c6633f73908ff1084d768e2ece0be8cdf38e15",
+    "tests/cases/is_union_parens.lx": "72cb05c5cab30e97774c874ba86d7eb6d6e9db7b8452d9b060a7d3cec86b72db",
     "tests/cases/kernel_io.lx": "9d72d4f0916d2615f68694df2bf0686c619f6b92b0d414cd68b934acb00dd4dc",
     "tests/cases/kernel_strings.lx": "c5205ec2cb73ba42f2637a10e0c96b5ec71b69ce4c89c2b1b7ad92fa512b0140",
-    "tests/cases/lambda_closures.lx": "d01d5d2ffa620ecb50c489bd6e22699c1bce74fc80b2d24704a34811a42040ee",
-    "tests/cases/leading_operator_brackets.lx": "e24901a0c7b8ff78c339a35ff8e46876663686a2e4592cbcb8f72c9bc4828103",
+    "tests/cases/lambda_closures.lx": "417e51967bfe9db6d163fb862f710988a99e2fbcffdcb8f829c99631e27e6f49",
+    "tests/cases/leading_operator_brackets.lx": "edd3c7b9689e8f09b3b60bd9f4a207bae2cbf524910900a19e9662444e6e5dac",
     "tests/cases/list_cycle.lx": "e8b6bb25cf80c92644d08f0eb53a122490ee6e54c3f909f7bf5c17126aa71dc6",
     "tests/cases/list_equality.lx": "2ecd0c30e512e966481728f35c2f4234303a470b39a192594e431f232f194df8",
     "tests/cases/list_index.lx": "fdbed6907eddb8bf365bda0e12a4873809e41723076e1ba7a484cec6be57777d",
@@ -197,129 +197,129 @@
     "tests/cases/list_literal.lx": "71e70354c2c1febc0c864ce8d1b061c430777a130af1bce4e95699abfda289bd",
     "tests/cases/list_methods.lx": "116a5bd6f29759a628819b0af2361bf3726fe700948bb140965f596e3cdb25eb",
     "tests/cases/list_stringify.lx": "240cd229fa5beb5e3e2598b0077e9574761bd1f19bc3f12be054924e05c950c1",
-    "tests/cases/list_typed_storage.lx": "008fd70128e83ba6a961506589c8aeccca5ee797ba56c85ab2d1ae80c4e430fd",
-    "tests/cases/literals.lx": "f3a7eaf9459c30e799f4891de9a06c418fbc2c9e97e465b381bfd69e854d4321",
-    "tests/cases/local_class_capture.lx": "b0ceef92587220996719cad43c15bfd8576ce117ec66177492f424a918f40388",
-    "tests/cases/local_class_fields.lx": "91aa38c15917081344cb1859e220eda41faac98433f55e8f9da67e12a9e571db",
-    "tests/cases/local_function.lx": "f69b0fff8ccbc1cad0078b41a2ac145abfe03be0ff39c8de7eeb1642632f6fa4",
-    "tests/cases/logical.lx": "e4458f67fa5f91e59544ddb88945aded2d4b07ff0879f9af67bf8e7859a76f1e",
-    "tests/cases/map_cycle.lx": "3eed97a84c876c036596a386f208bdfc29399b80fe669dc78e7745a81d6f1db6",
-    "tests/cases/map_equality.lx": "70f787811f974fd4ec6ebadeb4ac77669c7eb5aa7bac0db2f24d743965a7ea3b",
-    "tests/cases/map_equality_depth.lx": "9b95e2364e20e5d01ce2db87ced8aa8186c88cdb7e2f23d0a71afee785334276",
-    "tests/cases/map_iteration.lx": "2967f3991f7ecd261b57f4a5d064cb46cc60ad8cc2aa7f6440c049983932147f",
+    "tests/cases/list_typed_storage.lx": "a3b5a4b636344cd47185864ae73c9bbe96b432963989bc11767c1b38c3204ceb",
+    "tests/cases/literals.lx": "b79ace9a2e5edf00047517f9b848328ccce9e9d7e975e718838b7f497d27fc9d",
+    "tests/cases/local_class_capture.lx": "bed25a02d3b1056bbd06601435d03eb4549c73850ed6ccb18727a19910a0ff2c",
+    "tests/cases/local_class_fields.lx": "5bf12fd062d69b581e81ff33a4cd5f7457d0f72b2747b1e36157e0fadd58a0ea",
+    "tests/cases/local_function.lx": "e5d8b26062ed4b21156bea87cb5993c7f8ded1160396da13e8189c5be2b73591",
+    "tests/cases/logical.lx": "4a851d7f01484b50a2baa85528fcf6d89c67dc44a325acb9b9676c7658de5a7a",
+    "tests/cases/map_cycle.lx": "40a8f42d64d7f5ac5f8e7680b76ecff8e3382d8defb6a312ae9d5e554cb22351",
+    "tests/cases/map_equality.lx": "1d86b2a3282c4a908e9be22e9c9bbb72f349b244c36bade36a93c32ad526bcf5",
+    "tests/cases/map_equality_depth.lx": "6402246a4c0219fc16819b0481386d3118591e93eb4f51447c682ce408291be9",
+    "tests/cases/map_iteration.lx": "4927bc93a69177cb9fe08c08fb7c29ba1d297cf3a5422e1ac6381cdaf22a6410",
     "tests/cases/map_key_any_error.lx": "62a806485e8fc79007d7031cffcadc2cf8c18441d749e8244032963c908acb48",
-    "tests/cases/map_keys.lx": "1de1ac9e911d63bf7a8909788c37d0998f6d39e7c3fa7d7e6f3601462460ae32",
-    "tests/cases/map_literal.lx": "569c10861028b983743136ad940e6c892922db37a42c87b036ad80c79b10efcf",
-    "tests/cases/map_methods.lx": "f94a5c15cd8fd524f19bd6f28ae84d3e8506acdd55ebd4c5b9096d1041a95c89",
-    "tests/cases/map_order_remove.lx": "1b4145c5b7cef4f2aaa540d6d65ea237c0aaf2e2c01fe25414ff0d03cdb966a5",
+    "tests/cases/map_keys.lx": "251968bf1edfab160af2a329a84514322159e71a2e88164fa3ccd028910feb1c",
+    "tests/cases/map_literal.lx": "8433150813ca111713c96c3c3d04556d58d1c1bbf45f9f926b94a679c59c8f16",
+    "tests/cases/map_methods.lx": "e4e9c127856e7d887a3d0acd6bd315bb1de1028d85b28d05b12298f85f2beea1",
+    "tests/cases/map_order_remove.lx": "023c80afd7347be04e180826a87f6e995e37d8ce4f786ad39db1ffc0ff460f08",
     "tests/cases/map_string_keys.lx": "470f3cbf69a74b6affa9045aea529522a85df256114748f4e9442db52d514055",
-    "tests/cases/map_stringify.lx": "9814f1342576e4fa16654d002d468243d51ed18099a5e8f731f30068cf939839",
+    "tests/cases/map_stringify.lx": "3a00979cfe8d26ebd7bc8e141d84407ca07577f13385b86fb51690f6b9dc89d9",
     "tests/cases/match_capture.lx": "e3c26c8ab0cbc2771b1c3949325ef9706e345a21299c1e1e850b5ef76a89d305",
     "tests/cases/math_optional.lx": "c2fac9f27de880617f9c43431ebc00c48498cffeb095c27fb1fa86c577c00716",
-    "tests/cases/method_fn_keyword.lx": "f681f473510fe1a3b261c115146279a60bcf3b45736b50ff6bcfbba3aca89751",
-    "tests/cases/multiline_strings.lx": "d30aa0d3d8a06ceaa2f86879cf46eadd90bc62011b316e9ea65813aa41c1a1ce",
-    "tests/cases/nested_destructure.lx": "ccd55fc157297c8a7be55d53d483175bda324868a4d7a3a501c5b2f3c21f1d56",
-    "tests/cases/nil_aware.lx": "1f4c14cda6b21ca40a1d1d23f62116f91bdf0292da0fbf4a170317e2db9f1797",
+    "tests/cases/method_fn_keyword.lx": "fc0c28c9a39c13a98407c16e70c539ece7de39283f5a8dfbd9ddea4a24995623",
+    "tests/cases/multiline_strings.lx": "e1a85e212b8fb34081d9e7c31b0b689ceade4288e8610308c35f994fb5e4929d",
+    "tests/cases/nested_destructure.lx": "d424451187beb0bbf463e531ac4184e76e7924024c94e6139f8fac99aa678f83",
+    "tests/cases/nil_aware.lx": "c801481ef1a9ef6e1b97bb3bffff24eaed3a5b694b2f8a9fe456863d062d464a",
     "tests/cases/nil_value.lx": "14ecc14c4bf4c11f0f76bc47a3c012ff19a7adc3c905b91da3576e251563649f",
-    "tests/cases/numbers.lx": "81426bc8c2e0fcafa30cbceadf9e9b9c1bf471016a966dce4240e7a7399d67f2",
-    "tests/cases/one_line_block.lx": "097c0ef9069fc65f2b659d3b1775741fca69d4bc9b467d6402414ffca20542ce",
-    "tests/cases/operator_line.lx": "2777b9d27c3bb93c5a0529fd434896c3a448ff86726f01c5c92ee09454e00297",
-    "tests/cases/optional_functions.lx": "9063cd340b09ce54806e3eff6a948196821a070b9729d0b774361f6ab63cc283",
-    "tests/cases/optional_receiver.lx": "9175ff2637987b61b7cc3ee2b41dc150ea95c3cf217715a7ad85690b148293b7",
-    "tests/cases/optional_refs.lx": "6448572a54d912e6f0f0f4ee569a50b7914737624b0dd5090e33c07aa2abd953",
-    "tests/cases/optional_scalars.lx": "66bc0524e964f544a3bdaa341f8716915557d14720ca5b73ed7c8a1b9faa646c",
-    "tests/cases/optional_semicolons.lx": "c5a1996e5cbdaa2eb9bc289983cc2a9610230f3b2636da58d6c66f165db9a095",
-    "tests/cases/precedence.lx": "8f871f37aba8fb88f4543f2fdf568d77e6081ae3b78e83b3679142666627be67",
-    "tests/cases/print_function.lx": "b21476becf5f94bc9c213fb74eabc2a4423c94f66c0ee1c420b7d2a601890330",
+    "tests/cases/numbers.lx": "4d2326906158debe1665c661942221ead95504d448851241e29d67393a912a97",
+    "tests/cases/one_line_block.lx": "b0f834339f456f3997f06911c9f091c17159508e083d3643abaf2127ea20af78",
+    "tests/cases/operator_line.lx": "2b8330b0b63786d514621418096db1d744d05040277634b6c414520516d17ee5",
+    "tests/cases/optional_functions.lx": "6f5d4e5392de15dd82c0b7e118ee0c9a2e23636959fc2d30df90aee9c1a3d20f",
+    "tests/cases/optional_receiver.lx": "3714e33c1813951189e8431272f419b91859f53645bc34b278c1deb2315b16eb",
+    "tests/cases/optional_refs.lx": "88ba825df05bd175dd72a74fb37b1a0d7bd4f0c27287aceb24b7424eeff61fb1",
+    "tests/cases/optional_scalars.lx": "572d2c53536bfb35f4df408378c00850d4aa9e399b537beff864380f54abeb7d",
+    "tests/cases/optional_semicolons.lx": "8f9dd787a7e30defccb7d93e545caf5da91a3bb17fc32e261e81db0f7ef50630",
+    "tests/cases/precedence.lx": "e2c5f211dc730e122c3e42326fb87d611dade69f3d84a7b0de2a6ecbb554cf4c",
+    "tests/cases/print_function.lx": "26c9ccf983504426cc89f735bd6b00502e4df102297bea8f923c7b1a7b4afefc",
     "tests/cases/range_inclusive.lx": "9a2df797013ed5f2418b96369ace5d11001b8d9f19504ff1d90825d608769dbf",
-    "tests/cases/range_value.lx": "55743207a4281de206aab3c42c857097d9e0c98184152cc613a8cd4cc68f937d",
-    "tests/cases/raw_strings.lx": "3bcaffdd5365d7fae9b4facdbd6bfb1f23a3c54aae962efb8db4108988ad96ae",
-    "tests/cases/recursion.lx": "8c45474c40eef1dc961414e2394c304c7a669205a268726efe3611503c416a71",
-    "tests/cases/result.lx": "e773567c94b7feb4aba8b96118a91c2b8bf21d97cec15b256f95a5495c1c3eed",
-    "tests/cases/result_nil.lx": "7dbce5f1b7dbb0afff0c793cf994d32146c6720b8cb4b291c7865883b66f3641",
-    "tests/cases/return_in_loop.lx": "ad1670c872fa97ee451091f943ddc775a3e4035d12b2d72551f65b5bbf9f1bd8",
-    "tests/cases/return_newline.lx": "61d1b5deda720a0210487e9a3a1580fe2a40f5327e7ff8f1c693c95cb199d526",
-    "tests/cases/same_line_semicolon.lx": "6f3daeba03500b85e3387d6c0eb69fcdd3263924100b32939a4f366943bf0141",
-    "tests/cases/scope_identity.lx": "b40816bcaf845d8b5314eafcbb280f1fd8207fbf2e311c941dba6d9ac20ca0ec",
-    "tests/cases/selfhost_ast_enum.lx": "883bd05646e01ad3fb3d449cd64b4682c0a6836e1957bd8b9dfe7b4ea21c00ec",
-    "tests/cases/selfhost_ast_generic_enum.lx": "a2e5d09c466cfbd7d8220178cc76f2835299d71bbfe48cf7a74e42353317912e",
-    "tests/cases/selfhost_ast_interface.lx": "28aee6c71fa874bee831ee51b13462ba9f46e5e5a4c7c6fe188a44d103f80735",
-    "tests/cases/selfhost_recursive_class.lx": "968c80823393cdb7b6ae8d97cf1e9d0e16a3685ebcb71231ee6ac4ff845e9eb2",
+    "tests/cases/range_value.lx": "3e4b5b3fb31caf5eafbbda6d7f4051172a9451f9f15b9b8afb6b59171d2a3fe8",
+    "tests/cases/raw_strings.lx": "573a36c09db3ff56cfa3ab2a130fe3800f3230580ffbfbf47482512fd7a45cf5",
+    "tests/cases/recursion.lx": "705eaa8be472d0168938980459d476c1d94b208189fd43941ed824ef61d54990",
+    "tests/cases/result.lx": "59d06884e428ff1169aa44fd7c4b1ec5d8e33ddebe1a4726e7b9b25ca588a1a8",
+    "tests/cases/result_nil.lx": "49248488cfd1a6d4bef63b655bf20d36509a17f2e78c2b315ab2f9a68db1e4d2",
+    "tests/cases/return_in_loop.lx": "cfeb1e397f72f263734c49c8f7e92d85b7210e05235d5ecfc962850c3154c0e5",
+    "tests/cases/return_newline.lx": "df8c3f32c8be16c2103378d2acaae058f74281ff7516972c057abfb7ea19154e",
+    "tests/cases/same_line_semicolon.lx": "0a1493a393f0b02c5477d2400921bff0bd9ee8f0748569db99b85047af74f145",
+    "tests/cases/scope_identity.lx": "bd6c7e239902ca633328433f408d1957b7946062189e45221b57e335a8e9fd23",
+    "tests/cases/selfhost_ast_enum.lx": "8723a872a08476b6f7c3e6a7d8fe1c3f73ab2dfd123eb82e43c7a7e1f0348209",
+    "tests/cases/selfhost_ast_generic_enum.lx": "a6c53eedab3c128888e62776352d1f64d4262448f2d5e3189c82a62f5c7cbfb4",
+    "tests/cases/selfhost_ast_interface.lx": "621516876ecebb4c4d61db36b20af8455fa553941b82f73aac1b12e3954d8128",
+    "tests/cases/selfhost_recursive_class.lx": "aba5f03a3fc5873ec28ad9c81bda53b79a99864ff3d5953145e4592807d3047b",
     "tests/cases/stack_ctor.lx": "94233fab4a25ab44d3d85c00f893ccf7cf015e0b1f6ee47ace4ad3d6e0000068",
     "tests/cases/stack_depth_ok.lx": "0c9abba8a2c3e2efc5e507a06e5b1d1a5d1c5b1989f55a5313ec913b615226cd",
-    "tests/cases/stack_exception.lx": "126e9d8bd280f7460d1f96e3e536af86bd1ceb4f47ce239983a7188003ea0985",
-    "tests/cases/stack_exception_user.lx": "d5d231c07926ffbf9a1da6853125a9e4d8d10da980ab0045e442c698afd167a6",
+    "tests/cases/stack_exception.lx": "9a2bf0346e5d966f0d746f3316b065d3546809cec0b9d8d7712bc50c67fb9454",
+    "tests/cases/stack_exception_user.lx": "b4e9390b825d5fdc8b4b07bddbca06c60873ca7dfe72ce2d6f9137d92d8027e7",
     "tests/cases/stack_methods.lx": "896e9a847975e0b9fbcbae6bfbebf76c45912180d262bf400f850358694a9ce6",
     "tests/cases/stack_overflow.lx": "62fbc12be5b582292bb4ea2a75fae35f51fb512814add50ff684ba8fe37b31cf",
     "tests/cases/stack_overflow_caught.lx": "844b920f5711117356650f684aecf7f2875ffeff8b5e13a8d077adc889b981d0",
     "tests/cases/stack_overflow_finally.lx": "1cb768da2c68332738f82cfdd3d0bf46ca2e9243583a87a7ea669344a86bbbb3",
-    "tests/cases/stack_trace.lx": "bd224e8d4aebcfab038ae132fb13f7e43051f41a3b7fecf68fbadf7682b607e7",
-    "tests/cases/stack_trace_cap.lx": "cef2099840e926579ae51327e0ea71c4b4c1713b246a51046f6b931e8a1df562",
+    "tests/cases/stack_trace.lx": "b496872e919939b9a06e00b630f7c6955fa7861ced6281816e0468c913f4395e",
+    "tests/cases/stack_trace_cap.lx": "72602cbd634b7ee063734468931f06441b22940ae29aa273ae935ff703364f32",
     "tests/cases/std_asserts.lx": "d3447f6ab564a0bc39ffbd25eacbdf3ee792fcff5dac1b79d3e59d69e9bf0b4f",
     "tests/cases/std_bytes.lx": "fdd31e0c6fcf3fc560026fb75db425b4bfc62dbc76a1c4c522b1a2dadd6c2ced",
-    "tests/cases/std_bytes_errors.lx": "7a5fb415e18ca5034c223bb7caec024db207a709cec5fcdf639a1e75467826fa",
+    "tests/cases/std_bytes_errors.lx": "bc7516f4bf06fa6ae173d153b33ccc97eb620e611457345f9ecae6a5a9e48e94",
     "tests/cases/std_cli.lx": "2442f3231aa0460dafd85d7160a3d76cd938cd9e9609315eaefcdf627b4083cc",
-    "tests/cases/std_collections.lx": "d75793791f402d72254133fd46dc5482ef2675e99b4a61de2340c4b877c1ea80",
-    "tests/cases/std_contracts.lx": "2190b947a043b6911693bd938a9e7165c252f24372e68ed7b74be11487b9c19b",
-    "tests/cases/std_contracts_pilot.lx": "4209256ce395d55a8709d071ae7fa186b6890b88ad9bde8bc3693b73b1f52a3d",
-    "tests/cases/std_contracts_property.lx": "e84eca2de7a7f770eb3fce70dbc4c71f8b7c88f7bc817110c285e8c315405756",
+    "tests/cases/std_collections.lx": "d188e898c69cf3534956118bb0dfcdbbaf27bfebd6a28c936fc69996e7d4c1ff",
+    "tests/cases/std_contracts.lx": "63eb18827bcdf398046aa2a4c878fc6a66ba2a3484275aa522e63240c4780ab7",
+    "tests/cases/std_contracts_pilot.lx": "630701ad0b05462c68022770c92120a76102d4db0b70b018d8f20850ffa3432c",
+    "tests/cases/std_contracts_property.lx": "f3d4861bc966d398e690f6fc6cd7aa249fa895f4cec4252b91a30bcb0e147e42",
     "tests/cases/std_convert.lx": "c0b00e0ae4793066b949ef307b7215dcfba4f3f286d493e3e06d853cbe90f960",
     "tests/cases/std_convert_errors.lx": "72d44a589b1eec7342980d428fa85781f4d8b607f7e64905ea5a60f501b67efb",
-    "tests/cases/std_csv.lx": "452f53a8ab15e2438909dba2035954b4f5a41d549ce5ef680aa95677b8b7c59a",
+    "tests/cases/std_csv.lx": "4152cb0e33983aa991b8b2dee847b39c622f5246c87aa38a0a1754c130d68809",
     "tests/cases/std_documents.lx": "9f0a7ba64c5161dac152026deb052bf744219ad52fe6137bd194d1e4b04a335b",
     "tests/cases/std_fmt.lx": "538d721ddd2da4d915175dd873cc6890f9f7c8b4682dee44f627d7861e0ee097",
-    "tests/cases/std_framing.lx": "8dfdc7f32cffb47a83fa134d76771470bdb92c267c00db6e4667f03a6c25cfe8",
+    "tests/cases/std_framing.lx": "86bad92213147044c248e562d3d064c8694e49b744d8624ba220b7f7b24739bf",
     "tests/cases/std_hash.lx": "fbd5a23ccc1304e843b210789827316e60ba69657ceb7615185862a906531d28",
     "tests/cases/std_hash_bytes.lx": "7b0757defb0e07183c2ec61ff3829981518c54acba93802f60a69f9d55db3fbc",
     "tests/cases/std_hash_sha256.lx": "c527d2153733d6e6c79828d5d7d31e099aae7d52483962df55552e40671c7a03",
-    "tests/cases/std_iter.lx": "ae0c115ef675044539d30cb066bc6b4b6cc6c84627f886cb51aa45590bdbd9b9",
-    "tests/cases/std_json.lx": "45370577edcadaa497052f06624ed81cd1a458ad4fa8c3290e60c6b7f3e0de16",
-    "tests/cases/std_jsonrpc.lx": "7307580e5fe52a73121fe9918662c97e2476d0a99de325b5740cc04e3e31a356",
-    "tests/cases/std_lists.lx": "a9a6eef65e7340322f4b0c1f859ec9a83bc845b57fe5c7fab804190e9b2330a1",
-    "tests/cases/std_maps.lx": "53065e5ff063da6518171533db8d03b276698d59871a53ea2710e0127f234b0b",
+    "tests/cases/std_iter.lx": "ac6cda160522eb9151ba64e448dca4d71384476066cd9be3ba866fb8e0f26bc0",
+    "tests/cases/std_json.lx": "9540ee91fe75798497d5f7c61a0c0179a2a68c4b70e699070c1695dd14bb8f3e",
+    "tests/cases/std_jsonrpc.lx": "269e37b082478d0bedb8927de7d013234084e2e2b12c117f2b5f351fe33b6d1c",
+    "tests/cases/std_lists.lx": "1b0c6bc565fd6efbee391115afb9294e001e302fb80c88973716e905bb11ddad",
+    "tests/cases/std_maps.lx": "974591eb1e607bd2616e2d1489670d1bad12d8701ba649baa3c9cfc9f20b4f03",
     "tests/cases/std_numeric.lx": "3aaaed8c93a3bd3be7381929cdaa4f6c7ade1b916c2cfca44ca9be8b35f72b7d",
     "tests/cases/std_paths.lx": "7a003793cbaa77d666da665b30f031d8bab16115287b2bfba31f26cd14d9c2b6",
-    "tests/cases/std_property.lx": "26a6728f672bfb57dc41241cc200047e48062be0899aafeedccc307d95182cf2",
+    "tests/cases/std_property.lx": "56cbff1ba42582499cc04ad24bba42ea88e8eb7e9e0630bfa6078c57d1529b5c",
     "tests/cases/std_rand.lx": "83741d00f2fc3936b407d628f2b58c40d5ff9ee6c65e9091c57fdc34649f8336",
-    "tests/cases/std_regex/basic.lx": "c3a6c667666e535145f95b17898371d3d48269890cf3047e6dc184c66d1d6756",
+    "tests/cases/std_regex/basic.lx": "748a8e53dcad31e1a2b9438800023b455860745270e0f1f74d7ca581316c09be",
     "tests/cases/std_regex/errors.lx": "afe020e8cecc15ffaaa612b98b3160efd511b474d1d45b9c50f0f1802c826b6c",
     "tests/cases/std_regex/limits.lx": "b69e59edd12118ed095e72e8918046fd133e7580d117e52354832dc77f71b072",
     "tests/cases/std_results.lx": "8957e0a9472503e0366faa73f9372bac55c251958361dc3cd9f25755b638505b",
     "tests/cases/std_sets.lx": "8e1e07bc269e50f8881d1463ece21dac42000bac644e1e0a1dcb1d07c9ace08c",
     "tests/cases/std_strings.lx": "2ab75ac54edf3b8130938ebf5a4d9da806f631d8aeb0ffeb9624bd2d7fe8cac0",
-    "tests/cases/std_test.lx": "ab284cb95a5f610e8d226b53481bf81b991a4e22e7a372c8c487210d61007413",
-    "tests/cases/std_test_hooks.lx": "885cb2bbc38e059e3d29aaa4a375827dc02113869908c7c1f4e1cd58b7dcc6a7",
+    "tests/cases/std_test.lx": "34d6dc5b0bc5d93be919989570846857e2a8bb718b6e9128babfc102505ab810",
+    "tests/cases/std_test_hooks.lx": "2f3ef99753fec92b62681d8b4df708f869b3972db8a509d8077e8f269f1b17cc",
     "tests/cases/std_timex.lx": "96561d7bb4ed50d2934cfc57317607ae266f2f909843ac7546f8794072fd0133",
     "tests/cases/std_timex_invalid.lx": "d60ed679f8451951e85fde40087e9ac505b01f83ebdddb144d43077d653043bb",
-    "tests/cases/std_utf8.lx": "dd0045aae73189a5dfa93394b63fd9d57cfa463402f893462eb68cfc688babd5",
+    "tests/cases/std_utf8.lx": "9618eeb127f259e4bea39e41a58d04108a82550c4b19df2be95078fc5fd38975",
     "tests/cases/str_repr.lx": "90a17b593b981ae77a0be997e77146281cc552c47a55206bc7623824ec83dde2",
-    "tests/cases/string_chars.lx": "7f8c48214308ed6ebc48d40bf2441483f2f82837769a0cc8b5d650cd91def2c3",
+    "tests/cases/string_chars.lx": "de507d5fe93a937d3e132c6a370b9afbc62970ab4d0389a60c4235c795c5ec50",
     "tests/cases/string_concat_rope.lx": "9d67854e05564ca40db4f5fa144f194f1229c796755672ef620f11005e85afe4",
-    "tests/cases/string_escapes.lx": "d66e8fd251e3c7f91d098479f12e8f990ae7fa89a0d6c2552801c9c05eb72f9d",
+    "tests/cases/string_escapes.lx": "1c23f73c147a6d368634bd6479927d623f9954a07116cefb797a4cf45b2c9953",
     "tests/cases/string_order.lx": "22d117d8815edccf8ce064680e253e36ac88c93e0a4f86df7024aef3c8a80cf3",
-    "tests/cases/strings.lx": "c35b05ad96d25dbc8f42347c6bd56a734cc5da62be5103e69cfe6eda3ea2b0ae",
-    "tests/cases/super.lx": "4802e5c47f85036654b8e9ee1b7280ff875e561c7974ac828908e8b8e4ac5725",
-    "tests/cases/super_in_closure.lx": "565431e4c4da5e0a65675c5319f165efdc0a383ffb2da748233ed0f02c972fce",
-    "tests/cases/super_with_this.lx": "d4bf8ba2cd9e6bd3fbe654cc31c7ebe24400871a1630657fe698af2108914731",
-    "tests/cases/ternary.lx": "788278be46126814dec263b6e82aee12920e098107fce8219143c30a09cb0815",
-    "tests/cases/this_in_lambda.lx": "d9ea6c6a8319a697bb86af8563c676a27b4c6df4500f6418a84e65e12393e0ee",
-    "tests/cases/trailing_comma.lx": "b721906256a16dc5a3fd2ce96ffa4afffe898b9b052810a98aac656fc8b67685",
-    "tests/cases/try_return_cleanup.lx": "d35c9f99a3d26017f2c57f1e0897d9d4209be90f3c3b9a8509cf7daf8203dc1f",
+    "tests/cases/strings.lx": "c0c40d479122f3c02a8342b3fa5a800939a90f1211353f6fd17ce5064a0c502e",
+    "tests/cases/super.lx": "1ec8b784fafe950cfec2389793cbe79a551e6072b63c0d5a84dda709aba53211",
+    "tests/cases/super_in_closure.lx": "9314c2f08d7f7ce03c43cfe6502d8510990115af5a7f0ddb3b3904ae7dc5eb63",
+    "tests/cases/super_with_this.lx": "30155e4b8d1ed6a2662015a2824ab24da2e8de48a4792b5f8b6fa357f16c88b1",
+    "tests/cases/ternary.lx": "1abde3c2a7eb4ca2a35438d214bc2d64fc211d9d523eead46e6f0871905fe53c",
+    "tests/cases/this_in_lambda.lx": "f22cf20c9242e41932c32736f0a4969a5e065bf437a326cd54fd7dbb7008f480",
+    "tests/cases/trailing_comma.lx": "07eed2ae50fef2a2e6a5b66a1f41795147858a19dc6521187b613e90ceae1961",
+    "tests/cases/try_return_cleanup.lx": "c0c05c8241a8fd3fd95e1bb934060bc7d85c00945a7a8223cdd65521be0d0fec",
     "tests/cases/tuple_destructure.lx": "78ae28ea0e365cc830676172fbb7b45723c921ae31a15f2da74fdddf4c0b68e8",
-    "tests/cases/tuple_iteration.lx": "7cd0fc621f94b534bd0b4a9abd952f3217660ca4495d7ed5b2c43b2b0b56923d",
+    "tests/cases/tuple_iteration.lx": "6a799b343f5b7939255e186cc823b7381dd18d4d7ab3d7a6aab983a95207ee01",
     "tests/cases/tuples.lx": "bc4f2c10882bd1f14b5bffe4db615034cae3fe5dfe5fd1f6fba487f90d82be06",
-    "tests/cases/type_alias.lx": "11e1f0c5f77db21cba937d37e1f2935852d8af946945d49ad7dea0e8b5d65444",
-    "tests/cases/typed_functions.lx": "a591dab47253697407f85b375b04d64ae0818e596680c388ff25fe10f683c29f",
-    "tests/cases/unary.lx": "0cb2eeb5776592ea56e017dc7d9def01e20d3a41a7df4130bea0732f09d404e5",
-    "tests/cases/user_iterator.lx": "1c1cab36f9e0d1ad6159ac22a28d7fc1fa4ce1e6df5eed230fe8d8f7fc12da98",
-    "tests/cases/val_params.lx": "8ca48b9ee244491ac5a0dffd793f3103f61e43abcacc3302500b4a2bf7976c5c",
-    "tests/cases/val_shadowing.lx": "ce6dba6ccb23d13acc24d5454736711cc8bb48a16497721588172651935c6873",
-    "tests/cases/val_var.lx": "f5f59f5158bdb8ec29deea51eaf3193f1f0d4a3e50c0d17a5ab821d88ce61c5d",
-    "tests/cases/var_redeclare.lx": "ffac266972e4ba34f87524723324d459fbb91fb4a198fd47c8504bb8609e7ca2",
-    "tests/cases/var_uninitialized_int.lx": "d50c79d6647008a89db6802b697891565f0eba2ce968b01ae53aa87c65a63ae4",
-    "tests/cases/variables.lx": "be391dcdb36a27a84ea0b01e6dd642056e6e7cfa040002dda42565228917c6e3",
-    "tests/cases/variadic.lx": "fb1e3236b84cf51c37f9586b7ecce8afd331d75a13ab52412a3247abc0ed1fe3",
-    "tests/cases/while.lx": "88fb76ca22d0a98332912c94eeece929fc4332915dfecca96b6135fc1aed3701"
+    "tests/cases/type_alias.lx": "277165178fa1dc6ee1108f9f74dff85ea06e0f624ab34b290a42a2370ccb8b2e",
+    "tests/cases/typed_functions.lx": "1f6ec85e33be02b16ce225b7c342ce18e6eb8c28dd3f0fc354869b64cd5c3287",
+    "tests/cases/unary.lx": "2e361d4fea51ba2fd7ed3872dddb0ad581e4fcb110970521d381411a5ad0ff46",
+    "tests/cases/user_iterator.lx": "29a30409619a73ff1680ebb493ca8ebc3d6fd814b315172940466759b8dfd3ce",
+    "tests/cases/val_params.lx": "7402bac68a622f251f6b75bfbba903b4fbbc29e7e7cac09fb7084cb17e532c6a",
+    "tests/cases/val_shadowing.lx": "518384f1d4ef610bfacab80bf7aa0d1c062ddb0f5031d4018d9baafc503a4d99",
+    "tests/cases/val_var.lx": "58fbac2382ff840cc8945656d7a881cf6934972012be8f6d1d006f53980ae230",
+    "tests/cases/var_redeclare.lx": "8bacca491d28339fcdb4f0264e52c0098e6778aba3029f41f76087fee57e28f2",
+    "tests/cases/var_uninitialized_int.lx": "c2ae1506c8f286825ab0a2b89191ab8f692b70acc7876e1215d3e0ef352dd284",
+    "tests/cases/variables.lx": "9bc979284c83fd43aa8255863377db6ac9856ba51c05a3e694f143b94e217cab",
+    "tests/cases/variadic.lx": "155a9c3616c1a816a491b21fbf42d4bbd618a5b563f0be0b571d0af3575f3975",
+    "tests/cases/while.lx": "ccfaf3ff271be0433897dc195b1eef38b3e04ecaae54ab0c3bf6196135031f1e"
   },
   "diagnostics": {
     "tests/cases/bang_removed.lx": [
@@ -442,13 +442,13 @@
         "span": {
           "end": {
             "column": 8,
-            "line": 4,
+            "line": 5,
             "offset": 41
           },
           "file": "tests/cases/errors/arity.lx",
           "start": {
             "column": 7,
-            "line": 4,
+            "line": 5,
             "offset": 40
           }
         }
@@ -517,13 +517,13 @@
           "end": {
             "column": 20,
             "line": 5,
-            "offset": 59
+            "offset": 58
           },
           "file": "tests/cases/errors/arity_default_max.lx",
           "start": {
             "column": 19,
             "line": 5,
-            "offset": 58
+            "offset": 57
           }
         }
       }
@@ -591,13 +591,13 @@
           "end": {
             "column": 13,
             "line": 5,
-            "offset": 52
+            "offset": 51
           },
           "file": "tests/cases/errors/arity_default_min.lx",
           "start": {
             "column": 12,
             "line": 5,
-            "offset": 51
+            "offset": 50
           }
         }
       }
@@ -611,13 +611,13 @@
           "end": {
             "column": 2,
             "line": 2,
-            "offset": 12
+            "offset": 11
           },
           "file": "tests/cases/errors/assign_val_global.lx",
           "start": {
             "column": 1,
             "line": 2,
-            "offset": 11
+            "offset": 10
           }
         }
       }
@@ -631,13 +631,13 @@
           "end": {
             "column": 4,
             "line": 3,
-            "offset": 18
+            "offset": 17
           },
           "file": "tests/cases/errors/assign_val_local.lx",
           "start": {
             "column": 3,
             "line": 3,
-            "offset": 17
+            "offset": 16
           }
         }
       }
@@ -867,13 +867,13 @@
           "end": {
             "column": 4,
             "line": 6,
-            "offset": 42
+            "offset": 40
           },
           "file": "tests/cases/errors/field_immutable.lx",
           "start": {
             "column": 3,
             "line": 6,
-            "offset": 41
+            "offset": 39
           }
         }
       }
@@ -887,13 +887,13 @@
           "end": {
             "column": 8,
             "line": 6,
-            "offset": 42
+            "offset": 41
           },
           "file": "tests/cases/errors/field_inherit_redeclare.lx",
           "start": {
             "column": 7,
             "line": 6,
-            "offset": 41
+            "offset": 40
           }
         }
       }
@@ -927,13 +927,13 @@
           "end": {
             "column": 8,
             "line": 3,
-            "offset": 26
+            "offset": 25
           },
           "file": "tests/cases/errors/field_redeclare.lx",
           "start": {
             "column": 7,
             "line": 3,
-            "offset": 25
+            "offset": 24
           }
         }
       }
@@ -985,13 +985,13 @@
           "end": {
             "column": 4,
             "line": 4,
-            "offset": 28
+            "offset": 27
           },
           "file": "tests/cases/errors/field_unknown.lx",
           "start": {
             "column": 3,
             "line": 4,
-            "offset": 27
+            "offset": 26
           }
         }
       }
@@ -1005,13 +1005,13 @@
           "end": {
             "column": 11,
             "line": 9,
-            "offset": 73
+            "offset": 77
           },
           "file": "tests/cases/errors/field_val_outside_init.lx",
           "start": {
             "column": 10,
             "line": 9,
-            "offset": 72
+            "offset": 76
           }
         }
       }
@@ -1023,15 +1023,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 18,
-            "line": 1,
-            "offset": 17
+            "column": 4,
+            "line": 2,
+            "offset": 19
           },
           "file": "tests/cases/errors/for_in_immutable.lx",
           "start": {
-            "column": 17,
-            "line": 1,
-            "offset": 16
+            "column": 3,
+            "line": 2,
+            "offset": 18
           }
         }
       }
@@ -1083,15 +1083,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 9,
+            "column": 12,
             "line": 2,
-            "offset": 20
+            "offset": 23
           },
           "file": "tests/cases/errors/initializer_arity.lx",
           "start": {
-            "column": 8,
+            "column": 11,
             "line": 2,
-            "offset": 19
+            "offset": 22
           }
         }
       },
@@ -1102,14 +1102,14 @@
         "span": {
           "end": {
             "column": 6,
-            "line": 4,
-            "offset": 32
+            "line": 5,
+            "offset": 36
           },
           "file": "tests/cases/errors/initializer_arity.lx",
           "start": {
             "column": 5,
-            "line": 4,
-            "offset": 31
+            "line": 5,
+            "offset": 35
           }
         }
       }
@@ -1123,13 +1123,13 @@
           "end": {
             "column": 11,
             "line": 3,
-            "offset": 33
+            "offset": 36
           },
           "file": "tests/cases/errors/initializer_return_value.lx",
           "start": {
             "column": 5,
             "line": 3,
-            "offset": 27
+            "offset": 30
           }
         }
       }
@@ -1599,13 +1599,13 @@
           "end": {
             "column": 6,
             "line": 2,
-            "offset": 22
+            "offset": 24
           },
           "file": "tests/cases/errors/map_iteration_mutation.lx",
           "start": {
             "column": 5,
             "line": 2,
-            "offset": 21
+            "offset": 23
           }
         }
       }
@@ -1619,13 +1619,13 @@
           "end": {
             "column": 9,
             "line": 2,
-            "offset": 25
+            "offset": 27
           },
           "file": "tests/cases/errors/map_key_type.lx",
           "start": {
             "column": 8,
             "line": 2,
-            "offset": 24
+            "offset": 26
           }
         }
       }
@@ -1657,15 +1657,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 11,
+            "column": 12,
             "line": 1,
-            "offset": 10
+            "offset": 11
           },
           "file": "tests/cases/errors/map_literal_key_variable.lx",
           "start": {
-            "column": 8,
+            "column": 9,
             "line": 1,
-            "offset": 7
+            "offset": 8
           }
         }
       }
@@ -1679,13 +1679,13 @@
           "end": {
             "column": 9,
             "line": 2,
-            "offset": 25
+            "offset": 27
           },
           "file": "tests/cases/errors/map_missing_key.lx",
           "start": {
             "column": 8,
             "line": 2,
-            "offset": 24
+            "offset": 26
           }
         }
       }
@@ -1699,13 +1699,13 @@
           "end": {
             "column": 15,
             "line": 2,
-            "offset": 31
+            "offset": 33
           },
           "file": "tests/cases/errors/map_remove_missing.lx",
           "start": {
             "column": 9,
             "line": 2,
-            "offset": 25
+            "offset": 27
           }
         }
       }
@@ -1717,15 +1717,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 6,
+            "column": 9,
             "line": 2,
-            "offset": 17
+            "offset": 20
           },
           "file": "tests/cases/errors/method_arity.lx",
           "start": {
-            "column": 3,
+            "column": 6,
             "line": 2,
-            "offset": 14
+            "offset": 17
           }
         }
       },
@@ -1735,15 +1735,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 8,
+            "column": 11,
             "line": 2,
-            "offset": 19
+            "offset": 22
           },
           "file": "tests/cases/errors/method_arity.lx",
           "start": {
-            "column": 7,
+            "column": 10,
             "line": 2,
-            "offset": 18
+            "offset": 21
           }
         }
       },
@@ -1754,14 +1754,14 @@
         "span": {
           "end": {
             "column": 12,
-            "line": 4,
-            "offset": 37
+            "line": 5,
+            "offset": 41
           },
           "file": "tests/cases/errors/method_arity.lx",
           "start": {
             "column": 11,
-            "line": 4,
-            "offset": 36
+            "line": 5,
+            "offset": 40
           }
         }
       }
@@ -1895,13 +1895,13 @@
           "end": {
             "column": 4,
             "line": 2,
-            "offset": 14
+            "offset": 13
           },
           "file": "tests/cases/errors/not_callable.lx",
           "start": {
             "column": 3,
             "line": 2,
-            "offset": 13
+            "offset": 12
           }
         }
       }
@@ -1915,13 +1915,13 @@
           "end": {
             "column": 4,
             "line": 2,
-            "offset": 14
+            "offset": 13
           },
           "file": "tests/cases/errors/only_instances_have_fields.lx",
           "start": {
             "column": 3,
             "line": 2,
-            "offset": 13
+            "offset": 12
           }
         }
       }
@@ -1935,13 +1935,13 @@
           "end": {
             "column": 10,
             "line": 2,
-            "offset": 20
+            "offset": 19
           },
           "file": "tests/cases/errors/only_instances_have_properties.lx",
           "start": {
             "column": 9,
             "line": 2,
-            "offset": 19
+            "offset": 18
           }
         }
       }
@@ -2155,13 +2155,13 @@
           "end": {
             "column": 8,
             "line": 3,
-            "offset": 22
+            "offset": 21
           },
           "file": "tests/cases/errors/redeclaration.lx",
           "start": {
             "column": 7,
             "line": 3,
-            "offset": 21
+            "offset": 20
           }
         }
       }
@@ -2329,15 +2329,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 9,
-            "line": 3,
-            "offset": 32
+            "column": 12,
+            "line": 4,
+            "offset": 36
           },
           "file": "tests/cases/errors/super_undefined_method.lx",
           "start": {
-            "column": 3,
-            "line": 3,
-            "offset": 26
+            "column": 6,
+            "line": 4,
+            "offset": 30
           }
         }
       },
@@ -2348,14 +2348,14 @@
         "span": {
           "end": {
             "column": 15,
-            "line": 4,
-            "offset": 51
+            "line": 5,
+            "offset": 55
           },
           "file": "tests/cases/errors/super_undefined_method.lx",
           "start": {
             "column": 11,
-            "line": 4,
-            "offset": 47
+            "line": 5,
+            "offset": 51
           }
         }
       }
@@ -2369,13 +2369,13 @@
           "end": {
             "column": 10,
             "line": 3,
-            "offset": 34
+            "offset": 37
           },
           "file": "tests/cases/errors/super_without_superclass.lx",
           "start": {
             "column": 5,
             "line": 3,
-            "offset": 29
+            "offset": 32
           }
         }
       }
@@ -2388,13 +2388,13 @@
         "span": {
           "end": {
             "column": 14,
-            "line": 2,
+            "line": 3,
             "offset": 26
           },
           "file": "tests/cases/errors/superclass_not_class.lx",
           "start": {
             "column": 11,
-            "line": 2,
+            "line": 3,
             "offset": 23
           }
         }
@@ -2529,13 +2529,13 @@
           "end": {
             "column": 12,
             "line": 4,
-            "offset": 40
+            "offset": 39
           },
           "file": "tests/cases/errors/undefined_property.lx",
           "start": {
             "column": 9,
             "line": 4,
-            "offset": 37
+            "offset": 36
           }
         }
       }
@@ -2685,13 +2685,13 @@
           "end": {
             "column": 6,
             "line": 2,
-            "offset": 16
+            "offset": 15
           },
           "file": "tests/cases/errors/val_redeclare_global.lx",
           "start": {
             "column": 5,
             "line": 2,
-            "offset": 15
+            "offset": 14
           }
         }
       }
@@ -2705,13 +2705,13 @@
           "end": {
             "column": 8,
             "line": 3,
-            "offset": 22
+            "offset": 21
           },
           "file": "tests/cases/errors/val_redeclare_local.lx",
           "start": {
             "column": 7,
             "line": 3,
-            "offset": 21
+            "offset": 20
           }
         }
       }
@@ -2996,7 +2996,7 @@
     "tests/cases/errors/undefined_variable.lx": "756921de24a50b7fd683bc68ce24e4fe5629ee1fb7b4cf63a6d0ed208efd5aa9",
     "tests/cases/errors/val_redeclare_global.lx": "9994c1293634eb74acedc77540e901d3fb87c1c5e98dca3949ca9f468a8b44e4",
     "tests/cases/errors/val_redeclare_local.lx": "9f66c88edef928c923fa3d9669616791d799a3789262ee35686b1eb66dc7dcc7",
-    "tests/cases/exception_site.lx": "d7544a955132576ab7b93467519a1cde295856b66c32e5a36c7405971254cd60",
+    "tests/cases/exception_site.lx": "c2d0e4266616b3ca3a601d8887995f83ff620f17ebfa8148656724b99e8a721e",
     "tests/cases/exceptions.lx": "beb955227729719059de962a5f2d6dd055ec43c79edc038b1666c1b9a33008d3",
     "tests/cases/exponentiation.lx": "8563e557cf5bdcba534af8ff21e65673f549045236dac2c4f892217bc3226e01",
     "tests/cases/fields_inheritance.lx": "ae1de23330b7a43486c5d26effa63b021c10140f30508c786a4db2b4747db4c0",

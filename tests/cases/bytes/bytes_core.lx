@@ -2,11 +2,12 @@
 # Bytes: construção, len/índice, métodos e formatação (interpretador; backend no 79b).
 fn errorTag(error: BytesError) -> String {
   return match error {
-    BytesError.InvalidHex(_) => "invalidHex",
-    BytesError.InvalidBase64(_) => "invalidBase64",
+    BytesError.InvalidHex(_) => "invalidHex"
+    BytesError.InvalidBase64(_) => "invalidBase64"
     BytesError.InvalidUtf8(_) => "invalidUtf8"
   }
 }
+
 val text = Bytes.fromText("é")
 print(len(text))
 print(text[0])
@@ -26,16 +27,51 @@ print(len("é"))
 print(len(data))
 print(data.toBase64())
 print(Bytes.empty().toHex())
-print(match text.toText() { Result.Ok(value) => value, Result.Err(error) => errorTag(error) })
-print(match data.toText() { Result.Ok(value) => value, Result.Err(error) => errorTag(error) })
-print(match Bytes.fromHex("FF") { Result.Ok(value) => value.toHex(), Result.Err(error) => errorTag(error) })
-print(match Bytes.fromHex("F") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
-print(match Bytes.fromBase64("Zm9v") {
-  Result.Ok(value) => match value.toText() { Result.Ok(text) => text, Result.Err(error) => errorTag(error) },
-  Result.Err(error) => errorTag(error)
-})
-print(match Bytes.fromBase64("Zg") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
-print(match Bytes.fromBase64("Zh==") { Result.Ok(_) => "ok", Result.Err(error) => errorTag(error) })
+print(
+  match text.toText() {
+    Result.Ok(value) => value
+    Result.Err(error) => errorTag(error)
+  },
+)
+print(
+  match data.toText() {
+    Result.Ok(value) => value
+    Result.Err(error) => errorTag(error)
+  },
+)
+print(
+  match Bytes.fromHex("FF") {
+    Result.Ok(value) => value.toHex()
+    Result.Err(error) => errorTag(error)
+  },
+)
+print(
+  match Bytes.fromHex("F") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => errorTag(error)
+  },
+)
+print(
+  match Bytes.fromBase64("Zm9v") {
+    Result.Ok(value) => match value.toText() {
+      Result.Ok(text) => text
+      Result.Err(error) => errorTag(error)
+    }
+    Result.Err(error) => errorTag(error)
+  },
+)
+print(
+  match Bytes.fromBase64("Zg") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => errorTag(error)
+  },
+)
+print(
+  match Bytes.fromBase64("Zh==") {
+    Result.Ok(_) => "ok"
+    Result.Err(error) => errorTag(error)
+  },
+)
 val maybe: Bytes? = data
 print(maybe?.toHex())
 val nothing: Bytes? = nil
@@ -45,11 +81,13 @@ print(any is Bytes)
 print((any as Bytes).toHex())
 val error = BytesError.InvalidHex("detail")
 print(errorTag(error))
-print(match error {
-  BytesError.InvalidHex(message) => message,
-  BytesError.InvalidBase64(message) => message,
-  BytesError.InvalidUtf8(message) => message
-})
+print(
+  match error {
+    BytesError.InvalidHex(message) => message
+    BytesError.InvalidBase64(message) => message
+    BytesError.InvalidUtf8(message) => message
+  },
+)
 print(error is BytesError)
 # expect: 2
 # expect: 195

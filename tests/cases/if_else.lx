@@ -1,11 +1,12 @@
-if (true) print("entao"); else print("senao");  # expect: entao
+if (true) print("entao")
+else print("senao") # expect: entao
 
-var x = 2;
+var x = 2
 if (x == 1) {
-  print("um");
-} else if (x == 2) {
-  print("dois");
+  print("um")
+} elif (x == 2) {
+  print("dois")
 } else {
-  print("outro");
+  print("outro")
 }
 # expect: dois

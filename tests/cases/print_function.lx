@@ -5,7 +5,10 @@ print(true)
 print(nil)
 print(print(1))
 
-fn eco(x: Any) -> Nil { return print(x) }
+fn eco(x: Any) -> Nil {
+  return print(x)
+}
+
 eco(3)
 
 # expect: 1

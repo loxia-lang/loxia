@@ -16,7 +16,9 @@ match bytes.readU32beResult(data, 2) {
 
 match bytes.readU64leResult(data, -1) {
   Result.Ok(value) => print(value)
-  Result.Err(error) => print(error.kind + " " + str(error.offset) + " " + str(error.wanted) + " " + str(error.length))
+  Result.Err(error) => print(
+    error.kind + " " + str(error.offset) + " " + str(error.wanted) + " " + str(error.length),
+  )
 }
 
 match bytes.readU16beResult(data, 3) {

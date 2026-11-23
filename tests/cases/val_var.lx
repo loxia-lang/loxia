@@ -1,5 +1,5 @@
-val x = 1;
-var y = 2;
-y = y + x;
-print(y);  # expect: 3
-print(x);  # expect: 1
+val x = 1
+var y = 2
+y = y + x
+print(y)  # expect: 3
+print(x)  # expect: 1

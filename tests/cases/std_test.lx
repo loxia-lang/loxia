@@ -3,44 +3,74 @@ import std.test as t
 
 val suite = t.Suite()
 
-suite.describe("std.test", fn() {
-  suite.it("igualdade", fn() {
-    t.expect(1 + 1).toBe(2)
-    t.expect("ab").toBe("ab")
-    t.expect([1, 2]).toBe([1, 2])
-    t.expect(3).notToBe(4)
-  })
-  suite.it("ordem", fn() {
-    t.expectGt(3, 2)
-    t.expectGe(3, 3)
-    t.expectLt(2, 3)
-    t.expectLe(3, 3)
-  })
-  suite.it("coleções", fn() {
-    t.expectList([1, 2]).toContain(2)
-    t.expectString("loxia").contains("ox")
-  })
-  suite.it("opcionais", fn() {
-    val maybe: Int? = nil
-    t.expectNil(maybe)
-    t.expect(t.expectNotNil("x")).toBe("x")
-  })
-  suite.it("exceção", fn() {
-    val message = t.expectRaise(fn() { raise RuntimeError("boom") })
-    t.expect(message).toBe("boom")
-  })
-  suite.it("recorder", fn() {
-    val recorder = t.Recorder()
-    recorder.record("a")
-    recorder.record("b")
-    recorder.record("a")
-    t.expect(recorder.count("a")).toBe(2)
-    t.expect(recorder.order()).toBe(["a", "b", "a"])
-    recorder.clear()
-    t.expect(recorder.count("a")).toBe(0)
-  })
-  suite.it("skip", fn() { suite.skip("demonstração") })
-})
+suite.describe(
+  "std.test",
+  fn() {
+    suite.it(
+      "igualdade",
+      fn() {
+        t.expect(1 + 1).toBe(2)
+        t.expect("ab").toBe("ab")
+        t.expect([1, 2]).toBe([1, 2])
+        t.expect(3).notToBe(4)
+      },
+    )
+    suite.it(
+      "ordem",
+      fn() {
+        t.expectGt(3, 2)
+        t.expectGe(3, 3)
+        t.expectLt(2, 3)
+        t.expectLe(3, 3)
+      },
+    )
+    suite.it(
+      "coleções",
+      fn() {
+        t.expectList([1, 2]).toContain(2)
+        t.expectString("loxia").contains("ox")
+      },
+    )
+    suite.it(
+      "opcionais",
+      fn() {
+        val maybe: Int? = nil
+        t.expectNil(maybe)
+        t.expect(t.expectNotNil("x")).toBe("x")
+      },
+    )
+    suite.it(
+      "exceção",
+      fn() {
+        val message = t.expectRaise(
+          fn() {
+            raise RuntimeError("boom")
+          },
+        )
+        t.expect(message).toBe("boom")
+      },
+    )
+    suite.it(
+      "recorder",
+      fn() {
+        val recorder = t.Recorder()
+        recorder.record("a")
+        recorder.record("b")
+        recorder.record("a")
+        t.expect(recorder.count("a")).toBe(2)
+        t.expect(recorder.order()).toBe(["a", "b", "a"])
+        recorder.clear()
+        t.expect(recorder.count("a")).toBe(0)
+      },
+    )
+    suite.it(
+      "skip",
+      fn() {
+        suite.skip("demonstração")
+      },
+    )
+  },
+)
 suite.done()
 # expect: ok 1 - std.test / igualdade
 # expect: ok 2 - std.test / ordem

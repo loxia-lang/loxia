@@ -28,13 +28,17 @@ class BytesError {
   val message: String
 
   /// Cria a falha com a posição pedida, o tamanho necessário e o total do buffer.
-  init(offset: Int, wanted: Int, length: Int) {
+  fn init(offset: Int, wanted: Int, length: Int) {
     this.kind = "outOfBounds"
     this.offset = offset
     this.wanted = wanted
     this.length = length
-    this.message = "read past end: offset " + str(offset) +
-      ", wanted " + str(wanted) + ", length " + str(length)
+    this.message = "read past end: offset " +
+      str(offset) +
+      ", wanted " +
+      str(wanted) +
+      ", length " +
+      str(length)
   }
 }
 
@@ -52,7 +56,7 @@ class ChunkBuilder {
   var _chunks: List[Bytes]
 
   /// Cria um ChunkBuilder vazio.
-  init() {
+  fn init() {
     this._chunks = []
   }
 
@@ -107,7 +111,7 @@ class Builder {
   var _total: Int
 
   /// Cria um Builder vazio.
-  init() {
+  fn init() {
     this._chunks = ChunkBuilder()
     this._pending = []
     this._total = 0
@@ -190,51 +194,49 @@ fn u16le(value: Int) -> Bytes {
 /// Encodes `value` (0..4294967295) as four big-endian bytes.
 fn u32be(value: Int) -> Bytes {
   _unsigned(value, 4294967295, "u32be")
-  return Bytes.fromList([
-    (value // 16777216) % 256,
-    (value // 65536) % 256,
-    (value // 256) % 256,
-    value % 256
-  ])
+  return Bytes.fromList(
+    [(value // 16777216) % 256, (value // 65536) % 256, (value // 256) % 256, value % 256],
+  )
 }
 
 /// Encodes `value` (0..4294967295) as four little-endian bytes.
 fn u32le(value: Int) -> Bytes {
   _unsigned(value, 4294967295, "u32le")
-  return Bytes.fromList([
-    value % 256,
-    (value // 256) % 256,
-    (value // 65536) % 256,
-    (value // 16777216) % 256
-  ])
+  return Bytes.fromList(
+    [value % 256, (value // 256) % 256, (value // 65536) % 256, (value // 16777216) % 256],
+  )
 }
 
 /// Encodes the 64-bit two's-complement pattern of `value` as eight big-endian bytes.
 fn u64be(value: Int) -> Bytes {
-  return Bytes.fromList([
-    (value >> 56) & 255,
-    (value >> 48) & 255,
-    (value >> 40) & 255,
-    (value >> 32) & 255,
-    (value >> 24) & 255,
-    (value >> 16) & 255,
-    (value >> 8) & 255,
-    value & 255
-  ])
+  return Bytes.fromList(
+    [
+      (value >> 56) & 255,
+      (value >> 48) & 255,
+      (value >> 40) & 255,
+      (value >> 32) & 255,
+      (value >> 24) & 255,
+      (value >> 16) & 255,
+      (value >> 8) & 255,
+      value & 255,
+    ],
+  )
 }
 
 /// Encodes the 64-bit two's-complement pattern of `value` as eight little-endian bytes.
 fn u64le(value: Int) -> Bytes {
-  return Bytes.fromList([
-    value & 255,
-    (value >> 8) & 255,
-    (value >> 16) & 255,
-    (value >> 24) & 255,
-    (value >> 32) & 255,
-    (value >> 40) & 255,
-    (value >> 48) & 255,
-    (value >> 56) & 255
-  ])
+  return Bytes.fromList(
+    [
+      value & 255,
+      (value >> 8) & 255,
+      (value >> 16) & 255,
+      (value >> 24) & 255,
+      (value >> 32) & 255,
+      (value >> 40) & 255,
+      (value >> 48) & 255,
+      (value >> 56) & 255,
+    ],
+  )
 }
 
 /// Reads a big-endian `u16` at `offset`, preserving the cause of a short buffer.
@@ -272,8 +274,9 @@ fn readU32beResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
   if (offset < 0 or offset > len(data) - 4) {
     return Result.Err(_outOfBounds(offset, 4, data))
   }
-  return Result.Ok((data[offset] << 24) | (data[offset + 1] << 16) |
-    (data[offset + 2] << 8) | data[offset + 3])
+  return Result.Ok(
+    (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3],
+  )
 }
 
 /// Reads a big-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
@@ -288,8 +291,9 @@ fn readU32leResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
   if (offset < 0 or offset > len(data) - 4) {
     return Result.Err(_outOfBounds(offset, 4, data))
   }
-  return Result.Ok(data[offset] | (data[offset + 1] << 8) |
-    (data[offset + 2] << 16) | (data[offset + 3] << 24))
+  return Result.Ok(
+    data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24),
+  )
 }
 
 /// Reads a little-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.

@@ -2,7 +2,7 @@
 class Counter {
   var value: Int
 
-  init(value: Int) {
+  fn init(value: Int) {
     this.value = value
   }
 

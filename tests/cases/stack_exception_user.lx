@@ -1,6 +1,8 @@
 # R1015 dentro de um try cujo handler não casa: o código original sobrevive ao rethrow.
 class E(Exception) {
-  fn init(m: String) { this.message = m }
+  fn init(m: String) {
+    this.message = m
+  }
 }
 
 fn f(n: Int) -> Int {
@@ -9,8 +11,7 @@ fn f(n: Int) -> Int {
   }
   try {
     raise E("x")
-  } except E as e {
-  }
+  } except E as e {}
   return 1 + f(n - 1)
 }
 

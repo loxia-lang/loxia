@@ -12,7 +12,7 @@ class _Parser {
   val text: String
   var index: Int
 
-  init(text: String) {
+  fn init(text: String) {
     this.text = text
     this.index = 0
   }
@@ -99,7 +99,7 @@ class CsvError {
   val message: String
 
   /// Builds a parse failure.
-  init(kind: String, message: String) {
+  fn init(kind: String, message: String) {
     this.kind = kind
     this.message = message
   }

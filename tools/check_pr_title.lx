@@ -6,12 +6,25 @@
 # check_pr_title.py`) continua no CI até este rodar verde por um release.
 
 import regex
+
 import std.strings as strings
 
 val PATTERN = "^([a-z]+)(\\([a-z0-9][a-z0-9-]*\\))?!?: (\\S.*)$"
 
 # Mesma ordem de `tools/conventional.py` (sorted(TYPES)) para a mensagem bater.
-val TYPES = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
+val TYPES = [
+  "build",
+  "chore",
+  "ci",
+  "docs",
+  "feat",
+  "fix",
+  "perf",
+  "refactor",
+  "revert",
+  "style",
+  "test",
+]
 
 # `str.strip()` do Python remove Unicode White_Space; `strings.trim` só ASCII.
 fn is_space(code: Int) -> Bool {

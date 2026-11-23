@@ -23,11 +23,16 @@ for pair in zip([1, 2], ["a", "b", "c"]) {
 class MaybeRows {
   var index: Int
   val rows: List[Int?]
-  init(rows: List[Int?]) {
+
+  fn init(rows: List[Int?]) {
     this.index = 0
     this.rows = rows
   }
-  fn iter() -> MaybeRows { return this }
+
+  fn iter() -> MaybeRows {
+    return this
+  }
+
   fn next() -> Step[Int?]? {
     if (this.index >= len(this.rows)) {
       return nil

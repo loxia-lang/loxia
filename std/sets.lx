@@ -11,7 +11,7 @@ class Set[T] {
   val items: Map[Any, Bool]
 
   /// Creates an empty set.
-  init() {
+  fn init() {
     this.items = {}
   }
 

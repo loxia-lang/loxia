@@ -1,12 +1,12 @@
 # `val` só aceita a primeira atribuição, dentro do `init`.
 class C {
-  val x: Int;
+  val x: Int
 
-  init() {
-    this.x = 1;
-    this.x = 2;
+  fn init() {
+    this.x = 1
+    this.x = 2
   }
 }
 
-C();
+C()
 # expect runtime error: Can't assign to immutable field 'x'.

@@ -3,14 +3,17 @@
 class Holder {
   var ints: List[Int]
   var strs: List[String]
-  init() {
+
+  fn init() {
     this.ints = []
     this.strs = []
   }
+
   fn add(v: Int) -> Nil {
     this.ints.push(v)
   }
 }
+
 val h = Holder()
 h.add(1)
 h.add(2)
@@ -23,7 +26,9 @@ h.strs.push("a")
 h.strs.push("b")
 print(join(h.strs, ""))
 var total = 0
-for x in h.ints { total = total + x }
+for x in h.ints {
+  total = total + x
+}
 print(total)
 print(h.ints == [1, 20, 3])
 # expect: [1, 2, 3]

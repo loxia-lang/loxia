@@ -13,7 +13,7 @@ print(csv.parse("a\"b,c"))
 print(repr(csv.stringify([["a", "b"], ["1", "2"]])))
 print(repr(csv.stringify([["x,y", "he said \"hi\""], ["", "a\nb"]])))
 print(repr(csv.stringify([])))
-print(repr(csv.stringify([[""] ])))
+print(repr(csv.stringify([[""]])))
 try {
   csv.stringify([[]])
 } except RuntimeError as e {

@@ -1,2 +1,4 @@
-for i in 0..3 { i = 1; }
+for i in 0..3 {
+  i = 1
+}
 # expect error: 'i' is immutable; declare it with 'var' to allow assignment.

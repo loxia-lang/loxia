@@ -3,13 +3,20 @@ interface Expr {}
 
 class Lit implements Expr {
   val value: Int
-  fn init(value: Int) { this.value = value }
+
+  fn init(value: Int) {
+    this.value = value
+  }
 }
 
 class Bin implements Expr {
   val left: Expr?
   val right: Expr?
-  fn init(left: Expr?, right: Expr?) { this.left = left; this.right = right }
+
+  fn init(left: Expr?, right: Expr?) {
+    this.left = left
+    this.right = right
+  }
 }
 
 val e: Expr = Bin(Lit(1), Lit(2))

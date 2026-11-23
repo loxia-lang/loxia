@@ -1,10 +1,10 @@
 # Regressão: blocos devem enxergar o escopo externo e poder sombrear.
-var a = "global";
+var a = "global"
 {
-  var a = "bloco";
-  print(a);    # expect: bloco
+  var a = "bloco"
+  print(a) # expect: bloco
   {
-    print(a);  # expect: bloco
+    print(a) # expect: bloco
   }
 }
-print(a);      # expect: global
+print(a) # expect: global

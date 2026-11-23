@@ -1,12 +1,12 @@
 fn f() -> String {
-  return "global";
+  return "global"
 }
 
 {
   fn f() -> String {
-    return "local";
+    return "local"
   }
-  print(f());  # expect: local
+  print(f()) # expect: local
 }
 
-print(f());  # expect: global
+print(f()) # expect: global

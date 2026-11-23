@@ -1,14 +1,14 @@
 class A {
-  method() -> Nil {
-    print("A");
+  fn method() -> Nil {
+    print("A")
   }
 }
 
 class B(A) {
-  method() -> Nil {
-    print("B");
+  fn method() -> Nil {
+    print("B")
   }
 }
 
-B().method();  # expect: B
-A().method();  # expect: A
+B().method()  # expect: B
+A().method()  # expect: A

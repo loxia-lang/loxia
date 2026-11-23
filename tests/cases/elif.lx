@@ -3,15 +3,14 @@ fn classifica(n: Int) -> String {
     return "negativo"
   } elif (n == 0) {
     return "zero"
-  }
-  elif (n < 10) {
+  } elif (n < 10) {
     return "pequeno"
   } else {
     return "grande"
   }
 }
 
-print(classifica(-1)) # expect: negativo
-print(classifica(0))  # expect: zero
-print(classifica(5))  # expect: pequeno
-print(classifica(50)) # expect: grande
+print(classifica(-1))  # expect: negativo
+print(classifica(0))   # expect: zero
+print(classifica(5))   # expect: pequeno
+print(classifica(50))  # expect: grande

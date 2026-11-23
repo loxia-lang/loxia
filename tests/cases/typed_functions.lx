@@ -1,22 +1,22 @@
 # Anotações de tipo não mudam o runtime; o programa precisa continuar executando.
 fn soma(a: Int, b: Int = 10) -> Int {
-  return a + b;
+  return a + b
 }
 
-val x: Int = soma(1);
-print(x);  # expect: 11
+val x: Int = soma(1)
+print(x) # expect: 11
 
 class C {
-  var y: Int;
+  var y: Int
 
-  init(y: Int) {
-    this.y = y;
+  fn init(y: Int) {
+    this.y = y
   }
 
-  dobro() -> Int {
-    return this.y * 2;
+  fn dobro() -> Int {
+    return this.y * 2
   }
 }
 
-val c: C = C(4);
-print(c.dobro());  # expect: 8
+val c: C = C(4)
+print(c.dobro()) # expect: 8

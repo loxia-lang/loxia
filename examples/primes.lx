@@ -1,20 +1,20 @@
 # Primes with functions, for-in and early return.
 fn isPrime(n: Int) -> Bool {
   if (n < 2) {
-    return false;
+    return false
   }
 
   for divisor in 2..n {
     if (n % divisor == 0) {
-      return false;
+      return false
     }
   }
 
-  return true;
+  return true
 }
 
 for n in 0..50 {
   if (isPrime(n)) {
-    print(n);
+    print(n)
   }
 }

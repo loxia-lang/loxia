@@ -1,18 +1,18 @@
 # Função como valor: parâmetro, variável, retorno e impressão (L4).
 fn dobro(x: Int) -> Int {
-  return x * 2;
+  return x * 2
 }
 
 fn aplica(f: fn(Int) -> Int, x: Int) -> Int {
-  return f(x);
+  return f(x)
 }
 
-val f: fn(Int) -> Int = dobro;
-print(aplica(f, 4));   # expect: 8
-print(f(3));           # expect: 6
-print(f);              # expect: <fn dobro>
-print(str(f));         # expect: <fn dobro>
-print(repr(f));        # expect: <fn dobro>
-print("fn=${f}");      # expect: fn=<fn dobro>
-print(f == dobro);     # expect: true
-print(f != dobro);     # expect: false
+val f: fn(Int) -> Int = dobro
+print(aplica(f, 4))  # expect: 8
+print(f(3))          # expect: 6
+print(f)             # expect: <fn dobro>
+print(str(f))        # expect: <fn dobro>
+print(repr(f))       # expect: <fn dobro>
+print("fn=${f}")     # expect: fn=<fn dobro>
+print(f == dobro)    # expect: true
+print(f != dobro)    # expect: false

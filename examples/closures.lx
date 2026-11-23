@@ -1,16 +1,16 @@
 # Closures: the inner function keeps the environment where it was declared.
 fn makeCounter() -> fn() -> Int {
-  var count = 0;
+  var count = 0
 
   fn increment() -> Int {
-    count = count + 1;
-    return count;
+    count = count + 1
+    return count
   }
 
-  return increment;
+  return increment
 }
 
-var counter = makeCounter();
-print(counter());
-print(counter());
-print(counter());
+var counter = makeCounter()
+print(counter())
+print(counter())
+print(counter())

@@ -1,9 +1,9 @@
-var log = "";
+var log = ""
 
 fn registra(x: String) -> String {
-  log = log + x;
-  return x;
+  log = log + x
+  return x
 }
 
-registra("a") + registra("b");
-print(log);  # expect: ab
+registra("a") + registra("b")
+print(log) # expect: ab

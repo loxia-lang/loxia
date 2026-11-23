@@ -20,7 +20,7 @@ class RpcFailure {
   val message: String
 
   /// Creates a failure with an explicit code and message.
-  init(code: Int, message: String) {
+  fn init(code: Int, message: String) {
     this.code = code
     this.message = message
   }

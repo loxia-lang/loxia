@@ -1,6 +1,15 @@
 # ADR-0089: o erro de runtime traz o call site de cada ativação Lox.
-fn inner() -> Int { return 1 // 0 }
-fn middle() -> Int { return inner() }
-fn outer() -> Int { return middle() }
+fn inner() -> Int {
+  return 1 // 0
+}
+
+fn middle() -> Int {
+  return inner()
+}
+
+fn outer() -> Int {
+  return middle()
+}
+
 print(outer())
 # expect runtime error: Division by zero not allowed

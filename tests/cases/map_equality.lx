@@ -1,18 +1,18 @@
 # Igualdade estrutural, independente da ordem de inserção.
-print({"a": 1} == {"a": 1})
-print({"a": 1, "b": 2} == {"b": 2, "a": 1})
-print({"a": 1} == {"a": 2})
-print({"a": 1} == {"a": 1, "b": 2})
-print({"a": 1} == [1])
-print({1: "a"} == {1: "a"})
-print({true: 1} == {1: 1})
-print({"a": nil} == {"a": nil})
-print({"a": [1, 2]} == {"a": [1, 2]})
-print({"a": {"b": 1}} == {"a": {"b": 1}})
-print({"a": 1} != {"b": 1})
+print({ "a": 1 } == { "a": 1 })
+print({ "a": 1, "b": 2 } == { "b": 2, "a": 1 })
+print({ "a": 1 } == { "a": 2 })
+print({ "a": 1 } == { "a": 1, "b": 2 })
+print({ "a": 1 } == [1])
+print({ 1: "a" } == { 1: "a" })
+print({ true: 1 } == { 1: 1 })
+print({ "a": nil } == { "a": nil })
+print({ "a": [1, 2] } == { "a": [1, 2] })
+print({ "a": { "b": 1 } } == { "a": { "b": 1 } })
+print({ "a": 1 } != { "b": 1 })
 val vazio: Map[String, Int] = {}
 print(vazio == vazio)
-print(vazio == {"a": 1})
+print(vazio == { "a": 1 })
 # expect: true
 # expect: true
 # expect: false

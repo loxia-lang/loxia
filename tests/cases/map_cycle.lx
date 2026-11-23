@@ -9,7 +9,7 @@ print(a == a)
 val xs = [a]
 print(xs)
 val l: List[Any] = []
-val m: Map[String, List[Any]] = {"l": l}
+val m: Map[String, List[Any]] = { "l": l }
 l.push(m)
 print(m)
 # expect: {"self": {...}}

@@ -23,7 +23,7 @@ class DecodeError {
   val message: String
 
   /// Cria a falha com o token estável, a posição e o detalhe.
-  init(kind: String, index: Int, message: String) {
+  fn init(kind: String, index: Int, message: String) {
     this.kind = kind
     this.index = index
     this.message = message
@@ -174,7 +174,6 @@ fn base64Encode(text: String) -> String {
   return result
 }
 
-
 fn _base64Value(code: Int) -> Int {
   if (code >= 65 and code <= 90) {
     return code - 65
@@ -202,9 +201,7 @@ fn _base64Value(code: Int) -> Int {
 /// `invalidUtf8` with `index` `-1`. The empty string decodes to `""`.
 fn base64DecodeResult(text: String) -> Result[String, DecodeError] {
   if (len(text) % 4 != 0) {
-    return Result.Err(
-      DecodeError("invalidBase64", len(text), "length is not a multiple of 4")
-    )
+    return Result.Err(DecodeError("invalidBase64", len(text), "length is not a multiple of 4"))
   }
   val bytes: List[Int] = []
   var index = 0

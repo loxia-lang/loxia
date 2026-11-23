@@ -1,12 +1,12 @@
 fn makeCounter() -> fn() -> Nil {
-  var i = 0;
+  var i = 0
   fn count() -> Nil {
-    i = i + 1;
-    print(i);
+    i = i + 1
+    print(i)
   }
-  return count;
+  return count
 }
 
-var counter = makeCounter();
-counter();  # expect: 1
-counter();  # expect: 2
+var counter = makeCounter()
+counter()  # expect: 1
+counter()  # expect: 2

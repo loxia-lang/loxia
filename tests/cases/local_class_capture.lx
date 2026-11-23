@@ -1,8 +1,11 @@
 # Classe local ainda não captura variáveis externas no backend (PENDING l5).
 fn make(n: Int) -> Int {
   class P {
-    get() -> Int { return n; }
+    fn get() -> Int {
+      return n
+    }
   }
-  return P().get();
+  return P().get()
 }
-print(make(3)); # expect: 3
+
+print(make(3)) # expect: 3

@@ -10,7 +10,7 @@ class _Parser {
   val text: String
   var index: Int
 
-  init(text: String) {
+  fn init(text: String) {
     this.text = text
     this.index = 0
   }
@@ -384,10 +384,7 @@ fn _spaces(count: Int) -> String {
 /// It is not a `Result[Any, String]` because the checker refuses to instantiate a type
 /// variable with `Any` (`E3011`); the enum carries the same information and can become a
 /// `Result` if that restriction is lifted.
-enum JsonResult {
-  Ok(Any),
-  Err(String)
-}
+enum JsonResult { Ok(Any), Err(String) }
 
 /// Parses RFC 8259 JSON text into Loxia values.
 ///
@@ -517,10 +514,10 @@ fn _pretty(value: Any, indent: Int, level: Int) -> String {
     val parts: List[String] = []
     for key in entries {
       parts.push(
-        _spaces(indent * (level + 1))
-          + _quote(key)
-          + ": "
-          + _pretty(entries[key], indent, level + 1)
+        _spaces(indent * (level + 1)) +
+          _quote(key) +
+          ": " +
+          _pretty(entries[key], indent, level + 1),
       )
     }
     return "{\n" + join(parts, ",\n") + "\n" + _spaces(indent * level) + "}"

@@ -19,7 +19,7 @@ class RegexError {
   val offset: Int
 
   /// Creates the error; pass the offset reported by `compile` (`-1` when unknown).
-  init(kind: String, offset: Int = -1) {
+  fn init(kind: String, offset: Int = -1) {
     this.kind = kind
     this.offset = offset
   }
@@ -41,7 +41,7 @@ class Match {
   val groups: List[String?]
 
   /// Creates a match; prefer the values returned by `find`/`findAll`.
-  init(text: String, start: Int, end: Int, groups: List[String?]) {
+  fn init(text: String, start: Int, end: Int, groups: List[String?]) {
     this.text = text
     this.start = start
     this.end = end
@@ -56,7 +56,7 @@ class Regex {
   var _names: List[String]
 
   /// Wraps a native handle; prefer `compile` or `tryCompile`.
-  init(handle: Int, names: List[String]) {
+  fn init(handle: Int, names: List[String]) {
     this._handle = handle
     this._names = names
     this._closed = false
@@ -117,7 +117,8 @@ class Regex {
   fn replace(text: String, replacement: String) -> String {
     val found = this.find(text)
     if (found != nil) {
-      return substr(text, 0, found.start) + _expand(replacement, found, this._names) +
+      return substr(text, 0, found.start) +
+        _expand(replacement, found, this._names) +
         substr(text, found.end, len(text))
     }
     return text
@@ -179,7 +180,7 @@ fn compile(
   caseless: Bool = false,
   multiline: Bool = false,
   dotall: Bool = false,
-  extended: Bool = false
+  extended: Bool = false,
 ) -> Result[Regex, RegexError] {
   return _compile(pattern, caseless, multiline, dotall, extended, 0)
 }
@@ -194,7 +195,7 @@ fn compileFull(
   caseless: Bool = false,
   multiline: Bool = false,
   dotall: Bool = false,
-  extended: Bool = false
+  extended: Bool = false,
 ) -> Result[Regex, RegexError] {
   return _compile(pattern, caseless, multiline, dotall, extended, 1)
 }
@@ -206,7 +207,7 @@ fn tryCompile(
   caseless: Bool = false,
   multiline: Bool = false,
   dotall: Bool = false,
-  extended: Bool = false
+  extended: Bool = false,
 ) -> Regex? {
   return _attempt(_compile(pattern, caseless, multiline, dotall, extended, 0))
 }
@@ -217,7 +218,7 @@ fn tryCompileFull(
   caseless: Bool = false,
   multiline: Bool = false,
   dotall: Bool = false,
-  extended: Bool = false
+  extended: Bool = false,
 ) -> Regex? {
   return _attempt(_compile(pattern, caseless, multiline, dotall, extended, 1))
 }
@@ -235,7 +236,7 @@ fn _compile(
   multiline: Bool,
   dotall: Bool,
   extended: Bool,
-  mode: Int
+  mode: Int,
 ) -> Result[Regex, RegexError] {
   val flags = _flags(caseless, multiline, dotall, extended)
   val result = regex_engine.compile(pattern, flags, mode)

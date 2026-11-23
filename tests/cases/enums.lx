@@ -1,5 +1,6 @@
 # Enums com payload, igualdade e match exaustivo.
 enum Cor { Vermelho, Verde, Azul }
+
 enum Shape { Circle(Float), Rect(Float, Float) }
 
 print(Cor.Verde)
@@ -12,10 +13,12 @@ val area = match s {
   Shape.Rect(w, h) => w * h
 }
 print(area)
-print(match Shape.Rect(2.0, 3.0) {
-  Shape.Circle(r) => r
-  Shape.Rect(w, h) => w * h
-})
+print(
+  match Shape.Rect(2.0, 3.0) {
+    Shape.Circle(r) => r
+    Shape.Rect(w, h) => w * h
+  },
+)
 # expect: Cor.Verde
 # expect: true
 # expect: false

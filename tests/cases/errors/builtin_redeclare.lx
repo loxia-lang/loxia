@@ -1,4 +1,4 @@
 fn len(x) {
-  return x;
+  return x
 }
 # expect runtime error: Can't redeclare immutable variable 'len'.

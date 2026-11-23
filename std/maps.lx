@@ -92,10 +92,7 @@ fn mapValues[V, U](m: Map[String, V], f: fn(V) -> U) -> Map[String, U] {
 }
 
 /// Keeps entries whose key satisfies `predicate`, preserving order.
-fn filterKeys[V](
-  m: Map[String, V],
-  predicate: fn(String) -> Bool
-) -> Map[String, V] {
+fn filterKeys[V](m: Map[String, V], predicate: fn(String) -> Bool) -> Map[String, V] {
   val result: Map[String, V] = {}
   for key in m {
     if (predicate(key)) {
@@ -106,10 +103,7 @@ fn filterKeys[V](
 }
 
 /// Keeps entries whose value satisfies `predicate`, preserving order.
-fn filterValues[V](
-  m: Map[String, V],
-  predicate: fn(V) -> Bool
-) -> Map[String, V] {
+fn filterValues[V](m: Map[String, V], predicate: fn(V) -> Bool) -> Map[String, V] {
   val result: Map[String, V] = {}
   for key in m {
     if (predicate(m[key])) {

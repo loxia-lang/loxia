@@ -53,8 +53,13 @@ interface B {
 }
 
 class AB implements A, B {
-  fn a() -> String { return "a" }
-  fn b() -> String { return "b" }
+  fn a() -> String {
+    return "a"
+  }
+
+  fn b() -> String {
+    return "b"
+  }
 }
 
 fn juntas[T: A + B](x: T) -> String {
@@ -66,26 +71,28 @@ interface Calculo {
 }
 
 class Dobro implements Calculo {
-  fn dobro(x: Int) -> Int { return x * 2 }
+  fn dobro(x: Int) -> Int {
+    return x * 2
+  }
 }
 
 fn calcular[T: Calculo](x: T) -> Int {
   return x.dobro(3)
 }
 
-print(max(3, 7))                 # expect: 7
-print(max(2.5, 1.5))             # expect: 2.5
-print(max("a", "b"))             # expect: b
-print(twice(4))                  # expect: 8
-print(twice(1.5))                # expect: 3.0
-print(somaMaior(5, 2))           # expect: 7
-print(somaMaior(5.0, 2.0))       # expect: 7.0
-print(maior(9, 4))               # expect: 9
-print(maior("x", "a"))           # expect: x
-print(chamar(Pessoa("ana")))     # expect: ana
-print(juntas(AB()))              # expect: ab
-print(calcular(Dobro()))         # expect: 6
+print(max(3, 7))              # expect: 7
+print(max(2.5, 1.5))          # expect: 2.5
+print(max("a", "b"))          # expect: b
+print(twice(4))               # expect: 8
+print(twice(1.5))             # expect: 3.0
+print(somaMaior(5, 2))        # expect: 7
+print(somaMaior(5.0, 2.0))    # expect: 7.0
+print(maior(9, 4))            # expect: 9
+print(maior("x", "a"))        # expect: x
+print(chamar(Pessoa("ana")))  # expect: ana
+print(juntas(AB()))           # expect: ab
+print(calcular(Dobro()))      # expect: 6
 
 val nomeavel: Nomeavel = Pessoa("bia")
-print(chamar(nomeavel))          # expect: bia
+print(chamar(nomeavel))                      # expect: bia
 print(comoInterface(Pessoa("caio")).nome())  # expect: caio

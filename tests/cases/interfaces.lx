@@ -1,7 +1,13 @@
 interface Forma {
-  area() -> Int
-  fn nome() -> String { return "forma" }
-  fn descricao() -> String { return "${this.nome()}:${this.area()}" }
+  fn area() -> Int
+
+  fn nome() -> String {
+    return "forma"
+  }
+
+  fn descricao() -> String {
+    return "${this.nome()}:${this.area()}"
+  }
 }
 
 interface Nomeavel {
@@ -10,78 +16,114 @@ interface Nomeavel {
 
 class Quadrado implements Forma {
   val lado: Int
-  fn init(lado: Int) { this.lado = lado }
-  fn area() -> Int { return this.lado * this.lado }
+
+  fn init(lado: Int) {
+    this.lado = lado
+  }
+
+  fn area() -> Int {
+    return this.lado * this.lado
+  }
 }
 
 class Base {
-  fn nome() -> String { return "base" }
+  fn nome() -> String {
+    return "base"
+  }
 }
 
 class Filho(Base) implements Forma {
-  fn area() -> Int { return 7 }
+  fn area() -> Int {
+    return 7
+  }
 }
 
 class Outro implements Forma, Nomeavel {
-  fn area() -> Int { return 2 }
-  fn nome() -> String { return "outro" }
+  fn area() -> Int {
+    return 2
+  }
+
+  fn nome() -> String {
+    return "outro"
+  }
 }
 
 class Caixa {
   val item: Forma
-  fn init(item: Forma) { this.item = item }
-  fn get() -> Forma { return this.item }
+
+  fn init(item: Forma) {
+    this.item = item
+  }
+
+  fn get() -> Forma {
+    return this.item
+  }
 }
 
 class Generica[T] implements Nomeavel {
   val valor: T
-  fn init(valor: T) { this.valor = valor }
-  fn nome() -> String { return "generica" }
+
+  fn init(valor: T) {
+    this.valor = valor
+  }
+
+  fn nome() -> String {
+    return "generica"
+  }
 }
 
 interface Escala {
-  escala(x: Int) -> Int
-  fn duasVezes(x: Int) -> Int { return this.escala(this.escala(x)) }
+  fn escala(x: Int) -> Int
+
+  fn duasVezes(x: Int) -> Int {
+    return this.escala(this.escala(x))
+  }
 }
 
 class Triplo implements Escala {
-  fn escala(x: Int) -> Int { return x * 3 }
+  fn escala(x: Int) -> Int {
+    return x * 3
+  }
 }
 
 interface Saudacao {
-  fn ola() -> String { return "ola" }
+  fn ola() -> String {
+    return "ola"
+  }
 }
 
-class SoDefault implements Saudacao {
-}
+class SoDefault implements Saudacao {}
 
-class BaseSaudacao implements Saudacao {
-}
+class BaseSaudacao implements Saudacao {}
 
-class FilhaSaudacao(BaseSaudacao) {
-}
+class FilhaSaudacao(BaseSaudacao) {}
 
 class OverrideSaudacao(FilhaSaudacao) {
-  fn ola() -> String { return "override" }
+  fn ola() -> String {
+    return "override"
+  }
 }
 
 class BaseArea {
-  fn area() -> Int { return 5 }
+  fn area() -> Int {
+    return 5
+  }
 }
 
-class FilhaArea(BaseArea) implements Forma {
-}
+class FilhaArea(BaseArea) implements Forma {}
 
-fn chamar(f: Forma) -> String { return f.descricao() }
+fn chamar(f: Forma) -> String {
+  return f.descricao()
+}
 
 val quadrado: Forma = Quadrado(3)
-print(quadrado.nome())        # expect: forma
-print(quadrado.descricao())   # expect: forma:9
-print(quadrado.area())        # expect: 9
+print(quadrado.nome())       # expect: forma
+print(quadrado.descricao())  # expect: forma:9
+print(quadrado.area())       # expect: 9
 
 val filho: Forma = Filho()
-print(filho.nome())           # expect: base
-print(filho.descricao())      # expect: base:7
+print(filho.nome())       # expect: base
+print(filho.descricao())  # expect: base:7
 
 val outros: List[Forma] = [Quadrado(2), Filho(), Outro()]
 for item in outros {
@@ -92,38 +134,42 @@ for item in outros {
 # expect: outro:2
 
 val caixa = Caixa(Outro())
-print(caixa.get().descricao())  # expect: outro:2
+print(caixa.get().descricao()) # expect: outro:2
 
 val vazio: Forma? = nil
-print(vazio == nil)             # expect: true
-print(vazio?.area())            # expect: nil
+print(vazio == nil)   # expect: true
+print(vazio?.area())  # expect: nil
 
 fn escolher(primeiro: Bool) -> Forma {
   return Quadrado(1) if primeiro else Outro()
 }
-print(escolher(false).nome())   # expect: outro
 
-print(Generica(1).nome())       # expect: generica
+print(escolher(false).nome()) # expect: outro
 
-print(Triplo().duasVezes(2))    # expect: 18
-print(SoDefault().ola())        # expect: ola
-print(FilhaSaudacao().ola())    # expect: ola
-print(OverrideSaudacao().ola()) # expect: override
+print(Generica(1).nome()) # expect: generica
+
+print(Triplo().duasVezes(2))     # expect: 18
+print(SoDefault().ola())         # expect: ola
+print(FilhaSaudacao().ola())     # expect: ola
+print(OverrideSaudacao().ola())  # expect: override
 
 var mutavel: Saudacao = SoDefault()
 mutavel = FilhaSaudacao()
-print(mutavel.ola())            # expect: ola
+print(mutavel.ola()) # expect: ola
 
 print(FilhaArea().descricao())  # expect: forma:5
 print(chamar(Quadrado(1)))      # expect: forma:1
 
 fn local() -> Int {
   class Local implements Escala {
-    fn escala(x: Int) -> Int { return x + 1 }
+    fn escala(x: Int) -> Int {
+      return x + 1
+    }
   }
   return Local().duasVezes(1)
 }
-print(local())                  # expect: 3
+
+print(local()) # expect: 3
 
 val implements = 5
-print(implements)                # expect: 5
+print(implements) # expect: 5

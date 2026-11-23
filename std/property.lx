@@ -17,7 +17,7 @@ class Gen[T] {
   val shrink: fn(T) -> List[T]
 
   /// Creates the generator from its two functions.
-  init(generate: fn(Rand) -> T, shrink: fn(T) -> List[T]) {
+  fn init(generate: fn(Rand) -> T, shrink: fn(T) -> List[T]) {
     this.generate = generate
     this.shrink = shrink
   }
@@ -38,12 +38,7 @@ class Gen[T] {
 /// Stops at the first failure and raises `TestFailure` with the run number, seed,
 /// original counterexample and shrunk value. `Skip` propagates unchanged. `seed` is
 /// explicit, so a failing run is reproducible.
-fn forAll[T](
-  generator: Gen[T],
-  check: fn(T) -> Nil,
-  runs: Int = 100,
-  seed: Int = 0
-) -> Nil {
+fn forAll[T](generator: Gen[T], check: fn(T) -> Nil, runs: Int = 100, seed: Int = 0) -> Nil {
   val random = Rand(seed)
   var attempt = 0
   while (attempt < runs) {
@@ -63,12 +58,12 @@ fn forAll[T](
       if (shrunk == value) {
         raise TestFailure(
           "property failed after ${attempt + 1} run(s) (seed ${seed}): " +
-          "${failure}; counterexample ${repr(value)}"
+            "${failure}; counterexample ${repr(value)}",
         )
       }
       raise TestFailure(
         "property failed after ${attempt + 1} run(s) (seed ${seed}): " +
-        "${failure}; counterexample ${repr(value)}; shrunk to ${repr(shrunk)}"
+          "${failure}; counterexample ${repr(value)}; shrunk to ${repr(shrunk)}",
       )
     }
     attempt = attempt + 1
@@ -78,54 +73,70 @@ fn forAll[T](
 /// 64-bit integer generator; shrinks toward 0 and then toward the halfway point.
 fn int() -> Gen[Int] {
   return Gen(
-    fn(random: Rand) -> Int { return random.nextInt() },
+    fn(random: Rand) -> Int {
+      return random.nextInt()
+    },
     fn(value: Int) -> List[Int] {
-      if (value == 0) { return [] }
+      if (value == 0) {
+        return []
+      }
       val candidates = [0]
       val half = value // 2
       if (half != 0 and half != value) {
         candidates.push(half)
       }
       return candidates
-    }
+    },
   )
 }
 
 /// Integer generator in `[min, max]`; shrinks toward `min`.
 fn intRange(min: Int, max: Int) -> Gen[Int] {
   return Gen(
-    fn(random: Rand) -> Int { return random.int(min, max) },
+    fn(random: Rand) -> Int {
+      return random.int(min, max)
+    },
     fn(value: Int) -> List[Int] {
-      if (value == min) { return [] }
+      if (value == min) {
+        return []
+      }
       val candidates = [min]
       val half = min + (value - min) // 2
       if (half != min and half != value) {
         candidates.push(half)
       }
       return candidates
-    }
+    },
   )
 }
 
 /// `Bool` generator; shrinks `true` to `false`.
 fn bool() -> Gen[Bool] {
   return Gen(
-    fn(random: Rand) -> Bool { return random.bool() },
+    fn(random: Rand) -> Bool {
+      return random.bool()
+    },
     fn(value: Bool) -> List[Bool] {
-      if (value) { return [false] }
+      if (value) {
+        return [false]
+      }
       return []
-    }
+    },
   )
 }
 
 /// `Float` generator in `[0.0, 1.0)`; shrinks to `0.0`.
 fn float() -> Gen[Float] {
   return Gen(
-    fn(random: Rand) -> Float { return random.float() },
+    fn(random: Rand) -> Float {
+      return random.float()
+    },
     fn(value: Float) -> List[Float] {
-      if (value == 0.0) { return [] }
+      if (value == 0.0) {
+        return []
+      }
       return [0.0]
-    }
+    },
   )
 }
 
@@ -160,7 +171,7 @@ fn listOf[T](element: Gen[T], maxLength: Int = 5) -> Gen[List[T]] {
         index = index + 1
       }
       return candidates
-    }
+    },
   )
 }
 
@@ -196,13 +207,12 @@ fn stringOf(maxLength: Int = 8) -> Gen[String] {
       var index = 0
       while (index < len(value)) {
         candidates.push(
-          strings.slice(value, 0, index) +
-          strings.slice(value, index + 1, len(value))
+          strings.slice(value, 0, index) + strings.slice(value, index + 1, len(value)),
         )
         index = index + 1
       }
       return candidates
-    }
+    },
   )
 }
 
@@ -219,9 +229,11 @@ fn oneOf[T](options: List[T]) -> Gen[T] {
       return options[random.int(0, len(options) - 1)]
     },
     fn(value: T) -> List[T] {
-      if (value == first) { return [] }
+      if (value == first) {
+        return []
+      }
       return [first]
-    }
+    },
   )
 }
 
