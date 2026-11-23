@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+from loxia.formatter.edits import EditPosition, TextEdit, apply_edits
+
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 META = {
@@ -85,6 +87,17 @@ def run_cli(*args: str, source: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def edits_from_payload(payload: dict[str, Any]) -> tuple[TextEdit, ...]:
+    return tuple(
+        TextEdit(
+            start=EditPosition(**cast(dict[str, int], item["start"])),
+            end=EditPosition(**cast(dict[str, int], item["end"])),
+            new_text=cast(str, item["newText"]),
+        )
+        for item in cast(list[dict[str, Any]], payload["edits"])
+    )
+
+
 def test_discover_and_tools_list_are_modern_and_deterministic() -> None:
     process = start()
     try:
@@ -101,6 +114,7 @@ def test_discover_and_tools_list_are_modern_and_deterministic() -> None:
             "loxia_check",
             "loxia_run",
             "loxia_ast",
+            "loxia_format",
             "loxia_spec",
             "loxia_explain",
             "loxia_version",
@@ -108,6 +122,12 @@ def test_discover_and_tools_list_are_modern_and_deterministic() -> None:
         assert listed["ttlMs"] == 3_600_000
         assert listed["cacheScope"] == "public"
         assert all(tool["inputSchema"]["type"] == "object" for tool in listed["tools"])
+        formatter = next(tool for tool in listed["tools"] if tool["name"] == "loxia_format")
+        assert formatter["annotations"]["readOnlyHint"] is True
+        assert formatter["inputSchema"]["oneOf"] == [
+            {"required": ["source"]},
+            {"required": ["path"]},
+        ]
     finally:
         if process.poll() is None:
             process.kill()
@@ -256,6 +276,172 @@ def test_unknown_tool_is_a_protocol_error_and_bad_input_is_a_tool_error() -> Non
         invalid = call(process, 2, "loxia_check", {"source": 42})["result"]
         assert invalid["isError"] is True
         assert "source must be a string" in invalid["content"][0]["text"]
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_returns_text_and_edits_with_comments() -> None:
+    source = "val xs=[1, # one\n 2]\n"
+    process = start()
+    try:
+        result = call(process, 1, "loxia_format", {"source": source})["result"]
+        assert result["isError"] is False
+        data = result["structuredContent"]
+        assert data["changed"] is True
+        assert "# one" in data["formatted"]
+        assert data["file"] == "<stdin>"
+        edits = edits_from_payload(cast(dict[str, Any], data))
+        assert apply_edits(source, edits) == data["formatted"]
+        assert result["content"][0]["text"] == data["formatted"]
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_normalizes_crlf_and_uses_file_name() -> None:
+    process = start()
+    try:
+        result = call(
+            process,
+            1,
+            "loxia_format",
+            {"source": "val x=1\r\n", "file_name": "demo.lx"},
+        )["result"]
+        assert result["isError"] is False
+        data = result["structuredContent"]
+        assert data["file"] == "demo.lx"
+        assert data["formatted"] == "val x = 1\n"
+        assert data["changed"] is True
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_path_is_read_only_and_diff_is_optional(tmp_path: Path) -> None:
+    script = tmp_path / "a.lx"
+    source = "fn f( a:Int ){return a;}\n"
+    script.write_text(source, encoding="utf-8")
+    process = start()
+    try:
+        result = call(
+            process,
+            1,
+            "loxia_format",
+            {"path": str(script), "diff": True, "check": True},
+        )["result"]
+        assert result["isError"] is False
+        data = result["structuredContent"]
+        assert data["file"] == "a.lx"
+        assert data["check"] is True
+        assert data["formatted"] == "fn f(a: Int) {\n  return a\n}\n"
+        assert "a/a.lx" in data["diff"]
+        assert len(result["content"]) == 2
+        assert script.read_text(encoding="utf-8") == source
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_range_limits_edits_and_reports_effective_range() -> None:
+    source = "val a=1\n\n\n\nval b=2\n"
+    process = start()
+    try:
+        result = call(
+            process,
+            1,
+            "loxia_format",
+            {"source": source, "range": {"start_line": 1, "end_line": 1}},
+        )["result"]
+        assert result["isError"] is False
+        data = result["structuredContent"]
+        assert data["range"] == {"start_line": 1, "end_line": 1}
+        assert data["formatted"] == "val a = 1\n\n\n\nval b=2\n"
+        assert "val b=2" in data["formatted"]
+        assert (
+            apply_edits(source, edits_from_payload(cast(dict[str, Any], data))) == data["formatted"]
+        )
+
+        expanded = call(
+            process,
+            2,
+            "loxia_format",
+            {"source": "val xs=[\n1,\n2\n]\n", "lines": "2-2"},
+        )["result"]
+        assert expanded["isError"] is False
+        expanded_data = expanded["structuredContent"]
+        assert expanded_data["range"] == {"start_line": 1, "end_line": 4}
+        assert expanded_data["formatted"] == "val xs = [1, 2]\n"
+
+        commented = call(
+            process,
+            3,
+            "loxia_format",
+            {"source": "val xs=[1, # keep\n 2]\n", "range": {"start_line": 1, "end_line": 1}},
+        )["result"]
+        assert commented["isError"] is False
+        commented_data = commented["structuredContent"]
+        assert "# keep" in commented_data["formatted"]
+        assert (
+            apply_edits(
+                "val xs=[1, # keep\n 2]\n",
+                edits_from_payload(cast(dict[str, Any], commented_data)),
+            )
+            == commented_data["formatted"]
+        )
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_rejects_invalid_ranges_and_inputs() -> None:
+    process = start()
+    cases: tuple[dict[str, Any], ...] = (
+        {"source": "val x = 1\n", "range": {"start_line": 2, "end_line": 1}},
+        {"source": "val x = 1\n", "range": {"start_line": 1, "end_line": 9}},
+        {
+            "source": "val x = 1\n",
+            "range": {"start_line": 1, "end_line": 1},
+            "lines": "1-1",
+        },
+        {"source": "val x = 1\n", "path": "a.lx"},
+        {},
+        {"source": "val x = 1\n", "max_width": 10},
+        {"path": "missing.lx"},
+        {"path": "a.txt"},
+    )
+    try:
+        for request_id, arguments in enumerate(cases, 1):
+            result = call(process, request_id, "loxia_format", arguments)["result"]
+            assert result["isError"] is True
+            assert result["content"][0]["text"]
+
+        invalid = call(process, 20, "loxia_format", {"source": "val =\n"})["result"]
+        assert invalid["isError"] is True
+        assert invalid["structuredContent"]["exit_code"] == 65
+        assert "E1001" in invalid["content"][0]["text"]
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_honors_max_width() -> None:
+    process = start()
+    try:
+        result = call(
+            process,
+            1,
+            "loxia_format",
+            {"source": "fn f(a: Int, bbbb: Int) -> Int { return a }\n", "max_width": 20},
+        )["result"]
+        assert result["isError"] is False
+        assert "fn f(\n" in result["structuredContent"]["formatted"]
     finally:
         if process.poll() is None:
             process.kill()

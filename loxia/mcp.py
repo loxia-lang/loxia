@@ -17,6 +17,7 @@ import contextlib
 import json
 import math
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -28,6 +29,13 @@ from typing import cast
 
 from loxia import __version__
 from loxia.docs_index import DocsIndexError, Section, load_index
+from loxia.formatter.edits import (
+    EditPosition,
+    TextEdit,
+    apply_edits,
+    edits_json,
+    unified_diff,
+)
 from loxia_core.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
 
 PROTOCOL_VERSION = "2026-07-28"
@@ -135,6 +143,134 @@ def _file_name(args: Mapping[str, object]) -> str:
     return name
 
 
+def _boolean(value: object, what: str) -> bool:
+    if not isinstance(value, bool):
+        raise ToolError(f"{what} must be a boolean.")
+    return value
+
+
+def _normalize_source(text: str) -> str:
+    """Mesma normalização do `fmt --stdin` (contrato de spans do texto normalizado)."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _format_label(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _format_path(args: Mapping[str, object]) -> tuple[str, str]:
+    raw = _string(args.get("path"), "path")
+    if args.get("file_name") is not None:
+        raise ToolError("file_name is only valid with source.")
+    if "\x00" in raw:
+        raise ToolError("path cannot contain NUL bytes.")
+    path = Path(raw)
+    if path.suffix != ".lx":
+        raise ToolError("path must point to a .lx file.")
+    try:
+        if not path.is_file():
+            raise ToolError(f"path is not a file: {raw}")
+        data = path.read_bytes()
+    except OSError as error:
+        raise ToolError(f"could not read path: {error.strerror or error}") from error
+    if len(data) > MAX_SOURCE_BYTES:
+        raise ToolError(f"path is too large ({len(data)} > {MAX_SOURCE_BYTES} bytes).")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ToolError("path must be valid UTF-8.") from error
+    return _normalize_source(text), _format_label(path)
+
+
+def _format_source(args: Mapping[str, object]) -> tuple[str, str]:
+    source_value = args.get("source")
+    path_value = args.get("path")
+    if (source_value is None) == (path_value is None):
+        raise ToolError("provide exactly one of source or path.")
+    if source_value is not None:
+        return _normalize_source(_source(args)), _file_name(args)
+    return _format_path(args)
+
+
+def _format_width(args: Mapping[str, object]) -> int:
+    width = _integer(args.get("max_width", 100), "max_width")
+    if not 20 <= width <= 1000:
+        raise ToolError("max_width must be between 20 and 1000.")
+    return width
+
+
+def _format_range(args: Mapping[str, object], line_count: int) -> tuple[int, int] | None:
+    range_value = args.get("range")
+    lines_value = args.get("lines")
+    if range_value is not None and lines_value is not None:
+        raise ToolError("range and lines cannot be combined.")
+    if range_value is not None:
+        mapping = _mapping(range_value, "range")
+        if set(mapping) != {"start_line", "end_line"}:
+            raise ToolError("range requires start_line and end_line.")
+        start = _integer(mapping["start_line"], "range.start_line")
+        end = _integer(mapping["end_line"], "range.end_line")
+    elif lines_value is not None:
+        text = _string(lines_value, "lines").strip()
+        match = re.fullmatch(r"([0-9]+)-([0-9]+)", text)
+        if match is None:
+            raise ToolError("lines must look like 'start-end'.")
+        start = int(match.group(1))
+        end = int(match.group(2))
+    else:
+        return None
+    if start < 1 or end < start or end > line_count:
+        raise ToolError(f"range must be 1..{line_count} with start_line <= end_line.")
+    return start, end
+
+
+def _format_edits(payload: Mapping[str, object]) -> tuple[TextEdit, ...]:
+    raw = payload.get("edits")
+    if not isinstance(raw, list):
+        raise ToolError("formatter returned an invalid edits payload.")
+    edits: list[TextEdit] = []
+    for item in cast(Sequence[object], raw):
+        mapping = _mapping(item, "edit")
+        start = _mapping(mapping.get("start"), "edit.start")
+        end = _mapping(mapping.get("end"), "edit.end")
+        edits.append(
+            TextEdit(
+                start=EditPosition(
+                    line=_integer(start.get("line"), "edit.start.line"),
+                    column=_integer(start.get("column"), "edit.start.column"),
+                    offset=_integer(start.get("offset"), "edit.start.offset"),
+                ),
+                end=EditPosition(
+                    line=_integer(end.get("line"), "edit.end.line"),
+                    column=_integer(end.get("column"), "edit.end.column"),
+                    offset=_integer(end.get("offset"), "edit.end.offset"),
+                ),
+                new_text=_string(mapping.get("newText"), "edit.newText"),
+            )
+        )
+    return tuple(edits)
+
+
+def _edit_last_line(edit: TextEdit) -> int:
+    return max(edit.start.line, edit.end.line - 1)
+
+
+def _select_range_edits(
+    edits: Sequence[TextEdit], start: int, end: int, line_count: int
+) -> tuple[tuple[TextEdit, ...], int, int]:
+    selected = tuple(
+        edit for edit in edits if edit.start.line <= end and _edit_last_line(edit) >= start
+    )
+    if not selected:
+        return (), start, end
+    effective_start = min(start, *(edit.start.line for edit in selected))
+    effective_end = min(line_count, max(end, *(_edit_last_line(edit) for edit in selected)))
+    return selected, effective_start, effective_end
+
+
 def _timeout(args: Mapping[str, object]) -> int:
     value = args.get("timeout_ms", DEFAULT_TIMEOUT_MS)
     timeout = _integer(value, "timeout_ms")
@@ -188,6 +324,58 @@ _RUN_ANNOTATIONS = {
     "openWorldHint": False,
 }
 
+_FORMAT_PATH = {
+    "type": "string",
+    "description": "Read-only path to a .lx file (absolute or relative, at most 1 MiB).",
+}
+_FORMAT_RANGE = {
+    "type": "object",
+    "properties": {
+        "start_line": {"type": "integer", "minimum": 1},
+        "end_line": {"type": "integer", "minimum": 1},
+    },
+    "required": ["start_line", "end_line"],
+    "additionalProperties": False,
+}
+_FORMAT_LINES = {
+    "type": "string",
+    "pattern": "^[0-9]+-[0-9]+$",
+    "description": "Line range as 'start-end' (1-based inclusive).",
+}
+_FORMAT_CHECK = {
+    "type": "boolean",
+    "description": "Dry-run hint; loxia_format never writes.",
+}
+_FORMAT_DIFF = {
+    "type": "boolean",
+    "description": "Include the unified diff in structuredContent and as a second content block.",
+}
+_FORMAT_MAX_WIDTH = {
+    "type": "integer",
+    "minimum": 20,
+    "maximum": 1000,
+    "default": 100,
+    "description": "Maximum code width in columns (20..1000, default 100).",
+}
+
+
+def _format_schema() -> dict[str, object]:
+    schema = _tool_schema(
+        {
+            "source": _SOURCE,
+            "path": _FORMAT_PATH,
+            "file_name": _FILE_NAME,
+            "range": _FORMAT_RANGE,
+            "lines": _FORMAT_LINES,
+            "check": _FORMAT_CHECK,
+            "diff": _FORMAT_DIFF,
+            "max_width": _FORMAT_MAX_WIDTH,
+        }
+    )
+    schema["oneOf"] = [{"required": ["source"]}, {"required": ["path"]}]
+    return schema
+
+
 TOOLS: tuple[dict[str, object], ...] = (
     {
         "name": "loxia_check",
@@ -229,6 +417,17 @@ TOOLS: tuple[dict[str, object], ...] = (
             {"source": _SOURCE, "file_name": _FILE_NAME},
             ("source",),
         ),
+        "annotations": _READ_ONLY,
+    },
+    {
+        "name": "loxia_format",
+        "title": "Format Loxia source",
+        "description": (
+            "Format source or a read-only .lx path and return the formatted text plus "
+            "exact TextEdit[] spans; optional 1-based line range, dry-run check and diff. "
+            "Never writes a file."
+        ),
+        "inputSchema": _format_schema(),
         "annotations": _READ_ONLY,
     },
     {
@@ -283,6 +482,7 @@ def _cli_argv(
     timeout_ms: int,
     sandbox: bool,
     script_args: Sequence[str],
+    extra_args: Sequence[str] = (),
 ) -> list[str]:
     argv = [
         sys.executable,
@@ -293,6 +493,7 @@ def _cli_argv(
         "--file-name",
         file_name,
         "--json",
+        *extra_args,
     ]
     if command in {"run", "check"}:
         argv.extend(["--timeout", str(timeout_ms)])
@@ -384,6 +585,7 @@ def _run_cli(
     timeout_ms: int,
     sandbox: bool = False,
     script_args: Sequence[str] = (),
+    extra_args: Sequence[str] = (),
 ) -> CliResult:
     argv = _cli_argv(
         command,
@@ -391,6 +593,7 @@ def _run_cli(
         timeout_ms=timeout_ms,
         sandbox=sandbox,
         script_args=script_args,
+        extra_args=extra_args,
     )
     with tempfile.TemporaryDirectory(prefix="loxia-mcp-") as directory:
         out_path = Path(directory) / "stdout"
@@ -505,6 +708,70 @@ def tool_ast(args: Mapping[str, object]) -> ToolResult:
         structured=_structured_cli(result, "ast"),
         is_error=result.exit_code != 0,
     )
+
+
+def tool_format(args: Mapping[str, object]) -> ToolResult:
+    source, label = _format_source(args)
+    width = _format_width(args)
+    check = _boolean(args.get("check", False), "check")
+    want_diff = _boolean(args.get("diff", False), "diff")
+    line_count = source.count("\n") + 1
+    span = _format_range(args, line_count)
+
+    result = _run_cli(
+        "fmt",
+        source,
+        file_name=label,
+        timeout_ms=DEFAULT_TIMEOUT_MS,
+        extra_args=("--check", "--edits=json", "--max-width", str(width)),
+    )
+    if result.exit_code not in (0, 1):
+        return ToolResult(
+            content=_content_for(result, "fmt"),
+            structured=_structured_cli(result, "fmt"),
+            is_error=True,
+        )
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise ToolError("formatter returned invalid JSON.") from error
+    if not isinstance(payload, dict):
+        raise ToolError("formatter returned an invalid payload.")
+    text = _string(payload.get("text"), "formatter text")
+    edits = _format_edits(payload)
+
+    structured: dict[str, object] = {
+        "file": label,
+        "changed": False,
+        "max_width": width,
+        "formatted": text,
+        "edits": edits_json(edits),
+        "check": check,
+    }
+    formatted = text
+    if span is not None:
+        selected, effective_start, effective_end = _select_range_edits(
+            edits, span[0], span[1], line_count
+        )
+        formatted = apply_edits(source, selected)
+        structured["edits"] = edits_json(selected)
+        structured["range"] = {
+            "start_line": effective_start,
+            "end_line": effective_end,
+        }
+    elif apply_edits(source, edits) != text:
+        raise ToolError("formatter returned inconsistent edits.")
+
+    structured["formatted"] = formatted
+    structured["changed"] = formatted != source
+
+    content: tuple[str, ...] = (formatted,)
+    if want_diff:
+        diff_text = unified_diff(label, source, formatted)
+        structured["diff"] = diff_text
+        content = (formatted, diff_text)
+    return ToolResult(content=content, structured=structured)
 
 
 def _section_payload(section: Section) -> dict[str, object]:
@@ -628,6 +895,7 @@ TOOL_HANDLERS: dict[str, Callable[[Mapping[str, object]], ToolResult]] = {
     "loxia_check": tool_check,
     "loxia_run": tool_run,
     "loxia_ast": tool_ast,
+    "loxia_format": tool_format,
     "loxia_spec": tool_spec,
     "loxia_explain": tool_explain,
     "loxia_version": tool_version,
@@ -722,10 +990,11 @@ class Server:
                 "capabilities": {"tools": {}},
                 "_meta": _result_meta(),
                 "instructions": (
-                    "Loxia tools. loxia_check and loxia_ast are read-only; loxia_run "
-                    "executes in the sandbox profile (no filesystem or process primitives, "
-                    "10s default timeout, 60s maximum); loxia_spec searches the packaged "
-                    "language reference."
+                    "Loxia tools. loxia_check, loxia_ast and loxia_format are read-only; "
+                    "loxia_format returns formatted text and TextEdit[] and never writes; "
+                    "loxia_run executes in the sandbox profile (no filesystem or process "
+                    "primitives, 10s default timeout, 60s maximum); loxia_spec searches the "
+                    "packaged language reference."
                 ),
                 "ttlMs": CACHE_TTL_MS,
                 "cacheScope": "public",

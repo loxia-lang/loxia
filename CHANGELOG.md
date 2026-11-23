@@ -27,6 +27,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `.mmm` (`isoMillis`).
 
 ### Adicionado
+- **`loxia_format` no MCP** ([#110](https://github.com/loxia-lang/loxia/issues/110)):
+  tool read-only que aceita `source` ou `path` `.lx`, `max_width`, `check`, `diff` e
+  `range`/`lines`; devolve o texto formatado + `TextEdit[]` exatos (aplicar os edits
+  reproduz o texto), com range por linhas expandindo hunks. O envelope
+  `fmt --check --edits=json` ganhou o campo `text`.
 - **Formatter mais barato** ([#152](https://github.com/loxia-lang/loxia/issues/152)):
   o formatter deriva offsets de início com uma caminhada memoizada de primeiro token em
   vez de construir o `SourceIndex` completo; no corpus, `format_source` caiu de ~1,27 s

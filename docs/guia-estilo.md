@@ -62,8 +62,8 @@ disso.
   único `start` + `summary`; labels são relativos ao cwd (basename fora dele, com sufixo
   de diretório se dois colidirem);
 - `fmt --diff` mostra o diff unificado e não escreve; `fmt --check --edits=json` devolve
-  `TextEdit[]` com posições exatas (line/column 1-based, offset em bytes) para editores e
-  agentes, sem reler o arquivo, e exige um único arquivo resolvido;
+  o texto formatado e `TextEdit[]` com posições exatas (line/column 1-based, offset em
+  bytes) para editores e agentes, sem reler o arquivo, e exige um único arquivo resolvido;
 - não remove parênteses, não reordena imports, não normaliza aspas/números, não alinha
   `=`/`:` e não formata range/seleção (isso fica em #110).
 
