@@ -49,6 +49,9 @@ disso.
   alinhamento ainda cabe; `///` e `/* */` ficam verbatim (sem reflow);
 - usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém
   sem), quebra binárias **depois** do operador e preserva C-style `for (;;)`;
+- `fmt --diff` mostra o diff unificado e não escreve; `fmt --check --edits=json` devolve
+  `TextEdit[]` com posições exatas (line/column 1-based, offset em bytes) para editores e
+  agentes, sem reler o arquivo;
 - não remove parênteses, não reordena imports, não normaliza aspas/números, não alinha
   `=`/`:` e não formata range/seleção (isso fica em #110).
 

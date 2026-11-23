@@ -9,8 +9,9 @@
   [ADR-0066](0066-orcamento-e-gate-sintatico.md) (forma canônica),
   [issue #109](https://github.com/loxia-lang/loxia/issues/109),
   [tracker #102](https://github.com/loxia-lang/loxia/issues/102)
-- **Implementação:** `loxia/formatter/doc.py`, `comments.py`, `printer.py` e `engine.py`;
-  `tests/test_formatter_doc.py`, `tests/test_formatter_v2.py`, `tests/test_formatter.py`;
+- **Implementação:** `loxia/formatter/doc.py`, `comments.py`, `printer.py`, `engine.py` e
+  `edits.py`; `tests/test_formatter_doc.py`, `tests/test_formatter_v2.py`,
+  `tests/test_formatter.py` e `tests/test_formatter_edits.py`;
   `tests/oracle/frontend.json` (seção `fmt`), `docs/guia-estilo.md`,
   `docs/spec/sintaxe.md` e `README.md`
 
@@ -61,8 +62,8 @@ Sem uma decisão de layout, cada regra viraria uma heurística de linha diferent
    token opcional ficam de fora). O oráculo congela os bytes do `format_source`.
 8. **Uma engine, sem fallback.** O v1 é removido; `format_source` é a engine v2. Não há
    `--legacy`; o estilo antigo não é uma opção de configuração.
-9. **Edits estruturados** (`--diff`, `--check --edits=json`, LSP) ficam na tranche
-   seguinte desta issue, sobre o mesmo core; range/selection continua em #110.
+9. **Edits estruturados** (`--diff`, `--check --edits=json`, LSP) usam um diff determinístico
+   por linhas sobre o mesmo core; range/selection continua em #110.
 
 ## Consequências
 
@@ -111,8 +112,8 @@ Sem uma decisão de layout, cada regra viraria uma heurística de linha diferent
 
 ## Como verificar
 
-- `uv run pytest tests/test_formatter_doc.py tests/test_formatter_v2.py tests/test_formatter.py`
-  — Doc IR, golden fixtures, corpus (idempotência, AST igual, comentários) e CLI.
+- `uv run pytest tests/test_formatter_doc.py tests/test_formatter_v2.py tests/test_formatter.py tests/test_formatter_edits.py`
+  — Doc IR, golden fixtures, corpus (idempotência, AST igual, comentários), CLI e edits.
 - `make oracle` — a seção `fmt` do manifesto é o contrato de bytes; `make oracle-update`
   só depois de revisar o diff.
 - `make frontend-bench` — custo de parse+format e pico de memória.

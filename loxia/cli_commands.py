@@ -200,6 +200,7 @@ def run_source(
 
 def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     from loxia.formatter import format_source
+    from loxia.formatter.edits import build_edits, edits_json, unified_diff
 
     if args.stdin and args.script:
         parser.error("--stdin cannot be combined with a script")
@@ -211,6 +212,10 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         parser.error("--max-errors must be non-negative")
     if not 20 <= args.max_width <= 1000:
         parser.error("--max-width must be between 20 and 1000")
+    if args.edits is not None and not args.check:
+        parser.error("--edits=json requires --check")
+    if args.diff and args.edits is not None:
+        parser.error("--diff cannot be combined with --edits")
 
     lox = Loxia(
         error_format=("json" if args.json or args.json_lines else args.error_format),
@@ -229,7 +234,21 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         lox.flush("fmt", exit_code=65, always=True)
         sys.exit(65)
 
+    label = (args.file_name or "<stdin>") if args.stdin else _display_path(Path(args.script))
+    if args.diff:
+        if result.changed:
+            sys.stdout.write(unified_diff(label, source, result.text))
+        sys.exit(1 if result.changed else 0)
+
     if args.check:
+        if args.edits == "json":
+            payload = {
+                "file": label,
+                "changed": result.changed,
+                "max_width": args.max_width,
+                "edits": edits_json(build_edits(source, result.text)),
+            }
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
         sys.exit(1 if result.changed else 0)
 
     if args.stdin:
@@ -241,6 +260,14 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     if result.changed:
         Path(args.script).write_text(result.text, encoding="utf-8")
     sys.exit(0)
+
+
+def _display_path(path: Path) -> str:
+    """Nome determinístico: relativo ao cwd quando possível, nunca absoluto."""
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return path.name
 
 
 def doc_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

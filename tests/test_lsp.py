@@ -34,6 +34,13 @@ def read(process: subprocess.Popen[bytes]) -> dict[str, Any]:
     return cast(dict[str, Any], payload)
 
 
+def read_response(process: subprocess.Popen[bytes], request_id: int) -> dict[str, Any]:
+    while True:
+        message = read(process)
+        if message.get("id") == request_id:
+            return message
+
+
 def start() -> subprocess.Popen[bytes]:
     return subprocess.Popen(
         [sys.executable, str(ENTRYPOINT), "lsp"],
@@ -322,7 +329,7 @@ def test_lsp_hover_field_via_class_type(tmp_path: Path) -> None:
             process.wait(timeout=5)
 
 
-def test_lsp_formatting_returns_full_document_edit(tmp_path: Path) -> None:
+def test_lsp_formatting_returns_minimal_edits(tmp_path: Path) -> None:
     uri = (tmp_path / "fmt.lx").as_uri()
     process = start()
     try:
@@ -353,9 +360,40 @@ def test_lsp_formatting_returns_full_document_edit(tmp_path: Path) -> None:
                 "params": {"textDocument": {"uri": uri}, "options": {}},
             },
         )
-        edits = read(process)["result"]
-        assert edits[0]["newText"] == "fn f() -> Int {\n  return 1\n}\n"
-        send(process, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})
+        edits = read_response(process, 2)["result"]
+        assert edits == [
+            {
+                "range": {
+                    "start": {"line": 1, "character": 0},
+                    "end": {"line": 2, "character": 0},
+                },
+                "newText": "  return 1\n",
+            }
+        ]
+
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didChange",
+                "params": {
+                    "textDocument": {"uri": uri, "version": 2},
+                    "contentChanges": [{"text": "fn f() -> Int {\n  return 1\n}\n"}],
+                },
+            },
+        )
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "textDocument/formatting",
+                "params": {"textDocument": {"uri": uri}, "options": {}},
+            },
+        )
+        assert read_response(process, 3)["result"] == []
+
+        send(process, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": {}})
         read(process)
         send(process, {"jsonrpc": "2.0", "method": "exit"})
         assert process.wait(timeout=5) == 0
