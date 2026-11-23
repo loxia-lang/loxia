@@ -2003,14 +2003,18 @@ print(f(9998))
 
 @pytest.mark.backend
 def test_oom_nao_e_capturavel(tmp_path: Path) -> None:
+    # Each iteration allocates a fresh string (`str(i)`): ~2M strings plus the list
+    # exceed 32 MB with room to spare, so the overflow does not depend on the
+    # collector or the runner. A constant string would be shared (interning) and
+    # only the list would grow (~16 MB), leaving the test at the budget edge —
+    # that was the flake in issue #144.
     path = _write(
         tmp_path,
         """fn alloc() -> Nil {
   var xs: List[String] = []
-  val s = "abcdefgh"
   var i = 0
   while (i < 2000000) {
-    xs.push(s)
+    xs.push(str(i))
     i = i + 1
   }
 }
