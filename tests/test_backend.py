@@ -628,9 +628,43 @@ def test_gc_preserva_try_frame_e_excecao(tmp_path: Path) -> None:
     assert native.stderr == ""
 
 
+TYPED_LIST_SOURCES = [
+    ("val xs: List[Int] = [1, 2]\nprint(len(xs))\n", True, "literal List[Int]"),
+    (
+        "class B { var xs: List[Int]\n  init() { this.xs = [] }\n}\n"
+        "val b = B()\nb.xs.push(1)\nprint(len(b.xs))\n",
+        True,
+        "campo de classe List[Int]",
+    ),
+    ('val xs: List[Any] = [1, "x"]\nprint(len(xs))\n', False, "List[Any] boxeada"),
+]
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(
+    ("source", "typed"),
+    [(source, typed) for source, typed, _ in TYPED_LIST_SOURCES],
+    ids=[label for _, _, label in TYPED_LIST_SOURCES],
+)
+def test_listas_tipadas_usam_armazenamento_desacoplado(
+    tmp_path: Path, source: str, typed: bool
+) -> None:
+    """O ganho de `List[T]` escalar é invisível na saída; o IR é o contrato.
+
+    Sem este teste, o lowering pode voltar a criar listas boxeadas sem que
+    nenhum caso de saída perceba (a promoção do runtime mantém a semântica).
+    """
+    path = _write(tmp_path, source)
+
+    result = _run([sys.executable, str(ENTRYPOINT), "--emit=ll", str(path)])
+
+    assert result.returncode == 0, result.stderr
+    assert ("lox_list_new_typed" in result.stdout) is typed
+
+
 # ~140 MiB de strings vivas: acima do override de 128 MiB, abaixo do default de 512 MiB.
-# `substr` materializa cada rope num buffer plano: desde a representação por
-# concatenação, `s + s` compartilha as metades e sozinho não pressiona o heap.
+# `join([s], "")` materializa cada rope num buffer plano: desde a representação
+# por concatenação, `s + s` compartilha as metades e sozinho não pressiona o heap.
 HEAP_PRESSURE_SOURCE = (
     "var xs: List[String] = []\n"
     "var i = 0\n"
