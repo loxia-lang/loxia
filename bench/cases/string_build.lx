@@ -1,0 +1,10 @@
+# Concatenação encadeada: 50k `s = s + "x"` e uma observação final (achata uma vez).
+var texto = ""
+var i = 0
+while (i < 50000) {
+  texto = texto + "x"
+  i = i + 1
+}
+val copia = texto + ""
+print(len(copia))
+print(copia == texto)
