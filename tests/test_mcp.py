@@ -407,6 +407,7 @@ def test_format_rejects_invalid_ranges_and_inputs() -> None:
     cases: tuple[dict[str, Any], ...] = (
         {"source": "val x = 1\n", "range": {"start_line": 2, "end_line": 1}},
         {"source": "val x = 1\n", "range": {"start_line": 1, "end_line": 9}},
+        {"source": "val x = 1\n", "range": {"start_line": 2, "end_line": 2}},
         {
             "source": "val x = 1\n",
             "range": {"start_line": 1, "end_line": 1},
@@ -536,6 +537,24 @@ def test_format_reports_terminated_process(monkeypatch: Any) -> None:
     assert result.is_error is True
     assert "did not finish" in result.content[0]
     assert result.structured["error"] == "formatter did not finish within 1 ms."
+
+
+def test_run_stderr_json_is_not_parsed_as_diagnostics() -> None:
+    process = start()
+    try:
+        result = call(
+            process,
+            1,
+            "loxia_run",
+            {"source": 'io.writeErr("{\\"x\\":1}")\n'},
+        )["result"]
+        assert result["isError"] is False
+        assert result["structuredContent"]["exit_code"] == 0
+        assert "result" not in result["structuredContent"]
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
 
 
 def test_spec_explain_and_version() -> None:

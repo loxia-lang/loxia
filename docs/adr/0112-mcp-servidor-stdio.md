@@ -49,7 +49,7 @@ do projeto foi **modern-only**: o servidor é novo e declara o requisito de clie
 | `loxia_check(source, file_name?, timeout_ms?)` | `loxia check --stdin --json`; texto = stdout exato; `structuredContent.result` = envelope parseado |
 | `loxia_run(source, args?, file_name?, timeout_ms?)` | `loxia run --stdin --json --sandbox -- ...`; stdout/stderr/exit exatos |
 | `loxia_ast(source, file_name?)` | `loxia ast --stdin --json`; S-expression exata |
-| `loxia_format(source\|path, range?/lines?, check?, diff?, max_width?)` | `fmt --check --edits=json` (com `text`); texto + `TextEdit[]`, range expande hunks, read-only (ADR-0137) |
+| `loxia_format(source\|path, range?/lines?, check?, diff?, max_width?, timeout_ms?)` | `fmt --check --edits=json` (com `text`); texto + `TextEdit[]`, range expande hunks, read-only (ADR-0137) |
 | `loxia_spec(query?, limit?)` | índice do ADR-0111; id de seção, página ou busca determinística |
 | `loxia_explain(code)` | catálogo de códigos (`docs/spec/erros.md`) |
 | `loxia_version()` | versão Loxia, protocolo MCP e versão do índice |

@@ -653,7 +653,9 @@ def _run_cli(
     )
 
 
-def _structured_cli(result: CliResult, command: str) -> dict[str, object]:
+def _structured_cli(
+    result: CliResult, command: str, *, parse_stderr: bool = False
+) -> dict[str, object]:
     payload: dict[str, object] = {
         "command": command,
         "stdout": result.stdout,
@@ -665,6 +667,8 @@ def _structured_cli(result: CliResult, command: str) -> dict[str, object]:
     try:
         envelope = json.loads(result.stdout)
     except json.JSONDecodeError:
+        if not parse_stderr:
+            return payload
         try:
             envelope = json.loads(result.stderr)
         except json.JSONDecodeError:
@@ -747,7 +751,7 @@ def tool_format(args: Mapping[str, object]) -> ToolResult:
         extra_args=("--check", "--edits=json", "--max-width", str(width)),
     )
     if result.exit_code not in (0, 1):
-        error_structured = _structured_cli(result, "fmt")
+        error_structured = _structured_cli(result, "fmt", parse_stderr=True)
         if result.exit_code < 0 or result.exit_code == 124 or result.timed_out:
             message = f"formatter did not finish within {timeout_ms} ms."
             error_structured["error"] = message
