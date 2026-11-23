@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+from loxia import mcp as mcp_module
 from loxia.formatter.edits import EditPosition, TextEdit, apply_edits
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -128,6 +129,7 @@ def test_discover_and_tools_list_are_modern_and_deterministic() -> None:
             {"required": ["source"]},
             {"required": ["path"]},
         ]
+        assert "timeout_ms" in cast(dict[str, Any], formatter["inputSchema"]["properties"])
     finally:
         if process.poll() is None:
             process.kill()
@@ -335,10 +337,11 @@ def test_format_path_is_read_only_and_diff_is_optional(tmp_path: Path) -> None:
         )["result"]
         assert result["isError"] is False
         data = result["structuredContent"]
-        assert data["file"] == "a.lx"
+        assert data["file"].endswith("a.lx")
+        assert not data["file"].startswith("/")
         assert data["check"] is True
         assert data["formatted"] == "fn f(a: Int) {\n  return a\n}\n"
-        assert "a/a.lx" in data["diff"]
+        assert "a.lx" in data["diff"]
         assert len(result["content"]) == 2
         assert script.read_text(encoding="utf-8") == source
     finally:
@@ -424,6 +427,7 @@ def test_format_rejects_invalid_ranges_and_inputs() -> None:
         invalid = call(process, 20, "loxia_format", {"source": "val =\n"})["result"]
         assert invalid["isError"] is True
         assert invalid["structuredContent"]["exit_code"] == 65
+        assert invalid["structuredContent"]["result"]["diagnostics"][0]["code"] == "E1001"
         assert "E1001" in invalid["content"][0]["text"]
     finally:
         if process.poll() is None:
@@ -446,6 +450,92 @@ def test_format_honors_max_width() -> None:
         if process.poll() is None:
             process.kill()
             process.wait(timeout=5)
+
+
+def test_format_range_includes_eof_hunk_without_final_newline() -> None:
+    source = "val a = 1\nval xs=[\n1,\n2\n]"
+    process = start()
+    try:
+        result = call(
+            process,
+            1,
+            "loxia_format",
+            {"source": source, "range": {"start_line": 5, "end_line": 5}},
+        )["result"]
+        assert result["isError"] is False
+        data = result["structuredContent"]
+        assert data["changed"] is True
+        assert data["edits"]
+        assert data["range"] == {"start_line": 2, "end_line": 5}
+        assert (
+            apply_edits(source, edits_from_payload(cast(dict[str, Any], data))) == data["formatted"]
+        )
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_rejects_path_guards(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid.lx"
+    invalid.write_bytes(b"val x = \xff\n")
+    too_large = tmp_path / "large.lx"
+    too_large.write_bytes(b"x" * (1_048_576 + 1))
+    valid = tmp_path / "ok.lx"
+    valid.write_text("val x = 1\n", encoding="utf-8")
+    process = start()
+    try:
+        for request_id, arguments in enumerate(
+            (
+                {"path": str(invalid)},
+                {"path": str(too_large)},
+                {"path": str(valid), "file_name": "ok.lx"},
+            ),
+            1,
+        ):
+            result = call(process, request_id, "loxia_format", arguments)["result"]
+            assert result["isError"] is True
+            assert result["content"][0]["text"]
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_label_disambiguates_paths_outside_cwd(tmp_path: Path) -> None:
+    first = tmp_path / "one" / "same.lx"
+    second = tmp_path / "two" / "same.lx"
+    first.parent.mkdir()
+    second.parent.mkdir()
+    first.write_text("val a=1\n", encoding="utf-8")
+    second.write_text("val b=2\n", encoding="utf-8")
+    process = start()
+    try:
+        one = call(process, 1, "loxia_format", {"path": str(first)})["result"]
+        two = call(process, 2, "loxia_format", {"path": str(second)})["result"]
+        assert one["structuredContent"]["file"] != two["structuredContent"]["file"]
+        assert one["structuredContent"]["file"].endswith("one/same.lx")
+        assert two["structuredContent"]["file"].endswith("two/same.lx")
+        assert not one["structuredContent"]["file"].startswith("/")
+        assert not two["structuredContent"]["file"].startswith("/")
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_format_reports_terminated_process(monkeypatch: Any) -> None:
+    def fake(*args: object, **kwargs: object) -> mcp_module.CliResult:
+        return mcp_module.CliResult(
+            stdout="", stderr="", exit_code=-9, timed_out=False, truncated=False
+        )
+
+    monkeypatch.setattr(mcp_module, "_run_cli", fake)
+    result = mcp_module.tool_format({"source": "val x=1\n", "timeout_ms": 1})
+
+    assert result.is_error is True
+    assert "did not finish" in result.content[0]
+    assert result.structured["error"] == "formatter did not finish within 1 ms."
 
 
 def test_spec_explain_and_version() -> None:

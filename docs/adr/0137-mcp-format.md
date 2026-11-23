@@ -23,7 +23,8 @@ que exponha esse primitivo sem criar um segundo formatter.
 
 1. **Tool `loxia_format`** no MCP, read-only, aceitando **exatamente um** de `source` ou
    `path` (path absoluto ou relativo, arquivo `.lx` regular, ≤ 1 MiB, UTF-8), além de
-   `max_width` (20..1000, default 100), `check`, `diff`, `range`/`lines`.
+   `max_width` (20..1000, default 100), `check`, `diff`, `range`/`lines` e `timeout_ms`
+   (default 10 s, máximo 60 s).
 2. **Uma chamada ao CLI**: `fmt --stdin --check --edits=json --max-width N`. O envelope
    `--edits=json` ganha o campo aditivo `text` com o texto formatado; o MCP continua um
    adaptador fino e não reimplementa scanner/parser/printer.

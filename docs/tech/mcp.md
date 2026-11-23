@@ -56,7 +56,7 @@ stdout; diagnostics and internal errors go to stderr.
 | `loxia_check` | `source`, optional `file_name`, `timeout_ms` | exact `check --stdin --json` stdout; parsed envelope in `structuredContent.result` |
 | `loxia_run` | `source`, optional `args`, `file_name`, `timeout_ms` | exact stdout/stderr/exit code from `run --stdin --json --sandbox -- ...` |
 | `loxia_ast` | `source`, optional `file_name` | exact S-expression from `ast --stdin --json` |
-| `loxia_format` | `source` or `path`, optional `range`/`lines`, `check`, `diff`, `max_width` | formatted text + `TextEdit[]`; range expands to whole hunks; never writes |
+| `loxia_format` | `source` or `path`, optional `range`/`lines`, `check`, `diff`, `max_width`, `timeout_ms` | formatted text + `TextEdit[]`; range expands to whole hunks; never writes |
 | `loxia_spec` | optional `query`, `limit` | section id/page id/free text searched over `loxia/_spec/index.json` (ADR-0111) |
 | `loxia_explain` | `code` | code, phase, severity, description and doc URL |
 | `loxia_version` | none | Loxia version, MCP protocol and docs index version |
@@ -83,8 +83,12 @@ the output stable. Without `range`/`lines`, `formatted` is the whole canonical f
 `formatted` is always the result of applying the returned `edits` to the normalized
 source. `check` is a dry-run hint (the tool never writes); `diff: true` adds the unified
 diff to `structuredContent.diff` and as a second content block. Invalid source keeps the
-CLI exit 65 diagnostics in `structuredContent`; invalid ranges, paths and ambiguous
-source/path inputs are tool errors.
+CLI exit 65 diagnostics in `structuredContent` (the envelope is parsed from stderr when
+the CLI writes it there); invalid ranges, paths and ambiguous source/path inputs are tool
+errors. `timeout_ms` defaults to 10 s and caps at 60 s; if the child is killed or times
+out, the tool returns a stable `formatter did not finish within N ms.` error instead of
+an empty result. `file` labels are relative to the server cwd (or a `../`-relative
+fallback), never absolute.
 
 ## Sandbox and limits
 

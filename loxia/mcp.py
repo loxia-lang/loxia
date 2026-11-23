@@ -158,7 +158,10 @@ def _format_label(path: Path) -> str:
     try:
         return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
-        return path.name
+        try:
+            return Path(os.path.relpath(path.resolve(), Path.cwd().resolve())).as_posix()
+        except ValueError:
+            return path.name
 
 
 def _format_path(args: Mapping[str, object]) -> tuple[str, str]:
@@ -173,6 +176,9 @@ def _format_path(args: Mapping[str, object]) -> tuple[str, str]:
     try:
         if not path.is_file():
             raise ToolError(f"path is not a file: {raw}")
+        size = path.stat().st_size
+        if size > MAX_SOURCE_BYTES:
+            raise ToolError(f"path is too large ({size} > {MAX_SOURCE_BYTES} bytes).")
         data = path.read_bytes()
     except OSError as error:
         raise ToolError(f"could not read path: {error.strerror or error}") from error
@@ -200,6 +206,14 @@ def _format_width(args: Mapping[str, object]) -> int:
     if not 20 <= width <= 1000:
         raise ToolError("max_width must be between 20 and 1000.")
     return width
+
+
+def _line_count(source: str) -> int:
+    pieces = source.split("\n")
+    lines = [piece + "\n" for piece in pieces[:-1]]
+    if pieces[-1]:
+        lines.append(pieces[-1])
+    return max(1, len(lines))
 
 
 def _format_range(args: Mapping[str, object], line_count: int) -> tuple[int, int] | None:
@@ -255,6 +269,8 @@ def _format_edits(payload: Mapping[str, object]) -> tuple[TextEdit, ...]:
 
 
 def _edit_last_line(edit: TextEdit) -> int:
+    if edit.end.column > 1:
+        return max(edit.start.line, edit.end.line)
     return max(edit.start.line, edit.end.line - 1)
 
 
@@ -370,6 +386,7 @@ def _format_schema() -> dict[str, object]:
             "check": _FORMAT_CHECK,
             "diff": _FORMAT_DIFF,
             "max_width": _FORMAT_MAX_WIDTH,
+            "timeout_ms": _TIMEOUT,
         }
     )
     schema["oneOf"] = [{"required": ["source"]}, {"required": ["path"]}]
@@ -648,7 +665,10 @@ def _structured_cli(result: CliResult, command: str) -> dict[str, object]:
     try:
         envelope = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return payload
+        try:
+            envelope = json.loads(result.stderr)
+        except json.JSONDecodeError:
+            return payload
     if isinstance(envelope, dict):
         payload["result"] = cast(dict[str, object], envelope)
     return payload
@@ -713,22 +733,28 @@ def tool_ast(args: Mapping[str, object]) -> ToolResult:
 def tool_format(args: Mapping[str, object]) -> ToolResult:
     source, label = _format_source(args)
     width = _format_width(args)
+    timeout_ms = _timeout(args)
     check = _boolean(args.get("check", False), "check")
     want_diff = _boolean(args.get("diff", False), "diff")
-    line_count = source.count("\n") + 1
+    line_count = _line_count(source)
     span = _format_range(args, line_count)
 
     result = _run_cli(
         "fmt",
         source,
         file_name=label,
-        timeout_ms=DEFAULT_TIMEOUT_MS,
+        timeout_ms=timeout_ms,
         extra_args=("--check", "--edits=json", "--max-width", str(width)),
     )
     if result.exit_code not in (0, 1):
+        error_structured = _structured_cli(result, "fmt")
+        if result.exit_code < 0 or result.exit_code == 124 or result.timed_out:
+            message = f"formatter did not finish within {timeout_ms} ms."
+            error_structured["error"] = message
+            return ToolResult(content=(message,), structured=error_structured, is_error=True)
         return ToolResult(
             content=_content_for(result, "fmt"),
-            structured=_structured_cli(result, "fmt"),
+            structured=error_structured,
             is_error=True,
         )
 
