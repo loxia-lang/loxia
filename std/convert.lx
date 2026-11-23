@@ -6,6 +6,28 @@
 # text is malformed. Every function is deterministic.
 
 import std.contracts as contracts
+import std.results as results
+
+/// Falha de decodificação de texto (`base64DecodeResult`, `hexDecodeResult`).
+///
+/// `kind` é estável (`invalidBase64`, `invalidHex`, `invalidUtf8`); `index` é a posição
+/// no texto de entrada, ou `-1` quando o problema está nos bytes decodificados (UTF-8
+/// inválido) e não em um caractere. `message` é determinística, sem caminho nem locale.
+class DecodeError {
+  /// Token estável: `invalidBase64`, `invalidHex` ou `invalidUtf8`.
+  val kind: String
+  /// Posição do problema no texto, ou `-1`.
+  val index: Int
+  /// Detalhe determinístico.
+  val message: String
+
+  /// Cria a falha com o token estável, a posição e o detalhe.
+  init(kind: String, index: Int, message: String) {
+    this.kind = kind
+    this.index = index
+    this.message = message
+  }
+}
 
 /// Parses a decimal integer, returning `nil` when invalid.
 ///
@@ -171,51 +193,70 @@ fn _base64Value(code: Int) -> Int {
   return -1
 }
 
-/// Decodes standard Base64 into UTF-8 text.
+/// Decodes standard Base64 into UTF-8 text, preserving the cause of a malformed input.
 ///
-/// Requires padded input whose length is a multiple of 4. Returns `nil` for invalid
-/// characters, misplaced padding, or bytes that are not valid UTF-8. The empty string
-/// decodes to `""`.
-fn base64Decode(text: String) -> String? {
+/// Requires padded input whose length is a multiple of 4. `Err` carries a `DecodeError`
+/// with the position of the invalid character or of the misplaced padding; bytes that
+/// are not valid UTF-8 are `invalidUtf8` with `index` `-1`. The empty string decodes to
+/// `""`.
+fn base64DecodeResult(text: String) -> Result[String, DecodeError] {
   if (len(text) % 4 != 0) {
-    return nil
+    return Result.Err(
+      DecodeError("invalidBase64", len(text), "length is not a multiple of 4")
+    )
   }
   val bytes: List[Int] = []
   var index = 0
   while (index < len(text)) {
     val a = _base64Value(charCodeAt(text, index))
     val b = _base64Value(charCodeAt(text, index + 1))
-    if (a < 0 or b < 0) {
-      return nil
+    if (a < 0) {
+      return Result.Err(DecodeError("invalidBase64", index, "invalid character"))
+    }
+    if (b < 0) {
+      return Result.Err(DecodeError("invalidBase64", index + 1, "invalid character"))
     }
     val thirdCode = charCodeAt(text, index + 2)
     val fourthCode = charCodeAt(text, index + 3)
     val last = index + 4 == len(text)
     if (thirdCode == 61) {
       if (not last or fourthCode != 61) {
-        return nil
+        return Result.Err(DecodeError("invalidBase64", index + 2, "misplaced padding"))
       }
       bytes.push(a * 4 + b // 16)
     } else {
       val c = _base64Value(thirdCode)
       if (c < 0) {
-        return nil
+        return Result.Err(DecodeError("invalidBase64", index + 2, "invalid character"))
       }
       bytes.push(a * 4 + b // 16)
       bytes.push((b % 16) * 16 + c // 4)
       if (fourthCode != 61) {
         val d = _base64Value(fourthCode)
         if (d < 0) {
-          return nil
+          return Result.Err(DecodeError("invalidBase64", index + 3, "invalid character"))
         }
         bytes.push((c % 4) * 64 + d)
       } elif (not last) {
-        return nil
+        return Result.Err(DecodeError("invalidBase64", index + 3, "misplaced padding"))
       }
     }
     index = index + 4
   }
-  return _utf8Text(bytes)
+  val decoded = _utf8Text(bytes)
+  if (decoded is String) {
+    return Result.Ok(decoded)
+  }
+  return Result.Err(DecodeError("invalidUtf8", -1, "bytes are not valid UTF-8"))
+}
+
+/// Decodes standard Base64 into UTF-8 text.
+///
+/// Requires padded input whose length is a multiple of 4. Returns `nil` for invalid
+/// characters, misplaced padding, or bytes that are not valid UTF-8. The empty string
+/// decodes to `""`. Ergonomic shell over `base64DecodeResult` (ADR-0135).
+fn base64Decode(text: String) -> String? {
+  return results.toOptional(base64DecodeResult(text))
 }
 
 fn _hexDigits() -> String {
@@ -249,24 +290,41 @@ fn hexEncode(text: String) -> String {
   return join(parts, "")
 }
 
-/// Decodes hexadecimal into UTF-8 text.
+/// Decodes hexadecimal into UTF-8 text, preserving the cause of a malformed input.
 ///
-/// Accepts lowercase and uppercase digits and requires an even number of them. Returns
-/// `nil` for invalid digits or bytes that are not valid UTF-8.
-fn hexDecode(text: String) -> String? {
+/// Accepts lowercase and uppercase digits and requires an even number of them. `Err`
+/// carries a `DecodeError` with the position of the invalid digit; bytes that are not
+/// valid UTF-8 are `invalidUtf8` with `index` `-1`.
+fn hexDecodeResult(text: String) -> Result[String, DecodeError] {
   if (len(text) % 2 != 0) {
-    return nil
+    return Result.Err(DecodeError("invalidHex", len(text), "length is not even"))
   }
   val bytes: List[Int] = []
   var index = 0
   while (index < len(text)) {
     val high = _hexValue(charCodeAt(text, index))
     val low = _hexValue(charCodeAt(text, index + 1))
-    if (high < 0 or low < 0) {
-      return nil
+    if (high < 0) {
+      return Result.Err(DecodeError("invalidHex", index, "invalid digit"))
+    }
+    if (low < 0) {
+      return Result.Err(DecodeError("invalidHex", index + 1, "invalid digit"))
     }
     bytes.push(high * 16 + low)
     index = index + 2
   }
-  return _utf8Text(bytes)
+  val decoded = _utf8Text(bytes)
+  if (decoded is String) {
+    return Result.Ok(decoded)
+  }
+  return Result.Err(DecodeError("invalidUtf8", -1, "bytes are not valid UTF-8"))
+}
+
+/// Decodes hexadecimal into UTF-8 text.
+///
+/// Accepts lowercase and uppercase digits and requires an even number of them. Returns
+/// `nil` for invalid digits or bytes that are not valid UTF-8. Ergonomic shell over
+/// `hexDecodeResult` (ADR-0135).
+fn hexDecode(text: String) -> String? {
+  return results.toOptional(hexDecodeResult(text))
 }

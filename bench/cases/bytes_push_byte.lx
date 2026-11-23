@@ -1,0 +1,10 @@
+# 100 mil bytes avulsos: mede o `pushByte` incremental (List[Int] pendente).
+import std.bytes as bytes
+
+val builder = bytes.Builder()
+var index = 0
+while (index < 100000) {
+  builder.pushByte(index % 256)
+  index = index + 1
+}
+print(len(builder.build()))

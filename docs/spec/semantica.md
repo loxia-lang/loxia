@@ -22,6 +22,15 @@ program at the point where it occurred; whatever was already printed remains. Si
 `try`/`raise` ([ADR-0042](../adr/0042-excecoes.md)) capture explicit exceptions and runtime
 errors, and `Result` covers expected errors. Type/syntax errors exit 65.
 
+The boundary between the two channels is [ADR-0135](../adr/0135-politica-de-erro.md): a **defect**
+(division by zero, `R1015`, invalid index) surfaces as `RuntimeError` and is fatal unless caught;
+an **expected failure** is a `Result[T, E]` value in the signature; `raise`/`except` is for
+**user control flow**. A function declares one channel: a function returning `Result` does not
+raise for the same failure, and a core function uses the plain name while its raising shell uses
+the `OrRaise` suffix. The stdlib does not raise for expected failure (allowlist: `asserts`,
+`contracts`, `test`, `property`). An `Err` left unhandled at the program top prints `error: <msg>`
+to stderr and exits **70** (same code as an uncaught runtime error).
+
 Call depth is limited to **10,000 Lox activations** (function, method, lambda,
 `init` and constructor); the next is `R1015` (`Stack overflow.`), exit 70, catchable by
 `try`/`except RuntimeError`, with position and stack trace

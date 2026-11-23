@@ -59,12 +59,12 @@ missing, not a secret.
 | `l6` | 95 |
 | `k0` | 2 |
 | `t1` | 6 |
-| `t2` | 20 |
+| `t2` | 22 |
 | `t3` | 7 |
 | `t4` | 3 |
 | `t7` | 3 |
 
-**224 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
+**226 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **6 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**

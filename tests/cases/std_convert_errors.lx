@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# std.convert: `*DecodeResult` carregam kind/index; as cascas devolvem nil (ADR-0135).
+import std.convert as convert
+
+match convert.hexDecodeResult("61zz") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+match convert.hexDecodeResult("6") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+match convert.hexDecodeResult("ff") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+match convert.base64DecodeResult("Zm9") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+match convert.base64DecodeResult("Zm!=") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+match convert.base64DecodeResult("/w==") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+match convert.base64DecodeResult("Zm9v") {
+  Result.Ok(text) => print(text)
+  Result.Err(error) => print(error.kind + " at " + str(error.index))
+}
+
+print(convert.hexDecode("zz") ?? "nil")
+print(convert.base64Decode("Zm9") ?? "nil")
+print(convert.hexDecode("61c3a7") ?? "nil")
+
+# expect: invalidHex at 2
+# expect: invalidHex at 1
+# expect: invalidUtf8 at -1
+# expect: invalidBase64 at 3
+# expect: invalidBase64 at 2
+# expect: invalidUtf8 at -1
+# expect: foo
+# expect: nil
+# expect: nil
+# expect: aç
