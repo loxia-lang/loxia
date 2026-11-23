@@ -640,7 +640,24 @@ class Loxia:
         always: bool = False,
         revision: int | None = None,
     ) -> None:
-        batch = self.reporter.batch()
+        self.flush_batch(
+            self.reporter.batch(),
+            command,
+            exit_code=exit_code,
+            always=always,
+            revision=revision,
+        )
+
+    def flush_batch(
+        self,
+        batch: DiagnosticBatch,
+        command: str,
+        *,
+        exit_code: int,
+        always: bool = False,
+        revision: int | None = None,
+    ) -> None:
+        """Renderiza um batch já coletado (usado por comandos com vários alvos)."""
         success = exit_code == 0
 
         if self.json_lines:

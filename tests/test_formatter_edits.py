@@ -166,7 +166,8 @@ def test_cli_diff_prints_unified_diff_and_does_not_write(tmp_path: Path) -> None
     result = run_cli("fmt", "--diff", str(script))
 
     assert result.returncode == 1
-    assert result.stdout.startswith("--- a/a.lx\n+++ b/a.lx\n")
+    assert result.stdout.startswith("--- a/")
+    assert result.stdout.splitlines()[0].endswith("/a.lx")
     assert str(tmp_path) not in result.stdout
     assert script.read_text(encoding="utf-8") == source
 

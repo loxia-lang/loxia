@@ -53,7 +53,9 @@ Backend internal errors (`E4002`) are prefixed with `internal lowering error:` o
 the backend yet.`). C compiler failures are sanitized so temporary paths are not leaked.
 
 - `human` (default) shows header + snippet; `short` shows only the header; `json` shows
-  the v1 envelope; `--json-lines` emits `start`/`diagnostic`/`summary` per line. Flags:
+  the v1 envelope; `--json-lines` emits `start`/`diagnostic`/`summary` per line. Em `fmt`
+  com vários alvos, `--json` agrega num único envelope (com o total no `summary`) e
+  `--json-lines` num único `start` + um único `summary`. Flags:
   `--error-format=human|short|json`, `--json`, `--color=auto|always|never` (respects
   `NO_COLOR`) and `--max-errors N` (default 20; `0` = unlimited).
 - **Warnings** (`W1xxx`, today `W1001` local never read) have `severity: warning`, exit 0 and
