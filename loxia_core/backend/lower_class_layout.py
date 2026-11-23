@@ -72,6 +72,7 @@ class ClassLayoutLowering(LoweringBase):
                     base_fields + local_index,
                     field.name.line,
                     field.name.column,
+                    field.type_annotation,
                 )
             )
         return fields

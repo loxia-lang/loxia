@@ -98,6 +98,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/list_literal.lx",
         "tests/cases/list_methods.lx",
         "tests/cases/list_stringify.lx",
+        "tests/cases/list_typed_storage.lx",
+        "tests/cases/class_field_typed_list.lx",
         "tests/cases/map_cycle.lx",
         "tests/cases/map_equality.lx",
         "tests/cases/math_optional.lx",

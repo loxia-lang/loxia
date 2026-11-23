@@ -62,11 +62,11 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     const LoxStr *separator = separator_pointer;
     size_t bytes = 0;
     for (int64_t index = 0; index < parts->count; index++) {
-        const LoxValue *item = &parts->items[index];
-        if (item->tag != 4) {
+        LoxValue item = lox_list_value_at(parts, index);
+        if (item.tag != 4) {
             lox_panic(line, column, "R1000", "join() expects List[String].");
         }
-        bytes += (size_t)((const LoxStr *)item->payload)->byte_len;
+        bytes += (size_t)((const LoxStr *)item.payload)->byte_len;
         if (index + 1 < parts->count) {
             bytes += (size_t)separator->byte_len;
         }
@@ -75,7 +75,7 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     char *data = (char *)(result + 1);
     size_t used = 0;
     for (int64_t index = 0; index < parts->count; index++) {
-        const LoxStr *item = (const LoxStr *)parts->items[index].payload;
+        const LoxStr *item = (const LoxStr *)lox_list_value_at(parts, index).payload;
         memcpy(data + used, lox_str_bytes(item), (size_t)item->byte_len);
         used += (size_t)item->byte_len;
         if (index + 1 < parts->count) {
@@ -87,7 +87,7 @@ void *lox_join(const void *parts_pointer, const void *separator_pointer,
     result->byte_len = (int64_t)used;
     result->cp_len = 0;
     for (int64_t index = 0; index < parts->count; index++) {
-        result->cp_len += ((const LoxStr *)parts->items[index].payload)->cp_len;
+        result->cp_len += ((const LoxStr *)lox_list_value_at(parts, index).payload)->cp_len;
         if (index + 1 < parts->count) {
             result->cp_len += separator->cp_len;
         }

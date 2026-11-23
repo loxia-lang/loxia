@@ -65,6 +65,13 @@ Generated-code side of the contract lives in `loxia_core/backend/`:
 with at least 64 code points, and `hash` caches FNV-1a for map keys. Public
 indices are code points, never bytes.
 
+`LoxList` is `{count, capacity, items, version, raw, kind}`. `kind == 0` keeps boxed
+`LoxValue` elements in `items`; `kind` 1..4 stores the payload of Int/Float/Bool/String in an
+i64 array (`raw`, allocated atomic except for String pointers). `lox_list_value_at` rebuilds
+the `LoxValue`, and a push/set with a mismatching tag promotes the whole list to boxed. The
+lowering picks the typed form for literals whose element type is a scalar; it is an
+optimization, never a semantic difference.
+
 A function uses `(i8* env, params...)`. A closure is `{fnptr, env, display}`. Class
 descriptors start with `{super, id, name, vtable, ...}`; an instance stores its
 descriptor in the first field, then a field bitmap and i64 slots. See

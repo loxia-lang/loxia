@@ -109,35 +109,98 @@ void *lox_str_from_range(const void *pointer) {
  * discriminator observed by `for-in`.
  * --------------------------------------------------------------------------- */
 
-/* Empty list with initial capacity 4. */
+/* Element kinds for typed storage: 0 = boxed `LoxValue`, 1..4 mirror the value
+ * tags (Int, Float, Bool, String). A typed array stores the payload in an i64
+ * slot (Float keeps its bit pattern), so `lox_list_value_at` can rebuild the
+ * `LoxValue` without allocating; String slots hold pointers and are scanned. */
+
+static void *list_raw_new(int32_t kind, int64_t capacity) {
+    size_t bytes = sizeof(int64_t) * (size_t)capacity;
+    return kind == 4 ? lox_alloc(bytes) : lox_alloc_atomic(bytes);
+}
+
+/* Boxed-value view of one element (no bounds check; internal callers iterate). */
+LoxValue lox_list_value_at(const LoxList *list, int64_t index) {
+    if (list->kind == 0) {
+        return list->items[index];
+    }
+    LoxValue value;
+    value.tag = list->kind;
+    value.payload = ((const int64_t *)list->raw)[index];
+    return value;
+}
+
+/* Converts typed storage to boxed `LoxValue` storage (once). */
+static void list_promote(LoxList *list) {
+    if (list->kind == 0) {
+        return;
+    }
+    LoxValue *items = lox_alloc(sizeof(LoxValue) * (size_t)list->capacity);
+    for (int64_t index = 0; index < list->count; index++) {
+        items[index] = lox_list_value_at(list, index);
+    }
+    list->items = items;
+    list->raw = NULL;
+    list->kind = 0;
+}
+
+/* Empty list with initial capacity 4 (boxed storage). */
 void *lox_list_new(void) {
     LoxList *list = lox_alloc(sizeof(LoxList));
     list->count = 0;
     list->capacity = 4;
     list->items = lox_alloc(sizeof(LoxValue) * (size_t)list->capacity);
     list->version = 0;
+    list->raw = NULL;
+    list->kind = 0;
+    return list;
+}
+
+/* Empty list whose elements are `kind` (1 Int, 2 Float, 3 Bool, 4 String). */
+void *lox_list_new_typed(int32_t kind) {
+    LoxList *list = lox_alloc(sizeof(LoxList));
+    list->count = 0;
+    list->capacity = 4;
+    list->items = NULL;
+    list->version = 0;
+    list->raw = list_raw_new(kind, list->capacity);
+    list->kind = kind;
     return list;
 }
 
 /* Doubles capacity and copies the elements; the old array is collected. */
 void lox_list_grow(LoxList *list) {
     int64_t capacity = list->capacity * 2;
-    LoxValue *items = lox_alloc(sizeof(LoxValue) * (size_t)capacity);
-    for (int64_t index = 0; index < list->count; index++) {
-        items[index] = list->items[index];
+    if (list->kind == 0) {
+        LoxValue *items = lox_alloc(sizeof(LoxValue) * (size_t)capacity);
+        for (int64_t index = 0; index < list->count; index++) {
+            items[index] = list->items[index];
+        }
+        list->items = items;
+    } else {
+        int64_t *raw = list_raw_new(list->kind, capacity);
+        memcpy(raw, list->raw, sizeof(int64_t) * (size_t)list->count);
+        list->raw = raw;
     }
-    list->items = items;
     list->capacity = capacity;
 }
 
-/* `push`: grows if needed, writes at the end and increments `version`. */
+/* `push`: grows if needed, writes at the end and increments `version`.
+ * A tag that does not match the typed element kind promotes to boxed. */
 void lox_list_push(void *pointer, int64_t tag, int64_t payload) {
     LoxList *list = pointer;
+    if (list->kind != 0 && tag != (int64_t)list->kind) {
+        list_promote(list);
+    }
     if (list->count == list->capacity) {
         lox_list_grow(list);
     }
-    list->items[list->count].tag = tag;
-    list->items[list->count].payload = payload;
+    if (list->kind == 0) {
+        list->items[list->count].tag = tag;
+        list->items[list->count].payload = payload;
+    } else {
+        ((int64_t *)list->raw)[list->count] = payload;
+    }
     list->count += 1;
     list->version += 1;
 }
@@ -170,7 +233,7 @@ LoxValue lox_list_get(const void *pointer, int64_t index, int32_t line,
     if (index < 0 || index >= list->count) {
         panic_index("List", index, list->count, line, column);
     }
-    return list->items[index];
+    return lox_list_value_at(list, index);
 }
 
 /* `xs[i] = v`; an index outside 0..count-1 is R1007; increments `version`. */
@@ -180,8 +243,15 @@ void lox_list_set(void *pointer, int64_t index, int64_t tag, int64_t payload,
     if (index < 0 || index >= list->count) {
         panic_index("List", index, list->count, line, column);
     }
-    list->items[index].tag = tag;
-    list->items[index].payload = payload;
+    if (list->kind != 0 && tag != (int64_t)list->kind) {
+        list_promote(list);
+    }
+    if (list->kind == 0) {
+        list->items[index].tag = tag;
+        list->items[index].payload = payload;
+    } else {
+        ((int64_t *)list->raw)[index] = payload;
+    }
     list->version += 1;
 }
 
@@ -193,7 +263,7 @@ LoxValue lox_list_pop(void *pointer, int32_t line, int32_t column) {
     }
     list->count -= 1;
     list->version += 1;
-    return list->items[list->count];
+    return lox_list_value_at(list, list->count);
 }
 
 
@@ -208,7 +278,8 @@ int lox_list_equal(const void *left_pointer, const void *right_pointer) {
         return 0;
     }
     for (int64_t index = 0; index < left->count; index++) {
-        if (!lox_value_equal(left->items[index], right->items[index])) {
+        if (!lox_value_equal(lox_list_value_at(left, index),
+                             lox_list_value_at(right, index))) {
             return 0;
         }
     }

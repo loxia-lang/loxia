@@ -675,7 +675,7 @@ void format_list(LoxBuffer *buffer, const LoxList *list) {
         if (index > 0) {
             buffer_text(buffer, ", ");
         }
-        format_value(buffer, list->items[index]);
+        format_value(buffer, lox_list_value_at(list, index));
     }
     buffer_char(buffer, ']');
     buffer->active_depth -= 1;

@@ -156,8 +156,10 @@ typedef struct {
 typedef struct {
     int64_t count;
     int64_t capacity;
-    LoxValue *items;
+    LoxValue *items; /* kind 0: boxed storage; NULL on a typed list */
     int64_t version;
+    void *raw;   /* kind != 0: one i64 per element (payload/pointer) */
+    int32_t kind; /* 0 boxed, 1 Int, 2 Float, 3 Bool, 4 String */
 } LoxList;
 
 /* L6 Map: boxed entries in insertion order, with a hashed index (ADR-0017). */
@@ -317,6 +319,8 @@ extern void lox_print_range (const void *pointer);
 extern void *lox_str_from_range (const void *pointer);
 extern void *lox_list_new (void);
 extern void lox_list_grow (LoxList *list);
+extern void *lox_list_new_typed (int32_t kind);
+extern LoxValue lox_list_value_at (const LoxList *list, int64_t index);
 extern void lox_list_push (void *pointer, int64_t tag, int64_t payload);
 extern int64_t lox_list_len (const void *pointer);
 extern int64_t lox_list_version (const void *pointer);

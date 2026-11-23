@@ -1,0 +1,34 @@
+# Campos tipados: o literal `[]` herda o elemento do campo (Int/String) e o
+# armazenamento tipado sobrevive a push, índice e iteração.
+class Holder {
+  var ints: List[Int]
+  var strs: List[String]
+  init() {
+    this.ints = []
+    this.strs = []
+  }
+  fn add(v: Int) -> Nil {
+    this.ints.push(v)
+  }
+}
+val h = Holder()
+h.add(1)
+h.add(2)
+h.ints.push(3)
+print(h.ints)
+print(len(h.ints))
+h.ints[1] = 20
+print(h.ints)
+h.strs.push("a")
+h.strs.push("b")
+print(join(h.strs, ""))
+var total = 0
+for x in h.ints { total = total + x }
+print(total)
+print(h.ints == [1, 20, 3])
+# expect: [1, 2, 3]
+# expect: 3
+# expect: [1, 20, 3]
+# expect: ab
+# expect: 24
+# expect: true

@@ -485,6 +485,11 @@ equality is `memcmp` of the flat bytes and `print` is an `fwrite`. Interpolation
 converting scalars with `lox_str_from_int/double/bool` and `lox_str_nil`; `repr` quotes and
 escapes with `lox_str_quote`.
 
+`List` escolhe o armazenamento no lowering: quando o elemento é `Int`/`Float`/`Bool`/`String`,
+o literal cria uma lista tipada (um i64 por elemento, buffer atômico exceto para ponteiros);
+o runtime promove para `LoxValue` boxeado no primeiro push de tag diferente. `Map` mantém as
+entradas em ordem de inserção e um índice open-addressing para lookup O(1).
+
 The generated `main` returns `0` on success; success/failure is never the return value of a
 user function. Before emitting `.ll`, `.o` or an executable, the driver runs the LLVM
 verifier (`mod.verify`); invalid IR becomes a `BackendError` (exit 65), never a binary.
