@@ -631,7 +631,9 @@ class ClassCodegenLowering(LoweringBase):
         for field in layout.all_fields():
             if field.initializer is None:
                 continue
-            value = self._coerce(self._expr(field.initializer), field.ty, field.line)
+            value = self._coerce(
+                self._expr_with_expected(field.initializer, field.annotation), field.ty, field.line
+            )
             self._store_field(instance, field, value)
 
     def _ctor_require_fields(self, layout: ClassLayout, instance: Value) -> None:

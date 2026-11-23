@@ -68,12 +68,20 @@
 /*
  * Immutable String: UTF-8 bytes + code-point count (ADR-0031, decision 6).
  * The IR uses `i8*` for the pointer; this struct is the layout.
+ *
+ * A leaf has `flat != NULL` (inline, NUL-terminated). A concatenation node has
+ * `flat == NULL` and `left`/`right`; `lox_str_bytes` flattens it on demand and
+ * caches the buffer in `flat`. `hash` caches FNV-1a (0 = not computed). The
+ * constant headers emitted by llvm_ir.string_literal follow this order.
  */
-typedef struct {
+typedef struct LoxStr {
     int64_t byte_len;
     int64_t cp_len;
-    const char *data;
+    const char *flat;    /* inline bytes; NULL on a rope node until flattened */
     int32_t *cp_offsets; /* lazy cache; NULL until the first random access */
+    uint64_t hash;       /* FNV-1a cache; 0 until the first map lookup */
+    struct LoxStr *left; /* rope node; NULL on a leaf */
+    struct LoxStr *right;
 } LoxStr;
 
 /*
@@ -148,11 +156,13 @@ typedef struct {
 typedef struct {
     int64_t count;
     int64_t capacity;
-    LoxValue *items;
+    LoxValue *items; /* kind 0: boxed storage; NULL on a typed list */
     int64_t version;
+    void *raw;   /* kind != 0: one i64 per element (payload/pointer) */
+    int32_t kind; /* 0 boxed, 1 Int, 2 Float, 3 Bool, 4 String */
 } LoxList;
 
-/* L6 Map: boxed entries in insertion order. */
+/* L6 Map: boxed entries in insertion order, with a hashed index (ADR-0017). */
 typedef struct {
     LoxValue key;
     LoxValue value;
@@ -163,6 +173,10 @@ typedef struct {
     int64_t capacity;
     LoxMapEntry *entries;
     int64_t version;
+    /* Open-addressing index over `entries`: a slot holds the entry index + 1,
+     * 0 means empty. Rebuilt on remove/grow; capacity is a power of two. */
+    int32_t *index;
+    int64_t index_capacity;
 } LoxMap;
 
 /* L6 Tuple: boxed elements, fixed arity, immutable. */
@@ -269,6 +283,7 @@ extern void lox_print_frame (const LoxFrame *frame);
 extern void lox_print_frames (int64_t depth);
 extern void lox_reserve_stack (void);
 extern void *lox_oom (size_t size);
+extern void lox_oom_exit (void);
 extern void *lox_alloc (size_t size);
 extern void *lox_alloc_atomic (size_t size);
 extern void *lox_alloc_cell (void);
@@ -287,6 +302,7 @@ extern void lox_print_str (const void *pointer);
 extern int64_t lox_str_len (const void *pointer);
 extern int32_t lox_str_compare (const void *left_pointer, const void *right_pointer);
 extern int32_t lox_str_equal (const void *left_pointer, const void *right_pointer);
+extern uint64_t lox_str_hash (const void *pointer);
 extern void *lox_str_concat (const void *left_pointer, const void *right_pointer);
 /* ---------------------------------------------------------------------------
  * Containers: Range, List, Map, Tuple, Enum
@@ -303,6 +319,8 @@ extern void lox_print_range (const void *pointer);
 extern void *lox_str_from_range (const void *pointer);
 extern void *lox_list_new (void);
 extern void lox_list_grow (LoxList *list);
+extern void *lox_list_new_typed (int32_t kind);
+extern LoxValue lox_list_value_at (const LoxList *list, int64_t index);
 extern void lox_list_push (void *pointer, int64_t tag, int64_t payload);
 extern int64_t lox_list_len (const void *pointer);
 extern int64_t lox_list_version (const void *pointer);
@@ -438,6 +456,7 @@ extern void lox_print_float (double value);
 extern LoxStr *string_from_ascii (const char *data, size_t length);
 extern LoxStr *string_from_bytes (const char *data, size_t length, int64_t code_points);
 extern const char *lox_str_data (const void *pointer);
+extern const char *lox_str_bytes (const LoxStr *string);
 extern void *lox_str_from_int (int64_t value);
 extern void *lox_str_from_double (double value);
 extern void *lox_str_from_bool (int32_t value);

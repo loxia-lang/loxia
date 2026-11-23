@@ -17,6 +17,7 @@ from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Function, Param
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
+from loxia_core.frontend.ty import Ty
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -225,6 +226,9 @@ class FieldLayout:
     index: int
     line: int
     column: int = 0
+    # Anotação declarada (não achatada em `TypeDesc`), para propagar `List[T]`/
+    # `Map[K, V]` ao lowering de literais em campos.
+    annotation: Ty | None = None
 
 
 @dataclass

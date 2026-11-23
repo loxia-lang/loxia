@@ -14,6 +14,7 @@ from loxia_core.backend.lower_model import (
     _I32,
     _INT,
     _VOID,
+    BackendError,
     TypeDesc,
     Value,
     ValueType,
@@ -33,8 +34,43 @@ class ContainerLowering(LoweringBase):
             return self._type_desc(self._subst_ty(self._list_expected_element), line)
         raise _unsupported("List element type", line)
 
+    def _list_storage_kind(self, expr: ListLiteral, line: int | None) -> int:
+        """Typed storage for a literal whose element type is a scalar.
+
+        Optional, union, class and function elements stay boxed (`Any` -> 0); the
+        runtime promotes a typed list on the first mismatching push, so the
+        choice is an optimization, never a semantic one.
+        """
+        try:
+            desc = self._element_desc(expr, line)
+        except BackendError:
+            return 0
+        if (
+            desc.optional
+            or desc.fn is not None
+            or desc.class_name is not None
+            or desc.interface_name is not None
+        ):
+            return 0
+        if desc.ty is ValueType.INT:
+            return 1
+        if desc.ty is ValueType.FLOAT:
+            return 2
+        if desc.ty is ValueType.BOOL:
+            return 3
+        if desc.ty is ValueType.STRING:
+            return 4
+        return 0
+
     def _list_literal(self, expr: ListLiteral) -> Value:
-        raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
+        kind = self._list_storage_kind(expr, expr.bracket.line)
+        if kind != 0:
+            raw = self.builder.call(
+                self._function("lox_list_new_typed", _I8_PTR, [_I32]),
+                [llvm_ir.constant(_I32, kind)],
+            )
+        else:
+            raw = self.builder.call(self._function("lox_list_new", _I8_PTR, []), [])
         for item in expr.elements:
             value = self._expr(item)
             boxed = self._box_value(value, None)

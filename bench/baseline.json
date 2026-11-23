@@ -13,7 +13,9 @@
     "float_math": 638.33,
     "gc_churn": 124.36,
     "loop_sum": 549.5,
+    "map_ops": 288.03,
     "nested_loop": 347.96,
+    "string_build": 271.7,
     "string_concat": 243.84,
     "string_scan": 665.57
   }

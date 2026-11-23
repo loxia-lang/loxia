@@ -40,8 +40,11 @@ void *lox_str_from_function(const void *pointer) {
 
     result->byte_len = (int64_t)length;
     result->cp_len = (int64_t)length;
-    result->data = data;
+    result->flat = data;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -52,7 +55,7 @@ void *lox_str_from_function(const void *pointer) {
 /* `print(s)`: raw UTF-8 bytes + newline (no quotes). */
 void lox_print_str(const void *pointer) {
     const LoxStr *string = pointer;
-    fwrite(string->data, 1, (size_t)string->byte_len, stdout);
+    fwrite(lox_str_bytes(string), 1, (size_t)string->byte_len, stdout);
     fputc('\n', stdout);
 }
 
@@ -65,9 +68,11 @@ int64_t lox_str_len(const void *pointer) {
 int32_t lox_str_compare(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
     const LoxStr *right = right_pointer;
+    const char *left_bytes = lox_str_bytes(left);
+    const char *right_bytes = lox_str_bytes(right);
     size_t shared = (size_t)(left->byte_len < right->byte_len ? left->byte_len
                                                                : right->byte_len);
-    int result = memcmp(left->data, right->data, shared);
+    int result = memcmp(left_bytes, right_bytes, shared);
     if (result != 0) {
         return result < 0 ? -1 : 1;
     }
@@ -84,25 +89,51 @@ int32_t lox_str_equal(const void *left_pointer, const void *right_pointer) {
     if (left->byte_len != right->byte_len) {
         return 0;
     }
-    return memcmp(left->data, right->data, (size_t)left->byte_len) == 0;
+    const char *left_bytes = lox_str_bytes(left);
+    const char *right_bytes = lox_str_bytes(right);
+    return memcmp(left_bytes, right_bytes, (size_t)left->byte_len) == 0;
 }
 
-/* String `+`: allocates a new LoxStr and adds `cp_len`. */
+/* FNV-1a over the bytes, cached in the LoxStr (0 means "not computed").
+ * Content-based, so it agrees with `lox_str_equal`; deterministic (I3). */
+uint64_t lox_str_hash(const void *pointer) {
+    LoxStr *string = (LoxStr *)pointer;
+    if (string->hash != 0) {
+        return string->hash;
+    }
+    const unsigned char *data = (const unsigned char *)lox_str_bytes(string);
+    uint64_t hash = 14695981039346656037ULL;
+    for (int64_t index = 0; index < string->byte_len; index++) {
+        hash ^= (uint64_t)data[index];
+        hash *= 1099511628211ULL;
+    }
+    if (hash == 0) {
+        hash = 1;
+    }
+    string->hash = hash;
+    return hash;
+}
+
+/* String `+`: concatenates without copying. An empty side returns the other
+ * operand (strings are immutable); otherwise the result is a rope node that
+ * `lox_str_bytes` flattens on first observation. */
 void *lox_str_concat(const void *left_pointer, const void *right_pointer) {
     const LoxStr *left = left_pointer;
     const LoxStr *right = right_pointer;
-    size_t bytes = (size_t)left->byte_len + (size_t)right->byte_len;
-
-    LoxStr *result = lox_alloc(sizeof(LoxStr) + bytes + 1);
-    char *data = (char *)(result + 1);
-    memcpy(data, left->data, (size_t)left->byte_len);
-    memcpy(data + left->byte_len, right->data, (size_t)right->byte_len);
-    data[bytes] = '\0';
-
-    result->byte_len = (int64_t)bytes;
+    if (left->byte_len == 0) {
+        return (void *)right;
+    }
+    if (right->byte_len == 0) {
+        return (void *)left;
+    }
+    LoxStr *result = lox_alloc(sizeof(LoxStr));
+    result->byte_len = left->byte_len + right->byte_len;
     result->cp_len = left->cp_len + right->cp_len;
-    result->data = data;
+    result->flat = NULL;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = (LoxStr *)left;
+    result->right = (LoxStr *)right;
     return result;
 }
 
@@ -135,7 +166,7 @@ int64_t utf8_cp_offset(const LoxStr *string, int64_t index) {
     if (string->cp_offsets == NULL && string->cp_len >= 64) {
         int32_t *offsets = lox_alloc_atomic(
             (size_t)(string->cp_len + 1) * sizeof(int32_t));
-        const unsigned char *data = (const unsigned char *)string->data;
+        const unsigned char *data = (const unsigned char *)lox_str_bytes(string);
         size_t offset = 0;
         int64_t position = 0;
         offsets[0] = 0;
@@ -151,7 +182,7 @@ int64_t utf8_cp_offset(const LoxStr *string, int64_t index) {
     if (string->cp_offsets != NULL) {
         return string->cp_offsets[index];
     }
-    const unsigned char *data = (const unsigned char *)string->data;
+    const unsigned char *data = (const unsigned char *)lox_str_bytes(string);
     size_t offset = 0;
     for (int64_t position = 0; position < index; position++) {
         unsigned char byte = data[offset];
@@ -165,7 +196,7 @@ int64_t utf8_cp_offset(const LoxStr *string, int64_t index) {
 void *lox_str_char_at(const void *pointer, int64_t index) {
     const LoxStr *string = pointer;
     int64_t offset = utf8_cp_offset(string, index);
-    const unsigned char *data = (const unsigned char *)string->data;
+    const unsigned char *data = (const unsigned char *)lox_str_bytes(string);
     unsigned char byte = data[offset];
     size_t length = byte < 0x80 ? 1 : (byte & 0xE0) == 0xC0 ? 2
                      : (byte & 0xF0) == 0xE0 ? 3 : 4;
@@ -367,14 +398,58 @@ LoxStr *string_from_bytes(const char *data, size_t length,
     copy[length] = '\0';
     result->byte_len = (int64_t)length;
     result->cp_len = code_points;
-    result->data = copy;
+    result->flat = copy;
     result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
+}
+
+/* Materializes the bytes of a rope into `flat` (iteratively, so a 50k-deep
+ * left spine does not touch the C stack) and returns them. Leaves already have
+ * `flat`; the temporary stack holds LoxStr pointers, not language values. */
+const char *lox_str_bytes(const LoxStr *string) {
+    if (string->flat != NULL) {
+        return string->flat;
+    }
+    size_t capacity = 64;
+    size_t depth = 0;
+    LoxStr **stack = malloc(sizeof(LoxStr *) * capacity);
+    if (stack == NULL) {
+        lox_oom_exit();
+    }
+    stack[depth++] = (LoxStr *)string;
+    char *buffer = lox_alloc_atomic((size_t)string->byte_len + 1);
+    size_t used = 0;
+    while (depth > 0) {
+        LoxStr *node = stack[--depth];
+        if (node->flat != NULL) {
+            memcpy(buffer + used, node->flat, (size_t)node->byte_len);
+            used += (size_t)node->byte_len;
+            continue;
+        }
+        if (depth + 2 > capacity) {
+            capacity *= 2;
+            LoxStr **grown = realloc(stack, sizeof(LoxStr *) * capacity);
+            if (grown == NULL) {
+                free(stack);
+                lox_oom_exit();
+            }
+            stack = grown;
+        }
+        stack[depth++] = node->right;
+        stack[depth++] = node->left;
+    }
+    free(stack);
+    buffer[used] = '\0';
+    ((LoxStr *)string)->flat = buffer;
+    return buffer;
 }
 
 /* Pointer to the bytes (valid while the LoxStr lives; the GC keeps it alive). */
 const char *lox_str_data(const void *pointer) {
-    return ((const LoxStr *)pointer)->data;
+    return lox_str_bytes((const LoxStr *)pointer);
 }
 
 /* `str(Int)`/Int interpolation. */
@@ -421,7 +496,7 @@ void *lox_str_quote(const void *pointer) {
     data[used++] = '"';
 
     for (size_t index = 0; index < bytes; index++) {
-        char byte = source->data[index];
+        char byte = lox_str_bytes(source)[index];
         switch (byte) {
             case '\\':
                 data[used++] = '\\';
@@ -458,7 +533,11 @@ void *lox_str_quote(const void *pointer) {
 
     result->byte_len = (int64_t)used;
     result->cp_len = source->cp_len + 2;
-    result->data = data;
+    result->flat = data;
+    result->cp_offsets = NULL;
+    result->hash = 0;
+    result->left = NULL;
+    result->right = NULL;
     return result;
 }
 
@@ -596,7 +675,7 @@ void format_list(LoxBuffer *buffer, const LoxList *list) {
         if (index > 0) {
             buffer_text(buffer, ", ");
         }
-        format_value(buffer, list->items[index]);
+        format_value(buffer, lox_list_value_at(list, index));
     }
     buffer_char(buffer, ']');
     buffer->active_depth -= 1;
@@ -629,20 +708,20 @@ void format_value(LoxBuffer *buffer, LoxValue value) {
         case 4: {
             void *quoted = lox_str_quote((const void *)value.payload);
             const LoxStr *string = quoted;
-            buffer_bytes(buffer, string->data, (size_t)string->byte_len);
+            buffer_bytes(buffer, lox_str_bytes(string), (size_t)string->byte_len);
             break;
         }
         case 5: {
             void *descriptor = (void *)value.payload;
             const LoxStr *name = ((void **)descriptor)[2];
-            buffer_bytes(buffer, name->data, (size_t)name->byte_len);
+            buffer_bytes(buffer, lox_str_bytes(name), (size_t)name->byte_len);
             break;
         }
         case 6: {
             void *instance = (void *)value.payload;
             void *descriptor = ((void **)instance)[0];
             const LoxStr *name = ((void **)descriptor)[2];
-            buffer_bytes(buffer, name->data, (size_t)name->byte_len);
+            buffer_bytes(buffer, lox_str_bytes(name), (size_t)name->byte_len);
             buffer_text(buffer, " instance");
             break;
         }
@@ -821,7 +900,7 @@ void lox_print_any(int64_t tag, int64_t payload) {
             void *instance = (void *)payload;
             void *descriptor = ((void **)instance)[0];
             const LoxStr *name = ((void **)descriptor)[2];
-            fwrite(name->data, 1, (size_t)name->byte_len, stdout);
+            fwrite(lox_str_bytes(name), 1, (size_t)name->byte_len, stdout);
             fputs(" instance\n", stdout);
             break;
         }

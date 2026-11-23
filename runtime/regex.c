@@ -50,7 +50,7 @@ void *lox_regex_engine_compile(const void *pattern_pointer, int64_t flags, int64
 
     int64_t handle = 0;
     int64_t offset = -1;
-    int32_t code = loxr_compile((const uint8_t *)pattern->data, (size_t)pattern->byte_len,
+    int32_t code = loxr_compile((const uint8_t *)lox_str_bytes(pattern), (size_t)pattern->byte_len,
                                 (uint32_t)flags, (uint32_t)mode, &handle, &offset);
 
     LoxList *result = lox_list_new();
@@ -76,12 +76,12 @@ void *lox_regex_engine_find(int64_t handle, const void *subject_pointer, int64_t
     }
 
     int64_t local[LOX_REGEX_LOCAL_SPANS];
-    int32_t code = loxr_match(handle, (const uint8_t *)subject->data, (size_t)subject->byte_len,
+    int32_t code = loxr_match(handle, (const uint8_t *)lox_str_bytes(subject), (size_t)subject->byte_len,
                               (size_t)start, local, LOX_REGEX_LOCAL_SPANS);
     int64_t *spans = local;
     if (code == LOXR_ERR_CAPACITY) {
         int64_t *grown = lox_alloc_atomic(sizeof(int64_t) * LOX_REGEX_GROW_CAPACITY);
-        code = loxr_match(handle, (const uint8_t *)subject->data, (size_t)subject->byte_len,
+        code = loxr_match(handle, (const uint8_t *)lox_str_bytes(subject), (size_t)subject->byte_len,
                           (size_t)start, grown, LOX_REGEX_GROW_CAPACITY);
         spans = grown;
     }

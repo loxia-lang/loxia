@@ -1,0 +1,14 @@
+# Map[Int,Int]: 20k inserts + 20k lookups (mede hash e ordem de inserção).
+var m: Map[Int, Int] = {}
+var i = 0
+while (i < 20000) {
+  m[i] = i * 2
+  i = i + 1
+}
+var total = 0
+i = 0
+while (i < 20000) {
+  total = total + i + m[i]
+  i = i + 1
+}
+print(total)

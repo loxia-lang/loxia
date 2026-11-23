@@ -110,13 +110,13 @@ int64_t lox_proc_spawn(const void *argv_pointer) {
     char **arguments =
         lox_alloc_atomic(sizeof(char *) * (size_t)(argv->count + 1));
     for (int64_t index = 0; index < argv->count; index++) {
-        const LoxValue *item = &argv->items[index];
-        if (item->tag != 4) {
+        LoxValue item = lox_list_value_at(argv, index);
+        if (item.tag != 4) {
             return 0;
         }
-        const LoxStr *text = (const LoxStr *)item->payload;
+        const LoxStr *text = (const LoxStr *)item.payload;
         char *copy = lox_alloc_atomic((size_t)text->byte_len + 1);
-        memcpy(copy, text->data, (size_t)text->byte_len);
+        memcpy(copy, lox_str_bytes(text), (size_t)text->byte_len);
         copy[text->byte_len] = '\0';
         arguments[index] = copy;
     }
@@ -384,7 +384,7 @@ int32_t lox_proc_write(int64_t id, const void *text_pointer, int32_t line,
         ssize_t written;
         do {
             written =
-                write(stream->fd, text->data + total,
+                write(stream->fd, lox_str_bytes(text) + total,
                       (size_t)text->byte_len - total);
         } while (written < 0 && errno == EINTR);
         if (written <= 0) {
@@ -425,13 +425,13 @@ void *lox_proc_poll(const void *ids_pointer, int64_t timeout_ms, int32_t line,
     int has_processes = 0;
 
     for (size_t index = 0; index < count; index++) {
-        const LoxValue *item = &ids->items[index];
-        if (item->tag != 1) {
+        LoxValue item = lox_list_value_at(ids, index);
+        if (item.tag != 1) {
             lox_panic(line, column, "R1000",
                       "process.poll() expects List[Int].");
             return NULL;
         }
-        int64_t id = item->payload;
+        int64_t id = item.payload;
         LoxProcHandle *handle = proc_handle_at(id, line, column);
         if (handle == NULL) {
             return NULL;
