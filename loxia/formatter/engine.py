@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Engine do formatter: scanner → parser → SourceIndex → printer → render (ADR-0136)."""
+"""Engine do formatter: scanner → parser → printer → render (ADR-0136)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from loxia.formatter.printer import Printer
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
-from loxia_core.frontend.source_index import SourceIndex
 
 DEFAULT_MAX_WIDTH = 100
 
@@ -37,7 +36,6 @@ def format_source(
     if reporter.had_error or statements is None:
         return None
 
-    index = SourceIndex(statements, source)
-    printer = Printer(source=source, trivia=scanner.trivia, index=index, width=max_width)
+    printer = Printer(source=source, trivia=scanner.trivia, width=max_width)
     value = printer.format(statements)
     return Formatted(text=value, changed=value != source)

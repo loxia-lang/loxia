@@ -21,6 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from loxia.formatter import format_source
+from loxia.formatter.printer import Printer
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
@@ -63,6 +64,44 @@ def format_pass(files: list[Path]) -> int:
     return formatted
 
 
+def breakdown_pass(files: list[Path]) -> dict[str, float]:
+    totals = {"scan": 0.0, "parse": 0.0, "print": 0.0}
+    for path in files:
+        source = _read(path)
+        reporter = ErrorReporter(max_errors=0)
+
+        start = time.perf_counter()
+        scanner = Scanner(source, reporter)
+        tokens = scanner.scan_tokens()
+        totals["scan"] += (time.perf_counter() - start) * 1000
+        if reporter.had_error:
+            continue
+
+        start = time.perf_counter()
+        tree = Parser(tokens, reporter=reporter).parse()
+        totals["parse"] += (time.perf_counter() - start) * 1000
+        if tree is None or reporter.had_error:
+            continue
+
+        start = time.perf_counter()
+        Printer(source=source, trivia=scanner.trivia, width=100).format(tree)
+        totals["print"] += (time.perf_counter() - start) * 1000
+    return totals
+
+
+def _measure_breakdown(files: list[Path], repeat: int) -> None:
+    samples: dict[str, list[float]] = {key: [] for key in ("scan", "parse", "print")}
+    for _ in range(repeat):
+        result = breakdown_pass(files)
+        for key, value in result.items():
+            samples[key].append(value)
+    for key in ("scan", "parse", "print"):
+        print(
+            f"  {key}: median {statistics.median(samples[key]):.1f} ms, "
+            f"min {min(samples[key]):.1f} ms"
+        )
+
+
 def _measure(label: str, call: Callable[[], object], repeat: int) -> tuple[float, float]:
     samples: list[float] = []
     for _ in range(repeat):
@@ -90,6 +129,8 @@ def main(argv: list[str] | None = None) -> int:
 
     _measure("parse", lambda: parse_pass(files), args.repeat)
     _measure("format", lambda: format_pass(files), args.repeat)
+    print("format breakdown (formatter pipeline):")
+    _measure_breakdown(files, args.repeat)
 
     tracemalloc.start()
     parse_pass(files)

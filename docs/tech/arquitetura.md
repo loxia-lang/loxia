@@ -172,10 +172,12 @@ import wrap_int`). The program runs from the repository root.
 
 `make frontend-bench` roda [`tools/frontend_bench.py`](../../tools/frontend_bench.py) sem
 subprocesso e sem CI: no corpus de 2026-11-23 (349 arquivos, 320 parseáveis, 62 500 tokens,
-2 663 statements), parse ~526 ms e `format_source` ~1 267 ms (mediana de 3), com pico de
-~3,7 MiB no `tracemalloc` para parse+format. O formatter v2 (ADR-0136) constrói Doc IR e
-`SourceIndex`; é ferramenta offline, não caminho quente. O port em Lox/nativo tem
-orçamento próprio (512 MiB/10k chamadas) e será medido na fase D.
+2 663 statements), parse ~528 ms e `format_source` ~973 ms (mediana de 5), com pico de
+~3,1 MiB no `tracemalloc` para parse+format. O formatter v2 (ADR-0136) constrói Doc IR e
+deriva offsets de início com uma caminhada memoizada de primeiro token, sem construir o
+`SourceIndex` completo (antes: ~1 267 ms e ~3,7 MiB); é ferramenta offline, não caminho
+quente. O port em Lox/nativo tem orçamento próprio (512 MiB/10k chamadas) e será medido na
+fase D.
 
 ## Visitor
 

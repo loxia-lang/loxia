@@ -27,6 +27,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `.mmm` (`isoMillis`).
 
 ### Adicionado
+- **Formatter mais barato** ([#152](https://github.com/loxia-lang/loxia/issues/152)):
+  o formatter deriva offsets de início com uma caminhada memoizada de primeiro token em
+  vez de construir o `SourceIndex` completo; no corpus, `format_source` caiu de ~1,27 s
+  para ~0,97 s e o pico de memória de ~3,7 MiB para ~3,1 MiB, sem mudar um byte da saída.
 - **Edits estruturados do `fmt`** ([ADR-0136](docs/adr/0136-formatter-2-doc-ir.md),
   [#109](https://github.com/loxia-lang/loxia/issues/109)): `loxia fmt --diff` mostra um
   diff unificado sem escrever e `loxia fmt --check --edits=json` devolve `TextEdit[]` com
