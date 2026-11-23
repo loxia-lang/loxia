@@ -652,7 +652,19 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             default=None,
             help="com --check: emite TextEdit[] em JSON; não escreve",
         )
-        parser.add_argument("script", nargs="?", help="script Loxia")
+        groups.general.add_argument(
+            "--exclude",
+            action="append",
+            default=[],
+            metavar="GLOB",
+            help="padrão (relativo ao cwd) a ignorar em diretórios; repetível",
+        )
+        parser.add_argument(
+            "paths",
+            nargs="*",
+            metavar="PATH",
+            help="arquivos ou diretórios .lx; diretórios são recursivos",
+        )
     elif command == "doc":
         # `--json` do doc é a referência em JSON, não o formato de erro: por isso as
         # opções de diagnóstico são declaradas à parte em vez de `_add_diagnostics_options`.

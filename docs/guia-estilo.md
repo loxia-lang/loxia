@@ -50,9 +50,13 @@ disso.
   alinhamento ainda cabe; `///` e `/* */` ficam verbatim (sem reflow);
 - usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém
   sem), quebra binárias **depois** do operador e preserva C-style `for (;;)`;
+- aceita vários arquivos e diretórios recursivos (`loxia fmt std tests/cases`), em ordem
+  determinística; `--exclude GLOB` (repetível, relativo ao cwd) tira diretórios/arquivos da
+  varredura, enquanto um path explícito sempre entra; com erro de sintaxe em qualquer alvo
+  **nada** é escrito (exit 65, diagnóstico por arquivo);
 - `fmt --diff` mostra o diff unificado e não escreve; `fmt --check --edits=json` devolve
   `TextEdit[]` com posições exatas (line/column 1-based, offset em bytes) para editores e
-  agentes, sem reler o arquivo;
+  agentes, sem reler o arquivo, e exige um único arquivo resolvido;
 - não remove parênteses, não reordena imports, não normaliza aspas/números, não alinha
   `=`/`:` e não formata range/seleção (isso fica em #110).
 

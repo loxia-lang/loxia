@@ -6,6 +6,8 @@ valida o que é específico do comando e delega para a engine (`loxia.engine.Lox
 `HANDLERS` é a única tabela de despacho: `loxia.cli` só olha o primeiro argumento.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -17,7 +19,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
-from typing import NoReturn, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 
 from loxia import __version__
 from loxia.cli_args import _validate
@@ -66,6 +68,9 @@ from loxia_core.loader.manifest import (
     ManifestError,
     discover_manifest,
 )
+
+if TYPE_CHECKING:
+    from loxia.formatter.engine import Formatted
 
 _WATCH_INTERVAL_SECONDS = 0.25
 
@@ -201,13 +206,16 @@ def run_source(
 def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     from loxia.formatter import format_source
     from loxia.formatter.edits import build_edits, edits_json, unified_diff
+    from loxia.formatter.targets import TargetError, TargetNotFoundError, resolve_targets
 
-    if args.stdin and args.script:
-        parser.error("--stdin cannot be combined with a script")
-    if not args.stdin and not args.script:
-        parser.error("fmt requires a script (or --stdin)")
+    if args.stdin and args.paths:
+        parser.error("--stdin cannot be combined with paths")
+    if not args.stdin and not args.paths:
+        parser.error("fmt requires a path (or --stdin)")
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
+    if args.stdin and args.exclude:
+        parser.error("--exclude requires paths")
     if args.max_errors < 0:
         parser.error("--max-errors must be non-negative")
     if not 20 <= args.max_width <= 1000:
@@ -217,34 +225,88 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     if args.diff and args.edits is not None:
         parser.error("--diff cannot be combined with --edits")
 
+    targets: list[Path] = []
+    if not args.stdin:
+        try:
+            targets = resolve_targets(args.paths, excludes=args.exclude)
+        except TargetNotFoundError as exc:
+            print(
+                f"Erro: Arquivo '{display_path(str(exc))}' não encontrado.",
+                file=sys.stderr,
+            )
+            sys.exit(66)
+        except TargetError as exc:
+            parser.error(str(exc))
+        if args.edits is not None and len(targets) != 1:
+            parser.error("--edits=json requires exactly one file")
+
     lox = Loxia(
         error_format=("json" if args.json or args.json_lines else args.error_format),
         color=args.color,
         max_errors=args.max_errors,
         json_lines=args.json_lines,
     )
-    source = _set_source(
-        lox,
-        path=args.script,
-        stdin=args.stdin,
-        file_name=args.file_name,
-    )
-    result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
-    if result is None:
-        lox.flush("fmt", exit_code=65, always=True)
-        sys.exit(65)
+
+    def flush_result(label: str, source: str) -> Formatted | None:
+        lox.reporter.reset()
+        lox.reporter.file = label
+        result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
+        if result is None:
+            lox.flush("fmt", exit_code=65, always=True)
+        return result
 
     if args.stdin:
+        source = _set_source(lox, path=None, stdin=True, file_name=args.file_name)
         label = _display_name(args.file_name) if args.file_name else "<stdin>"
-    else:
-        label = _display_path(Path(args.script))
+        lox.reporter.file = label
+        result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
+        if result is None:
+            lox.flush("fmt", exit_code=65, always=True)
+            sys.exit(65)
+
+        if args.diff:
+            if result.changed:
+                sys.stdout.write(unified_diff(label, source, result.text))
+            sys.exit(1 if result.changed else 0)
+        if args.check:
+            if args.edits == "json":
+                payload = {
+                    "file": label,
+                    "changed": result.changed,
+                    "max_width": args.max_width,
+                    "edits": edits_json(build_edits(source, result.text)),
+                }
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            sys.exit(1 if result.changed else 0)
+        sys.stdout.write(result.text)
+        sys.stdout.flush()
+        return
+
+    formatted: list[tuple[Path, str, str, Formatted]] = []
+    failed = False
+    for target in targets:
+        label = _display_path(target)
+        lox.use_file(label, module_root=target.resolve().parent)
+        source = _read_source(str(target))
+        result = flush_result(label, source)
+        if result is None:
+            failed = True
+            continue
+        formatted.append((target, label, source, result))
+
     if args.diff:
-        if result.changed:
-            sys.stdout.write(unified_diff(label, source, result.text))
-        sys.exit(1 if result.changed else 0)
+        changed = False
+        for _target, label, source, result in formatted:
+            if result.changed:
+                changed = True
+                sys.stdout.write(unified_diff(label, source, result.text))
+        sys.exit(65 if failed else (1 if changed else 0))
 
     if args.check:
         if args.edits == "json":
+            if failed or not formatted:
+                sys.exit(65)
+            _target, label, source, result = formatted[0]
             payload = {
                 "file": label,
                 "changed": result.changed,
@@ -252,16 +314,14 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 "edits": edits_json(build_edits(source, result.text)),
             }
             print(json.dumps(payload, ensure_ascii=False, indent=2))
-        sys.exit(1 if result.changed else 0)
+            sys.exit(1 if result.changed else 0)
+        sys.exit(65 if failed else (1 if any(r.changed for *_, r in formatted) else 0))
 
-    if args.stdin:
-        sys.stdout.write(result.text)
-        sys.stdout.flush()
-        return
-
-    assert args.script is not None
-    if result.changed:
-        Path(args.script).write_text(result.text, encoding="utf-8")
+    if failed:
+        sys.exit(65)
+    for target, _label, _source, result in formatted:
+        if result.changed:
+            target.write_text(result.text, encoding="utf-8")
     sys.exit(0)
 
 
