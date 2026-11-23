@@ -614,22 +614,16 @@ class Printer:
         if isinstance(node, InterpolatedString):
             return node.token
         if isinstance(node, Conditional):
-            return self._first_token(node.condition)
+            return self._first_token(node.then_branch)
         if isinstance(node, Lambda):
             return node.keyword
         if isinstance(node, Match):
             return node.keyword
         if isinstance(node, ListLiteral):
-            if node.elements:
-                return self._first_token(node.elements[0])
             return node.bracket
         if isinstance(node, MapLiteral):
-            if node.entries:
-                return self._first_token(node.entries[0][0])
             return node.brace
         if isinstance(node, TupleLiteral):
-            if node.elements:
-                return self._first_token(node.elements[0])
             return node.paren
         if isinstance(node, Call):
             return self._first_token(node.callee)
