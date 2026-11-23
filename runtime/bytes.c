@@ -174,10 +174,11 @@ void *lox_bytes_from_hex(const void *text_pointer) {
         return result_err(
             bytes_error("InvalidHex", "expected an even number of hex digits."));
     }
+    const char *bytes = lox_str_bytes(text);
     LoxBytes *result = lox_bytes_new(text->byte_len / 2);
     for (int64_t index = 0; index < result->len; index++) {
-        int high = hex_digit(lox_str_bytes(text)[index * 2]);
-        int low = hex_digit(lox_str_bytes(text)[index * 2 + 1]);
+        int high = hex_digit(bytes[index * 2]);
+        int low = hex_digit(bytes[index * 2 + 1]);
         if (high < 0 || low < 0) {
             return result_err(
                 bytes_error("InvalidHex", "expected hexadecimal digits."));
@@ -197,15 +198,16 @@ void *lox_bytes_from_base64(const void *text_pointer) {
         return result_ok(lox_bytes_new(0));
     }
 
+    const char *bytes = lox_str_bytes(text);
     int64_t padding = 0;
-    if (lox_str_bytes(text)[length - 1] == '=') {
+    if (bytes[length - 1] == '=') {
         padding += 1;
     }
-    if (length > 1 && lox_str_bytes(text)[length - 2] == '=') {
+    if (length > 1 && bytes[length - 2] == '=') {
         padding += 1;
     }
     for (int64_t index = 0; index < length; index++) {
-        char value = lox_str_bytes(text)[index];
+        char value = bytes[index];
         if (value == '=') {
             if (index < length - 2) {
                 return result_err(
@@ -220,26 +222,26 @@ void *lox_bytes_from_base64(const void *text_pointer) {
     LoxBytes *result = lox_bytes_new(out_length);
     int64_t out = 0;
     for (int64_t index = 0; index < length; index += 4) {
-        int v0 = base64_digit(lox_str_bytes(text)[index]);
-        int v1 = base64_digit(lox_str_bytes(text)[index + 1]);
-        int v2 = lox_str_bytes(text)[index + 2] == '=' ? 0 : base64_digit(lox_str_bytes(text)[index + 2]);
-        int v3 = lox_str_bytes(text)[index + 3] == '=' ? 0 : base64_digit(lox_str_bytes(text)[index + 3]);
-        if (v0 < 0 || v1 < 0 || (v2 < 0 && lox_str_bytes(text)[index + 2] != '=') ||
-            (v3 < 0 && lox_str_bytes(text)[index + 3] != '=')) {
+        int v0 = base64_digit(bytes[index]);
+        int v1 = base64_digit(bytes[index + 1]);
+        int v2 = bytes[index + 2] == '=' ? 0 : base64_digit(bytes[index + 2]);
+        int v3 = bytes[index + 3] == '=' ? 0 : base64_digit(bytes[index + 3]);
+        if (v0 < 0 || v1 < 0 || (v2 < 0 && bytes[index + 2] != '=') ||
+            (v3 < 0 && bytes[index + 3] != '=')) {
             return result_err(bytes_error("InvalidBase64", "expected canonical base64."));
         }
         result->data[out++] = (unsigned char)((v0 << 2) | (v1 >> 4));
-        if (lox_str_bytes(text)[index + 2] != '=') {
+        if (bytes[index + 2] != '=') {
             result->data[out++] = (unsigned char)(((v1 & 0x0f) << 4) | (v2 >> 2));
         }
-        if (lox_str_bytes(text)[index + 3] != '=') {
+        if (bytes[index + 3] != '=') {
             result->data[out++] = (unsigned char)(((v2 & 0x03) << 6) | v3);
         }
     }
 
     LoxStr *encoded = lox_bytes_to_base64(result);
     if (encoded->byte_len != length ||
-        memcmp(lox_str_bytes(encoded), lox_str_bytes(text), (size_t)length) != 0) {
+        memcmp(lox_str_bytes(encoded), bytes, (size_t)length) != 0) {
         return result_err(bytes_error("InvalidBase64", "expected canonical base64."));
     }
     return result_ok(result);
