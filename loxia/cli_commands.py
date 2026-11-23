@@ -6,6 +6,8 @@ valida o que é específico do comando e delega para a engine (`loxia.engine.Lox
 `HANDLERS` é a única tabela de despacho: `loxia.cli` só olha o primeiro argumento.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -13,11 +15,11 @@ import signal
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from types import FrameType
-from typing import NoReturn, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 
 from loxia import __version__
 from loxia.cli_args import _validate
@@ -66,6 +68,9 @@ from loxia_core.loader.manifest import (
     ManifestError,
     discover_manifest,
 )
+
+if TYPE_CHECKING:
+    from loxia.formatter.engine import Formatted
 
 _WATCH_INTERVAL_SECONDS = 0.25
 
@@ -201,13 +206,17 @@ def run_source(
 def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     from loxia.formatter import format_source
     from loxia.formatter.edits import build_edits, edits_json, unified_diff
+    from loxia.formatter.targets import TargetError, TargetNotFoundError, resolve_targets
+    from loxia_core.diagnostics.diagnostic import DiagnosticBatch
 
-    if args.stdin and args.script:
-        parser.error("--stdin cannot be combined with a script")
-    if not args.stdin and not args.script:
-        parser.error("fmt requires a script (or --stdin)")
+    if args.stdin and args.paths:
+        parser.error("--stdin cannot be combined with paths")
+    if not args.stdin and not args.paths:
+        parser.error("fmt requires a path (or --stdin)")
     if args.file_name is not None and not args.stdin:
         parser.error("--file-name requires --stdin")
+    if args.stdin and args.exclude:
+        parser.error("--exclude requires paths")
     if args.max_errors < 0:
         parser.error("--max-errors must be non-negative")
     if not 20 <= args.max_width <= 1000:
@@ -217,34 +226,113 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
     if args.diff and args.edits is not None:
         parser.error("--diff cannot be combined with --edits")
 
+    targets: list[Path] = []
+    if not args.stdin:
+        try:
+            targets = resolve_targets(args.paths, excludes=args.exclude)
+        except TargetNotFoundError as exc:
+            print(
+                f"Erro: Arquivo '{display_path(str(exc))}' não encontrado.",
+                file=sys.stderr,
+            )
+            sys.exit(66)
+        except TargetError as exc:
+            parser.error(str(exc))
+        if args.edits is not None and len(targets) != 1:
+            parser.error("--edits=json requires exactly one file")
+
     lox = Loxia(
         error_format=("json" if args.json or args.json_lines else args.error_format),
         color=args.color,
         max_errors=args.max_errors,
         json_lines=args.json_lines,
     )
-    source = _set_source(
-        lox,
-        path=args.script,
-        stdin=args.stdin,
-        file_name=args.file_name,
-    )
-    result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
-    if result is None:
-        lox.flush("fmt", exit_code=65, always=True)
-        sys.exit(65)
+
+    json_batches: list[DiagnosticBatch] = []
+
+    def flush_result(label: str, source: str) -> Formatted | None:
+        lox.reporter.reset()
+        lox.reporter.file = label
+        result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
+        if result is None:
+            if lox.error_format == "json":
+                json_batches.append(lox.reporter.batch())
+                lox.reporter.reset()
+            else:
+                lox.flush("fmt", exit_code=65, always=True)
+        return result
 
     if args.stdin:
+        source = _set_source(lox, path=None, stdin=True, file_name=args.file_name)
         label = _display_name(args.file_name) if args.file_name else "<stdin>"
-    else:
-        label = _display_path(Path(args.script))
+        lox.reporter.file = label
+        result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
+        if result is None:
+            lox.flush("fmt", exit_code=65, always=True)
+            sys.exit(65)
+
+        if args.diff:
+            if result.changed:
+                sys.stdout.write(unified_diff(label, source, result.text))
+            sys.exit(1 if result.changed else 0)
+        if args.check:
+            if args.edits == "json":
+                payload = {
+                    "file": label,
+                    "changed": result.changed,
+                    "max_width": args.max_width,
+                    "edits": edits_json(build_edits(source, result.text)),
+                }
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            sys.exit(1 if result.changed else 0)
+        sys.stdout.write(result.text)
+        sys.stdout.flush()
+        return
+
+    formatted: list[tuple[Path, str, str, Formatted]] = []
+    labels = _display_labels(targets)
+    failed = False
+    for target, label in zip(targets, labels, strict=True):
+        lox.use_file(label, module_root=target.resolve().parent)
+        try:
+            source = _read_source(str(target))
+        except UnicodeDecodeError:
+            print(f"Erro: '{label}' não é UTF-8 válido.", file=sys.stderr)
+            sys.exit(66)
+        except OSError as exc:
+            print(
+                f"Erro: não foi possível ler '{label}': {exc.strerror or exc}",
+                file=sys.stderr,
+            )
+            sys.exit(66)
+        result = flush_result(label, source)
+        if result is None:
+            failed = True
+            continue
+        formatted.append((target, label, source, result))
+
+    if json_batches:
+        combined = DiagnosticBatch(
+            diagnostics=tuple(
+                diagnostic for batch in json_batches for diagnostic in batch.diagnostics
+            ),
+            suppressed=sum(batch.suppressed for batch in json_batches),
+        )
+        lox.flush_batch(combined, "fmt", exit_code=65, always=True)
+
     if args.diff:
-        if result.changed:
-            sys.stdout.write(unified_diff(label, source, result.text))
-        sys.exit(1 if result.changed else 0)
+        changed = False
+        for _target, label, source, result in formatted:
+            if result.changed:
+                changed = True
+                sys.stdout.write(unified_diff(label, source, result.text))
+        sys.exit(65 if failed else (1 if changed else 0))
 
     if args.check:
         if args.edits == "json":
+            if failed or not formatted:
+                sys.exit(65)
+            _target, label, source, result = formatted[0]
             payload = {
                 "file": label,
                 "changed": result.changed,
@@ -252,16 +340,14 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 "edits": edits_json(build_edits(source, result.text)),
             }
             print(json.dumps(payload, ensure_ascii=False, indent=2))
-        sys.exit(1 if result.changed else 0)
+            sys.exit(1 if result.changed else 0)
+        sys.exit(65 if failed else (1 if any(r.changed for *_, r in formatted) else 0))
 
-    if args.stdin:
-        sys.stdout.write(result.text)
-        sys.stdout.flush()
-        return
-
-    assert args.script is not None
-    if result.changed:
-        Path(args.script).write_text(result.text, encoding="utf-8")
+    if failed:
+        sys.exit(65)
+    for target, _label, _source, result in formatted:
+        if result.changed:
+            target.write_text(result.text, encoding="utf-8")
     sys.exit(0)
 
 
@@ -271,6 +357,31 @@ def _display_path(path: Path) -> str:
         return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
         return path.name
+
+
+def _display_labels(paths: Sequence[Path]) -> list[str]:
+    """Labels únicos: basename fora do cwd, com sufixo de diretório quando colidem."""
+    labels = [_display_path(path) for path in paths]
+    counts = Counter(labels)
+    result: list[str] = [""] * len(labels)
+    used: set[str] = set()
+    for index, label in enumerate(labels):
+        if counts[label] == 1:
+            result[index] = label
+            used.add(label)
+    for index, path in enumerate(paths):
+        label = labels[index]
+        if counts[label] == 1:
+            continue
+        parts = path.resolve().parts
+        candidate = label
+        for depth in range(2, len(parts) + 1):
+            candidate = "/".join(parts[-depth:])
+            if candidate not in used:
+                break
+        result[index] = candidate
+        used.add(candidate)
+    return result
 
 
 def _display_name(name: str) -> str:

@@ -31,6 +31,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   o formatter deriva offsets de início com uma caminhada memoizada de primeiro token em
   vez de construir o `SourceIndex` completo; no corpus, `format_source` caiu de ~1,27 s
   para ~0,97 s e o pico de memória de ~3,7 MiB para ~3,1 MiB, sem mudar um byte da saída.
+- **`fmt` com múltiplos alvos** ([#151](https://github.com/loxia-lang/loxia/issues/151)):
+  `loxia fmt PATH...` aceita arquivos e diretórios recursivos (ordem determinística,
+  diretórios ocultos/caches ignorados por padrão) e `--exclude GLOB` repetível para
+  fixtures inválidas. Com vários alvos, um erro de sintaxe não escreve nenhum arquivo
+  (exit 65, diagnóstico com o path), nenhum alvo é exit 2, path inexistente é 66 e
+  `--json`/`--json-lines` agregam um único `start`/`summary`; `--edits=json` exige um
+  único arquivo resolvido.
 - **Edits estruturados do `fmt`** ([ADR-0136](docs/adr/0136-formatter-2-doc-ir.md),
   [#109](https://github.com/loxia-lang/loxia/issues/109)): `loxia fmt --diff` mostra um
   diff unificado sem escrever e `loxia fmt --check --edits=json` devolve `TextEdit[]` com
