@@ -65,7 +65,7 @@ Packages by phase (dependency only downward):
 | [`loxia/test_selection.py`](../../loxia/test_selection.py) | test selection by change (`--changed`) and by shard (`--shard`) |
 | [`loxia/test_runner.py`](../../loxia/test_runner.py) | `loxia test` runner (ADR-0096): discovers `*_test.lx`, one subprocess per file, aggregates TAP and `--json` |
 | [`loxia/docgen.py`](../../loxia/docgen.py) | generates Markdown/JSON from the AST based on `///` (ADR-0091), without executing |
-| [`loxia/formatter.py`](../../loxia/formatter.py) | minimal formatter (ADR-0092): indentation/`;`/newline, preserves strings and comments |
+| [`loxia/formatter/`](../../loxia/formatter/) | formatter: `legacy.py` is the phase-1 engine (ADR-0092), `doc.py` is the Doc IR layout engine that phase 2 builds on (ADR-0136) |
 | [`loxia/lsp.py`](../../loxia/lsp.py) | LSP (ADR-0090/ADR-0114): JSON-RPC stdio, diagnostics (tags), documentSymbol, hover/definition/references/highlight, typeDefinition/implementation, type hierarchy, completion/signature/inlay hints/formatting/semantic tokens, codeAction/fix-all, rename, file rename imports, workspace/symbol, unsaved module overlays and settings |
 | [`loxia/docs_index.py`](../../loxia/docs_index.py) | generated documentation index loader/search (ADR-0111); `loxia/_spec/index.json` is produced by `tools/docs_index.py` |
 | [`loxia/mcp.py`](../../loxia/mcp.py) | MCP stdio modern-only (2026-07-28) over the CLI, sandboxed `run`, tools and CLI parity (ADR-0112) |
