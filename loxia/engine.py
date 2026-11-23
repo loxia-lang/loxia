@@ -35,6 +35,7 @@ from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.trivia import Trivia
+from loxia_core.frontend.ty import display
 from loxia_core.loader.deps import DependencyError, resolve_dependencies
 from loxia_core.loader.lock import LOCK_NAME, LockError, read_lock
 from loxia_core.loader.manifest import (
@@ -350,11 +351,37 @@ class Loxia:
         file_only: bool = False,
         output_format: str = "sexp",
         allow_errors: bool = False,
+        typed: bool = False,
     ) -> None:
         if output_format not in {"sexp", "json"}:
             raise ValueError(f"unknown AST format: {output_format}")
         if output_format == "json" and not file_only:
             raise ValueError("AST JSON requires file_only parsing")
+        if typed and output_format != "json":
+            raise ValueError("typed AST requires JSON output")
+
+        if typed:
+            # `--typed` continua sendo o contrato por arquivo: nunca passa pelo loader.
+            statements = self._parse(source, file_only=True)
+            tokens = self.last_tokens or []
+            trivia = self.last_trivia
+            if statements is None:
+                self.flush("ast", exit_code=self._exit_code())
+                return
+            self._check_parsed(statements)
+            exit_code = self._exit_code()
+            if exit_code == 0:
+                payload = program_payload(
+                    statements,
+                    tokens,
+                    display_path(self._file),
+                    trivia=trivia,
+                    typed=self._typed_expressions(source),
+                )
+                sys.stdout.write(ast_dumps(payload))
+                sys.stdout.flush()
+            self.flush("ast", exit_code=exit_code)
+            return
 
         statements = self._parse(source, file_only=file_only)
         if statements is None and allow_errors:
@@ -362,13 +389,67 @@ class Loxia:
         if statements is not None:
             if output_format == "json":
                 tokens = self.last_tokens or []
-                payload = program_payload(statements, tokens, display_path(self._file))
+                payload = program_payload(
+                    statements,
+                    tokens,
+                    display_path(self._file),
+                    trivia=self.last_trivia,
+                )
                 sys.stdout.write(ast_dumps(payload))
                 sys.stdout.flush()
             else:
                 print(AstPrinter().print_program(statements))
 
         self.flush("ast", exit_code=self._exit_code())
+
+    def _check_parsed(self, statements: list[Stmt]) -> None:
+        """Resolve/check uma árvore já parseada, sem loader (ADR-0129)."""
+        self.last_resolver = None
+        self.last_checker = None
+        resolver = Resolver(self.interpreter, self.reporter)
+        resolver.resolve(statements)
+        self.last_resolver = resolver
+        if not self.reporter.had_error:
+            checker = Checker(
+                self.reporter,
+                captured_mutables=resolver.captured_mutables,
+                captured_globals=resolver.captured_global_names,
+                source_index=self.last_source_index,
+            )
+            checker.check(statements)
+            self.last_checker = checker
+
+    def _typed_expressions(self, source: str) -> list[dict[str, object]]:
+        checker = self.last_checker
+        index = self.last_source_index
+        if checker is None or index is None:
+            return []
+        entries: list[tuple[int, int, str]] = []
+        for expression, ty in checker.types.items():
+            span = index.span_of(expression)
+            if span is None:
+                continue
+            entries.append((span.start, span.end, display(ty)))
+        entries.sort()
+        data = source.encode("utf-8")
+        result: list[dict[str, object]] = []
+        for start, end, type_text in entries:
+            start_text = data[:start].decode("utf-8")
+            end_text = data[:end].decode("utf-8")
+            start_line = start_text.count("\n") + 1
+            end_line = end_text.count("\n") + 1
+            start_column = len(start_text.rsplit("\n", 1)[-1]) + 1
+            end_column = len(end_text.rsplit("\n", 1)[-1]) + 1
+            result.append(
+                {
+                    "span": {
+                        "start": {"line": start_line, "column": start_column, "offset": start},
+                        "end": {"line": end_line, "column": end_column, "offset": end},
+                    },
+                    "type": type_text,
+                }
+            )
+        return result
 
     def document(self, source: str, *, json_output: bool = False) -> bool:
         """Gera a referência de um arquivo a partir de `///` (não executa)."""

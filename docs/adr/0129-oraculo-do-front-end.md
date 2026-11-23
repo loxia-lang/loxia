@@ -1,4 +1,4 @@
-# ADR-0129 — Oráculo do front-end: AST por arquivo, JSON v1 e snapshot
+# ADR-0129 — Oráculo do front-end: AST por arquivo, JSON v2 e snapshot
 
 - **Status:** accepted (implemented)
 - **Data:** 2026-11-21
@@ -9,7 +9,7 @@
   [ADR-0014](0014-identidade-e-invariantes.md) (I1–I4), [`docs/roadmap.md`](../roadmap.md)
 - **Implementação:** `loxia_core/frontend/ast_json.py`, `loxia_core/frontend/spans.py`
   (`span_of_token_exact`), `loxia/engine.py` (`parse_file`/`dump_ast`), `loxia/cli_args.py`,
-  `schema/ast-v1.json`, `tools/oracle_snapshot.py`, `tests/oracle/frontend.json`,
+  `schema/ast-v2.json`, `tools/oracle_snapshot.py`, `tests/oracle/frontend.json`,
   `tests/test_ast_json.py` e `tests/test_frontend_oracle.py`
 
 ## Contexto
@@ -44,30 +44,42 @@ reescrita silenciosa do oráculo.
 `--file-only` também vale para o modo legado `--dump-ast`. `--allow-errors` é opt-in:
 devolve a árvore recuperada do ADR-0132, mas mantém exit 65.
 
-### 2. `--format=json` v1 é o contrato de máquina e exige `--file-only`
+### 2. `--format=json` v2 é o contrato de máquina e exige `--file-only`
 
-`loxia ast --file-only --format=json` emite um envelope versionado (`schema_version: 1`,
-`schema/ast-v1.json`):
+`loxia ast --file-only --format=json` emite um envelope v2 (`schema/ast-v2.json`). O
+payload `syntax` é o contrato do parser; `typed` é um overlay opcional do checker:
 
 ```text
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "program",
   "file": "tests/cases/arithmetic.lx",
-  "statements": [
-    { "kind": "expression", "span": { "start": { "...": 0 }, "end": { "...": 12 } },
-      "expression": { "kind": "call", "span": { "...": 0 }, "callee": { "...": 0 },
-        "paren": { "type": "RIGHT_PAREN", "lexeme": ")", "span": { "...": 0 } },
-        "arguments": [ { "...": 0 } ], "optional": false, "spread": false,
-        "commas": [], "arg_ends": [] } }
-  ],
-  "tokens": [
-    { "type": "IDENTIFIER", "lexeme": "print", "literal": null, "doc": null,
-      "span": { "start": { "line": 1, "column": 1, "offset": 0 },
-                "end": { "line": 1, "column": 6, "offset": 5 } } }
-  ]
+  "syntax": {
+    "statements": [
+      { "kind": "expression", "span": { "...": 0 },
+        "expression": { "kind": "call", "span": { "...": 0 },
+          "callee": { "...": 0 }, "paren": { "...": 0 },
+          "arguments": [ { "...": 0 } ], "optional": false, "spread": false,
+          "commas": [], "arg_ends": [] } }
+    ],
+    "tokens": [
+      { "type": "IDENTIFIER", "lexeme": "print", "literal": null, "doc": null,
+        "span": { "start": { "...": 0 }, "end": { "...": 0 } } }
+    ],
+    "trivia": [
+      { "kind": "whitespace", "text": " ", "span": { "...": 0 } }
+    ]
+  },
+  "typed": { "expressions": [
+      { "span": { "...": 0 }, "type": "Int" }
+  ] }
 }
 ```
+
+O `typed` só existe com `--typed`; sem a flag o payload é só sintático. O checker roda
+sobre a **mesma árvore file-only** (sem loader/mangling); um import não resolvido vira erro
+de check, nunca uma árvore de outro arquivo. `display_name` de loader não é publicado. O
+campo `doc` continua no nó/token e o comentário bruto está em `trivia` (ADR-0134).
 
 Regras:
 
@@ -92,7 +104,7 @@ Regras:
 - a saída é determinística e não contém caminho absoluto, PID, timestamp nem ordem de
   `set`/`dict`. Floats não finitos viram `{"non_finite_float": "inf"}` (JSON estrito não os
   tem, e o marcador não se confunde com a String `"inf"`).
-- `schema_version` só muda em quebra do contrato.
+- `schema_version` só muda em quebra do contrato; v1 foi removido (v2 only).
 
 ### 3. Snapshot congela AST, formatter e diagnósticos
 
@@ -140,8 +152,8 @@ Lox passar.
   de armazenamento.
 - O snapshot não substitui o diferencial nativo (I1) nem o `--check` (I4); ele congela o
   **front**.
-- O `schema/ast-v1.json` valida o envelope, token, span e `kind`; os campos de cada `kind`
-  são garantidos pelo serializador e pelo snapshot, não por `$defs` por tipo. É um contrato
+- O `schema/ast-v2.json` tem `$defs` por `kind`, valida envelope, token, span, trivia,
+  overlay tipado e rejeita campos desconhecidos. É um contrato
   de forma, não um validador de semântica.
 
 ### Neutras

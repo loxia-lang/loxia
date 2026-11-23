@@ -1,0 +1,2991 @@
+{
+  "$defs": {
+    "as": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "as"
+        },
+        "left": {
+          "$ref": "#/$defs/node"
+        },
+        "operator": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_type": {
+          "type": "string"
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "left",
+        "target_type",
+        "operator",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "assign": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "assign"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "binary": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "binary"
+        },
+        "left": {
+          "$ref": "#/$defs/node"
+        },
+        "operator": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "right": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "left",
+        "operator",
+        "right"
+      ],
+      "type": "object"
+    },
+    "block": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "block"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "statements": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "statements",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "call": {
+      "additionalProperties": false,
+      "properties": {
+        "arg_ends": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        },
+        "arguments": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "callee": {
+          "$ref": "#/$defs/node"
+        },
+        "commas": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "call"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "paren": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spread": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "callee",
+        "paren",
+        "arguments",
+        "optional",
+        "spread",
+        "commas",
+        "arg_ends"
+      ],
+      "type": "object"
+    },
+    "class": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/field"
+          },
+          "type": "array"
+        },
+        "implements": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "class"
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/$defs/function"
+          },
+          "type": "array"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "superclass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/variable"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_params": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "superclass",
+        "fields",
+        "methods",
+        "type_params",
+        "implements",
+        "doc",
+        "keyword",
+        "end"
+      ],
+      "type": "object"
+    },
+    "conditional": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/node"
+        },
+        "else_branch": {
+          "$ref": "#/$defs/node"
+        },
+        "kind": {
+          "const": "conditional"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "then_branch": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "condition",
+        "then_branch",
+        "else_branch"
+      ],
+      "type": "object"
+    },
+    "destructure": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initializer": {
+          "$ref": "#/$defs/node"
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "destructure"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "pattern": {},
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_annotation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "pattern",
+        "initializer",
+        "mutable",
+        "type_annotation",
+        "keyword",
+        "end",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "enum_decl": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "enum_decl"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_params": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/$defs/enum_variant"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "type_params",
+        "variants",
+        "doc",
+        "keyword",
+        "end"
+      ],
+      "type": "object"
+    },
+    "enum_variant": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "enum_variant"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "payload": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "payload_spans": {
+          "items": {
+            "$ref": "#/$defs/span"
+          },
+          "type": "array"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "payload",
+        "doc",
+        "payload_spans"
+      ],
+      "type": "object"
+    },
+    "error_expr": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "error_expr"
+        },
+        "message": {
+          "type": "string"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "$ref": "#/$defs/token_ref"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "start",
+        "end",
+        "message"
+      ],
+      "type": "object"
+    },
+    "error_stmt": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "error_stmt"
+        },
+        "message": {
+          "type": "string"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "$ref": "#/$defs/token_ref"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "start",
+        "end",
+        "message"
+      ],
+      "type": "object"
+    },
+    "except_clause": {
+      "additionalProperties": false,
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "body": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "except_clause"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_name": {
+          "$ref": "#/$defs/token_ref"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "type_name",
+        "binding",
+        "body",
+        "keyword",
+        "end"
+      ],
+      "type": "object"
+    },
+    "expression": {
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "$ref": "#/$defs/node"
+        },
+        "kind": {
+          "const": "expression"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "expression"
+      ],
+      "type": "object"
+    },
+    "field": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initializer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "field"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_annotation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "initializer",
+        "mutable",
+        "type_annotation",
+        "doc",
+        "keyword",
+        "end",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "for_in": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/node"
+        },
+        "iterable": {
+          "$ref": "#/$defs/node"
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "for_in"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "iterable",
+        "body",
+        "keyword"
+      ],
+      "type": "object"
+    },
+    "function": {
+      "additionalProperties": false,
+      "properties": {
+        "abstract": {
+          "type": "boolean"
+        },
+        "body": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fn_token": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "function"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/param"
+          },
+          "type": "array"
+        },
+        "params_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "return_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "return_type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_param_bounds": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/token_ref"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "type_params": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "params",
+        "body",
+        "return_type",
+        "type_params",
+        "type_param_bounds",
+        "abstract",
+        "doc",
+        "end",
+        "fn_token",
+        "params_end",
+        "return_type_span"
+      ],
+      "type": "object"
+    },
+    "get": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "get"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "object": {
+          "$ref": "#/$defs/node"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "object",
+        "name",
+        "optional"
+      ],
+      "type": "object"
+    },
+    "grouping": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expression": {
+          "$ref": "#/$defs/node"
+        },
+        "kind": {
+          "const": "grouping"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "expression",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "if": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/node"
+        },
+        "else_branch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "if"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "then_branch": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "condition",
+        "then_branch",
+        "else_branch",
+        "keyword"
+      ],
+      "type": "object"
+    },
+    "import": {
+      "additionalProperties": false,
+      "properties": {
+        "alias": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "from_import": {
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "import"
+        },
+        "names": {
+          "items": {
+            "$ref": "#/$defs/import_name"
+          },
+          "type": "array"
+        },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "path",
+        "alias",
+        "names",
+        "from_import",
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "import_name": {
+      "additionalProperties": false,
+      "properties": {
+        "alias": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "import_name"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "alias"
+      ],
+      "type": "object"
+    },
+    "index": {
+      "additionalProperties": false,
+      "properties": {
+        "bracket": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "$ref": "#/$defs/node"
+        },
+        "kind": {
+          "const": "index"
+        },
+        "object": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "object",
+        "index",
+        "bracket",
+        "end"
+      ],
+      "type": "object"
+    },
+    "index_set": {
+      "additionalProperties": false,
+      "properties": {
+        "bracket": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "$ref": "#/$defs/node"
+        },
+        "kind": {
+          "const": "index_set"
+        },
+        "object": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "object",
+        "index",
+        "value",
+        "bracket",
+        "end"
+      ],
+      "type": "object"
+    },
+    "interface": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "interface"
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/$defs/function"
+          },
+          "type": "array"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "methods",
+        "doc",
+        "keyword",
+        "end"
+      ],
+      "type": "object"
+    },
+    "interpolated_string": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "interpolated_string"
+        },
+        "parts": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/node"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "token": {
+          "$ref": "#/$defs/token_ref"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "parts",
+        "token"
+      ],
+      "type": "object"
+    },
+    "is": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "is"
+        },
+        "left": {
+          "$ref": "#/$defs/node"
+        },
+        "operator": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "test_type": {
+          "type": "string"
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "left",
+        "test_type",
+        "operator",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "lambda": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "lambda"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/param"
+          },
+          "type": "array"
+        },
+        "return_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "return_type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "params",
+        "body",
+        "return_type",
+        "end",
+        "return_type_span"
+      ],
+      "type": "object"
+    },
+    "list_literal": {
+      "additionalProperties": false,
+      "properties": {
+        "bracket": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "list_literal"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "elements",
+        "bracket",
+        "end"
+      ],
+      "type": "object"
+    },
+    "literal": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "literal"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "token": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {}
+      },
+      "required": [
+        "kind",
+        "span",
+        "value",
+        "token"
+      ],
+      "type": "object"
+    },
+    "logical": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "logical"
+        },
+        "left": {
+          "$ref": "#/$defs/node"
+        },
+        "operator": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "right": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "left",
+        "operator",
+        "right"
+      ],
+      "type": "object"
+    },
+    "map_literal": {
+      "additionalProperties": false,
+      "properties": {
+        "brace": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entries": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/node"
+              },
+              {
+                "$ref": "#/$defs/node"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "map_literal"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "entries",
+        "brace",
+        "end"
+      ],
+      "type": "object"
+    },
+    "match": {
+      "additionalProperties": false,
+      "properties": {
+        "arms": {
+          "items": {
+            "$ref": "#/$defs/match_arm"
+          },
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "match"
+        },
+        "scrutinee": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "scrutinee",
+        "arms",
+        "end"
+      ],
+      "type": "object"
+    },
+    "match_arm": {
+      "additionalProperties": false,
+      "properties": {
+        "arrow": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "$ref": "#/$defs/node"
+        },
+        "kind": {
+          "const": "match_arm"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/variant_pattern"
+            },
+            {
+              "$ref": "#/$defs/wildcard_pattern"
+            }
+          ]
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "pattern",
+        "body",
+        "arrow"
+      ],
+      "type": "object"
+    },
+    "name_pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "name_pattern"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name"
+      ],
+      "type": "object"
+    },
+    "node": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/as"
+        },
+        {
+          "$ref": "#/$defs/assign"
+        },
+        {
+          "$ref": "#/$defs/binary"
+        },
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "$ref": "#/$defs/call"
+        },
+        {
+          "$ref": "#/$defs/class"
+        },
+        {
+          "$ref": "#/$defs/conditional"
+        },
+        {
+          "$ref": "#/$defs/destructure"
+        },
+        {
+          "$ref": "#/$defs/enum_decl"
+        },
+        {
+          "$ref": "#/$defs/enum_variant"
+        },
+        {
+          "$ref": "#/$defs/error_expr"
+        },
+        {
+          "$ref": "#/$defs/error_stmt"
+        },
+        {
+          "$ref": "#/$defs/except_clause"
+        },
+        {
+          "$ref": "#/$defs/expression"
+        },
+        {
+          "$ref": "#/$defs/field"
+        },
+        {
+          "$ref": "#/$defs/for_in"
+        },
+        {
+          "$ref": "#/$defs/function"
+        },
+        {
+          "$ref": "#/$defs/get"
+        },
+        {
+          "$ref": "#/$defs/grouping"
+        },
+        {
+          "$ref": "#/$defs/if"
+        },
+        {
+          "$ref": "#/$defs/import"
+        },
+        {
+          "$ref": "#/$defs/import_name"
+        },
+        {
+          "$ref": "#/$defs/index"
+        },
+        {
+          "$ref": "#/$defs/index_set"
+        },
+        {
+          "$ref": "#/$defs/interface"
+        },
+        {
+          "$ref": "#/$defs/interpolated_string"
+        },
+        {
+          "$ref": "#/$defs/is"
+        },
+        {
+          "$ref": "#/$defs/lambda"
+        },
+        {
+          "$ref": "#/$defs/list_literal"
+        },
+        {
+          "$ref": "#/$defs/literal"
+        },
+        {
+          "$ref": "#/$defs/logical"
+        },
+        {
+          "$ref": "#/$defs/map_literal"
+        },
+        {
+          "$ref": "#/$defs/match"
+        },
+        {
+          "$ref": "#/$defs/match_arm"
+        },
+        {
+          "$ref": "#/$defs/name_pattern"
+        },
+        {
+          "$ref": "#/$defs/param"
+        },
+        {
+          "$ref": "#/$defs/raise"
+        },
+        {
+          "$ref": "#/$defs/range"
+        },
+        {
+          "$ref": "#/$defs/return"
+        },
+        {
+          "$ref": "#/$defs/set"
+        },
+        {
+          "$ref": "#/$defs/super"
+        },
+        {
+          "$ref": "#/$defs/this"
+        },
+        {
+          "$ref": "#/$defs/try"
+        },
+        {
+          "$ref": "#/$defs/tuple_literal"
+        },
+        {
+          "$ref": "#/$defs/tuple_pattern"
+        },
+        {
+          "$ref": "#/$defs/type_alias"
+        },
+        {
+          "$ref": "#/$defs/unary"
+        },
+        {
+          "$ref": "#/$defs/var"
+        },
+        {
+          "$ref": "#/$defs/variable"
+        },
+        {
+          "$ref": "#/$defs/variant_pattern"
+        },
+        {
+          "$ref": "#/$defs/while"
+        },
+        {
+          "$ref": "#/$defs/wildcard_pattern"
+        }
+      ]
+    },
+    "param": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "param"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_annotation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variadic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "mutable",
+        "default",
+        "type_annotation",
+        "variadic",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "position": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "line": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "line",
+        "column",
+        "offset"
+      ],
+      "type": "object"
+    },
+    "raise": {
+      "additionalProperties": false,
+      "properties": {
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "raise"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "value"
+      ],
+      "type": "object"
+    },
+    "range": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/node"
+        },
+        "inclusive": {
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "range"
+        },
+        "operator": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "start",
+        "end",
+        "operator",
+        "inclusive"
+      ],
+      "type": "object"
+    },
+    "return": {
+      "additionalProperties": false,
+      "properties": {
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "return"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "value"
+      ],
+      "type": "object"
+    },
+    "set": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "set"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "object": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "object",
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "span": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/position"
+        },
+        "start": {
+          "$ref": "#/$defs/position"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
+    "super": {
+      "additionalProperties": false,
+      "properties": {
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "super"
+        },
+        "method": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "method"
+      ],
+      "type": "object"
+    },
+    "syntax": {
+      "additionalProperties": false,
+      "properties": {
+        "statements": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "tokens": {
+          "items": {
+            "$ref": "#/$defs/token"
+          },
+          "type": "array"
+        },
+        "trivia": {
+          "items": {
+            "$ref": "#/$defs/trivia"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "statements",
+        "tokens",
+        "trivia"
+      ],
+      "type": "object"
+    },
+    "this": {
+      "additionalProperties": false,
+      "properties": {
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "this"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword"
+      ],
+      "type": "object"
+    },
+    "token": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lexeme": {
+          "type": "string"
+        },
+        "literal": {},
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "lexeme",
+        "span",
+        "doc",
+        "literal"
+      ],
+      "type": "object"
+    },
+    "token_ref": {
+      "additionalProperties": false,
+      "properties": {
+        "lexeme": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "lexeme",
+        "span"
+      ],
+      "type": "object"
+    },
+    "trivia": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "whitespace",
+            "newline",
+            "line_comment",
+            "block_comment",
+            "doc_comment",
+            "other"
+          ]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "span"
+      ],
+      "type": "object"
+    },
+    "try": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "finally_body": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/node"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "handlers": {
+          "items": {
+            "$ref": "#/$defs/except_clause"
+          },
+          "type": "array"
+        },
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "try"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "body",
+        "handlers",
+        "finally_body",
+        "end"
+      ],
+      "type": "object"
+    },
+    "tuple_literal": {
+      "additionalProperties": false,
+      "properties": {
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "type": "array"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "tuple_literal"
+        },
+        "paren": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "elements",
+        "paren",
+        "end"
+      ],
+      "type": "object"
+    },
+    "tuple_pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "elements": {
+          "items": {},
+          "type": "array"
+        },
+        "kind": {
+          "const": "tuple_pattern"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "elements"
+      ],
+      "type": "object"
+    },
+    "type_alias": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "type_alias"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword",
+        "name",
+        "target",
+        "doc",
+        "end",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "typed": {
+      "additionalProperties": false,
+      "properties": {
+        "expressions": {
+          "items": {
+            "$ref": "#/$defs/typed_expression"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "expressions"
+      ],
+      "type": "object"
+    },
+    "typed_expression": {
+      "additionalProperties": false,
+      "properties": {
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "span",
+        "type"
+      ],
+      "type": "object"
+    },
+    "unary": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "unary"
+        },
+        "operator": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "right": {
+          "$ref": "#/$defs/node"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "operator",
+        "right"
+      ],
+      "type": "object"
+    },
+    "var": {
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initializer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/node"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "var"
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_annotation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name",
+        "initializer",
+        "mutable",
+        "type_annotation",
+        "doc",
+        "keyword",
+        "end",
+        "type_span"
+      ],
+      "type": "object"
+    },
+    "variable": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "variable"
+        },
+        "name": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "name"
+      ],
+      "type": "object"
+    },
+    "variant_pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "items": {
+            "$ref": "#/$defs/token_ref"
+          },
+          "type": "array"
+        },
+        "enum": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "variant_pattern"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variant": {
+          "$ref": "#/$defs/token_ref"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "enum",
+        "variant",
+        "bindings"
+      ],
+      "type": "object"
+    },
+    "while": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/node"
+        },
+        "condition": {
+          "$ref": "#/$defs/node"
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "while"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "condition",
+        "body",
+        "keyword"
+      ],
+      "type": "object"
+    },
+    "wildcard_pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "wildcard_pattern"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "token": {
+          "$ref": "#/$defs/token_ref"
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "token"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/loxia-lang/loxia/schema/ast-v2.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Machine-readable AST of `loxia ast --file-only --format=json`. Syntax is stable; typed is optional checker metadata.",
+  "properties": {
+    "file": {
+      "type": "string"
+    },
+    "kind": {
+      "const": "program"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "syntax": {
+      "$ref": "#/$defs/syntax"
+    },
+    "typed": {
+      "$ref": "#/$defs/typed"
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "file",
+    "syntax"
+  ],
+  "title": "Loxia AST v2",
+  "type": "object"
+}
