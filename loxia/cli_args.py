@@ -641,6 +641,17 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             metavar="N",
             help="largura máxima do código em colunas (20..1000; padrão 100)",
         )
+        groups.general.add_argument(
+            "--diff",
+            action="store_true",
+            help="mostra um diff unificado; não escreve",
+        )
+        groups.general.add_argument(
+            "--edits",
+            choices=("json",),
+            default=None,
+            help="com --check: emite TextEdit[] em JSON; não escreve",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "doc":
         # `--json` do doc é a referência em JSON, não o formato de erro: por isso as
