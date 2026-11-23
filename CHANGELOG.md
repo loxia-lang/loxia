@@ -6,6 +6,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 ## [Unreleased]
 
 ### Mudado (quebra)
+- **Formatter 2.0** ([ADR-0136](docs/adr/0136-formatter-2-doc-ir.md),
+  [#109](https://github.com/loxia-lang/loxia/issues/109)): `loxia fmt` agora reflowa
+  chamadas, coleções, params e cadeias binárias na largura de 100 colunas
+  (`--max-width` 20..1000), decide linhas em branco, normaliza/alinhamento comentários
+  trailing e reconstrói `for (;;)`. Comentários continuam preservados (`#`, `///`,
+  `/* */`), agora por nó e não por heurística de linha. É uma mudança de saída: o
+  `chore/reformat` aplica o estilo ao repositório em PR separado.
 
 - **AST JSON v2** ([ADR-0129](docs/adr/0129-oraculo-do-front-end.md),
   [#107](https://github.com/loxia-lang/loxia/issues/107)): o envelope agora separa

@@ -9,7 +9,7 @@ parseáveis do oráculo.
 from __future__ import annotations
 
 from loxia.formatter.comments import comment_text
-from loxia.formatter.engine import format_source_v2
+from loxia.formatter.engine import format_source
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.frontend.ast_printer import AstPrinter
 from loxia_core.frontend.parser import Parser
@@ -41,7 +41,7 @@ def comment_texts(source: str) -> list[str]:
 
 
 def formatted(source: str, width: int = 100) -> str:
-    result = format_source_v2(source, max_width=width)
+    result = format_source(source, max_width=width)
     assert result is not None, "formatter rejected a valid fixture"
     return result.text
 
@@ -336,18 +336,18 @@ def test_optional_chain_and_spread() -> None:
 
 
 def test_syntax_error_returns_none() -> None:
-    assert format_source_v2("fn f( {\n") is None
+    assert format_source("fn f( {\n") is None
 
 
 def test_corpus_idempotent_semantic_and_comment_preserving() -> None:
     checked = 0
     for path in corpus_files():
         source = path.read_text(encoding="utf-8")
-        result = format_source_v2(source)
+        result = format_source(source)
         if result is None:  # arquivos de erro de parse são cobertos pelo oráculo
             continue
         first = result.text
-        second = format_source_v2(first)
+        second = format_source(first)
         assert second is not None, path
         assert second.text == first, f"{path}: not idempotent"
         assert ast_text(first) == ast_text(source), f"{path}: AST changed"

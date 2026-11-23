@@ -209,6 +209,8 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         parser.error("--file-name requires --stdin")
     if args.max_errors < 0:
         parser.error("--max-errors must be non-negative")
+    if not 20 <= args.max_width <= 1000:
+        parser.error("--max-width must be between 20 and 1000")
 
     lox = Loxia(
         error_format=("json" if args.json or args.json_lines else args.error_format),
@@ -222,7 +224,7 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         stdin=args.stdin,
         file_name=args.file_name,
     )
-    result = format_source(source, reporter=lox.reporter)
+    result = format_source(source, reporter=lox.reporter, max_width=args.max_width)
     if result is None:
         lox.flush("fmt", exit_code=65, always=True)
         sys.exit(65)

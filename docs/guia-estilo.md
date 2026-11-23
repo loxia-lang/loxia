@@ -37,11 +37,21 @@ disso.
 
 ## Formatter
 
-`loxia fmt` normaliza, na fase 1: indentação de bloco, espaços no fim, `;` de fim de
-linha, newline final, `fn` canônico em método e trailing comma multiline (params,
-call, lista, mapa e tupla), preservando quebras, strings multilinha, comentários de
-bloco e o conteúdo de comentários. Não faz reflow, não renomeia e não reordena imports.
-`loxia fmt --check` não escreve e retorna 1 se o arquivo mudaria.
+`loxia fmt` é a forma canônica (ADR-0092 para o estilo, ADR-0136 para a engine):
 
-O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md)); o
-dogfood em Lox fica adiado até o repo público/estável.
+- reflowa chamadas, listas, mapas, tuplas, params, enums, cadeias binárias/lógicas/`??`
+  e condicionais para caber em **100 colunas** (`--max-width` 20..1000 é override de
+  ferramenta/editor); strings, imports e comentários nunca são quebrados;
+- decide a linha em branco: exatamente uma entre declarações de topo, métodos de classe
+  e de interface; campos e statements preservam no máximo uma linha do autor; nenhuma
+  depois de `{`/antes de `}`;
+- normaliza `# ` e alinha comentários trailing consecutivos no mesmo indent quando o
+  alinhamento ainda cabe; `///` e `/* */` ficam verbatim (sem reflow);
+- usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém
+  sem), quebra binárias **depois** do operador e preserva C-style `for (;;)`;
+- não remove parênteses, não reordena imports, não normaliza aspas/números, não alinha
+  `=`/`:` e não formata range/seleção (isso fica em #110).
+
+O formatter de referência é Python ([ADR-0092](adr/0092-estilo-e-formatter.md),
+[ADR-0136](adr/0136-formatter-2-doc-ir.md)); o dogfood em Lox fica adiado até o repo
+público/estável.

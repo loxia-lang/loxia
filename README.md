@@ -133,7 +133,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia ast FILE` | Print the AST (S-expression; `--format=json` requires `--file-only`) | `--file-only`, `--format=sexp\|json`, `--allow-errors`, `--typed`, `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia fmt FILE` | Format a file (`--check` does not write) | `--check`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia fmt FILE` | Format a file (`--check` does not write) | `--check`, `--max-width`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia doc FILE` | Generate Markdown/JSON from `///` | `--stdin`, `--file-name`, `--json`, `--error-format`, `--max-errors`, `--color` |
 | `loxia explain CODE` | Explain a diagnostic family | `--json` |
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |

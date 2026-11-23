@@ -634,6 +634,13 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help="não escreve; exit 1 se mudaria",
         )
+        groups.general.add_argument(
+            "--max-width",
+            type=int,
+            default=100,
+            metavar="N",
+            help="largura máxima do código em colunas (20..1000; padrão 100)",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "doc":
         # `--json` do doc é a referência em JSON, não o formato de erro: por isso as

@@ -64,15 +64,22 @@ class C {
     assert '"""linha\n  preservada\n  \n"""' in result.text
 
 
-def test_fmt_preserves_continuation_indent_inside_parens() -> None:
+def test_fmt_wraps_long_parameter_list() -> None:
+    source = "fn f(\n    a: Int,\n    b: Int\n) -> Int {\n    return a + b;\n}\n"
+
+    result = format_source(source, max_width=20)
+
+    assert result is not None
+    assert result.text == "fn f(\n  a: Int,\n  b: Int,\n) -> Int {\n  return a + b\n}\n"
+
+
+def test_fmt_collapses_short_parameter_list() -> None:
     source = "fn f(\n    a: Int,\n    b: Int\n) -> Int {\n    return a + b;\n}\n"
 
     result = format_source(source)
 
     assert result is not None
-    assert "    a: Int," in result.text
-    assert "    b: Int" in result.text
-    assert "  return a + b\n" in result.text
+    assert result.text == "fn f(a: Int, b: Int) -> Int {\n  return a + b\n}\n"
 
 
 def test_fmt_check_exit_codes(tmp_path: Path) -> None:
@@ -118,12 +125,12 @@ def test_fmt_insere_fn_canonico_em_metodo() -> None:
 def test_fmt_trailing_comma_multiline() -> None:
     source = "fn f(\n  a: Int,\n  b: Int\n) -> Int {\n  return g(\n    a,\n    b\n  )\n}\n"
 
-    result = format_source(source)
+    result = format_source(source, max_width=20)
 
     assert result is not None
     assert "  b: Int,\n)" in result.text
-    assert "    b,\n  )" in result.text
-    again = format_source(result.text)
+    assert "g(a, b)" in result.text
+    again = format_source(result.text, max_width=20)
     assert again is not None
     assert again.text == result.text
 
@@ -133,12 +140,38 @@ def test_fmt_trailing_comma_em_lista_mapa_tupla() -> None:
         'val xs = [\n  1,\n  2\n]\nval m = {\n  "a": 1,\n  "b": 2\n}\nval t = (\n  1,\n  2\n)\n'
     )
 
-    result = format_source(source)
+    result = format_source(source, max_width=12)
 
     assert result is not None
     assert "  2,\n]" in result.text
     assert '  "b": 2,\n}' in result.text
     assert "  2,\n)" in result.text
+
+
+def test_fmt_collapses_short_collections_without_trailing_comma() -> None:
+    source = (
+        'val xs = [\n  1,\n  2\n]\nval m = {\n  "a": 1,\n  "b": 2\n}\nval t = (\n  1,\n  2\n)\n'
+    )
+
+    result = format_source(source)
+
+    assert result is not None
+    assert result.text == 'val xs = [1, 2]\nval m = { "a": 1, "b": 2 }\nval t = (1, 2)\n'
+
+
+def test_fmt_max_width_flag_wraps_and_validates() -> None:
+    wrapped = run_cli(
+        "fmt",
+        "--stdin",
+        "--max-width",
+        "20",
+        input_text="fn f(a: Int, b: Int) -> Int {\n  return 1\n}\n",
+    )
+    assert wrapped.returncode == 0
+    assert "fn f(\n  a: Int,\n  b: Int,\n) -> Int {" in wrapped.stdout
+
+    invalid = run_cli("fmt", "--stdin", "--max-width", "19", input_text="print(1)\n")
+    assert invalid.returncode == 2
 
 
 def test_fmt_nao_coloca_virgula_em_grouping_ou_linha_unica() -> None:
@@ -147,5 +180,4 @@ def test_fmt_nao_coloca_virgula_em_grouping_ou_linha_unica() -> None:
     result = format_source(source)
 
     assert result is not None
-    assert "  1 + 2\n)" in result.text
-    assert "f(1, 2)" in result.text
+    assert result.text == "val x = (1 + 2)\nval y = f(1, 2)\n"

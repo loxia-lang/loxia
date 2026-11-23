@@ -1,5 +1,9 @@
 # ADR-0092 — Estilo e formatter: convenções, perfil e dogfood
 
+> **Fase 2 (2026-11-23):** o `loxia fmt` passou a usar o Doc IR + trivia do
+> [ADR-0136](0136-formatter-2-doc-ir.md); reflow, blank lines, trailing comments e
+> `--max-width` estão implementados. A fase 1 descrita abaixo é histórica.
+
 > **Implementação (2026-11-16):** `docs/guia-estilo.md` e `loxia fmt` com indentação,
 > `;`, newline final, `fn` canônico em método e trailing comma multiline (params, call,
 > lista, mapa e tupla); `fmt --check`/`--stdin` e idempotência. O reflow não faz parte da
