@@ -207,8 +207,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
     "t2": (
         "tests/cases/std_cli.lx",
         "tests/cases/std_bytes.lx",
+        "tests/cases/std_bytes_errors.lx",
         "tests/cases/std_collections.lx",
         "tests/cases/std_convert.lx",
+        "tests/cases/std_convert_errors.lx",
         "tests/cases/std_csv.lx",
         "tests/cases/std_fmt.lx",
         "tests/cases/std_hash.lx",

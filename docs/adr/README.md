@@ -186,6 +186,7 @@ TODO item.
 | [0132](0132-nos-de-erro-na-arvore-recuperada.md) | Recovered AST: inert `ErrorStmt`/`ErrorExpr`, line-aware recovery, `--allow-errors` opt-in | accepted (implemented) | 2026-11-22 |
 | [0134](0134-trivia-side-table.md) | Trivia as a scanner side table: exact comments/whitespace, normalized round-trip, deterministic attachment | accepted (implemented) | 2026-11-22 |
 | [0133](0133-suite-rapida-in-process-e-xdist.md) | Fast suite: CLI in-process for case tests, xdist in the local loop, real processes where they matter | accepted (implemented) | 2026-11-22 |
+| [0135](0135-politica-de-erro.md) | Error policy: defect (`RuntimeError`), expected failure (`Result`), user flow (`raise`); one channel per signature, `OrRaise` shell, stdlib allowlist, `Err` at top = exit 70 | accepted (migration tracked) | 2026-11-23 |
 
 
 ## Next decisions that call for an ADR
@@ -196,7 +197,8 @@ Open decisions have an issue labeled `decision`; the ADR is written when the iss
   the syntax remains deferred with triggers (issue #14 closes with this ADR);
 - `fs.open` streaming — [#16](https://github.com/loxia-lang/loxia/issues/16).
 
-Language decisions still open: `if`/blocks as an expression, recoverable exceptions,
+Language decisions still open: `if`/blocks as an expression (recoverable exceptions were decided in
+[ADR-0042](0042-excecoes.md) and their policy in [ADR-0135](0135-politica-de-erro.md)),
 generic methods/inheritance/reification, constraints in classes and mutable unification.
 Deferred items are consolidated in [ADR-0107](0107-adiados-e-nao-objetivos.md); async has a
 decided direction, but the implementation is pending ([ADR-0037](0037-async-direcao.md)).

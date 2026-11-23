@@ -1,45 +1,45 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # std.bytes — composição sobre `Bytes` (T2): Builder, comparação e endian.
 #
-# `Bytes` é imutável; o `Builder` é a construção incremental da v1: ele acumula em
-# `List[Int]`, então gasta ~28 bytes por byte (documentado) e materializa no `build()`.
-# Nada aqui toca o host; o módulo é determinístico e entra no corpus t2.
+# `Bytes` é imutável; o `Builder` acumula blocos em `ChunkBuilder` e bytes avulsos em uma
+# `List[Int]` pendente, materializando no `build()`. `push` custa por bloco (não por byte);
+# `pushByte` continua O(1). Nada aqui toca o host; o módulo é determinístico e entra no
+# corpus t2.
+#
+# Erros: `read*Result` devolvem `Result[Int, BytesError]` com o offset e o tamanho
+# pedido; as cascas `read*` devolvem `Int?` e descartam o motivo (ADR-0135).
 
-/// Acumula bytes e materializa um `Bytes` no fim.
-class Builder {
-  var _bytes: List[Int]
+import std.results as results
 
-  /// Cria um Builder vazio.
-  init() {
-    this._bytes = []
+/// Falha de uma leitura: a fatia pedida não cabe no buffer.
+///
+/// `kind` é estável (`outOfBounds`); `offset`, `wanted` e `length` são os números que o
+/// chamador precisa para dizer *onde* o parse saiu do trilho. Sem caminho nem locale.
+class BytesError {
+  /// Token estável: `outOfBounds`.
+  val kind: String
+  /// Posição pedida.
+  val offset: Int
+  /// Quantos bytes a leitura precisa.
+  val wanted: Int
+  /// Tamanho total do buffer.
+  val length: Int
+  /// Detalhe determinístico, pronto para log.
+  val message: String
+
+  /// Cria a falha com a posição pedida, o tamanho necessário e o total do buffer.
+  init(offset: Int, wanted: Int, length: Int) {
+    this.kind = "outOfBounds"
+    this.offset = offset
+    this.wanted = wanted
+    this.length = length
+    this.message = "read past end: offset " + str(offset) +
+      ", wanted " + str(wanted) + ", length " + str(length)
   }
+}
 
-  /// Anexa todos os bytes de `data` e devolve o próprio Builder.
-  fn push(data: Bytes) -> Builder {
-    for byte in data {
-      this._bytes.push(byte)
-    }
-    return this
-  }
-
-  /// Anexa um único byte 0..255 e devolve o próprio Builder.
-  fn pushByte(value: Int) -> Builder {
-    if (value < 0 or value > 255) {
-      raise RuntimeError("Builder.pushByte() expects 0..255.")
-    }
-    this._bytes.push(value)
-    return this
-  }
-
-  /// Número de bytes acumulados.
-  fn len() -> Int {
-    return len(this._bytes)
-  }
-
-  /// Materializa uma cópia imutável; o Builder continua utilizável.
-  fn build() -> Bytes {
-    return Bytes.fromList(this._bytes)
-  }
+fn _outOfBounds(offset: Int, wanted: Int, data: Bytes) -> BytesError {
+  return BytesError(offset, wanted, len(data))
 }
 
 /// Acumula blocos `Bytes` e materializa um `Bytes` por concatenação balanceada.
@@ -92,6 +92,65 @@ class ChunkBuilder {
       return Bytes.empty()
     }
     return current[0]
+  }
+}
+
+/// Acumula bytes e materializa um `Bytes` no fim.
+///
+/// Blocos (`push`) ficam em um `ChunkBuilder`, então o custo é por bloco, não por byte;
+/// bytes avulsos (`pushByte`) ficam em uma `List[Int]` pendente, materializada no próximo
+/// `push` ou no `build`. O `build` copia O(n log k) (k = blocos + pendente) e não mantém
+/// cópia intermediária de todos os bytes.
+class Builder {
+  var _chunks: ChunkBuilder
+  var _pending: List[Int]
+  var _total: Int
+
+  /// Cria um Builder vazio.
+  init() {
+    this._chunks = ChunkBuilder()
+    this._pending = []
+    this._total = 0
+  }
+
+  /// Anexa todos os bytes de `data` e devolve o próprio Builder.
+  fn push(data: Bytes) -> Builder {
+    if (len(data) > 0) {
+      this._flushPending()
+      this._chunks.push(data)
+      this._total = this._total + len(data)
+    }
+    return this
+  }
+
+  /// Anexa um único byte 0..255 e devolve o próprio Builder.
+  fn pushByte(value: Int) -> Builder {
+    if (value < 0 or value > 255) {
+      raise RuntimeError("Builder.pushByte() expects 0..255.")
+    }
+    this._pending.push(value)
+    this._total = this._total + 1
+    return this
+  }
+
+  /// Número de bytes acumulados.
+  fn len() -> Int {
+    return this._total
+  }
+
+  /// Materializa uma cópia imutável; o Builder continua utilizável.
+  fn build() -> Bytes {
+    if (len(this._pending) == 0) {
+      return this._chunks.build()
+    }
+    return this._chunks.build().concat(Bytes.fromList(this._pending))
+  }
+
+  fn _flushPending() -> Nil {
+    if (len(this._pending) > 0) {
+      this._chunks.push(Bytes.fromList(this._pending))
+      this._pending = []
+    }
   }
 }
 
@@ -178,67 +237,112 @@ fn u64le(value: Int) -> Bytes {
   ])
 }
 
-/// Reads a big-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
-fn readU16be(data: Bytes, offset: Int) -> Int? {
+/// Reads a big-endian `u16` at `offset`, preserving the cause of a short buffer.
+fn readU16beResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
   if (offset < 0 or offset > len(data) - 2) {
-    return nil
+    return Result.Err(_outOfBounds(offset, 2, data))
   }
-  return (data[offset] << 8) | data[offset + 1]
+  return Result.Ok((data[offset] << 8) | data[offset + 1])
+}
+
+/// Reads a big-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
+///
+/// Ergonomic shell over `readU16beResult` (ADR-0135): the cause is dropped, not lost.
+fn readU16be(data: Bytes, offset: Int) -> Int? {
+  return results.toOptional(readU16beResult(data, offset))
+}
+
+/// Reads a little-endian `u16` at `offset`, preserving the cause of a short buffer.
+fn readU16leResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
+  if (offset < 0 or offset > len(data) - 2) {
+    return Result.Err(_outOfBounds(offset, 2, data))
+  }
+  return Result.Ok(data[offset] | (data[offset + 1] << 8))
 }
 
 /// Reads a little-endian `u16` at `offset`; `nil` if the two bytes are out of bounds.
+///
+/// Ergonomic shell over `readU16leResult` (ADR-0135).
 fn readU16le(data: Bytes, offset: Int) -> Int? {
-  if (offset < 0 or offset > len(data) - 2) {
-    return nil
+  return results.toOptional(readU16leResult(data, offset))
+}
+
+/// Reads a big-endian `u32` at `offset`, preserving the cause of a short buffer.
+fn readU32beResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
+  if (offset < 0 or offset > len(data) - 4) {
+    return Result.Err(_outOfBounds(offset, 4, data))
   }
-  return data[offset] | (data[offset + 1] << 8)
+  return Result.Ok((data[offset] << 24) | (data[offset + 1] << 16) |
+    (data[offset + 2] << 8) | data[offset + 3])
 }
 
 /// Reads a big-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
+///
+/// Ergonomic shell over `readU32beResult` (ADR-0135).
 fn readU32be(data: Bytes, offset: Int) -> Int? {
+  return results.toOptional(readU32beResult(data, offset))
+}
+
+/// Reads a little-endian `u32` at `offset`, preserving the cause of a short buffer.
+fn readU32leResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
   if (offset < 0 or offset > len(data) - 4) {
-    return nil
+    return Result.Err(_outOfBounds(offset, 4, data))
   }
-  return (data[offset] << 24) | (data[offset + 1] << 16) |
-    (data[offset + 2] << 8) | data[offset + 3]
+  return Result.Ok(data[offset] | (data[offset + 1] << 8) |
+    (data[offset + 2] << 16) | (data[offset + 3] << 24))
 }
 
 /// Reads a little-endian `u32` at `offset`; `nil` if the four bytes are out of bounds.
+///
+/// Ergonomic shell over `readU32leResult` (ADR-0135).
 fn readU32le(data: Bytes, offset: Int) -> Int? {
-  if (offset < 0 or offset > len(data) - 4) {
-    return nil
-  }
-  return data[offset] | (data[offset + 1] << 8) |
-    (data[offset + 2] << 16) | (data[offset + 3] << 24)
+  return results.toOptional(readU32leResult(data, offset))
 }
 
-/// Reads a big-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+/// Reads a big-endian `u64` at `offset`, preserving the cause of a short buffer.
 ///
 /// The result is the 64-bit pattern in an `Int`: a value with the high bit set
 /// appears negative, exactly like `u64be`.
-fn readU64be(data: Bytes, offset: Int) -> Int? {
+fn readU64beResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
   if (offset < 0 or offset > len(data) - 8) {
-    return nil
+    return Result.Err(_outOfBounds(offset, 8, data))
   }
   var value = 0
   for index in 0..8 {
     value = (value << 8) | data[offset + index]
   }
-  return value
+  return Result.Ok(value)
 }
 
-/// Reads a little-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+/// Reads a big-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+///
+/// The result is the 64-bit pattern in an `Int`: a value with the high bit set
+/// appears negative, exactly like `u64be`. Ergonomic shell over `readU64beResult`
+/// (ADR-0135).
+fn readU64be(data: Bytes, offset: Int) -> Int? {
+  return results.toOptional(readU64beResult(data, offset))
+}
+
+/// Reads a little-endian `u64` at `offset`, preserving the cause of a short buffer.
 ///
 /// The high bit appears as a negative `Int`, exactly like `u64le`.
-fn readU64le(data: Bytes, offset: Int) -> Int? {
+fn readU64leResult(data: Bytes, offset: Int) -> Result[Int, BytesError] {
   if (offset < 0 or offset > len(data) - 8) {
-    return nil
+    return Result.Err(_outOfBounds(offset, 8, data))
   }
   var value = 0
   for index in 0..8 {
     value = (value << 8) | data[offset + 7 - index]
   }
-  return value
+  return Result.Ok(value)
+}
+
+/// Reads a little-endian `u64` at `offset`; `nil` if the eight bytes are out of bounds.
+///
+/// The high bit appears as a negative `Int`, exactly like `u64le`. Ergonomic shell
+/// over `readU64leResult` (ADR-0135).
+fn readU64le(data: Bytes, offset: Int) -> Int? {
+  return results.toOptional(readU64leResult(data, offset))
 }
 
 fn _unsigned(value: Int, maximum: Int, name: String) -> Nil {
