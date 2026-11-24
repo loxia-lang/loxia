@@ -45,7 +45,7 @@ Packages by phase (dependency only downward):
 | Package | Phase |
 | --- | --- |
 | [`loxia_core/frontend/`](../../loxia_core/frontend) | lexing → tokens → AST → parser; annotation types (`ty.py`), `ast_printer` (debug) and `ast_json` (oracle, ADR-0129) |
-| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo, ADR-0141) and gradual `checker` |
+| [`loxia_core/semantics/`](../../loxia_core/semantics) | `resolver` (scopes/`depth`), `flow` (refinamentos, merge e política de fluxo), `type_ops`/`decl_table` (split do ADR-0141) and gradual `checker` |
 | [`loxia_core/execution/`](../../loxia_core/execution) | values, environment, objects, natives and `interpreter` |
 | [`loxia_core/diagnostics/`](../../loxia_core/diagnostics) | `errors` and `error_reporter` |
 | [`loxia_core/loader/`](../../loxia_core/loader) | module loader, manifest, lock and dependency resolution (ADR-0073/0104) |
@@ -133,7 +133,9 @@ Packages by phase (dependency only downward):
 | [`loxia_core/numeric_bounds.py`](../../loxia_core/numeric_bounds.py) | i64 bounds (`INT_MIN`/`INT_MAX`) shared by the scanner and the numeric model; leaf module (no `loxia_core` imports) |
 | [`loxia_core/frontend/ty.py`](../../loxia_core/frontend/ty.py) | types (`Ty`), `TyVar`, `GenericFnTy`, unions, `T?`, `FnTy` and helpers |
 | [`loxia_core/semantics/flow.py`](../../loxia_core/semantics/flow.py) | refinement key, state merge, `LoopContext` and the per-node flow policy (ADR-0141) |
-| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | gradual static checker (`--check`) |
+| [`loxia_core/semantics/type_ops.py`](../../loxia_core/semantics/type_ops.py) | type algebra: assignment, unification, substitution (ADR-0141) |
+| [`loxia_core/semantics/decl_table.py`](../../loxia_core/semantics/decl_table.py) | classes/enums/interfaces registry and hierarchy lookups (ADR-0141) |
+| [`loxia_core/semantics/checker.py`](../../loxia_core/semantics/checker.py) | gradual static checker (`--check`; flow lives in `flow`, types in `type_ops`) |
 | [`loxia_core/execution/type_test.py`](../../loxia_core/execution/type_test.py) | dynamic type test for `x is T` |
 | [`loxia_core/execution/lox_range.py`](../../loxia_core/execution/lox_range.py) | lazy `Range` (start, end, step) |
 | [`loxia_core/execution/lox_tuple.py`](../../loxia_core/execution/lox_tuple.py) | immutable `LoxTuple` (tuples) |

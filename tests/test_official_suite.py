@@ -12,6 +12,8 @@ Os `.lx` oficiais ficam em `tests/official/cases/` sem alteração. Aqui:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import re
 import tempfile
 from dataclasses import dataclass, field
@@ -19,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from loxia.engine import Loxia
 from tests.inprocess import Result, run_cli
 
 CASES = Path(__file__).resolve().parent / "official" / "cases"
@@ -292,6 +295,23 @@ def _execute(path: Path) -> Result:
         temporary.unlink(missing_ok=True)
 
 
+def _run_interpreter(source: str) -> tuple[list[str], str, int]:
+    """Roda o fonte adaptado sem o check, para preservar o oráculo de runtime do livro.
+
+    Os casos `CHECK_BLOCKED` são recusados pelo checker antes de executar; o
+    interpretador continua sendo a especificação executável e precisa produzir o
+    stdout/erro que o livro espera.
+    """
+    lox = Loxia(check_on_run=False)
+    lox.use_file("<official>")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        lox.run(source)
+    code = 65 if lox.reporter.had_error else 70 if lox.reporter.had_runtime_error else 0
+    return stdout.getvalue().splitlines(), stderr.getvalue(), code
+
+
 def _without_snippet(stderr: str) -> str:
     """Remove as linhas do trecho de código antes de casar mensagens.
 
@@ -318,6 +338,28 @@ def test_official_case(path: Path) -> None:
             f"erro de check esperado: {CHECK_BLOCKED[name]!r}\nstderr:\n{result.stderr}"
         )
         assert stdout == [], f"stdout deveria estar vazio, obtido {stdout!r}"
+        # O check bloqueia, mas o oráculo do livro (stdout/erro de runtime) continua
+        # valendo para o interpretador, que é a especificação executável.
+        interpreter_stdout, interpreter_stderr, interpreter_code = _run_interpreter(
+            adapt_source(source)
+        )
+        if expectations.runtime_error is not None:
+            assert interpreter_code == 70, (
+                f"interpretador: esperado exit 70, obtido {interpreter_code}\n"
+                f"stderr:\n{interpreter_stderr}"
+            )
+            assert expectations.runtime_error in interpreter_stderr, (
+                f"interpretador: runtime error esperado: {expectations.runtime_error!r}\n"
+                f"stderr:\n{interpreter_stderr}"
+            )
+        else:
+            assert interpreter_code == 0, (
+                f"interpretador: esperado exit 0, obtido {interpreter_code}\n"
+                f"stderr:\n{interpreter_stderr}"
+            )
+        assert interpreter_stdout == expectations.stdout, (
+            f"interpretador: stdout esperado {expectations.stdout!r}, obtido {interpreter_stdout!r}"
+        )
         return
 
     if expectations.runtime_error is not None:

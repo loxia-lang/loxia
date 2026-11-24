@@ -1,6 +1,6 @@
 # ADR-0141 — Checker: soundness de fluxo, merge ciente de saltos e escopo da precisão
 
-- **Status:** accepted (fatia de soundness e gate do corpus implementados em 2026-11-24; split `TypeOps`/`DeclTable` pendente)
+- **Status:** accepted (fatia de soundness, gate do corpus e split `TypeOps`/`DeclTable` implementados em 2026-11-24)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0025](0025-is-e-narrowing.md),
@@ -11,11 +11,15 @@
   [ADR-0139](0139-break-continue.md), [ADR-0140](0140-match-literais.md),
   [`../../TIPOS.md`](../../TIPOS.md) §2, [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`loxia_core/semantics/flow.py`](../../loxia_core/semantics/flow.py)
-  (chave, merge, `LoopContext`, política), `loxia_core/semantics/checker.py`,
+  (chave, merge, `LoopContext`, política), `loxia_core/semantics/type_ops.py`
+  (atribuição, unificação, substituição), `loxia_core/semantics/decl_table.py`
+  (classes/enums/interfaces e hierarquia), `loxia_core/semantics/checker.py`,
   [`tests/test_checker_flow.py`](../../tests/test_checker_flow.py),
   [`tests/test_checker_sweep.py`](../../tests/test_checker_sweep.py),
   `tests/cases/break_narrowing.lx`, `tests/cases/break_finally.lx`,
-  `tests/cases/match_arm_flow.lx`, `tests/corpus_manifest.py`, `tests/test_ast_schema.py`
+  `tests/cases/match_arm_flow.lx`, `tests/cases/errors/break_post_loop.lx`,
+  `tests/cases/errors/match_arm_leak.lx`, `tests/corpus_manifest.py`,
+  `tests/test_ast_schema.py`
 
 ## Contexto
 
@@ -188,9 +192,9 @@ invalida.
 
 - As regressões de soundness em `tests/test_checker_flow.py`: `break` pós-laço, vazamento do
   último braço de `match`, vazamento do ternário e do lado direito de `and`, e `break` dentro
-  de `try/finally` que atribui. O `--check` recusa todos (E3007). Como `run` ainda não checa
-  ([ADR-0142](0142-check-por-fases.md)), eles não podem ser caso golden de erro; viram caso
-  golden quando a fase 2 ligar o check no `run`.
+  de `try/finally` que atribui. O `--check` recusa todos (E3007). Com o check no `run`
+  ([ADR-0142](0142-check-por-fases.md)) ligado, os dois programas do contexto também viraram
+  casos golden de erro (`errors/break_post_loop.lx`, `errors/match_arm_leak.lx`).
 - As formas **válidas** de `break`/`match` com narrowing entram no corpus diferencial
   (`break_narrowing.lx` em l2, `break_finally.lx` em l2, `match_arm_flow.lx` em l6), onde I1
   compara interpretador e binário nos três canais.

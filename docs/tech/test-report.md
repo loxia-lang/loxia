@@ -106,7 +106,7 @@ Before running each file, the runner type-checks it in **gradual** mode (ADR-014
 annotation is a warning and `Any` is consistent with every type, so an unannotated suite is
 not rejected. A real type error fails the file as a single `crash` result named `<path>`
 whose message is the short diagnostic; the file is not executed (and, with `--native`, not
-built). `--no-check` skips the stage. The pre-check uses the same dependency flags as the
+built). The pre-check always runs. It uses the same dependency flags as the
 run (`--frozen`, `--offline`, `--cache-dir`).
 
 ## JUnit XML (`--junit PATH`)

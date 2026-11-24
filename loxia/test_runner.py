@@ -291,7 +291,7 @@ def _invoke(
     command = (
         [binary]
         if binary is not None
-        else [sys.executable, "-m", "loxia", "run", "--no-check", *deps, str(path), "--"]
+        else [sys.executable, "-m", "loxia", "run", *deps, str(path), "--"]
     )
     command = [*command, *script_args]
     process = subprocess.Popen(
@@ -944,7 +944,9 @@ def _precheck(files: list[Path], args: argparse.Namespace) -> dict[Path, str]:
             continue
         lox = Loxia(
             max_errors=5,
-            gradual=True,
+            # `--native` compila com o checker estrito; o precheck tem que ser estrito
+            # também, senão o build falha depois de o precheck ter aprovado.
+            gradual=not getattr(args, "native", False),
             frozen=getattr(args, "frozen", False),
             offline=getattr(args, "offline", False),
             cache_dir=getattr(args, "cache_dir", None),
@@ -952,7 +954,7 @@ def _precheck(files: list[Path], args: argparse.Namespace) -> dict[Path, str]:
         lox.use_file(_display(path), module_root=path.resolve().parent)
         # O loader já reporta o diagnóstico antes de levantar; segue para o resumo.
         with contextlib.suppress(ModuleError):
-            lox.check(source, emit=False)
+            lox.check(source, emit=False, defer_lowerable=True)
         if not lox.reporter.had_error:
             continue
         errors = [
@@ -1009,7 +1011,7 @@ def run_tests(args: argparse.Namespace) -> int:
         deps.extend(["--cache-dir", args.cache_dir])
     with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
         # Fase 1 do ADR-0142: checa cada arquivo em modo gradual antes de executar.
-        check_errors = {} if getattr(args, "no_check", False) else _precheck(files, args)
+        check_errors = _precheck(files, args)
         binaries: dict[Path, str | None] = {path: None for path in files}
         build_errors: dict[Path, str] = dict(check_errors)
         if args.native:

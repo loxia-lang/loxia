@@ -1,0 +1,6 @@
+var x: String? = nil
+while (x == nil) {
+  break
+}
+print(len(x))
+# expect error: Expected a string, a list or a map, found String | Nil.

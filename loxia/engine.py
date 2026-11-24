@@ -35,7 +35,7 @@ from loxia_core.frontend.stmt import Stmt
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.trivia import Trivia
-from loxia_core.frontend.ty import display
+from loxia_core.frontend.ty import Ty, display
 from loxia_core.loader.deps import DependencyError, resolve_dependencies
 from loxia_core.loader.lock import LOCK_NAME, LockError, read_lock
 from loxia_core.loader.manifest import (
@@ -46,6 +46,7 @@ from loxia_core.loader.manifest import (
 )
 from loxia_core.native_build import TOOLCHAIN_MESSAGE, cargo_binary
 from loxia_core.semantics.checker import Checker
+from loxia_core.semantics.decl_table import DeclTable
 from loxia_core.semantics.layers import REGEX_PRIMITIVES, named_uses, native_only_uses
 from loxia_core.semantics.resolver import Resolver
 
@@ -72,6 +73,16 @@ def manifest_token(path: Path, line: int = 1, column: int = 1) -> Token:
 
 # No REPL o check é por snippet: nomes e anotações de linhas anteriores não existem.
 _REPL_QUIET = frozenset({Code.UNDEFINED_NAME, Code.MISSING_ANNOTATION})
+
+
+def _declared_globals(statements: list[Stmt]) -> set[str]:
+    """Nomes declarados no snippet: o seed antigo deles não deve disparar redeclaração."""
+    names: set[str] = set()
+    for statement in statements:
+        lexeme = getattr(getattr(statement, "name", None), "lexeme", None)
+        if isinstance(lexeme, str):
+            names.add(lexeme)
+    return names
 
 
 class Loxia:
@@ -109,6 +120,11 @@ class Loxia:
         self.cache_dir = Path(cache_dir).resolve() if cache_dir is not None else None
         self.gradual = gradual
         self._check_on_run = check_on_run
+        # Estado consultivo da sessão REPL: o check de cada snippet enxerga o anterior.
+        self._repl_decls = DeclTable()
+        self._repl_globals: dict[str, Ty] = {}
+        self._repl_alias_targets: dict[str, Ty] = {}
+        self._repl_alias_resolved: dict[str, Ty] = {}
         self._sources = SourceMap()
         self._file = "<stdin>"
         self._module_root: Path | None = None
@@ -347,7 +363,14 @@ class Loxia:
             self.reporter.release_deferred()
 
     def _repl_check(self, statements: list[Stmt], resolver: Resolver) -> None:
-        """No REPL o check só avisa: nunca bloqueia um snippet (ADR-0142)."""
+        """No REPL o check só avisa: nunca bloqueia um snippet (ADR-0142).
+
+        A sessão lembra declarações, globais e aliases dos snippets anteriores; sem isso
+        `p.m()`/`x + 1`/`val b: A` viravam aviso falso porque o checker era recriado do zero.
+        """
+        declared = _declared_globals(statements)
+        seed = {name: ty for name, ty in self._repl_globals.items() if name not in declared}
+        # O REPL só avisa (ADR-0142): `-Werror` não bloqueia um snippet interativo.
         advisory = ErrorReporter(max_errors=self.reporter.max_errors)
         advisory.file = self._file
         checker = Checker(
@@ -357,23 +380,20 @@ class Loxia:
             source_index=self.last_source_index,
             gradual=True,
             warn_only=True,
+            decls=self._repl_decls,
+            seed_globals=seed,
+            alias_targets=self._repl_alias_targets,
+            alias_resolved=self._repl_alias_resolved,
         )
         checker.check(statements)
-        # O snippet é checado isolado: nomes/anotações de snippets anteriores não são
-        # conhecidos, então esses avisos seriam falsos positivos no REPL.
+        self._repl_globals = checker.global_scope
+        self._repl_alias_targets = checker.alias_targets
+        self._repl_alias_resolved = checker.alias_resolved
         diagnostics = tuple(
             item for item in advisory.batch().diagnostics if item.code not in _REPL_QUIET
         )
-        if not diagnostics:
-            return
-        text = render_batch(
-            DiagnosticBatch(diagnostics=diagnostics),
-            self._sources,
-            error_format=self.error_format,
-            color=self._use_color(),
-        )
-        sys.stderr.write(text)
-        sys.stderr.flush()
+        if diagnostics:
+            self.reporter.adopt(diagnostics)
 
     # -- comandos --------------------------------------------------------
 
@@ -552,6 +572,7 @@ class Loxia:
         *,
         emit: bool = True,
         module_overrides: dict[Path, str] | None = None,
+        defer_lowerable: bool = False,
     ) -> int:
         self.last_resolver = None
         self.last_checker = None
@@ -566,15 +587,21 @@ class Loxia:
             self.last_resolver = resolver
             self.last_checker = None
             if not self.reporter.had_error:
-                checker = Checker(
-                    self.reporter,
-                    captured_mutables=resolver.captured_mutables,
-                    captured_globals=resolver.captured_global_names,
-                    source_index=self.last_source_index,
-                    gradual=self.gradual,
-                )
-                checker.check(statements)
-                self.last_checker = checker
+                self.reporter.defer_lowerable = defer_lowerable
+                try:
+                    checker = Checker(
+                        self.reporter,
+                        captured_mutables=resolver.captured_mutables,
+                        captured_globals=resolver.captured_global_names,
+                        source_index=self.last_source_index,
+                        gradual=self.gradual,
+                    )
+                    checker.check(statements)
+                    self.last_checker = checker
+                finally:
+                    self.reporter.defer_lowerable = False
+                if defer_lowerable and not self.reporter.had_fatal_error:
+                    self.reporter.release_deferred()
 
         exit_code = self._exit_code()
         if emit:

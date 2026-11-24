@@ -264,6 +264,12 @@ class ErrorReporter:
         self._diagnostics.clear()
         self._deferred.clear()
 
+    def adopt(self, diagnostics: tuple[Diagnostic, ...]) -> None:
+        """Incorpora diagnósticos já prontos (REPL: o check roda em reporter separado)."""
+        self._diagnostics.extend(diagnostics)
+        if any(item.severity is Severity.ERROR for item in diagnostics):
+            self.had_error = True
+
     def release_deferred(self) -> None:
         """Entrega os erros rebaixáveis ao runtime (run) e reavalia `had_error`.
 

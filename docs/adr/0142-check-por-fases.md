@@ -1,6 +1,6 @@
 # ADR-0142 — `--check` por fases: gradual no `test`/CI, bloqueio no `run` depois
 
-- **Status:** accepted (fases 1 e 2 implementadas em 2026-11-24; fase 3 com gatilho declarado)
+- **Status:** accepted (fases 1–3 implementadas em 2026-11-24)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
@@ -17,6 +17,8 @@
   `check_on_run`), `loxia_core/diagnostics/error_reporter.py` (`release_deferred`),
   `loxia/cli_args.py` (`run --no-check`, legado), `tests/test_run_check.py`,
   casos golden migrados e `tests/test_official_suite.py` (`CHECK_BLOCKED`)
+- **Implementação (fase 3):** `loxia/cli_args.py`/`loxia/test_runner.py` sem
+  `--no-check`, `tests/test_run_check.py` (remoção) e docs sem o escape
 
 ## Contexto
 
@@ -70,9 +72,9 @@ anotação".
    `--check` estrito o `as` continua obrigatório. Isto não substitui o `--check` estrito, que
    continua o default do comando.
 2. **`loxia test` checa** cada `*_test.lx` no modo gradual e falha em erro de tipo real;
-   `--no-check` desliga. O precheck usa as mesmas flags de dependência do build/run
-   (`--frozen`, `--offline`, `--cache-dir`). Teste é o lugar onde o check obrigatório tem
-   risco zero: o código é estável, anotado e roda em CI.
+   `--no-check` desliga (removido na fase 3). O precheck usa as mesmas flags de dependência
+   do build/run (`--frozen`, `--offline`, `--cache-dir`). Teste é o lugar onde o check
+   obrigatório tem risco zero: o código é estável, anotado e roda em CI.
 3. **CI deste repositório**: a suíte já passa `--check` em todo o corpus (varredura de I4 em
    `tests/test_backend.py`); não há passo de CI separado para `std/`/`examples/`.
 4. `run` e REPL **não mudam** nesta fase.
@@ -95,7 +97,7 @@ registrado como não cumprido; a fase 2 entra com o mesmo desenho e a mesma migr
    um snippet interativo; o check é por snippet, então nomes/anotações de linhas anteriores
    não viram aviso).
 6. **Escape:** `--no-check` no `run` (subcomando e legado) por uma release, documentado como
-   migração.
+   migração e removido na fase 3.
 7. **Migração declarada:** os **22** casos golden que esperam erro de runtime passam a
    `expect error`; **26** casos da suíte oficial com erro de runtime esperado passam a erro
    de compilação (os 10 restantes seguem adiados por serem `lowerable`) e a divergência é
@@ -114,8 +116,18 @@ acima.
 
 ### Fase 3 — depois de uma release com a fase 2
 
-9. Remove `--no-check`; `run` sempre checa. O modo gradual continua sendo o default do
-   `run`; o `check` continua estrito.
+**Gatilho antecipado (2026-11-24):** o mantenedor decidiu que não há consumidor real da
+linguagem ainda, então a fase 3 entra junto com a fase 2, sem esperar a release.
+
+9. Remove `--no-check` do `run` (subcomando e legado) e do `loxia test`; `run` sempre checa.
+   O modo gradual continua sendo o default do `run`; o `check` continua estrito. O
+   parâmetro interno `check_on_run` da engine permanece só como seam dos testes de
+   interpretador (não é flag de CLI).
+
+**Entregue em 2026-11-24:** flags e validação removidas, `loxia test` sempre faz o
+pre-check, `--no-check` vira erro de argumento (2) e os testes de regressão fixam isso. O
+precheck agora adia `lowerable` (mesma política do `run`) e usa o checker estrito com
+`--native`, para não aprovar o que o build recusaria.
 
 ### Regra de reversão
 
@@ -148,6 +160,8 @@ nunca reintroduzir o `--no-check`.
 
 - `--check` estrito não muda em nenhuma fase.
 - `--emit` já exigia o checker; nada muda no backend.
+- Não há escape de check: falso positivo
+  que bloqueie programa válido abre fatia de precisão (alias/efeito), nunca `--no-check`.
 
 ## Alternativas consideradas
 
@@ -161,13 +175,14 @@ nunca reintroduzir o `--no-check`.
 
 ## Como verificar
 
-- `loxia test` falha em um `*_test.lx` com erro de tipo e passa em teste sem anotação
-  (aviso), com e sem `--no-check`.
+- `loxia test` falha em um `*_test.lx` com erro de tipo fatal e passa em teste sem anotação
+  (aviso); o precheck adia `lowerable` como o `run` e é estrito com `--native`.
 - `loxia check --gradual` aceita programa sem anotações e continua recusando erro real.
 - Fase 2: os 22 casos golden e os 26 oficiais reclassificados; `make check` verde; corpus
   diferencial com I1 nos três canais.
-- `run` bloqueia `var x: Int = "a"` (65), adia `print(1 + true)` (70) e é silencioso em
-  código sem anotação; `run --no-check` executa; o REPL avisa e executa.
+- Fase 3: `run --no-check`, `--no-check` legado e `test --no-check` são erro de argumento
+  (2); `run` bloqueia `var x: Int = "a"` (65), adia `print(1 + true)` (70) e é silencioso em
+  código sem anotação; o REPL avisa e executa.
 - `tests/test_docs_consistency.py` e `docs/spec/erros.md` refletem os modos.
 - **Revisitar:** taxa de falso positivo em uso real, custo de boot e reclamações de
   migração na fase 2.
