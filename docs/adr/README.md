@@ -192,6 +192,8 @@ TODO item.
 | [0138](0138-remocao-for-c-style.md) | Remove C-style `for (;;)`; keep `for-in`/`while`, targeted migration diagnostic | accepted (breaking; target 2.0) | 2026-11-23 |
 | [0139](0139-break-continue.md) | `break`/`continue` without labels: innermost loop, `finally` cleanup, function boundary; keyword budget 27→29 | accepted (implemented) | 2026-11-23 |
 | [0140](0140-match-literais.md) | Literal `match` patterns: Int/String/Bool/nil, `_` required outside enums; no Float, guards or structural match | accepted (implemented) | 2026-11-23 |
+| [0141](0141-soundness-de-fluxo-do-checker.md) | Checker flow soundness: `break`/`continue` terminate post-loop refinement, `match` forks/joins per arm, jump-aware merges and a flow-policy gate; precision stays with alias/effects/CFG deferred | accepted (implementation in slices) | 2026-11-24 |
+| [0142](0142-check-por-fases.md) | `--check` in phases: gradual mode plus checking in `loxia test`/CI now, blocking `run` later with a one-release escape; type errors stop being optional | accepted (phase 1; 2–3 gated) | 2026-11-24 |
 
 
 ## Next decisions that call for an ADR

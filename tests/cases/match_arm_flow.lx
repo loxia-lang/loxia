@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Cada braço de `match` parte do estado de entrada e a saída é o join (ADR-0141).
+var x: String? = nil
+val k = 1
+val r = match k {
+  0 => (x = "zero")
+  _ => (x = "outro")
+}
+print(r)         # expect: outro
+print(len(x))    # expect: 5
