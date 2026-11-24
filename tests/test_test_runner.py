@@ -718,3 +718,35 @@ def test_precheck_aceita_teste_sem_anotacao(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert "ok 1 - passa" in result.stdout
+
+
+GENERIC_TEST = """
+import std.test as t
+fn g(x) { return x }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(g(1)).toBe(1) })
+suite.done()
+"""
+
+
+def test_precheck_aceita_helper_sem_anotacao_em_generico(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "g_test.lx").write_text(GENERIC_TEST, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - a" in result.stdout
+
+
+def test_precheck_native_curto_circuita_antes_do_build(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests), "--native")
+
+    assert result.returncode == 1
+    assert "error[E3001]" in result.stdout
+    assert "native build failed" not in result.stdout

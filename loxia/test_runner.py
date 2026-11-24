@@ -928,20 +928,27 @@ def _build_all(
     return binaries, build_errors
 
 
-def _precheck(files: list[Path]) -> dict[Path, str]:
+def _precheck(files: list[Path], args: argparse.Namespace) -> dict[Path, str]:
     """Checa os tipos de cada arquivo em modo gradual (ADR-0142, fase 1).
 
     Anotação ausente não reprova (vira aviso e o tipo é `Any`); erro de tipo real sim.
-    Devolve só os arquivos que falharam, com as linhas curtas do diagnóstico.
+    Devolve só os arquivos que falharam, com as linhas curtas do diagnóstico. Usa as
+    mesmas flags de dependência do `run`/build, para não resolver o projeto de outro jeito.
     """
     failures: dict[Path, str] = {}
     for path in files:
         try:
             source = path.read_text(encoding="utf-8")
-        except OSError as error:
-            failures[path] = f"cannot read file: {error.strerror or error}"
+        except (OSError, UnicodeDecodeError) as error:
+            failures[path] = f"cannot read file: {error}"
             continue
-        lox = Loxia(max_errors=5, gradual=True)
+        lox = Loxia(
+            max_errors=5,
+            gradual=True,
+            frozen=getattr(args, "frozen", False),
+            offline=getattr(args, "offline", False),
+            cache_dir=getattr(args, "cache_dir", None),
+        )
         lox.use_file(_display(path), module_root=path.resolve().parent)
         # O loader já reporta o diagnóstico antes de levantar; segue para o resumo.
         with contextlib.suppress(ModuleError):
@@ -1002,7 +1009,7 @@ def run_tests(args: argparse.Namespace) -> int:
         deps.extend(["--cache-dir", args.cache_dir])
     with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
         # Fase 1 do ADR-0142: checa cada arquivo em modo gradual antes de executar.
-        check_errors = {} if getattr(args, "no_check", False) else _precheck(files)
+        check_errors = {} if getattr(args, "no_check", False) else _precheck(files, args)
         binaries: dict[Path, str | None] = {path: None for path in files}
         build_errors: dict[Path, str] = dict(check_errors)
         if args.native:

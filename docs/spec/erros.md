@@ -497,8 +497,11 @@ The immutability message appears in **two phases**: compilation for locals/param
 Strict `--check` requires parameter and return annotations. `--gradual` (and, by default,
 the pre-check of `loxia test`) turns the missing-annotation code (`E3004`) into a
 **warning** and uses `Any` for that binding: the program is still checked for everything
-else and can run; real type errors keep exit 65. `loxia test --no-check` skips the
-pre-check entirely ([ADR-0142](../adr/0142-check-por-fases.md)).
+else and can run; real type errors keep exit 65. In gradual mode `Any` is consistent with
+every type (an unannotated value can feed a typed parameter, and a generic instantiated
+without evidence gets `Any`), because there is no lowering; strict `--check` still requires
+`as` for `Any → T`. `loxia test --no-check` skips the pre-check entirely
+([ADR-0142](../adr/0142-check-por-fases.md)).
 
 | Message | When |
 | --- | --- |

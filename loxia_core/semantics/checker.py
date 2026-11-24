@@ -1083,6 +1083,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return True
         if actual is NEVER:
             return True
+        # No modo gradual o `Any` é consistente com qualquer tipo (o programa roda no
+        # tree-walk, sem lowering); o `as` continua obrigatório no `--check` estrito.
+        if self._gradual and actual is ANY:
+            return True
         if expected == actual:
             return True
         # Rebinding de classe é dinâmico por ADR-0044: `Base = OtherBase as Any`
@@ -4154,13 +4158,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         result = self._substitute(result_template, bindings)
         unbound = self._unbound_type_vars(result, fresh)
         if unbound:
-            names = ", ".join(f"'{member.name}'" for member in unbound)
-            self._error(
-                token,
-                f"Can't infer type argument(s) {names} for '{info.name}'; annotate the value.",
-                code=Code.GENERIC_INFERENCE,
-            )
-            return ERROR
+            if not self._gradual:
+                names = ", ".join(f"'{member.name}'" for member in unbound)
+                self._error(
+                    token,
+                    f"Can't infer type argument(s) {names} for '{info.name}'; annotate the value.",
+                    code=Code.GENERIC_INFERENCE,
+                )
+                return ERROR
+            # Gradual: sem anotação não há como inferir; instancia com `Any`.
+            for variable in unbound:
+                bindings[variable] = ANY
+            result = self._substitute(result_template, bindings)
 
         if isinstance(result, ClassTy) and result.args:
             self.generic_classes.add(result)
@@ -4242,13 +4251,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         result = self._substitute(signature.ret, bindings)
         unbound = self._unbound_type_vars(result, instance.type_params)
         if unbound:
-            names = ", ".join(f"'{variable.name}'" for variable in unbound)
-            self._error(
-                token,
-                f"Can't infer type argument(s) {names}.",
-                code=Code.GENERIC_INFERENCE,
-            )
-            return ERROR
+            if not self._gradual:
+                names = ", ".join(f"'{variable.name}'" for variable in unbound)
+                self._error(
+                    token,
+                    f"Can't infer type argument(s) {names}.",
+                    code=Code.GENERIC_INFERENCE,
+                )
+                return ERROR
+            # Gradual: sem anotação não há como inferir; instancia com `Any`.
+            for variable in unbound:
+                bindings[variable] = ANY
+            result = self._substitute(signature.ret, bindings)
 
         self._check_polymorphic_recursion(instance, bindings, token)
         if all(variable in bindings for variable in instance.type_params):
@@ -4281,6 +4295,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
 
     def _satisfies_bound(self, actual: Ty, bound: str) -> bool:
+        if self._gradual and actual is ANY:
+            # `Any` é consistente com qualquer constraint no modo gradual.
+            return True
         if isinstance(actual, TyVar):
             return bound in actual.bounds
         if isinstance(actual, InterfaceTy):
@@ -4475,6 +4492,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if isinstance(actual, TyVar) and actual == expected:
                 return True
             if actual is ANY:
+                if self._gradual:
+                    # Sem anotação, o argumento é `Any`: instancia com `Any` e segue.
+                    bindings[expected] = ANY
+                    return True
                 self._error(
                     token,
                     f"Can't infer type argument '{expected.name}' from Any.",

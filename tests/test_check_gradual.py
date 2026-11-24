@@ -40,3 +40,44 @@ def test_gradual_check_still_rejects_real_type_errors() -> None:
 
     assert lox.reporter.had_error is True
     assert any(item.code is Code.TYPE_MISMATCH for item in lox.reporter.batch().diagnostics)
+
+
+ANY_TO_CONCRETE = "fn f(x: Int) -> Int { return x }\nfn g(y) { return y }\nprint(f(g(1)))\n"
+GENERIC_FROM_ANY = "fn id[T](x: T) -> T { return x }\nfn g(y) { return y }\nprint(id(g(1)))\n"
+UNBOUND_GENERIC = "fn empty[T]() -> List[T] { return [] }\nval xs = empty()\nprint(len(xs))\n"
+
+
+def test_gradual_treats_any_as_consistent_with_concrete_types() -> None:
+    lox = check(ANY_TO_CONCRETE, gradual=True)
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_strict_check_still_requires_a_cast_from_any() -> None:
+    lox = check(ANY_TO_CONCRETE, gradual=False)
+
+    assert lox.reporter.had_error is True
+
+
+def test_gradual_binds_generic_arguments_from_any() -> None:
+    lox = check(GENERIC_FROM_ANY, gradual=True)
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_gradual_binds_unbound_generic_arguments_to_any() -> None:
+    lox = check(UNBOUND_GENERIC, gradual=True)
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_strict_check_still_rejects_unbound_generic_arguments() -> None:
+    lox = check(UNBOUND_GENERIC, gradual=False)
+
+    assert lox.reporter.had_error is True

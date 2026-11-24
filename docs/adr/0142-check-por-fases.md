@@ -60,18 +60,23 @@ anotação".
 ### Fase 1 — entra agora, sem mudar `run`
 
 1. **Modo gradual** (`check --gradual`): anotação ausente (E3004) vira **aviso** e o tipo do
-   parâmetro/retorno/field é `Any`; o resto do check continua estrito. Isto não substitui o
-   `--check` estrito, que continua o default do comando.
+   parâmetro/retorno/field é `Any`; `Any` é **consistente com qualquer tipo** (um valor sem
+   anotação pode alimentar um parâmetro tipado ou um genérico — `T = Any` quando não há como
+   inferir), porque o programa roda no tree-walk. O resto do check continua estrito; no
+   `--check` estrito o `as` continua obrigatório. Isto não substitui o `--check` estrito, que
+   continua o default do comando.
 2. **`loxia test` checa** cada `*_test.lx` no modo gradual e falha em erro de tipo real;
-   `--no-check` desliga. Teste é o lugar onde o check obrigatório tem risco zero: o código é
-   estável, anotado e roda em CI.
+   `--no-check` desliga. O precheck usa as mesmas flags de dependência do build/run
+   (`--frozen`, `--offline`, `--cache-dir`). Teste é o lugar onde o check obrigatório tem
+   risco zero: o código é estável, anotado e roda em CI.
 3. **CI deste repositório**: a suíte já passa `--check` em todo o corpus (varredura de I4 em
    `tests/test_backend.py`); não há passo de CI separado para `std/`/`examples/`.
 4. `run` e REPL **não mudam** nesta fase.
 
-**Entregue em 2026-11-24:** `Checker(gradual=True)` (E3004 → warning, tipo `Any`),
-`check --gradual` (subcomando e modo compatível), `_precheck` do `loxia test` com
-`--no-check`, e os testes de aceitação/recusa em `tests/test_check_gradual.py` e no runner.
+**Entregue em 2026-11-24:** `Checker(gradual=True)` (E3004 → warning, `Any` consistente,
+inferência com `Any`), `check --gradual` (subcomando e modo compatível), `_precheck` do
+`loxia test` com `--no-check` e as flags de dependência, e os testes de aceitação/recusa em
+`tests/test_check_gradual.py` e no runner.
 
 ### Fase 2 — gatilho: ADR-0141 implementado e uma release com a fase 1 verde
 
