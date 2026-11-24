@@ -1,0 +1,51 @@
+fn parse(n: Int) -> Result[Int, String] {
+  return match n {
+    0 => Result.Ok(0)
+    _ => Result.Ok(n)
+  }
+}
+
+val r: Result[Int, String] = match 0 {
+  0 => Result.Ok(1)
+  _ => Result.Err("e")
+}
+
+val f: fn(Int) -> Result[Int, String] = fn(x) => match x {
+  0 => Result.Err("zero")
+  _ => Result.Ok(x)
+}
+
+fn pick(result: Result[Int, String], base: Int) -> Int {
+  return match result {
+    Result.Ok(v) => v + base
+    Result.Err(_e) => base
+  }
+}
+
+print(
+  match r {
+    Result.Ok(v) => v
+    Result.Err(_e) => 0
+  },
+)
+print(
+  match f(2) {
+    Result.Ok(v) => v
+    Result.Err(_e) => 0
+  },
+)
+print(
+  match parse(3) {
+    Result.Ok(v) => v
+    Result.Err(_e) => 0
+  },
+)
+val ok: Result[Int, String] = Result.Ok(2)
+val err: Result[Int, String] = Result.Err("e")
+print(pick(ok, 10))
+print(pick(err, 7))
+# expect: 1
+# expect: 2
+# expect: 3
+# expect: 12
+# expect: 7

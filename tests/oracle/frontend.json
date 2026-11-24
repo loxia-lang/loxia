@@ -154,6 +154,7 @@
     "tests/cases/errors/range_bounds.lx": "37ff3fa3f21395b23d967912cafffb75c6baa8a0f28603bbf08c4fcb37c12ee9",
     "tests/cases/errors/range_step_zero.lx": "1a704017a96f1cd06e135601cdb47690c82368fdcb7e3084b6daef13a3c0f126",
     "tests/cases/errors/redeclaration.lx": "d8759f55e2a4bd8f4e836c23fb4642e9ef453d226d6e52a2385b4464b2c725f8",
+    "tests/cases/errors/result_match_arm_type.lx": "6b37e7e7854bc1559952046621a89ec21afc7699fa2f96aca336290f2d137dfa",
     "tests/cases/errors/self_initializer.lx": "49eee060db48bc0a3fff06b9c2d7db33792c30e911b12c44eab57cf96b0debda",
     "tests/cases/errors/shift_count.lx": "c671f61337845af380dca2161c715f2204eb648f9fbe654aef357be1e44b1414",
     "tests/cases/errors/spread_fill.lx": "0b5535ba7c838210b3dbe847711ebd350fbcf9192c42ad8fac64e5ce194c74fa",
@@ -226,6 +227,7 @@
     "tests/cases/map_string_keys.lx": "470f3cbf69a74b6affa9045aea529522a85df256114748f4e9442db52d514055",
     "tests/cases/map_stringify.lx": "3a00979cfe8d26ebd7bc8e141d84407ca07577f13385b86fb51690f6b9dc89d9",
     "tests/cases/match_arm_flow.lx": "4b1343d214518fd3f9c00b454dab6670273558c30abff0074e77a044814122b6",
+    "tests/cases/match_arm_local.lx": "3c3be8c1f267f7c7488a0466356e93fc55ccaf8eced313bf83818f6942536876",
     "tests/cases/match_capture.lx": "e3c26c8ab0cbc2771b1c3949325ef9706e345a21299c1e1e850b5ef76a89d305",
     "tests/cases/match_literals.lx": "8c71c27c62ff09711950c8c5a90508f038175b444121158f731c3c7280e08863",
     "tests/cases/math_optional.lx": "c2fac9f27de880617f9c43431ebc00c48498cffeb095c27fb1fa86c577c00716",
@@ -249,6 +251,7 @@
     "tests/cases/raw_strings.lx": "573a36c09db3ff56cfa3ab2a130fe3800f3230580ffbfbf47482512fd7a45cf5",
     "tests/cases/recursion.lx": "705eaa8be472d0168938980459d476c1d94b208189fd43941ed824ef61d54990",
     "tests/cases/result.lx": "59d06884e428ff1169aa44fd7c4b1ec5d8e33ddebe1a4726e7b9b25ca588a1a8",
+    "tests/cases/result_match_inference.lx": "27845b2b49cefba8818e2dd71b5ce8ca478e22c548472c78a575590c9886c23d",
     "tests/cases/result_nil.lx": "49248488cfd1a6d4bef63b655bf20d36509a17f2e78c2b315ab2f9a68db1e4d2",
     "tests/cases/return_in_loop.lx": "cfeb1e397f72f263734c49c8f7e92d85b7210e05235d5ecfc962850c3154c0e5",
     "tests/cases/return_newline.lx": "df8c3f32c8be16c2103378d2acaae058f74281ff7516972c057abfb7ea19154e",
@@ -2396,6 +2399,26 @@
         }
       }
     ],
+    "tests/cases/errors/result_match_arm_type.lx": [
+      {
+        "code": "E3001",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 35,
+            "line": 1,
+            "offset": 34
+          },
+          "file": "tests/cases/errors/result_match_arm_type.lx",
+          "start": {
+            "column": 30,
+            "line": 1,
+            "offset": 29
+          }
+        }
+      }
+    ],
     "tests/cases/errors/return_same_line.lx": [
       {
         "code": "E1001",
@@ -3240,6 +3263,7 @@
     "tests/cases/errors/range_bounds.lx": "3e0aa3acc8a9d0e38fb132a7117e9dce0f96462911c9efcc6391e1bdad45bdf3",
     "tests/cases/errors/range_step_zero.lx": "7cbb212876e0461d8e7b5df199893e0381505ada2e0c4350ba8c985b0a4eb6d4",
     "tests/cases/errors/redeclaration.lx": "65f8eb56b7619104e3fd607a6e260658794d0b58172ce44f83f3741da347420b",
+    "tests/cases/errors/result_match_arm_type.lx": "d41972214d700374100748ea96c25ea7fdeb14f0a236fc32ddc164a9def1c7ed",
     "tests/cases/errors/self_initializer.lx": "93948955616bfd82a123296e420270a76dd12966d93011d328f7265909aaebba",
     "tests/cases/errors/shift_count.lx": "82b5bdbfe8d6b921189bf615fd40fe49d14c7b1eeab0de5869c5586950c4b2f7",
     "tests/cases/errors/spread_fill.lx": "6212c17f15b4eb4b5e712ab28eb0728dd1e547478cde5ca0846e618b067d3517",
@@ -3312,6 +3336,7 @@
     "tests/cases/map_string_keys.lx": "ce35767bcde942ade5ab02b896934a662c6291d4cdd279246905857584bfbec2",
     "tests/cases/map_stringify.lx": "ca78cb3b8f8f80c17d82c8e37e2b257086dfb9b612cc43ce28d1f72bbebf0f49",
     "tests/cases/match_arm_flow.lx": "79988c9558013f6005848e209e55623a06b36af002fd94447da9a477ef4217b3",
+    "tests/cases/match_arm_local.lx": "03096f06f54e41c413ea93e73f8e75440eb14f099cf83a64894efaa6790005c1",
     "tests/cases/match_capture.lx": "46e8cb8f582f64dbd250254e280e590b9a77d1eb60e6b4697f422113b334f554",
     "tests/cases/match_literals.lx": "f09b662d2e01337514c7b3cae2f5658c3b818a48fb4724fc48200af2138cd04b",
     "tests/cases/math_optional.lx": "8d528e6cc781cbd68e17d38649009ef9f661344c691bd70b30a7642bb730a516",
@@ -3335,6 +3360,7 @@
     "tests/cases/raw_strings.lx": "c4544fc5435b607950bb6905aab2955c661af2ee9d9d7b2d4f1aa3ccad48ea35",
     "tests/cases/recursion.lx": "d15fedb256fa11476b0f7263765828115c23165433f28ac765d6e573102cc434",
     "tests/cases/result.lx": "54d906e01afaea4857eef19c908804d55d86eb045cd45224ea8cc50752a83b45",
+    "tests/cases/result_match_inference.lx": "81bb1aa0c01b4c1cd2a0a288d9a18b8296e07317291ddef9f7d72ada834afc10",
     "tests/cases/result_nil.lx": "47909cff3227d456ecc50b6386351e26edb9658ffd194ede587be810ccbe20ad",
     "tests/cases/return_in_loop.lx": "7f044663aaf5aff8404ca1b4b81b840dafe012defca29ff181142fd850931032",
     "tests/cases/return_newline.lx": "acfc876ea57953725eb4b0239c03d883104f57837b0f44793c1eb1551084f90c",
