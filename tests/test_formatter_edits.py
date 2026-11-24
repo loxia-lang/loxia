@@ -256,13 +256,14 @@ def test_cli_output_is_deterministic_across_hash_seeds(tmp_path: Path) -> None:
 
 
 def test_build_edits_scales_on_repeated_blank_lines() -> None:
-    source = "val a=1\n\n" * 3000
+    # 65.5 KB: the pattern from #158 used to take >75 s in build_edits.
+    source = "val a=1\n\n" * 7281
     target = formatted(source)
 
     started = time.perf_counter()
     edits = build_edits(source, target)
     elapsed = time.perf_counter() - started
 
-    assert elapsed < 5.0
+    assert elapsed < 2.0
     assert edits
     assert apply_edits(source, edits) == target
