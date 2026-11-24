@@ -2003,11 +2003,13 @@ print(f(9998))
 
 @pytest.mark.backend
 def test_oom_nao_e_capturavel(tmp_path: Path) -> None:
-    # Each iteration allocates a fresh string (`str(i)`): ~2M strings plus the list
-    # exceed 32 MB with room to spare, so the overflow does not depend on the
-    # collector or the runner. A constant string would be shared (interning) and
-    # only the list would grow (~16 MB), leaving the test at the budget edge —
-    # that was the flake in issue #144.
+    # Each iteration allocates a fresh string (`str(i)`), so the heap grows with
+    # both the strings and the list. A LoxStr is a 56-byte header plus the bytes
+    # and a NUL, so `str(i)` needs at least 58 bytes: 2,000,000 x 58 B = 116 MB,
+    # over 3x the 32 MB cap (32 MiB = 33.6 MB). The typed list adds 8 bytes per
+    # slot, >= 16 MiB at its 2,097,152-slot peak. A constant string would be
+    # shared (interning) and only the list would grow (~16 MB), leaving the test
+    # at the budget edge — that was the flake in issue #144.
     path = _write(
         tmp_path,
         """fn alloc() -> Nil {
