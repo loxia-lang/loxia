@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# `break` concorre à saída do laço: nenhum refino de "condição falsa" sobra (ADR-0141).
+var x: String? = "abc"
+var voltas = 0
+while (x != nil) {
+  voltas = voltas + 1
+  if (voltas > 1) {
+    break
+  }
+}
+print(voltas)    # expect: 2
+print(x == nil)  # expect: false

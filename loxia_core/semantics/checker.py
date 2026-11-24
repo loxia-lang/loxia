@@ -120,6 +120,14 @@ from loxia_core.frontend.ty import (
     truthy,
     union,
 )
+from loxia_core.semantics.flow import (
+    Invalidation,
+    LoopContext,
+    RefinementKey,
+    RefinementState,
+    join_exits,
+    join_states,
+)
 
 RESERVED_TYPE_PARAM_NAMES = frozenset(
     {
@@ -189,10 +197,6 @@ class EnumInfo:
     variants: dict[str, EnumVariantInfo] = field(default_factory=dict)
 
 
-RefinementKey = tuple[int, str, tuple[tuple[str, object], ...]]
-"""Chave de refinamento: nome da raiz + caminho (campo ou índice literal)."""
-
-
 @dataclass(frozen=True)
 class FunctionSignature:
     type_params: tuple[TyVar, ...]
@@ -223,7 +227,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._decl_tokens: list[dict[str, Token]] = [{}]
         self._captured_mutables: set[Token] = set(captured_mutables or ())
         self._captured_globals: set[str] = set(captured_globals or ())
-        self._narrowings: dict[RefinementKey, Ty] = {}
+        self._narrowings: RefinementState = {}
+        self._loops: list[LoopContext] = []
+        self._journals: list[list[Invalidation]] = []
         self._classes: dict[str, ClassInfo] = {}
         self._enums: dict[str, EnumInfo] = {}
         self._interfaces: dict[str, InterfaceInfo] = {}
@@ -676,8 +682,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return found[1]
 
+    def _record_invalidation(self, entry: Invalidation) -> None:
+        """Grava a invalidação em todos os `finally` em análise (ADR-0141)."""
+        for journal in self._journals:
+            journal.append(entry)
+
     def _invalidate(self, name: str, index: int) -> None:
         """Atribuir à raiz invalida o caminho inteiro (`p`, `p.nome`, `p[0]`)."""
+        self._record_invalidation(Invalidation("root", index=index, name=name))
         for key in list(self._narrowings):
             if key[0] == index and key[1] == name:
                 del self._narrowings[key]
@@ -706,19 +718,25 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         """
         if not self._captured_mutables and not self._captured_globals:
             return
-        for key in list(self._narrowings):
+        self._record_invalidation(Invalidation("captured"))
+        self._invalidate_captured_state(self._narrowings)
+
+    def _invalidate_captured_state(self, state: RefinementState) -> None:
+        """Aplica a invalidação de captura a um estado (usado no replay do `finally`)."""
+        for key in list(state):
             if key[2]:
                 continue
             index = key[0]
             if index == 0 and key[1] in self._captured_globals:
-                del self._narrowings[key]
+                del state[key]
                 continue
-            token = self._decl_tokens[index].get(key[1])
-            if token in self._captured_mutables:
-                del self._narrowings[key]
+            tokens = self._decl_tokens[index] if index < len(self._decl_tokens) else {}
+            if tokens.get(key[1]) in self._captured_mutables:
+                del state[key]
 
     def _invalidate_path(self, key: RefinementKey) -> None:
         """Mutar um caminho invalida ele e os caminhos mais fundos com o mesmo prefixo."""
+        self._record_invalidation(Invalidation("path", key=key))
         size = len(key[2])
         for candidate in list(self._narrowings):
             if candidate[0] == key[0] and candidate[1] == key[1] and candidate[2][:size] == key[2]:
@@ -729,8 +747,36 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         Sem aliasing não dá para saber o que a chamada mutou; refinos de variáveis
         continuam (ADR-0045)."""
+        self._record_invalidation(Invalidation("members"))
         for key in [key for key in self._narrowings if key[2]]:
             del self._narrowings[key]
+
+    def _apply_invalidations(self, state: RefinementState, entries: list[Invalidation]) -> None:
+        """Replay das invalidações de um `finally` sobre o estado de um salto."""
+        for entry in entries:
+            if entry.kind == "root":
+                for key in [
+                    candidate
+                    for candidate in state
+                    if candidate[0] == entry.index and candidate[1] == entry.name
+                ]:
+                    del state[key]
+            elif entry.kind == "path" and entry.key is not None:
+                path = entry.key
+                size = len(path[2])
+                for key in [
+                    candidate
+                    for candidate in state
+                    if candidate[0] == path[0]
+                    and candidate[1] == path[1]
+                    and candidate[2][:size] == path[2]
+                ]:
+                    del state[key]
+            elif entry.kind == "members":
+                for key in [candidate for candidate in state if candidate[2]]:
+                    del state[key]
+            elif entry.kind == "captured":
+                self._invalidate_captured_state(state)
 
     def _apply_refinements(self, refinements: dict[RefinementKey, Ty]) -> None:
         self._narrowings.update(refinements)
@@ -1374,9 +1420,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_block_stmt(self, stmt: Block) -> None:
         self._begin_scope()
-        for statement in stmt.statements:
+        try:
+            self._check_sequence(stmt.statements)
+        finally:
+            self._end_scope()
+
+    def _check_sequence(self, statements: list[Stmt]) -> None:
+        """Checa uma sequência; depois de um terminador o código não muda o estado.
+
+        O código inalcançável continua sendo checado (diagnósticos permanecem), mas não
+        contribui para o estado de saída (ADR-0141).
+        """
+        terminated = False
+        for statement in statements:
+            if terminated:
+                saved = dict(self._narrowings)
+                self._check_stmt(statement)
+                self._narrowings = saved
+                continue
             self._check_stmt(statement)
-        self._end_scope()
+            terminated = self._terminates(statement)
 
     def visit_import_stmt(self, stmt: Import) -> None:
         return
@@ -2035,13 +2098,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._invalidate_members()
             self._invalidate_captured()
         base = dict(self._narrowings)
+        body_state: RefinementState = dict(base)
+        context = LoopContext()
+        self._loops.append(context)
         self._begin_scope()
         self._define(stmt.name, element)
-        self._check_stmt(stmt.body)
-        body_state = dict(self._narrowings)
-        self._end_scope()
-        # O corpo pode executar zero vezes; só sobrevive o que vale nos dois caminhos.
-        self._narrowings = self._join_states(base, body_state)
+        try:
+            self._check_stmt(stmt.body)
+            body_state = dict(self._narrowings)
+        finally:
+            self._loops.pop()
+            self._end_scope()
+        # O corpo pode executar zero vezes; `break` concorre à saída (ADR-0141).
+        self._narrowings = join_exits(base, body_state, *context.breaks)
 
     def element_type(self, iterable: Ty, token: Token) -> Ty:
         """Tipo do elemento de um iterável; checker e LSP (inlay hints) compartilham."""
@@ -2312,7 +2381,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         enclosing_init = self._in_initializer
         enclosing_collector = self._return_collector
         enclosing_narrowings = dict(self._narrowings)
+        enclosing_loops = self._loops
+        # Corpo de função/lambda tem fluxo próprio: não herda refinos nem laços do
+        # chamador (ADR-0086; `break`/`continue` não atravessam a fronteira, ADR-0139).
         self._narrowings = {}
+        self._loops = []
 
         if not preserve_class:
             self._current_class = class_info
@@ -2345,8 +2418,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     ListTy(param_ty) if param.variadic else param_ty,
                 )
 
-            for statement in stmt.body:
-                self._check_stmt(statement)
+            self._check_sequence(stmt.body)
 
             if (
                 check_return_paths
@@ -2389,6 +2461,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             collected = self._return_collector or []
             self._return_collector = enclosing_collector
             self._narrowings = enclosing_narrowings
+            self._loops = enclosing_loops
             if generic:
                 self._generic_context.pop()
                 self._pop_type_params()
@@ -2813,20 +2886,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _join_states(
         self,
-        left: dict[RefinementKey, Ty],
-        right: dict[RefinementKey, Ty],
-    ) -> dict[RefinementKey, Ty]:
-        result: dict[RefinementKey, Ty] = {}
-        for key in left.keys() & right.keys():
-            left_ty = left[key]
-            right_ty = right[key]
-            if left_ty == right_ty:
-                result[key] = left_ty
-                continue
-            merged = union(left_ty, right_ty)
-            if merged is not NEVER:
-                result[key] = merged
-        return result
+        left: RefinementState,
+        right: RefinementState,
+    ) -> RefinementState:
+        return join_states(left, right)
 
     def _refinements(self, expr: Expr, truth: bool) -> dict[RefinementKey, Ty]:
         if isinstance(expr, Grouping):
@@ -2974,12 +3037,31 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     ) -> dict[RefinementKey, Ty]:
         if equal:
             # x == nil
-            narrowed = NIL if truth else non_nil(declared)
+            narrowed = (NIL if is_nilable(declared) else NEVER) if truth else non_nil(declared)
         else:
             # x != nil
-            narrowed = non_nil(declared) if truth else NIL
+            narrowed = non_nil(declared) if truth else (NIL if is_nilable(declared) else NEVER)
 
         return {key: narrowed} if narrowed != declared else {}
+
+    def _refine_state(
+        self, state: RefinementState, condition: Expr, truth: bool
+    ) -> RefinementState | None:
+        """Refina um estado pela condição; `None` quando o caminho é impossível.
+
+        O teste nulo contraditório (ex.: `x == nil` com `x: String`) refina para `NEVER`;
+        nesse caso a saída inteira é descartada em vez de virar um refino inventado.
+        """
+        saved = self._narrowings
+        self._narrowings = dict(state)
+        try:
+            refinements = self._refinements(condition, truth)
+            if any(ty is NEVER for ty in refinements.values()):
+                return None
+            self._apply_refinements(refinements)
+            return dict(self._narrowings)
+        finally:
+            self._narrowings = saved
 
     def _narrow_to(self, current: Ty, test: Ty) -> Ty | None:
         narrowed = self._intersect_types(current, test)
@@ -3094,30 +3176,39 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return None
 
-    def _always_returns(self, stmt: Stmt) -> bool:
-        if isinstance(stmt, Return):
-            return True
-        if isinstance(stmt, Raise):
+    def _always_returns(self, stmt: Stmt, *, jumps: bool = False) -> bool:
+        """O nó sempre sai do bloco? Com `jumps`, `break`/`continue` também contam."""
+        if isinstance(stmt, (Break, Continue)):
+            return jumps
+        if isinstance(stmt, (Return, Raise)):
             return True
         if isinstance(stmt, Try):
-            if stmt.finally_body is not None and self._body_always_returns(stmt.finally_body):
+            if stmt.finally_body is not None and self._body_always_returns(
+                stmt.finally_body, jumps=jumps
+            ):
                 return True
-            if not self._body_always_returns(stmt.body):
+            if not self._body_always_returns(stmt.body, jumps=jumps):
                 return False
-            return all(self._body_always_returns(clause.body) for clause in stmt.handlers)
+            return all(
+                self._body_always_returns(clause.body, jumps=jumps) for clause in stmt.handlers
+            )
         if isinstance(stmt, Block):
-            return any(self._always_returns(inner) for inner in stmt.statements)
+            return any(self._always_returns(inner, jumps=jumps) for inner in stmt.statements)
         if isinstance(stmt, If):
             return (
                 stmt.else_branch is not None
-                and self._always_returns(stmt.then_branch)
-                and self._always_returns(stmt.else_branch)
+                and self._always_returns(stmt.then_branch, jumps=jumps)
+                and self._always_returns(stmt.else_branch, jumps=jumps)
             )
 
         return False
 
-    def _body_always_returns(self, body: list[Stmt]) -> bool:
-        return any(self._always_returns(stmt) for stmt in body)
+    def _body_always_returns(self, body: list[Stmt], *, jumps: bool = False) -> bool:
+        return any(self._always_returns(stmt, jumps=jumps) for stmt in body)
+
+    def _terminates(self, stmt: Stmt) -> bool:
+        """`break`/`continue`/`return`/`raise`: o bloco não cai para a próxima instrução."""
+        return self._always_returns(stmt, jumps=True)
 
     def _resolve_exception_type(self, token: Token) -> Ty:
         info = self._classes.get(token.lexeme)
@@ -3141,14 +3232,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings = dict(state)
         self._begin_scope()
         try:
-            for statement in statements:
-                self._check_stmt(statement)
+            self._check_sequence(statements)
         finally:
             self._end_scope()
         return dict(self._narrowings)
 
     def visit_try_stmt(self, stmt: Try) -> None:
         base = dict(self._narrowings)
+        # `break`/`continue` do corpo e dos handlers só concluem o salto depois do
+        # `finally`; os estados gravados precisam receber as invalidações dele.
+        break_marks = [(context, len(context.breaks)) for context in self._loops]
         body_state = self._check_list_from(stmt.body, base)
         body_returns = self._body_always_returns(stmt.body)
 
@@ -3190,7 +3283,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings = merged
 
         if stmt.finally_body is not None:
-            self._narrowings = self._check_list_from(stmt.finally_body, merged)
+            pending = [
+                (context, start, len(context.breaks))
+                for context, start in break_marks
+                if len(context.breaks) > start
+            ]
+            journal: list[Invalidation] = []
+            self._journals.append(journal)
+            try:
+                self._narrowings = self._check_list_from(stmt.finally_body, merged)
+            finally:
+                self._journals.pop()
+            for context, start, end in pending:
+                for state in context.breaks[start:end]:
+                    self._apply_invalidations(state, journal)
 
     def visit_raise_stmt(self, stmt: Raise) -> None:
         if stmt.value is None:
@@ -3230,9 +3336,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return None
 
     def visit_break_stmt(self, stmt: Break) -> None:
-        return
+        """`break` concorre ao merge pós-laço com o estado do ponto do salto (ADR-0141)."""
+        if self._loops:
+            self._loops[-1].breaks.append(dict(self._narrowings))
 
     def visit_continue_stmt(self, stmt: Continue) -> None:
+        """`continue` volta ao topo do laço: não concorre à saída e não inventa refino.
+
+        O estado do ponto já entrou no corpo; sem fixpoint de laço, o merge pós-laço é
+        conservador (ADR-0141).
+        """
         return
 
     def visit_return_stmt(self, stmt: Return) -> None:
@@ -3332,11 +3445,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def visit_while_stmt(self, stmt: While) -> None:
         self._infer(stmt.condition)
         base = dict(self._narrowings)
-        body_state, _ = self._check_branch(stmt.body, self._refinements(stmt.condition, True))
-        # O laço pode executar zero vezes: junta a entrada com a saída do corpo e
-        # depois aplica a condição falsa da saída normal.
-        self._narrowings = self._join_states(base, body_state)
-        self._apply_refinements(self._refinements(stmt.condition, False))
+        body_state: RefinementState = dict(base)
+        context = LoopContext()
+        self._loops.append(context)
+        try:
+            body_state, _ = self._check_branch(stmt.body, self._refinements(stmt.condition, True))
+        finally:
+            self._loops.pop()
+        # A saída normal (zero iterações e fallthrough) satisfaz a condição falsa; o
+        # `break` não. Refina cada saída normal em separado (descartando a impossível)
+        # e só então junta os saltos (ADR-0141).
+        exits = [
+            state
+            for state in (
+                self._refine_state(base, stmt.condition, False),
+                self._refine_state(body_state, stmt.condition, False),
+            )
+            if state is not None
+        ]
+        exits.extend(context.breaks)
+        self._narrowings = join_exits(*exits) if exits else {}
 
     # --- expressões ---
 
@@ -4933,6 +5061,26 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
         return ERROR
 
+    def _check_match_arm(self, body: Expr, states: list[RefinementState]) -> Ty:
+        """Checa um braço a partir do estado de entrada e guarda a saída (ADR-0141).
+
+        Cada braço parte do mesmo estado; o `match` não pode terminar com o refino do
+        último braço avaliado.
+        """
+        base = dict(self._narrowings)
+        try:
+            result = self._infer(body)
+            states.append(dict(self._narrowings))
+            return result
+        finally:
+            self._narrowings = base
+
+    def _merge_match_states(self, states: list[RefinementState]) -> RefinementState:
+        """Join dos braços, descartando refinos de escopos que já fecharam (bindings)."""
+        depth = len(self._scopes)
+        live = [{key: ty for key, ty in state.items() if key[0] < depth} for state in states]
+        return join_exits(*live) if live else dict(self._narrowings)
+
     def _match_enum(self, expr: Match, scrutinee: EnumTy) -> Ty:
         info = self._enums.get(scrutinee.name)
         if info is None:
@@ -4946,6 +5094,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         covered: set[str] = set()
         wildcard = False
         arm_types: list[Ty] = []
+        arm_states: list[RefinementState] = []
 
         for arm in expr.arms:
             pattern = arm.pattern
@@ -4955,7 +5104,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
                     )
                 wildcard = True
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             if isinstance(pattern, LiteralPattern):
@@ -4965,7 +5114,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "use an enum variant pattern.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             assert isinstance(pattern, VariantPattern)
@@ -4978,7 +5127,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"doesn't match enum '{scrutinee.name}'.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             variant = info.variants.get(pattern.variant.lexeme)
@@ -4988,7 +5137,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Unknown variant '{pattern.variant.lexeme}'.",
                     code=Code.UNDEFINED_NAME,
                 )
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             if len(variant.payload) != len(pattern.bindings):
@@ -5015,7 +5164,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 seen.add(token.lexeme)
                 self._define(token, self._substitute(item_ty, bindings))
 
-            arm_types.append(self._infer(arm.body))
+            arm_types.append(self._check_match_arm(arm.body, arm_states))
             self._end_scope()
 
         if not wildcard:
@@ -5027,12 +5176,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.MATCH_EXHAUSTIVENESS,
                 )
 
+        self._narrowings = self._merge_match_states(arm_states)
         return union(*arm_types)
 
     def _match_literal(self, expr: Match, scrutinee: Ty) -> Ty:
         wildcard = False
         covered: set[tuple[str, object]] = set()
         arm_types: list[Ty] = []
+        arm_states: list[RefinementState] = []
 
         for arm in expr.arms:
             pattern = arm.pattern
@@ -5042,7 +5193,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
                     )
                 wildcard = True
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             if isinstance(pattern, VariantPattern):
@@ -5052,7 +5203,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "use a literal pattern or '_'.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             assert isinstance(pattern, LiteralPattern)
@@ -5066,14 +5217,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Pattern of type {display(literal_ty)} doesn't match {display(scrutinee)}.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._infer(arm.body))
+                arm_types.append(self._check_match_arm(arm.body, arm_states))
                 continue
 
             key = self._literal_key(pattern.value)
             if key in covered:
                 self._error(pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
             covered.add(key)
-            arm_types.append(self._infer(arm.body))
+            arm_types.append(self._check_match_arm(arm.body, arm_states))
 
         if not wildcard:
             self._error(
@@ -5082,6 +5233,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 code=Code.MATCH_EXHAUSTIVENESS,
             )
 
+        self._narrowings = self._merge_match_states(arm_states)
         return union(*arm_types)
 
     @staticmethod
@@ -5296,12 +5448,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_conditional_expr(self, expr: Conditional) -> Ty:
         self._infer(expr.condition)
+        base = dict(self._narrowings)
+        self._apply_refinements(self._refinements(expr.condition, True))
         then_ty = self._infer(expr.then_branch)
+        then_state = dict(self._narrowings)
+        self._narrowings = dict(base)
+        self._apply_refinements(self._refinements(expr.condition, False))
         else_ty = self._infer(expr.else_branch)
+        else_state = dict(self._narrowings)
+        # Só um dos braços roda: a saída é o merge, nunca o estado do último braço.
+        self._narrowings = join_exits(then_state, else_state)
         return union(then_ty, else_ty)
 
     def visit_logical_expr(self, expr: Logical) -> Ty:
         left = self._infer(expr.left)
+        base = dict(self._narrowings)
 
         if (
             expr.operator.type is TokenType.QUESTION_QUESTION
@@ -5315,6 +5476,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 right = self._infer(expr.right)
         else:
             right = self._infer(expr.right)
+
+        # O operando direito é condicional (`and`/`or`) ou só roda com `nil` (`??`):
+        # a saída é o merge com o caminho que o pulou (ADR-0141).
+        self._narrowings = join_exits(base, self._narrowings)
 
         if expr.operator.type is TokenType.QUESTION_QUESTION:
             if left is ANY:

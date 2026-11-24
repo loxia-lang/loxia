@@ -744,13 +744,21 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   methods) do not. The body of a function/lambda starts without the caller's refinements. **Fields and literal indices** also narrow
   (`p.name`, `xs[0]`, `m["k"]`); mutating the path (`p.name = ...`), the root (`p = ...`),
   **any call** or an assignment to a field/index invalidates all field/index refinements
-  (no aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)), and the normal
-  exit of `while (x != nil)` refines the rest of the block through the false branch.
+  (no aliasing; [ADR-0045](../adr/0045-narrowing-representacao.md)). The normal
+  exit of `while (x != nil)` refines the rest of the block through the false branch **only
+  when no `break` can leave the loop**; with a reachable `break` the exit joins the entry,
+  the body fallthrough and the break states, and the false-branch refinement is not applied.
+  `break`, `continue`, `return` and `raise` are terminators: the statements after them are
+  still checked, but they do not contribute to the enclosing state.
   `if`/`elif`/`else` join the branches that fall through (intersection of keys, union of
   types); a branch that always returns does not contribute. `while`/`for-in` join the entry with the
-  body exit (zero iterations) and `try` unions the body and the handlers that fall through.
+  body exit (and the break states) and `try` unions the body and the handlers that fall through.
+  Each `match` arm is checked from the state before the `match`; the state after it is the
+  join of the arms, never just the last one.
   Assignment updates the refinement to the assigned type. A dynamic index (`xs[i]`) does not narrow;
-  aliasing and full CFG are outside; see [ADR-0018](../adr/0018-narrowing.md),
+  aliasing and full CFG are outside, and a refinement is kept only when it is proved on
+  every path to the use (soundness; [ADR-0141](../adr/0141-soundness-de-fluxo-do-checker.md));
+  see [ADR-0018](../adr/0018-narrowing.md),
   [ADR-0025](../adr/0025-is-e-narrowing.md), [ADR-0032](../adr/0032-narrowing-campos-indices.md)
   and [ADR-0086](../adr/0086-narrowing-captura-e-merge.md).
 - Type errors are **compile** errors and prevent execution; exit code 65.
