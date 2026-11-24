@@ -7,6 +7,7 @@ import pytest
 
 from loxia.engine import Loxia
 from loxia.source_index import ExprSpan, SourceIndex
+from loxia_core.frontend.expr import LiteralPattern, Match
 from loxia_core.frontend.source_index import NodeSpan
 from loxia_core.frontend.stmt import Function, Var
 
@@ -91,6 +92,38 @@ def test_node_span_expression_rejects_non_expr() -> None:
     span = NodeSpan(object(), 0, 1)
     with pytest.raises(TypeError):
         _ = span.expression
+
+
+def test_literal_pattern_span_covers_negative_literal() -> None:
+    source = 'val n = 5\nval x = match n { 1 => "um"\n  -2 => "menos dois"\n  _ => "outro" }\n'
+    lox = Loxia()
+    lox._file = "test.lx"
+    lox._sources.add("test.lx", source)
+    lox.check(source, emit=False)
+    spans = lox.last_source_index
+    statements = lox.last_statements
+    assert isinstance(spans, SourceIndex)
+    assert statements is not None
+
+    declaration = statements[1]
+    assert isinstance(declaration, Var)
+    expression = declaration.initializer
+    assert isinstance(expression, Match)
+    positive = expression.arms[0].pattern
+    negative = expression.arms[1].pattern
+    assert isinstance(positive, LiteralPattern)
+    assert isinstance(negative, LiteralPattern)
+
+    positive_span = spans.span_of(positive)
+    negative_span = spans.span_of(negative)
+    assert positive_span is not None
+    assert negative_span is not None
+    assert spans.text_of(positive_span) == "1"
+    assert spans.text_of(negative_span) == "-2"
+
+    at_minus = spans.at(source.index("-2"))
+    assert at_minus is not None
+    assert spans.text_of(at_minus) == "-2"
 
 
 def test_source_index_out_of_range_and_missing_source() -> None:
