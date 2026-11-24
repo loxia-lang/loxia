@@ -196,9 +196,9 @@ def test_assignment_reaches_enclosing_scope(capsys: pytest.CaptureFixture[str]) 
     assert stdout == ["12"]
 
 
-def test_while_and_for_loops(capsys: pytest.CaptureFixture[str]) -> None:
+def test_while_and_for_in_loops(capsys: pytest.CaptureFixture[str]) -> None:
     while_source = "var i = 0; while (i < 3) { print(i); i = i + 1; }"
-    for_source = "for (var i = 0; i < 3; i = i + 1) print(i);"
+    for_source = "for i in 0..3 { print(i); }"
 
     assert run(while_source, capsys)[0] == ["0", "1", "2"]
     assert run(for_source, capsys)[0] == ["0", "1", "2"]

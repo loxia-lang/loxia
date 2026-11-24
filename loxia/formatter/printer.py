@@ -1033,9 +1033,6 @@ class Printer:
         if isinstance(stmt, Import):
             return self._import(stmt)
         if isinstance(stmt, Block):
-            c_style = self._c_style_for(stmt)
-            if c_style is not None:
-                return c_style
             return self._braced(self._block(stmt), stmt.end, leading_space=False)
         if isinstance(stmt, Class):
             return self._class(stmt)
@@ -1372,8 +1369,6 @@ class Printer:
         return concat(hardline(), text("else "), body_doc)
 
     def _while(self, stmt: While) -> Doc:
-        if self._is_for_keyword(stmt):
-            return self._for_loop(stmt, None)
         keyword = self._token(stmt.keyword) if stmt.keyword is not None else text("while")
         header = concat(keyword, text(" ("), self._expr(stmt.condition), text(")"))
         if isinstance(stmt.body, Block):
@@ -1392,49 +1387,6 @@ class Printer:
         if isinstance(stmt.body, Block):
             return concat(header, self._braced(self._block(stmt.body), stmt.body.end))
         return group(concat(header, indent(concat(line(), self._stmt(stmt.body)))))
-
-    def _is_for_keyword(self, stmt: While) -> bool:
-        return stmt.keyword is not None and stmt.keyword.lexeme == "for"
-
-    def _c_style_for(self, block: Block) -> Doc | None:
-        """`for (;;)` é dessugarizado pelo parser num Block sintético [init, While]."""
-        if block.start is not None or block.end is not None:
-            return None
-        if len(block.statements) != 2:
-            return None
-        initializer, loop = block.statements
-        if not isinstance(loop, While) or not self._is_for_keyword(loop):
-            return None
-        return self._for_loop(loop, initializer)
-
-    def _for_loop(self, loop: While, initializer: Stmt | None) -> Doc:
-        body: Stmt = loop.body
-        increment: Expr | None = None
-        if (
-            isinstance(body, Block)
-            and body.start is None
-            and body.end is None
-            and len(body.statements) == 2
-            and isinstance(body.statements[1], Expression)
-        ):
-            increment = body.statements[1].expression
-            body = body.statements[0]
-        parts: list[Doc] = [text("for (")]
-        if initializer is not None:
-            parts.append(self._stmt(initializer))
-        parts.append(text("; "))
-        parts.append(self._expr(loop.condition))
-        parts.append(text(";"))
-        if increment is not None:
-            parts.append(text(" "))
-            parts.append(self._expr(increment))
-        parts.append(text(")"))
-        if isinstance(body, Block):
-            parts.append(self._braced(self._block(body), body.end))
-        else:
-            parts.append(text(" "))
-            parts.append(self._stmt(body))
-        return concat(*parts)
 
     def _try(self, stmt: Try) -> Doc:
         handlers = stmt.handlers

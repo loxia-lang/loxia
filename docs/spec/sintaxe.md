@@ -81,10 +81,7 @@ statement      → exprStmt
 terminator     → ";"? ;   (* see "Optional semicolon" *)
 
 exprStmt       → expression terminator ;
-forStmt        → "for" "(" ( varDecl | valDecl | exprStmt | ";" )
-                 expression? ";"
-                 expression? ")" statement
-               | "for" IDENTIFIER "in" expression statement ;
+forStmt        → "for" IDENTIFIER "in" expression statement ;
 ifStmt         → "if" "(" expression ")" statement
                  ( "elif" "(" expression ")" statement )*
                  ( "else" statement )? ;
@@ -286,8 +283,7 @@ var x = 1
 
 A bare `return` at the end of the line returns `nil`; to return a value, keep it on the
 same line as the `return` (before `;`, `}`, or another line, no `;` is needed). A call with `(` must start on the same line as the callee;
-breaking before `.` is allowed (property chaining). The `;` of the C-style `for`
-header remain mandatory.
+breaking before `.` is allowed (property chaining).
 
 `elif` is sugar for `else if`, with the same requirement of parentheses around the condition:
 
@@ -384,34 +380,14 @@ class Triangle(Figure) implements Shape, Drawable { ... }
 - No generic interfaces (`interface I[T]`), no interface inheritance (`interface A : B`)
   and no `class C(A, I)`.
 
-## Syntactic sugar
+## Loops
 
-### C-style `for` becomes `while`
+C-style `for (init; cond; incr)` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md));
+use `for x in ...` or `while`. `for` only introduces `for-in`:
 
-There is no node for the C-style `for` in the AST. The parser desugars:
-
-```lox
-for (var i = 0; i < 3; i = i + 1) print(i);
-```
-
-becomes
-
-```lox
-{
-  var i = 0;
-  while (i < 3) {
-    print(i);
-    i = i + 1;
-  }
-}
-```
-
-Therefore the `for` has the same scoping rules as a block and an omitted condition becomes
-`true` (infinite loop).
-
-`for-in` is different: it becomes the node `ForIn(name, iterable, body)` and does **not**
-desugar to `while`, because the interpreter needs to report "not iterable" and the codegen needs the loop
-per iterable (Range/String/List/Map/Tuple — `Map` yields the keys). See
+`for-in` becomes the node `ForIn(name, iterable, body)` and does **not** desugar to `while`,
+because the interpreter needs to report "not iterable" and the codegen needs the loop per
+iterable (Range/String/List/Map/Tuple — `Map` yields the keys). See
 [`semantica.md`](semantica.md#ranges-and-for-in).
 
 ### Blocks
@@ -460,7 +436,8 @@ from dtos.dtoA import DtoA as Dto
   function. On exceeding, the error is reported but the parser continues (the arguments are
   dropped from the AST).
 - `this` and `super` are keywords: `super` only appears as `super.method`.
-- These do not exist: `break`/`continue`, `switch` (use `match`), a `?:`-style ternary
+- These do not exist: C-style `for` (removed in [ADR-0138](../adr/0138-remocao-for-c-style.md);
+  use `for-in` or `while`), `break`/`continue`, `switch` (use `match`), a `?:`-style ternary
   operator (use `a if c else b`), `+=`, `++` and `catch` (use `except`). `match` with
   enums ([ADR-0041](../adr/0041-enums-match.md)) and lambdas ([ADR-0022](../adr/0022-lambdas.md))
   exist; lists, maps and interpolation have existed since

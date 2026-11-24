@@ -49,7 +49,7 @@ disso.
 - normaliza `# ` e alinha comentários trailing consecutivos no mesmo indent quando o
   alinhamento ainda cabe; `///` e `/* */` ficam verbatim (sem reflow);
 - usa trailing comma em construtos multiline (menos enum e `match`, que a spec mantém
-  sem), quebra binárias **depois** do operador e preserva C-style `for (;;)`;
+  sem) e quebra binárias **depois** do operador;
 - aceita vários arquivos e diretórios recursivos (`loxia fmt std tests/cases`), em ordem
   determinística; diretórios ocultos e caches (`node_modules`, `.venv`, …) ficam de fora;
   `--exclude GLOB` (repetível, relativo ao cwd; casa o path e seus ancestrais) tira

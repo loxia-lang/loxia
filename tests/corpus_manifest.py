@@ -294,6 +294,7 @@ COMPILE_ERRORS: frozenset[str] = frozenset(
         "tests/cases/errors/field_uninitialized.lx",
         "tests/cases/errors/field_unknown.lx",
         "tests/cases/errors/field_val_outside_init.lx",
+        "tests/cases/errors/for_c_style_removed.lx",
         "tests/cases/errors/for_in_immutable.lx",
         "tests/cases/errors/for_in_not_iterable.lx",
         "tests/cases/errors/function_without_body.lx",

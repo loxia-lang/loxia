@@ -6,11 +6,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 ## [Unreleased]
 
 ### Mudado (quebra)
+- **`for` C-style removido** ([ADR-0138](docs/adr/0138-remocao-for-c-style.md)): o
+  `for (init; cond; incr)` foi removido; use `for x in 0..n`/`for x in range(a, b, passo)`
+  ou `while`. O erro é dirigido (`C-style 'for' was removed; ...`) e o `for` continua
+  existindo apenas para `for-in`. É uma mudança breaking: a próxima major é 2.0.
 - **Formatter 2.0** ([ADR-0136](docs/adr/0136-formatter-2-doc-ir.md),
   [#109](https://github.com/loxia-lang/loxia/issues/109)): `loxia fmt` agora reflowa
   chamadas, coleções, params e cadeias binárias na largura de 100 colunas
-  (`--max-width` 20..1000), decide linhas em branco, normaliza/alinhamento comentários
-  trailing e reconstrói `for (;;)`. Comentários continuam preservados (`#`, `///`,
+  (`--max-width` 20..1000), decide linhas em branco e normaliza/alinhamento comentários
+  trailing. Comentários continuam preservados (`#`, `///`,
   `/* */`), agora por nó e não por heurística de linha. É uma mudança de saída: o
   `chore/reformat` aplica o estilo ao repositório em PR separado.
 

@@ -593,49 +593,14 @@ class Parser:
             self._bracket_depth = saved_depth
 
     def _for_statement(self, keyword: Token) -> Stmt:
-        if not self._check(TokenType.LEFT_PAREN):
-            return self._for_in_statement(keyword)
+        if self._check(TokenType.LEFT_PAREN):
+            raise self._error(
+                self._peek(),
+                "C-style 'for' was removed; use `for x in range(n)` or a `while` loop.",
+                Code.SYNTAX_UNEXPECTED,
+            )
 
-        self._consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
-        initializer: Stmt | None = None
-
-        if self._match(TokenType.SEMICOLON):
-            initializer = None
-        elif self._match(TokenType.VAL):
-            initializer = self._var_declaration(mutable=False, keyword=self._previous())
-        elif self._match(TokenType.VAR):
-            initializer = self._var_declaration(mutable=True, keyword=self._previous())
-        else:
-            initializer = self._expression_statement()
-
-        cond: Expr | None = None
-
-        if not self._check(TokenType.SEMICOLON):
-            cond = self._expression()
-
-        self._consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
-
-        increm: Expr | None = None
-
-        if not self._check(TokenType.RIGHT_PAREN):
-            increm = self._expression()
-
-        self._consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
-
-        body = self._statement()
-
-        if increm is not None:
-            body = Block([body, Expression(increm)])
-
-        if cond is None:
-            cond = Literal(True)
-
-        body = While(cond, body, keyword=keyword)
-
-        if initializer is not None:
-            body = Block([initializer, body])
-
-        return body
+        return self._for_in_statement(keyword)
 
     def _for_in_statement(self, keyword: Token) -> Stmt:
         name = self._consume(TokenType.IDENTIFIER, "Expect loop variable name after 'for'.")

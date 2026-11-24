@@ -473,9 +473,11 @@ for i in 5..2 { ... }             // empty
 | `{ … }` | new scope |
 | `if (c) s elif (c) s else s` | executes the branch according to truthiness; `elif` is `else if` |
 | `while (c) s` | repeats while truthy |
-| `for (init; cond; incr) s` | desugared to a block + `while` (see syntax) |
 | `for x in e s` | iterates `e` (Range/String/List/Map/Tuple today); `x` is `val` per iteration |
 | `return expr?;` | unwinds up to the function call |
+
+C-style `for (init; cond; incr)` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md));
+use `for-in` or `while`.
 
 The `;` is optional at the end of the line (or EOF); two statements on the same line still require
 it. Expression continuation requires the operator at the **end** of the line; an operator at the
