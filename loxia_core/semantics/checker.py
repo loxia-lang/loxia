@@ -4206,11 +4206,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(actual, GenericFnTy):
             return self._generic_value_error(token, actual.name)
         if not self._unify(resolved, actual, bindings, token):
-            self._error(
-                token,
-                f"Argument {index}: {self._mismatch_message(resolved, actual)}",
-                code=Code.TYPE_MISMATCH,
-            )
+            # Sem `Call` no contexto deste helper: a mensagem é a mesma, sem nota.
+            self._argument_error(token, index, resolved, actual)
             return ERROR
 
         return actual

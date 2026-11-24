@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from loxia.engine import Loxia
@@ -123,42 +126,95 @@ def test_union_and_any_contexts_are_clean(source: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("source", "code", "line", "column"),
+    ("source", "message", "code", "line", "column"),
     [
         (
             'fn f(x: Int) -> Int { return x }\nprint(f("a"))\n',
+            "Argument 1: Expected Int, found String.",
             Code.TYPE_MISMATCH,
             2,
             12,
         ),
-        ("val x = 1\nprint(x.foo)\n", Code.TYPE_MISMATCH, 2, 9),
-        ("val x = 1\nprint(x[0])\n", Code.INVALID_LIST, 2, 8),
-        ('raise "boom"\n', Code.TYPE_MISMATCH, 1, 1),
+        (
+            "val x = 1\nprint(x.foo)\n",
+            "Only instances have properties.",
+            Code.TYPE_MISMATCH,
+            2,
+            9,
+        ),
+        (
+            "val x = 1\nprint(x[0])\n",
+            "Only lists and maps can be indexed.",
+            Code.INVALID_LIST,
+            2,
+            8,
+        ),
+        (
+            'raise "boom"\n',
+            "Can only raise Exception instances, found String.",
+            Code.TYPE_MISMATCH,
+            1,
+            1,
+        ),
         (
             "enum E { A, B }\nfn f(e: E) -> Int {\n  match e { E.A => 1 }\n}\n",
+            "Non-exhaustive match; missing E.B.",
             Code.MATCH_EXHAUSTIVENESS,
             3,
             3,
         ),
         (
             "enum E { A }\nfn f(e: E) -> Int {\n  return match e { E.A => 1, E.A => 2 }\n}\n",
+            "Unreachable match arm.",
             Code.UNREACHABLE_MATCH,
             3,
             32,
         ),
-        ("val (a, b) = (1, 2, 3)\n", Code.ARITY_MISMATCH, 1, 6),
-        ('val f: fn() -> Int = fn() => "a"\n', Code.TYPE_MISMATCH, 1, 27),
-        ("var x\n", Code.MISSING_ANNOTATION, 1, 5),
-        ("for i in 0.0..2 { print(i) }\n", Code.INVALID_OPERANDS, 1, 13),
-        ("val t: (Int, Int) = (1, 2)\nprint(t[2])\n", Code.INVALID_LIST, 2, 8),
+        (
+            "val (a, b) = (1, 2, 3)\n",
+            "Destructuring expects 2 values, found 3.",
+            Code.ARITY_MISMATCH,
+            1,
+            6,
+        ),
+        (
+            'val f: fn() -> Int = fn() => "a"\n',
+            "Expected Int, found String.",
+            Code.TYPE_MISMATCH,
+            1,
+            27,
+        ),
+        (
+            "var x\n",
+            "Can't infer type of 'x'; add an annotation.",
+            Code.MISSING_ANNOTATION,
+            1,
+            5,
+        ),
+        (
+            "for i in 0.0..2 { print(i) }\n",
+            "Range bounds must be integers.",
+            Code.INVALID_OPERANDS,
+            1,
+            13,
+        ),
+        (
+            "val t: (Int, Int) = (1, 2)\nprint(t[2])\n",
+            "Tuple index 2 out of bounds for length 2.",
+            Code.INVALID_LIST,
+            2,
+            8,
+        ),
         (
             "class A[T] {}\nval x: Any = 1\nprint(x is A[Int])\n",
+            "is doesn't support type arguments on classes yet.",
             Code.TYPE_ARGUMENTS,
             3,
             9,
         ),
         (
             "val x: Int | String = 1\nprint(x as Int)\n",
+            "Can't cast Int | String to Int.",
             Code.INVALID_CAST,
             2,
             9,
@@ -167,6 +223,7 @@ def test_union_and_any_contexts_are_clean(source: str) -> None:
 )
 def test_checker_diagnostic_codes_and_spans(
     source: str,
+    message: str,
     code: Code,
     line: int,
     column: int,
@@ -177,6 +234,20 @@ def test_checker_diagnostic_codes_and_spans(
 
     matches = [item for item in lox.reporter.batch().diagnostics if item.code is code]
     assert matches, f"missing {code} in {[item.code for item in lox.reporter.batch().diagnostics]}"
-    span = matches[0].span
+    diagnostic = matches[0]
+    assert diagnostic.message == message
+    span = diagnostic.span
     assert span is not None
     assert (span.start.line, span.start.column) == (line, column)
+
+
+def test_checker_never_uses_the_semantic_error_fallback() -> None:
+    root = Path(__file__).resolve().parents[1]
+    tree = ast.parse((root / "loxia_core/semantics/checker.py").read_text(encoding="utf-8"))
+
+    uses = [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr == "SEMANTIC_ERROR"
+    ]
+    assert uses == []

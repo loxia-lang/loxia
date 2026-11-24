@@ -101,6 +101,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **Códigos de diagnóstico do checker** ([#111](https://github.com/loxia-lang/loxia/issues/111),
+  [#100](https://github.com/loxia-lang/loxia/issues/100)): todo erro do checker passa a emitir
+  um código estável; `E3000` deixa de ser fallback para argumento, propriedade, índice, match,
+  destructuring e `raise`. `E3023`/`E3024` cobrem match não exaustivo e braço inalcançável;
+  `E3002` passa a descrever aridade de chamada, destructuring e pattern. Um teste novo garante
+  que o checker não volte a usar `E3000`.
 - **`build_edits` em linhas repetidas** ([#158](https://github.com/loxia-lang/loxia/issues/158)):
   o diff por linhas deixou de ser quadrático em fontes com muitas blank lines; usa
   `SequenceMatcher(autojunk=True)` e refina blocos de tamanho igual até 2048 linhas.
