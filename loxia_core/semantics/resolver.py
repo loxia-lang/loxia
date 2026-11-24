@@ -499,11 +499,16 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_match_expr(self, expr: Match) -> None:
         self._resolve_expr(expr.scrutinee)
         for arm in expr.arms:
+            # O interpretador só cria ambiente para braços de variante (bindings);
+            # wildcard/literal avaliam no ambiente externo. O escopo tem que espelhar
+            # isso, senão a distância de um local no braço fica off-by-one (I1).
+            if not isinstance(arm.pattern, VariantPattern):
+                self._resolve_expr(arm.body)
+                continue
             self._begin_scope()
-            if isinstance(arm.pattern, VariantPattern):
-                for name in arm.pattern.bindings:
-                    self._declare(name, mutable=False)
-                    self._define(name)
+            for name in arm.pattern.bindings:
+                self._declare(name, mutable=False)
+                self._define(name)
             self._resolve_expr(arm.body)
             self._end_scope()
 

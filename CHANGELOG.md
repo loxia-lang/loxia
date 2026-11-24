@@ -121,6 +121,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **`match` com variável local/parâmetro**: o resolver abria escopo para todo braço, mas o
+  interpretador só cria ambiente para braços de variante; um braço wildcard/literal que
+  referenciasse um local caía com `KeyError` (violação de I1). O resolver agora espelha o
+  interpretador (`tests/cases/match_arm_local.lx`).
+- **`Any` e inferência em `match`**: `Expected T, found Any` agora sugere o `as` explícito;
+  o tipo esperado é propagado aos braços de `match`, então `Result.Ok(1)` infere `E` no
+  contexto (`tests/cases/result_match_inference.lx`).
 - **Códigos de diagnóstico do checker** ([#111](https://github.com/loxia-lang/loxia/issues/111),
   [#100](https://github.com/loxia-lang/loxia/issues/100)): todo erro do checker passa a emitir
   um código estável; `E3000` deixa de ser fallback para argumento, propriedade, índice, match,

@@ -48,6 +48,7 @@ from loxia_core.frontend.expr import (
     Logical,
     MapLiteral,
     Match,
+    Pattern,
     Range,
     Set,
     Super,
@@ -863,6 +864,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return f"Expected {display(expected)}, found {display(actual)}."
 
+    def _any_cast_help(self, expected: Ty, actual: Ty) -> str | None:
+        if actual is ANY and expected is not ANY and expected is not ERROR:
+            return "Use an explicit `as` cast to narrow `Any` before using it here."
+        return None
+
     def _provenance_notes(self, expression: Expr, token: Token) -> tuple[str, ...]:
         """Nota de proveniência do valor, se a expressão tem nome/caminho.
 
@@ -915,6 +921,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             f"Argument {index}: {self._mismatch_message(expected, actual)}",
             code=Code.TYPE_MISMATCH,
             notes=self._argument_notes(call, index, token),
+            help=self._any_cast_help(expected, actual),
         )
 
     def _check_stmt(self, stmt: Stmt) -> None:
@@ -979,6 +986,27 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._mismatch_message(expected, actual),
                     code=Code.TYPE_MISMATCH,
                     notes=self._provenance_notes(expr, token),
+                    help=self._any_cast_help(expected, actual),
+                )
+            return actual
+
+        if isinstance(expr, Match):
+            errors_before = self._reporter.error_count
+            actual = self._match(expr, expected)
+            self.types[expr] = actual
+            self.storage_types[expr] = self._storage_type(expr, actual)
+            if actual is ERROR:
+                return ERROR
+            if (
+                not self._assignable(expected, actual)
+                and self._reporter.error_count == errors_before
+            ):
+                self._error(
+                    token,
+                    self._mismatch_message(expected, actual),
+                    code=Code.TYPE_MISMATCH,
+                    notes=self._provenance_notes(expr, token),
+                    help=self._any_cast_help(expected, actual),
                 )
             return actual
 
@@ -1033,6 +1061,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._mismatch_message(expected, actual),
                     code=Code.TYPE_MISMATCH,
                     notes=self._provenance_notes(expr, token),
+                    help=self._any_cast_help(expected, actual),
                 )
                 return ERROR
 
@@ -1053,6 +1082,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._mismatch_message(expected, actual),
                 code=Code.TYPE_MISMATCH,
                 notes=self._provenance_notes(expr, token),
+                help=self._any_cast_help(expected, actual),
             )
 
         return actual
@@ -3504,7 +3534,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._expected_element(expected_ty) if expected_ty is not None else None
             )
 
-            if isinstance(argument, Lambda) and expected_ty is not None:
+            if isinstance(argument, (Lambda, Match)) and expected_ty is not None:
                 arguments.append(self._check(argument, expected_ty, expr.paren))
             elif (
                 (isinstance(argument, ListLiteral) and expected_param is not None)
@@ -4016,7 +4046,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         bindings: dict[TyVar, Ty] = {}
 
         if expected is not None and expected not in (ANY, ERROR):
-            self._unify(signature.ret, expected, bindings, token)
+            # O contexto pode ser opcional (`Result[Int, String]?`): unifica com o
+            # único membro não-nil. Um valor opcional *passado* como argumento não
+            # entra aqui e continua sendo recusado (não é contexto).
+            context = expected
+            if isinstance(expected, UnionTy):
+                members = [member for member in expected.members if member is not NIL]
+                if len(members) == 1:
+                    context = members[0]
+            self._unify(signature.ret, context, bindings, token)
 
         fixed = signature.fixed_params
         minimum = signature.min_params
@@ -4642,13 +4680,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return None
 
     def visit_match_expr(self, expr: Match) -> Ty:
+        return self._match(expr, None)
+
+    def _match(self, expr: Match, expected: Ty | None) -> Ty:
         scrutinee = self._infer(expr.scrutinee)
         if scrutinee is ERROR:
             return ERROR
         if isinstance(scrutinee, EnumTy):
-            return self._match_enum(expr, scrutinee)
+            return self._match_enum(expr, scrutinee, expected)
         if scrutinee is INT or scrutinee is STRING or scrutinee is BOOL or scrutinee is NIL:
-            return self._match_literal(expr, scrutinee)
+            return self._match_literal(expr, scrutinee, expected)
 
         self._error(
             expr.keyword,
@@ -4657,7 +4698,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
         return ERROR
 
-    def _check_match_arm(self, body: Expr, states: list[RefinementState]) -> Ty:
+    def _pattern_token(self, pattern: Pattern) -> Token:
+        if isinstance(pattern, VariantPattern):
+            return pattern.variant
+        return pattern.token
+
+    def _check_match_arm(
+        self,
+        body: Expr,
+        states: list[RefinementState],
+        expected: Ty | None = None,
+        token: Token | None = None,
+    ) -> Ty:
         """Checa um braço a partir do estado de entrada e guarda a saída (ADR-0141).
 
         Cada braço parte do mesmo estado; o `match` não pode terminar com o refino do
@@ -4665,7 +4717,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         """
         base = dict(self._narrowings)
         try:
-            result = self._infer(body)
+            if expected is None:
+                result = self._infer(body)
+            else:
+                assert token is not None
+                result = self._check(body, expected, token)
             states.append(dict(self._narrowings))
             return result
         finally:
@@ -4677,7 +4733,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         live = [{key: ty for key, ty in state.items() if key[0] < depth} for state in states]
         return join_exits(*live) if live else dict(self._narrowings)
 
-    def _match_enum(self, expr: Match, scrutinee: EnumTy) -> Ty:
+    def _match_enum(self, expr: Match, scrutinee: EnumTy, expected: Ty | None = None) -> Ty:
         info = self._enums.get(scrutinee.name)
         if info is None:
             self._error(expr.keyword, f"Unknown enum '{scrutinee.name}'.", code=Code.UNKNOWN_TYPE)
@@ -4700,7 +4756,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
                     )
                 wildcard = True
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             if isinstance(pattern, LiteralPattern):
@@ -4710,7 +4770,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "use an enum variant pattern.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             assert isinstance(pattern, VariantPattern)
@@ -4723,7 +4787,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"doesn't match enum '{scrutinee.name}'.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             variant = info.variants.get(pattern.variant.lexeme)
@@ -4733,7 +4801,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Unknown variant '{pattern.variant.lexeme}'.",
                     code=Code.UNDEFINED_NAME,
                 )
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             if len(variant.payload) != len(pattern.bindings):
@@ -4760,7 +4832,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 seen.add(token.lexeme)
                 self._define(token, self._substitute(item_ty, bindings))
 
-            arm_types.append(self._check_match_arm(arm.body, arm_states))
+            arm_types.append(
+                self._check_match_arm(arm.body, arm_states, expected, self._pattern_token(pattern))
+            )
             self._end_scope()
 
         if not wildcard:
@@ -4775,7 +4849,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings = self._merge_match_states(arm_states)
         return union(*arm_types)
 
-    def _match_literal(self, expr: Match, scrutinee: Ty) -> Ty:
+    def _match_literal(self, expr: Match, scrutinee: Ty, expected: Ty | None = None) -> Ty:
         wildcard = False
         covered: set[tuple[str, object]] = set()
         arm_types: list[Ty] = []
@@ -4789,7 +4863,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
                     )
                 wildcard = True
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             if isinstance(pattern, VariantPattern):
@@ -4799,7 +4877,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "use a literal pattern or '_'.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             assert isinstance(pattern, LiteralPattern)
@@ -4813,14 +4895,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Pattern of type {display(literal_ty)} doesn't match {display(scrutinee)}.",
                     code=Code.TYPE_MISMATCH,
                 )
-                arm_types.append(self._check_match_arm(arm.body, arm_states))
+                arm_types.append(
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
+                )
                 continue
 
             key = self._literal_key(pattern.value)
             if key in covered:
                 self._error(pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
             covered.add(key)
-            arm_types.append(self._check_match_arm(arm.body, arm_states))
+            arm_types.append(
+                self._check_match_arm(arm.body, arm_states, expected, self._pattern_token(pattern))
+            )
 
         if not wildcard:
             self._error(
@@ -4966,6 +5054,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Expected {display(obj.key)}, found {display(index)}.",
                     notes=self._provenance_notes(expr.index, expr.bracket),
                     code=Code.TYPE_MISMATCH,
+                    help=self._any_cast_help(obj.key, index),
                 )
             return obj.value
         if obj is BYTES:
@@ -4999,6 +5088,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Expected {display(obj.key)}, found {display(index)}.",
                     notes=self._provenance_notes(expr.index, expr.bracket),
                     code=Code.TYPE_MISMATCH,
+                    help=self._any_cast_help(obj.key, index),
                 )
             if not self._assignable(obj.value, value):
                 self._error(
@@ -5006,6 +5096,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Expected {display(obj.value)}, found {display(value)}.",
                     notes=self._provenance_notes(expr.value, expr.bracket),
                     code=Code.TYPE_MISMATCH,
+                    help=self._any_cast_help(obj.value, value),
                 )
             return value
         if not isinstance(obj, ListTy):
@@ -5019,6 +5110,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Expected {display(obj.element)}, found {display(value)}.",
                 notes=self._provenance_notes(expr.value, expr.bracket),
                 code=Code.TYPE_MISMATCH,
+                help=self._any_cast_help(obj.element, value),
             )
 
         return value

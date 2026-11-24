@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from loxia.engine import Loxia
+from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.interpreter import Interpreter
 from loxia_core.frontend.expr import Get, Variable
@@ -3235,3 +3236,121 @@ def test_class_used_before_its_declaration_sees_the_methods() -> None:
     assert lox.reporter.had_error is False, [
         item.message for item in lox.reporter.batch().diagnostics
     ]
+
+
+ANY_ESCAPES = [
+    "fn f(x: Int) -> Int { return x }\nval a: Any = 1\nprint(f(a))\n",
+    "fn f() -> Int {\n  val a: Any = 1\n  return a\n}\n",
+    "var x: Int = 0\nval a: Any = 1\nx = a\n",
+    "val a: Any = 1\nval xs: List[Int] = [a]\n",
+    "val a: Any = 1\nval xs: List[Int] = [1]\nxs[0] = a\n",
+    'val a: Any = "k"\nval m: Map[String, Int] = {}\nprint(m[a])\n',
+    'val a: Any = "k"\nval m: Map[String, Int] = {}\nval v: Any = 1\nm[a] = v\n',
+    'val a: Any = 1\nval m: Map[String, Int] = {}\nm["k"] = a\n',
+]
+
+
+@pytest.mark.parametrize("source", ANY_ESCAPES)
+def test_any_escape_suggests_an_explicit_cast(source: str) -> None:
+    lox = check(source)
+
+    diagnostic = next(
+        item for item in lox.reporter.batch().diagnostics if item.code is Code.TYPE_MISMATCH
+    )
+    assert diagnostic.help == "Use an explicit `as` cast to narrow `Any` before using it here."
+
+
+MATCH_INFERENCE = [
+    'val r: Result[Int, String] = match 1 {\n  0 => Result.Ok(1)\n  _ => Result.Err("e")\n}\n',
+    "fn f(x: Int) -> Result[Int, String] {\n  return match x {\n    0 => Result.Ok(0)\n"
+    "    _ => Result.Ok(x)\n  }\n}\nprint(f(2))\n",
+    "val g: fn(Int) -> Result[Int, String] = fn(x) => match x {\n  0 => Result.Ok(1)\n"
+    '  _ => Result.Err("e")\n}\nprint(g(0))\n',
+]
+
+
+@pytest.mark.parametrize("source", MATCH_INFERENCE)
+def test_expected_type_reaches_match_arms(source: str) -> None:
+    lox = check(source)
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_match_arm_still_checks_against_the_expected_type() -> None:
+    lox = check(
+        'val r: Result[Int, String] = match 1 {\n  0 => Result.Ok("x")\n  _ => Result.Err("e")\n}\n'
+    )
+
+    assert lox.reporter.had_error is True
+
+
+def test_enum_constructor_infers_from_a_union_context() -> None:
+    lox = check("val r: Result[Int, String]? = Result.Ok(1)\n")
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_match_in_argument_position_uses_the_parameter_type() -> None:
+    lox = check(
+        "fn id(r: Result[Int, String]) -> Result[Int, String] { return r }\n"
+        "print(match id(match 1 {\n"
+        "  0 => Result.Ok(5)\n"
+        '  _ => Result.Err("e")\n'
+        "}) {\n"
+        "  Result.Ok(v) => v\n"
+        "  Result.Err(_e) => 0\n"
+        "})\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_each_bad_match_arm_reports_at_its_own_span() -> None:
+    lox = check(
+        "val r: Result[Int, String] = match 1 {\n"
+        "  0 => Result.Err(2)\n"
+        "  1 => Result.Err(3)\n"
+        '  _ => Result.Err("e")\n'
+        "}\n"
+    )
+
+    errors = [item for item in lox.reporter.batch().diagnostics if item.code is Code.TYPE_MISMATCH]
+    assert len(errors) == 2
+    assert errors[0].span != errors[1].span
+
+
+def test_any_match_arm_does_not_duplicate_the_outer_error() -> None:
+    lox = check(
+        'val r: Result[Int, String] = match 1 {\n  0 => (1 as Any)\n  _ => Result.Err("e")\n}\n'
+    )
+
+    errors = [item for item in lox.reporter.batch().diagnostics if item.code is Code.TYPE_MISMATCH]
+    assert len(errors) == 1
+
+
+def test_enum_constructor_rejects_a_union_without_its_enum() -> None:
+    lox = check("enum Other {\n  Z(Int)\n}\nval r: Other? = Result.Ok(1)\n")
+
+    assert lox.reporter.had_error is True
+
+
+def test_generic_function_with_a_function_return_reports_unbound_vars() -> None:
+    lox = check("fn make[T]() -> fn(T) -> Int { return fn(x) => 1 }\nprint(make())\n")
+
+    assert lox.reporter.had_error is True
+
+
+def test_optional_value_is_not_unified_with_a_generic_parameter() -> None:
+    lox = check(
+        "fn first[T](xs: List[T]) -> Int { return len(xs) }\n"
+        "val ys: List[Int]? = nil\n"
+        "print(first(ys))\n"
+    )
+
+    assert lox.reporter.had_error is True

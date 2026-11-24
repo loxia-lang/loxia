@@ -500,8 +500,10 @@ the pre-check of `loxia test`) turns the missing-annotation code (`E3004`) into 
 else and can run; real type errors keep exit 65. In gradual mode `Any` is consistent with
 every type (an unannotated value can feed a typed parameter, and a generic instantiated
 without evidence gets `Any`), because there is no lowering; strict `--check` still requires
-`as` for `Any → T`. The `loxia test` pre-check always runs
-([ADR-0142](../adr/0142-check-por-fases.md)).
+`as` for `Any → T`; when a concrete type is expected and the value is `Any`, the
+diagnostic suggests the explicit `as` cast. The `loxia test` pre-check always runs
+([ADR-0142](../adr/0142-check-por-fases.md)). The expected type is also propagated into
+`match` arms, so generic enum constructors infer their arguments there.
 
 `loxia run` also checks, in gradual mode, **before executing**: a real type error blocks
 with exit 65, a missing annotation stays silent (`Any`), and an error the interpreter would
