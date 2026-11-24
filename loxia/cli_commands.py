@@ -130,7 +130,6 @@ def make_loxia(args: argparse.Namespace) -> Loxia:
         cache_dir=getattr(args, "cache_dir", None),
         sandbox=getattr(args, "sandbox", False),
         gradual=getattr(args, "gradual", False),
-        check_on_run=not getattr(args, "no_check", False),
     )
 
 

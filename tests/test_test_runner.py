@@ -697,18 +697,6 @@ def test_precheck_reprova_erro_de_tipo_antes_de_rodar(tmp_path: Path) -> None:
     assert "Argument 1: Expected Int, found String." in result.stdout
 
 
-def test_no_check_desliga_o_precheck(tmp_path: Path) -> None:
-    tests = tmp_path / "tests"
-    tests.mkdir()
-    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
-
-    result = run_test(str(tests), "--no-check")
-
-    assert result.returncode == 1
-    assert "not ok 1 - tipo" in result.stdout
-    assert "expected 0" in result.stdout
-
-
 def test_precheck_aceita_teste_sem_anotacao(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()

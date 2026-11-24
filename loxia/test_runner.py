@@ -291,7 +291,7 @@ def _invoke(
     command = (
         [binary]
         if binary is not None
-        else [sys.executable, "-m", "loxia", "run", "--no-check", *deps, str(path), "--"]
+        else [sys.executable, "-m", "loxia", "run", *deps, str(path), "--"]
     )
     command = [*command, *script_args]
     process = subprocess.Popen(
@@ -1009,7 +1009,7 @@ def run_tests(args: argparse.Namespace) -> int:
         deps.extend(["--cache-dir", args.cache_dir])
     with tempfile.TemporaryDirectory(prefix="lox-test-") as directory:
         # Fase 1 do ADR-0142: checa cada arquivo em modo gradual antes de executar.
-        check_errors = {} if getattr(args, "no_check", False) else _precheck(files, args)
+        check_errors = _precheck(files, args)
         binaries: dict[Path, str | None] = {path: None for path in files}
         build_errors: dict[Path, str] = dict(check_errors)
         if args.native:

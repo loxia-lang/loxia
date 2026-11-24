@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""Fase 2 do ADR-0142: `run` checa (gradual) antes de executar e bloqueia erro de tipo."""
+"""Fases 2/3 do ADR-0142: `run` checa (gradual) antes de executar e bloqueia erro de tipo."""
 
 from __future__ import annotations
 
@@ -48,14 +48,6 @@ def test_run_is_silent_about_missing_annotations(capsys: pytest.CaptureFixture[s
     assert lox.reporter.had_error is False
 
 
-def test_run_no_check_executes_the_program(capsys: pytest.CaptureFixture[str]) -> None:
-    lox = Loxia(check_on_run=False)
-
-    lox.run(BLOCKS)
-
-    assert capsys.readouterr().out == "a\n"
-
-
 def test_repl_only_warns_and_keeps_the_environment(capsys: pytest.CaptureFixture[str]) -> None:
     lox = Loxia()
 
@@ -70,37 +62,21 @@ def test_repl_only_warns_and_keeps_the_environment(capsys: pytest.CaptureFixture
     assert lox.reporter.had_error is False
 
 
-def test_run_cli_checks_first_and_no_check_bypasses(tmp_path: Path) -> None:
+def test_run_cli_blocks_a_type_error(tmp_path: Path) -> None:
     program = tmp_path / "prog.lx"
     program.write_text(BLOCKS, encoding="utf-8")
 
     blocked = run_cli("run", str(program))
+
     assert blocked.returncode == 65
     assert blocked.stdout == ""
     assert "error[E3001]" in blocked.stderr
 
-    allowed = run_cli("run", "--no-check", str(program))
-    assert allowed.returncode == 0
-    assert allowed.stdout == "a\n"
 
-
-def test_legacy_no_check_flag_and_conflict(tmp_path: Path) -> None:
+def test_no_check_escape_was_removed(tmp_path: Path) -> None:
     program = tmp_path / "prog.lx"
     program.write_text(BLOCKS, encoding="utf-8")
 
-    allowed = run_cli("--no-check", str(program))
-    assert allowed.returncode == 0
-    assert allowed.stdout == "a\n"
-
-    conflict = run_cli("--no-check", "--check", str(program))
-    assert conflict.returncode == 2
-
-
-def test_no_check_still_reports_a_runtime_error(tmp_path: Path) -> None:
-    program = tmp_path / "prog.lx"
-    program.write_text(DEFERS, encoding="utf-8")
-
-    result = run_cli("run", "--no-check", str(program))
-
-    assert result.returncode == 70
-    assert "error[R1006]" in result.stderr
+    assert run_cli("run", "--no-check", str(program)).returncode == 2
+    assert run_cli("--no-check", str(program)).returncode == 2
+    assert run_cli("test", "--no-check", str(tmp_path)).returncode == 2
