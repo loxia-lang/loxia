@@ -1,6 +1,6 @@
 # ADR-0142 — `--check` por fases: gradual no `test`/CI, bloqueio no `run` depois
 
-- **Status:** accepted (fase 1; fases 2–3 com gatilho declarado)
+- **Status:** accepted (fase 1 implementada em 2026-11-24; fases 2–3 com gatilho declarado)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
@@ -9,8 +9,10 @@
   [ADR-0141](0141-soundness-de-fluxo-do-checker.md),
   [`../spec/garantias.md`](../spec/garantias.md),
   [`../spec/erros.md`](../spec/erros.md), #160
-- **Implementação:** `loxia/engine.py`, `loxia/cli_args.py`, `loxia/cli_commands.py`,
-  `loxia/test_runner.py`, `.github/workflows/ci.yml`, `docs/spec/`, `tests/`
+- **Implementação (fase 1):** `loxia_core/semantics/checker.py` (`gradual`),
+  `loxia/engine.py`, `loxia/cli_args.py` (`check --gradual`, `test --no-check`),
+  `loxia/test_runner.py` (`_precheck`), `tests/test_check_gradual.py`,
+  `tests/test_cli.py`, `tests/test_test_runner.py`, `docs/spec/erros.md`
 
 ## Contexto
 
@@ -57,15 +59,19 @@ anotação".
 
 ### Fase 1 — entra agora, sem mudar `run`
 
-1. **Modo gradual** (`--gradual`, em `check`/`run`/`test`): anotação ausente (E3004) vira
-   **aviso** e o tipo do parâmetro/retorno/field é `Any`; o resto do check continua estrito.
-   Isto não substitui o `--check` estrito, que continua o default do comando.
+1. **Modo gradual** (`check --gradual`): anotação ausente (E3004) vira **aviso** e o tipo do
+   parâmetro/retorno/field é `Any`; o resto do check continua estrito. Isto não substitui o
+   `--check` estrito, que continua o default do comando.
 2. **`loxia test` checa** cada `*_test.lx` no modo gradual e falha em erro de tipo real;
-   `--no-check` desliga por arquivo/execução. Teste é o lugar onde o check obrigatório tem
-   risco zero: o código é estável, anotado e roda em CI.
-3. **CI deste repositório** roda `loxia check` estrito em `std/` e `examples/` (já são
-   check-clean) e `loxia test` gradual. O corpus golden continua sendo executado como hoje.
+   `--no-check` desliga. Teste é o lugar onde o check obrigatório tem risco zero: o código é
+   estável, anotado e roda em CI.
+3. **CI deste repositório**: a suíte já passa `--check` em todo o corpus (varredura de I4 em
+   `tests/test_backend.py`); não há passo de CI separado para `std/`/`examples/`.
 4. `run` e REPL **não mudam** nesta fase.
+
+**Entregue em 2026-11-24:** `Checker(gradual=True)` (E3004 → warning, tipo `Any`),
+`check --gradual` (subcomando e modo compatível), `_precheck` do `loxia test` com
+`--no-check`, e os testes de aceitação/recusa em `tests/test_check_gradual.py` e no runner.
 
 ### Fase 2 — gatilho: ADR-0141 implementado e uma release com a fase 1 verde
 

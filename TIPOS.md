@@ -34,8 +34,8 @@ As **constraints** existem em funções (`T: Ord + Num + Interface`,
   declarados fora do escopo atual ([ADR-0032](docs/adr/0032-narrowing-campos-indices.md));
   gatilhos no [ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md).
 - **Check obrigatório**: o [ADR-0142](docs/adr/0142-check-por-fases.md) liga o check em
-  fases — fase 1 (`loxia test`/CI em modo gradual) e fase 2 (`run` checando e bloqueando)
-  são trabalho aberto, não uma lacuna de tipo.
+  fases — a **fase 1 está implementada** (`check --gradual` e pre-check do `loxia test`);
+  a fase 2 (`run` checando e bloqueando) é trabalho aberto, não uma lacuna de tipo.
 - **Enum genérico em lambda/match**: `fn(x) => Result.Ok(x)` ainda exige função nomeada
   com retorno anotado para inferir `U`/`E`; `T?` contra `Int?` já unifica `T = Int`.
 

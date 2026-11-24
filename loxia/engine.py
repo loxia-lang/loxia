@@ -86,6 +86,7 @@ class Loxia:
         offline: bool = False,
         cache_dir: str | None = None,
         sandbox: bool = False,
+        gradual: bool = False,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
         self.debug = debug
@@ -101,6 +102,7 @@ class Loxia:
         self.frozen = frozen
         self.offline = offline
         self.cache_dir = Path(cache_dir).resolve() if cache_dir is not None else None
+        self.gradual = gradual
         self._sources = SourceMap()
         self._file = "<stdin>"
         self._module_root: Path | None = None
@@ -501,6 +503,7 @@ class Loxia:
                     captured_mutables=resolver.captured_mutables,
                     captured_globals=resolver.captured_global_names,
                     source_index=self.last_source_index,
+                    gradual=self.gradual,
                 )
                 checker.check(statements)
                 self.last_checker = checker

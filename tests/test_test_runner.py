@@ -673,3 +673,48 @@ def test_binary_cache_key_inclui_dependencia_path(
     after = _binary_cache_key([test], ())
 
     assert before != after
+
+
+TYPE_ERROR_TEST = """
+import std.test as t
+fn f(x: Int) -> Int { return x }
+val suite = t.Suite()
+suite.it("tipo", fn() { t.expect(f("a")).toBe(0) })
+suite.done()
+"""
+
+
+def test_precheck_reprova_erro_de_tipo_antes_de_rodar(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 1
+    assert "not ok 1 - <" in result.stdout
+    assert "error[E3001]" in result.stdout
+    assert "Argument 1: Expected Int, found String." in result.stdout
+
+
+def test_no_check_desliga_o_precheck(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests), "--no-check")
+
+    assert result.returncode == 1
+    assert "not ok 1 - tipo" in result.stdout
+    assert "expected 0" in result.stdout
+
+
+def test_precheck_aceita_teste_sem_anotacao(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "pass_test.lx").write_text(PASS, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - passa" in result.stdout

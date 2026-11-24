@@ -220,9 +220,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         captured_mutables: set[Token] | None = None,
         captured_globals: set[str] | None = None,
         source_index: SourceIndex | None = None,
+        gradual: bool = False,
     ) -> None:
         self._reporter = reporter
         self._source_index = source_index
+        # Modo gradual (ADR-0142, fase 1): anotação ausente vira aviso e o tipo é `Any`.
+        self._gradual = gradual
         self._scopes: list[dict[str, Ty]] = [{}]
         self._decl_tokens: list[dict[str, Token]] = [{}]
         self._captured_mutables: set[Token] = set(captured_mutables or ())
@@ -796,8 +799,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         """Reporta erro de tipo.
 
         `lowerable=True` para os erros que o interpretador também levantaria em runtime
-        (operandos de tipo errado): o backend os rebaixa a panic site (ADR-0031).
+        (operandos de tipo errado): o backend os rebaixa a panic site (ADR-0031). No modo
+        gradual, anotação ausente vira aviso: o tipo já caiu para `Any` e o programa roda.
         """
+        if self._gradual and code is Code.MISSING_ANNOTATION:
+            self._reporter.warning(
+                token,
+                message,
+                code=code,
+                notes=notes,
+                help=help,
+                label_tokens=label_tokens,
+                fixes=fixes,
+            )
+            return
         self._reporter.error(
             token,
             message,

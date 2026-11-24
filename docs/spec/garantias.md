@@ -257,6 +257,9 @@ and stdlib decisions. What is still aspirational is marked.
 4. **Optional types, not ceremony** — annotate only where it helps; in `--check` local
    inference already exists and parameters/return remain signed. Inferring a parameter without
    an annotation was postponed; see [ADR-0020](../adr/0020-assinaturas-explicitas.md).
+   `--gradual` — and the `loxia test` pre-check — makes a missing annotation a warning with
+   `Any`, so unannotated programs are still checked for everything else
+   ([ADR-0142](../adr/0142-check-por-fases.md)).
 5. **Fail early and clearly** — spans, caret and stack trace exist today
    ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
    [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).
