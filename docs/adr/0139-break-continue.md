@@ -80,8 +80,9 @@ Sem rótulos (`break outer`), sem valor (`break 1`) e sem `loop {}`.
   `finally`. Um conjunto de contextos em emissão evita reentrância quando o próprio
   `finally` faz `break`/`continue`/`return`; `_return` usa a mesma rotina.
 - O `CleanupContext` guarda a profundidade de `_scopes` do `finally`; a emissão por
-  transferência trunca os escopos do corpo do `try`, para que locals/params do `finally`
-  resolvam no slot que o resolver gravou.
+  transferência trunca os escopos do corpo do `try` **e** do binding do `except`, para que
+  locals/params do `finally` resolvam no slot que o resolver gravou. O caminho normal de
+  `except`/`finally` usa a mesma profundidade.
 - Sem regra de tipo nova: o checker não inventa tipos; o resolver valida o contexto. I4
   permanece.
 
@@ -112,6 +113,8 @@ Sem rótulos (`break outer`), sem valor (`break 1`) e sem `loop {}`.
 - `tests/cases/break_continue.lx`: `for-in`, `while`, laço aninhado, `finally` com efeito
   colateral, `finally` que sai (`break`/`continue`/`return`) em ramo irmão e `finally` que
   lê parâmetro/local.
+- `tests/cases/try_finally_scope.lx`: `except` normal e `break` a partir do `except`, com
+  `finally` lendo parâmetro, nos dois motores.
 - `tests/cases/errors/{break,continue}_outside_loop.lx` e `break_in_lambda.lx`: exit 65 e
   mensagem estável.
 - `tests/test_parser.py`: AST de `break`/`continue`; o golden `break_continue.lx` cobre o
