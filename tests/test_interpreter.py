@@ -945,6 +945,25 @@ def test_enum_match_runtime_error(
     assert "No match arm matched." in stderr
 
 
+def test_literal_match_is_strict_across_types(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdout, stderr = run(
+        """
+        print(match true { true => "bool", _ => "no" })
+        print(match 1 { 1 => "int", _ => "no" })
+        print(match true { 1 => "int", _ => "no" })
+        print(match 1 { true => "bool", _ => "no" })
+        print(match nil { 0 => "int", _ => "no" })
+        print(match "1" { 1 => "int", _ => "no" })
+        """,
+        capsys,
+    )
+
+    assert stdout == ["bool", "int", "no", "no", "no", "no"]
+    assert stderr == ""
+
+
 def test_exceptions_runtime_flow(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
