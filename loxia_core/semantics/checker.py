@@ -8,7 +8,7 @@ retorno anotados. Tipos são apagados: o interpretador continua dinâmico.
 from __future__ import annotations
 
 import difflib
-from dataclasses import dataclass, field, fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 
 from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import (
@@ -120,6 +120,15 @@ from loxia_core.frontend.ty import (
     truthy,
     union,
 )
+from loxia_core.semantics.decl_table import (
+    ClassInfo,
+    DeclTable,
+    EnumInfo,
+    EnumVariantInfo,
+    FieldBinding,
+    FunctionSignature,
+    InterfaceInfo,
+)
 from loxia_core.semantics.flow import (
     Invalidation,
     LoopContext,
@@ -128,6 +137,7 @@ from loxia_core.semantics.flow import (
     join_exits,
     join_states,
 )
+from loxia_core.semantics.type_ops import TypeOps
 
 RESERVED_TYPE_PARAM_NAMES = frozenset(
     {
@@ -149,59 +159,6 @@ RESERVED_TYPE_PARAM_NAMES = frozenset(
 )
 
 BUILTIN_CONSTRAINTS = frozenset({"Ord", "Num"})
-ORD_TYPES: tuple[Ty, ...] = (INT, FLOAT, STRING)
-NUM_TYPES: tuple[Ty, ...] = (INT, FLOAT)
-
-
-@dataclass
-class FieldBinding:
-    ty: Ty
-    mutable: bool
-    token: Token
-
-
-@dataclass
-class ClassInfo:
-    name: str
-    superclass: str | None
-    fields: dict[str, FieldBinding] = field(default_factory=dict)
-    methods: dict[str, FnTy] = field(default_factory=dict)
-    method_tokens: dict[str, Token] = field(default_factory=dict)
-    init: FnTy | None = None
-    type_params: tuple[TyVar, ...] = ()
-    type_param_names: tuple[str, ...] = ()
-    interfaces: tuple[str, ...] = ()
-
-
-@dataclass
-class InterfaceInfo:
-    name: str
-    methods: dict[str, FnTy] = field(default_factory=dict)
-    method_tokens: dict[str, Token] = field(default_factory=dict)
-    defaults: dict[str, bool] = field(default_factory=dict)
-    declared: bool = False
-
-
-@dataclass
-class EnumVariantInfo:
-    name: str
-    payload: tuple[Ty, ...]
-    token: Token | None = None
-
-
-@dataclass
-class EnumInfo:
-    name: str
-    type_params: tuple[TyVar, ...] = ()
-    type_param_names: tuple[str, ...] = ()
-    variants: dict[str, EnumVariantInfo] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class FunctionSignature:
-    type_params: tuple[TyVar, ...]
-    type_param_names: tuple[str, ...]
-    fn: FnTy
 
 
 @dataclass(frozen=True)
@@ -240,9 +197,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings: RefinementState = {}
         self._loops: list[LoopContext] = []
         self._journals: list[list[Invalidation]] = []
-        self._classes: dict[str, ClassInfo] = {}
-        self._enums: dict[str, EnumInfo] = {}
-        self._interfaces: dict[str, InterfaceInfo] = {}
+        self._decls = DeclTable()
+        self._types = TypeOps(
+            self._decls,
+            gradual=gradual,
+            error=self._error,
+            native_signature=self._native_signature,
+        )
         self._current_class: ClassInfo | None = None
         self._current_interface: InterfaceInfo | None = None
         self._current_return: Ty | None = None
@@ -270,17 +231,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._return_collector: list[Ty] | None = None
         self._define_builtins()
 
-    def _contains_type_var(self, ty: Ty) -> bool:
-        if isinstance(ty, TyVar):
-            return True
-        if isinstance(ty, ClassTy):
-            return any(self._contains_type_var(arg) for arg in ty.args)
-        if isinstance(ty, FnTy):
-            return any(
-                self._contains_type_var(param) for param in ty.params
-            ) or self._contains_type_var(ty.ret)
-        return False
-
     def concrete_class_types(self) -> set[ClassTy]:
         """Todas as instanciações de classe concretas vistas pelo checker."""
         result = {ty for ty in self.generic_classes if not self._contains_type_var(ty)}
@@ -288,6 +238,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if isinstance(ty, ClassTy) and ty.args and not self._contains_type_var(ty):
                 result.add(ty)
         return result
+
+    @property
+    def _classes(self) -> dict[str, ClassInfo]:
+        return self._decls.classes
+
+    @property
+    def _enums(self) -> dict[str, EnumInfo]:
+        return self._decls.enums
+
+    @property
+    def _interfaces(self) -> dict[str, InterfaceInfo]:
+        return self._decls.interfaces
 
     def check(self, statements: list[Stmt]) -> None:
         self._predeclare_classes(statements)
@@ -1119,124 +1081,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return None
 
-    def _assignable(self, expected: Ty, actual: Ty) -> bool:
-        # `Any` é top type: qualquer `T` é atribuível a `Any`. O contrário exige
-        # conversão explícita (`as`), porque os tipos são apagados no runtime —
-        # deixar `Any -> T` passar aqui fazia o backend reinterpretar o payload
-        # (ponteiro vazado/segfault) e quebrava I1/I2/I3.
-        if expected is ANY or expected is ERROR or actual is ERROR:
-            return True
-        if actual is NEVER:
-            return True
-        # No modo gradual o `Any` é consistente com qualquer tipo (o programa roda no
-        # tree-walk, sem lowering); o `as` continua obrigatório no `--check` estrito.
-        if self._gradual and actual is ANY:
-            return True
-        if expected == actual:
-            return True
-        # Rebinding de classe é dinâmico por ADR-0044: `Base = OtherBase as Any`
-        # continua válido; o backend representa classe como ponteiro.
-        if isinstance(expected, ClassObjectTy) and actual is ANY:
-            return True
-        # Destructuring com anotação de tupla é o formulário explícito previsto
-        # em ADR-0069 para um valor vindo de `Any`; o backend desemboxa a tupla.
-        if isinstance(expected, TupleTy) and actual is ANY:
-            return True
-        if isinstance(actual, UnionTy):
-            return all(self._assignable(expected, member) for member in actual.members)
-        if isinstance(expected, UnionTy):
-            return any(self._assignable(member, actual) for member in expected.members)
-        if isinstance(expected, InterfaceTy) and isinstance(actual, TyVar):
-            return expected.name in actual.bounds
-        if isinstance(expected, TyVar) or isinstance(actual, TyVar):
-            return False
-        # Sem promoção `Int -> Float` em contexto de armazenamento (ADR-0058):
-        # `val x: Float = 2`, `x = 2`, `f(2)` e `return 2` exigem `2.0`/`as Float`.
-        # A promoção continua valendo só como regra de aritmética (ADR-0006).
-        if isinstance(expected, ListTy) and isinstance(actual, ListTy):
-            if expected.element is ERROR or actual.element is ERROR:
-                return True
-            return expected.element == actual.element
-        if isinstance(expected, MapTy) and isinstance(actual, MapTy):
-            if expected.key is ERROR or actual.key is ERROR:
-                return True
-            if expected.value is ERROR or actual.value is ERROR:
-                return True
-            return expected.key == actual.key and expected.value == actual.value
-        if isinstance(expected, TupleTy) and isinstance(actual, TupleTy):
-            return len(expected.items) == len(actual.items) and all(
-                self._assignable(expected_item, actual_item)
-                for expected_item, actual_item in zip(expected.items, actual.items, strict=True)
-            )
-        if isinstance(expected, FnTy):
-            if isinstance(actual, FnTy):
-                return self._assignable_fn(expected, actual)
-            if isinstance(actual, ClassObjectTy):
-                info = self._classes.get(actual.name)
-                if info is None:
-                    return False
-                signature = self._initializer(info) or FnTy((), ClassTy(actual.name), 0)
-                return self._assignable_fn(expected, signature)
-            if isinstance(actual, NativeFnTy):
-                native_signature = self._native_signature(actual.name)
-                return native_signature is not None and self._assignable_fn(
-                    expected, native_signature
-                )
-        if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
-            if expected.args or actual.args:
-                return expected.name == actual.name and expected.args == actual.args
-            return self._is_subclass(actual.name, expected.name)
-        if isinstance(expected, InterfaceTy):
-            if isinstance(actual, InterfaceTy):
-                return expected.name == actual.name
-            if isinstance(actual, ClassTy):
-                return self._implements_interface(actual.name, expected.name)
-            return False
-        if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
-            return expected.name == actual.name and expected.args == actual.args
-
-        return False
-
-    def _assignable_fn(self, expected: FnTy, actual: FnTy) -> bool:
-        """Função é contravariante nos parâmetros e covariante no retorno."""
-        if expected.variadic != actual.variadic:
-            return False
-        count = len(expected.params)
-        if actual.variadic:
-            if len(actual.params) != len(expected.params):
-                return False
-        elif not actual.min_params <= count <= len(actual.params):
-            return False
-
-        for expected_param, actual_param in zip(expected.params, actual.params, strict=False):
-            if not self._assignable(actual_param, expected_param):
-                return False
-
-        return self._assignable(expected.ret, actual.ret)
-
-    def _is_subclass(self, actual: str, expected: str) -> bool:
-        name: str | None = actual
-        while name is not None:
-            if name == expected:
-                return True
-            info = self._classes.get(name)
-            name = info.superclass if info is not None else None
-
-        return False
-
-    def _implements_interface(self, class_name: str, interface: str) -> bool:
-        """Nominal e transitivo pela superclasse (ADR-0080)."""
-        name: str | None = class_name
-        while name is not None:
-            info = self._classes.get(name)
-            if info is None:
-                return False
-            if interface in info.interfaces:
-                return True
-            name = info.superclass
-
-        return False
-
     def _resolve_type(self, ty: Ty, token: Token) -> Ty:
         if isinstance(ty, ClassTy):
             parameter = self._lookup_type_param(ty.name)
@@ -1378,52 +1222,61 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return False
 
     def _find_field(self, class_name: str, field_name: str) -> FieldBinding | None:
-        name: str | None = class_name
-        while name is not None:
-            info = self._classes.get(name)
-            if info is None:
-                return None
-            if field_name in info.fields:
-                return info.fields[field_name]
-            name = info.superclass
-
-        return None
+        return self._decls.find_field(class_name, field_name)
 
     def _find_method(self, class_name: str, method_name: str) -> FnTy | None:
-        name: str | None = class_name
-        while name is not None:
-            info = self._classes.get(name)
-            if info is None:
-                return None
-            if method_name in info.methods:
-                return info.methods[method_name]
-            if method_name == "init" and info.init is not None:
-                return info.init
-            name = info.superclass
-
-        # Defaults das interfaces: derivada → base, na ordem de `implements`.
-        name = class_name
-        while name is not None:
-            info = self._classes.get(name)
-            if info is None:
-                return None
-            for interface in info.interfaces:
-                interface_info = self._interfaces.get(interface)
-                if interface_info is not None:
-                    method = interface_info.methods.get(method_name)
-                    if method is not None:
-                        return method
-            name = info.superclass
-
-        return None
+        return self._decls.find_method(class_name, method_name)
 
     def _initializer(self, info: ClassInfo) -> FnTy | None:
-        """`init` da classe ou o primeiro `init` herdado (o runtime herda)."""
-        if info.init is not None:
-            return info.init
-        if info.superclass is None:
-            return None
-        return self._find_method(info.superclass, "init")
+        return self._decls.initializer(info)
+
+    def _find_class_method(self, class_name: str | None, method_name: str) -> FnTy | None:
+        return self._decls.find_class_method(class_name, method_name)
+
+    def _is_subclass(self, actual: str, expected: str) -> bool:
+        return self._decls.is_subclass(actual, expected)
+
+    def _implements_interface(self, class_name: str, interface: str) -> bool:
+        return self._decls.implements_interface(class_name, interface)
+
+    def _interface_names(self, info: ClassInfo) -> list[str]:
+        return self._decls.interface_names(info)
+
+    def _assignable(self, expected: Ty, actual: Ty) -> bool:
+        return self._types.assignable(expected, actual)
+
+    def _assignable_fn(self, expected: FnTy, actual: FnTy) -> bool:
+        return self._types.assignable_fn(expected, actual)
+
+    def _unify(self, expected: Ty, actual: Ty, bindings: dict[TyVar, Ty], token: Token) -> bool:
+        return self._types.unify(expected, actual, bindings, token)
+
+    def _substitute(self, ty: Ty, bindings: dict[TyVar, Ty]) -> Ty:
+        return self._types.substitute(ty, bindings)
+
+    def _occurs(self, variable: TyVar, ty: Ty, bindings: dict[TyVar, Ty]) -> bool:
+        return self._types.occurs(variable, ty, bindings)
+
+    def _has_any_type_var(self, ty: Ty) -> bool:
+        return self._types.has_any_type_var(ty)
+
+    def _unbound_type_vars(self, ty: Ty, variables: tuple[TyVar, ...]) -> list[TyVar]:
+        return self._types.unbound_type_vars(ty, variables)
+
+    def _contains_type_var(self, ty: Ty) -> bool:
+        return self._types.contains_type_var(ty)
+
+    def _contains_any_type_var(self, ty: Ty, variables: tuple[TyVar, ...]) -> bool:
+        return self._types.contains_any_type_var(ty, variables)
+
+    def _satisfies_bound(self, actual: Ty, bound: str) -> bool:
+        return self._types.satisfies_bound(actual, bound)
+
+    def _is_test_subtype(self, actual: Ty, expected: Ty) -> bool:
+        return self._types.is_test_subtype(actual, expected)
+
+    def _intersect_types(self, left: Ty, right: Ty) -> Ty:
+        return self._types.intersect_types(left, right)
 
     def _numeric(self, ty: Ty, token: Token) -> Ty:
         if ty is ANY:
@@ -1798,34 +1651,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         finally:
             self._pop_type_params()
             self._current_class = enclosing
-
-    def _interface_names(self, info: ClassInfo) -> list[str]:
-        names: list[str] = []
-        current: ClassInfo | None = info
-        while current is not None:
-            for interface in current.interfaces:
-                if interface not in names:
-                    names.append(interface)
-            current = (
-                self._classes.get(current.superclass) if current.superclass is not None else None
-            )
-
-        return names
-
-    def _find_class_method(self, class_name: str | None, method_name: str) -> FnTy | None:
-        """Só métodos declarados por classes (não defaults de interface)."""
-        name = class_name
-        while name is not None:
-            info = self._classes.get(name)
-            if info is None:
-                return None
-            if method_name in info.methods:
-                return info.methods[method_name]
-            if method_name == "init" and info.init is not None:
-                return info.init
-            name = info.superclass
-
-        return None
 
     def _check_interface_conformance(self, stmt: Class, info: ClassInfo) -> None:
         if not info.interfaces:
@@ -3154,68 +2979,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return None
 
-    def _is_test_subtype(self, actual: Ty, expected: Ty) -> bool:
-        """Subtipo para teste de runtime, **sem** promoção `Int → Float`.
-
-        `_assignable` é a relação de atribuição (aceita `Int` onde se espera `Float`); para
-        `is`, `1` não é `Float`, então a relação precisa ser mais estrita.
-        """
-        if expected is ANY:
-            return True
-        if actual is NEVER:
-            return True
-        if actual == expected:
-            return True
-        if isinstance(expected, UnionTy):
-            return any(self._is_test_subtype(actual, member) for member in expected.members)
-        if isinstance(actual, UnionTy):
-            return all(self._is_test_subtype(member, expected) for member in actual.members)
-        if isinstance(actual, ClassTy) and isinstance(expected, ClassTy):
-            if expected.args or actual.args:
-                return actual.name == expected.name and actual.args == expected.args
-            return self._is_subclass(actual.name, expected.name)
-        if isinstance(actual, EnumTy) and isinstance(expected, EnumTy):
-            return actual.name == expected.name and (
-                not expected.args or actual.args == expected.args
-            )
-        if isinstance(actual, ListTy) and isinstance(expected, ListTy):
-            return expected.element is ANY or self._is_test_subtype(
-                actual.element, expected.element
-            )
-        if isinstance(actual, MapTy) and isinstance(expected, MapTy):
-            key_ok = expected.key is ANY or self._is_test_subtype(actual.key, expected.key)
-            value_ok = expected.value is ANY or self._is_test_subtype(actual.value, expected.value)
-            return key_ok and value_ok
-        if isinstance(actual, TupleTy) and isinstance(expected, TupleTy):
-            return len(actual.items) == len(expected.items) and all(
-                self._is_test_subtype(actual_item, expected_item)
-                for actual_item, expected_item in zip(actual.items, expected.items, strict=True)
-            )
-
-        return False
-
-    def _intersect_types(self, left: Ty, right: Ty) -> Ty:
-        if left is ANY:
-            return right
-        if right is ANY:
-            return left
-        if left is ERROR or right is ERROR:
-            return ERROR
-        if left is NEVER or right is NEVER:
-            return NEVER
-        if left == right:
-            return left
-        if isinstance(left, UnionTy):
-            return union(*(self._intersect_types(member, right) for member in left.members))
-        if isinstance(right, UnionTy):
-            return union(*(self._intersect_types(left, member) for member in right.members))
-        if self._is_test_subtype(left, right):
-            return left
-        if self._is_test_subtype(right, left):
-            return right
-
-        return NEVER
-
     def _merge_refinements(
         self, left: dict[RefinementKey, Ty], right: dict[RefinementKey, Ty]
     ) -> dict[RefinementKey, Ty]:
@@ -4343,22 +4106,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.TYPE_MISMATCH,
                 )
 
-    def _satisfies_bound(self, actual: Ty, bound: str) -> bool:
-        if self._gradual and actual is ANY:
-            # `Any` é consistente com qualquer constraint no modo gradual.
-            return True
-        if isinstance(actual, TyVar):
-            return bound in actual.bounds
-        if isinstance(actual, InterfaceTy):
-            return actual.name == bound
-        if bound == "Ord":
-            return any(actual is candidate for candidate in ORD_TYPES)
-        if bound == "Num":
-            return any(actual is candidate for candidate in NUM_TYPES)
-        if isinstance(actual, ClassTy):
-            return self._implements_interface(actual.name, bound)
-        return False
-
     def _check_generic_argument(
         self,
         expr: Expr,
@@ -4438,258 +4185,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             code=Code.GENERIC_INFERENCE,
         )
         return ERROR
-
-    def _substitute(self, ty: Ty, bindings: dict[TyVar, Ty]) -> Ty:
-        if isinstance(ty, TyVar):
-            replacement = bindings.get(ty)
-            if replacement is None or replacement == ty:
-                return ty
-            return self._substitute(replacement, bindings)
-        if isinstance(ty, ClassTy):
-            return ClassTy(
-                ty.name,
-                tuple(self._substitute(arg, bindings) for arg in ty.args),
-            )
-        if isinstance(ty, EnumTy):
-            return EnumTy(
-                ty.name,
-                tuple(self._substitute(arg, bindings) for arg in ty.args),
-            )
-        if isinstance(ty, ListTy):
-            return ListTy(self._substitute(ty.element, bindings))
-        if isinstance(ty, MapTy):
-            return MapTy(
-                self._substitute(ty.key, bindings),
-                self._substitute(ty.value, bindings),
-            )
-        if isinstance(ty, TupleTy):
-            return TupleTy(tuple(self._substitute(item, bindings) for item in ty.items))
-        if isinstance(ty, FnTy):
-            return FnTy(
-                tuple(self._substitute(param, bindings) for param in ty.params),
-                self._substitute(ty.ret, bindings),
-                ty.min_params,
-                ty.variadic,
-            )
-        if isinstance(ty, UnionTy):
-            return union(*(self._substitute(member, bindings) for member in ty.members))
-
-        return ty
-
-    def _has_any_type_var(self, ty: Ty) -> bool:
-        if isinstance(ty, TyVar):
-            return True
-        if isinstance(ty, ClassTy):
-            return any(self._has_any_type_var(arg) for arg in ty.args)
-        if isinstance(ty, EnumTy):
-            return any(self._has_any_type_var(arg) for arg in ty.args)
-        if isinstance(ty, ListTy):
-            return self._has_any_type_var(ty.element)
-        if isinstance(ty, MapTy):
-            return self._has_any_type_var(ty.key) or self._has_any_type_var(ty.value)
-        if isinstance(ty, TupleTy):
-            return any(self._has_any_type_var(item) for item in ty.items)
-        if isinstance(ty, FnTy):
-            return any(self._has_any_type_var(param) for param in ty.params) or (
-                self._has_any_type_var(ty.ret)
-            )
-        if isinstance(ty, UnionTy):
-            return any(self._has_any_type_var(member) for member in ty.members)
-
-        return False
-
-    def _occurs(self, variable: TyVar, ty: Ty, bindings: dict[TyVar, Ty]) -> bool:
-        ty = self._substitute(ty, bindings)
-        if isinstance(ty, TyVar):
-            return ty == variable
-        if isinstance(ty, ClassTy):
-            return any(self._occurs(variable, arg, bindings) for arg in ty.args)
-        if isinstance(ty, EnumTy):
-            return any(self._occurs(variable, arg, bindings) for arg in ty.args)
-        if isinstance(ty, ListTy):
-            return self._occurs(variable, ty.element, bindings)
-        if isinstance(ty, MapTy):
-            return self._occurs(variable, ty.key, bindings) or self._occurs(
-                variable, ty.value, bindings
-            )
-        if isinstance(ty, TupleTy):
-            return any(self._occurs(variable, item, bindings) for item in ty.items)
-        if isinstance(ty, FnTy):
-            return any(
-                self._occurs(variable, param, bindings) for param in ty.params
-            ) or self._occurs(variable, ty.ret, bindings)
-        if isinstance(ty, UnionTy):
-            return any(self._occurs(variable, member, bindings) for member in ty.members)
-
-        return False
-
-    def _unify(
-        self,
-        expected: Ty,
-        actual: Ty,
-        bindings: dict[TyVar, Ty],
-        token: Token,
-    ) -> bool:
-        expected = self._substitute(expected, bindings)
-        actual = self._substitute(actual, bindings)
-
-        if expected is ERROR or actual is ERROR:
-            return True
-        if expected is ANY:
-            return True
-        if isinstance(expected, TyVar):
-            if isinstance(actual, TyVar) and actual == expected:
-                return True
-            if actual is ANY:
-                if self._gradual:
-                    # Sem anotação, o argumento é `Any`: instancia com `Any` e segue.
-                    bindings[expected] = ANY
-                    return True
-                self._error(
-                    token,
-                    f"Can't infer type argument '{expected.name}' from Any.",
-                    code=Code.GENERIC_INFERENCE,
-                )
-                return False
-            if self._occurs(expected, actual, bindings):
-                self._error(
-                    token,
-                    f"Recursive type inferred for '{expected.name}'.",
-                    code=Code.GENERIC_INFERENCE,
-                )
-                return False
-            bindings[expected] = actual
-            return True
-
-        if expected == actual:
-            return True
-
-        if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
-            if expected.name != actual.name or len(expected.args) != len(actual.args):
-                return False
-            if not expected.args:
-                return self._assignable(expected, actual)
-            return all(
-                self._unify(expected_arg, actual_arg, bindings, token)
-                for expected_arg, actual_arg in zip(expected.args, actual.args, strict=True)
-            )
-        if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
-            if expected.name != actual.name or len(expected.args) != len(actual.args):
-                return False
-            return all(
-                self._unify(expected_arg, actual_arg, bindings, token)
-                for expected_arg, actual_arg in zip(expected.args, actual.args, strict=True)
-            )
-
-        if not self._has_any_type_var(expected) and not self._has_any_type_var(actual):
-            return self._assignable(expected, actual)
-
-        if isinstance(expected, ListTy) and isinstance(actual, ListTy):
-            return self._unify(expected.element, actual.element, bindings, token)
-        if isinstance(expected, MapTy) and isinstance(actual, MapTy):
-            return self._unify(expected.key, actual.key, bindings, token) and self._unify(
-                expected.value, actual.value, bindings, token
-            )
-        if isinstance(expected, TupleTy) and isinstance(actual, TupleTy):
-            return len(expected.items) == len(actual.items) and all(
-                self._unify(expected_item, actual_item, bindings, token)
-                for expected_item, actual_item in zip(expected.items, actual.items, strict=True)
-            )
-        if isinstance(expected, FnTy) and isinstance(actual, FnTy):
-            if expected.variadic != actual.variadic:
-                return False
-            if actual.variadic:
-                if len(expected.params) != len(actual.params):
-                    return False
-            elif not actual.min_params <= len(expected.params) <= len(actual.params):
-                return False
-            for expected_param, actual_param in zip(expected.params, actual.params, strict=False):
-                if not self._unify(expected_param, actual_param, bindings, token):
-                    return False
-            return self._unify(expected.ret, actual.ret, bindings, token)
-        if isinstance(expected, UnionTy):
-            # `T?` unifica com `Int?` como T=Int, não T=Int? (opcional aninhado).
-            if isinstance(actual, UnionTy):
-                expected_non_nil = [member for member in expected.members if member is not NIL]
-                actual_non_nil = [member for member in actual.members if member is not NIL]
-                if len(expected_non_nil) == 1 and len(actual_non_nil) == 1:
-                    return self._unify(
-                        expected_non_nil[0],
-                        actual_non_nil[0],
-                        bindings,
-                        token,
-                    )
-            for member in expected.members:
-                trial = dict(bindings)
-                if self._unify(member, actual, trial, token):
-                    bindings.clear()
-                    bindings.update(trial)
-                    return True
-            return False
-
-        return False
-
-    def _unbound_type_vars(self, ty: Ty, variables: tuple[TyVar, ...]) -> list[TyVar]:
-        if isinstance(ty, TyVar):
-            return [ty] if ty in variables else []
-        if isinstance(ty, ClassTy):
-            class_vars: list[TyVar] = []
-            for arg in ty.args:
-                class_vars.extend(self._unbound_type_vars(arg, variables))
-            return class_vars
-        if isinstance(ty, EnumTy):
-            enum_vars: list[TyVar] = []
-            for arg in ty.args:
-                enum_vars.extend(self._unbound_type_vars(arg, variables))
-            return enum_vars
-        if isinstance(ty, ListTy):
-            return self._unbound_type_vars(ty.element, variables)
-        if isinstance(ty, MapTy):
-            return self._unbound_type_vars(ty.key, variables) + self._unbound_type_vars(
-                ty.value, variables
-            )
-        if isinstance(ty, TupleTy):
-            tuple_vars: list[TyVar] = []
-            for item in ty.items:
-                tuple_vars.extend(self._unbound_type_vars(item, variables))
-            return tuple_vars
-        if isinstance(ty, FnTy):
-            found: list[TyVar] = []
-            for param in ty.params:
-                found.extend(self._unbound_type_vars(param, variables))
-            found.extend(self._unbound_type_vars(ty.ret, variables))
-            return found
-        if isinstance(ty, UnionTy):
-            found = []
-            for member in ty.members:
-                found.extend(self._unbound_type_vars(member, variables))
-            return found
-
-        return []
-
-    def _contains_any_type_var(self, ty: Ty, variables: tuple[TyVar, ...]) -> bool:
-        if isinstance(ty, TyVar):
-            return ty in variables
-        if isinstance(ty, ClassTy):
-            return any(self._contains_any_type_var(arg, variables) for arg in ty.args)
-        if isinstance(ty, EnumTy):
-            return any(self._contains_any_type_var(arg, variables) for arg in ty.args)
-        if isinstance(ty, ListTy):
-            return self._contains_any_type_var(ty.element, variables)
-        if isinstance(ty, MapTy):
-            return self._contains_any_type_var(ty.key, variables) or self._contains_any_type_var(
-                ty.value, variables
-            )
-        if isinstance(ty, TupleTy):
-            return any(self._contains_any_type_var(item, variables) for item in ty.items)
-        if isinstance(ty, FnTy):
-            return any(
-                self._contains_any_type_var(param, variables) for param in ty.params
-            ) or self._contains_any_type_var(ty.ret, variables)
-        if isinstance(ty, UnionTy):
-            return any(self._contains_any_type_var(member, variables) for member in ty.members)
-
-        return False
 
     def _check_polymorphic_recursion(
         self,

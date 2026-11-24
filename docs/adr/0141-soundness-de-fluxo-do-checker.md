@@ -1,6 +1,6 @@
 # ADR-0141 — Checker: soundness de fluxo, merge ciente de saltos e escopo da precisão
 
-- **Status:** accepted (fatia de soundness e gate do corpus implementados em 2026-11-24; split `TypeOps`/`DeclTable` pendente)
+- **Status:** accepted (fatia de soundness, gate do corpus e split `TypeOps`/`DeclTable` implementados em 2026-11-24)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0025](0025-is-e-narrowing.md),
@@ -11,7 +11,9 @@
   [ADR-0139](0139-break-continue.md), [ADR-0140](0140-match-literais.md),
   [`../../TIPOS.md`](../../TIPOS.md) §2, [`../spec/semantica.md`](../spec/semantica.md)
 - **Implementação:** [`loxia_core/semantics/flow.py`](../../loxia_core/semantics/flow.py)
-  (chave, merge, `LoopContext`, política), `loxia_core/semantics/checker.py`,
+  (chave, merge, `LoopContext`, política), `loxia_core/semantics/type_ops.py`
+  (atribuição, unificação, substituição), `loxia_core/semantics/decl_table.py`
+  (classes/enums/interfaces e hierarquia), `loxia_core/semantics/checker.py`,
   [`tests/test_checker_flow.py`](../../tests/test_checker_flow.py),
   [`tests/test_checker_sweep.py`](../../tests/test_checker_sweep.py),
   `tests/cases/break_narrowing.lx`, `tests/cases/break_finally.lx`,
