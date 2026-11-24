@@ -48,6 +48,7 @@ from loxia_core.frontend.expr import (
     Logical,
     MapLiteral,
     Match,
+    Pattern,
     Range,
     Set,
     Super,
@@ -990,12 +991,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return actual
 
         if isinstance(expr, Match):
+            errors_before = self._reporter.error_count
             actual = self._match(expr, expected)
             self.types[expr] = actual
             self.storage_types[expr] = self._storage_type(expr, actual)
             if actual is ERROR:
                 return ERROR
-            if not self._assignable(expected, actual):
+            if (
+                not self._assignable(expected, actual)
+                and self._reporter.error_count == errors_before
+            ):
                 self._error(
                     token,
                     self._mismatch_message(expected, actual),
@@ -3529,7 +3534,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._expected_element(expected_ty) if expected_ty is not None else None
             )
 
-            if isinstance(argument, Lambda) and expected_ty is not None:
+            if isinstance(argument, (Lambda, Match)) and expected_ty is not None:
                 arguments.append(self._check(argument, expected_ty, expr.paren))
             elif (
                 (isinstance(argument, ListLiteral) and expected_param is not None)
@@ -4685,6 +4690,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         )
         return ERROR
 
+    def _pattern_token(self, pattern: Pattern) -> Token:
+        if isinstance(pattern, VariantPattern):
+            return pattern.variant
+        return pattern.token
+
     def _check_match_arm(
         self,
         body: Expr,
@@ -4739,7 +4749,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
                 wildcard = True
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4751,7 +4763,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.TYPE_MISMATCH,
                 )
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4766,7 +4780,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.TYPE_MISMATCH,
                 )
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4778,7 +4794,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.UNDEFINED_NAME,
                 )
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4806,7 +4824,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 seen.add(token.lexeme)
                 self._define(token, self._substitute(item_ty, bindings))
 
-            arm_types.append(self._check_match_arm(arm.body, arm_states, expected, expr.keyword))
+            arm_types.append(
+                self._check_match_arm(arm.body, arm_states, expected, self._pattern_token(pattern))
+            )
             self._end_scope()
 
         if not wildcard:
@@ -4836,7 +4856,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     )
                 wildcard = True
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4848,7 +4870,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.TYPE_MISMATCH,
                 )
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4864,7 +4888,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     code=Code.TYPE_MISMATCH,
                 )
                 arm_types.append(
-                    self._check_match_arm(arm.body, arm_states, expected, expr.keyword)
+                    self._check_match_arm(
+                        arm.body, arm_states, expected, self._pattern_token(pattern)
+                    )
                 )
                 continue
 
@@ -4872,7 +4898,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if key in covered:
                 self._error(pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
             covered.add(key)
-            arm_types.append(self._check_match_arm(arm.body, arm_states, expected, expr.keyword))
+            arm_types.append(
+                self._check_match_arm(arm.body, arm_states, expected, self._pattern_token(pattern))
+            )
 
         if not wildcard:
             self._error(
@@ -5018,6 +5046,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Expected {display(obj.key)}, found {display(index)}.",
                     notes=self._provenance_notes(expr.index, expr.bracket),
                     code=Code.TYPE_MISMATCH,
+                    help=self._any_cast_help(obj.key, index),
                 )
             return obj.value
         if obj is BYTES:
@@ -5051,6 +5080,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Expected {display(obj.key)}, found {display(index)}.",
                     notes=self._provenance_notes(expr.index, expr.bracket),
                     code=Code.TYPE_MISMATCH,
+                    help=self._any_cast_help(obj.key, index),
                 )
             if not self._assignable(obj.value, value):
                 self._error(
@@ -5058,6 +5088,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Expected {display(obj.value)}, found {display(value)}.",
                     notes=self._provenance_notes(expr.value, expr.bracket),
                     code=Code.TYPE_MISMATCH,
+                    help=self._any_cast_help(obj.value, value),
                 )
             return value
         if not isinstance(obj, ListTy):
@@ -5071,6 +5102,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 f"Expected {display(obj.element)}, found {display(value)}.",
                 notes=self._provenance_notes(expr.value, expr.bracket),
                 code=Code.TYPE_MISMATCH,
+                help=self._any_cast_help(obj.element, value),
             )
 
         return value

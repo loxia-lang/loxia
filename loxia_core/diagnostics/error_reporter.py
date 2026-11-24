@@ -264,6 +264,10 @@ class ErrorReporter:
         self._diagnostics.clear()
         self._deferred.clear()
 
+    @property
+    def error_count(self) -> int:
+        return sum(1 for item in self._diagnostics if item.severity is Severity.ERROR)
+
     def adopt(self, diagnostics: tuple[Diagnostic, ...]) -> None:
         """Incorpora diagnósticos já prontos (REPL: o check roda em reporter separado)."""
         self._diagnostics.extend(diagnostics)

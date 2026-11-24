@@ -38,8 +38,8 @@ As **constraints** existem em funções (`T: Ord + Num + Interface`,
   checando no modo gradual antes de executar e bloqueando erro de tipo. Não há escape de
   check; não é lacuna de tipo.
 - **Enum genérico em lambda/match**: o tipo esperado é propagado aos braços de `match`
-  (inclusive quando o `match` é o corpo de uma lambda), então `Result.Ok(1)` infere `E` do
-  contexto. Uma lambda genérica **sem contexto** (`val g = fn(x) => Result.Ok(x)`) continua
+  (inclusive quando o `match` é o corpo de uma lambda ou argumento de chamada) e um contexto
+  união (`Result[Int, String]?`) também infere `E`; `Result.Ok(1)` infere do contexto. Uma lambda genérica **sem contexto** (`val g = fn(x) => Result.Ok(x)`) continua
   exigindo anotação/função nomeada, porque lambda genérica como valor segue adiada
   ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)); argumento de chamada é a fatia
   #181. `T?` contra `Int?` já unifica `T = Int`.

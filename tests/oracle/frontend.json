@@ -251,7 +251,7 @@
     "tests/cases/raw_strings.lx": "573a36c09db3ff56cfa3ab2a130fe3800f3230580ffbfbf47482512fd7a45cf5",
     "tests/cases/recursion.lx": "705eaa8be472d0168938980459d476c1d94b208189fd43941ed824ef61d54990",
     "tests/cases/result.lx": "59d06884e428ff1169aa44fd7c4b1ec5d8e33ddebe1a4726e7b9b25ca588a1a8",
-    "tests/cases/result_match_inference.lx": "27845b2b49cefba8818e2dd71b5ce8ca478e22c548472c78a575590c9886c23d",
+    "tests/cases/result_match_inference.lx": "cc587e72a61328f245485a90796596326abeae89f8ea4930f63c8100bae93566",
     "tests/cases/result_nil.lx": "49248488cfd1a6d4bef63b655bf20d36509a17f2e78c2b315ab2f9a68db1e4d2",
     "tests/cases/return_in_loop.lx": "cfeb1e397f72f263734c49c8f7e92d85b7210e05235d5ecfc962850c3154c0e5",
     "tests/cases/return_newline.lx": "df8c3f32c8be16c2103378d2acaae058f74281ff7516972c057abfb7ea19154e",
@@ -2406,15 +2406,15 @@
         "severity": "error",
         "span": {
           "end": {
-            "column": 35,
-            "line": 1,
-            "offset": 34
+            "column": 4,
+            "line": 2,
+            "offset": 42
           },
           "file": "tests/cases/errors/result_match_arm_type.lx",
           "start": {
-            "column": 30,
-            "line": 1,
-            "offset": 29
+            "column": 3,
+            "line": 2,
+            "offset": 41
           }
         }
       }
@@ -3360,7 +3360,7 @@
     "tests/cases/raw_strings.lx": "c4544fc5435b607950bb6905aab2955c661af2ee9d9d7b2d4f1aa3ccad48ea35",
     "tests/cases/recursion.lx": "d15fedb256fa11476b0f7263765828115c23165433f28ac765d6e573102cc434",
     "tests/cases/result.lx": "54d906e01afaea4857eef19c908804d55d86eb045cd45224ea8cc50752a83b45",
-    "tests/cases/result_match_inference.lx": "81bb1aa0c01b4c1cd2a0a288d9a18b8296e07317291ddef9f7d72ada834afc10",
+    "tests/cases/result_match_inference.lx": "51ee5085b5db947bfaf15868187e9ea410fdb9ea711c1fb07dbcdf68524e3936",
     "tests/cases/result_nil.lx": "47909cff3227d456ecc50b6386351e26edb9658ffd194ede587be810ccbe20ad",
     "tests/cases/return_in_loop.lx": "7f044663aaf5aff8404ca1b4b81b840dafe012defca29ff181142fd850931032",
     "tests/cases/return_newline.lx": "acfc876ea57953725eb4b0239c03d883104f57837b0f44793c1eb1551084f90c",

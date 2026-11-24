@@ -15,6 +15,17 @@ val f: fn(Int) -> Result[Int, String] = fn(x) => match x {
   _ => Result.Ok(x)
 }
 
+fn id(result: Result[Int, String]) -> Result[Int, String] {
+  return result
+}
+
+fn maybe(result: Result[Int, String]) -> Result[Int, String]? {
+  return match result {
+    Result.Ok(v) => Result.Ok(v)
+    Result.Err(_e) => nil
+  }
+}
+
 fn pick(result: Result[Int, String], base: Int) -> Int {
   return match result {
     Result.Ok(v) => v + base
@@ -44,8 +55,34 @@ val ok: Result[Int, String] = Result.Ok(2)
 val err: Result[Int, String] = Result.Err("e")
 print(pick(ok, 10))
 print(pick(err, 7))
+print(
+  match id(
+    match 0 {
+      0 => Result.Ok(5)
+      _ => Result.Err("e")
+    },
+  ) {
+    Result.Ok(v) => v
+    Result.Err(_e) => 0
+  },
+)
+val ok6: Result[Int, String] = Result.Ok(6)
+val m = maybe(ok6)
+if (m == nil) {
+  print(-1)
+} else {
+  val c: Result[Int, String] = m
+  print(
+    match c {
+      Result.Ok(v) => v
+      Result.Err(_e) => 0
+    },
+  )
+}
 # expect: 1
 # expect: 2
 # expect: 3
 # expect: 12
 # expect: 7
+# expect: 5
+# expect: 6
