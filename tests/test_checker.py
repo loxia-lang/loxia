@@ -3344,3 +3344,13 @@ def test_generic_function_with_a_function_return_reports_unbound_vars() -> None:
     lox = check("fn make[T]() -> fn(T) -> Int { return fn(x) => 1 }\nprint(make())\n")
 
     assert lox.reporter.had_error is True
+
+
+def test_optional_value_is_not_unified_with_a_generic_parameter() -> None:
+    lox = check(
+        "fn first[T](xs: List[T]) -> Int { return len(xs) }\n"
+        "val ys: List[Int]? = nil\n"
+        "print(first(ys))\n"
+    )
+
+    assert lox.reporter.had_error is True

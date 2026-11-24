@@ -195,17 +195,6 @@ class TypeOps:
         if expected == actual:
             return True
 
-        if isinstance(actual, UnionTy):
-            # O contexto pode ser uma união (`Result[Int, String]?`): tenta cada
-            # membro e comita a primeira ligação que fecha (Nil não casa).
-            for member in actual.members:
-                trial = dict(bindings)
-                if self.unify(expected, member, trial, token):
-                    bindings.clear()
-                    bindings.update(trial)
-                    return True
-            return False
-
         if isinstance(expected, ClassTy) and isinstance(actual, ClassTy):
             if expected.name != actual.name or len(expected.args) != len(actual.args):
                 return False

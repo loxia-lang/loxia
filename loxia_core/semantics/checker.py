@@ -4046,7 +4046,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         bindings: dict[TyVar, Ty] = {}
 
         if expected is not None and expected not in (ANY, ERROR):
-            self._unify(signature.ret, expected, bindings, token)
+            # O contexto pode ser opcional (`Result[Int, String]?`): unifica com o
+            # único membro não-nil. Um valor opcional *passado* como argumento não
+            # entra aqui e continua sendo recusado (não é contexto).
+            context = expected
+            if isinstance(expected, UnionTy):
+                members = [member for member in expected.members if member is not NIL]
+                if len(members) == 1:
+                    context = members[0]
+            self._unify(signature.ret, context, bindings, token)
 
         fixed = signature.fixed_params
         minimum = signature.min_params
