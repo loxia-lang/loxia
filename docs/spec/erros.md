@@ -389,7 +389,8 @@ Messages in the `Expect … .` pattern; the most common ones:
 | `Expect ')' after condition.` | `while` without `)` |
 | `Expect ')' after arguments.` | call without `)` |
 | `Expect ')' after expression.` | grouping without `)` |
-| `Expect '(' after ...` | `for`, `if`, `while`, function/method declaration |
+| `Expect '(' after ...` | `if`, `while`, function/method declaration |
+| `C-style 'for' was removed; use \`for x in range(n)\` or a \`while\` loop.` | `for (init; cond; incr)` |
 | `Expect '{' before function body.` / `method body.` | function without `{` |
 | `Expect '{' before class body.` | class without `{` |
 | `Expect '}' after block.` / `after class body.` | block/class without `}` |

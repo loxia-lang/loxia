@@ -86,6 +86,16 @@ def test_parses_for_in_statement() -> None:
     assert statements[0].name.lexeme == "i"
 
 
+def test_c_style_for_is_rejected_with_migration_hint() -> None:
+    parser = parser_for("for (var i = 0; i < 3; i = i + 1) print(i);")
+    parser.parse()
+
+    assert parser.reporter.had_error
+    assert any(
+        "C-style 'for' was removed" in item.message for item in parser.reporter.batch().diagnostics
+    )
+
+
 def test_parses_map_literal_with_expression_keys() -> None:
     statements = parse('val m = {"a": 1, nome: 2};')
 

@@ -177,17 +177,6 @@ class C {}
     assert assert_roundtrip(source) == expected
 
 
-def test_c_style_for_is_preserved() -> None:
-    source = "for (var i = 0; i < 3; i = i + 1) {\n  print(i)\n}\n"
-
-    expected = """for (var i = 0; i < 3; i = i + 1) {
-  print(i)
-}
-"""
-
-    assert assert_roundtrip(source) == expected
-
-
 def test_for_in_and_while_stay_canonical() -> None:
     source = "fn f(xs: List[Int]) {\n  for x in xs { print(x) }\n  while (false) { print(0) }\n}\n"
 
@@ -348,7 +337,6 @@ def test_trailing_comment_positions_stay_valid() -> None:
         "print(a + # c\n  b)\n",
         "val x = 1 if # c\n  true else 2\n",
         "val x = (a if # c\n  b else c) + 1\n",
-        "for (var i = 0; # head\n  i < 10; i = i + 1) {\n  print(i)\n}\n",
         "val f = fn(x) => # c\n  x + 1\n",
     ]
 

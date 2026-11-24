@@ -165,7 +165,7 @@
     "tests/cases/exponentiation.lx": "5e4f8d2b2f1f3220fb630ed1f8667e37c185d06664dce7839c89901594e6dd05",
     "tests/cases/fields_inheritance.lx": "5d91a8938193239af4c9457cb235e62b5d4b790ab668346d992a5f6338b6312f",
     "tests/cases/fields_val_var.lx": "b12dd68ec71d45ba71d89de138117153949f431f03dd2c1fd2db0d763533c2a5",
-    "tests/cases/for.lx": "00f231b8b234764f2d36130b74c40f7904d40143019d1b1eabae64e09a2ea0c0",
+    "tests/cases/for.lx": "540eeb25601df419ac2a4e8430726fef71d3a3e3795844c49f4d6d4e05a2e5a5",
     "tests/cases/for_in.lx": "60690a05b59bfec1f39405a38c7cdb9d9ab4c0732e0f3e0cb415a5e39aad7beb",
     "tests/cases/for_in_capture.lx": "730386ee5624fb3937b4f267548ca6dfd008eda4b9e3afa1b9da2c8889bfe0a2",
     "tests/cases/function_values.lx": "d11bd3ecd3f83d751bb0cddc2fb578301acf44b74cade9d5a45565f05db3ddfc",
@@ -1012,6 +1012,62 @@
             "column": 10,
             "line": 9,
             "offset": 76
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/for_c_style_removed.lx": [
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 1,
+            "offset": 5
+          },
+          "file": "tests/cases/errors/for_c_style_removed.lx",
+          "start": {
+            "column": 5,
+            "line": 1,
+            "offset": 4
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 34,
+            "line": 1,
+            "offset": 33
+          },
+          "file": "tests/cases/errors/for_c_style_removed.lx",
+          "start": {
+            "column": 33,
+            "line": 1,
+            "offset": 32
+          }
+        }
+      },
+      {
+        "code": "E1001",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 2,
+            "line": 3,
+            "offset": 48
+          },
+          "file": "tests/cases/errors/for_c_style_removed.lx",
+          "start": {
+            "column": 1,
+            "line": 3,
+            "offset": 47
           }
         }
       }
@@ -3001,7 +3057,7 @@
     "tests/cases/exponentiation.lx": "8563e557cf5bdcba534af8ff21e65673f549045236dac2c4f892217bc3226e01",
     "tests/cases/fields_inheritance.lx": "ae1de23330b7a43486c5d26effa63b021c10140f30508c786a4db2b4747db4c0",
     "tests/cases/fields_val_var.lx": "72f420e3e93a4eb582aca19a945c50de634a4304464c8ac4b2bc5ab53496da90",
-    "tests/cases/for.lx": "695ba0b68b79a8ee90a8e05fb181c2c2612ca2ca37b68ca3f5ad76035f69a7e9",
+    "tests/cases/for.lx": "4ce6c52991ea7b8371d81047db4e8735a20a5be5080895e7cae5140f63c4571b",
     "tests/cases/for_in.lx": "5ca167a3b809b25a4d46162b186745dc0800230b386692291062406349d6c530",
     "tests/cases/for_in_capture.lx": "6fc69eacdfdb709319d09b767632de103e613b549282c1793842101545c3fb11",
     "tests/cases/function_values.lx": "353f734c871fa129a34b9f20a67d6e37ca7f4197b968aef47dc5589f8de22795",
@@ -3163,6 +3219,7 @@
     "tests/cases/errors/default_not_constant.lx",
     "tests/cases/errors/elif_without_if.lx",
     "tests/cases/errors/field_initializer_not_constant.lx",
+    "tests/cases/errors/for_c_style_removed.lx",
     "tests/cases/errors/function_without_body.lx",
     "tests/cases/errors/int_overflow.lx",
     "tests/cases/errors/interpolation_empty.lx",
