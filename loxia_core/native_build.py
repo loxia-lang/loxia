@@ -102,19 +102,24 @@ def _prepare() -> tuple[Path, str]:
     return directory, cargo
 
 
-def _cache_root() -> Path:
+def cache_base() -> Path:
+    """Diretório-base dos caches persistentes de build nativo (ADR-0131).
+
+    `LOX_BUILD_CACHE` é o override; sem ele a ordem é `$XDG_CACHE_HOME/loxia`,
+    `~/.cache/loxia` e `$TMPDIR/loxia-build-<uid>`.
+    """
     override = os.environ.get(CACHE_ENV)
     if override:
-        return Path(override) / "regex"
+        return Path(override)
 
     candidates: list[Path] = []
     xdg = os.environ.get("XDG_CACHE_HOME")
     if xdg:
-        candidates.append(Path(xdg) / "loxia" / "regex")
+        candidates.append(Path(xdg) / "loxia")
     with contextlib.suppress(RuntimeError):  # sem HOME
-        candidates.append(Path.home() / ".cache" / "loxia" / "regex")
+        candidates.append(Path.home() / ".cache" / "loxia")
     uid = os.getuid() if hasattr(os, "getuid") else 0
-    candidates.append(Path(tempfile.gettempdir()) / f"loxia-build-{uid}" / "regex")
+    candidates.append(Path(tempfile.gettempdir()) / f"loxia-build-{uid}")
 
     for candidate in candidates:
         try:
@@ -124,6 +129,10 @@ def _cache_root() -> Path:
         if os.access(candidate, os.W_OK):
             return candidate
     raise NativeError("regex: no writable cache directory for the native build.")
+
+
+def _cache_root() -> Path:
+    return cache_base() / "regex"
 
 
 def _cache_key(cargo: str) -> str:
