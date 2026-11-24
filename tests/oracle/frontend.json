@@ -156,8 +156,8 @@
     "tests/cases/errors/redeclaration.lx": "d8759f55e2a4bd8f4e836c23fb4642e9ef453d226d6e52a2385b4464b2c725f8",
     "tests/cases/errors/self_initializer.lx": "49eee060db48bc0a3fff06b9c2d7db33792c30e911b12c44eab57cf96b0debda",
     "tests/cases/errors/shift_count.lx": "c671f61337845af380dca2161c715f2204eb648f9fbe654aef357be1e44b1414",
-    "tests/cases/errors/spread_fill.lx": "c6d1c8e5eb591c1733679c2305ebbe802602ecb8cc47a96c10d1b2afa6401e9b",
-    "tests/cases/errors/spread_non_variadic.lx": "d71af9441c3dfdc7d1587222adf6bb00331c6108231bca21fba80bfaeb7a1192",
+    "tests/cases/errors/spread_fill.lx": "0b5535ba7c838210b3dbe847711ebd350fbcf9192c42ad8fac64e5ce194c74fa",
+    "tests/cases/errors/spread_non_variadic.lx": "fdfdb13c86013e3226c03511fae15fbf2fa1bca0615fafa9d53a2e203cad0a6c",
     "tests/cases/errors/super_outside_class.lx": "49ea270175f9a5ed1ae108bbebf65de3c8f89db2398cfebec95c86dd16e47334",
     "tests/cases/errors/super_undefined_method.lx": "800fe0e2a52fbe88281c12b9b9935654fc67ef1f075ad32b8d8db168b9227002",
     "tests/cases/errors/super_without_superclass.lx": "010c7f7a8368a44fa8126fa3af0da8032e8d2246e9c67344daa1e2c4ec657743",
@@ -2482,14 +2482,14 @@
         "span": {
           "end": {
             "column": 22,
-            "line": 2,
-            "offset": 68
+            "line": 5,
+            "offset": 71
           },
           "file": "tests/cases/errors/spread_fill.lx",
           "start": {
             "column": 21,
-            "line": 2,
-            "offset": 67
+            "line": 5,
+            "offset": 70
           }
         }
       }
@@ -2502,14 +2502,14 @@
         "span": {
           "end": {
             "column": 19,
-            "line": 2,
-            "offset": 63
+            "line": 5,
+            "offset": 66
           },
           "file": "tests/cases/errors/spread_non_variadic.lx",
           "start": {
             "column": 18,
-            "line": 2,
-            "offset": 62
+            "line": 5,
+            "offset": 65
           }
         }
       }
