@@ -1,6 +1,6 @@
 # ADR-0142 — `--check` por fases: gradual no `test`/CI, bloqueio no `run` depois
 
-- **Status:** accepted (fase 1 implementada em 2026-11-24; fases 2–3 com gatilho declarado)
+- **Status:** accepted (fases 1 e 2 implementadas em 2026-11-24; fase 3 com gatilho declarado)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0010](0010-tipagem-estatica.md),
@@ -13,6 +13,10 @@
   `loxia/engine.py`, `loxia/cli_args.py` (`check --gradual`, `test --no-check`),
   `loxia/test_runner.py` (`_precheck`), `tests/test_check_gradual.py`,
   `tests/test_cli.py`, `tests/test_test_runner.py`, `docs/spec/erros.md`
+- **Implementação (fase 2):** `loxia/engine.py` (`_run_check`/`_repl_check`,
+  `check_on_run`), `loxia_core/diagnostics/error_reporter.py` (`release_deferred`),
+  `loxia/cli_args.py` (`run --no-check`, legado), `tests/test_run_check.py`,
+  casos golden migrados e `tests/test_official_suite.py` (`CHECK_BLOCKED`)
 
 ## Contexto
 
@@ -80,19 +84,37 @@ inferência com `Any`), `check --gradual` (subcomando e modo compatível), `_pre
 
 ### Fase 2 — gatilho: ADR-0141 implementado e uma release com a fase 1 verde
 
+**Gatilho antecipado (2026-11-24):** a fase 1 entrou em `dev` (PRs #171/#172) e o
+mantenedor pediu a fase 2 antes de uma release. O requisito de "release verde" fica
+registrado como não cumprido; a fase 2 entra com o mesmo desenho e a mesma migração.
+
 5. **`run` resolve e checa** no modo gradual, **antes** de executar, e bloqueia erro de tipo;
-   `lowerable` continua adiado ao runtime (o interpretador levanta a mensagem/exit 70 que já
-   emite, preservando o corpus). O REPL checa em modo gradual e **só avisa** (não bloqueia
-   um snippet interativo).
-6. **Escape:** `--no-check` por uma release, documentado como migração.
-7. **Migração declarada:** os 22 casos golden que esperam erro de runtime passam a `expect
-   error`; os 36 casos da suíte oficial com erro de runtime esperado passam a erro de
-   compilação e a divergência é registrada em `docs/spec/erros.md` e no release notes
-   (breaking). A suíte oficial continua valendo como oráculo de comportamento **válido**.
+   anotação ausente é **silenciosa** no `run` (o tipo é `Any`; o binário não emitiria aviso e
+   o I1 compara stderr). `lowerable` continua adiado ao runtime (o interpretador levanta a
+   mensagem/exit 70 que já emite). O REPL checa em modo gradual e **só avisa** (não bloqueia
+   um snippet interativo; o check é por snippet, então nomes/anotações de linhas anteriores
+   não viram aviso).
+6. **Escape:** `--no-check` no `run` (subcomando e legado) por uma release, documentado como
+   migração.
+7. **Migração declarada:** os **22** casos golden que esperam erro de runtime passam a
+   `expect error`; **26** casos da suíte oficial com erro de runtime esperado passam a erro
+   de compilação (os 10 restantes seguem adiados por serem `lowerable`) e a divergência é
+   registrada em `tests/test_official_suite.py` (`CHECK_BLOCKED`), em `docs/spec/erros.md` e
+   no release notes (breaking). A suíte oficial continua valendo como oráculo de
+   comportamento **válido**.
+8. **Precisão necessária para não bloquear programa válido** (falso positivo de narrowing):
+   o direito de `and`/`or` checa sob o refino do esquerdo (`x != nil and f(x)`), o cast de
+   `T | Nil` para um membro da união é explícito e métodos de classe declarados depois do uso
+   são pré-declarados. São correções de precisão, não de soundness.
+
+**Entregue em 2026-11-24:** `_run_check` (gradual silencioso, `lowerable` adiado,
+`release_deferred`), `_repl_check` (aviso, por snippet), `run --no-check` e legado,
+migração dos 22 golden e dos 26 oficiais, `tests/test_run_check.py`, correções de precisão
+acima.
 
 ### Fase 3 — depois de uma release com a fase 2
 
-8. Remove `--no-check`; `run` sempre checa. O modo gradual continua sendo o default do
+9. Remove `--no-check`; `run` sempre checa. O modo gradual continua sendo o default do
    `run`; o `check` continua estrito.
 
 ### Regra de reversão
@@ -116,7 +138,7 @@ nunca reintroduzir o `--no-check`.
 
 - Mais um modo para documentar e testar (`--gradual`), com risco de confusão com o
   `--check` estrito.
-- Na fase 2, 22 + 36 expectativas mudam de exit code; é breaking change e precisa de
+- Na fase 2, 22 + 26 expectativas mudam de exit code; é breaking change e precisa de
   release notes e de uma decisão editorial sobre a suíte oficial.
 - `run` fica ~4% mais lento e passa a recusar programas que hoje executam.
 - Obriga a manter a taxa de falso positivo baixa; a pressão por B/C-lite aumenta (o que é
@@ -142,8 +164,10 @@ nunca reintroduzir o `--no-check`.
 - `loxia test` falha em um `*_test.lx` com erro de tipo e passa em teste sem anotação
   (aviso), com e sem `--no-check`.
 - `loxia check --gradual` aceita programa sem anotações e continua recusando erro real.
-- Fase 2: os 22 casos golden e os 36 oficiais reclassificados; `make check` verde; corpus
+- Fase 2: os 22 casos golden e os 26 oficiais reclassificados; `make check` verde; corpus
   diferencial com I1 nos três canais.
+- `run` bloqueia `var x: Int = "a"` (65), adia `print(1 + true)` (70) e é silencioso em
+  código sem anotação; `run --no-check` executa; o REPL avisa e executa.
 - `tests/test_docs_consistency.py` e `docs/spec/erros.md` refletem os modos.
 - **Revisitar:** taxa de falso positivo em uso real, custo de boot e reclamações de
   migração na fase 2.

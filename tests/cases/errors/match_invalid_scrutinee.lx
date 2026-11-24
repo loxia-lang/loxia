@@ -3,4 +3,4 @@ print(
     _ => "x"
   },
 )
-# expect runtime error: match requires an enum, Int, String, Bool or nil value.
+# expect error: match requires an enum, Int, String, Bool or nil value; narrow it first.

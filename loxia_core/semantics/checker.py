@@ -221,11 +221,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         captured_globals: set[str] | None = None,
         source_index: SourceIndex | None = None,
         gradual: bool = False,
+        warn_missing: bool = True,
+        warn_only: bool = False,
     ) -> None:
         self._reporter = reporter
         self._source_index = source_index
-        # Modo gradual (ADR-0142, fase 1): anotação ausente vira aviso e o tipo é `Any`.
+        self._predeclaring = False
+        # Modo gradual (ADR-0142): anotação ausente vira aviso e o tipo é `Any`.
+        # `warn_missing=False` deixa o `run` silencioso; `warn_only` transforma todo
+        # diagnóstico em aviso (REPL, que nunca bloqueia).
         self._gradual = gradual
+        self._warn_missing = warn_missing
+        self._warn_only = warn_only
         self._scopes: list[dict[str, Ty]] = [{}]
         self._decl_tokens: list[dict[str, Token]] = [{}]
         self._captured_mutables: set[Token] = set(captured_mutables or ())
@@ -472,7 +479,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 statement.superclass.name.lexeme if statement.superclass is not None else None
             )
             params, names = self._declare_type_params(statement.type_params)
-            self._classes.setdefault(
+            info = self._classes.setdefault(
                 statement.name.lexeme,
                 ClassInfo(
                     statement.name.lexeme,
@@ -482,6 +489,29 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 ),
             )
             self._scopes[0].setdefault(statement.name.lexeme, ClassObjectTy(statement.name.lexeme))
+            if params:
+                continue
+            # Forward reference: uma função checada antes da classe precisa das
+            # assinaturas dos métodos. A passagem real refaz e reporta os erros.
+            enclosing = self._current_class
+            self._current_class = info
+            self._predeclaring = True
+            try:
+                for method in statement.methods:
+                    is_init = method.name.lexeme == "init"
+                    signature = self._signature(method, is_init=is_init, allow_type_params=False).fn
+                    if signature.ret is ERROR or any(param is ERROR for param in signature.params):
+                        # A assinatura depende de um tipo declarado depois (enum/alias):
+                        # não pré-declara; o uso antes da classe é recusado (conservador).
+                        continue
+                    if is_init:
+                        info.init = signature
+                    else:
+                        info.methods[method.name.lexeme] = signature
+                        info.method_tokens[method.name.lexeme] = method.name
+            finally:
+                self._predeclaring = False
+                self._current_class = enclosing
 
     def _predeclare_interfaces(self, statements: list[Stmt]) -> None:
         for statement in statements:
@@ -802,7 +832,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         (operandos de tipo errado): o backend os rebaixa a panic site (ADR-0031). No modo
         gradual, anotação ausente vira aviso: o tipo já caiu para `Any` e o programa roda.
         """
-        if self._gradual and code is Code.MISSING_ANNOTATION:
+        if self._predeclaring:
+            # Assinaturas são pré-declaradas sem diagnóstico: a passagem real reporta.
+            return
+        if self._warn_only:
             self._reporter.warning(
                 token,
                 message,
@@ -812,6 +845,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 label_tokens=label_tokens,
                 fixes=fixes,
             )
+            return
+        if self._gradual and code is Code.MISSING_ANNOTATION:
+            if self._warn_missing:
+                self._reporter.warning(
+                    token,
+                    message,
+                    code=code,
+                    notes=notes,
+                    help=help,
+                    label_tokens=label_tokens,
+                    fixes=fixes,
+                )
             return
         self._reporter.error(
             token,
@@ -2522,6 +2567,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if target is ANY:
             return ANY
         if source is ANY or source is target:
+            return target
+        if isinstance(source, UnionTy) and any(member == target for member in source.members):
+            # `T | Nil as T` é o estreitamento explícito: o runtime confere e falha
+            # com R1011 se o valor não for do tipo pedido.
             return target
         if isinstance(target, TupleTy):
             if source == target:
@@ -5498,13 +5547,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_logical_expr(self, expr: Logical) -> Ty:
         left = self._infer(expr.left)
-        base = dict(self._narrowings)
+        after_left = dict(self._narrowings)
+        operator = expr.operator.type
 
-        if (
-            expr.operator.type is TokenType.QUESTION_QUESTION
-            and left is not ANY
-            and is_nilable(left)
-        ):
+        # `and`/`or` checam o direito com o refino do esquerdo; `??` não tem condição
+        # booleana, então o direito parte do estado depois do esquerdo.
+        if operator is TokenType.QUESTION_QUESTION:
+            skip: RefinementState | None = after_left
+            right_start: RefinementState | None = after_left
+        elif operator is TokenType.AND:
+            skip = self._refine_state(after_left, expr.left, False)
+            right_start = self._refine_state(after_left, expr.left, True)
+        else:
+            skip = self._refine_state(after_left, expr.left, True)
+            right_start = self._refine_state(after_left, expr.left, False)
+
+        self._narrowings = dict(right_start if right_start is not None else after_left)
+        if operator is TokenType.QUESTION_QUESTION and left is not ANY and is_nilable(left):
             expected = non_nil(left)
             if isinstance(expr.right, ListLiteral) and self._expected_element(expected) is not None:
                 right = self._check(expr.right, expected, expr.operator)
@@ -5512,18 +5571,24 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 right = self._infer(expr.right)
         else:
             right = self._infer(expr.right)
+        right_state = dict(self._narrowings)
 
-        # O operando direito é condicional (`and`/`or`) ou só roda com `nil` (`??`):
-        # a saída é o merge com o caminho que o pulou (ADR-0141).
-        self._narrowings = join_exits(base, self._narrowings)
+        # O direito pode não rodar (`and`/`or` em curto-circuito, `??` com valor):
+        # a saída é o merge dos dois caminhos (ADR-0141).
+        exits = [
+            state
+            for state in (skip, right_state if right_start is not None else None)
+            if state is not None
+        ]
+        self._narrowings = join_exits(*exits) if exits else {}
 
-        if expr.operator.type is TokenType.QUESTION_QUESTION:
+        if operator is TokenType.QUESTION_QUESTION:
             if left is ANY:
                 return ANY
             if not is_nilable(left):
                 return left
             return union(non_nil(left), right)
-        if expr.operator.type is TokenType.OR:
+        if operator is TokenType.OR:
             return union(truthy(left), right)
 
         return union(falsy(left), right)

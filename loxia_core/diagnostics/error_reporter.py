@@ -264,6 +264,15 @@ class ErrorReporter:
         self._diagnostics.clear()
         self._deferred.clear()
 
+    def release_deferred(self) -> None:
+        """Entrega os erros rebaixáveis ao runtime (run) e reavalia `had_error`.
+
+        Os adiados viram `Rxxxx` no interpretador; o exit code passa a refletir só o
+        que será impresso (erros não adiados, ou warnings com `-Werror`).
+        """
+        self._deferred.clear()
+        self.had_error = any(item.severity is Severity.ERROR for item in self._diagnostics)
+
     # -- internos --------------------------------------------------------
 
     def _record(

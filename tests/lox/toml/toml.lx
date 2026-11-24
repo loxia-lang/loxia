@@ -338,22 +338,25 @@ class _Parser {
     if (code == nil) {
       this._fail("expected a value")
     }
-    if (code == 34) {
+    # `_fail` sempre levanta; o checker não faz essa conta entre funções, então o
+    # estreitamento depois do guard é explícito.
+    val current = code as Int
+    if (current == 34) {
       if (this._starts("\"\"\"")) {
         return this._parseMultilineBasic()
       }
       return this._parseBasicString()
     }
-    if (code == 39) {
+    if (current == 39) {
       if (this._starts("'''")) {
         return this._parseMultilineLiteral()
       }
       return this._parseLiteralString()
     }
-    if (code == 91) {
+    if (current == 91) {
       return this._parseArray()
     }
-    if (code == 123) {
+    if (current == 123) {
       return this._parseInlineTable()
     }
     if (this._starts("true")) {
@@ -370,7 +373,7 @@ class _Parser {
     if (this._looksLikeDate()) {
       this._fail("date/time is outside the supported TOML subset")
     }
-    if (code == 43 or code == 45 or (code >= 48 and code <= 57)) {
+    if (current == 43 or current == 45 or (current >= 48 and current <= 57)) {
       return this._parseNumber()
     }
     this._fail("expected a value")
@@ -715,7 +718,7 @@ class _Parser {
       if (code == nil) {
         this._fail("unterminated unicode escape")
       }
-      val digit = _digitValue(code)
+      val digit = _digitValue(code as Int)
       if (digit < 0 or digit > 15) {
         this._fail("invalid unicode escape")
       }

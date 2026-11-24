@@ -19,7 +19,7 @@ Scanner ───────────────► list[Token]
    │                    Resolver ────────► Interpreter.locals: {Expr: depth}
    │                       │                (binding scope errors)
    │                       ▼
-   │                    Checker ─────────► type errors (only in `--check`)
+   │                    Checker ─────────► type errors (`--check`; `run` checa gradual)
    │                       │
    ▼                       ▼
    └──────────────────► Interpreter ──────► effects (print, variables, objects)
@@ -29,8 +29,9 @@ Scanner ───────────────► list[Token]
 ```
 
 Each phase depends only on the previous one. The **resolver** is mandatory: without it, the
-interpreter does not know the distance of local variables. The **checker** is opt-in
-(`--check`) and does not run on the normal path; types are erased before execution.
+interpreter does not know the distance of local variables. The **checker** is strict under
+`--check` and runs on the normal path in gradual mode (`run` blocks a real type error,
+missing annotations are silent); types are erased before execution.
 
 On the backend path (`--emit`, [ADR-0031](../adr/0031-backend-nativo.md)) the checker is
 **mandatory**: lowering consumes concrete types. What has no representation yet

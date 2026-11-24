@@ -503,6 +503,12 @@ without evidence gets `Any`), because there is no lowering; strict `--check` sti
 `as` for `Any → T`. `loxia test --no-check` skips the pre-check entirely
 ([ADR-0142](../adr/0142-check-por-fases.md)).
 
+`loxia run` also checks, in gradual mode, **before executing**: a real type error blocks
+with exit 65, a missing annotation stays silent (`Any`), and an error the interpreter would
+raise anyway (`lowerable`, e.g. `1 + true`) is deferred and becomes the same `Rxxxx`/exit 70
+as before. `run --no-check` skips the check (migration escape for one release). The REPL
+checks each snippet and only warns, so an interactive snippet never blocks.
+
 | Message | When |
 | --- | --- |
 | `Expected X, found Y.` | assignment/argument/return/field with an incompatible type |

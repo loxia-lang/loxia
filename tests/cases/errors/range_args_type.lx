@@ -1,4 +1,4 @@
 for i in range(0, 10.0, 1) {
   print(i)
 }
-# expect runtime error: range() arguments must be integers.
+# expect error: Argument 2: Expected Int, found Float.

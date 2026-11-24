@@ -1,4 +1,4 @@
 fn len(x) {
   return x
 }
-# expect runtime error: Can't redeclare immutable variable 'len'.
+# expect error: Can't redefine builtin 'len'.

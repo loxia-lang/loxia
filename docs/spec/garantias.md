@@ -258,8 +258,9 @@ and stdlib decisions. What is still aspirational is marked.
    inference already exists and parameters/return remain signed. Inferring a parameter without
    an annotation was postponed; see [ADR-0020](../adr/0020-assinaturas-explicitas.md).
    `--gradual` — and the `loxia test` pre-check — makes a missing annotation a warning with
-   `Any`, so unannotated programs are still checked for everything else
-   ([ADR-0142](../adr/0142-check-por-fases.md)).
+   `Any`, so unannotated programs are still checked for everything else. `run` checks
+   gradually and blocks a real type error before executing (`--no-check` for one release);
+   missing annotations stay silent there ([ADR-0142](../adr/0142-check-por-fases.md)).
 5. **Fail early and clearly** — spans, caret and stack trace exist today
    ([ADR-0075](../adr/0075-diagnosticos-estruturados.md),
    [ADR-0089](../adr/0089-stack-trace-de-runtime.md)).

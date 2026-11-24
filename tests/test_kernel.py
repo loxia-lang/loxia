@@ -127,7 +127,7 @@ def test_read_file_preserva_crlf(tmp_path: Path) -> None:
     target.write_bytes(b"a\r\nb\r\n")
     path = tmp_path / "ler.lx"
     path.write_text(
-        f'val t = io.readFile("{target}")\nprint(len(t))\nprint(repr(t))\n',
+        f'val t = io.readFile("{target}")\nprint(len(t as String))\nprint(repr(t))\n',
         encoding="utf-8",
     )
 

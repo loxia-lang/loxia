@@ -70,6 +70,10 @@ def manifest_token(path: Path, line: int = 1, column: int = 1) -> Token:
     )
 
 
+# No REPL o check é por snippet: nomes e anotações de linhas anteriores não existem.
+_REPL_QUIET = frozenset({Code.UNDEFINED_NAME, Code.MISSING_ANNOTATION})
+
+
 class Loxia:
     def __init__(
         self,
@@ -87,6 +91,7 @@ class Loxia:
         cache_dir: str | None = None,
         sandbox: bool = False,
         gradual: bool = False,
+        check_on_run: bool = True,
     ) -> None:
         self.reporter = ErrorReporter(max_errors=max_errors, werror=werror)
         self.debug = debug
@@ -103,6 +108,7 @@ class Loxia:
         self.offline = offline
         self.cache_dir = Path(cache_dir).resolve() if cache_dir is not None else None
         self.gradual = gradual
+        self._check_on_run = check_on_run
         self._sources = SourceMap()
         self._file = "<stdin>"
         self._module_root: Path | None = None
@@ -278,12 +284,16 @@ class Loxia:
             code=Code.DEPENDENCY_STATE,
         )
 
-    def _execute(self, statements: list[Stmt]) -> None:
+    def _execute(self, statements: list[Stmt], *, repl: bool = False) -> None:
         # Em run não há warnings: o binário não os emite e o I1 compara stderr.
-        Resolver(self.interpreter, self.reporter, warn_unused=False).resolve(statements)
+        resolver = Resolver(self.interpreter, self.reporter, warn_unused=False)
+        resolver.resolve(statements)
 
         if self.reporter.had_error:
             return
+
+        if self._check_on_run and repl:
+            self._repl_check(statements, resolver)
 
         # ADR-0128: o interpretador recusa capacidade native-only antes de executar.
         for use in native_only_uses(statements, self.interpreter.locals):
@@ -305,7 +315,65 @@ class Loxia:
         if self.reporter.had_error:
             return
 
+        if self._check_on_run and not repl:
+            self._run_check(statements, resolver)
+            if self.reporter.had_fatal_error:
+                return
+
         self.interpreter.interpret(statements)
+
+    def _run_check(self, statements: list[Stmt], resolver: Resolver) -> None:
+        """Checa antes de executar (ADR-0142, fase 2).
+
+        Gradual e silencioso para anotação ausente. Erro que o interpretador também
+        levantaria (`lowerable`) é adiado e vira `Rxxxx` no runtime, preservando a
+        mensagem e o exit 70; só o erro que o runtime não pega bloqueia (exit 65).
+        """
+        self.reporter.defer_lowerable = True
+        try:
+            checker = Checker(
+                self.reporter,
+                captured_mutables=resolver.captured_mutables,
+                captured_globals=resolver.captured_global_names,
+                source_index=self.last_source_index,
+                gradual=True,
+                warn_missing=False,
+            )
+            checker.check(statements)
+        finally:
+            self.reporter.defer_lowerable = False
+        self.last_checker = checker
+        if not self.reporter.had_fatal_error:
+            self.reporter.release_deferred()
+
+    def _repl_check(self, statements: list[Stmt], resolver: Resolver) -> None:
+        """No REPL o check só avisa: nunca bloqueia um snippet (ADR-0142)."""
+        advisory = ErrorReporter(max_errors=self.reporter.max_errors)
+        advisory.file = self._file
+        checker = Checker(
+            advisory,
+            captured_mutables=resolver.captured_mutables,
+            captured_globals=resolver.captured_global_names,
+            source_index=self.last_source_index,
+            gradual=True,
+            warn_only=True,
+        )
+        checker.check(statements)
+        # O snippet é checado isolado: nomes/anotações de snippets anteriores não são
+        # conhecidos, então esses avisos seriam falsos positivos no REPL.
+        diagnostics = tuple(
+            item for item in advisory.batch().diagnostics if item.code not in _REPL_QUIET
+        )
+        if not diagnostics:
+            return
+        text = render_batch(
+            DiagnosticBatch(diagnostics=diagnostics),
+            self._sources,
+            error_format=self.error_format,
+            color=self._use_color(),
+        )
+        sys.stderr.write(text)
+        sys.stderr.flush()
 
     # -- comandos --------------------------------------------------------
 
@@ -320,7 +388,7 @@ class Loxia:
         self._file = "<repl>"
         statements = self._parse(source, repl=True)
         if statements is not None:
-            self._execute(statements)
+            self._execute(statements, repl=True)
 
         self.flush("repl", exit_code=self._exit_code())
 

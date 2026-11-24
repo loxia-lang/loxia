@@ -124,7 +124,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 
 | Command | Purpose | Main flags |
 | --- | --- | --- |
-| `loxia run FILE` | Execute a program | `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia run FILE` | Execute a program (type-checks in gradual mode first; `--no-check` skips) | `--no-check`, `--debug`, `--sandbox`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia repl` | Interactive session (`loxia` alone does the same) | `--debug`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia new NAME` | Create a project (`loxia.toml`, `.gitignore`, `src/main.lx`, `loxia.lock`) | `--name`, `--no-git`, `--lib`, `--json` |
 | `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--lib`, `--json` |
