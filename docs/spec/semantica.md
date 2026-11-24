@@ -938,7 +938,7 @@ val area = match s {
   - literal: `Int` (including `-1`), `String`, `Bool` and `nil`;
   - `_` wildcard.
   Arms are separated by a line, `;` or `,`; using `match` as a statement discards the result.
-- Enum matches are exhaustive: all variants covered or `_`; a missing one is
+- Enum matches are exhaustive: all variants covered or `_`; a missing one is an error
   (`Non-exhaustive match; missing Shape.Rect.`). Literal matches are open, so they require
   `_`: without it the error is `Non-exhaustive match; add a '_' arm.` A duplicate
   variant/literal or an arm after `_` is `Unreachable match arm.`
