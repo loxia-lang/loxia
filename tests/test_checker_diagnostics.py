@@ -58,7 +58,7 @@ def check(source: str) -> Loxia:
         (
             "class A {}\nfn f(a: A) -> Nil { return nil }\nf(A)\n",
             "Expected an instance of A, found the class A.",
-            Code.SEMANTIC_ERROR,
+            Code.TYPE_MISMATCH,
         ),
         (
             "class A {}\nval f: fn() -> Int = A\n",
@@ -85,7 +85,7 @@ def check(source: str) -> Loxia:
             "Operands must be numbers.",
             Code.INVALID_OPERANDS,
         ),
-        ("print(true ** 2)\n", "Operands must be numbers.", Code.SEMANTIC_ERROR),
+        ("print(true ** 2)\n", "Operands must be numbers.", Code.INVALID_OPERANDS),
         (
             "val t: (Int, Int) = (1, 2, 3)\n",
             "Expected a tuple of 2 elements, found 3.",
@@ -120,3 +120,63 @@ def test_checker_diagnostic_branches(
 )
 def test_union_and_any_contexts_are_clean(source: str) -> None:
     assert check(source).reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "code", "line", "column"),
+    [
+        (
+            'fn f(x: Int) -> Int { return x }\nprint(f("a"))\n',
+            Code.TYPE_MISMATCH,
+            2,
+            12,
+        ),
+        ("val x = 1\nprint(x.foo)\n", Code.TYPE_MISMATCH, 2, 9),
+        ("val x = 1\nprint(x[0])\n", Code.INVALID_LIST, 2, 8),
+        ('raise "boom"\n', Code.TYPE_MISMATCH, 1, 1),
+        (
+            "enum E { A, B }\nfn f(e: E) -> Int {\n  match e { E.A => 1 }\n}\n",
+            Code.MATCH_EXHAUSTIVENESS,
+            3,
+            3,
+        ),
+        (
+            "enum E { A }\nfn f(e: E) -> Int {\n  return match e { E.A => 1, E.A => 2 }\n}\n",
+            Code.UNREACHABLE_MATCH,
+            3,
+            32,
+        ),
+        ("val (a, b) = (1, 2, 3)\n", Code.ARITY_MISMATCH, 1, 6),
+        ('val f: fn() -> Int = fn() => "a"\n', Code.TYPE_MISMATCH, 1, 27),
+        ("var x\n", Code.MISSING_ANNOTATION, 1, 5),
+        ("for i in 0.0..2 { print(i) }\n", Code.INVALID_OPERANDS, 1, 13),
+        ("val t: (Int, Int) = (1, 2)\nprint(t[2])\n", Code.INVALID_LIST, 2, 8),
+        (
+            "class A[T] {}\nval x: Any = 1\nprint(x is A[Int])\n",
+            Code.TYPE_ARGUMENTS,
+            3,
+            9,
+        ),
+        (
+            "val x: Int | String = 1\nprint(x as Int)\n",
+            Code.INVALID_CAST,
+            2,
+            9,
+        ),
+    ],
+)
+def test_checker_diagnostic_codes_and_spans(
+    source: str,
+    code: Code,
+    line: int,
+    column: int,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(source)
+    capsys.readouterr()
+
+    matches = [item for item in lox.reporter.batch().diagnostics if item.code is code]
+    assert matches, f"missing {code} in {[item.code for item in lox.reporter.batch().diagnostics]}"
+    span = matches[0].span
+    assert span is not None
+    assert (span.start.line, span.start.column) == (line, column)

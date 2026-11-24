@@ -223,9 +223,10 @@ behavior preservation
 ## Codes
 
 Codes identify **families**, not messages; they are never reused and the catalog is
-closed (emitting a code outside this list does not compile). The checker's long tail uses
-`E3000` until it is refined into more specific codes. The per-phase tables below are
-**generated** from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.
+closed (emitting a code outside this list does not compile). `E3000` stays reserved for
+generic semantic errors, but every checker diagnostic now names a specific family; a new
+checker error must pass an explicit code. The per-phase tables below are **generated**
+from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.
 
 | Range | Phase | Meaning |
 | --- | --- | --- |
@@ -304,6 +305,8 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `E3020` | type arguments (generic/enum/class arity) |
 | `E3021` | not supported by the interpreter |
 | `E3022` | capability requires the Rust toolchain (cargo) at run/build |
+| `E3023` | non-exhaustive match |
+| `E3024` | unreachable match arm |
 
 ### Backend
 
