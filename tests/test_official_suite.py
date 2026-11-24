@@ -34,6 +34,39 @@ CLASS_RE = re.compile(r"\bclass\s+(\w+)(?:\s*\(\s*(\w+)\s*\))?\s*\{")
 THIS_FIELD_RE = re.compile(r"\bthis\.(\w+)\s*=")
 DECLARED_RE = re.compile(r"\b(?:var|val)\s+(\w+)")
 
+# Fase 2 do ADR-0142: o check bloqueia antes de executar; estes 26 casos do livro
+# esperavam erro de runtime e agora saem 65 com o diagnóstico do checker. O valor é
+# a mensagem que o harness exige no stderr (o livro é o oráculo da linguagem, não do
+# momento do erro).
+CHECK_BLOCKED: dict[str, str] = {
+    "call/bool.lx": "Can only call functions and classes.",
+    "call/nil.lx": "Can only call functions and classes.",
+    "call/num.lx": "Can only call functions and classes.",
+    "call/object.lx": "Can only call functions and classes.",
+    "call/string.lx": "Can only call functions and classes.",
+    "field/get_on_bool.lx": "Only instances have properties.",
+    "field/get_on_class.lx": "Only instances have properties.",
+    "field/get_on_function.lx": "Only instances have properties.",
+    "field/get_on_nil.lx": "Only instances have properties.",
+    "field/get_on_num.lx": "Only instances have properties.",
+    "field/get_on_string.lx": "Only instances have properties.",
+    "field/set_on_bool.lx": "Only instances have fields.",
+    "field/set_on_class.lx": "Only instances have fields.",
+    "field/set_on_function.lx": "Only instances have fields.",
+    "field/set_on_nil.lx": "Only instances have fields.",
+    "field/set_on_num.lx": "Only instances have fields.",
+    "field/set_on_string.lx": "Only instances have fields.",
+    "field/undefined.lx": "Undefined property 'bar'.",
+    "inheritance/inherit_from_function.lx": "Unknown superclass 'foo'.",
+    "inheritance/inherit_from_nil.lx": "Unknown superclass 'Nil'.",
+    "inheritance/inherit_from_number.lx": "Unknown superclass 'Number'.",
+    "method/not_found.lx": "Undefined property 'unknown'.",
+    "super/extra_arguments.lx": "Method 'foo' is incompatible with the superclass method",
+    "super/missing_arguments.lx": "Method 'foo' is incompatible with the superclass method",
+    "super/no_superclass_method.lx": "Undefined property 'doesNotExist'.",
+    "super/reassign_superclass.lx": "Expected Base, found OtherBase.",
+}
+
 DYNAMIC_FIELD_TESTS = {
     "field/call_function_field.lx",
     "field/call_nonfunction_field.lx",
@@ -274,6 +307,18 @@ def test_official_case(path: Path) -> None:
     expectations = parse_expectations(source)
     result = _execute(path)
     stdout = result.stdout.splitlines()
+
+    name = path.relative_to(CASES).as_posix()
+    if name in CHECK_BLOCKED:
+        # O check bloqueia antes de executar: nada de stdout, exit 65 e a mensagem.
+        assert result.returncode == 65, (
+            f"esperado exit 65, obtido {result.returncode}\nstderr:\n{result.stderr}"
+        )
+        assert CHECK_BLOCKED[name] in result.stderr, (
+            f"erro de check esperado: {CHECK_BLOCKED[name]!r}\nstderr:\n{result.stderr}"
+        )
+        assert stdout == [], f"stdout deveria estar vazio, obtido {stdout!r}"
+        return
 
     if expectations.runtime_error is not None:
         assert result.returncode == 70, (

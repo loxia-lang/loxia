@@ -3201,3 +3201,37 @@ def test_nil_nao_e_tipo_de_armazenamento(capsys: pytest.CaptureFixture[str]) -> 
         captured = capsys.readouterr()
         assert lox.reporter.had_error is True, source
         assert "of type Nil are not supported; use `Any`." in captured.err
+
+
+def test_logical_right_operand_is_narrowed_by_the_left() -> None:
+    lox = check(
+        "fn id(x: Int) -> Int { return x }\n"
+        "fn f(c: Int?) -> Int {\n"
+        "  if (c != nil and id(c) == 1) { return c }\n"
+        "  return 0\n"
+        "}\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_cast_from_a_union_to_one_of_its_members_is_explicit() -> None:
+    lox = check("val x: Int | String = 1\nprint(x as Int)\n")
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_class_used_before_its_declaration_sees_the_methods() -> None:
+    lox = check(
+        "fn f() -> Int {\n  val p = P()\n  return p.m()\n}\n"
+        "class P {\n  fn m() -> Int { return 1 }\n}\n"
+        "print(f())\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]

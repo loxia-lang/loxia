@@ -291,7 +291,7 @@ def _invoke(
     command = (
         [binary]
         if binary is not None
-        else [sys.executable, "-m", "loxia", "run", *deps, str(path), "--"]
+        else [sys.executable, "-m", "loxia", "run", "--no-check", *deps, str(path), "--"]
     )
     command = [*command, *script_args]
     process = subprocess.Popen(

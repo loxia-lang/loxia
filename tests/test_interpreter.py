@@ -14,7 +14,7 @@ def execute(lox: Loxia, source: str, capsys: pytest.CaptureFixture[str]) -> tupl
 
 
 def run(source: str, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str]:
-    return execute(Loxia(), source, capsys)
+    return execute(Loxia(check_on_run=False), source, capsys)
 
 
 def test_prints_literals(capsys: pytest.CaptureFixture[str]) -> None:

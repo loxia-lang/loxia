@@ -457,6 +457,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="com --check: anotação ausente vira aviso (tipo Any)",
     )
     parser.add_argument(
+        "--no-check",
+        action="store_true",
+        help="com run: não checa os tipos antes de executar",
+    )
+    parser.add_argument(
         "--file-only",
         action="store_true",
         help="com --dump-ast: transforma só o arquivo, sem loader/mangling",
@@ -536,6 +541,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_input_options(groups.input)
         _add_timeout(groups.execution)
         _add_dependency_options(groups.modules)
+        groups.general.add_argument(
+            "--no-check",
+            action="store_true",
+            help="não checa os tipos antes de executar",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
         parser.add_argument(
             "script_args",
@@ -923,6 +933,8 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--watch requires --check")
     if args.gradual and not args.check:
         parser.error("--gradual requires --check")
+    if args.no_check and (args.check or args.dump_ast or args.emit is not None):
+        parser.error("--no-check is only supported by run")
     if args.watch and args.stdin:
         parser.error("--watch cannot be combined with --stdin")
     if args.watch and not args.script:

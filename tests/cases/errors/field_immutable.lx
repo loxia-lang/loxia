@@ -4,4 +4,4 @@ class C {
 
 var c = C()
 c.x = 2
-# expect runtime error: Can't assign to immutable field 'x'.
+# expect error: Can't assign to immutable field 'x'.

@@ -213,8 +213,8 @@ def test_union_and_any_contexts_are_clean(source: str) -> None:
             9,
         ),
         (
-            "val x: Int | String = 1\nprint(x as Int)\n",
-            "Can't cast Int | String to Int.",
+            "val x: Int | String = 1\nprint(x as Bool)\n",
+            "Can't cast Int | String to Bool.",
             Code.INVALID_CAST,
             2,
             9,

@@ -6,6 +6,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 ## [Unreleased]
 
 ### Mudado (quebra)
+- **`loxia run` checa antes de executar** ([ADR-0142](docs/adr/0142-check-por-fases.md),
+  fase 2): `run` agora checa os tipos no modo gradual e bloqueia erro de tipo (exit 65);
+  anotação ausente é silenciosa (`Any`) e erro que o interpretador levantaria (ex.:
+  `1 + true`) continua saindo 70. 22 casos golden e 26 da suíte oficial passam a erro de
+  compilação. `loxia run --no-check` desliga o check por uma release (migração). O REPL
+  checa por snippet e só avisa. Breaking: programas que hoje executam podem ser recusados.
 - **`for` C-style removido** ([ADR-0138](docs/adr/0138-remocao-for-c-style.md)): o
   `for (init; cond; incr)` foi removido; use `for x in 0..n`/`for x in range(a, b, passo)`
   ou `while`. O erro é dirigido (`C-style 'for' was removed; ...`) e o `for` continua
