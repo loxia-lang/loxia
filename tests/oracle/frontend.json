@@ -220,7 +220,7 @@
     "tests/cases/map_order_remove.lx": "023c80afd7347be04e180826a87f6e995e37d8ce4f786ad39db1ffc0ff460f08",
     "tests/cases/map_string_keys.lx": "470f3cbf69a74b6affa9045aea529522a85df256114748f4e9442db52d514055",
     "tests/cases/map_stringify.lx": "3a00979cfe8d26ebd7bc8e141d84407ca07577f13385b86fb51690f6b9dc89d9",
-    "tests/cases/match_arm_flow.lx": "73f56f2802aca991d9b0ed74e8f95bf0a6d4c51fe148c72403ef9be1179bfe18",
+    "tests/cases/match_arm_flow.lx": "4b1343d214518fd3f9c00b454dab6670273558c30abff0074e77a044814122b6",
     "tests/cases/match_capture.lx": "e3c26c8ab0cbc2771b1c3949325ef9706e345a21299c1e1e850b5ef76a89d305",
     "tests/cases/match_literals.lx": "8c71c27c62ff09711950c8c5a90508f038175b444121158f731c3c7280e08863",
     "tests/cases/math_optional.lx": "c2fac9f27de880617f9c43431ebc00c48498cffeb095c27fb1fa86c577c00716",
