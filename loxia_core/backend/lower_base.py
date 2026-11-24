@@ -44,6 +44,7 @@ class CleanupContext:
 
     frame: Any | None
     finally_body: list[Stmt] | None
+    scopes_depth: int
 
 
 @dataclass
@@ -319,9 +320,15 @@ class LoweringBase:
     ) -> None:
         raise NotImplementedError
 
-    def _push_cleanup(self, frame: Any | None, finally_body: list[Stmt] | None) -> CleanupContext:
+    def _push_cleanup(
+        self,
+        frame: Any | None,
+        finally_body: list[Stmt] | None,
+        *,
+        scopes_depth: int,
+    ) -> CleanupContext:
         """Registra um `try` ativo para o `return` desempilhar frame/finally."""
-        context = CleanupContext(frame, finally_body)
+        context = CleanupContext(frame, finally_body, scopes_depth)
         self._cleanup_stack.append(context)
         return context
 

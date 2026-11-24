@@ -161,7 +161,11 @@ class ExceptionLowering(LoweringBase):
         # Caminho normal: corpo, pop, finally.
         self.builder = llvm_ir.builder(normal)
         self._scopes.append({})
-        context = self._push_cleanup(frame, stmt.finally_body)
+        context = self._push_cleanup(
+            frame,
+            stmt.finally_body,
+            scopes_depth=len(self._scopes) - 1,
+        )
         try:
             for statement in stmt.body:
                 if self.builder.block.is_terminated:
@@ -206,7 +210,11 @@ class ExceptionLowering(LoweringBase):
             handler_blocks.append(body)
             self.builder = llvm_ir.builder(body)
             self._scopes.append({})
-            handler_context = self._push_cleanup(None, stmt.finally_body)
+            handler_context = self._push_cleanup(
+                None,
+                stmt.finally_body,
+                scopes_depth=len(self._scopes),
+            )
             previous_handler = self._handler_exception
             self._handler_exception = exception
             try:

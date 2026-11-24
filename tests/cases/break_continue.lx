@@ -108,6 +108,33 @@ fn h() -> Int {
 
 print(h())
 
+fn withParam(x: Int) -> Int {
+  while (true) {
+    try {
+      break
+    } finally {
+      print("x=${x}")
+    }
+  }
+  return x
+}
+
+print(withParam(42))
+
+fn withLocal() -> Int {
+  var y = 5
+  while (true) {
+    try {
+      break
+    } finally {
+      print(y)
+    }
+  }
+  return y
+}
+
+print(withLocal())
+
 # expect: 12
 # expect: 5
 # expect: f
@@ -120,3 +147,7 @@ print(h())
 # expect: F
 # expect: 0
 # expect: 7
+# expect: x=42
+# expect: 42
+# expect: 5
+# expect: 5

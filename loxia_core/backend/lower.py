@@ -349,10 +349,15 @@ class Lowerer(
                     [cleanup.frame],
                 )
             if cleanup.finally_body is not None:
+                # O `finally` é léxico: o corpo do `try` já saiu de escopo. Sem
+                # truncar, o `depth` gravado pelo resolver aponta para o slot errado.
+                saved_scopes = self._scopes
+                self._scopes = self._scopes[: cleanup.scopes_depth]
                 self._emitting_finally.add(id(cleanup))
                 try:
                     self._lower_finally_body(cleanup.finally_body)
                 finally:
+                    self._scopes = saved_scopes
                     self._emitting_finally.discard(id(cleanup))
                 if self.builder.block.is_terminated:
                     return True
