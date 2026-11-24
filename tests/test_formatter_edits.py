@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, cast
 
@@ -252,3 +253,16 @@ def test_cli_output_is_deterministic_across_hash_seeds(tmp_path: Path) -> None:
 
     assert len(set(outputs)) == 1
     assert script.read_text(encoding="utf-8") == source
+
+
+def test_build_edits_scales_on_repeated_blank_lines() -> None:
+    source = "val a=1\n\n" * 3000
+    target = formatted(source)
+
+    started = time.perf_counter()
+    edits = build_edits(source, target)
+    elapsed = time.perf_counter() - started
+
+    assert elapsed < 5.0
+    assert edits
+    assert apply_edits(source, edits) == target
