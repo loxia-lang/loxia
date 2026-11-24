@@ -1,6 +1,6 @@
 # ADR-0141 — Checker: soundness de fluxo, merge ciente de saltos e escopo da precisão
 
-- **Status:** accepted (fatia de soundness implementada em 2026-11-24; gate de varredura do corpus e split `TypeOps`/`DeclTable` pendentes)
+- **Status:** accepted (fatia de soundness e gate do corpus implementados em 2026-11-24; split `TypeOps`/`DeclTable` pendente)
 - **Data:** 2026-11-24
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0018](0018-narrowing.md), [ADR-0025](0025-is-e-narrowing.md),
@@ -13,8 +13,9 @@
 - **Implementação:** [`loxia_core/semantics/flow.py`](../../loxia_core/semantics/flow.py)
   (chave, merge, `LoopContext`, política), `loxia_core/semantics/checker.py`,
   [`tests/test_checker_flow.py`](../../tests/test_checker_flow.py),
-  `tests/cases/break_narrowing.lx`, `tests/cases/match_arm_flow.lx`,
-  `tests/corpus_manifest.py`, `tests/test_ast_schema.py`
+  [`tests/test_checker_sweep.py`](../../tests/test_checker_sweep.py),
+  `tests/cases/break_narrowing.lx`, `tests/cases/break_finally.lx`,
+  `tests/cases/match_arm_flow.lx`, `tests/corpus_manifest.py`, `tests/test_ast_schema.py`
 
 ## Contexto
 
@@ -119,10 +120,14 @@ O protocolo de fluxo existe e funciona em `if`/`elif`/`else`, `while`, `for-in` 
    testes de comportamento que falham se o visitante deixar o estado vazar. O default não é
    "transparente": esquecer é erro de CI, não bug em produção. É o mesmo mecanismo do
    [ADR-0117](0117-ast-manual-e-cobertura-de-visitantes.md) aplicado a fluxo.
-6. **Gate "o checker não mente".** Varredura do corpus: se o `--check` está limpo e o
-   interpretador levanta `R1000`, `R1001`, `R1005` ou `R1006` sem o valor ter passado por
-   `Any`, é furo. Cada exceção precisa de allow-list explícita e motivo. Os dois programas
-   acima entram no corpus diferencial (I1 nos três canais).
+6. **Gate "o checker não mente".** `tests/test_checker_sweep.py` percorre todo caso golden
+   que espera erro de runtime: se o `--check` está limpo e o interpretador levanta `R1000`,
+   `R1001`, `R1005` ou `R1006`, é furo — exceto os casos da allow-list explícita, cujo erro
+   depende do **valor** e não do tipo (5 casos: lista de `Bytes` inválida, expoente negativo,
+   domínio de `**`, passo de `range` zero e contagem de shift). Casos com `# requires:`
+   (capacidade externa) ficam fora, porque o desfecho depende do host. A varredura roda no
+   processo (sem CLI por caso) em <1 s. As formas válidas entram no corpus diferencial
+   (I1 nos três canais).
 7. **Nada muda em runtime ou backend.** Tipos são apagados; só a aceitação e os diagnósticos
    do `--check` mudam. I1/I4 continuam valendo — e passam a valer de verdade nos casos de
    narrowing.
@@ -157,7 +162,7 @@ invalida.
   normal recebe a condição falsa antes do merge com os saltos.
 - D0 mexe em ~150–250 linhas de fluxo e nos testes dos construtos afetados.
 - A política de fluxo é cerimônia nova em todo nó de AST novo (mitigada pelo teste).
-- O gate de soundness adiciona uma varredura ao CI.
+- O gate de soundness adiciona uma varredura rápida (<1 s) à suíte, com allow-list explícita.
 
 ### Neutras
 
@@ -190,12 +195,11 @@ invalida.
   código morto) e fixa a política esperada dos nós de fork (incluindo ternário e lógico).
 - Corpus golden continua com 0 programa válido recusado.
 - `make check` verde.
-- **Pendente:** a varredura "check limpo ⇒ sem `R1000`/`R1001`/`R1005`/`R1006`" sobre o
-  corpus. Ela precisa de allow-list para erros que dependem de valor (hoje 6 casos:
-  `bytes/bytes_from_list_error_site`, `errors/negative_int_exponent`, `errors/pow_invalid_domain`,
-  `errors/range_step_zero`, `errors/shift_count`, `std_regex/limits`) e é cara (~13 s
-  in-process, ~2 s só de checks); entra junto com a fase 2 do
-  [ADR-0142](0142-check-por-fases.md), quando o `run` passar a checar.
+- `tests/test_checker_sweep.py` roda a varredura "check limpo ⇒ sem
+  `R1000`/`R1001`/`R1005`/`R1006`" sobre todos os casos que esperam erro de runtime, com a
+  allow-list de 5 casos dependentes de valor e sem os casos com `# requires:` (host). Ela
+  falha se aparecer um furo novo **ou** se a allow-list ficar obsoleta (um caso que deixou
+  de ser check-clean ou mudou de código).
 
 **Revisitar quando:** houver `break` com rótulo/`loop` explícito, `match` estrutural com
 guards, contratos estáticos, ou um programa real que precise de invariantes de laço; ou se
