@@ -494,12 +494,21 @@ The immutability message appears in **two phases**: compilation for locals/param
 
 ## Type checker (`--check`)
 
+Strict `--check` requires parameter and return annotations. `--gradual` (and, by default,
+the pre-check of `loxia test`) turns the missing-annotation code (`E3004`) into a
+**warning** and uses `Any` for that binding: the program is still checked for everything
+else and can run; real type errors keep exit 65. In gradual mode `Any` is consistent with
+every type (an unannotated value can feed a typed parameter, and a generic instantiated
+without evidence gets `Any`), because there is no lowering; strict `--check` still requires
+`as` for `Any → T`. `loxia test --no-check` skips the pre-check entirely
+([ADR-0142](../adr/0142-check-por-fases.md)).
+
 | Message | When |
 | --- | --- |
 | `Expected X, found Y.` | assignment/argument/return/field with an incompatible type |
 | `Unknown type 'X'.` / `Unknown superclass 'X'.` | annotation with a nonexistent name |
-| `Parameter 'x' needs a type annotation.` | parameter without a type in `--check` |
-| `Function 'f' needs a return type annotation.` | function without a return in `--check` |
+| `Parameter 'x' needs a type annotation.` | parameter without a type in strict `--check` (warning under `--gradual`) |
+| `Function 'f' needs a return type annotation.` | function without a return in strict `--check` (warning under `--gradual`) |
 | `Field 'x' needs a type annotation.` | field without a type and without an initializer |
 | `Can't infer type of 'x'; add an annotation.` | `var` without initializer and without a type |
 | `Can only call functions and classes.` | call of a non-callable value |

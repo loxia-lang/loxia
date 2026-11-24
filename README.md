@@ -130,7 +130,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia init [DIR]` | Initialize a project in an existing directory | `--name`, `--no-git`, `--lib`, `--json` |
 | `loxia add NAME` | Declare a `path` or `git` dependency in `loxia.toml` | `--path`, `--git`, `--rev`, `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia remove NAME` | Remove a dependency from `loxia.toml` | `--dry-run`, `--lock`, `--offline`, `--cache-dir`, `--module-path`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
-| `loxia check FILE` | Type-check without running | `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
+| `loxia check FILE` | Type-check without running (`--gradual` turns a missing annotation into a warning) | `--gradual`, `--watch`, `--stdin`, `--file-name`, `--module-path`, `--timeout`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia build FILE` | Build a native binary | `--emit=ll\|o\|exe`, `--output`, `--max-heap`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia ast FILE` | Print the AST (S-expression; `--format=json` requires `--file-only`) | `--file-only`, `--format=sexp\|json`, `--allow-errors`, `--typed`, `--stdin`, `--file-name`, `--module-path`, `--frozen`, `--offline`, `--cache-dir`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
 | `loxia fmt PATH...` | Format files and directories recursively (`--check` does not write) | `--check`, `--diff`, `--edits=json` (one file, with `--check`), `--exclude`, `--max-width`, `--stdin`, `--file-name`, `--error-format`, `--json`, `--json-lines`, `--max-errors`, `--no-progress`, `--color` |
@@ -139,7 +139,7 @@ command's flags (grouped by purpose) and examples. The legacy invocation
 | `loxia capabilities` | Machine-readable version, commands and limits | `--json` |
 | `loxia lsp` | Language server over stdio | `--stdio` |
 | `loxia mcp` | MCP server over stdio (tools) | — |
-| `loxia test [PATH…]` | Run `*_test.lx` suites | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--changed[=REF]`, `--shard=INDEX/TOTAL`, `--native`, `--no-cache`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
+| `loxia test [PATH…]` | Run `*_test.lx` suites (type-checked in gradual mode first; `--no-check` disables) | `--filter`, `--only`, `--jobs`, `--isolate`, `--timeout`, `--fail-fast`, `--require-tests`, `--capture`, `--changed[=REF]`, `--shard=INDEX/TOTAL`, `--native`, `--no-cache`, `--no-check`, `--frozen`, `--offline`, `--cache-dir`, `--json`, `--json-lines`, `--junit` |
 | `loxia fix FILE` | Apply safe fixes (dry-run by default) | `--apply`, `--max-iterations`, `--json` |
 | `loxia lock` | Write `loxia.lock` from the manifest | `--check`, `--offline`, `--cache-dir` |
 | `loxia fetch` | Verify/materialize the locked dependency tree | `--offline`, `--cache-dir` |

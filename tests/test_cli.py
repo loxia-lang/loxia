@@ -991,3 +991,44 @@ def test_todo_comando_tem_handler_e_parser() -> None:
     assert set(HANDLERS) == set(COMMANDS)
     for command in COMMANDS:
         assert _build_subcommand_parser(command).prog == f"loxia {command}"
+
+
+def test_check_gradual_accepts_missing_annotations(tmp_path: Path) -> None:
+    script = tmp_path / "gradual.lx"
+    script.write_text("fn f(x) { return x }\nprint(f(1))\n", encoding="utf-8")
+
+    result = run_cli("check", "--gradual", str(script))
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert "warning[E3004]" in result.stderr
+
+
+def test_legacy_check_gradual_accepts_missing_annotations(tmp_path: Path) -> None:
+    script = tmp_path / "gradual.lx"
+    script.write_text("fn f(x) { return x }\nprint(f(1))\n", encoding="utf-8")
+
+    result = run_cli("--check", "--gradual", str(script))
+
+    assert result.returncode == 0
+    assert "warning[E3004]" in result.stderr
+
+
+def test_check_gradual_still_rejects_type_errors(tmp_path: Path) -> None:
+    script = tmp_path / "gradual.lx"
+    script.write_text('fn f(x: Int) -> Int { return x }\nprint(f("a"))\n', encoding="utf-8")
+
+    result = run_cli("check", "--gradual", str(script))
+
+    assert result.returncode == 65
+    assert "Expected Int, found String." in result.stderr
+
+
+def test_gradual_in_legacy_mode_requires_check(tmp_path: Path) -> None:
+    script = tmp_path / "programa.lx"
+    script.write_text("print(1)\n", encoding="utf-8")
+
+    result = run_cli("--gradual", str(script))
+
+    assert result.returncode == 2
+    assert "--gradual requires --check" in result.stderr

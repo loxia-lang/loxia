@@ -673,3 +673,80 @@ def test_binary_cache_key_inclui_dependencia_path(
     after = _binary_cache_key([test], ())
 
     assert before != after
+
+
+TYPE_ERROR_TEST = """
+import std.test as t
+fn f(x: Int) -> Int { return x }
+val suite = t.Suite()
+suite.it("tipo", fn() { t.expect(f("a")).toBe(0) })
+suite.done()
+"""
+
+
+def test_precheck_reprova_erro_de_tipo_antes_de_rodar(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 1
+    assert "not ok 1 - <" in result.stdout
+    assert "error[E3001]" in result.stdout
+    assert "Argument 1: Expected Int, found String." in result.stdout
+
+
+def test_no_check_desliga_o_precheck(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests), "--no-check")
+
+    assert result.returncode == 1
+    assert "not ok 1 - tipo" in result.stdout
+    assert "expected 0" in result.stdout
+
+
+def test_precheck_aceita_teste_sem_anotacao(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "pass_test.lx").write_text(PASS, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - passa" in result.stdout
+
+
+GENERIC_TEST = """
+import std.test as t
+fn g(x) { return x }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(g(1)).toBe(1) })
+suite.done()
+"""
+
+
+def test_precheck_aceita_helper_sem_anotacao_em_generico(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "g_test.lx").write_text(GENERIC_TEST, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - a" in result.stdout
+
+
+def test_precheck_native_curto_circuita_antes_do_build(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "type_test.lx").write_text(TYPE_ERROR_TEST, encoding="utf-8")
+
+    result = run_test(str(tests), "--native")
+
+    assert result.returncode == 1
+    assert "error[E3001]" in result.stdout
+    assert "native build failed" not in result.stdout

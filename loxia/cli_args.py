@@ -452,6 +452,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="compila para código nativo (ll: IR textual, obj: .o, exe: binário)",
     )
     parser.add_argument(
+        "--gradual",
+        action="store_true",
+        help="com --check: anotação ausente vira aviso (tipo Any)",
+    )
+    parser.add_argument(
         "--file-only",
         action="store_true",
         help="com --dump-ast: transforma só o arquivo, sem loader/mangling",
@@ -544,6 +549,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
         _add_timeout(groups.execution)
         _add_watch(groups.execution)
         _add_dependency_options(groups.modules)
+        groups.general.add_argument(
+            "--gradual",
+            action="store_true",
+            help="anotação ausente vira aviso (tipo Any) em vez de erro",
+        )
         parser.add_argument("script", nargs="?", help="script Loxia")
     elif command == "repl":
         # Sessão interativa (ou stream em pipe): não há arquivo de entrada.
@@ -795,6 +805,11 @@ def _build_subcommand_parser(command: str) -> argparse.ArgumentParser:
             action="store_true",
             help="não reusa binários nativos em cache",
         )
+        groups.execution.add_argument(
+            "--no-check",
+            action="store_true",
+            help="não checa os tipos (modo gradual) antes de rodar cada arquivo",
+        )
         _add_dependency_options(groups.modules)
     elif command == "lock":
         _add_diagnostics_options(groups.diagnostics)
@@ -906,6 +921,8 @@ def _validate_legacy(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error("--timeout is only supported by run/check")
     if args.watch and not args.check:
         parser.error("--watch requires --check")
+    if args.gradual and not args.check:
+        parser.error("--gradual requires --check")
     if args.watch and args.stdin:
         parser.error("--watch cannot be combined with --stdin")
     if args.watch and not args.script:
