@@ -101,6 +101,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **`build_edits` em linhas repetidas** ([#158](https://github.com/loxia-lang/loxia/issues/158)):
+  o diff por linhas deixou de ser quadrático em fontes com muitas blank lines; usa
+  `SequenceMatcher(autojunk=True)` e refina blocos de tamanho igual até 2048 linhas.
+  O padrão de 65 KB caiu de >75 s para ~4 ms (1 MB ~68 ms), com edits determinísticos e
+  `apply_edits(source, edits) == formatted` coberto por teste.
 - **Build sem cargo e erro rebaixável**: um erro que vira panic site (`print(1 + true)`,
   `print(f())` antes da declaração) bloqueava o `--emit` com exit 65 e **sem diagnóstico**
   quando o toolchain Rust não estava instalado; o gate do regex consultava `had_error`, que

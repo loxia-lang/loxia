@@ -47,6 +47,56 @@ def _position(source: str, source_bytes: bytes, offsets: Sequence[int], index: i
     return EditPosition(line=line, column=column, offset=offset)
 
 
+# Blocos de substituição até este tamanho são refinados linha a linha; acima disso
+# ficam como um único edit (evita milhares de edits e mantém o diff linear em fontes
+# patológicas com muitas linhas repetidas).
+_REFINE_LIMIT = 2048
+
+
+def _block_edits(
+    source: str,
+    source_lines: Sequence[str],
+    formatted_lines: Sequence[str],
+    source_bytes: bytes,
+    offsets: Sequence[int],
+    start_line: int,
+    end_line: int,
+    new_start: int,
+    new_end: int,
+) -> list[TextEdit]:
+    """Refina um bloco replace de tamanho igual em edições por trecho diferente."""
+    length = end_line - start_line
+    if length != new_end - new_start or length > _REFINE_LIMIT:
+        return [
+            TextEdit(
+                start=_position(source, source_bytes, offsets, start_line),
+                end=_position(source, source_bytes, offsets, end_line),
+                new_text="".join(formatted_lines[new_start:new_end]),
+            )
+        ]
+
+    edits: list[TextEdit] = []
+    index = 0
+    while index < length:
+        if source_lines[start_line + index] == formatted_lines[new_start + index]:
+            index += 1
+            continue
+        run_start = index
+        while (
+            index < length
+            and source_lines[start_line + index] != formatted_lines[new_start + index]
+        ):
+            index += 1
+        edits.append(
+            TextEdit(
+                start=_position(source, source_bytes, offsets, start_line + run_start),
+                end=_position(source, source_bytes, offsets, start_line + index),
+                new_text="".join(formatted_lines[new_start + run_start : new_start + index]),
+            )
+        )
+    return edits
+
+
 def build_edits(source: str, formatted: str) -> tuple[TextEdit, ...]:
     """Diff por linhas; cada hunk substitui um intervalo half-open da fonte."""
     if source == formatted:
@@ -57,10 +107,25 @@ def build_edits(source: str, formatted: str) -> tuple[TextEdit, ...]:
     offsets = [0]
     for line in source_lines:
         offsets.append(offsets[-1] + len(line.encode("utf-8")))
-    matcher = difflib.SequenceMatcher(a=source_lines, b=formatted_lines, autojunk=False)
+    matcher = difflib.SequenceMatcher(a=source_lines, b=formatted_lines, autojunk=True)
     edits: list[TextEdit] = []
     for tag, start_line, end_line, new_start, new_end in matcher.get_opcodes():
         if tag == "equal":
+            continue
+        if tag == "replace":
+            edits.extend(
+                _block_edits(
+                    source,
+                    source_lines,
+                    formatted_lines,
+                    source_bytes,
+                    offsets,
+                    start_line,
+                    end_line,
+                    new_start,
+                    new_end,
+                )
+            )
             continue
         edits.append(
             TextEdit(
