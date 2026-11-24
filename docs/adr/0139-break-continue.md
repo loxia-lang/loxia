@@ -76,6 +76,9 @@ Sem rótulos (`break outer`), sem valor (`break 1`) e sem `loop {}`.
 - `break`/`continue` emitem, antes do salto, o `finally` dos `try` abertos **dentro** do
   laço (e só deles), depois fazem `br` para o alvo. `while` aponta `continue` para o bloco
   de condição; `for-in` aponta para o bloco de avanço.
+- A pilha de cleanup é **léxica**: a emissão não a consome, senão um ramo irmão perde o
+  `finally`. Um conjunto de contextos em emissão evita reentrância quando o próprio
+  `finally` faz `break`/`continue`/`return`; `_return` usa a mesma rotina.
 - Sem regra de tipo nova: o checker não inventa tipos; o resolver valida o contexto. I4
   permanece.
 
@@ -103,7 +106,8 @@ Sem rótulos (`break outer`), sem valor (`break 1`) e sem `loop {}`.
 
 ## Como verificar
 
-- `tests/cases/break_continue.lx`: `for-in`, `while`, `try/finally`, laço aninhado.
+- `tests/cases/break_continue.lx`: `for-in`, `while`, laço aninhado, `finally` com efeito
+  colateral e `finally` que sai (`break`/`continue`/`return`), inclusive em ramo irmão.
 - `tests/cases/errors/{break,continue}_outside_loop.lx` e `break_in_lambda.lx`: exit 65 e
   mensagem estável.
 - `tests/test_parser.py`: AST de `break`/`continue`; o golden `break_continue.lx` cobre o

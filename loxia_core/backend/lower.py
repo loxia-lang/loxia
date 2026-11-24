@@ -177,6 +177,7 @@ class Lowerer(
         self._enum_names: dict[str, Any] = {}
         self._cleanup_stack: list[CleanupContext] = []
         self._loop_stack: list[LoopContext] = []
+        self._emitting_finally: set[int] = set()
         self._handler_exception: Any | None = None
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
@@ -332,25 +333,39 @@ class Lowerer(
 
         self.builder = llvm_ir.builder(end_block)
 
-    def _loop_transfer(self, stmt: Break | Continue, kind: str) -> None:
-        if not self._loop_stack:
-            raise _unsupported(kind, stmt.keyword.line)
+    def _run_cleanups(self, limit: int = 0) -> bool:
+        """Emite os `finally` ativos sem consumir a pilha léxica.
 
-        context = self._loop_stack[-1]
-        target = context.break_block if kind == "break" else context.continue_block
-        # A pilha é léxica: não pode ser consumida por um `break`/`continue` de um
-        # ramo, senão o ramo irmão perde o `finally`. Emitimos os cleanups sem pop;
-        # o `try` léxico continua dono dos contextos.
-        for cleanup in reversed(self._cleanup_stack[context.cleanup_depth :]):
+        `limit` é a profundidade do laço alvo: um `break`/`continue` só roda os
+        `finally` abertos dentro dele. O `id` do contexto em emissão evita que um
+        `break`/`return` dentro do próprio `finally` o emita de novo.
+        """
+        for cleanup in reversed(self._cleanup_stack[limit:]):
+            if id(cleanup) in self._emitting_finally:
+                continue
             if cleanup.frame is not None:
                 self.builder.call(
                     self._function("lox_try_pop", _VOID, [_I8_PTR]),
                     [cleanup.frame],
                 )
             if cleanup.finally_body is not None:
-                self._lower_finally_body(cleanup.finally_body)
+                self._emitting_finally.add(id(cleanup))
+                try:
+                    self._lower_finally_body(cleanup.finally_body)
+                finally:
+                    self._emitting_finally.discard(id(cleanup))
                 if self.builder.block.is_terminated:
-                    return
+                    return True
+        return False
+
+    def _loop_transfer(self, stmt: Break | Continue, kind: str) -> None:
+        if not self._loop_stack:
+            raise _unsupported(kind, stmt.keyword.line)
+
+        context = self._loop_stack[-1]
+        target = context.break_block if kind == "break" else context.continue_block
+        if self._run_cleanups(context.cleanup_depth):
+            return
         self.builder.branch(target)
 
     def _while(self, stmt: While) -> None:
@@ -1264,17 +1279,8 @@ class Lowerer(
 
         # O valor é avaliado antes do finally (semântica do tree-walk); o `ret` só
         # acontece depois de desempilhar os frames e rodar os cleanups ativos.
-        while self._cleanup_stack:
-            context = self._cleanup_stack.pop()
-            if context.frame is not None:
-                self.builder.call(
-                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
-                    [context.frame],
-                )
-            if context.finally_body is not None:
-                self._lower_finally_body(context.finally_body)
-                if self.builder.block.is_terminated:
-                    return
+        if self._run_cleanups():
+            return
 
         self._stack_leave()
         if value is None:

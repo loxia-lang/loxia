@@ -89,6 +89,7 @@ class LoweringBase:
     _enum_layouts: dict[str, Any]
     _cleanup_stack: list[CleanupContext]
     _loop_stack: list[LoopContext]
+    _emitting_finally: set[int]
     _enum_names: dict[str, Any]
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None
