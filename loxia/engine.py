@@ -370,7 +370,8 @@ class Loxia:
         """
         declared = _declared_globals(statements)
         seed = {name: ty for name, ty in self._repl_globals.items() if name not in declared}
-        advisory = ErrorReporter(max_errors=self.reporter.max_errors, werror=self.reporter.werror)
+        # O REPL só avisa (ADR-0142): `-Werror` não bloqueia um snippet interativo.
+        advisory = ErrorReporter(max_errors=self.reporter.max_errors)
         advisory.file = self._file
         checker = Checker(
             advisory,

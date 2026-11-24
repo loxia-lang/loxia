@@ -119,3 +119,11 @@ def test_run_blocks_a_spread_into_a_non_variadic_call(tmp_path: Path) -> None:
     assert blocked.returncode == 65
     assert "E3002" in blocked.stderr
     assert blocked.stdout == ""
+
+
+def test_repl_ignores_werror_and_still_executes() -> None:
+    result = run_cli("repl", "-Werror", stdin='var x: Int = "a"\nprint(x)\n')
+
+    assert result.returncode == 0
+    assert result.stdout == "a\n"
+    assert "warning[E3001]" in result.stderr
