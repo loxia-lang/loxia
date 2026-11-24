@@ -81,6 +81,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/match_literals.lx",
         "tests/cases/match_arm_flow.lx",
         "tests/cases/result_match_inference.lx",
+        "tests/cases/result_call_arg_inference.lx",
         "tests/cases/match_arm_local.lx",
         "tests/cases/exceptions.lx",
         "tests/cases/exception_site.lx",

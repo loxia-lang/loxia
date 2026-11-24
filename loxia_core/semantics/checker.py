@@ -1087,6 +1087,34 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return actual
 
+    def _expected_enum(self, expected: Ty, name: str | None = None) -> EnumTy | None:
+        """Enum esperado, direto ou como membro de uma união com o nome do construtor."""
+        if isinstance(expected, EnumTy):
+            return expected if name is None or expected.name == name else None
+        if isinstance(expected, UnionTy):
+            members = [
+                member
+                for member in expected.members
+                if isinstance(member, EnumTy) and (name is None or member.name == name)
+            ]
+            if len(members) == 1:
+                return members[0]
+        return None
+
+    def _enum_constructor_name(self, call: Call) -> str | None:
+        """Nome do enum se `call` é `Enum.Variant(...)` e o base não está sombreado."""
+        callee = call.callee
+        if not isinstance(callee, Get) or not isinstance(callee.object, Variable):
+            return None
+        base = callee.object
+        resolved = self._peek_type(base)
+        if not isinstance(resolved, EnumObjectTy):
+            return None
+        info = self._enums.get(resolved.name)
+        if info is None or callee.name.lexeme not in info.variants:
+            return None
+        return resolved.name
+
     def _expected_element(self, expected: Ty) -> Ty | None:
         if expected is ANY:
             return ANY
@@ -3547,6 +3575,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             ):
                 assert expected_ty is not None
                 arguments.append(self._check(argument, expected_ty, expr.paren))
+            elif isinstance(argument, Call) and expected_ty is not None:
+                enum_name = self._enum_constructor_name(argument)
+                expected_enum = (
+                    self._expected_enum(expected_ty, enum_name) if enum_name is not None else None
+                )
+                if expected_enum is None:
+                    arguments.append(self._infer(argument))
+                else:
+                    arguments.append(self._check(argument, expected_enum, expr.paren))
             else:
                 arguments.append(self._infer(argument))
 

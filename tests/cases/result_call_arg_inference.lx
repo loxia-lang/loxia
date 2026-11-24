@@ -1,0 +1,26 @@
+fn h(r: Result[Int, String]) -> Int {
+  return match r {
+    Result.Ok(v) => v
+    Result.Err(_e) => 0
+  }
+}
+
+fn opt(r: Result[Int, String]?) -> Int {
+  if (r == nil) {
+    return -1
+  }
+  val c: Result[Int, String] = r
+  return match c {
+    Result.Ok(v) => v
+    Result.Err(_e) => 0
+  }
+}
+
+print(h(Result.Ok(1)))
+print(h(Result.Ok(2)))
+print(h(Result.Err("e")))
+print(opt(Result.Ok(3)))
+# expect: 1
+# expect: 2
+# expect: 0
+# expect: 3

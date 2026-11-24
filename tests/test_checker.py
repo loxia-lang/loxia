@@ -3334,6 +3334,59 @@ def test_any_match_arm_does_not_duplicate_the_outer_error() -> None:
     assert len(errors) == 1
 
 
+def test_enum_constructor_argument_uses_the_parameter_type() -> None:
+    lox = check(
+        "fn h(r: Result[Int, String]) -> Int {\n"
+        "  return match r {\n"
+        "    Result.Ok(v) => v\n"
+        "    Result.Err(_e) => 0\n"
+        "  }\n"
+        "}\n"
+        "print(h(Result.Ok(1)))\n"
+        'print(h(Result.Err("e")))\n'
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_argument_checks_the_payload() -> None:
+    lox = check('fn h(r: Result[Int, String]) -> Int { return 0 }\nprint(h(Result.Ok("x")))\n')
+
+    assert lox.reporter.had_error is True
+
+
+def test_enum_constructor_argument_accepts_a_nullable_parameter() -> None:
+    lox = check("fn opt(r: Result[Int, String]?) -> Int { return 0 }\nprint(opt(Result.Ok(1)))\n")
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_argument_disambiguates_a_union_by_name() -> None:
+    lox = check(
+        "enum Other {\n  Z(Int)\n}\n"
+        "fn f(r: Result[Int, String] | Other) -> Int { return 0 }\n"
+        "print(f(Result.Ok(1)))\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
+def test_enum_constructor_argument_with_a_variadic_parameter() -> None:
+    lox = check(
+        "fn h(a: Int, ...rs: Result[Int, String]) -> Int { return a }\nprint(h(1, Result.Ok(2)))\n"
+    )
+
+    assert lox.reporter.had_error is False, [
+        item.message for item in lox.reporter.batch().diagnostics
+    ]
+
+
 def test_enum_constructor_rejects_a_union_without_its_enum() -> None:
     lox = check("enum Other {\n  Z(Int)\n}\nval r: Other? = Result.Ok(1)\n")
 

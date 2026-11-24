@@ -41,8 +41,9 @@ As **constraints** existem em funções (`T: Ord + Num + Interface`,
   (inclusive quando o `match` é o corpo de uma lambda ou argumento de chamada) e um contexto
   união (`Result[Int, String]?`) também infere `E`; `Result.Ok(1)` infere do contexto. Uma lambda genérica **sem contexto** (`val g = fn(x) => Result.Ok(x)`) continua
   exigindo anotação/função nomeada, porque lambda genérica como valor segue adiada
-  ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)); argumento de chamada é a fatia
-  #181. `T?` contra `Int?` já unifica `T = Int`.
+  ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)). Argumento de chamada também
+  infere do parâmetro (inclusive `Result[T, E]?`, pelo único enum da união); `T?` contra
+  `Int?` já unifica `T = Int`.
 
 ## 3. Backend
 
