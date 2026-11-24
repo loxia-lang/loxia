@@ -175,6 +175,8 @@ MCP `2026-07-28` on stdio and exposes:
 - `loxia_run` — run a source in the sandbox profile (no filesystem/process primitives,
   timeout and resource limits);
 - `loxia_ast` — parse and return the S-expression AST;
+- `loxia_format` — format a source or a read-only `.lx` path, returning the text and
+  exact `TextEdit[]` (optional line range and diff; never writes);
 - `loxia_spec` — search the packaged language reference and stdlib;
 - `loxia_explain` and `loxia_version`.
 

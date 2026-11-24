@@ -281,6 +281,7 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                     "file": label,
                     "changed": result.changed,
                     "max_width": args.max_width,
+                    "text": result.text,
                     "edits": edits_json(build_edits(source, result.text)),
                 }
                 print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -337,6 +338,7 @@ def fmt_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 "file": label,
                 "changed": result.changed,
                 "max_width": args.max_width,
+                "text": result.text,
                 "edits": edits_json(build_edits(source, result.text)),
             }
             print(json.dumps(payload, ensure_ascii=False, indent=2))

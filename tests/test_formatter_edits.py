@@ -132,6 +132,7 @@ def test_cli_edits_json_does_not_write(tmp_path: Path) -> None:
     assert payload["changed"] is True
     assert payload["max_width"] == 100
     assert payload["file"] == "a.lx"
+    assert payload["text"] == formatted(source)
     assert apply_edits(source, edits_from_payload(payload)) == formatted(source)
     assert script.read_text(encoding="utf-8") == source
 
@@ -146,6 +147,7 @@ def test_cli_edits_json_canonical_file_has_empty_list(tmp_path: Path) -> None:
     assert result.returncode == 0
     payload = cast(dict[str, Any], json.loads(result.stdout))
     assert payload["changed"] is False
+    assert payload["text"] == source
     assert payload["edits"] == []
 
 
