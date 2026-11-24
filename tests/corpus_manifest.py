@@ -78,6 +78,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/bitwise_precedence.lx",
         "tests/cases/exponentiation.lx",
         "tests/cases/enums.lx",
+        "tests/cases/match_literals.lx",
         "tests/cases/exceptions.lx",
         "tests/cases/exception_site.lx",
         "tests/cases/stack_overflow_caught.lx",
@@ -322,6 +323,7 @@ COMPILE_ERRORS: frozenset[str] = frozenset(
         "tests/cases/errors/list_unknown_method.lx",
         "tests/cases/errors/map_key_type.lx",
         "tests/cases/errors/map_literal_key_variable.lx",
+        "tests/cases/errors/match_literal_float.lx",
         "tests/cases/errors/method_arity.lx",
         "tests/cases/errors/missing_semicolon.lx",
         "tests/cases/errors/modulo_type.lx",
@@ -373,6 +375,7 @@ NEGATIVE: frozenset[str] = frozenset(
         "tests/cases/is_union_needs_parens.lx",
         "tests/cases/map_at_statement_start.lx",
         "tests/cases/bang_removed.lx",
+        "tests/cases/errors/match_invalid_scrutinee.lx",
     }
 )
 

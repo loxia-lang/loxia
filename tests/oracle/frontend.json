@@ -130,6 +130,7 @@
     "tests/cases/errors/map_literal_key_variable.lx": "c84b30a8a31c3c291216c12dfc0357a5657c3365920017a01c8fb7ffaa8a4076",
     "tests/cases/errors/map_missing_key.lx": "5adc412bcef77e9e81f7316792157fd4479da8e826dc21b52e753aabb6944090",
     "tests/cases/errors/map_remove_missing.lx": "c68169bf6803482b35411a92ffa4ce5d0975af12c802ff360f688ac9199ab254",
+    "tests/cases/errors/match_invalid_scrutinee.lx": "ec57aa0301cae4c5cfc3d227281fa85e746acba23163a6a51cacafa35470f7a7",
     "tests/cases/errors/method_arity.lx": "bd9655e57d9470231887613539783c6560c3ef6e63dbceb5772c1eca5329ed6c",
     "tests/cases/errors/modulo_by_zero.lx": "0c772a8854e29cabbfb4319de9e3b247db75c18fb5c3d5a35e1a5946eaf3eaec",
     "tests/cases/errors/modulo_type.lx": "d1b3f18fb710a922fa532785d6c3b9c516de5970c8dbb1623100e9baa14b87ab",
@@ -219,6 +220,7 @@
     "tests/cases/map_string_keys.lx": "470f3cbf69a74b6affa9045aea529522a85df256114748f4e9442db52d514055",
     "tests/cases/map_stringify.lx": "3a00979cfe8d26ebd7bc8e141d84407ca07577f13385b86fb51690f6b9dc89d9",
     "tests/cases/match_capture.lx": "e3c26c8ab0cbc2771b1c3949325ef9706e345a21299c1e1e850b5ef76a89d305",
+    "tests/cases/match_literals.lx": "8c71c27c62ff09711950c8c5a90508f038175b444121158f731c3c7280e08863",
     "tests/cases/math_optional.lx": "c2fac9f27de880617f9c43431ebc00c48498cffeb095c27fb1fa86c577c00716",
     "tests/cases/method_fn_keyword.lx": "fc0c28c9a39c13a98407c16e70c539ece7de39283f5a8dfbd9ddea4a24995623",
     "tests/cases/multiline_strings.lx": "e1a85e212b8fb34081d9e7c31b0b689ceade4288e8610308c35f994fb5e4929d",
@@ -1831,6 +1833,46 @@
         }
       }
     ],
+    "tests/cases/errors/match_invalid_scrutinee.lx": [
+      {
+        "code": "E3001",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 2,
+            "offset": 14
+          },
+          "file": "tests/cases/errors/match_invalid_scrutinee.lx",
+          "start": {
+            "column": 3,
+            "line": 2,
+            "offset": 9
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/match_literal_float.lx": [
+      {
+        "code": "E1007",
+        "phase": "parser",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 22,
+            "line": 1,
+            "offset": 21
+          },
+          "file": "tests/cases/errors/match_literal_float.lx",
+          "start": {
+            "column": 19,
+            "line": 1,
+            "offset": 18
+          }
+        }
+      }
+    ],
     "tests/cases/errors/method_arity.lx": [
       {
         "code": "E3004",
@@ -3087,6 +3129,7 @@
     "tests/cases/errors/map_literal_key_variable.lx": "426b19c4c95d889789c1a6a27250c3b9972432fd0e0578cffe707dee063a868a",
     "tests/cases/errors/map_missing_key.lx": "164ce50b918feb4d0095bead76ab6c362c6df88e82eebf93b88d7fc606eeb606",
     "tests/cases/errors/map_remove_missing.lx": "f45d8d9f8ca433001f4208a491fdb8ca221e2e92fb12adf4ab420fb7819c0f29",
+    "tests/cases/errors/match_invalid_scrutinee.lx": "08d2b9b2bf0d497388e2c88b19eae61d21a8589730c4c2ae43c1feac366075ee",
     "tests/cases/errors/method_arity.lx": "5acc218544c4bdd15e2cc6a039cd305ea57ab1af43c6798cdaadd3344262a525",
     "tests/cases/errors/modulo_by_zero.lx": "50c40e266287d7266bbdd92e5d4745b98f60a73aef69e96bf5086fedf0eb1018",
     "tests/cases/errors/modulo_type.lx": "548b9f26bc20d4db90f9a75ab14f3ebdbeb40d282b2acfb357f325a4f63def03",
@@ -3176,6 +3219,7 @@
     "tests/cases/map_string_keys.lx": "ce35767bcde942ade5ab02b896934a662c6291d4cdd279246905857584bfbec2",
     "tests/cases/map_stringify.lx": "ca78cb3b8f8f80c17d82c8e37e2b257086dfb9b612cc43ce28d1f72bbebf0f49",
     "tests/cases/match_capture.lx": "46e8cb8f582f64dbd250254e280e590b9a77d1eb60e6b4697f422113b334f554",
+    "tests/cases/match_literals.lx": "f09b662d2e01337514c7b3cae2f5658c3b818a48fb4724fc48200af2138cd04b",
     "tests/cases/math_optional.lx": "8d528e6cc781cbd68e17d38649009ef9f661344c691bd70b30a7642bb730a516",
     "tests/cases/method_fn_keyword.lx": "89c74d133fa7f08e7effecc44521b110ba6e7707e346b09c120c6a8f73939f7b",
     "tests/cases/multiline_strings.lx": "91df5a89bfec22cfa59ad3b650bf32928c9bb2f21bed175167dfa800cdf53925",
@@ -3299,6 +3343,7 @@
     "tests/cases/errors/invalid_unicode_escape.lx",
     "tests/cases/errors/list_bare_type.lx",
     "tests/cases/errors/list_lowercase_type.lx",
+    "tests/cases/errors/match_literal_float.lx",
     "tests/cases/errors/missing_semicolon.lx",
     "tests/cases/errors/optional_assignment.lx",
     "tests/cases/errors/required_after_optional.lx",

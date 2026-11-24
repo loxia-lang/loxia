@@ -2446,7 +2446,6 @@ def test_enum_match_and_result() -> None:
             "enum Cor { Vermelho, Verde }\nprint(match Cor.Vermelho { _ => 1, Cor.Verde => 2 })",
             "Unreachable match arm.",
         ),
-        ("print(match 1 { _ => 1 })", "match requires an enum value"),
         (
             "enum Cor { Vermelho }\nprint(match Cor.Vermelho { Cor.Verde => 1 })",
             "Unknown variant 'Verde'.",
@@ -2480,6 +2479,82 @@ print(x is E[Int])""",
     ],
 )
 def test_enum_match_errors(source: str, message: str, capsys: pytest.CaptureFixture[str]) -> None:
+    lox = check(source)
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert message in captured.err
+
+
+def test_literal_match() -> None:
+    lox = check(
+        """
+        val i = match 2 { 1 => "one", 2 => "two", _ => "many" }
+        val s = match "b" { "a" => 1, "b" => 2, _ => 3 }
+        val b = match true { false => 0, true => 1, _ => 2 }
+        val n = match nil { nil => 1, _ => 2 }
+        val neg = match -1 { -1 => 1, 0 => 2, _ => 3 }
+        print(i)
+        print(s)
+        print(b)
+        print(n)
+        print(neg)
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("print(match 1 { 1 => 1 })", "Non-exhaustive match; add a '_' arm."),
+        (
+            'print(match 1 { "x" => 1, _ => 2 })',
+            "Pattern of type String doesn't match Int.",
+        ),
+        ("print(match 1 { 1 => 1, 1 => 2, _ => 3 })", "Unreachable match arm."),
+        (
+            "enum C { A }\nprint(match C.A { C.A => 1, 1 => 2, _ => 3 })",
+            "Literal patterns only match Int, String, Bool or nil",
+        ),
+        (
+            "enum C { A }\nprint(match 1 { C.A => 1, _ => 2 })",
+            "Enum variant patterns don't match Int",
+        ),
+        (
+            "print(match true { 1 => 1, _ => 2 })",
+            "Pattern of type Int doesn't match Bool.",
+        ),
+        (
+            "print(match 1 { true => 1, _ => 2 })",
+            "Pattern of type Bool doesn't match Int.",
+        ),
+        (
+            "print(match false { false => 1, false => 2, _ => 3 })",
+            "Unreachable match arm.",
+        ),
+        (
+            'print(match "a" { "a" => 1, "a" => 2, _ => 3 })',
+            "Unreachable match arm.",
+        ),
+        (
+            "print(match nil { nil => 1, nil => 2, _ => 3 })",
+            "Unreachable match arm.",
+        ),
+        (
+            "val x: Int? = 1\nprint(match x { _ => 1 })",
+            "match requires an enum, Int, String, Bool or nil value",
+        ),
+        (
+            "val x = 1 as Any\nprint(match x { _ => 1 })",
+            "match requires an enum, Int, String, Bool or nil value",
+        ),
+    ],
+)
+def test_literal_match_errors(
+    source: str, message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     lox = check(source)
     captured = capsys.readouterr()
 

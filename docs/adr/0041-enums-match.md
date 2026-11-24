@@ -1,6 +1,6 @@
 # ADR-0041 — Enums genéricos, `match` exaustivo e `Result`
 
-- **Status:** accepted (MVP implementado; padrões avançados e backend L6 pendentes)
+- **Status:** accepted (implementado; padrões literais em [ADR-0140](0140-match-literais.md))
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)
 - **Relacionados:** [ADR-0026](0026-freeze-1.0.md),
@@ -56,12 +56,14 @@ exaustividade sem transformar a linguagem num `match` estrutural geral.
 ## Implementação (MVP)
 
 Implementado: enums genéricos, variantes namespaced, `match` expressão com bindings e `_`,
-exaustividade rígida, arms inalcançáveis, `Result` embutido, runtime/igualdade/stringify e
-rejeição 65 no backend. O que resta está em "Em aberto".
+exaustividade rígida, arms inalcançáveis, `Result` embutido, runtime/igualdade/stringify,
+backend L6 e padrões literais ([ADR-0140](0140-match-literais.md)). O que resta está em
+"Em aberto".
 
 ## Em aberto
 
-- Padrões literais/nil, guards, aninhamento, `|`, `match` sobre uniões/`Any`.
+- Guards, aninhamento, `|`, `match` sobre uniões/`Any`; padrões literais de `Float` ficam
+  fora por decisão (ADR-0140).
 - `is`/`as` com argumentos de enum (reificação) e métodos em enum.
 - Monomorfização/layout no L6.
 

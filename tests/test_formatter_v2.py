@@ -226,6 +226,22 @@ fn area(shape: Shape) -> Float {
     assert assert_roundtrip(source) == expected
 
 
+def test_match_literal_patterns_stay_canonical() -> None:
+    source = """val n = 1
+val label = match n {
+  0 => "zero"
+  -0 => "negzero"
+  -1 => "negative"
+  "x" => "string"
+  true => "bool"
+  nil => "nil"
+  _ => "other"
+}
+"""
+
+    assert assert_roundtrip(source) == source
+
+
 def test_try_except_finally() -> None:
     source = """fn f(x: Int) -> Int {
   try { raise x } except Error as e { return 0 } finally { print("done") }

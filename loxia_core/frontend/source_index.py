@@ -34,6 +34,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -109,6 +110,7 @@ NODE_TYPES = (
     TypeAlias,
     Var,
     MatchArm,
+    LiteralPattern,
     VariantPattern,
     WildcardPattern,
 )

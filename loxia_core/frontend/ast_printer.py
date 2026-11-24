@@ -18,6 +18,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -109,6 +110,10 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
             bindings = " ".join(token.lexeme for token in pattern.bindings)
             suffix = f" ({bindings})" if bindings else ""
             return f"({pattern.enum.lexeme}.{pattern.variant.lexeme}{suffix})"
+        if isinstance(pattern, LiteralPattern):
+            if isinstance(pattern.value, int) and not isinstance(pattern.value, bool):
+                return f"({pattern.value})"
+            return f"({pattern.token.lexeme})"
         return "_"
 
     def visit_try_stmt(self, stmt: Try) -> str:

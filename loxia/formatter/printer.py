@@ -50,6 +50,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -986,6 +987,12 @@ class Printer:
         )
 
     def _pattern(self, pattern: Pattern) -> Doc:
+        if isinstance(pattern, LiteralPattern):
+            if isinstance(pattern.value, int) and not isinstance(pattern.value, bool):
+                if pattern.token.lexeme == "-":
+                    return concat(self._token(pattern.token), text(str(abs(pattern.value))))
+                return self._token(pattern.token)
+            return self._token(pattern.token)
         if isinstance(pattern, WildcardPattern):
             return self._token(pattern.token)
         parts: list[Doc] = [

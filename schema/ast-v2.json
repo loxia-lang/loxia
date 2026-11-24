@@ -1711,6 +1711,46 @@
       ],
       "type": "object"
     },
+    "literal_pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/token_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "literal_pattern"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "token": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "value": {}
+      },
+      "required": [
+        "kind",
+        "span",
+        "token",
+        "value",
+        "end"
+      ],
+      "type": "object"
+    },
     "logical": {
       "additionalProperties": false,
       "properties": {
@@ -1876,6 +1916,9 @@
             },
             {
               "$ref": "#/$defs/wildcard_pattern"
+            },
+            {
+              "$ref": "#/$defs/literal_pattern"
             }
           ]
         },
@@ -2023,6 +2066,9 @@
         },
         {
           "$ref": "#/$defs/literal"
+        },
+        {
+          "$ref": "#/$defs/literal_pattern"
         },
         {
           "$ref": "#/$defs/logical"
