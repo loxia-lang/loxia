@@ -106,7 +106,11 @@ O protocolo de fluxo existe e funciona em `if`/`elif`/`else`, `while`, `for-in` 
      captura) são replicadas nos estados de `break`/`continue` gravados durante o corpo e
      os handlers, porque o `finally` roda antes de o salto concluir. Só invalidações são
      replicadas; refinos do `finally` podem depender do caminho de entrada e não são
-     reaplicados.
+     reaplicados. **Limitação declarada:** um `finally` que *estabelece* o refino (ex.:
+     `finally { x = "a" }`) não o propaga ao estado do salto, então o programa válido
+     `while (x == nil) { try { break } finally { x = "a" } }` seguido de `len(x)` é
+     recusado. Aceitar exigiria sumário de efeitos (adiado); é a direção conservadora, não
+     um furo.
    - **`if`/`else` como statement.** Cada ramo parte do estado de entrada; a saída é o join
      dos ramos que caem, com os refinos da condição aplicados só ao caminho que passa por
      ela.
