@@ -12,7 +12,10 @@ from loxia_core.frontend.expr import Call, Expr, Is, Lambda, MapLiteral, Match, 
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.stmt import (
+    Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     ErrorStmt,
@@ -94,6 +97,17 @@ def test_c_style_for_is_rejected_with_migration_hint() -> None:
     assert any(
         "C-style 'for' was removed" in item.message for item in parser.reporter.batch().diagnostics
     )
+
+
+def test_parses_break_and_continue_statements() -> None:
+    statements = parse("while (true) { break; continue; }")
+
+    loop = statements[0]
+    assert isinstance(loop, While)
+    assert isinstance(loop.body, Block)
+    first, second = loop.body.statements
+    assert isinstance(first, Break)
+    assert isinstance(second, Continue)
 
 
 def test_parses_map_literal_with_expression_keys() -> None:

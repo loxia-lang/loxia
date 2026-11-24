@@ -46,6 +46,19 @@ class CleanupContext:
     finally_body: list[Stmt] | None
 
 
+@dataclass
+class LoopContext:
+    """Alvos de `break`/`continue` do laço mais interno.
+
+    `cleanup_depth` é o tamanho da pilha de `try` na entrada do laço: ao sair por
+    `break`/`continue`, só os `finally` abertos dentro do laço precisam rodar.
+    """
+
+    break_block: Any
+    continue_block: Any
+    cleanup_depth: int
+
+
 class LoweringBase:
     """Atributos e escape hatch para chamadas entre os mixins do lowering."""
 
@@ -75,6 +88,7 @@ class LoweringBase:
     _type_subst: dict[str, Ty]
     _enum_layouts: dict[str, Any]
     _cleanup_stack: list[CleanupContext]
+    _loop_stack: list[LoopContext]
     _enum_names: dict[str, Any]
     _list_expected_element: Ty | None
     _map_expected_key: Ty | None

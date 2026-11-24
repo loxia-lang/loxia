@@ -47,6 +47,7 @@
     "tests/cases/bitwise.lx": "cbea9d015f83390d722aac02796fe6b1ab66e63a01f5165a380ce63972426f84",
     "tests/cases/bitwise_precedence.lx": "c4779b976bf1199fb4cf1e74b7e2c4ea9e4e1441e6ef3a5ec0e2aee1c7d91189",
     "tests/cases/block_scope.lx": "2fb9b14f1087e4f369a8eefe85c6db330cbf3effa768f32c05213da7706d83a4",
+    "tests/cases/break_continue.lx": "2cb71032b25214d654f1ea796fc2bcfefbd36688e69f103b4aeac608886e749f",
     "tests/cases/builtin_shadow_local.lx": "99d8fcfcd6a677443f31ed3e0612e45b5d0c30384c9899f3dda1aa51229e9c59",
     "tests/cases/bytes/bytes_any.lx": "ef6887e6bc54d08c93c4b76a50b64e96d3f276b8ecb817e5e6ae01257140bda8",
     "tests/cases/bytes/bytes_core.lx": "8f40318978cd44d221768f3d6d0afcfec36bed072200a7818cbb19b803a096b8",
@@ -91,8 +92,11 @@
     "tests/cases/errors/assign_val_global.lx": "7417dd4b014357e5d20a96904bfe133b00ee066c4c9bf812a03a0776dc51e0cb",
     "tests/cases/errors/assign_val_local.lx": "19dde0f47cb254ce225c5548b24abd18f6f46492b8c4d057eef6128bcff6e80d",
     "tests/cases/errors/bitwise_type.lx": "19ed4ce3afc5f1060533efbcf201697b066f0fdc65b9590602a9893ee6e06c29",
+    "tests/cases/errors/break_in_lambda.lx": "0fd589058b704f62bd260f20157f8bdee6384e314f61e8bb48d81a83bba11b0d",
+    "tests/cases/errors/break_outside_loop.lx": "7da3c16f1976e159a7560b7343be786da34474699db1f1855565ac132b65b628",
     "tests/cases/errors/builtin_redeclare.lx": "e1265c8beb33e56a66a886a015c27aeb41d9417a57b5d588408d4f09e7d67177",
     "tests/cases/errors/class_inherit_self.lx": "c59b0ddb05fd56e944616dc4e55e65b49ea776b1768041faffec7a688605b87e",
+    "tests/cases/errors/continue_outside_loop.lx": "9b3726502f7a566483ba5384bb618d2ba2150031ae264550830af59fe2c22f91",
     "tests/cases/errors/division_by_zero.lx": "5e1ccdd0b860c4d2d1a5ffe70886fed1fa15056a7b5b62331f0a4c0df6ea158a",
     "tests/cases/errors/division_by_zero_int.lx": "310209b89a41434979fec2ca7bcffbafc6883f5f2124a6ca12d7e21fbc80d6f9",
     "tests/cases/errors/division_float_by_zero.lx": "e285cbc39ff6a8d0142088d175eaddf39f976ed6f4ebbda12a1a8d5342534cbd",
@@ -662,6 +666,46 @@
         }
       }
     ],
+    "tests/cases/errors/break_in_lambda.lx": [
+      {
+        "code": "E2010",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 10,
+            "line": 3,
+            "offset": 42
+          },
+          "file": "tests/cases/errors/break_in_lambda.lx",
+          "start": {
+            "column": 5,
+            "line": 3,
+            "offset": 37
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/break_outside_loop.lx": [
+      {
+        "code": "E2010",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 1,
+            "offset": 5
+          },
+          "file": "tests/cases/errors/break_outside_loop.lx",
+          "start": {
+            "column": 1,
+            "line": 1,
+            "offset": 0
+          }
+        }
+      }
+    ],
     "tests/cases/errors/builtin_redeclare.lx": [
       {
         "code": "E3004",
@@ -734,6 +778,26 @@
             "column": 11,
             "line": 1,
             "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/continue_outside_loop.lx": [
+      {
+        "code": "E2010",
+        "phase": "resolver",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 9,
+            "line": 1,
+            "offset": 8
+          },
+          "file": "tests/cases/errors/continue_outside_loop.lx",
+          "start": {
+            "column": 1,
+            "line": 1,
+            "offset": 0
           }
         }
       }
@@ -2939,6 +3003,7 @@
     "tests/cases/bitwise.lx": "167a934fd5bf3855c46dc1b35a83b219f35f466bb15ba215e371e3341e861ebd",
     "tests/cases/bitwise_precedence.lx": "24722c04b056ffdf7496d79772a71c95d4235f6b45a79b7ae2a61f7355a0cb47",
     "tests/cases/block_scope.lx": "a041a3464e32b7add2b0bebc7414e33f528e03ac7c8050b396e65dc6648d95e9",
+    "tests/cases/break_continue.lx": "d590a0849c6ec5b5d8ee844ac7009155ea29fd7fe0576cd10a035f8c1c54314a",
     "tests/cases/builtin_shadow_local.lx": "b9b2e8aef04ad2caeafea2d7854e13ddc6849a8a8c3a3c636617f87ed11ce711",
     "tests/cases/bytes/bytes_any.lx": "445124c9249c50281c5401e89da9525759138327dcaf5741cffe5b075c789c49",
     "tests/cases/bytes/bytes_core.lx": "dae7918cbc147aea69cced0bd87a8e0846e5bd5f0bbdc4a284bb41a481bcaf49",
@@ -2983,8 +3048,11 @@
     "tests/cases/errors/assign_val_global.lx": "d5b99b54190b16b44ca8f2b156bd338a87d20c18e78f5b5007f01e033316585d",
     "tests/cases/errors/assign_val_local.lx": "c3e24fb32aae317ca2035561943a552e02f312cccf85d859b3b0548218ec5af3",
     "tests/cases/errors/bitwise_type.lx": "f0c73971fb29b6ed944d5820f3e8cc112afd414d8ff02755d70634e772235218",
+    "tests/cases/errors/break_in_lambda.lx": "56dac8541bafe7ea0a73f65b3767020990691ceefe626b80df56749db33af61e",
+    "tests/cases/errors/break_outside_loop.lx": "459135507a1edd9dcc390891c81470150788febc35f25160dc51e4e17ebbaaed",
     "tests/cases/errors/builtin_redeclare.lx": "e9668d39ffcdedf21d2951e679bfc42fc271fea0f0952ee063bb1a6408dc7d2b",
     "tests/cases/errors/class_inherit_self.lx": "2b335e7ee83a2bc7dba60cb6302bc709a872a47537b29106e686566eb556177a",
+    "tests/cases/errors/continue_outside_loop.lx": "f4ce7e2bda722bf10a2e8402aeaa6dcf7beb84b2d3ff58f8a189ddd21360538e",
     "tests/cases/errors/division_by_zero.lx": "eaf64d16c6c9a74ef92efe3800318eb8c2c9c3277a36c1a42c4f89dc514f1784",
     "tests/cases/errors/division_by_zero_int.lx": "ab6035124142e32ea4073df1d9c00ea5cb19385af769d61018a3ef5718847e25",
     "tests/cases/errors/division_float_by_zero.lx": "6ad85a45a7079e52f839a84163d71ed9b763bdd06b5928f63e12f4d3df860362",

@@ -67,7 +67,9 @@ from loxia_core.frontend.expr import (
 )
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     EnumVariant,
@@ -1054,6 +1056,10 @@ class Printer:
                 text(" ="),
                 self._type_after(stmt.target, stmt.type_span),
             )
+        if isinstance(stmt, Break):
+            return self._token(stmt.keyword)
+        if isinstance(stmt, Continue):
+            return self._token(stmt.keyword)
         if isinstance(stmt, Return):
             return self._return(stmt)
         if isinstance(stmt, Var):

@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from loxia_core.backend import llvm_ir
-from loxia_core.backend.lower_base import LoweringBase
+from loxia_core.backend.lower_base import LoopContext, LoweringBase
 from loxia_core.backend.lower_model import (
     _BOOL,
     _I8_PTR,
@@ -455,6 +455,7 @@ class RangeLowering(LoweringBase):
     ) -> None:
         header = llvm_ir.append_block(self._function_ir, "for.cond")
         body = llvm_ir.append_block(self._function_ir, "for.body")
+        advance_block = llvm_ir.append_block(self._function_ir, "for.advance")
         end = llvm_ir.append_block(self._function_ir, "for.end")
         self.builder.branch(header)
 
@@ -464,13 +465,20 @@ class RangeLowering(LoweringBase):
 
         self.builder = llvm_ir.builder(body)
         desc = value_type if isinstance(value_type, TypeDesc) else TypeDesc(value_type)
-        self._for_bind(stmt, desc, load)
+        self._loop_stack.append(LoopContext(end, advance_block, len(self._cleanup_stack)))
+        try:
+            self._for_bind(stmt, desc, load)
+        finally:
+            self._loop_stack.pop()
         if not self.builder.block.is_terminated:
-            keep = advance()
-            if keep is None:
-                self.builder.branch(header)
-            else:
-                self.builder.cbranch(keep, header, end)
+            self.builder.branch(advance_block)
+
+        self.builder = llvm_ir.builder(advance_block)
+        keep = advance()
+        if keep is None:
+            self.builder.branch(header)
+        else:
+            self.builder.cbranch(keep, header, end)
 
         self.builder = llvm_ir.builder(end)
 

@@ -6,6 +6,8 @@ from loxia_core.diagnostics.codes import Code
 from loxia_core.diagnostics.diagnostic import Frame, Trace
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.errors import (
+    BreakSignal,
+    ContinueSignal,
     LoxRaise,
     LoxRuntimeError,
     NativeError,
@@ -89,7 +91,9 @@ from loxia_core.frontend.expr import (
 from loxia_core.frontend.expr import Visitor as ExprVisitor
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     ErrorStmt,
@@ -1280,7 +1284,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         for value in self._iterate(stmt.name, iterable):
             environment = Environment(self.environment)
             environment.define(stmt.name.lexeme, value, mutable=False)
-            self.execute_block([stmt.body], environment)
+            try:
+                self.execute_block([stmt.body], environment)
+            except ContinueSignal:
+                continue
+            except BreakSignal:
+                break
 
     def _iterate(self, name: Token, iterable: object) -> Iterator[object]:
         if isinstance(iterable, LoxRange):
@@ -1477,4 +1486,15 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_while_stmt(self, stmt: While) -> None:
         while self._is_truthy(self._evaluate(stmt.condition)):
-            self._execute(stmt.body)
+            try:
+                self._execute(stmt.body)
+            except ContinueSignal:
+                continue
+            except BreakSignal:
+                break
+
+    def visit_break_stmt(self, stmt: Break) -> None:
+        raise BreakSignal(stmt.keyword)
+
+    def visit_continue_stmt(self, stmt: Continue) -> None:
+        raise ContinueSignal(stmt.keyword)

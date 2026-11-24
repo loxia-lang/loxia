@@ -48,7 +48,9 @@ from loxia_core.frontend.expr import (
 from loxia_core.frontend.spans import span_of_token_range
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     EnumVariant,
@@ -514,6 +516,12 @@ class Parser:
         if self._match(TokenType.RETURN):
             return self._return_statement()
 
+        if self._match(TokenType.BREAK):
+            return self._break_statement()
+
+        if self._match(TokenType.CONTINUE):
+            return self._continue_statement()
+
         if self._match(TokenType.WHILE):
             return self._while_statement(self._previous())
 
@@ -565,6 +573,16 @@ class Parser:
             )
 
         return Try(keyword, body, handlers, finally_body, end=self._previous())
+
+    def _break_statement(self) -> Stmt:
+        keyword = self._previous()
+        self._end_statement("Expect ';' after 'break'.")
+        return Break(keyword)
+
+    def _continue_statement(self) -> Stmt:
+        keyword = self._previous()
+        self._end_statement("Expect ';' after 'continue'.")
+        return Continue(keyword)
 
     def _raise_statement(self, keyword: Token) -> Stmt:
         value: Expr | None = None
@@ -1583,6 +1601,8 @@ class Parser:
             TokenType.IF,
             TokenType.WHILE,
             TokenType.RETURN,
+            TokenType.BREAK,
+            TokenType.CONTINUE,
             TokenType.TRY,
             TokenType.RAISE,
             TokenType.LEFT_BRACE,
@@ -1623,6 +1643,8 @@ class Parser:
                 TokenType.IF,
                 TokenType.WHILE,
                 TokenType.RETURN,
+                TokenType.BREAK,
+                TokenType.CONTINUE,
             }:
                 return
 

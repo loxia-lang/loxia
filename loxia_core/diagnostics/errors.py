@@ -66,3 +66,19 @@ class ReturnSignal(Exception):
         super().__init__("return")
         self.keyword = keyword
         self.value = value
+
+
+class BreakSignal(Exception):
+    """Controle de fluxo interno do `break`; capturado pelo laço mais interno."""
+
+    def __init__(self, keyword: Token) -> None:
+        super().__init__("break")
+        self.keyword = keyword
+
+
+class ContinueSignal(Exception):
+    """Controle de fluxo interno do `continue`; capturado pelo laço mais interno."""
+
+    def __init__(self, keyword: Token) -> None:
+        super().__init__("continue")
+        self.keyword = keyword

@@ -55,6 +55,7 @@ class Code(StrEnum):
     FIELD_CONFLICT = "E2007"
     SELF_REFERENCE = "E2008"
     IMMUTABLE_FIELD = "E2009"
+    INVALID_LOOP_CONTROL = "E2010"
 
     # Checker
     SEMANTIC_ERROR = "E3000"
@@ -141,6 +142,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.FIELD_CONFLICT: Phase.RESOLVER,
     Code.SELF_REFERENCE: Phase.RESOLVER,
     Code.IMMUTABLE_FIELD: Phase.RESOLVER,
+    Code.INVALID_LOOP_CONTROL: Phase.RESOLVER,
     Code.SEMANTIC_ERROR: Phase.CHECKER,
     Code.TYPE_MISMATCH: Phase.CHECKER,
     Code.ARITY_MISMATCH: Phase.CHECKER,
@@ -220,6 +222,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.FIELD_CONFLICT: "field conflict (duplicate or with a method)",
     Code.SELF_REFERENCE: "local read in its own initializer",
     Code.IMMUTABLE_FIELD: "assignment to a `val` field",
+    Code.INVALID_LOOP_CONTROL: "`break`/`continue` outside a loop",
     Code.SEMANTIC_ERROR: "reserved generic semantic error (no checker path emits it)",
     Code.TYPE_MISMATCH: "type mismatch",
     Code.ARITY_MISMATCH: "arity (calls, destructuring or pattern binding)",

@@ -1,0 +1,6 @@
+for i in 0..1 {
+  val f = fn() {
+    break
+  }
+}
+# expect error: Can't use 'break' outside of a loop.

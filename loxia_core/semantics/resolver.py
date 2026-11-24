@@ -47,7 +47,9 @@ from loxia_core.frontend.expr import Visitor as ExprVisitor
 from loxia_core.frontend.spans import span_of_token
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     ErrorStmt,
@@ -112,6 +114,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._current_field_keywords: dict[str, Token] | None = None
         self._class_field_keywords: dict[str, dict[str, Token]] = {}
         self._current_function: FunctionType = FunctionType.NONE
+        self._loop_depth = 0
         self._current_class: ClassType = ClassType.NONE
         self._current_fields: dict[str, bool] | None = None
         self._class_fields: dict[str, dict[str, bool]] = {}
@@ -276,7 +279,9 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def _resolve_function(self, function: Function | Lambda, function_type: FunctionType) -> None:
         enclosing_function = self._current_function
+        enclosing_loop_depth = self._loop_depth
         self._current_function = function_type
+        self._loop_depth = 0
 
         self._begin_scope()
         self._function_starts.append(len(self._scopes) - 1)
@@ -289,6 +294,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         finally:
             self._function_starts.pop()
             self._end_scope()
+            self._loop_depth = enclosing_loop_depth
 
         self._current_function = enclosing_function
 
@@ -388,8 +394,12 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._begin_scope()
         self._declare(stmt.name, mutable=False)
         self._define(stmt.name)
-        self._resolve_stmt(stmt.body)
-        self._end_scope()
+        self._loop_depth += 1
+        try:
+            self._resolve_stmt(stmt.body)
+        finally:
+            self._loop_depth -= 1
+            self._end_scope()
 
     def visit_function_stmt(self, stmt: Function) -> None:
         self._declare(stmt.name, mutable=True)
@@ -420,6 +430,22 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self._resolve_stmt(stmt.then_branch)
         if stmt.else_branch is not None:
             self._resolve_stmt(stmt.else_branch)
+
+    def visit_break_stmt(self, stmt: Break) -> None:
+        if self._loop_depth == 0:
+            self._reporter.error(
+                stmt.keyword,
+                "Can't use 'break' outside of a loop.",
+                code=Code.INVALID_LOOP_CONTROL,
+            )
+
+    def visit_continue_stmt(self, stmt: Continue) -> None:
+        if self._loop_depth == 0:
+            self._reporter.error(
+                stmt.keyword,
+                "Can't use 'continue' outside of a loop.",
+                code=Code.INVALID_LOOP_CONTROL,
+            )
 
     def visit_return_stmt(self, stmt: Return) -> None:
         if self._current_function is FunctionType.NONE:
@@ -505,7 +531,11 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_while_stmt(self, stmt: While) -> None:
         self._resolve_expr(stmt.condition)
-        self._resolve_stmt(stmt.body)
+        self._loop_depth += 1
+        try:
+            self._resolve_stmt(stmt.body)
+        finally:
+            self._loop_depth -= 1
 
     # --- expressions ---
 

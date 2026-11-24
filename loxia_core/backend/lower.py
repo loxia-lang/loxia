@@ -22,7 +22,7 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
-from loxia_core.backend.lower_base import CleanupContext
+from loxia_core.backend.lower_base import CleanupContext, LoopContext
 from loxia_core.backend.lower_bytes import BytesLowering
 from loxia_core.backend.lower_calls import CallLowering
 from loxia_core.backend.lower_class_codegen import ClassCodegenLowering
@@ -86,7 +86,9 @@ from loxia_core.frontend.expr import (
 )
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     Expression,
@@ -174,6 +176,7 @@ class Lowerer(
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
         self._cleanup_stack: list[CleanupContext] = []
+        self._loop_stack: list[LoopContext] = []
         self._handler_exception: Any | None = None
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
@@ -263,6 +266,10 @@ class Lowerer(
                 self._scopes.pop()
         elif isinstance(stmt, Return):
             self._return(stmt)
+        elif isinstance(stmt, Break):
+            self._loop_transfer(stmt, "break")
+        elif isinstance(stmt, Continue):
+            self._loop_transfer(stmt, "continue")
         elif isinstance(stmt, Function):
             if stmt.type_params:
                 return
@@ -325,6 +332,27 @@ class Lowerer(
 
         self.builder = llvm_ir.builder(end_block)
 
+    def _loop_transfer(self, stmt: Break | Continue, kind: str) -> None:
+        if not self._loop_stack:
+            raise _unsupported(kind, stmt.keyword.line)
+
+        context = self._loop_stack[-1]
+        target = context.break_block if kind == "break" else context.continue_block
+        # A pilha é léxica: não pode ser consumida por um `break`/`continue` de um
+        # ramo, senão o ramo irmão perde o `finally`. Emitimos os cleanups sem pop;
+        # o `try` léxico continua dono dos contextos.
+        for cleanup in reversed(self._cleanup_stack[context.cleanup_depth :]):
+            if cleanup.frame is not None:
+                self.builder.call(
+                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
+                    [cleanup.frame],
+                )
+            if cleanup.finally_body is not None:
+                self._lower_finally_body(cleanup.finally_body)
+                if self.builder.block.is_terminated:
+                    return
+        self.builder.branch(target)
+
     def _while(self, stmt: While) -> None:
         header = llvm_ir.append_block(self._function_ir, "while.cond")
         body = llvm_ir.append_block(self._function_ir, "while.body")
@@ -336,7 +364,11 @@ class Lowerer(
         self.builder.cbranch(condition, body, end)
 
         self.builder = llvm_ir.builder(body)
-        self._stmt(stmt.body)
+        self._loop_stack.append(LoopContext(end, header, len(self._cleanup_stack)))
+        try:
+            self._stmt(stmt.body)
+        finally:
+            self._loop_stack.pop()
         if not self.builder.block.is_terminated:
             self.builder.branch(header)
 
