@@ -737,7 +737,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         token: Token,
         message: str,
         *,
-        code: Code = Code.SEMANTIC_ERROR,
+        code: Code,
         lowerable: bool = False,
         notes: tuple[str, ...] = (),
         help: str | None = None,
@@ -810,6 +810,23 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if call is None or not 1 <= index <= len(call.arguments):
             return ()
         return self._provenance_notes(call.arguments[index - 1], token)
+
+    def _argument_error(
+        self,
+        token: Token,
+        index: int,
+        expected: Ty,
+        actual: Ty,
+        *,
+        call: Call | None = None,
+    ) -> None:
+        """Um único ponto para argumento de tipo errado (código e proveniência)."""
+        self._error(
+            token,
+            f"Argument {index}: {self._mismatch_message(expected, actual)}",
+            code=Code.TYPE_MISMATCH,
+            notes=self._argument_notes(call, index, token),
+        )
 
     def _check_stmt(self, stmt: Stmt) -> None:
         stmt.accept(self)
@@ -2482,10 +2499,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._validate_is_type(item, token)
             return
         if isinstance(ty, UnionTy):
-            self._error(token, "as doesn't support union types yet; narrow first.")
+            self._error(
+                token, "as doesn't support union types yet; narrow first.", code=Code.INVALID_CAST
+            )
             return
 
-        self._error(token, "as doesn't support this type yet.")
+        self._error(token, "as doesn't support this type yet.", code=Code.INVALID_CAST)
 
     def _validate_is_type(self, ty: Ty, token: Token) -> None:
         if ty is ERROR or ty is ANY or ty is NEVER:
@@ -2504,6 +2523,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     "is doesn't support type arguments on classes yet.",
+                    code=Code.TYPE_ARGUMENTS,
                 )
             return
         if isinstance(ty, EnumTy):
@@ -2511,6 +2531,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     "is doesn't support type arguments on enums yet.",
+                    code=Code.TYPE_ARGUMENTS,
                 )
             return
         if isinstance(ty, ListTy):
@@ -2529,7 +2550,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._validate_is_type(member, token)
             return
 
-        self._error(token, "is doesn't support this type yet.")
+        self._error(token, "is doesn't support this type yet.", code=Code.INVALID_OPERANDS)
 
     def _polymorphic_lambda(self, expr: Lambda) -> Ty:
         """Inferência + generalização de lambda em `val` (let-polymorphism, T4).
@@ -2616,6 +2637,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.keyword,
                     f"Lambda body must return {display(declared_return)}.",
+                    code=Code.TYPE_MISMATCH,
                 )
             return_ty = declared_return
         else:
@@ -2721,6 +2743,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.keyword,
                     f"Lambda body must return {display(declared_return)}.",
+                    code=Code.TYPE_MISMATCH,
                 )
             return_ty = declared_return
         else:
@@ -2742,6 +2765,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.keyword,
                     f"Lambda returns {display(inferred)}; annotate the return type.",
+                    code=Code.MISSING_ANNOTATION,
                 )
                 return ANY
 
@@ -3095,12 +3119,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _resolve_exception_type(self, token: Token) -> Ty:
         info = self._classes.get(token.lexeme)
         if info is None:
-            self._error(token, f"Unknown exception type '{token.lexeme}'.")
+            self._error(token, f"Unknown exception type '{token.lexeme}'.", code=Code.UNKNOWN_TYPE)
             return ERROR
         if not self._is_subclass(token.lexeme, "Exception"):
             self._error(
                 token,
                 f"Type '{token.lexeme}' isn't an exception.",
+                code=Code.TYPE_MISMATCH,
             )
             return ERROR
 
@@ -3132,6 +3157,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     clause.type_name,
                     "Catch-all 'Exception' must be the last handler.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
                 )
 
             self._narrowings = dict(base)
@@ -3169,6 +3195,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     stmt.keyword,
                     "Can't re-raise outside of an except block.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
                 )
             return
 
@@ -3180,6 +3207,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 stmt.keyword,
                 f"Can only raise Exception instances, found {display(raised)}.",
                 notes=self._provenance_notes(stmt.value, stmt.keyword),
+                code=Code.TYPE_MISMATCH,
             )
 
     def _expr_token(self, expr: Expr) -> Token | None:
@@ -3211,11 +3239,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     stmt.keyword,
                     f"Expected {display(self._current_return)}, found Nil.",
+                    code=Code.TYPE_MISMATCH,
                 )
             return
 
         if self._in_initializer:
-            self._error(stmt.keyword, "Can't return a value from an initializer.")
+            self._error(
+                stmt.keyword,
+                "Can't return a value from an initializer.",
+                code=Code.INVALID_CHECKER_DECLARATION,
+            )
             return
 
         if self._current_return is not None:
@@ -3263,6 +3296,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 stmt.name,
                 f"Can't infer type of '{stmt.name.lexeme}'; add an annotation.",
+                code=Code.MISSING_ANNOTATION,
             )
             self._define(stmt.name, ANY)
             return
@@ -3276,6 +3310,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 stmt.name,
                 f"Can't infer type of '{stmt.name.lexeme}' from nil; add an annotation.",
+                code=Code.MISSING_ANNOTATION,
             )
             self._define(stmt.name, ANY)
             return
@@ -3375,7 +3410,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if ty is INT or ty is ANY:
             return
 
-        self._error(token, "Operands must be integers.", lowerable=True)
+        self._error(token, "Operands must be integers.", lowerable=True, code=Code.INVALID_OPERANDS)
 
     def _power_type(self, left: Ty, right: Ty, operator: Token) -> Ty:
         if left is ANY or right is ANY:
@@ -3407,7 +3442,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         for ty in (left, right):
             if ty is INT or ty is FLOAT:
                 continue
-            self._error(operator, "Operands must be numbers.", lowerable=True)
+            self._error(
+                operator, "Operands must be numbers.", lowerable=True, code=Code.INVALID_OPERANDS
+            )
             return ERROR
 
         if left is FLOAT or right is FLOAT:
@@ -3806,19 +3843,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._generic_value_error(token, argument.name)
                     continue
                 if not self._assignable(signature.params[index - 1], argument):
-                    self._error(
-                        token,
-                        f"Argument {index}: "
-                        f"{self._mismatch_message(signature.params[index - 1], argument)}",
-                        notes=self._argument_notes(expr, index, token),
+                    self._argument_error(
+                        token, index, signature.params[index - 1], argument, call=expr
                     )
             expected_list = ListTy(signature.params[-1])
             if not self._assignable(expected_list, arguments[-1]):
-                self._error(
-                    token,
-                    f"Argument {count}: {self._mismatch_message(expected_list, arguments[-1])}",
-                    notes=self._argument_notes(expr, count, token),
-                )
+                self._argument_error(token, count, expected_list, arguments[-1], call=expr)
             return
 
         if signature.variadic:
@@ -3838,11 +3868,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     signature.params[index - 1] if index - 1 < fixed else signature.params[-1]
                 )
                 if not self._assignable(expected, argument):
-                    self._error(
-                        token,
-                        f"Argument {index}: {self._mismatch_message(expected, argument)}",
-                        notes=self._argument_notes(expr, index, token),
-                    )
+                    self._argument_error(token, index, expected, argument, call=expr)
             return
 
         maximum = len(signature.params)
@@ -3898,11 +3924,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._generic_value_error(token, argument.name)
                 continue
             if not self._assignable(param, argument):
-                self._error(
-                    token,
-                    f"Argument {index}: {self._mismatch_message(param, argument)}",
-                    notes=self._argument_notes(expr, index, token),
-                )
+                self._argument_error(token, index, param, argument, call=expr)
 
     def _instantiate_generic(self, callee: GenericFnTy) -> GenericFnTy:
         fresh = [
@@ -4134,10 +4156,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if isinstance(actual, GenericFnTy):
                 return self._generic_value_error(token, actual.name)
             if not self._unify(resolved, actual, bindings, token):
-                self._error(
-                    token,
-                    f"Argument {index}: {self._mismatch_message(resolved, actual)}",
-                )
+                self._argument_error(token, index, resolved, actual)
                 return ERROR
             return actual
 
@@ -4167,10 +4186,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(expr, Lambda) and isinstance(resolved, FnTy):
             actual = self._lambda_type(expr, resolved)
             if not self._unify(resolved, actual, bindings, token):
-                self._error(
-                    token,
-                    f"Argument {index}: {self._mismatch_message(resolved, actual)}",
-                )
+                self._argument_error(token, index, resolved, actual)
                 return ERROR
             concrete = self._substitute(actual, bindings)
             self.types[expr] = concrete
@@ -4182,10 +4198,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if actual is ERROR:
                 return ERROR
             if not self._unify(resolved, actual, bindings, token):
-                self._error(
-                    token,
-                    f"Argument {index}: {self._mismatch_message(resolved, actual)}",
-                )
+                self._argument_error(token, index, resolved, actual)
                 return ERROR
             return actual
 
@@ -4193,10 +4206,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(actual, GenericFnTy):
             return self._generic_value_error(token, actual.name)
         if not self._unify(resolved, actual, bindings, token):
-            self._error(
-                token,
-                f"Argument {index}: {self._mismatch_message(resolved, actual)}",
-            )
+            # Sem `Call` no contexto deste helper: a mensagem é a mesma, sem nota.
+            self._argument_error(token, index, resolved, actual)
             return ERROR
 
         return actual
@@ -4480,6 +4491,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     token,
                     "Polymorphic recursion is not supported yet; "
                     "the type arguments must stay the same.",
+                    code=Code.GENERIC_UNSUPPORTED,
                 )
                 return
 
@@ -4525,17 +4537,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if isinstance(obj, EnumObjectTy):
             info = self._enums.get(obj.name)
             if info is None:
-                self._error(name, f"Unknown enum '{obj.name}'.")
+                self._error(name, f"Unknown enum '{obj.name}'.", code=Code.UNKNOWN_TYPE)
                 return ERROR
             variant = info.variants.get(name.lexeme)
             if variant is None:
-                self._error(name, f"Unknown variant '{name.lexeme}'.")
+                self._error(name, f"Unknown variant '{name.lexeme}'.", code=Code.UNDEFINED_NAME)
                 return ERROR
             if info.type_params:
                 if not variant.payload:
                     self._error(
                         name,
                         "Nullary variants of generic enums aren't supported yet; add a payload.",
+                        code=Code.GENERIC_UNSUPPORTED,
                     )
                     return ERROR
                 return GenericFnTy(
@@ -4570,7 +4583,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             isinstance(obj, UnionTy) and any(member is NIL for member in obj.members)
         )
         if nilable and not optional:
-            self._error(name, "Only instances have properties.")
+            self._error(name, "Only instances have properties.", code=Code.TYPE_MISMATCH)
             return ERROR
         if obj is NIL:
             return NIL
@@ -4599,7 +4612,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._instance_property(member, name, report=False) for member in classes
                 ]
                 if any(item != results[0] for item in results):
-                    self._error(name, "Only instances have properties.")
+                    self._error(name, "Only instances have properties.", code=Code.TYPE_MISMATCH)
                     return ERROR
                 result = results[0]
         elif all(isinstance(member, InterfaceTy) for member in members):
@@ -4611,11 +4624,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._interface_property(member, name, report=False) for member in interfaces
                 ]
                 if any(item != results[0] for item in results):
-                    self._error(name, "Only instances have properties.")
+                    self._error(name, "Only instances have properties.", code=Code.TYPE_MISMATCH)
                     return ERROR
                 result = results[0]
         else:
-            self._error(name, "Only instances have properties.")
+            self._error(name, "Only instances have properties.", code=Code.TYPE_MISMATCH)
             return ERROR
 
         return union(result, NIL) if optional and nilable else result
@@ -4623,7 +4636,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _bytes_property(self, name: Token) -> Ty:
         signature = BYTES_METHODS.get(name.lexeme)
         if signature is None:
-            self._error(name, f"Undefined property '{name.lexeme}'.")
+            self._error(name, f"Undefined property '{name.lexeme}'.", code=Code.UNDEFINED_NAME)
             return ERROR
         return signature
 
@@ -4642,7 +4655,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if name.lexeme == "pop":
             return FnTy((), element, 0)
 
-        self._error(name, f"Undefined property '{name.lexeme}'.")
+        self._error(name, f"Undefined property '{name.lexeme}'.", code=Code.UNDEFINED_NAME)
         return ERROR
 
     def _map_property(self, maps: list[MapTy], name: Token) -> Ty:
@@ -4667,7 +4680,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if name.lexeme == "values":
             return FnTy((), ListTy(value), 0)
 
-        self._error(name, f"Undefined property '{name.lexeme}'.")
+        self._error(name, f"Undefined property '{name.lexeme}'.", code=Code.UNDEFINED_NAME)
         return ERROR
 
     def _class_bindings(self, obj: ClassTy) -> dict[TyVar, Ty]:
@@ -4693,7 +4706,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return self._substitute(method, bindings)
 
         if report:
-            self._error(name, f"Undefined property '{name.lexeme}'.")
+            self._error(name, f"Undefined property '{name.lexeme}'.", code=Code.UNDEFINED_NAME)
 
         return ERROR
 
@@ -4789,6 +4802,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.brace,
                 "Can't infer the key and value types of an empty map; annotate it as Map[K, V].",
+                code=Code.INVALID_MAP,
             )
             return MapTy(ERROR, ERROR)
 
@@ -4799,7 +4813,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             value_ty = self._join_map_value(value_ty, self._infer(value), expr.brace)
 
         if not self._valid_map_key(key_ty):
-            self._error(expr.brace, "Map keys must be String, Int or Bool.")
+            self._error(expr.brace, "Map keys must be String, Int or Bool.", code=Code.INVALID_MAP)
             key_ty = ERROR
 
         return MapTy(key_ty, value_ty)
@@ -4880,6 +4894,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.bracket,
                 f"Tuple index {literal} out of bounds for length {len(tuple_ty.items)}.",
+                code=Code.INVALID_LIST,
             )
             return ERROR
 
@@ -4901,12 +4916,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.keyword,
                 "match requires an enum value; narrow it first.",
+                code=Code.TYPE_MISMATCH,
             )
             return ERROR
 
         info = self._enums.get(scrutinee.name)
         if info is None:
-            self._error(expr.keyword, f"Unknown enum '{scrutinee.name}'.")
+            self._error(expr.keyword, f"Unknown enum '{scrutinee.name}'.", code=Code.UNKNOWN_TYPE)
             return ERROR
 
         bindings: dict[TyVar, Ty] = {}
@@ -4921,19 +4937,22 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             pattern = arm.pattern
             if isinstance(pattern, WildcardPattern):
                 if wildcard:
-                    self._error(pattern.token, "Unreachable match arm.")
+                    self._error(
+                        pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
+                    )
                 wildcard = True
                 arm_types.append(self._infer(arm.body))
                 continue
 
             assert isinstance(pattern, VariantPattern)
             if wildcard:
-                self._error(pattern.variant, "Unreachable match arm.")
+                self._error(pattern.variant, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
             if pattern.enum.lexeme != scrutinee.name:
                 self._error(
                     pattern.enum,
                     f"Pattern '{pattern.enum.lexeme}.{pattern.variant.lexeme}' "
                     f"doesn't match enum '{scrutinee.name}'.",
+                    code=Code.TYPE_MISMATCH,
                 )
                 arm_types.append(self._infer(arm.body))
                 continue
@@ -4943,6 +4962,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     pattern.variant,
                     f"Unknown variant '{pattern.variant.lexeme}'.",
+                    code=Code.UNDEFINED_NAME,
                 )
                 arm_types.append(self._infer(arm.body))
                 continue
@@ -4953,9 +4973,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     f"Variant '{scrutinee.name}.{variant.name}' expects "
                     f"{len(variant.payload)} binding(s), got "
                     f"{len(pattern.bindings)}.",
+                    code=Code.ARITY_MISMATCH,
                 )
             if variant.name in covered:
-                self._error(pattern.variant, "Unreachable match arm.")
+                self._error(pattern.variant, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
             covered.add(variant.name)
 
             self._begin_scope()
@@ -4965,6 +4986,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     self._error(
                         token,
                         f"Binding '{token.lexeme}' is declared twice in this pattern.",
+                        code=Code.INVALID_CHECKER_DECLARATION,
                     )
                 seen.add(token.lexeme)
                 self._define(token, self._substitute(item_ty, bindings))
@@ -4978,6 +5000,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     expr.keyword,
                     "Non-exhaustive match; missing " + ", ".join(missing) + ".",
+                    code=Code.MATCH_EXHAUSTIVENESS,
                 )
 
         return union(*arm_types)
@@ -4993,6 +5016,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     name,
                     f"Variable '{name.lexeme}' is declared twice in this destructuring.",
+                    code=Code.INVALID_CHECKER_DECLARATION,
                 )
             seen.add(name.lexeme)
 
@@ -5018,6 +5042,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 self._error(
                     token,
                     f"Destructuring expects {len(pattern.elements)} values, found {len(items)}.",
+                    code=Code.ARITY_MISMATCH,
                 )
             for name in pattern_names(pattern):
                 self._define(name, ERROR)
@@ -5028,7 +5053,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _destructure_items(self, ty: Ty, token: Token) -> tuple[Ty, ...] | None:
         if ty is ANY:
-            self._error(token, "Can't destructure Any; add a tuple annotation.")
+            self._error(
+                token,
+                "Can't destructure Any; add a tuple annotation.",
+                code=Code.MISSING_ANNOTATION,
+            )
             return None
         if isinstance(ty, TupleTy):
             return ty.items
@@ -5036,13 +5065,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             members = [member for member in ty.members if isinstance(member, TupleTy)]
             arity = len(members[0].items)
             if any(len(member.items) != arity for member in members):
-                self._error(token, "Tuple members of the union have different arity.")
+                self._error(
+                    token,
+                    "Tuple members of the union have different arity.",
+                    code=Code.TYPE_MISMATCH,
+                )
                 return None
             return tuple(
                 union(*(member.items[position] for member in members)) for position in range(arity)
             )
 
-        self._error(token, f"Can only destructure tuples, found {display(ty)}.")
+        self._error(
+            token, f"Can only destructure tuples, found {display(ty)}.", code=Code.TYPE_MISMATCH
+        )
         return None
 
     def visit_index_expr(self, expr: Index) -> Ty:
@@ -5057,6 +5092,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.bracket,
                 "Type arguments on a call aren't supported; let the checker infer them.",
+                code=Code.TYPE_ARGUMENTS,
             )
             return ERROR
 
@@ -5082,13 +5118,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expr.bracket,
                     f"Expected {display(obj.key)}, found {display(index)}.",
                     notes=self._provenance_notes(expr.index, expr.bracket),
+                    code=Code.TYPE_MISMATCH,
                 )
             return obj.value
         if obj is BYTES:
             self._check_index_type(index, expr, expr.index, owner="Bytes")
             return INT
         if not isinstance(obj, ListTy):
-            self._error(expr.bracket, "Only lists and maps can be indexed.")
+            self._error(expr.bracket, "Only lists and maps can be indexed.", code=Code.INVALID_LIST)
             return ERROR
 
         self._check_index_type(index, expr, expr.index)
@@ -5114,16 +5151,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     expr.bracket,
                     f"Expected {display(obj.key)}, found {display(index)}.",
                     notes=self._provenance_notes(expr.index, expr.bracket),
+                    code=Code.TYPE_MISMATCH,
                 )
             if not self._assignable(obj.value, value):
                 self._error(
                     expr.bracket,
                     f"Expected {display(obj.value)}, found {display(value)}.",
                     notes=self._provenance_notes(expr.value, expr.bracket),
+                    code=Code.TYPE_MISMATCH,
                 )
             return value
         if not isinstance(obj, ListTy):
-            self._error(expr.bracket, "Only lists and maps can be indexed.")
+            self._error(expr.bracket, "Only lists and maps can be indexed.", code=Code.INVALID_LIST)
             return value
 
         self._check_index_type(index, expr, expr.index)
@@ -5132,6 +5171,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 expr.bracket,
                 f"Expected {display(obj.element)}, found {display(value)}.",
                 notes=self._provenance_notes(expr.value, expr.bracket),
+                code=Code.TYPE_MISMATCH,
             )
 
         return value
@@ -5198,7 +5238,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if bound is ANY:
                 return RANGE
 
-            self._error(expr.operator, "Range bounds must be integers.")
+            self._error(expr.operator, "Range bounds must be integers.", code=Code.INVALID_OPERANDS)
             return ERROR
 
         return RANGE
@@ -5211,12 +5251,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         if isinstance(obj, InterfaceTy):
             self._infer(expr.value)
-            self._error(expr.name, f"Interface '{obj.name}' has no fields.")
+            self._error(
+                expr.name, f"Interface '{obj.name}' has no fields.", code=Code.UNDEFINED_NAME
+            )
             return ANY
 
         if not isinstance(obj, ClassTy):
             self._infer(expr.value)
-            self._error(expr.name, "Only instances have fields.")
+            self._error(expr.name, "Only instances have fields.", code=Code.TYPE_MISMATCH)
             return ANY
 
         field_info = self._find_field(obj.name, expr.name.lexeme)
@@ -5245,6 +5287,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._error(
                 expr.name,
                 f"Can't assign to immutable field '{expr.name.lexeme}'.",
+                code=Code.INVALID_CHECKER_DECLARATION,
             )
 
         return value
@@ -5282,7 +5325,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return ANY
             if right is INT:
                 return INT
-            self._error(expr.operator, "Operand must be an integer.", lowerable=True)
+            self._error(
+                expr.operator,
+                "Operand must be an integer.",
+                lowerable=True,
+                code=Code.INVALID_OPERANDS,
+            )
             return ERROR
         if right is ANY:
             return ANY
@@ -5306,7 +5354,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if right is INT or right is FLOAT:
             return right
 
-        self._error(expr.operator, "Operand must be a number.", lowerable=True)
+        self._error(
+            expr.operator, "Operand must be a number.", lowerable=True, code=Code.INVALID_OPERANDS
+        )
         return ERROR
 
     def visit_error_expr(self, expr: ErrorExpr) -> Ty:

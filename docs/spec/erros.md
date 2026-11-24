@@ -223,9 +223,15 @@ behavior preservation
 ## Codes
 
 Codes identify **families**, not messages; they are never reused and the catalog is
-closed (emitting a code outside this list does not compile). The checker's long tail uses
-`E3000` until it is refined into more specific codes. The per-phase tables below are
-**generated** from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.
+closed (emitting a code outside this list does not compile). `E3000` stays reserved for
+generic semantic errors, but every checker diagnostic now names a specific family; a new
+checker error must pass an explicit code. The per-phase tables below are **generated**
+from `loxia_core/diagnostics/codes.py` (`make codes`); do not edit them by hand.
+
+Family choice follows the cause: a value that cannot have members is `E3001`, while a
+missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E3007`
+(operator), while `as` is `E3013` (cast); `init` return values are `E3017` in the checker
+(the resolver's `E2003` covers the same source when it runs first).
 
 | Range | Phase | Meaning |
 | --- | --- | --- |
@@ -281,9 +287,9 @@ closed (emitting a code outside this list does not compile). The checker's long 
 
 | Code | Family |
 | --- | --- |
-| `E3000` | generic semantic error (checker fallback) |
+| `E3000` | reserved generic semantic error (no checker path emits it) |
 | `E3001` | type mismatch |
-| `E3002` | call arity |
+| `E3002` | arity (calls, destructuring or pattern binding) |
 | `E3003` | undefined name (variable, property or field) |
 | `E3004` | missing annotation |
 | `E3005` | unknown type, class or superclass |
@@ -304,6 +310,8 @@ closed (emitting a code outside this list does not compile). The checker's long 
 | `E3020` | type arguments (generic/enum/class arity) |
 | `E3021` | not supported by the interpreter |
 | `E3022` | capability requires the Rust toolchain (cargo) at run/build |
+| `E3023` | non-exhaustive match |
+| `E3024` | unreachable match arm |
 
 ### Backend
 
@@ -533,6 +541,8 @@ The immutability message appears in **two phases**: compilation for locals/param
 | `as doesn't support union types yet; narrow first.` | `1 as Int \| String` |
 | `as doesn't support this type yet.` | `x as fn(Int) -> Int` |
 | `math.abs() expects numbers.` | `math.abs("1")` |
+| `Non-exhaustive match; missing X.` | `match` without an arm for every variant |
+| `Unreachable match arm.` | wildcard after all variants or a repeated variant |
 
 ## How to test
 

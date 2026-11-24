@@ -644,7 +644,7 @@
     ],
     "tests/cases/errors/bitwise_type.lx": [
       {
-        "code": "E3000",
+        "code": "E3007",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -860,7 +860,7 @@
     ],
     "tests/cases/errors/field_immutable.lx": [
       {
-        "code": "E3000",
+        "code": "E3017",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1156,7 +1156,7 @@
     ],
     "tests/cases/errors/intdiv_type.lx": [
       {
-        "code": "E3000",
+        "code": "E3007",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1492,7 +1492,7 @@
     ],
     "tests/cases/errors/list_not_indexable.lx": [
       {
-        "code": "E3000",
+        "code": "E3008",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1552,7 +1552,7 @@
     ],
     "tests/cases/errors/list_unknown_method.lx": [
       {
-        "code": "E3000",
+        "code": "E3003",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1612,7 +1612,7 @@
     ],
     "tests/cases/errors/map_key_type.lx": [
       {
-        "code": "E3000",
+        "code": "E3001",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1848,7 +1848,7 @@
     ],
     "tests/cases/errors/nested_destructure_arity.lx": [
       {
-        "code": "E3000",
+        "code": "E3002",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1868,7 +1868,7 @@
     ],
     "tests/cases/errors/nested_destructure_non_tuple.lx": [
       {
-        "code": "E3000",
+        "code": "E3001",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1908,7 +1908,7 @@
     ],
     "tests/cases/errors/only_instances_have_fields.lx": [
       {
-        "code": "E3000",
+        "code": "E3001",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1928,7 +1928,7 @@
     ],
     "tests/cases/errors/only_instances_have_properties.lx": [
       {
-        "code": "E3000",
+        "code": "E3001",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -1968,7 +1968,7 @@
     ],
     "tests/cases/errors/optional_not_instance.lx": [
       {
-        "code": "E3000",
+        "code": "E3001",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -2068,7 +2068,7 @@
     ],
     "tests/cases/errors/range_args_type.lx": [
       {
-        "code": "E3000",
+        "code": "E3001",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -2108,7 +2108,7 @@
     ],
     "tests/cases/errors/range_bounds.lx": [
       {
-        "code": "E3000",
+        "code": "E3007",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -2482,7 +2482,7 @@
     ],
     "tests/cases/errors/unary_not_number.lx": [
       {
-        "code": "E3000",
+        "code": "E3007",
         "phase": "checker",
         "severity": "error",
         "span": {
@@ -2522,7 +2522,7 @@
     ],
     "tests/cases/errors/undefined_property.lx": [
       {
-        "code": "E3000",
+        "code": "E3003",
         "phase": "checker",
         "severity": "error",
         "span": {

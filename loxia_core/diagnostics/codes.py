@@ -80,6 +80,8 @@ class Code(StrEnum):
     TYPE_ARGUMENTS = "E3020"
     INTERPRETER_UNSUPPORTED = "E3021"
     TOOLCHAIN_MISSING = "E3022"
+    MATCH_EXHAUSTIVENESS = "E3023"
+    UNREACHABLE_MATCH = "E3024"
 
     # Backend
     BACKEND_UNSUPPORTED = "E4001"
@@ -162,6 +164,8 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.TYPE_ARGUMENTS: Phase.CHECKER,
     Code.INTERPRETER_UNSUPPORTED: Phase.CHECKER,
     Code.TOOLCHAIN_MISSING: Phase.CHECKER,
+    Code.MATCH_EXHAUSTIVENESS: Phase.CHECKER,
+    Code.UNREACHABLE_MATCH: Phase.CHECKER,
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
@@ -216,9 +220,9 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.FIELD_CONFLICT: "field conflict (duplicate or with a method)",
     Code.SELF_REFERENCE: "local read in its own initializer",
     Code.IMMUTABLE_FIELD: "assignment to a `val` field",
-    Code.SEMANTIC_ERROR: "generic semantic error (checker fallback)",
+    Code.SEMANTIC_ERROR: "reserved generic semantic error (no checker path emits it)",
     Code.TYPE_MISMATCH: "type mismatch",
-    Code.ARITY_MISMATCH: "call arity",
+    Code.ARITY_MISMATCH: "arity (calls, destructuring or pattern binding)",
     Code.UNDEFINED_NAME: "undefined name (variable, property or field)",
     Code.MISSING_ANNOTATION: "missing annotation",
     Code.UNKNOWN_TYPE: "unknown type, class or superclass",
@@ -239,6 +243,8 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.TYPE_ARGUMENTS: "type arguments (generic/enum/class arity)",
     Code.INTERPRETER_UNSUPPORTED: "not supported by the interpreter",
     Code.TOOLCHAIN_MISSING: "capability requires the Rust toolchain (cargo) at run/build",
+    Code.MATCH_EXHAUSTIVENESS: "non-exhaustive match",
+    Code.UNREACHABLE_MATCH: "unreachable match arm",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",
