@@ -58,10 +58,14 @@ def _repository_config_guard() -> Iterator[None]:
 
 
 @pytest.fixture(scope="session")
-def regex_build_cache(tmp_path_factory: pytest.TempPathFactory) -> str:
-    """Cache do build Rust compartilhado entre testes (a chave é o conteúdo).
+def regex_build_cache() -> str:
+    """Cache persistente do build Rust, o mesmo que o produto usa (ADR-0131).
 
-    O crate leva ~14 s para compilar; sem isso cada teste com regex pagaria o build
-    de novo. O cache é content-addressed, então compartilhar não esconde regressão.
+    O crate leva dezenas de segundos para compilar. Um `tmp_path` por sessão
+    obrigava a um build a frio em todo `make check`/`make test-fast`; a chave já
+    cobre fontes e toolchain, então reusar o cache do produto não esconde
+    regressão e elimina o rebuild entre execuções.
     """
-    return str(tmp_path_factory.mktemp("regex-build-cache"))
+    from loxia_core.native_build import cache_base
+
+    return str(cache_base())

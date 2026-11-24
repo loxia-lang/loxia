@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def built(regex_build_cache: str) -> Iterator[Path]:
-    """Compila uma vez (cache da sessão); os testes seguintes reusam."""
+    """Compila uma vez (cache persistente); os testes seguintes reusam."""
     previous = os.environ.get("LOX_BUILD_CACHE")
     os.environ["LOX_BUILD_CACHE"] = regex_build_cache
     try:
