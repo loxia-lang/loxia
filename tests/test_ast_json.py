@@ -224,6 +224,20 @@ def test_match_spans_include_closing_brace_and_arrow() -> None:
     assert expression["arms"][0]["arrow"]["lexeme"] == "=>"
 
 
+def test_literal_match_pattern_keeps_sign_and_value() -> None:
+    payload = _program("match -1 { -1 => 1, _ => 0 }\n")
+    statements = _statements(payload)
+    assert isinstance(statements, list)
+    arms = statements[0]["expression"]["arms"]
+
+    pattern = arms[0]["pattern"]
+    assert pattern["kind"] == "literal_pattern"
+    assert pattern["value"] == -1
+    assert pattern["token"]["lexeme"] == "-"
+    assert pattern["end"]["type"] == "NUMBER"
+    assert pattern["span"]["end"]["offset"] == pattern["end"]["span"]["end"]["offset"]
+
+
 def test_index_set_keeps_the_closing_bracket_token() -> None:
     payload = _program("xs[0] = 1\n")
     statements = _statements(payload)

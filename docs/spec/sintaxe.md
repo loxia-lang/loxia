@@ -129,7 +129,10 @@ primary        → "true" | "false" | "nil" | "this"
                | lambda ;
 matchExpr      → "match" expression "{" matchArm+ "}" ;
 matchArm       → pattern "=>" expression ;
-pattern        → "_" | IDENTIFIER "." IDENTIFIER
+pattern        → "_"
+               | INT | STRING | "true" | "false" | "nil"
+               | "-" INT
+               | IDENTIFIER "." IDENTIFIER
                  ( "(" IDENTIFIER ( "," IDENTIFIER )* ")" )? ;
 lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | block ) ;
 ```
@@ -137,9 +140,13 @@ lambda         → "fn" "(" parameters? ")" ( "->" type )? ( "=>" expression | b
 `try` requires at least one `except`/`finally`; `raise` without an expression only inside
 `except` (rethrows). `except Exception as e` is the catch-all and must be last.
 
+`INT` above is a `NUMBER` literal without `.`/exponent; a `Float` pattern is rejected
+(`E1007`), because `Int`/`Float` do not coerce in a pattern.
+
 `enum` declares namespaced variants (`Color.Green`, `Shape.Circle(1.0)`); `match` is an
-expression and requires an exhaustive enum (see [`semantica.md`](semantica.md)). `Result` is a built-in
-enum with `Ok(T)`/`Err(E)`.
+expression and requires an exhaustive enum or a literal match with `_` (see
+[`semantica.md`](semantica.md)). Literal patterns accept `Int`, `String`, `Bool` and `nil`;
+`Float` patterns are rejected. `Result` is a built-in enum with `Ok(T)`/`Err(E)`.
 
 `INTERPOLATED_STRING` is the literal `"text ${expression} more text"`; the expression is any
 `expression` and may contain another interpolated string. `\${` and `\$` escape the dollar sign.

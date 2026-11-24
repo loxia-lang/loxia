@@ -1,0 +1,66 @@
+print(
+  match 2 {
+    0 => "zero"
+    1 => "one"
+    _ => "many"
+  },
+)
+
+print(
+  match "b" {
+    "a" => 1
+    "b" => 2
+    _ => 3
+  },
+)
+
+print(
+  match true {
+    false => "f"
+    true => "t"
+    _ => "?"
+  },
+)
+
+print(
+  match nil {
+    nil => "nil"
+    _ => "other"
+  },
+)
+
+print(
+  match 3 {
+    _ => "any"
+  },
+)
+
+enum E { A }
+
+print(
+  match E.A {
+    _ => "enumwild"
+  },
+)
+
+fn kind(n: Int) -> String {
+  return match n {
+    -1 => "negative"
+    0 => "zero"
+    _ => "positive"
+  }
+}
+
+print(kind(-1))
+print(kind(0))
+print(kind(3))
+
+# expect: many
+# expect: 2
+# expect: t
+# expect: nil
+# expect: any
+# expect: enumwild
+# expect: negative
+# expect: zero
+# expect: positive

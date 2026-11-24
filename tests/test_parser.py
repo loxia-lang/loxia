@@ -8,7 +8,16 @@ import pytest
 from loxia_core.diagnostics.errors import ParseError
 from loxia_core.frontend.ast_printer import AstPrinter
 from loxia_core.frontend.destructuring import NamePattern, TuplePattern, pattern_names
-from loxia_core.frontend.expr import Call, Expr, Is, Lambda, MapLiteral, Match, Variable
+from loxia_core.frontend.expr import (
+    Call,
+    Expr,
+    Is,
+    Lambda,
+    LiteralPattern,
+    MapLiteral,
+    Match,
+    Variable,
+)
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.stmt import (
@@ -718,6 +727,18 @@ def test_enum_and_match_parse() -> None:
     assert isinstance(statements[1], Var)
     assert isinstance(statements[1].initializer, Match)
     assert len(statements[1].initializer.arms) == 2
+
+
+def test_parses_literal_match_patterns() -> None:
+    statements = parse('val x = match 1 { 1 => 1, -1 => 2, "a" => 3, true => 4, nil => 5 }')
+
+    initializer = statements[0]
+    assert isinstance(initializer, Var)
+    assert isinstance(initializer.initializer, Match)
+    patterns = [arm.pattern for arm in initializer.initializer.arms]
+    assert all(isinstance(pattern, LiteralPattern) for pattern in patterns)
+    values = [pattern.value for pattern in patterns if isinstance(pattern, LiteralPattern)]
+    assert values == [1, -1, "a", True, None]
 
 
 def test_try_and_raise_parse() -> None:

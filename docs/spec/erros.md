@@ -392,6 +392,7 @@ Messages in the `Expect … .` pattern; the most common ones:
 | `Expect ')' after expression.` | grouping without `)` |
 | `Expect '(' after ...` | `if`, `while`, function/method declaration |
 | `C-style 'for' was removed; use \`for x in range(n)\` or a \`while\` loop.` | `for (init; cond; incr)` |
+| `Float patterns are not supported; use Int, String, Bool or nil.` | `match x { 1.5 => ... }` |
 | `Expect '{' before function body.` / `method body.` | function without `{` |
 | `Expect '{' before class body.` | class without `{` |
 | `Expect '}' after block.` / `after class body.` | block/class without `}` |
@@ -545,8 +546,12 @@ The immutability message appears in **two phases**: compilation for locals/param
 | `as doesn't support union types yet; narrow first.` | `1 as Int \| String` |
 | `as doesn't support this type yet.` | `x as fn(Int) -> Int` |
 | `math.abs() expects numbers.` | `math.abs("1")` |
-| `Non-exhaustive match; missing X.` | `match` without an arm for every variant |
-| `Unreachable match arm.` | wildcard after all variants or a repeated variant |
+| `Non-exhaustive match; missing X.` | enum `match` without an arm for every variant |
+| `Non-exhaustive match; add a '_' arm.` | literal `match` without `_` |
+| `Unreachable match arm.` | wildcard after all variants, or repeated variant/literal |
+| `Pattern of type X doesn't match Y.` | `match 1 { "x" => ... }` |
+| `Literal patterns only match Int, String, Bool or nil; use an enum variant pattern.` | literal in an enum `match` |
+| `Enum variant patterns don't match X; use a literal pattern or '_'.` | variant pattern in a literal `match` |
 
 ## How to test
 

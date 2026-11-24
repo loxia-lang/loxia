@@ -75,6 +75,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -1063,10 +1064,10 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_match_expr(self, expr: Match) -> object:
         value = self._evaluate(expr.scrutinee)
-        if not isinstance(value, LoxEnumValue):
+        if not self._is_match_value(value):
             raise LoxRuntimeError(
                 expr.keyword,
-                "match requires an enum value.",
+                "match requires an enum, Int, String, Bool or nil value.",
                 code=Code.INVALID_VALUE,
             )
 
@@ -1074,7 +1075,17 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             pattern = arm.pattern
             if isinstance(pattern, WildcardPattern):
                 return self._evaluate(arm.body)
+            if isinstance(pattern, LiteralPattern):
+                if self._literal_matches(value, pattern.value):
+                    return self._evaluate(arm.body)
+                continue
             assert isinstance(pattern, VariantPattern)
+            if not isinstance(value, LoxEnumValue):
+                raise LoxRuntimeError(
+                    expr.keyword,
+                    "match requires an enum value.",
+                    code=Code.INVALID_VALUE,
+                )
             if value.key != pattern.enum.lexeme or value.variant != pattern.variant.lexeme:
                 continue
 
@@ -1088,6 +1099,22 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 self.environment = previous
 
         raise LoxRuntimeError(expr.keyword, "No match arm matched.", code=Code.INVALID_VALUE)
+
+    @staticmethod
+    def _is_match_value(value: object) -> bool:
+        return (
+            value is None or isinstance(value, (bool, str, LoxEnumValue)) or numeric.is_int(value)
+        )
+
+    @staticmethod
+    def _literal_matches(value: object, expected: object) -> bool:
+        if expected is None:
+            return value is None
+        if isinstance(expected, bool):
+            return isinstance(value, bool) and value == expected
+        if isinstance(expected, int):
+            return numeric.is_int(value) and value == expected
+        return isinstance(value, str) and value == expected
 
     def visit_interface_stmt(self, stmt: Interface) -> None:
         defaults: dict[str, LoxFunction] = {}

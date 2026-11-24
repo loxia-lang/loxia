@@ -933,20 +933,27 @@ val area = match s {
   `Result.Ok(T)`/`Result.Err(E)`, and cannot be redefined. `Option` remains `T?`.
 - Type: `Shape`, `Result[Int, String]`; arguments are invariant. `is`/`as` accept an enum
   without arguments (`x is Color`); with arguments they are rejected (the runtime erases `T`).
-- `match` is an **expression**: `match e { Pattern => expr ... }`. v1 patterns:
-  `Name.Variant`, `Name.Variant(a, b)` (positional bindings) and `_`. Arms are separated
-  by a line, `;` or `,`; using `match` as a statement discards the result.
-- Exhaustiveness is **mandatory**: all variants covered or `_`; a missing one is an error
-  (`Non-exhaustive match; missing Shape.Rect.`); a duplicate variant/arm after `_` is
-  `Unreachable match arm.` The scrutinee must be an enum (not `Any`/union).
-- Pattern bindings have the payload type (`Result.Ok(v)` → `v: T`); the type of `match`
-  is the union of the arms. Without `--check`, a `match` with no matching arm is a runtime error
-  (`No match arm matched.`).
-- Equality is structural (enum, variant and payload); `print(Color.Green)` →
-  `Color.Green`, `print(Shape.Circle(1.0))` → `Shape.Circle(1.0)`. Enums are not iterable,
-  have no `len` and are not `Map` keys.
-- Outside v1: literal/`nil` patterns, guards, nesting, `|`, `match` on unions and
-  null variants of a generic enum. The backend rejects `enum`/`match` until L6.
+- `match` is an **expression**: `match e { Pattern => expr ... }`. Patterns:
+  - enum: `Name.Variant` and `Name.Variant(a, b)` (positional bindings);
+  - literal: `Int` (including `-1`), `String`, `Bool` and `nil`;
+  - `_` wildcard.
+  Arms are separated by a line, `;` or `,`; using `match` as a statement discards the result.
+- Enum matches are exhaustive: all variants covered or `_`; a missing one is
+  (`Non-exhaustive match; missing Shape.Rect.`). Literal matches are open, so they require
+  `_`: without it the error is `Non-exhaustive match; add a '_' arm.` A duplicate
+  variant/literal or an arm after `_` is `Unreachable match arm.`
+- The scrutinee must be an enum, `Int`, `String`, `Bool` or `Nil`; `Any`, unions and
+  optionals are rejected (“narrow it first”). A match is either all enum variants or all
+  literals; mixing them is a type error. `Float` patterns do not exist.
+- Pattern bindings have the payload type (`Result.Ok(v)` → `v: T`); literal patterns bind
+  nothing. The type of `match` is the union of the arms. Without `--check`, a `match` with no
+  matching arm is a runtime error (`No match arm matched.`).
+- Equality is structural for enums and strict for literals: `1` only matches `Int`, `true`
+  only matches `Bool`, `nil` only matches `nil`; there is no `Int`/`Float` promotion in a
+  pattern. `print(Color.Green)` → `Color.Green`, `print(Shape.Circle(1.0))` →
+  `Shape.Circle(1.0)`. Enums are not iterable, have no `len` and are not `Map` keys.
+- Outside this slice: guards, nesting, `|`, structural match (lists/maps/tuples), `match`
+  on unions/`Any`/optionals and `Float` patterns.
 
 ## Exceptions
 

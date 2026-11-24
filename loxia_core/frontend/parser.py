@@ -30,6 +30,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -1495,6 +1496,22 @@ class Parser:
         return Match(keyword, scrutinee, arms, end)
 
     def _pattern(self) -> Pattern:
+        if self._match(
+            TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE, TokenType.NIL
+        ):
+            return self._literal_pattern(self._previous())
+
+        if self._match(TokenType.MINUS):
+            minus = self._previous()
+            number = self._consume(TokenType.NUMBER, "Expect number after '-' in pattern.")
+            if not isinstance(number.literal, int):
+                raise self._error(
+                    number,
+                    "Float patterns are not supported; use Int, String, Bool or nil.",
+                    Code.INVALID_MATCH,
+                )
+            return LiteralPattern(minus, -number.literal, end=number)
+
         token = self._consume(TokenType.IDENTIFIER, "Expect match pattern.")
         if token.lexeme == "_":
             return WildcardPattern(token)
@@ -1510,6 +1527,21 @@ class Parser:
             self._consume(TokenType.RIGHT_PAREN, "Expect ')' after pattern bindings.")
 
         return VariantPattern(token, variant, bindings)
+
+    def _literal_pattern(self, token: Token) -> LiteralPattern:
+        if token.type is TokenType.TRUE:
+            return LiteralPattern(token, True)
+        if token.type is TokenType.FALSE:
+            return LiteralPattern(token, False)
+        if token.type is TokenType.NIL:
+            return LiteralPattern(token, None)
+        if isinstance(token.literal, float):
+            raise self._error(
+                token,
+                "Float patterns are not supported; use Int, String, Bool or nil.",
+                Code.INVALID_MATCH,
+            )
+        return LiteralPattern(token, token.literal)
 
     def _match(self, *types: TokenType) -> bool:
         for token_type in types:

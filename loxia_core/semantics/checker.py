@@ -44,6 +44,7 @@ from loxia_core.frontend.expr import (
     Lambda,
     ListLiteral,
     Literal,
+    LiteralPattern,
     Logical,
     MapLiteral,
     Match,
@@ -4920,14 +4921,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         scrutinee = self._infer(expr.scrutinee)
         if scrutinee is ERROR:
             return ERROR
-        if not isinstance(scrutinee, EnumTy):
-            self._error(
-                expr.keyword,
-                "match requires an enum value; narrow it first.",
-                code=Code.TYPE_MISMATCH,
-            )
-            return ERROR
+        if isinstance(scrutinee, EnumTy):
+            return self._match_enum(expr, scrutinee)
+        if scrutinee is INT or scrutinee is STRING or scrutinee is BOOL or scrutinee is NIL:
+            return self._match_literal(expr, scrutinee)
 
+        self._error(
+            expr.keyword,
+            "match requires an enum, Int, String, Bool or nil value; narrow it first.",
+            code=Code.TYPE_MISMATCH,
+        )
+        return ERROR
+
+    def _match_enum(self, expr: Match, scrutinee: EnumTy) -> Ty:
         info = self._enums.get(scrutinee.name)
         if info is None:
             self._error(expr.keyword, f"Unknown enum '{scrutinee.name}'.", code=Code.UNKNOWN_TYPE)
@@ -4949,6 +4955,16 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
                     )
                 wildcard = True
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            if isinstance(pattern, LiteralPattern):
+                self._error(
+                    pattern.token,
+                    "Literal patterns only match Int, String, Bool or nil; "
+                    "use an enum variant pattern.",
+                    code=Code.TYPE_MISMATCH,
+                )
                 arm_types.append(self._infer(arm.body))
                 continue
 
@@ -5012,6 +5028,81 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 )
 
         return union(*arm_types)
+
+    def _match_literal(self, expr: Match, scrutinee: Ty) -> Ty:
+        wildcard = False
+        covered: set[tuple[str, object]] = set()
+        arm_types: list[Ty] = []
+
+        for arm in expr.arms:
+            pattern = arm.pattern
+            if isinstance(pattern, WildcardPattern):
+                if wildcard:
+                    self._error(
+                        pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH
+                    )
+                wildcard = True
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            if isinstance(pattern, VariantPattern):
+                self._error(
+                    pattern.enum,
+                    f"Enum variant patterns don't match {display(scrutinee)}; "
+                    "use a literal pattern or '_'.",
+                    code=Code.TYPE_MISMATCH,
+                )
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            assert isinstance(pattern, LiteralPattern)
+            if wildcard:
+                self._error(pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
+
+            literal_ty = self._literal_ty(pattern.value)
+            if literal_ty is not scrutinee:
+                self._error(
+                    pattern.token,
+                    f"Pattern of type {display(literal_ty)} doesn't match {display(scrutinee)}.",
+                    code=Code.TYPE_MISMATCH,
+                )
+                arm_types.append(self._infer(arm.body))
+                continue
+
+            key = self._literal_key(pattern.value)
+            if key in covered:
+                self._error(pattern.token, "Unreachable match arm.", code=Code.UNREACHABLE_MATCH)
+            covered.add(key)
+            arm_types.append(self._infer(arm.body))
+
+        if not wildcard:
+            self._error(
+                expr.keyword,
+                "Non-exhaustive match; add a '_' arm.",
+                code=Code.MATCH_EXHAUSTIVENESS,
+            )
+
+        return union(*arm_types)
+
+    @staticmethod
+    def _literal_ty(value: object) -> Ty:
+        if value is None:
+            return NIL
+        if isinstance(value, bool):
+            return BOOL
+        if isinstance(value, int):
+            return INT
+        return STRING
+
+    @staticmethod
+    def _literal_key(value: object) -> tuple[str, object]:
+        if value is None:
+            return ("nil", "")
+        if isinstance(value, bool):
+            return ("bool", value)
+        if isinstance(value, int):
+            return ("int", value)
+        return ("string", value)
 
     def visit_tuple_expr(self, expr: TupleLiteral) -> Ty:
         return TupleTy(tuple(self._infer(element) for element in expr.elements))

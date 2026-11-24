@@ -1,0 +1,2 @@
+print(match 1.0 { 1.0 => 1, _ => 2 })
+# expect error: Float patterns are not supported; use Int, String, Bool or nil.

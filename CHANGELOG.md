@@ -36,6 +36,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `finally` executado antes do salto e sem atravessar função/lambda. `break`/`continue`
   fora de laço é `E2010`. As duas palavras passam a ser reservadas (orçamento de keywords
   27→29); código que as usava como identificador precisa renomear.
+- **`match` com padrões literais** ([ADR-0140](docs/adr/0140-match-literais.md)): `match`
+  aceita `Int` (inclusive negativo), `String`, `Bool` e `nil`, além de variantes de enum;
+  fora de enum o `_` é obrigatório. `Float`, guards, `|`, ranges e match estrutural
+  continuam fora. Sem keyword nova; o orçamento não muda.
 - **`loxia_format` no MCP** ([#110](https://github.com/loxia-lang/loxia/issues/110)):
   tool read-only que aceita `source` ou `path` `.lx`, `max_width`, `check`, `diff` e
   `range`/`lines`; devolve o texto formatado + `TextEdit[]` exatos (aplicar os edits

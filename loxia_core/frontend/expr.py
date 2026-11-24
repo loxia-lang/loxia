@@ -193,7 +193,14 @@ class WildcardPattern:
     token: Token
 
 
-Pattern = VariantPattern | WildcardPattern
+@dataclass(frozen=True, eq=False)
+class LiteralPattern:
+    token: Token
+    value: object
+    end: Token | None = None
+
+
+Pattern = VariantPattern | WildcardPattern | LiteralPattern
 
 
 @dataclass(frozen=True, eq=False)
