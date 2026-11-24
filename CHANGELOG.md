@@ -127,7 +127,8 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   interpretador (`tests/cases/match_arm_local.lx`).
 - **`Any` e inferência em `match`**: `Expected T, found Any` agora sugere o `as` explícito;
   o tipo esperado é propagado aos braços de `match`, então `Result.Ok(1)` infere `E` no
-  contexto (`tests/cases/result_match_inference.lx`).
+  contexto (`tests/cases/result_match_inference.lx`). O construtor de enum em argumento de
+  chamada também infere do parâmetro (`tests/cases/result_call_arg_inference.lx`).
 - **Códigos de diagnóstico do checker** ([#111](https://github.com/loxia-lang/loxia/issues/111),
   [#100](https://github.com/loxia-lang/loxia/issues/100)): todo erro do checker passa a emitir
   um código estável; `E3000` deixa de ser fallback para argumento, propriedade, índice, match,
