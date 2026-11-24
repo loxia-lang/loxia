@@ -63,6 +63,8 @@ def test_flow_tables_have_no_stale_entries() -> None:
         (ast_stmt.Return, FlowPolicy.TERMINATOR),
         (ast_stmt.Raise, FlowPolicy.TERMINATOR),
         (ast_expr.Match, FlowPolicy.FORK),
+        (ast_expr.Conditional, FlowPolicy.FORK),
+        (ast_expr.Logical, FlowPolicy.FORK),
         (ast_expr.Lambda, FlowPolicy.ISOLATED),
     ],
 )
@@ -79,6 +81,19 @@ SOUNDNESS_CASES: list[tuple[str, str]] = [
         "match_last_arm_leak",
         "var x: String? = nil\nval k = 1\n"
         'val r = match k {\n  0 => (x = "s")\n  _ => "t"\n}\nprint(len(x))\n',
+    ),
+    (
+        "conditional_arm_leak",
+        'var x: String? = nil\nval k = 1\nval r = (x = "s") if k == 0 else "t"\nprint(len(x))\n',
+    ),
+    (
+        "logical_right_leak",
+        'var x: String? = nil\nval k = 0\nval ok = (k == 0) and (x = "s")\nprint(len(x))\n',
+    ),
+    (
+        "try_finally_break",
+        "var x: Int? = 1\nif (x != nil) {\n  while (true) {\n    try {\n      break\n"
+        "    } finally {\n      x = nil\n    }\n    x = 1\n  }\n  print(x + 1)\n}\n",
     ),
 ]
 
@@ -103,6 +118,13 @@ PRECISION_CASES: list[str] = [
     'var x: String? = "a"\nwhile (x == nil) {\n  while (true) { break }\n  x = "b"\n}\nprint(len(x))\n',
     # Código depois do `break` é inalcançável e não contamina o estado de saída.
     'var s: String? = nil\ns = "a"\nwhile (s != nil) {\n  break\n  s = nil\n}\nprint(len(s))\n',
+    # `break` sob um teste impossível (x já é nil) não contamina a saída refinada.
+    "var x: String? = nil\nwhile (x == nil) {\n  if (x != nil) { break }\n"
+    '  x = "a"\n}\nprint(len(x))\n',
+    # Atribuir antes do `break` sobrevive ao merge (saída normal + salto).
+    'var x: String? = nil\nwhile (x == nil) {\n  x = "a"\n  break\n}\nprint(len(x))\n',
+    # `for-in`: `break` + código morto depois dele não alarga o estado.
+    'var x: String? = nil\nx = "a"\nfor i in 0..2 {\n  break\n  x = nil\n}\nprint(len(x))\n',
 ]
 
 

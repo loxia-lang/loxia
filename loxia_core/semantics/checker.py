@@ -121,6 +121,7 @@ from loxia_core.frontend.ty import (
     union,
 )
 from loxia_core.semantics.flow import (
+    Invalidation,
     LoopContext,
     RefinementKey,
     RefinementState,
@@ -228,6 +229,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._captured_globals: set[str] = set(captured_globals or ())
         self._narrowings: RefinementState = {}
         self._loops: list[LoopContext] = []
+        self._journals: list[list[Invalidation]] = []
         self._classes: dict[str, ClassInfo] = {}
         self._enums: dict[str, EnumInfo] = {}
         self._interfaces: dict[str, InterfaceInfo] = {}
@@ -680,8 +682,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return found[1]
 
+    def _record_invalidation(self, entry: Invalidation) -> None:
+        """Grava a invalidação em todos os `finally` em análise (ADR-0141)."""
+        for journal in self._journals:
+            journal.append(entry)
+
     def _invalidate(self, name: str, index: int) -> None:
         """Atribuir à raiz invalida o caminho inteiro (`p`, `p.nome`, `p[0]`)."""
+        self._record_invalidation(Invalidation("root", index=index, name=name))
         for key in list(self._narrowings):
             if key[0] == index and key[1] == name:
                 del self._narrowings[key]
@@ -710,19 +718,25 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         """
         if not self._captured_mutables and not self._captured_globals:
             return
-        for key in list(self._narrowings):
+        self._record_invalidation(Invalidation("captured"))
+        self._invalidate_captured_state(self._narrowings)
+
+    def _invalidate_captured_state(self, state: RefinementState) -> None:
+        """Aplica a invalidação de captura a um estado (usado no replay do `finally`)."""
+        for key in list(state):
             if key[2]:
                 continue
             index = key[0]
             if index == 0 and key[1] in self._captured_globals:
-                del self._narrowings[key]
+                del state[key]
                 continue
-            token = self._decl_tokens[index].get(key[1])
-            if token in self._captured_mutables:
-                del self._narrowings[key]
+            tokens = self._decl_tokens[index] if index < len(self._decl_tokens) else {}
+            if tokens.get(key[1]) in self._captured_mutables:
+                del state[key]
 
     def _invalidate_path(self, key: RefinementKey) -> None:
         """Mutar um caminho invalida ele e os caminhos mais fundos com o mesmo prefixo."""
+        self._record_invalidation(Invalidation("path", key=key))
         size = len(key[2])
         for candidate in list(self._narrowings):
             if candidate[0] == key[0] and candidate[1] == key[1] and candidate[2][:size] == key[2]:
@@ -733,8 +747,36 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         Sem aliasing não dá para saber o que a chamada mutou; refinos de variáveis
         continuam (ADR-0045)."""
+        self._record_invalidation(Invalidation("members"))
         for key in [key for key in self._narrowings if key[2]]:
             del self._narrowings[key]
+
+    def _apply_invalidations(self, state: RefinementState, entries: list[Invalidation]) -> None:
+        """Replay das invalidações de um `finally` sobre o estado de um salto."""
+        for entry in entries:
+            if entry.kind == "root":
+                for key in [
+                    candidate
+                    for candidate in state
+                    if candidate[0] == entry.index and candidate[1] == entry.name
+                ]:
+                    del state[key]
+            elif entry.kind == "path" and entry.key is not None:
+                path = entry.key
+                size = len(path[2])
+                for key in [
+                    candidate
+                    for candidate in state
+                    if candidate[0] == path[0]
+                    and candidate[1] == path[1]
+                    and candidate[2][:size] == path[2]
+                ]:
+                    del state[key]
+            elif entry.kind == "members":
+                for key in [candidate for candidate in state if candidate[2]]:
+                    del state[key]
+            elif entry.kind == "captured":
+                self._invalidate_captured_state(state)
 
     def _apply_refinements(self, refinements: dict[RefinementKey, Ty]) -> None:
         self._narrowings.update(refinements)
@@ -2995,12 +3037,31 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     ) -> dict[RefinementKey, Ty]:
         if equal:
             # x == nil
-            narrowed = NIL if truth else non_nil(declared)
+            narrowed = (NIL if is_nilable(declared) else NEVER) if truth else non_nil(declared)
         else:
             # x != nil
-            narrowed = non_nil(declared) if truth else NIL
+            narrowed = non_nil(declared) if truth else (NIL if is_nilable(declared) else NEVER)
 
         return {key: narrowed} if narrowed != declared else {}
+
+    def _refine_state(
+        self, state: RefinementState, condition: Expr, truth: bool
+    ) -> RefinementState | None:
+        """Refina um estado pela condição; `None` quando o caminho é impossível.
+
+        O teste nulo contraditório (ex.: `x == nil` com `x: String`) refina para `NEVER`;
+        nesse caso a saída inteira é descartada em vez de virar um refino inventado.
+        """
+        saved = self._narrowings
+        self._narrowings = dict(state)
+        try:
+            refinements = self._refinements(condition, truth)
+            if any(ty is NEVER for ty in refinements.values()):
+                return None
+            self._apply_refinements(refinements)
+            return dict(self._narrowings)
+        finally:
+            self._narrowings = saved
 
     def _narrow_to(self, current: Ty, test: Ty) -> Ty | None:
         narrowed = self._intersect_types(current, test)
@@ -3115,34 +3176,39 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         return None
 
-    def _always_returns(self, stmt: Stmt) -> bool:
-        if isinstance(stmt, Return):
-            return True
-        if isinstance(stmt, Raise):
+    def _always_returns(self, stmt: Stmt, *, jumps: bool = False) -> bool:
+        """O nó sempre sai do bloco? Com `jumps`, `break`/`continue` também contam."""
+        if isinstance(stmt, (Break, Continue)):
+            return jumps
+        if isinstance(stmt, (Return, Raise)):
             return True
         if isinstance(stmt, Try):
-            if stmt.finally_body is not None and self._body_always_returns(stmt.finally_body):
+            if stmt.finally_body is not None and self._body_always_returns(
+                stmt.finally_body, jumps=jumps
+            ):
                 return True
-            if not self._body_always_returns(stmt.body):
+            if not self._body_always_returns(stmt.body, jumps=jumps):
                 return False
-            return all(self._body_always_returns(clause.body) for clause in stmt.handlers)
+            return all(
+                self._body_always_returns(clause.body, jumps=jumps) for clause in stmt.handlers
+            )
         if isinstance(stmt, Block):
-            return any(self._always_returns(inner) for inner in stmt.statements)
+            return any(self._always_returns(inner, jumps=jumps) for inner in stmt.statements)
         if isinstance(stmt, If):
             return (
                 stmt.else_branch is not None
-                and self._always_returns(stmt.then_branch)
-                and self._always_returns(stmt.else_branch)
+                and self._always_returns(stmt.then_branch, jumps=jumps)
+                and self._always_returns(stmt.else_branch, jumps=jumps)
             )
 
         return False
 
-    def _body_always_returns(self, body: list[Stmt]) -> bool:
-        return any(self._always_returns(stmt) for stmt in body)
+    def _body_always_returns(self, body: list[Stmt], *, jumps: bool = False) -> bool:
+        return any(self._always_returns(stmt, jumps=jumps) for stmt in body)
 
     def _terminates(self, stmt: Stmt) -> bool:
         """`break`/`continue`/`return`/`raise`: o bloco não cai para a próxima instrução."""
-        return isinstance(stmt, (Break, Continue)) or self._always_returns(stmt)
+        return self._always_returns(stmt, jumps=True)
 
     def _resolve_exception_type(self, token: Token) -> Ty:
         info = self._classes.get(token.lexeme)
@@ -3173,6 +3239,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_try_stmt(self, stmt: Try) -> None:
         base = dict(self._narrowings)
+        # `break`/`continue` do corpo e dos handlers só concluem o salto depois do
+        # `finally`; os estados gravados precisam receber as invalidações dele.
+        break_marks = [(context, len(context.breaks)) for context in self._loops]
         body_state = self._check_list_from(stmt.body, base)
         body_returns = self._body_always_returns(stmt.body)
 
@@ -3214,7 +3283,20 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings = merged
 
         if stmt.finally_body is not None:
-            self._narrowings = self._check_list_from(stmt.finally_body, merged)
+            pending = [
+                (context, start, len(context.breaks))
+                for context, start in break_marks
+                if len(context.breaks) > start
+            ]
+            journal: list[Invalidation] = []
+            self._journals.append(journal)
+            try:
+                self._narrowings = self._check_list_from(stmt.finally_body, merged)
+            finally:
+                self._journals.pop()
+            for context, start, end in pending:
+                for state in context.breaks[start:end]:
+                    self._apply_invalidations(state, journal)
 
     def visit_raise_stmt(self, stmt: Raise) -> None:
         if stmt.value is None:
@@ -3370,11 +3452,19 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             body_state, _ = self._check_branch(stmt.body, self._refinements(stmt.condition, True))
         finally:
             self._loops.pop()
-        # O laço pode executar zero vezes. Com `break` alcançável, a saída é o merge da
-        # entrada, do fallthrough e dos saltos: o `break` sai sem tornar a condição falsa.
-        self._narrowings = join_exits(base, body_state, *context.breaks)
-        if not context.has_break:
-            self._apply_refinements(self._refinements(stmt.condition, False))
+        # A saída normal (zero iterações e fallthrough) satisfaz a condição falsa; o
+        # `break` não. Refina cada saída normal em separado (descartando a impossível)
+        # e só então junta os saltos (ADR-0141).
+        exits = [
+            state
+            for state in (
+                self._refine_state(base, stmt.condition, False),
+                self._refine_state(body_state, stmt.condition, False),
+            )
+            if state is not None
+        ]
+        exits.extend(context.breaks)
+        self._narrowings = join_exits(*exits) if exits else {}
 
     # --- expressões ---
 
@@ -5358,12 +5448,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_conditional_expr(self, expr: Conditional) -> Ty:
         self._infer(expr.condition)
+        base = dict(self._narrowings)
+        self._apply_refinements(self._refinements(expr.condition, True))
         then_ty = self._infer(expr.then_branch)
+        then_state = dict(self._narrowings)
+        self._narrowings = dict(base)
+        self._apply_refinements(self._refinements(expr.condition, False))
         else_ty = self._infer(expr.else_branch)
+        else_state = dict(self._narrowings)
+        # Só um dos braços roda: a saída é o merge, nunca o estado do último braço.
+        self._narrowings = join_exits(then_state, else_state)
         return union(then_ty, else_ty)
 
     def visit_logical_expr(self, expr: Logical) -> Ty:
         left = self._infer(expr.left)
+        base = dict(self._narrowings)
 
         if (
             expr.operator.type is TokenType.QUESTION_QUESTION
@@ -5377,6 +5476,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 right = self._infer(expr.right)
         else:
             right = self._infer(expr.right)
+
+        # O operando direito é condicional (`and`/`or`) ou só roda com `nil` (`??`):
+        # a saída é o merge com o caminho que o pulou (ADR-0141).
+        self._narrowings = join_exits(base, self._narrowings)
 
         if expr.operator.type is TokenType.QUESTION_QUESTION:
             if left is ANY:

@@ -85,26 +85,40 @@ O protocolo de fluxo existe e funciona em `if`/`elif`/`else`, `while`, `for-in` 
    - **Saltos são terminadores.** `break`, `continue`, `return` e `raise` não caem para a
      instrução seguinte. O código depois deles continua sendo checado (diagnósticos
      permanecem), mas não contribui para o estado de saída do bloco.
-   - **`while`.** Entrada `E`, corpo `B` checado com `E + condição-verdadeira`. Sem `break`
-     alcançável, a saída continua `join(E, B)` com a condição-falsa aplicada. Com `break`
-     alcançável, a saída é `join(E, B, estados de break)` e a condição-falsa **não** é
-     aplicada. `while true` sem `break` não tem saída normal; o checker não modela
-     alcançabilidade, então o estado depois do laço é esse merge conservador.
+   - **`while`.** Entrada `E`, corpo `B` checado com `E + condição-verdadeira`. A saída
+     normal (zero iterações e fallthrough) é `join(E, B)` e recebe a **condição falsa**; os
+     estados de `break` não a recebem, porque o `break` sai com a condição verdadeira. A
+     saída é `join(saída_normal_refinada, estados de break)`. `while true` sem `break` não
+     tem saída normal; o checker não modela alcançabilidade, então o estado depois do laço
+     é esse merge conservador.
    - **`for-in`.** Saída é `join(E, B, estados de break)`; não há condição-falsa.
    - **`match`.** Cada braço parte de `E`, com os bindings no seu próprio escopo; o estado
      depois do `match` é o join dos braços que produzem valor. O último braço nunca define
      sozinho o estado seguinte.
-   - **`try`/`finally`.** Mantém o merge atual (corpo + handlers que caem); o estado de saída
-     de um salto que atravessa `finally` é o do `finally`, como o lowering já faz.
+   - **Ternário e lógico.** `a if c else b` faz fork dos dois braços (com os refinos de `c` e
+     `not c`) e a saída é o join. Em `and`/`or`/`??` o operando direito é condicional: a
+     saída é `join(estado_antes_do_direito, estado_depois)`. Marcar esses nós como
+     `TRANSPARENT` foi o bug que o gate de política não pegou; eles têm teste de
+     comportamento próprio.
+   - **`try`/`finally`.** O merge do corpo e dos handlers que caem continua. Quando há
+     `finally`, as **invalidações** que ele executa (atribuição, chamada de usuário,
+     captura) são replicadas nos estados de `break`/`continue` gravados durante o corpo e
+     os handlers, porque o `finally` roda antes de o salto concluir. Só invalidações são
+     replicadas; refinos do `finally` podem depender do caminho de entrada e não são
+     reaplicados.
+   - **`if`/`else` como statement.** Cada ramo parte do estado de entrada; a saída é o join
+     dos ramos que caem, com os refinos da condição aplicados só ao caminho que passa por
+     ela.
    - **`continue`.** O estado no `continue` volta para o topo do laço; para o merge pós-laço
      ele conta como fallthrough (conservador). A ausência de fixpoint é declarada, não
      silenciosa.
-5. **Política de fluxo obrigatória.** Cada tipo de nó de `Stmt`/`Expr` tem uma entrada
-   explícita em `FLOW_POLICY`: `transparent`, `fork`, `loop`, `jump` ou `terminator`. Um
-   teste (`tests/test_checker_flow.py`) percorre as subclasses e **falha** quando aparece um
-   nó sem política. O default não é "transparente": esquecer é erro de CI, não bug em
-   produção. É o mesmo mecanismo do [ADR-0117](0117-ast-manual-e-cobertura-de-visitantes.md)
-   aplicado a fluxo.
+5. **Política de fluxo obrigatória.** `STMT_FLOW`/`EXPR_FLOW` classificam cada nó como
+   `transparent`, `fork`, `loop`, `jump`, `terminator` ou `isolated`. Um teste
+   (`tests/test_checker_flow.py`) percorre as subclasses e **falha** quando aparece um nó
+   sem política; os nós de fork (`if`, `match`, ternário, lógico, `try`, laços) têm também
+   testes de comportamento que falham se o visitante deixar o estado vazar. O default não é
+   "transparente": esquecer é erro de CI, não bug em produção. É o mesmo mecanismo do
+   [ADR-0117](0117-ast-manual-e-cobertura-de-visitantes.md) aplicado a fluxo.
 6. **Gate "o checker não mente".** Varredura do corpus: se o `--check` está limpo e o
    interpretador levanta `R1000`, `R1001`, `R1005` ou `R1006` sem o valor ter passado por
    `Any`, é furo. Cada exceção precisa de allow-list explícita e motivo. Os dois programas
@@ -125,7 +139,8 @@ invalida.
 
 ### Positivas
 
-- Fim dos dois furos; o `--check` deixa de aceitar programas que crasham o binário.
+- Fim dos furos de fluxo (`break`, `match`, ternário, lógico e `try/finally`); o `--check`
+  deixa de aceitar programas que crasham o binário.
 - O check pode virar obrigatório ([ADR-0142](0142-check-por-fases.md)) sem mentir sobre o
   que garante.
 - Construto de fluxo novo passa a custar uma linha de política e um teste, não uma
@@ -135,8 +150,11 @@ invalida.
 
 ### Negativas / custos
 
-- Programas hoje aceitos passam a ser recusados (os dois padrões do contexto). É a correção
-  esperada, mas é mudança observável no `--check`.
+- Programas hoje aceitos passam a ser recusados quando a saída do construto de fluxo era
+  inventada: os padrões de `break`, `match`, ternário, lógico e `try/finally` do contexto e
+  dos testes de soundness. É a correção esperada, mas é mudança observável no `--check`.
+  Programas válidos com `break` sob teste impossível continuam aceitos, porque a saída
+  normal recebe a condição falsa antes do merge com os saltos.
 - D0 mexe em ~150–250 linhas de fluxo e nos testes dos construtos afetados.
 - A política de fluxo é cerimônia nova em todo nó de AST novo (mitigada pelo teste).
 - O gate de soundness adiciona uma varredura ao CI.
@@ -159,14 +177,17 @@ invalida.
 
 ## Como verificar
 
-- Os dois programas do contexto são regressões em `tests/test_checker_flow.py`: o `--check`
-  recusa (E3007). Como `run` ainda não checa ([ADR-0142](0142-check-por-fases.md)), eles não
-  podem ser caso golden de erro; viram caso golden quando a fase 2 ligar o check no `run`.
+- As regressões de soundness em `tests/test_checker_flow.py`: `break` pós-laço, vazamento do
+  último braço de `match`, vazamento do ternário e do lado direito de `and`, e `break` dentro
+  de `try/finally` que atribui. O `--check` recusa todos (E3007). Como `run` ainda não checa
+  ([ADR-0142](0142-check-por-fases.md)), eles não podem ser caso golden de erro; viram caso
+  golden quando a fase 2 ligar o check no `run`.
 - As formas **válidas** de `break`/`match` com narrowing entram no corpus diferencial
-  (`break_narrowing.lx` em l2, `match_arm_flow.lx` em l6), onde I1 compara interpretador e
-  binário nos três canais.
-- `tests/test_checker_flow.py` falha se um `Stmt`/`Expr` novo não tiver política, e cobre a
-  precisão preservada (join dos braços, saída do `while` sem `break`, laço aninhado).
+  (`break_narrowing.lx` em l2, `break_finally.lx` em l2, `match_arm_flow.lx` em l6), onde I1
+  compara interpretador e binário nos três canais.
+- `tests/test_checker_flow.py` falha se um `Stmt`/`Expr` novo não tiver política, cobre a
+  precisão preservada (join dos braços, saída do `while`, laço aninhado, `break` guardado,
+  código morto) e fixa a política esperada dos nós de fork (incluindo ternário e lógico).
 - Corpus golden continua com 0 programa válido recusado.
 - `make check` verde.
 - **Pendente:** a varredura "check limpo ⇒ sem `R1000`/`R1001`/`R1005`/`R1006`" sobre o

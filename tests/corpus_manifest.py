@@ -259,6 +259,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/for.lx",
         "tests/cases/break_continue.lx",
         "tests/cases/break_narrowing.lx",
+        "tests/cases/break_finally.lx",
         "tests/cases/logical.lx",
         "tests/cases/operator_line.lx",
         "tests/cases/recursion.lx",

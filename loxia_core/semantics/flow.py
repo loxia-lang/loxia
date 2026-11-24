@@ -90,9 +90,9 @@ EXPR_FLOW: dict[type, FlowPolicy] = {
     ast_expr.Unary: FlowPolicy.TRANSPARENT,
     ast_expr.Assign: FlowPolicy.TRANSPARENT,
     ast_expr.Call: FlowPolicy.TRANSPARENT,
-    ast_expr.Conditional: FlowPolicy.TRANSPARENT,
+    ast_expr.Conditional: FlowPolicy.FORK,
     ast_expr.Get: FlowPolicy.TRANSPARENT,
-    ast_expr.Logical: FlowPolicy.TRANSPARENT,
+    ast_expr.Logical: FlowPolicy.FORK,
     ast_expr.Set: FlowPolicy.TRANSPARENT,
     ast_expr.Super: FlowPolicy.TRANSPARENT,
     ast_expr.This: FlowPolicy.TRANSPARENT,
@@ -100,12 +100,20 @@ EXPR_FLOW: dict[type, FlowPolicy] = {
 }
 
 
-def flow_policy(node: object) -> FlowPolicy:
-    """Política do nó; falha alto para um nó não classificado."""
-    policy = STMT_FLOW.get(type(node)) or EXPR_FLOW.get(type(node))
-    if policy is None:
-        raise KeyError(f"{type(node).__name__} has no FlowPolicy")
-    return policy
+@dataclass(frozen=True)
+class Invalidation:
+    """Operação de invalidação de refino, para replay em outro estado de fluxo.
+
+    `try`/`finally` roda antes de um `break`/`continue`/`return` concluir o salto: o
+    estado gravado no salto precisa receber as invalidações do `finally` (ADR-0141).
+    Só invalidações são replicadas; refinos (narrowing) do `finally` podem depender do
+    caminho de entrada e por isso não são reaplicados.
+    """
+
+    kind: str
+    index: int = 0
+    name: str = ""
+    key: RefinementKey | None = None
 
 
 def join_states(left: RefinementState, right: RefinementState) -> RefinementState:

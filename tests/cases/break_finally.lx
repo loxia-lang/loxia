@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# O `finally` roda antes do `break`: o salto recebe as invalidações dele (ADR-0141).
+var s: String? = "a"
+var n = 0
+while (true) {
+  try {
+    n = n + 1
+    break
+  } finally {
+    s = nil
+  }
+}
+print(n)         # expect: 1
+print(s == nil)  # expect: true
