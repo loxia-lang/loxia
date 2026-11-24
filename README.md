@@ -258,7 +258,7 @@ source .lx
    ├─ scanner → tokens
    ├─ parser → AST
    ├─ resolver → lexical depths
-   ├─ checker (--check) → type errors before execution
+   ├─ checker (--check; run checks gradually) → type errors before execution
    ├─ interpreter → effects
    └─ backend (--emit) → LLVM IR → object → cc → native binary
 ```

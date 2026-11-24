@@ -1,0 +1,8 @@
+var x: String? = nil
+val k = 1
+val r = match k {
+  0 => (x = "s")
+  _ => "t"
+}
+print(len(x))
+# expect error: Expected a string, a list or a map, found String | Nil.

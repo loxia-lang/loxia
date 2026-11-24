@@ -80,3 +80,42 @@ def test_no_check_escape_was_removed(tmp_path: Path) -> None:
     assert run_cli("run", "--no-check", str(program)).returncode == 2
     assert run_cli("--no-check", str(program)).returncode == 2
     assert run_cli("test", "--no-check", str(tmp_path)).returncode == 2
+
+
+def test_repl_sees_previous_snippets(capsys: pytest.CaptureFixture[str]) -> None:
+    lox = Loxia()
+
+    lox.run_repl("var x = 41\n")
+    lox.run_repl("print(x + 1)\n")
+    lox.run_repl("class P { fn m() -> Int { return 1 } }\n")
+    lox.run_repl("val p = P()\n")
+    lox.run_repl("val b: P = P()\n")
+    lox.run_repl("print(p.m())\n")
+
+    captured = capsys.readouterr()
+    assert captured.out == "42\n1\n"
+    assert "E3007" not in captured.err
+    assert "E3001" not in captured.err
+    assert "E3005" not in captured.err
+
+
+def test_repl_json_lines_reports_the_advisory_warning() -> None:
+    result = run_cli("repl", "--json-lines", stdin='var x: Int = "a"\n')
+
+    assert result.returncode == 0
+    assert '"code":"E3001"' in result.stderr
+    assert '"warnings":1' in result.stderr
+
+
+def test_run_blocks_a_spread_into_a_non_variadic_call(tmp_path: Path) -> None:
+    program = tmp_path / "spread.lx"
+    program.write_text(
+        "fn f(a: Int, b: Int) -> Int { return a + b }\nprint(f(...[1, 2]))\n",
+        encoding="utf-8",
+    )
+
+    blocked = run_cli("run", str(program))
+
+    assert blocked.returncode == 65
+    assert "E3002" in blocked.stderr
+    assert blocked.stdout == ""

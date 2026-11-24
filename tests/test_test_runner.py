@@ -738,3 +738,62 @@ def test_precheck_native_curto_circuita_antes_do_build(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "error[E3001]" in result.stdout
     assert "native build failed" not in result.stdout
+
+
+LOWERABLE_UNUSED = """
+import std.test as t
+fn helper() -> Int { return 1 + true }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(1).toBe(1) })
+suite.done()
+"""
+
+LOWERABLE_CALLED = """
+import std.test as t
+fn helper() -> Int { return 1 + true }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(helper()).toBe(1) })
+suite.done()
+"""
+
+UNANNOTATED_NATIVE = """
+import std.test as t
+fn double(x) { return x + x }
+val suite = t.Suite()
+suite.it("a", fn() { t.expect(double(1)).toBe(2) })
+suite.done()
+"""
+
+
+def test_precheck_adia_lowerable_como_o_run(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "lower_test.lx").write_text(LOWERABLE_UNUSED, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 0
+    assert "ok 1 - a" in result.stdout
+
+
+def test_lowerable_executado_falha_no_run(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "lower_test.lx").write_text(LOWERABLE_CALLED, encoding="utf-8")
+
+    result = run_test(str(tests))
+
+    assert result.returncode == 1
+    assert "not ok 1" in result.stdout
+
+
+def test_precheck_native_exige_anotacao(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "native_test.lx").write_text(UNANNOTATED_NATIVE, encoding="utf-8")
+
+    result = run_test(str(tests), "--native")
+
+    assert result.returncode == 1
+    assert "E3004" in result.stdout
+    assert "native build failed" not in result.stdout

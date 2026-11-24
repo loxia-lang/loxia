@@ -180,6 +180,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         gradual: bool = False,
         warn_missing: bool = True,
         warn_only: bool = False,
+        decls: DeclTable | None = None,
+        seed_globals: dict[str, Ty] | None = None,
+        alias_targets: dict[str, Ty] | None = None,
+        alias_resolved: dict[str, Ty] | None = None,
     ) -> None:
         self._reporter = reporter
         self._source_index = source_index
@@ -197,7 +201,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._narrowings: RefinementState = {}
         self._loops: list[LoopContext] = []
         self._journals: list[list[Invalidation]] = []
-        self._decls = DeclTable()
+        self._decls = decls if decls is not None else DeclTable()
         self._types = TypeOps(
             self._decls,
             gradual=gradual,
@@ -213,9 +217,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._type_param_scopes: list[dict[str, TyVar]] = []
         self._next_type_var_id = 0
         self._generic_context: list[tuple[str, tuple[TyVar, ...]]] = []
-        self._alias_targets: dict[str, Ty] = {}
+        self._alias_targets: dict[str, Ty] = dict(alias_targets or {})
         self._alias_tokens: dict[str, Token] = {}
-        self._alias_resolved: dict[str, Ty] = {}
+        self._alias_resolved: dict[str, Ty] = dict(alias_resolved or {})
         self._alias_resolving: set[str] = set()
         self._native_modules: dict[str, dict[str, Ty]] = {}
         self._except_depth = 0
@@ -230,6 +234,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._function_depth = 0
         self._return_collector: list[Ty] | None = None
         self._define_builtins()
+        # Sessões (REPL) enxergam os nomes declarados em snippets anteriores.
+        self._scopes[0].update(seed_globals or {})
 
     def concrete_class_types(self) -> set[ClassTy]:
         """Todas as instanciações de classe concretas vistas pelo checker."""
@@ -238,6 +244,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             if isinstance(ty, ClassTy) and ty.args and not self._contains_type_var(ty):
                 result.add(ty)
         return result
+
+    @property
+    def global_scope(self) -> dict[str, Ty]:
+        return dict(self._scopes[0])
+
+    @property
+    def alias_targets(self) -> dict[str, Ty]:
+        return dict(self._alias_targets)
+
+    @property
+    def alias_resolved(self) -> dict[str, Ty]:
+        return dict(self._alias_resolved)
 
     @property
     def _classes(self) -> dict[str, ClassInfo]:
@@ -3794,7 +3812,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     token,
                     "Spread arguments are only supported for variadic functions.",
                     code=Code.ARITY_MISMATCH,
-                    lowerable=True,
                 )
                 return
             if count != fixed + 1:
@@ -3803,7 +3820,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                     "Spread arguments only fill the variadic parameter; "
                     "pass the fixed parameters explicitly.",
                     code=Code.ARITY_MISMATCH,
-                    lowerable=True,
                 )
                 return
             for index, argument in enumerate(arguments[:-1], start=1):

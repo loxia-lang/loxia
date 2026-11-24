@@ -96,6 +96,7 @@
     "tests/cases/errors/bitwise_type.lx": "19ed4ce3afc5f1060533efbcf201697b066f0fdc65b9590602a9893ee6e06c29",
     "tests/cases/errors/break_in_lambda.lx": "0fd589058b704f62bd260f20157f8bdee6384e314f61e8bb48d81a83bba11b0d",
     "tests/cases/errors/break_outside_loop.lx": "7da3c16f1976e159a7560b7343be786da34474699db1f1855565ac132b65b628",
+    "tests/cases/errors/break_post_loop.lx": "34e25c3d5bf943f2e08ae2c850e8951ce6ec4207c92b1843cc6c5eb0af933c13",
     "tests/cases/errors/builtin_redeclare.lx": "345f9c8698e93e8de2b22fada0b8708c99a37371e118dba1e66e4c5821a5fad2",
     "tests/cases/errors/class_inherit_self.lx": "c59b0ddb05fd56e944616dc4e55e65b49ea776b1768041faffec7a688605b87e",
     "tests/cases/errors/continue_outside_loop.lx": "9b3726502f7a566483ba5384bb618d2ba2150031ae264550830af59fe2c22f91",
@@ -132,6 +133,7 @@
     "tests/cases/errors/map_literal_key_variable.lx": "c84b30a8a31c3c291216c12dfc0357a5657c3365920017a01c8fb7ffaa8a4076",
     "tests/cases/errors/map_missing_key.lx": "5adc412bcef77e9e81f7316792157fd4479da8e826dc21b52e753aabb6944090",
     "tests/cases/errors/map_remove_missing.lx": "c68169bf6803482b35411a92ffa4ce5d0975af12c802ff360f688ac9199ab254",
+    "tests/cases/errors/match_arm_leak.lx": "77348246e9085c216905e85fc4c71feabad3905872811e5d3305ef9336cc0f4b",
     "tests/cases/errors/match_invalid_scrutinee.lx": "79167019e55a90e39e428e002f3db4f2eeee89f7df89c978b21dd400f9bd73a0",
     "tests/cases/errors/method_arity.lx": "bd9655e57d9470231887613539783c6560c3ef6e63dbceb5772c1eca5329ed6c",
     "tests/cases/errors/modulo_by_zero.lx": "0c772a8854e29cabbfb4319de9e3b247db75c18fb5c3d5a35e1a5946eaf3eaec",
@@ -154,6 +156,8 @@
     "tests/cases/errors/redeclaration.lx": "d8759f55e2a4bd8f4e836c23fb4642e9ef453d226d6e52a2385b4464b2c725f8",
     "tests/cases/errors/self_initializer.lx": "49eee060db48bc0a3fff06b9c2d7db33792c30e911b12c44eab57cf96b0debda",
     "tests/cases/errors/shift_count.lx": "c671f61337845af380dca2161c715f2204eb648f9fbe654aef357be1e44b1414",
+    "tests/cases/errors/spread_fill.lx": "c6d1c8e5eb591c1733679c2305ebbe802602ecb8cc47a96c10d1b2afa6401e9b",
+    "tests/cases/errors/spread_non_variadic.lx": "d71af9441c3dfdc7d1587222adf6bb00331c6108231bca21fba80bfaeb7a1192",
     "tests/cases/errors/super_outside_class.lx": "49ea270175f9a5ed1ae108bbebf65de3c8f89db2398cfebec95c86dd16e47334",
     "tests/cases/errors/super_undefined_method.lx": "800fe0e2a52fbe88281c12b9b9935654fc67ef1f075ad32b8d8db168b9227002",
     "tests/cases/errors/super_without_superclass.lx": "010c7f7a8368a44fa8126fa3af0da8032e8d2246e9c67344daa1e2c4ec657743",
@@ -708,6 +712,26 @@
             "column": 1,
             "line": 1,
             "offset": 0
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/break_post_loop.lx": [
+      {
+        "code": "E3007",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 5,
+            "offset": 62
+          },
+          "file": "tests/cases/errors/break_post_loop.lx",
+          "start": {
+            "column": 12,
+            "line": 5,
+            "offset": 61
           }
         }
       }
@@ -1836,6 +1860,26 @@
         }
       }
     ],
+    "tests/cases/errors/match_arm_leak.lx": [
+      {
+        "code": "E3007",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 13,
+            "line": 7,
+            "offset": 91
+          },
+          "file": "tests/cases/errors/match_arm_leak.lx",
+          "start": {
+            "column": 12,
+            "line": 7,
+            "offset": 90
+          }
+        }
+      }
+    ],
     "tests/cases/errors/match_invalid_scrutinee.lx": [
       {
         "code": "E3001",
@@ -2426,6 +2470,46 @@
             "column": 9,
             "line": 1,
             "offset": 8
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/spread_fill.lx": [
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 22,
+            "line": 2,
+            "offset": 68
+          },
+          "file": "tests/cases/errors/spread_fill.lx",
+          "start": {
+            "column": 21,
+            "line": 2,
+            "offset": 67
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/spread_non_variadic.lx": [
+      {
+        "code": "E3002",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 19,
+            "line": 2,
+            "offset": 63
+          },
+          "file": "tests/cases/errors/spread_non_variadic.lx",
+          "start": {
+            "column": 18,
+            "line": 2,
+            "offset": 62
           }
         }
       }
@@ -3098,6 +3182,7 @@
     "tests/cases/errors/bitwise_type.lx": "f0c73971fb29b6ed944d5820f3e8cc112afd414d8ff02755d70634e772235218",
     "tests/cases/errors/break_in_lambda.lx": "56dac8541bafe7ea0a73f65b3767020990691ceefe626b80df56749db33af61e",
     "tests/cases/errors/break_outside_loop.lx": "459135507a1edd9dcc390891c81470150788febc35f25160dc51e4e17ebbaaed",
+    "tests/cases/errors/break_post_loop.lx": "7ace51fcbf33f9efe8f4d914c6d916f3c71ee6db3413c2b3702a3e91c669e2b7",
     "tests/cases/errors/builtin_redeclare.lx": "10d32af3f19f4b06bb3f1a473a47016b010396f0073a9d20059435ae8a262995",
     "tests/cases/errors/class_inherit_self.lx": "2b335e7ee83a2bc7dba60cb6302bc709a872a47537b29106e686566eb556177a",
     "tests/cases/errors/continue_outside_loop.lx": "f4ce7e2bda722bf10a2e8402aeaa6dcf7beb84b2d3ff58f8a189ddd21360538e",
@@ -3134,6 +3219,7 @@
     "tests/cases/errors/map_literal_key_variable.lx": "426b19c4c95d889789c1a6a27250c3b9972432fd0e0578cffe707dee063a868a",
     "tests/cases/errors/map_missing_key.lx": "164ce50b918feb4d0095bead76ab6c362c6df88e82eebf93b88d7fc606eeb606",
     "tests/cases/errors/map_remove_missing.lx": "f45d8d9f8ca433001f4208a491fdb8ca221e2e92fb12adf4ab420fb7819c0f29",
+    "tests/cases/errors/match_arm_leak.lx": "dcdae2a46901fc69b69943bb0df86de0225e77d62215b28a74c2d6b50baa4616",
     "tests/cases/errors/match_invalid_scrutinee.lx": "751d0493a96765d21a3a29f622e279760b0da25f3133d3b9a6c3bf0db4e59438",
     "tests/cases/errors/method_arity.lx": "5acc218544c4bdd15e2cc6a039cd305ea57ab1af43c6798cdaadd3344262a525",
     "tests/cases/errors/modulo_by_zero.lx": "50c40e266287d7266bbdd92e5d4745b98f60a73aef69e96bf5086fedf0eb1018",
@@ -3156,6 +3242,8 @@
     "tests/cases/errors/redeclaration.lx": "65f8eb56b7619104e3fd607a6e260658794d0b58172ce44f83f3741da347420b",
     "tests/cases/errors/self_initializer.lx": "93948955616bfd82a123296e420270a76dd12966d93011d328f7265909aaebba",
     "tests/cases/errors/shift_count.lx": "82b5bdbfe8d6b921189bf615fd40fe49d14c7b1eeab0de5869c5586950c4b2f7",
+    "tests/cases/errors/spread_fill.lx": "6212c17f15b4eb4b5e712ab28eb0728dd1e547478cde5ca0846e618b067d3517",
+    "tests/cases/errors/spread_non_variadic.lx": "121421554daa427c0cbfab54b3548bdac647662d2d8de1e996c6c836883e1867",
     "tests/cases/errors/super_outside_class.lx": "063fba944274813b05581ea2980f05c89d28fdc8e14f348933010a17cd74bd74",
     "tests/cases/errors/super_undefined_method.lx": "a4856ae13d7e97f9b8f7f2e8d385fb371cbd8966a9b88aa974d1b2de964a7aa5",
     "tests/cases/errors/super_without_superclass.lx": "0d63c3cfb994a8aa5b1a39a8e1f7522e1ebe7c6a720a280756f80fe0f5ca6362",

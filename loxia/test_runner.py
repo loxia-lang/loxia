@@ -944,7 +944,9 @@ def _precheck(files: list[Path], args: argparse.Namespace) -> dict[Path, str]:
             continue
         lox = Loxia(
             max_errors=5,
-            gradual=True,
+            # `--native` compila com o checker estrito; o precheck tem que ser estrito
+            # também, senão o build falha depois de o precheck ter aprovado.
+            gradual=not getattr(args, "native", False),
             frozen=getattr(args, "frozen", False),
             offline=getattr(args, "offline", False),
             cache_dir=getattr(args, "cache_dir", None),
@@ -952,7 +954,7 @@ def _precheck(files: list[Path], args: argparse.Namespace) -> dict[Path, str]:
         lox.use_file(_display(path), module_root=path.resolve().parent)
         # O loader já reporta o diagnóstico antes de levantar; segue para o resumo.
         with contextlib.suppress(ModuleError):
-            lox.check(source, emit=False)
+            lox.check(source, emit=False, defer_lowerable=True)
         if not lox.reporter.had_error:
             continue
         errors = [

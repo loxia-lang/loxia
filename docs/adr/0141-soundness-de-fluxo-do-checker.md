@@ -17,7 +17,9 @@
   [`tests/test_checker_flow.py`](../../tests/test_checker_flow.py),
   [`tests/test_checker_sweep.py`](../../tests/test_checker_sweep.py),
   `tests/cases/break_narrowing.lx`, `tests/cases/break_finally.lx`,
-  `tests/cases/match_arm_flow.lx`, `tests/corpus_manifest.py`, `tests/test_ast_schema.py`
+  `tests/cases/match_arm_flow.lx`, `tests/cases/errors/break_post_loop.lx`,
+  `tests/cases/errors/match_arm_leak.lx`, `tests/corpus_manifest.py`,
+  `tests/test_ast_schema.py`
 
 ## Contexto
 
@@ -190,9 +192,9 @@ invalida.
 
 - As regressões de soundness em `tests/test_checker_flow.py`: `break` pós-laço, vazamento do
   último braço de `match`, vazamento do ternário e do lado direito de `and`, e `break` dentro
-  de `try/finally` que atribui. O `--check` recusa todos (E3007). Como `run` ainda não checa
-  ([ADR-0142](0142-check-por-fases.md)), eles não podem ser caso golden de erro; viram caso
-  golden quando a fase 2 ligar o check no `run`.
+  de `try/finally` que atribui. O `--check` recusa todos (E3007). Com o check no `run`
+  ([ADR-0142](0142-check-por-fases.md)) ligado, os dois programas do contexto também viraram
+  casos golden de erro (`errors/break_post_loop.lx`, `errors/match_arm_leak.lx`).
 - As formas **válidas** de `break`/`match` com narrowing entram no corpus diferencial
   (`break_narrowing.lx` em l2, `break_finally.lx` em l2, `match_arm_flow.lx` em l6), onde I1
   compara interpretador e binário nos três canais.

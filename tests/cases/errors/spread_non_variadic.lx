@@ -1,0 +1,3 @@
+fn f(a: Int, b: Int) -> Int { return a + b }
+print(f(...[1, 2]))
+# expect error: Spread arguments are only supported for variadic functions.

@@ -125,7 +125,9 @@ linguagem ainda, então a fase 3 entra junto com a fase 2, sem esperar a release
    interpretador (não é flag de CLI).
 
 **Entregue em 2026-11-24:** flags e validação removidas, `loxia test` sempre faz o
-pre-check, `--no-check` vira erro de argumento (2) e os testes de regressão fixam isso.
+pre-check, `--no-check` vira erro de argumento (2) e os testes de regressão fixam isso. O
+precheck agora adia `lowerable` (mesma política do `run`) e usa o checker estrito com
+`--native`, para não aprovar o que o build recusaria.
 
 ### Regra de reversão
 
@@ -173,8 +175,8 @@ nunca reintroduzir o `--no-check`.
 
 ## Como verificar
 
-- `loxia test` falha em um `*_test.lx` com erro de tipo e passa em teste sem anotação
-  (aviso), com e sem `--no-check`.
+- `loxia test` falha em um `*_test.lx` com erro de tipo fatal e passa em teste sem anotação
+  (aviso); o precheck adia `lowerable` como o `run` e é estrito com `--native`.
 - `loxia check --gradual` aceita programa sem anotações e continua recusando erro real.
 - Fase 2: os 22 casos golden e os 26 oficiais reclassificados; `make check` verde; corpus
   diferencial com I1 nos três canais.
