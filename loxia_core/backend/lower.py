@@ -22,7 +22,7 @@ __all__ = ["BackendError", "Lowerer", "lower_program"]
 
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.captures import CaptureAnalysis, analyze_captures
-from loxia_core.backend.lower_base import CleanupContext
+from loxia_core.backend.lower_base import CleanupContext, LoopContext
 from loxia_core.backend.lower_bytes import BytesLowering
 from loxia_core.backend.lower_calls import CallLowering
 from loxia_core.backend.lower_class_codegen import ClassCodegenLowering
@@ -86,7 +86,9 @@ from loxia_core.frontend.expr import (
 )
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     Expression,
@@ -174,6 +176,8 @@ class Lowerer(
         self._enum_layouts: dict[str, Any] = {}
         self._enum_names: dict[str, Any] = {}
         self._cleanup_stack: list[CleanupContext] = []
+        self._loop_stack: list[LoopContext] = []
+        self._emitting_finally: set[int] = set()
         self._handler_exception: Any | None = None
         self._list_expected_element: Ty | None = None
         self._map_expected_key: Ty | None = None
@@ -263,6 +267,10 @@ class Lowerer(
                 self._scopes.pop()
         elif isinstance(stmt, Return):
             self._return(stmt)
+        elif isinstance(stmt, Break):
+            self._loop_transfer(stmt, "break")
+        elif isinstance(stmt, Continue):
+            self._loop_transfer(stmt, "continue")
         elif isinstance(stmt, Function):
             if stmt.type_params:
                 return
@@ -325,6 +333,46 @@ class Lowerer(
 
         self.builder = llvm_ir.builder(end_block)
 
+    def _run_cleanups(self, limit: int = 0) -> bool:
+        """Emite os `finally` ativos sem consumir a pilha léxica.
+
+        `limit` é a profundidade do laço alvo: um `break`/`continue` só roda os
+        `finally` abertos dentro dele. O `id` do contexto em emissão evita que um
+        `break`/`return` dentro do próprio `finally` o emita de novo.
+        """
+        for cleanup in reversed(self._cleanup_stack[limit:]):
+            if id(cleanup) in self._emitting_finally:
+                continue
+            if cleanup.frame is not None:
+                self.builder.call(
+                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
+                    [cleanup.frame],
+                )
+            if cleanup.finally_body is not None:
+                # O `finally` é léxico: o corpo do `try` já saiu de escopo. Sem
+                # truncar, o `depth` gravado pelo resolver aponta para o slot errado.
+                saved_scopes = self._scopes
+                self._scopes = self._scopes[: cleanup.scopes_depth]
+                self._emitting_finally.add(id(cleanup))
+                try:
+                    self._lower_finally_body(cleanup.finally_body)
+                finally:
+                    self._scopes = saved_scopes
+                    self._emitting_finally.discard(id(cleanup))
+                if self.builder.block.is_terminated:
+                    return True
+        return False
+
+    def _loop_transfer(self, stmt: Break | Continue, kind: str) -> None:
+        if not self._loop_stack:
+            raise _unsupported(kind, stmt.keyword.line)
+
+        context = self._loop_stack[-1]
+        target = context.break_block if kind == "break" else context.continue_block
+        if self._run_cleanups(context.cleanup_depth):
+            return
+        self.builder.branch(target)
+
     def _while(self, stmt: While) -> None:
         header = llvm_ir.append_block(self._function_ir, "while.cond")
         body = llvm_ir.append_block(self._function_ir, "while.body")
@@ -336,7 +384,11 @@ class Lowerer(
         self.builder.cbranch(condition, body, end)
 
         self.builder = llvm_ir.builder(body)
-        self._stmt(stmt.body)
+        self._loop_stack.append(LoopContext(end, header, len(self._cleanup_stack)))
+        try:
+            self._stmt(stmt.body)
+        finally:
+            self._loop_stack.pop()
         if not self.builder.block.is_terminated:
             self.builder.branch(header)
 
@@ -1232,17 +1284,8 @@ class Lowerer(
 
         # O valor é avaliado antes do finally (semântica do tree-walk); o `ret` só
         # acontece depois de desempilhar os frames e rodar os cleanups ativos.
-        while self._cleanup_stack:
-            context = self._cleanup_stack.pop()
-            if context.frame is not None:
-                self.builder.call(
-                    self._function("lox_try_pop", _VOID, [_I8_PTR]),
-                    [context.frame],
-                )
-            if context.finally_body is not None:
-                self._lower_finally_body(context.finally_body)
-                if self.builder.block.is_terminated:
-                    return
+        if self._run_cleanups():
+            return
 
         self._stack_leave()
         if value is None:

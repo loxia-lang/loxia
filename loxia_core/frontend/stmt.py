@@ -27,6 +27,8 @@ class Visitor[R](Protocol):
     def visit_interface_stmt(self, stmt: Interface) -> R: ...
     def visit_type_alias_stmt(self, stmt: TypeAlias) -> R: ...
     def visit_return_stmt(self, stmt: Return) -> R: ...
+    def visit_break_stmt(self, stmt: Break) -> R: ...
+    def visit_continue_stmt(self, stmt: Continue) -> R: ...
     def visit_var_stmt(self, stmt: Var) -> R: ...
     def visit_destructure_stmt(self, stmt: Destructure) -> R: ...
     def visit_enum_stmt(self, stmt: EnumDecl) -> R: ...
@@ -263,6 +265,22 @@ class Return(Stmt):
 
     def accept[R](self, visitor: Visitor[R]) -> R:
         return visitor.visit_return_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Break(Stmt):
+    keyword: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_break_stmt(self)
+
+
+@dataclass(frozen=True, eq=False)
+class Continue(Stmt):
+    keyword: Token
+
+    def accept[R](self, visitor: Visitor[R]) -> R:
+        return visitor.visit_continue_stmt(self)
 
 
 @dataclass(frozen=True, eq=False)

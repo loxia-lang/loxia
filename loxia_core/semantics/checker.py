@@ -62,7 +62,9 @@ from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.spans import span_of_token
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     ErrorStmt,
@@ -3225,6 +3227,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return expr.keyword
 
         return None
+
+    def visit_break_stmt(self, stmt: Break) -> None:
+        return
+
+    def visit_continue_stmt(self, stmt: Continue) -> None:
+        return
 
     def visit_return_stmt(self, stmt: Return) -> None:
         if stmt.value is None:

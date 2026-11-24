@@ -11,8 +11,8 @@ sources:
 Grammar of the current parser ([`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py)) — recursive descent,
 one function per precedence level.
 
-> This is the **implemented Lox**. The target syntax of the language itself
-> (`break`/`continue`, for example) is tracked in [`../roadmap.md`](../roadmap.md).
+> This is the **implemented Lox**. `break`/`continue` exist in `while` and `for-in`;
+> C-style `for` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md)).
 > `fn`, `elif`, the optional `;`, ternary, `??`, `?.`, interpolation, escapes, `not`,
 > nested destructuring, `"""` and raw strings already exist; `val`/`var` have existed since
 > ADR-0005.
@@ -73,6 +73,8 @@ statement      → exprStmt
                | forStmt
                | ifStmt
                | returnStmt
+               | breakStmt
+               | continueStmt
                | whileStmt
                | tryStmt
                | raiseStmt
@@ -86,6 +88,8 @@ ifStmt         → "if" "(" expression ")" statement
                  ( "elif" "(" expression ")" statement )*
                  ( "else" statement )? ;
 returnStmt     → "return" expression? terminator ;
+breakStmt      → "break" terminator ;
+continueStmt   → "continue" terminator ;
 whileStmt      → "while" "(" expression ")" statement ;
 tryStmt        → "try" block ( "except" IDENTIFIER "as" IDENTIFIER block )*
                  ( "finally" block )? ;
@@ -437,7 +441,7 @@ from dtos.dtoA import DtoA as Dto
   dropped from the AST).
 - `this` and `super` are keywords: `super` only appears as `super.method`.
 - These do not exist: C-style `for` (removed in [ADR-0138](../adr/0138-remocao-for-c-style.md);
-  use `for-in` or `while`), `break`/`continue`, `switch` (use `match`), a `?:`-style ternary
+  use `for-in` or `while`), `switch` (use `match`), a `?:`-style ternary
   operator (use `a if c else b`), `+=`, `++` and `catch` (use `except`). `match` with
   enums ([ADR-0041](../adr/0041-enums-match.md)) and lambdas ([ADR-0022](../adr/0022-lambdas.md))
   exist; lists, maps and interpolation have existed since

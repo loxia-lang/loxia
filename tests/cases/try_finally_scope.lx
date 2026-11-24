@@ -1,0 +1,35 @@
+fn normal(x: Int) -> Int {
+  try {
+    raise Exception("b")
+  } except Exception as e {
+    print("caught ${e.message}")
+  } finally {
+    print("normal=${x}")
+  }
+  return x
+}
+
+print(normal(42))
+
+fn broken(x: Int) -> Int {
+  while (true) {
+    try {
+      raise Exception("b")
+    } except Exception as e {
+      print("break=${e.message}")
+      break
+    } finally {
+      print("loop=${x}")
+    }
+  }
+  return x
+}
+
+print(broken(7))
+
+# expect: caught b
+# expect: normal=42
+# expect: 42
+# expect: break=b
+# expect: loop=7
+# expect: 7

@@ -475,6 +475,14 @@ for i in 5..2 { ... }             // empty
 | `while (c) s` | repeats while truthy |
 | `for x in e s` | iterates `e` (Range/String/List/Map/Tuple today); `x` is `val` per iteration |
 | `return expr?;` | unwinds up to the function call |
+| `break;` | exits the innermost `while`/`for-in` |
+| `continue;` | goes to the next iteration of the innermost loop |
+
+`break`/`continue` are allowed only inside a loop; they do not cross a function or lambda
+boundary. In `for-in`, `continue` advances the iterator and keeps the per-iteration `val`
+binding. In `while`, it rechecks the condition. A `finally` from an enclosing `try` runs
+before the jump; if the `finally` itself leaves, it wins. See
+[ADR-0139](../adr/0139-break-continue.md).
 
 C-style `for (init; cond; incr)` was removed ([ADR-0138](../adr/0138-remocao-for-c-style.md));
 use `for-in` or `while`.

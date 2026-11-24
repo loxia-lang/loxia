@@ -280,6 +280,7 @@ missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E
 | `E2007` | field conflict (duplicate or with a method) |
 | `E2008` | local read in its own initializer |
 | `E2009` | assignment to a `val` field |
+| `E2010` | `break`/`continue` outside a loop |
 | `W1001` | local declared and never read (warning) |
 | `W1002` | import declared and never used (warning) |
 
@@ -383,8 +384,8 @@ Messages in the `Expect … .` pattern; the most common ones:
 | `Expect ';' after expression.` | bare expression without `;` on the same line |
 | `Expect ';' after variable declaration.` | `var`/`val` without `;` on the same line |
 | `Expect ';' after return value.` | `return` followed by another statement on the same line (before `}` or a new line, the `;` is optional) |
-| `Expect ';' after loop condition.` | `for` without `;` in the condition |
-| `Expect ')' after for clauses.` | `for` without `)` |
+| `Expect ';' after 'break'.` | `break` followed by another statement on the same line |
+| `Expect ';' after 'continue'.` | `continue` followed by another statement on the same line |
 | `Expect ')' after if condition.` | `if`/`elif` without `)` |
 | `Expect ')' after condition.` | `while` without `)` |
 | `Expect ')' after arguments.` | call without `)` |
@@ -429,6 +430,8 @@ Messages in the `Expect … .` pattern; the most common ones:
 | `Can't read local variable in its own initializer.` | `{ var a = a; }` |
 | `Can't return from top-level code.` | `return` outside a function |
 | `Can't return a value from an initializer.` | `return value;` inside `init` |
+| `Can't use 'break' outside of a loop.` | `break` outside `while`/`for-in` (including inside a lambda in a loop) |
+| `Can't use 'continue' outside of a loop.` | `continue` outside `while`/`for-in` |
 | `Can't use 'this' outside of a class.` | `this` outside a method |
 | `A class can't inherit from itself.` | `class A(A)` |
 | `Can't use 'super' outside of a class.` | `super.m` outside a class |

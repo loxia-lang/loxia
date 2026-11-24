@@ -66,6 +66,8 @@ KEYWORD_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
             "for",
             "in",
             "return",
+            "break",
+            "continue",
             "match",
             "try",
             "except",

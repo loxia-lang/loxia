@@ -50,7 +50,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 7 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 95 |
+| `l6` | 96 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |
@@ -59,7 +59,7 @@ golden case and, for backend features, one case in the differential corpus
 | `t3` | 7 |
 | `t4` | 3 |
 | `k0` | 2 |
-| `l2` | 17 |
+| `l2` | 18 |
 
 A feature with `backend = false` is tree-walk-only by design (for example the
 checker diagnostics); it must not claim a differential level.

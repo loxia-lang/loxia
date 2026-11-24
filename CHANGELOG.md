@@ -31,6 +31,11 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `.mmm` (`isoMillis`).
 
 ### Adicionado
+- **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
+  mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com
+  `finally` executado antes do salto e sem atravessar função/lambda. `break`/`continue`
+  fora de laço é `E2010`. As duas palavras passam a ser reservadas (orçamento de keywords
+  27→29); código que as usava como identificador precisa renomear.
 - **`loxia_format` no MCP** ([#110](https://github.com/loxia-lang/loxia/issues/110)):
   tool read-only que aceita `source` ou `path` `.lx`, `max_width`, `check`, `diff` e
   `range`/`lines`; devolve o texto formatado + `TextEdit[]` exatos (aplicar os edits

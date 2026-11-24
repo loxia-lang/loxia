@@ -35,7 +35,7 @@ Some a isso: **dor real** (caso no corpus ou programa concreto), **teste que pol
 
 | Métrica | Teto |
 | --- | --- |
-| palavras-chave | 28 |
+| palavras-chave | 29 |
 | níveis de precedência | 19 |
 | formas de statement | 12 |
 | formas de declaração | 6 |

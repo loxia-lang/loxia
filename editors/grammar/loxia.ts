@@ -275,7 +275,7 @@ const grammar = {
       "name": "support.function.builtin.loxia"
     },
     "keywords-control": {
-      "match": "\\b(?:elif|else|except|finally|for|if|in|match|raise|return|try|while)\\b",
+      "match": "\\b(?:break|continue|elif|else|except|finally|for|if|in|match|raise|return|try|while)\\b",
       "name": "keyword.control.loxia"
     },
     "keywords-declaration": {

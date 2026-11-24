@@ -164,6 +164,33 @@
       ],
       "type": "object"
     },
+    "break": {
+      "additionalProperties": false,
+      "properties": {
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "break"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword"
+      ],
+      "type": "object"
+    },
     "call": {
       "additionalProperties": false,
       "properties": {
@@ -355,6 +382,33 @@
         "condition",
         "then_branch",
         "else_branch"
+      ],
+      "type": "object"
+    },
+    "continue": {
+      "additionalProperties": false,
+      "properties": {
+        "keyword": {
+          "$ref": "#/$defs/token_ref"
+        },
+        "kind": {
+          "const": "continue"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span",
+        "keyword"
       ],
       "type": "object"
     },
@@ -1887,6 +1941,9 @@
           "$ref": "#/$defs/block"
         },
         {
+          "$ref": "#/$defs/break"
+        },
+        {
           "$ref": "#/$defs/call"
         },
         {
@@ -1894,6 +1951,9 @@
         },
         {
           "$ref": "#/$defs/conditional"
+        },
+        {
+          "$ref": "#/$defs/continue"
         },
         {
           "$ref": "#/$defs/destructure"

@@ -1,0 +1,2 @@
+break
+# expect error: Can't use 'break' outside of a loop.

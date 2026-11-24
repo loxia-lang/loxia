@@ -33,7 +33,9 @@ from loxia_core.frontend.expr import (
 from loxia_core.frontend.expr import Visitor as ExprVisitor
 from loxia_core.frontend.stmt import (
     Block,
+    Break,
     Class,
+    Continue,
     Destructure,
     EnumDecl,
     ErrorStmt,
@@ -331,6 +333,12 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
             return "(return)"
 
         return f"(return {stmt.value.accept(self)})"
+
+    def visit_break_stmt(self, stmt: Break) -> str:
+        return "(break)"
+
+    def visit_continue_stmt(self, stmt: Continue) -> str:
+        return "(continue)"
 
     def visit_destructure_stmt(self, stmt: Destructure) -> str:
         keyword = "var" if stmt.mutable else "val"

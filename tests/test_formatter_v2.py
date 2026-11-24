@@ -193,6 +193,12 @@ def test_for_in_and_while_stay_canonical() -> None:
     assert assert_roundtrip(source) == expected
 
 
+def test_break_and_continue_stay_canonical() -> None:
+    source = "while (true) {\n  break\n  continue\n}\n"
+
+    assert assert_roundtrip(source) == source
+
+
 def test_match_arms_and_enum_variants() -> None:
     source = """enum Shape {
   Circle(Float),

@@ -190,6 +190,7 @@ TODO item.
 | [0136](0136-formatter-2-doc-ir.md) | Formatter 2.0: Doc IR + item layer, width-aware wrapping, comment preservation, blank-line policy and the `format_source` contract | accepted (implemented) | 2026-11-23 |
 | [0137](0137-mcp-format.md) | MCP `loxia_format`: formatted text + `TextEdit[]`, source/path read-only, range by expanded hunks, check/diff | accepted (implemented) | 2026-11-23 |
 | [0138](0138-remocao-for-c-style.md) | Remove C-style `for (;;)`; keep `for-in`/`while`, targeted migration diagnostic | accepted (breaking; target 2.0) | 2026-11-23 |
+| [0139](0139-break-continue.md) | `break`/`continue` without labels: innermost loop, `finally` cleanup, function boundary; keyword budget 27→29 | accepted (implemented) | 2026-11-23 |
 
 
 ## Next decisions that call for an ADR
