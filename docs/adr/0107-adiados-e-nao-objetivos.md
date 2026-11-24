@@ -41,6 +41,7 @@ gatilho descrito **e** uma issue de decisão que responda ao portão do
 | Item | Onde já foi decidido | Gatilho para reabrir |
 | --- | --- | --- |
 | Generics além do MVP: métodos genéricos, herança de `Box[Int]`, `is`/`as` reificado, type application explícita, função genérica como valor, recursão polimórfica e variance | [ADR-0040](0040-generics-classes-desenho.md) | Um programa real que função livre/composição não expresse; um ADR por item e caso diferencial. |
+| Constraints em classes, enums e interfaces (`class C[T: Ord]`) | [ADR-0081](0081-constraints-generics.md) (só funções), [ADR-0040](0040-generics-classes-desenho.md) | Um programa real com classe/enum genérica cujo corpo use `Ord`/`Num`/método de interface no parâmetro; um ADR que estenda o ADR-0081 com validação de `Box[T]` e plano de monomorfização; interfaces genéricas (E3012) antes. |
 | Operator overloading | [ADR-0066](0066-orcamento-e-gate-sintatico.md) §4 (não-objetivo) | Um programa real em que a ausência do operador seja a principal fonte de ilegibilidade, mais um ADR que pague `Self`/interfaces genéricas separadamente do açúcar. |
 | Trailing closure | [ADR-0066](0066-orcamento-e-gate-sintatico.md) §4 | Um caso real + desenho de parser com uma forma canônica, sem ambiguidade com bloco/mapa. |
 | `match` estrutural em uniões | [ADR-0066](0066-orcamento-e-gate-sintatico.md) §4 | Muitas uniões reais com cadeias longas de `is` + proposta que separe type match (tags) de structural match (testemunhas). |
