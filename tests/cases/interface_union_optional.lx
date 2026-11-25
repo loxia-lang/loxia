@@ -18,3 +18,35 @@ print((y ?? C()).m()) # expect: 1
 
 val xs: List[Int] | Nil = nil
 print(xs ?? [1, 2]) # expect: [1, 2]
+
+class Base {
+  fn n() -> Int {
+    return 1
+  }
+}
+
+class Sub(Base) {
+  fn n() -> Int {
+    return 2
+  }
+}
+
+val sub: Sub? = nil
+val base: Base = sub ?? Base()
+print(base.n()) # expect: 1
+
+val some: I = C()
+val none: C? = nil
+print((none ?? some).m()) # expect: 1
+
+val a: String? = nil
+val b: String? = nil
+val c: String? = a ?? b
+print(c ?? "x") # expect: x
+
+val i: Int? = nil
+print(i ?? i) # expect: nil
+
+val elems: List[I?] = [nil, C()]
+print((elems[1] ?? C()).m())  # expect: 1
+print((elems[0] ?? C()).m())  # expect: 1

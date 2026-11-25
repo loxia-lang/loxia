@@ -5263,11 +5263,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             fallback = non_nil(left)
             # O resultado é `fallback` ou `right`; quando um é atribuível ao outro,
             # o tipo comum evita uma união de não-escalares que o backend não
-            # representa (ex.: `I? ?? C` → `I`, ADR-0146/#221).
+            # representa (`I? ?? C` → `I`, ADR-0146/#221). `_assignable(expected,
+            # actual)` = actual cabe em expected, então o lado que recebe é o mais
+            # largo.
             if self._assignable(fallback, right):
-                return right
-            if self._assignable(right, fallback):
                 return fallback
+            if self._assignable(right, fallback):
+                return right
             return union(fallback, right)
         if operator is TokenType.OR:
             return union(truthy(left), right)

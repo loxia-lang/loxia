@@ -108,6 +108,9 @@ from loxia_core.frontend.stmt import (
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import (
+    NIL as TY_NIL,
+)
+from loxia_core.frontend.ty import (
     Ty,
 )
 
@@ -1414,23 +1417,21 @@ class Lowerer(
             return self._expr(expr.right)
 
         coalesced = self.types.get(expr)
-        if (
-            coalesced is not None
-            and self._type_desc(coalesced, expr.operator.line).ty is ValueType.ANY
-        ):
-            return self._coalesce_any(left, expr)
+        coalesced_desc: TypeDesc | None = None
+        if coalesced is not None:
+            try:
+                coalesced_desc = self._type_desc(coalesced, expr.operator.line)
+            except BackendError:
+                # União de não-escalares (E4001 declarado): o caminho opcional
+                # abaixo ainda tenta coagir o direito e recusa com a mensagem.
+                coalesced_desc = None
+            if coalesced_desc is not None and coalesced_desc.ty is ValueType.ANY:
+                return self._coalesce_any(left, expr)
 
-        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
-        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
-        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
-        self.builder.cbranch(self._optional_tag(left), some, nothing)
+        if self.types.get(expr.right) is TY_NIL:
+            # `a ?? nil` é o próprio `a` opcional: nil ou o valor.
+            return left
 
-        self.builder = llvm_ir.builder(some)
-        payload = self._optional_payload(left)
-        self.builder.branch(end)
-        some_end = self.builder.block
-
-        self.builder = llvm_ir.builder(nothing)
         inner = TypeDesc(
             left.ty,
             left.sig,
@@ -1438,12 +1439,48 @@ class Lowerer(
             left.class_name,
             left.interface_name,
         )
-        try:
-            right = self._coerce(
-                self._expr(expr.right),
-                inner,
-                expr.operator.line,
+        if coalesced_desc is not None and not coalesced_desc.optional:
+            # O tipo comum pode ser o direito (mais largo): `D? ?? C` → `C`.
+            inner = TypeDesc(
+                coalesced_desc.ty,
+                coalesced_desc.fn,
+                False,
+                coalesced_desc.class_name,
+                coalesced_desc.interface_name,
             )
+        result_optional = coalesced_desc is not None and coalesced_desc.optional
+        optional_struct = TypeDesc(inner.ty, inner.fn, True, inner.class_name, inner.interface_name)
+
+        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
+        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
+        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+        self.builder.cbranch(self._optional_tag(left), some, nothing)
+
+        self.builder = llvm_ir.builder(some)
+        # O ramo esquerdo já está presente: para um resultado opcional o próprio
+        # valor opcional serve; senão só o payload interessa.
+        some_value = left.llvm if result_optional else self._optional_payload(left).llvm
+        self.builder.branch(end)
+        some_end = self.builder.block
+
+        self.builder = llvm_ir.builder(nothing)
+        right_value = self._expr(expr.right)
+        try:
+            if result_optional:
+                # `a? ?? b?`: nil à esquerda devolve o `b` (que pode ser nil).
+                if right_value.optional:
+                    right_llvm = right_value.llvm
+                else:
+                    right_llvm = self._some(
+                        optional_struct,
+                        self._coerce(right_value, inner, expr.operator.line),
+                    ).llvm
+            else:
+                right_llvm = self._coerce(
+                    right_value,
+                    inner,
+                    expr.operator.line,
+                ).llvm
         except BackendError:
             raise _unsupported(
                 "Coalesce with different types",
@@ -1454,17 +1491,18 @@ class Lowerer(
 
         self.builder = llvm_ir.builder(end)
         merged = self.builder.phi(
-            self._storage_llvm_type(inner),
+            self._storage_llvm_type(optional_struct if result_optional else inner),
             "coalesce.value",
         )
-        merged.add_incoming(payload.llvm, some_end)
-        merged.add_incoming(right.llvm, nothing_end)
+        merged.add_incoming(some_value, some_end)
+        merged.add_incoming(right_llvm, nothing_end)
         return Value(
-            left.ty,
+            inner.ty,
             merged,
-            left.sig,
-            class_name=left.class_name,
-            interface_name=left.interface_name,
+            inner.fn,
+            optional=result_optional,
+            class_name=inner.class_name,
+            interface_name=inner.interface_name,
         )
 
     def _coalesce_any(self, left: Value, expr: Logical) -> Value:
