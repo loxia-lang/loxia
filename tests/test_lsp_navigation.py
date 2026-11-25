@@ -16,6 +16,7 @@ import pytest
 from loxia import lsp as lsp_module
 from loxia import rename as rename_module
 from loxia.lsp import REQUEST_METHODS, Document, Server
+from loxia_core.loader.module_cache import ModuleCache
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -897,9 +898,13 @@ def test_lsp_references_reuse_workspace_cache(
     builds: list[int] = []
     original = rename_module._build_workspace
 
-    def counting(root: Path, files: dict[Path, str]) -> object:
+    def counting(
+        root: Path,
+        files: dict[Path, str],
+        module_cache: ModuleCache | None = None,
+    ) -> object:
         builds.append(1)
-        return original(root, files)
+        return original(root, files, module_cache)
 
     monkeypatch.setattr(rename_module, "_build_workspace", counting)
     position, _ = _position_of(text, "Foo", text.index("["))

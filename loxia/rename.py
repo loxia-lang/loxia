@@ -76,7 +76,12 @@ class WorkspaceCache:
     _fingerprint: tuple[str, tuple[tuple[str, str], ...]] | None = None
     _workspace: _Workspace | str | None = None
 
-    def get(self, root: Path, files: dict[Path, str]) -> _Workspace | str:
+    def get(
+        self,
+        root: Path,
+        files: dict[Path, str],
+        module_cache: ModuleCache | None = None,
+    ) -> _Workspace | str:
         fingerprint = (
             str(root),
             tuple(
@@ -89,7 +94,7 @@ class WorkspaceCache:
         )
         if self._workspace is not None and self._fingerprint == fingerprint:
             return self._workspace
-        workspace = _build_workspace(root, files)
+        workspace = _build_workspace(root, files, module_cache)
         self._fingerprint = fingerprint
         self._workspace = workspace
         return workspace
@@ -173,7 +178,7 @@ def _workspace(
     module_cache: ModuleCache | None = None,
 ) -> _Workspace | str:
     if cache is not None:
-        return cache.get(root, files)
+        return cache.get(root, files, module_cache)
     return _build_workspace(root, files, module_cache)
 
 
