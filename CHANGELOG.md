@@ -145,6 +145,13 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **Campo `Any`/união no backend** ([#196](https://github.com/loxia-lang/loxia/issues/196)):
+  o layout do campo passa a vir da anotação, não do tipo do inicializador. `var x: Any = 1`
+  deixava de ser `Any`: o campo virava um slot `Int`, o checker publicava `Any` e aceitava
+  `c.x = "s"`, então o `--emit` morria em `E4002` (`Can't use STRING where INT is expected`).
+  Agora a recusa é a lacuna declarada do ADR-0079 (`E4001`, na linha do campo), como no campo
+  sem inicializador, e o tree-walk segue imprimindo o valor. Regressão em
+  `tests/test_backend.py`.
 - **`match` com variável local/parâmetro**: o resolver abria escopo para todo braço, mas o
   interpretador só cria ambiente para braços de variante; um braço wildcard/literal que
   referenciasse um local caía com `KeyError` (violação de I1). O resolver agora espelha o
