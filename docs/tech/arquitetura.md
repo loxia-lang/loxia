@@ -205,12 +205,13 @@ documentSymbol e didChange sobre stdio, com baseline
 Mediana de 2026-11-25 (workspace de ~50 arquivos): startup ~91 ms, didOpen ~38 ms,
 references cross-file ~107 ms na primeira consulta e ~105 ms após uma edição (o cache do
 workspace é descartado), ~1,6 ms no cache quente, didChange ~35 ms; as requisições locais
-ficam abaixo de 2 ms. A descoberta usa `os.walk` com poda de diretórios ocultos/build e
-cache de leitura por mtime/tamanho; o fingerprint do `WorkspaceCache` usa hash (não guarda
-uma segunda cópia de todos os textos). O
-`SourceIndex` é construído na primeira consulta (`lazy`), então diagnóstico **limpo** e
-didChange não pagam a caminhada do AST; um diagnóstico com nota de proveniência constrói
-o índice, e o warm de ~1,2 ms vale para o workspace de 2 arquivos do bench.
+ficam abaixo de 2 ms. A descoberta usa `os.walk` com poda de diretórios ocultos e `node_modules`, e cache de
+leitura por `mtime`/`ctime`/inode/tamanho; o fingerprint do `WorkspaceCache` usa hash (não
+guarda uma segunda cópia de todos os textos). Módulos de dependência resolvidos fora do
+`root` ainda não entram nesse fingerprint (limitação declarada na #195). O `SourceIndex` é
+construído na primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam
+a caminhada do AST; um diagnóstico com nota de proveniência constrói o índice. O warm de
+~1,6 ms vale para o workspace de ~50 arquivos do bench.
 
 Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`
 → `SourceIndex(extra_spans=...)`), como a trivia do ADR-0134: o AST e o JSON v2 não mudam.

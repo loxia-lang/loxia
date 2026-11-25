@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 # Mesmo default de `loxia.formatter.engine`; importar o formatter aqui paga o
 # printer inteiro no startup do LSP, e nenhum handler roda antes de initialize.
 DEFAULT_MAX_WIDTH = 100
-_WORKSPACE_SKIP_DIRS = frozenset({"node_modules", "build", "dist", "target"})
+_WORKSPACE_SKIP_DIRS = frozenset({"node_modules"})
 _DISK_FILES_LIMIT = 4096
 
 JSONRPC_VERSION = "2.0"
@@ -489,7 +489,7 @@ class Server:
         self.clean: dict[str, bool] = {}
         self.semantic_cache: WorkspaceCache | None = None
         # Texto lido do disco por (mtime, tamanho); buffers abertos não entram aqui.
-        self._disk_files: dict[Path, tuple[int, int, str]] = {}
+        self._disk_files: dict[Path, tuple[int, int, int, int, str]] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
         self.shutdown = False
@@ -825,6 +825,9 @@ class Server:
 
     def _invalidate(self, uri: str) -> None:
         """Descarta os caches derivados de um documento (símbolos, spans e fonte)."""
+        path = _uri_to_path(uri)
+        if path is not None:
+            self._disk_files.pop(path, None)
         self.indexes.pop(uri, None)
         self.source_indexes.pop(uri, None)
         self.source_files.pop(uri, None)
@@ -1232,25 +1235,26 @@ class Server:
                 if not name.startswith(".") and name not in _WORKSPACE_SKIP_DIRS
             )
             for name in sorted(filenames):
-                if not name.endswith(SOURCE_SUFFIX):
+                if name.startswith(".") or not name.endswith(SOURCE_SUFFIX):
                     continue
                 path = Path(directory) / name
                 if path in files:
                     continue
                 try:
                     stat = path.stat()
+                    entry = (
+                        stat.st_mtime_ns,
+                        stat.st_ctime_ns,
+                        stat.st_ino,
+                        stat.st_size,
+                    )
                     cached = self._disk_files.get(path)
-                    if (
-                        cached is not None
-                        and cached[0] == stat.st_mtime_ns
-                        and cached[1] == stat.st_size
-                    ):
-                        files[path] = cached[2]
+                    if cached is not None and cached[:4] == entry:
+                        files[path] = cached[4]
                         continue
                     text = path.read_text(encoding="utf-8")
-                    if len(self._disk_files) >= _DISK_FILES_LIMIT:
-                        self._disk_files.clear()
-                    self._disk_files[path] = (stat.st_mtime_ns, stat.st_size, text)
+                    if path in self._disk_files or len(self._disk_files) < _DISK_FILES_LIMIT:
+                        self._disk_files[path] = (*entry, text)
                 except OSError:
                     continue
                 files[path] = text
@@ -2134,7 +2138,6 @@ class Server:
         if match is None:
             return None
         from loxia.builtins_docs import BUILTIN_DOCS
-        from loxia.source_symbols import SourceContext, parse_for_completion
 
         callee = match.group(1).replace(" ", "")
         parts = callee.split(".")

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from io import BytesIO
@@ -789,9 +790,10 @@ def test_lsp_does_not_build_source_index_for_diagnostics(tmp_path: Path) -> None
     assert index._built is True
 
 
-def test_lsp_workspace_files_prunes_hidden_and_build_dirs(tmp_path: Path) -> None:
+def test_lsp_workspace_files_prunes_hidden_and_vendored(tmp_path: Path) -> None:
     (tmp_path / "ok.lx").write_text("val ok = 1\n", encoding="utf-8")
-    for name in (".hidden", "build", "dist", "target", "node_modules"):
+    (tmp_path / ".hidden.lx").write_text("val hidden = 1\n", encoding="utf-8")
+    for name in (".hidden", "node_modules"):
         directory = tmp_path / name
         directory.mkdir()
         (directory / "skip.lx").write_text("val skip = 1\n", encoding="utf-8")
@@ -811,4 +813,17 @@ def test_lsp_workspace_files_disk_cache_sees_content_changes(tmp_path: Path) -> 
 
     assert dict(server._workspace_files())[path].startswith("val a")
     path.write_text("val b = 2\n", encoding="utf-8")
+    assert dict(server._workspace_files())[path].startswith("val b")
+
+
+def test_lsp_workspace_files_disk_cache_detects_restored_mtime(tmp_path: Path) -> None:
+    path = tmp_path / "a.lx"
+    path.write_text("val a = 1\n", encoding="utf-8")
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    before = path.stat()
+    assert dict(server._workspace_files())[path].startswith("val a")
+
+    path.write_text("val b = 2\n", encoding="utf-8")
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
     assert dict(server._workspace_files())[path].startswith("val b")

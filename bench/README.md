@@ -98,7 +98,7 @@ startup ~91 ms, didOpen ~38 ms, references cross-file ~107 ms na primeira consul
 ~105 ms de novo após cada edição, porque o cache é descartado), ~1,6 ms no cache quente,
 didChange ~35 ms, completion ~1,4 ms; hover,
 definition, highlight, rename e documentSymbol abaixo de 1 ms. O bench usa ~50 arquivos:
-`_workspace_files` poda diretórios ocultos/build (`os.walk`) e reusa o texto lido do disco
-por mtime/tamanho, mas o custo do walk ainda cresce com o workspace. A tolerância é **1,5×** o
+`_workspace_files` poda diretórios ocultos e `node_modules` (`os.walk`) e reusa o texto
+lido do disco por mtime/ctime/inode/tamanho, mas o custo do walk ainda cresce com o workspace. A tolerância é **1,5×** o
 baseline ([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então
 variações de máquina aparecem primeiro neles.

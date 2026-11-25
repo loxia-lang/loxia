@@ -67,7 +67,7 @@ class _Workspace:
 class WorkspaceCache:
     """Reusa a análise do workspace enquanto nenhum arquivo mudar.
 
-    A chave é o texto completo de todos os arquivos: buffer não salvo entra pelo
+    A chave é um hash do texto de todos os arquivos: buffer não salvo entra pelo
     `files` do chamador, então editar um documento invalida a entrada sem estado
     global. O LSP descarrega o cache em `_invalidate` para não segurar ASTs antigas.
     """
