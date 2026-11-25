@@ -559,6 +559,23 @@ def _open_in_process(
     return server, document
 
 
+def test_analyze_updates_caches_without_publishing(tmp_path: Path) -> None:
+    path = tmp_path / "quiet.lx"
+    text = "val x: Int = 1\n"
+    path.write_text(text, encoding="utf-8")
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    document = Document(text=text, version=1, path=path, uri=path.as_uri())
+
+    analysis = server._analyze(document)
+
+    assert analysis.version == 1
+    assert analysis.diagnostics == ()
+    assert server.indexes[document.uri] is not None
+    assert server.clean[document.uri] is True
+    assert cast(BytesIO, server.stdout).getvalue() == b""
+
+
 def _position_of(text: str, needle: str, start: int = 0) -> tuple[dict[str, int], int]:
     offset = text.index(needle, start)
     line = text.count("\n", 0, offset)
