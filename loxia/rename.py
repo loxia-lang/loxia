@@ -62,10 +62,44 @@ class _Workspace:
     declarations: dict[str, tuple[Path, Token]]
 
 
+@dataclass
+class WorkspaceCache:
+    """Reusa a análise do workspace enquanto nenhum arquivo mudar.
+
+    A chave é o texto completo de todos os arquivos: buffer não salvo entra pelo
+    `files` do chamador, então editar um documento invalida a entrada sem estado
+    global. O LSP descarrega o cache em `_invalidate` para não segurar ASTs antigas.
+    """
+
+    _fingerprint: tuple[str, tuple[tuple[str, str], ...]] | None = None
+    _workspace: _Workspace | str | None = None
+
+    def get(self, root: Path, files: dict[Path, str]) -> _Workspace | str:
+        fingerprint = (
+            str(root),
+            tuple((str(path), text) for path, text in sorted(files.items())),
+        )
+        if self._workspace is not None and self._fingerprint == fingerprint:
+            return self._workspace
+        workspace = _build_workspace(root, files)
+        self._fingerprint = fingerprint
+        self._workspace = workspace
+        return workspace
+
+    def clear(self) -> None:
+        self._fingerprint = None
+        self._workspace = None
+
+
 def semantic_target(
-    root: Path, files: dict[Path, str], target_path: Path, token: Token
+    root: Path,
+    files: dict[Path, str],
+    target_path: Path,
+    token: Token,
+    *,
+    cache: WorkspaceCache | None = None,
 ) -> Target | None:
-    workspace = _workspace(root, files)
+    workspace = _workspace(root, files, cache)
     if isinstance(workspace, str):
         return None
     return _target(workspace, target_path, token)
@@ -77,8 +111,10 @@ def semantic_rename(
     target_path: Path,
     token: Token,
     new_name: str,
+    *,
+    cache: WorkspaceCache | None = None,
 ) -> dict[str, object] | str | None:
-    workspace = _workspace(root, files)
+    workspace = _workspace(root, files, cache)
     if isinstance(workspace, str):
         return workspace
     target = _target(workspace, target_path, token)
@@ -90,10 +126,15 @@ def semantic_rename(
 
 
 def semantic_references(
-    root: Path, files: dict[Path, str], target_path: Path, token: Token
+    root: Path,
+    files: dict[Path, str],
+    target_path: Path,
+    token: Token,
+    *,
+    cache: WorkspaceCache | None = None,
 ) -> References | None:
     """Ocorrências semânticas do alvo, na mesma resolução do rename cross-file."""
-    workspace = _workspace(root, files)
+    workspace = _workspace(root, files, cache)
     if isinstance(workspace, str):
         return None
     target = _target(workspace, target_path, token)
@@ -114,7 +155,15 @@ def semantic_references(
     )
 
 
-def _workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
+def _workspace(
+    root: Path, files: dict[Path, str], cache: WorkspaceCache | None = None
+) -> _Workspace | str:
+    if cache is not None:
+        return cache.get(root, files)
+    return _build_workspace(root, files)
+
+
+def _build_workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
     analyses: dict[Path, _Analysis] = {}
     positions: dict[tuple[Path, int], set[str]] = {}
     tokens_by_lexeme: dict[str, set[tuple[Path, int]]] = {}

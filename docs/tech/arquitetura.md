@@ -199,11 +199,12 @@ interval index só entra se o benchmark mostrar regressão — o guard determin�
 
 O caminho end-to-end do servidor é medido por
 [`bench/lsp.py`](../../bench/lsp.py) (`make bench-lsp`), que sobe `main.py lsp` e mede
-startup, didOpen, hover, definition, references, highlight, rename, completion,
+startup, didOpen, hover, definition, references (frio/quente), highlight, rename, completion,
 documentSymbol e didChange sobre stdio, com baseline
 [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de **1,5×**.
-Mediana de 2026-11-24: startup ~98 ms, didOpen ~62 ms, references cross-file ~66 ms,
-didChange ~58 ms; as requisições locais ficam abaixo de 2 ms.
+Mediana de 2026-11-24: startup ~98 ms, didOpen ~62 ms, references cross-file ~67 ms na
+primeira consulta e ~1,2 ms com o cache do workspace, didChange ~58 ms; as requisições
+locais ficam abaixo de 2 ms.
 
 Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`
 → `SourceIndex(extra_spans=...)`), como a trivia do ADR-0134: o AST e o JSON v2 não mudam.

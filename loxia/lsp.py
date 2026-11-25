@@ -24,7 +24,12 @@ from loxia.completion import superclass_name as completion_superclass
 from loxia.engine import Loxia
 from loxia.formatter import DEFAULT_MAX_WIDTH, format_source
 from loxia.formatter.edits import build_edits
-from loxia.rename import semantic_references, semantic_rename, semantic_target
+from loxia.rename import (
+    WorkspaceCache,
+    semantic_references,
+    semantic_rename,
+    semantic_target,
+)
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
 from loxia.symbols import Symbol, SymbolIndex, token_key
 from loxia_core.bundle import bundle_dir
@@ -485,6 +490,7 @@ class Server:
         self.source_maps: dict[str, object] = {}
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
+        self.semantic_cache = WorkspaceCache()
         self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
         self.shutdown = False
@@ -816,6 +822,7 @@ class Server:
         self.indexes.pop(uri, None)
         self.source_indexes.pop(uri, None)
         self.source_files.pop(uri, None)
+        self.semantic_cache.clear()
 
     def _publish(self, document: object) -> None:
         if isinstance(document, dict) and isinstance(document.get("uri"), str):
@@ -1071,7 +1078,7 @@ class Server:
         if self.root is None or document.path is None:
             return None
         files = dict(self._workspace_files())
-        return semantic_target(self.root, files, document.path, token)
+        return semantic_target(self.root, files, document.path, token, cache=self.semantic_cache)
 
     def _rename(self, message: dict[str, Any]) -> object:
         params = message.get("params")
@@ -1096,7 +1103,14 @@ class Server:
         if target is None:
             if self.root is not None and document.path is not None:
                 files = dict(self._workspace_files())
-                semantic = semantic_rename(self.root, files, document.path, token, new_name)
+                semantic = semantic_rename(
+                    self.root,
+                    files,
+                    document.path,
+                    token,
+                    new_name,
+                    cache=self.semantic_cache,
+                )
                 if isinstance(semantic, str):
                     return semantic
                 if semantic is not None:
@@ -1733,7 +1747,9 @@ class Server:
                 locations.append({"uri": document.uri, "range": self._range_for(document, found)})
         elif self.root is not None and document.path is not None:
             files = dict(self._workspace_files())
-            references = semantic_references(self.root, files, document.path, token)
+            references = semantic_references(
+                self.root, files, document.path, token, cache=self.semantic_cache
+            )
             if references is None:
                 return []
             declaration_path, declaration_offset = references.declaration
@@ -1798,7 +1814,9 @@ class Server:
                 )
         elif self.root is not None and document.path is not None:
             files = dict(self._workspace_files())
-            references = semantic_references(self.root, files, document.path, token)
+            references = semantic_references(
+                self.root, files, document.path, token, cache=self.semantic_cache
+            )
             if references is None:
                 return []
             declaration_path, declaration_offset = references.declaration

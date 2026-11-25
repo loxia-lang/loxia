@@ -56,3 +56,34 @@ def test_workspace_resolves_each_file_once(tmp_path: Path, monkeypatch: pytest.M
     assert len(references.occurrences) >= 2
     # Dois arquivos, dois fallbacks: o cache evita uma resolução por token.
     assert len(calls) <= 6
+
+
+def test_workspace_cache_reuses_until_text_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    files = _workspace_files(tmp_path)
+    builds: list[int] = []
+    original = rename._build_workspace
+
+    def counting(root: Path, current: dict[Path, str]) -> object:
+        builds.append(1)
+        return original(root, current)
+
+    monkeypatch.setattr(rename, "_build_workspace", counting)
+    cache = rename.WorkspaceCache()
+    token = _token_at(MAIN, "soma(1")
+    main = tmp_path / "main.lx"
+
+    first = rename.semantic_references(tmp_path, files, main, token, cache=cache)
+    second = rename.semantic_references(tmp_path, files, main, token, cache=cache)
+
+    assert first is not None and second is not None
+    assert first.occurrences == second.occurrences
+    assert len(builds) == 1
+
+    changed = dict(files)
+    changed[main] = MAIN + "\nprint(total)\n"
+    third = rename.semantic_references(tmp_path, changed, main, token, cache=cache)
+
+    assert third is not None
+    assert len(builds) == 2
