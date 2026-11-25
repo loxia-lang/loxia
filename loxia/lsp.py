@@ -12,24 +12,11 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, cast
+from typing import IO, TYPE_CHECKING, Any, cast
 from urllib.parse import unquote, urlparse
 
 from loxia import __version__
-from loxia.builtins_docs import BUILTIN_DOCS
-from loxia.completion import complete as completion_items
-from loxia.completion import declared_type as completion_declared_type
-from loxia.completion import enclosing_context as completion_context
-from loxia.completion import superclass_name as completion_superclass
 from loxia.engine import Loxia
-from loxia.formatter import DEFAULT_MAX_WIDTH, format_source
-from loxia.formatter.edits import build_edits
-from loxia.rename import (
-    WorkspaceCache,
-    semantic_references,
-    semantic_rename,
-    semantic_target,
-)
 from loxia.source_symbols import SourceContext, display_source_type, parse_for_completion
 from loxia.symbols import Symbol, SymbolIndex, token_key
 from loxia_core.bundle import bundle_dir
@@ -67,6 +54,13 @@ from loxia_core.frontend.ty import (
 )
 from loxia_core.loader.loader import ModuleLoader
 from loxia_core.semantics.resolver import Resolver
+
+if TYPE_CHECKING:
+    from loxia.rename import WorkspaceCache
+
+# Mesmo default de `loxia.formatter.engine`; importar o formatter aqui paga o
+# printer inteiro no startup do LSP, e nenhum handler roda antes de initialize.
+DEFAULT_MAX_WIDTH = 100
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
@@ -490,7 +484,7 @@ class Server:
         self.source_maps: dict[str, object] = {}
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
-        self.semantic_cache = WorkspaceCache()
+        self.semantic_cache: WorkspaceCache | None = None
         self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
         self.shutdown = False
@@ -817,12 +811,20 @@ class Server:
             self._invalidate(uri)
             self._publish_by_uri(uri)
 
+    def _workspace_cache(self) -> WorkspaceCache:
+        from loxia.rename import WorkspaceCache
+
+        if self.semantic_cache is None:
+            self.semantic_cache = WorkspaceCache()
+        return self.semantic_cache
+
     def _invalidate(self, uri: str) -> None:
         """Descarta os caches derivados de um documento (símbolos, spans e fonte)."""
         self.indexes.pop(uri, None)
         self.source_indexes.pop(uri, None)
         self.source_files.pop(uri, None)
-        self.semantic_cache.clear()
+        if self.semantic_cache is not None:
+            self.semantic_cache.clear()
 
     def _publish(self, document: object) -> None:
         if isinstance(document, dict) and isinstance(document.get("uri"), str):
@@ -1077,8 +1079,12 @@ class Server:
     def _semantic_target(self, document: Document, token: Token) -> object | None:
         if self.root is None or document.path is None:
             return None
+        from loxia.rename import semantic_target
+
         files = dict(self._workspace_files())
-        return semantic_target(self.root, files, document.path, token, cache=self.semantic_cache)
+        return semantic_target(
+            self.root, files, document.path, token, cache=self._workspace_cache()
+        )
 
     def _rename(self, message: dict[str, Any]) -> object:
         params = message.get("params")
@@ -1102,6 +1108,8 @@ class Server:
             target = None
         if target is None:
             if self.root is not None and document.path is not None:
+                from loxia.rename import semantic_rename
+
                 files = dict(self._workspace_files())
                 semantic = semantic_rename(
                     self.root,
@@ -1109,7 +1117,7 @@ class Server:
                     document.path,
                     token,
                     new_name,
-                    cache=self.semantic_cache,
+                    cache=self._workspace_cache(),
                 )
                 if isinstance(semantic, str):
                     return semantic
@@ -1746,9 +1754,11 @@ class Server:
                     continue
                 locations.append({"uri": document.uri, "range": self._range_for(document, found)})
         elif self.root is not None and document.path is not None:
+            from loxia.rename import semantic_references
+
             files = dict(self._workspace_files())
             references = semantic_references(
-                self.root, files, document.path, token, cache=self.semantic_cache
+                self.root, files, document.path, token, cache=self._workspace_cache()
             )
             if references is None:
                 return []
@@ -1813,9 +1823,11 @@ class Server:
                     }
                 )
         elif self.root is not None and document.path is not None:
+            from loxia.rename import semantic_references
+
             files = dict(self._workspace_files())
             references = semantic_references(
-                self.root, files, document.path, token, cache=self.semantic_cache
+                self.root, files, document.path, token, cache=self._workspace_cache()
             )
             if references is None:
                 return []
@@ -2048,6 +2060,8 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return empty
+        from loxia.completion import complete as completion_items
+
         index = self._index_for(uri)
         offset = self._offset_at(document.text, line, character)
         return {
@@ -2094,6 +2108,9 @@ class Server:
         )
         if match is None:
             return None
+        from loxia.builtins_docs import BUILTIN_DOCS
+        from loxia.source_symbols import SourceContext, parse_for_completion
+
         callee = match.group(1).replace(" ", "")
         parts = callee.split(".")
         name = parts[-1]
@@ -2155,6 +2172,10 @@ class Server:
         offset: int,
         uri: str,
     ) -> str | None:
+        from loxia.completion import declared_type as completion_declared_type
+        from loxia.completion import enclosing_context as completion_context
+        from loxia.completion import superclass_name as completion_superclass
+
         imported = context.imports.get(receiver)
         if imported is not None and imported.public is None:
             return context.namespace_signature(receiver, name)
@@ -2267,6 +2288,9 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return []
+        from loxia.formatter import format_source
+        from loxia.formatter.edits import build_edits
+
         result = format_source(
             document.text,
             reporter=ErrorReporter(max_errors=0),

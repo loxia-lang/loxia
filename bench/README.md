@@ -93,7 +93,7 @@ uv run python bench/lsp.py --json
 
 Workspace gerado em diretório temporário (`lib.lx` com classe/funções e `main.lx` com
 `import`, anotação, `std.lists` e variável local), então os offsets são estáveis e não
-aparecem paths absolutos. Mediana de 2026-11-24 nesta máquina: startup ~101 ms, didOpen
+aparecem paths absolutos. Mediana de 2026-11-24 nesta máquina: startup ~91 ms, didOpen
 ~39 ms, references cross-file ~67 ms na primeira consulta (e ~66 ms de novo após cada
 edição, porque o cache é descartado), ~1,2 ms no cache quente, didChange ~35 ms,
 completion ~1,4 ms; hover,
