@@ -5260,7 +5260,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return ANY
             if not is_nilable(left):
                 return left
-            return union(non_nil(left), right)
+            fallback = non_nil(left)
+            # O resultado é `fallback` ou `right`; quando um é atribuível ao outro,
+            # o tipo comum evita uma união de não-escalares que o backend não
+            # representa (ex.: `I? ?? C` → `I`, ADR-0146/#221).
+            if self._assignable(fallback, right):
+                return right
+            if self._assignable(right, fallback):
+                return fallback
+            return union(fallback, right)
         if operator is TokenType.OR:
             return union(truthy(left), right)
 

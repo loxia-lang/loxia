@@ -1464,6 +1464,7 @@ class Lowerer(
             merged,
             left.sig,
             class_name=left.class_name,
+            interface_name=left.interface_name,
         )
 
     def _coalesce_any(self, left: Value, expr: Logical) -> Value:

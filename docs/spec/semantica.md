@@ -204,6 +204,8 @@ var a = "global";
   branches (`Int`/`Int` → `Int`); the `else` is right-associative.
 - `??` is **nil only**: `0 ?? 5` → `0`, `false ?? true` → `false`, `"" ?? "x"` → `""`;
   `or` still uses truthiness. The right side is evaluated only if the left side is `nil`.
+  The type is the common type of the non-nil left and the right (`I? ?? C` → `I`, `C? ?? D`
+  → `C` when `D` is a subclass); without one, it is the union.
 - `?.` only protects against `nil`: `nil?.x` → `nil`; `a?.b.c` does not protect `b`; use `a?.b?.c`.
   In `a?.m()`, if `a` is nil, the method and the arguments are not evaluated; if `a` is not
   nil but `m` does not exist, it is still an error. `a?.b = c` is invalid.

@@ -96,6 +96,7 @@
       "differential": "l6",
       "golden": [
         "tests/cases/any_interface.lx",
+        "tests/cases/interface_union_optional.lx",
         "tests/cases/interfaces.lx",
         "tests/cases/interface_decl.lx",
         "tests/cases/selfhost_ast_interface.lx"

@@ -1,0 +1,20 @@
+# `??` em união de interface/lista com Nil usa o tipo comum (ADR-0146/#221).
+interface I {
+  fn m() -> Int
+}
+
+class C implements I {
+  fn m() -> Int {
+    return 1
+  }
+}
+
+val maybe: I | Nil = nil
+val x: I = maybe ?? C()
+print(x.m()) # expect: 1
+
+val y: I | Nil = C()
+print((y ?? C()).m()) # expect: 1
+
+val xs: List[Int] | Nil = nil
+print(xs ?? [1, 2]) # expect: [1, 2]
