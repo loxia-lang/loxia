@@ -2469,6 +2469,21 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
         if source is ANY or source is target:
             return target
+        if isinstance(target, InterfaceTy):
+            if isinstance(source, InterfaceTy):
+                return target
+            if isinstance(source, ClassTy) and self._implements_interface(source.name, target.name):
+                return target
+            if isinstance(source, UnionTy):
+                return target
+            if isinstance(source, TyVar) and target.name in source.bounds:
+                return target
+            self._error(
+                expr.operator,
+                f"Can't cast {display(source)} to {display(target)}.",
+                code=Code.INVALID_CAST,
+            )
+            return ERROR
         if isinstance(source, UnionTy) and any(member == target for member in source.members):
             # `T | Nil as T` é o estreitamento explícito: o runtime confere e falha
             # com R1011 se o valor não for do tipo pedido.
@@ -2508,11 +2523,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # de tipo; a monomorfização resolve T para um tipo concreto.
             return
         if isinstance(ty, InterfaceTy):
-            self._error(
-                token,
-                "Interface types aren't supported in 'as' yet.",
-                code=Code.INVALID_CAST,
-            )
             return
         if ty in (NIL, BOOL, INT, FLOAT, STRING, BYTES, RANGE):
             return
@@ -2555,11 +2565,6 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if ty is ERROR or ty is ANY or ty is NEVER:
             return
         if isinstance(ty, InterfaceTy):
-            self._error(
-                token,
-                "Interface types aren't supported in 'is' yet.",
-                code=Code.INVALID_TYPE_ANNOTATION,
-            )
             return
         if ty in (NIL, BOOL, INT, FLOAT, STRING, BYTES, RANGE):
             return
@@ -2889,10 +2894,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 return {}
 
             key, current = target
+            test_type = self._resolve_test_type(expr.test_type)
             narrowed = (
-                self._narrow_to(current, expr.test_type)
+                self._narrow_to(current, test_type)
                 if truth
-                else self._narrow_away(current, expr.test_type)
+                else self._narrow_away(current, test_type)
             )
             if narrowed is None or narrowed == current:
                 return {}
@@ -3031,6 +3037,15 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return dict(self._narrowings)
         finally:
             self._narrowings = saved
+
+    def _resolve_test_type(self, ty: Ty) -> Ty:
+        """Alvo do `is` para narrowing, sem emitir diagnóstico (já validado)."""
+        if isinstance(ty, ClassTy):
+            if ty.name in self._alias_resolved:
+                return self._alias_resolved[ty.name]
+            if not ty.args and ty.name in self._interfaces:
+                return InterfaceTy(ty.name)
+        return ty
 
     def _narrow_to(self, current: Ty, test: Ty) -> Ty | None:
         narrowed = self._intersect_types(current, test)

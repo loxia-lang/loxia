@@ -197,6 +197,7 @@ TODO item.
 | [0143](0143-lsp-didchange-coalescing-e-reuso.md) | LSP `didChange`: coalesce changes with a lazy flush, reuse unchanged module parses by content and build the `SymbolIndex` lazily; diagnostics stay full-file and only the latest version is published | accepted (implemented, #191) | 2026-11-25 |
 | [0144](0144-any-dinamico-exige-estreitamento.md) | Dynamic access on `Any` (member get/set, call, index) requires narrowing (`is`/`as`, `E3025`); the backend honors the checker's flow type by unboxing at the use; value operations stay dynamic | accepted (implemented) | 2026-11-25 |
 | [0145](0145-campo-any-slot-largo.md) | `Any` fields take two inline words (`{tag, payload}`) with an absolute `slot` next to the bitmap `index`; instance size comes from `word_count()` and the GC-scanned slab keeps the payload rooted | accepted (implemented) | 2026-11-25 |
+| [0146](0146-is-as-interface.md) | `is I`/`as I`: runtime check against the descriptor's interface table (own + inherited, kind `J<id>`); a cast from a concrete class that does not implement the interface is a static error; no new tag or ABI; functions and class objects remain in issue #213 | accepted (implemented) | 2026-11-25 |
 
 
 ## Next decisions that call for an ADR

@@ -55,7 +55,7 @@ backend = true
 
 [features.interfaces]
 title = "Interfaces nominais e métodos default"
-golden = ["tests/cases/interfaces.lx", "tests/cases/interface_decl.lx", "tests/cases/selfhost_ast_interface.lx"]
+golden = ["tests/cases/any_interface.lx", "tests/cases/interfaces.lx", "tests/cases/interface_decl.lx", "tests/cases/selfhost_ast_interface.lx"]
 differential = "l6"
 backend = true
 

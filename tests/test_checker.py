@@ -2717,18 +2717,6 @@ print(I)""",
             "Interface 'I' is a type, not a value.",
         ),
         (
-            "interface I { m() -> Int }\n"
-            "class C implements I { fn m() -> Int { return 1 } }\n"
-            "print(C() is I)",
-            "Interface types aren't supported in 'is' yet.",
-        ),
-        (
-            "interface I { m() -> Int }\n"
-            "class C implements I { fn m() -> Int { return 1 } }\n"
-            "print(C() as I)",
-            "Interface types aren't supported in 'as' yet.",
-        ),
-        (
             "fn f() -> Int { { interface I { m() -> Int } } return 1 }",
             "Interfaces must be declared at top level.",
         ),
@@ -2760,6 +2748,27 @@ def test_interface_errors(source: str, message: str, capsys: pytest.CaptureFixtu
 
     assert lox.reporter.had_error is True
     assert message in captured.err
+
+
+def test_interface_is_and_as_are_accepted() -> None:
+    lox = check(
+        "interface I { fn m() -> Int { return 1 } }\n"
+        "class C implements I { fn m() -> Int { return 1 } }\n"
+        "print(C() is I)\n"
+        "print((C() as I).m())"
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_interface_as_from_class_that_does_not_implement_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check("interface I { fn m() -> Int }\nclass C {}\nprint(C() as I)")
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Can't cast C to I." in captured.err
 
 
 @pytest.mark.parametrize(

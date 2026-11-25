@@ -46,6 +46,22 @@ void *lox_interface_method(const void *instance, int64_t interface_id,
     return NULL;
 }
 
+/* True when the class descriptor lists `interface_id`. The table holds the
+ * effective interfaces (own + inherited, ADR-0080/0146). */
+static int lox_implements_interface(const void *descriptor, int64_t interface_id) {
+    if (descriptor == NULL) {
+        return 0;
+    }
+    const LoxClassDescRuntime *desc = (const LoxClassDescRuntime *)descriptor;
+    const LoxInterfaceEntryRuntime *entries = desc->interfaces;
+    for (int64_t index = 0; index < desc->interface_count; index++) {
+        if (entries[index].interface_id == interface_id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Nominal class `is`: walks the `super` chain comparing descriptors. */
 int lox_is_instance(void *descriptor, void *target) {
     while (descriptor != NULL) {
@@ -66,10 +82,11 @@ int lox_is_instance(void *descriptor, void *target) {
  *
  * Grammar: A=Any, X=never, N=nil, B=Bool, I=Int, F=Float, S=String,
  * R=Range, L<T>=List, M<K,V>=Map, T<T1,...>=Tuple, U<T1|...>=Union,
- * E<id>=enum, C<id>=class.
+ * E<id>=enum, C<id>=class, J<id>=interface.
  *
- * `kind` uses the LoxValue tag for concrete types; -1 is Any, -2 is union and
- * -3 is never. For E/C, `count` stores the id (negative for local classes).
+ * `kind` uses the LoxValue tag for concrete types; -1 is Any, -2 is union,
+ * -3 is never and -4 is interface. For E/C/J, `count` stores the id (negative
+ * for local classes).
  * --------------------------------------------------------------------------- */
 
 /* Allocates a zeroed node (kind 0 = nil). */
@@ -166,8 +183,9 @@ const char *lox_parse_type(const char *cursor, LoxTypeDesc *desc) {
         return cursor;
     }
     case 'E':
-    case 'C': {
-        desc->kind = kind == 'E' ? 12 : 6;
+    case 'C':
+    case 'J': {
+        desc->kind = kind == 'E' ? 12 : (kind == 'C' ? 6 : -4);
         cursor++; /* '<' */
         int64_t value = 0;
         int negative = 0;
@@ -244,6 +262,14 @@ int lox_type_matches_desc(int64_t tag, int64_t payload,
             }
         }
         return 0;
+    }
+    if (type->kind == -4) {
+        if (tag != 6) {
+            return 0;
+        }
+        const void *instance = (const void *)payload;
+        return lox_implements_interface(*(const void * const *)instance,
+                                        type->count);
     }
     if (type->kind == -3 || tag != type->kind) {
         return 0;

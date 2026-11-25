@@ -122,6 +122,7 @@ from loxia_core.frontend.ty import (
     ClassTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     TupleTy,
@@ -641,6 +642,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_grouping_expr(self, expr: Grouping) -> object:
         return self._evaluate(expr.expression)
 
+    def _runtime_type(self, ty: Ty) -> Ty:
+        """`ClassTy(I)` do parser é interface no runtime: o nome resolve para InterfaceTy."""
+        if isinstance(ty, ClassTy) and not ty.args and ty.name in self.interfaces:
+            return InterfaceTy(ty.name)
+        return ty
+
     def _expand_type_aliases(self, ty: Ty, seen: frozenset[str] = frozenset()) -> Ty:
         if isinstance(ty, ClassTy):
             if ty.name in self._type_aliases and ty.name not in seen:
@@ -679,7 +686,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self._type_aliases[stmt.name.lexeme] = stmt.target
 
     def visit_is_expr(self, expr: Is) -> object:
-        test_type = self._expand_type_aliases(expr.test_type)
+        test_type = self._runtime_type(self._expand_type_aliases(expr.test_type))
         if isinstance(test_type, ClassTy) and test_type.args:
             raise LoxRuntimeError(
                 expr.operator,
@@ -698,7 +705,7 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
     def visit_as_expr(self, expr: As) -> object:
         value = self._evaluate(expr.left)
-        target = self._expand_type_aliases(expr.target_type)
+        target = self._runtime_type(self._expand_type_aliases(expr.target_type))
 
         if isinstance(target, ClassTy) and target.args:
             raise LoxRuntimeError(

@@ -50,6 +50,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
 
 ### Adicionado
+- **`is`/`as` para interface** ([ADR-0146](docs/adr/0146-is-as-interface.md), issue
+  [#213](https://github.com/loxia-lang/loxia/issues/213)): um `Any` que guarda uma instância
+  que implementa uma interface agora estreita para a interface (`if (x is I)`,
+  `(x as I).m()`), inclusive método default e interface herdada. A checagem em runtime usa a
+  tabela de interfaces do descritor de classe (a mesma do despacho), sem tag ou ABI nova;
+  `as` de uma classe que não implementa `I` é erro de checker e `Any`/união são checados em
+  runtime. Casos `tests/cases/any_interface.lx` (L6, diferencial),
+  `errors/any_interface_cast.lx` e `errors/interface_cast_static.lx`.
 - **Campo `Any` no backend** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md), issue [#196](https://github.com/loxia-lang/loxia/issues/196)): um campo `Any` (ou união de escalares) ocupa duas palavras inline (`{tag, payload}`) e aceita qualquer valor — incluindo containers, instância, enum e função — com `is`/`as`/`==`/`??`/`print`. O layout usa dois contadores (`index` do bitmap e `slot` absoluto em palavras), herança preserva o prefixo e classes sem `Any` mantêm o layout antigo. Acesso continua exigindo narrowing (`E3025`). Casos `tests/cases/any_field_*.lx` (L6, diferencial).
 - **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
   mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com

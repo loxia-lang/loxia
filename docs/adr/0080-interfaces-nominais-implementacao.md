@@ -35,6 +35,10 @@ modelo nominal e os métodos default continuam válidos.
 
 > **Implementação (2026-11-15):** fases T1–T9 entregues — sintaxe, tipos,
 > conformidade/defaults no tree-walk e no checker, loader, golden/checker/AST e backend
+> **Atualização (2026-11-25):** `is`/`as` com interface foram implementados no
+> [ADR-0146](0146-is-as-interface.md), usando a tabela de interfaces do descritor; a
+> restrição da v1 abaixo fica histórica.
+
 > B2 (`interface_id` + tabela `itab` no descritor de classe). `is`/`as` com interface
 > seguem fora.
 
