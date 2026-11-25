@@ -21,7 +21,10 @@ ADR próprio:
 - recursão polimórfica e variance.
 
 As **constraints** existem em funções (`T: Ord + Num + Interface`,
-[ADR-0081](docs/adr/0081-constraints-generics.md)); faltam constraints em classes/enums.
+[ADR-0081](docs/adr/0081-constraints-generics.md)). Constraints em classes/enums/interfaces
+estão **adiadas** ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)): `class C[T: Ord]`
+e `enum E[T: Ord]` seguem `E1005`, e interfaces genéricas seguem `E3012`; reabrir com
+programa real + ADR e plano de monomorfização.
 
 ## 2. Checker
 
