@@ -289,3 +289,20 @@ def test_type_name_spans_are_utf8_exact_across_lines() -> None:
     inner = next(span for span in found if spans.text_of(span) == "Int")
     assert inner.start == len(source[: source.index("Int")].encode("utf-8"))
     assert spans.line_of(inner) == 3
+
+
+def test_source_index_is_lazy_until_first_query() -> None:
+    source = "val x: Int = 1\n"
+    lox = Loxia()
+    lox._file = "test.lx"
+    lox._sources.add("test.lx", source)
+    lox.check(source, emit=False)
+    statements = lox.last_statements
+    spans = lox.last_source_index
+
+    assert statements is not None
+    assert isinstance(spans, SourceIndex)
+    assert spans._built is False
+
+    assert spans.span_of(statements[0]) is not None
+    assert spans._built is True

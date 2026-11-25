@@ -267,6 +267,8 @@ class Loxia:
             source,
             sources=self._sources,
             extra_spans=self.last_type_spans,
+            navigation_file=self._file,
+            lazy=True,
         )
         return statements
 
