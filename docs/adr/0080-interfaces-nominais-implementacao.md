@@ -245,7 +245,7 @@ comparador), iterador (`for-in` sobre classe) e variádicos
 | T1 | ADR + spec + grammar + orçamento | `docs/adr/0080`, `docs/spec/{sintaxe,semantica}.md`, `make grammar` |
 | T2 | AST/parser/printer: `interface`, `implements`, abstrato × default | `stmt.py`, `parser.py`, `ast_printer.py`, `token_type.py`, `keywords.py` |
 | T3 | Resolver: `this` no default, duplicatas, `super` proibido | `resolver.py` |
-| T4 | Checker: `InterfaceTy`, `InterfaceInfo`, conformidade, conflito, chamadas, `is/as` recusado | `ty.py`, `checker.py`, `codes.py` |
+| T4 | Checker: `InterfaceTy`, `InterfaceInfo`, conformidade, conflito, chamadas, `is/as` recusado (v1; implementado no [ADR-0146](0146-is-as-interface.md)) | `ty.py`, `checker.py`, `codes.py` |
 | T5 | Interpreter: `LoxInterface`, defaults, ordem de resolução | `lox_interface.py`, `lox_class.py`, `interpreter.py` |
 | T6 | Loader: clonar `Interface`, renomear `InterfaceTy`/`implements` em módulos | `loader.py` |
 | T7 | Testes: golden, checker, AST, determinismo, docs | `tests/cases/interface_*.lx`, `tests/test_checker.py` |
@@ -273,7 +273,8 @@ Casos de erro:
 - interface duplicada em `implements`; conflito de dois defaults sem override;
 - interface fora do topo; campo no corpo da interface; `init` na interface; `super`/campo
   no default;
-- interface como valor; `is`/`as` com interface; interface genérica.
+- interface como valor; `is`/`as` com interface (v1; implementado no
+  [ADR-0146](0146-is-as-interface.md)); interface genérica.
 
 Backend: os casos de interface foram promovidos de `PENDING` para `LEVELS` (l6) no mesmo
 commit da ABI B2; o diferencial cobre stdout, stderr e exit code nos três canais.
