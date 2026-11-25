@@ -583,7 +583,8 @@ val d = anyValue as Dog   # runtime check
   use, so both engines agree. Narrowing to an interface, a function type or a class object
   is not supported yet (`E3013`/`E3007`). Value operations stay dynamic on `Any`: arithmetic,
   comparison, equality, `is`/`as`, `print`/`str`/interpolation, `not`/unary, `??` and
-  `and`/`or` ([ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md)).
+  `and`/`or`; `len` and `for-in` on an un-narrowed `Any` are declared backend gaps (`E4001`).
+  See [ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md).
 - `T as T` is the identity; `as Any` returns the value. A union target (`Int?`, `Int | String`)
   does not exist yet; use narrowing/`is`.
 - A string does not become a number through a cast; use `parse`.

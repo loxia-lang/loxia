@@ -2,6 +2,7 @@
 class C {
   var x: Any = 1
 }
+
 val c = C()
 print(c.x.m())
 # expect error: Can't access a member of `Any`; narrow it with `is` or cast it with `as` first.

@@ -3534,8 +3534,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def visit_call_expr(self, expr: Call) -> Ty:
         result = self._infer_call(expr, None, expr.paren)
-        self._invalidate_members()
         if self._call_may_run_user_code(expr):
+            # Nativas puras (`print`, `len`, `str`, `chars`, `range`, métodos de
+            # `List`/`Map`) não podem mutar campos; manter o refino evita um falso
+            # `E3025` em `if (c.x is T) { print(c.x.n); c.x.n = 5 }`.
+            self._invalidate_members()
             self._invalidate_captured()
         return result
 

@@ -97,3 +97,51 @@ while (i < 1000) {
 print(bag.a)  # expect: 999
 print(bag.b)  # expect: 499.5
 print(bag.c)  # expect: x
+
+class NoInit {
+  var x: Any
+
+  fn init() {
+    this.x = "i"
+  }
+}
+
+print(NoInit().x) # expect: i
+
+class BaseA {
+  var a: Any = nil
+
+  fn init(v: Any) {
+    this.a = v
+  }
+}
+
+class DerivA(BaseA) {
+  var b: Any = nil
+
+  fn init(v: Any) {
+    super.init(v)
+    this.b = v
+  }
+}
+
+val da = DerivA("s")
+print(da.a)  # expect: s
+print(da.b)  # expect: s
+
+class Target {
+  fn m() -> Int {
+    return 7
+  }
+}
+
+class BoxHolder {
+  var t: Any = nil
+}
+
+val bh = BoxHolder()
+bh.t = Target()
+if (bh.t is Target) {
+  print(bh.t.m()) # expect: 7
+}
+print((bh.t as Target).m()) # expect: 7
