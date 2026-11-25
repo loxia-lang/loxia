@@ -238,6 +238,22 @@ def run_session() -> dict[str, float]:
         def request(method: str, params: dict[str, Any]) -> Callable[[], object]:
             return lambda: lsp.request(method, {"textDocument": {"uri": uri}, **params})
 
+        version = 1
+        current = text
+
+        def change() -> None:
+            nonlocal version, current
+            version += 1
+            current = changed if current == text else text
+            lsp.notify(
+                "textDocument/didChange",
+                {
+                    "textDocument": {"uri": uri, "version": version},
+                    "contentChanges": [{"text": current}],
+                },
+            )
+            lsp.wait_diagnostics(uri)
+
         reference_call = request(
             "textDocument/references",
             {"position": type_position, "context": {"includeDeclaration": True}},
@@ -295,21 +311,11 @@ def run_session() -> dict[str, float]:
             ),
         ]
 
-        version = 1
-        current = text
-
-        def change() -> None:
-            nonlocal version, current
-            version += 1
-            current = changed if current == text else text
-            lsp.notify(
-                "textDocument/didChange",
-                {
-                    "textDocument": {"uri": uri, "version": version},
-                    "contentChanges": [{"text": current}],
-                },
-            )
-            lsp.wait_diagnostics(uri)
+        change()  # o cache do workspace é descartado a cada edição
+        started = time.perf_counter()
+        after_change = reference_call()
+        references_after_change = (time.perf_counter() - started) * 1000
+        assert isinstance(after_change, list) and len(after_change) >= 2
 
         metrics.append(_measure("did_change", change, SAMPLES_PER_METRIC))
     finally:
@@ -320,6 +326,7 @@ def run_session() -> dict[str, float]:
         "startup": startup * 1000,
         "did_open": open_ms * 1000,
         "references_cold": references_cold,
+        "references_after_change": references_after_change,
     }
     result.update({item.name: item.median_ms for item in metrics})
     return result

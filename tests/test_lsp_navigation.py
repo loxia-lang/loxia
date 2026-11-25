@@ -773,3 +773,17 @@ def test_lsp_references_reuse_workspace_cache(
     third = cast(list[dict[str, Any]], server._references({"params": params}))
     assert third
     assert len(builds) == 2
+
+
+def test_lsp_does_not_build_source_index_for_diagnostics(tmp_path: Path) -> None:
+    text = "val x: Int = 1\nprint(x)\n"
+    server, document = _open_in_process(tmp_path, text)
+    index = server.source_indexes[document.uri]
+    assert index._built is False
+
+    position, _ = _position_of(text, "Int")
+    token = server._token_at(document, position)
+    assert token is not None
+    server._range_for(document, token)
+
+    assert index._built is True

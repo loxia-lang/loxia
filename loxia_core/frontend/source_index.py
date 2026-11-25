@@ -177,16 +177,33 @@ class SourceIndex:
         *,
         sources: SourceMap | None = None,
         extra_spans: list[Span] | None = None,
+        navigation_file: str | None = None,
+        lazy: bool = False,
     ) -> None:
         self.source = source
         self.sources = sources
-        self.spans: list[NodeSpan] = []
+        self._statements = statements
+        self._extra_spans = list(extra_spans or ())
+        # O índice carrega os módulos inlined pelo loader, mas nomes de navegação
+        # só são consultados no arquivo aberto: limitar por arquivo evita pagar
+        # por declarações de `std`/imports em todo check.
+        self._navigation_file = navigation_file
+        self._spans: list[NodeSpan] = []
         self._by_node: dict[object, NodeSpan] = {}
         self._by_extent: dict[Extent, NodeSpan] = {}
+        self._built = False
+        if not lazy:
+            self._build()
+
+    def _build(self) -> None:
+        """Constrói o índice na primeira consulta quando `lazy=True`."""
+        if self._built:
+            return
+        self._built = True
         # Nomes de tipo entram antes da caminhada do AST: quando coincidem com o
         # span de um nó (ex.: `x: Int`), o kind específico vence e o nó reusa o
         # mesmo span (offsets idênticos).
-        for span in extra_spans or ():
+        for span in self._extra_spans:
             self._register(
                 NodeSpan(
                     span,
@@ -196,8 +213,13 @@ class SourceIndex:
                     kind="type",
                 )
             )
-        for statement in statements:
+        for statement in self._statements:
             self._walk(statement)
+
+    @property
+    def spans(self) -> list[NodeSpan]:
+        self._build()
+        return self._spans
 
     def _register(self, span: NodeSpan) -> NodeSpan:
         """Registra um span uma única vez por intervalo; devolve o span vigente."""
@@ -208,12 +230,14 @@ class SourceIndex:
                 self._by_node[span.node] = existing
             return existing
         self._by_extent[key] = span
-        self.spans.append(span)
+        self._spans.append(span)
         if span.node is not None:
             self._by_node[span.node] = span
         return span
 
     def _register_name(self, token: Token) -> None:
+        if self._navigation_file is not None and token.file != self._navigation_file:
+            return
         self._register(
             NodeSpan(
                 token,
@@ -312,6 +336,7 @@ class SourceIndex:
         Com `file`, restringe aos spans daquele arquivo: o índice carrega os módulos
         do loader, e o offset local não pode ser resolvido pelo texto de outro módulo.
         """
+        self._build()
         found = [
             span
             for span in self.spans
@@ -323,6 +348,7 @@ class SourceIndex:
 
     def span_of(self, node: object) -> NodeSpan | None:
         """Span registrado para um nó específico, se ele foi indexado."""
+        self._build()
         return self._by_node.get(node)
 
     def text_of(self, span: NodeSpan) -> str | None:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -87,3 +88,20 @@ def test_workspace_cache_reuses_until_text_changes(
 
     assert third is not None
     assert len(builds) == 2
+
+
+def test_rename_uses_unsaved_import_text(tmp_path: Path) -> None:
+    files = _workspace_files(tmp_path)
+    lib = tmp_path / "lib.lx"
+    files[lib] = "# edit\n" + LIB
+    token = _token_at(MAIN, "soma(1")
+
+    result = rename.semantic_rename(tmp_path, files, tmp_path / "main.lx", token, "soma2")
+
+    assert isinstance(result, dict)
+    changes = cast(dict[str, list[dict[str, Any]]], result["changes"])
+    lib_edits = next(edits for uri, edits in changes.items() if uri.endswith("/lib.lx"))
+    lines = {cast(dict[str, dict[str, int]], edit["range"])["start"]["line"] for edit in lib_edits}
+    # O buffer prefixa uma linha; usar o disco deslocaria as edições para a linha 0.
+    assert lines <= {1, 6}
+    assert 0 not in lines
