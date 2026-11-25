@@ -37,6 +37,17 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   há aliases em segundos. A formatação continua truncando para o segundo (`iso`) ou expondo
   `.mmm` (`isoMillis`).
 
+### Mudado
+- **LSP: recheck por edição** ([ADR-0143](docs/adr/0143-lsp-didchange-coalescing-e-reuso.md),
+  [#191](https://github.com/loxia-lang/loxia/issues/191)): `didChange` coalesce a rajada de
+  teclas (uma análise por lote, publica só a última versão), reusa o parse dos módulos
+  importados por conteúdo (LRU de 256 entradas/8 MiB; falha nunca é cacheada) e constrói o
+  `SymbolIndex` só na primeira navegação. `didChange` 34,2 → 10,1 ms; rajada de 5 changes
+  172,9 → 10,1 ms; arquivo de ~650 linhas 75,5 → 48,5 ms. O diagnóstico de documento
+  assentado não muda (conteúdo nem ordem) e toda request enxerga o texto atual; o
+  `textDocumentSync` continua full (`1`). Orçamento medido: `didChange` ≤12 ms no workspace
+  do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
+
 ### Adicionado
 - **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
   mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com

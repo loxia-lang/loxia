@@ -200,18 +200,30 @@ interval index só entra se o benchmark mostrar regressão — o guard determin�
 O caminho end-to-end do servidor é medido por
 [`bench/lsp.py`](../../bench/lsp.py) (`make bench-lsp`), que sobe `main.py lsp` e mede
 startup, didOpen, hover, definition, references (frio/quente), highlight, rename, completion,
-documentSymbol e didChange sobre stdio, com baseline
-[`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de **1,5×**.
-Mediana de 2026-11-25 (workspace de ~50 arquivos): startup ~91 ms, didOpen ~38 ms,
-references cross-file ~107 ms na primeira consulta e ~105 ms após uma edição (o cache do
-workspace é descartado), ~1,6 ms no cache quente, didChange ~35 ms; as requisições locais
-ficam abaixo de 2 ms. A descoberta usa `os.walk` com poda de diretórios ocultos e `node_modules`, e cache de
+documentSymbol, didChange, didChange num arquivo de ~650 linhas e uma rajada de 5 didChange,
+com baseline [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de
+**1,5×**. Mediana de 2026-11-25, pós-[ADR-0143](../adr/0143-lsp-didchange-coalescing-e-reuso.md)
+(workspace de ~50 arquivos): startup ~92 ms, didOpen ~34 ms, references cross-file ~92 ms
+na primeira consulta e ~86 ms após uma edição (o cache do workspace é descartado), ~1,7 ms
+no cache quente, didChange ~10 ms, didChange em ~650 linhas ~48 ms e rajada de 5 didChange
+~10 ms; as requisições locais ficam abaixo de 2 ms. O orçamento é **≤12 ms** no workspace
+do bench e **~0,06 ms/linha** (163 linhas ~20 ms, 323 ~30 ms); acima de ~1000 linhas fica
+**fora** até o parse incremental (#113).
+
+O `didChange` coalesce a rajada: uma thread leitora só enfileira mensagens e a thread
+principal analisa uma vez quando a fila esvazia ou antes de servir um request, publicando só
+a última versão (versões intermediárias podem ser puladas). O parse de módulo é reusado por
+conteúdo (`ModuleCache`, LRU de 256 entradas/8 MiB de fonte) e o `SymbolIndex` nasce só na
+primeira navegação, como o `SourceIndex`. O piso do arquivo grande é o parse da entrada
+(~27 ms) mais a reescrita de imports, que só o parse incremental (#113) muda.
+
+A descoberta usa `os.walk` com poda de diretórios ocultos e `node_modules`, e cache de
 leitura por `mtime`/`ctime`/inode/tamanho; o fingerprint do `WorkspaceCache` usa hash (não
 guarda uma segunda cópia de todos os textos). Módulos de dependência resolvidos fora do
 `root` ainda não entram nesse fingerprint (limitação declarada na #195). O `SourceIndex` é
 construído na primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam
 a caminhada do AST; um diagnóstico com nota de proveniência constrói o índice. O warm de
-~1,6 ms vale para o workspace de ~50 arquivos do bench.
+~1,7 ms vale para o workspace de ~50 arquivos do bench.
 
 Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`
 → `SourceIndex(extra_spans=...)`), como a trivia do ADR-0134: o AST e o JSON v2 não mudam.
