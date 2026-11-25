@@ -25,6 +25,7 @@ from loxia_core.backend.lower_model import (
     Value,
     ValueType,
     _unsupported,
+    field_words,
 )
 from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import Call
@@ -191,7 +192,7 @@ class GenericLowering(LoweringBase):
         saved = self._type_subst
         self._type_subst = subst
         try:
-            fields = self._class_fields(stmt, 0)
+            fields = self._class_fields(stmt, 0, 0)
             methods, init, init_method, new_methods = self._class_methods(
                 stmt,
                 key,
@@ -204,7 +205,7 @@ class GenericLowering(LoweringBase):
         finally:
             self._type_subst = saved
 
-        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * len(fields))])
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * field_words(fields))])
         layout = ClassLayout(
             key,
             len(self._classes) + 1,

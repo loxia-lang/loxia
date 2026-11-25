@@ -1,5 +1,7 @@
 # ADR-0124 — Front-end e `loxia fmt` em Lox: escopo, oráculo e pacotes por repositório
 
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` direto deixou de ser `E4001` e passou a ser suportado; o enum com payload `Any` continua válido, mas não é mais obrigatório.
+
 - **Status:** accepted
 - **Data:** 2026-11-20
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)

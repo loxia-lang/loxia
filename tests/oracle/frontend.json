@@ -24,7 +24,7 @@
     "std/io.lx": "5ab719af8115b343924eca8be3e7e00caa432ec92c8e710733e69d0d7a7accc7",
     "std/iter.lx": "988f7d1ccc6f65c8a0b1c24dba2af567e7e9ce986e92e0ce7db947862977b9ae",
     "std/json.lx": "120550f5d59182f2852d8cd021f21ae12ee6131dffb56c354263ac9fa2bf5ae2",
-    "std/jsonrpc.lx": "fb4a3bb2bc1412cfb465a120d6cb6628167e1d4c3949ecdb8adf89d82746393c",
+    "std/jsonrpc.lx": "c63adf2c3f622f1c893588be051f2994d6372b2a1f2873c3d1fc5e2d4fab4426",
     "std/lists.lx": "8e8775dad01b15f95cdf7b96798f25724c78b00eb5b087c8fb87eb83a56519af",
     "std/log.lx": "9454d012b407b8d05dd8322d9a076aa8e5f32210a9b3eecc2936daed33feceff",
     "std/maps.lx": "d7253c60e74b4914386462eb926f3c89ffccc4d5feba13ddc5bd8606e0dcc232",
@@ -42,6 +42,8 @@
     "tests/cases/any_box.lx": "246489c556cb2a4a51e5244e31174bd7b511dc685ffd8957a068c8f4ef7f3df5",
     "tests/cases/any_casts.lx": "8f179ada0fcfac023a0bdcf460764b22c7b3956331831fe6dd5f0ee8fd57cb59",
     "tests/cases/any_coalesce_nil.lx": "94410e39122d8043a0c73b95425bc396aa8f30755eb8787f0d9f0ae228d7aee1",
+    "tests/cases/any_field_assign.lx": "c5c4a54b4a0e5aaf123380c057a2ce9b89307d6e3ce113b62dd5ead0dd5fba93",
+    "tests/cases/any_field_layout.lx": "2f44ed095c5ea029476619e2127cdc2ca8c6fca1ef43bb21d79156d569f3d31f",
     "tests/cases/any_logical.lx": "ddb8fe68c19afa2d783f932e1930b39a65a5357baf5ad6267b606b0ecb05cef5",
     "tests/cases/any_narrowing.lx": "ea6d8e8fb493e3164c060d2f8d54bfdd11bfc58b653f3b882abaad8aa904e4bc",
     "tests/cases/arguments_order.lx": "0a4fd631c07a14b26e7692384b29b5c7e076c97bc1bb6553c9b93539dea84578",
@@ -92,6 +94,7 @@
     "tests/cases/enums.lx": "921f4475de0d0c1870548fde3b37fbbc5d8d166c1bce8ea2e63bd14fe042d0f0",
     "tests/cases/equality.lx": "8746702bfac2a8d2d9270089d46ce06cfd2adc8383a0c6e3d923863c1e335408",
     "tests/cases/errors/any_call.lx": "f8092f1eed8a0527a4444c0d15b7c9d45002c660db855db3671e68c5824a37f6",
+    "tests/cases/errors/any_field_member.lx": "6557bcfe0541df59d0db0b3bedadab8dd2eba933d5d275734643c88659d0235b",
     "tests/cases/errors/any_index.lx": "dfdf6a78fa4f63a75ef2e3b46c61db8cb40023c3f3ed8325884702aabe8c6cf7",
     "tests/cases/errors/any_member.lx": "f4b5ca68847cfbdcea7678c6c23144dcda84cdc0fc812f270ae1fbef8a89dee5",
     "tests/cases/errors/any_set.lx": "4d71058d7fbae5dbf68dc41896319be1a5a25ab306768d9f56357a548cd448db",
@@ -421,6 +424,26 @@
             "column": 9,
             "line": 3,
             "offset": 67
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/any_field_member.lx": [
+      {
+        "code": "E3025",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 6,
+            "offset": 95
+          },
+          "file": "tests/cases/errors/any_field_member.lx",
+          "start": {
+            "column": 11,
+            "line": 6,
+            "offset": 94
           }
         }
       }
@@ -3221,7 +3244,7 @@
     "std/io.lx": "ae378633a590d1494da1c9507b4aec8ab4dec7361708c5349c6a2e0479fca2cf",
     "std/iter.lx": "9fa45396059e09ccfeaf7a7a078ad1cd1dd0b4ce178dab59db6e435b2a7c0a6e",
     "std/json.lx": "a56cbf30b1b66a0b14da333c3955b605b9d4eeac7e995566bf5369c9b611e257",
-    "std/jsonrpc.lx": "d8811608805741443ced787a8e980500cd82432de5be3d6d9dcb2cb5443f6030",
+    "std/jsonrpc.lx": "ef50367e2700dade4c1194fcac0f974b4ddfeac54610eb6e0be8ea88590e712b",
     "std/lists.lx": "5a44f32276c5f20a22999671d433e5c812cc2739729dacd30ad4b4a1e18c308c",
     "std/log.lx": "bfee12c2a6948c9d8149ea7b7585b4a47dc0bf8d1a5cb73dda0dad7ae2f769aa",
     "std/maps.lx": "c44af0977204e0267c734485c5e088a5fae3e7d0a9d33da697af896dee12b28b",
@@ -3239,6 +3262,8 @@
     "tests/cases/any_box.lx": "e2ed2fa887cb81dca6e9105e488fd6c1b3d75ff4d3fdcdf0df7c9283a39813d2",
     "tests/cases/any_casts.lx": "850f4b78c9dde8ba1d5f0a8533a974517163f0875036f44c39e667e30b86a3cd",
     "tests/cases/any_coalesce_nil.lx": "301c82b9e0352f6ec00aba3667d191758454589ee9f1c7f0c988ef9e995bf533",
+    "tests/cases/any_field_assign.lx": "16e87ec284448436d80542a12769351357e3763d09cc72e4c58129276f0411ef",
+    "tests/cases/any_field_layout.lx": "f11f6877d74c5a4c32ca9d8c08e3457b7f30c525b4aee87d882de4df7766c8bd",
     "tests/cases/any_logical.lx": "8e05e216131fc26e0c267c8e019763db0f103f42ad58b49222636e563f2dd275",
     "tests/cases/any_narrowing.lx": "cb15bc4c953236547d0ad147764d8eb3852ae52cdbbb51ddce14abd3b38525fb",
     "tests/cases/arguments_order.lx": "8ee6565bb28bc4bb5a2050abd47777545e86d838fc862e5a7cbd213376ebfabe",
@@ -3289,6 +3314,7 @@
     "tests/cases/enums.lx": "5c88bfe42e059ffd28b90d09e4e33c9b2e0474bc74a8210d22671553e73bc59d",
     "tests/cases/equality.lx": "5cfe1da8c3fb1941dfd529a39b948e630a3624e5d9199dd6a7b4bf77690c258e",
     "tests/cases/errors/any_call.lx": "5d366141857d92244b1ce0b75d51190b1c1dc71ed3402e03da9c938f8b9df1b5",
+    "tests/cases/errors/any_field_member.lx": "1fd7e0b04b58c4b5e463441db64383e89ed07b6cdd55b3a77b935c9f16115373",
     "tests/cases/errors/any_index.lx": "eb030bf1373c3598711f1e6d0f957e1c5b95cba866bf38751dc6dd3c56cc850a",
     "tests/cases/errors/any_member.lx": "59a68895b251a78ea74dcb54ad5c1a65001a6d5d0084a9c1c84d515a9726c4a5",
     "tests/cases/errors/any_set.lx": "0cd51483be6bcdc81854d7c7df6b04a90cac73f408114e33086d8210922baff8",

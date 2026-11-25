@@ -831,23 +831,24 @@ def test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering(
 
 
 @pytest.mark.backend
-@pytest.mark.parametrize("annotation", ["Any", "Int | String"], ids=["any", "union"])
-def test_campo_anotado_decide_o_layout_nao_o_inicializador(tmp_path: Path, annotation: str) -> None:
-    """Issue #196: o slot do campo vem da anotação; `Any` é E4001, nunca E4002.
+def test_campo_anotado_decide_o_layout_nao_o_inicializador(tmp_path: Path) -> None:
+    """Issue #196: o slot do campo vem da anotação, nunca do inicializador.
 
-    Antes: `var x: Any = 1` virava slot `Int` (o inicializador vencia a anotação). O
-    checker publicava `Any` e aceitava `c.x = "s"`, então o lowering morria em E4002 —
-    duas fontes de verdade, exatamente o que o I4/ADR-0059 proíbe. Agora a anotação
-    manda e o `Any` chega à lacuna declarada (ADR-0079), como no campo sem inicializador.
+    Antes: `var x: Int | String = 1` virava slot `Int` (o inicializador vencia a
+    anotação). O checker publicava a união — `Any` por baixo — e aceitava
+    `c.x = "s"`, então o lowering morria em E4002: duas fontes de verdade, o que o
+    I4/ADR-0059 proíbe. `Any` virou feature no ADR-0145; este teste fixa a regra
+    geral com a união (o único caso não-`Any` em que anotação e inicializador
+    diferem e o `--check` aceita) e continua proibindo o E4002.
     """
-    source = f"""class C {{
-  var x: {annotation} = 1
-}}
+    source = """class C {
+  var x: Int | String = 1
+}
 val c = C()
 c.x = "s"
 print(c.x)
 """
-    path = _write(tmp_path, source, "any_field_assign.lx")
+    path = _write(tmp_path, source, "campo_anotado.lx")
 
     interpreted = _interpret(path)
     assert interpreted.returncode == 0, interpreted.stderr
@@ -857,12 +858,39 @@ print(c.x)
     assert checked.returncode == 0, checked.stderr
 
     result, binary = _build(path, tmp_path)
-    assert result.returncode == 65, result.stderr
-    assert "Field value 'ANY' is not supported by the backend yet." in result.stderr
-    assert "any_field_assign.lx:2:" in result.stderr, result.stderr
+    assert result.returncode == 0, result.stderr
     assert "E4002" not in result.stderr, result.stderr
-    assert "internal lowering error" not in result.stderr, result.stderr
     assert "Traceback" not in result.stderr, result.stderr
+
+    native = _run([str(binary)])
+    assert native.returncode == interpreted.returncode
+    assert native.stdout == interpreted.stdout
+
+
+@pytest.mark.backend
+def test_promocao_int_para_float_em_campo_e_recusada_pelos_dois(tmp_path: Path) -> None:
+    """O checker recusa a promoção no campo; o lowering nunca vê a divergência.
+
+    O equivalente em variável local está em
+    `test_promocao_int_para_float_e_recusada_pelos_dois`.
+    """
+    path = _write(
+        tmp_path,
+        """class C {
+  var x: Float = 1
+}
+""",
+    )
+    expected = "Expected Float, found Int."
+
+    checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+    assert checked.returncode == 65, checked.stderr
+    assert expected in checked.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 65, result.stderr
+    assert expected in result.stderr, result.stderr
+    assert "E4002" not in result.stderr, result.stderr
     assert not binary.exists()
 
 

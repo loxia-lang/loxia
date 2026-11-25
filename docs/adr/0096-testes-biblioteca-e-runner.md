@@ -1,5 +1,7 @@
 # ADR-0096 — Testes: biblioteca (`std.test`) e runner (`loxia test`)
 
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` existe no backend; `expect(x)` ainda aceita só tipo concreto por escopo da biblioteca, e generalizar fica como follow-up.
+
 - **Status:** accepted (implementado em 2026-11-16)
 - **Data:** 2026-11-16
 - **Decisores:** Cássio + agente (DSH)

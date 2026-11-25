@@ -17,8 +17,9 @@ JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages
 
 Why `decode` rejected a message; `code` is the JSON-RPC error code.
 
-Error data is not stored because a field of type `Any` is not supported by the
-backend; callers that need `error.data` build the envelope themselves.
+Error data is not stored yet: the envelope keeps `code`/`message` by choice
+(ADR-0113). A field of type `Any` is supported since ADR-0145, so storing
+`error.data` is a follow-up; callers can still build the envelope themselves.
 
 #### `val code: Int`
 

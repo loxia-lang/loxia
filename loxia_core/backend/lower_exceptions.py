@@ -37,6 +37,7 @@ class ExceptionLowering(LoweringBase):
             None,
             0,
             0,
+            slot=2,
         )
         # ADR-0120: posição do throw. O initializer garante que subclasses de
         # `Exception` (TestFailure/Skip) passem no bitmap sem declarar o campo.
@@ -47,6 +48,7 @@ class ExceptionLowering(LoweringBase):
             Literal(""),
             1,
             0,
+            slot=3,
         )
         instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, _INT, _INT])
         exception = ClassLayout(

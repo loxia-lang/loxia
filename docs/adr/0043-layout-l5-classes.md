@@ -1,5 +1,7 @@
 # ADR-0043 — Layout L5: classes, campos, vtable e `init`
 
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): o slot de campo não é mais uniformemente `i64` — campo `Any` ocupa duas palavras, com offset absoluto por campo.
+
 - **Status:** accepted (desenho; backend L5 pendente)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)

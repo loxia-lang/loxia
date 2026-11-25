@@ -1,5 +1,7 @@
 # ADR-0144 — `Any` dinâmico exige estreitamento (`is`/`as`)
 
+> **Atualização (2026-11-25):** o narrowing cobre classe concreta, tupla, enum, escalares e containers. `is`/`as` para **interface, função e objeto de classe** ainda não existem (`E3013`/`E3007`); está na issue [#213](https://github.com/loxia-lang/loxia/issues/213). Um `Any` que guarda esses valores só pode ser estreitado para a classe concreta.
+
 - **Status:** accepted
 - **Data:** 2026-11-25
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)

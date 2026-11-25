@@ -8,6 +8,7 @@ from typing import Any, cast
 from loxia_core.backend import llvm_ir
 from loxia_core.backend.lower_base import LoweringBase
 from loxia_core.backend.lower_model import (
+    _ANY,
     _BOOL,
     _FLOAT,
     _I8_PTR,
@@ -39,9 +40,10 @@ class InstanceLowering(LoweringBase):
 
     def _field_slot(self, value: Value, field: FieldLayout) -> Any:
         struct_ = self._instance_struct(value, field.line)
+        # `slot` é absoluto: já conta o header (`class` + bitmap).
         return self.builder.gep(
             struct_,
-            [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, field.index + 2)],
+            [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, field.slot)],
         )
 
     def _bitmap_slot(self, value: Value, line: int) -> Any:
@@ -160,10 +162,26 @@ class InstanceLowering(LoweringBase):
             f"Undefined property '{field.name}'.",
             column,
         )
-        return self._slot_to_value(self._field_slot(instance, field), field.ty)
+        slot = self._field_slot(instance, field)
+        if field.ty.ty is ValueType.ANY:
+            # ADR-0145: o campo `Any` ocupa `{tag, payload}` inline; o agregado é o
+            # mesmo consumido por `is`/`as`/print, sem unbox no ponto de leitura.
+            return Value(ValueType.ANY, self.builder.load(self._any_slot(slot)))
+        return self._slot_to_value(slot, field.ty)
+
+    def _any_slot(self, slot: Any) -> Any:
+        return self.builder.bitcast(slot, _ANY.as_pointer())
 
     def _store_field(self, instance: Value, field: FieldLayout, value: Value) -> None:
-        self.builder.store(self._value_to_slot(value), self._field_slot(instance, field))
+        slot = self._field_slot(instance, field)
+        if field.ty.ty is ValueType.ANY:
+            # Todos os callers coerce, mas `lower_exceptions` chama `_store_field`
+            # direto: um campo dinâmico futuro não pode gravar lixo.
+            if value.ty is not ValueType.ANY:
+                value = self._box_value(value, field.line)
+            self.builder.store(value.llvm, self._any_slot(slot))
+        else:
+            self.builder.store(self._value_to_slot(value), slot)
         self._set_bitmap(instance, field)
 
     def _get(self, expr: Get) -> Value:
@@ -185,7 +203,9 @@ class InstanceLowering(LoweringBase):
         if result.ty is ValueType.NIL and not result.optional:
             # `c = nil; c?.x`: o checker já sabe que o resultado é nil.
             return Value(ValueType.NIL)
-        if not result.optional:
+        if not result.optional and result.ty is not ValueType.ANY:
+            # `Any` já codifica nil na tag; marcá-lo opcional faria a representação
+            # virar ponteiro nulo, mas o slot é o agregado `{tag, payload}`.
             result = TypeDesc(result.ty, result.fn, True, result.class_name)
 
         some = llvm_ir.append_block(self._function_ir, "get.some")
@@ -213,7 +233,7 @@ class InstanceLowering(LoweringBase):
             result.ty,
             merged,
             result.fn,
-            True,
+            result.optional,
             result.class_name,
         )
 

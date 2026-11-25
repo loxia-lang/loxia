@@ -1,5 +1,7 @@
 # ADR-0079 — Stdlib T2: kernel mínimo, campos-container e módulos comuns
 
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` passou a ser suportado com duas palavras inline (`{tag, payload}`); a recusa e a justificativa de §2 são históricas.
+
 - **Status:** accepted (implementado)
 - **Data:** 2026-11-15
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)

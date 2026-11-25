@@ -29,6 +29,7 @@ from loxia_core.backend.lower_model import (
     Value,
     ValueType,
     _unsupported,
+    field_words,
 )
 from loxia_core.diagnostics.codes import Code
 from loxia_core.frontend.expr import As, Is, Super, This
@@ -453,11 +454,11 @@ class ClassCodegenLowering(LoweringBase):
 
         self._local_class_counter += 1
         key = f"{name}@{self._local_class_counter}"
-        fields = self._class_fields(stmt, 0)
+        fields = self._class_fields(stmt, 0, 0)
         methods, init, init_method, new_methods = self._class_methods(
             stmt, name, None, 0, ir_name=key
         )
-        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * len(fields))])
+        instance_type = llvm_ir.literal_struct([_I8_PTR, _INT, *([_INT] * field_words(fields))])
         layout = ClassLayout(
             name,
             len(self._classes) + 1,
@@ -602,7 +603,7 @@ class ClassCodegenLowering(LoweringBase):
 
     def _ctor_allocate(self, layout: ClassLayout, descriptor: Any = None) -> Value:
         assert layout.instance_type is not None
-        size = 16 + 8 * layout.field_count()
+        size = 16 + 8 * layout.word_count()
         raw = self.builder.call(
             self._function("lox_alloc_bytes", _I8_PTR, [_INT]),
             [llvm_ir.constant(_INT, size)],

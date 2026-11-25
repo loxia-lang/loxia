@@ -7,6 +7,8 @@
         "tests/cases/any_box.lx",
         "tests/cases/any_casts.lx",
         "tests/cases/any_coalesce_nil.lx",
+        "tests/cases/any_field_assign.lx",
+        "tests/cases/any_field_layout.lx",
         "tests/cases/any_logical.lx",
         "tests/cases/any_narrowing.lx"
       ]

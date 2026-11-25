@@ -50,6 +50,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
 
 ### Adicionado
+- **Campo `Any` no backend** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md), issue [#196](https://github.com/loxia-lang/loxia/issues/196)): um campo `Any` (ou união de escalares) ocupa duas palavras inline (`{tag, payload}`) e aceita qualquer valor — incluindo containers, instância, enum e função — com `is`/`as`/`==`/`??`/`print`. O layout usa dois contadores (`index` do bitmap e `slot` absoluto em palavras), herança preserva o prefixo e classes sem `Any` mantêm o layout antigo. Acesso continua exigindo narrowing (`E3025`). Casos `tests/cases/any_field_*.lx` (L6, diferencial).
 - **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
   mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com
   `finally` executado antes do salto e sem atravessar função/lambda. `break`/`continue`
