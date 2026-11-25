@@ -85,6 +85,7 @@ from loxia_core.frontend.ty import (
     UnionTy,
 )
 from loxia_core.loader.manifest import Manifest
+from loxia_core.loader.module_cache import ModuleCache, ParsedModule
 
 STD_ROOT = bundle_dir("std")
 
@@ -139,6 +140,7 @@ class ModuleLoader:
         module_paths: tuple[Path, ...] = (),
         dependencies: dict[str, Path] | None = None,
         overrides: dict[Path, str] | None = None,
+        cache: ModuleCache | None = None,
     ) -> None:
         self.reporter = reporter
         self.sources = sources
@@ -147,6 +149,8 @@ class ModuleLoader:
         self.module_paths = module_paths
         # Texto do editor (LSP): caminho resolvido -> fonte ainda não salva.
         self.overrides = dict(overrides or {})
+        # Cache opt-in de parse por conteúdo (ADR-0143); o CLI não passa.
+        self.cache = cache
         # Raízes já resolvidas por `deps.resolve_dependencies` (lock/`--frozen`/git).
         self.dependencies = dict(dependencies or {})
         self.modules: dict[str, Module] = {}
@@ -445,7 +449,8 @@ class ModuleLoader:
         if name in self.modules:
             return
         self._loading.add(name)
-        override = self.overrides.get(path.resolve())
+        resolved = path.resolve()
+        override = self.overrides.get(resolved)
         if override is not None:
             source = override
         else:
@@ -457,6 +462,32 @@ class ModuleLoader:
         # o display não colide e não depende de CWD/absoluto (I3).
         display = self.display_path(name)
         self.sources.add(display, source)
+        parsed = self.cache.get(resolved, source) if self.cache is not None else None
+        if parsed is None:
+            parsed = self._parse_module(source, display)
+            if self.cache is not None:
+                self.cache.put(resolved, source, parsed)
+        module = Module(
+            name,
+            path,
+            parsed.statements,
+            parsed.imports,
+            dict(parsed.declarations),
+            [],
+            target.package,
+        )
+        self.modules[name] = module
+        for statement in parsed.imports:
+            target_import = self._resolve(
+                statement.path, statement.path[0], importer=target.package
+            )
+            module.dependencies.append(target_import.name)
+            self._load_module(target_import, statement.path[0])
+        self._loading.remove(name)
+        self._order.append(name)
+
+    def _parse_module(self, source: str, display: str) -> ParsedModule:
+        """Parseia e valida um módulo; falha levanta `ModuleError` (nada é cacheado)."""
         previous = self.reporter.file
         self.reporter.file = display
         try:
@@ -493,24 +524,7 @@ class ModuleLoader:
             declarations[decl_name] = statement
         for statement in statements:
             self._reject_nested_imports(statement)
-        module = Module(
-            name,
-            path,
-            statements,
-            imports,
-            declarations,
-            [],
-            target.package,
-        )
-        self.modules[name] = module
-        for statement in imports:
-            target_import = self._resolve(
-                statement.path, statement.path[0], importer=target.package
-            )
-            module.dependencies.append(target_import.name)
-            self._load_module(target_import, statement.path[0])
-        self._loading.remove(name)
-        self._order.append(name)
+        return ParsedModule(statements, imports, declarations)
 
     @staticmethod
     def display_path(name: str) -> str:

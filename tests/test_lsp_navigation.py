@@ -662,6 +662,47 @@ def test_change_range_uses_utf16_columns(tmp_path: Path) -> None:
     assert document.text == 'val s = "x"\n'
 
 
+def test_lsp_reuses_module_parse_across_edits(tmp_path: Path) -> None:
+    lib = tmp_path / "lib.lx"
+    lib.write_text("fn f() -> Int { return 1 }\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
+    text = "from lib import f\nval x: Int = f()\n"
+    main.write_text(text, encoding="utf-8")
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    document = Document(text=text, version=1, path=main, uri=main.as_uri())
+    server.documents[document.uri] = document
+
+    server._analyze(document)
+    assert len(server.parse_cache) == 1
+
+    edited = text + "val y: Int = 2\n"
+    server._change(
+        {
+            "textDocument": {"uri": document.uri, "version": 2},
+            "contentChanges": [{"text": edited}],
+        }
+    )
+    server._flush_dirty()
+
+    # Editar a entrada não invalida o parse do módulo importado.
+    assert len(server.parse_cache) == 1
+    assert server.clean[document.uri] is True
+
+    lib.write_text('fn f() -> String { return "x" }\n', encoding="utf-8")
+    server._change(
+        {
+            "textDocument": {"uri": document.uri, "version": 3},
+            "contentChanges": [{"text": edited}],
+        }
+    )
+    server._flush_dirty()
+
+    # Conteúdo novo do módulo vira uma entrada nova e o diagnóstico muda.
+    assert len(server.parse_cache) == 2
+    assert server.clean[document.uri] is False
+
+
 def _position_of(text: str, needle: str, start: int = 0) -> tuple[dict[str, int], int]:
     offset = text.index(needle, start)
     line = text.count("\n", 0, offset)

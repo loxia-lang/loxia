@@ -44,6 +44,7 @@ from loxia_core.loader.manifest import (
     discover_manifest,
     parse_manifest,
 )
+from loxia_core.loader.module_cache import ModuleCache
 from loxia_core.native_build import TOOLCHAIN_MESSAGE, cargo_binary
 from loxia_core.semantics.checker import Checker
 from loxia_core.semantics.decl_table import DeclTable
@@ -171,6 +172,7 @@ class Loxia:
         repl: bool = False,
         module_overrides: dict[Path, str] | None = None,
         file_only: bool = False,
+        module_cache: ModuleCache | None = None,
     ) -> list[Stmt] | None:
         self.reporter.reset()
         self.reporter.file = self._file
@@ -244,6 +246,7 @@ class Loxia:
                 module_paths=self._module_paths,
                 dependencies=dependencies,
                 overrides=module_overrides,
+                cache=module_cache,
             )
             loaded = loader.load(
                 statements,
@@ -585,13 +588,18 @@ class Loxia:
         *,
         emit: bool = True,
         module_overrides: dict[Path, str] | None = None,
+        module_cache: ModuleCache | None = None,
         defer_lowerable: bool = False,
     ) -> int:
         self.last_resolver = None
         self.last_checker = None
         self._warn_unused_imports = True
         try:
-            statements = self._parse(source, module_overrides=module_overrides)
+            statements = self._parse(
+                source,
+                module_overrides=module_overrides,
+                module_cache=module_cache,
+            )
         finally:
             self._warn_unused_imports = False
         if statements is not None:
