@@ -1,0 +1,12 @@
+{
+  "at_us": 13.864,
+  "files": 369,
+  "median_ms": 0.589,
+  "name_spans": 3295,
+  "p95_ms": 7.939,
+  "parsed": 338,
+  "skipped": 31,
+  "spans": 36827,
+  "total_ms": 624.785,
+  "type_spans": 2928
+}

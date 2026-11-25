@@ -38,6 +38,7 @@ from loxia_core.diagnostics.source import display_path
 from loxia_core.frontend.keywords import KEYWORDS
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
+from loxia_core.frontend.source_index import SourceIndex
 from loxia_core.frontend.stmt import (
     Class,
     EnumDecl,
@@ -477,6 +478,10 @@ class Server:
         self.stdout = stdout
         self.documents: dict[str, Document] = {}
         self.indexes: dict[str, SymbolIndex] = {}
+        # Fonte de verdade dos spans para navegação local (#130): nome de
+        # declaração e nome de tipo saem daqui, não do range do token.
+        self.source_indexes: dict[str, SourceIndex] = {}
+        self.source_files: dict[str, str] = {}
         self.source_maps: dict[str, object] = {}
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
@@ -739,7 +744,7 @@ class Server:
             if isinstance(document, dict) and isinstance(document.get("uri"), str):
                 uri = document["uri"]
                 closed = self.documents.pop(uri, None)
-                self.indexes.pop(uri, None)
+                self._invalidate(uri)
                 self.dependencies.pop(uri, None)
                 _send(
                     self.stdout,
@@ -766,7 +771,7 @@ class Server:
             path=path,
             uri=uri,
         )
-        self.indexes.pop(uri, None)
+        self._invalidate(uri)
         self._publish_by_uri(uri)
 
     def _change(self, params: dict[str, Any]) -> None:
@@ -787,7 +792,7 @@ class Server:
         current.text = change["text"]
         if isinstance(version, int):
             current.version = version
-        self.indexes.pop(uri, None)
+        self._invalidate(uri)
         self._publish_by_uri(uri)
         if current.path is not None:
             self._recheck_dependents(current.path, skip_uri=uri)
@@ -803,8 +808,14 @@ class Server:
         for uri, dependencies in list(self.dependencies.items()):
             if uri == skip_uri or changed not in dependencies:
                 continue
-            self.indexes.pop(uri, None)
+            self._invalidate(uri)
             self._publish_by_uri(uri)
+
+    def _invalidate(self, uri: str) -> None:
+        """Descarta os caches derivados de um documento (símbolos, spans e fonte)."""
+        self.indexes.pop(uri, None)
+        self.source_indexes.pop(uri, None)
+        self.source_files.pop(uri, None)
 
     def _publish(self, document: object) -> None:
         if isinstance(document, dict) and isinstance(document.get("uri"), str):
@@ -861,6 +872,15 @@ class Server:
             checker=checker,
             resolver=resolver,
         )
+        # O índice de spans é a autoridade para nome de declaração/tipo local.
+        # Com erro de sintaxe ele pode não existir: a navegação cai no token.
+        source_index = lox.last_source_index
+        if source_index is None:
+            self.source_indexes.pop(document.uri, None)
+            self.source_files.pop(document.uri, None)
+        else:
+            self.source_indexes[document.uri] = source_index
+            self.source_files[document.uri] = lox._file
 
         result: list[dict[str, object]] = []
         for diagnostic in batch.diagnostics:
@@ -1043,7 +1063,7 @@ class Server:
         ):
             return None
         return {
-            "range": _token_range(token, document.text),
+            "range": self._range_for(document, token),
             "placeholder": token.lexeme,
         }
 
@@ -1080,7 +1100,7 @@ class Server:
                 if isinstance(semantic, str):
                     return semantic
                 if semantic is not None:
-                    return semantic
+                    return self._upgrade_semantic_edits(document, semantic)
             if self._is_top_level(index, token):
                 return self._workspace_rename(document, token, new_name)
             return "Rename is only supported for local variables, parameters and top-level declarations."
@@ -1092,7 +1112,7 @@ class Server:
                 continue
             edits.append(
                 {
-                    "range": _token_range(found, document.text),
+                    "range": self._range_for(document, found),
                     "newText": new_name,
                 }
             )
@@ -1477,6 +1497,63 @@ class Server:
         self._diagnostics(document)
         return self.indexes.get(uri)
 
+    def _navigation_range_at(
+        self, document: Document, offset: int, lexeme: str
+    ) -> dict[str, object] | None:
+        """Range exato do `NodeSpan` local para um offset/lexema, se houver.
+
+        Só vale para spans `name`/`type` do próprio arquivo e quando o texto do span
+        é exatamente o lexema: o `Foo` de `List[Foo]` não pode virar `List[Foo]`.
+        """
+        index = self.source_indexes.get(document.uri)
+        if index is None:
+            return None
+        span = index.at(offset, file=self.source_files.get(document.uri, ""))
+        if span is None or span.kind not in {"name", "type"}:
+            return None
+        if span.start != offset:
+            return None
+        if index.text_of(span) != lexeme:
+            return None
+        return _offset_span(document.text, span.start, span.end)
+
+    def _navigation_range(self, document: Document, token: Token) -> dict[str, object] | None:
+        return self._navigation_range_at(document, token.offset or 0, token.lexeme)
+
+    def _range_for(self, document: Document, token: Token) -> dict[str, object]:
+        """Range de navegação/edição: `NodeSpan` exato quando existe, senão o token."""
+        return self._navigation_range(document, token) or _token_range(token, document.text)
+
+    def _range_for_at(self, document: Document, offset: int, lexeme: str) -> dict[str, object]:
+        return self._navigation_range_at(document, offset, lexeme) or _offset_range(
+            document.text, offset, lexeme
+        )
+
+    def _upgrade_semantic_edits(
+        self, document: Document, result: dict[str, object]
+    ) -> dict[str, object]:
+        """Promove para `NodeSpan` as edições semânticas que caem neste documento."""
+        changes = result.get("changes")
+        if not isinstance(changes, dict):
+            return result
+        edits = changes.get(document.uri)
+        if not isinstance(edits, list):
+            return result
+        for edit in edits:
+            if not isinstance(edit, dict):
+                continue
+            rng = edit.get("range")
+            if not isinstance(rng, dict):
+                continue
+            start = rng.get("start")
+            token = self._token_at(document, start) if isinstance(start, dict) else None
+            if token is None:
+                continue
+            upgraded = self._navigation_range(document, token)
+            if upgraded is not None:
+                edit["range"] = upgraded
+        return result
+
     def _token_at(self, document: Document, position: object) -> Token | None:
         if not isinstance(position, dict):
             return None
@@ -1653,7 +1730,7 @@ class Server:
                     continue
                 if not include_declaration and key == declaration:
                     continue
-                locations.append({"uri": document.uri, "range": _token_range(found, document.text)})
+                locations.append({"uri": document.uri, "range": self._range_for(document, found)})
         elif self.root is not None and document.path is not None:
             files = dict(self._workspace_files())
             references = semantic_references(self.root, files, document.path, token)
@@ -1671,10 +1748,13 @@ class Server:
                         text = path.read_text(encoding="utf-8")
                     except OSError:
                         continue
+                local_path = document.path is not None and path.resolve() == document.path.resolve()
                 locations.append(
                     {
                         "uri": _path_to_uri(path),
-                        "range": _offset_range(text, offset, name),
+                        "range": self._range_for_at(document, offset, name)
+                        if local_path
+                        else _offset_range(text, offset, name),
                     }
                 )
 
@@ -1712,7 +1792,7 @@ class Server:
                     continue
                 highlights.append(
                     {
-                        "range": _token_range(found, document.text),
+                        "range": self._range_for(document, found),
                         "kind": 3 if key == declaration else 2,
                     }
                 )
@@ -1727,7 +1807,7 @@ class Server:
                     continue
                 highlights.append(
                     {
-                        "range": _offset_range(document.text, offset, name),
+                        "range": self._range_for_at(document, offset, name),
                         "kind": 3
                         if offset == declaration_offset
                         and path.resolve() == declaration_path.resolve()

@@ -85,7 +85,7 @@ Packages by phase (dependency only downward):
 | [`loxia_core/frontend/stmt.py`](../../loxia_core/frontend/stmt.py) | statement nodes + `Visitor` Protocol + `accept` |
 | [`loxia_core/frontend/parser.py`](../../loxia_core/frontend/parser.py) | recursive descent + recovery; optional `;` at end of line; `elif`, `fn` and `[T]` |
 | [`loxia_core/frontend/destructuring.py`](../../loxia_core/frontend/destructuring.py) | destructuring patterns (`val (a, (b, c)) = t`), recursive (ADR-0069) |
-| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of node/type spans (expressions, declarations, annotations; offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
+| [`loxia_core/frontend/source_index.py`](../../loxia_core/frontend/source_index.py) | index of node/type spans (expressions, declarations, annotations, exact type/declaration names; offset → smallest node; text/line per file) for the LSP, checker and provenance `notes` |
 | [`loxia_core/frontend/trivia.py`](../../loxia_core/frontend/trivia.py) | scanner side table for comments/whitespace, normalized round-trip and deterministic attachment (ADR-0134) |
 | [`loxia_core/loader/loader.py`](../../loxia_core/loader/loader.py) | module loader (ADR-0073/0100): file = module, folder = namespace, inlining, import cycles and isolation |
 | [`loxia_core/loader/manifest.py`](../../loxia_core/loader/manifest.py) | `loxia.toml`: discovery, `[package]` (name/version), `[dependencies]` specs and `[modules].paths` |
@@ -182,6 +182,26 @@ deriva offsets de início com uma caminhada memoizada de primeiro token, sem con
 `SourceIndex` completo (antes: ~1 267 ms e ~3,7 MiB); é ferramenta offline, não caminho
 quente. O port em Lox/nativo tem orçamento próprio (512 MiB/10k chamadas) e será medido na
 fase D.
+
+### `SourceIndex` budget (2026-11-24)
+
+`uv run python bench/source_index.py` mede a construção do índice sem subprocesso e sem
+CI (issue #130). No corpus de 2026-11-24 (369 arquivos, 338 parseáveis, 31 casos de erro de
+sintaxe pulados): **36 827 spans** — 2 928 nomes de tipo, 3 295 nomes de declaração —,
+**~625 ms no total**, mediana **0,589 ms/arquivo**, p95 **7,939 ms/arquivo** e
+`SourceIndex.at()` a **~13,9 µs/consulta** para os spans de navegação (`name`/`type`).
+O custo dos nomes extras é ~41% sobre a caminhada do AST (os nomes de tipo sozinhos são
+~0%); o parse fica fora da medição.
+O baseline local é [`bench/source_index_baseline.json`](../../bench/source_index_baseline.json)
+e a regra é **≤ 2×** o total/mediana ao comparar antes/depois. `at()` continua O(n); o
+interval index só entra se o benchmark mostrar regressão — o guard determinístico é
+[`tests/test_source_index_budget.py`](../../tests/test_source_index_budget.py), sem timing.
+
+Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`
+→ `SourceIndex(extra_spans=...)`), como a trivia do ADR-0134: o AST e o JSON v2 não mudam.
+`NodeSpan.kind` distingue `node`, `name` e `type`; o LSP só troca o range do token pelo
+span exato quando o texto do span é o lexema, então `Foo` em `List[Foo]` nunca vira a
+anotação inteira.
 
 ## Visitor
 

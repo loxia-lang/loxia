@@ -18,6 +18,7 @@ from typing import Any, cast
 
 from loxia_core.diagnostics.diagnostic import Span
 from loxia_core.diagnostics.source import SourceMap
+from loxia_core.frontend.destructuring import pattern_names
 from loxia_core.frontend.expr import (
     As,
     Assign,
@@ -56,6 +57,7 @@ from loxia_core.frontend.stmt import (
     EnumVariant,
     ErrorStmt,
     Field,
+    ForIn,
     Function,
     Import,
     ImportName,
@@ -121,12 +123,17 @@ type Extent = tuple[int, int, str]
 
 @dataclass(frozen=True, init=False)
 class NodeSpan:
-    """Extensão half-open de um nó de sintaxe, em offsets de bytes UTF-8."""
+    """Extensão half-open de um nó de sintaxe, em offsets de bytes UTF-8.
+
+    `kind` diz que autoridade produziu o span: `node` (AST), `name` (nome de
+    declaração/parâmetro/campo/variante) ou `type` (nome dentro de uma anotação).
+    """
 
     node: object
     start: int
     end: int
     file: str = ""
+    kind: str = "node"
 
     def __init__(
         self,
@@ -136,6 +143,7 @@ class NodeSpan:
         file: str = "",
         *,
         expression: object = None,
+        kind: str = "node",
     ) -> None:
         # `expression=` mantém o construtor antigo de `ExprSpan` funcionando.
         if expression is not None:
@@ -146,6 +154,7 @@ class NodeSpan:
         object.__setattr__(self, "start", start)
         object.__setattr__(self, "end", end)
         object.__setattr__(self, "file", file)
+        object.__setattr__(self, "kind", kind)
 
     @property
     def expression(self) -> Expr:
@@ -167,32 +176,85 @@ class SourceIndex:
         source: str,
         *,
         sources: SourceMap | None = None,
+        extra_spans: list[Span] | None = None,
     ) -> None:
         self.source = source
         self.sources = sources
         self.spans: list[NodeSpan] = []
         self._by_node: dict[object, NodeSpan] = {}
+        self._by_extent: dict[Extent, NodeSpan] = {}
+        # Nomes de tipo entram antes da caminhada do AST: quando coincidem com o
+        # span de um nó (ex.: `x: Int`), o kind específico vence e o nó reusa o
+        # mesmo span (offsets idênticos).
+        for span in extra_spans or ():
+            self._register(
+                NodeSpan(
+                    span,
+                    span.start.offset or 0,
+                    span.end.offset or 0,
+                    span.file,
+                    kind="type",
+                )
+            )
         for statement in statements:
             self._walk(statement)
 
+    def _register(self, span: NodeSpan) -> NodeSpan:
+        """Registra um span uma única vez por intervalo; devolve o span vigente."""
+        key = (span.start, span.end, span.file)
+        existing = self._by_extent.get(key)
+        if existing is not None:
+            if span.node is not None:
+                self._by_node[span.node] = existing
+            return existing
+        self._by_extent[key] = span
+        self.spans.append(span)
+        if span.node is not None:
+            self._by_node[span.node] = span
+        return span
+
+    def _register_name(self, token: Token) -> None:
+        self._register(
+            NodeSpan(
+                token,
+                token.offset or 0,
+                (token.offset or 0) + len(token.lexeme.encode("utf-8")),
+                token.file,
+                kind="name",
+            )
+        )
+
+    def _collect_names(self, value: object) -> None:
+        """Registra nomes de declaração achados na própria caminhada do AST.
+
+        Não é um segundo passe: `_walk` já visita todos os nós, então o nome entra
+        no mesmo percurso (parâmetros de lambda, campos e variantes inclusos).
+        """
+        if isinstance(value, (Var, ForIn, EnumVariant, Interface, TypeAlias, Field, Param)):
+            self._register_name(value.name)
+        elif isinstance(value, Destructure):
+            for token in pattern_names(value.pattern):
+                self._register_name(token)
+        elif isinstance(value, (Function, Class, EnumDecl)):
+            self._register_name(value.name)
+            for token in value.type_params:
+                self._register_name(token)
+
     def _walk(self, value: object) -> Extent | None:
+        self._collect_names(value)
         if isinstance(value, Token):
             offset = value.offset or 0
             return offset, offset + len(value.lexeme.encode("utf-8")), value.file
         if isinstance(value, Span):
             start = value.start.offset or 0
             end = value.end.offset or 0
-            span = NodeSpan(value, start, end, value.file)
-            self.spans.append(span)
-            self._by_node[value] = span
+            self._register(NodeSpan(value, start, end, value.file))
             return start, end, value.file
         if isinstance(value, NODE_TYPES):
             own = self._own_extent(value)
             if own is None:
                 return None
-            span = NodeSpan(value, own[0], own[1], own[2])
-            self.spans.append(span)
-            self._by_node[value] = span
+            self._register(NodeSpan(value, own[0], own[1], own[2]))
             return own
         if is_dataclass(value) and not isinstance(value, type):
             return self._merge(
@@ -244,9 +306,17 @@ class SourceIndex:
                 extents.append(extent)
         return self._merge(extents)
 
-    def at(self, offset: int) -> NodeSpan | None:
-        """Menor expressão que contém `offset` (half-open)."""
-        found = [span for span in self.spans if span.start <= offset < span.end]
+    def at(self, offset: int, *, file: str | None = None) -> NodeSpan | None:
+        """Menor expressão que contém `offset` (half-open).
+
+        Com `file`, restringe aos spans daquele arquivo: o índice carrega os módulos
+        do loader, e o offset local não pode ser resolvido pelo texto de outro módulo.
+        """
+        found = [
+            span
+            for span in self.spans
+            if span.start <= offset < span.end and (file is None or span.file == file)
+        ]
         if not found:
             return None
         return min(found, key=lambda span: span.end - span.start)

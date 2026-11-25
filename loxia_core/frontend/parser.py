@@ -46,7 +46,7 @@ from loxia_core.frontend.expr import (
     VariantPattern,
     WildcardPattern,
 )
-from loxia_core.frontend.spans import span_of_token_range
+from loxia_core.frontend.spans import span_of_token_exact, span_of_token_range
 from loxia_core.frontend.stmt import (
     Block,
     Break,
@@ -103,6 +103,9 @@ class Parser:
         self._repl: bool = repl
         self._bracket_depth: int = 0
         self.reporter: ErrorReporter = reporter if reporter is not None else ErrorReporter()
+        # Nomes de tipo vistos em anotações/assinaturas, em ordem textual. É uma
+        # side table (como a trivia): o AST e o JSON v2 não mudam (ADR-0090/#130).
+        self.type_spans: list[Span] = []
 
     def parse(self) -> list[Stmt] | None:
         statements: list[Stmt] = []
@@ -141,6 +144,7 @@ class Parser:
         """
         # Salva a posição atual para poder dar rollback caso não seja uma expressão
         saved_current = self._current
+        saved_type_spans = len(self.type_spans)
         state = self.reporter.mark()
 
         try:
@@ -172,6 +176,7 @@ class Parser:
 
         # Rollback: restaura a posição dos tokens e descarta os diagnósticos do teste
         self._current = saved_current
+        del self.type_spans[saved_type_spans:]
         self.reporter.restore(state)
 
         # Faz o parse padrão de statements
@@ -949,6 +954,7 @@ class Parser:
             return first
 
         token = self._consume(TokenType.IDENTIFIER, "Expect type name.")
+        self.type_spans.append(span_of_token_exact(token))
         name = token.lexeme
 
         if self._match(TokenType.LEFT_BRACKET):
