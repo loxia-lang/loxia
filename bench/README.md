@@ -57,3 +57,22 @@ code points. Os números >100x são limitados pelo startup do binário (~1 ms).
 
 Conclusão: os limites iniciais (256 funções, 256 classes, profundidade 8, 1024 bytes)
 ficam ~17x acima do maior caso do corpus e o teto custa ~1,2 MiB/~0,33 s nesta máquina.
+
+## `SourceIndex` (2026-11-24)
+
+`uv run python bench/source_index.py` mede a construção do índice do front-end (issue #130)
+sem subprocesso e sem CI. O parse fica fora do tempo: o alvo é indexar nós + nomes de
+declaração + nomes de tipo e responder `at()` no caminho de navegação local.
+
+```bash
+uv run python bench/source_index.py                 # compara com o baseline
+uv run python bench/source_index.py --repeat 5      # mais amostras
+uv run python bench/source_index.py --update        # regrava o baseline
+uv run python bench/source_index.py --json          # inclui o por-arquivo
+```
+
+Corpus de 2026-11-24 (369 arquivos, 338 parseáveis): 36 827 spans (2 928 de tipo,
+3 295 de nome), total ~625 ms, mediana 0,589 ms/arquivo, p95 7,939 ms/arquivo e
+`at()` ~13,9 µs/consulta. A regra é **≤ 2×** o total/mediana do
+[`source_index_baseline.json`](source_index_baseline.json); o guard determinístico é
+[`tests/test_source_index_budget.py`](../tests/test_source_index_budget.py) e não mede tempo.

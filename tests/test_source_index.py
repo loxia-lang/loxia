@@ -7,6 +7,7 @@ import pytest
 
 from loxia.engine import Loxia
 from loxia.source_index import ExprSpan, SourceIndex
+from loxia_core.diagnostics.diagnostic import Position, Span
 from loxia_core.frontend.expr import LiteralPattern, Match
 from loxia_core.frontend.source_index import NodeSpan
 from loxia_core.frontend.stmt import Function, Var
@@ -176,3 +177,115 @@ def test_expr_span_legacy_constructor_still_works() -> None:
 
     assert span.expression is expression
     assert span.node is expression
+
+
+def test_at_filters_spans_by_file() -> None:
+    main = Span("main.lx", Position(1, 6, 5), Position(1, 10, 9))
+    module = Span("mod.lx", Position(1, 6, 5), Position(1, 8, 7))
+    spans = SourceIndex([], "", extra_spans=[main, module])
+
+    main_span = spans.at(5, file="main.lx")
+    module_span = spans.at(5, file="mod.lx")
+    unfiltered = spans.at(5)
+
+    assert main_span is not None and (main_span.start, main_span.end) == (5, 9)
+    assert module_span is not None and (module_span.start, module_span.end) == (5, 7)
+    # Sem filtro o menor span vence; o filtro escolhe a autoridade do arquivo.
+    assert unfiltered is not None and (unfiltered.start, unfiltered.end) == (5, 7)
+
+
+def test_type_name_spans_are_exact_inside_annotation() -> None:
+    source = "class Foo {}\nval xs: List[Foo] = []\n"
+    spans = index(source)
+
+    list_span = spans.at(source.index("List"))
+    foo_span = spans.at(source.index("Foo", source.index("[")))
+
+    assert list_span is not None and list_span.kind == "type"
+    assert spans.text_of(list_span) == "List"
+    assert foo_span is not None and foo_span.kind == "type"
+    assert spans.text_of(foo_span) == "Foo"
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("val x: Int = 1\n", ["Int"]),
+        ("type A = Foo | Bar\n", ["Foo", "Bar"]),
+        ("enum E { A(Int, Foo), B }\n", ["Int", "Foo"]),
+        (
+            "fn f(a: Int, b: List[String]) -> Map[Int, Foo] { return a }\n",
+            ["Int", "List", "String", "Map", "Int", "Foo"],
+        ),
+        ("fn f(g: fn(Int) -> Foo) -> Int { return 1 }\n", ["Int", "Foo", "Int"]),
+        ("val xs: Int? = nil\n", ["Int"]),
+    ],
+)
+def test_type_name_spans_cover_all_type_positions(source: str, expected: list[str]) -> None:
+    spans = index(source)
+    found = [spans.text_of(span) for span in spans.spans if span.kind == "type"]
+
+    assert found == expected
+
+
+def test_declaration_name_spans_cover_params_fields_and_variants() -> None:
+    source = (
+        "fn soma(a: Int, b: Int) -> Int { return a + b }\n"
+        "enum E { A, B(Int) }\n"
+        "class C { val campo: Int = 1 }\n"
+        "type Alias = Int\n"
+        "val global = 1\n"
+        "interface I { fn m(x: Int) -> Int; }\n"
+        "fn id[T](x: T) -> T { return x }\n"
+        "fn demo() {\n"
+        "  val (a, (b, c)) = (1, (2, 3))\n"
+        "  for item in 0..3 { print(item) }\n"
+        "  val f = fn(y: Int) -> Int => y\n"
+        "}\n"
+    )
+    spans = index(source)
+    names = {spans.text_of(span) for span in spans.spans if span.kind == "name"}
+
+    assert {
+        "soma",
+        "a",
+        "b",
+        "E",
+        "A",
+        "B",
+        "C",
+        "campo",
+        "Alias",
+        "global",
+        "I",
+        "m",
+        "x",
+        "id",
+        "T",
+        "demo",
+        "c",
+        "item",
+        "f",
+        "y",
+    } <= names
+
+
+def test_source_index_has_no_duplicate_extent() -> None:
+    source = "fn f(x: List[Int]) -> Int {\n  val y: Int = x\n  return y\n}\n"
+    spans = index(source)
+    keys = [(span.start, span.end, span.file) for span in spans.spans]
+
+    assert len(keys) == len(set(keys))
+    assert spans.spans
+
+
+def test_type_name_spans_are_utf8_exact_across_lines() -> None:
+    source = '# é\nfn f(\n  x: List[Int],\n) -> String {\n  return ""\n}\n'
+    spans = index(source)
+    found = [span for span in spans.spans if span.kind == "type"]
+    texts = {spans.text_of(span) for span in found}
+
+    assert {"List", "Int", "String"} <= texts
+    inner = next(span for span in found if spans.text_of(span) == "Int")
+    assert inner.start == len(source[: source.index("Int")].encode("utf-8"))
+    assert spans.line_of(inner) == 3

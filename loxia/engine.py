@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, cast
 
 from loxia import __version__
 from loxia_core.diagnostics.codes import Code
-from loxia_core.diagnostics.diagnostic import DiagnosticBatch
+from loxia_core.diagnostics.diagnostic import DiagnosticBatch, Span
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.render import (
     SCHEMA_VERSION,
@@ -147,6 +147,8 @@ class Loxia:
         # (LSP) consome; `run`/`check` continuam estritos (ADR-0113).
         self.last_recovered_statements: list[Stmt] | None = None
         self.last_source_index: SourceIndex | None = None
+        # Spans dos nomes de tipo do último parse (side table do parser; #130).
+        self.last_type_spans: list[Span] = []
         self.last_resolver: Resolver | None = None
         self.last_checker: Checker | None = None
 
@@ -175,6 +177,9 @@ class Loxia:
         self._sources.add(self._file, source)
         self._watched_files = set()
         self._module_files = {}
+        # A análise anterior não pode financiar navegação de um parse que falhou.
+        self.last_source_index = None
+        self.last_type_spans = []
 
         scanner = Scanner(source, self.reporter)
         tokens = scanner.scan_tokens()
@@ -183,6 +188,7 @@ class Loxia:
         parser = Parser(tokens, repl=repl, reporter=self.reporter)
         statements = parser.parse_repl() if repl else parser.parse()
         self.last_recovered_statements = statements
+        self.last_type_spans = parser.type_spans
 
         if self.reporter.had_error or statements is None:
             self.last_statements = None
@@ -256,7 +262,12 @@ class Loxia:
             statements = loaded
 
         self.last_statements = statements
-        self.last_source_index = SourceIndex(statements, source, sources=self._sources)
+        self.last_source_index = SourceIndex(
+            statements,
+            source,
+            sources=self._sources,
+            extra_spans=self.last_type_spans,
+        )
         return statements
 
     def _load_manifest(self, path: Path) -> Manifest | None:

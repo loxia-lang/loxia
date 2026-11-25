@@ -52,6 +52,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `range`/`lines`; devolve o texto formatado + `TextEdit[]` exatos (aplicar os edits
   reproduz o texto), com range por linhas expandindo hunks. O envelope
   `fmt --check --edits=json` ganhou o campo `text`.
+- **Navegação LSP por `NodeSpan`** ([#130](https://github.com/loxia-lang/loxia/issues/130)):
+  `documentHighlight`, `references` e `rename` passam a usar o span exato de nome de
+  declaração e de tipo **já resolvido** no mesmo arquivo (inclusive o `Foo` dentro de
+  `List[Foo]`); o `semantic_*` continua valendo para cross-file. A resolução não muda:
+  uma anotação de tipo declarada no próprio arquivo segue sem target de rename/references
+  (#130 é autoridade de range, não novo rename). Os nomes de tipo são uma side table do
+  parser (`Parser.type_spans` → `Loxia.last_type_spans` → `SourceIndex(extra_spans=...)`),
+  então o AST e o JSON v2 não mudam. `bench/source_index.py` mede o índice no corpus e
+  `tests/test_source_index_budget.py` guarda o inventário sem timing.
 - **Formatter mais barato** ([#152](https://github.com/loxia-lang/loxia/issues/152)):
   o formatter deriva offsets de início com uma caminhada memoizada de primeiro token em
   vez de construir o `SourceIndex` completo; no corpus, `format_source` caiu de ~1,27 s

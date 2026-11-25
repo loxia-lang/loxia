@@ -6,10 +6,11 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from io import BytesIO
 from pathlib import Path
 from typing import Any, cast
 
-from loxia.lsp import REQUEST_METHODS
+from loxia.lsp import REQUEST_METHODS, Document, Server
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -537,3 +538,202 @@ def test_lsp_will_rename_files_rewrites_imports(tmp_path: Path) -> None:
         ]
     finally:
         stop(process)
+
+
+def _open_in_process(
+    tmp_path: Path, text: str, filename: str = "nav.lx"
+) -> tuple[Server, Document]:
+    path = tmp_path / filename
+    path.write_text(text, encoding="utf-8")
+    uri = path.as_uri()
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    document = Document(text=text, version=1, path=path, uri=uri)
+    server.documents[uri] = document
+    server._diagnostics(document)
+    return server, document
+
+
+def _position_of(text: str, needle: str, start: int = 0) -> tuple[dict[str, int], int]:
+    offset = text.index(needle, start)
+    line = text.count("\n", 0, offset)
+    last_newline = text.rfind("\n", 0, offset)
+    return {"line": line, "character": offset - last_newline - 1}, offset
+
+
+def _request_params(document: Document, position: dict[str, int]) -> dict[str, Any]:
+    return {
+        "textDocument": {"uri": document.uri},
+        "position": position,
+    }
+
+
+def _columns(text: str, offset: int, length: int) -> tuple[int, int]:
+    last_newline = text.rfind("\n", 0, offset)
+    start = offset - last_newline - 1
+    return start, start + length
+
+
+def test_lsp_navigation_uses_exact_type_name_span(tmp_path: Path) -> None:
+    text = "class Foo {}\nval xs: List[Foo] = []\n"
+    server, document = _open_in_process(tmp_path, text)
+    position, offset = _position_of(text, "Foo", text.index("["))
+    index = server.source_indexes[document.uri]
+    span = index.at(offset, file=server.source_files[document.uri])
+    assert span is not None
+    assert span.kind == "type"
+    assert index.text_of(span) == "Foo"
+
+    token = server._token_at(document, position)
+    assert token is not None
+    assert token.lexeme == "Foo"
+    navigation = cast(dict[str, Any], server._range_for(document, token))
+    start, end = _columns(text, offset, len("Foo"))
+    assert navigation["start"]["character"] == start
+    assert navigation["end"]["character"] == end
+    # Nunca o span da anotação inteira (`List[Foo]`).
+    list_token = server._token_at(document, _position_of(text, "List")[0])
+    assert list_token is not None
+    assert server._range_for(document, list_token) != navigation
+
+
+def test_lsp_prepare_rename_uses_type_name_span_from_imported_type(tmp_path: Path) -> None:
+    (tmp_path / "mod.lx").write_text("class Foo {}\n", encoding="utf-8")
+    text = "from mod import Foo\nval xs: List[Foo] = []\n"
+    server, document = _open_in_process(tmp_path, text, "main.lx")
+    position, offset = _position_of(text, "Foo", text.index("["))
+    token = server._token_at(document, position)
+    assert token is not None
+
+    prepared = cast(
+        dict[str, Any],
+        server._prepare_rename({"params": _request_params(document, position)}),
+    )
+    navigation = cast(dict[str, Any], server._range_for(document, token))
+    assert prepared["range"] == navigation
+    start, end = _columns(text, offset, len("Foo"))
+    assert navigation["start"]["character"] == start
+    assert navigation["end"]["character"] == end
+
+
+def test_lsp_rename_type_annotation_edits_only_the_type_name(tmp_path: Path) -> None:
+    (tmp_path / "mod.lx").write_text("class Foo {}\n", encoding="utf-8")
+    text = "from mod import Foo\nval xs: List[Foo] = []\n"
+    server, document = _open_in_process(tmp_path, text, "main.lx")
+    position, _ = _position_of(text, "Foo", text.index("["))
+
+    result = cast(
+        dict[str, Any],
+        server._rename(
+            {
+                "params": {
+                    **_request_params(document, position),
+                    "newName": "Bar",
+                }
+            }
+        ),
+    )
+    edits = cast(list[dict[str, Any]], result["changes"][document.uri])
+    assert edits
+    for edit in edits:
+        rng = cast(dict[str, Any], edit["range"])
+        assert rng["start"]["line"] == rng["end"]["line"]
+        assert rng["end"]["character"] - rng["start"]["character"] == len("Foo")
+
+
+def test_lsp_navigation_uses_exact_declaration_name_span(tmp_path: Path) -> None:
+    text = "fn soma(a: Int) -> Int {\n  return a\n}\nprint(soma(1))\n"
+    server, document = _open_in_process(tmp_path, text)
+    position, offset = _position_of(text, "soma")
+    index = server.source_indexes[document.uri]
+    span = index.at(offset, file=server.source_files[document.uri])
+    assert span is not None and span.kind == "name"
+    token = server._token_at(document, position)
+    assert token is not None
+
+    start, end = _columns(text, offset, len("soma"))
+    navigation = cast(dict[str, Any], server._range_for(document, token))
+    assert navigation["start"]["character"] == start
+    assert navigation["end"]["character"] == end
+
+    prepared = cast(
+        dict[str, Any],
+        server._prepare_rename({"params": _request_params(document, position)}),
+    )
+    assert prepared["range"] == navigation
+
+    references = cast(
+        list[dict[str, Any]],
+        server._references(
+            {
+                "params": {
+                    **_request_params(document, position),
+                    "context": {"includeDeclaration": True},
+                }
+            }
+        ),
+    )
+    assert len(references) == 2
+    for reference in references:
+        rng = reference["range"]
+        assert rng["end"]["character"] - rng["start"]["character"] == len("soma")
+
+
+def test_lsp_navigation_falls_back_for_expression_and_syntax_error(tmp_path: Path) -> None:
+    text = "val total = 1\nprint(total)\n"
+    server, document = _open_in_process(tmp_path, text)
+    position, offset = _position_of(text, "total", text.index("("))
+    span = server.source_indexes[document.uri].at(offset, file=server.source_files[document.uri])
+    assert span is not None and span.kind == "node"
+    token = server._token_at(document, position)
+    assert token is not None
+    assert server._range_for(document, token) == {
+        "start": {"line": 1, "character": 6},
+        "end": {"line": 1, "character": 11},
+    }
+
+    broken = "val x: List[= 1\n"
+    broken_server, broken_document = _open_in_process(tmp_path, broken, "broken.lx")
+    assert broken_document.uri not in broken_server.source_indexes
+    broken_position, _ = _position_of(broken, "List")
+    broken_token = broken_server._token_at(broken_document, broken_position)
+    assert broken_token is not None
+    assert broken_server._range_for(broken_document, broken_token) == {
+        "start": {"line": 0, "character": 7},
+        "end": {"line": 0, "character": 11},
+    }
+
+
+def test_lsp_upgrade_semantic_edits_uses_exact_type_span(tmp_path: Path) -> None:
+    text = "class Foo {}\nval xs: List[Foo] = []\n"
+    server, document = _open_in_process(tmp_path, text)
+    position, offset = _position_of(text, "Foo", text.index("["))
+    end = {"line": position["line"], "character": position["character"] + len("Foo]")}
+    result: dict[str, object] = {
+        "changes": {
+            document.uri: [
+                {"range": {"start": position, "end": end}, "newText": "Bar"},
+            ]
+        }
+    }
+
+    upgraded = server._upgrade_semantic_edits(document, result)
+    changes = cast(dict[str, list[dict[str, Any]]], upgraded["changes"])
+    edit_range = changes[document.uri][0]["range"]
+    start, expected_end = _columns(text, offset, len("Foo"))
+
+    assert edit_range["start"]["character"] == start
+    assert edit_range["end"]["character"] == expected_end
+
+
+def test_lsp_navigation_handles_utf8_and_multiline_offsets(tmp_path: Path) -> None:
+    text = "# é\nfn f(\n  x: List[Foo],\n) -> Int { return 0 }\n"
+    server, document = _open_in_process(tmp_path, text)
+    position, offset = _position_of(text, "Foo")
+    token = server._token_at(document, position)
+    assert token is not None
+
+    navigation = cast(dict[str, Any], server._range_for(document, token))
+    start, end = _columns(text, offset, len("Foo"))
+    assert navigation["start"] == {"line": 2, "character": start}
+    assert navigation["end"] == {"line": 2, "character": end}
