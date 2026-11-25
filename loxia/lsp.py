@@ -1001,7 +1001,7 @@ class Server:
         return self.semantic_cache
 
     def _invalidate(self, uri: str) -> None:
-        """Descarta os caches derivados de um documento (símbolos, spans e fonte)."""
+        """Descarta todo o estado derivado de um documento."""
         path = _uri_to_path(uri)
         if path is not None:
             self._disk_files.pop(path, None)
@@ -1009,14 +1009,11 @@ class Server:
         self.analyses.pop(uri, None)
         self.source_indexes.pop(uri, None)
         self.source_files.pop(uri, None)
+        self.source_maps.pop(uri, None)
+        self.module_files.pop(uri, None)
+        self.clean.pop(uri, None)
         if self.semantic_cache is not None:
             self.semantic_cache.clear()
-
-    def _publish_by_uri(self, uri: str) -> None:
-        document = self.documents.get(uri)
-        if document is None:
-            return
-        self._publish_analysis(self._analyze(document))
 
     # -- diagnóstico -----------------------------------------------------
 
@@ -1026,6 +1023,10 @@ class Server:
         Quem publica é o chamador (`_publish_analysis`): o loop coalesce edições e
         precisa separar "analisar" de "avisar o editor".
         """
+        # Uma análise nova supera qualquer índice construído para a anterior. O
+        # índice é lazy e, na navegação, é reconstruído a partir desta análise; sem
+        # o pop, um importador rechecado continuaria servindo o tipo antigo.
+        self.indexes.pop(document.uri, None)
         version = document.version
         lox = Loxia(error_format="json", color="never", max_errors=0)
         if document.path is not None:

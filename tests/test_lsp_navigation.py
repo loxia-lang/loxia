@@ -1000,3 +1000,42 @@ def test_lsp_disk_cache_is_bounded(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     server._workspace_files()
 
     assert len(server._disk_files) == 1
+
+
+def test_dependent_recheck_rebuilds_the_symbol_index(tmp_path: Path) -> None:
+    lib = tmp_path / "lib.lx"
+    lib.write_text("fn f() -> Int {\n  return 1\n}\n", encoding="utf-8")
+    main = tmp_path / "main.lx"
+    text = "from lib import f\nval x: Int = f()\n"
+    main.write_text(text, encoding="utf-8")
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    lib_document = Document(
+        text=lib.read_text(encoding="utf-8"), version=1, path=lib, uri=lib.as_uri()
+    )
+    main_document = Document(text=text, version=1, path=main, uri=main.as_uri())
+    server.documents[lib_document.uri] = lib_document
+    server.documents[main_document.uri] = main_document
+    params = {
+        "textDocument": {"uri": main_document.uri},
+        "position": {"line": 1, "character": 13},
+    }
+
+    server._analyze(main_document)
+    before = server._hover({"params": params})
+    assert before is not None
+    assert "-> Int" in cast(dict[str, Any], before["contents"])["value"]
+
+    # Editar a assinatura no módulo importado recheca o importador; o índice lazy
+    # construído para o texto anterior não pode sobreviver ao recheck.
+    server._change(
+        {
+            "textDocument": {"uri": lib_document.uri, "version": 2},
+            "contentChanges": [{"text": 'fn f() -> String {\n  return "x"\n}\n'}],
+        }
+    )
+    server._flush_dirty()
+
+    after = server._hover({"params": params})
+    assert after is not None
+    assert "-> String" in cast(dict[str, Any], after["contents"])["value"]
