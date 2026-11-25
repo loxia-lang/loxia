@@ -52,6 +52,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `range`/`lines`; devolve o texto formatado + `TextEdit[]` exatos (aplicar os edits
   reproduz o texto), com range por linhas expandindo hunks. O envelope
   `fmt --check --edits=json` ganhou o campo `text`.
+- **Bench do LSP** (`bench/lsp.py`, `make bench-lsp`): mede o servidor real sobre stdio —
+  startup, didOpen, hover, definition, references, highlight, rename, completion,
+  documentSymbol e didChange — com baseline em `bench/lsp_baseline.json`. Roda local, não
+  no CI; a tolerância é 1,5×.
 - **Navegação LSP por `NodeSpan`** ([#130](https://github.com/loxia-lang/loxia/issues/130)):
   `documentHighlight`, `references` e `rename` passam a usar o span exato de nome de
   declaração e de tipo **já resolvido** no mesmo arquivo (inclusive o `Foo` dentro de

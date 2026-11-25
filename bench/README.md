@@ -76,3 +76,25 @@ Corpus de 2026-11-24 (369 arquivos, 338 parseáveis): 36 827 spans (2 928 de tip
 `at()` ~13,9 µs/consulta. A regra é **≤ 2×** o total/mediana do
 [`source_index_baseline.json`](source_index_baseline.json); o guard determinístico é
 [`tests/test_source_index_budget.py`](../tests/test_source_index_budget.py) e não mede tempo.
+
+## LSP end-to-end (2026-11-24)
+
+`uv run python bench/lsp.py` (ou `make bench-lsp`) sobe o servidor real (`main.py lsp`) e
+mede o caminho JSON-RPC sobre stdio: startup/initialize, didOpen com imports, hover,
+definition, references cross-file, documentHighlight, rename local, completion,
+documentSymbol e didChange. Não roda no CI.
+
+```bash
+uv run python bench/lsp.py                  # compara com o baseline
+uv run python bench/lsp.py --repeat 7       # mais sessões (cada uma sobe um servidor)
+uv run python bench/lsp.py --update         # regrava o baseline
+uv run python bench/lsp.py --json
+```
+
+Workspace gerado em diretório temporário (`lib.lx` com classe/funções e `main.lx` com
+`import`, anotação, `std.lists` e variável local), então os offsets são estáveis e não
+aparecem paths absolutos. Mediana de 2026-11-24 nesta máquina: startup ~98 ms, didOpen
+~62 ms, references cross-file ~124 ms, didChange ~58 ms, completion ~1,4 ms; hover,
+definition, highlight, rename e documentSymbol abaixo de 1 ms. A tolerância é **1,5×** o
+baseline ([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então
+variações de máquina aparecem primeiro neles.

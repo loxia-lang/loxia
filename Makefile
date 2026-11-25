@@ -8,7 +8,7 @@ TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-native baseline fuzz monomorph frontend-bench ast-schema
+.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
@@ -44,6 +44,7 @@ help:
 	@echo "make docs-fresh                relatório de páginas desatualizadas (git)"
 	@echo "make hooks                     instala o hook de pre-commit"
 	@echo "make bench                     benchmarks vs bench/baseline.json"
+	@echo "make bench-lsp                 benchmark end-to-end do LSP (stdio)"
 	@echo "make bench-native              benchmarks do binário nativo (--emit=exe)"
 	@echo "make monomorph                 mede o orçamento de monomorfização (ADR-0063)"
 	@echo "make fuzz                      roda o fuzzing do scanner/parser (hypothesis)"
@@ -169,6 +170,9 @@ hooks:
 
 bench:
 	uv run python bench/run.py
+
+bench-lsp:
+	uv run python bench/lsp.py
 
 bench-native:
 	uv run python bench/run.py --native
