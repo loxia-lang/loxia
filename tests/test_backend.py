@@ -830,6 +830,42 @@ def test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering(
     assert problems == [], "check limpo virou erro no backend:\n" + "\n".join(problems)
 
 
+@pytest.mark.backend
+@pytest.mark.parametrize("annotation", ["Any", "Int | String"], ids=["any", "union"])
+def test_campo_anotado_decide_o_layout_nao_o_inicializador(tmp_path: Path, annotation: str) -> None:
+    """Issue #196: o slot do campo vem da anotação; `Any` é E4001, nunca E4002.
+
+    Antes: `var x: Any = 1` virava slot `Int` (o inicializador vencia a anotação). O
+    checker publicava `Any` e aceitava `c.x = "s"`, então o lowering morria em E4002 —
+    duas fontes de verdade, exatamente o que o I4/ADR-0059 proíbe. Agora a anotação
+    manda e o `Any` chega à lacuna declarada (ADR-0079), como no campo sem inicializador.
+    """
+    source = f"""class C {{
+  var x: {annotation} = 1
+}}
+val c = C()
+c.x = "s"
+print(c.x)
+"""
+    path = _write(tmp_path, source, "any_field_assign.lx")
+
+    interpreted = _interpret(path)
+    assert interpreted.returncode == 0, interpreted.stderr
+    assert interpreted.stdout == "s\n"
+
+    checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
+    assert checked.returncode == 0, checked.stderr
+
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 65, result.stderr
+    assert "Field value 'ANY' is not supported by the backend yet." in result.stderr
+    assert "any_field_assign.lx:2:" in result.stderr, result.stderr
+    assert "E4002" not in result.stderr, result.stderr
+    assert "internal lowering error" not in result.stderr, result.stderr
+    assert "Traceback" not in result.stderr, result.stderr
+    assert not binary.exists()
+
+
 @pytest.mark.parametrize(
     "case", sorted(NEGATIVE), ids=[Path(case).stem for case in sorted(NEGATIVE)]
 )

@@ -199,7 +199,10 @@ class ClassLayoutLowering(LoweringBase):
 
         if field.initializer is not None:
             initial = self._const_desc(field.initializer, field.name.line)
-            desc = annotated if annotated is not None and annotated.optional else initial
+            # The annotation is the field type; the initializer only supplies a value
+            # (coerced when the constructor runs). Using the initializer's type as the
+            # layout would make the slot disagree with the type the checker publishes.
+            desc = annotated if annotated is not None else initial
         elif annotated is not None:
             desc = annotated
         else:
@@ -215,6 +218,11 @@ class ClassLayoutLowering(LoweringBase):
                 field.name.line,
                 code=Code.BACKEND_UNSUPPORTED,
             )
+        if desc.ty is ValueType.ANY:
+            # ADR-0079: the box is `{i64, i64}` and a field slot is a single `i64`.
+            # Refusing here keeps the gap declared and at the field, instead of
+            # letting the store path fail on the first assignment.
+            raise _unsupported("Field value 'ANY'", field.name.line)
         if desc.optional and desc.ty not in (
             ValueType.STRING,
             ValueType.INSTANCE,
