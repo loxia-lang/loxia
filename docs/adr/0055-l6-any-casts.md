@@ -1,6 +1,8 @@
 # ADR-0055 — L6e: `Any` com unbox, `is`/`as`, igualdade e `for-in` de tupla
 
 - **Status:** accepted (primeira fatia de `Any`; enums/exceções e alguns casos de tupla pendentes)
+
+> **Atualizado por** [ADR-0144](0144-any-dinamico-exige-estreitamento.md): acesso a membro, escrita, chamada e índice em `Any` passou a exigir estreitamento (`is`/`as`) no checker.
 - **Data:** 2026-11-13
 - **Relacionados:** [ADR-0049](0049-any-boxeado-spike-l6.md), [ADR-0054](0054-l6-tuplas.md)
 - **Implementação:** [`loxia_core/backend/lower_class_codegen.py`](../../loxia_core/backend/lower_class_codegen.py),

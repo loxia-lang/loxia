@@ -26,6 +26,23 @@ from tests.test_official_suite import (
 # adaptável para a nossa gramática.
 _CHECK_XFAIL = set(DYNAMIC_FIELD_TESTS) | {"inheritance/parenthesized_superclass.lx"}
 
+# ADR-0144: o checker passou a exigir narrowing antes de membro/chamada em `Any`.
+# A camada dinâmica da suíte oficial anota tudo como `Any`, então estes positivos
+# do livro não passam mais no `--check`; o runtime continua coberto por
+# `test_official_case` (interpretador sem check).
+_ANY_NARROWING_BLOCKED = {
+    "closure/close_over_function_parameter.lx",
+    "closure/close_over_method_parameter.lx",
+    "closure/nested_closure.lx",
+    "function/nested_call_with_arguments.lx",
+    "super/bound_method.lx",
+    "super/closure.lx",
+    "super/super_in_closure_in_inherited_method.lx",
+    "this/closure.lx",
+    "this/nested_closure.lx",
+    "this/this_in_method.lx",
+}
+
 
 def _positive_cases() -> list[pytest.ParameterSet]:
     cases: list[pytest.ParameterSet] = []
@@ -40,6 +57,19 @@ def _positive_cases() -> list[pytest.ParameterSet]:
         if expectations.compile_errors or expectations.runtime_error:
             continue
         if relative in _CHECK_XFAIL:
+            continue
+        if relative in _ANY_NARROWING_BLOCKED:
+            cases.append(
+                pytest.param(
+                    path,
+                    relative,
+                    id=relative,
+                    marks=pytest.mark.xfail(
+                        strict=True,
+                        reason="E3025: dynamic access on `Any` requires narrowing",
+                    ),
+                )
+            )
             continue
 
         cases.append(pytest.param(path, relative, id=relative))

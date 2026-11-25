@@ -6,6 +6,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 ## [Unreleased]
 
 ### Mudado (quebra)
+- **Acesso dinâmico em `Any` exige estreitamento** ([ADR-0144](docs/adr/0144-any-dinamico-exige-estreitamento.md)): membro (`a.x`, `a.m()`), escrita (`a.x = v`), chamada (`a()`) e índice (`a[i]`) em um valor `Any` agora são erro `E3025`; estreite com `if (a is C)` ou `(a as C)`. Antes o checker aceitava e o binário divergia (`R1014`/`R1001`/`R1000`) ou morria em `E4002` — violação de I1/I4. O backend passa a desembrulhar o box no uso estreitado. Operações de valor (aritmética, comparação, igualdade, `is`/`as`, `print`/`str`, `??` e `and`/`or`) seguem dinâmicas. Breaking: programas check-limpos que acessavam `Any` assim passam a sair 65.
 - **`loxia run` checa antes de executar** ([ADR-0142](docs/adr/0142-check-por-fases.md),
   fase 2): `run` agora checa os tipos no modo gradual e bloqueia erro de tipo (exit 65);
   anotação ausente é silenciosa (`Any`) e erro que o interpretador levantaria (ex.:
@@ -144,6 +145,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `±HH:MM` e `t`/`z` minúsculos (RFC 3339). `TimeError.kind` ganha `invalidDate`.
 
 ### Corrigido
+- **Acesso a membro/índice em `Any` no backend** ([ADR-0144](docs/adr/0144-any-dinamico-exige-estreitamento.md)): `if (a is C) { a.m() }` e `a[i]` com `List`/`Map` deixam de divergir (o binário emitia `R1014`/`R1000`); `a.m()` sem estreitamento deixa de passar no check. Casos `tests/cases/any_narrowing.lx` e `tests/cases/errors/any_*.lx`.
 
 - **`??`, `and` e `or` sobre `Any`** (achado no raio de explosão do
   [#196](https://github.com/loxia-lang/loxia/issues/196)): `a ?? 0` com `Any` nil devolvia o

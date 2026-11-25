@@ -83,6 +83,7 @@ class Code(StrEnum):
     TOOLCHAIN_MISSING = "E3022"
     MATCH_EXHAUSTIVENESS = "E3023"
     UNREACHABLE_MATCH = "E3024"
+    ANY_ACCESS = "E3025"
 
     # Backend
     BACKEND_UNSUPPORTED = "E4001"
@@ -168,6 +169,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.TOOLCHAIN_MISSING: Phase.CHECKER,
     Code.MATCH_EXHAUSTIVENESS: Phase.CHECKER,
     Code.UNREACHABLE_MATCH: Phase.CHECKER,
+    Code.ANY_ACCESS: Phase.CHECKER,
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
@@ -248,6 +250,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.TOOLCHAIN_MISSING: "capability requires the Rust toolchain (cargo) at run/build",
     Code.MATCH_EXHAUSTIVENESS: "non-exhaustive match",
     Code.UNREACHABLE_MATCH: "unreachable match arm",
+    Code.ANY_ACCESS: "dynamic access on `Any` requires narrowing (`is`/`as`)",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",

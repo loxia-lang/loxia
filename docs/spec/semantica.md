@@ -577,6 +577,12 @@ val d = anyValue as Dog   # runtime check
   maps use the same check as `is`. `Any` é **top type**: `T` é atribuível a `Any`, mas
   `Any` não é atribuível implicitamente a `T` (armazenamento, argumento, retorno ou
   índice); escreva `x as T` ou estreite com `is`/nil.
+- `Any` has no static shape: member access (`a.x`, `a.m()`), field assignment (`a.x = v`),
+  calling (`a()`) and indexing (`a[i]`) require narrowing first (`if (a is C)` or `a as T`);
+  otherwise the checker reports `E3025`. The backend unboxes the `Any` value at the narrowed
+  use, so both engines agree. Value operations stay dynamic on `Any`: arithmetic,
+  comparison, equality, `is`/`as`, `print`/`str`/interpolation, `not`/unary, `??` and
+  `and`/`or` ([ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md)).
 - `T as T` is the identity; `as Any` returns the value. A union target (`Int?`, `Int | String`)
   does not exist yet; use narrowing/`is`.
 - A string does not become a number through a cast; use `parse`.

@@ -1,0 +1,10 @@
+# Acesso a membro em `Any` sem estreitamento.
+class C {
+  fn m() -> Int {
+    return 1
+  }
+}
+
+val a: Any = C()
+print(a.m())
+# expect error: Can't access a member of `Any`; narrow it with `is` or cast it with `as` first.

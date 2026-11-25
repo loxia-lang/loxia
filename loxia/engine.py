@@ -686,6 +686,7 @@ class Loxia:
                 output=output,
                 stem=stem,
                 types=checker.storage_types,
+                flow_types=checker.types,
                 depths=self.interpreter.locals,
                 generic_instances=checker.generic_fn_instances,
                 generic_classes=checker.concrete_class_types(),

@@ -195,6 +195,7 @@ TODO item.
 | [0141](0141-soundness-de-fluxo-do-checker.md) | Checker flow soundness: `break`/`continue` terminate post-loop refinement, `match` forks/joins per arm, jump-aware merges and a flow-policy gate; precision stays with alias/effects/CFG deferred | accepted (implemented; split `TypeOps`/`DeclTable` included) | 2026-11-24 |
 | [0142](0142-check-por-fases.md) | `--check` in phases: gradual mode plus checking in `loxia test`/CI, blocking `run` later; type errors stop being optional | accepted (phases 1–3 implemented; no escape) | 2026-11-24 |
 | [0143](0143-lsp-didchange-coalescing-e-reuso.md) | LSP `didChange`: coalesce changes with a lazy flush, reuse unchanged module parses by content and build the `SymbolIndex` lazily; diagnostics stay full-file and only the latest version is published | accepted (implemented, #191) | 2026-11-25 |
+| [0144](0144-any-dinamico-exige-estreitamento.md) | Dynamic access on `Any` (member get/set, call, index) requires narrowing (`is`/`as`, `E3025`); the backend honors the checker's flow type by unboxing at the use; value operations stay dynamic | accepted (implemented) | 2026-11-25 |
 
 
 ## Next decisions that call for an ADR

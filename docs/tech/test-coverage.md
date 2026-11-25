@@ -13,11 +13,11 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**25 features**, **109 golden references** across **14 levels**.
+**25 features**, **110 golden references** across **14 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
-| **any** — Any boxeado: top type, is/as, ?? e curto-circuito | [`any_box.lx`](../../tests/cases/any_box.lx), [`any_casts.lx`](../../tests/cases/any_casts.lx), [`any_coalesce_nil.lx`](../../tests/cases/any_coalesce_nil.lx), [`any_logical.lx`](../../tests/cases/any_logical.lx) | `l6` |
+| **any** — Any boxeado: top type, is/as, ?? e curto-circuito | [`any_box.lx`](../../tests/cases/any_box.lx), [`any_casts.lx`](../../tests/cases/any_casts.lx), [`any_coalesce_nil.lx`](../../tests/cases/any_coalesce_nil.lx), [`any_logical.lx`](../../tests/cases/any_logical.lx), [`any_narrowing.lx`](../../tests/cases/any_narrowing.lx) | `l6` |
 | **checker** — Anotações, inferência e diagnósticos do --check | [`typed_functions.lx`](../../tests/cases/typed_functions.lx), [`is_union_parens.lx`](../../tests/cases/is_union_parens.lx), [`optional_refs.lx`](../../tests/cases/optional_refs.lx) | `—` |
 | **classes** — Classes, campos, métodos, this, init, herança e super | [`classes.lx`](../../tests/cases/classes.lx), [`class_fields.lx`](../../tests/cases/class_fields.lx), [`class_initializer.lx`](../../tests/cases/class_initializer.lx), [`inheritance.lx`](../../tests/cases/inheritance.lx), [`super.lx`](../../tests/cases/super.lx), [`class_bound_method.lx`](../../tests/cases/class_bound_method.lx), [`selfhost_recursive_class.lx`](../../tests/cases/selfhost_recursive_class.lx) | `l5` |
 | **contracts** — Contratos como biblioteca e adoção na stdlib | [`std_contracts.lx`](../../tests/cases/std_contracts.lx), [`std_contracts_property.lx`](../../tests/cases/std_contracts_property.lx), [`std_contracts_pilot.lx`](../../tests/cases/std_contracts_pilot.lx) | `t2` |
@@ -51,7 +51,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 7 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 103 |
+| `l6` | 104 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |

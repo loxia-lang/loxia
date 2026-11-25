@@ -68,6 +68,20 @@ CHECK_BLOCKED: dict[str, str] = {
     "super/missing_arguments.lx": "Method 'foo' is incompatible with the superclass method",
     "super/no_superclass_method.lx": "Undefined property 'doesNotExist'.",
     "super/reassign_superclass.lx": "Expected Base, found OtherBase.",
+    # ADR-0144: o checker exige narrowing antes de membro/chamada em `Any`. A camada
+    # dinâmica da suíte oficial anota retornos/parâmetros como `Any`, então estes
+    # positivos do livro passam a ser bloqueados; o oráculo do interpretador segue
+    # verificado em `test_official_case` via `Loxia(check_on_run=False)`.
+    "closure/close_over_function_parameter.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "closure/close_over_method_parameter.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "closure/nested_closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "function/nested_call_with_arguments.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "super/bound_method.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "super/closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "super/super_in_closure_in_inherited_method.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "this/closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "this/nested_closure.lx": "Can't call a value of type `Any`; cast it with `as` first.",
+    "this/this_in_method.lx": "Can't access a member of `Any`; narrow it with `is` or cast it with `as` first.",
 }
 
 DYNAMIC_FIELD_TESTS = {

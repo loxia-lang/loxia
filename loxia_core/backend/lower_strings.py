@@ -221,7 +221,10 @@ class StringLowering(LoweringBase):
         return self._to_string(arguments[0])
 
     def _len(self, expr: Call) -> Value:
-        arguments = [self._expr(argument) for argument in expr.arguments]
+        arguments = [
+            self._narrowed(argument, self._expr(argument), expr.paren.line)
+            for argument in expr.arguments
+        ]
         if len(arguments) != 1:
             self._poison(
                 expr.paren,

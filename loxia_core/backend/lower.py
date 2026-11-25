@@ -136,6 +136,7 @@ class Lowerer(
         *,
         types: dict[Expr, Ty],
         depths: dict[Expr, int],
+        flow_types: dict[Expr, Ty] | None = None,
         generic_instances: Any = None,
         generic_classes: Any = None,
         generic_class_sites: Any = None,
@@ -147,6 +148,9 @@ class Lowerer(
         self.source_path: str = source_path
         self.debug = debug
         self.types = types
+        # Tipo de fluxo (com narrowing) por expressão; `types` guarda a
+        # representação declarada (ADR-0045). O unbox de `Any` usa este mapa.
+        self.flow_types = flow_types if flow_types is not None else types
         self.depths = depths
         self.generic_instances = generic_instances or {}
         self.generic_classes = generic_classes or set()
@@ -1731,6 +1735,7 @@ def lower_program(
     *,
     types: dict[Expr, Ty],
     depths: dict[Expr, int],
+    flow_types: dict[Expr, Ty] | None = None,
     generic_instances: Any = None,
     generic_classes: Any = None,
     generic_class_sites: Any = None,
@@ -1743,6 +1748,7 @@ def lower_program(
         module,
         types=types,
         depths=depths,
+        flow_types=flow_types,
         generic_instances=generic_instances,
         generic_classes=generic_classes,
         generic_class_sites=generic_class_sites,
