@@ -315,3 +315,48 @@ def test_interface_importada_is_as_nos_dois_motores(tmp_path: Path) -> None:
     native = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
     assert native.returncode == 0, native.stderr
     assert native.stdout == interpreted.stdout
+
+
+def test_interface_importada_diagnostico_usa_nome_local(tmp_path: Path) -> None:
+    (tmp_path / "lib_iface.lx").write_text(
+        "interface Named {\n"
+        "  fn name() -> String\n"
+        "}\n"
+        "class C implements Named {\n"
+        '  fn name() -> String { return "c" }\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    runtime = tmp_path / "runtime.lx"
+    runtime.write_text(
+        "from lib_iface import Named\nval a: Any = 1\nprint(a as Named)\n",
+        encoding="utf-8",
+    )
+    interpreted = _run(runtime)
+    assert interpreted.returncode == 70
+    assert "Can't cast value to Named." in interpreted.stderr
+
+    binary = tmp_path / "app"
+    built = _run(runtime, "--emit=exe", "-o", str(binary))
+    assert built.returncode == 0, built.stderr
+    native = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
+    assert native.returncode == 70
+    assert "Can't cast value to Named." in native.stderr
+
+    runtime_class = tmp_path / "runtime_class.lx"
+    runtime_class.write_text(
+        "from lib_iface import C\nval a: Any = 1\nprint(a as C)\n",
+        encoding="utf-8",
+    )
+    interpreted_class = _run(runtime_class)
+    assert interpreted_class.returncode == 70
+    assert "Can't cast value to C." in interpreted_class.stderr
+
+    static = tmp_path / "static.lx"
+    static.write_text(
+        "from lib_iface import Named\nclass Other {}\nprint(Other() as Named)\n",
+        encoding="utf-8",
+    )
+    checked = _run(static, "--check")
+    assert checked.returncode == 65
+    assert "Can't cast Other to Named." in checked.stderr

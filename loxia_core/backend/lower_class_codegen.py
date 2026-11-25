@@ -972,11 +972,12 @@ class ClassCodegenLowering(LoweringBase):
             return value
 
         target = self._target_class(target_ty, expr.operator.line)
+        target_display = display(target_ty)
         if value.optional:
             value = self._unwrap(
                 value,
                 expr.operator.line,
-                f"Can't cast value to {target}.",
+                f"Can't cast value to {target_display}.",
             )
         check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
@@ -984,7 +985,11 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.operator, f"Can't cast value to {target}.", code=Code.RUNTIME_CAST)
+        self._poison(
+            expr.operator,
+            f"Can't cast value to {target_display}.",
+            code=Code.RUNTIME_CAST,
+        )
 
         self.builder = llvm_ir.builder(ok)
         return Value(
