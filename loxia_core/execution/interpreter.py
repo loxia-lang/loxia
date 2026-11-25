@@ -643,9 +643,19 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         return self._evaluate(expr.expression)
 
     def _runtime_type(self, ty: Ty) -> Ty:
-        """`ClassTy(I)` do parser é interface no runtime: o nome resolve para InterfaceTy."""
-        if isinstance(ty, ClassTy) and not ty.args and ty.name in self.interfaces:
-            return InterfaceTy(ty.name)
+        """`ClassTy(I)` do parser é interface no runtime, inclusive dentro de containers."""
+        if isinstance(ty, ClassTy):
+            if not ty.args and ty.name in self.interfaces:
+                return InterfaceTy(ty.name)
+            return ty
+        if isinstance(ty, ListTy):
+            return ListTy(self._runtime_type(ty.element))
+        if isinstance(ty, MapTy):
+            return MapTy(self._runtime_type(ty.key), self._runtime_type(ty.value))
+        if isinstance(ty, TupleTy):
+            return TupleTy(tuple(self._runtime_type(item) for item in ty.items))
+        if isinstance(ty, UnionTy):
+            return UnionTy(tuple(self._runtime_type(member) for member in ty.members))
         return ty
 
     def _expand_type_aliases(self, ty: Ty, seen: frozenset[str] = frozenset()) -> Ty:
@@ -1131,7 +1141,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             defaults[method.name.lexeme] = LoxFunction(method, self.environment, False)
 
         self.interfaces[stmt.name.lexeme] = LoxInterface(
-            stmt.display_name or stmt.name.lexeme, defaults
+            stmt.display_name or stmt.name.lexeme,
+            defaults,
+            canonical=stmt.name.lexeme,
         )
 
     def visit_class_stmt(self, stmt: Class) -> None:

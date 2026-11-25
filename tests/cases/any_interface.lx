@@ -43,3 +43,16 @@ print((u as Named).name())  # expect: anon
 
 val n: Any = 1
 print(n is Shape) # expect: false
+
+class Sub(Square) {}
+
+val sub: Any = Sub()
+print(sub is Named)           # expect: true
+print((sub as Shape).area())  # expect: 4
+
+val xs: List[Named] = [Square()]
+print(xs is List[Named])  # expect: true
+print(xs[0] is Named)     # expect: true
+val m: Map[String, Named] = { "s": Square() }
+print(m is Map[String, Named])  # expect: true
+print(m["s"] is Named)          # expect: true

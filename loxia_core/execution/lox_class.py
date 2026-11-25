@@ -111,7 +111,7 @@ class LoxClass:
         """A classe (ou um ancestral) implementa a interface nominal (ADR-0080)."""
         klass: LoxClass | None = self
         while klass is not None:
-            if any(interface.name == name for interface in klass.interfaces):
+            if any(interface.matches(name) for interface in klass.interfaces):
                 return True
             klass = klass._superclass
 

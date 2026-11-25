@@ -35,12 +35,9 @@ modelo nominal e os métodos default continuam válidos.
 
 > **Implementação (2026-11-15):** fases T1–T9 entregues — sintaxe, tipos,
 > conformidade/defaults no tree-walk e no checker, loader, golden/checker/AST e backend
-> **Atualização (2026-11-25):** `is`/`as` com interface foram implementados no
-> [ADR-0146](0146-is-as-interface.md), usando a tabela de interfaces do descritor; a
-> restrição da v1 abaixo fica histórica.
-
-> B2 (`interface_id` + tabela `itab` no descritor de classe). `is`/`as` com interface
-> seguem fora.
+> B2 (`interface_id` + tabela `itab` no descritor de classe). Na v1, `is`/`as` com
+> interface ficavam fora; o [ADR-0146](0146-is-as-interface.md) os implementou em
+> 2026-11-25 sobre essa mesma tabela.
 
 Este ADR não reabre o modelo: fecha as decisões de **implementação** que faltavam e define
 as fases.
@@ -92,9 +89,10 @@ class Triangulo(Figura) implements Forma, Desenhavel { ... }
   `Any` sim; `InterfaceTy?`/uniões seguem as regras existentes. Interface em campo,
   parâmetro, retorno, `List[Forma]`, `Map[K, Forma]` (valor) é permitido; chave de `Map`
   continua `String`/`Int`/`Bool`.
-- `is`/`as` com interface ficam **fora da v1**, como no ADR-0038: o checker recusa com
-  diagnóstico dirigido (`Interface types aren't supported in 'is' yet.`), nos dois
-  motores. O mapa classe→interfaces fica para quando o backend tiver a tabela (fase B2).
+- Na v1, `is`/`as` com interface ficavam **fora**, como no ADR-0038: o checker recusava
+  com diagnóstico dirigido (`Interface types aren't supported in 'is' yet.`). O
+  [ADR-0146](0146-is-as-interface.md) os implementou sobre a tabela de interfaces do
+  descritor (fase B2), sem ABI nova.
 
 ### 3. Verificação de `implements` (checker)
 
@@ -164,7 +162,8 @@ foram promovidos a `LEVELS` em B2.
 - classes sem interfaces têm tabela vazia; o custo é 2 words no descritor + a tabela;
 - classes genéricas e locais que implementam interfaces usam a mesma tabela (a genérica
   por instanciação monomorfizada; a local no descritor construído na função);
-- `is`/`as` com interface continuam fora (podem reusar a tabela depois).
+- `is`/`as` com interface reusam a tabela do descritor (implementados no
+  [ADR-0146](0146-is-as-interface.md)).
 
 ### 7. Orçamento sintático (ADR-0066)
 

@@ -44,7 +44,7 @@ para responder "esta instância implementa `I`?" já existia; faltava expô-lo a
    `x.m()` resolve o método da interface (inclusive default) normalmente. A resolução do
    alvo usa o tipo já validado (`_resolve_test_type`), sem emitir diagnóstico duplicado.
 4. **Regra estática do `as`:** de uma classe concreta que **não** implementa `I`, o checker
-   recusa (`Can't cast C to I.`, `E3012`); de `Any`, de união ou de outra interface, o cast
+   recusa (`Can't cast C to I.`, `E3013`); de `Any`, de união ou de outra interface, o cast
    é aceito e checado em runtime (`R1011: Can't cast value to I.` se falhar). O tree-walk
    usa o mesmo `matches_type`, então os dois motores concordam no ponto da falha.
 5. **Assinatura apagada:** a checagem é nominal (implementa/não implementa), não compara a
@@ -52,6 +52,11 @@ para responder "esta instância implementa `I`?" já existia; faltava expô-lo a
    continua sendo responsabilidade do checker na declaração `implements` (ADR-0080).
 6. **Sem mudança no despacho:** métodos default, `itab`, herança de interface pela
    superclasse e a ordem determinística continuam como no ADR-0080.
+7. **Nomes importados e containers:** o loader renomeia a interface no tipo (`mod$lib$I`),
+   mas o token de `implements` guarda o nome de exibição; o `LoxInterface` guarda os dois
+   (canônico e exibição) e `implements_interface` aceita ambos. A normalização
+   `ClassTy→InterfaceTy` é recursiva em `List`/`Map`/tupla/união, então `is List[I]` e
+   `is Map[K, I]` funcionam.
 
 ## Consequências
 
@@ -91,7 +96,10 @@ para responder "esta instância implementa `I`?" já existia; faltava expô-lo a
 ## Como verificar
 
 - `tests/cases/any_interface.lx` (l6, diferencial): `is`/`as` em `Any`, interface como tipo
-  estático, interface→interface, método default, subclasse e `is` falso.
+  estático, interface→interface, método default, subclasse, `List[I]`/`Map[String, I]` e
+  `is` falso.
+- `tests/test_modules.py::test_interface_importada_is_as_nos_dois_motores`: interface
+  importada, `is`/`as` e paridade tree-walk × binário.
 - `tests/cases/errors/any_interface_cast.lx` (l6, diferencial): `Any` com `Int` → `as I`
   falha em runtime com a mesma mensagem/exit nos dois motores.
 - `tests/cases/errors/interface_cast_static.lx`: classe que não implementa → erro de checker.

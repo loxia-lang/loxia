@@ -702,10 +702,19 @@ class ClassCodegenLowering(LoweringBase):
     def _expand_alias(self, ty: Ty) -> Ty:
         if isinstance(ty, ClassTy):
             if ty.name in self.type_aliases:
-                return self.type_aliases[ty.name]
+                return self._expand_alias(self.type_aliases[ty.name])
             if not ty.args and ty.name in self._interface_ids:
                 # O parser entrega `ClassTy(I)`; interface é identificada pelo id.
                 return InterfaceTy(ty.name)
+            return ty
+        if isinstance(ty, ListTy):
+            return ListTy(self._expand_alias(ty.element))
+        if isinstance(ty, MapTy):
+            return MapTy(self._expand_alias(ty.key), self._expand_alias(ty.value))
+        if isinstance(ty, TupleTy):
+            return TupleTy(tuple(self._expand_alias(item) for item in ty.items))
+        if isinstance(ty, UnionTy):
+            return UnionTy(tuple(self._expand_alias(member) for member in ty.members))
         return ty
 
     def _is_expr(self, expr: Is) -> Value:

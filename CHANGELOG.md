@@ -53,7 +53,8 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - **`is`/`as` para interface** ([ADR-0146](docs/adr/0146-is-as-interface.md), issue
   [#213](https://github.com/loxia-lang/loxia/issues/213)): um `Any` que guarda uma instância
   que implementa uma interface agora estreita para a interface (`if (x is I)`,
-  `(x as I).m()`), inclusive método default e interface herdada. A checagem em runtime usa a
+  `(x as I).m()`), inclusive método default, interface herdada, `List[I]`/`Map[K, I]` e
+  interface importada de módulo. A checagem em runtime usa a
   tabela de interfaces do descritor de classe (a mesma do despacho), sem tag ou ABI nova;
   `as` de uma classe que não implementa `I` é erro de checker e `Any`/união são checados em
   runtime. Casos `tests/cases/any_interface.lx` (L6, diferencial),

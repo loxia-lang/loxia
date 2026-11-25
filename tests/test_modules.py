@@ -284,3 +284,34 @@ def test_erro_de_runtime_aponta_o_modulo_e_o_frame(tmp_path: Path) -> None:
     assert result.returncode == 70
     assert "mod.lx:2:12: error[R1002]: Division by zero not allowed" in result.stderr
     assert "  at f (main.lx:3:14)\n" in result.stderr
+
+
+def test_interface_importada_is_as_nos_dois_motores(tmp_path: Path) -> None:
+    (tmp_path / "lib_iface.lx").write_text(
+        "interface Named {\n"
+        "  fn name() -> String\n"
+        "}\n"
+        "class C implements Named {\n"
+        '  fn name() -> String { return "c" }\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    main = tmp_path / "main.lx"
+    main.write_text(
+        "from lib_iface import Named, C\n"
+        "val a: Any = C()\n"
+        "print(a is Named)\n"
+        "print((a as Named).name())\n",
+        encoding="utf-8",
+    )
+
+    interpreted = _run(main)
+    assert interpreted.returncode == 0, interpreted.stderr
+    assert interpreted.stdout == "true\nc\n"
+
+    binary = tmp_path / "app"
+    built = _run(main, "--emit=exe", "-o", str(binary))
+    assert built.returncode == 0, built.stderr
+    native = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
+    assert native.returncode == 0, native.stderr
+    assert native.stdout == interpreted.stdout
