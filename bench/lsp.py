@@ -238,6 +238,15 @@ def run_session() -> dict[str, float]:
         def request(method: str, params: dict[str, Any]) -> Callable[[], object]:
             return lambda: lsp.request(method, {"textDocument": {"uri": uri}, **params})
 
+        reference_call = request(
+            "textDocument/references",
+            {"position": type_position, "context": {"includeDeclaration": True}},
+        )
+        started = time.perf_counter()
+        cold_references = reference_call()
+        references_cold = (time.perf_counter() - started) * 1000
+        assert isinstance(cold_references, list) and len(cold_references) >= 2
+
         metrics = [
             _measure(
                 "hover",
@@ -253,10 +262,7 @@ def run_session() -> dict[str, float]:
             ),
             _measure(
                 "references",
-                request(
-                    "textDocument/references",
-                    {"position": type_position, "context": {"includeDeclaration": True}},
-                ),
+                reference_call,
                 SAMPLES_PER_METRIC,
                 lambda value: isinstance(value, list) and len(value) >= 2,
             ),
@@ -310,7 +316,11 @@ def run_session() -> dict[str, float]:
         lsp.shutdown()
         directory.cleanup()
 
-    result = {"startup": startup * 1000, "did_open": open_ms * 1000}
+    result = {
+        "startup": startup * 1000,
+        "did_open": open_ms * 1000,
+        "references_cold": references_cold,
+    }
     result.update({item.name: item.median_ms for item in metrics})
     return result
 

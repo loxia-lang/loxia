@@ -10,6 +10,9 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
+from loxia import rename as rename_module
 from loxia.lsp import REQUEST_METHODS, Document, Server
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -737,3 +740,36 @@ def test_lsp_navigation_handles_utf8_and_multiline_offsets(tmp_path: Path) -> No
     start, end = _columns(text, offset, len("Foo"))
     assert navigation["start"] == {"line": 2, "character": start}
     assert navigation["end"] == {"line": 2, "character": end}
+
+
+def test_lsp_references_reuse_workspace_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "lib.lx").write_text("class Foo {}\n", encoding="utf-8")
+    text = "from lib import Foo\nval xs: List[Foo] = []\n"
+    server, document = _open_in_process(tmp_path, text, "main.lx")
+    builds: list[int] = []
+    original = rename_module._build_workspace
+
+    def counting(root: Path, files: dict[Path, str]) -> object:
+        builds.append(1)
+        return original(root, files)
+
+    monkeypatch.setattr(rename_module, "_build_workspace", counting)
+    position, _ = _position_of(text, "Foo", text.index("["))
+    params = {
+        "textDocument": {"uri": document.uri},
+        "position": position,
+        "context": {"includeDeclaration": True},
+    }
+
+    first = cast(list[dict[str, Any]], server._references({"params": params}))
+    second = cast(list[dict[str, Any]], server._references({"params": params}))
+
+    assert first and second
+    assert len(builds) == 1
+
+    server._invalidate(document.uri)
+    third = cast(list[dict[str, Any]], server._references({"params": params}))
+    assert third
+    assert len(builds) == 2

@@ -81,7 +81,7 @@ Corpus de 2026-11-24 (369 arquivos, 338 parseáveis): 36 827 spans (2 928 de tip
 
 `uv run python bench/lsp.py` (ou `make bench-lsp`) sobe o servidor real (`main.py lsp`) e
 mede o caminho JSON-RPC sobre stdio: startup/initialize, didOpen com imports, hover,
-definition, references cross-file, documentHighlight, rename local, completion,
+definition, references cross-file (frio e quente), documentHighlight, rename local, completion,
 documentSymbol e didChange. Não roda no CI.
 
 ```bash
@@ -94,7 +94,8 @@ uv run python bench/lsp.py --json
 Workspace gerado em diretório temporário (`lib.lx` com classe/funções e `main.lx` com
 `import`, anotação, `std.lists` e variável local), então os offsets são estáveis e não
 aparecem paths absolutos. Mediana de 2026-11-24 nesta máquina: startup ~98 ms, didOpen
-~62 ms, references cross-file ~66 ms, didChange ~58 ms, completion ~1,4 ms; hover,
+~62 ms, references cross-file ~67 ms na primeira consulta e ~1,2 ms com o cache do
+workspace, didChange ~58 ms, completion ~1,4 ms; hover,
 definition, highlight, rename e documentSymbol abaixo de 1 ms. A tolerância é **1,5×** o
 baseline ([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então
 variações de máquina aparecem primeiro neles.
