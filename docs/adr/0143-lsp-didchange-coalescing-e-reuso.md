@@ -1,6 +1,6 @@
 # ADR-0143 — LSP: coalescing de `didChange` e reuso de parse de módulos
 
-- **Status:** accepted (fases 0–5 do #191)
+- **Status:** accepted (fases 0–5 implementadas em 2026-11-25)
 - **Data:** 2026-11-25
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
 - **Relacionados:** [ADR-0090](0090-lsp-escopo-e-hospedagem.md),
@@ -32,7 +32,20 @@ Medidas de 2026-11-25 nesta máquina (mediana de 5 sessões, `make bench-lsp`, w
 | `references_cold` | 105,8 ms |
 | `references_after_change` | 102,4 ms |
 
-O `did_change_burst` é exatamente 5× o `did_change`: a amplificação é o pior sintoma
+Depois das fases 1–4, mesmas condições (o baseline final do bench):
+
+| Métrica | Antes | Depois |
+| --- | ---: | ---: |
+| `did_change` | 34,2 ms | **10,1 ms** |
+| `did_change_burst` (5 changes) | 172,9 ms | **10,1 ms** |
+| `did_change_large` (~650 linhas) | 75,5 ms | **48,5 ms** |
+
+`startup`, `did_open` e `references_cold`/`references_after_change` ficaram na mesma faixa
+(87–94 ms, 34–37 ms, 106–112 ms); a diferença é ruído de máquina. O cache de módulos só
+aparece quando vários arquivos do workspace importam std, o que não é o caso do workspace
+do bench.
+
+O `did_change_burst` era exatamente 5× o `did_change`: a amplificação é o pior sintoma
 visível, independente do custo unitário. Medições em processo isolam três custos:
 
 | Arquivo | `check` | `_diagnostics` |
@@ -72,9 +85,11 @@ era `1` (full) e `_change` usava só `changes[0]`, ignorando `range`.
 4. **`SymbolIndex` lazy.** O diagnóstico limpo não constrói o índice; ele nasce na
    primeira navegação do documento e é invalidado com o documento. O `Analysis` guarda os
    insumos (statements, checker, resolver, fonte e versão) para não repetir a análise.
-5. **Orçamento:** `did_change` ≤ 10 ms; arquivos ≤ 300 linhas ≤ 20 ms; ≤ 700 linhas
-   ≤ 45 ms; acima de ~1000 linhas fica **fora** até o parse incremental (#113), com o
-   número medido no bench em vez de promessa.
+5. **Orçamento (medido, não prometido):** `did_change` ≤ 12 ms no workspace do bench
+   (10,1 ms) e ~0,06 ms por linha acima disso — 163 linhas ~20 ms, 323 ~30 ms, 643 ~49 ms
+   (mediana in-process com cache quente). Acima de ~1000 linhas fica **fora** até o parse
+   incremental (#113); o piso do arquivo grande é o parse da entrada (~27 ms) mais a
+   reescrita de imports (~7 ms), que o #191 não toca.
 
 ### Regras de invalidação
 
@@ -103,8 +118,9 @@ era `1` (full) e `_change` usava só `changes[0]`, ignorando `range`.
 ### Positivas
 
 - Rajada de N teclas deixa de custar N análises; o pior caso vira uma.
-- O custo fixo de `std.*` desaparece do caminho quente (e também de `references_cold`, que
-  analisa um arquivo por vez).
+- O custo fixo de `std.*` desaparece do caminho quente; em workspaces onde vários arquivos
+  importam std, a análise de `references`/rename paga o parse uma vez (no workspace do
+  bench o ganho ficou dentro do ruído).
 - Navegação nunca observa índice de outro texto, sem lock e sem thread de análise.
 - O contrato de diagnóstico para documento assentado não muda.
 
@@ -143,16 +159,16 @@ era `1` (full) e `_change` usava só `changes[0]`, ignorando `range`.
 
 - `bench/lsp.py` compara `did_change`, `did_change_burst` e `did_change_large` com
   [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) (tolerância 1,5×; baseline
-  regravado intencionalmente na fase 5).
+  regravado intencionalmente na fase 0 com os números "antes" e na fase 5 com os "depois").
 - `tests/test_lsp.py` cobre a rajada (estado final correto, nenhum publish velho depois de
   um novo) e o caminho de diagnóstico.
 - `tests/test_lsp_navigation.py::test_lsp_unsaved_module_text_feeds_importers` continua
   sendo o contrato de overlay e recheck de importador.
 - `tests/test_module_cache.py` prova AST idêntica com e sem cache, invalidação por
   conteúdo, falha não cacheada e limite LRU.
-- Critério para revisitar: `did_change` acima do orçamento em arquivo ≤ 700 linhas, ou
-  memória do servidor crescendo sem teto; nesse caso o próximo passo é o parse incremental
-  do #113, não afrouxar o orçamento.
+- Critério para revisitar: `did_change` acima de 12 ms no workspace do bench, arquivo
+  ≤ 700 linhas acima de ~50 ms, ou memória do servidor crescendo sem teto; nesse caso o
+  próximo passo é o parse incremental do #113, não afrouxar o orçamento.
 
 ## Referências
 

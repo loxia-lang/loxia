@@ -97,13 +97,14 @@ Workspace gerado em diretório temporário (`lib.lx` com classe/funções, `main
 offsets são estáveis e não aparecem paths absolutos. O arquivo grande fica em outro
 diretório temporário, fora do root: `_workspace_files` caminha o root e incluí-lo na
 análise de references mudaria a baseline sem que o caminho tivesse mudado. Mediana de
-2026-11-25 nesta máquina (antes do ADR-0143): startup ~87 ms, didOpen ~37 ms, references
-cross-file ~106 ms na primeira consulta (e ~102 ms de novo após cada edição, porque o
-cache é descartado), ~1,6 ms no cache quente, didChange ~34 ms, didChange em ~650 linhas
-~75 ms, rajada de 5 changes ~173 ms (= 5× o didChange, porque cada change era analisado),
-completion ~1,4 ms; hover, definition, highlight, rename e documentSymbol abaixo de 1 ms.
-O bench usa ~50 arquivos: `_workspace_files` poda diretórios ocultos e `node_modules`
-(`os.walk`) e reusa o texto lido do disco por mtime/ctime/inode/tamanho, mas o custo do
-walk ainda cresce com o workspace. A tolerância é **1,5×** o baseline
-([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então variações de
-máquina aparecem primeiro neles.
+2026-11-25 nesta máquina, depois do [ADR-0143](../docs/adr/0143-lsp-didchange-coalescing-e-reuso.md):
+startup ~94 ms, didOpen ~34 ms, references cross-file ~112 ms na primeira consulta (e
+~108 ms de novo após cada edição, porque o cache é descartado), ~1,7 ms no cache quente,
+didChange ~10 ms, didChange em ~650 linhas ~48 ms, rajada de 5 changes ~10 ms (antes:
+~173 ms = 5× o didChange), completion ~1,4 ms; hover, definition, highlight, rename e
+documentSymbol abaixo de 1 ms. O bench usa ~50 arquivos: `_workspace_files` poda
+diretórios ocultos e `node_modules` (`os.walk`) e reusa o texto lido do disco por
+mtime/ctime/inode/tamanho, mas o custo do walk ainda cresce com o workspace. O baseline
+foi regravado intencionalmente na fase 5 do #191 com os números pós-coalescing/cache; a
+tolerância é **1,5×** ([`lsp_baseline.json`](lsp_baseline.json)) e startup/recheck
+dominam, então variações de máquina aparecem primeiro neles.
