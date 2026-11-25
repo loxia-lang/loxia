@@ -202,9 +202,12 @@ O caminho end-to-end do servidor é medido por
 startup, didOpen, hover, definition, references (frio/quente), highlight, rename, completion,
 documentSymbol e didChange sobre stdio, com baseline
 [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de **1,5×**.
-Mediana de 2026-11-24: startup ~91 ms, didOpen ~39 ms, references cross-file ~67 ms na
-primeira consulta e ~66 ms após uma edição (o cache do workspace é descartado), ~1,2 ms
-no cache quente, didChange ~35 ms; as requisições locais ficam abaixo de 2 ms. O
+Mediana de 2026-11-25 (workspace de ~50 arquivos): startup ~91 ms, didOpen ~38 ms,
+references cross-file ~107 ms na primeira consulta e ~105 ms após uma edição (o cache do
+workspace é descartado), ~1,6 ms no cache quente, didChange ~35 ms; as requisições locais
+ficam abaixo de 2 ms. A descoberta usa `os.walk` com poda de diretórios ocultos/build e
+cache de leitura por mtime/tamanho; o fingerprint do `WorkspaceCache` usa hash (não guarda
+uma segunda cópia de todos os textos). O
 `SourceIndex` é construído na primeira consulta (`lazy`), então diagnóstico **limpo** e
 didChange não pagam a caminhada do AST; um diagnóstico com nota de proveniência constrói
 o índice, e o warm de ~1,2 ms vale para o workspace de 2 arquivos do bench.

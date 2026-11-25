@@ -91,14 +91,14 @@ uv run python bench/lsp.py --update         # regrava o baseline
 uv run python bench/lsp.py --json
 ```
 
-Workspace gerado em diretório temporário (`lib.lx` com classe/funções e `main.lx` com
-`import`, anotação, `std.lists` e variável local), então os offsets são estáveis e não
-aparecem paths absolutos. Mediana de 2026-11-24 nesta máquina: startup ~91 ms, didOpen
-~39 ms, references cross-file ~67 ms na primeira consulta (e ~66 ms de novo após cada
-edição, porque o cache é descartado), ~1,2 ms no cache quente, didChange ~35 ms,
-completion ~1,4 ms; hover,
-definition, highlight, rename e documentSymbol abaixo de 1 ms. O warm de ~1,2 ms é do
-workspace de 2 arquivos do bench; `_workspace_files` relê o root a cada request, então
-num workspace grande o custo cresce com o número de arquivos. A tolerância é **1,5×** o
+Workspace gerado em diretório temporário (`lib.lx` com classe/funções, `main.lx` com
+`import`, anotação, `std.lists` e variável local, mais 48 módulos independentes), então os
+offsets são estáveis e não aparecem paths absolutos. Mediana de 2026-11-25 nesta máquina:
+startup ~91 ms, didOpen ~38 ms, references cross-file ~107 ms na primeira consulta (e
+~105 ms de novo após cada edição, porque o cache é descartado), ~1,6 ms no cache quente,
+didChange ~35 ms, completion ~1,4 ms; hover,
+definition, highlight, rename e documentSymbol abaixo de 1 ms. O bench usa ~50 arquivos:
+`_workspace_files` poda diretórios ocultos/build (`os.walk`) e reusa o texto lido do disco
+por mtime/tamanho, mas o custo do walk ainda cresce com o workspace. A tolerância é **1,5×** o
 baseline ([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então
 variações de máquina aparecem primeiro neles.

@@ -9,6 +9,7 @@ Imports, aliases e anotações de tipo são editados no texto original.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, fields, is_dataclass
 from pathlib import Path
@@ -77,7 +78,13 @@ class WorkspaceCache:
     def get(self, root: Path, files: dict[Path, str]) -> _Workspace | str:
         fingerprint = (
             str(root),
-            tuple((str(path), text) for path, text in sorted(files.items())),
+            tuple(
+                (
+                    str(path),
+                    hashlib.blake2b(text.encode("utf-8"), digest_size=16).hexdigest(),
+                )
+                for path, text in sorted(files.items())
+            ),
         )
         if self._workspace is not None and self._fingerprint == fingerprint:
             return self._workspace
