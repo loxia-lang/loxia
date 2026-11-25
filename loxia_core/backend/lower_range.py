@@ -71,7 +71,7 @@ class RangeLowering(LoweringBase):
         return TypeDesc(ValueType.INT)
 
     def _for_in(self, stmt: ForIn) -> None:
-        iterable = self._expr(stmt.iterable)
+        iterable = self._narrowed(stmt.iterable, self._expr(stmt.iterable), stmt.name.line)
         if iterable.ty is ValueType.RANGE:
             self._for_range(stmt, iterable)
             return

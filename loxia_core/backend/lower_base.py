@@ -65,6 +65,7 @@ class LoweringBase:
 
     module: Any
     types: dict[Expr, Ty]
+    flow_types: dict[Expr, Ty]
     depths: dict[Expr, int]
     main: Any
     builder: Any

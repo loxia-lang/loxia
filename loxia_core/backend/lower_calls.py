@@ -133,7 +133,11 @@ class CallLowering(LoweringBase):
         if isinstance(expr.callee, Get) and not expr.callee.optional:
             # Avalia o receptor uma vez só: cadeias como `a.m().m()` não podem
             # executar `a.m()` de novo no despacho de lista/mapa.
-            precomputed = self._expr(expr.callee.object)
+            precomputed = self._narrowed(
+                expr.callee.object,
+                self._expr(expr.callee.object),
+                expr.callee.name.line,
+            )
             if precomputed.ty is ValueType.LIST:
                 return self._call_list_method(expr, precomputed)
             if precomputed.ty is ValueType.MAP:
@@ -197,7 +201,7 @@ class CallLowering(LoweringBase):
         elif isinstance(expr.callee, Get) and precomputed is not None:
             callee = self._get_instance(precomputed, expr.callee)
         else:
-            callee = self._expr(expr.callee)
+            callee = self._narrowed(expr.callee, self._expr(expr.callee), expr.paren.line)
 
         if callee.generic is not None:
             callee = self._call_generic_lambda(callee, expr)

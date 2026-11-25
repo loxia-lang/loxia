@@ -313,6 +313,7 @@ missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E
 | `E3022` | capability requires the Rust toolchain (cargo) at run/build |
 | `E3023` | non-exhaustive match |
 | `E3024` | unreachable match arm |
+| `E3025` | dynamic access on `Any` requires narrowing (`is`/`as`) |
 
 ### Backend
 

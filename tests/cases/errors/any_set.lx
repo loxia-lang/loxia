@@ -1,0 +1,8 @@
+# Escrita de campo em `Any` sem estreitamento.
+class C {
+  var x: Int = 1
+}
+
+val a: Any = C()
+a.x = 2
+# expect error: Can't assign a field on `Any`; cast the receiver with `as` first.

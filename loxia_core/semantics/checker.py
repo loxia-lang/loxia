@@ -3630,9 +3630,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return None
 
     def _call_type(self, callee: Ty, expr: Call, arguments: list[Ty]) -> Ty:
-        if callee is ANY:
-            return ANY
         if callee is ERROR:
+            return ERROR
+        if callee is ANY:
+            self._error(
+                expr.paren,
+                "Can't call a value of type `Any`; cast it with `as` first.",
+                code=Code.ANY_ACCESS,
+            )
             return ERROR
 
         nilable = callee is NIL or (
@@ -4315,7 +4320,12 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _get_property_type(self, obj: Ty, name: Token, optional: bool) -> Ty:
         if obj is ANY:
-            return ANY
+            self._error(
+                name,
+                "Can't access a member of `Any`; narrow it with `is` or cast it with `as` first.",
+                code=Code.ANY_ACCESS,
+            )
+            return ERROR
         if isinstance(obj, TyVar):
             found: list[FnTy] = []
             for bound in obj.bounds:
@@ -5070,9 +5080,14 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         index = self._infer(expr.index)
 
-        if obj is ANY:
-            return ANY
         if obj is ERROR:
+            return ERROR
+        if obj is ANY:
+            self._error(
+                expr.bracket,
+                "Can't index a value of type `Any`; cast it with `as` first.",
+                code=Code.ANY_ACCESS,
+            )
             return ERROR
         if isinstance(obj, TupleTy):
             return self._tuple_index(obj, index, expr)
@@ -5252,7 +5267,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         obj = self._infer(expr.object)
 
         if obj is ANY:
-            return self._infer(expr.value)
+            self._infer(expr.value)
+            self._error(
+                expr.name,
+                "Can't assign a field on `Any`; cast the receiver with `as` first.",
+                code=Code.ANY_ACCESS,
+            )
+            return ERROR
 
         if isinstance(obj, InterfaceTy):
             self._infer(expr.value)

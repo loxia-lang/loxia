@@ -27,7 +27,11 @@ from loxia_core.frontend.ty import ListTy, MapTy
 
 class ContainerLowering(LoweringBase):
     def _element_desc(self, expr: Expr, line: int | None) -> TypeDesc:
-        ty = self.types.get(expr)
+        # O narrowing pode mudar `Any` para `List[T]`; o fluxo manda na descrição
+        # do elemento, a representação continua a do slot.
+        ty = self.flow_types.get(expr)
+        if not isinstance(ty, ListTy):
+            ty = self.types.get(expr)
         if isinstance(ty, ListTy):
             return self._type_desc(self._subst_ty(ty.element), line)
         if self._list_expected_element is not None:
@@ -85,7 +89,9 @@ class ContainerLowering(LoweringBase):
         return Value(ValueType.LIST, raw)
 
     def _map_types(self, expr: Expr, line: int | None) -> tuple[TypeDesc, TypeDesc]:
-        ty = self.types.get(expr)
+        ty = self.flow_types.get(expr)
+        if not isinstance(ty, MapTy):
+            ty = self.types.get(expr)
         if isinstance(ty, MapTy):
             return (
                 self._type_desc(self._subst_ty(ty.key), line),
@@ -159,36 +165,7 @@ class ContainerLowering(LoweringBase):
         return Value(ValueType.MAP, raw)
 
     def _list_get(self, expr: Index) -> Value:
-        obj = self._expr(expr.object)
-        if obj.ty is ValueType.ANY:
-            tag = self.builder.extract_value(obj.llvm, 0)
-            payload = self.builder.extract_value(obj.llvm, 1)
-            tuple_block = llvm_ir.append_block(self._function_ir, "idx.tuple")
-            bad_block = llvm_ir.append_block(self._function_ir, "idx.bad")
-            end_block = llvm_ir.append_block(self._function_ir, "idx.end")
-            is_tuple = self.builder.icmp_signed("==", tag, llvm_ir.constant(_INT, 11))
-            self.builder.cbranch(is_tuple, tuple_block, bad_block)
-            self.builder = llvm_ir.builder(tuple_block)
-            tuple_value = Value(
-                ValueType.TUPLE,
-                self.builder.inttoptr(payload, _I8_PTR),
-            )
-            result = self._tuple_get(expr, tuple_value)
-            self.builder.branch(end_block)
-            tuple_end = self.builder.block
-            self.builder = llvm_ir.builder(bad_block)
-            self._poison(expr.bracket, "Indexing this value is not supported.")
-            zero = self._zero_desc(self._type_desc(self.types[expr], expr.bracket.line))
-            self.builder.branch(end_block)
-            bad_end = self.builder.block
-            self.builder = llvm_ir.builder(end_block)
-            merged = self.builder.phi(
-                self._storage_llvm_type(self._type_desc(self.types[expr], expr.bracket.line)),
-                "idx.value",
-            )
-            merged.add_incoming(result.llvm, tuple_end)
-            merged.add_incoming(zero.llvm, bad_end)
-            return Value(result.ty, merged, result.sig, result.optional, result.class_name)
+        obj = self._narrowed(expr.object, self._expr(expr.object), expr.bracket.line)
         if obj.ty is ValueType.TUPLE:
             return self._tuple_get(expr, obj)
         if obj.ty is ValueType.BYTES:
@@ -242,7 +219,7 @@ class ContainerLowering(LoweringBase):
         )
 
     def _list_set(self, expr: IndexSet) -> Value:
-        obj = self._expr(expr.object)
+        obj = self._narrowed(expr.object, self._expr(expr.object), expr.bracket.line)
         if obj.ty is ValueType.MAP:
             _key_desc, value_desc = self._map_types(expr.object, expr.bracket.line)
             key = self._box_value(self._expr(expr.index), None)
@@ -289,7 +266,9 @@ class ContainerLowering(LoweringBase):
         name = expr.callee.name.lexeme
         line = expr.callee.name.line
         column = expr.callee.name.column
-        list_ty = self.types.get(expr.callee.object)
+        list_ty = self.flow_types.get(expr.callee.object)
+        if not isinstance(list_ty, ListTy):
+            list_ty = self.types.get(expr.callee.object)
         if not isinstance(list_ty, ListTy):
             raise _unsupported("List method receiver", line)
         element = self._type_desc(self._subst_ty(list_ty.element), line)

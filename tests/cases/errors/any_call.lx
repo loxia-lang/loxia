@@ -1,0 +1,4 @@
+# Chamada de valor `Any` sem estreitamento.
+val f: Any = 1
+print(f())
+# expect error: Can't call a value of type `Any`; cast it with `as` first.

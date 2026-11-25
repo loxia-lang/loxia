@@ -1,0 +1,4 @@
+# Índice em `Any` sem estreitamento.
+val a: Any = [1]
+print(a[0])
+# expect error: Can't index a value of type `Any`; cast it with `as` first.

@@ -208,6 +208,23 @@ class OptionalLowering(LoweringBase):
             raise _unsupported("Type information for an expression", line)
         return self._type_desc(ty, line)
 
+    def _narrowed(self, expr: Expr, value: Value, line: int | None) -> Value:
+        """Desembrulha `Any` quando o checker publicou um tipo estreitado.
+
+        O checker refina `a is C`/`a != nil`, mas o slot continua guardando o box de
+        `Any`; o tipo estreitado só existe no ponto de uso. Sem o unbox, um programa
+        check-limpo (`if (a is C) { a.m() }`) emitiria R1014 no binário (I1).
+        """
+        if value.ty is not ValueType.ANY:
+            return value
+        narrowed = self.flow_types.get(expr)
+        if narrowed is None:
+            return value
+        desc = self._type_desc(narrowed, line)
+        if desc.ty is ValueType.ANY:
+            return value
+        return self._unbox_any(value, desc, line)
+
     def _storage_llvm_type(self, desc: TypeDesc) -> Any:
         if not desc.optional:
             return self._llvm_type(desc.ty)

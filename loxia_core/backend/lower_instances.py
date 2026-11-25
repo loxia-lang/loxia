@@ -169,7 +169,7 @@ class InstanceLowering(LoweringBase):
     def _get(self, expr: Get) -> Value:
         if isinstance(expr.object, Variable) and expr.object.name.lexeme in self._enum_layouts:
             return self._enum_get(expr)
-        obj = self._expr(expr.object)
+        obj = self._narrowed(expr.object, self._expr(expr.object), expr.name.line)
         if obj.ty is ValueType.BYTES:
             return cast("Value", self._bytes_method_value(expr))
         if expr.optional:
@@ -266,7 +266,7 @@ class InstanceLowering(LoweringBase):
         return self._zero(ValueType.INT)
 
     def _set(self, expr: Set) -> Value:
-        obj = self._expr(expr.object)
+        obj = self._narrowed(expr.object, self._expr(expr.object), expr.name.line)
         field: FieldLayout | None = None
         if obj.ty is ValueType.INSTANCE:
             layout = self._layout_for(obj, expr.name.line)
