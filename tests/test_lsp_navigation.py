@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from io import BytesIO
@@ -12,6 +13,7 @@ from typing import Any, cast
 
 import pytest
 
+from loxia import lsp as lsp_module
 from loxia import rename as rename_module
 from loxia.lsp import REQUEST_METHODS, Document, Server
 
@@ -789,18 +791,24 @@ def test_lsp_does_not_build_source_index_for_diagnostics(tmp_path: Path) -> None
     assert index._built is True
 
 
-def test_lsp_workspace_files_prunes_hidden_and_build_dirs(tmp_path: Path) -> None:
+def test_lsp_workspace_files_prunes_hidden_and_vendored(tmp_path: Path) -> None:
     (tmp_path / "ok.lx").write_text("val ok = 1\n", encoding="utf-8")
-    for name in (".hidden", "build", "dist", "target", "node_modules"):
+    (tmp_path / ".hidden.lx").write_text("val hidden = 1\n", encoding="utf-8")
+    for name in (".hidden", "node_modules"):
         directory = tmp_path / name
         directory.mkdir()
         (directory / "skip.lx").write_text("val skip = 1\n", encoding="utf-8")
+    for name in ("build", "dist", "target"):
+        directory = tmp_path / name
+        directory.mkdir()
+        (directory / "src.lx").write_text("val src = 1\n", encoding="utf-8")
 
     server = Server(BytesIO(), BytesIO())
     server.root = tmp_path
     files = server._workspace_files()
 
-    assert {path.name for path, _ in files} == {"ok.lx"}
+    # `build`/`dist`/`target` não são podados por nome: podem ser fonte legítima.
+    assert {path.name for path, _ in files} == {"ok.lx", "src.lx"}
 
 
 def test_lsp_workspace_files_disk_cache_sees_content_changes(tmp_path: Path) -> None:
@@ -812,3 +820,29 @@ def test_lsp_workspace_files_disk_cache_sees_content_changes(tmp_path: Path) -> 
     assert dict(server._workspace_files())[path].startswith("val a")
     path.write_text("val b = 2\n", encoding="utf-8")
     assert dict(server._workspace_files())[path].startswith("val b")
+
+
+def test_lsp_workspace_files_disk_cache_detects_restored_mtime(tmp_path: Path) -> None:
+    path = tmp_path / "a.lx"
+    path.write_text("val a = 1\n", encoding="utf-8")
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    before = path.stat()
+    assert dict(server._workspace_files())[path].startswith("val a")
+
+    path.write_text("val b = 2\n", encoding="utf-8")
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    assert dict(server._workspace_files())[path].startswith("val b")
+
+
+def test_lsp_disk_cache_is_bounded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("a.lx", "b.lx"):
+        (tmp_path / name).write_text(f"val {name[0]} = 1\n", encoding="utf-8")
+    monkeypatch.setattr(lsp_module, "_DISK_FILES_LIMIT", 1)
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+
+    server._workspace_files()
+    server._workspace_files()
+
+    assert len(server._disk_files) == 1

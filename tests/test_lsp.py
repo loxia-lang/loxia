@@ -1470,3 +1470,23 @@ def test_lsp_rename_cross_file_recusa_colisao(tmp_path: Path) -> None:
     finally:
         process.terminate()
         process.wait(timeout=5)
+
+
+def test_lsp_does_not_import_optional_handlers_at_startup() -> None:
+    code = (
+        "import sys; import loxia.lsp; "
+        "print(','.join(sorted(module for module in "
+        "('loxia.completion', 'loxia.formatter', 'loxia.formatter.edits', 'loxia.rename') "
+        "if module in sys.modules)))"
+    )
+    process = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
+
+    assert process.returncode == 0, process.stderr
+    assert process.stdout.strip() == ""
+
+
+def test_lsp_default_width_matches_formatter() -> None:
+    from loxia.formatter.engine import DEFAULT_MAX_WIDTH as formatter_width
+    from loxia.lsp import DEFAULT_MAX_WIDTH
+
+    assert formatter_width == DEFAULT_MAX_WIDTH
