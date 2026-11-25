@@ -119,6 +119,17 @@ def _workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
     positions: dict[tuple[Path, int], set[str]] = {}
     tokens_by_lexeme: dict[str, set[tuple[Path, int]]] = {}
     declarations: dict[str, tuple[Path, Token]] = {}
+    # `_token_file` faz `resolve()`/`exists()`; o mesmo arquivo aparece em cada token.
+    resolved_files: dict[tuple[str, str], Path] = {}
+
+    def token_file(item: Token, fallback: Path) -> Path:
+        key = (item.file, str(fallback))
+        cached = resolved_files.get(key)
+        if cached is None:
+            cached = _token_file(item, root, fallback)
+            resolved_files[key] = cached
+        return cached
+
     for path in sorted(files):
         text = files[path]
         original = parse_source(text)
@@ -140,12 +151,12 @@ def _workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
         for symbol in index.symbols:
             if symbol.container is not None or symbol.kind not in _TOP_LEVEL:
                 continue
-            token_file = _token_file(symbol.token, root, path)
-            declarations.setdefault(symbol.name, (token_file, symbol.token))
+            token_path = token_file(symbol.token, path)
+            declarations.setdefault(symbol.name, (token_path, symbol.token))
         for statement in merged:
             for item in _tokens(statement):
-                token_file = _token_file(item, root, path)
-                key = (token_file, item.offset)
+                file = token_file(item, path)
+                key = (file, item.offset)
                 positions.setdefault(key, set()).add(item.lexeme)
                 tokens_by_lexeme.setdefault(item.lexeme, set()).add(key)
     return _Workspace(root, dict(files), analyses, positions, tokens_by_lexeme, declarations)

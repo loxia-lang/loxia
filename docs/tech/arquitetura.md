@@ -202,7 +202,7 @@ O caminho end-to-end do servidor é medido por
 startup, didOpen, hover, definition, references, highlight, rename, completion,
 documentSymbol e didChange sobre stdio, com baseline
 [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de **1,5×**.
-Mediana de 2026-11-24: startup ~98 ms, didOpen ~62 ms, references cross-file ~124 ms,
+Mediana de 2026-11-24: startup ~98 ms, didOpen ~62 ms, references cross-file ~66 ms,
 didChange ~58 ms; as requisições locais ficam abaixo de 2 ms.
 
 Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`

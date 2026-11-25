@@ -94,7 +94,7 @@ uv run python bench/lsp.py --json
 Workspace gerado em diretório temporário (`lib.lx` com classe/funções e `main.lx` com
 `import`, anotação, `std.lists` e variável local), então os offsets são estáveis e não
 aparecem paths absolutos. Mediana de 2026-11-24 nesta máquina: startup ~98 ms, didOpen
-~62 ms, references cross-file ~124 ms, didChange ~58 ms, completion ~1,4 ms; hover,
+~62 ms, references cross-file ~66 ms, didChange ~58 ms, completion ~1,4 ms; hover,
 definition, highlight, rename e documentSymbol abaixo de 1 ms. A tolerância é **1,5×** o
 baseline ([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então
 variações de máquina aparecem primeiro neles.
