@@ -40,10 +40,10 @@ Depois das fases 1–4, mesmas condições (o baseline final do bench):
 | `did_change_burst` (5 changes) | 172,9 ms | **10,1 ms** |
 | `did_change_large` (~650 linhas) | 75,5 ms | **48,5 ms** |
 
-`startup`, `did_open` e `references_cold`/`references_after_change` ficaram na mesma faixa
-(87–94 ms, 34–37 ms, 106–112 ms); a diferença é ruído de máquina. O cache de módulos só
-aparece quando vários arquivos do workspace importam std, o que não é o caso do workspace
-do bench.
+`startup` e `did_open` ficaram na mesma faixa (87–94 ms e 34–37 ms; ruído de máquina).
+`references_cold`/`references_after_change` caíram de ~106/~102 ms para ~92/~86 ms depois
+que o cache de módulos passou a chegar ao rename/references (fix de convergência): antes o
+`WorkspaceCache` descartava o `module_cache` e reparseava todo arquivo.
 
 O `did_change_burst` era exatamente 5× o `did_change`: a amplificação é o pior sintoma
 visível, independente do custo unitário. Medições em processo isolam três custos:
@@ -119,9 +119,8 @@ era `1` (full) e `_change` usava só `changes[0]`, ignorando `range`.
 ### Positivas
 
 - Rajada de N teclas deixa de custar N análises; o pior caso vira uma.
-- O custo fixo de `std.*` desaparece do caminho quente; em workspaces onde vários arquivos
-  importam std, a análise de `references`/rename paga o parse uma vez (no workspace do
-  bench o ganho ficou dentro do ruído).
+- O custo fixo de `std.*` desaparece do caminho quente; o mesmo cache serve
+  `references`/rename, e no workspace do bench `references_cold` caiu de ~106 para ~92 ms.
 - Navegação nunca observa índice de outro texto, sem lock e sem thread de análise.
 - O contrato de diagnóstico para documento assentado não muda.
 

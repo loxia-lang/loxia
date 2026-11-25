@@ -98,8 +98,8 @@ offsets são estáveis e não aparecem paths absolutos. O arquivo grande fica em
 diretório temporário, fora do root: `_workspace_files` caminha o root e incluí-lo na
 análise de references mudaria a baseline sem que o caminho tivesse mudado. Mediana de
 2026-11-25 nesta máquina, depois do [ADR-0143](../docs/adr/0143-lsp-didchange-coalescing-e-reuso.md):
-startup ~94 ms, didOpen ~34 ms, references cross-file ~112 ms na primeira consulta (e
-~108 ms de novo após cada edição, porque o cache é descartado), ~1,7 ms no cache quente,
+startup ~92 ms, didOpen ~34 ms, references cross-file ~92 ms na primeira consulta (e
+~86 ms de novo após cada edição, porque o cache é descartado), ~1,7 ms no cache quente,
 didChange ~10 ms, didChange em ~650 linhas ~48 ms, rajada de 5 changes ~10 ms (antes:
 ~173 ms = 5× o didChange), completion ~1,4 ms; hover, definition, highlight, rename e
 documentSymbol abaixo de 1 ms. O bench usa ~50 arquivos: `_workspace_files` poda

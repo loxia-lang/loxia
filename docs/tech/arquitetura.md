@@ -203,8 +203,8 @@ startup, didOpen, hover, definition, references (frio/quente), highlight, rename
 documentSymbol, didChange, didChange num arquivo de ~650 linhas e uma rajada de 5 didChange,
 com baseline [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de
 **1,5×**. Mediana de 2026-11-25, pós-[ADR-0143](../adr/0143-lsp-didchange-coalescing-e-reuso.md)
-(workspace de ~50 arquivos): startup ~94 ms, didOpen ~34 ms, references cross-file ~112 ms
-na primeira consulta e ~108 ms após uma edição (o cache do workspace é descartado), ~1,7 ms
+(workspace de ~50 arquivos): startup ~92 ms, didOpen ~34 ms, references cross-file ~92 ms
+na primeira consulta e ~86 ms após uma edição (o cache do workspace é descartado), ~1,7 ms
 no cache quente, didChange ~10 ms, didChange em ~650 linhas ~48 ms e rajada de 5 didChange
 ~10 ms; as requisições locais ficam abaixo de 2 ms. O orçamento é **≤12 ms** no workspace
 do bench e **~0,06 ms/linha** (163 linhas ~20 ms, 323 ~30 ms); acima de ~1000 linhas fica
