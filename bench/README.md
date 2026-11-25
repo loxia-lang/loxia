@@ -82,7 +82,8 @@ Corpus de 2026-11-24 (369 arquivos, 338 parseáveis): 36 827 spans (2 928 de tip
 `uv run python bench/lsp.py` (ou `make bench-lsp`) sobe o servidor real (`main.py lsp`) e
 mede o caminho JSON-RPC sobre stdio: startup/initialize, didOpen com imports, hover,
 definition, references cross-file (frio, quente e pós-edição), documentHighlight, rename local, completion,
-documentSymbol e didChange. Não roda no CI.
+documentSymbol, didChange, didChange num arquivo de ~650 linhas (`did_change_large`) e uma
+rajada de 5 didChange num único write (`did_change_burst`). Não roda no CI.
 
 ```bash
 uv run python bench/lsp.py                  # compara com o baseline
@@ -93,12 +94,16 @@ uv run python bench/lsp.py --json
 
 Workspace gerado em diretório temporário (`lib.lx` com classe/funções, `main.lx` com
 `import`, anotação, `std.lists` e variável local, mais 48 módulos independentes), então os
-offsets são estáveis e não aparecem paths absolutos. Mediana de 2026-11-25 nesta máquina:
-startup ~91 ms, didOpen ~38 ms, references cross-file ~107 ms na primeira consulta (e
-~105 ms de novo após cada edição, porque o cache é descartado), ~1,6 ms no cache quente,
-didChange ~35 ms, completion ~1,4 ms; hover,
-definition, highlight, rename e documentSymbol abaixo de 1 ms. O bench usa ~50 arquivos:
-`_workspace_files` poda diretórios ocultos e `node_modules` (`os.walk`) e reusa o texto
-lido do disco por mtime/ctime/inode/tamanho, mas o custo do walk ainda cresce com o workspace. A tolerância é **1,5×** o
-baseline ([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então
-variações de máquina aparecem primeiro neles.
+offsets são estáveis e não aparecem paths absolutos. O arquivo grande fica em outro
+diretório temporário, fora do root: `_workspace_files` caminha o root e incluí-lo na
+análise de references mudaria a baseline sem que o caminho tivesse mudado. Mediana de
+2026-11-25 nesta máquina (antes do ADR-0143): startup ~87 ms, didOpen ~37 ms, references
+cross-file ~106 ms na primeira consulta (e ~102 ms de novo após cada edição, porque o
+cache é descartado), ~1,6 ms no cache quente, didChange ~34 ms, didChange em ~650 linhas
+~75 ms, rajada de 5 changes ~173 ms (= 5× o didChange, porque cada change era analisado),
+completion ~1,4 ms; hover, definition, highlight, rename e documentSymbol abaixo de 1 ms.
+O bench usa ~50 arquivos: `_workspace_files` poda diretórios ocultos e `node_modules`
+(`os.walk`) e reusa o texto lido do disco por mtime/ctime/inode/tamanho, mas o custo do
+walk ainda cresce com o workspace. A tolerância é **1,5×** o baseline
+([`lsp_baseline.json`](lsp_baseline.json)); startup e recheck dominam, então variações de
+máquina aparecem primeiro neles.

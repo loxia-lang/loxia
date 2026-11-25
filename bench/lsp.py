@@ -8,8 +8,9 @@ Uso:
 
 Mede o processo real (`main.py lsp`) num workspace com `examples/` e `std/`:
 startup/initialize, didOpen com diagnósticos (imports), hover, definition,
-references cross-file, documentHighlight, rename local, completion, documentSymbol
-e didChange. Cada amostra sobe um servidor novo; a mediana das amostras é reportada.
+references cross-file, documentHighlight, rename local, completion, documentSymbol,
+didChange, didChange num arquivo grande (~650 linhas) e uma rajada de didChange.
+Cada amostra sobe um servidor novo; a mediana das amostras é reportada.
 Não roda no CI.
 """
 
@@ -36,6 +37,8 @@ SAMPLES_PER_METRIC = 5
 DEFAULT_TOLERANCE = 1.5
 READ_TIMEOUT_SECONDS = 30.0
 WORKSPACE_MODULES = 48
+BIG_FUNCTIONS = 80
+BURST_CHANGES = 5
 
 
 @dataclass(frozen=True)
@@ -86,6 +89,16 @@ class Lsp:
     def notify(self, method: str, params: dict[str, Any]) -> None:
         self.send({"jsonrpc": "2.0", "method": method, "params": params})
 
+    def send_many(self, payloads: list[dict[str, Any]]) -> None:
+        """Escreve várias mensagens num único flush: uma rajada de verdade."""
+        assert self.process.stdin is not None
+        chunks: list[bytes] = []
+        for payload in payloads:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            chunks.append(f"Content-Length: {len(body)}\r\n\r\n".encode("ascii") + body)
+        self.process.stdin.write(b"".join(chunks))
+        self.process.stdin.flush()
+
     def request(self, method: str, params: dict[str, Any]) -> Any:
         request_id = self._next_id
         self._next_id += 1
@@ -95,7 +108,7 @@ class Lsp:
             if message.get("id") == request_id:
                 return message.get("result")
 
-    def wait_diagnostics(self, uri: str) -> None:
+    def wait_diagnostics(self, uri: str, version: int | None = None) -> None:
         while True:
             message = self.read()
             params = message.get("params")
@@ -103,6 +116,7 @@ class Lsp:
                 message.get("method") == "textDocument/publishDiagnostics"
                 and isinstance(params, dict)
                 and params.get("uri") == uri
+                and (version is None or params.get("version", 0) >= version)
             ):
                 return
 
@@ -170,6 +184,24 @@ print(total)
 """
 
 
+def _big_source(functions: int = BIG_FUNCTIONS) -> str:
+    """Arquivo realista de ~650 linhas: mede o custo que cresce com o documento."""
+    lines = ["import std.lists as lists"]
+    for index in range(functions):
+        lines += [
+            f"fn calc{index}(a: Int, b: Int) -> Int {{",
+            "  val x = a + b",
+            "  val y = x * 2",
+            "  if (y > 10) {",
+            "    return y - a",
+            "  }",
+            f"  return y + {index}",
+            "}",
+        ]
+    lines += ["val xs = [1, 2, 3]", "val total: Int = lists.sum(xs)"]
+    return "\n".join(lines) + "\n"
+
+
 def _workspace() -> tempfile.TemporaryDirectory[str]:
     directory = tempfile.TemporaryDirectory(prefix="loxia-lsp-bench-")
     root = Path(directory.name)
@@ -210,6 +242,8 @@ def _measure(
 def run_session() -> dict[str, float]:
     directory = _workspace()
     root = Path(directory.name)
+    big_directory = tempfile.TemporaryDirectory(prefix="loxia-lsp-bench-big-")
+    big_root = Path(big_directory.name)
     main = root / "main.lx"
     uri = main.as_uri()
     text = main.read_text(encoding="utf-8")
@@ -261,7 +295,26 @@ def run_session() -> dict[str, float]:
                     "contentChanges": [{"text": current}],
                 },
             )
-            lsp.wait_diagnostics(uri)
+            lsp.wait_diagnostics(uri, version)
+
+        def burst() -> None:
+            nonlocal version, current
+            payloads: list[dict[str, Any]] = []
+            for _ in range(BURST_CHANGES):
+                version += 1
+                current = changed if current == text else text
+                payloads.append(
+                    {
+                        "jsonrpc": "2.0",
+                        "method": "textDocument/didChange",
+                        "params": {
+                            "textDocument": {"uri": uri, "version": version},
+                            "contentChanges": [{"text": current}],
+                        },
+                    }
+                )
+            lsp.send_many(payloads)
+            lsp.wait_diagnostics(uri, version)
 
         reference_call = request(
             "textDocument/references",
@@ -327,8 +380,54 @@ def run_session() -> dict[str, float]:
         assert isinstance(after_change, list) and len(after_change) >= 2
 
         metrics.append(_measure("did_change", change, SAMPLES_PER_METRIC))
+
+        # O arquivo grande fica fora do root: `_workspace_files` caminha o root e o
+        # incluiria na análise de references, mudando a baseline sem que o caminho
+        # tivesse mudado. Ele é aberto depois das métricas de workspace.
+        big = big_root / "big.lx"
+        big.write_text(_big_source(), encoding="utf-8")
+        big_uri = big.as_uri()
+        big_text = big.read_text(encoding="utf-8")
+        big_changed = big_text.replace(
+            "val total: Int = lists.sum(xs)",
+            "val total: Int = lists.sum(xs) + 1",
+            1,
+        )
+        assert big_changed != big_text
+        lsp.notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": big_uri,
+                    "languageId": "loxia",
+                    "version": 1,
+                    "text": big_text,
+                }
+            },
+        )
+        lsp.wait_diagnostics(big_uri)
+
+        big_version = 1
+        big_current = big_text
+
+        def change_big() -> None:
+            nonlocal big_version, big_current
+            big_version += 1
+            big_current = big_changed if big_current == big_text else big_text
+            lsp.notify(
+                "textDocument/didChange",
+                {
+                    "textDocument": {"uri": big_uri, "version": big_version},
+                    "contentChanges": [{"text": big_current}],
+                },
+            )
+            lsp.wait_diagnostics(big_uri, big_version)
+
+        metrics.append(_measure("did_change_large", change_big, SAMPLES_PER_METRIC))
+        metrics.append(_measure("did_change_burst", burst, SAMPLES_PER_METRIC))
     finally:
         lsp.shutdown()
+        big_directory.cleanup()
         directory.cleanup()
 
     result = {
