@@ -1,6 +1,7 @@
 ---
 sources:
   - loxia/mcp.py
+  - loxia/docs_index.py
   - loxia/cli_args.py
   - loxia/cli_commands.py
   - loxia_core/execution/primitives.py
@@ -58,12 +59,19 @@ stdout; diagnostics and internal errors go to stderr.
 | `loxia_ast` | `source`, optional `file_name` | exact S-expression from `ast --stdin --json` |
 | `loxia_format` | `source` or `path`, optional `range`/`lines`, `check`, `diff`, `max_width`, `timeout_ms` | formatted text + `TextEdit[]`; range expands to whole hunks; never writes |
 | `loxia_spec` | optional `query`, `limit` | section id/page id/free text searched over `loxia/_spec/index.json` (ADR-0111) |
-| `loxia_explain` | `code` | code, phase, severity, description and doc URL |
+| `loxia_explain` | `code` | code, phase, severity, description and doc URL; resolved from the generated catalog at call time |
 | `loxia_version` | none | Loxia version, MCP protocol and docs index version |
 
 For `loxia_check`, `loxia_run` and `loxia_ast`, `structuredContent` preserves the exact
 CLI bytes and the process exit code; the tests compare them with the CLI invocation. The
 server never reimplements parsing, checking or diagnostics.
+
+`loxia_explain` reads the diagnostic catalog from `loxia/_spec/index.json` on every call
+(there is no process cache), falling back to the in-process enum when the index predates
+the catalog. A long-lived server therefore resolves codes added by `make codes`/`make
+docs-sync` — or by a wheel upgrade — without a restart, and `loxia_version` reports the
+on-disk docs version. A genuinely unknown code names the server version and asks for a
+restart.
 
 ### Formatter tool
 

@@ -146,6 +146,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `±HH:MM` e `t`/`z` minúsculos (RFC 3339). `TimeError.kind` ganha `invalidDate`.
 
 ### Corrigido
+- **`loxia_explain` enxerga códigos novos sem reiniciar o servidor** ([#218](https://github.com/loxia-lang/loxia/issues/218)): o catálogo de diagnóstico agora é gerado no índice do pacote (`loxia/_spec/index.json`, campo `codes`) e resolvido a cada chamada, com o enum do processo como fallback. Antes, o enum importado no start do MCP ficava congelado e um código recém-adicionado respondia `unknown diagnostic code` até reiniciar. O índice também deixou de ser cacheado, então `loxia_version` reporta a versão de docs em disco; código realmente desconhecido passa a informar a versão do servidor e pedir restart.
 - **Acesso a membro/índice em `Any` no backend** ([ADR-0144](docs/adr/0144-any-dinamico-exige-estreitamento.md)): `if (a is C) { a.m() }` e `a[i]` com `List`/`Map` deixam de divergir (o binário emitia `R1014`/`R1000`); `a.m()` sem estreitamento deixa de passar no check. Casos `tests/cases/any_narrowing.lx` e `tests/cases/errors/any_*.lx`.
 
 - **`??`, `and` e `or` sobre `Any`** (achado no raio de explosão do

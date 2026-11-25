@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
+from loxia import __version__
 from loxia import mcp as mcp_module
+from loxia.docs_index import DocsIndexError
 from loxia.formatter.edits import EditPosition, TextEdit, apply_edits
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,10 +25,10 @@ META = {
 }
 
 
-def start() -> subprocess.Popen[str]:
+def start(root: Path = ROOT) -> subprocess.Popen[str]:
     return subprocess.Popen(
-        [sys.executable, str(ENTRYPOINT), "mcp"],
-        cwd=ROOT,
+        [sys.executable, str(root / "main.py"), "mcp"],
+        cwd=root,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -576,6 +581,12 @@ def test_spec_explain_and_version() -> None:
         assert explained["structuredContent"]["code"] == "E2001"
         assert explained["structuredContent"]["phase"] == "resolver"
 
+        cli = run_cli("explain", "E2001", "--json", source="")
+        assert cli.returncode == 0
+        cli_payload = cast(dict[str, Any], json.loads(cli.stdout))
+        for key in ("code", "phase", "severity", "description", "doc"):
+            assert explained["structuredContent"][key] == cli_payload[key]
+
         version = call(process, 3, "loxia_version", {})["result"]
         assert version["structuredContent"]["protocol_version"] == "2026-07-28"
         assert version["structuredContent"]["tools"][0] == "loxia_check"
@@ -583,6 +594,86 @@ def test_spec_explain_and_version() -> None:
         if process.poll() is None:
             process.kill()
             process.wait(timeout=5)
+
+
+def _copy_checkout(destination: Path) -> Path:
+    """Minimal checkout a test can upgrade while the server keeps running."""
+    destination.mkdir()
+    shutil.copy2(ROOT / "main.py", destination / "main.py")
+    for package in ("loxia", "loxia_core"):
+        shutil.copytree(
+            ROOT / package,
+            destination / package,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+    return destination
+
+
+def _upgrade_index(root: Path, *, code: str, description: str, version: str) -> None:
+    """Rewrite the on-disk index as if `make docs-sync` ran under the live server."""
+    path = root / "loxia" / "_spec" / "index.json"
+    payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+    payload["loxia_version"] = version
+    catalog = cast(list[dict[str, str]], payload.setdefault("codes", []))
+    catalog.append({"code": code, "phase": "checker", "description": description})
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def test_explain_resolves_codes_added_after_the_server_starts(tmp_path: Path) -> None:
+    """Issue #218: the long-lived server must not be stuck with the enum it imported."""
+    root = _copy_checkout(tmp_path / "checkout")
+    process = start(root)
+    try:
+        before = call(process, 1, "loxia_explain", {"code": "E9500"})["result"]
+        assert before["isError"] is True
+
+        _upgrade_index(root, code="E9500", description="simulated upgrade", version="9.9.9")
+
+        after = call(process, 2, "loxia_explain", {"code": "E9500"})["result"]
+        assert after["isError"] is False
+        assert after["structuredContent"] == {
+            "code": "E9500",
+            "phase": "checker",
+            "severity": "error",
+            "description": "simulated upgrade",
+            "doc": "docs/spec/erros.md",
+            "doc_url": "https://loxia-lang.github.io/loxia/reference/errors/",
+        }
+
+        version = call(process, 3, "loxia_version", {})["result"]
+        assert version["structuredContent"]["docs_version"] == "9.9.9"
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_explain_unknown_code_reports_server_version_and_restart_hint() -> None:
+    process = start()
+    try:
+        result = call(process, 1, "loxia_explain", {"code": "E9999"})["result"]
+        assert result["isError"] is True
+        message = result["content"][0]["text"]
+        assert "unknown diagnostic code: E9999" in message
+        assert f"server loxia {__version__}" in message
+        assert "restart the MCP server after upgrading loxia" in message
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+def test_explain_falls_back_to_the_enum_without_a_catalog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_index() -> None:
+        raise DocsIndexError("packaged documentation index is missing")
+
+    monkeypatch.setattr(mcp_module, "load_index", no_index)
+    result = mcp_module.tool_explain({"code": "E2001"})
+    assert result.structured["code"] == "E2001"
+    assert result.structured["phase"] == "resolver"
+    assert result.structured["description"] == "duplicate variable in scope"
 
 
 def test_notifications_are_ignored_and_eof_exits_cleanly() -> None:

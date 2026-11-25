@@ -3,8 +3,10 @@
 
 `tools/docs_index.py` generates ``loxia/_spec/index.json`` from ``docs/spec`` and
 ``docs/stdlib``. This module only reads that artifact: it never parses Markdown, never
-touches the network and never depends on the repository being present. The future MCP
-`loxia_spec` tool is a thin wrapper over :func:`load_index` and :meth:`DocsIndex.search`.
+touches the network and never depends on the repository being present. The MCP
+`loxia_spec` tool is a thin wrapper over :func:`load_index` and :meth:`DocsIndex.search`;
+`DocsIndex.codes` lets the long-lived MCP server resolve diagnostic codes from disk
+(issue #218).
 """
 
 from __future__ import annotations
@@ -12,7 +14,6 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from functools import cache
 from importlib import resources
 from typing import cast
 
@@ -133,18 +134,50 @@ class Page:
 
 
 @dataclass(frozen=True)
+class CodeEntry:
+    """One stable diagnostic code, mirrored from `loxia_core.diagnostics.codes`.
+
+    The catalog is generated into the index (`tools/docs_index.py`) so a long-lived
+    process can resolve codes from disk instead of trusting the enum it imported at
+    start-up (issue #218).
+    """
+
+    code: str
+    phase: str
+    description: str
+
+    def to_json(self) -> dict[str, object]:
+        return {
+            "code": self.code,
+            "phase": self.phase,
+            "description": self.description,
+        }
+
+    @classmethod
+    def from_json(cls, payload: object) -> CodeEntry:
+        data = _mapping(payload, "code")
+        return cls(
+            code=_string(data.get("code"), "code.code"),
+            phase=_string(data.get("phase"), "code.phase"),
+            description=_string(data.get("description"), "code.description"),
+        )
+
+
+@dataclass(frozen=True)
 class DocsIndex:
     """The complete artifact: ordered pages, each with ordered sections."""
 
     schema_version: int
     loxia_version: str
     pages: tuple[Page, ...]
+    codes: tuple[CodeEntry, ...] = ()
 
     def to_json(self) -> dict[str, object]:
         return {
             "schema_version": self.schema_version,
             "loxia_version": self.loxia_version,
             "pages": [page.to_json() for page in self.pages],
+            "codes": [entry.to_json() for entry in self.codes],
         }
 
     @classmethod
@@ -157,11 +190,20 @@ class DocsIndex:
                 f"(expected {INDEX_SCHEMA_VERSION}); run `make docs-sync`"
             )
         pages = _sequence(data.get("pages"), "pages")
+        codes = _sequence(data.get("codes", []), "codes")
         return cls(
             schema_version=schema_version,
             loxia_version=_string(data.get("loxia_version"), "loxia_version"),
             pages=tuple(Page.from_json(item) for item in pages),
+            codes=tuple(CodeEntry.from_json(item) for item in codes),
         )
+
+    def code(self, value: str) -> CodeEntry | None:
+        """Resolve an exact diagnostic code from the generated catalog."""
+        for entry in self.codes:
+            if entry.code == value:
+                return entry
+        return None
 
     def page(self, page_id: str) -> Page | None:
         for page in self.pages:
@@ -247,9 +289,13 @@ class DocsIndex:
         return max(1, min(limit, 20))
 
 
-@cache
 def load_index() -> DocsIndex:
-    """Load the packaged index once; raise a clear error when it is missing."""
+    """Read the packaged index from disk; raise a clear error when it is missing.
+
+    There is intentionally no cache: the MCP server is long-lived, so a cached index
+    would keep reporting the docs version and the diagnostic catalog of the process
+    start (issue #218).
+    """
     resource = resources.files("loxia")
     for part in INDEX_RESOURCE:
         resource = resource.joinpath(part)
@@ -268,6 +314,7 @@ def load_index() -> DocsIndex:
 
 __all__ = [
     "INDEX_SCHEMA_VERSION",
+    "CodeEntry",
     "DocsIndex",
     "DocsIndexError",
     "Page",
