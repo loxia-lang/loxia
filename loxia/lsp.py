@@ -7,13 +7,16 @@ LSP-0: full sync, diagnostics e documentSymbol. LSP-1: hover/definition via
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import queue
 import re
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, cast
+from typing import IO, TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import unquote, urlparse
 
 from loxia import __version__
@@ -195,7 +198,47 @@ class Analysis:
     diagnostics: tuple[Diagnostic, ...]
 
 
-def _read_message(stream: IO[bytes]) -> dict[str, Any] | None:
+class _ByteReader(Protocol):
+    def readline(self) -> bytes: ...
+
+    def read(self, size: int) -> bytes: ...
+
+
+class _RawInput:
+    """Leitor cru do stdin, para a thread daemon não travar o shutdown.
+
+    `BufferedReader.readline()` numa thread daemon segura o lock do buffer e o CPython
+    aborta na finalização (`_enter_buffered_busy`); ler o fd direto evita isso.
+    """
+
+    def __init__(self, fd: int) -> None:
+        self._fd = fd
+        self._buffer = b""
+
+    def readline(self) -> bytes:
+        while True:
+            newline = self._buffer.find(b"\n")
+            if newline >= 0:
+                line = self._buffer[: newline + 1]
+                self._buffer = self._buffer[newline + 1 :]
+                return line
+            chunk = os.read(self._fd, 65536)
+            if not chunk:
+                line, self._buffer = self._buffer, b""
+                return line
+            self._buffer += chunk
+
+    def read(self, size: int) -> bytes:
+        while len(self._buffer) < size:
+            chunk = os.read(self._fd, 65536)
+            if not chunk:
+                break
+            self._buffer += chunk
+        data, self._buffer = self._buffer[:size], self._buffer[size:]
+        return data
+
+
+def _read_message(stream: _ByteReader) -> dict[str, Any] | None:
     headers: dict[str, str] = {}
     while True:
         line = stream.readline()
@@ -306,6 +349,58 @@ def _position_at(source: str, offset: int) -> dict[str, int]:
     line = prefix.count("\n")
     last = prefix.rsplit("\n", 1)[-1]
     return {"line": line, "character": len(last.encode("utf-16-le")) // 2}
+
+
+def _code_point_offset(text: str, line: int, character: int) -> int:
+    """Índice em code points para uma posição LSP (linha, code units UTF-16)."""
+    index = 0
+    remaining = max(0, line)
+    while remaining > 0:
+        newline = text.find("\n", index)
+        if newline < 0:
+            return len(text)
+        index = newline + 1
+        remaining -= 1
+    units = 0
+    while index < len(text) and text[index] != "\n":
+        if units >= character:
+            return index
+        units += len(text[index].encode("utf-16-le")) // 2
+        index += 1
+    return index
+
+
+def _apply_change(document: Document, change: dict[str, Any]) -> None:
+    """Aplica um `TextDocumentContentChangeEvent`; sem `range`, substitui tudo."""
+    text = change.get("text")
+    if not isinstance(text, str):
+        return
+    rng = change.get("range")
+    if not isinstance(rng, dict):
+        document.text = text
+        return
+    start = rng.get("start")
+    end = rng.get("end")
+    if not isinstance(start, dict) or not isinstance(end, dict):
+        document.text = text
+        return
+    start_line = start.get("line")
+    start_character = start.get("character")
+    end_line = end.get("line")
+    end_character = end.get("character")
+    if (
+        not isinstance(start_line, int)
+        or not isinstance(start_character, int)
+        or not isinstance(end_line, int)
+        or not isinstance(end_character, int)
+    ):
+        document.text = text
+        return
+    start_offset = _code_point_offset(document.text, start_line, start_character)
+    end_offset = _code_point_offset(document.text, end_line, end_character)
+    if end_offset < start_offset:
+        start_offset, end_offset = end_offset, start_offset
+    document.text = document.text[:start_offset] + text + document.text[end_offset:]
 
 
 def _module_of(path: Path, root: Path) -> tuple[str, ...] | None:
@@ -502,6 +597,10 @@ class Server:
         # Texto do disco por (mtime, ctime, inode, tamanho); buffers abertos não entram aqui.
         self._disk_files: dict[Path, tuple[int, int, int, int, str]] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
+        # Fila da thread leitora e documentos com análise pendente (coalescing).
+        self._messages: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        self._dirty: dict[str, int] = {}
+        self._read_error: BaseException | None = None
         self.root: Path | None = None
         self.shutdown = False
         self.inlay_hints = True
@@ -524,9 +623,19 @@ class Server:
                 self.max_width = max_width
 
     def run(self) -> int:
+        """Serve JSON-RPC até EOF, coalescendo edições antes de analisar.
+
+        A thread leitora só enfileira mensagens; toda a mutação de estado (documentos,
+        caches, stdout) continua na thread principal. Uma request sempre roda depois de
+        um flush, então ela nunca vê um índice construído para outro texto.
+        """
+        reader = threading.Thread(target=self._read_loop, name="lsp-stdin", daemon=True)
+        reader.start()
         while True:
-            message = _read_message(self.stdin)
+            message = self._messages.get()
             if message is None:
+                if self._read_error is not None:
+                    raise self._read_error
                 return 0
             method = message.get("method")
             if not isinstance(method, str):
@@ -534,9 +643,63 @@ class Server:
             if method == "exit":
                 return 0 if self.shutdown else 1
             if "id" in message:
+                self._flush_dirty()
                 self._request(message, method)
             else:
                 self._notification(method, message.get("params"))
+            if self._messages.empty():
+                self._flush_dirty()
+
+    def _read_loop(self) -> None:
+        stream: _ByteReader = self.stdin
+        with contextlib.suppress(AttributeError, OSError, ValueError):
+            stream = _RawInput(self.stdin.fileno())
+        try:
+            while True:
+                message = _read_message(stream)
+                if message is None:
+                    return
+                self._messages.put(message)
+        except BaseException as error:  # re-raised on the main thread
+            self._read_error = error
+        finally:
+            self._messages.put(None)
+
+    def _mark_dirty(self, uri: str) -> None:
+        document = self.documents.get(uri)
+        if document is not None:
+            self._dirty[uri] = document.version
+
+    def _flush_dirty(self) -> None:
+        """Analisa e publica os documentos pendentes, na ordem em que ficaram sujos.
+
+        A analysis não publica; publicar aqui, uma vez por documento, é o que
+        coalesce a rajada de teclas. O documento editado sai primeiro e os
+        importadores abertos entram na fila em seguida: o loader lê o texto não salvo
+        via `module_overrides` (ADR-0090), então a análise deles já vê a edição.
+        """
+        done: set[str] = set()
+        while self._dirty:
+            uri = next(iter(self._dirty))
+            del self._dirty[uri]
+            if uri in done:
+                continue
+            done.add(uri)
+            document = self.documents.get(uri)
+            if document is None:
+                continue
+            self._publish_analysis(self._analyze(document))
+            if document.path is not None:
+                self._dependents_dirty(document.path, skip_uri=uri)
+
+    def _dependents_dirty(self, path: Path, *, skip_uri: str) -> None:
+        """Marca para recheck os abertos cujo import closure inclui o módulo alterado."""
+        changed = path.resolve()
+        for uri, dependencies in list(self.dependencies.items()):
+            if uri == skip_uri or changed not in dependencies:
+                continue
+            if uri in self.documents:
+                self._dirty[uri] = self.documents[uri].version
 
     # -- dispatch --------------------------------------------------------
 
@@ -754,23 +917,34 @@ class Server:
         elif method == "textDocument/didChange":
             self._change(params)
         elif method == "textDocument/didSave":
-            self._publish(params.get("textDocument"))
+            self._save(params.get("textDocument"))
         elif method == "textDocument/didClose":
-            document = params.get("textDocument")
-            if isinstance(document, dict) and isinstance(document.get("uri"), str):
-                uri = document["uri"]
-                closed = self.documents.pop(uri, None)
-                self._invalidate(uri)
-                self.dependencies.pop(uri, None)
-                _send(
-                    self.stdout,
-                    _notification(
-                        "textDocument/publishDiagnostics",
-                        {"uri": uri, "diagnostics": []},
-                    ),
-                )
-                if closed is not None and closed.path is not None:
-                    self._recheck_dependents(closed.path, skip_uri=uri)
+            self._close(params)
+
+    def _save(self, document: object) -> None:
+        if isinstance(document, dict) and isinstance(document.get("uri"), str):
+            uri = document["uri"]
+            if uri in self.documents:
+                self._mark_dirty(uri)
+
+    def _close(self, params: dict[str, Any]) -> None:
+        document = params.get("textDocument")
+        if not (isinstance(document, dict) and isinstance(document.get("uri"), str)):
+            return
+        uri = document["uri"]
+        closed = self.documents.pop(uri, None)
+        self._invalidate(uri)
+        self.dependencies.pop(uri, None)
+        self._dirty.pop(uri, None)
+        _send(
+            self.stdout,
+            _notification(
+                "textDocument/publishDiagnostics",
+                {"uri": uri, "diagnostics": []},
+            ),
+        )
+        if closed is not None and closed.path is not None:
+            self._dependents_dirty(closed.path, skip_uri=uri)
 
     # -- documentos ------------------------------------------------------
 
@@ -788,7 +962,7 @@ class Server:
             uri=uri,
         )
         self._invalidate(uri)
-        self._publish_by_uri(uri)
+        self._mark_dirty(uri)
 
     def _change(self, params: dict[str, Any]) -> None:
         document = params.get("textDocument")
@@ -801,31 +975,14 @@ class Server:
         current = self.documents.get(uri)
         if current is None or not changes:
             return
-        change = changes[0]
-        if not isinstance(change, dict) or not isinstance(change.get("text"), str):
-            return
+        for change in changes:
+            if isinstance(change, dict):
+                _apply_change(current, change)
         version = document.get("version", current.version)
-        current.text = change["text"]
         if isinstance(version, int):
             current.version = version
         self._invalidate(uri)
-        self._publish_by_uri(uri)
-        if current.path is not None:
-            self._recheck_dependents(current.path, skip_uri=uri)
-
-    def _recheck_dependents(self, path: Path, *, skip_uri: str) -> None:
-        """Recheca documentos abertos cujo import closure inclui o módulo alterado.
-
-        O loader lê o texto não salvo via `module_overrides` (ADR-0090, limitação
-        declarada); a ordem publica o documento alterado primeiro e os importadores
-        depois, para o editor não mostrar um diagnóstico velho.
-        """
-        changed = path.resolve()
-        for uri, dependencies in list(self.dependencies.items()):
-            if uri == skip_uri or changed not in dependencies:
-                continue
-            self._invalidate(uri)
-            self._publish_by_uri(uri)
+        self._mark_dirty(uri)
 
     def _workspace_cache(self) -> WorkspaceCache:
         from loxia.rename import WorkspaceCache
@@ -844,10 +1001,6 @@ class Server:
         self.source_files.pop(uri, None)
         if self.semantic_cache is not None:
             self.semantic_cache.clear()
-
-    def _publish(self, document: object) -> None:
-        if isinstance(document, dict) and isinstance(document.get("uri"), str):
-            self._publish_by_uri(document["uri"])
 
     def _publish_by_uri(self, uri: str) -> None:
         document = self.documents.get(uri)
