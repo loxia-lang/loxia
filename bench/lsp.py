@@ -35,6 +35,7 @@ DEFAULT_REPEAT = 5
 SAMPLES_PER_METRIC = 5
 DEFAULT_TOLERANCE = 1.5
 READ_TIMEOUT_SECONDS = 30.0
+WORKSPACE_MODULES = 48
 
 
 @dataclass(frozen=True)
@@ -174,6 +175,14 @@ def _workspace() -> tempfile.TemporaryDirectory[str]:
     root = Path(directory.name)
     (root / "lib.lx").write_text(LIB, encoding="utf-8")
     (root / "main.lx").write_text(MAIN, encoding="utf-8")
+    # Workspace com ~50 arquivos: o custo de descoberta/leitura do root não pode
+    # ficar escondido atrás de um fixture de dois arquivos.
+    for index in range(WORKSPACE_MODULES):
+        (root / f"mod_{index:02d}.lx").write_text(
+            f"val valor_{index}: Int = {index}\n"
+            f"fn fun_{index}(x: Int) -> Int {{ return x + {index} }}\n",
+            encoding="utf-8",
+        )
     return directory
 
 

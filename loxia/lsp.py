@@ -8,6 +8,7 @@ LSP-0: full sync, diagnostics e documentSymbol. LSP-1: hover/definition via
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -52,7 +53,7 @@ from loxia_core.frontend.ty import (
     Ty,
     UnionTy,
 )
-from loxia_core.loader.loader import ModuleLoader
+from loxia_core.loader.loader import SOURCE_SUFFIX, ModuleLoader
 from loxia_core.semantics.resolver import Resolver
 
 if TYPE_CHECKING:
@@ -61,6 +62,8 @@ if TYPE_CHECKING:
 # Mesmo default de `loxia.formatter.engine`; importar o formatter aqui paga o
 # printer inteiro no startup do LSP, e nenhum handler roda antes de initialize.
 DEFAULT_MAX_WIDTH = 100
+_WORKSPACE_SKIP_DIRS = frozenset({"node_modules", "build", "dist", "target"})
+_DISK_FILES_LIMIT = 4096
 
 JSONRPC_VERSION = "2.0"
 SCHEMA_VERSION = 1
@@ -485,6 +488,8 @@ class Server:
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
         self.semantic_cache: WorkspaceCache | None = None
+        # Texto lido do disco por (mtime, tamanho); buffers abertos não entram aqui.
+        self._disk_files: dict[Path, tuple[int, int, str]] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
         self.shutdown = False
@@ -1217,18 +1222,38 @@ class Server:
                 files[path] = document.text
         if self.root is None:
             return sorted(files.items())
-        try:
-            candidates = self.root.rglob("*.lx")
-        except OSError:
-            candidates = iter(())
-        for path in candidates:
-            if any(part.startswith(".") or part in {"node_modules"} for part in path.parts):
-                continue
-            if path not in files:
+
+        # `os.walk` poda diretórios ocultos/build antes de descer; `rglob` visitava
+        # `.venv`, `.uv-cache` e `target` e dominava o custo em repos grandes.
+        for directory, dirnames, filenames in os.walk(self.root):
+            dirnames[:] = sorted(
+                name
+                for name in dirnames
+                if not name.startswith(".") and name not in _WORKSPACE_SKIP_DIRS
+            )
+            for name in sorted(filenames):
+                if not name.endswith(SOURCE_SUFFIX):
+                    continue
+                path = Path(directory) / name
+                if path in files:
+                    continue
                 try:
-                    files[path] = path.read_text(encoding="utf-8")
+                    stat = path.stat()
+                    cached = self._disk_files.get(path)
+                    if (
+                        cached is not None
+                        and cached[0] == stat.st_mtime_ns
+                        and cached[1] == stat.st_size
+                    ):
+                        files[path] = cached[2]
+                        continue
+                    text = path.read_text(encoding="utf-8")
+                    if len(self._disk_files) >= _DISK_FILES_LIMIT:
+                        self._disk_files.clear()
+                    self._disk_files[path] = (stat.st_mtime_ns, stat.st_size, text)
                 except OSError:
                     continue
+                files[path] = text
         return sorted(files.items())
 
     def _workspace_rename(self, document: Document, token: Token, new_name: str) -> object:

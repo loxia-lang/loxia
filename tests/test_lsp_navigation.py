@@ -787,3 +787,28 @@ def test_lsp_does_not_build_source_index_for_diagnostics(tmp_path: Path) -> None
     server._range_for(document, token)
 
     assert index._built is True
+
+
+def test_lsp_workspace_files_prunes_hidden_and_build_dirs(tmp_path: Path) -> None:
+    (tmp_path / "ok.lx").write_text("val ok = 1\n", encoding="utf-8")
+    for name in (".hidden", "build", "dist", "target", "node_modules"):
+        directory = tmp_path / name
+        directory.mkdir()
+        (directory / "skip.lx").write_text("val skip = 1\n", encoding="utf-8")
+
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+    files = server._workspace_files()
+
+    assert {path.name for path, _ in files} == {"ok.lx"}
+
+
+def test_lsp_workspace_files_disk_cache_sees_content_changes(tmp_path: Path) -> None:
+    path = tmp_path / "a.lx"
+    path.write_text("val a = 1\n", encoding="utf-8")
+    server = Server(BytesIO(), BytesIO())
+    server.root = tmp_path
+
+    assert dict(server._workspace_files())[path].startswith("val a")
+    path.write_text("val b = 2\n", encoding="utf-8")
+    assert dict(server._workspace_files())[path].startswith("val b")
