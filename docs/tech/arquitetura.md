@@ -206,7 +206,9 @@ com baseline [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e toler�
 (workspace de ~50 arquivos): startup ~94 ms, didOpen ~34 ms, references cross-file ~112 ms
 na primeira consulta e ~108 ms após uma edição (o cache do workspace é descartado), ~1,7 ms
 no cache quente, didChange ~10 ms, didChange em ~650 linhas ~48 ms e rajada de 5 didChange
-~10 ms; as requisições locais ficam abaixo de 2 ms.
+~10 ms; as requisições locais ficam abaixo de 2 ms. O orçamento é **≤12 ms** no workspace
+do bench e **~0,06 ms/linha** (163 linhas ~20 ms, 323 ~30 ms); acima de ~1000 linhas fica
+**fora** até o parse incremental (#113).
 
 O `didChange` coalesce a rajada: uma thread leitora só enfileira mensagens e a thread
 principal analisa uma vez quando a fila esvazia ou antes de servir um request, publicando só

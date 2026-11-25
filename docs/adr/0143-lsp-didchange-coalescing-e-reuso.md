@@ -98,8 +98,9 @@ era `1` (full) e `_change` usava só `changes[0]`, ignorando `range`.
 2. O cache de parse não depende de `mtime`: mudança de conteúdo invalida, restauração de
    mtime não serve texto velho. Cachear a falha é proibido; a entrada (arquivo editado)
    nunca é cacheada.
-3. Cada documento tem no máximo uma análise corrente; `_invalidate` descarta a análise e o
-   `SymbolIndex` do documento antes de marcá-lo sujo.
+3. Cada documento tem no máximo uma análise corrente; `_invalidate` descarta o estado
+   derivado (análise, `SymbolIndex`, fontes e `clean`) e `_analyze` sempre descarta o
+   `SymbolIndex` anterior, que é reconstruído na próxima navegação.
 4. Ordem de publicação: documento editado primeiro, depois os importadores abertos, uma vez
    por lote coalescido.
 5. O cache é do LSP. `run`, `check`, `build` e o REPL não o usam (`module_cache=None`).

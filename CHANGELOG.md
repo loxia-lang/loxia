@@ -45,7 +45,8 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `SymbolIndex` só na primeira navegação. `didChange` 34,2 → 10,1 ms; rajada de 5 changes
   172,9 → 10,1 ms; arquivo de ~650 linhas 75,5 → 48,5 ms. O diagnóstico de documento
   assentado não muda (conteúdo nem ordem) e toda request enxerga o texto atual; o
-  `textDocumentSync` continua full (`1`).
+  `textDocumentSync` continua full (`1`). Orçamento medido: `didChange` ≤12 ms no workspace
+  do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
 
 ### Adicionado
 - **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
