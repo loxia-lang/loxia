@@ -57,6 +57,7 @@ from loxia_core.frontend.ty import (
     UnionTy,
 )
 from loxia_core.loader.loader import SOURCE_SUFFIX, ModuleLoader
+from loxia_core.loader.module_cache import ModuleCache
 from loxia_core.semantics.resolver import Resolver
 
 if TYPE_CHECKING:
@@ -594,6 +595,8 @@ class Server:
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
         self.semantic_cache: WorkspaceCache | None = None
+        # Parse de módulos por conteúdo (ADR-0143): imports intactos não são reparseados.
+        self.parse_cache = ModuleCache()
         # Texto do disco por (mtime, ctime, inode, tamanho); buffers abertos não entram aqui.
         self._disk_files: dict[Path, tuple[int, int, int, int, str]] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
@@ -1027,7 +1030,12 @@ class Server:
             for current in self.documents.values()
             if current.path is not None
         }
-        lox.check(document.text, emit=False, module_overrides=overrides)
+        lox.check(
+            document.text,
+            emit=False,
+            module_overrides=overrides,
+            module_cache=self.parse_cache,
+        )
         batch = lox.reporter.batch()
         sources = lox.sources
         self.source_maps[document.uri] = sources
@@ -1275,7 +1283,12 @@ class Server:
 
         files = dict(self._workspace_files())
         return semantic_target(
-            self.root, files, document.path, token, cache=self._workspace_cache()
+            self.root,
+            files,
+            document.path,
+            token,
+            cache=self._workspace_cache(),
+            module_cache=self.parse_cache,
         )
 
     def _rename(self, message: dict[str, Any]) -> object:
@@ -1310,6 +1323,7 @@ class Server:
                     token,
                     new_name,
                     cache=self._workspace_cache(),
+                    module_cache=self.parse_cache,
                 )
                 if isinstance(semantic, str):
                     return semantic
@@ -1971,7 +1985,12 @@ class Server:
 
             files = dict(self._workspace_files())
             references = semantic_references(
-                self.root, files, document.path, token, cache=self._workspace_cache()
+                self.root,
+                files,
+                document.path,
+                token,
+                cache=self._workspace_cache(),
+                module_cache=self.parse_cache,
             )
             if references is None:
                 return []
@@ -2040,7 +2059,12 @@ class Server:
 
             files = dict(self._workspace_files())
             references = semantic_references(
-                self.root, files, document.path, token, cache=self._workspace_cache()
+                self.root,
+                files,
+                document.path,
+                token,
+                cache=self._workspace_cache(),
+                module_cache=self.parse_cache,
             )
             if references is None:
                 return []

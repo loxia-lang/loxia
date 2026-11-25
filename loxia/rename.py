@@ -21,6 +21,7 @@ from loxia_core.diagnostics.source import display_path
 from loxia_core.frontend.stmt import Import, Stmt
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.ty import ClassTy
+from loxia_core.loader.module_cache import ModuleCache
 
 _TOP_LEVEL = {"function", "class", "enum", "interface", "type", "variable"}
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -75,7 +76,12 @@ class WorkspaceCache:
     _fingerprint: tuple[str, tuple[tuple[str, str], ...]] | None = None
     _workspace: _Workspace | str | None = None
 
-    def get(self, root: Path, files: dict[Path, str]) -> _Workspace | str:
+    def get(
+        self,
+        root: Path,
+        files: dict[Path, str],
+        module_cache: ModuleCache | None = None,
+    ) -> _Workspace | str:
         fingerprint = (
             str(root),
             tuple(
@@ -88,7 +94,7 @@ class WorkspaceCache:
         )
         if self._workspace is not None and self._fingerprint == fingerprint:
             return self._workspace
-        workspace = _build_workspace(root, files)
+        workspace = _build_workspace(root, files, module_cache)
         self._fingerprint = fingerprint
         self._workspace = workspace
         return workspace
@@ -105,8 +111,9 @@ def semantic_target(
     token: Token,
     *,
     cache: WorkspaceCache | None = None,
+    module_cache: ModuleCache | None = None,
 ) -> Target | None:
-    workspace = _workspace(root, files, cache)
+    workspace = _workspace(root, files, cache, module_cache)
     if isinstance(workspace, str):
         return None
     return _target(workspace, target_path, token)
@@ -120,8 +127,9 @@ def semantic_rename(
     new_name: str,
     *,
     cache: WorkspaceCache | None = None,
+    module_cache: ModuleCache | None = None,
 ) -> dict[str, object] | str | None:
-    workspace = _workspace(root, files, cache)
+    workspace = _workspace(root, files, cache, module_cache)
     if isinstance(workspace, str):
         return workspace
     target = _target(workspace, target_path, token)
@@ -139,9 +147,10 @@ def semantic_references(
     token: Token,
     *,
     cache: WorkspaceCache | None = None,
+    module_cache: ModuleCache | None = None,
 ) -> References | None:
     """Ocorrências semânticas do alvo, na mesma resolução do rename cross-file."""
-    workspace = _workspace(root, files, cache)
+    workspace = _workspace(root, files, cache, module_cache)
     if isinstance(workspace, str):
         return None
     target = _target(workspace, target_path, token)
@@ -163,14 +172,19 @@ def semantic_references(
 
 
 def _workspace(
-    root: Path, files: dict[Path, str], cache: WorkspaceCache | None = None
+    root: Path,
+    files: dict[Path, str],
+    cache: WorkspaceCache | None = None,
+    module_cache: ModuleCache | None = None,
 ) -> _Workspace | str:
     if cache is not None:
-        return cache.get(root, files)
-    return _build_workspace(root, files)
+        return cache.get(root, files, module_cache)
+    return _build_workspace(root, files, module_cache)
 
 
-def _build_workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
+def _build_workspace(
+    root: Path, files: dict[Path, str], module_cache: ModuleCache | None = None
+) -> _Workspace | str:
     analyses: dict[Path, _Analysis] = {}
     positions: dict[tuple[Path, int], set[str]] = {}
     tokens_by_lexeme: dict[str, set[tuple[Path, int]]] = {}
@@ -196,7 +210,7 @@ def _build_workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
             return f"Can't rename across files: parse error in {path.name}."
         lox = Loxia(error_format="json", color="never", max_errors=0)
         lox.use_file(display_path(str(path)), module_root=root)
-        lox.check(text, emit=False, module_overrides=overrides)
+        lox.check(text, emit=False, module_overrides=overrides, module_cache=module_cache)
         merged = lox.last_statements
         if merged is None:
             return f"Can't rename across files: parse error in {path.name}."
