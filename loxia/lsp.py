@@ -27,7 +27,7 @@ from loxia_core.diagnostics.diagnostic import (
     Span,
 )
 from loxia_core.diagnostics.error_reporter import ErrorReporter
-from loxia_core.diagnostics.source import display_path
+from loxia_core.diagnostics.source import SourceMap, display_path
 from loxia_core.frontend.keywords import KEYWORDS
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
@@ -182,6 +182,17 @@ class Document:
     version: int
     path: Path | None
     uri: str
+
+
+@dataclass
+class Analysis:
+    """Resultado de uma análise de documento; publicar é decisão do chamador."""
+
+    document: Document
+    version: int
+    lox: Loxia
+    sources: SourceMap
+    diagnostics: tuple[Diagnostic, ...]
 
 
 def _read_message(stream: IO[bytes]) -> dict[str, Any] | None:
@@ -842,21 +853,17 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return
-        _send(
-            self.stdout,
-            _notification(
-                "textDocument/publishDiagnostics",
-                {
-                    "uri": uri,
-                    "version": document.version,
-                    "diagnostics": self._diagnostics(document),
-                },
-            ),
-        )
+        self._publish_analysis(self._analyze(document))
 
     # -- diagnóstico -----------------------------------------------------
 
-    def _diagnostics(self, document: Document) -> list[dict[str, object]]:
+    def _analyze(self, document: Document) -> Analysis:
+        """Roda o pipeline e atualiza os caches; não publica.
+
+        Quem publica é o chamador (`_publish_analysis`): o loop coalesce edições e
+        precisa separar "analisar" de "avisar o editor".
+        """
+        version = document.version
         lox = Loxia(error_format="json", color="never", max_errors=0)
         if document.path is not None:
             lox.use_file(display_path(str(document.path)), module_root=document.path.parent)
@@ -899,17 +906,41 @@ class Server:
             self.source_indexes[document.uri] = source_index
             self.source_files[document.uri] = lox._file
 
-        result: list[dict[str, object]] = []
-        for diagnostic in batch.diagnostics:
-            result.append(
-                self._diagnostic(
-                    diagnostic,
-                    document=document,
-                    lox=lox,
-                    sources=sources,
-                )
+        return Analysis(
+            document=document,
+            version=version,
+            lox=lox,
+            sources=sources,
+            diagnostics=tuple(batch.diagnostics),
+        )
+
+    def _diagnostics(self, document: Document) -> list[dict[str, object]]:
+        """Payload de diagnóstico do documento (analisa; não publica)."""
+        return self._payloads(self._analyze(document))
+
+    def _payloads(self, analysis: Analysis) -> list[dict[str, object]]:
+        return [
+            self._diagnostic(
+                diagnostic,
+                document=analysis.document,
+                lox=analysis.lox,
+                sources=analysis.sources,
             )
-        return result
+            for diagnostic in analysis.diagnostics
+        ]
+
+    def _publish_analysis(self, analysis: Analysis) -> None:
+        _send(
+            self.stdout,
+            _notification(
+                "textDocument/publishDiagnostics",
+                {
+                    "uri": analysis.document.uri,
+                    "version": analysis.version,
+                    "diagnostics": self._payloads(analysis),
+                },
+            ),
+        )
 
     def _resolve_recovered(self, lox: Loxia, statements: list[Stmt]) -> Resolver | None:
         """Resolve escopos dos statements recuperados, sem misturar diagnósticos."""
@@ -1545,7 +1576,7 @@ class Server:
         document = self.documents.get(uri)
         if document is None:
             return None
-        self._diagnostics(document)
+        self._analyze(document)
         return self.indexes.get(uri)
 
     def _navigation_range_at(
