@@ -1,0 +1,13 @@
+# `and`/`or` com `Any`: só nil e false são falsy; o resultado é `Any`.
+val n: Any = nil
+print(n and 1)  # expect: nil
+print(n or 1)   # expect: 1
+val f: Any = false
+print(f and 2)  # expect: false
+print(f or 2)   # expect: 2
+val z: Any = 0
+print(z and 3)  # expect: 3
+print(z or 3)   # expect: 0
+val t: Any = "x"
+print(t or 4)   # expect: x
+print(t and 5)  # expect: 5

@@ -1,0 +1,12 @@
+# `??` sobre `Any` respeita a tag nil (o box já é nilável).
+val a: Any = nil
+print(a ?? 0) # expect: 0
+val b: Any = 1
+print(b ?? 0) # expect: 1
+val c: Any? = nil
+print(c ?? "v") # expect: v
+val d: Any = false
+print(d ?? 2) # expect: false
+val s: String? = nil
+val t: Any = s ?? "y"
+print(t) # expect: y

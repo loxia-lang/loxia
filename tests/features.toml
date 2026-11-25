@@ -11,6 +11,12 @@ golden = ["tests/cases/numbers.lx", "tests/cases/literals.lx", "tests/cases/comp
 differential = "l1"
 backend = true
 
+[features.any]
+title = "Any boxeado: top type, is/as, ?? e curto-circuito"
+golden = ["tests/cases/any_box.lx", "tests/cases/any_casts.lx", "tests/cases/any_coalesce_nil.lx", "tests/cases/any_logical.lx"]
+differential = "l6"
+backend = true
+
 [features.operators]
 title = "Aritmética, precedência, unários e bits"
 golden = ["tests/cases/arithmetic.lx", "tests/cases/precedence.lx", "tests/cases/bitwise.lx", "tests/cases/exponentiation.lx", "tests/cases/unary.lx"]
