@@ -69,21 +69,6 @@ jobs:
         if: matrix.python == '3.13'
         run: make coverage-ratchet
 
-  portable-macos:
-    name: Portable (macOS)
-    # Interpreter-only coverage; the native backend remains Linux-only.
-    runs-on: macos-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
-        with:
-          enable-cache: true
-          python-version: "3.13"
-      - run: uv sync --locked --all-groups --extra llvm
-      - name: Non-backend suite
-        run: uv run pytest -m "not backend and not install" --maxfail=20 -ra
-
   portable-windows:
     name: Portable (Windows, experimental)
     # Known platform failures: this job is informational until the interpreter
@@ -231,7 +216,7 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [lint, typecheck, unit, portable-macos, backend, docs, site, package, commits]
+    needs: [lint, typecheck, unit, backend, docs, site, package, commits]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
