@@ -1,0 +1,147 @@
+# Offsets: um campo `Any` ocupa duas palavras; herança e genéricas preservam o layout.
+class Mixed {
+  var a: Int = 1
+  var b: Any = "x"
+  var c: Int = 3
+}
+
+val m = Mixed()
+print(m.a)  # expect: 1
+print(m.b)  # expect: x
+print(m.c)  # expect: 3
+m.a = 10
+m.b = 20
+m.c = 30
+print(m.a)  # expect: 10
+print(m.b)  # expect: 20
+print(m.c)  # expect: 30
+
+class BaseAny {
+  var a: Any = 1
+}
+
+class DerivedInt(BaseAny) {
+  var b: Int = 2
+}
+
+val d = DerivedInt()
+print(d.a)  # expect: 1
+print(d.b)  # expect: 2
+d.a = "s"
+d.b = 5
+print(d.a)  # expect: s
+print(d.b)  # expect: 5
+
+class BaseInt {
+  var a: Int = 1
+}
+
+class DerivedAny(BaseInt) {
+  var b: Any = 2
+}
+
+val e = DerivedAny()
+print(e.a)  # expect: 1
+print(e.b)  # expect: 2
+e.b = 3.5
+print(e.b) # expect: 3.5
+
+class Box[T] {
+  var value: T
+
+  fn init(value: T) {
+    this.value = value
+  }
+}
+
+val box: Box[Any] = Box("x")
+print(box.value) # expect: x
+box.value = 2
+print(box.value) # expect: 2
+
+class ValAny {
+  val x: Any
+
+  fn init(v: Any) {
+    this.x = v
+  }
+}
+
+print(ValAny("v").x) # expect: v
+
+fn local() -> Nil {
+  class L {
+    var x: Any = 1
+  }
+  val l = L()
+  l.x = "s"
+  print(l.x) # expect: s
+}
+
+local()
+
+class Loop {
+  var a: Any = nil
+  var b: Any = 0
+  var c: Any = ""
+}
+
+val bag = Loop()
+var i = 0
+while (i < 1000) {
+  bag.a = i
+  bag.b = i / 2.0
+  bag.c = "x"
+  i = i + 1
+}
+print(bag.a)  # expect: 999
+print(bag.b)  # expect: 499.5
+print(bag.c)  # expect: x
+
+class NoInit {
+  var x: Any
+
+  fn init() {
+    this.x = "i"
+  }
+}
+
+print(NoInit().x) # expect: i
+
+class BaseA {
+  var a: Any = nil
+
+  fn init(v: Any) {
+    this.a = v
+  }
+}
+
+class DerivA(BaseA) {
+  var b: Any = nil
+
+  fn init(v: Any) {
+    super.init(v)
+    this.b = v
+  }
+}
+
+val da = DerivA("s")
+print(da.a)  # expect: s
+print(da.b)  # expect: s
+
+class Target {
+  fn m() -> Int {
+    return 7
+  }
+}
+
+class BoxHolder {
+  var t: Any = nil
+}
+
+val bh = BoxHolder()
+bh.t = Target()
+if (bh.t is Target) {
+  print(bh.t.m()) # expect: 7
+}
+print((bh.t as Target).m()) # expect: 7

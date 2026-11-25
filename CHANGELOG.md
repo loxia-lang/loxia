@@ -50,6 +50,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
 
 ### Adicionado
+- **Campo `Any` no backend** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md), issue [#196](https://github.com/loxia-lang/loxia/issues/196)): um campo `Any` (ou união de escalares) ocupa duas palavras inline (`{tag, payload}`) e aceita qualquer valor — incluindo containers, instância, enum e função — com `is`/`as`/`==`/`??`/`print`. O layout usa dois contadores (`index` do bitmap e `slot` absoluto em palavras), herança preserva o prefixo e classes sem `Any` mantêm o layout antigo. Acesso continua exigindo narrowing (`E3025`). Casos `tests/cases/any_field_*.lx` (L6, diferencial).
 - **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
   mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com
   `finally` executado antes do salto e sem atravessar função/lambda. `break`/`continue`
@@ -157,9 +158,15 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   o layout do campo passa a vir da anotação, não do tipo do inicializador. `var x: Any = 1`
   deixava de ser `Any`: o campo virava um slot `Int`, o checker publicava `Any` e aceitava
   `c.x = "s"`, então o `--emit` morria em `E4002` (`Can't use STRING where INT is expected`).
-  Agora a recusa é a lacuna declarada do ADR-0079 (`E4001`, na linha do campo), como no campo
-  sem inicializador, e o tree-walk segue imprimindo o valor. Regressão em
-  `tests/test_backend.py`.
+  Com o [ADR-0145](docs/adr/0145-campo-any-slot-largo.md), o campo `Any` passou a ser
+  suportado (ver **Adicionado**); o tree-walk e o binário agora imprimem o mesmo valor.
+  Regressão em `tests/test_backend.py` (união) e casos `tests/cases/any_field_*.lx`.
+- **Refino de campo após nativa pura**: `print`/`len`/`str`/`repr`/`chars`/`range` e métodos
+  de `List`/`Map` não derrubam mais o narrowing de campo/índice. Antes, um `if (c.x is T)`
+  seguido de `print(...)` fazia o uso seguinte de `c.x` cair em `E3025` sem motivo; chamadas
+  de usuário e escritas continuam invalidando (som, sem análise de aliasing). Caso em
+  `tests/cases/any_narrowing.lx` ([#216](https://github.com/loxia-lang/loxia/issues/216)
+  cobre a precisão restante).
 - **`match` com variável local/parâmetro**: o resolver abria escopo para todo braço, mas o
   interpretador só cria ambiente para braços de variante; um braço wildcard/literal que
   referenciasse um local caía com `KeyError` (violação de I1). O resolver agora espelha o

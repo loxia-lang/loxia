@@ -1,5 +1,7 @@
 # ADR-0144 — `Any` dinâmico exige estreitamento (`is`/`as`)
 
+> **Atualização (2026-11-25):** o narrowing cobre classe concreta, tupla, enum, escalares e containers. `is`/`as` para **interface, função e objeto de classe** ainda não existem (`E3013`/`E3007`); está na issue [#213](https://github.com/loxia-lang/loxia/issues/213). Um `Any` que guarda esses valores só pode ser estreitado para a classe concreta.
+
 - **Status:** accepted
 - **Data:** 2026-11-25
 - **Decisores:** Cassio Dalla (dono do projeto) e agente (DSH)
@@ -56,8 +58,16 @@ callee, índice, iterável de `for-in`, argumento de `len` e descrição de elem
 
 **3. O que continua dinâmico.** Operações de **valor** não precisam da forma e seguem
 funcionando sobre `Any` sem estreitamento: aritmética, comparação, igualdade, `is`/`as`,
-`print`/`str`/interpolação, `not`/unário, `??` e `and`/`or`. `for-in` sobre `Any` não estreitado
-e ternário com braço `Any` continuam lacunas declaradas (`E4001`).
+`print`/`str`/interpolação, `not`/unário, `??` e `and`/`or`. `for-in` sobre `Any` não
+estreitado, `len` sobre `Any` não estreitado (`len of non-String`) e ternário com braço `Any`
+continuam lacunas declaradas (`E4001`).
+
+**4. Precisão do refino de caminho.** Chamadas que podem executar código do usuário e
+escritas de campo/índice invalidam os refinos de campo/índice ([ADR-0086](0086-narrowing-captura-e-merge.md),
+[ADR-0141](0141-soundness-de-fluxo-do-checker.md); não há análise de aliasing). Nativas puras
+(`print`, `len`, `str`, `repr`, `chars`, `range` e métodos de `List`/`Map`) **não** invalidam.
+Depois de uma chamada de usuário ou escrita, reestreite o caminho. Precisão de
+efeitos/aliasing fica em [#216](https://github.com/loxia-lang/loxia/issues/216).
 
 ## Consequências
 

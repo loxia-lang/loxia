@@ -63,6 +63,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/any_box.lx",
         "tests/cases/any_casts.lx",
         "tests/cases/any_coalesce_nil.lx",
+        "tests/cases/any_field_assign.lx",
+        "tests/cases/any_field_layout.lx",
         "tests/cases/any_logical.lx",
         "tests/cases/any_narrowing.lx",
         "tests/cases/bitwise.lx",
@@ -290,6 +292,7 @@ PENDING: dict[str, str] = {
 COMPILE_ERRORS: frozenset[str] = frozenset(
     {
         "tests/cases/errors/any_call.lx",
+        "tests/cases/errors/any_field_member.lx",
         "tests/cases/errors/any_index.lx",
         "tests/cases/errors/any_member.lx",
         "tests/cases/errors/any_set.lx",

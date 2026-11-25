@@ -1,5 +1,7 @@
 # ADR-0048 — L5: ABI de métodos, descritor de classe e instância
 
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` ocupa duas palavras inline; o tamanho da instância usa `word_count()` e o prefixo de herança é preservado.
+
 - **Status:** accepted (L5a/L5b/L5c implementados)
 - **Data:** 2026-11-13
 - **Decisores:** Cássio + agente (DSH)

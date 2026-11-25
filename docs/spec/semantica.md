@@ -580,9 +580,11 @@ val d = anyValue as Dog   # runtime check
 - `Any` has no static shape: member access (`a.x`, `a.m()`), field assignment (`a.x = v`),
   calling (`a()`) and indexing (`a[i]`) require narrowing first (`if (a is C)` or `a as T`);
   otherwise the checker reports `E3025`. The backend unboxes the `Any` value at the narrowed
-  use, so both engines agree. Value operations stay dynamic on `Any`: arithmetic,
+  use, so both engines agree. Narrowing to an interface, a function type or a class object
+  is not supported yet (`E3013`/`E3007`). Value operations stay dynamic on `Any`: arithmetic,
   comparison, equality, `is`/`as`, `print`/`str`/interpolation, `not`/unary, `??` and
-  `and`/`or` ([ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md)).
+  `and`/`or`; `len` and `for-in` on an un-narrowed `Any` are declared backend gaps (`E4001`).
+  See [ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md).
 - `T as T` is the identity; `as Any` returns the value. A union target (`Int?`, `Int | String`)
   does not exist yet; use narrowing/`is`.
 - A string does not become a number through a cast; use `parse`.
@@ -800,6 +802,13 @@ class ContaPoupanca(Conta) {
 - `class Name(Super) { ... }` declares single inheritance; `class Name < Super` is an error.
 - Fields are **declared** in the body with `val`/`var`; there are no dynamic fields:
   `obj.x = 1` on an undeclared field is an error (`Undefined field 'x'.`).
+- A field may be annotated `Any` (or a scalar union, which lowers to `Any`) and holds any
+  value: `Int`, `Float`, `Bool`, `String`, containers, instances, enums or functions. The
+  value is copied into the field; reading gives back the same value, and `is`/`as`/`==`/
+  `??` work as on any `Any`. Fields are stored inline (`{tag, payload}`, two words), so a
+  class with `Any` fields uses more memory ([ADR-0145](../adr/0145-campo-any-slot-largo.md)).
+  Access still requires narrowing: `c.x.m()` is `E3025`; write `(c.x as C).m()` or
+  `if (c.x is C)` ([ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md)).
 - Every declared field must be initialized: by a constant initializer
   (`var age = 0`) or by an assignment in `init`. At the end of `init`, an uninitialized field is a
   runtime error (`Field 'x' must be initialized.`). Under `--check`, every field without an

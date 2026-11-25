@@ -31,3 +31,22 @@ val s: Any = "abc"
 if (s is String) {
   print(len(s))
 } # expect: 3
+
+# Nativas puras não invalidam o refino de campo; chamada de usuário invalida.
+class Guarded {
+  var n: Int = 1
+}
+
+class BoxGuarded {
+  var value: Any = nil
+}
+
+val g = BoxGuarded()
+g.value = Guarded()
+if (g.value is Guarded) {
+  print(len("abc")) # expect: 3
+  g.value.n = 5
+}
+if (g.value is Guarded) {
+  print(g.value.n) # expect: 5
+}

@@ -1,0 +1,74 @@
+# Campo `Any`/união: o slot guarda o box `{tag, payload}` (ADR-0145).
+class C {
+  var x: Any = 1
+  var y: Int | String = 1
+}
+
+val c = C()
+print(c.x) # expect: 1
+c.x = "s"
+print(c.x) # expect: s
+c.x = 2.5
+print(c.x) # expect: 2.5
+c.x = true
+print(c.x) # expect: true
+c.x = nil
+print(c.x)         # expect: nil
+print(c.x is Nil)  # expect: true
+c.x = [1, "a"]
+print(c.x) # expect: [1, "a"]
+c.x = 7
+print(c.x ?? 0) # expect: 7
+c.y = "t"
+print(c.y)       # expect: t
+print(c.x == 7)  # expect: true
+
+# Outros tags: map, tupla, instância, enum, classe, função e bytes.
+class Inst {
+  var n: Int = 1
+}
+
+enum Shade { Dark, Light }
+
+fn dobro(x: Int) -> Int {
+  return x * 2
+}
+
+class Holder {
+  var v: Any = nil
+}
+
+val h = Holder()
+h.v = { "k": 1 }
+print(h.v) # expect: {"k": 1}
+h.v = (1, "a")
+print(h.v) # expect: (1, "a")
+h.v = Inst()
+print(h.v is Inst)      # expect: true
+print((h.v as Inst).n)  # expect: 1
+h.v = Shade.Dark
+print(h.v)           # expect: Shade.Dark
+print(h.v is Shade)  # expect: true
+h.v = Inst
+print(h.v) # expect: Inst
+h.v = dobro
+print(h.v) # expect: <fn dobro>
+h.v = Bytes.empty()
+print(h.v is Bytes)       # expect: true
+print(len(h.v as Bytes))  # expect: 0
+h.v = 0..3
+print(h.v)           # expect: <range 0..3>
+print(h.v is Range)  # expect: true
+h.v = nil
+print(h.v ?? 0) # expect: 0
+
+# Optional chaining em campo `Any` (nil e não-nil).
+class Maybe {
+  var x: Any = nil
+}
+
+val m: Maybe? = Maybe()
+print(m?.x)       # expect: nil
+print(m?.x ?? 9)  # expect: 9
+val none: Maybe? = nil
+print(none?.x) # expect: nil

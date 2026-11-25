@@ -229,6 +229,14 @@ class FieldLayout:
     # Anotação declarada (não achatada em `TypeDesc`), para propagar `List[T]`/
     # `Map[K, V]` ao lowering de literais em campos.
     annotation: Ty | None = None
+    # Offset absoluto em palavras de 8 bytes, já contando o header da instância
+    # (`class` + bitmap). Um campo `Any` ocupa duas palavras (ADR-0145).
+    slot: int = 0
+
+
+def field_words(fields: list[FieldLayout]) -> int:
+    """Palavras de 8 bytes ocupadas pelos campos: 2 para `Any`, 1 para o resto."""
+    return sum(2 if field.ty.ty is ValueType.ANY else 1 for field in fields)
 
 
 @dataclass
@@ -295,6 +303,11 @@ class ClassLayout:
     def field_count(self) -> int:
         base = 0 if self.super_layout is None else self.super_layout.field_count()
         return base + len(self.fields)
+
+    def word_count(self) -> int:
+        """Palavras de payload (sem o header) dos campos, incluindo a base."""
+        base = 0 if self.super_layout is None else self.super_layout.word_count()
+        return base + field_words(self.fields)
 
     def all_fields(self) -> list[FieldLayout]:
         base = [] if self.super_layout is None else self.super_layout.all_fields()

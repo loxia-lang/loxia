@@ -1,5 +1,7 @@
 # ADR-0113 — Protocolo stdio em três módulos: `std.jsonrpc`, `std.framing` e `std.documents`
 
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo de tipo `Any` passou a ser suportado; a restrição registrada abaixo é histórica. Guardar `error.data` fica como follow-up da stdlib.
+
 - **Status:** accepted (implementado em 2026-11-19)
 - **Data:** 2026-11-19
 - **Decisores:** Cássio + agente (DSH)

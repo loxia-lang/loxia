@@ -256,6 +256,9 @@ class OptionalLowering(LoweringBase):
                 True,
                 interface_name=desc.interface_name,
             )
+        if desc.ty is ValueType.ANY:
+            # `Any` inclui nil na tag; o zero é o agregado, não um ponteiro nulo.
+            return Value(ValueType.ANY, llvm_ir.zero_value(_ANY))
         return Value(
             desc.ty,
             llvm_ir.null_pointer(),
