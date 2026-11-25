@@ -488,7 +488,7 @@ class Server:
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
         self.semantic_cache: WorkspaceCache | None = None
-        # Texto lido do disco por (mtime, tamanho); buffers abertos não entram aqui.
+        # Texto do disco por (mtime, ctime, inode, tamanho); buffers abertos não entram aqui.
         self._disk_files: dict[Path, tuple[int, int, int, int, str]] = {}
         self.dependencies: dict[str, frozenset[Path]] = {}
         self.root: Path | None = None
