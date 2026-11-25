@@ -202,7 +202,7 @@ O caminho end-to-end do servidor é medido por
 startup, didOpen, hover, definition, references (frio/quente), highlight, rename, completion,
 documentSymbol e didChange sobre stdio, com baseline
 [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de **1,5×**.
-Mediana de 2026-11-24: startup ~101 ms, didOpen ~39 ms, references cross-file ~67 ms na
+Mediana de 2026-11-24: startup ~91 ms, didOpen ~39 ms, references cross-file ~67 ms na
 primeira consulta e ~66 ms após uma edição (o cache do workspace é descartado), ~1,2 ms
 no cache quente, didChange ~35 ms; as requisições locais ficam abaixo de 2 ms. O
 `SourceIndex` é construído na primeira consulta (`lazy`), então diagnóstico **limpo** e
