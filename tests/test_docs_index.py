@@ -18,7 +18,8 @@ from typing import Any, cast
 import pytest
 
 from loxia import __version__
-from loxia.docs_index import load_index
+from loxia.docs_index import CodeEntry, load_index
+from loxia_core.diagnostics.codes import CODE_DESCRIPTIONS, CODE_PHASE, Code
 from tools.docs_common import (
     SITE_BASE,
     SPEC_PAGES,
@@ -78,6 +79,24 @@ def test_index_shape_order_and_unique_ids() -> None:
             assert section["line_end"] > section["line_start"]
             assert section["url"] == f"{page['url']}#{section['anchor']}"
     assert len(section_ids) == len(set(section_ids))
+
+
+def test_index_carries_the_generated_diagnostic_catalog() -> None:
+    """`loxia_explain` resolves against this catalog, so it cannot lag the enum."""
+    entries = cast(list[dict[str, Any]], _raw()["codes"])
+    expected = sorted(Code, key=lambda code: code.value)
+    assert [entry["code"] for entry in entries] == [code.value for code in expected]
+    for entry, code in zip(entries, expected, strict=True):
+        assert entry["phase"] == CODE_PHASE[code].value
+        assert entry["description"] == CODE_DESCRIPTIONS[code]
+
+    index = load_index()
+    assert index.code("E2001") == CodeEntry(
+        code="E2001",
+        phase="resolver",
+        description=CODE_DESCRIPTIONS[Code.DUPLICATE_VARIABLE],
+    )
+    assert index.code("E9999") is None
 
 
 def test_line_numbers_point_at_the_heading() -> None:
@@ -171,7 +190,7 @@ def test_links_are_canonical_and_never_relative_markdown() -> None:
 def test_index_has_no_volatile_data() -> None:
     text = INDEX.read_text(encoding="utf-8")
     raw = _raw()
-    assert set(raw) == {"schema_version", "loxia_version", "pages"}
+    assert set(raw) == {"schema_version", "loxia_version", "pages", "codes"}
     assert str(ROOT) not in text
     assert "generated_at" not in raw
 

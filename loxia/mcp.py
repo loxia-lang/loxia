@@ -872,22 +872,40 @@ def tool_spec(args: Mapping[str, object]) -> ToolResult:
 def tool_explain(args: Mapping[str, object]) -> ToolResult:
     raw_code = _string(args.get("code"), "code").strip().upper()
     try:
-        code = Code(raw_code)
-    except ValueError as error:
-        raise ToolError(f"unknown diagnostic code: {raw_code}") from error
-    phase = CODE_PHASE[code]
-    severity = "warning" if code.value.startswith("W") else "error"
-    description = CODE_DESCRIPTIONS[code]
+        index = load_index()
+    except DocsIndexError:
+        index = None
+    entry = index.code(raw_code) if index is not None else None
+    if entry is None:
+        # The index may predate the catalog (or not know this code yet): fall back to
+        # the enum this process imported, which still covers an un-synced workspace.
+        try:
+            code = Code(raw_code)
+        except ValueError:
+            docs_version = index.loxia_version if index is not None else "missing"
+            raise ToolError(
+                f"unknown diagnostic code: {raw_code} "
+                f"(server loxia {__version__}, docs index {docs_version}); "
+                "restart the MCP server after upgrading loxia"
+            ) from None
+        code_value = code.value
+        phase = CODE_PHASE[code].value
+        description = CODE_DESCRIPTIONS[code]
+    else:
+        code_value = entry.code
+        phase = entry.phase
+        description = entry.description
+    severity = "warning" if code_value.startswith("W") else "error"
     doc_url = "https://loxia-lang.github.io/loxia/reference/errors/"
     structured: dict[str, object] = {
-        "code": code.value,
-        "phase": phase.value,
+        "code": code_value,
+        "phase": phase,
         "severity": severity,
         "description": description,
         "doc": "docs/spec/erros.md",
         "doc_url": doc_url,
     }
-    text = f"{code.value} ({phase.value}): {description}\nSee {doc_url}"
+    text = f"{code_value} ({phase}): {description}\nSee {doc_url}"
     return ToolResult(content=(text,), structured=structured)
 
 

@@ -8210,5 +8210,382 @@
         }
       ]
     }
+  ],
+  "codes": [
+    {
+      "code": "C0001",
+      "phase": "cli",
+      "description": "execution timeout exceeded"
+    },
+    {
+      "code": "C0002",
+      "phase": "cli",
+      "description": "lockfile or dependency state (missing, stale, not fetched)"
+    },
+    {
+      "code": "C0003",
+      "phase": "cli",
+      "description": "project scaffolding (existing target, conflict, git)"
+    },
+    {
+      "code": "C0004",
+      "phase": "cli",
+      "description": "manifest edit refused (unsupported shape, conflict)"
+    },
+    {
+      "code": "E0001",
+      "phase": "lexer",
+      "description": "unexpected character"
+    },
+    {
+      "code": "E0002",
+      "phase": "lexer",
+      "description": "unterminated string"
+    },
+    {
+      "code": "E0003",
+      "phase": "lexer",
+      "description": "invalid string escape"
+    },
+    {
+      "code": "E0004",
+      "phase": "lexer",
+      "description": "invalid numeric literal (separator or literal overflow)"
+    },
+    {
+      "code": "E0005",
+      "phase": "lexer",
+      "description": "unterminated block comment"
+    },
+    {
+      "code": "E0006",
+      "phase": "lexer",
+      "description": "unterminated interpolation"
+    },
+    {
+      "code": "E0007",
+      "phase": "lexer",
+      "description": "invalid Unicode escape"
+    },
+    {
+      "code": "E1001",
+      "phase": "parser",
+      "description": "unexpected token (the `Expect …` family)"
+    },
+    {
+      "code": "E1002",
+      "phase": "parser",
+      "description": "invalid assignment target (including `?.` in assignments)"
+    },
+    {
+      "code": "E1003",
+      "phase": "parser",
+      "description": "limit of 255 parameters/arguments"
+    },
+    {
+      "code": "E1004",
+      "phase": "parser",
+      "description": "invalid declaration (`val` without initializer, non-constant default, …)"
+    },
+    {
+      "code": "E1005",
+      "phase": "parser",
+      "description": "invalid type annotation (`List`/`Map` arity, union in `is`, generic)"
+    },
+    {
+      "code": "E1006",
+      "phase": "parser",
+      "description": "invalid literal (map at the start of a statement)"
+    },
+    {
+      "code": "E1007",
+      "phase": "parser",
+      "description": "invalid `match`"
+    },
+    {
+      "code": "E2001",
+      "phase": "resolver",
+      "description": "duplicate variable in scope"
+    },
+    {
+      "code": "E2002",
+      "phase": "resolver",
+      "description": "assignment to `val`/immutable parameter"
+    },
+    {
+      "code": "E2003",
+      "phase": "resolver",
+      "description": "invalid `return` (top level or value in `init`)"
+    },
+    {
+      "code": "E2004",
+      "phase": "resolver",
+      "description": "`this` outside a class"
+    },
+    {
+      "code": "E2005",
+      "phase": "resolver",
+      "description": "`super` outside a class or without a superclass"
+    },
+    {
+      "code": "E2006",
+      "phase": "resolver",
+      "description": "invalid inheritance (class inherits from itself)"
+    },
+    {
+      "code": "E2007",
+      "phase": "resolver",
+      "description": "field conflict (duplicate or with a method)"
+    },
+    {
+      "code": "E2008",
+      "phase": "resolver",
+      "description": "local read in its own initializer"
+    },
+    {
+      "code": "E2009",
+      "phase": "resolver",
+      "description": "assignment to a `val` field"
+    },
+    {
+      "code": "E2010",
+      "phase": "resolver",
+      "description": "`break`/`continue` outside a loop"
+    },
+    {
+      "code": "E3000",
+      "phase": "checker",
+      "description": "reserved generic semantic error (no checker path emits it)"
+    },
+    {
+      "code": "E3001",
+      "phase": "checker",
+      "description": "type mismatch"
+    },
+    {
+      "code": "E3002",
+      "phase": "checker",
+      "description": "arity (calls, destructuring or pattern binding)"
+    },
+    {
+      "code": "E3003",
+      "phase": "checker",
+      "description": "undefined name (variable, property or field)"
+    },
+    {
+      "code": "E3004",
+      "phase": "checker",
+      "description": "missing annotation"
+    },
+    {
+      "code": "E3005",
+      "phase": "checker",
+      "description": "unknown type, class or superclass"
+    },
+    {
+      "code": "E3006",
+      "phase": "checker",
+      "description": "value is not callable"
+    },
+    {
+      "code": "E3007",
+      "phase": "checker",
+      "description": "invalid operands"
+    },
+    {
+      "code": "E3008",
+      "phase": "checker",
+      "description": "invalid list (common type, empty element, index)"
+    },
+    {
+      "code": "E3009",
+      "phase": "checker",
+      "description": "invalid map (key, common type)"
+    },
+    {
+      "code": "E3010",
+      "phase": "checker",
+      "description": "invalid iteration"
+    },
+    {
+      "code": "E3011",
+      "phase": "checker",
+      "description": "generic type inference"
+    },
+    {
+      "code": "E3012",
+      "phase": "checker",
+      "description": "generic feature not supported yet"
+    },
+    {
+      "code": "E3013",
+      "phase": "checker",
+      "description": "invalid cast"
+    },
+    {
+      "code": "E3014",
+      "phase": "checker",
+      "description": "builtin/reserved name redefined"
+    },
+    {
+      "code": "E3015",
+      "phase": "checker",
+      "description": "override/method conflict"
+    },
+    {
+      "code": "E3016",
+      "phase": "checker",
+      "description": "field not initialized"
+    },
+    {
+      "code": "E3017",
+      "phase": "checker",
+      "description": "invalid declaration (type param, enum, `init`)"
+    },
+    {
+      "code": "E3018",
+      "phase": "checker",
+      "description": "missing return on some path"
+    },
+    {
+      "code": "E3019",
+      "phase": "checker",
+      "description": "`math.*` argument"
+    },
+    {
+      "code": "E3020",
+      "phase": "checker",
+      "description": "type arguments (generic/enum/class arity)"
+    },
+    {
+      "code": "E3021",
+      "phase": "checker",
+      "description": "not supported by the interpreter"
+    },
+    {
+      "code": "E3022",
+      "phase": "checker",
+      "description": "capability requires the Rust toolchain (cargo) at run/build"
+    },
+    {
+      "code": "E3023",
+      "phase": "checker",
+      "description": "non-exhaustive match"
+    },
+    {
+      "code": "E3024",
+      "phase": "checker",
+      "description": "unreachable match arm"
+    },
+    {
+      "code": "E3025",
+      "phase": "checker",
+      "description": "dynamic access on `Any` requires narrowing (`is`/`as`)"
+    },
+    {
+      "code": "E4001",
+      "phase": "backend",
+      "description": "not supported by the backend yet"
+    },
+    {
+      "code": "E4002",
+      "phase": "backend",
+      "description": "backend internal error/verification/link"
+    },
+    {
+      "code": "E4003",
+      "phase": "backend",
+      "description": "generic instantiation budget exceeded"
+    },
+    {
+      "code": "R1000",
+      "phase": "runtime",
+      "description": "generic runtime error"
+    },
+    {
+      "code": "R1001",
+      "phase": "runtime",
+      "description": "value is not callable"
+    },
+    {
+      "code": "R1002",
+      "phase": "runtime",
+      "description": "division or modulo by zero"
+    },
+    {
+      "code": "R1003",
+      "phase": "runtime",
+      "description": "undefined variable"
+    },
+    {
+      "code": "R1004",
+      "phase": "runtime",
+      "description": "undefined property, field or variant"
+    },
+    {
+      "code": "R1005",
+      "phase": "runtime",
+      "description": "runtime arity"
+    },
+    {
+      "code": "R1006",
+      "phase": "runtime",
+      "description": "invalid operands or index type"
+    },
+    {
+      "code": "R1007",
+      "phase": "runtime",
+      "description": "index out of bounds"
+    },
+    {
+      "code": "R1008",
+      "phase": "runtime",
+      "description": "key not found in map"
+    },
+    {
+      "code": "R1009",
+      "phase": "runtime",
+      "description": "assignment to immutable binding"
+    },
+    {
+      "code": "R1010",
+      "phase": "runtime",
+      "description": "uncaught exception"
+    },
+    {
+      "code": "R1011",
+      "phase": "runtime",
+      "description": "invalid cast"
+    },
+    {
+      "code": "R1012",
+      "phase": "runtime",
+      "description": "invalid iteration or mutation during iteration"
+    },
+    {
+      "code": "R1013",
+      "phase": "runtime",
+      "description": "field not initialized"
+    },
+    {
+      "code": "R1014",
+      "phase": "runtime",
+      "description": "invalid value (map key, superclass, …)"
+    },
+    {
+      "code": "R1015",
+      "phase": "runtime",
+      "description": "call depth above the limit"
+    },
+    {
+      "code": "W1001",
+      "phase": "resolver",
+      "description": "local declared and never read (warning)"
+    },
+    {
+      "code": "W1002",
+      "phase": "resolver",
+      "description": "import declared and never used (warning)"
+    }
   ]
 }
