@@ -572,9 +572,14 @@ def test_analyze_updates_caches_without_publishing(tmp_path: Path) -> None:
 
     assert analysis.version == 1
     assert analysis.diagnostics == ()
-    assert server.indexes[document.uri] is not None
+    assert server.analyses[document.uri] is analysis
+    # O índice de símbolos só nasce na primeira navegação.
+    assert server.indexes == {}
     assert server.clean[document.uri] is True
     assert cast(BytesIO, server.stdout).getvalue() == b""
+
+    assert server._index_for(document.uri) is not None
+    assert document.uri in server.indexes
 
 
 def _published(output: BytesIO) -> list[dict[str, Any]]:

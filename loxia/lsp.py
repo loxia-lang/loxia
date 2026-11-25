@@ -62,6 +62,7 @@ from loxia_core.semantics.resolver import Resolver
 
 if TYPE_CHECKING:
     from loxia.rename import WorkspaceCache
+    from loxia_core.semantics.checker import Checker
 
 # Mesmo default de `loxia.formatter.engine`; importar o formatter aqui paga o
 # printer inteiro no startup do LSP, e nenhum handler roda antes de initialize.
@@ -197,6 +198,9 @@ class Analysis:
     lox: Loxia
     sources: SourceMap
     diagnostics: tuple[Diagnostic, ...]
+    statements: list[Stmt]
+    checker: Checker | None
+    resolver: Resolver | None
 
 
 class _ByteReader(Protocol):
@@ -594,6 +598,8 @@ class Server:
         self.source_maps: dict[str, object] = {}
         self.module_files: dict[str, dict[str, Path]] = {}
         self.clean: dict[str, bool] = {}
+        # Insumos da última análise: o `SymbolIndex` nasce só na primeira navegação.
+        self.analyses: dict[str, Analysis] = {}
         self.semantic_cache: WorkspaceCache | None = None
         # Parse de módulos por conteúdo (ADR-0143): imports intactos não são reparseados.
         self.parse_cache = ModuleCache()
@@ -1000,6 +1006,7 @@ class Server:
         if path is not None:
             self._disk_files.pop(path, None)
         self.indexes.pop(uri, None)
+        self.analyses.pop(uri, None)
         self.source_indexes.pop(uri, None)
         self.source_files.pop(uri, None)
         if self.semantic_cache is not None:
@@ -1051,12 +1058,19 @@ class Server:
             statements = lox.last_recovered_statements
             checker = None
             resolver = self._resolve_recovered(lox, statements)
-        self.indexes[document.uri] = SymbolIndex(
-            statements or [],
-            source=document.text,
+        # O índice de símbolos nasce na primeira navegação (`_index_for`): diagnóstico
+        # limpo e didChange não pagam a caminhada do AST.
+        analysis = Analysis(
+            document=document,
+            version=version,
+            lox=lox,
+            sources=sources,
+            diagnostics=tuple(batch.diagnostics),
+            statements=statements or [],
             checker=checker,
             resolver=resolver,
         )
+        self.analyses[document.uri] = analysis
         # O índice de spans é a autoridade para nome de declaração/tipo local.
         # Com erro de sintaxe ele pode não existir: a navegação cai no token.
         source_index = lox.last_source_index
@@ -1067,13 +1081,7 @@ class Server:
             self.source_indexes[document.uri] = source_index
             self.source_files[document.uri] = lox._file
 
-        return Analysis(
-            document=document,
-            version=version,
-            lox=lox,
-            sources=sources,
-            diagnostics=tuple(batch.diagnostics),
-        )
+        return analysis
 
     def _diagnostics(self, document: Document) -> list[dict[str, object]]:
         """Payload de diagnóstico do documento (analisa; não publica)."""
@@ -1740,11 +1748,20 @@ class Server:
         index = self.indexes.get(uri)
         if index is not None:
             return index
-        document = self.documents.get(uri)
-        if document is None:
-            return None
-        self._analyze(document)
-        return self.indexes.get(uri)
+        analysis = self.analyses.get(uri)
+        if analysis is None:
+            document = self.documents.get(uri)
+            if document is None:
+                return None
+            analysis = self._analyze(document)
+        index = SymbolIndex(
+            analysis.statements,
+            source=analysis.document.text,
+            checker=analysis.checker,
+            resolver=analysis.resolver,
+        )
+        self.indexes[uri] = index
+        return index
 
     def _navigation_range_at(
         self, document: Document, offset: int, lexeme: str
