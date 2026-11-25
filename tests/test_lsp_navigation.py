@@ -576,6 +576,92 @@ def test_analyze_updates_caches_without_publishing(tmp_path: Path) -> None:
     assert cast(BytesIO, server.stdout).getvalue() == b""
 
 
+def _published(output: BytesIO) -> list[dict[str, Any]]:
+    raw = output.getvalue()
+    messages: list[dict[str, Any]] = []
+    while raw:
+        head, _, rest = raw.partition(b"\r\n\r\n")
+        if not head or not rest:
+            break
+        length = int(head.decode("ascii").split(":", 1)[1])
+        messages.append(cast(dict[str, Any], json.loads(rest[:length])))
+        raw = rest[length:]
+    return messages
+
+
+def test_change_defers_analysis_until_flush(tmp_path: Path) -> None:
+    server, document = _open_in_process(tmp_path, "val x: Int = 1\n")
+    output = cast(BytesIO, server.stdout)
+
+    server._change(
+        {
+            "textDocument": {"uri": document.uri, "version": 2},
+            "contentChanges": [{"text": "val x: Int = 2\n"}],
+        }
+    )
+
+    assert output.getvalue() == b""
+    assert document.text == "val x: Int = 2\n"
+    assert document.uri in server._dirty
+
+    server._flush_dirty()
+
+    published = _published(output)
+    assert [item["params"]["version"] for item in published] == [2]
+    assert published[0]["params"]["diagnostics"] == []
+    assert server._dirty == {}
+
+
+def test_change_applies_range_edits_in_order(tmp_path: Path) -> None:
+    server, document = _open_in_process(tmp_path, "val x: Int = 1\nval y: Int = 2\n")
+
+    server._change(
+        {
+            "textDocument": {"uri": document.uri, "version": 2},
+            "contentChanges": [
+                {
+                    "range": {
+                        "start": {"line": 0, "character": 13},
+                        "end": {"line": 0, "character": 14},
+                    },
+                    "text": "10",
+                },
+                {
+                    "range": {
+                        "start": {"line": 1, "character": 13},
+                        "end": {"line": 1, "character": 14},
+                    },
+                    "text": "20",
+                },
+            ],
+        }
+    )
+
+    assert document.text == "val x: Int = 10\nval y: Int = 20\n"
+
+
+def test_change_range_uses_utf16_columns(tmp_path: Path) -> None:
+    server, document = _open_in_process(tmp_path, 'val s = "😀"\n')
+    start = len('val s = "'.encode("utf-16-le")) // 2
+
+    server._change(
+        {
+            "textDocument": {"uri": document.uri, "version": 2},
+            "contentChanges": [
+                {
+                    "range": {
+                        "start": {"line": 0, "character": start},
+                        "end": {"line": 0, "character": start + 2},
+                    },
+                    "text": "x",
+                }
+            ],
+        }
+    )
+
+    assert document.text == 'val s = "x"\n'
+
+
 def _position_of(text: str, needle: str, start: int = 0) -> tuple[dict[str, int], int]:
     offset = text.index(needle, start)
     line = text.count("\n", 0, offset)
