@@ -145,6 +145,12 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 
 ### Corrigido
 
+- **`??`, `and` e `or` sobre `Any`** (achado no raio de explosão do
+  [#196](https://github.com/loxia-lang/loxia/issues/196)): `a ?? 0` com `Any` nil devolvia o
+  próprio `nil` no binário — o lowering tratava "não-opcional" como "nunca nil", mas o box de
+  `Any` carrega a tag `NIL`. `a and b`/`a or b` com `Any` morriam em `E4002` (violação de I4).
+  Agora `??` checa a tag e o curto-circuito encaixa o lado direito no box; casos
+  `tests/cases/any_coalesce_nil.lx` e `tests/cases/any_logical.lx`.
 - **Campo `Any`/união no backend** ([#196](https://github.com/loxia-lang/loxia/issues/196)):
   o layout do campo passa a vir da anotação, não do tipo do inicializador. `var x: Any = 1`
   deixava de ser `Any`: o campo virava um slot `Int`, o checker publicava `Any` e aceitava

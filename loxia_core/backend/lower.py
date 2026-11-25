@@ -42,6 +42,7 @@ from loxia_core.backend.lower_model import (
     _INT,
     _OPERAND_MESSAGES,
     _VOID,
+    ANY_TAG_NIL,
     NUMERIC,
     BackendError,
     Binding,
@@ -1398,6 +1399,10 @@ class Lowerer(
 
     def _coalesce(self, expr: Logical) -> Value:
         left = self._expr(expr.left)
+        if left.ty is ValueType.ANY:
+            # `Any` carrega o próprio nil na tag: a otimização "não-opcional logo
+            # não-nil" não vale e o lado direito não é morto.
+            return self._coalesce_any(left, expr)
         if not left.optional:
             # Um valor não-nil é sempre não-nil: o lado direito é morto.
             if left.ty is not ValueType.NIL:
@@ -1461,10 +1466,17 @@ class Lowerer(
         some = llvm_ir.append_block(self._function_ir, "coalesce.some")
         nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
         end = llvm_ir.append_block(self._function_ir, "coalesce.end")
-        self.builder.cbranch(self._optional_tag(left), some, nothing)
+
+        if left.ty is ValueType.ANY:
+            tag = self.builder.extract_value(left.llvm, 0)
+            present = self.builder.icmp_signed("!=", tag, llvm_ir.constant(_INT, ANY_TAG_NIL))
+            some_value = left
+        else:
+            present = self._optional_tag(left)
+            some_value = self._box_value(self._optional_payload(left), expr.operator.line)
+        self.builder.cbranch(present, some, nothing)
 
         self.builder = llvm_ir.builder(some)
-        some_value = self._box_value(self._optional_payload(left), expr.operator.line)
         self.builder.branch(end)
         some_end = self.builder.block
 
@@ -1515,7 +1527,12 @@ class Lowerer(
         right = self._expr(expr.right)
 
         common: TypeDesc | None
-        if left.optional:
+        if left.ty is ValueType.ANY:
+            # O checker tipa o resultado como `Any`; encaixa o direito e funde dois
+            # agregados (o esquerdo já é `{tag, payload}`).
+            right = self._box_value(right, expr.operator.line)
+            common = TypeDesc(ValueType.ANY)
+        elif left.optional:
             common = left.desc
             inner = TypeDesc(left.ty, left.sig, False, left.class_name, left.interface_name)
             if not self._compatible(right.desc, inner):

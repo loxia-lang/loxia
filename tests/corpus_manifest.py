@@ -62,6 +62,8 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/bytes/bytes_truthy.lx",
         "tests/cases/any_box.lx",
         "tests/cases/any_casts.lx",
+        "tests/cases/any_coalesce_nil.lx",
+        "tests/cases/any_logical.lx",
         "tests/cases/bitwise.lx",
         "tests/cases/for_in_capture.lx",
         "tests/cases/char_code_at_bounds.lx",
