@@ -331,12 +331,12 @@ class SourceIndex:
         return self._merge(extents)
 
     def at(self, offset: int, *, file: str | None = None) -> NodeSpan | None:
-        self._build()
         """Menor expressão que contém `offset` (half-open).
 
         Com `file`, restringe aos spans daquele arquivo: o índice carrega os módulos
         do loader, e o offset local não pode ser resolvido pelo texto de outro módulo.
         """
+        self._build()
         found = [
             span
             for span in self.spans

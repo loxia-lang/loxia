@@ -170,6 +170,9 @@ def _build_workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
     declarations: dict[str, tuple[Path, Token]] = {}
     # `_token_file` faz `resolve()`/`exists()`; o mesmo arquivo aparece em cada token.
     resolved_files: dict[tuple[str, str], Path] = {}
+    # O texto do workspace pode vir de buffers não salvos: o loader precisa ver o
+    # mesmo texto que o `files` para os offsets do módulo importado baterem.
+    overrides = {path.resolve(): text for path, text in files.items()}
 
     def token_file(item: Token, fallback: Path) -> Path:
         key = (item.file, str(fallback))
@@ -186,7 +189,7 @@ def _build_workspace(root: Path, files: dict[Path, str]) -> _Workspace | str:
             return f"Can't rename across files: parse error in {path.name}."
         lox = Loxia(error_format="json", color="never", max_errors=0)
         lox.use_file(display_path(str(path)), module_root=root)
-        lox.check(text, emit=False)
+        lox.check(text, emit=False, module_overrides=overrides)
         merged = lox.last_statements
         if merged is None:
             return f"Can't rename across files: parse error in {path.name}."
