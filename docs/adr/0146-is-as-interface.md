@@ -57,6 +57,11 @@ para responder "esta instância implementa `I`?" já existia; faltava expô-lo a
    (canônico e exibição) e `implements_interface` aceita ambos. A normalização
    `ClassTy→InterfaceTy` é recursiva em `List`/`Map`/tupla/união, então `is List[I]` e
    `is Map[K, I]` funcionam.
+8. **`??` em união de não-escalares:** o checker usa o tipo comum entre o lado não-nulo e
+   o direito (`I | Nil ?? C` → `I`; `C? ?? D` → `C` com `D` subclasse) e o lowering preserva
+   `interface_name` no phi; sem isso o backend recusava a união (`E4001`) e o uso direto
+   perdia o despacho de interface (#221). Diagnósticos de tipos importados mostram o nome
+   local (último segmento do nome canônico, #222).
 
 ## Consequências
 
@@ -100,6 +105,9 @@ para responder "esta instância implementa `I`?" já existia; faltava expô-lo a
   `is` falso.
 - `tests/test_modules.py::test_interface_importada_is_as_nos_dois_motores`: interface
   importada, `is`/`as` e paridade tree-walk × binário.
+- `tests/cases/interface_union_optional.lx` (l6, diferencial): `I | Nil ?? C`,
+  `List[Int] | Nil ?? [..]` e o uso direto do resultado; `test_modules` cobre o diagnóstico
+  de tipo importado (`Can't cast value to Named.`).
 - `tests/cases/errors/any_interface_cast.lx` (l6, diferencial): `Any` com `Int` → `as I`
   falha em runtime com a mesma mensagem/exit nos dois motores.
 - `tests/cases/errors/interface_cast_static.lx`: classe que não implementa → erro de checker.
