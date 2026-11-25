@@ -98,8 +98,11 @@ The interpreter has no runtime dependencies. The native backend is opt-in: `--em
 development headers (`libgc-dev` on Debian/Ubuntu, `brew install bdw-gc` on macOS).
 
 Linux x86_64 is the supported platform for the native backend. The non-backend suite runs
-on macOS (blocking) and Windows (experimental; known platform failures); the native
-backend is not promised there.
+on Linux (blocking) and Windows (experimental; known platform failures); macOS is not in
+the CI matrix — `macos-latest` was frequently unavailable and its failure blocked the
+required `CI success` job. macOS builds are still supported, but regressions there are
+caught locally (`make test-fast`), not in CI. The native backend is not promised outside
+Linux.
 
 ## Quick start
 
