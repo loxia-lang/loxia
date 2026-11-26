@@ -958,8 +958,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _storage_object_type(self, expr: Expr) -> Ty | None:
         """Tipo declarado da expressão-base, mesmo quando o nó foi estreitado.
 
-        `visit_get_expr`/`visit_index_expr` no caminho estreitado não inferem o
-        objeto; para a representação usamos a declaração da raiz."""
+        `visit_get_expr` no caminho estreitado não infere o objeto; para a
+        representação usamos a declaração da raiz. `visit_index_expr` publica o
+        receptor e o índice porque o backend precisa do tipo do mapa/lista para
+        baixar a leitura (issue #236)."""
         known = self.types.get(expr) or self.storage_types.get(expr)
         if known is not None:
             return non_nil(known)
@@ -5125,7 +5127,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         key = self._refinement_path(expr)
         narrowed = self._narrowed_at(key) if key is not None else None
         if narrowed is not None:
+            # O caminho estreitado devolve o valor refinado sem visitar o receptor; o
+            # backend precisa do tipo do mapa/lista para baixar e desembrulhar o índice
+            # (issue #236). Publicar o operando também mantém `storage_types` coerente.
+            self._infer(expr.object)
+            self._infer(expr.index)
             self.types[expr] = narrowed
+            self.storage_types[expr] = self._storage_type(expr, narrowed)
             return narrowed
 
         obj = self._infer(expr.object)

@@ -1,6 +1,9 @@
 # ADR-0113 — Protocolo stdio em três módulos: `std.jsonrpc`, `std.framing` e `std.documents`
 
-> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo de tipo `Any` passou a ser suportado; a restrição registrada abaixo é histórica. Guardar `error.data` fica como follow-up da stdlib.
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo de tipo `Any` passou a ser
+> suportado pelo backend. Na issue [#215](https://github.com/loxia-lang/loxia/issues/215) o
+> `RpcFailure` ganhou `data: Any` e `errorOf` devolve a falha tipada; a restrição registrada
+> abaixo é histórica.
 
 - **Status:** accepted (implementado em 2026-11-19)
 - **Data:** 2026-11-19
@@ -39,14 +42,16 @@ A análise mostrou três coisas que a issue tratava como uma:
 3. **`DocumentStore`** é estrutura de dados: URI opaca, texto e versão. Não precisa de JSON
    nem de I/O, e é reusável por qualquer ferramenta de editor.
 
-Duas restrições do compilador moldaram a API, verificadas no checker e no backend:
+Três restrições do compilador moldaram a API, verificadas no checker e no backend:
 
 - `Result[Any, E]` não é construível: `E3011` recusa instanciar a variável de tipo com
   `Any`, mesmo com tipo esperado. Daí `JsonResult` em `std.json` e `Result` com `T`
   concreto nos outros módulos.
-- Campo de tipo `Any` é recusado pelo backend (`E4001`). As mensagens são
-  `Map[String, Any]` + accessors; `RpcFailure`/`FrameFailure`/`DocumentError` só têm
-  campos `Int`/`String`.
+- Campo de tipo `Any` era recusado pelo backend (`E4001`). As mensagens continuam
+  `Map[String, Any]` + accessors; `FrameFailure`/`DocumentError` seguem só com campos
+  `Int`/`String`, e `RpcFailure` passou a guardar `data: Any` quando o campo entrou
+  ([ADR-0145](0145-campo-any-slot-largo.md), issue
+  [#215](https://github.com/loxia-lang/loxia/issues/215)).
 - O backend quebrava em `Result[Nil, E]` que casasse um payload `Nil` (E4002, violação da
   I4). O bug foi corrigido com caso de regressão `tests/cases/result_nil.lx`.
 
@@ -82,24 +87,25 @@ verdade.
 **`std.jsonrpc`** — envelopes, sem I/O:
 
 ```lox
-class RpcFailure { val code: Int; val message: String }
+class RpcFailure { val code: Int; val message: String; val data: Any }
 fn decode(text: String) -> Result[Map[String, Any], RpcFailure]
 fn encode(message: Map[String, Any]) -> String
 fn request(id: Any, method: String, params: Any = nil) -> Map[String, Any]
 fn notification(method: String, params: Any = nil) -> Map[String, Any]
 fn success(id: Any, result: Any = nil) -> Map[String, Any]
-fn failure(id: Any, code: Int, message: String) -> Map[String, Any]
+fn failure(id: Any, code: Int, message: String, data: Any = nil) -> Map[String, Any]
 fn isRequest/isNotification/isResponse/hasId(message) -> Bool
 fn idOf(message) -> Any
 fn methodOf(message) -> String?
-fn errorOf(message) -> Map[String, Any]?
+fn errorOf(message) -> RpcFailure?
 ```
 
 Os builders não validam; `decode` é a fonte da validação. Regras: `jsonrpc == "2.0"`;
 request tem `method` e `id` (`Int` ou `String`,
 nunca `Float`/`null`); notification não tem `id`; resposta tem exatamente um de
 `result`/`error` e `id` (`Int`, `String` ou `nil`); `params` é array ou objeto; `error` tem
-`code: Int` e `message: String`; batch (array no topo) é recusado com `-32600`, porque LSP
+`code: Int`, `message: String` e `data` opcional (qualquer valor JSON, exposto como
+`RpcFailure.data`); batch (array no topo) é recusado com `-32600`, porque LSP
 não usa. Códigos: `-32700` parse, `-32600` invalid request, `-32601` method not found,
 `-32602` invalid params, `-32603` internal.
 
@@ -174,7 +180,10 @@ deva exigir.
   quando houver consumidor em Loxia.
 - `Result[Nil, E]` continua evitado por precaução, embora o lowering já aceite; o store usa
   `Bool` de sucesso.
-- `std.jsonrpc` não preserva `error.data` tipado: `RpcFailure` só carrega código e mensagem.
+- `RpcFailure.data` é `Any`: quem consome precisa estreitar com `is`/`as` antes de usar
+  ([ADR-0144](0144-any-dinamico-exige-estreitamento.md)); o builder omite `data` quando é
+  `nil`, então `data: null` explícito não é representável, e o accessor devolve o mesmo
+  `nil` para ausência e para `null`.
 - O harness de transcrição cobre o oráculo com stdin real; o adaptador no binário é coberto
   pelo teste de kernel existente e pelos goldens, não por um transcript nativo próprio.
 
@@ -206,7 +215,7 @@ deva exigir.
   `std_documents` e `std_json`.
 - `uv run pytest tests/test_protocol_lox.py` — transcrição com stdin binário real.
 - `uv run pytest -m backend -k "jsonrpc or framing or documents or result_nil"` — paridade
-  byte a byte nos dois motores.
+  byte a byte nos dois motores, incluindo `std_jsonrpc_data.lx` (campo `Any` em `L6`).
 - `make stdlib-docs` e `make docs-index` — páginas geradas.
 - `make check` — ruff, mypy, suíte e frescor de docs.
 

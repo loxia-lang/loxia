@@ -102,7 +102,9 @@ efeitos/aliasing fica em [#216](https://github.com/loxia-lang/loxia/issues/216).
 - `E3025` é código novo e estável; `docs/spec/erros.md` é gerado por `make codes`.
 - As limitações de `std.jsonrpc` ([ADR-0113](0113-protocolo-stdio-jsonrpc-framing-documents.md))
   e de `expect` ([ADR-0096](0096-testes-biblioteca-e-runner.md)) deixam de ser técnicas; a
-  migração da stdlib fica para issues de follow-up.
+  migração da stdlib foi concluída na issue
+  [#215](https://github.com/loxia-lang/loxia/issues/215) (`RpcFailure.data` e `Expectation`
+  com `Any`).
 - O pré-requisito de self-hosting do [ADR-0087](0087-heap-cap-e-self-hosting.md) (classe
   recursiva) não muda; o campo `Any` sai da lista no ADR-0145.
 
@@ -120,6 +122,9 @@ efeitos/aliasing fica em [#216](https://github.com/loxia-lang/loxia/issues/216).
 
 - `tests/cases/any_narrowing.lx` (diferencial l6): membro, escrita, índice, `List`, `Map`,
   tupla e `len` depois de `is`/`as`, com stdout igual nos dois canais.
+- `tests/cases/narrowed_index.lx` (diferencial l6): leitura de índice de `Map`, `List` e
+  `Map` aninhado depois de estreitar o mesmo caminho (issue
+  [#236](https://github.com/loxia-lang/loxia/issues/236)).
 - `tests/cases/errors/any_{member,set,call,index}.lx` (`COMPILE_ERRORS`): os quatro `E3025`.
 - `tests/test_backend.py::test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering` varre o
   corpus e exige que a única recusa de um check limpo seja a lacuna declarada.

@@ -1197,7 +1197,8 @@ with fixed input.
   because a module does not accept top-level `var`) with `describe`, `it` (runs immediately),
   `beforeEach`/`afterEach` (scoped to `describe`; outer→inner `before`,
   inner→outer `after`, even on failure), `skip`, `report` (TAP + 0/1) and `done`
-  (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`), `expectGt/Ge/Lt/Le`
+  (`os.exit(report())`); matchers `expect` (`toBe`/`notToBe`, accepting any value including a
+  dynamically typed `Any`), `expectGt/Ge/Lt/Le`
   (`T: Ord`), `expectNil`/`expectNotNil`, `expectList`/`toContain`,
   `expectString`/`contains`, `expectRaise`; `TestFailure`/`Skip` and `Recorder`. No
   reflection/registry; `--filter=`/`--only=` and `--list` (only prints `# test <name>`) come

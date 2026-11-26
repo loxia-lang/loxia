@@ -127,7 +127,7 @@ T_OPTIONAL: dict[str, dict[str, str]] = {
     "io": {"readLine": "shell", "prompt": "shell"},
     "iter": {"find": "shell"},
     "json": {"error": "shell"},
-    "jsonrpc": {"methodOf": "shell", "errorOf": "shell"},
+    "jsonrpc": {"methodOf": "shell", "errorOf": "shell", "_typedError": "private"},
     "lists": {
         "first": "shell",
         "last": "shell",

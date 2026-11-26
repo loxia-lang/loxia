@@ -74,8 +74,9 @@ mantém exatamente o struct e o tamanho anteriores. O descritor de classe contin
 - Campo `Any`/união funciona nos dois motores: leitura/escrita, `is`/`as`, igualdade, `??`,
   `print`/`str`/interpolação, containers, instância, enum e função como payload, herança nos
   dois sentidos, `Box[Any]` e classe local — tudo no corpus diferencial (`L6`).
-- Some a última justificativa técnica das limitações de `std.jsonrpc`/`expect`; a migração da
-  stdlib fica para issues de follow-up.
+- Some a última justificativa técnica das limitações de `std.jsonrpc`/`expect`; a migração
+  da stdlib foi feita na issue [#215](https://github.com/loxia-lang/loxia/issues/215)
+  (`RpcFailure.data` e `Expectation` com `Any`).
 - O pré-requisito de self-hosting "campo `Any`" do [ADR-0087](0087-heap-cap-e-self-hosting.md)
   sai da lista; classe recursiva continua sendo pré-requisito separado.
 - Zero alocação por escrita: `+8 B` por campo `Any` na instância e dois `load`/`store` por
@@ -118,6 +119,9 @@ mantém exatamente o struct e o tamanho anteriores. O descritor de classe contin
   nos dois sentidos, `Box[Any]`, `val Any` no `init`, classe local e laço com três campos
   `Any`.
 - `tests/cases/errors/any_field_member.lx`: `c.x.m()` continua `E3025`.
+- `tests/cases/std_jsonrpc_data.lx` e `tests/cases/std_test_any.lx` (diferencial l6): o campo
+  `Any` da stdlib nos dois motores — `RpcFailure.data` (mapa/lista/escalar/`nil`, accessor
+  tipado e builder) e `expect` com valor dinâmico.
 - `tests/test_backend.py::test_campo_anotado_decide_o_layout_nao_o_inicializador` (união) e
   `test_promocao_int_para_float_em_campo_e_recusada_pelos_dois` (anotação manda, sem `E4002`).
 - A varredura de I4 (`test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering`) inclui os
