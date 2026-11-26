@@ -3,6 +3,9 @@
 Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 [`docs/decisoes.md`](docs/decisoes.md).
 
+### Adicionado
+- **Valores de função com assinatura em runtime** ([ADR-0147](docs/adr/0147-valores-de-funcao-assinatura-runtime.md)): `is fn(D) -> R`/`as fn(D) -> R` comparam a assinatura real do closure com a alvo (aridade, variádico, parâmetros/retorno) pela subtipagem do checker **e** por representação de máquina igual (ABI-compatible); `fn(Any) -> Int` não passa como `fn(Int) -> Int`, `fn(I) -> Int` passa como `fn(C) -> Int`. `if (x is fn(...))` estreita; falha em runtime é `R1011` nos dois motores; chamadas estáticas sem custo. Caso diferencial `fn_any.lx` (funções, bound methods, defaults, classes/interfaces, tipos de função aninhados e opcionais) e teste unitário de cast estático incompatível. Valores nativos, objetos de classe (#219) e funções genéricas ficam fora. `??` de função opcional presente funciona (#225); nil explícito em variável global de função opcional é o [#226](https://github.com/loxia-lang/loxia/issues/226).
+
 ## [Unreleased]
 
 ### Mudado (quebra)

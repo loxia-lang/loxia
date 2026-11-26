@@ -21,6 +21,7 @@ from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.execution.bytes_api import BYTES_METHODS, BYTES_STATICS
 from loxia_core.execution.prelude import BUILTIN_NAMES
 from loxia_core.execution.primitives import PRIMITIVES
+from loxia_core.execution.type_test import same_rep
 from loxia_core.frontend.destructuring import (
     DestructurePattern,
     NamePattern,
@@ -214,6 +215,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._current_return: Ty | None = None
         self._in_initializer = False
         self._signatures: dict[Function, FunctionSignature] = {}
+        self.function_types: dict[Function | Lambda, FnTy] = {}
         self._predeclared_by_name: dict[str, FunctionSignature] = {}
         self._type_param_scopes: list[dict[str, TyVar]] = []
         self._next_type_var_id = 0
@@ -481,6 +483,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 for method in statement.methods:
                     is_init = method.name.lexeme == "init"
                     signature = self._signature(method, is_init=is_init, allow_type_params=False).fn
+                    self.function_types[method] = signature
                     if signature.ret is ERROR or any(param is ERROR for param in signature.params):
                         # A assinatura depende de um tipo declarado depois (enum/alias):
                         # não pré-declara; o uso antes da classe é recusado (conservador).
@@ -1324,6 +1327,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
     def _assignable_fn(self, expected: FnTy, actual: FnTy) -> bool:
         return self._types.assignable_fn(expected, actual)
 
+    def assignable_fn(self, expected: FnTy, actual: FnTy) -> bool:
+        """Relação de função exposta ao tree-walk (ADR-0147)."""
+        return self._types.assignable_fn(expected, actual)
+
     def _unify(self, expected: Ty, actual: Ty, bindings: dict[TyVar, Ty], token: Token) -> bool:
         return self._types.unify(expected, actual, bindings, token)
 
@@ -1543,6 +1550,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                 continue
 
             signature = self._signature(method, is_init=False, allow_type_params=False).fn
+            self.function_types[method] = signature
             info.methods[method_name] = signature
             info.method_tokens[method_name] = method.name
             info.defaults[method_name] = not method.abstract
@@ -1710,6 +1718,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
                         code=Code.INVALID_OVERRIDE,
                     )
                 signature = self._signature(method, is_init=is_init, allow_type_params=False).fn
+                self.function_types[method] = signature
                 if is_init:
                     info.init = signature
                 else:
@@ -2181,6 +2190,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         if signature is None:
             signature = self._signature(stmt, is_init=False)
 
+        if not signature.type_params:
+            self.function_types[stmt] = signature.fn
         self._define(stmt.name, self._function_value_type(stmt.name.lexeme, signature))
         self._check_function_body(
             stmt,
@@ -2434,7 +2445,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         return collected
 
     def visit_lambda_expr(self, expr: Lambda) -> Ty:
-        return self._lambda_type(expr, None)
+        result = self._lambda_type(expr, None)
+        if isinstance(result, FnTy) and not self._has_any_type_var(result):
+            self.function_types[expr] = result
+        return result
 
     def visit_is_expr(self, expr: Is) -> Ty:
         test_type = self._resolve_type(expr.test_type, expr.operator)
@@ -2469,6 +2483,18 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             return ANY
         if source is ANY or source is target:
             return target
+        if isinstance(target, FnTy):
+            if isinstance(source, FnTy):
+                if self._assignable_fn(target, source) and same_rep(target, source):
+                    return target
+            elif isinstance(source, (UnionTy, TyVar)):
+                return target
+            self._error(
+                expr.operator,
+                f"Can't cast {display(source)} to {display(target)}.",
+                code=Code.INVALID_CAST,
+            )
+            return ERROR
         if isinstance(target, InterfaceTy):
             if isinstance(source, InterfaceTy):
                 return target
@@ -2522,6 +2548,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             # `x as T` é o cast dinâmico explícito de `Any` para um parâmetro
             # de tipo; a monomorfização resolve T para um tipo concreto.
             return
+        if isinstance(ty, FnTy):
+            for param in ty.params:
+                self._validate_is_type(param, token)
+            self._validate_is_type(ty.ret, token)
+            return
         if isinstance(ty, InterfaceTy):
             return
         if ty in (NIL, BOOL, INT, FLOAT, STRING, BYTES, RANGE):
@@ -2563,6 +2594,11 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
     def _validate_is_type(self, ty: Ty, token: Token) -> None:
         if ty is ERROR or ty is ANY or ty is NEVER:
+            return
+        if isinstance(ty, FnTy):
+            for param in ty.params:
+                self._validate_is_type(param, token)
+            self._validate_is_type(ty.ret, token)
             return
         if isinstance(ty, InterfaceTy):
             return

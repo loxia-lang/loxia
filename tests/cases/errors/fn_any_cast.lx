@@ -1,0 +1,2 @@
+val a: Any = 1
+print(a as fn(Int) -> Int) # expect runtime error: Can't cast value to fn(Int) -> Int.

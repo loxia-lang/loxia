@@ -102,14 +102,28 @@ typedef struct {
 } LoxFrame;
 
 /*
- * L4 closure (ADR-0046): `{ fnptr, env, display }`. The IR allocates through the
- * wrappers; `display` is a deterministic C string (`<fn f>`/`<lambda>`), never an
- * address.
+ * L4 closure (ADR-0046/0147): `{ fnptr, env, display, min_arity, max_arity,
+ * signature }`. The first three fields are the original L4 prefix; the
+ * signature is a static `LoxFnSig` used by `is`/`as fn`.
  */
+struct LoxTypeDesc;
+
+typedef struct LoxFnSig {
+    int64_t min_arity;
+    int64_t max_arity;
+    int64_t variadic;
+    int64_t n_params;
+    struct LoxTypeDesc **params;
+    struct LoxTypeDesc *ret;
+} LoxFnSig;
+
 typedef struct {
     void *fn;
     void *env;
     const char *display;
+    int64_t min_arity;
+    int64_t max_arity;
+    LoxFnSig *signature;
 } LoxClosure;
 
 /* Mirrored layout of `_CLASS_DESC`/`_INTERFACE_ENTRY` (ADR-0080, phase B2). */
@@ -217,6 +231,7 @@ typedef struct LoxTypeDesc {
     struct LoxTypeDesc *b;
     int64_t count;
     struct LoxTypeDesc *items;
+    struct LoxFnSig *sig;
 } LoxTypeDesc;
 
 typedef struct LoxTypeCache {
@@ -224,6 +239,12 @@ typedef struct LoxTypeCache {
     LoxTypeDesc *desc;
     struct LoxTypeCache *next;
 } LoxTypeCache;
+
+/* ADR-0147: function signatures and type-to-type assignability. */
+extern int lox_type_assignable(const LoxTypeDesc *expected, const LoxTypeDesc *actual);
+extern int lox_fn_assignable(const LoxFnSig *actual, const LoxFnSig *target);
+extern LoxFnSig *lox_fn_sig_cached(const char *text);
+extern void lox_register_class(void *descriptor);
 
 /* L6 exceptions: try frames, throw and minimal cleanup (ADR-0062). */
 typedef struct {

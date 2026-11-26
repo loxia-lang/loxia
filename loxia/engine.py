@@ -375,6 +375,7 @@ class Loxia:
         finally:
             self.reporter.defer_lowerable = False
         self.last_checker = checker
+        self._publish_checker(checker)
         if not self.reporter.had_fatal_error:
             self.reporter.release_deferred()
 
@@ -524,6 +525,11 @@ class Loxia:
             )
             checker.check(statements)
             self.last_checker = checker
+            self._publish_checker(checker)
+
+    def _publish_checker(self, checker: Checker) -> None:
+        self.interpreter.function_types = checker.function_types
+        self.interpreter.set_fn_assignable(checker.assignable_fn)
 
     def _typed_expressions(self, source: str) -> list[dict[str, object]]:
         checker = self.last_checker

@@ -130,8 +130,12 @@ class TypeOps:
             if isinstance(actual, InterfaceTy):
                 return expected.name == actual.name
             if isinstance(actual, ClassTy):
-                return self._decls.implements_interface(actual.name, expected.name)
+                return expected.name == actual.name or self._decls.implements_interface(
+                    actual.name, expected.name
+                )
             return False
+        if isinstance(expected, ClassTy) and isinstance(actual, InterfaceTy):
+            return expected.name == actual.name
         if isinstance(expected, EnumTy) and isinstance(actual, EnumTy):
             return expected.name == actual.name and expected.args == actual.args
 
@@ -449,6 +453,8 @@ class TypeOps:
             return any(self.is_test_subtype(actual, member) for member in expected.members)
         if isinstance(actual, UnionTy):
             return all(self.is_test_subtype(member, expected) for member in actual.members)
+        if isinstance(actual, FnTy) and isinstance(expected, FnTy):
+            return self.assignable_fn(expected, actual)
         if isinstance(actual, ClassTy) and isinstance(expected, ClassTy):
             if expected.args or actual.args:
                 return actual.name == expected.name and actual.args == expected.args

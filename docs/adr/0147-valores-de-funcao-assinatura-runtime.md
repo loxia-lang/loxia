@@ -68,21 +68,22 @@ reificado em cada valor para checar parâmetros/retorno em runtime.
    - `as` devolve o próprio closure (com a assinatura **real**, não a alvo) ou falha em
      runtime (`R1011: Can't cast value to fn(...)`) nos dois motores;
    - quando o tipo estático da origem já é um `FnTy` (ou `Never`), o checker decide
-     estaticamente com `assignable_fn`: compatível → sem checagem de ABI em runtime (o
-     backend conhece a assinatura real e coage os argumentos/retorno); incompatível →
-     `E3013` na hora do cast. De `Any`/união/`TyVar` a checagem é em runtime;
+     estaticamente com `assignable_fn` **e** a mesma checagem de ABI (parâmetro/retorno):
+     compatível → sem checagem em runtime; incompatível → `E3013` na hora do cast. De
+     `Any`/união/`TyVar` a checagem é em runtime. A atribuição comum (sem `as`) segue a
+     regra estática do backend, que conhece o callee e coage na chamada;
    - `as`/`is` **não** aceitam nativo (valor nativo no backend já é `E4001`) nem objeto de
      classe (tag `CLASS`; construção dinâmica é o [#219](https://github.com/loxia-lang/loxia/issues/219));
    - o alvo `fn` é validado recursivamente (`_validate_is_type`/`_validate_as_target`);
      `fn` com `TyVar` (função genérica) **não é valor** e o cast dinâmico é recusado com
      mensagem declarada.
 
-3b. **ABI-compatible subtyping (regra do cast dinâmico).** A variância estática pode ser
-mais liberal porque o backend conhece o callee real e coage (`Int → Any` na chamada);
-no cast dinâmico o código gerado para o alvo usa a representação **do alvo**, e a assinatura
-real só existe no `LoxFnSig` do closure. Aceitar `fn(Any) -> Int` como `fn(Int) -> Int`
-passaria `i64` para um parâmetro de 2 palavras (`Any`) — UB. Portanto o `is`/`as` dinâmico
-exige, por parâmetro e pelo retorno:
+3b. **ABI-compatible subtyping (regra do cast).** Em uma **atribuição** comum o backend
+conhece o callee real e coage (`Int → Any` na chamada), então a variância pode ser mais
+liberal; no **cast** (`as`, estático ou dinâmico) o código gerado para o alvo usa a
+representação **do alvo**, e a assinatura real só existe no `LoxFnSig` do closure. Aceitar
+`fn(Any) -> Int` como `fn(Int) -> Int` passaria `i64` para um parâmetro de 2 palavras
+(`Any`) — UB. Portanto o `is`/`as` exige, por parâmetro e pelo retorno:
 
 - `lox_type_assignable(alvo, real)` — a mesma subtipagem do checker; **e**
 - `lox_rep_equal(alvo, real)` — mesma representação de máquina (`Any` 2 palavras; escalar

@@ -88,7 +88,7 @@ class OptionalLowering(LoweringBase):
         if isinstance(ty, TupleTy):
             return TypeDesc(ValueType.TUPLE)
         if isinstance(ty, EnumTy):
-            return TypeDesc(ValueType.ENUM)
+            return TypeDesc(ValueType.ENUM, class_name=ty.name)
         if isinstance(ty, TyVar):
             mapped = self._type_subst.get(ty.name)
             if mapped is None:
@@ -123,7 +123,7 @@ class OptionalLowering(LoweringBase):
             if ty.name in self._interface_ids:
                 return TypeDesc(ValueType.INSTANCE, interface_name=ty.name)
             if ty.name in self._enum_layouts:
-                return TypeDesc(ValueType.ENUM)
+                return TypeDesc(ValueType.ENUM, class_name=ty.name)
             if ty.name in self._type_subst:
                 return self._type_desc(self._type_subst[ty.name], line)
             if ty.args:

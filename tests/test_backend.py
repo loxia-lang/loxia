@@ -1185,6 +1185,9 @@ def test_abi_das_estruturas_publicas_e_estavel() -> None:
         "i8*",
         "i8*",
         "i8*",
+        "i64",
+        "i64",
+        "i8*",
     ]
     assert [str(element) for element in _CLASS_DESC.elements] == [
         "i8*",

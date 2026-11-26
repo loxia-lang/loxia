@@ -43,10 +43,62 @@ from loxia_core.frontend.ty import (
 )
 
 
+def _rep_code(ty: Ty) -> int:
+    """Representação de máquina (ADR-0147); espelha o runtime C."""
+    if ty is ANY:
+        return 0
+    if ty is INT:
+        return 1
+    if ty is FLOAT:
+        return 2
+    if ty is BOOL:
+        return 3
+    if ty is NIL:
+        return 4
+    pointer_types = (ListTy, MapTy, TupleTy, ClassTy, InterfaceTy, EnumTy, FnTy)
+    if isinstance(ty, pointer_types) or ty in (STRING, BYTES, RANGE):
+        return 5
+    if isinstance(ty, UnionTy):
+        if len(ty.members) == 2:
+            nil = [member for member in ty.members if member is NIL]
+            other = [member for member in ty.members if member is not NIL]
+            if nil and len(other) == 1:
+                payload = other[0]
+                if payload in (INT, FLOAT, BOOL):
+                    return 100 + _rep_code(payload)
+                if isinstance(payload, pointer_types) or payload in (STRING, BYTES, RANGE):
+                    return 5
+        return 0
+    return 0
+
+
+def _fn_abi_compatible(target: FnTy, actual: FnTy) -> bool:
+    if target.variadic != actual.variadic:
+        return False
+    count = len(target.params)
+    if actual.variadic:
+        if len(actual.params) != count:
+            return False
+    elif not actual.min_params <= count <= len(actual.params):
+        return False
+    for target_param, actual_param in zip(target.params, actual.params, strict=False):
+        if _rep_code(target_param) != _rep_code(actual_param):
+            return False
+    return _rep_code(target.ret) == _rep_code(actual.ret)
+
+
+def same_rep(left: Ty, right: Ty) -> bool:
+    if isinstance(left, FnTy) and isinstance(right, FnTy):
+        return _fn_abi_compatible(left, right)
+    return _rep_code(left) == _rep_code(right)
+
+
 def matches_type(
     value: object,
     ty: Ty,
     class_lookup: Callable[[str], LoxClass | None] | None = None,
+    fn_assignable: Callable[[FnTy, FnTy], bool] | None = None,
+    rep_equal: Callable[[Ty, Ty], bool] | None = None,
 ) -> bool:
     """Devolve se `value` satisfaz `ty` em runtime.
 
@@ -59,6 +111,15 @@ def matches_type(
         return True
     if ty is NEVER or ty is ERROR:
         return False
+    if isinstance(ty, FnTy):
+        actual = getattr(value, "fn_type", None)
+        return (
+            isinstance(actual, FnTy)
+            and fn_assignable is not None
+            and rep_equal is not None
+            and fn_assignable(ty, actual)
+            and rep_equal(ty, actual)
+        )
     if ty is NIL:
         return value is None
     if ty is BOOL:

@@ -13,7 +13,7 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**25 features**, **114 golden references** across **14 levels**.
+**25 features**, **115 golden references** across **14 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ golden case and, for backend features, one case in the differential corpus
 | **control_flow** — if/elif/while/for, ranges e for-in | [`if_else.lx`](../../tests/cases/if_else.lx), [`elif.lx`](../../tests/cases/elif.lx), [`while.lx`](../../tests/cases/while.lx), [`for.lx`](../../tests/cases/for.lx), [`for_in.lx`](../../tests/cases/for_in.lx), [`range_value.lx`](../../tests/cases/range_value.lx), [`range_inclusive.lx`](../../tests/cases/range_inclusive.lx) | `l2` |
 | **enums** — Enums, match e Result | [`enums.lx`](../../tests/cases/enums.lx), [`result.lx`](../../tests/cases/result.lx), [`result_nil.lx`](../../tests/cases/result_nil.lx), [`selfhost_ast_enum.lx`](../../tests/cases/selfhost_ast_enum.lx), [`selfhost_ast_generic_enum.lx`](../../tests/cases/selfhost_ast_generic_enum.lx) | `l6` |
 | **exceptions** — try/except/finally, raise e e.site | [`exceptions.lx`](../../tests/cases/exceptions.lx), [`exception_site.lx`](../../tests/cases/exception_site.lx), [`try_return_cleanup.lx`](../../tests/cases/try_return_cleanup.lx), [`stack_exception.lx`](../../tests/cases/stack_exception.lx) | `l6` |
-| **functions** — Funções, closures, lambdas, defaults e variádicos | [`functions.lx`](../../tests/cases/functions.lx), [`closures.lx`](../../tests/cases/closures.lx), [`function_values.lx`](../../tests/cases/function_values.lx), [`local_function.lx`](../../tests/cases/local_function.lx), [`default_params.lx`](../../tests/cases/default_params.lx), [`variadic.lx`](../../tests/cases/variadic.lx) | `l4` |
+| **functions** — Funções, closures, lambdas, defaults e variádicos | [`functions.lx`](../../tests/cases/functions.lx), [`closures.lx`](../../tests/cases/closures.lx), [`function_values.lx`](../../tests/cases/function_values.lx), [`local_function.lx`](../../tests/cases/local_function.lx), [`default_params.lx`](../../tests/cases/default_params.lx), [`variadic.lx`](../../tests/cases/variadic.lx), [`fn_any.lx`](../../tests/cases/fn_any.lx) | `l4` |
 | **generics** — Generics de funções/classes e constraints | [`generic_functions.lx`](../../tests/cases/generic_functions.lx), [`generic_class.lx`](../../tests/cases/generic_class.lx), [`generic_constraints.lx`](../../tests/cases/generic_constraints.lx), [`generics.lx`](../../tests/cases/generics.lx) | `t7` |
 | **interfaces** — Interfaces nominais e métodos default | [`any_interface.lx`](../../tests/cases/any_interface.lx), [`interface_union_optional.lx`](../../tests/cases/interface_union_optional.lx), [`interfaces.lx`](../../tests/cases/interfaces.lx), [`interface_decl.lx`](../../tests/cases/interface_decl.lx), [`selfhost_ast_interface.lx`](../../tests/cases/selfhost_ast_interface.lx) | `l6` |
 | **kernel** — Primitivas de kernel (io, strings) | [`kernel_io.lx`](../../tests/cases/kernel_io.lx), [`kernel_strings.lx`](../../tests/cases/kernel_strings.lx) | `k0` |
@@ -51,7 +51,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 7 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 109 |
+| `l6` | 111 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |

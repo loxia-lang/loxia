@@ -1865,9 +1865,7 @@ def test_is_narrows_any_to_list() -> None:
     assert lox.reporter.had_error is False
 
 
-def test_is_rejects_function_types(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_is_accepts_function_types() -> None:
     lox = check(
         """
         fn f(x: Any) -> Bool {
@@ -1875,10 +1873,36 @@ def test_is_rejects_function_types(
         }
         """
     )
+
+    assert lox.reporter.had_error is False
+
+
+def test_as_accepts_function_types_from_any() -> None:
+    lox = check(
+        """
+        fn dobro(x: Int) -> Int { return x * 2; }
+        val f: Any = dobro;
+        val g = f as fn(Int) -> Int;
+        print(g(2));
+        """
+    )
+
+    assert lox.reporter.had_error is False
+
+
+def test_as_rejects_incompatible_function_types(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        fn texto(x: String) -> String { return x; }
+        val g = texto as fn(Int) -> Int;
+        """
+    )
     captured = capsys.readouterr()
 
     assert lox.reporter.had_error is True
-    assert "is doesn't support this type yet." in captured.err
+    assert "Can't cast fn(String) -> String to fn(Int) -> Int." in captured.err
 
 
 def test_is_result_is_bool() -> None:
