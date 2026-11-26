@@ -30,10 +30,10 @@ repos:
 
       - id: pytest
         name: pytest (no native backend; pre-push)
-        # The backend builds a binary per case (~4 min) and is covered by CI on every
-        # push and pull request. `make check` still runs the full suite. The fast
-        # suite (no backend/install, xdist) takes ~15 s, but still runs on pre-push,
-        # not on every commit.
+        # The backend builds a binary per case and is covered by CI on every push and
+        # pull request; locally, `make test-backend` runs it with xdist (~40 s) and
+        # `make check` runs the full suite. The fast suite (no backend/install, xdist)
+        # takes ~15 s, but still runs on pre-push, not on every commit.
         entry: env UV_CACHE_DIR=.uv-cache uv run pytest -m "not backend and not install" -n auto -q
         language: system
         pass_filenames: false

@@ -8,13 +8,15 @@ TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
+.PHONY: help run test test-fast test-backend case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
 	@echo "make test                      pytest (suite completa)"
 	@echo "make test-fast                 pytest sem nativos/instalação, em paralelo (loop local)"
 	@echo "make test-fast TEST_JOBS=0     pytest sem paralelismo (depurar um caso)"
+	@echo "make test-backend              pytest só do backend nativo, em paralelo (loop local)"
+	@echo "make test-backend TEST_JOBS=0  backend em série (depurar um caso)"
 	@echo "make case                      runner golden, sem pytest"
 	@echo "make lint                      ruff"
 	@echo "make type                      mypy strict"
@@ -60,6 +62,9 @@ test:
 
 test-fast:
 	uv run pytest -m "not backend and not install" -n $(TEST_JOBS)
+
+test-backend:
+	uv run pytest -m backend -n $(TEST_JOBS)
 
 oracle:
 	uv run python tools/oracle_snapshot.py --check

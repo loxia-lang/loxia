@@ -12,6 +12,8 @@ whenToUse: Ao adicionar um teste, fazer a suíte passar, investigar uma falha ou
 make test                          # pytest (unit + golden)
 make test-fast                     # sem backend/install, xdist (~15-20 s)
 make test-fast TEST_JOBS=0         # serial (depurar um caso)
+make test-backend                  # só backend nativo, xdist (~40 s)
+make test-backend TEST_JOBS=0      # backend serial (depurar um caso)
 uv run pytest -k block             # subconjunto
 make case                          # runner golden sem pytest
 uv run python -m tests.runner for  # um caso (filtro por substring)

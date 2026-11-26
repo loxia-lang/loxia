@@ -100,6 +100,8 @@ de comando sobrescrever o `addopts`.
 ```bash
 make test-fast                 # ~15-20 s, ~1.8 mil testes
 make test-fast TEST_JOBS=0     # serial, para comparar
+make test-backend              # ~40 s, 472 testes do backend (`-n auto`)
+make test-backend TEST_JOBS=0  # backend serial, para comparar
 LOX_GOLDEN_SUBPROCESS=1 uv run pytest tests/test_golden.py -q
 uv run pytest tests/test_runner.py -q   # paridade fast × subprocesso
 ```
@@ -107,6 +109,19 @@ uv run pytest tests/test_runner.py -q   # paridade fast × subprocesso
 Critério para revisitar: se o modo in-process começar a divergir do subprocesso (paridade
 quebrada ou vazamento de estado entre casos), voltar o runner para subprocesso e manter só
 o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess`.
+
+## Emendas
+
+- **2026-11-26 — loop local do backend.** A decisão 3 continua valendo (`make test`,
+  `make check` e o CI seguem seriais), mas o mesmo recorte do `test-fast` ganhou uma porta
+  explícita: `make test-backend` roda `pytest -m backend -n $(TEST_JOBS)`
+  (`TEST_JOBS ?= auto`; `0` desliga). Cada caso do corpus já é um subprocesso com `tmp_path`
+  próprio e o cache do runtime é atômico; o CI já roda `-m backend` com xdist no job de
+  cobertura (`coverage-*`, `COVERAGE_JOBS`), então nada de contrato mudou. Medição nesta
+  máquina (16 cores, caches quentes, 472 testes): **172 s serial → 41 s com `-n auto`**
+  (~4,2×); `-n 8` dá 44 s — acima de 8 workers o ganho achata (link + I/O). O que a emenda
+  **não** resolve é o custo fixo por caso (~0,3 s, dominado por dois boots do Python e
+  imports) e a recompilação de todo caso a cada run; isso ficou nas issues de follow-up.
 
 ## Referências
 
