@@ -1,0 +1,9 @@
+# The entry runs after every top-level statement, including the ones after it.
+fn main() -> Result[Int, String] {
+  print("main")
+  return Result.Ok(0)
+}
+
+print("top")
+# expect: top
+# expect: main

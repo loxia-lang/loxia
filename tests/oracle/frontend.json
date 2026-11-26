@@ -92,6 +92,12 @@
     "tests/cases/default_params.lx": "2c32780b56fcea1a890e5088f671db380928bf3bb3631d41730826a7a6eb89c2",
     "tests/cases/defaults_as_value.lx": "0b58a99eb3a470e25519153246ecd810bd125ec9bb57433c969fa156aea38c2f",
     "tests/cases/elif.lx": "5c4a8a8729097680a4dfab49a128da769b5898c81b110fa4e1d5d3b666bd655f",
+    "tests/cases/entry_main_alias.lx": "3d70d8b9ad6a5d8bb87812d3aaa0a8fc93373154de994bbbf681198e0f3d4e87",
+    "tests/cases/entry_main_err.lx": "8dac11b961f2e0a59f8a33cd26feac0296b98cd1b6d5aa3ab4d71495920682b7",
+    "tests/cases/entry_main_nil.lx": "6e30a28f833f54d253c3f89e7b1940694c6f143dcfcf79f0d2da2d5f999c58fc",
+    "tests/cases/entry_main_ok.lx": "c1b9530ca0f9efbe3092af6640cdae44f796b157d15bea48de9c57d3a594a5d3",
+    "tests/cases/entry_main_order.lx": "cb9ae28c47d689e7dd01bd5c4621b72db6df73b9025df946f61660f4d0b58f52",
+    "tests/cases/entry_main_try.lx": "c1eab73bc64f8430f90d0c1448e66453dcc6440b3804ceafc8f2a8963330f3bc",
     "tests/cases/enums.lx": "921f4475de0d0c1870548fde3b37fbbc5d8d166c1bce8ea2e63bd14fe042d0f0",
     "tests/cases/equality.lx": "8746702bfac2a8d2d9270089d46ce06cfd2adc8383a0c6e3d923863c1e335408",
     "tests/cases/errors/any_call.lx": "f8092f1eed8a0527a4444c0d15b7c9d45002c660db855db3671e68c5824a37f6",
@@ -115,7 +121,12 @@
     "tests/cases/errors/division_by_zero.lx": "5e1ccdd0b860c4d2d1a5ffe70886fed1fa15056a7b5b62331f0a4c0df6ea158a",
     "tests/cases/errors/division_by_zero_int.lx": "310209b89a41434979fec2ca7bcffbafc6883f5f2124a6ca12d7e21fbc80d6f9",
     "tests/cases/errors/division_float_by_zero.lx": "e285cbc39ff6a8d0142088d175eaddf39f976ed6f4ebbda12a1a8d5342534cbd",
+    "tests/cases/errors/duplicate_function.lx": "87a814a00a08c9177b0610e7213cbd1f2d467d5aed4bc97bc29902ba5b9e4952",
     "tests/cases/errors/duplicate_parameter.lx": "db88e5242f982df2afa5511a52153c39a1d0c11b850db09bbc497999a75ffc9e",
+    "tests/cases/errors/entry_main_duplicate.lx": "35335bc79f342f8b8461173369e0b391138c64547acc1218f9cbb2954e231fa0",
+    "tests/cases/errors/entry_main_error_type.lx": "054beed43655a5dfe0fef9bfd5387acc5627478910beb040731642b11ce807fc",
+    "tests/cases/errors/entry_main_generic.lx": "ba0bcf0cff97e688c5484e791960e03dd4ec2b754ea4b5858709c53959671d98",
+    "tests/cases/errors/entry_main_params.lx": "c3ec9c938fdad70f586fcacc05495e07c9fc9191d3e815b01860ea6dbc2f6b68",
     "tests/cases/errors/field_immutable.lx": "0b1e4a3b36a901c906a77ad634f78604b31f73f7756532f602d635e712d925c2",
     "tests/cases/errors/field_inherit_redeclare.lx": "dbd848843a222e7b379a3681ecdbebd486f712f0dee4aacca6bdf6df18d900c6",
     "tests/cases/errors/field_redeclare.lx": "64691ce1d91b954e88bda82353600876b2a164104e6a63c2290fa19c87b372c6",
@@ -1065,6 +1076,26 @@
         }
       }
     ],
+    "tests/cases/errors/duplicate_function.lx": [
+      {
+        "code": "E3027",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 5,
+            "line": 5,
+            "offset": 34
+          },
+          "file": "tests/cases/errors/duplicate_function.lx",
+          "start": {
+            "column": 4,
+            "line": 5,
+            "offset": 33
+          }
+        }
+      }
+    ],
     "tests/cases/errors/duplicate_parameter.lx": [
       {
         "code": "E2001",
@@ -1101,6 +1132,86 @@
             "column": 1,
             "line": 1,
             "offset": 0
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/entry_main_duplicate.lx": [
+      {
+        "code": "E3027",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 5,
+            "offset": 67
+          },
+          "file": "tests/cases/errors/entry_main_duplicate.lx",
+          "start": {
+            "column": 4,
+            "line": 5,
+            "offset": 63
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/entry_main_error_type.lx": [
+      {
+        "code": "E3026",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/entry_main_error_type.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/entry_main_generic.lx": [
+      {
+        "code": "E3026",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/entry_main_generic.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/entry_main_params.lx": [
+      {
+        "code": "E3026",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 8,
+            "line": 1,
+            "offset": 7
+          },
+          "file": "tests/cases/errors/entry_main_params.lx",
+          "start": {
+            "column": 4,
+            "line": 1,
+            "offset": 3
           }
         }
       }
@@ -3531,6 +3642,12 @@
     "tests/cases/default_params.lx": "1eac014f12d617921c2459bf6dc9b7b15d84fc584786cf0e453b4f33766162f9",
     "tests/cases/defaults_as_value.lx": "964b300e29346d8654304366efc6159cf179a40e3ed3f7a974e73c3cb60ce272",
     "tests/cases/elif.lx": "69cd7a2f0ad511bdc12fda3f1d7438ac8c9b8c9bd8ae04fd8c6c3750d7dea257",
+    "tests/cases/entry_main_alias.lx": "4f18177e8f898f2715fd33c37b5a3792abed7669387c4a1d36ef4e4967404e7f",
+    "tests/cases/entry_main_err.lx": "6db835e638918da3a2f06929835ca0aca011069aff2c11ae300e7de02cbfe75c",
+    "tests/cases/entry_main_nil.lx": "e646bf31ff090d38247ade52c557ace6e7b143d8cf1a30c2a638c68d90244ba7",
+    "tests/cases/entry_main_ok.lx": "d69d2157335ec61364e5ec1d12aa10e32b7f011ed3c638be857add2ca0369b81",
+    "tests/cases/entry_main_order.lx": "7229280318714b3eacf8a6547c87e7d61eaefdb4974507cec674affa124d441b",
+    "tests/cases/entry_main_try.lx": "e21ec6493375edc97fb4c99d9134d67b4fcee533cd01bcc329b68e7643623338",
     "tests/cases/enums.lx": "5c88bfe42e059ffd28b90d09e4e33c9b2e0474bc74a8210d22671553e73bc59d",
     "tests/cases/equality.lx": "5cfe1da8c3fb1941dfd529a39b948e630a3624e5d9199dd6a7b4bf77690c258e",
     "tests/cases/errors/any_call.lx": "5d366141857d92244b1ce0b75d51190b1c1dc71ed3402e03da9c938f8b9df1b5",
@@ -3554,7 +3671,12 @@
     "tests/cases/errors/division_by_zero.lx": "eaf64d16c6c9a74ef92efe3800318eb8c2c9c3277a36c1a42c4f89dc514f1784",
     "tests/cases/errors/division_by_zero_int.lx": "ab6035124142e32ea4073df1d9c00ea5cb19385af769d61018a3ef5718847e25",
     "tests/cases/errors/division_float_by_zero.lx": "6ad85a45a7079e52f839a84163d71ed9b763bdd06b5928f63e12f4d3df860362",
+    "tests/cases/errors/duplicate_function.lx": "639bcfebf8f2279ce21bae555d232bb934563be922472503b53e2cfef41bc53b",
     "tests/cases/errors/duplicate_parameter.lx": "e26f7ffcd9571bffbe81013e3ffc5bf709f11d79edc14a78e0d3b51ee3e88395",
+    "tests/cases/errors/entry_main_duplicate.lx": "22d0dc4c17160b7a2654da0e043806a583b1801f99208f6f3b66a33ac0083580",
+    "tests/cases/errors/entry_main_error_type.lx": "1a0c902313323fa39e5d79eec2599e7a0cebe637321cd839e38430f90754829b",
+    "tests/cases/errors/entry_main_generic.lx": "6541228c36ea0f9fd01dfeade786df66443a267dc5052fb59722c0cc6ee7e5ca",
+    "tests/cases/errors/entry_main_params.lx": "6ddecccd9657c9833323a91942e6484d10922a9d2ccdb13785a181de5e75194f",
     "tests/cases/errors/field_immutable.lx": "25aacc933bf51c8f89c8fc8e8b94b1f2ad18e65a61ba461979c5584a7d82e9f6",
     "tests/cases/errors/field_inherit_redeclare.lx": "369c5d427f092d9e73310a440a42c58b4a794d0bcdb3f313b637897a2680bb9b",
     "tests/cases/errors/field_redeclare.lx": "4f0e8c14281573eea12effcf3b8066f3c5ccf2428b92d6bd279b4f026626bd13",

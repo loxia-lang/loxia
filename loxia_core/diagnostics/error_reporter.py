@@ -177,6 +177,22 @@ class ErrorReporter:
             )
         )
 
+    def entry_error(self, message: str) -> None:
+        """Borda do processo: `Err` devolvido pelo `main` (ADR-0148).
+
+        Sem posição e sem trace: a mensagem vem do valor, não de um token. Renderiza como
+        `error[R1016]: <msg>`, o mesmo formato do `Out of memory.` do runtime C.
+        """
+        self.had_runtime_error = True
+        self._diagnostics.append(
+            Diagnostic(
+                code=Code.UNHANDLED_RESULT,
+                phase=Phase.RUNTIME,
+                severity=Severity.ERROR,
+                message=message,
+            )
+        )
+
     def backend_error(
         self,
         line: int | None,

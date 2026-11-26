@@ -186,8 +186,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         seed_globals: dict[str, Ty] | None = None,
         alias_targets: dict[str, Ty] | None = None,
         alias_resolved: dict[str, Ty] | None = None,
+        entry_file: str | None = None,
     ) -> None:
         self._reporter = reporter
+        # Arquivo de entrada do `run`/`build`: só o `main` de topo dele é o entry
+        # point (ADR-0148). `None` no REPL e em quem checa uma árvore solta.
+        self._entry_file = entry_file
+        self.entry: Function | None = None
         self._source_index = source_index
         self._predeclaring = False
         # Modo gradual (ADR-0142): anotação ausente vira aviso e o tipo é `Any`.
@@ -277,7 +282,9 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._predeclare_interfaces(statements)
         self._predeclare_enums(statements)
         self._predeclare_aliases(statements)
+        self._check_duplicate_functions(statements)
         self._predeclare_functions(statements)
+        self._detect_entry(statements)
         for statement in statements:
             self._check_stmt(statement)
 
@@ -595,6 +602,88 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             signature = self._signature(statement, is_init=False)
             self._signatures[statement] = signature
             self._predeclared_by_name[statement.name.lexeme] = signature
+
+    def _check_duplicate_functions(self, statements: list[Stmt]) -> None:
+        """Rejeita duas declarações de topo com o mesmo nome (`E3027`).
+
+        O tree-walk deixaria a última valer em cada ponto e o checker usa a última
+        assinatura para todas as chamadas; com assinaturas diferentes os dois divergem
+        antes do backend, e o lowering não representa dois slots `g.<nome>`. Uma
+        declaração por função de topo mantém I1/I4 e evita a borda ambígua de `main`.
+        """
+        seen: dict[str, Token] = {}
+        for statement in statements:
+            if not isinstance(statement, Function):
+                continue
+            name = statement.name.lexeme
+            first = seen.get(name)
+            if first is None:
+                seen[name] = statement.name
+                continue
+            # O loader manga funções de módulo (`lib$f`); a chave é o símbolo, mas o
+            # diagnóstico mostra o nome-fonte para não vazar o mangling ao usuário.
+            source_name = name.rsplit("$", 1)[-1]
+            self._error(
+                statement.name,
+                f"Function '{source_name}' is declared more than once.",
+                code=Code.DUPLICATE_FUNCTION,
+                label_tokens=((first, "first declared here"),),
+            )
+
+    def _detect_entry(self, statements: list[Stmt]) -> None:
+        """Reconhece o ponto de entrada: `fn main() -> Result[T, String]` (ADR-0148).
+
+        O entry é **opt-in pela assinatura**: um `main` que não devolve `Result` continua
+        uma função comum (o idioma `fn main() -> Nil` + `main()` explícito segue válido).
+        Só o `main` de topo do arquivo de entrada conta; módulos e o REPL nunca têm entry.
+        O tipo de retorno vem da assinatura já resolvida, então aliases valem. Um `main`
+        duplicado já é `E3027` em `_check_duplicate_functions`, então aqui não há entry.
+        """
+        self.entry = None
+        if self._entry_file is None:
+            return
+
+        candidates = [
+            statement
+            for statement in statements
+            if isinstance(statement, Function)
+            and statement.name.lexeme == "main"
+            and statement.name.file == self._entry_file
+        ]
+        if len(candidates) != 1:
+            return
+
+        candidate = candidates[0]
+        signature = self._signatures.get(candidate)
+        if signature is None:
+            return
+        ret = signature.fn.ret
+        if not (isinstance(ret, EnumTy) and ret.name == "Result"):
+            return
+
+        if candidate.params:
+            self._error(
+                candidate.name,
+                "Entry point 'main' must take no parameters.",
+                code=Code.INVALID_ENTRY_POINT,
+            )
+            return
+        if candidate.type_params:
+            self._error(
+                candidate.name,
+                "Entry point 'main' must not be generic.",
+                code=Code.INVALID_ENTRY_POINT,
+            )
+            return
+        if len(ret.args) != 2 or ret.args[1] is not STRING:
+            self._error(
+                candidate.name,
+                f"Entry point 'main' must return Result[T, String], found {display(ret)}.",
+                code=Code.INVALID_ENTRY_POINT,
+            )
+            return
+
+        self.entry = candidate
 
     def _begin_scope(self) -> None:
         self._scopes.append({})

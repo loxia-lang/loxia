@@ -29,7 +29,7 @@ from loxia_core.execution.limits import (
     TRACE_TAIL,
 )
 from loxia_core.frontend.expr import Expr
-from loxia_core.frontend.stmt import Stmt
+from loxia_core.frontend.stmt import Function, Stmt
 from loxia_core.frontend.ty import Ty
 from loxia_core.native_build import static_library as regex_static_library
 from loxia_core.semantics.layers import REGEX_PRIMITIVES, uses_primitive
@@ -96,6 +96,7 @@ def build(
     source_path: str = "<lox>",
     max_heap: int | None = None,
     debug: bool = False,
+    entry: Function | None = None,
 ) -> Path | None:
     """Gera a saída pedida. Devolve o arquivo criado (ou `None` quando foi o stdout)."""
     try:
@@ -111,6 +112,7 @@ def build(
             function_types=function_types,
             source_path=source_path,
             debug=debug,
+            entry=entry,
         )
         _verify(module)
 

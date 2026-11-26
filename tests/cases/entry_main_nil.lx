@@ -1,0 +1,7 @@
+# `main -> Nil` is an ordinary function: the explicit call is still the idiom.
+fn main() -> Nil {
+  print("once")
+}
+
+main()
+# expect: once

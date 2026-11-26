@@ -7,9 +7,11 @@
   (`Result` embutido), [ADR-0072](0072-stdlib-batteries.md) (stdlib — §6 superseded por este),
   [ADR-0026](0026-freeze-1.0.md) (freeze), [ADR-0077](0077-limite-de-pilha.md) (`R1015`),
   [ADR-0089](0089-stack-trace-de-runtime.md) (stack trace), [ADR-0066](0066-orcamento-e-gate-sintatico.md)
-  (gate de sintaxe), [ADR-0107](0107-adiados-e-nao-objetivos.md)
+  (gate de sintaxe), [ADR-0107](0107-adiados-e-nao-objetivos.md),
+  [ADR-0148](0148-ponto-de-entrada-main-result.md) (borda do processo)
 - **Implementação:** `std/*.lx` (migração), `tests/test_stdlib_error_policy.py` (ratchet),
-  `docs/spec/semantica.md` §Execution
+  `loxia_core/semantics/checker.py` + `execution/interpreter.py` + `backend/lower.py` (borda,
+  ADR-0148), `docs/spec/semantica.md` §Execution
 
 ## Contexto
 
@@ -61,12 +63,14 @@ lançando como casca. O resultado é uma stdlib com três dialetos.
    abaixo. `Result` é o veículo de falha com detalhe; `T?` fica onde a ausência é a resposta
    inteira e o uso típico é uma linha. Auditoria desta data: **40 funções** com retorno `T?` em
    `std/` — 26 cascas puras, 10 cascas com irmã `Result` (todas implementadas), 4 helpers privados.
-5. **Borda do processo — alvo, não contrato observável.** A linguagem executa statements: não há
-   `main` e um `Err` descartado é só um valor (exit 0, hoje). Quando existir um ponto de entrada
-   que devolva `Result` ([issue #142](https://github.com/loxia-lang/loxia/issues/142), `needs-adr`),
-   o `Err` não tratado imprime `error: <msg>` em **stderr** e sai **70** (mesmo código do erro de
-   runtime não capturado), sem caminho absoluto, timestamp ou PID (I3). Até lá, esta regra é a
-   direção decidida, não uma promessa verificável — e `docs/spec/semantica.md` diz isso.
+5. **Borda do processo — implementada pelo [ADR-0148](0148-ponto-de-entrada-main-result.md).**
+   O entry é o `main` de topo do arquivo de entrada com retorno `Result[T, String]`; ele roda
+   depois dos statements de topo e o `Err` não tratado imprime `error[R1016]: <msg>` em
+   **stderr** e sai **70** (mesmo código do erro de runtime não capturado), sem caminho
+   absoluto, timestamp ou PID (I3). A mensagem é a própria `String` devolvida. Um `Err`
+   descartado fora desse retorno continua sendo só um valor (exit 0), e um `main` que não
+   devolve `Result` é uma função comum. A promessa agora é verificável nos dois motores
+   (`tests/cases/entry_main_err.lx`, diferencial L6).
 6. **Fora de escopo.** O operador de propagação em posição de expressão (`expr?`, estilo Rust/Swift)
    **não** entra aqui: é sintaxe nova e passa pelo [ADR-0066](0066-orcamento-e-gate-sintatico.md),
    em ADR próprio. O `?` que existe hoje é **de tipo** (`String?` = pode ser `nil`), não de
@@ -180,8 +184,10 @@ Cada lote diminui o orçamento no ratchet; o teste falha se um módulo **aumenta
 
 - `tests/test_stdlib_error_policy.py` — ratchet: módulo → orçamento de `raise`; falha ao aumentar,
   falha em módulo fora da allowlist. Verde no M1 e só desce depois.
-- `tests/test_determinism.py` — a borda `error: <msg>` não pode introduzir caminho/PID/timestamp.
-- Corpus diferencial (`pytest -m backend`) — qualquer `Result`/`try` novo tem caso no `LEVELS`.
+- `tests/test_determinism.py` — a borda `error[R1016]: <msg>` não pode introduzir
+  caminho/PID/timestamp.
+- Corpus diferencial (`pytest -m backend`) — qualquer `Result`/`try` novo tem caso no `LEVELS`;
+  o entry está em `tests/cases/entry_main_*.lx` (L6), com os três canais.
 - `--check` limpo compila (I4): `Result` novo não pode virar erro de tipo no lowering.
 
 Revisitar se: o `expr?` for aceito (aí a ergonomia de `Result` muda), ou se `E3011` for relaxado

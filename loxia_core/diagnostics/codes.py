@@ -84,6 +84,8 @@ class Code(StrEnum):
     MATCH_EXHAUSTIVENESS = "E3023"
     UNREACHABLE_MATCH = "E3024"
     ANY_ACCESS = "E3025"
+    INVALID_ENTRY_POINT = "E3026"
+    DUPLICATE_FUNCTION = "E3027"
 
     # Backend
     BACKEND_UNSUPPORTED = "E4001"
@@ -107,6 +109,7 @@ class Code(StrEnum):
     FIELD_NOT_INITIALIZED = "R1013"
     INVALID_VALUE = "R1014"
     RUNTIME_STACK_OVERFLOW = "R1015"
+    UNHANDLED_RESULT = "R1016"
 
     # CLI/execução
     CLI_TIMEOUT = "C0001"
@@ -170,6 +173,8 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.MATCH_EXHAUSTIVENESS: Phase.CHECKER,
     Code.UNREACHABLE_MATCH: Phase.CHECKER,
     Code.ANY_ACCESS: Phase.CHECKER,
+    Code.INVALID_ENTRY_POINT: Phase.CHECKER,
+    Code.DUPLICATE_FUNCTION: Phase.CHECKER,
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
@@ -189,6 +194,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.FIELD_NOT_INITIALIZED: Phase.RUNTIME,
     Code.INVALID_VALUE: Phase.RUNTIME,
     Code.RUNTIME_STACK_OVERFLOW: Phase.RUNTIME,
+    Code.UNHANDLED_RESULT: Phase.RUNTIME,
     Code.CLI_TIMEOUT: Phase.CLI,
     Code.DEPENDENCY_STATE: Phase.CLI,
     Code.SCAFFOLD_STATE: Phase.CLI,
@@ -251,6 +257,8 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.MATCH_EXHAUSTIVENESS: "non-exhaustive match",
     Code.UNREACHABLE_MATCH: "unreachable match arm",
     Code.ANY_ACCESS: "dynamic access on `Any` requires narrowing (`is`/`as`)",
+    Code.INVALID_ENTRY_POINT: "entry point `main` signature (parameters, generics, return type)",
+    Code.DUPLICATE_FUNCTION: "duplicate top-level function declaration",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",
@@ -270,6 +278,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.FIELD_NOT_INITIALIZED: "field not initialized",
     Code.INVALID_VALUE: "invalid value (map key, superclass, …)",
     Code.RUNTIME_STACK_OVERFLOW: "call depth above the limit",
+    Code.UNHANDLED_RESULT: "unhandled `Err` returned by the entry point",
     Code.CLI_TIMEOUT: "execution timeout exceeded",
     Code.DEPENDENCY_STATE: "lockfile or dependency state (missing, stale, not fetched)",
     Code.SCAFFOLD_STATE: "project scaffolding (existing target, conflict, git)",

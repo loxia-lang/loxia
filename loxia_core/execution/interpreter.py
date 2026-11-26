@@ -160,6 +160,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         # Tuplas leves no caminho feliz; `Frame` só é materializado ao capturar o trace.
         self._frames: list[tuple[str, str, int, int]] = []
         self._call_site: Token | None = None
+        # Ponto de entrada (ADR-0148): o nó do `main` e o closure que ele gerou. O
+        # lookup é pelo nó, não pelo global: `var main = ...` no topo não pode trocar
+        # a função chamada na borda.
+        self._entry_node: Function | None = None
+        self._entry_function: LoxFunction | None = None
         self.globals = Environment()
         self.environment = self.globals
         self._type_aliases: dict[str, Ty] = {}
@@ -212,16 +217,20 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         )
         self.globals.define("Bytes", bytes_module(), mutable=False)
 
-    def interpret(self, statements: list[Stmt]) -> None:
+    def interpret(self, statements: list[Stmt], entry: Function | None = None) -> None:
         self._call_depth = 0
         self._frames.clear()
         self._call_site = None
+        self._entry_node = entry
+        self._entry_function = None
         for statement in statements:
             if isinstance(statement, TypeAlias):
                 self._type_aliases[statement.name.lexeme] = statement.target
         try:
             for statement in statements:
                 self._execute(statement)
+            if self._entry_function is not None:
+                self._finish_entry()
         except LoxRaise as raised:
             error = LoxRuntimeError(
                 raised.token,
@@ -236,6 +245,25 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             self.reporter.runtime_error(e)
         finally:
             self.close_handles()
+
+    def _finish_entry(self) -> None:
+        """Chama o `main` do entry e aplica a borda `Result` (ADR-0148).
+
+        `Ok` termina em 0 sem imprimir nada; `Err(msg)` vira `error[R1016]: msg` no
+        stderr e exit 70. O `Err` só conta se for o **retorno** do entry: um `Err`
+        descartado no topo continua sendo um valor comum.
+        """
+        function = self._entry_function
+        assert function is not None
+        value = function.call(self, [])
+        if not isinstance(value, LoxEnumValue):
+            return
+        if value.enum != "Result" or value.variant != "Err":
+            return
+
+        payload = value.payload[0] if value.payload else None
+        message = payload if isinstance(payload, str) else stringify(payload)
+        self.reporter.entry_error(message)
 
     def close_handles(self) -> None:
         """Fecha handles ambientais de uma execução (I3/ADR-0119)."""
@@ -1353,6 +1381,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         function = LoxFunction(stmt, self.environment, False, self.function_types.get(stmt))
         self.environment.define(stmt.name.lexeme, function)
+        if stmt is self._entry_node:
+            self._entry_function = function
 
     def visit_lambda_expr(self, expr: Lambda) -> object:
         return LoxFunction(expr, self.environment, False, self.function_types.get(expr))

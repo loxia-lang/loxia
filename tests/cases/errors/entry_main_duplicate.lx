@@ -1,0 +1,8 @@
+fn main() -> Result[Int, String] {
+  return Result.Ok(0)
+}
+
+fn main() -> Result[Int, String] {
+  return Result.Err("x")
+}
+# expect error: Function 'main' is declared more than once.

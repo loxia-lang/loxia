@@ -148,8 +148,11 @@ class Lowerer(
         function_types: dict[Any, Any] | None = None,
         source_path: str = "<lox>",
         debug: bool = False,
+        entry: Function | None = None,
     ) -> None:
         self.module: Any = module
+        # `main -> Result` do arquivo de entrada (ADR-0148); `None` para scripts.
+        self.entry = entry
         self.source_path: str = source_path
         self.debug = debug
         self.types = types
@@ -253,6 +256,9 @@ class Lowerer(
             if self._function_ir is self.main:
                 self._drain_pending_generic_classes()
 
+        if self.entry is not None and not self.builder.block.is_terminated:
+            self._call_entry(self.entry)
+
         if not self.builder.block.is_terminated:
             self.builder.ret(llvm_ir.constant(_I32, 0))
         self._seal_blocks(main)
@@ -262,6 +268,36 @@ class Lowerer(
                 continue
             info = self._top_level[id(statement)]
             self._emit_function(info, statement, ())
+
+    def _call_entry(self, entry: Function) -> None:
+        """Chama o `main -> Result` do arquivo de entrada (ADR-0148).
+
+        O entry é uma função de topo sem capturas: o closure tem env nulo e o símbolo
+        `lox.main` já foi declarado em `_predeclare_functions`. `Ok` cai no retorno 0;
+        `Err` delega ao runtime (`error[R1016]: <msg>` + exit 70), com os mesmos bytes
+        do tree-walk.
+        """
+        info = self._top_level.get(id(entry))
+        if info is None:
+            raise _unsupported("Entry point 'main'", entry.name.line)
+
+        self._set_call_site(entry.name)
+        result = self.builder.call(info.ir, [llvm_ir.null_pointer()])
+        is_err = self.builder.call(
+            self._function("lox_enum_variant_index", _INT, [_I8_PTR, _I8_PTR]),
+            [result, self._cstring_ptr("Err")],
+        )
+        failed = self.builder.icmp_signed("!=", is_err, llvm_ir.constant(_INT, 0))
+        error_block = llvm_ir.append_block(self._function_ir, "entry.err")
+        ok_block = llvm_ir.append_block(self._function_ir, "entry.ok")
+        self.builder.cbranch(failed, error_block, ok_block)
+
+        self.builder = llvm_ir.builder(error_block)
+        self.builder.call(self._function("lox_unhandled_result", _VOID, [_I8_PTR]), [result])
+        self.builder.ret(llvm_ir.constant(_I32, 70))
+
+        self.builder = llvm_ir.builder(ok_block)
+        self.builder.ret(llvm_ir.constant(_I32, 0))
 
     # --- opcionais (L2.5) ---
 
@@ -1845,6 +1881,7 @@ def lower_program(
     function_types: dict[Any, Any] | None = None,
     source_path: str = "<lox>",
     debug: bool = False,
+    entry: Function | None = None,
 ) -> Any:
     module = llvm_ir.new_module()
     Lowerer(
@@ -1859,5 +1896,6 @@ def lower_program(
         function_types=function_types,
         source_path=source_path,
         debug=debug,
+        entry=entry,
     ).lower(statements)
     return module
