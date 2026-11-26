@@ -797,13 +797,19 @@ class ClassCodegenLowering(LoweringBase):
             f"{params}{separator}{self._type_text_desc(sig.ret)}>"
         )
 
-    def _fn_sig_pointer(self, sig: FnSig) -> Any:
+    def _fn_sig_pointer(self, sig: FnSig, text: str | None = None) -> Any:
         return self.builder.call(
             self._function("lox_fn_sig_cached", _I8_PTR, [_I8_PTR]),
-            [self._cstring_pointer(self._fn_sig_text(sig))],
+            [self._cstring_pointer(text if text is not None else self._fn_sig_text(sig))],
         )
 
-    def _closure_sig_fields(self, closure: Any, sig: FnSig) -> None:
+    def _closure_sig_fields(self, closure: Any, sig: FnSig, fn_ty: FnTy | None = None) -> None:
+        text = self._fn_sig_text(sig)
+        if fn_ty is not None:
+            try:
+                text = self._type_text(fn_ty, 0)
+            except BackendError:
+                text = self._fn_sig_text(sig)
         maximum = 2**63 - 1 if sig.variadic else len(sig.params)
         self.builder.store(
             llvm_ir.constant(_INT, sig.min_params),
@@ -814,7 +820,7 @@ class ClassCodegenLowering(LoweringBase):
             self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 4)]),
         )
         self.builder.store(
-            self._fn_sig_pointer(sig),
+            self._fn_sig_pointer(sig, text),
             self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 5)]),
         )
 
@@ -1111,6 +1117,7 @@ class ClassCodegenLowering(LoweringBase):
         display: str,
         sig: FnSig,
         function: FunctionInfo | None = None,
+        fn_ty: FnTy | None = None,
     ) -> Value:
         raw = self.builder.call(self._function("lox_alloc_closure", _I8_PTR, []), [])
         closure = self.builder.bitcast(raw, _CLOSURE.as_pointer())
@@ -1135,7 +1142,7 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 2)],
             ),
         )
-        self._closure_sig_fields(closure, sig)
+        self._closure_sig_fields(closure, sig, fn_ty)
         return Value(ValueType.FUNCTION, raw, sig, function=function)
 
     def _method_thunk(self, layout: ClassLayout, method: MethodLayout) -> Any:
@@ -1239,6 +1246,7 @@ class ClassCodegenLowering(LoweringBase):
             method.info.fn_sig,
             self._method_thunk(layout, method),
             method_closure,
+            function=method.info,
         )
 
     def _bind_closure(
@@ -1270,7 +1278,14 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 1)],
             ),
         )
-        return self._make_raw_closure(thunk, raw_env, f"<fn {name}>", sig, function)
+        return self._make_raw_closure(
+            thunk,
+            raw_env,
+            f"<fn {name}>",
+            sig,
+            function,
+            fn_ty=function.fn_ty if function is not None else None,
+        )
 
     def _bound_method(self, instance: Value, layout: ClassLayout, method: MethodLayout) -> Value:
         struct_ = self._instance_struct(instance, 0)

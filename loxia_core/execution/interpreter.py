@@ -649,6 +649,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         if isinstance(ty, ClassTy):
             if not ty.args and ty.name in self.interfaces:
                 return InterfaceTy(ty.name)
+            if not ty.args and isinstance(self.globals.values.get(ty.name), LoxEnumObject):
+                return EnumTy(ty.name)
             return ty
         if isinstance(ty, ListTy):
             return ListTy(self._runtime_type(ty.element))
@@ -658,6 +660,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             return TupleTy(tuple(self._runtime_type(item) for item in ty.items))
         if isinstance(ty, UnionTy):
             return UnionTy(tuple(self._runtime_type(member) for member in ty.members))
+        if isinstance(ty, FnTy):
+            return FnTy(
+                tuple(self._runtime_type(param) for param in ty.params),
+                self._runtime_type(ty.ret),
+                ty.min_params,
+                ty.variadic,
+            )
         return ty
 
     def _expand_type_aliases(self, ty: Ty, seen: frozenset[str] = frozenset()) -> Ty:

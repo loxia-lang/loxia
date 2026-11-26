@@ -144,6 +144,7 @@ class Lowerer(
         generic_classes: Any = None,
         generic_class_sites: Any = None,
         type_aliases: dict[str, Ty] | None = None,
+        function_types: dict[Any, Any] | None = None,
         source_path: str = "<lox>",
         debug: bool = False,
     ) -> None:
@@ -159,6 +160,7 @@ class Lowerer(
         self.generic_classes = generic_classes or set()
         self.generic_class_sites = generic_class_sites or {}
         self.type_aliases = type_aliases or {}
+        self._function_types = function_types or {}
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
@@ -1779,6 +1781,7 @@ def lower_program(
     generic_classes: Any = None,
     generic_class_sites: Any = None,
     type_aliases: dict[str, Ty] | None = None,
+    function_types: dict[Any, Any] | None = None,
     source_path: str = "<lox>",
     debug: bool = False,
 ) -> Any:
@@ -1792,6 +1795,7 @@ def lower_program(
         generic_classes=generic_classes,
         generic_class_sites=generic_class_sites,
         type_aliases=type_aliases,
+        function_types=function_types,
         source_path=source_path,
         debug=debug,
     ).lower(statements)
