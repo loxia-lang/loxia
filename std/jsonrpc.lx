@@ -2,16 +2,16 @@
 # std.jsonrpc — JSON-RPC 2.0 envelopes (T3), pure Lox.
 #
 # Deterministic: no I/O, clock, locale or hash order. Messages are plain
-# `Map[String, Any]` values so they serialize with `std.json` and stay inside the
-# backend's supported field types. Validation rejects batches: LSP does not use them.
+# `Map[String, Any]` values so they serialize with `std.json`. Validation rejects
+# batches: LSP does not use them.
 
 import std.json as json
 
-/// Why `decode` rejected a message; `code` is the JSON-RPC error code.
+/// A JSON-RPC error: why `decode` rejected a message, or the `error` member of a
+/// response. `code` is the JSON-RPC error code and `data` is the optional payload.
 ///
-/// Error data is not stored yet: the envelope keeps `code`/`message` by choice
-/// (ADR-0113). A field of type `Any` is supported since ADR-0145, so storing
-/// `error.data` is a follow-up; callers can still build the envelope themselves.
+/// `data` is `Any` because JSON-RPC allows any JSON value; narrow it with `is`/`as`
+/// before use (ADR-0144). Envelopes keep insertion order and never include addresses.
 class RpcFailure {
   /// Numeric JSON-RPC error code: `-32700` parse, `-32600` invalid request,
   /// `-32601` method not found, `-32602` invalid params, `-32603` internal.
@@ -20,10 +20,14 @@ class RpcFailure {
   /// Human-readable reason; never contains a path, timestamp or address.
   val message: String
 
-  /// Creates a failure with an explicit code and message.
-  fn init(code: Int, message: String) {
+  /// Optional JSON payload from `error.data`; `nil` when the error has no data.
+  val data: Any
+
+  /// Creates a failure with an explicit code, message and optional data.
+  fn init(code: Int, message: String, data: Any = nil) {
     this.code = code
     this.message = message
+    this.data = data
   }
 }
 
@@ -113,9 +117,13 @@ fn success(id: Any, result: Any = nil) -> Map[String, Any] {
   return message
 }
 
-/// Builds an error response; the `error` object carries `code` and `message`.
-fn failure(id: Any, code: Int, message: String) -> Map[String, Any] {
+/// Builds an error response; the `error` object carries `code`, `message` and
+/// `data` when it is not `nil` (omitted data keeps the envelope compatible).
+fn failure(id: Any, code: Int, message: String, data: Any = nil) -> Map[String, Any] {
   val error: Map[String, Any] = { "code": code, "message": message }
+  if (data != nil) {
+    error["data"] = data
+  }
   val envelope: Map[String, Any] = { "jsonrpc": "2.0", "id": id, "error": error }
   return envelope
 }
@@ -160,16 +168,14 @@ fn methodOf(message: Map[String, Any]) -> String? {
   return value as String
 }
 
-/// Returns the `error` object, or `nil` when it is absent or not an object.
-fn errorOf(message: Map[String, Any]) -> Map[String, Any]? {
+/// Returns the typed `error` member, or `nil` when it is absent or malformed.
+///
+/// `data` is preserved as `Any`; narrowing it is the caller's job (ADR-0144).
+fn errorOf(message: Map[String, Any]) -> RpcFailure? {
   if (not message.has("error")) {
     return nil
   }
-  val value = message["error"]
-  if (not (value is Map[String, Any])) {
-    return nil
-  }
-  return value as Map[String, Any]
+  return _typedError(message["error"])
 }
 
 fn _invalid() -> Result[Map[String, Any], RpcFailure] {
@@ -207,18 +213,32 @@ fn _validResponseId(value: Any) -> Bool {
 }
 
 fn _validError(value: Any) -> Bool {
+  return _typedError(value) != nil
+}
+
+/// Validates the `error` member and turns it into its typed form.
+fn _typedError(value: Any) -> RpcFailure? {
   if (not (value is Map[String, Any])) {
-    return false
+    return nil
   }
   val error = value as Map[String, Any]
   if (not error.has("code")) {
-    return false
+    return nil
   }
-  if (not (error["code"] is Int)) {
-    return false
+  val code = error["code"]
+  if (not (code is Int)) {
+    return nil
   }
   if (not error.has("message")) {
-    return false
+    return nil
   }
-  return error["message"] is String
+  val text = error["message"]
+  if (not (text is String)) {
+    return nil
+  }
+  var data: Any = nil
+  if (error.has("data")) {
+    data = error["data"]
+  }
+  return RpcFailure(code as Int, text as String, data)
 }

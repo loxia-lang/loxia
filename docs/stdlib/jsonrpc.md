@@ -15,11 +15,11 @@ JSON-RPC 2.0 envelopes: validation, construction, error codes and `Map` messages
 
 ### `class RpcFailure`
 
-Why `decode` rejected a message; `code` is the JSON-RPC error code.
+A JSON-RPC error: why `decode` rejected a message, or the `error` member of a
+response. `code` is the JSON-RPC error code and `data` is the optional payload.
 
-Error data is not stored yet: the envelope keeps `code`/`message` by choice
-(ADR-0113). A field of type `Any` is supported since ADR-0145, so storing
-`error.data` is a follow-up; callers can still build the envelope themselves.
+`data` is `Any` because JSON-RPC allows any JSON value; narrow it with `is`/`as`
+before use (ADR-0144). Envelopes keep insertion order and never include addresses.
 
 #### `val code: Int`
 
@@ -30,9 +30,13 @@ Numeric JSON-RPC error code: `-32700` parse, `-32600` invalid request,
 
 Human-readable reason; never contains a path, timestamp or address.
 
-#### `fn init(code: Int, message: String)`
+#### `val data: Any`
 
-Creates a failure with an explicit code and message.
+Optional JSON payload from `error.data`; `nil` when the error has no data.
+
+#### `fn init(code: Int, message: String, data: Any = ...)`
+
+Creates a failure with an explicit code, message and optional data.
 
 ## Functions
 
@@ -63,9 +67,10 @@ Builds a notification: `method` with no `id`.
 
 Builds a success response; `result` may be `nil` (serialized as `null`).
 
-### `fn failure(id: Any, code: Int, message: String) -> Map[String, Any]`
+### `fn failure(id: Any, code: Int, message: String, data: Any = ...) -> Map[String, Any]`
 
-Builds an error response; the `error` object carries `code` and `message`.
+Builds an error response; the `error` object carries `code`, `message` and
+`data` when it is not `nil` (omitted data keeps the envelope compatible).
 
 ### `fn isRequest(message: Map[String, Any]) -> Bool`
 
@@ -91,6 +96,8 @@ Returns the `id` member, or `nil` when it is absent.
 
 Returns the `method` member, or `nil` when it is absent or not a string.
 
-### `fn errorOf(message: Map[String, Any]) -> Map[String, Any] | Nil`
+### `fn errorOf(message: Map[String, Any]) -> RpcFailure | Nil`
 
-Returns the `error` object, or `nil` when it is absent or not an object.
+Returns the typed `error` member, or `nil` when it is absent or malformed.
+
+`data` is preserved as `Any`; narrowing it is the caller's job (ADR-0144).

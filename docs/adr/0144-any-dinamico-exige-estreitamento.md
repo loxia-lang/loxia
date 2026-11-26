@@ -102,7 +102,9 @@ efeitos/aliasing fica em [#216](https://github.com/loxia-lang/loxia/issues/216).
 - `E3025` é código novo e estável; `docs/spec/erros.md` é gerado por `make codes`.
 - As limitações de `std.jsonrpc` ([ADR-0113](0113-protocolo-stdio-jsonrpc-framing-documents.md))
   e de `expect` ([ADR-0096](0096-testes-biblioteca-e-runner.md)) deixam de ser técnicas; a
-  migração da stdlib fica para issues de follow-up.
+  migração da stdlib foi concluída na issue
+  [#215](https://github.com/loxia-lang/loxia/issues/215) (`RpcFailure.data` e `Expectation`
+  com `Any`).
 - O pré-requisito de self-hosting do [ADR-0087](0087-heap-cap-e-self-hosting.md) (classe
   recursiva) não muda; o campo `Any` sai da lista no ADR-0145.
 

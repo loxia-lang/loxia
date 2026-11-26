@@ -1,0 +1,77 @@
+# std.jsonrpc (L6): typed `RpcFailure.data` and the `error` accessor.
+import std.jsonrpc as rpc
+from std.jsonrpc import RpcFailure
+
+fn show(result: Result[Map[String, Any], RpcFailure]) -> String {
+  return match result {
+    Result.Ok(message) => "ok:" + rpc.encode(message)
+    Result.Err(error) => "err:${error.code}:${error.message}:${error.data}"
+  }
+}
+
+fn describe(error: RpcFailure?) -> String {
+  if (error == nil) {
+    return "none"
+  }
+  val failure = error as RpcFailure
+  if (failure.data is Map[String, Any]) {
+    val entry = failure.data as Map[String, Any]
+    return "map:${entry["kind"]}"
+  }
+  if (failure.data is List[Any]) {
+    val list = failure.data as List[Any]
+    return "list:${len(list)}"
+  }
+  if (failure.data is Int) {
+    val number = failure.data as Int
+    return "int:${number}"
+  }
+  if (failure.data is String) {
+    val text = failure.data as String
+    return "string:${text}"
+  }
+  if (failure.data is Bool) {
+    val flag = failure.data as Bool
+    return "bool:${flag}"
+  }
+  return "nil"
+}
+
+fn describeBody(body: String) -> String {
+  return match rpc.decode(body) {
+    Result.Ok(message) => describe(rpc.errorOf(message))
+    Result.Err(error) => "decode:${error.code}:${error.data}"
+  }
+}
+
+print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"bad\",\"data\":{\"kind\":\"params\"}}}"))
+print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32603,\"message\":\"boom\",\"data\":[1,2,3]}}"))
+print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":3,\"error\":{\"code\":1,\"message\":\"int\",\"data\":7}}"))
+print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":2,\"message\":\"str\",\"data\":\"why\"}}"))
+print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":5,\"error\":{\"code\":3,\"message\":\"bool\",\"data\":true}}"))
+print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":6,\"error\":{\"code\":4,\"message\":\"none\"}}"))
+print(describeBody("{\"jsonrpc\":\"2.0\",\"method\":\"x\"}"))
+print(show(rpc.decode("{")))
+print(show(rpc.decode("[1]")))
+print(rpc.encode(rpc.failure(7, -32602, "bad", { "kind": "params" })))
+print(rpc.encode(rpc.failure(8, -32601, "nope")))
+print(rpc.encode(rpc.failure(9, -32600, "invalid", nil)))
+val built = rpc.errorOf(rpc.failure(10, -32000, "custom", [true, false])) ?? RpcFailure(0, "none")
+print(built.code)
+print(describe(built))
+print(describe(rpc.errorOf(rpc.request(1, "initialize"))))
+# expect: map:params
+# expect: list:3
+# expect: int:7
+# expect: string:why
+# expect: bool:true
+# expect: nil
+# expect: none
+# expect: err:-32700:Parse error:nil
+# expect: err:-32600:Invalid Request:nil
+# expect: {"jsonrpc":"2.0","id":7,"error":{"code":-32602,"message":"bad","data":{"kind":"params"}}}
+# expect: {"jsonrpc":"2.0","id":8,"error":{"code":-32601,"message":"nope"}}
+# expect: {"jsonrpc":"2.0","id":9,"error":{"code":-32600,"message":"invalid"}}
+# expect: -32000
+# expect: list:2
+# expect: none

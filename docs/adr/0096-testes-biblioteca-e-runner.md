@@ -1,6 +1,9 @@
 # ADR-0096 — Testes: biblioteca (`std.test`) e runner (`loxia test`)
 
-> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` existe no backend; `expect(x)` ainda aceita só tipo concreto por escopo da biblioteca, e generalizar fica como follow-up.
+> **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` existe no backend.
+> Na issue [#215](https://github.com/loxia-lang/loxia/issues/215) o `Expectation` deixou de ser
+> genérico e guarda `Any`, então `expect(x)` aceita valor dinâmico; a nota antiga de escopo
+> fica abaixo como histórica.
 
 - **Status:** accepted (implementado em 2026-11-16)
 - **Data:** 2026-11-16
@@ -12,7 +15,8 @@
   [`../../IDEIAS.md`](../../IDEIAS.md) I-13, `R3` no [`../../TODO.md`](../../TODO.md) §9.1
 - **Implementação:** `std/test.lx`, `loxia/test_runner.py` + subcomando `test` em
   `loxia/cli.py`, `tests/test_std_test.py`, `tests/test_test_runner.py`,
-  `tests/cases/std_test.lx` (corpus `t3`) e `docs/stdlib/test.md` gerado
+  `tests/cases/std_test.lx` (corpus `t3`), `tests/cases/std_test_any.lx` (corpus `l6`) e
+  `docs/stdlib/test.md` gerado
 
 ## Contexto
 
@@ -23,13 +27,15 @@ descartam o desenho "de framework" usual:
 - **sem reflection/anotação:** não há como descobrir testes em runtime nem `#[test]`;
 - **`R3`:** closure guardada em `List[fn]` não é chamável no binário, então registry de
   testes não é portável;
-- **classe não aceita constraint:** `<=` dentro de `class Expectation[T]` falha no
-  checker; matchers de ordem precisam ser funções livres com `T: Ord`;
+- **classe não aceita constraint:** `<=` dentro de uma classe falha no checker; matchers de
+  ordem precisam ser funções livres com `T: Ord`;
 - **`not` é keyword:** não dá para ter `.not` como propriedade;
-- **`Any` como campo** não existe no backend: `expect(x)` só serve para tipo concreto.
+- **`E3011`:** o checker não infere `T = Any`, então um `expect[T]` genérico não aceita valor
+  dinâmico. O `Expectation` é não-genérico e guarda `Any` (issue
+  [#215](https://github.com/loxia-lang/loxia/issues/215)).
 
 Os probes (I-13) mostram o que **funciona** nos dois motores: `it(name, fn(){...})`
-executado na hora, `class TestFailure(Exception)`, `Expectation[T]` com `toBe`, e closure
+executado na hora, `class TestFailure(Exception)`, `Expectation` com `toBe`, e closure
 em global (hook de um nível).
 
 ## Decisão
@@ -79,8 +85,9 @@ Ordem = ordem do fonte (determinística). Sem `List[fn]` (R3), sem descoberta em
 
 ### 3. Asserções híbridas
 
-- `expect[T](value) -> Expectation[T]` com `toBe`/`notToBe` (igualdade universal, serve
-  para escalares, strings, listas, mapas, tuplas);
+- `expect(value: Any) -> Expectation` com `toBe`/`notToBe` (igualdade universal, serve
+  para escalares, strings, listas, mapas, tuplas e valores dinâmicos em `Any`; a mensagem
+  usa `repr` dos dois lados);
 - funções livres para o resto, porque precisam de constraint ou de tipo específico:
   `expectGt[T: Ord]`, `expectGe`, `expectLt`, `expectLe`, `expectNil[T](T?)`,
   `expectNotNil[T](T?) -> T`, `expectList[T](List[T])` com `toContain`,

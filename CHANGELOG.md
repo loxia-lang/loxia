@@ -8,8 +8,19 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 ### Adicionado
 - **Valores de função com assinatura em runtime** ([ADR-0147](docs/adr/0147-valores-de-funcao-assinatura-runtime.md)): `is fn(D) -> R`/`as fn(D) -> R` comparam a assinatura real do closure com a alvo (aridade, variádico, parâmetros/retorno) pela subtipagem do checker **e** por representação de máquina igual (ABI-compatible); `fn(Any) -> Int` não passa como `fn(Int) -> Int`, `fn(I) -> Int` passa como `fn(C) -> Int`. `if (x is fn(...))` estreita; falha em runtime é `R1011` nos dois motores; chamadas estáticas sem custo. Caso diferencial `fn_any.lx` (funções, lambdas, bound methods, defaults, containers, variádicos, tipos aninhados, enums, default de interface, classes/interfaces e opcionais) e testes unitários de cast estático incompatível, representação/ABI recursiva e REPL. Valores nativos, objetos de classe (#219) e funções genéricas ficam fora. `??` de função opcional presente funciona (#225); nil explícito em variável global de função opcional é o [#226](https://github.com/loxia-lang/loxia/issues/226).
 - **Follow-up do converge**: default em chamada dinâmica deixa de gerar lixo (`fn(Int, Int = ...)` não passa como `fn(Int)`; `is` false/`as` `R1011`), a assinatura real do closure usa o `FnTy` do checker (containers/variádicos/aninhados/enums), a ABI de funções aninhadas é recursiva no tree-walk, enum em `FnTy` funciona no tree-walk e o REPL publica `function_types`. Casos `fn_defaults_cast.lx`, `fn_signature_cast.lx`, testes em `test_type_test.py`/`test_cli.py`/`test_checker.py` (lambda publica o `FnTy` nos caminhos `_lambda_type`/T4); `make check` e o ratchet de cobertura verdes.
+- **Payload `Any` na stdlib** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md),
+  [#215](https://github.com/loxia-lang/loxia/issues/215)): `std.jsonrpc.RpcFailure` guarda
+  `data: Any` e `errorOf(message)` devolve a falha tipada; `failure(id, code, message, data = nil)`
+  inclui `data` no envelope quando não é `nil`, preservando código/mensagem e a ordem de
+  inserção. `std.test.Expectation` deixou de ser genérico e guarda `Any`, então `expect(x)`
+  aceita valor dinâmico e as mensagens usam `repr`. Casos diferenciais `std_jsonrpc_data.lx` e
+  `std_test_any.lx` (`L6`).
 
 ### Mudado (quebra)
+- **`std.test` e `std.jsonrpc` deixam o genérico/`Map` cru**: `Expectation[T]` virou
+  `Expectation` (campo `Any`) e `errorOf` passou de `Map[String, Any]?` para `RpcFailure?`.
+  As chamadas `expect(x).toBe(y)` continuam iguais; quebra quem anotava `Expectation[Int]` ou
+  consumia o `Map` cru de `errorOf`. `decode` continua `Ok` para resposta de erro válida.
 - **Acesso dinâmico em `Any` exige estreitamento** ([ADR-0144](docs/adr/0144-any-dinamico-exige-estreitamento.md)): membro (`a.x`, `a.m()`), escrita (`a.x = v`), chamada (`a()`) e índice (`a[i]`) em um valor `Any` agora são erro `E3025`; estreite com `if (a is C)` ou `(a as C)`. Antes o checker aceitava e o binário divergia (`R1014`/`R1001`/`R1000`) ou morria em `E4002` — violação de I1/I4. O backend passa a desembrulhar o box no uso estreitado. Operações de valor (aritmética, comparação, igualdade, `is`/`as`, `print`/`str`, `??` e `and`/`or`) seguem dinâmicas. Breaking: programas check-limpos que acessavam `Any` assim passam a sair 65.
 - **`loxia run` checa antes de executar** ([ADR-0142](docs/adr/0142-check-por-fases.md),
   fase 2): `run` agora checa os tipos no modo gradual e bloqueia erro de tipo (exit 65);

@@ -389,25 +389,28 @@ fn _truncate[T](items: List[T], size: Int) -> Nil {
   }
 }
 
-/// Equality assertion for a concrete value (scalar, string, list, map or tuple).
-class Expectation[T] {
+/// Equality assertion for any value (scalar, string, list, map, tuple or dynamic `Any`).
+///
+/// The observed value is `Any` so `expect(x)` also accepts values that are typed
+/// dynamically; the failure message renders both sides with `repr` (deterministic).
+class Expectation {
   /// Observed value.
-  val value: T
+  val value: Any
 
   /// Wraps the observed value.
-  fn init(value: T) {
+  fn init(value: Any) {
     this.value = value
   }
 
   /// Fails when `value != other`.
-  fn toBe(other: T) -> Nil {
+  fn toBe(other: Any) -> Nil {
     if (this.value != other) {
       raise TestFailure("expected ${repr(other)}, got ${repr(this.value)}")
     }
   }
 
   /// Fails when `value == other`.
-  fn notToBe(other: T) -> Nil {
+  fn notToBe(other: Any) -> Nil {
     if (this.value == other) {
       raise TestFailure("expected not ${repr(other)}")
     }
@@ -501,8 +504,8 @@ fn fail(message: String) -> Nil {
   raise TestFailure(message)
 }
 
-/// Wraps a concrete value for `toBe`/`notToBe`.
-fn expect[T](value: T) -> Expectation[T] {
+/// Wraps any value, including a dynamically typed `Any`, for `toBe`/`notToBe`.
+fn expect(value: Any) -> Expectation {
   return Expectation(value)
 }
 

@@ -1,0 +1,34 @@
+# std.test (L6): `expect` accepts dynamically typed `Any` values.
+import std.test as t
+
+val dynamic: Any = { "items": [1, "two"] }
+t.expect(dynamic).toBe({ "items": [1, "two"] })
+t.expect(dynamic).notToBe(nil)
+
+val text: Any = "loxia"
+t.expect(text).toBe("loxia")
+t.expect(text).notToBe(1)
+
+val flag: Any = true
+t.expect(flag).toBe(true)
+t.expect(flag).notToBe(false)
+
+val number: Any = 7
+t.expect(number).toBe(7)
+t.expect(number).toBe(7.0)
+t.expect(number).notToBe(8)
+
+fn failure(actual: Any, expected: Any) -> String {
+  return t.expectRaise(fn() { t.expect(actual).toBe(expected) })
+}
+
+print(failure(dynamic, 1))
+print(failure(1, dynamic))
+print(failure(number, 8))
+print(t.expectRaise(fn() { t.expect(text).notToBe("loxia") }))
+print("ok")
+# expect: expected 1, got {"items": [1, "two"]}
+# expect: expected {"items": [1, "two"]}, got 1
+# expect: expected 8, got 7
+# expect: expected not "loxia"
+# expect: ok
