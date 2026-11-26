@@ -40,6 +40,17 @@ narrativa, não status: a fonte de status é a issue (aberta/fechada e milestone
    clientes-alvo.
 3. **Decisões abertas**: contratos foram decididos como biblioteca ([ADR-0108](adr/0108-contratos-como-biblioteca.md)) e a sintaxe ficou adiada com gatilhos; o gerador de AST foi decidido como manual + guard ([ADR-0117](adr/0117-ast-manual-e-cobertura-de-visitantes.md)). `fs.open` foi entregue com handles ([#16](https://github.com/loxia-lang/loxia/issues/16), [ADR-0119](adr/0119-fs-open-handles-e-erro-de-host.md)).
 
+## Programa de motores (ADR-0149)
+
+O nativo vira o produto: `run` compila com cache e o tree-walk fica como REPL,
+`--interpret` e oráculo. O Python é congelado **por módulo** em portões de paridade+soak, o
+oráculo migra para spec+corpus+golden e o self-host tem três níveis. O plano operacional
+(fases, portões, indicadores e painel) vive em [`plano-de-motores.md`](plano-de-motores.md) e
+a decisão em [ADR-0149](adr/0149-motores-primarios-thir-e-congelamento.md).
+F0 (`run` AOT+cache, [#244](https://github.com/loxia-lang/loxia/issues/244)) e F1 (IR de
+controle, [#245](https://github.com/loxia-lang/loxia/issues/245)) estão abertas; as fases
+seguintes viram issue quando o portão anterior fechar.
+
 ## Próximo (Next)
 
 - LSP: fechar as lacunas do [#46](https://github.com/loxia-lang/loxia/issues/46) — references/

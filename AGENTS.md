@@ -442,6 +442,7 @@ Automation:
 | LLVM | [`docs/roadmap.md`](docs/roadmap.md) (Later) |
 | what to copy from Lox2 | [ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md) |
 | code architecture | [`docs/tech/arquitetura.md`](docs/tech/arquitetura.md) |
+| native engine program, THIR and the Python freeze | [`docs/plano-de-motores.md`](docs/plano-de-motores.md) + [ADR-0149](docs/adr/0149-motores-primarios-thir-e-congelamento.md) |
 | what the language does today | [`docs/spec/`](docs/spec/) |
 | what the language **promises** (I1–I4) | [`docs/spec/garantias.md`](docs/spec/garantias.md) |
 | accept/reject a new feature | [ADR-0014](docs/adr/0014-identidade-e-invariantes.md) |
