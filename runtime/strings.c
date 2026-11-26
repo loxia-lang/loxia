@@ -56,6 +56,22 @@ void *lox_str_from_function(const void *pointer) {
     return result;
 }
 
+/* `print(instance)`: the concrete class name comes from the descriptor, not from
+ * the static type (an interface value has no class name in the lowering). */
+void lox_print_instance(const void *pointer) {
+    const void *descriptor = ((void **)pointer)[0];
+    const LoxStr *name = ((void **)descriptor)[2];
+    fwrite(lox_str_bytes(name), 1, (size_t)name->byte_len, stdout);
+    fputs(" instance\n", stdout);
+}
+
+/* `str(instance)`/interpolation: same concrete name from the descriptor. */
+void *lox_str_from_instance(const void *pointer) {
+    const void *descriptor = ((void **)pointer)[0];
+    const LoxStr *name = ((void **)descriptor)[2];
+    return lox_str_concat(name, lox_str_from_cstr(" instance"));
+}
+
 /* ---------------------------------------------------------------------------
  * LoxStr: length, ordering, equality and concatenation
  * --------------------------------------------------------------------------- */

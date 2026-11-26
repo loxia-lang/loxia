@@ -319,6 +319,8 @@ extern void *lox_alloc_bytes (int64_t size);
 extern void *lox_interface_method (const void *instance, int64_t interface_id, int64_t method_index);
 extern int lox_is_instance (void *descriptor, void *target);
 extern void lox_print_function (const void *pointer);
+extern void lox_print_instance (const void *pointer);
+extern void *lox_str_from_instance (const void *pointer);
 /* ---------------------------------------------------------------------------
  * Strings, printing and value formatting
  * --------------------------------------------------------------------------- */

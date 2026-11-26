@@ -443,11 +443,17 @@ class Lowerer(
                             [exception.llvm],
                         )
                         return
+                    # O nome concreto vem do descritor: um valor de interface não
+                    # carrega `class_name` estático.
+                    self.builder.call(
+                        self._function("lox_print_instance", _VOID, [_I8_PTR]),
+                        [value.llvm],
+                    )
+                    return
                 display = self._class_display(value.class_name or "?")
-                text = display if value.ty is ValueType.CLASS else f"{display} instance"
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]),
-                    [self._string_literal(text).llvm],
+                    [self._string_literal(display).llvm],
                 )
             case ValueType.ANY:
                 tag = self.builder.extract_value(value.llvm, 0)

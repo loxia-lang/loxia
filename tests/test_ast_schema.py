@@ -178,7 +178,7 @@ def test_schema_validates_the_parseable_corpus() -> None:
         payload = program_payload(statements, tokens, str(path))
         _check(payload, schema, schema)
         validated += 1
-    assert validated == 363
+    assert validated == 364
 
 
 def test_schema_rejects_unknown_fields_and_wrong_version() -> None:
