@@ -5,6 +5,12 @@ O contrato (ADR-0031) é: o interpretador é o oráculo. Cada caso compila, exec
 binário e compara **stdout, stderr e exit code** com a execução interpretada — não com
 uma expectativa escrita à mão, que poderia "consertar" uma divergência.
 
+Oráculo e build rodam **no processo do pytest** (`tests/inprocess.py::run_cli`), como no
+caminho rápido dos golden (ADR-0133, emenda de 2026-11-26); o binário compilado continua
+sendo executado em subprocesso. `_interpret_process`/`_build_process` preservam a via de
+processo real para os testes cujo objeto é o processo (std.proc, stdin) e para o smoke
+`test_smoke_*`, que confere um caso por nível fora do caminho in-process.
+
 Dependências: `llvmlite` (extra `llvm`) e um compilador C para linkar. No CI a env
 `LOX_REQUIRE_LLVM=1` transforma a ausência em falha, não em skip.
 """
@@ -23,7 +29,8 @@ import pytest
 
 from loxia.engine import Loxia
 from tests.corpus_manifest import COMPILE_ERRORS, LEVELS, NEGATIVE, PENDING
-from tests.runner import missing_requirements, requirements
+from tests.inprocess import Result, run_cli
+from tests.runner import missing_requirements, parse_expectations, requirements
 
 MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
 
@@ -64,20 +71,53 @@ def _write(tmp_path: Path, source: str, name: str = "caso.lx") -> Path:
     return path
 
 
-def _interpret(path: Path) -> subprocess.CompletedProcess[str]:
+def _interpret(path: Path) -> Result:
+    """Oráculo in-process: mesmo contrato do CLI (stdout, stderr, exit code)."""
+    return run_cli(str(path), cwd=ROOT)
+
+
+def _interpret_process(path: Path) -> subprocess.CompletedProcess[str]:
+    """Oráculo em processo real; usado quando o objeto do teste é o processo."""
     return _run([sys.executable, str(ENTRYPOINT), str(path)])
 
 
-def _build(
+def _as_result(done: subprocess.CompletedProcess[str]) -> Result:
+    return Result(returncode=done.returncode, stdout=done.stdout, stderr=done.stderr)
+
+
+def _oracle(path: Path) -> Result:
+    """Oráculo do caso: in-process, exceto quando o programa usa o motor nativo.
+
+    O binding `ctypes` do regex é global ao processo e os handles de um programa
+    sobrevivem ao seguinte; `groupNames(1)` deixaria de ser "unknown" e o oráculo
+    divergiria do binário, que é sempre um processo novo. Esses casos são poucos e
+    usam o crate Rust, que fica fora do loop local (#232).
+    """
+    if "rust" in requirements(path.read_text(encoding="utf-8")):
+        return _as_result(_interpret_process(path))
+    return _interpret(path)
+
+
+def _build(path: Path, tmp_path: Path, *, max_heap: str | None = None) -> tuple[Result, Path]:
+    """Build in-process pelo caminho do CLI; o binário gerado roda em subprocesso."""
+    binary = tmp_path / "programa"
+    arguments = ["--emit", "exe"]
+    if max_heap is not None:
+        arguments.extend(["--max-heap", max_heap])
+    arguments.extend(["-o", str(binary), str(path)])
+    return run_cli(*arguments, cwd=ROOT), binary
+
+
+def _build_process(
     path: Path, tmp_path: Path, *, max_heap: str | None = None
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
+    """Build em processo real; par do `_build` para paridade e smoke."""
     binary = tmp_path / "programa"
     arguments = [sys.executable, str(ENTRYPOINT), "--emit", "exe"]
     if max_heap is not None:
         arguments.extend(["--max-heap", max_heap])
     arguments.extend(["-o", str(binary), str(path)])
-    result = _run(arguments)
-    return result, binary
+    return _run(arguments), binary
 
 
 CASES = [
@@ -438,7 +478,7 @@ def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
         native_build.library()
         native_build.static_library()
 
-    interpreted = _interpret(path)
+    interpreted = _oracle(path)
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 0, result.stderr
@@ -447,6 +487,106 @@ def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
     assert compiled.stdout == interpreted.stdout
     assert compiled.stderr == interpreted.stderr
     assert compiled.returncode == interpreted.returncode
+
+
+def _smoke_cases() -> list[tuple[str, str]]:
+    """Um caso por nível, preferindo o primeiro sem capacidade externa.
+
+    O smoke roda em processo real e é a rede de segurança do caminho in-process
+    (ADR-0133); por isso ele não arrasta o crate Rust para o loop local. Níveis em
+    que todo caso exige `rust` ficam fora — o gate e os testes `slow` cobrem.
+    """
+    chosen: list[tuple[str, str]] = []
+    for level, cases in LEVELS.items():
+        for case in cases:
+            source = (ROOT / case).read_text(encoding="utf-8")
+            if not requirements(source):
+                chosen.append((level, case))
+                break
+    return chosen
+
+
+SMOKE_CASES = _smoke_cases()
+
+
+@pytest.mark.backend
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    ("level", "case"),
+    SMOKE_CASES,
+    ids=[f"{level}-{Path(case).stem}" for level, case in SMOKE_CASES],
+)
+def test_smoke_do_backend_em_processo_real(level: str, case: str, tmp_path: Path) -> None:
+    """Um caso por nível pelo caminho de processo real (oráculo e build)."""
+    path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
+
+    interpreted = _interpret_process(path)
+    result, binary = _build_process(path, tmp_path)
+
+    assert result.returncode == 0, result.stderr
+    compiled = _run([str(binary)])
+
+    assert compiled.stdout == interpreted.stdout
+    assert compiled.stderr == interpreted.stderr
+    assert compiled.returncode == interpreted.returncode
+
+
+def test_smoke_cobre_todos_os_niveis_sem_capacidade_externa() -> None:
+    """Nível só pode ficar fora do smoke se todos os casos exigirem `rust`."""
+    covered = {level for level, _ in SMOKE_CASES}
+    for level in set(LEVELS) - covered:
+        sources = [(ROOT / case).read_text(encoding="utf-8") for case in LEVELS[level]]
+        assert all("rust" in requirements(source) for source in sources), level
+
+
+PARITY_SOURCES = (
+    ("print(1 + 2);", "sucesso"),
+    ("print(1 // 0);", "erro de runtime"),
+    ("print(1 + true);", "erro rebaixável vira panic"),
+    ("print(", "erro de compilação"),
+)
+
+
+@pytest.mark.backend
+@pytest.mark.parametrize(
+    ("source", "label"), PARITY_SOURCES, ids=[case[1] for case in PARITY_SOURCES]
+)
+def test_caminho_in_process_bate_com_subprocesso(tmp_path: Path, source: str, label: str) -> None:
+    """Paridade três canais entre `run_cli` e o processo real, no oráculo e no build."""
+    path = _write(tmp_path, source + "\n")
+    fast = _interpret(path)
+    slow = _interpret_process(path)
+    assert (fast.returncode, fast.stdout, fast.stderr) == (
+        slow.returncode,
+        slow.stdout,
+        slow.stderr,
+    )
+
+    fast_dir = tmp_path / "fast"
+    slow_dir = tmp_path / "slow"
+    fast_dir.mkdir()
+    slow_dir.mkdir()
+    fast_build, fast_binary = _build(path, fast_dir)
+    slow_build, slow_binary = _build_process(path, slow_dir)
+    assert (fast_build.returncode, fast_build.stdout, fast_build.stderr) == (
+        slow_build.returncode,
+        slow_build.stdout,
+        slow_build.stderr,
+    )
+    assert fast_binary.exists() == slow_binary.exists(), label
+    if not slow_binary.exists():
+        return
+
+    native_fast = _run([str(fast_binary)])
+    native_slow = _run([str(slow_binary)])
+    assert (native_fast.returncode, native_fast.stdout, native_fast.stderr) == (
+        native_slow.returncode,
+        native_slow.stdout,
+        native_slow.stderr,
+    )
 
 
 def test_manifesto_referencia_casos_existentes() -> None:
@@ -1566,7 +1706,8 @@ def test_std_proc_nativo(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     native = _run([str(binary)])
-    interpreted = _interpret(path)
+    # `std.proc` é o objeto do teste: o oráculo continua em processo real.
+    interpreted = _interpret_process(path)
     assert native.returncode == interpreted.returncode
     assert native.stdout == interpreted.stdout
     assert native.stderr == interpreted.stderr
@@ -1600,7 +1741,8 @@ def test_process_spawn_poll_nativo(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
     native = _run([str(binary)])
-    interpreted = _interpret(path)
+    # `process.poll`/`spawn` é o objeto do teste: oráculo em processo real.
+    interpreted = _interpret_process(path)
     assert native.returncode == interpreted.returncode
     assert native.stdout == interpreted.stdout
     assert native.stdout == "true\neco\n0\n"
@@ -2112,40 +2254,54 @@ print("after")
     assert "caught" not in compiled.stdout
 
 
+def _runtime_error_goldens() -> list[str]:
+    """Goldens com erro de runtime anotado; o filtro de `--check` fica no teste.
+
+    Parametrizar (em vez de um laço) deixa o xdist distribuir os 58 casos: o laço
+    único era um piso serial de ~30 s no `make test-backend` (ADR-0133).
+    """
+    cases: list[str] = []
+    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
+        expectations = parse_expectations(path.read_text(encoding="utf-8"))
+        if expectations.exit_code == 70 and expectations.error is not None:
+            cases.append(path.relative_to(ROOT).as_posix())
+    return cases
+
+
+GOLDEN_RUNTIME_ERRORS = _runtime_error_goldens()
+
+
 @pytest.mark.backend
-def test_goldens_de_runtime_error_batem_bytes(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "case", GOLDEN_RUNTIME_ERRORS, ids=[Path(case).stem for case in GOLDEN_RUNTIME_ERRORS]
+)
+def test_goldens_de_runtime_error_batem_bytes(case: str, tmp_path: Path) -> None:
     """Todo golden de erro de runtime que passa no check deve ter stderr idêntico.
 
     O corpus `LEVELS` não inclui os goldens de erro; este teste fecha a lacuna que
     deixou passar mensagens de índice/range/cast divergentes.
     """
-    from tests.runner import parse_expectations
+    path = ROOT / case
+    missing = missing_requirements(path)
+    if missing:
+        pytest.skip(f"requer {', '.join(sorted(missing))}")
 
-    cases = []
-    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
-        if missing_requirements(path):
-            continue
-        expectations = parse_expectations(path.read_text(encoding="utf-8"))
-        if expectations.exit_code != 70 or expectations.error is None:
-            continue
-        checked = _run([sys.executable, str(ENTRYPOINT), "--check", str(path)])
-        if checked.returncode != 0:
-            continue
-        cases.append(path)
+    checked = run_cli("--check", str(path), cwd=ROOT)
+    if checked.returncode != 0:
+        pytest.skip("check não está limpo; fora do escopo do I1")
 
-    assert cases, "nenhum golden de runtime error check-clean encontrado"
+    interpreted = _oracle(path)
+    result, binary = _build(path, tmp_path)
+    assert result.returncode == 0, f"{path}: {result.stderr}"
+    compiled = _run([str(binary)])
 
-    for index, path in enumerate(cases):
-        interpreted = _interpret(path)
-        case_dir = tmp_path / f"case_{index}"
-        case_dir.mkdir()
-        result, binary = _build(path, case_dir)
-        assert result.returncode == 0, f"{path}: {result.stderr}"
-        compiled = _run([str(binary)])
+    assert compiled.stdout == interpreted.stdout, path
+    assert compiled.stderr == interpreted.stderr, path
+    assert compiled.returncode == interpreted.returncode, path
 
-        assert compiled.stdout == interpreted.stdout, path
-        assert compiled.stderr == interpreted.stderr, path
-        assert compiled.returncode == interpreted.returncode, path
+
+def test_goldens_de_runtime_error_existem() -> None:
+    assert GOLDEN_RUNTIME_ERRORS, "nenhum golden de runtime error encontrado"
 
 
 @pytest.mark.backend
@@ -2250,7 +2406,8 @@ def test_regex_engine_diferencial_nativo(
         "regex_engine.free(handle)\n"
         'print(regex_engine.find(handle, "abc 42", 0))\n',
     )
-    interpreted = _interpret(path)
+    # Oráculo em processo real: o motor nativo é estado global (ver `_oracle`).
+    interpreted = _interpret_process(path)
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 0, result.stderr
@@ -2329,7 +2486,7 @@ def test_regex_module_diferencial_nativo(
         "}\n"
         'print(regex.tryCompile("("))\n',
     )
-    interpreted = _interpret(path)
+    interpreted = _interpret_process(path)
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 0, result.stderr
@@ -2360,7 +2517,7 @@ def test_regex_group_names_diferencial_nativo(
         "regex_engine.free(handle)\n"
         "print(regex_engine.groupNames(handle))\n",
     )
-    interpreted = _interpret(path)
+    interpreted = _interpret_process(path)
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 0, result.stderr
@@ -2384,7 +2541,7 @@ def test_regex_group_names_sozinho_linka_o_motor(
     monkeypatch.setenv("LOX_BUILD_CACHE", regex_build_cache)
 
     path = _write(tmp_path, "print(regex_engine.groupNames(1))\n")
-    interpreted = _interpret(path)
+    interpreted = _interpret_process(path)
     result, binary = _build(path, tmp_path)
 
     assert result.returncode == 0, result.stderr

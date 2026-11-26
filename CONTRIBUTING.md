@@ -65,13 +65,13 @@ local notebook (gitignored).
 make check-fast     # ruff + format + mypy + pytest (no native builds) + docs freshness
 make check          # everything, including the native backend suite
 make test-fast      # pytest without backend/install, parallel (~15-20 s)
-make test-backend   # native backend suite only, parallel (~40 s; TEST_JOBS=0 for serial)
+make test-backend   # native backend suite only, parallel (~11 s warm; TEST_JOBS=0 for serial)
 make bench          # performance vs bench/baseline.json (run when touching hot paths)
 ```
 
 `make check-fast` is the loop while iterating; `make test-backend` is the loop when touching
-the backend or the corpus (each case is already a subprocess, so xdist only changes the wall
-time). `make check` is the gate before opening a PR. If the backend is not installed, the
+the backend or the corpus (the oracle and the build run in the pytest process, so xdist only
+changes the wall time). `make check` is the gate before opening a PR. If the backend is not installed, the
 backend tests are skipped locally; CI always runs them with `libgc` and fails if `llvmlite`
 is missing. `make test-fast TEST_JOBS=0` runs the same selection serially when debugging a
 single case.

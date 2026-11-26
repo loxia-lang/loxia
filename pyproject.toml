@@ -69,6 +69,7 @@ markers = [
     "bench: benchmarks lentos, não rodam na suíte padrão",
     "backend: compila e executa binários nativos (precisa de llvmlite, cc e libgc)",
     "install: builda o wheel e instala num venv fora do repo (lento; rode com `pytest -m install`)",
+    "smoke: um caso por nível do backend pelo caminho de processo real (loop local)",
 ]
 
 [tool.coverage.run]
