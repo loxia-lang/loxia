@@ -57,8 +57,10 @@ Every case lives in `LEVELS`, `PENDING` or `NEGATIVE` in `tests/corpus_manifest.
 ## Backend tests
 
 ```bash
+make test-backend               # backend only; xdist, ~40 s (needs libgc)
+make test-backend TEST_JOBS=0   # backend serial, to debug one case
 uv run pytest -m backend -q     # builds each manifest case; needs libgc
-make test                       # everything, includes backend
+make test                       # everything, includes backend (serial)
 ```
 
 The runtime is cached by a hash of sources/headers/compiler/flags; a backend failure is a
