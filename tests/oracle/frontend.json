@@ -124,7 +124,11 @@
     "tests/cases/errors/field_val_outside_init.lx": "ff263b98b45a5fe4ce3c96049f1bca1b4bb830b2b56beefa3f422cd8290abe3d",
     "tests/cases/errors/fn_any_cast.lx": "2bc55aca7ad7fd6b60735977e1678032136070389e4d51ecf1af5f3975b3702c",
     "tests/cases/errors/fn_defaults_cast.lx": "11a18673a2823fff8faff8ea34fdb2d27a42a6c1d005c390d5febfd1a6079841",
+    "tests/cases/errors/fn_defaults_optional_cast.lx": "a68f9b9f29f1b2d7aa5786502749523b334cd5d4607cdb8473010ba73dcbba4f",
+    "tests/cases/errors/fn_optional_cast_nil.lx": "67eaea9989a03764f567be985fb20d27c07d4a8c9af6c90fc74e098bfa5235f5",
     "tests/cases/errors/fn_signature_cast.lx": "6ec06b5c99e2174208f92493a4f20a200e94c26320c9c0f1f8f6fa198b4f7bed",
+    "tests/cases/errors/fn_uninitialized_call.lx": "015df476fc53a783d44b472f6b3cdca084ee65960cad738cfe90bd189cfd5e2e",
+    "tests/cases/errors/fn_uninitialized_cast.lx": "f5c65e364ff0fcdb29fa5b075f02acc97c56725ebc099bad1d6c40c43d0f06e6",
     "tests/cases/errors/for_in_immutable.lx": "f750e12644da7415fb8f1c0ad1565321736b0f61b646f84abe506ec802c1aa0b",
     "tests/cases/errors/for_in_not_iterable.lx": "f1ed03e6c2cf57f574abd53dbfa77e3e9862ff7beed024c346519329cb3c9061",
     "tests/cases/errors/initializer_arity.lx": "c4b61668f2ea5876689da6471b21d813c75a53ba66eb71ff5a46896d20a6660d",
@@ -160,6 +164,7 @@
     "tests/cases/errors/not_callable.lx": "7814feb6947e1ebbec137c0dee7912734142089db6fd0d0e3a1c0a26493cb6b9",
     "tests/cases/errors/only_instances_have_fields.lx": "77c86eb13a2dabf389a3442c6d1eef5352ee4fec7288b4673684795c44b4361c",
     "tests/cases/errors/only_instances_have_properties.lx": "3db17980f7cbed4bf8056135b58c8a1b096ee8145419c4e128976248e5ff72a1",
+    "tests/cases/errors/optional_class_cast_nil.lx": "a9cedfd564741c25d81e4c50d4f2377b58b1959386bb465ca99dde7599cf3a58",
     "tests/cases/errors/optional_not_instance.lx": "0542a8382a7759486aacadef5a6a236214a1a1432464f3b47a0f99fd73c39319",
     "tests/cases/errors/param_immutable.lx": "f892f74ccb0e27a5b86c7d4e03349f5d27d1e4a252c9c77fcd0c47520821a748",
     "tests/cases/errors/parameter_redeclaration.lx": "6037148130282319e84a3093ed299096a14f8c6999f4b18ad78b9f3c1db60fc0",
@@ -194,7 +199,8 @@
     "tests/cases/fields_inheritance.lx": "5d91a8938193239af4c9457cb235e62b5d4b790ab668346d992a5f6338b6312f",
     "tests/cases/fields_val_var.lx": "b12dd68ec71d45ba71d89de138117153949f431f03dd2c1fd2db0d763533c2a5",
     "tests/cases/fn_any.lx": "cf5737edd5b328a4c13c6eac2deca6a6c61f083c752f6961a012902934f0c036",
-    "tests/cases/fn_optional_global.lx": "92e8bb51e0815f98b510bc56f887f437cf16a4e3d183bf40d43054e52409c5a2",
+    "tests/cases/fn_optional_global.lx": "850b0be2c16e6d66203e9e68576048da51ce75f1833374f72a4bde47e4e8be3e",
+    "tests/cases/fn_uninitialized.lx": "e875cbffe90acb4be3b8f5f2b95ca505e2b81b5acca07d76e7a07468cf739884",
     "tests/cases/for.lx": "540eeb25601df419ac2a4e8430726fef71d3a3e3795844c49f4d6d4e05a2e5a5",
     "tests/cases/for_in.lx": "60690a05b59bfec1f39405a38c7cdb9d9ab4c0732e0f3e0cb415a5e39aad7beb",
     "tests/cases/for_in_capture.lx": "730386ee5624fb3937b4f267548ca6dfd008eda4b9e3afa1b9da2c8889bfe0a2",
@@ -1293,6 +1299,46 @@
         }
       }
     ],
+    "tests/cases/errors/fn_defaults_optional_cast.lx": [
+      {
+        "code": "R1011",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 12,
+            "line": 9,
+            "offset": 187
+          },
+          "file": "tests/cases/errors/fn_defaults_optional_cast.lx",
+          "start": {
+            "column": 10,
+            "line": 9,
+            "offset": 185
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/fn_optional_cast_nil.lx": [
+      {
+        "code": "R1011",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 5,
+            "offset": 117
+          },
+          "file": "tests/cases/errors/fn_optional_cast_nil.lx",
+          "start": {
+            "column": 9,
+            "line": 5,
+            "offset": 115
+          }
+        }
+      }
+    ],
     "tests/cases/errors/fn_signature_cast.lx": [
       {
         "code": "R1011",
@@ -1309,6 +1355,46 @@
             "column": 10,
             "line": 6,
             "offset": 74
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/fn_uninitialized_call.lx": [
+      {
+        "code": "R1001",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 3,
+            "offset": 102
+          },
+          "file": "tests/cases/errors/fn_uninitialized_call.lx",
+          "start": {
+            "column": 10,
+            "line": 3,
+            "offset": 101
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/fn_uninitialized_cast.lx": [
+      {
+        "code": "R1011",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 3,
+            "offset": 98
+          },
+          "file": "tests/cases/errors/fn_uninitialized_cast.lx",
+          "start": {
+            "column": 9,
+            "line": 3,
+            "offset": 96
           }
         }
       }
@@ -2399,6 +2485,26 @@
         }
       }
     ],
+    "tests/cases/errors/optional_class_cast_nil.lx": [
+      {
+        "code": "R1011",
+        "phase": "runtime",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 11,
+            "line": 5,
+            "offset": 102
+          },
+          "file": "tests/cases/errors/optional_class_cast_nil.lx",
+          "start": {
+            "column": 9,
+            "line": 5,
+            "offset": 100
+          }
+        }
+      }
+    ],
     "tests/cases/errors/optional_not_instance.lx": [
       {
         "code": "E3001",
@@ -3453,7 +3559,11 @@
     "tests/cases/errors/field_val_outside_init.lx": "9c32ae545d3eee58ff53d909a779617ea87627b4921bf6d4bfe0b95329305b2b",
     "tests/cases/errors/fn_any_cast.lx": "f72c3baf0b172a89c80e9336fd0c624845ee59e1ead9ca6cc1558ca3e981dc89",
     "tests/cases/errors/fn_defaults_cast.lx": "b65eb850038ff7776743d1896ac29a078e2340688b29427e24b3d264e956bd80",
+    "tests/cases/errors/fn_defaults_optional_cast.lx": "dcccea5c1b5fd98224ab9ef079c213f4d6e5541ee87c970a400adb695ed407eb",
+    "tests/cases/errors/fn_optional_cast_nil.lx": "774dd64a1553e1176c8777545ecb69bd08abe124e32740ac819094d9dbf985f7",
     "tests/cases/errors/fn_signature_cast.lx": "bc03ec907642b91eac2908a65f530390f4529e4b67528e2f7a94a333c9097c2f",
+    "tests/cases/errors/fn_uninitialized_call.lx": "3ec39db8c340515c683b25921b6a4b6860080254b199e2f519a12c348a25f057",
+    "tests/cases/errors/fn_uninitialized_cast.lx": "66fdc2854295b550a09025a9f16c6df558db23c7a1db1ddb18dacd37109d9c60",
     "tests/cases/errors/for_in_immutable.lx": "64e9b4ea17406b5835c85c9c65f9f3d7de28e0742c1f767f5658f2ea7c2a0b73",
     "tests/cases/errors/for_in_not_iterable.lx": "133153a2b81be2ca4e85c1133cacf45caa21797624fd2c183a9c95a6dfdc3cf8",
     "tests/cases/errors/initializer_arity.lx": "43affcc202d4c652bcc030292e4e19703072ae9247b4c316e9cfded26ed6e4c6",
@@ -3489,6 +3599,7 @@
     "tests/cases/errors/not_callable.lx": "25568fffd557dc4277a912e27fdb72ee17a01227d84be57225803c31f61721c8",
     "tests/cases/errors/only_instances_have_fields.lx": "7b86ea3a6c29e8636f046a4d0abe7aa8b5261bf54584baa768dfd1aedc986999",
     "tests/cases/errors/only_instances_have_properties.lx": "2a0382d2f23ebc72379d2d876704c8bc9abda812aaea8605c226d8752c4ef1c8",
+    "tests/cases/errors/optional_class_cast_nil.lx": "2e1238af7a30fd9de546f6d6c4316c7b71b13143615d5ba793db19f0b1e46a53",
     "tests/cases/errors/optional_not_instance.lx": "17c104863dc997481cdfc26d254749819874c9f91bb446379118605c50673251",
     "tests/cases/errors/param_immutable.lx": "7410b0c327782c2dce763873e802f24da157762fa0950f63baf12a13a2061794",
     "tests/cases/errors/parameter_redeclaration.lx": "93333221b1e815407ab73d5c8979f093ce92ba36b3ae9e2c9fdb77f7af89c741",
@@ -3523,7 +3634,8 @@
     "tests/cases/fields_inheritance.lx": "ae1de23330b7a43486c5d26effa63b021c10140f30508c786a4db2b4747db4c0",
     "tests/cases/fields_val_var.lx": "72f420e3e93a4eb582aca19a945c50de634a4304464c8ac4b2bc5ab53496da90",
     "tests/cases/fn_any.lx": "c462533ccc990e1f213fb25f10b8ad8ac99e6038fb350a9dd354bdd345930c3e",
-    "tests/cases/fn_optional_global.lx": "e23f4f771c1e6bb841fff71bab4dcf2b5e5cc22ad06421a46b3d6285b3dd7de4",
+    "tests/cases/fn_optional_global.lx": "d0d3cedc81604c9ab5bd8f14b2a50349632e71534914014f2b5fd3f41fe268e7",
+    "tests/cases/fn_uninitialized.lx": "1d02806b1af7b9a30641c80b94c767b2f09ce10fa91050fcd203657843bc8830",
     "tests/cases/for.lx": "4ce6c52991ea7b8371d81047db4e8735a20a5be5080895e7cae5140f63c4571b",
     "tests/cases/for_in.lx": "5ca167a3b809b25a4d46162b186745dc0800230b386692291062406349d6c530",
     "tests/cases/for_in_capture.lx": "6fc69eacdfdb709319d09b767632de103e613b549282c1793842101545c3fb11",

@@ -292,6 +292,14 @@ int lox_list_equal(const void *left_pointer, const void *right_pointer) {
  * strings compare content; containers compare structure; other tags compare the
  * payload. */
 int lox_value_equal(LoxValue left, LoxValue right) {
+    if (left.tag == 7 && lox_function_is_nil((const void *)(intptr_t)left.payload)) {
+        left.tag = 0;
+        left.payload = 0;
+    }
+    if (right.tag == 7 && lox_function_is_nil((const void *)(intptr_t)right.payload)) {
+        right.tag = 0;
+        right.payload = 0;
+    }
     if ((left.tag == 1 || left.tag == 2) &&
         (right.tag == 1 || right.tag == 2)) {
         double a = left.tag == 1 ? (double)left.payload : 0.0;

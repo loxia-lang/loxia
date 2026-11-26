@@ -222,6 +222,11 @@ class CallLowering(LoweringBase):
         if callee.optional:
             return self._call_optional(callee, expr)
 
+        if callee.function is None:
+            # Slot de função sem inicializador é a sentinela do runtime: chamar
+            # antes de atribuir é R1001, como `nil(...)` no tree-walk.
+            callee = self._guard_uninitialized_function(callee, expr.paren)
+
         arguments = [self._expr(argument) for argument in expr.arguments]
         effective = info if info is not None else callee.function
         sig = effective.fn_sig if effective is not None else callee.sig
@@ -367,6 +372,27 @@ class CallLowering(LoweringBase):
                 ],
             )
         return [*fixed_values, Value(ValueType.LIST, raw)]
+
+    def _guard_uninitialized_function(self, callee: Value, token: Token) -> Value:
+        """Rejeita a sentinela de função não inicializada no site da chamada."""
+        is_nil = self.builder.call(
+            self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+            [callee.llvm],
+        )
+        uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
+        bad = llvm_ir.append_block(self._function_ir, "fn.uninitialized")
+        ok = llvm_ir.append_block(self._function_ir, "fn.initialized")
+        self.builder.cbranch(uninitialized, bad, ok)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(
+            token,
+            "Can only call functions and classes.",
+            code=Code.RUNTIME_NOT_CALLABLE,
+        )
+
+        self.builder = llvm_ir.builder(ok)
+        return callee
 
     def _call_optional(self, callee: Value, expr: Call) -> Value:
         sig = callee.sig

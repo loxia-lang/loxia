@@ -119,6 +119,12 @@ alternativa futura, não neste PR.
    nunca com `zip` desencontrado/E4002. Um default é constante justamente para não precisar
    reavaliar a expressão no runtime; o closure não carrega a tabela de defaults.
 
+   Um slot `fn` **não-opcional sem inicializador** guarda a sentinela estática
+   `lox_uninitialized_function` (display `nil`), não o ponteiro nulo: `print`/`str`, `== nil`,
+   `is Nil` e o boxing em `Any` a tratam como `nil`, e chamar/castar antes da atribuição é
+   `R1001`/`R1011` no site, igual ao tree-walk. O matcher e a igualdade normalizam a sentinela
+   para a tag `nil`; não há tag nova, allocation nem custo no caminho de função inicializada.
+
 7. **ABI/desempenho.** O append mantém os três primeiros campos (o código que lê
    `fn`/`env`/`display` continua válido). Chamadas **estáticas** não mudam: a checagem é no
    cast/`is`, não por chamada. O `LoxFnSig` é estático (sem GC, sem alocação por closure);
@@ -182,6 +188,14 @@ alternativa futura, não neste PR.
   com dois operandos opcionais, condicional + `??` e defaults preservados quando os dois
   ramos são a mesma função; `test_i4_lacunas_declaradas` cobre a recusa declarada dos
   defaults com callees distintos.
+- `tests/cases/fn_uninitialized.lx` (l6, diferencial) e
+  `errors/fn_uninitialized_call.lx` / `errors/fn_uninitialized_cast.lx`: a sentinela de
+  função não inicializada imprime/compara como `nil`, boxa como `nil` em `Any` e falha em
+  chamada/`as` com a mesma mensagem, código e coluna do tree-walk.
+- `tests/cases/errors/fn_optional_cast_nil.lx`, `optional_class_cast_nil.lx` e
+  `fn_defaults_optional_cast.lx`: cast de opcional nil e de função com default para um alvo
+  com menos parâmetros falham `R1011` em `linha:coluna`, nos dois motores — nenhum caminho
+  estático pula a checagem de assinatura.
 - `tests/cases/errors/fn_any_cast.lx`, `fn_defaults_cast.lx` e `fn_signature_cast.lx`:
   `R1011` nos dois motores (não-função, default/alvo com menos parâmetros e assinatura
   incompatível).

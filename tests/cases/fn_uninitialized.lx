@@ -1,0 +1,41 @@
+# Função não-opcional sem inicializador é nil (sentinela do runtime).
+var f: fn(Int) -> Int
+
+print(f)                    # expect: nil
+print(f ?? nil)             # expect: nil
+print(f == nil)             # expect: true
+print(f != nil)             # expect: false
+print(f is fn(Int) -> Int)  # expect: false
+print(f is Nil)             # expect: true
+
+val caixa: Any = f
+print(caixa)                    # expect: nil
+print(caixa == nil)             # expect: true
+print(caixa is Nil)             # expect: true
+print(caixa is fn(Int) -> Int)  # expect: false
+print(str(f))                   # expect: nil
+
+fn dobro(x: Int) -> Int {
+  return x * 2
+}
+
+# Sentinela é nil também em `??`, `and`/`or` e no boxing/desboxing de `Any`.
+val g = f ?? dobro
+print(g(1)) # expect: 2
+val h = f or dobro
+print(h(2)) # expect: 4
+val i = f and dobro
+print(i) # expect: nil
+val caixaNil: Any = f
+print(caixaNil ?? 7) # expect: 7
+
+fn aceita(x: (fn(Int) -> Int)?) -> Nil {
+  print(x)         # expect: nil
+  print(x == nil)  # expect: true
+}
+
+aceita(f)
+
+f = dobro
+print(f(3))      # expect: 6
+print(f == nil)  # expect: false

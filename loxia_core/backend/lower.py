@@ -165,6 +165,7 @@ class Lowerer(
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
+        self._extern_values: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
         self._displays: dict[str, Any] = {}
         self.budget = MonomorphizationBudget()
@@ -1196,6 +1197,20 @@ class Lowerer(
             )
             return Value(ValueType.BOOL, result)
 
+        if (left.ty is ValueType.FUNCTION and right.ty is ValueType.NIL) or (
+            right.ty is ValueType.FUNCTION and left.ty is ValueType.NIL
+        ):
+            # A sentinela de função não inicializada é `nil`, como no tree-walk.
+            function = left if left.ty is ValueType.FUNCTION else right
+            result = self.builder.call(
+                self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                [function.llvm],
+            )
+            is_nil = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
+            if not equal:
+                is_nil = self.builder.not_(is_nil)
+            return Value(ValueType.BOOL, is_nil)
+
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
             both_nil = left.ty is right.ty
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal)))
@@ -1424,6 +1439,18 @@ class Lowerer(
             # `Any` carrega o próprio nil na tag: a otimização "não-opcional logo
             # não-nil" não vale e o lado direito não é morto.
             return self._coalesce_any(left, expr)
+        if self.types.get(expr.right) is TY_NIL:
+            # `a ?? nil` é o próprio `a`: nil ou o valor, sem mudar a
+            # representação (importante para a sentinela de função).
+            return left
+        if not left.optional and left.ty is ValueType.FUNCTION:
+            # A sentinela de função não inicializada é nil em runtime, então o
+            # slot "não-opcional" não garante o curto-circuito. Envolver no
+            # opcional normaliza sentinela→nil e reusa o caminho abaixo.
+            left = self._some(
+                TypeDesc(left.ty, left.sig, True, left.class_name, left.interface_name),
+                left,
+            )
         if not left.optional:
             # Um valor não-nil é sempre não-nil: o lado direito é morto.
             if left.ty is not ValueType.NIL:
@@ -1441,10 +1468,6 @@ class Lowerer(
                 coalesced_desc = None
             if coalesced_desc is not None and coalesced_desc.ty is ValueType.ANY:
                 return self._coalesce_any(left, expr)
-
-        if self.types.get(expr.right) is TY_NIL:
-            # `a ?? nil` é o próprio `a` opcional: nil ou o valor.
-            return left
 
         inner = TypeDesc(
             left.ty,
@@ -1663,7 +1686,6 @@ class Lowerer(
                 ValueType.INT
                 | ValueType.FLOAT
                 | ValueType.STRING
-                | ValueType.FUNCTION
                 | ValueType.CLASS
                 | ValueType.INSTANCE
                 | ValueType.RANGE
@@ -1673,8 +1695,16 @@ class Lowerer(
                 | ValueType.ENUM
                 | ValueType.BYTES
             ):
-                # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
+                # Só nil e false são falsy: `0`, `0.0` e `""` são truthy.
                 return llvm_ir.constant(_BOOL, 1)
+            case ValueType.FUNCTION:
+                # A sentinela de função não inicializada é nil, logo falsy.
+                result = self.builder.call(
+                    self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                    [value.llvm],
+                )
+                is_nil = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
+                return self.builder.not_(is_nil)
             case ValueType.NIL:
                 return llvm_ir.constant(_BOOL, 0)
 

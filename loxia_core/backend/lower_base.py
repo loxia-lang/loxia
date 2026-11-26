@@ -70,6 +70,7 @@ class LoweringBase:
     main: Any
     builder: Any
     _runtime: Any
+    _extern_values: dict[str, Any]
     _messages: Any
     _displays: Any
     _poison_count: int
@@ -275,7 +276,15 @@ class LoweringBase:
     def _box_value(self, value: Value, line: int | None) -> Value:
         raise NotImplementedError
 
-    def _unwrap(self, value: Value, line: int, message: str) -> Value:
+    def _unwrap(
+        self,
+        value: Value,
+        line: int,
+        message: str,
+        *,
+        column: int = 0,
+        code: Code = Code.RUNTIME_ERROR,
+    ) -> Value:
         raise NotImplementedError
 
     def _coerce(self, value: Value, expected: TypeDesc, line: int | None) -> Value:

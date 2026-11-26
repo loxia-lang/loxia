@@ -126,6 +126,11 @@ typedef struct {
     LoxFnSig *signature;
 } LoxClosure;
 
+/* Fn value of an uninitialized non-optional function variable: prints/compares as
+ * `nil` and is rejected by calls. Static; never allocated or collected. */
+extern const LoxClosure lox_uninitialized_function;
+extern int lox_function_is_nil (const void *pointer);
+
 /* Mirrored layout of `_CLASS_DESC`/`_INTERFACE_ENTRY` (ADR-0080, phase B2). */
 typedef struct {
     void *super;
