@@ -2732,6 +2732,8 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
 
         free = [variable for variable in variables if self._contains_any_type_var(fn, (variable,))]
         if not free:
+            if not self._has_any_type_var(fn):
+                self.function_types[expr] = fn
             return fn
 
         return GenericFnTy("lambda", tuple(free), fn)
@@ -2835,7 +2837,10 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         else:
             return_ty = self._infer_lambda_return(expr, returns, all_paths_return)
 
-        return FnTy(tuple(param_types), return_ty, minimum, variadic)
+        result = FnTy(tuple(param_types), return_ty, minimum, variadic)
+        if not self._has_any_type_var(result):
+            self.function_types[expr] = result
+        return result
 
     def _infer_lambda_return(self, expr: Lambda, returns: list[Ty], all_paths_return: bool) -> Ty:
         if not returns:

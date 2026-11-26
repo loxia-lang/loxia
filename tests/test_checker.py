@@ -1865,6 +1865,14 @@ def test_is_narrows_any_to_list() -> None:
     assert lox.reporter.had_error is False
 
 
+def test_lambda_records_function_types_for_runtime_narrowing() -> None:
+    lox = check("val a: fn(Int) -> Int = fn(x) => x * 2\nval b = fn(x: Int) -> Int => x\n")
+
+    assert lox.reporter.had_error is False
+    assert lox.last_checker is not None
+    assert len(lox.last_checker.function_types) == 2
+
+
 def test_is_accepts_function_types() -> None:
     lox = check(
         """

@@ -108,3 +108,21 @@ fn cor(c: Cor) -> Int {
 val e2: Any = cor
 print(e2 is fn(Cor) -> Int)                  # expect: true
 print((e2 as fn(Cor) -> Int)(Cor.Vermelho))  # expect: 1
+
+interface Saudacao {
+  fn ola() -> String {
+    return "ola"
+  }
+}
+
+class Pessoa implements Saudacao {}
+
+val pessoa = Pessoa()
+val ola: Any = pessoa.ola
+print(ola is fn() -> String)      # expect: true
+print((ola as fn() -> String)())  # expect: ola
+
+val lam: fn(Int) -> Int = fn(x) => x * 2
+val lamb: Any = lam
+print(lamb is fn(Int) -> Int)       # expect: true
+print((lamb as fn(Int) -> Int)(3))  # expect: 6
