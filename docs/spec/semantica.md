@@ -204,6 +204,8 @@ var a = "global";
   branches (`Int`/`Int` → `Int`); the `else` is right-associative.
 - `??` is **nil only**: `0 ?? 5` → `0`, `false ?? true` → `false`, `"" ?? "x"` → `""`;
   `or` still uses truthiness. The right side is evaluated only if the left side is `nil`.
+  The type is the common type of the non-nil left and the right (`I? ?? C` → `I`, `C? ?? D`
+  → `C` when `D` is a subclass); without one, it is the union.
 - `?.` only protects against `nil`: `nil?.x` → `nil`; `a?.b.c` does not protect `b`; use `a?.b?.c`.
   In `a?.m()`, if `a` is nil, the method and the arguments are not evaluated; if `a` is not
   nil but `m` does not exist, it is still an error. `a?.b = c` is invalid.
@@ -580,8 +582,9 @@ val d = anyValue as Dog   # runtime check
 - `Any` has no static shape: member access (`a.x`, `a.m()`), field assignment (`a.x = v`),
   calling (`a()`) and indexing (`a[i]`) require narrowing first (`if (a is C)` or `a as T`);
   otherwise the checker reports `E3025`. The backend unboxes the `Any` value at the narrowed
-  use, so both engines agree. Narrowing to an interface, a function type or a class object
-  is not supported yet (`E3013`/`E3007`). Value operations stay dynamic on `Any`: arithmetic,
+  use, so both engines agree. Narrowing to an interface is supported (`is I`/`as I`,
+  [ADR-0146](../adr/0146-is-as-interface.md)); function and class-object targets are not
+  supported yet (`E3013`/`E3007`). Value operations stay dynamic on `Any`: arithmetic,
   comparison, equality, `is`/`as`, `print`/`str`/interpolation, `not`/unary, `??` and
   `and`/`or`; `len` and `for-in` on an un-narrowed `Any` are declared backend gaps (`E4001`).
   See [ADR-0144](../adr/0144-any-dinamico-exige-estreitamento.md).
@@ -928,8 +931,10 @@ print(shape.description())   # shape:12.56636
   transitively through the superclass; `Interface` is not assignable to `Class`. `I?`,
   `List[I]`, an interface field/parameter/return are valid; the concrete instance remains
   the value at runtime.
-- `is`/`as` with an interface do **not** exist yet: the checker rejects them with a targeted
-  diagnostic (`Interface types aren't supported in 'is' yet.`).
+- `is I`/`as I` are supported ([ADR-0146](../adr/0146-is-as-interface.md)): the runtime
+  checks the descriptor's interface table (own and inherited); `as` from a concrete class
+  that does not implement `I` is a checker error, while `Any`/union/other-interface sources
+  are checked at runtime (`Can't cast value to I.`).
 - Interfaces have no state, generics or inheritance in v1. In the LLVM backend the feature is
   compiled via ABI B2 from
   [ADR-0080](../adr/0080-interfaces-nominais-implementacao.md): deterministic

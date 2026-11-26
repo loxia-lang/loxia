@@ -33,6 +33,7 @@ from loxia_core.frontend.ty import (
     ClassTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     NativeFnTy,
@@ -106,6 +107,8 @@ def matches_type(
         return isinstance(value, LoxEnumValue) and value.enum == ty.name
     if isinstance(ty, ClassObjectTy):
         return isinstance(value, LoxClass) and value.is_subclass_of(ty.name)
+    if isinstance(ty, InterfaceTy):
+        return isinstance(value, LoxInstance) and value.implements_interface(ty.name)
     if isinstance(ty, UnionTy):
         return any(matches_type(value, member, class_lookup) for member in ty.members)
     if isinstance(ty, (FnTy, NativeFnTy)):

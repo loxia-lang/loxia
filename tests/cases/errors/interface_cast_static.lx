@@ -1,0 +1,10 @@
+# Classe que não implementa a interface: erro de checker, não R1011.
+interface Named {
+  fn name() -> String
+}
+
+class Other {}
+
+val o = Other()
+print(o as Named)
+# expect error: Can't cast Other to Named.

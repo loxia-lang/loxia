@@ -50,6 +50,20 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
 
 ### Adicionado
+- **`??` em união de interface/container com `Nil`** ([#221](https://github.com/loxia-lang/loxia/issues/221)):
+  o checker usa o tipo comum entre o lado não-nulo e o direito (`I | Nil ?? C` → `I`), e o
+  lowering preserva o tipo de interface no phi; antes o `--emit` recusava a união
+  (`E4001`) e o uso direto `(y ?? C()).m()` perdia o despacho. Caso
+  `tests/cases/interface_union_optional.lx` (L6, diferencial).
+- **`is`/`as` para interface** ([ADR-0146](docs/adr/0146-is-as-interface.md), issue
+  [#213](https://github.com/loxia-lang/loxia/issues/213)): um `Any` que guarda uma instância
+  que implementa uma interface agora estreita para a interface (`if (x is I)`,
+  `(x as I).m()`), inclusive método default, interface herdada, `List[I]`/`Map[K, I]` e
+  interface importada de módulo. A checagem em runtime usa a
+  tabela de interfaces do descritor de classe (a mesma do despacho), sem tag ou ABI nova;
+  `as` de uma classe que não implementa `I` é erro de checker e `Any`/união são checados em
+  runtime. Casos `tests/cases/any_interface.lx` (L6, diferencial),
+  `errors/any_interface_cast.lx` e `errors/interface_cast_static.lx`.
 - **Campo `Any` no backend** ([ADR-0145](docs/adr/0145-campo-any-slot-largo.md), issue [#196](https://github.com/loxia-lang/loxia/issues/196)): um campo `Any` (ou união de escalares) ocupa duas palavras inline (`{tag, payload}`) e aceita qualquer valor — incluindo containers, instância, enum e função — com `is`/`as`/`==`/`??`/`print`. O layout usa dois contadores (`index` do bitmap e `slot` absoluto em palavras), herança preserva o prefixo e classes sem `Any` mantêm o layout antigo. Acesso continua exigindo narrowing (`E3025`). Casos `tests/cases/any_field_*.lx` (L6, diferencial).
 - **`break`/`continue`** ([ADR-0139](docs/adr/0139-break-continue.md)): `break` sai do laço
   mais interno e `continue` vai para a próxima iteração, em `while` e `for-in`, com
@@ -162,6 +176,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   Com o [ADR-0145](docs/adr/0145-campo-any-slot-largo.md), o campo `Any` passou a ser
   suportado (ver **Adicionado**); o tree-walk e o binário agora imprimem o mesmo valor.
   Regressão em `tests/test_backend.py` (união) e casos `tests/cases/any_field_*.lx`.
+- **Diagnóstico de tipo importado** ([#222](https://github.com/loxia-lang/loxia/issues/222)):
+  mensagens de cast (`E3013`/`R1011`) e `display` de tipos mostram o nome local
+  (`Named`) em vez do nome canônico do loader (`mod$lib$Named`). O tree-walk e o binário
+  já concordavam; era só a mensagem. Teste em `tests/test_modules.py`.
 - **Refino de campo após nativa pura**: `print`/`len`/`str`/`repr`/`chars`/`range` e métodos
   de `List`/`Map` não derrubam mais o narrowing de campo/índice. Antes, um `if (c.x is T)`
   seguido de `print(...)` fazia o uso seguinte de `c.x` cair em `E3025` sem motivo; chamadas

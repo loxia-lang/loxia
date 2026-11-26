@@ -107,6 +107,16 @@ class LoxClass:
 
         return False
 
+    def implements_interface(self, name: str) -> bool:
+        """A classe (ou um ancestral) implementa a interface nominal (ADR-0080)."""
+        klass: LoxClass | None = self
+        while klass is not None:
+            if any(interface.matches(name) for interface in klass.interfaces):
+                return True
+            klass = klass._superclass
+
+        return False
+
     def min_arity(self) -> int:
         initializer = self.find_method("init")
         if initializer is None:

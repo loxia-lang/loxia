@@ -62,6 +62,7 @@ from loxia_core.frontend.ty import (
     ClassTy,
     EnumTy,
     FnTy,
+    InterfaceTy,
     ListTy,
     MapTy,
     NativeFnTy,
@@ -699,8 +700,21 @@ class ClassCodegenLowering(LoweringBase):
         )
 
     def _expand_alias(self, ty: Ty) -> Ty:
-        if isinstance(ty, ClassTy) and ty.name in self.type_aliases:
-            return self.type_aliases[ty.name]
+        if isinstance(ty, ClassTy):
+            if ty.name in self.type_aliases:
+                return self._expand_alias(self.type_aliases[ty.name])
+            if not ty.args and ty.name in self._interface_ids:
+                # O parser entrega `ClassTy(I)`; interface é identificada pelo id.
+                return InterfaceTy(ty.name)
+            return ty
+        if isinstance(ty, ListTy):
+            return ListTy(self._expand_alias(ty.element))
+        if isinstance(ty, MapTy):
+            return MapTy(self._expand_alias(ty.key), self._expand_alias(ty.value))
+        if isinstance(ty, TupleTy):
+            return TupleTy(tuple(self._expand_alias(item) for item in ty.items))
+        if isinstance(ty, UnionTy):
+            return UnionTy(tuple(self._expand_alias(member) for member in ty.members))
         return ty
 
     def _is_expr(self, expr: Is) -> Value:
@@ -790,6 +804,11 @@ class ClassCodegenLowering(LoweringBase):
             if mapped is None:
                 raise _unsupported(f"Unbound type parameter '{ty.name}'", line)
             return self._type_text(mapped, line)
+        if isinstance(ty, InterfaceTy):
+            interface_id = self._interface_ids.get(ty.name)
+            if interface_id is None:
+                raise _unsupported(f"Interface '{ty.name}'", line)
+            return f"J<{interface_id}>"
         if isinstance(ty, (FnTy, NativeFnTy, ClassObjectTy)):
             return "X"
         raise _unsupported(f"Type '{ty}'", line)
@@ -898,11 +917,16 @@ class ClassCodegenLowering(LoweringBase):
         return Value(ValueType.FLOAT, merged)
 
     def _as_expr(self, expr: As) -> Value:
-        target_ty = self._subst_ty(expr.target_type)
+        target_ty = self._expand_alias(self._subst_ty(expr.target_type))
         target_desc = self._type_desc(target_ty, expr.operator.line)
         value = self._expr(expr.left)
         if value.ty is ValueType.ANY:
             return self._as_any(expr, value, target_desc, target_ty)
+        if isinstance(target_ty, InterfaceTy):
+            # A interface é um ponteiro de instância; o matcher confere a tabela
+            # de interfaces do descritor (ADR-0146).
+            boxed = self._box_value(value, expr.operator.line)
+            return self._as_any(expr, boxed, target_desc, target_ty)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
             if value.optional:
@@ -948,11 +972,12 @@ class ClassCodegenLowering(LoweringBase):
             return value
 
         target = self._target_class(target_ty, expr.operator.line)
+        target_display = display(target_ty)
         if value.optional:
             value = self._unwrap(
                 value,
                 expr.operator.line,
-                f"Can't cast value to {target}.",
+                f"Can't cast value to {target_display}.",
             )
         check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")
@@ -960,7 +985,11 @@ class ClassCodegenLowering(LoweringBase):
         self.builder.cbranch(check.llvm, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
-        self._poison(expr.operator, f"Can't cast value to {target}.", code=Code.RUNTIME_CAST)
+        self._poison(
+            expr.operator,
+            f"Can't cast value to {target_display}.",
+            code=Code.RUNTIME_CAST,
+        )
 
         self.builder = llvm_ir.builder(ok)
         return Value(

@@ -14,13 +14,30 @@ class LoxInterface:
     guarda só os métodos default, ligados ao ambiente onde a interface foi declarada.
     """
 
-    def __init__(self, name: str, defaults: dict[str, LoxFunction]) -> None:
+    def __init__(
+        self,
+        name: str,
+        defaults: dict[str, LoxFunction],
+        *,
+        canonical: str | None = None,
+    ) -> None:
         self._name = name
+        # O loader renomeia a interface importada no `is`/`as` (`mod$lib$I`), mas o
+        # token de `implements` guarda o nome de exibição; o runtime precisa aceitar
+        # os dois (ADR-0146).
+        self._canonical = canonical or name
         self._defaults = defaults
 
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def canonical_name(self) -> str:
+        return self._canonical
+
+    def matches(self, name: str) -> bool:
+        return name == self._name or name == self._canonical
 
     def find_method(self, name: str) -> LoxFunction | None:
         return self._defaults.get(name)

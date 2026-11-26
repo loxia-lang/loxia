@@ -1,0 +1,8 @@
+# Cast de `Any` para interface falha em runtime (R1011), igual nos dois motores.
+interface Named {
+  fn name() -> String
+}
+
+val n: Any = 1
+print(n as Named)
+# expect runtime error: Can't cast value to Named.
