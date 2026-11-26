@@ -8,7 +8,7 @@
 
 **Loxia** is a small, statically checked language **descended from Lox**, with a tree-walk
 interpreter that serves as the executable specification and an optional **LLVM** backend.
-It is not a toy: the interpreter and the compiled binary are tested for byte-identical
+The interpreter and the compiled binary are tested for byte-identical
 stdout, stderr and exit codes on a declared corpus. The lineage is declared, not a
 compatibility claim — Loxia has its own syntax, semantics and standard library.
 
@@ -36,7 +36,7 @@ compatibility claim — Loxia has its own syntax, semantics and standard library
 ## A taste of Loxia
 
 <!-- readme-sample -->
-```lox
+```loxia
 enum Shape {
   Circle(Float),
   Rect(Float, Float)
