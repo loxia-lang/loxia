@@ -30,10 +30,24 @@ raise for the same failure. The naming rule (core uses the plain name, raising s
 `OrRaise` suffix) is the target for **new** shells; no stdlib function uses `OrRaise` yet — `json`
 migrates in ADR-0135's M2. The stdlib is migrating to "no raise for expected failure": today the
 allowlist by nature is `asserts`, `contracts`, `test`, `property`, and the remaining raises are
-tracked in M2-M3 by `tests/test_stdlib_error_policy.py`. There is no `main` entry point today: a discarded `Err` is just a value and does not change
-the exit code. When an entry point returning `Result` exists ([#142](https://github.com/loxia-lang/loxia/issues/142)),
-an unhandled `Err` will print `error: <msg>` to stderr and exit **70** (same code as an
-uncaught runtime error); that is the decided target, not current behavior.
+tracked in M2-M3 by `tests/test_stdlib_error_policy.py`.
+
+The **entry point** is the top-level `fn main` of the file being run/built that returns
+`Result[T, String]` ([ADR-0148](../adr/0148-ponto-de-entrada-main-result.md)). It takes no
+parameters, is not generic, and runs **once after every top-level statement**. `Ok(...)` exits
+**0** and the payload is ignored; `Err(msg)` prints `error[R1016]: <msg>` to stderr and exits
+**70** (same code as an uncaught runtime error). `msg` is the `String` itself — no `repr`, no
+implicit conversion. Only the value **returned** by `main` counts: a discarded `Err` elsewhere
+is still just a value (exit 0). The boundary is not an exception (`try` cannot catch it); an
+exception escaping `main` keeps the normal `R1010`/70 path with position and stack trace.
+Modules and the REPL never have an entry point, and a `main` that does not return `Result`
+(e.g. `fn main() -> Nil`) is an ordinary function — the explicit `main()` idiom still works.
+A `main` that returns `Result` with a parameter, type parameter or `E ≠ String` is the
+check error `E3026` (exit 65). A top-level declaration with a value (function, class or
+enum) declared twice — `main` included — is `E3027` (exit 65): the tree-walk would use the
+last closure at each point while the checker types every call with the last signature, so
+different signatures would diverge before the backend. There is no `main(args)` and `Ok(code)` does not set the exit code; use
+`os.exit(code)`.
 
 Call depth is limited to **10,000 Lox activations** (function, method, lambda,
 `init` and constructor); the next is `R1015` (`Stack overflow.`), exit 70, catchable by
@@ -1052,6 +1066,10 @@ try {
   (`human`) or only the header (`short`); catalog and JSON envelope in
   [`erros.md`](erros.md) ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)).
 - Runtime format: `file:line:col: error[CODE]: message` (no caret, same as the binary).
+- The **entry boundary** (`Err` returned by `main`) has no source position:
+  `error[R1016]: <msg>` on stderr, exit 70 ([ADR-0148](../adr/0148-ponto-de-entrada-main-result.md)).
+  It is a process result, not a throwable: `try` cannot catch it, and an exception escaping
+  `main` still prints `R1010` with position and trace.
 - Messages are in English (compatibility with the book and tests).
 - Compile errors are **accumulated** (the parser tries to recover; the resolver reports
   all of them), ordered by `(file, offset, code)`, without duplicates and limited by

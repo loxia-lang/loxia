@@ -31,7 +31,7 @@ from loxia_core.frontend.ast_printer import AstPrinter
 from loxia_core.frontend.parser import Parser
 from loxia_core.frontend.scanner import Scanner
 from loxia_core.frontend.source_index import SourceIndex
-from loxia_core.frontend.stmt import Stmt
+from loxia_core.frontend.stmt import Function, Stmt
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
 from loxia_core.frontend.trivia import Trivia
@@ -347,12 +347,15 @@ class Loxia:
         if self.reporter.had_error:
             return
 
+        entry: Function | None = None
         if self._check_on_run and not repl:
             self._run_check(statements, resolver)
             if self.reporter.had_fatal_error:
                 return
+            if self.last_checker is not None:
+                entry = self.last_checker.entry
 
-        self.interpreter.interpret(statements)
+        self.interpreter.interpret(statements, entry=entry)
 
     def _run_check(self, statements: list[Stmt], resolver: Resolver) -> None:
         """Checa antes de executar (ADR-0142, fase 2).
@@ -370,6 +373,7 @@ class Loxia:
                 source_index=self.last_source_index,
                 gradual=True,
                 warn_missing=False,
+                entry_file=self._file,
             )
             checker.check(statements)
         finally:
@@ -523,6 +527,7 @@ class Loxia:
                 captured_mutables=resolver.captured_mutables,
                 captured_globals=resolver.captured_global_names,
                 source_index=self.last_source_index,
+                entry_file=self._file,
             )
             checker.check(statements)
             self.last_checker = checker
@@ -623,6 +628,7 @@ class Loxia:
                         captured_globals=resolver.captured_global_names,
                         source_index=self.last_source_index,
                         gradual=self.gradual,
+                        entry_file=self._file,
                     )
                     checker.check(statements)
                     self.last_checker = checker
@@ -664,6 +670,7 @@ class Loxia:
             captured_mutables=resolver.captured_mutables,
             captured_globals=resolver.captured_global_names,
             source_index=self.last_source_index,
+            entry_file=self._file,
         )
         checker.check(statements)
         if self.reporter.had_fatal_error:
@@ -703,6 +710,7 @@ class Loxia:
                 source_path=self._file,
                 max_heap=max_heap,
                 debug=self.debug,
+                entry=checker.entry,
             )
         except BackendError as error:
             self.reporter.backend_error(error.line, error.message, code=error.code)

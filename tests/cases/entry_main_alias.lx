@@ -1,0 +1,7 @@
+# A type alias to `Result[Int, String]` also opens the entry contract.
+type Entry = Result[Int, String]
+
+fn main() -> Entry {
+  return Result.Err("alias")
+}
+# expect runtime error: error[R1016]: alias

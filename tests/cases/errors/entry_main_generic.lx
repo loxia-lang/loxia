@@ -1,0 +1,4 @@
+fn main[T]() -> Result[T, String] {
+  return Result.Err("x")
+}
+# expect error: Entry point 'main' must not be generic.

@@ -469,6 +469,7 @@ extern void lox_throw (void *instance, const char *type_name, const char *messag
 extern void lox_rethrow (void *exception_pointer, int32_t line, int32_t column);
 extern void lox_raise_current (int32_t line, int32_t column);
 extern void lox_raise_value (void *pointer, int32_t line, int32_t column);
+extern void lox_unhandled_result (const void *pointer);
 extern void lox_panic_at (const char *file, int32_t line, int32_t column, const char *code, const char *message);
 extern void lox_panic (int32_t line, int32_t column, const char *code, const char *message);
 /* ---------------------------------------------------------------------------

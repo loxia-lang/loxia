@@ -174,6 +174,10 @@ cause bugs when forgotten:
   in the class body with `val`/`var` (ADR-0005/0009).
 - Inheritance is `class B(A)`, one superclass, `super.m()` binds to the current `this`; `this`
   is implicit, there is no `self` (ADR-0008).
+- The **entry point** is the top-level `fn main` of the entry file returning
+  `Result[T, String]` (ADR-0148); it runs after the top-level statements, `Ok` exits 0 and
+  `Err(msg)` prints `error[R1016]: msg` to stderr and exits 70. Modules/REPL never have an
+  entry, and `main` without `Result` (e.g. `-> Nil`) is an ordinary function.
 - No implicit coercion, ever (I2). Deterministic output, always (I3).
 
 ---

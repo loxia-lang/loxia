@@ -470,6 +470,22 @@ void lox_raise_current(int32_t line, int32_t column) {
                           lox_call_depth);
 }
 
+/* Entry point: `Err` returned by `main` (ADR-0148). The message is the `String`
+ * payload boxed in the enum; `lox_str_from_any` reproduces the tree-walk
+ * `stringify` (a String comes back as is). Fixed prefix and no position, the same
+ * shape as `error[R1000]: Out of memory.`. Never returns. */
+void lox_unhandled_result(const void *pointer) {
+    LoxValue value = lox_enum_payload(pointer, 0, 0, 0);
+    void *text = lox_str_from_any(value.tag, value.payload);
+    const LoxStr *message = text;
+    fflush(stdout);
+    fputs("error[R1016]: ", stderr);
+    fwrite(lox_str_bytes(message), 1, (size_t)message->byte_len, stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
+    exit(70);
+}
+
 /* Runtime panic: with an active try it becomes a catchable `RuntimeError`;
  * otherwise it prints the header + trace and exits 70. Never returns. */
 void lox_panic_at(const char *file, int32_t line, int32_t column,

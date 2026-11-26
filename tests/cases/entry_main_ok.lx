@@ -1,0 +1,10 @@
+# Entry point `main -> Result`: `Ok` exits 0; only the return of `main` counts.
+val ignored: Result[Int, String] = Result.Err("ignored")
+print("top")
+
+fn main() -> Result[Int, String] {
+  print("main")
+  return Result.Ok(42)
+}
+# expect: top
+# expect: main

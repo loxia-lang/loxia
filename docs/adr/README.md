@@ -199,6 +199,7 @@ TODO item.
 | [0145](0145-campo-any-slot-largo.md) | `Any` fields take two inline words (`{tag, payload}`) with an absolute `slot` next to the bitmap `index`; instance size comes from `word_count()` and the GC-scanned slab keeps the payload rooted | accepted (implemented) | 2026-11-25 |
 | [0146](0146-is-as-interface.md) | `is I`/`as I`: runtime check against the descriptor's interface table (own + inherited, kind `J<id>`); a cast from a concrete class that does not implement the interface is a static error; no new tag or ABI; functions and class objects remain in issue #213 | accepted (implemented) | 2026-11-25 |
 | [0147](0147-valores-de-funcao-assinatura-runtime.md) | Function values carry a static signature (`min/max` arity, variadic, param/return type trees); `is`/`as fn` compare the actual signature with the target by the checker's subtyping **plus ABI-compatible representations**; no new tag, nested function types supported, natives/class objects out | accepted (implemented) | 2026-11-25 |
+| [0148](0148-ponto-de-entrada-main-result.md) | Opt-in entry point: the entry file's top-level `fn main` returning `Result[T, String]` (no params/generics) runs after top-level statements; `Ok` exits 0, `Err(msg)` prints `error[R1016]: msg` and exits 70; modules/REPL never have one, `main -> Nil` stays an ordinary function, near-miss signatures are `E3026` | accepted (implemented) | 2026-11-26 |
 
 
 ## Next decisions that call for an ADR

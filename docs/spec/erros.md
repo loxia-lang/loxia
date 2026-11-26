@@ -314,6 +314,8 @@ missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E
 | `E3023` | non-exhaustive match |
 | `E3024` | unreachable match arm |
 | `E3025` | dynamic access on `Any` requires narrowing (`is`/`as`) |
+| `E3026` | entry point `main` signature (parameters, generics, return type) |
+| `E3027` | duplicate top-level declaration (function, class or enum) |
 
 ### Backend
 
@@ -343,6 +345,7 @@ missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E
 | `R1013` | field not initialized |
 | `R1014` | invalid value (map key, superclass, …) |
 | `R1015` | call depth above the limit |
+| `R1016` | unhandled `Err` returned by the entry point |
 
 ### CLI
 

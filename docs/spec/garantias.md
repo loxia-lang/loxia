@@ -56,7 +56,7 @@ missing, not a secret.
 | `l3` | 14 |
 | `l4` | 12 |
 | `l5` | 30 |
-| `l6` | 124 |
+| `l6` | 130 |
 | `k0` | 2 |
 | `t1` | 6 |
 | `t2` | 22 |
@@ -64,7 +64,7 @@ missing, not a secret.
 | `t4` | 3 |
 | `t7` | 3 |
 
-**258 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **7 negative** on purpose.
+**264 cases** across 14 levels compile and agree; **1 in `PENDING`** (`bytes_method_value` (l6)); **7 negative** on purpose.
 <!-- levels:end -->
 
 Levels not yet implemented reject with an **explicit compilation error**
@@ -220,6 +220,13 @@ The wording of an error message **may change between versions**; the exit code d
 reused ([ADR-0075](../adr/0075-diagnosticos-estruturados.md)); the output is sorted
 by `(file, offset, code)`, deduplicated, limited by `--max-errors` and the displayed path
 is always relative. The JSON carries `schema_version`.
+
+The entry point `main -> Result[T, String]` follows the same contract
+([ADR-0148](../adr/0148-ponto-de-entrada-main-result.md)): `Ok` exits 0, and `Err(msg)`
+prints `error[R1016]: <msg>` to stderr and exits 70, identical in the tree-walk and in the
+binary. The message has no position, PID, timestamp or absolute path — it is the `String`
+returned by the program, byte for byte. The differential corpus covers it in L6
+(`tests/cases/entry_main_err.lx`).
 
 ### I4 — Clean `--check` ⇒ it compiles
 
