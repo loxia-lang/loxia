@@ -28,6 +28,9 @@ ALLOWED: dict[str, Code] = {
     "tests/cases/errors/pow_invalid_domain.lx": Code.RUNTIME_OPERANDS,
     "tests/cases/errors/range_step_zero.lx": Code.RUNTIME_ERROR,
     "tests/cases/errors/shift_count.lx": Code.RUNTIME_OPERANDS,
+    # O checker não faz análise de inicialização: `var f: fn(...)` pode chegar
+    # nulo ao call site mesmo com `--check` limpo.
+    "tests/cases/errors/fn_uninitialized_call.lx": Code.RUNTIME_NOT_CALLABLE,
 }
 
 

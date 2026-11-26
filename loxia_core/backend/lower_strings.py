@@ -79,8 +79,8 @@ class StringLowering(LoweringBase):
                 exception = self._exception_text(value)
                 if exception is not None:
                     return cast(Value, exception)
-                display = self._class_display(value.class_name or "?")
-                return self._string_literal(f"{display} instance")
+                function = self._function("lox_str_from_instance", _I8_PTR, [_I8_PTR])
+                return Value(ValueType.STRING, self.builder.call(function, [value.llvm]))
             case ValueType.CLASS:
                 display = self._class_display(value.class_name or "?")
                 return self._string_literal(display)

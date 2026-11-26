@@ -1,0 +1,6 @@
+# Cast de classe opcional nil: R1011 no site, como o tree-walk.
+class C {}
+
+val o: C? = nil
+print(o as C)
+# expect runtime error: Can't cast value to C.

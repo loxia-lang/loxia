@@ -1023,9 +1023,14 @@ class ClassCodegenLowering(LoweringBase):
                     value,
                     expr.operator.line,
                     f"Can't cast value to {display(target_ty)}.",
+                    column=expr.operator.column,
+                    code=Code.RUNTIME_CAST,
                 )
-            if value.ty is ValueType.FUNCTION:
-                return value
+            # O checker já comparou assinatura e representação quando a origem é
+            # um `FnTy` estático, mas o slot pode ser a sentinela de função não
+            # inicializada (nil), então a checagem de runtime vale para todos.
+            # União/`Any`: a assinatura real do closure é checada em runtime, como
+            # no tree-walk (um default a menos no alvo falha R1011).
             boxed = self._box_value(value, expr.operator.line)
             return self._as_any(expr, boxed, target_desc, target_ty)
         if isinstance(target_ty, InterfaceTy):
@@ -1035,8 +1040,15 @@ class ClassCodegenLowering(LoweringBase):
             return self._as_any(expr, boxed, target_desc, target_ty)
         if target_desc.ty in (ValueType.INT, ValueType.FLOAT):
             value = self._expr(expr.left)
+            target_name = "Float" if target_desc.ty is ValueType.FLOAT else "Int"
             if value.optional:
-                value = self._unwrap(value, expr.operator.line, "Can't cast value to Int.")
+                value = self._unwrap(
+                    value,
+                    expr.operator.line,
+                    f"Can't cast value to {target_name}.",
+                    column=expr.operator.column,
+                    code=Code.RUNTIME_CAST,
+                )
             if target_desc.ty is ValueType.FLOAT:
                 if value.ty is ValueType.FLOAT:
                     return value
@@ -1084,6 +1096,8 @@ class ClassCodegenLowering(LoweringBase):
                 value,
                 expr.operator.line,
                 f"Can't cast value to {target_display}.",
+                column=expr.operator.column,
+                code=Code.RUNTIME_CAST,
             )
         check = self._is_instance(value, target, expr.operator.line, expr.operator.column)
         ok = llvm_ir.append_block(self._function_ir, "as.ok")

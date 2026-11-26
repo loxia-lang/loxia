@@ -21,8 +21,13 @@
  * Functions and closures
  * --------------------------------------------------------------------------- */
 
-/* `print(f)`: writes the closure's deterministic display + newline. */
+/* `print(f)`: writes the closure's deterministic display + newline. An
+ * uninitialized function slot prints as `nil`, like the tree-walk. */
 void lox_print_function(const void *pointer) {
+    if (lox_function_is_nil(pointer)) {
+        fputs("nil\n", stdout);
+        return;
+    }
     const LoxClosure *closure = pointer;
     fputs(closure->display, stdout);
     fputc('\n', stdout);
@@ -30,6 +35,9 @@ void lox_print_function(const void *pointer) {
 
 /* `str(f)`/interpolation: materializes the display as an ASCII LoxStr. */
 void *lox_str_from_function(const void *pointer) {
+    if (lox_function_is_nil(pointer)) {
+        return lox_str_from_cstr("nil");
+    }
     const LoxClosure *closure = pointer;
     const char *display = closure->display;
     size_t length = strlen(display);
@@ -46,6 +54,22 @@ void *lox_str_from_function(const void *pointer) {
     result->left = NULL;
     result->right = NULL;
     return result;
+}
+
+/* `print(instance)`: the concrete class name comes from the descriptor, not from
+ * the static type (an interface value has no class name in the lowering). */
+void lox_print_instance(const void *pointer) {
+    const void *descriptor = ((void **)pointer)[0];
+    const LoxStr *name = ((void **)descriptor)[2];
+    fwrite(lox_str_bytes(name), 1, (size_t)name->byte_len, stdout);
+    fputs(" instance\n", stdout);
+}
+
+/* `str(instance)`/interpolation: same concrete name from the descriptor. */
+void *lox_str_from_instance(const void *pointer) {
+    const void *descriptor = ((void **)pointer)[0];
+    const LoxStr *name = ((void **)descriptor)[2];
+    return lox_str_concat(name, lox_str_from_cstr(" instance"));
 }
 
 /* ---------------------------------------------------------------------------
@@ -726,6 +750,10 @@ void format_value(LoxBuffer *buffer, LoxValue value) {
             break;
         }
         case 7: {
+            if (lox_function_is_nil((const void *)(intptr_t)value.payload)) {
+                buffer_text(buffer, "nil");
+                break;
+            }
             const LoxClosure *closure = (const void *)value.payload;
             buffer_text(buffer, closure->display);
             break;

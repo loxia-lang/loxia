@@ -1,0 +1,6 @@
+# Cast de função opcional nil: R1011 no site, como o tree-walk.
+type F = fn(Int) -> Int
+
+val o: F? = nil
+print(o as F)
+# expect runtime error: Can't cast value to fn(Int) -> Int.

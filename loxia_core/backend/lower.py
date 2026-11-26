@@ -52,6 +52,7 @@ from loxia_core.backend.lower_model import (
     Value,
     ValueType,
     _unsupported,
+    merge_callable_metadata,
 )
 from loxia_core.backend.lower_optionals import OptionalLowering
 from loxia_core.backend.lower_range import RangeLowering
@@ -164,6 +165,7 @@ class Lowerer(
         self.main: Any = None
         self.builder: Any = None
         self._runtime: dict[str, Any] = {}
+        self._extern_values: dict[str, Any] = {}
         self._messages: dict[str, Any] = {}
         self._displays: dict[str, Any] = {}
         self.budget = MonomorphizationBudget()
@@ -441,11 +443,17 @@ class Lowerer(
                             [exception.llvm],
                         )
                         return
+                    # O nome concreto vem do descritor: um valor de interface não
+                    # carrega `class_name` estático.
+                    self.builder.call(
+                        self._function("lox_print_instance", _VOID, [_I8_PTR]),
+                        [value.llvm],
+                    )
+                    return
                 display = self._class_display(value.class_name or "?")
-                text = display if value.ty is ValueType.CLASS else f"{display} instance"
                 self.builder.call(
                     self._function("lox_print_str", _VOID, [_I8_PTR]),
-                    [self._string_literal(text).llvm],
+                    [self._string_literal(display).llvm],
                 )
             case ValueType.ANY:
                 tag = self.builder.extract_value(value.llvm, 0)
@@ -1195,6 +1203,20 @@ class Lowerer(
             )
             return Value(ValueType.BOOL, result)
 
+        if (left.ty is ValueType.FUNCTION and right.ty is ValueType.NIL) or (
+            right.ty is ValueType.FUNCTION and left.ty is ValueType.NIL
+        ):
+            # A sentinela de função não inicializada é `nil`, como no tree-walk.
+            function = left if left.ty is ValueType.FUNCTION else right
+            result = self.builder.call(
+                self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                [function.llvm],
+            )
+            is_nil = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
+            if not equal:
+                is_nil = self.builder.not_(is_nil)
+            return Value(ValueType.BOOL, is_nil)
+
         if left.ty is ValueType.NIL or right.ty is ValueType.NIL:
             both_nil = left.ty is right.ty
             return Value(ValueType.BOOL, llvm_ir.constant(_BOOL, int(both_nil == equal)))
@@ -1320,6 +1342,9 @@ class Lowerer(
         else_end = self.builder.block
         else_open = not else_end.is_terminated
 
+        # Os metadados valem para o valor **antes** da coerção: o ramo `nil` deixa
+        # de ser `NIL` ao virar opcional e não pode apagar a função do outro ramo.
+        function, generic, generic_node = merge_callable_metadata(then_value, else_value)
         common = self._merge_branches(then_value, else_value, None)
 
         if then_open:
@@ -1346,7 +1371,15 @@ class Lowerer(
             merged = self.builder.phi(self._storage_llvm_type(common), "cond.value")
             merged.add_incoming(then_value.llvm, then_end)
             merged.add_incoming(else_value.llvm, else_end)
-            return Value(common.ty, merged, common.fn, common.optional)
+            return Value(
+                common.ty,
+                merged,
+                common.fn,
+                common.optional,
+                function=function,
+                generic=generic,
+                generic_node=generic_node,
+            )
 
         if then_open:
             return then_value
@@ -1412,6 +1445,18 @@ class Lowerer(
             # `Any` carrega o próprio nil na tag: a otimização "não-opcional logo
             # não-nil" não vale e o lado direito não é morto.
             return self._coalesce_any(left, expr)
+        if self.types.get(expr.right) is TY_NIL:
+            # `a ?? nil` é o próprio `a`: nil ou o valor, sem mudar a
+            # representação (importante para a sentinela de função).
+            return left
+        if not left.optional and left.ty is ValueType.FUNCTION:
+            # A sentinela de função não inicializada é nil em runtime, então o
+            # slot "não-opcional" não garante o curto-circuito. Envolver no
+            # opcional normaliza sentinela→nil e reusa o caminho abaixo.
+            left = self._some(
+                TypeDesc(left.ty, left.sig, True, left.class_name, left.interface_name),
+                left,
+            )
         if not left.optional:
             # Um valor não-nil é sempre não-nil: o lado direito é morto.
             if left.ty is not ValueType.NIL:
@@ -1429,10 +1474,6 @@ class Lowerer(
                 coalesced_desc = None
             if coalesced_desc is not None and coalesced_desc.ty is ValueType.ANY:
                 return self._coalesce_any(left, expr)
-
-        if self.types.get(expr.right) is TY_NIL:
-            # `a ?? nil` é o próprio `a` opcional: nil ou o valor.
-            return left
 
         inner = TypeDesc(
             left.ty,
@@ -1498,12 +1539,16 @@ class Lowerer(
         )
         merged.add_incoming(some_value, some_end)
         merged.add_incoming(right_llvm, nothing_end)
+        function, generic, generic_node = merge_callable_metadata(left, right_value)
         return Value(
             inner.ty,
             merged,
             inner.fn,
             optional=result_optional,
             class_name=inner.class_name,
+            function=function,
+            generic=generic,
+            generic_node=generic_node,
             interface_name=inner.interface_name,
         )
 
@@ -1612,7 +1657,16 @@ class Lowerer(
         merged = self.builder.phi(self._storage_llvm_type(common), "logical.value")
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
-        return Value(common.ty, merged, common.fn, common.optional)
+        function, generic, generic_node = merge_callable_metadata(left, right)
+        return Value(
+            common.ty,
+            merged,
+            common.fn,
+            common.optional,
+            function=function,
+            generic=generic,
+            generic_node=generic_node,
+        )
 
     def _truthy(self, value: Value) -> Any:
         if value.optional:
@@ -1638,7 +1692,6 @@ class Lowerer(
                 ValueType.INT
                 | ValueType.FLOAT
                 | ValueType.STRING
-                | ValueType.FUNCTION
                 | ValueType.CLASS
                 | ValueType.INSTANCE
                 | ValueType.RANGE
@@ -1648,8 +1701,16 @@ class Lowerer(
                 | ValueType.ENUM
                 | ValueType.BYTES
             ):
-                # Só nil e false são falsy: `0`, `0.0`, `""` e funções são truthy.
+                # Só nil e false são falsy: `0`, `0.0` e `""` são truthy.
                 return llvm_ir.constant(_BOOL, 1)
+            case ValueType.FUNCTION:
+                # A sentinela de função não inicializada é nil, logo falsy.
+                result = self.builder.call(
+                    self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+                    [value.llvm],
+                )
+                is_nil = self.builder.icmp_signed("!=", result, llvm_ir.constant(_I32, 0))
+                return self.builder.not_(is_nil)
             case ValueType.NIL:
                 return llvm_ir.constant(_BOOL, 0)
 

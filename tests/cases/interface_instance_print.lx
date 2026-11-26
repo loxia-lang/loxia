@@ -1,0 +1,31 @@
+# Nome concreto de instância guardada como interface vem do descritor, não do tipo.
+interface I {
+  fn m() -> Int
+}
+
+class Impl implements I {
+  fn m() -> Int {
+    return 7
+  }
+}
+
+class Sub(Impl) {}
+
+val i: I = Impl()
+print(i)       # expect: Impl instance
+print(str(i))  # expect: Impl instance
+print("${i}")  # expect: Impl instance
+
+val j: I? = Impl()
+print(j as I) # expect: Impl instance
+
+val s: I = Sub()
+print(s)       # expect: Sub instance
+print("${s}")  # expect: Sub instance
+
+val a: Any = i
+print(a) # expect: Impl instance
+
+class C {}
+
+print(C()) # expect: C instance

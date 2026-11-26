@@ -192,12 +192,13 @@ class CallLowering(LoweringBase):
             assert binding is not None
             assert isinstance(expr.callee, Variable)
             callee = self._load_binding(binding)
-            callee = self._guard_closure(
-                callee,
-                expr.callee.name.lexeme,
-                expr.callee.name.line,
-                expr.callee.name.column,
-            )
+            if not callee.optional:
+                callee = self._guard_closure(
+                    callee,
+                    expr.callee.name.lexeme,
+                    expr.callee.name.line,
+                    expr.callee.name.column,
+                )
         elif isinstance(expr.callee, Get) and precomputed is not None:
             callee = self._get_instance(precomputed, expr.callee)
         else:
@@ -220,6 +221,11 @@ class CallLowering(LoweringBase):
 
         if callee.optional:
             return self._call_optional(callee, expr)
+
+        if callee.function is None:
+            # Slot de função sem inicializador é a sentinela do runtime: chamar
+            # antes de atribuir é R1001, como `nil(...)` no tree-walk.
+            callee = self._guard_uninitialized_function(callee, expr.paren)
 
         arguments = [self._expr(argument) for argument in expr.arguments]
         effective = info if info is not None else callee.function
@@ -314,6 +320,10 @@ class CallLowering(LoweringBase):
                     default = info.params[index].default
                     assert default is not None
                     values.append(self._expr(default))
+            elif count < len(sig.params):
+                # Sem `FunctionInfo` não há como rebaixar a expressão do default:
+                # recusa declarada (nunca `zip` desencontrado/lowering silencioso).
+                raise _unsupported("Default parameters in indirect function calls", token.line)
             return [
                 self._coerce(value, sig.params[index], token.line)
                 for index, value in enumerate(values)
@@ -333,6 +343,8 @@ class CallLowering(LoweringBase):
                 default = info.params[index].default
                 assert default is not None
                 fixed_values.append(self._expr(default))
+        if len(fixed_values) < fixed and info is None:
+            raise _unsupported("Default parameters in indirect function calls", token.line)
         if len(fixed_values) != fixed:
             self._poison(
                 token,
@@ -360,6 +372,27 @@ class CallLowering(LoweringBase):
                 ],
             )
         return [*fixed_values, Value(ValueType.LIST, raw)]
+
+    def _guard_uninitialized_function(self, callee: Value, token: Token) -> Value:
+        """Rejeita a sentinela de função não inicializada no site da chamada."""
+        is_nil = self.builder.call(
+            self._function("lox_function_is_nil", _I32, [_I8_PTR]),
+            [callee.llvm],
+        )
+        uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
+        bad = llvm_ir.append_block(self._function_ir, "fn.uninitialized")
+        ok = llvm_ir.append_block(self._function_ir, "fn.initialized")
+        self.builder.cbranch(uninitialized, bad, ok)
+
+        self.builder = llvm_ir.builder(bad)
+        self._poison(
+            token,
+            "Can only call functions and classes.",
+            code=Code.RUNTIME_NOT_CALLABLE,
+        )
+
+        self.builder = llvm_ir.builder(ok)
+        return callee
 
     def _call_optional(self, callee: Value, expr: Call) -> Value:
         sig = callee.sig

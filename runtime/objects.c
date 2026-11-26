@@ -20,6 +20,18 @@
 
 LoxTypeCache *lox_type_cache = NULL;
 
+/* The uninitialized-function sentinel lives in the runtime, not in the GC heap:
+ * every read of `var f: fn(...)` starts here and assignment replaces the slot. */
+const LoxClosure lox_uninitialized_function = {
+    NULL, NULL, "nil", 0, 0, NULL
+};
+
+/* `nil` for a function slot: a null pointer (a predeclared global before its
+ * declaration is guarded elsewhere) or the sentinel (an uninitialized variable). */
+int lox_function_is_nil(const void *pointer) {
+    return pointer == NULL || pointer == (const void *)&lox_uninitialized_function;
+}
+
 /* ---------------------------------------------------------------------------
  * Interface dispatch (ADR-0080)
  * --------------------------------------------------------------------------- */
@@ -535,6 +547,10 @@ int lox_class_id_matches(const void *descriptor, int64_t id) {
  * the id. `is`/`as` call it with the tree cached by `lox_type_parse_cached`. */
 int lox_type_matches_desc(int64_t tag, int64_t payload,
                                  const LoxTypeDesc *type) {
+    if (tag == 7 && lox_function_is_nil((const void *)(intptr_t)payload)) {
+        tag = 0;
+        payload = 0;
+    }
     if (type == NULL || type->kind == -1) {
         return 1;
     }

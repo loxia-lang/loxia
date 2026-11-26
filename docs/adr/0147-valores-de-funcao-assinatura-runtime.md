@@ -11,8 +11,9 @@
   (não-objetivos), issue [#213](https://github.com/loxia-lang/loxia/issues/213)
 - **Implementação:** `runtime/lox_runtime.h` (`LoxClosure`, `LoxFnSig`),
   `runtime/objects.c` (`lox_fn_assignable`, `lox_type_assignable`, parse de função),
-  `loxia_core/backend/lower_model.py` (`_CLOSURE`/`FnSig`), `lower_functions.py`,
-  `lower_class_codegen.py` (bound methods/interface thunks), `lower_calls.py`,
+  `loxia_core/backend/lower_model.py` (`_CLOSURE`/`FnSig`, `merge_callable_metadata`),
+  `lower_functions.py`, `lower_class_codegen.py` (bound methods/interface thunks),
+  `lower_calls.py`, `lower_variables.py`, `lower_optionals.py`,
   `loxia_core/semantics/checker.py` (`FnTy` por declaração, `visit_as_expr`/`visit_is_expr`),
   `loxia_core/execution/lox_function.py` (assinatura), `interpreter.py`,
   `tests/cases/fn_*.lx`, `tests/test_checker.py`, `tests/test_backend.py`
@@ -110,6 +111,20 @@ alternativa futura, não neste PR.
    tipos de função aninhados. Fora: valores nativos, objetos de classe (#219), funções
    genéricas como valor e reificação de tipos.
 
+   Defaults de parâmetro (constantes, ADR-0009) só são rebaixados quando o `FunctionInfo` do
+   callee é estático e único — chamada direta, ou valor que passou por `??`/condicional/`and`/
+   `or` com a **mesma** função nos dois ramos. A chamada indireta que omite um default com
+   callees distintos é recusada com a lacuna declarada
+   (`Default parameters in indirect function calls is not supported by the backend yet.`),
+   nunca com `zip` desencontrado/E4002. Um default é constante justamente para não precisar
+   reavaliar a expressão no runtime; o closure não carrega a tabela de defaults.
+
+   Um slot `fn` **não-opcional sem inicializador** guarda a sentinela estática
+   `lox_uninitialized_function` (display `nil`), não o ponteiro nulo: `print`/`str`, `== nil`,
+   `is Nil` e o boxing em `Any` a tratam como `nil`, e chamar/castar antes da atribuição é
+   `R1001`/`R1011` no site, igual ao tree-walk. O matcher e a igualdade normalizam a sentinela
+   para a tag `nil`; não há tag nova, allocation nem custo no caminho de função inicializada.
+
 7. **ABI/desempenho.** O append mantém os três primeiros campos (o código que lê
    `fn`/`env`/`display` continua válido). Chamadas **estáticas** não mudam: a checagem é no
    cast/`is`, não por chamada. O `LoxFnSig` é estático (sem GC, sem alocação por closure);
@@ -168,6 +183,19 @@ alternativa futura, não neste PR.
   (`List[Int]`), variádicos (`...Int`), tipos de função aninhados (ABI recursiva),
   enum, lambda anotada, bound method, default de interface, variância classe/interface e
   opcionais presentes + `??`.
+- `tests/cases/fn_optional_global.lx` (l6, diferencial, #225/#226): função opcional global
+  com `nil` explícito e `var` sem inicializador, leitura não-nil, `is`/`as`, `??` com um e
+  com dois operandos opcionais, condicional + `??` e defaults preservados quando os dois
+  ramos são a mesma função; `test_i4_lacunas_declaradas` cobre a recusa declarada dos
+  defaults com callees distintos.
+- `tests/cases/fn_uninitialized.lx` (l6, diferencial) e
+  `errors/fn_uninitialized_call.lx` / `errors/fn_uninitialized_cast.lx`: a sentinela de
+  função não inicializada imprime/compara como `nil`, boxa como `nil` em `Any` e falha em
+  chamada/`as` com a mesma mensagem, código e coluna do tree-walk.
+- `tests/cases/errors/fn_optional_cast_nil.lx`, `optional_class_cast_nil.lx` e
+  `fn_defaults_optional_cast.lx`: cast de opcional nil e de função com default para um alvo
+  com menos parâmetros falham `R1011` em `linha:coluna`, nos dois motores — nenhum caminho
+  estático pula a checagem de assinatura.
 - `tests/cases/errors/fn_any_cast.lx`, `fn_defaults_cast.lx` e `fn_signature_cast.lx`:
   `R1011` nos dois motores (não-função, default/alvo com menos parâmetros e assinatura
   incompatível).
