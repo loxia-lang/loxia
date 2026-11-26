@@ -333,6 +333,7 @@ COMPILE_ERRORS: frozenset[str] = frozenset(
         "tests/cases/errors/class_inherit_self.lx",
         "tests/cases/errors/continue_outside_loop.lx",
         "tests/cases/errors/default_not_constant.lx",
+        "tests/cases/errors/duplicate_class_function.lx",
         "tests/cases/errors/duplicate_function.lx",
         "tests/cases/errors/duplicate_parameter.lx",
         "tests/cases/errors/elif_without_if.lx",

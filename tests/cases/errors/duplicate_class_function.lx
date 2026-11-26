@@ -1,0 +1,6 @@
+class C {}
+
+fn C() -> Int {
+  return 1
+}
+# expect error: Declaration 'C' is declared more than once.

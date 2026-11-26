@@ -5,4 +5,4 @@ fn main() -> Result[Int, String] {
 fn main() -> Result[Int, String] {
   return Result.Err("x")
 }
-# expect error: Function 'main' is declared more than once.
+# expect error: Declaration 'main' is declared more than once.

@@ -282,7 +282,7 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         self._predeclare_interfaces(statements)
         self._predeclare_enums(statements)
         self._predeclare_aliases(statements)
-        self._check_duplicate_functions(statements)
+        self._check_duplicate_declarations(statements)
         self._predeclare_functions(statements)
         self._detect_entry(statements)
         for statement in statements:
@@ -603,30 +603,32 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
             self._signatures[statement] = signature
             self._predeclared_by_name[statement.name.lexeme] = signature
 
-    def _check_duplicate_functions(self, statements: list[Stmt]) -> None:
-        """Rejeita duas declarações de topo com o mesmo nome (`E3027`).
+    def _check_duplicate_declarations(self, statements: list[Stmt]) -> None:
+        """Rejeita duas declarações de topo com valor e o mesmo nome (`E3027`).
 
-        O tree-walk deixaria a última valer em cada ponto e o checker usa a última
-        assinatura para todas as chamadas; com assinaturas diferentes os dois divergem
-        antes do backend, e o lowering não representa dois slots `g.<nome>`. Uma
-        declaração por função de topo mantém I1/I4 e evita a borda ambígua de `main`.
+        Função, classe e enum ocupam o mesmo slot global. O tree-walk deixaria a última
+        valer em cada ponto e o checker usa a última assinatura para todas as chamadas;
+        com assinaturas diferentes os dois divergem antes do backend, e o lowering não
+        representa dois slots `g.<nome>` (`E4002`). Uma declaração por nome mantém I1/I4
+        e evita a borda ambígua de `main`. `var`/`val` seguem a regra normal de
+        redefinição global; interface e alias são tipos e não entram aqui.
         """
         seen: dict[str, Token] = {}
         for statement in statements:
-            if not isinstance(statement, Function):
+            if not isinstance(statement, (Function, Class, EnumDecl)):
                 continue
             name = statement.name.lexeme
             first = seen.get(name)
             if first is None:
                 seen[name] = statement.name
                 continue
-            # O loader manga funções de módulo (`lib$f`); a chave é o símbolo, mas o
+            # O loader manga nomes de módulo (`lib$f`); a chave é o símbolo, mas o
             # diagnóstico mostra o nome-fonte para não vazar o mangling ao usuário.
             source_name = name.rsplit("$", 1)[-1]
             self._error(
                 statement.name,
-                f"Function '{source_name}' is declared more than once.",
-                code=Code.DUPLICATE_FUNCTION,
+                f"Declaration '{source_name}' is declared more than once.",
+                code=Code.DUPLICATE_DECLARATION,
                 label_tokens=((first, "first declared here"),),
             )
 

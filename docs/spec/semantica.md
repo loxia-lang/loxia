@@ -43,10 +43,10 @@ exception escaping `main` keeps the normal `R1010`/70 path with position and sta
 Modules and the REPL never have an entry point, and a `main` that does not return `Result`
 (e.g. `fn main() -> Nil`) is an ordinary function — the explicit `main()` idiom still works.
 A `main` that returns `Result` with a parameter, type parameter or `E ≠ String` is the
-check error `E3026` (exit 65). A top-level function declared twice — `main` included — is
-`E3027` (exit 65): the tree-walk would use the last closure at each point while the checker
-types every call with the last signature, so different signatures would diverge before the
-backend. There is no `main(args)` and `Ok(code)` does not set the exit code; use
+check error `E3026` (exit 65). A top-level declaration with a value (function, class or
+enum) declared twice — `main` included — is `E3027` (exit 65): the tree-walk would use the
+last closure at each point while the checker types every call with the last signature, so
+different signatures would diverge before the backend. There is no `main(args)` and `Ok(code)` does not set the exit code; use
 `os.exit(code)`.
 
 Call depth is limited to **10,000 Lox activations** (function, method, lambda,

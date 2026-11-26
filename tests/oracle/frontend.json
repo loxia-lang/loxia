@@ -121,9 +121,10 @@
     "tests/cases/errors/division_by_zero.lx": "5e1ccdd0b860c4d2d1a5ffe70886fed1fa15056a7b5b62331f0a4c0df6ea158a",
     "tests/cases/errors/division_by_zero_int.lx": "310209b89a41434979fec2ca7bcffbafc6883f5f2124a6ca12d7e21fbc80d6f9",
     "tests/cases/errors/division_float_by_zero.lx": "e285cbc39ff6a8d0142088d175eaddf39f976ed6f4ebbda12a1a8d5342534cbd",
-    "tests/cases/errors/duplicate_function.lx": "87a814a00a08c9177b0610e7213cbd1f2d467d5aed4bc97bc29902ba5b9e4952",
+    "tests/cases/errors/duplicate_class_function.lx": "1cccd6b973bdda676a5172e9e1e61814d8e18a68489bdd793f6e2ae1979266a2",
+    "tests/cases/errors/duplicate_function.lx": "a592ea2383e3c8833be4295aab1c6ca7bab36d701dc9d0303f81a29e7abd8f23",
     "tests/cases/errors/duplicate_parameter.lx": "db88e5242f982df2afa5511a52153c39a1d0c11b850db09bbc497999a75ffc9e",
-    "tests/cases/errors/entry_main_duplicate.lx": "35335bc79f342f8b8461173369e0b391138c64547acc1218f9cbb2954e231fa0",
+    "tests/cases/errors/entry_main_duplicate.lx": "7c0c260655e6f6f99fba79b4fcc0af91393a6e653b26a2a08f3159009f589fec",
     "tests/cases/errors/entry_main_error_type.lx": "054beed43655a5dfe0fef9bfd5387acc5627478910beb040731642b11ce807fc",
     "tests/cases/errors/entry_main_generic.lx": "ba0bcf0cff97e688c5484e791960e03dd4ec2b754ea4b5858709c53959671d98",
     "tests/cases/errors/entry_main_params.lx": "c3ec9c938fdad70f586fcacc05495e07c9fc9191d3e815b01860ea6dbc2f6b68",
@@ -1072,6 +1073,26 @@
             "column": 11,
             "line": 1,
             "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/duplicate_class_function.lx": [
+      {
+        "code": "E3027",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 5,
+            "line": 3,
+            "offset": 16
+          },
+          "file": "tests/cases/errors/duplicate_class_function.lx",
+          "start": {
+            "column": 4,
+            "line": 3,
+            "offset": 15
           }
         }
       }
@@ -3671,9 +3692,10 @@
     "tests/cases/errors/division_by_zero.lx": "eaf64d16c6c9a74ef92efe3800318eb8c2c9c3277a36c1a42c4f89dc514f1784",
     "tests/cases/errors/division_by_zero_int.lx": "ab6035124142e32ea4073df1d9c00ea5cb19385af769d61018a3ef5718847e25",
     "tests/cases/errors/division_float_by_zero.lx": "6ad85a45a7079e52f839a84163d71ed9b763bdd06b5928f63e12f4d3df860362",
-    "tests/cases/errors/duplicate_function.lx": "639bcfebf8f2279ce21bae555d232bb934563be922472503b53e2cfef41bc53b",
+    "tests/cases/errors/duplicate_class_function.lx": "4128e44cd0a5767e2097d7e9f92bf44a697f2853dcced85cb8a2f9d4adfe9d0d",
+    "tests/cases/errors/duplicate_function.lx": "ecb5e205f6bb1bff428857cebef32ad330ea36f771c45f5cc4837e74214c18e4",
     "tests/cases/errors/duplicate_parameter.lx": "e26f7ffcd9571bffbe81013e3ffc5bf709f11d79edc14a78e0d3b51ee3e88395",
-    "tests/cases/errors/entry_main_duplicate.lx": "22d0dc4c17160b7a2654da0e043806a583b1801f99208f6f3b66a33ac0083580",
+    "tests/cases/errors/entry_main_duplicate.lx": "76ffd5ab2cd8eab4635839e68a87bce26ea2ff3e7c2a305e182a739c5c050a8d",
     "tests/cases/errors/entry_main_error_type.lx": "1a0c902313323fa39e5d79eec2599e7a0cebe637321cd839e38430f90754829b",
     "tests/cases/errors/entry_main_generic.lx": "6541228c36ea0f9fd01dfeade786df66443a267dc5052fb59722c0cc6ee7e5ca",
     "tests/cases/errors/entry_main_params.lx": "6ddecccd9657c9833323a91942e6484d10922a9d2ccdb13785a181de5e75194f",

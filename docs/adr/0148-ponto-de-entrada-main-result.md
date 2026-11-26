@@ -43,8 +43,9 @@ explícito segue válido.
 1. **O entry é o `main` do arquivo de entrada.** É a função de topo chamada `main` do
    arquivo que está sendo executado/compilado (`loxia run`/`loxia build`), e só dele:
    módulos importados e o REPL nunca têm entry. Duas declarações de topo com esse nome são
-   **`E3027`** (a regra vale para qualquer função de topo: a borda não pode ser ambígua e o
-   checker/tree-walk não podem divergir na assinatura vigente). Um `main` único que não
+   **`E3027`** (a regra vale para qualquer declaração de topo com valor — função, classe ou
+   enum: a borda não pode ser ambígua e o checker/tree-walk não podem divergir na assinatura
+   vigente). Um `main` único que não
    devolve `Result` não é entry; ele segue função comum.
 
 2. **A assinatura é o opt-in.** O entry precisa ser:
@@ -124,8 +125,9 @@ explícito segue válido.
   rodá-lo duas vezes. É pré-1.0 e o contrato é novo; a nota vai no changelog.
 - Um `main` quase-Result (parâmetros, genérico, `E ≠ String`) passa a ser erro de check
   (exit 65), onde antes era uma função comum. A regra geral de `E3027` também passa a
-  rejeitar **qualquer** função de topo duplicada; antes o tree-walk a executava e o
-  backend morria em `E4002`, uma lacuna de I4 que este ADR fecha.
+  rejeitar **qualquer** declaração de topo com valor (função, classe ou enum) duplicada;
+  antes o tree-walk a executava e o backend morria em `E4002` (`g.<nome>` duplicado), uma
+  lacuna de I4 que este ADR fecha.
 - Duas formas de programa convivem (statements-only e entry); a documentação precisa dizer
   quando usar cada uma.
 
@@ -151,8 +153,8 @@ explícito segue válido.
 - `tests/cases/entry_main_{ok,err,order,try,alias,nil}.lx` — golden e corpus `l6`
   (diferencial dos três canais).
 - `tests/cases/errors/entry_main_{params,error_type,generic}.lx` — `E3026`, exit 65;
-  `entry_main_duplicate.lx` e `duplicate_function.lx` — `E3027` (função de topo
-  duplicada, incluindo `main`).
+  `entry_main_duplicate.lx`, `duplicate_function.lx` e `duplicate_class_function.lx` —
+  `E3027` (declaração de topo com valor duplicada, incluindo `main`).
 - `tests/test_entry_point.py` — módulo/REPL não têm entry e `--check` valida a assinatura.
 - `tests/test_determinism.py` — a mensagem não introduz nada volátil.
 - `--check` limpo compila (I4); `make check` verde.

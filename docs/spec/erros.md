@@ -315,7 +315,7 @@ missing member on a valid receiver is `E3003`; `is` on an unsupported type is `E
 | `E3024` | unreachable match arm |
 | `E3025` | dynamic access on `Any` requires narrowing (`is`/`as`) |
 | `E3026` | entry point `main` signature (parameters, generics, return type) |
-| `E3027` | duplicate top-level function declaration |
+| `E3027` | duplicate top-level declaration (function, class or enum) |
 
 ### Backend
 

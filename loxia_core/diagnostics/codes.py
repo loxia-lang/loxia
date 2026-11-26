@@ -85,7 +85,7 @@ class Code(StrEnum):
     UNREACHABLE_MATCH = "E3024"
     ANY_ACCESS = "E3025"
     INVALID_ENTRY_POINT = "E3026"
-    DUPLICATE_FUNCTION = "E3027"
+    DUPLICATE_DECLARATION = "E3027"
 
     # Backend
     BACKEND_UNSUPPORTED = "E4001"
@@ -174,7 +174,7 @@ CODE_PHASE: dict[Code, Phase] = {
     Code.UNREACHABLE_MATCH: Phase.CHECKER,
     Code.ANY_ACCESS: Phase.CHECKER,
     Code.INVALID_ENTRY_POINT: Phase.CHECKER,
-    Code.DUPLICATE_FUNCTION: Phase.CHECKER,
+    Code.DUPLICATE_DECLARATION: Phase.CHECKER,
     Code.BACKEND_UNSUPPORTED: Phase.BACKEND,
     Code.BACKEND_INTERNAL: Phase.BACKEND,
     Code.BACKEND_BUDGET: Phase.BACKEND,
@@ -258,7 +258,7 @@ CODE_DESCRIPTIONS: dict[Code, str] = {
     Code.UNREACHABLE_MATCH: "unreachable match arm",
     Code.ANY_ACCESS: "dynamic access on `Any` requires narrowing (`is`/`as`)",
     Code.INVALID_ENTRY_POINT: "entry point `main` signature (parameters, generics, return type)",
-    Code.DUPLICATE_FUNCTION: "duplicate top-level function declaration",
+    Code.DUPLICATE_DECLARATION: "duplicate top-level declaration (function, class or enum)",
     Code.BACKEND_UNSUPPORTED: "not supported by the backend yet",
     Code.BACKEND_INTERNAL: "backend internal error/verification/link",
     Code.BACKEND_BUDGET: "generic instantiation budget exceeded",

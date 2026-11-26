@@ -5,4 +5,4 @@ fn f() -> Int {
 fn f() -> Int {
   return 2
 }
-# expect error: Function 'f' is declared more than once.
+# expect error: Declaration 'f' is declared more than once.
