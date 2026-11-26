@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from loxia_core.diagnostics.error_reporter import ErrorReporter
 from loxia_core.diagnostics.source import SourceMap
 from loxia_core.frontend.expr import Call, Variable
@@ -286,8 +288,8 @@ def test_erro_de_runtime_aponta_o_modulo_e_o_frame(tmp_path: Path) -> None:
     assert "  at f (main.lx:3:14)\n" in result.stderr
 
 
-def test_interface_importada_is_as_nos_dois_motores(tmp_path: Path) -> None:
-    (tmp_path / "lib_iface.lx").write_text(
+def _write_iface_module(root: Path) -> None:
+    (root / "lib_iface.lx").write_text(
         "interface Named {\n"
         "  fn name() -> String\n"
         "}\n"
@@ -296,7 +298,10 @@ def test_interface_importada_is_as_nos_dois_motores(tmp_path: Path) -> None:
         "}\n",
         encoding="utf-8",
     )
-    main = tmp_path / "main.lx"
+
+
+def _write_iface_main(root: Path) -> Path:
+    main = root / "main.lx"
     main.write_text(
         "from lib_iface import Named, C\n"
         "val a: Any = C()\n"
@@ -304,10 +309,23 @@ def test_interface_importada_is_as_nos_dois_motores(tmp_path: Path) -> None:
         "print((a as Named).name())\n",
         encoding="utf-8",
     )
+    return main
 
-    interpreted = _run(main)
+
+def test_interface_importada_is_as(tmp_path: Path) -> None:
+    _write_iface_module(tmp_path)
+    interpreted = _run(_write_iface_main(tmp_path))
+
     assert interpreted.returncode == 0, interpreted.stderr
     assert interpreted.stdout == "true\nc\n"
+
+
+@pytest.mark.backend
+def test_interface_importada_is_as_no_backend(tmp_path: Path) -> None:
+    _write_iface_module(tmp_path)
+    main = _write_iface_main(tmp_path)
+    interpreted = _run(main)
+    assert interpreted.returncode == 0, interpreted.stderr
 
     binary = tmp_path / "app"
     built = _run(main, "--emit=exe", "-o", str(binary))
@@ -318,15 +336,7 @@ def test_interface_importada_is_as_nos_dois_motores(tmp_path: Path) -> None:
 
 
 def test_interface_importada_diagnostico_usa_nome_local(tmp_path: Path) -> None:
-    (tmp_path / "lib_iface.lx").write_text(
-        "interface Named {\n"
-        "  fn name() -> String\n"
-        "}\n"
-        "class C implements Named {\n"
-        '  fn name() -> String { return "c" }\n'
-        "}\n",
-        encoding="utf-8",
-    )
+    _write_iface_module(tmp_path)
     runtime = tmp_path / "runtime.lx"
     runtime.write_text(
         "from lib_iface import Named\nval a: Any = 1\nprint(a as Named)\n",
@@ -335,13 +345,6 @@ def test_interface_importada_diagnostico_usa_nome_local(tmp_path: Path) -> None:
     interpreted = _run(runtime)
     assert interpreted.returncode == 70
     assert "Can't cast value to Named." in interpreted.stderr
-
-    binary = tmp_path / "app"
-    built = _run(runtime, "--emit=exe", "-o", str(binary))
-    assert built.returncode == 0, built.stderr
-    native = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
-    assert native.returncode == 70
-    assert "Can't cast value to Named." in native.stderr
 
     runtime_class = tmp_path / "runtime_class.lx"
     runtime_class.write_text(
@@ -360,3 +363,23 @@ def test_interface_importada_diagnostico_usa_nome_local(tmp_path: Path) -> None:
     checked = _run(static, "--check")
     assert checked.returncode == 65
     assert "Can't cast Other to Named." in checked.stderr
+
+
+@pytest.mark.backend
+def test_interface_importada_diagnostico_no_backend(tmp_path: Path) -> None:
+    _write_iface_module(tmp_path)
+    runtime = tmp_path / "runtime.lx"
+    runtime.write_text(
+        "from lib_iface import Named\nval a: Any = 1\nprint(a as Named)\n",
+        encoding="utf-8",
+    )
+    interpreted = _run(runtime)
+    assert interpreted.returncode == 70
+    assert "Can't cast value to Named." in interpreted.stderr
+
+    binary = tmp_path / "app"
+    built = _run(runtime, "--emit=exe", "-o", str(binary))
+    assert built.returncode == 0, built.stderr
+    native = subprocess.run([str(binary)], capture_output=True, text=True, check=False)
+    assert native.returncode == 70
+    assert "Can't cast value to Named." in native.stderr
