@@ -62,16 +62,19 @@ local notebook (gitignored).
 ## Checks
 
 ```bash
-make check-fast     # ruff + format + mypy + pytest (no native builds) + docs freshness
+make check-fast     # ruff + format + mypy + pytest (no native builds) + backend smoke + docs
 make check          # everything, including the native backend suite
 make test-fast      # pytest without backend/install, parallel (~15-20 s)
-make test-backend   # native backend suite only, parallel (~11 s warm; TEST_JOBS=0 for serial)
+make test-backend   # native backend without the slow Rust cases, parallel (~12 s)
+make test-backend-all  # native backend including the slow Rust cases (Rust crate)
 make bench          # performance vs bench/baseline.json (run when touching hot paths)
 ```
 
 `make check-fast` is the loop while iterating; `make test-backend` is the loop when touching
 the backend or the corpus (the oracle and the build run in the pytest process, so xdist only
-changes the wall time). `make check` is the gate before opening a PR. If the backend is not installed, the
+changes the wall time). Cases that need the Rust regex engine are `slow`: they are skipped by
+`make test-backend` and run by `make test-backend-all`, `make check` and CI. `make check` is
+the gate before opening a PR. If the backend is not installed, the
 backend tests are skipped locally; CI always runs them with `libgc` and fails if `llvmlite`
 is missing. `make test-fast TEST_JOBS=0` runs the same selection serially when debugging a
 single case.

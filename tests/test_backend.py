@@ -9,7 +9,10 @@ Oráculo e build rodam **no processo do pytest** (`tests/inprocess.py::run_cli`)
 caminho rápido dos golden (ADR-0133, emenda de 2026-11-26); o binário compilado continua
 sendo executado em subprocesso. `_interpret_process`/`_build_process` preservam a via de
 processo real para os testes cujo objeto é o processo (std.proc, stdin) e para o smoke
-`test_smoke_*`, que confere um caso por nível fora do caminho in-process.
+`test_smoke_*`, que confere um caso por nível fora do caminho in-process; `_oracle` mantém
+o oráculo em processo real nos casos que usam o motor nativo de regex (o binding `ctypes`
+é global). Os casos Rust/regex são `slow`: ficam fora de `make test-backend` e rodam em
+`make test-backend-all`, no gate e no CI (#232).
 
 Dependências: `llvmlite` (extra `llvm`) e um compilador C para linkar. No CI a env
 `LOX_REQUIRE_LLVM=1` transforma a ausência em falha, não em skip.
@@ -32,8 +35,6 @@ from tests.corpus_manifest import COMPILE_ERRORS, LEVELS, NEGATIVE, PENDING
 from tests.inprocess import Result, run_cli
 from tests.runner import missing_requirements, parse_expectations, requirements
 
-MANIFEST_CASES = [(level, case) for level, cases in LEVELS.items() for case in cases]
-
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
 TIMEOUT_SECONDS = 120
@@ -46,11 +47,40 @@ def _require(reason: str) -> None:
     pytest.skip(reason, allow_module_level=True)
 
 
+def _requires_rust(case: str) -> bool:
+    """O caso usa o motor nativo (`# requires: rust` no bloco de comentários do topo)."""
+    return "rust" in requirements((ROOT / case).read_text(encoding="utf-8"))
+
+
 if importlib.util.find_spec("llvmlite") is None:
     _require("llvmlite não instalado; rode `uv sync --extra llvm`")
 
 if not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
     _require("nenhum compilador C encontrado (cc, clang ou gcc)")
+
+
+def _libgc_missing() -> bool:
+    """`libgc` é exigida pelo link; sem ela só o smoke (loop local) é pulado."""
+    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
+        return False
+    import ctypes.util
+
+    return ctypes.util.find_library("gc") is None
+
+
+#: Casos Rust/regex: o crate leva ~20 s a frio e entra no gate/CI, não no loop local.
+SLOW_CASES = frozenset(case for cases in LEVELS.values() for case in cases if _requires_rust(case))
+
+MANIFEST_PARAMS = [
+    pytest.param(
+        level,
+        case,
+        marks=[pytest.mark.slow] if case in SLOW_CASES else [],
+        id=f"{level}-{Path(case).stem}",
+    )
+    for level, cases in LEVELS.items()
+    for case in cases
+]
 
 
 def _run(arguments: list[str], input: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -460,11 +490,7 @@ def test_binario_concorda_com_interpretador(tmp_path: Path, source: str, label: 
 
 
 @pytest.mark.backend
-@pytest.mark.parametrize(
-    ("level", "case"),
-    MANIFEST_CASES,
-    ids=[f"{level}-{Path(case).stem}" for level, case in MANIFEST_CASES],
-)
+@pytest.mark.parametrize(("level", "case"), MANIFEST_PARAMS)
 def test_manifesto(level: str, case: str, tmp_path: Path) -> None:
     path = ROOT / case
     missing = missing_requirements(path)
@@ -518,6 +544,8 @@ SMOKE_CASES = _smoke_cases()
 )
 def test_smoke_do_backend_em_processo_real(level: str, case: str, tmp_path: Path) -> None:
     """Um caso por nível pelo caminho de processo real (oráculo e build)."""
+    if _libgc_missing():
+        pytest.skip("libgc não encontrada; o smoke não linka sem ela")
     path = ROOT / case
     missing = missing_requirements(path)
     if missing:
@@ -540,6 +568,61 @@ def test_smoke_cobre_todos_os_niveis_sem_capacidade_externa() -> None:
     for level in set(LEVELS) - covered:
         sources = [(ROOT / case).read_text(encoding="utf-8") for case in LEVELS[level]]
         assert all("rust" in requirements(source) for source in sources), level
+
+
+def _make_recipe(makefile: str, target: str) -> str:
+    """Linhas do alvo (cabeçalho + receita), sem depender de tabulação exata."""
+    lines = makefile.splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith(f"{target}:"):
+            continue
+        recipe = [line]
+        for following in lines[index + 1 :]:
+            if following.startswith(("\t", " ")) and following.strip():
+                recipe.append(following)
+            elif not following.strip():
+                continue
+            else:
+                break
+        return "\n".join(recipe)
+    raise AssertionError(f"alvo `{target}` não encontrado no Makefile")
+
+
+def test_loop_local_exclui_slow_e_gate_inclui() -> None:
+    """A seleção é contrato: o loop local tira `slow`, o gate/CI nunca."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "not slow" in _make_recipe(makefile, "test-backend")
+    assert "not slow" not in _make_recipe(makefile, "test")
+    assert "not slow" not in _make_recipe(makefile, "coverage-ratchet-backend")
+    assert "smoke-backend" in _make_recipe(makefile, "check-fast")
+
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "not slow" not in ci
+    assert "coverage-ratchet-backend" in ci
+
+
+def test_casos_rust_do_manifesto_sao_slow() -> None:
+    """Todo caso com `# requires: rust` está marcado `slow` (e só ele)."""
+    assert SLOW_CASES, "o corpus não tem caso Rust; o marcador não seria exercitado"
+    for param in MANIFEST_PARAMS:
+        values = param.values
+        assert isinstance(values, tuple), values
+        case = values[1]
+        assert isinstance(case, str), case
+        marked = any(getattr(mark, "name", "") == "slow" for mark in param.marks)
+        assert marked == _requires_rust(case), case
+
+
+def test_testes_de_regex_sao_slow() -> None:
+    """Um `test_regex_*` novo sem `slow` voltaria a pagar o crate no loop local."""
+    module = sys.modules[__name__]
+    for name, value in vars(module).items():
+        if not name.startswith("test_regex") or not callable(value):
+            continue
+        raw = getattr(value, "pytestmark", [])
+        marks = raw if isinstance(raw, list) else [raw]
+        assert any(getattr(mark, "name", "") == "slow" for mark in marks), name
 
 
 PARITY_SOURCES = (
@@ -2270,11 +2353,18 @@ def _runtime_error_goldens() -> list[str]:
 
 GOLDEN_RUNTIME_ERRORS = _runtime_error_goldens()
 
+GOLDEN_RUNTIME_ERROR_PARAMS = [
+    pytest.param(
+        case,
+        marks=[pytest.mark.slow] if _requires_rust(case) else [],
+        id=Path(case).stem,
+    )
+    for case in GOLDEN_RUNTIME_ERRORS
+]
+
 
 @pytest.mark.backend
-@pytest.mark.parametrize(
-    "case", GOLDEN_RUNTIME_ERRORS, ids=[Path(case).stem for case in GOLDEN_RUNTIME_ERRORS]
-)
+@pytest.mark.parametrize("case", GOLDEN_RUNTIME_ERROR_PARAMS)
 def test_goldens_de_runtime_error_batem_bytes(case: str, tmp_path: Path) -> None:
     """Todo golden de erro de runtime que passa no check deve ter stderr idêntico.
 
@@ -2384,6 +2474,7 @@ def test_fs_read_bytes_erro_de_diretorio_bate_com_o_binario(tmp_path: Path) -> N
 
 
 @pytest.mark.backend
+@pytest.mark.slow
 def test_regex_engine_diferencial_nativo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
 ) -> None:
@@ -2419,6 +2510,7 @@ def test_regex_engine_diferencial_nativo(
 
 
 @pytest.mark.backend
+@pytest.mark.slow
 def test_regex_engine_so_entra_no_binario_quando_usado(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
 ) -> None:
@@ -2460,6 +2552,7 @@ def test_regex_engine_so_entra_no_binario_quando_usado(
 
 
 @pytest.mark.backend
+@pytest.mark.slow
 def test_regex_module_diferencial_nativo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
 ) -> None:
@@ -2500,6 +2593,7 @@ def test_regex_module_diferencial_nativo(
 
 
 @pytest.mark.backend
+@pytest.mark.slow
 def test_regex_group_names_diferencial_nativo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
 ) -> None:
@@ -2531,6 +2625,7 @@ def test_regex_group_names_diferencial_nativo(
 
 
 @pytest.mark.backend
+@pytest.mark.slow
 def test_regex_group_names_sozinho_linka_o_motor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regex_build_cache: str
 ) -> None:

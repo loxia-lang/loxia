@@ -148,6 +148,26 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   derruba o worker do xdist (antes derrubava um teste) e não há timeout por caso além do
   `timeout = 180` do pytest; o oráculo segue vivo a cada run, nunca um snapshot (I1).
 
+- **2026-11-26 — casos lentos fora do loop e smoke local (issue #232).** `make test-backend`
+  passa a selecionar `-m "backend and not slow"`. O marcador cobre os 3 casos do manifesto
+  com `# requires: rust`, os 5 `test_regex_*` e o golden `std_regex/limits`: 9 dos 540
+  testes do backend. `make test-backend-all` roda tudo; `make test`/`make check`, o alvo de
+  cobertura do CI (`LOX_REQUIRE_LLVM=1`) e o `-all` não filtram nada. Medição nesta máquina
+  (8 núcleos físicos): o loop fica em **11,6 s com o cache do Rust quente e 13,3 s com ele
+  frio** (antes: 11,1 s quente e 31 s frio), porque deixar de rodar o corpus Rust tira o
+  build do crate do caminho; o `-all` paga os ~20 s uma vez.
+
+  `make check-fast` ganhou `make smoke-backend`: um caso por nível pelo caminho de processo
+  real (~5 s, sem o crate Rust), com skip limpo quando faltam `llvmlite`/`libgc`. Guardas:
+  `test_loop_local_exclui_slow_e_gate_inclui` (seleção no Makefile/CI),
+  `test_casos_rust_do_manifesto_sao_slow` e `test_testes_de_regex_sao_slow` — um caso
+  Rust novo sem `slow` ou um gate que filtre `slow` falham a suíte.
+
+  A fixture de sessão para aquecer `native_build` (proposta no issue) ficou de fora: o
+  custo é o build do crate, não o primeiro teste — aquecer só move os ~20 s para o começo
+  e, com xdist, todos os workers esperam o mesmo build. O marcador resolve o loop sem essa
+  coreografia.
+
 ## Referências
 
 - [ADR-0096](0096-testes-biblioteca-e-runner.md) — `loxia test`, isolamento por arquivo/teste.
