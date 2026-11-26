@@ -166,15 +166,15 @@ alternativa futura, não neste PR.
 - `tests/cases/fn_any.lx` (l6, diferencial): função em `Any`, `is`/`as` exatos,
   aridade/tipo errado, defaults (um alvo com menos parâmetros é `false`), containers
   (`List[Int]`), variádicos (`...Int`), tipos de função aninhados (ABI recursiva),
-  enum, lambda (anotada e T4 concreta), bound method, default de interface, variância
-  classe/interface e opcionais presentes + `??`.
+  enum, lambda anotada, bound method, default de interface, variância classe/interface e
+  opcionais presentes + `??`.
 - `tests/cases/errors/fn_any_cast.lx`, `fn_defaults_cast.lx` e `fn_signature_cast.lx`:
   `R1011` nos dois motores (não-função, default/alvo com menos parâmetros e assinatura
   incompatível).
 - `tests/test_checker.py`: `is fn` aceito, `as fn` de `Any` aceito, cast estático
-  incompatível recusado; `tests/test_type_test.py`: representação/ABI (escalares,
-  opcionais, funções aninhadas, default exige todos os parâmetros); `tests/test_cli.py`:
-  narrowing de função no REPL.
+  incompatível recusado e `function_types` de lambda (anotada e T4 concreta);
+  `tests/test_type_test.py`: representação/ABI (escalares, opcionais, funções aninhadas,
+  default exige todos os parâmetros); `tests/test_cli.py`: narrowing de função no REPL.
 - `make check` e `make coverage-ratchet` verdes; `test_abi_das_estruturas_publicas_e_estavel`
   cobre o novo prefixo do `LoxClosure`.
 
