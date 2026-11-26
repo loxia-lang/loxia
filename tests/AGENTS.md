@@ -57,11 +57,21 @@ Every case lives in `LEVELS`, `PENDING` or `NEGATIVE` in `tests/corpus_manifest.
 ## Backend tests
 
 ```bash
-make test-backend               # backend only; xdist, ~40 s (needs libgc)
+make test-backend               # backend only; xdist, ~11 s warm (needs libgc)
 make test-backend TEST_JOBS=0   # backend serial, to debug one case
+uv run pytest -m smoke -q       # one case per level, real-process path
 uv run pytest -m backend -q     # builds each manifest case; needs libgc
 make test                       # everything, includes backend (serial)
 ```
+
+The differential path runs the **oracle and the build in the pytest process**
+(`tests/inprocess.py::run_cli`, the same three-channel contract as the golden suite); the
+compiled binary is still executed in a subprocess (ADR-0133). Use `_interpret_process`/
+`_build_process` when the test's object is the process (`std.proc`, real stdin) and
+`_oracle` for programs that use the native regex engine — the `ctypes` binding is global
+to the process, so handles from one program would leak into the next. The smoke
+(`-m smoke`) runs one case per level through the real process, and
+`test_caminho_in_process_bate_com_subprocesso` polices the parity of the three channels.
 
 The runtime is cached by a hash of sources/headers/compiler/flags; a backend failure is a
 contract violation (I1/I4), not a flake. Do not mark it `xfail` to get green.

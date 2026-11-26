@@ -100,8 +100,9 @@ de comando sobrescrever o `addopts`.
 ```bash
 make test-fast                 # ~15-20 s, ~1.8 mil testes
 make test-fast TEST_JOBS=0     # serial, para comparar
-make test-backend              # ~40 s, 472 testes do backend (`-n auto`)
+make test-backend              # backend só; ~11 s quente (~31 s com o crate Rust frio)
 make test-backend TEST_JOBS=0  # backend serial, para comparar
+uv run pytest -m smoke -q      # um caso por nível, em processo real
 LOX_GOLDEN_SUBPROCESS=1 uv run pytest tests/test_golden.py -q
 uv run pytest tests/test_runner.py -q   # paridade fast × subprocesso
 ```
@@ -123,6 +124,29 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   **não** resolve é o custo fixo por caso (~0,3 s, dominado por dois boots do Python e
   imports) e a recompilação de todo caso a cada run; o follow-up ficou em #230 (corpus
   in-process), #231 (cache de binário por conteúdo) e #232 (casos lentos + smoke local).
+
+- **2026-11-26 — corpus diferencial in-process (issue #230).** O oráculo e o build dos
+  casos diferenciais (`test_manifesto`, `test_binario_concorda_com_interpretador`, os
+  goldens de erro de runtime) rodam no processo do pytest via
+  `tests/inprocess.py::run_cli`; o binário compilado continua sendo executado em
+  subprocesso. Medição nesta máquina (8 núcleos físicos / 16 threads, 493 testes):
+  **43,5 s → 31 s com o crate Rust frio e 11,1 s com o cache quente** — o `run_cli` por
+  caso custa ~60 ms de build em vez de ~0,3 s de CPU. Os goldens de erro de runtime
+  deixaram de ser um laço único (piso serial de ~30 s) e viraram 58 casos parametrizados,
+  que o xdist distribui.
+
+  A rede de segurança é dupla: `test_smoke_do_backend_em_processo_real` roda **um caso
+  por nível** (`-m smoke`) pelo caminho de processo real (e não arrasta o crate Rust) e
+  `test_caminho_in_process_bate_com_subprocesso` compara stdout, stderr e exit code
+  entre `run_cli` e o processo real, no oráculo e no build.
+
+  Continuam em subprocesso os testes cujo objeto é o processo (`std.proc`, stdin real,
+  sandbox, sinais, GC/pilha/oom, `--emit=ll`) e o **oráculo dos programas que usam o
+  motor nativo de regex**: o binding `ctypes` é global ao processo, então handles de um
+  programa sobreviveriam ao seguinte (`groupNames(1)` deixaria de ser "unknown") — o
+  primeiro vazamento encontrado por este trabalho. Um crash duro no lowering ainda
+  derruba o worker do xdist (antes derrubava um teste) e não há timeout por caso além do
+  `timeout = 180` do pytest; o oráculo segue vivo a cada run, nunca um snapshot (I1).
 
 ## Referências
 
