@@ -190,14 +190,14 @@ uv run main.py --version        # loxia 1.2.0
 uv run main.py --dump-ast s.lx  # AST as S-expression, no execution
 uv run main.py --check s.lx     # type check (does not run)
 uv run main.py --debug s.lx     # check Int overflow at runtime
-make test                       # full suite (includes native backend)
-make test-parallel              # full suite with pytest under xdist
+make test                       # full suite (includes native backend), xdist
+make test-serial                # full suite serial (investigate a failure)
 make test-fast                  # pytest without native/install tests, xdist (~15-20 s)
 make test-backend               # native backend without slow Rust cases, xdist (~12 s)
 make test-backend-all           # native backend including the slow Rust/regex cases
 make smoke-backend              # one case per level, real-process path (~5 s)
-make check                      # full gate: lint + format + types + tests
-make check-parallel             # same gate with pytest under xdist (~30 s)
+make check                      # full gate: lint + format + types + tests (~30 s)
+make check-serial               # same gate serial (investigate a failure)
 make check-fast                 # local loop: lint + format + types + tests + backend smoke
 make bench                      # benchmarks vs baseline
 uv sync --extra llvm            # enable the native backend (llvmlite)
@@ -264,8 +264,8 @@ a `dev` → `main` PR with a merge commit, then a tag from `main`. Never commit 
 ## 6. Tests and benchmarks
 
 ```bash
-make test                              # everything (unit + golden + native backend)
-make test-parallel                     # everything, pytest under xdist
+make test                              # everything (unit + golden + native backend), xdist
+make test-serial                       # everything serial, to investigate a failure
 make test-fast                         # without backend/install; xdist (local loop)
 make test-fast TEST_JOBS=0             # serial, to debug one case
 make test-backend                      # backend without slow Rust cases; xdist (~12 s)
@@ -288,10 +288,11 @@ wheel-install test; the loop is ~15-20 s. `make test-backend` runs the backend w
 (also `make test`, `make check` and CI) runs the slow cases, and the first one pays the Rust
 crate build (~20 s).
 `make smoke-backend` checks one case per level through the real-process path and is part of
-`make check-fast`. `make test`/`make check`/CI stay serial; `make check-parallel` runs the
-same gate with `pytest -n auto` (**27,1 s** warm, 31,6 s with a cold mypy cache, on 8 physical cores; ADR-0133 amendment)
-as an opt-in until the default is flipped. Use `make check-fast` while iterating,
-`make test-backend` for native work and `make check` (or `check-parallel`) before committing.
+`make check-fast`. `make test` and `make check` run under xdist (**27,8 s** for the full
+gate warm, 31,6 s with a cold mypy cache, on 8 physical cores; ADR-0133 amendment);
+`make test-serial`/`make check-serial` keep the deterministic path for investigating a
+failure, and `TEST_JOBS=0` disables xdist on any target. Use `make check-fast` while
+iterating, `make test-backend` for native work and `make check` before committing.
 
 Golden, official-suite and TOML-parity cases call `loxia.cli.main()` **in the pytest
 process** (`tests/inprocess.py`) instead of one Python boot per case. That keeps the same

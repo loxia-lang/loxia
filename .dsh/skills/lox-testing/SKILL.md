@@ -9,8 +9,10 @@ whenToUse: Ao adicionar um teste, fazer a suíte passar, investigar uma falha ou
 ## Comandos
 
 ```bash
-make test                          # pytest (unit + golden)
-make check-parallel                # gate completo em paralelo (~30 s)
+make test                          # pytest (unit + golden), xdist
+make test-serial                   # pytest serial (investigar um erro)
+make check                         # gate completo (~30 s)
+make check-serial                  # gate completo serial (investigar um erro)
 make test-fast                     # sem backend/install, xdist (~15-20 s)
 make test-fast TEST_JOBS=0         # serial (depurar um caso)
 make test-backend                  # backend sem os casos lentos (Rust), xdist (~12 s)
