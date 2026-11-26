@@ -5,7 +5,7 @@ fn dobro(x: Int) -> Int {
 class Contador {
   val base: Int
 
-  init(base: Int) {
+  fn init(base: Int) {
     this.base = base
   }
 
@@ -29,9 +29,9 @@ fn usaFaz(f: Faz, x: Int) -> Int {
 }
 
 val a: Any = dobro
-print(a is fn(Int) -> Int) # expect: true
-print(a is fn(String) -> Int) # expect: false
-print(a is fn(Int, Int) -> Int) # expect: false
+print(a is fn(Int) -> Int)       # expect: true
+print(a is fn(String) -> Int)    # expect: false
+print(a is fn(Int, Int) -> Int)  # expect: false
 
 if (a is fn(Int) -> Int) {
   print(a(4)) # expect: 8
@@ -41,25 +41,25 @@ print((a as fn(Int) -> Int)(5)) # expect: 10
 
 val c = Contador(10)
 val m: Any = c.soma
-print(m is fn(Int) -> Int) # expect: true
-print((m as fn(Int) -> Int)(3)) # expect: 13
+print(m is fn(Int) -> Int)       # expect: true
+print((m as fn(Int) -> Int)(3))  # expect: 13
 
 val i: Faz = Impl()
 val g: Any = usaFaz
-print(g is fn(Faz, Int) -> Int) # expect: true
-print((g as fn(Faz, Int) -> Int)(i, 1)) # expect: 2
+print(g is fn(Faz, Int) -> Int)          # expect: true
+print((g as fn(Faz, Int) -> Int)(i, 1))  # expect: 2
 
 val varianza: Any = usaFaz
-print(varianza is fn(Impl, Int) -> Int) # expect: true
-print((varianza as fn(Impl, Int) -> Int)(Impl(), 1)) # expect: 2
+print(varianza is fn(Impl, Int) -> Int)               # expect: true
+print((varianza as fn(Impl, Int) -> Int)(Impl(), 1))  # expect: 2
 
 fn aplica(f: fn(Int) -> Int) -> Int {
   return f(1)
 }
 
 val n: Any = aplica
-print(n is fn(fn(Int) -> Int) -> Int) # expect: true
-print((n as fn(fn(Int) -> Int) -> Int)(dobro)) # expect: 2
+print(n is fn(fn(Int) -> Int) -> Int)           # expect: true
+print((n as fn(fn(Int) -> Int) -> Int)(dobro))  # expect: 2
 
 val p: (fn(Int) -> Int)? = dobro
 print(p is fn(Int) -> Int) # expect: true

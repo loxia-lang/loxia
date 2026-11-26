@@ -191,7 +191,7 @@
     "tests/cases/exponentiation.lx": "5e4f8d2b2f1f3220fb630ed1f8667e37c185d06664dce7839c89901594e6dd05",
     "tests/cases/fields_inheritance.lx": "5d91a8938193239af4c9457cb235e62b5d4b790ab668346d992a5f6338b6312f",
     "tests/cases/fields_val_var.lx": "b12dd68ec71d45ba71d89de138117153949f431f03dd2c1fd2db0d763533c2a5",
-    "tests/cases/fn_any.lx": "778f6889887d47243675571b6d3ccc7f082107572537f9aae68aa9a6b07d5541",
+    "tests/cases/fn_any.lx": "886846f8fdac1a87548ab66cd8cd383da647384453a3a6222182b1bf90ff0115",
     "tests/cases/for.lx": "540eeb25601df419ac2a4e8430726fef71d3a3e3795844c49f4d6d4e05a2e5a5",
     "tests/cases/for_in.lx": "60690a05b59bfec1f39405a38c7cdb9d9ab4c0732e0f3e0cb415a5e39aad7beb",
     "tests/cases/for_in_capture.lx": "730386ee5624fb3937b4f267548ca6dfd008eda4b9e3afa1b9da2c8889bfe0a2",
