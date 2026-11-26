@@ -562,6 +562,27 @@ start of the next line begins another statement. A `return` alone on the line re
   an error; a local and a parameter may shadow them. `clock` is no longer a builtin; it can be used
   as an ordinary name.
 - `range(start, end, step)` is a native of arity 3 and requires `Int`; it returns `Range`.
+### Function values and `is`/`as fn`
+
+A function value can be stored in `Any`, a field, a list or a map. `x is fn(D) -> R` and
+`x as fn(D) -> R` check the closure's **real** signature (arity, `min_params`, variadic,
+parameter and return types) against the target, using the checker's subtyping (parameters
+contravariant, return covariant) **and** identical machine representations (ABI-compatible):
+
+```lox
+fn f(x: Any) -> Int { return 1 }
+val a: Any = f
+print(a is fn(Int) -> Int)   # false: `Any` takes two words, `Int` takes one
+```
+
+`fn(I) -> Int` may be used as `fn(C) -> Int` (both pointers). With a statically known source
+the checker decides (`E3013` when incompatible); from `Any`/a union a mismatch is `R1011` in
+both engines. `if (x is fn(...))` narrows to the function type and the call uses the target
+signature. User functions, lambdas, methods, bound methods and interface defaults are
+supported; native values (already `E4001`) and class objects (#219) are not; generic
+functions are not values. Optional function types `(fn(...))?` work for present values,
+including `a ?? f` when `a` is the optional left side ([ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)).
+
 ### Conversions and `math`
 
 Casts are explicit with `as`; there is no implicit conversion:

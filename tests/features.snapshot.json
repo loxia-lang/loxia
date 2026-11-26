@@ -80,7 +80,8 @@
         "tests/cases/function_values.lx",
         "tests/cases/local_function.lx",
         "tests/cases/default_params.lx",
-        "tests/cases/variadic.lx"
+        "tests/cases/variadic.lx",
+        "tests/cases/fn_any.lx"
       ]
     },
     "generics": {

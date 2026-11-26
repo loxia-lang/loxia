@@ -229,6 +229,7 @@ class ClassCodegenLowering(LoweringBase):
         )
 
         self.builder.store(raw, self._globals[layout.name].storage)
+        self.builder.call(self._function("lox_register_class", _VOID, [_I8_PTR]), [raw])
         self._emit_class_methods(layout)
         self._emit_ctor(layout)
 
@@ -524,6 +525,7 @@ class ClassCodegenLowering(LoweringBase):
             vtable,
             init_closure,
         )
+        self.builder.call(self._function("lox_register_class", _VOID, [_I8_PTR]), [raw])
 
         self._emit_class_methods(layout)
         self._emit_ctor(layout)
@@ -715,6 +717,13 @@ class ClassCodegenLowering(LoweringBase):
             return TupleTy(tuple(self._expand_alias(item) for item in ty.items))
         if isinstance(ty, UnionTy):
             return UnionTy(tuple(self._expand_alias(member) for member in ty.members))
+        if isinstance(ty, FnTy):
+            return FnTy(
+                tuple(self._expand_alias(param) for param in ty.params),
+                self._expand_alias(ty.ret),
+                ty.min_params,
+                ty.variadic,
+            )
         return ty
 
     def _is_expr(self, expr: Is) -> Value:
@@ -735,6 +744,79 @@ class ClassCodegenLowering(LoweringBase):
             return self._is_any(value, test_type, target_desc, expr.operator.line)
         boxed = self._box_value(value, expr.operator.line)
         return self._is_any(boxed, test_type, target_desc, expr.operator.line)
+
+    def _type_text_desc(self, desc: TypeDesc) -> str:
+        """Texto de tipo para uma assinatura de função (ADR-0147)."""
+        if desc.optional:
+            inner = TypeDesc(desc.ty, desc.fn, False, desc.class_name, desc.interface_name)
+            return f"U<{self._type_text_desc(inner)},N>"
+        if desc.ty is ValueType.ANY:
+            return "A"
+        if desc.ty is ValueType.NIL:
+            return "N"
+        if desc.ty is ValueType.BOOL:
+            return "B"
+        if desc.ty is ValueType.INT:
+            return "I"
+        if desc.ty is ValueType.FLOAT:
+            return "F"
+        if desc.ty is ValueType.STRING:
+            return "S"
+        if desc.ty is ValueType.BYTES:
+            return "Y"
+        if desc.ty is ValueType.RANGE:
+            return "R"
+        if desc.ty is ValueType.LIST:
+            return "L<A>"
+        if desc.ty is ValueType.MAP:
+            return "M<A,A>"
+        if desc.ty is ValueType.TUPLE:
+            return "T<>"
+        if desc.ty is ValueType.ENUM:
+            layout = self._enum_layouts.get(desc.class_name or "")
+            return f"E<{layout.enum_id}>" if layout is not None else "A"
+        if desc.ty is ValueType.INSTANCE:
+            if desc.interface_name is not None:
+                interface_id = self._interface_ids.get(desc.interface_name)
+                return f"J<{interface_id}>" if interface_id is not None else "A"
+            if desc.class_name is not None:
+                layout = self._class_layout_for_type(desc.class_name)
+                return f"C<{layout.id}>" if layout is not None else "A"
+            return "A"
+        if desc.ty is ValueType.FUNCTION:
+            if desc.fn is None:
+                return "A"
+            return self._fn_sig_text(desc.fn)
+        return "A"
+
+    def _fn_sig_text(self, sig: FnSig) -> str:
+        params = ",".join(self._type_text_desc(param) for param in sig.params)
+        separator = "," if params else ""
+        return (
+            f"K<{sig.min_params},{1 if sig.variadic else 0},{len(sig.params)},"
+            f"{params}{separator}{self._type_text_desc(sig.ret)}>"
+        )
+
+    def _fn_sig_pointer(self, sig: FnSig) -> Any:
+        return self.builder.call(
+            self._function("lox_fn_sig_cached", _I8_PTR, [_I8_PTR]),
+            [self._cstring_pointer(self._fn_sig_text(sig))],
+        )
+
+    def _closure_sig_fields(self, closure: Any, sig: FnSig) -> None:
+        maximum = 2**63 - 1 if sig.variadic else len(sig.params)
+        self.builder.store(
+            llvm_ir.constant(_INT, sig.min_params),
+            self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 3)]),
+        )
+        self.builder.store(
+            llvm_ir.constant(_INT, maximum),
+            self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 4)]),
+        )
+        self.builder.store(
+            self._fn_sig_pointer(sig),
+            self.builder.gep(closure, [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 5)]),
+        )
 
     def _is_any(self, value: Value, test_type: Ty, target: TypeDesc, line: int) -> Value:
         """`Any is T` com checagem recursiva (listas, mapas, tuplas, enums).
@@ -809,7 +891,14 @@ class ClassCodegenLowering(LoweringBase):
             if interface_id is None:
                 raise _unsupported(f"Interface '{ty.name}'", line)
             return f"J<{interface_id}>"
-        if isinstance(ty, (FnTy, NativeFnTy, ClassObjectTy)):
+        if isinstance(ty, FnTy):
+            params = ",".join(self._type_text(param, line) for param in ty.params)
+            separator = "," if params else ""
+            return (
+                f"K<{ty.min_params},{1 if ty.variadic else 0},{len(ty.params)},"
+                f"{params}{separator}{self._type_text(ty.ret, line)}>"
+            )
+        if isinstance(ty, (NativeFnTy, ClassObjectTy)):
             return "X"
         raise _unsupported(f"Type '{ty}'", line)
 
@@ -922,6 +1011,17 @@ class ClassCodegenLowering(LoweringBase):
         value = self._expr(expr.left)
         if value.ty is ValueType.ANY:
             return self._as_any(expr, value, target_desc, target_ty)
+        if isinstance(target_ty, FnTy):
+            if value.optional:
+                value = self._unwrap(
+                    value,
+                    expr.operator.line,
+                    f"Can't cast value to {display(target_ty)}.",
+                )
+            if value.ty is ValueType.FUNCTION:
+                return value
+            boxed = self._box_value(value, expr.operator.line)
+            return self._as_any(expr, boxed, target_desc, target_ty)
         if isinstance(target_ty, InterfaceTy):
             # A interface é um ponteiro de instância; o matcher confere a tabela
             # de interfaces do descritor (ADR-0146).
@@ -1035,6 +1135,7 @@ class ClassCodegenLowering(LoweringBase):
                 [llvm_ir.constant(_I32, 0), llvm_ir.constant(_I32, 2)],
             ),
         )
+        self._closure_sig_fields(closure, sig)
         return Value(ValueType.FUNCTION, raw, sig, function=function)
 
     def _method_thunk(self, layout: ClassLayout, method: MethodLayout) -> Any:

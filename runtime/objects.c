@@ -97,6 +97,7 @@ LoxTypeDesc *lox_type_desc_new(void) {
     desc->b = NULL;
     desc->count = 0;
     desc->items = NULL;
+    desc->sig = NULL;
     return desc;
 }
 
@@ -182,6 +183,38 @@ const char *lox_parse_type(const char *cursor, LoxTypeDesc *desc) {
         cursor++; /* '>' */
         return cursor;
     }
+    case 'K': {
+        desc->kind = -5;
+        cursor++; /* '<' */
+        int64_t values[3] = {0, 0, 0};
+        for (int index = 0; index < 3; index++) {
+            int64_t value = 0;
+            while (*cursor >= '0' && *cursor <= '9') {
+                value = value * 10 + (*cursor - '0');
+                cursor += 1;
+            }
+            values[index] = value;
+            cursor += 1; /* ',' */
+        }
+        LoxFnSig *sig = lox_alloc(sizeof(LoxFnSig));
+        sig->min_arity = values[0];
+        sig->variadic = values[1];
+        sig->n_params = values[2];
+        sig->max_arity = values[1] ? INT64_MAX : values[2];
+        sig->params = values[2] > 0
+            ? lox_alloc(sizeof(LoxTypeDesc *) * (size_t)values[2])
+            : NULL;
+        for (int64_t index = 0; index < values[2]; index++) {
+            sig->params[index] = lox_type_desc_new();
+            cursor = lox_parse_type(cursor, sig->params[index]);
+            cursor += 1; /* ',' */
+        }
+        sig->ret = lox_type_desc_new();
+        cursor = lox_parse_type(cursor, sig->ret);
+        cursor += 1; /* '>' */
+        desc->sig = sig;
+        return cursor;
+    }
     case 'E':
     case 'C':
     case 'J': {
@@ -224,6 +257,255 @@ LoxTypeDesc *lox_type_parse_cached(const char *text) {
     entry->next = lox_type_cache;
     lox_type_cache = entry;
     return desc;
+}
+
+/* ADR-0147: type-to-type equality/assignability and function signatures. */
+static int lox_type_equal(const LoxTypeDesc *a, const LoxTypeDesc *b);
+static int lox_fn_equal(const LoxFnSig *a, const LoxFnSig *b);
+static int lox_implements_interface(const void *descriptor, int64_t interface_id);
+int lox_class_id_matches(const void *descriptor, int64_t id);
+
+#define LOX_CLASS_REGISTRY_MAX 4096
+static void *lox_class_registry[LOX_CLASS_REGISTRY_MAX];
+static int64_t lox_class_registry_count;
+
+void lox_register_class(void *descriptor) {
+    if (lox_class_registry_count < LOX_CLASS_REGISTRY_MAX) {
+        lox_class_registry[lox_class_registry_count++] = descriptor;
+    }
+}
+
+void *lox_class_desc_for_id(int64_t id) {
+    for (int64_t index = 0; index < lox_class_registry_count; index++) {
+        const int64_t *words = lox_class_registry[index];
+        if (words[1] == id) {
+            return lox_class_registry[index];
+        }
+    }
+    return NULL;
+}
+
+static int lox_fn_equal(const LoxFnSig *a, const LoxFnSig *b) {
+    if (a == NULL || b == NULL) {
+        return a == b;
+    }
+    if (a->min_arity != b->min_arity || a->variadic != b->variadic ||
+        a->n_params != b->n_params) {
+        return 0;
+    }
+    for (int64_t index = 0; index < a->n_params; index++) {
+        if (!lox_type_equal(a->params[index], b->params[index])) {
+            return 0;
+        }
+    }
+    return lox_type_equal(a->ret, b->ret);
+}
+
+static int lox_type_equal(const LoxTypeDesc *a, const LoxTypeDesc *b) {
+    if (a == NULL || b == NULL) {
+        return a == b;
+    }
+    if (a->kind != b->kind) {
+        return 0;
+    }
+    switch (a->kind) {
+    case -1: /* Any */
+    case -3: /* never */
+    case 0:  /* nil */
+    case 1:  /* int */
+    case 2:  /* float */
+    case 3:  /* bool */
+    case 4:  /* string */
+    case 8:  /* range */
+    case 13: /* bytes */
+        return 1;
+    case 6:  /* class */
+    case 12: /* enum */
+    case -4: /* interface */
+        return a->count == b->count;
+    case -5: /* function */
+        return lox_fn_equal(a->sig, b->sig);
+    case -2: /* union */
+    case 11: /* tuple */
+        if (a->count != b->count) {
+            return 0;
+        }
+        for (int64_t index = 0; index < a->count; index++) {
+            if (!lox_type_equal(&a->items[index], &b->items[index])) {
+                return 0;
+            }
+        }
+        return 1;
+    case 9: /* list */
+        return lox_type_equal(a->a, b->a);
+    case 10: /* map */
+        return lox_type_equal(a->a, b->a) && lox_type_equal(a->b, b->b);
+    default:
+        return 0;
+    }
+}
+
+/* Machine representation code: the backend's ABI must match for a dynamic call. */
+static int64_t lox_rep_code(const LoxTypeDesc *type) {
+    if (type == NULL) {
+        return 0;
+    }
+    switch (type->kind) {
+    case -1: /* Any: two words */
+        return 0;
+    case 1:
+    case 2:
+    case 3:
+        return (int64_t)type->kind;
+    case 0: /* nil */
+        return 4;
+    case -2: { /* union: optional scalar/pointer keeps the payload representation */
+        if (type->count == 2) {
+            const LoxTypeDesc *nil = NULL;
+            const LoxTypeDesc *other = NULL;
+            for (int64_t index = 0; index < 2; index++) {
+                if (type->items[index].kind == 0) {
+                    nil = &type->items[index];
+                } else {
+                    other = &type->items[index];
+                }
+            }
+            if (nil != NULL && other != NULL) {
+                if (other->kind == 1 || other->kind == 2 || other->kind == 3) {
+                    return 100 + (int64_t)other->kind;
+                }
+                if (other->kind == 4 || other->kind == 6 || other->kind == 8 ||
+                    other->kind == 9 || other->kind == 10 || other->kind == 11 ||
+                    other->kind == 12 || other->kind == 13 || other->kind == -4 ||
+                    other->kind == -5) {
+                    return 5;
+                }
+            }
+        }
+        return 0; /* a multi-type union is stored as Any */
+    }
+    case -5: /* function: pointer */
+    case 4:
+    case 6:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
+    case -4:
+        return 5;
+    default:
+        return 0;
+    }
+}
+
+static int lox_rep_equal(const LoxTypeDesc *a, const LoxTypeDesc *b) {
+    return lox_rep_code(a) == lox_rep_code(b);
+}
+
+int lox_type_assignable(const LoxTypeDesc *expected, const LoxTypeDesc *actual) {
+    if (expected == NULL) {
+        return 1;
+    }
+    if (expected->kind == -1) { /* Any accepts anything */
+        return 1;
+    }
+    if (actual == NULL) {
+        return 0;
+    }
+    if (actual->kind == -1) {
+        return 0;
+    }
+    if (expected->kind == -2 && actual->kind == -2) {
+        for (int64_t index = 0; index < actual->count; index++) {
+            int matched = 0;
+            for (int64_t candidate = 0; candidate < expected->count; candidate++) {
+                if (lox_type_assignable(&expected->items[candidate],
+                                        &actual->items[index])) {
+                    matched = 1;
+                    break;
+                }
+            }
+            if (!matched) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    if (expected->kind == -2) {
+        for (int64_t index = 0; index < expected->count; index++) {
+            if (lox_type_assignable(&expected->items[index], actual)) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (actual->kind == -2) {
+        for (int64_t index = 0; index < actual->count; index++) {
+            if (!lox_type_assignable(expected, &actual->items[index])) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    if (expected->kind == 6 && actual->kind == 6) {
+        if (expected->count == actual->count) {
+            return 1;
+        }
+        void *descriptor = lox_class_desc_for_id(actual->count);
+        return descriptor != NULL && lox_class_id_matches(descriptor, expected->count);
+    }
+    if (expected->kind == -4 && actual->kind == 6) {
+        void *descriptor = lox_class_desc_for_id(actual->count);
+        return descriptor != NULL && lox_implements_interface(descriptor, expected->count);
+    }
+    if (expected->kind == -4 && actual->kind == -4) {
+        return expected->count == actual->count;
+    }
+    if (expected->kind == 6 && actual->kind == -4) {
+        return 0;
+    }
+    if (expected->kind == -5 && actual->kind == -5) {
+        return lox_fn_assignable(actual->sig, expected->sig);
+    }
+    return lox_type_equal(expected, actual);
+}
+
+int lox_fn_assignable(const LoxFnSig *actual, const LoxFnSig *target) {
+    if (actual == NULL || target == NULL) {
+        return 0;
+    }
+    if (actual->variadic != target->variadic) {
+        return 0;
+    }
+    int64_t count = target->n_params;
+    if (actual->variadic) {
+        if (actual->n_params != target->n_params) {
+            return 0;
+        }
+    } else if (!(actual->min_arity <= count && count <= actual->n_params)) {
+        return 0;
+    }
+    for (int64_t index = 0; index < count; index++) {
+        if (!lox_type_assignable(actual->params[index], target->params[index])) {
+            return 0;
+        }
+    }
+    if (!lox_type_assignable(target->ret, actual->ret)) {
+        return 0;
+    }
+    for (int64_t index = 0; index < count; index++) {
+        if (!lox_rep_equal(target->params[index], actual->params[index])) {
+            return 0;
+        }
+    }
+    return lox_rep_equal(target->ret, actual->ret);
+}
+
+LoxFnSig *lox_fn_sig_cached(const char *text) {
+    LoxTypeDesc *desc = lox_type_parse_cached(text);
+    return desc->kind == -5 ? desc->sig : NULL;
 }
 
 /* ---------------------------------------------------------------------------
@@ -270,6 +552,13 @@ int lox_type_matches_desc(int64_t tag, int64_t payload,
         const void *instance = (const void *)payload;
         return lox_implements_interface(*(const void * const *)instance,
                                         type->count);
+    }
+    if (type->kind == -5) {
+        if (tag != 7) {
+            return 0;
+        }
+        const LoxClosure *closure = (const LoxClosure *)(intptr_t)payload;
+        return lox_fn_assignable(closure->signature, type->sig);
     }
     if (type->kind == -3 || tag != type->kind) {
         return 0;

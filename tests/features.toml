@@ -43,7 +43,7 @@ backend = true
 
 [features.functions]
 title = "Funções, closures, lambdas, defaults e variádicos"
-golden = ["tests/cases/functions.lx", "tests/cases/closures.lx", "tests/cases/function_values.lx", "tests/cases/local_function.lx", "tests/cases/default_params.lx", "tests/cases/variadic.lx"]
+golden = ["tests/cases/functions.lx", "tests/cases/closures.lx", "tests/cases/function_values.lx", "tests/cases/local_function.lx", "tests/cases/default_params.lx", "tests/cases/variadic.lx", "tests/cases/fn_any.lx"]
 differential = "l4"
 backend = true
 

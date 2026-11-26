@@ -25,7 +25,7 @@ _I32 = llvm_ir.int_type(32)
 _FLOAT = llvm_ir.float_type()
 _VOID = llvm_ir.void_type()
 _I8_PTR = llvm_ir.pointer_type()
-_CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR])
+_CLOSURE = llvm_ir.literal_struct([_I8_PTR, _I8_PTR, _I8_PTR, _INT, _INT, _I8_PTR])
 _CLASS_DESC = llvm_ir.literal_struct(
     [_I8_PTR, _INT, _I8_PTR, _I8_PTR, _INT, _I8_PTR, _INT, _INT, _INT, _I8_PTR]
 )
@@ -127,11 +127,20 @@ class TypeDesc:
     interface_name: str | None = None
 
     def same_as(self, other: TypeDesc) -> bool:
+        enum_name_ok = (
+            self.ty is ValueType.ENUM
+            and other.ty is ValueType.ENUM
+            and (
+                self.class_name is None
+                or other.class_name is None
+                or self.class_name == other.class_name
+            )
+        )
         return (
             self.ty is other.ty
             and self.fn == other.fn
             and self.optional == other.optional
-            and self.class_name == other.class_name
+            and (enum_name_ok or self.class_name == other.class_name)
             and self.interface_name == other.interface_name
         )
 

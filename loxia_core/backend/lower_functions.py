@@ -270,6 +270,7 @@ class FunctionLowering(LoweringBase):
         self.builder.store(self.builder.bitcast(info.ir, _I8_PTR), fn_slot)
         self.builder.store(env, env_slot)
         self.builder.store(self._display_pointer(display), name_slot)
+        self._closure_sig_fields(closure, info.fn_sig)
 
         return Value(ValueType.FUNCTION, raw_closure, info.fn_sig)
 

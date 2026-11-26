@@ -51,7 +51,7 @@ from loxia_core.execution.primitives import (
     PrimitiveCallable,
     is_sandbox_denied,
 )
-from loxia_core.execution.type_test import matches_type
+from loxia_core.execution.type_test import matches_type, same_rep
 from loxia_core.execution.values import stringify
 from loxia_core.frontend.destructuring import (
     DestructurePattern,
@@ -163,6 +163,8 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         self.globals = Environment()
         self.environment = self.globals
         self._type_aliases: dict[str, Ty] = {}
+        self.function_types: dict[Any, FnTy] = {}
+        self._fn_assignable: Callable[[FnTy, FnTy], bool] | None = None
         self.locals: dict[Expr, int] = {}
         self.interfaces: dict[str, LoxInterface] = {}
         self._current_exception: object | None = None
@@ -711,7 +713,16 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
             )
 
         value = self._evaluate(expr.left)
-        return matches_type(value, test_type, self._class_for_type)
+        return matches_type(
+            value,
+            test_type,
+            self._class_for_type,
+            self._fn_assignable,
+            same_rep,
+        )
+
+    def set_fn_assignable(self, assignable: Callable[[FnTy, FnTy], bool] | None) -> None:
+        self._fn_assignable = assignable
 
     def visit_as_expr(self, expr: As) -> object:
         value = self._evaluate(expr.left)
@@ -763,7 +774,13 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
                 "as doesn't support union types yet; narrow first.",
                 code=Code.RUNTIME_CAST,
             )
-        elif matches_type(value, target, self._class_for_type):
+        elif matches_type(
+            value,
+            target,
+            self._class_for_type,
+            self._fn_assignable,
+            same_rep,
+        ):
             return value
 
         raise LoxRuntimeError(
@@ -1138,7 +1155,9 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
         for method in stmt.methods:
             if method.abstract:
                 continue
-            defaults[method.name.lexeme] = LoxFunction(method, self.environment, False)
+            defaults[method.name.lexeme] = LoxFunction(
+                method, self.environment, False, self.function_types.get(method)
+            )
 
         self.interfaces[stmt.name.lexeme] = LoxInterface(
             stmt.display_name or stmt.name.lexeme,
@@ -1179,7 +1198,12 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
 
         methods: dict[str, LoxFunction] = {}
         for method in stmt.methods:
-            function = LoxFunction(method, self.environment, method.name.lexeme == "init")
+            function = LoxFunction(
+                method,
+                self.environment,
+                method.name.lexeme == "init",
+                self.function_types.get(method),
+            )
             methods[method.name.lexeme] = function
 
         fields: dict[str, FieldInfo] = {}
@@ -1318,11 +1342,11 @@ class Interpreter(ExprVisitor[object], StmtVisitor[None]):
     def visit_function_stmt(self, stmt: Function) -> None:
         self._reject_immutable_redeclaration(stmt.name)
 
-        function = LoxFunction(stmt, self.environment, False)
+        function = LoxFunction(stmt, self.environment, False, self.function_types.get(stmt))
         self.environment.define(stmt.name.lexeme, function)
 
     def visit_lambda_expr(self, expr: Lambda) -> object:
-        return LoxFunction(expr, self.environment, False)
+        return LoxFunction(expr, self.environment, False, self.function_types.get(expr))
 
     def visit_for_in_stmt(self, stmt: ForIn) -> None:
         iterable = self._evaluate(stmt.iterable)
