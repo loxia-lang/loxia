@@ -98,6 +98,7 @@ de comando sobrescrever o `addopts`.
 ## Como verificar
 
 ```bash
+make check-parallel            # mesmo gate do `check`, pytest em paralelo (~30 s)
 make test-fast                 # ~15-20 s, ~1.8 mil testes
 make test-fast TEST_JOBS=0     # serial, para comparar
 make test-backend              # backend sem os slow; ~12 s (crate intocado; cache vazio ~13 s)
@@ -183,6 +184,19 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   custo é o build do crate, não o primeiro teste — aquecer só move os ~20 s para o começo
   e, com xdist, todos os workers esperam o mesmo build (medido: `library()` 12,5 s +
   `static_library()` 7,9 s a frio). O marcador resolve o loop sem essa coreografia.
+
+- **2026-11-26 — gate paralelo opt-in (`make check-parallel`, issue #241).** O gate serial
+  custa **196,8 s** nesta máquina, e 169,0 s disso é pytest (108,7 s sem backend + 60,5 s de
+  backend). A mesma seleção em `pytest -n auto` passa (2775 passed, 18 xfailed) em **26,7 s**;
+  com lint, mypy e docs o alvo `make check-parallel` mede **27,1 s** ponta a ponta com
+  caches quentes (**31,6 s** com mypy sem cache incremental).
+  `make check-parallel` expõe esse caminho sem trocar o default: `make check` continua serial
+  e é o contrato determinístico até a decisão de flip — que é uma linha (`check:` passa a
+  depender de `test-parallel`) —, e `TEST_JOBS=0` desliga o xdist em qualquer alvo. O CI
+  segue serial no job unitário (o de backend já usa xdist), então uma regressão que só
+  apareça em série ainda é pega lá. Riscos: crash duro derruba o worker (já aceito nos loops)
+  e a ordem entre testes deixa de ser determinística; em hardware de 2–4 núcleos o ganho cai,
+  porque o piso é CPU (~340 s de trabalho para a suíte).
 
 ## Referências
 

@@ -8,11 +8,12 @@ TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast test-backend test-backend-all smoke-backend case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
+.PHONY: help run test test-parallel test-fast test-backend test-backend-all smoke-backend case lint type fmt fmt-check check check-parallel check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
-	@echo "make test                      pytest (suite completa)"
+	@echo "make test                      pytest (suite completa, serial)"
+	@echo "make test-parallel             suite completa com pytest em paralelo"
 	@echo "make test-fast                 pytest sem nativos/instalação, em paralelo (loop local)"
 	@echo "make test-fast TEST_JOBS=0     pytest sem paralelismo (depurar um caso)"
 	@echo "make test-backend              backend sem os casos lentos, em paralelo (loop local)"
@@ -25,6 +26,7 @@ help:
 	@echo "make fmt                       ruff format (aplica)"
 	@echo "make fmt-check                 ruff format --check (gate)"
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
+	@echo "make check-parallel            mesmo gate, com pytest em paralelo (~30 s)"
 	@echo "make check-fast                lint + fmt-check + type + test-fast + smoke + docs (loop local)"
 	@echo "make oracle                    confere o snapshot de AST/formatter/diagnósticos"
 	@echo "make oracle-update             regrava tests/oracle/frontend.json"
@@ -62,6 +64,9 @@ run:
 test:
 	uv run pytest
 
+test-parallel:
+	uv run pytest -n $(TEST_JOBS)
+
 test-fast:
 	uv run pytest -m "not backend and not install" -n $(TEST_JOBS)
 
@@ -96,6 +101,9 @@ fmt-check:
 	uv run ruff format --check .
 
 check: lint fmt-check type test docs-fresh
+
+# Mesmo gate, com pytest em paralelo (ADR-0133, emenda do gate paralelo).
+check-parallel: lint fmt-check type test-parallel docs-fresh
 
 check-fast: lint fmt-check type test-fast smoke-backend docs-fresh
 
