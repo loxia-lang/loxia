@@ -886,6 +886,19 @@ class Box {
     assert symbols["value"]["container"] == "Box"
 
 
+def test_repl_narrows_function_values() -> None:
+    result = _run_repl(
+        "fn dobro(x: Int) -> Int { return x * 2 }\n"
+        "val a: Any = dobro\n"
+        "print(a is fn(Int) -> Int)\n"
+        "print((a as fn(Int) -> Int)(4))\n"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "true" in result.stdout
+    assert "8" in result.stdout
+
+
 def _run_repl(stdin: str, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(ENTRYPOINT), "repl", *args],

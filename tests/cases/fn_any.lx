@@ -65,3 +65,64 @@ val p: (fn(Int) -> Int)? = dobro
 print(p is fn(Int) -> Int) # expect: true
 val q = p ?? dobro
 print(q(3)) # expect: 6
+
+fn comDefault(x: Int, y: Int = 7) -> Int {
+  return x * 100 + y
+}
+
+val d: Any = comDefault
+print(d is fn(Int) -> Int)       # expect: false
+print(d is fn(Int, Int) -> Int)  # expect: true
+
+fn tam(xs: List[Int]) -> Int {
+  return len(xs)
+}
+
+val l: Any = tam
+print(l is fn(List[Int]) -> Int)               # expect: true
+print((l as fn(List[Int]) -> Int)([1, 2, 3]))  # expect: 3
+
+fn soma(...xs: Int) -> Int {
+  return len(xs)
+}
+
+val v: Any = soma
+print(v is fn(...Int) -> Int)                # expect: true
+print((v as fn(...Int) -> Int)(1, 2, 3, 4))  # expect: 4
+
+fn aplicaDinamico(f: fn(Int) -> Int) -> Int {
+  return f(1)
+}
+
+val n2: Any = aplicaDinamico
+print(n2 is fn(fn(Int) -> Int) -> Int)           # expect: true
+print((n2 as fn(fn(Int) -> Int) -> Int)(dobro))  # expect: 2
+print(n2 is fn(fn(Any) -> Int) -> Int)           # expect: false
+
+enum Cor { Vermelho, Verde }
+
+fn cor(c: Cor) -> Int {
+  return 1
+}
+
+val e2: Any = cor
+print(e2 is fn(Cor) -> Int)                  # expect: true
+print((e2 as fn(Cor) -> Int)(Cor.Vermelho))  # expect: 1
+
+interface Saudacao {
+  fn ola() -> String {
+    return "ola"
+  }
+}
+
+class Pessoa implements Saudacao {}
+
+val pessoa = Pessoa()
+val ola: Any = pessoa.ola
+print(ola is fn() -> String)      # expect: true
+print((ola as fn() -> String)())  # expect: ola
+
+val lam: fn(Int) -> Int = fn(x) => x * 2
+val lamb: Any = lam
+print(lamb is fn(Int) -> Int)       # expect: true
+print((lamb as fn(Int) -> Int)(3))  # expect: 6

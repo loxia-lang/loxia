@@ -1,0 +1,6 @@
+fn texto(x: String) -> String {
+  return x
+}
+
+val a: Any = texto
+print((a as fn(Int) -> Int)(1)) # expect runtime error: Can't cast value to fn(Int) -> Int.

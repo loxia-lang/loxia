@@ -79,12 +79,14 @@ def _fn_abi_compatible(target: FnTy, actual: FnTy) -> bool:
     if actual.variadic:
         if len(actual.params) != count:
             return False
-    elif not actual.min_params <= count <= len(actual.params):
+    elif count != len(actual.params):
+        # O alvo tem que passar todos os parâmetros do callee; defaults só são
+        # preenchidos em chamada estática (o lowering não os inventa no dinâmico).
         return False
     for target_param, actual_param in zip(target.params, actual.params, strict=False):
-        if _rep_code(target_param) != _rep_code(actual_param):
+        if not same_rep(target_param, actual_param):
             return False
-    return _rep_code(target.ret) == _rep_code(actual.ret)
+    return same_rep(target.ret, actual.ret)
 
 
 def same_rep(left: Ty, right: Ty) -> bool:

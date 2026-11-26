@@ -93,3 +93,19 @@ def test_matches_type_function_value() -> None:
     assert not matches_type(value, fn, None, assign, lambda left, right: False)
     assert not matches_type(object(), fn, None, assign, same_rep)
     assert not matches_type(value, fn, None, None, None)
+
+
+def test_same_rep_defaults_require_every_parameter() -> None:
+    defaults = FnTy((INT, INT), INT, 1)
+    full = FnTy((INT, INT), INT, 2)
+    one = FnTy((INT,), INT, 1)
+    assert same_rep(defaults, full)
+    assert not same_rep(defaults, one)
+    assert not same_rep(one, defaults)
+
+
+def test_same_rep_nested_function_uses_recursive_abi() -> None:
+    outer = FnTy((FnTy((INT,), INT, 1),), INT, 1)
+    outer_any = FnTy((FnTy((ANY,), INT, 1),), INT, 1)
+    assert same_rep(outer, outer)
+    assert not same_rep(outer, outer_any)

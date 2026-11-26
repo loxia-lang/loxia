@@ -403,6 +403,7 @@ class Loxia:
             alias_resolved=self._repl_alias_resolved,
         )
         checker.check(statements)
+        self._publish_checker(checker)
         self._repl_globals = checker.global_scope
         self._repl_alias_targets = checker.alias_targets
         self._repl_alias_resolved = checker.alias_resolved
@@ -698,6 +699,7 @@ class Loxia:
                 generic_classes=checker.concrete_class_types(),
                 generic_class_sites=checker.generic_class_sites,
                 type_aliases=checker.type_aliases(),
+                function_types=checker.function_types,
                 source_path=self._file,
                 max_heap=max_heap,
                 debug=self.debug,

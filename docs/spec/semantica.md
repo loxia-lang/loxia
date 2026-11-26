@@ -761,7 +761,8 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   `List[T]`/`Map[K, V]` (including elements; O(n)) and unions. For a class, the identity is the
   **class object** ([ADR-0044](../adr/0044-identidade-classe.md)): `Derived() is Base`
   is true, but a local class with the same name is not the global class. `Any` is always
-  true, `Never` always false; function types are rejected under `--check`. A class
+  true, `Never` always false; function types are tested by the runtime signature
+  (arity/parameters/return, [ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)). A class
   as a value is not an instance (`Animal is Animal` is `false`). In the expression, a union on the
   right side requires parentheses (`x is (Int | String)`); see
   [ADR-0067](../adr/0067-desambiguacao-sintatica.md) and
@@ -795,8 +796,7 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   and [ADR-0086](../adr/0086-narrowing-captura-e-merge.md).
 - Type errors are **compile** errors and prevent execution; exit code 65.
 - Current limitations: aliasing/complete effects, generic classes/methods,
-  parameter inference without an annotation, union function types/casts in `is`,
-  and union casts in `as`; lambdas exist, but without trailing closure, single parameter without
+  parameter inference without an annotation and union casts in `as`; lambdas exist, but without trailing closure, single parameter without
   parentheses or implicit block return. Annotating `Float` does not convert the value at runtime
   (the tree-walk remains dynamic).
 

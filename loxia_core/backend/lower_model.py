@@ -17,7 +17,7 @@ from loxia_core.frontend.expr import Expr
 from loxia_core.frontend.stmt import Function, Param
 from loxia_core.frontend.token_type import TokenType
 from loxia_core.frontend.tokens import Token
-from loxia_core.frontend.ty import Ty
+from loxia_core.frontend.ty import FnTy, Ty
 
 _INT = llvm_ir.int_type(64)
 _BOOL = llvm_ir.int_type(1)
@@ -191,6 +191,7 @@ class FunctionInfo:
     decl_file: str = ""
     decl_line: int = 0
     decl_column: int = 1
+    fn_ty: FnTy | None = None
 
 
 @dataclass(frozen=True)

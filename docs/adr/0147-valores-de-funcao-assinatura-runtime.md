@@ -163,20 +163,20 @@ alternativa futura, não neste PR.
 
 ## Como verificar
 
-- `tests/cases/fn_any.lx` (l6, diferencial): função em `Any`, `is`/`as` com assinatura
-  exata, chamada; aridade errada → `is` false/R1011; tipo de parâmetro/retorno errado →
-  false/R1011 nos dois motores.
-- ABI: `fn(I) -> Int` em `Any` como `fn(C) -> Int` (ponteiro) → aceito e chamável;
-  `fn(Any) -> Int` em `Any` como `fn(Int) -> Int` → `R1011` nos dois motores; o mesmo par
-  **estático** continua aceito (callee conhecido, backend coage) e chamável.
-- Contravariância/covariância: `fn(Any) -> Int` como `fn(Int) -> Int`; `fn(Int) -> Any`
-  como `fn(Int) -> Int` (deve falhar); classe/interface nos parâmetros/retorno.
-- Aninhados: `fn(fn(Int) -> Int) -> Int` e retorno de função; opcionais
-  `fn(Int) -> Int?`; `var f: fn(Int) -> Int?`.
-- Variádicos/defaults (`min_params`) e bound methods/defaults de interface.
-- `if (f is fn(...)) { f(...) }`; campo/lista/mapa de funções; `--check`/`--emit`;
-  `R1011` com assinatura no texto; determinismo.
-- `tests/test_checker.py` para os casts estáticos impossíveis e o narrowing; `make check`.
+- `tests/cases/fn_any.lx` (l6, diferencial): função em `Any`, `is`/`as` exatos,
+  aridade/tipo errado, defaults (um alvo com menos parâmetros é `false`), containers
+  (`List[Int]`), variádicos (`...Int`), tipos de função aninhados (ABI recursiva),
+  enum, lambda anotada, bound method, default de interface, variância classe/interface e
+  opcionais presentes + `??`.
+- `tests/cases/errors/fn_any_cast.lx`, `fn_defaults_cast.lx` e `fn_signature_cast.lx`:
+  `R1011` nos dois motores (não-função, default/alvo com menos parâmetros e assinatura
+  incompatível).
+- `tests/test_checker.py`: `is fn` aceito, `as fn` de `Any` aceito, cast estático
+  incompatível recusado e `function_types` de lambda (anotada e T4 concreta);
+  `tests/test_type_test.py`: representação/ABI (escalares, opcionais, funções aninhadas,
+  default exige todos os parâmetros); `tests/test_cli.py`: narrowing de função no REPL.
+- `make check` e `make coverage-ratchet` verdes; `test_abi_das_estruturas_publicas_e_estavel`
+  cobre o novo prefixo do `LoxClosure`.
 
 ## Emendas
 

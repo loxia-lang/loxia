@@ -229,8 +229,8 @@ exist yet. See [ADR-0027](../adr/0027-generics-t3b.md),
 
 `expr is Type` is a boolean expression; the right side uses the type grammar and the
 operator sits at the comparison level. `is` tests primitives, classes/subclasses,
-`List[T]`/`Map[K, V]` (elements included) and unions; function types are rejected in
-`--check`. `Animal` as a value is not an instance: `Animal is Animal` is `false`. See
+`List[T]`/`Map[K, V]` (elements included) and unions; function types are tested by the
+runtime signature (arity/parameters/return, [ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)). `Animal` as a value is not an instance: `Animal is Animal` is `false`. See
 [ADR-0025](../adr/0025-is-e-narrowing.md).
 
 In **expression context** a union requires parentheses: `x is (Int | String)` is valid,

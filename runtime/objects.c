@@ -484,7 +484,8 @@ int lox_fn_assignable(const LoxFnSig *actual, const LoxFnSig *target) {
         if (actual->n_params != target->n_params) {
             return 0;
         }
-    } else if (!(actual->min_arity <= count && count <= actual->n_params)) {
+    } else if (count != actual->n_params) {
+        /* O alvo precisa passar todos os parâmetros; defaults só na chamada estática. */
         return 0;
     }
     for (int64_t index = 0; index < count; index++) {

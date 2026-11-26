@@ -114,6 +114,7 @@ class FunctionLowering(LoweringBase):
             decl_file=stmt.name.file,
             decl_line=stmt.name.line,
             decl_column=stmt.name.column,
+            fn_ty=self._function_types.get(stmt),
         )
 
     def _param_desc(self, param: Param) -> TypeDesc:
@@ -224,6 +225,7 @@ class FunctionLowering(LoweringBase):
             decl_file=expr.keyword.file,
             decl_line=expr.keyword.line,
             decl_column=expr.keyword.column,
+            fn_ty=fn_ty,
         )
 
     def _make_captures(self, node: Function | Lambda) -> tuple[CaptureBinding, ...]:
@@ -270,7 +272,7 @@ class FunctionLowering(LoweringBase):
         self.builder.store(self.builder.bitcast(info.ir, _I8_PTR), fn_slot)
         self.builder.store(env, env_slot)
         self.builder.store(self._display_pointer(display), name_slot)
-        self._closure_sig_fields(closure, info.fn_sig)
+        self._closure_sig_fields(closure, info.fn_sig, info.fn_ty)
 
         return Value(ValueType.FUNCTION, raw_closure, info.fn_sig)
 

@@ -92,6 +92,7 @@ def build(
     generic_classes: Any = None,
     generic_class_sites: Any = None,
     type_aliases: dict[str, Ty] | None = None,
+    function_types: dict[Any, Any] | None = None,
     source_path: str = "<lox>",
     max_heap: int | None = None,
     debug: bool = False,
@@ -107,6 +108,7 @@ def build(
             generic_classes=generic_classes,
             generic_class_sites=generic_class_sites,
             type_aliases=type_aliases,
+            function_types=function_types,
             source_path=source_path,
             debug=debug,
         )
