@@ -79,6 +79,11 @@ print(
   ),
 )
 print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":6,\"error\":{\"code\":4,\"message\":\"none\"}}"))
+print(
+  describeBody(
+    "{\"jsonrpc\":\"2.0\",\"id\":11,\"error\":{\"code\":5,\"message\":\"null\",\"data\":null}}",
+  ),
+)
 print(describeBody("{\"jsonrpc\":\"2.0\",\"method\":\"x\"}"))
 print(show(rpc.decode("{")))
 print(show(rpc.decode("[1]")))
@@ -110,6 +115,7 @@ print(describe(manualFailure))
 # expect: int:7
 # expect: string:why
 # expect: bool:true
+# expect: nil
 # expect: nil
 # expect: none
 # expect: err:-32700:Parse error:nil
