@@ -1,0 +1,7 @@
+# ADR-0150: objeto de classe não é valor de função; sem coerção implícita.
+class Animal {
+  var nome: String = "x"
+}
+
+val f: fn() -> Animal = Animal
+# expect error: Class objects aren't function values

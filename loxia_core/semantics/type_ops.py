@@ -75,7 +75,10 @@ class TypeOps:
         if expected == actual:
             return True
         # Rebinding de classe é dinâmico por ADR-0044: `Base = OtherBase as Any`
-        # continua válido; o backend representa classe como ponteiro.
+        # continua válido (a suíte oficial reatribui uma superclasse); o backend
+        # representa classe como ponteiro. Um `Any` que não guarda classe é erro
+        # do usuário: a divergência entre os motores está registrada em
+        # `docs/adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md`.
         if isinstance(expected, ClassObjectTy) and actual is ANY:
             return True
         # Destructuring com anotação de tupla é o formulário explícito previsto
@@ -111,12 +114,6 @@ class TypeOps:
         if isinstance(expected, FnTy):
             if isinstance(actual, FnTy):
                 return self.assignable_fn(expected, actual)
-            if isinstance(actual, ClassObjectTy):
-                info = self._decls.classes.get(actual.name)
-                if info is None:
-                    return False
-                signature = self._decls.initializer(info) or FnTy((), ClassTy(actual.name), 0)
-                return self.assignable_fn(expected, signature)
             if isinstance(actual, NativeFnTy):
                 native_signature = self._native_signature(actual.name)
                 return native_signature is not None and self.assignable_fn(

@@ -952,7 +952,13 @@ class Checker(ExprVisitor[Ty], StmtVisitor[None]):
         ):
             return f"Expected an instance of {expected.name}, found the class {actual.name}."
         if isinstance(expected, FnTy) and isinstance(actual, ClassObjectTy):
-            return f"Expected a function {display(expected)}, found the class {actual.name}."
+            # ADR-0150: objeto de classe não é valor de função; não há coerção
+            # implícita nem `Type[C]` para recuperar a forma chamável.
+            return (
+                f"Expected a function {display(expected)}, found the class {actual.name}. "
+                f"Class objects aren't function values; drop the annotation or wrap the "
+                f"construction in a function."
+            )
         if expected is FLOAT and actual is INT:
             return "Expected Float, found Int. Write `2.0` or use `2 as Float`."
 

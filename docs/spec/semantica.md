@@ -593,8 +593,10 @@ print(a is fn(Int) -> Int)   # false: `Any` takes two words, `Int` takes one
 the checker decides (`E3013` when incompatible); from `Any`/a union a mismatch is `R1011` in
 both engines. `if (x is fn(...))` narrows to the function type and the call uses the target
 signature. User functions, lambdas, methods, bound methods and interface defaults are
-supported; native values (already `E4001`) and class objects (#219) are not; generic
-functions are not values. Optional function types `(fn(...))?` work for present values,
+supported; native values (already `E4001`), generic functions and **class objects** are
+not: a class object is a nominal value, not a function value
+([ADR-0150](../adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md)). Optional function
+types `(fn(...))?` work for present values,
 including `a ?? f` when `a` is the optional left side ([ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)).
 
 ### Conversions and `math`
@@ -777,7 +779,11 @@ val label = name or "unnamed";  // String (truthy removes Nil)
   is true, but a local class with the same name is not the global class. `Any` is always
   true, `Never` always false; function types are tested by the runtime signature
   (arity/parameters/return, [ADR-0147](../adr/0147-valores-de-funcao-assinatura-runtime.md)). A class
-  as a value is not an instance (`Animal is Animal` is `false`). In the expression, a union on the
+  as a value is not an instance (`Animal is Animal` is `false`) and is not a function value
+  ([ADR-0150](../adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md)): `val f = Animal` is
+  callable (`f("Rex")`), but `val f: fn(String) -> Animal = Animal` is a check error, and a
+  class object cannot be stored in a `fn(...)` slot, list or map. Identity between class
+  objects is `==` (`m["c"] == Circle`). In the expression, a union on the
   right side requires parentheses (`x is (Int | String)`); see
   [ADR-0067](../adr/0067-desambiguacao-sintatica.md) and
   [ADR-0025](../adr/0025-is-e-narrowing.md).

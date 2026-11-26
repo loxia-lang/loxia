@@ -31,6 +31,18 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `std_jsonrpc_data.lx` e `std_test_any.lx` (`L6`).
 
 ### Mudado (quebra)
+- **Objeto de classe deixa de ser valor de função** ([ADR-0150](docs/adr/0150-objeto-de-classe-nao-e-valor-de-funcao.md),
+  [#219](https://github.com/loxia-lang/loxia/issues/219)): `ClassObjectTy` não é mais
+  atribuível a `fn(...)` em nenhuma posição. `val f: fn(String) -> Animal = Animal`, um
+  objeto de classe num `Map[String, fn(...)]` e um objeto de classe passado como argumento
+  de tipo `fn(...)` viram erro de check com remediação — antes o binário lia o descritor
+  como closure (segfault com `--check` limpo) e `f is fn(...)` respondia `false`. O que
+  funciona continua: `val f = Animal; f(...)`, `Animal == Animal`, `print(Animal)` e a
+  fábrica explícita `fn(args) -> Animal { return Animal(args) }`; identidade entre classes
+  é `==`. `Type[C]`, `is`/`as fn` para objeto de classe e construção dinâmica ficam
+  adiados com gatilho ([ADR-0107](docs/adr/0107-adiados-e-nao-objetivos.md)). Casos
+  `class_object_value.lx` (L6), `errors/class_object_to_fn.lx`,
+  `errors/class_object_in_fn_map.lx` e `tests/test_checker.py`.
 - **`fn main() -> Result[T, String]` vira o ponto de entrada** ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md)):
   antes era uma função comum; agora roda automaticamente depois dos statements de topo e o
   `Err` devolvido vira `error[R1016]` + exit 70. Um `main` quase-Result (parâmetros, genérico

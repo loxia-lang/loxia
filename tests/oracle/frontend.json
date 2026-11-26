@@ -77,6 +77,7 @@
     "tests/cases/class_identity.lx": "4840f1c692b9d3eae8e56072bfdf6355e71b1b0d7d2824fd80e2622e7fd74dc9",
     "tests/cases/class_identity_as.lx": "174d5417927d3bcbd0daffcd0f93f5612afd1c010b4023ad5c699f0005b0e16c",
     "tests/cases/class_initializer.lx": "2870213a1e6afbcdb66c223b71a660cd11c58dd3e7babbac4e62590cf50d8fb4",
+    "tests/cases/class_object_value.lx": "dbdb6bcf5ee5f2e7bb92091f1e458b58d9c7fbaec53c76ed53d46c9711077954",
     "tests/cases/class_self_return.lx": "9371e0b437bb6945fae9d96923a060ff0a9a52c628652463e1a39decb98ccf03",
     "tests/cases/class_str_print.lx": "f47f03a95d0125377a570abe6d3eb845af76931d12c5f29c508306931356aa75",
     "tests/cases/class_this.lx": "ce233a6a7e0aa395dfafe736734abc50664f15a5ee9729c8c9f8f01e06aa0d5c",
@@ -117,6 +118,8 @@
     "tests/cases/errors/break_post_loop.lx": "34e25c3d5bf943f2e08ae2c850e8951ce6ec4207c92b1843cc6c5eb0af933c13",
     "tests/cases/errors/builtin_redeclare.lx": "345f9c8698e93e8de2b22fada0b8708c99a37371e118dba1e66e4c5821a5fad2",
     "tests/cases/errors/class_inherit_self.lx": "c59b0ddb05fd56e944616dc4e55e65b49ea776b1768041faffec7a688605b87e",
+    "tests/cases/errors/class_object_in_fn_map.lx": "847b8886a71293cffcddeaa8eda2f2e811cf860a5e07b3992eab3afe97499245",
+    "tests/cases/errors/class_object_to_fn.lx": "79c792a638c29c8966a4380249f74efdacf3864c1d2719ce304cf311d3489159",
     "tests/cases/errors/continue_outside_loop.lx": "9b3726502f7a566483ba5384bb618d2ba2150031ae264550830af59fe2c22f91",
     "tests/cases/errors/division_by_zero.lx": "5e1ccdd0b860c4d2d1a5ffe70886fed1fa15056a7b5b62331f0a4c0df6ea158a",
     "tests/cases/errors/division_by_zero_int.lx": "310209b89a41434979fec2ca7bcffbafc6883f5f2124a6ca12d7e21fbc80d6f9",
@@ -973,6 +976,46 @@
             "column": 11,
             "line": 1,
             "offset": 10
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/class_object_in_fn_map.lx": [
+      {
+        "code": "E3001",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 43,
+            "line": 13,
+            "offset": 312
+          },
+          "file": "tests/cases/errors/class_object_in_fn_map.lx",
+          "start": {
+            "column": 42,
+            "line": 13,
+            "offset": 311
+          }
+        }
+      }
+    ],
+    "tests/cases/errors/class_object_to_fn.lx": [
+      {
+        "code": "E3001",
+        "phase": "checker",
+        "severity": "error",
+        "span": {
+          "end": {
+            "column": 6,
+            "line": 5,
+            "offset": 129
+          },
+          "file": "tests/cases/errors/class_object_to_fn.lx",
+          "start": {
+            "column": 5,
+            "line": 5,
+            "offset": 128
           }
         }
       }
@@ -3648,6 +3691,7 @@
     "tests/cases/class_identity.lx": "525067c7827f4a3f1d802c6d2f39dac3097033b38c1f74d925c0e2250bbacbe9",
     "tests/cases/class_identity_as.lx": "b52a21ac3b11c67c1b4135981fd16780028ec85b113caa19ad949ab0f13da6d5",
     "tests/cases/class_initializer.lx": "5030081fc7999762b493b2bfad83c8fbe7905d1b87e7596b2c7c702e8f50625b",
+    "tests/cases/class_object_value.lx": "1ffbef8f9cbf53f01c674a0e1c37793449e3129d8da7f4c66051136e69e54002",
     "tests/cases/class_self_return.lx": "0bdd61e48ef411d4f87b0c61a7010033339cde3df999f6aa9de226e93638df4c",
     "tests/cases/class_str_print.lx": "7dc1172872bf20fae7e1291d08c28e8958ee3c01e2274cef08e6a34fbf72c91e",
     "tests/cases/class_this.lx": "8700ca5959919ecc23baa82032080344b58a6d15dcdec0ffc0aafcaee4c57997",
@@ -3688,6 +3732,8 @@
     "tests/cases/errors/break_post_loop.lx": "7ace51fcbf33f9efe8f4d914c6d916f3c71ee6db3413c2b3702a3e91c669e2b7",
     "tests/cases/errors/builtin_redeclare.lx": "10d32af3f19f4b06bb3f1a473a47016b010396f0073a9d20059435ae8a262995",
     "tests/cases/errors/class_inherit_self.lx": "2b335e7ee83a2bc7dba60cb6302bc709a872a47537b29106e686566eb556177a",
+    "tests/cases/errors/class_object_in_fn_map.lx": "c6cfdf51957fabb21d2b07f82be7aa888aa8a215e8b3fa57f1479c50735a6e2a",
+    "tests/cases/errors/class_object_to_fn.lx": "99cd4a2cb683171e8bb180c334097a062b2dec4ecd5fa0eb1a077453cc56a69b",
     "tests/cases/errors/continue_outside_loop.lx": "f4ce7e2bda722bf10a2e8402aeaa6dcf7beb84b2d3ff58f8a189ddd21360538e",
     "tests/cases/errors/division_by_zero.lx": "eaf64d16c6c9a74ef92efe3800318eb8c2c9c3277a36c1a42c4f89dc514f1784",
     "tests/cases/errors/division_by_zero_int.lx": "ab6035124142e32ea4073df1d9c00ea5cb19385af769d61018a3ef5718847e25",

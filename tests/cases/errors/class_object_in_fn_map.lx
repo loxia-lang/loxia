@@ -1,0 +1,18 @@
+# ADR-0150: o crash (check limpo → segfault) vira erro de check: um objeto de
+# classe não entra num container de `fn`.
+class Shape {
+  var name: String = "shape"
+}
+
+class Circle(Shape) {
+  var r: Int = 0
+
+  fn init(r: Int) {
+    this.r = r
+    this.name = "circle"
+  }
+}
+
+val reg: Map[String, fn(Int) -> Shape] = { "circle": Circle }
+print((reg["circle"])(5).name)
+# expect error: Class objects aren't function values

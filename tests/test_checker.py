@@ -211,7 +211,8 @@ def test_function_type_checks_callback_body(
     assert "Argument 1: Expected Int, found String." in captured.err
 
 
-def test_function_type_accepts_class_as_constructor() -> None:
+def test_class_object_is_not_a_function_value() -> None:
+    """ADR-0150: objeto de classe não é valor de função (sem coerção implícita)."""
     lox = check(
         """
         class Animal {
@@ -227,6 +228,27 @@ def test_function_type_accepts_class_as_constructor() -> None:
         }
 
         val a: Animal = criar(Animal);
+        print(a.nome);
+        """
+    )
+
+    assert lox.reporter.had_error is True
+
+
+def test_class_object_in_a_variable_is_callable() -> None:
+    """ADR-0150: guardar a classe sem anotação de `fn` continua funcionando."""
+    lox = check(
+        """
+        class Animal {
+          var nome: String;
+
+          init(nome: String) {
+            this.nome = nome;
+          }
+        }
+
+        val criar = Animal;
+        val a: Animal = criar("Rex");
         print(a.nome);
         """
     )
