@@ -98,6 +98,8 @@ de comando sobrescrever o `addopts`.
 ## Como verificar
 
 ```bash
+make check                     # gate completo em paralelo (~30 s)
+make check-serial              # o mesmo gate em série, para investigar um erro
 make test-fast                 # ~15-20 s, ~1.8 mil testes
 make test-fast TEST_JOBS=0     # serial, para comparar
 make test-backend              # backend sem os slow; ~12 s (crate intocado; cache vazio ~13 s)
@@ -183,6 +185,19 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   custo é o build do crate, não o primeiro teste — aquecer só move os ~20 s para o começo
   e, com xdist, todos os workers esperam o mesmo build (medido: `library()` 12,5 s +
   `static_library()` 7,9 s a frio). O marcador resolve o loop sem essa coreografia.
+
+- **2026-11-26 — gate paralelo vira o oficial (issue #241).** `make test` e `make check` rodam
+  a suíte com `pytest -n $(TEST_JOBS)`; `make test-serial`/`make check-serial` preservam o
+  caminho determinístico para investigar um erro, e `TEST_JOBS=0` desliga o xdist em qualquer
+  alvo. Medição nesta máquina (8 núcleos físicos): o gate serial custava **196,8 s** no início
+da sessão (168,3 s na medição final, com carga variável), dos quais ~169 s de pytest
+(108,7 s sem backend + 60,5 s de backend); com xdist o gate completo mede **27,8 s** (pytest 26,8 s; 31,6 s com mypy sem cache incremental) e a suíte passa
+  (2777 passed, 18 xfailed). No CI o job unitário de 3.14 passa a usar `-n auto` (o de 3.13 já
+  roda a cobertura com xdist, e o job nativo idem); o job Windows informativo segue serial
+  para não misturar falha conhecida de plataforma com xdist. Riscos aceitos: um crash duro
+  derruba o worker em vez de um teste e a ordem entre testes deixa de ser determinística — o
+  caminho serial continua no repositório para reproduzir um erro isolado; em hardware de 2–4
+  núcleos o ganho cai, porque o piso é CPU (~340 s de trabalho para a suíte).
 
 ## Referências
 

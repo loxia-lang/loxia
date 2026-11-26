@@ -16,6 +16,7 @@ import pytest
 from loxia import scaffold
 from loxia_core.loader import deps
 from loxia_core.loader.gitenv import git_env
+from tests.git_config import stable_config
 
 GIT_REQUIRED = pytest.mark.skipif(
     subprocess.run(["git", "--version"], capture_output=True, check=False).returncode != 0,
@@ -70,6 +71,24 @@ def test_git_config_nao_escapa_para_o_repo_real(
 
     assert "vazou@example.com" not in (real / ".git" / "config").read_text(encoding="utf-8")
     assert "vazou@example.com" in (target / ".git" / "config").read_text(encoding="utf-8")
+
+
+def test_stable_config_ignora_secoes_branch() -> None:
+    """`git push -u`/`git branch --track` e o editor escrevem aqui no meio do gate."""
+    before = (
+        '[core]\n\tbare = false\n[branch "dev"]\n\tremote = origin\n'
+        "\tvscode-merge-base = origin/main\n"
+    )
+    after = before + '[branch "chore/x"]\n\tremote = origin\n\tmerge = refs/heads/chore/x\n'
+    assert stable_config(before) == stable_config(after)
+
+
+def test_stable_config_ainda_pega_identidade_remote_e_core() -> None:
+    assert stable_config("[core]\n\tbare = false\n") != stable_config("[core]\n\tbare = true\n")
+    assert stable_config("[user]\n\temail = a@b\n") != stable_config("[user]\n\temail = c@d\n")
+    assert stable_config('[remote "origin"]\n\turl = x\n') != stable_config(
+        '[remote "origin"]\n\turl = y\n'
+    )
 
 
 def test_deps_usa_ambiente_limpo(monkeypatch: pytest.MonkeyPatch) -> None:

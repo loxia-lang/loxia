@@ -62,7 +62,8 @@ make test-backend TEST_JOBS=0   # backend serial, to debug one case
 make test-backend-all           # backend including slow (the Rust crate; ~30 s cold)
 make smoke-backend              # one case per level, real-process path (~5 s)
 uv run pytest -m backend -q     # every backend case; needs libgc
-make test                       # everything, includes backend (serial)
+make test                       # everything, includes backend (xdist)
+make test-serial                # everything serial, to investigate a failure
 ```
 
 Cases that use the Rust regex engine carry `@pytest.mark.slow` (manifest `# requires:

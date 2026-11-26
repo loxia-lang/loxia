@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from loxia_core.loader.gitenv import git_env
 from tests.inprocess import Result, run_cli
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -515,6 +516,7 @@ def _git(cwd: Path, *args: str) -> None:
         check=True,
         capture_output=True,
         text=True,
+        env=git_env(),
     )
 
 

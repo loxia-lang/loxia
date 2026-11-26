@@ -64,7 +64,7 @@ jobs:
         run: rustup toolchain install 1.93.1 --profile minimal --no-self-update
       - name: Unit tests
         if: matrix.python != '3.13'
-        run: uv run pytest -m "not backend and not install"
+        run: uv run pytest -m "not backend and not install" -n auto
       - name: Unit tests + coverage ratchet
         if: matrix.python == '3.13'
         run: make coverage-ratchet
