@@ -281,8 +281,9 @@ hash of sources+headers/compiler/flags, so each build drops from ~0.55 s to ~0.1
 `make test-fast` runs the ~1.8k non-backend tests in **parallel** (`-n auto`) and skips the
 wheel-install test; the loop is ~15-20 s. `make test-backend` runs the backend without the
 `slow` Rust/regex cases with xdist (`-n auto`, `TEST_JOBS=0` for serial): ~12 s warm and
-~13 s even with a cold crate cache. `make test-backend-all` (also `make test`, `make check`
-and CI) runs the slow cases, and the first one pays the Rust crate build (~20 s).
+~13 s with an empty build cache (the Rust crate is not touched). `make test-backend-all`
+(also `make test`, `make check` and CI) runs the slow cases, and the first one pays the Rust
+crate build (~20 s).
 `make smoke-backend` checks one case per level through the real-process path and is part of
 `make check-fast`. `make test`/`make check`/CI stay serial. Use `make check-fast` while
 iterating, `make test-backend` for native work and `make check` before committing.

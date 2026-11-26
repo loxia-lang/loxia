@@ -2380,10 +2380,10 @@ print("after")
 
 
 def _runtime_error_goldens() -> list[str]:
-    """Goldens com erro de runtime anotado; o filtro de `--check` fica no teste.
+    """Goldens com erro de runtime anotado (o filtro de `--check` vem em `_check_clean_goldens`).
 
-    Parametrizar (em vez de um laço) deixa o xdist distribuir os 58 casos: o laço
-    único era um piso serial de ~30 s no `make test-backend` (ADR-0133).
+    Parametrizar (em vez de um laço) deixa o xdist distribuir os casos: o laço único era
+    um piso serial de ~30 s no `make test-backend` (ADR-0133).
     """
     cases: list[str] = []
     for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):

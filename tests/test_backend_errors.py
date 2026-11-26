@@ -7,6 +7,10 @@ from pathlib import Path
 
 import pytest
 
+# Sem o extra `llvm` o módulo não coleta: `llvm_ir` importa `llvmlite.binding` no topo.
+# O skip no import mantém `make check-fast`/`test-fast` verdes sem o backend instalado.
+pytest.importorskip("llvmlite")
+
 from loxia_core.backend import driver, llvm_ir
 from loxia_core.backend.lower import BackendError
 from loxia_core.backend.lower_model import _unsupported
