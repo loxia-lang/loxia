@@ -43,13 +43,17 @@ def _repository_config_guard() -> Iterator[None]:
 
     O vetor é `git` herdar `GIT_DIR`/`GIT_WORK_TREE` do hook do pre-commit; os helpers
     usam `git_env()` para descartar essas variáveis, e esta guarda pega uma regressão.
+    Seções `[branch ...]` não contam: `git push -u`/`git branch --track` e o editor as
+    escrevem durante o trabalho normal, inclusive no meio de um gate.
     """
+    from tests.git_config import stable_config
+
     config = _repository_config()
-    before = config.read_bytes() if config is not None else None
+    before = stable_config(config.read_text(encoding="utf-8")) if config is not None else None
     yield
     if config is None or before is None:
         return
-    after = config.read_bytes() if config.is_file() else None
+    after = stable_config(config.read_text(encoding="utf-8")) if config.is_file() else None
     if after != before:
         pytest.fail(
             "the test suite modified the repository's .git/config; "
