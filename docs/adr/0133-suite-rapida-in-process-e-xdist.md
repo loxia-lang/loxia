@@ -121,7 +121,8 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   máquina (16 cores, caches quentes, 472 testes): **172 s serial → 41 s com `-n auto`**
   (~4,2×); `-n 8` dá 44 s — acima de 8 workers o ganho achata (link + I/O). O que a emenda
   **não** resolve é o custo fixo por caso (~0,3 s, dominado por dois boots do Python e
-  imports) e a recompilação de todo caso a cada run; isso ficou nas issues de follow-up.
+  imports) e a recompilação de todo caso a cada run; o follow-up ficou em #230 (corpus
+  in-process), #231 (cache de binário por conteúdo) e #232 (casos lentos + smoke local).
 
 ## Referências
 
