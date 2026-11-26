@@ -32,7 +32,8 @@ Human-readable reason; never contains a path, timestamp or address.
 
 #### `val data: Any`
 
-Optional JSON payload from `error.data`; `nil` when the error has no data.
+Optional JSON payload from `error.data`; `nil` when the member is absent or
+explicitly JSON `null` (the two are not distinguishable in this field).
 
 #### `fn init(code: Int, message: String, data: Any = ...)`
 
@@ -71,6 +72,9 @@ Builds a success response; `result` may be `nil` (serialized as `null`).
 
 Builds an error response; the `error` object carries `code`, `message` and
 `data` when it is not `nil` (omitted data keeps the envelope compatible).
+
+`data` must be JSON-representable (`nil`, `Bool`, `Int`, `Float`, `String`,
+`List` or `Map`); `encode` raises `RuntimeError` otherwise.
 
 ### `fn isRequest(message: Map[String, Any]) -> Bool`
 

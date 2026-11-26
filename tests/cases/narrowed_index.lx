@@ -1,0 +1,25 @@
+# Índice de Map/List lido depois de estreitar o mesmo caminho (issue #236).
+val m: Map[String, Any] = { "k": 1 }
+if (m["k"] is Int) {
+  print(m["k"] as Int)
+}
+val xs: List[Any] = [true, "two"]
+if (xs[0] is Bool) {
+  print(xs[0] as Bool)
+}
+if (xs[1] is String) {
+  print(xs[1] as String)
+}
+val t: (Any, Any) = (7, "x")
+if (t[0] is Int) {
+  print(t[0] as Int)
+}
+val nested: Map[String, Map[String, Any]] = { "a": { "b": 2 } }
+if (nested["a"]["b"] is Int) {
+  print(nested["a"]["b"] as Int)
+}
+# expect: 1
+# expect: true
+# expect: two
+# expect: 7
+# expect: 2

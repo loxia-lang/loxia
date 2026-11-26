@@ -122,6 +122,9 @@ efeitos/aliasing fica em [#216](https://github.com/loxia-lang/loxia/issues/216).
 
 - `tests/cases/any_narrowing.lx` (diferencial l6): membro, escrita, índice, `List`, `Map`,
   tupla e `len` depois de `is`/`as`, com stdout igual nos dois canais.
+- `tests/cases/narrowed_index.lx` (diferencial l6): leitura de índice de `Map`, `List` e
+  `Map` aninhado depois de estreitar o mesmo caminho (issue
+  [#236](https://github.com/loxia-lang/loxia/issues/236)).
 - `tests/cases/errors/any_{member,set,call,index}.lx` (`COMPILE_ERRORS`): os quatro `E3025`.
 - `tests/test_backend.py::test_i4_check_limpo_nunca_vira_erro_de_tipo_no_lowering` varre o
   corpus e exige que a única recusa de um check limpo seja a lacuna declarada.

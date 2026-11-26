@@ -19,13 +19,23 @@ t.expect(number).toBe(7.0)
 t.expect(number).notToBe(8)
 
 fn failure(actual: Any, expected: Any) -> String {
-  return t.expectRaise(fn() { t.expect(actual).toBe(expected) })
+  return t.expectRaise(
+    fn() {
+      t.expect(actual).toBe(expected)
+    },
+  )
 }
 
 print(failure(dynamic, 1))
 print(failure(1, dynamic))
 print(failure(number, 8))
-print(t.expectRaise(fn() { t.expect(text).notToBe("loxia") }))
+print(
+  t.expectRaise(
+    fn() {
+      t.expect(text).notToBe("loxia")
+    },
+  ),
+)
 print("ok")
 # expect: expected 1, got {"items": [1, "two"]}
 # expect: expected {"items": [1, "two"]}, got 1

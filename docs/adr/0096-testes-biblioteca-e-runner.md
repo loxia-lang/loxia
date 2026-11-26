@@ -2,8 +2,8 @@
 
 > **Atualizado por** [ADR-0145](0145-campo-any-slot-largo.md): campo `Any` existe no backend.
 > Na issue [#215](https://github.com/loxia-lang/loxia/issues/215) o `Expectation` deixou de ser
-> genérico e guarda `Any`, então `expect(x)` aceita valor dinâmico; a nota antiga de escopo
-> fica abaixo como histórica.
+> genérico e guarda `Any`, então `expect(x)` aceita valor dinâmico; a restrição de escopo
+> registrada no contexto abaixo foi substituída por esta decisão.
 
 - **Status:** accepted (implementado em 2026-11-16)
 - **Data:** 2026-11-16

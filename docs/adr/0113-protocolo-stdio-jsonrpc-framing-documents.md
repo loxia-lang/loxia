@@ -42,7 +42,7 @@ A análise mostrou três coisas que a issue tratava como uma:
 3. **`DocumentStore`** é estrutura de dados: URI opaca, texto e versão. Não precisa de JSON
    nem de I/O, e é reusável por qualquer ferramenta de editor.
 
-Duas restrições do compilador moldaram a API, verificadas no checker e no backend:
+Três restrições do compilador moldaram a API, verificadas no checker e no backend:
 
 - `Result[Any, E]` não é construível: `E3011` recusa instanciar a variável de tipo com
   `Any`, mesmo com tipo esperado. Daí `JsonResult` em `std.json` e `Result` com `T`
@@ -182,7 +182,8 @@ deva exigir.
   `Bool` de sucesso.
 - `RpcFailure.data` é `Any`: quem consome precisa estreitar com `is`/`as` antes de usar
   ([ADR-0144](0144-any-dinamico-exige-estreitamento.md)); o builder omite `data` quando é
-  `nil`, então `data: null` explícito não é representável.
+  `nil`, então `data: null` explícito não é representável, e o accessor devolve o mesmo
+  `nil` para ausência e para `null`.
 - O harness de transcrição cobre o oráculo com stdin real; o adaptador no binário é coberto
   pelo teste de kernel existente e pelos goldens, não por um transcript nativo próprio.
 

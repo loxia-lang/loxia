@@ -12,9 +12,10 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   [#215](https://github.com/loxia-lang/loxia/issues/215)): `std.jsonrpc.RpcFailure` guarda
   `data: Any` e `errorOf(message)` devolve a falha tipada; `failure(id, code, message, data = nil)`
   inclui `data` no envelope quando não é `nil`, preservando código/mensagem e a ordem de
-  inserção. `std.test.Expectation` deixou de ser genérico e guarda `Any`, então `expect(x)`
-  aceita valor dinâmico e as mensagens usam `repr`. Casos diferenciais `std_jsonrpc_data.lx` e
-  `std_test_any.lx` (`L6`).
+  inserção. `errorOf` devolve `nil` para `error` ausente/malformado (e `data` ausente e
+  `null` são indistinguíveis). `std.test.Expectation` deixou de ser genérico e guarda `Any`,
+  então `expect(x)` aceita valor dinâmico e as mensagens usam `repr`. Casos diferenciais
+  `std_jsonrpc_data.lx` e `std_test_any.lx` (`L6`).
 
 ### Mudado (quebra)
 - **`std.test` e `std.jsonrpc` deixam o genérico/`Map` cru**: `Expectation[T]` virou
@@ -245,6 +246,14 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
 - **Localização de panic de `Bytes`**: erros de `Bytes.fromList` apontam para o `(` da
   chamada (como o `NativeError` do tree-walk) e erros de método (`slice`, `concat`) usam o
   token do nome, em vez de linha/coluna 0.
+
+### Corrigido
+- **Leitura de índice depois de estreitar o mesmo caminho** ([#236](https://github.com/loxia-lang/loxia/issues/236)):
+  `if (m["k"] is Int) { print(m["k"] as Int) }` era check-limpo mas o lowering recusava com
+  `E4001: Map key/value type`/`List element type is not supported by the backend yet`,
+  porque o caminho estreitado devolvia o tipo refinado sem publicar o receptor. O checker
+  agora infere o objeto e o índice e publica `storage_types` do nó; `Map`, `List`, `Map`
+  aninhado e tupla batem com o tree-walk. Caso `tests/cases/narrowed_index.lx` (`L6`).
 
 ## [1.2.0] - 2026-11-20
 

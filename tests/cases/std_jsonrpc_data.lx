@@ -44,11 +44,40 @@ fn describeBody(body: String) -> String {
   }
 }
 
-print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"bad\",\"data\":{\"kind\":\"params\"}}}"))
-print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32603,\"message\":\"boom\",\"data\":[1,2,3]}}"))
-print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":3,\"error\":{\"code\":1,\"message\":\"int\",\"data\":7}}"))
-print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":2,\"message\":\"str\",\"data\":\"why\"}}"))
-print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":5,\"error\":{\"code\":3,\"message\":\"bool\",\"data\":true}}"))
+fn errorOfRaw(message: Map[String, Any]) -> String {
+  val failure = rpc.errorOf(message)
+  if (failure == nil) {
+    return "nil"
+  }
+  val typed = failure as RpcFailure
+  return "code:${typed.code}"
+}
+
+print(
+  describeBody(
+    "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"bad\",\"data\":{\"kind\":\"params\"}}}",
+  ),
+)
+print(
+  describeBody(
+    "{\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32603,\"message\":\"boom\",\"data\":[1,2,3]}}",
+  ),
+)
+print(
+  describeBody(
+    "{\"jsonrpc\":\"2.0\",\"id\":3,\"error\":{\"code\":1,\"message\":\"int\",\"data\":7}}",
+  ),
+)
+print(
+  describeBody(
+    "{\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":2,\"message\":\"str\",\"data\":\"why\"}}",
+  ),
+)
+print(
+  describeBody(
+    "{\"jsonrpc\":\"2.0\",\"id\":5,\"error\":{\"code\":3,\"message\":\"bool\",\"data\":true}}",
+  ),
+)
 print(describeBody("{\"jsonrpc\":\"2.0\",\"id\":6,\"error\":{\"code\":4,\"message\":\"none\"}}"))
 print(describeBody("{\"jsonrpc\":\"2.0\",\"method\":\"x\"}"))
 print(show(rpc.decode("{")))
@@ -60,6 +89,22 @@ val built = rpc.errorOf(rpc.failure(10, -32000, "custom", [true, false])) ?? Rpc
 print(built.code)
 print(describe(built))
 print(describe(rpc.errorOf(rpc.request(1, "initialize"))))
+val notMap: Map[String, Any] = { "error": 5 }
+val floatCode: Map[String, Any] = { "error": { "code": 1.5, "message": "x" } }
+val stringCode: Map[String, Any] = { "error": { "code": "1", "message": "x" } }
+val intMessage: Map[String, Any] = { "error": { "code": 1, "message": 7 } }
+val noMessage: Map[String, Any] = { "error": { "code": 1 } }
+val noCode: Map[String, Any] = { "error": { "message": "x" } }
+print(errorOfRaw(notMap))
+print(errorOfRaw(floatCode))
+print(errorOfRaw(stringCode))
+print(errorOfRaw(intMessage))
+print(errorOfRaw(noMessage))
+print(errorOfRaw(noCode))
+val manual: Map[String, Any] = { "error": { "code": -32001, "message": "manual", "data": [true] } }
+val manualFailure = rpc.errorOf(manual) ?? RpcFailure(0, "none")
+print(manualFailure.code)
+print(describe(manualFailure))
 # expect: map:params
 # expect: list:3
 # expect: int:7
@@ -75,3 +120,11 @@ print(describe(rpc.errorOf(rpc.request(1, "initialize"))))
 # expect: -32000
 # expect: list:2
 # expect: none
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: nil
+# expect: -32001
+# expect: list:1

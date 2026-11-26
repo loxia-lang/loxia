@@ -13,7 +13,7 @@ backend = true
 
 [features.any]
 title = "Any boxeado: top type, is/as, ??, curto-circuito, narrowing e campos"
-golden = ["tests/cases/any_box.lx", "tests/cases/any_casts.lx", "tests/cases/any_coalesce_nil.lx", "tests/cases/any_field_assign.lx", "tests/cases/any_field_layout.lx", "tests/cases/any_logical.lx", "tests/cases/any_narrowing.lx"]
+golden = ["tests/cases/any_box.lx", "tests/cases/any_casts.lx", "tests/cases/any_coalesce_nil.lx", "tests/cases/any_field_assign.lx", "tests/cases/any_field_layout.lx", "tests/cases/any_logical.lx", "tests/cases/any_narrowing.lx", "tests/cases/narrowed_index.lx", "tests/cases/std_jsonrpc_data.lx"]
 differential = "l6"
 backend = true
 
@@ -127,7 +127,7 @@ backend = true
 
 [features.test_runner]
 title = "std.test e o runner loxia test"
-golden = ["tests/cases/std_test.lx", "tests/cases/std_test_hooks.lx", "tests/cases/exception_site.lx"]
+golden = ["tests/cases/std_test.lx", "tests/cases/std_test_hooks.lx", "tests/cases/std_test_any.lx", "tests/cases/exception_site.lx"]
 differential = "t3"
 backend = true
 

@@ -13,11 +13,11 @@ rewrites this page and the snapshot. A feature is covered when it has at least o
 golden case and, for backend features, one case in the differential corpus
 ([`../../docs/spec/garantias.md`](../spec/garantias.md)).
 
-**25 features**, **115 golden references** across **14 levels**.
+**25 features**, **118 golden references** across **14 levels**.
 
 | Feature | Golden cases | Differential |
 | --- | --- | --- |
-| **any** — Any boxeado: top type, is/as, ??, curto-circuito, narrowing e campos | [`any_box.lx`](../../tests/cases/any_box.lx), [`any_casts.lx`](../../tests/cases/any_casts.lx), [`any_coalesce_nil.lx`](../../tests/cases/any_coalesce_nil.lx), [`any_field_assign.lx`](../../tests/cases/any_field_assign.lx), [`any_field_layout.lx`](../../tests/cases/any_field_layout.lx), [`any_logical.lx`](../../tests/cases/any_logical.lx), [`any_narrowing.lx`](../../tests/cases/any_narrowing.lx) | `l6` |
+| **any** — Any boxeado: top type, is/as, ??, curto-circuito, narrowing e campos | [`any_box.lx`](../../tests/cases/any_box.lx), [`any_casts.lx`](../../tests/cases/any_casts.lx), [`any_coalesce_nil.lx`](../../tests/cases/any_coalesce_nil.lx), [`any_field_assign.lx`](../../tests/cases/any_field_assign.lx), [`any_field_layout.lx`](../../tests/cases/any_field_layout.lx), [`any_logical.lx`](../../tests/cases/any_logical.lx), [`any_narrowing.lx`](../../tests/cases/any_narrowing.lx), [`narrowed_index.lx`](../../tests/cases/narrowed_index.lx), [`std_jsonrpc_data.lx`](../../tests/cases/std_jsonrpc_data.lx) | `l6` |
 | **checker** — Anotações, inferência e diagnósticos do --check | [`typed_functions.lx`](../../tests/cases/typed_functions.lx), [`is_union_parens.lx`](../../tests/cases/is_union_parens.lx), [`optional_refs.lx`](../../tests/cases/optional_refs.lx) | `—` |
 | **classes** — Classes, campos, métodos, this, init, herança e super | [`classes.lx`](../../tests/cases/classes.lx), [`class_fields.lx`](../../tests/cases/class_fields.lx), [`class_initializer.lx`](../../tests/cases/class_initializer.lx), [`inheritance.lx`](../../tests/cases/inheritance.lx), [`super.lx`](../../tests/cases/super.lx), [`class_bound_method.lx`](../../tests/cases/class_bound_method.lx), [`selfhost_recursive_class.lx`](../../tests/cases/selfhost_recursive_class.lx) | `l5` |
 | **contracts** — Contratos como biblioteca e adoção na stdlib | [`std_contracts.lx`](../../tests/cases/std_contracts.lx), [`std_contracts_property.lx`](../../tests/cases/std_contracts_property.lx), [`std_contracts_pilot.lx`](../../tests/cases/std_contracts_pilot.lx) | `t2` |
@@ -37,7 +37,7 @@ golden case and, for backend features, one case in the differential corpus
 | **stdlib_data** — Stdlib de dados: json, csv, fmt e utf8 | [`std_json.lx`](../../tests/cases/std_json.lx), [`std_csv.lx`](../../tests/cases/std_csv.lx), [`std_fmt.lx`](../../tests/cases/std_fmt.lx), [`std_utf8.lx`](../../tests/cases/std_utf8.lx) | `t2` |
 | **strings** — Strings, escapes, multilinha, raw e interpolação | [`strings.lx`](../../tests/cases/strings.lx), [`string_escapes.lx`](../../tests/cases/string_escapes.lx), [`multiline_strings.lx`](../../tests/cases/multiline_strings.lx), [`raw_strings.lx`](../../tests/cases/raw_strings.lx), [`interpolation.lx`](../../tests/cases/interpolation.lx), [`string_order.lx`](../../tests/cases/string_order.lx) | `l3` |
 | **syntax** — Comentários, ; opcional, quebra de linha e trailing comma | [`comments.lx`](../../tests/cases/comments.lx), [`optional_semicolons.lx`](../../tests/cases/optional_semicolons.lx), [`one_line_block.lx`](../../tests/cases/one_line_block.lx), [`leading_operator_brackets.lx`](../../tests/cases/leading_operator_brackets.lx), [`trailing_comma.lx`](../../tests/cases/trailing_comma.lx) | `l0` |
-| **test_runner** — std.test e o runner loxia test | [`std_test.lx`](../../tests/cases/std_test.lx), [`std_test_hooks.lx`](../../tests/cases/std_test_hooks.lx), [`exception_site.lx`](../../tests/cases/exception_site.lx) | `t3` |
+| **test_runner** — std.test e o runner loxia test | [`std_test.lx`](../../tests/cases/std_test.lx), [`std_test_hooks.lx`](../../tests/cases/std_test_hooks.lx), [`std_test_any.lx`](../../tests/cases/std_test_any.lx), [`exception_site.lx`](../../tests/cases/exception_site.lx) | `t3` |
 | **tuples** — Tuplas, destructuring e iteração | [`tuples.lx`](../../tests/cases/tuples.lx), [`tuple_destructure.lx`](../../tests/cases/tuple_destructure.lx), [`nested_destructure.lx`](../../tests/cases/nested_destructure.lx), [`tuple_iteration.lx`](../../tests/cases/tuple_iteration.lx) | `l6` |
 | **type_alias** — type Nome = Tipo | [`type_alias.lx`](../../tests/cases/type_alias.lx) | `l6` |
 | **values** — Int, Float, Bool, nil e literais | [`numbers.lx`](../../tests/cases/numbers.lx), [`literals.lx`](../../tests/cases/literals.lx), [`comparison.lx`](../../tests/cases/comparison.lx), [`equality.lx`](../../tests/cases/equality.lx) | `l1` |
@@ -51,7 +51,7 @@ golden case and, for backend features, one case in the differential corpus
 | `l1` | 7 |
 | `l3` | 14 |
 | `l2.5` | 4 |
-| `l6` | 123 |
+| `l6` | 124 |
 | `t7` | 3 |
 | `l5` | 30 |
 | `l4` | 12 |

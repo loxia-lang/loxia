@@ -10,7 +10,9 @@
         "tests/cases/any_field_assign.lx",
         "tests/cases/any_field_layout.lx",
         "tests/cases/any_logical.lx",
-        "tests/cases/any_narrowing.lx"
+        "tests/cases/any_narrowing.lx",
+        "tests/cases/narrowed_index.lx",
+        "tests/cases/std_jsonrpc_data.lx"
       ]
     },
     "checker": {
@@ -204,6 +206,7 @@
       "golden": [
         "tests/cases/std_test.lx",
         "tests/cases/std_test_hooks.lx",
+        "tests/cases/std_test_any.lx",
         "tests/cases/exception_site.lx"
       ]
     },

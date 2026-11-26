@@ -82,6 +82,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/errors/fn_signature_cast.lx",
         "tests/cases/any_logical.lx",
         "tests/cases/any_narrowing.lx",
+        "tests/cases/narrowed_index.lx",
         "tests/cases/bitwise.lx",
         "tests/cases/for_in_capture.lx",
         "tests/cases/char_code_at_bounds.lx",

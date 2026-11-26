@@ -20,7 +20,8 @@ class RpcFailure {
   /// Human-readable reason; never contains a path, timestamp or address.
   val message: String
 
-  /// Optional JSON payload from `error.data`; `nil` when the error has no data.
+  /// Optional JSON payload from `error.data`; `nil` when the member is absent or
+  /// explicitly JSON `null` (the two are not distinguishable in this field).
   val data: Any
 
   /// Creates a failure with an explicit code, message and optional data.
@@ -119,6 +120,9 @@ fn success(id: Any, result: Any = nil) -> Map[String, Any] {
 
 /// Builds an error response; the `error` object carries `code`, `message` and
 /// `data` when it is not `nil` (omitted data keeps the envelope compatible).
+///
+/// `data` must be JSON-representable (`nil`, `Bool`, `Int`, `Float`, `String`,
+/// `List` or `Map`); `encode` raises `RuntimeError` otherwise.
 fn failure(id: Any, code: Int, message: String, data: Any = nil) -> Map[String, Any] {
   val error: Map[String, Any] = { "code": code, "message": message }
   if (data != nil) {
