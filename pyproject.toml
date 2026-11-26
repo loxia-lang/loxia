@@ -70,6 +70,7 @@ markers = [
     "backend: compila e executa binários nativos (precisa de llvmlite, cc e libgc)",
     "install: builda o wheel e instala num venv fora do repo (lento; rode com `pytest -m install`)",
     "smoke: um caso por nível do backend pelo caminho de processo real (loop local)",
+    "slow: backend lento (crate Rust/regex); fica fora do loop local e roda no gate e no CI",
 ]
 
 [tool.coverage.run]

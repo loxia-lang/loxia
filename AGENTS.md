@@ -192,9 +192,11 @@ uv run main.py --check s.lx     # type check (does not run)
 uv run main.py --debug s.lx     # check Int overflow at runtime
 make test                       # full suite (includes native backend)
 make test-fast                  # pytest without native/install tests, xdist (~15-20 s)
-make test-backend               # native backend suite only, xdist (~40 s)
+make test-backend               # native backend without slow Rust cases, xdist (~12 s)
+make test-backend-all           # native backend including the slow Rust/regex cases
+make smoke-backend              # one case per level, real-process path (~5 s)
 make check                      # full gate: lint + format + types + tests
-make check-fast                 # local loop: lint + format + types + tests without native
+make check-fast                 # local loop: lint + format + types + tests + backend smoke
 make bench                      # benchmarks vs baseline
 uv sync --extra llvm            # enable the native backend (llvmlite)
 uv run main.py --emit=ll prog.lx         # LLVM IR (inspection)
@@ -263,22 +265,28 @@ a `dev` → `main` PR with a merge commit, then a tag from `main`. Never commit 
 make test                              # everything (unit + golden + native backend)
 make test-fast                         # without backend/install; xdist (local loop)
 make test-fast TEST_JOBS=0             # serial, to debug one case
-make test-backend                      # backend only; xdist (local loop, ~40 s)
+make test-backend                      # backend without slow Rust cases; xdist (~12 s)
 make test-backend TEST_JOBS=0          # backend serial, to debug one case
+make test-backend-all                  # backend including the slow Rust/regex cases
+make smoke-backend                     # one case per level, real-process path (~5 s)
 uv run pytest -m backend               # native builds only, serial
 uv run pytest -k block                 # subset
 uv run python -m tests.runner <filter> # golden cases without pytest
 ```
 
-The backend dominates `make test` (~80%): each manifest case builds a binary. Runtime units are
-cached by a hash of sources+headers/compiler/flags, so each build drops from ~0.55 s to
-~0.15 s. `make test-fast` runs the ~1.8k non-backend tests in **parallel** (`-n auto`) and
-skips the wheel-install test; the loop is ~15-20 s. `make test-backend` runs the same backend
-selection with xdist (`-n auto`, `TEST_JOBS=0` for serial): the case is a subprocess already,
-so the parallel run changes no contract and takes ~40 s instead of ~170 s. `make test`/
-`make check`/CI stay serial ([ADR-0133](docs/adr/0133-suite-rapida-in-process-e-xdist.md)).
-Use `make check-fast` while iterating, `make test-backend` for native work and `make check`
-before committing.
+The backend dominates `make test`: each differential case compiles a binary and runs it, with
+the oracle and the build **in the pytest process** (the binary itself in a subprocess;
+[ADR-0133](docs/adr/0133-suite-rapida-in-process-e-xdist.md)). Runtime units are cached by a
+hash of sources+headers/compiler/flags, so each build drops from ~0.55 s to ~0.15 s.
+`make test-fast` runs the ~1.8k non-backend tests in **parallel** (`-n auto`) and skips the
+wheel-install test; the loop is ~15-20 s. `make test-backend` runs the backend without the
+`slow` Rust/regex cases with xdist (`-n auto`, `TEST_JOBS=0` for serial): ~12 s warm and
+~13 s with an empty build cache (the Rust crate is not touched). `make test-backend-all`
+(also `make test`, `make check` and CI) runs the slow cases, and the first one pays the Rust
+crate build (~20 s).
+`make smoke-backend` checks one case per level through the real-process path and is part of
+`make check-fast`. `make test`/`make check`/CI stay serial. Use `make check-fast` while
+iterating, `make test-backend` for native work and `make check` before committing.
 
 Golden, official-suite and TOML-parity cases call `loxia.cli.main()` **in the pytest
 process** (`tests/inprocess.py`) instead of one Python boot per case. That keeps the same

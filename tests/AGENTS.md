@@ -57,12 +57,18 @@ Every case lives in `LEVELS`, `PENDING` or `NEGATIVE` in `tests/corpus_manifest.
 ## Backend tests
 
 ```bash
-make test-backend               # backend only; xdist, ~11 s warm (needs libgc)
+make test-backend               # backend without the slow Rust cases; xdist, ~12 s
 make test-backend TEST_JOBS=0   # backend serial, to debug one case
-uv run pytest -m smoke -q       # one case per level, real-process path
-uv run pytest -m backend -q     # builds each manifest case; needs libgc
+make test-backend-all           # backend including slow (the Rust crate; ~30 s cold)
+make smoke-backend              # one case per level, real-process path (~5 s)
+uv run pytest -m backend -q     # every backend case; needs libgc
 make test                       # everything, includes backend (serial)
 ```
+
+Cases that use the Rust regex engine carry `@pytest.mark.slow` (manifest `# requires:
+rust`, `test_regex_*`, the `std_regex/limits` golden). The local loop excludes them; the
+gate (`make check`), CI (`LOX_REQUIRE_LLVM=1`) and `make test-backend-all` run everything —
+a new slow case without the marker, or a gate that filters `slow`, fails the suite.
 
 The differential path runs the **oracle and the build in the pytest process**
 (`tests/inprocess.py::run_cli`, the same three-channel contract as the golden suite); the

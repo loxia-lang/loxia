@@ -18,6 +18,8 @@ def test_std_e_runtime_resolvem_no_repo() -> None:
 
 def test_runtime_lista_todas_as_unidades() -> None:
     """Arquivo `.c` novo no runtime não pode ficar fora do build (lista explícita)."""
+    # `driver` importa `llvm_ir`, que exige o extra `llvm`; sem ele, skip limpo.
+    pytest.importorskip("llvmlite")
     from loxia_core.backend.driver import (
         MODULE_RUNTIME_UNITS,
         RUNTIME_NAMES,

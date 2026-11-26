@@ -8,22 +8,24 @@ TEST_JOBS ?= auto
 VERSION ?= 1.0
 TAG ?= v1.0.0
 
-.PHONY: help run test test-fast test-backend case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
+.PHONY: help run test test-fast test-backend test-backend-all smoke-backend case lint type fmt fmt-check check check-fast oracle oracle-update coverage coverage-ratchet coverage-update coverage-backend coverage-ratchet-backend coverage-update-backend docs-sync docs-index docs-build docs-dev docs-links docs-version docs-i18n-check stdlib-docs codes features primitives grammar grammar-assets docs-fresh hooks bench bench-lsp bench-native baseline fuzz monomorph frontend-bench ast-schema
 
 help:
 	@echo "make run FILE=examples/x.lx   executa um script (sem FILE abre o REPL)"
 	@echo "make test                      pytest (suite completa)"
 	@echo "make test-fast                 pytest sem nativos/instalação, em paralelo (loop local)"
 	@echo "make test-fast TEST_JOBS=0     pytest sem paralelismo (depurar um caso)"
-	@echo "make test-backend              pytest só do backend nativo, em paralelo (loop local)"
+	@echo "make test-backend              backend sem os casos lentos, em paralelo (loop local)"
 	@echo "make test-backend TEST_JOBS=0  backend em série (depurar um caso)"
+	@echo "make test-backend-all          backend completo, incluindo os casos lentos"
+	@echo "make smoke-backend             um caso por nível do backend, em processo real"
 	@echo "make case                      runner golden, sem pytest"
 	@echo "make lint                      ruff"
 	@echo "make type                      mypy strict"
 	@echo "make fmt                       ruff format (aplica)"
 	@echo "make fmt-check                 ruff format --check (gate)"
 	@echo "make check                     lint + fmt-check + type + test + docs (gate completo)"
-	@echo "make check-fast                lint + fmt-check + type + test-fast + docs (loop local)"
+	@echo "make check-fast                lint + fmt-check + type + test-fast + smoke + docs (loop local)"
 	@echo "make oracle                    confere o snapshot de AST/formatter/diagnósticos"
 	@echo "make oracle-update             regrava tests/oracle/frontend.json"
 	@echo "make coverage                  mede cobertura Python (sem gate; não roda backend)"
@@ -64,7 +66,13 @@ test-fast:
 	uv run pytest -m "not backend and not install" -n $(TEST_JOBS)
 
 test-backend:
+	uv run pytest -m "backend and not slow" -n $(TEST_JOBS)
+
+test-backend-all:
 	uv run pytest -m backend -n $(TEST_JOBS)
+
+smoke-backend:
+	uv run pytest -m smoke -q
 
 oracle:
 	uv run python tools/oracle_snapshot.py --check
@@ -89,7 +97,7 @@ fmt-check:
 
 check: lint fmt-check type test docs-fresh
 
-check-fast: lint fmt-check type test-fast docs-fresh
+check-fast: lint fmt-check type test-fast smoke-backend docs-fresh
 
 coverage:
 	rm -f .coverage .coverage.*
