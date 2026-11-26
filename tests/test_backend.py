@@ -20,12 +20,14 @@ Dependências: `llvmlite` (extra `llvm`) e um compilador C para linkar. No CI a 
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import os
 import select
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -40,32 +42,48 @@ ENTRYPOINT = ROOT / "main.py"
 TIMEOUT_SECONDS = 120
 
 
-def _require(reason: str) -> None:
-    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
-        pytest.fail(reason, pytrace=False)
-
-    pytest.skip(reason, allow_module_level=True)
-
-
 def _requires_rust(case: str) -> bool:
     """O caso usa o motor nativo (`# requires: rust` no bloco de comentários do topo)."""
     return "rust" in requirements((ROOT / case).read_text(encoding="utf-8"))
 
 
+# Sem llvmlite/cc o módulo inteiro fica pendurado num skip por teste (e não num
+# `pytest.skip` de import): com `-m smoke` um módulo skipado não seleciona nada e o
+# pytest devolve 5, o que quebrava `make check-fast` em máquina sem o extra `llvm`.
+_MISSING_BACKEND: str | None = None
 if importlib.util.find_spec("llvmlite") is None:
-    _require("llvmlite não instalado; rode `uv sync --extra llvm`")
+    _MISSING_BACKEND = "llvmlite não instalado; rode `uv sync --extra llvm`"
+elif not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
+    _MISSING_BACKEND = "nenhum compilador C encontrado (cc, clang ou gcc)"
 
-if not any(shutil.which(candidate) for candidate in ("cc", "clang", "gcc")):
-    _require("nenhum compilador C encontrado (cc, clang ou gcc)")
+if _MISSING_BACKEND is not None:
+    if os.environ.get("LOX_REQUIRE_LLVM") == "1":
+        pytest.fail(_MISSING_BACKEND, pytrace=False)
+    pytestmark = pytest.mark.skipif(True, reason=_MISSING_BACKEND)
 
 
+@functools.lru_cache(maxsize=1)
 def _libgc_missing() -> bool:
-    """`libgc` é exigida pelo link; sem ela só o smoke (loop local) é pulado."""
+    """`libgc` é exigida pelo link; probe com o compilador, não com `find_library`.
+
+    `ctypes.util.find_library("gc")` acha o soname de runtime mesmo sem a `libgc-dev`
+    que o `cc -lgc` precisa, e um índice velho pode esconder um build válido.
+    """
     if os.environ.get("LOX_REQUIRE_LLVM") == "1":
         return False
-    import ctypes.util
-
-    return ctypes.util.find_library("gc") is None
+    compiler = shutil.which("cc") or shutil.which("clang") or shutil.which("gcc")
+    if compiler is None:
+        return True
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "probe.c"
+        binary = Path(directory) / "probe"
+        source.write_text("int main(void) { return 0; }\n", encoding="utf-8")
+        done = subprocess.run(
+            [compiler, str(source), "-lgc", "-o", str(binary)],
+            capture_output=True,
+            check=False,
+        )
+    return done.returncode != 0
 
 
 #: Casos Rust/regex: o crate leva ~20 s a frio e entra no gate/CI, não no loop local.
@@ -588,14 +606,27 @@ def _make_recipe(makefile: str, target: str) -> str:
     raise AssertionError(f"alvo `{target}` não encontrado no Makefile")
 
 
+def _make_dependencies(makefile: str, target: str) -> set[str]:
+    """Dependências declaradas no cabeçalho do alvo (sem receita)."""
+    for line in makefile.splitlines():
+        if line.startswith(f"{target}:"):
+            return set(line.split(":", 1)[1].split())
+    raise AssertionError(f"alvo `{target}` não encontrado no Makefile")
+
+
 def test_loop_local_exclui_slow_e_gate_inclui() -> None:
-    """A seleção é contrato: o loop local tira `slow`, o gate/CI nunca."""
+    """A seleção é contrato: só o loop local tira `slow`; gate, CI e `-all` não."""
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
 
     assert "not slow" in _make_recipe(makefile, "test-backend")
-    assert "not slow" not in _make_recipe(makefile, "test")
-    assert "not slow" not in _make_recipe(makefile, "coverage-ratchet-backend")
+    # O alvo que o CI de cobertura executa de verdade é `coverage-backend`.
+    for target in ("test", "test-backend-all", "coverage-backend", "check", "check-fast"):
+        assert "not slow" not in _make_recipe(makefile, target), target
+
     assert "smoke-backend" in _make_recipe(makefile, "check-fast")
+    check_deps = _make_dependencies(makefile, "check")
+    assert "test" in check_deps
+    assert not {"test-backend", "test-backend-all"} & check_deps
 
     ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     assert "not slow" not in ci
@@ -615,14 +646,25 @@ def test_casos_rust_do_manifesto_sao_slow() -> None:
 
 
 def test_testes_de_regex_sao_slow() -> None:
-    """Um `test_regex_*` novo sem `slow` voltaria a pagar o crate no loop local."""
+    """Teste de backend com "regex" no nome e sem `slow` voltaria a pagar o crate."""
     module = sys.modules[__name__]
     for name, value in vars(module).items():
-        if not name.startswith("test_regex") or not callable(value):
+        if not name.startswith("test_") or not callable(value):
             continue
         raw = getattr(value, "pytestmark", [])
         marks = raw if isinstance(raw, list) else [raw]
-        assert any(getattr(mark, "name", "") == "slow" for mark in marks), name
+        names = {getattr(mark, "name", "") for mark in marks}
+        if "backend" in names and "regex" in name:
+            assert "slow" in names, name
+
+
+def test_casos_que_usam_o_motor_de_regex_declaram_rust() -> None:
+    """A diretiva é o que mantém esses casos no oráculo em processo real e em `slow`."""
+    for path in sorted((ROOT / "tests" / "cases").rglob("*.lx")):
+        source = path.read_text(encoding="utf-8")
+        if "regex_engine" not in source and "import regex" not in source:
+            continue
+        assert "rust" in requirements(source), path.relative_to(ROOT)
 
 
 PARITY_SOURCES = (
@@ -2351,7 +2393,22 @@ def _runtime_error_goldens() -> list[str]:
     return cases
 
 
-GOLDEN_RUNTIME_ERRORS = _runtime_error_goldens()
+def _check_clean_goldens() -> list[str]:
+    """Só os goldens cujo `--check` passa entram no diferencial (o build depende disso).
+
+    O filtro roda na coleta (poucos ms por caso in-process): a lista parametrizada passa
+    a ser a que realmente executa, então a guarda de não-vazio não pode ficar verde com
+    zero casos — antes o `skip` dentro do teste escondia uma regressão que deixasse
+    todos os goldens check-dirty.
+    """
+    clean: list[str] = []
+    for case in _runtime_error_goldens():
+        if run_cli("--check", str(ROOT / case), cwd=ROOT).returncode == 0:
+            clean.append(case)
+    return clean
+
+
+GOLDEN_RUNTIME_ERRORS = _check_clean_goldens()
 
 GOLDEN_RUNTIME_ERROR_PARAMS = [
     pytest.param(
@@ -2376,10 +2433,6 @@ def test_goldens_de_runtime_error_batem_bytes(case: str, tmp_path: Path) -> None
     if missing:
         pytest.skip(f"requer {', '.join(sorted(missing))}")
 
-    checked = run_cli("--check", str(path), cwd=ROOT)
-    if checked.returncode != 0:
-        pytest.skip("check não está limpo; fora do escopo do I1")
-
     interpreted = _oracle(path)
     result, binary = _build(path, tmp_path)
     assert result.returncode == 0, f"{path}: {result.stderr}"
@@ -2391,7 +2444,7 @@ def test_goldens_de_runtime_error_batem_bytes(case: str, tmp_path: Path) -> None
 
 
 def test_goldens_de_runtime_error_existem() -> None:
-    assert GOLDEN_RUNTIME_ERRORS, "nenhum golden de runtime error encontrado"
+    assert GOLDEN_RUNTIME_ERRORS, "nenhum golden de runtime error check-clean encontrado"
 
 
 @pytest.mark.backend

@@ -59,9 +59,9 @@ Every case lives in `LEVELS`, `PENDING` or `NEGATIVE` in `tests/corpus_manifest.
 ```bash
 make test-backend               # backend without the slow Rust cases; xdist, ~12 s
 make test-backend TEST_JOBS=0   # backend serial, to debug one case
-make test-backend-all           # backend including slow (the Rust crate; ~20 s cold)
+make test-backend-all           # backend including slow (the Rust crate; ~30 s cold)
 make smoke-backend              # one case per level, real-process path (~5 s)
-uv run pytest -m backend -q     # builds each manifest case; needs libgc
+uv run pytest -m backend -q     # every backend case; needs libgc
 make test                       # everything, includes backend (serial)
 ```
 

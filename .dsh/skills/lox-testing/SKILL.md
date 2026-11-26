@@ -12,17 +12,20 @@ whenToUse: Ao adicionar um teste, fazer a suíte passar, investigar uma falha ou
 make test                          # pytest (unit + golden)
 make test-fast                     # sem backend/install, xdist (~15-20 s)
 make test-fast TEST_JOBS=0         # serial (depurar um caso)
-make test-backend                  # só backend nativo, xdist (~40 s)
+make test-backend                  # backend sem os casos lentos (Rust), xdist (~12 s)
 make test-backend TEST_JOBS=0      # backend serial (depurar um caso)
+make test-backend-all              # backend completo, incluindo os casos lentos
+make smoke-backend                 # um caso por nível, processo real (~5 s)
 uv run pytest -k block             # subconjunto
 make case                          # runner golden sem pytest
 uv run python -m tests.runner for  # um caso (filtro por substring)
 ```
 
-O runner golden e a suíte oficial executam o CLI **no processo do pytest**
-(`tests/inprocess.py`); `LOX_GOLDEN_SUBPROCESS=1` volta ao processo por caso. Use
-`subprocess` só quando o teste precisa de processo real (hash seed, sinal/timeout,
-stdin de REPL, sandbox, backend).
+O runner golden, a suíte oficial e o corpus diferencial executam o CLI **no processo
+do pytest** (`tests/inprocess.py`); `LOX_GOLDEN_SUBPROCESS=1` volta ao processo por caso.
+Use `subprocess` só quando o teste precisa de processo real (hash seed, sinal/timeout,
+stdin de REPL, sandbox, `std.proc`, binário compilado, oráculo de regex nativo). Casos
+com o crate Rust são `slow`: ficam fora de `make test-backend` e rodam no gate e no CI.
 
 ## Caso golden (`tests/cases/*.lx`)
 

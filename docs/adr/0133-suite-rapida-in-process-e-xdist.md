@@ -100,7 +100,8 @@ de comando sobrescrever o `addopts`.
 ```bash
 make test-fast                 # ~15-20 s, ~1.8 mil testes
 make test-fast TEST_JOBS=0     # serial, para comparar
-make test-backend              # backend só; ~11 s quente (~31 s com o crate Rust frio)
+make test-backend              # backend sem os slow; ~12 s quente (~13 s com o crate frio)
+make test-backend-all          # backend completo (inclui o crate Rust)
 make test-backend TEST_JOBS=0  # backend serial, para comparar
 uv run pytest -m smoke -q      # um caso por nível, em processo real
 LOX_GOLDEN_SUBPROCESS=1 uv run pytest tests/test_golden.py -q
@@ -129,11 +130,16 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
   casos diferenciais (`test_manifesto`, `test_binario_concorda_com_interpretador`, os
   goldens de erro de runtime) rodam no processo do pytest via
   `tests/inprocess.py::run_cli`; o binário compilado continua sendo executado em
-  subprocesso. Medição nesta máquina (8 núcleos físicos / 16 threads, 493 testes):
-  **43,5 s → 31 s com o crate Rust frio e 11,1 s com o cache quente** — o `run_cli` por
-  caso custa ~60 ms de build em vez de ~0,3 s de CPU. Os goldens de erro de runtime
-  deixaram de ser um laço único (piso serial de ~30 s) e viraram 58 casos parametrizados,
-  que o xdist distribui.
+  subprocesso. Medição nesta máquina (8 núcleos físicos / 16 threads, seleção
+  `-m backend`): **43,5 s → 31 s com o crate Rust frio e 11,1 s com o cache quente** — o
+  `run_cli` por caso custa ~60 ms de build em vez de ~0,3 s de CPU. Os goldens de erro de
+  runtime deixaram de ser um laço único (piso serial de ~30 s) e viraram casos
+  parametrizados, que o xdist distribui; só os que passam no `--check` entram, e o filtro
+  roda na coleta (um `skip` dentro do teste esconderia a perda total de cobertura).
+
+  O aceite do issue (`< 10 s` em 16 núcleos) **não foi cumprido nem medido no hardware-alvo**:
+  esta máquina tem 8 núcleos físicos e o backend quente fica em ~11-12 s; o resultado
+  verificável aqui é a queda de 43,5 s para ~12 s.
 
   A rede de segurança é dupla: `test_smoke_do_backend_em_processo_real` roda **um caso
   por nível** (`-m smoke`) pelo caminho de processo real (e não arrasta o crate Rust) e
@@ -150,23 +156,26 @@ o xdist; se um caso novo exigir processo real, marcar o teste e usar `subprocess
 
 - **2026-11-26 — casos lentos fora do loop e smoke local (issue #232).** `make test-backend`
   passa a selecionar `-m "backend and not slow"`. O marcador cobre os 3 casos do manifesto
-  com `# requires: rust`, os 5 `test_regex_*` e o golden `std_regex/limits`: 9 dos 540
-  testes do backend. `make test-backend-all` roda tudo; `make test`/`make check`, o alvo de
-  cobertura do CI (`LOX_REQUIRE_LLVM=1`) e o `-all` não filtram nada. Medição nesta máquina
-  (8 núcleos físicos): o loop fica em **11,6 s com o cache do Rust quente e 13,3 s com ele
-  frio** (antes: 11,1 s quente e 31 s frio), porque deixar de rodar o corpus Rust tira o
-  build do crate do caminho; o `-all` paga os ~20 s uma vez.
+  com `# requires: rust`, os 5 `test_regex_*` e o golden `std_regex/limits`: 9 dos 533 itens
+  da seleção `-m backend`. `make test-backend-all` roda tudo; `make test`/`make check`, o
+  alvo de cobertura do CI (`LOX_REQUIRE_LLVM=1`) e o `-all` não filtram nada. Medição nesta
+  máquina (8 núcleos físicos): o loop fica em **11,6 s com o cache do Rust quente e 13,3 s
+  com ele frio** (antes: 11,1 s quente e 31 s frio), porque deixar de rodar o corpus Rust
+  tira o build do crate do caminho; o `-all` mede 29,2 s com o crate frio.
 
   `make check-fast` ganhou `make smoke-backend`: um caso por nível pelo caminho de processo
-  real (~5 s, sem o crate Rust), com skip limpo quando faltam `llvmlite`/`libgc`. Guardas:
-  `test_loop_local_exclui_slow_e_gate_inclui` (seleção no Makefile/CI),
-  `test_casos_rust_do_manifesto_sao_slow` e `test_testes_de_regex_sao_slow` — um caso
-  Rust novo sem `slow` ou um gate que filtre `slow` falham a suíte.
+  real (~5 s, sem o crate Rust), com skip limpo por teste quando faltam `llvmlite`, `cc` ou
+  `libgc` (o skip de módulo fazia `pytest -m smoke` sair 5 e quebrava o loop). Guardas:
+  `test_loop_local_exclui_slow_e_gate_inclui` (todas as receitas que rodam o backend,
+  inclusive `coverage-backend`, `test-backend-all` e as dependências de `check`),
+  `test_casos_rust_do_manifesto_sao_slow`, `test_testes_de_regex_sao_slow` e
+  `test_casos_que_usam_o_motor_de_regex_declaram_rust` — um caso Rust novo sem `slow`/sem
+  a diretiva, ou um gate que filtre `slow`, falham a suíte.
 
   A fixture de sessão para aquecer `native_build` (proposta no issue) ficou de fora: o
   custo é o build do crate, não o primeiro teste — aquecer só move os ~20 s para o começo
-  e, com xdist, todos os workers esperam o mesmo build. O marcador resolve o loop sem essa
-  coreografia.
+  e, com xdist, todos os workers esperam o mesmo build (medido: `library()` 12,5 s +
+  `static_library()` 7,9 s a frio). O marcador resolve o loop sem essa coreografia.
 
 ## Referências
 
