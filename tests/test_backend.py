@@ -1984,6 +1984,13 @@ def test_i4_lacunas_declaradas(tmp_path: Path) -> None:
         "mathany.lx": 'val a: Any = "x"\nprint(math.abs(a))\n',
         "nativevalue.lx": "print(len)\n",
         "enumvalue.lx": "enum E { A }\nprint(E)\n",
+        "fndefaults.lx": (
+            "fn soma(x: Int, y: Int = 10) -> Int { return x + y }\n"
+            "fn sub(x: Int, y: Int = 20) -> Int { return x - y }\n"
+            "val talvez = nil if 1 == 2 else sub\n"
+            "val g = talvez ?? soma\n"
+            "print(g(1))\n"
+        ),
     }
     for name, source in sources.items():
         path = _write(tmp_path, source, name)

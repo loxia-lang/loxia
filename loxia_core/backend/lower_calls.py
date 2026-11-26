@@ -192,12 +192,13 @@ class CallLowering(LoweringBase):
             assert binding is not None
             assert isinstance(expr.callee, Variable)
             callee = self._load_binding(binding)
-            callee = self._guard_closure(
-                callee,
-                expr.callee.name.lexeme,
-                expr.callee.name.line,
-                expr.callee.name.column,
-            )
+            if not callee.optional:
+                callee = self._guard_closure(
+                    callee,
+                    expr.callee.name.lexeme,
+                    expr.callee.name.line,
+                    expr.callee.name.column,
+                )
         elif isinstance(expr.callee, Get) and precomputed is not None:
             callee = self._get_instance(precomputed, expr.callee)
         else:
@@ -314,6 +315,10 @@ class CallLowering(LoweringBase):
                     default = info.params[index].default
                     assert default is not None
                     values.append(self._expr(default))
+            elif count < len(sig.params):
+                # Sem `FunctionInfo` não há como rebaixar a expressão do default:
+                # recusa declarada (nunca `zip` desencontrado/lowering silencioso).
+                raise _unsupported("Default parameters in indirect function calls", token.line)
             return [
                 self._coerce(value, sig.params[index], token.line)
                 for index, value in enumerate(values)
@@ -333,6 +338,8 @@ class CallLowering(LoweringBase):
                 default = info.params[index].default
                 assert default is not None
                 fixed_values.append(self._expr(default))
+        if len(fixed_values) < fixed and info is None:
+            raise _unsupported("Default parameters in indirect function calls", token.line)
         if len(fixed_values) != fixed:
             self._poison(
                 token,

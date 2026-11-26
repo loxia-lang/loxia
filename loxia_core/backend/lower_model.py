@@ -219,6 +219,29 @@ class Value:
         )
 
 
+def merge_callable_metadata(left: Value, right: Value) -> tuple[Any, Any, Any]:
+    """Metadados de chamada comuns aos dois ramos de um `phi`.
+
+    Um ramo `nil` não tem metadados: o valor não-nulo é o único que pode ser
+    chamado. Dois valores de função só compartilham metadados quando são a
+    **mesma** função (ou a mesma lambda genérica); caso contrário o resultado
+    fica sem `FunctionInfo` e a chamada indireta precisa recusar defaults.
+    """
+    if left.ty is ValueType.NIL:
+        return (right.function, right.generic, right.generic_node)
+    if right.ty is ValueType.NIL:
+        return (left.function, left.generic, left.generic_node)
+    if left.function is not None and left.function is right.function:
+        return (left.function, None, None)
+    if (
+        left.generic is not None
+        and left.generic is right.generic
+        and left.generic_node is right.generic_node
+    ):
+        return (None, left.generic, left.generic_node)
+    return (None, None, None)
+
+
 @dataclass(frozen=True)
 class CaptureBinding:
     """Uma captura já resolvida: nome e binding (célula) do escopo externo."""

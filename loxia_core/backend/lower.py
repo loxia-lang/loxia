@@ -52,6 +52,7 @@ from loxia_core.backend.lower_model import (
     Value,
     ValueType,
     _unsupported,
+    merge_callable_metadata,
 )
 from loxia_core.backend.lower_optionals import OptionalLowering
 from loxia_core.backend.lower_range import RangeLowering
@@ -1320,6 +1321,9 @@ class Lowerer(
         else_end = self.builder.block
         else_open = not else_end.is_terminated
 
+        # Os metadados valem para o valor **antes** da coerção: o ramo `nil` deixa
+        # de ser `NIL` ao virar opcional e não pode apagar a função do outro ramo.
+        function, generic, generic_node = merge_callable_metadata(then_value, else_value)
         common = self._merge_branches(then_value, else_value, None)
 
         if then_open:
@@ -1346,7 +1350,15 @@ class Lowerer(
             merged = self.builder.phi(self._storage_llvm_type(common), "cond.value")
             merged.add_incoming(then_value.llvm, then_end)
             merged.add_incoming(else_value.llvm, else_end)
-            return Value(common.ty, merged, common.fn, common.optional)
+            return Value(
+                common.ty,
+                merged,
+                common.fn,
+                common.optional,
+                function=function,
+                generic=generic,
+                generic_node=generic_node,
+            )
 
         if then_open:
             return then_value
@@ -1498,12 +1510,16 @@ class Lowerer(
         )
         merged.add_incoming(some_value, some_end)
         merged.add_incoming(right_llvm, nothing_end)
+        function, generic, generic_node = merge_callable_metadata(left, right_value)
         return Value(
             inner.ty,
             merged,
             inner.fn,
             optional=result_optional,
             class_name=inner.class_name,
+            function=function,
+            generic=generic,
+            generic_node=generic_node,
             interface_name=inner.interface_name,
         )
 
@@ -1612,7 +1628,16 @@ class Lowerer(
         merged = self.builder.phi(self._storage_llvm_type(common), "logical.value")
         merged.add_incoming(left.llvm, short_block)
         merged.add_incoming(right.llvm, right_end)
-        return Value(common.ty, merged, common.fn, common.optional)
+        function, generic, generic_node = merge_callable_metadata(left, right)
+        return Value(
+            common.ty,
+            merged,
+            common.fn,
+            common.optional,
+            function=function,
+            generic=generic,
+            generic_node=generic_node,
+        )
 
     def _truthy(self, value: Value) -> Any:
         if value.optional:

@@ -68,6 +68,7 @@ LEVELS: dict[str, tuple[str, ...]] = {
         "tests/cases/any_interface.lx",
         "tests/cases/interface_union_optional.lx",
         "tests/cases/fn_any.lx",
+        "tests/cases/fn_optional_global.lx",
         "tests/cases/errors/any_interface_cast.lx",
         "tests/cases/errors/fn_any_cast.lx",
         "tests/cases/errors/fn_defaults_cast.lx",

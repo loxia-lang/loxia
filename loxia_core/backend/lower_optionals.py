@@ -307,6 +307,9 @@ class OptionalLowering(LoweringBase):
                 desc.fn,
                 True,
                 desc.class_name,
+                value.function,
+                value.generic,
+                value.generic_node,
                 interface_name=desc.interface_name,
             )
 
@@ -318,6 +321,9 @@ class OptionalLowering(LoweringBase):
             desc.fn,
             True,
             desc.class_name,
+            value.function,
+            value.generic,
+            value.generic_node,
             interface_name=desc.interface_name,
         )
 
@@ -334,6 +340,9 @@ class OptionalLowering(LoweringBase):
                 value.sig,
                 False,
                 value.class_name,
+                value.function,
+                value.generic,
+                value.generic_node,
                 interface_name=value.interface_name,
             )
         return Value(
@@ -342,6 +351,9 @@ class OptionalLowering(LoweringBase):
             value.sig,
             False,
             value.class_name,
+            value.function,
+            value.generic,
+            value.generic_node,
             interface_name=value.interface_name,
         )
 
