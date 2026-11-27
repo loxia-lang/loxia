@@ -1288,17 +1288,23 @@ class Server:
     def _semantic_target(self, document: Document, token: Token) -> object | None:
         if self.root is None or document.path is None:
             return None
-        from loxia.rename import semantic_target
+        from loxia.rename import semantic_target, within_root
 
         files = dict(self._workspace_files())
-        return semantic_target(
+        target = semantic_target(
             self.root,
             files,
             document.path,
             token,
             cache=self._workspace_cache(),
             module_cache=self.parse_cache,
+            load_text=self._disk_text,
         )
+        # Rename só edita arquivos do root: `prepareRename` não pode oferecer um
+        # rename que o servidor vai recusar (std e checkouts de dependência).
+        if target is None or not within_root(self.root, target.declaration_file):
+            return None
+        return target
 
     def _rename(self, message: dict[str, Any]) -> object:
         params = message.get("params")
@@ -1333,6 +1339,7 @@ class Server:
                     new_name,
                     cache=self._workspace_cache(),
                     module_cache=self.parse_cache,
+                    load_text=self._disk_text,
                 )
                 if isinstance(semantic, str):
                     return semantic
@@ -1424,6 +1431,29 @@ class Server:
             "variable",
         }
 
+    def _disk_text(self, path: Path) -> str | None:
+        """Texto do disco por (mtime, ctime, inode, tamanho), limitado em bytes.
+
+        Também serve ao rename/references para módulos fora do root (`std`,
+        `[modules].paths`, dependências) e para o manifest/lock: o cache evita
+        reler o mesmo arquivo a cada request.
+        """
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        entry = (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_ino, stat.st_size)
+        cached = self._disk_files.get(path)
+        if cached is not None and cached[:4] == entry:
+            return cached[4]
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        if path in self._disk_files or len(self._disk_files) < _DISK_FILES_LIMIT:
+            self._disk_files[path] = (*entry, text)
+        return text
+
     def _workspace_files(self) -> list[tuple[Path, str]]:
         files: dict[Path, str] = {}
         for uri, document in self.documents.items():
@@ -1447,22 +1477,8 @@ class Server:
                 path = Path(directory) / name
                 if path in files:
                     continue
-                try:
-                    stat = path.stat()
-                    entry = (
-                        stat.st_mtime_ns,
-                        stat.st_ctime_ns,
-                        stat.st_ino,
-                        stat.st_size,
-                    )
-                    cached = self._disk_files.get(path)
-                    if cached is not None and cached[:4] == entry:
-                        files[path] = cached[4]
-                        continue
-                    text = path.read_text(encoding="utf-8")
-                    if path in self._disk_files or len(self._disk_files) < _DISK_FILES_LIMIT:
-                        self._disk_files[path] = (*entry, text)
-                except OSError:
+                text = self._disk_text(path)
+                if text is None:
                     continue
                 files[path] = text
         return sorted(files.items())
@@ -2009,6 +2025,7 @@ class Server:
                 token,
                 cache=self._workspace_cache(),
                 module_cache=self.parse_cache,
+                load_text=self._disk_text,
             )
             if references is None:
                 return []
@@ -2020,10 +2037,9 @@ class Server:
                     continue
                 text = files.get(path)
                 if text is None:
-                    try:
-                        text = path.read_text(encoding="utf-8")
-                    except OSError:
-                        continue
+                    text = self._disk_text(path)
+                if text is None:
+                    continue
                 local_path = document.path is not None and path.resolve() == document.path.resolve()
                 locations.append(
                     {
@@ -2083,6 +2099,7 @@ class Server:
                 token,
                 cache=self._workspace_cache(),
                 module_cache=self.parse_cache,
+                load_text=self._disk_text,
             )
             if references is None:
                 return []

@@ -1284,3 +1284,13 @@ front-end; sem mudança de sintaxe ou semântica da linguagem.
   testes de corpus/checker/scaffold.
 
 <!-- triaged: eb55f80 -->
+
+## 2026-11-26 — cache do workspace do LSP (#195)
+
+Intervalo: `eb55f80`..`82c83b6` (parcial). Só a página afetada por este PR foi triada; as 32
+candidatas anteriores a este trabalho continuam pendentes e **sem marcador** — fechar o
+intervalo agora silenciaria páginas que não foram lidas.
+
+- `docs/decisoes.md` — **no-change**: a linha do ADR-0151 continua verdadeira; o commit
+  `82c83b6` só ajustou o ADR-0151 (lock no fingerprint, 512 módulos) e o engine. O backlog
+  de stdlib/spec/tech é anterior ao PR e precisa de uma triagem própria.

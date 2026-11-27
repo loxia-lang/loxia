@@ -907,9 +907,10 @@ def test_lsp_references_reuse_workspace_cache(
         root: Path,
         files: dict[Path, str],
         module_cache: ModuleCache | None = None,
+        **kwargs: object,
     ) -> object:
         builds.append(1)
-        return original(root, files, module_cache)
+        return original(root, files, module_cache, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(rename_module, "_build_workspace", counting)
     position, _ = _position_of(text, "Foo", text.index("["))
@@ -1039,3 +1040,137 @@ def test_dependent_recheck_rebuilds_the_symbol_index(tmp_path: Path) -> None:
     after = server._hover({"params": params})
     assert after is not None
     assert "-> String" in cast(dict[str, Any], after["contents"])["value"]
+
+
+STD_TEXT = """import std.lists as lists
+
+val xs = [1, 2, 3]
+val total: Int = lists.sum(xs)
+"""
+
+
+def _std_reference_position() -> dict[str, int]:
+    position, _ = _position_of(STD_TEXT, "sum(xs)")
+    return position
+
+
+def test_lsp_references_module_outside_root_returns_locations(tmp_path: Path) -> None:
+    server, document = _open_in_process(tmp_path, STD_TEXT, "main.lx")
+    params = {
+        **_request_params(document, _std_reference_position()),
+        "context": {"includeDeclaration": True},
+    }
+
+    locations = cast(list[dict[str, Any]], server._references({"params": params}))
+
+    uris = {item["uri"] for item in locations}
+    # `std/` fica fora do root: a referência precisa resolver e não derrubar o servidor.
+    assert any(uri.endswith("/std/lists.lx") for uri in uris)
+    assert document.uri in uris
+
+
+def test_lsp_prepare_rename_refuses_module_outside_root(tmp_path: Path) -> None:
+    server, document = _open_in_process(tmp_path, STD_TEXT, "main.lx")
+
+    prepared = server._prepare_rename(
+        {"params": _request_params(document, _std_reference_position())}
+    )
+
+    assert prepared is None
+
+
+def test_lsp_rename_module_outside_root_returns_message(tmp_path: Path) -> None:
+    server, document = _open_in_process(tmp_path, STD_TEXT, "main.lx")
+    params = {**_request_params(document, _std_reference_position()), "newName": "soma"}
+
+    result = server._rename({"params": params})
+
+    assert isinstance(result, str)
+    assert "outside the workspace root" in result
+
+
+MANIFEST = """[package]
+name = "proj"
+version = "0.1.0"
+
+[modules]
+paths = ["../shared"]
+"""
+
+EXTERNAL_LIB = """fn soma(a: Int, b: Int) -> Int {
+  return a + b
+}
+"""
+
+EXTERNAL_MAIN = """from lib import soma
+
+val total: Int = soma(1, 2)
+"""
+
+
+def test_lsp_references_see_external_module_edit(tmp_path: Path) -> None:
+    project = tmp_path / "proj"
+    shared = tmp_path / "shared"
+    project.mkdir()
+    shared.mkdir()
+    (project / "loxia.toml").write_text(MANIFEST, encoding="utf-8")
+    (shared / "lib.lx").write_text(EXTERNAL_LIB, encoding="utf-8")
+    server, document = _open_in_process(project, EXTERNAL_MAIN, "main.lx")
+    position, _ = _position_of(EXTERNAL_MAIN, "soma(1")
+    params = {
+        "textDocument": {"uri": document.uri},
+        "position": position,
+        "context": {"includeDeclaration": True},
+    }
+
+    first = cast(list[dict[str, Any]], server._references({"params": params}))
+    assert any(item["uri"].endswith("/shared/lib.lx") for item in first)
+
+    # Edição externa no disco (o arquivo não está aberto): o fingerprint do cache
+    # inclui os insumos de resolução, então a nova ocorrência aparece sem stale.
+    (shared / "lib.lx").write_text(
+        EXTERNAL_LIB + "\nfn outro() -> Int {\n  return soma(1, 2)\n}\n",
+        encoding="utf-8",
+    )
+    second = cast(list[dict[str, Any]], server._references({"params": params}))
+
+    assert len(second) == len(first) + 1
+    external_lines = sorted(
+        cast(dict[str, dict[str, int]], item["range"])["start"]["line"]
+        for item in second
+        if item["uri"].endswith("/shared/lib.lx")
+    )
+    assert 5 in external_lines
+
+
+def test_lsp_rename_outside_root_keeps_the_server_alive(tmp_path: Path) -> None:
+    text = "import std.lists as lists\n\nval xs = [1, 2, 3]\nval total: Int = lists.sum(xs)\n"
+    path = tmp_path / "main.lx"
+    path.write_text(text, encoding="utf-8")
+    process = start_with_root(tmp_path)
+    try:
+        open_document(process, path, text)
+        position, _ = _position_of(text, "sum(xs)")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": path.as_uri()},
+                    "position": position,
+                    "newName": "soma",
+                },
+            },
+        )
+
+        response = read(process)
+
+        assert "error" in response
+        assert response["error"]["code"] == -32602
+        assert "outside the workspace root" in response["error"]["message"]
+        # Antes do ADR-0151 o KeyError matava o processo (exit 1).
+        assert process.poll() is None
+    finally:
+        stop(process)

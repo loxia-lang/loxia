@@ -102,6 +102,19 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   `textDocumentSync` continua full (`1`). Orçamento medido: `didChange` ≤12 ms no workspace
   do bench (~0,06 ms/linha); acima de ~1000 linhas fica para o parse incremental (#113).
 
+- **LSP: cache de análise por arquivo e módulos fora do root**
+  ([ADR-0151](docs/adr/0151-cache-de-analise-por-arquivo-no-lsp.md),
+  [#195](https://github.com/loxia-lang/loxia/issues/195)): `references`/`rename` num
+  símbolo de `std` ou de `[modules].paths` deixam de derrubar o servidor (`KeyError` →
+  exit 1); as referências incluem módulos fora do root e o rename recusa editá-los
+  (`prepareRename` devolve `null`). O fingerprint do workspace passa a cobrir módulos
+  externos, `loxia.toml` e lock. A análise do workspace é cacheada em três camadas
+  (workspace, arquivo e módulo compartilhado entre importadores) e editar um arquivo
+  refaz só a análise dele: rebuild de ~50 arquivos 2,45 s → **55 ms** e de 500 arquivos
+  24,5 s → **160 ms**, retendo 4,1 MB e 33,8 MB. O fixture do `bench/lsp.py` agora importa
+  `std.lists` (references frio ~2,3 s) e reporta `references_std`, `workspace_scan` e
+  `workspace_build`, com baseline regravado.
+
 ### Adicionado
 - **`??` em união de interface/container com `Nil`** ([#221](https://github.com/loxia-lang/loxia/issues/221)):
   o checker usa o tipo comum entre o lado não-nulo e o direito (`I | Nil ?? C` → `I`), e o

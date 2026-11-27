@@ -72,7 +72,7 @@ Packages by phase (dependency only downward):
 | [`loxia/mcp.py`](../../loxia/mcp.py) | MCP stdio modern-only (2026-07-28) over the CLI, sandboxed `run`, tools and CLI parity (ADR-0112) |
 | [`tools/docs_index.py`](../../tools/docs_index.py) | generates the index and `site/public/llms.txt`; `tools/docs_common.py` shares slugs/URLs with the Starlight generator |
 | [`loxia/source_symbols.py`](../../loxia/source_symbols.py) | original-AST symbol resolution for the LSP: imports, members with superclass/interfaces, callable signatures and source type display |
-| [`loxia/rename.py`](../../loxia/rename.py) | semantic cross-file rename from the loader-resolved AST: mangled tokens, imports/aliases and type annotations |
+| [`loxia/rename.py`](../../loxia/rename.py) | semantic cross-file rename from the loader-resolved AST: real module paths (std/deps outside the root), mangled tokens, imports/aliases, type annotations and the content-addressed `WorkspaceCache` ([ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)) |
 | [`loxia/completion.py`](../../loxia/completion.py) | LSP completion over the original AST: scope, imports, modules, `this`/`super`, inherited members, enums and native members |
 | [`loxia/symbols.py`](../../loxia/symbols.py) | LSP-1 `SymbolIndex`: declarations, references, checker types and inferred declaration metadata |
 | [`loxia/builtins_docs.py`](../../loxia/builtins_docs.py) | English docs for builtins/primitives for `docs/stdlib/builtins.md` |
@@ -202,11 +202,14 @@ O caminho end-to-end do servidor é medido por
 startup, didOpen, hover, definition, references (frio/quente), highlight, rename, completion,
 documentSymbol, didChange, didChange num arquivo de ~650 linhas e uma rajada de 5 didChange,
 com baseline [`bench/lsp_baseline.json`](../../bench/lsp_baseline.json) e tolerância de
-**1,5×**. Mediana de 2026-11-25, pós-[ADR-0143](../adr/0143-lsp-didchange-coalescing-e-reuso.md)
-(workspace de ~50 arquivos): startup ~92 ms, didOpen ~34 ms, references cross-file ~92 ms
-na primeira consulta e ~86 ms após uma edição (o cache do workspace é descartado), ~1,7 ms
-no cache quente, didChange ~10 ms, didChange em ~650 linhas ~48 ms e rajada de 5 didChange
-~10 ms; as requisições locais ficam abaixo de 2 ms. O orçamento é **≤12 ms** no workspace
+**1,5×**. Mediana de 2026-11-26, pós-[ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)
+(workspace de ~50 arquivos, cada um importando `std.lists`): startup ~90 ms, didOpen
+~34 ms, references cross-file **~2,3 s** na primeira consulta (é o custo de analisar o
+workspace inteiro: `workspace_build`), **~83 ms** após uma edição, ~1,7 ms no cache quente
+e ~2,9 ms para um símbolo de `std`; `workspace_scan` ~0,4 ms; didChange ~10 ms, didChange
+em ~650 linhas ~45 ms e rajada de 5 didChange ~10 ms; as requisições locais ficam abaixo de
+2 ms. O fixture antigo (módulos sem imports) escondia o closure e foi trocado: por isso
+`references_cold` e `workspace_build` só são comparáveis a partir desta baseline. O orçamento é **≤12 ms** no workspace
 do bench e **~0,06 ms/linha** (163 linhas ~20 ms, 323 ~30 ms); acima de ~1000 linhas fica
 **fora** até o parse incremental (#113).
 
@@ -218,12 +221,24 @@ primeira navegação, como o `SourceIndex`. O piso do arquivo grande é o parse 
 (~27 ms) mais a reescrita de imports, que só o parse incremental (#113) muda.
 
 A descoberta usa `os.walk` com poda de diretórios ocultos e `node_modules`, e cache de
-leitura por `mtime`/`ctime`/inode/tamanho; o fingerprint do `WorkspaceCache` usa hash (não
-guarda uma segunda cópia de todos os textos). Módulos de dependência resolvidos fora do
-`root` ainda não entram nesse fingerprint (limitação declarada na #195). O `SourceIndex` é
-construído na primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam
-a caminhada do AST; um diagnóstico com nota de proveniência constrói o índice. O warm de
-~1,7 ms vale para o workspace de ~50 arquivos do bench.
+leitura por `mtime`/`ctime`/inode/tamanho. O `WorkspaceCache` tem três camadas endereçadas
+por conteúdo ([ADR-0151](../adr/0151-cache-de-analise-por-arquivo-no-lsp.md)): o workspace
+(fingerprint dos textos + digest dos insumos fora do root — módulos externos, manifest e
+lock), a análise/contribuição de cada arquivo e a contribuição de cada **módulo importado**,
+compartilhada entre importadores (o prefixo `mod$` não depende de quem importa). Editar um
+arquivo descarta o workspace e refaz só a análise dele. `references`/`rename` aceitam
+símbolo de `std`/`[modules].paths` (antes o token era atribuído a um arquivo inexistente no
+root e a coleta estourava) e o rename recusa editar fora do root. Orçamento: uma workspace
+por vez, ≤2048 arquivos, ≤512 módulos e ≤200k tokens em contribuições de módulo; acima disso o workspace
+é servido sem retenção por arquivo. Medido com `bench/lsp_workspace.py`: rebuild depois
+de editar em ~50 arquivos **55 ms** (era 2,45 s) e em 500 **160 ms** (era 24,5 s),
+retendo 4,1 MB e 33,8 MB (pico 10,1/43,1 MB); descoberta quente de 555 arquivos 8,2 ms,
+fingerprint 0,7 ms e 5.000 arquivos 49,2 ms. O custo frio continua
+O(arquivos * closure) (~49 ms/arquivo com `std` importado). Os custos internos (descoberta,
+build frio, rebuild e retenção) saem de `bench/lsp_workspace.py`, que gera os workspaces
+sintéticos em processo e reproduz a tabela do ADR-0151. O `SourceIndex` é construído na
+primeira consulta (`lazy`), então diagnóstico **limpo** e didChange não pagam a caminhada
+do AST; um diagnóstico com nota de proveniência constrói o índice.
 
 Os nomes de tipo são uma **side table** do parser (`Parser.type_spans` → `Loxia.last_type_spans`
 → `SourceIndex(extra_spans=...)`), como a trivia do ADR-0134: o AST e o JSON v2 não mudam.

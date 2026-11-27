@@ -6,12 +6,17 @@ Uso:
     uv run python bench/lsp.py --repeat 7 --json
     uv run python bench/lsp.py --update
 
-Mede o processo real (`main.py lsp`) num workspace com `examples/` e `std/`:
+Mede o processo real (`main.py lsp`) num workspace com ~50 arquivos que importam
+`std.lists` (o fixture antigo de módulos sem imports escondia o custo do closure):
 startup/initialize, didOpen com diagnósticos (imports), hover, definition,
-references cross-file, documentHighlight, rename local, completion, documentSymbol,
-didChange, didChange num arquivo grande (~650 linhas) e uma rajada de didChange.
-Cada amostra sobe um servidor novo; a mediana das amostras é reportada.
-Não roda no CI.
+references cross-file, references num símbolo de `std` (fora do root),
+documentHighlight, rename local, completion, documentSymbol, didChange, didChange num
+arquivo grande (~650 linhas) e uma rajada de didChange. Cada amostra sobe um servidor
+novo; a mediana das amostras é reportada.
+
+Também reporta, em processo e no mesmo fixture, os dois custos que o benchmark e2e não
+separa: `workspace_scan` (descoberta + stat/leitura do root) e `workspace_build`
+(análise fria do workspace inteiro, sem os caches do servidor). Não roda no CI.
 """
 
 from __future__ import annotations
@@ -26,8 +31,13 @@ import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Any, cast
+
+from loxia import rename as rename_module
+from loxia.lsp import Server
+from loxia_core.loader.module_cache import ModuleCache
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "main.py"
@@ -208,11 +218,14 @@ def _workspace() -> tempfile.TemporaryDirectory[str]:
     (root / "lib.lx").write_text(LIB, encoding="utf-8")
     (root / "main.lx").write_text(MAIN, encoding="utf-8")
     # Workspace com ~50 arquivos: o custo de descoberta/leitura do root não pode
-    # ficar escondido atrás de um fixture de dois arquivos.
+    # ficar escondido atrás de um fixture de dois arquivos. Cada módulo importa
+    # `std.lists` como um projeto real — é o closure que domina a análise fria.
     for index in range(WORKSPACE_MODULES):
         (root / f"mod_{index:02d}.lx").write_text(
-            f"val valor_{index}: Int = {index}\n"
-            f"fn fun_{index}(x: Int) -> Int {{ return x + {index} }}\n",
+            "import std.lists as lists\n"
+            "\n"
+            f"val valor_{index}: Int = lists.sum([1, 2]) + {index}\n"
+            f"fn fun_{index}(x: Int) -> Int {{ return valor_{index} + x }}\n",
             encoding="utf-8",
         )
     return directory
@@ -255,6 +268,7 @@ def run_session() -> dict[str, float]:
     completion_position = _position_after(text, "pessoa.")
     total_position = _position(text, text.index("val total") + len("val "))
     definition_position = _position(text, text.index("soma(", text.index("val total")))
+    std_position = _position(text, text.index("sum(xs)"))
 
     started = time.perf_counter()
     lsp = Lsp(root)
@@ -345,6 +359,15 @@ def run_session() -> dict[str, float]:
                 lambda value: isinstance(value, list) and len(value) >= 2,
             ),
             _measure(
+                "references_std",
+                request(
+                    "textDocument/references",
+                    {"position": std_position, "context": {"includeDeclaration": True}},
+                ),
+                SAMPLES_PER_METRIC,
+                lambda value: isinstance(value, list) and len(value) >= 2,
+            ),
+            _measure(
                 "highlight",
                 request("textDocument/documentHighlight", {"position": total_position}),
                 SAMPLES_PER_METRIC,
@@ -425,6 +448,21 @@ def run_session() -> dict[str, float]:
 
         metrics.append(_measure("did_change_large", change_big, SAMPLES_PER_METRIC))
         metrics.append(_measure("did_change_burst", burst, SAMPLES_PER_METRIC))
+
+        # Custos internos no mesmo fixture: a descoberta do root e a análise fria do
+        # workspace (sem os caches do servidor). O build é uma amostra fria por
+        # sessão — repeti-lo dominaria o benchmark.
+        internal = Server(BytesIO(), BytesIO())
+        internal.root = root
+        metrics.append(
+            _measure("workspace_scan", lambda: internal._workspace_files(), SAMPLES_PER_METRIC)
+        )
+        files = dict(internal._workspace_files())
+        started = time.perf_counter()
+        built = rename_module.WorkspaceCache().get(root, files, ModuleCache())
+        workspace_build = (time.perf_counter() - started) * 1000
+        assert not isinstance(built, str)
+        metrics.append(Measurement("workspace_build", workspace_build, workspace_build))
     finally:
         lsp.shutdown()
         big_directory.cleanup()

@@ -202,6 +202,9 @@ class Loxia:
             manifest = None
             dependencies: dict[str, Path] = {}
             lock_path: Path | None = None
+            # O lock é insumo de resolução (fixa os checkouts); o set abaixo é
+            # substituído pelo do loader e precisa re-adicioná-lo.
+            watched_lock: Path | None = None
             manifest_path = discover_manifest(self._module_root)
             project_root = self._module_root
             if manifest_path is None and self.frozen:
@@ -237,6 +240,7 @@ class Loxia:
                     self.dependency_error(manifest_path, error.message)
                     return None
                 if lock is not None:
+                    watched_lock = lock_path
                     self._watched_files.add(lock_path)
             loader = ModuleLoader(
                 self.reporter,
@@ -262,6 +266,8 @@ class Loxia:
             }
             if manifest_path is not None:
                 self._watched_files.add(manifest_path)
+            if watched_lock is not None:
+                self._watched_files.add(watched_lock)
             statements = loaded
 
         self.last_statements = statements
