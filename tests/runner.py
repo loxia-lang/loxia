@@ -135,7 +135,11 @@ def _without_snippet(stderr: str) -> str:
 
 
 def execute(path: Path, timeout: int = TIMEOUT_SECONDS) -> Executed:
-    if not USE_SUBPROCESS:
+    # O motor nativo de regex guarda handles no processo (#239): um caso que exige
+    # o crate roda em processo novo, como o CLI real, para não herdar handles de
+    # outro caso.
+    source = path.read_text(encoding="utf-8")
+    if not USE_SUBPROCESS and "rust" not in requirements(source):
         result: Result = run_cli(str(path))
         return Executed(
             stdout=result.stdout.splitlines(),
