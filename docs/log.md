@@ -1307,13 +1307,12 @@ intervalo agora silenciaria páginas que não foram lidas.
   `this.campo` estreita; o diagnóstico de refino derrubado cita quem o derrubou.
 - `docs/spec/garantias.md` — **updated** (bloco gerado): dois casos L6 a mais no corpus.
 - `docs/decisoes.md` — **updated**: a linha de soundness de fluxo descreve a precisão de
-  escrita entregue e mantém no ADR-0107 o gatilho do alias de chamadas.
+  escrita entregue e mantém no ADR-0107 o gatilho do alias de chamadas. A correção de
+  soundness posterior (`d1b6db0`) completou o predicado sem mudar a linha, então o veredicto
+  do intervalo é um só.
 - `docs/tech/test-coverage.md` — **updated** (gerado): contagem de testes.
 - `docs/spec/erros.md` — **no-change**: códigos e mensagens não mudaram; a nota de
   proveniência é texto do diagnóstico, não um código novo.
 - `docs/adr/0107`/`0141` — emenda de decisão; ADRs não participam do relatório de frescor.
-- `docs/decisoes.md` — **no-change** depois da correção de soundness (`d1b6db0`): a linha de
-  soundness de fluxo descreve a mesma regra de escrita; o commit seguinte completou o
-  predicado (raiz do refino como objeto do caminho escrito) e o ADR-0141 registra o caso.
   `docs/spec/erros.md`, `docs/spec/lexico.md`, `docs/stdlib/*` e `docs/tech/*` continuam o
   backlog anterior a este PR, sem marcador.

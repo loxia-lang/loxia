@@ -1870,6 +1870,90 @@ def test_dropped_refinement_names_the_call_that_dropped_it(
     assert "re-narrow with `is`/`as` or bind it to a local" in captured.err
 
 
+def test_dropped_refinement_names_the_assignment_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class C {
+          var n: Int = 1;
+        }
+        var s: Any = C()
+        if (s is C) {
+          s = nil
+          print(s.n)
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "the refinement of `s` (was `C`) was dropped by the assignment on line 7" in (
+        captured.err
+    )
+
+
+def test_dropped_refinement_names_capture_invalidation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        var src: String? = "a"
+        fn touch() -> Nil {
+          src = nil;
+        }
+        if (src != nil) {
+          touch()
+          print(len(src))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "was dropped by the call that may reassign a captured variable on line 7" in (
+        captured.err
+    )
+
+
+def test_dropped_refinement_names_the_iteration_that_dropped_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lox = check(
+        """
+        class It {
+          var i: Int = 0;
+          fn iter() -> It { return this; }
+          fn next() -> Int? {
+            if (this.i < 2) {
+              this.i = this.i + 1;
+              return this.i;
+            }
+            return nil;
+          }
+        }
+        class C {
+          var n: Int = 1;
+        }
+        class H {
+          var x: Any = nil;
+        }
+        val h = H()
+        h.x = C()
+        val it = It()
+        if (h.x is C) {
+          for y in it {
+            print(h.x.n)
+          }
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "was dropped by the iteration over a user type" in captured.err
+
+
 def test_dropped_refinement_names_the_write_that_dropped_it(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
