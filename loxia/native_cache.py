@@ -147,7 +147,15 @@ def toolchain_fingerprint() -> str:
 
 
 def _compiler() -> str:
-    return os.environ.get("CC") or shutil.which("cc") or "cc"
+    """Mesma escolha do driver: `$CC`, depois cc/clang/gcc (fallback: `cc`)."""
+    configured = os.environ.get("CC")
+    if configured:
+        return configured
+    for candidate in ("cc", "clang", "gcc"):
+        found = shutil.which(candidate)
+        if found is not None:
+            return found
+    return "cc"
 
 
 def _compiler_version(compiler: str) -> str:

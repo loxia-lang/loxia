@@ -111,6 +111,20 @@ def test_memo_da_toolchain_evita_o_subprocesso_do_cc(
     assert (cache / "toolchain.json").is_file()
 
 
+def test_stamp_inclui_o_cc_configurado(
+    cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = tmp_path / "meu-cc"
+    fake.write_text("#!/bin/sh\necho 'meu cc 1.0'\n", encoding="utf-8")
+    fake.chmod(0o755)
+    monkeypatch.setenv("CC", str(fake))
+
+    stamp = native_cache.toolchain_stamp()
+
+    assert str(fake) in stamp
+    assert "meu cc 1.0" in stamp
+
+
 def test_stamp_inclui_cpath_e_library_path(cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # O `cc` lê CPATH/LIBRARY_PATH; mudá-los muda o binário e tem que invalidar.
     base = native_cache.toolchain_stamp()
