@@ -1417,9 +1417,14 @@ Intervalo: o commit desta entrega (as fontes são as do F0; o marcador anterior 
 - `docs/tech/test-report.md` — **no-change**: `loxia test` sem `--native` passou a invocar o
   oráculo com `--interpret`; o envelope `start`/`result`/`discover`/`end` e o schema v1 não
   mudaram.
+- `docs/decisoes.md` — **updated**: a linha do ADR-0152 ganhou o resultado do converge (warnings,
+  `$CC`/`CPATH` na chave, hit sem toolchain e Ctrl-C 130).
+- `docs/spec/garantias.md` — **no-change** (3ª passada): a promessa do I1 não mudou; a supressão de
+  warnings no `run` é o que a **mantém** (mesmo stderr nos dois motores) e está documentada em
+  `docs/spec/erros.md`.
 - `docs/spec/garantias.md` — **no-change** (2ª passada): os commits de correção do CI
   mexeram em `lower_model.py`/`driver.py` (o `E4004` deixou de carregar o prefixo "internal
   lowering error"), mas a promessa da página — recusa acionável sem degradação silenciosa —
   continua a mesma e a mensagem só ficou correta.
 
-<!-- triaged: 8f44d4a -->
+<!-- triaged: 5955843 -->
