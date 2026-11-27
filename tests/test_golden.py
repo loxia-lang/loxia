@@ -26,26 +26,34 @@ def test_golden_suite_nao_esta_vazia() -> None:
 
 
 def test_golden_regex_cases_run_isolated(tmp_path: Path) -> None:
+    import re
+
     from loxia_core.execution import regex_runtime
     from tests.inprocess import run_cli
 
+    leaker = tmp_path / "leaker.lx"
+    leaker.write_text(
+        '# requires: rust\nval h = regex_engine.compile("a", 0, 0)\nprint(h)\n',
+        encoding="utf-8",
+    )
+    if missing_requirements(leaker):
+        pytest.skip("requer rust")
+
+    leaked = run_cli(str(leaker))
+    assert leaked.returncode == 0
+    match = re.search(r"\[1, (\d+)\]", leaked.stdout)
+    assert match is not None
+    handle = int(match.group(1))
     fresh = tmp_path / "fresh.lx"
     fresh.write_text(
-        "# requires: rust\nprint(regex_engine.groupNames(1))\n"
+        f"# requires: rust\nprint(regex_engine.groupNames({handle}))\n"
         "# expect runtime error: regex handle is closed or unknown.\n",
         encoding="utf-8",
     )
-    if missing_requirements(fresh):
-        pytest.skip("requer rust")
-
-    leaker = tmp_path / "leaker.lx"
-    leaker.write_text('val h = regex_engine.compile("a", 0, 0)\nprint(h)\n', encoding="utf-8")
-    leaked = run_cli(str(leaker))
-    assert leaked.returncode == 0
     try:
-        # Sem o isolamento por processo, o handle 1 do leaker vaza e o caso
-        # "fresco" imprimiria os grupos em vez do erro de handle desconhecido.
+        # Sem o isolamento por processo, o handle do leaker vaza e este caso
+        # imprimiria os grupos em vez do erro de handle desconhecido.
         problems = check_case(fresh)
         assert not problems, "\n".join(problems)
     finally:
-        regex_runtime.free_pattern(1)
+        regex_runtime.free_pattern(handle)
