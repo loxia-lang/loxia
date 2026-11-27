@@ -396,8 +396,8 @@ class CallLowering(LoweringBase):
             [callee.llvm],
         )
         uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
-        bad = llvm_ir.append_block(self._function_ir, "fn.uninitialized")
-        ok = llvm_ir.append_block(self._function_ir, "fn.initialized")
+        bad = self._control.new_block(self._function_ir, "fn.uninitialized")
+        ok = self._control.new_block(self._function_ir, "fn.initialized")
         self.builder.cbranch(uninitialized, bad, ok)
 
         self.builder = llvm_ir.builder(bad)
@@ -432,9 +432,9 @@ class CallLowering(LoweringBase):
         if not result.optional and result.ty is not ValueType.NIL:
             result = TypeDesc(result.ty, result.fn, True, result.class_name)
 
-        some = llvm_ir.append_block(self._function_ir, "call.some")
-        nothing = llvm_ir.append_block(self._function_ir, "call.nil")
-        end = llvm_ir.append_block(self._function_ir, "call.end")
+        some = self._control.new_block(self._function_ir, "call.some")
+        nothing = self._control.new_block(self._function_ir, "call.nil")
+        end = self._control.new_block(self._function_ir, "call.end")
         tag = self._optional_tag(callee)
         self.builder.cbranch(tag, some, nothing)
 

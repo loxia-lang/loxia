@@ -51,8 +51,10 @@ Values are opaque handles to the target. `match` lowers to a chain of `CondBr` p
 Every assignment to `Lowerer.builder` is wrapped by `ControlIRBuilder`. Control operations
 (`branch`, `cbranch`, `ret`, `ret_void`, `unreachable`, `phi`) are recorded; everything else
 is forwarded to the `llvmlite` builder, so arithmetic, calls, loads and stores stay direct.
-`ControlIR.new_block` is used by the migrated lowerers (exceptions, `match`, class codegen)
-so blocks are registered at creation instead of only when first observed.
+`ControlIR.new_block` is used by every backend lowerer (exceptions, `match`, classes,
+optionals, containers, calls, ranges, strings, bytes, math and `lower.py`), so blocks are
+registered at creation instead of only when first observed. `tests/test_control_ir_boundary.py`
+enforces that no backend module calls `llvm_ir.append_block`/`block_of` directly.
 
 ## Invariants
 

@@ -171,9 +171,9 @@ class BytesLowering(LoweringBase):
 
     def _call_optional_bytes_method(self, expr: Call, receiver: Value) -> Value:
         result_desc = self._expr_type_desc(expr, expr.paren.line)
-        some = llvm_ir.append_block(self._function_ir, "bytes.opt.some")
-        nothing = llvm_ir.append_block(self._function_ir, "bytes.opt.nil")
-        end = llvm_ir.append_block(self._function_ir, "bytes.opt.end")
+        some = self._control.new_block(self._function_ir, "bytes.opt.some")
+        nothing = self._control.new_block(self._function_ir, "bytes.opt.nil")
+        end = self._control.new_block(self._function_ir, "bytes.opt.end")
         self.builder.cbranch(self._optional_tag(receiver), some, nothing)
 
         self.builder = llvm_ir.builder(nothing)

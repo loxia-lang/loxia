@@ -66,8 +66,8 @@ class InstanceLowering(LoweringBase):
         present = self.builder.icmp_signed(
             "!=", self.builder.and_(bitmap, mask), llvm_ir.constant(_INT, 0)
         )
-        ok = llvm_ir.append_block(self._function_ir, "field.ok")
-        bad = llvm_ir.append_block(self._function_ir, "field.nil")
+        ok = self._control.new_block(self._function_ir, "field.ok")
+        bad = self._control.new_block(self._function_ir, "field.nil")
         self.builder.cbranch(present, ok, bad)
 
         self.builder = llvm_ir.builder(bad)
@@ -208,9 +208,9 @@ class InstanceLowering(LoweringBase):
             # virar ponteiro nulo, mas o slot é o agregado `{tag, payload}`.
             result = TypeDesc(result.ty, result.fn, True, result.class_name)
 
-        some = llvm_ir.append_block(self._function_ir, "get.some")
-        nothing = llvm_ir.append_block(self._function_ir, "get.nil")
-        end = llvm_ir.append_block(self._function_ir, "get.end")
+        some = self._control.new_block(self._function_ir, "get.some")
+        nothing = self._control.new_block(self._function_ir, "get.nil")
+        end = self._control.new_block(self._function_ir, "get.end")
         tag = self._optional_tag(obj)
         self.builder.cbranch(tag, some, nothing)
 
@@ -320,9 +320,9 @@ class InstanceLowering(LoweringBase):
                 self.builder.and_(bitmap, mask),
                 llvm_ir.constant(_INT, 0),
             )
-            fresh = llvm_ir.append_block(self._function_ir, "val.fresh")
-            used = llvm_ir.append_block(self._function_ir, "val.used")
-            end = llvm_ir.append_block(self._function_ir, "val.end")
+            fresh = self._control.new_block(self._function_ir, "val.fresh")
+            used = self._control.new_block(self._function_ir, "val.used")
+            end = self._control.new_block(self._function_ir, "val.end")
             self.builder.cbranch(already, used, fresh)
 
             self.builder = llvm_ir.builder(used)

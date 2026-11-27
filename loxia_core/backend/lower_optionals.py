@@ -318,9 +318,9 @@ class OptionalLowering(LoweringBase):
                 [value.llvm],
             )
             uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
-            some = llvm_ir.append_block(self._function_ir, "fn.some")
-            nothing = llvm_ir.append_block(self._function_ir, "fn.nil")
-            end = llvm_ir.append_block(self._function_ir, "fn.optional")
+            some = self._control.new_block(self._function_ir, "fn.some")
+            nothing = self._control.new_block(self._function_ir, "fn.nil")
+            end = self._control.new_block(self._function_ir, "fn.optional")
             self.builder.cbranch(uninitialized, nothing, some)
 
             self.builder = llvm_ir.builder(nothing)
@@ -466,9 +466,9 @@ class OptionalLowering(LoweringBase):
                 [value.llvm],
             )
             uninitialized = self.builder.icmp_signed("!=", is_nil, llvm_ir.constant(_I32, 0))
-            nothing = llvm_ir.append_block(self._function_ir, "box.fn.nil")
-            some = llvm_ir.append_block(self._function_ir, "box.fn.some")
-            end = llvm_ir.append_block(self._function_ir, "box.fn.end")
+            nothing = self._control.new_block(self._function_ir, "box.fn.nil")
+            some = self._control.new_block(self._function_ir, "box.fn.some")
+            end = self._control.new_block(self._function_ir, "box.fn.end")
             self.builder.cbranch(uninitialized, nothing, some)
 
             self.builder = llvm_ir.builder(nothing)
@@ -525,8 +525,8 @@ class OptionalLowering(LoweringBase):
             return value
 
         tag = self._optional_tag(value)
-        ok = llvm_ir.append_block(self._function_ir, "opt.ok")
-        bad = llvm_ir.append_block(self._function_ir, "opt.nil")
+        ok = self._control.new_block(self._function_ir, "opt.ok")
+        bad = self._control.new_block(self._function_ir, "opt.nil")
         self.builder.cbranch(tag, ok, bad)
 
         self.builder = llvm_ir.builder(bad)

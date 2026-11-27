@@ -130,9 +130,9 @@ class StringLowering(LoweringBase):
 
     def _to_string_optional(self, value: Value) -> Value:
         tag = self._optional_tag(value)
-        some = llvm_ir.append_block(self._function_ir, "opt.str.some")
-        nothing = llvm_ir.append_block(self._function_ir, "opt.str.nil")
-        end = llvm_ir.append_block(self._function_ir, "opt.str.end")
+        some = self._control.new_block(self._function_ir, "opt.str.some")
+        nothing = self._control.new_block(self._function_ir, "opt.str.nil")
+        end = self._control.new_block(self._function_ir, "opt.str.end")
         self.builder.cbranch(tag, some, nothing)
 
         self.builder = llvm_ir.builder(nothing)
@@ -171,9 +171,9 @@ class StringLowering(LoweringBase):
                 # `repr` de não-string é igual a `str`, inclusive nil.
                 return self._to_string(argument)
             tag = self._optional_tag(argument)
-            some = llvm_ir.append_block(self._function_ir, "repr.some")
-            nothing = llvm_ir.append_block(self._function_ir, "repr.nil")
-            end = llvm_ir.append_block(self._function_ir, "repr.end")
+            some = self._control.new_block(self._function_ir, "repr.some")
+            nothing = self._control.new_block(self._function_ir, "repr.nil")
+            end = self._control.new_block(self._function_ir, "repr.end")
             self.builder.cbranch(tag, some, nothing)
 
             self.builder = llvm_ir.builder(nothing)

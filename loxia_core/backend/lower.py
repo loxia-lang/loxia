@@ -292,8 +292,8 @@ class Lowerer(
             [result, self._cstring_ptr("Err")],
         )
         failed = self.builder.icmp_signed("!=", is_err, llvm_ir.constant(_INT, 0))
-        error_block = llvm_ir.append_block(self._function_ir, "entry.err")
-        ok_block = llvm_ir.append_block(self._function_ir, "entry.ok")
+        error_block = self._control.new_block(self._function_ir, "entry.err")
+        ok_block = self._control.new_block(self._function_ir, "entry.ok")
         self.builder.cbranch(failed, error_block, ok_block)
 
         self.builder = llvm_ir.builder(error_block)
@@ -362,13 +362,13 @@ class Lowerer(
 
     def _if(self, stmt: If) -> None:
         condition = self._truthy(self._expr(stmt.condition))
-        then_block = llvm_ir.append_block(self._function_ir, "if.then")
-        end_block = llvm_ir.append_block(self._function_ir, "if.end")
+        then_block = self._control.new_block(self._function_ir, "if.then")
+        end_block = self._control.new_block(self._function_ir, "if.end")
 
         if stmt.else_branch is None:
             else_block = end_block
         else:
-            else_block = llvm_ir.append_block(self._function_ir, "if.else")
+            else_block = self._control.new_block(self._function_ir, "if.else")
 
         self.builder.cbranch(condition, then_block, else_block)
 
@@ -429,9 +429,9 @@ class Lowerer(
         self.builder.branch(target)
 
     def _while(self, stmt: While) -> None:
-        header = llvm_ir.append_block(self._function_ir, "while.cond")
-        body = llvm_ir.append_block(self._function_ir, "while.body")
-        end = llvm_ir.append_block(self._function_ir, "while.end")
+        header = self._control.new_block(self._function_ir, "while.cond")
+        body = self._control.new_block(self._function_ir, "while.body")
+        end = self._control.new_block(self._function_ir, "while.end")
 
         self.builder.branch(header)
         self.builder = llvm_ir.builder(header)
@@ -510,9 +510,9 @@ class Lowerer(
 
     def _print_optional(self, value: Value) -> None:
         tag = self._optional_tag(value)
-        some = llvm_ir.append_block(self._function_ir, "opt.print.some")
-        nothing = llvm_ir.append_block(self._function_ir, "opt.print.nil")
-        end = llvm_ir.append_block(self._function_ir, "opt.print.end")
+        some = self._control.new_block(self._function_ir, "opt.print.some")
+        nothing = self._control.new_block(self._function_ir, "opt.print.nil")
+        end = self._control.new_block(self._function_ir, "opt.print.end")
         self.builder.cbranch(tag, some, nothing)
 
         self.builder = llvm_ir.builder(nothing)
@@ -1375,9 +1375,9 @@ class Lowerer(
 
     def _conditional(self, expr: Conditional) -> Value:
         condition = self._truthy(self._expr(expr.condition))
-        then_block = llvm_ir.append_block(self._function_ir, "cond.then")
-        else_block = llvm_ir.append_block(self._function_ir, "cond.else")
-        end_block = llvm_ir.append_block(self._function_ir, "cond.end")
+        then_block = self._control.new_block(self._function_ir, "cond.then")
+        else_block = self._control.new_block(self._function_ir, "cond.else")
+        end_block = self._control.new_block(self._function_ir, "cond.end")
         self.builder.cbranch(condition, then_block, else_block)
 
         self.builder = llvm_ir.builder(then_block)
@@ -1542,9 +1542,9 @@ class Lowerer(
         result_optional = coalesced_desc is not None and coalesced_desc.optional
         optional_struct = TypeDesc(inner.ty, inner.fn, True, inner.class_name, inner.interface_name)
 
-        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
-        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
-        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+        some = self._control.new_block(self._function_ir, "coalesce.some")
+        nothing = self._control.new_block(self._function_ir, "coalesce.nil")
+        end = self._control.new_block(self._function_ir, "coalesce.end")
         self.builder.cbranch(self._optional_tag(left), some, nothing)
 
         self.builder = llvm_ir.builder(some)
@@ -1601,9 +1601,9 @@ class Lowerer(
         )
 
     def _coalesce_any(self, left: Value, expr: Logical) -> Value:
-        some = llvm_ir.append_block(self._function_ir, "coalesce.some")
-        nothing = llvm_ir.append_block(self._function_ir, "coalesce.nil")
-        end = llvm_ir.append_block(self._function_ir, "coalesce.end")
+        some = self._control.new_block(self._function_ir, "coalesce.some")
+        nothing = self._control.new_block(self._function_ir, "coalesce.nil")
+        end = self._control.new_block(self._function_ir, "coalesce.end")
 
         if left.ty is ValueType.ANY:
             tag = self.builder.extract_value(left.llvm, 0)
@@ -1653,8 +1653,8 @@ class Lowerer(
 
         condition = self._truthy(left)
         short_block = self.builder.block
-        right_block = llvm_ir.append_block(self._function_ir, "logical.right")
-        end_block = llvm_ir.append_block(self._function_ir, "logical.end")
+        right_block = self._control.new_block(self._function_ir, "logical.right")
+        end_block = self._control.new_block(self._function_ir, "logical.end")
 
         if operator is TokenType.AND:
             self.builder.cbranch(condition, right_block, end_block)
