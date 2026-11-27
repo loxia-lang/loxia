@@ -1771,6 +1771,32 @@ def test_narrowing_write_with_dynamic_index_still_drops(
     assert "Operands must be numbers." in captured.err
 
 
+def test_narrowing_write_in_another_list_over_drops_by_design(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Precisão declarada (ADR-0141): sem análise de alias, escrever `ys[0]` também derruba
+    # o refino de `xs[0]` — mesmo índice literal, listas que podem ser a mesma. O caso é
+    # escopo da análise de alias/escape adiada no ADR-0107; aqui ele fica fixado como
+    # conservador, não como promessa de precisão. Se a fatia 2 entrar, este teste muda.
+    lox = check(
+        """
+        val xs: List[String?] = ["a"]
+        val ys: List[String?] = ["b"]
+        if (xs[0] != nil) {
+          ys[0] = nil
+          print(len(xs[0]))
+        }
+        """
+    )
+    captured = capsys.readouterr()
+
+    assert lox.reporter.had_error is True
+    assert "Expected a string, a list or a map, found" in captured.err
+    assert "the refinement of `xs[0]` (was `String`) was dropped by the field/index write" in (
+        captured.err
+    )
+
+
 def test_narrowing_a_field_of_this() -> None:
     lox = check(
         """
