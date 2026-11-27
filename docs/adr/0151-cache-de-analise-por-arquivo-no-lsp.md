@@ -195,8 +195,14 @@ Testes que policiam a decisão:
   `test_workspace_cache_clear_keeps_file_analyses` e
   `test_workspace_skips_unparseable_files`.
 - `test_workspace_build_does_not_run_the_checker` (o tooling não roda o checker, #249).
-- `test_top_level_declarations_match_symbol_index` (a varredura cobre os mesmos nomes).
-- `test_lsp_references_and_rename_survive_unparseable_workspace_file` (#250).
+- `test_top_level_declarations_cover_renamable_declarations` (a varredura cobre os mesmos
+  nomes renamáveis).
+- `test_lsp_references_and_rename_survive_unparseable_workspace_file`,
+  `test_workspace_rename_skips_unparseable_siblings` e
+  `test_workspace_rename_refuses_when_the_target_does_not_parse` (#250, caminho semântico e
+  legado).
+- `test_workspace_module_error_is_not_memoized` e
+  `test_load_modules_nao_vaza_last_statements_no_erro`.
 
 Revisitar quando: o loader expuser a AST reescrita por módulo (custo frio), o parse
 incremental (#113) mudar o custo por arquivo, ou o workspace típico passar de 2048
@@ -217,6 +223,13 @@ dos quais ~23 ms eram só `resolve()` por token.
 - Um arquivo que não parseia é **pulado** em vez de abortar o workspace (#250). Usos nele
   ficam de fora; o fallback legado `_workspace_rename` recusa só quando o alvo é o próprio
   arquivo inválido.
+- Erro de **módulo** (import que não resolve) também pula o arquivo, mas marca o workspace
+  como `complete=False`: a causa pode estar fora de `files` (dependência que ainda não
+  existe), então ele **não é memoizado** — consertar o insumo aparece na request seguinte.
+  Sintaxe quebrada é memoizável porque o texto está em `files` (corrigir muda o fingerprint).
+- Bindings de `match` não são declaração de topo e ficam fora da varredura (o `SymbolIndex`
+  os adiciona com `container=None` por detalhe de implementação); `declarations` só é
+  consultado para nomes mangled (`$`), então não há regressão.
 
 Resultado (`bench/lsp_workspace.py --memory`, mesma máquina):
 

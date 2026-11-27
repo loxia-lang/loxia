@@ -233,8 +233,9 @@ por vez, ≤2048 arquivos, ≤512 módulos e ≤200k tokens em contribuições d
 build frio **0,40 s** em 50 arquivos (era 2,45 s) e **3,75 s** em 500 (era 24,5 s);
 rebuild depois de editar **14 ms** e **136 ms**; retido 4,1 MB e 33,6 MB (pico
 5,9/36,4 MB). A análise é loader-only (`Loxia.load_modules`, uma engine por build) e as
-declarações saem de uma varredura sintática, não do `SymbolIndex`; um arquivo que não
-parseia é pulado em vez de abortar o workspace (#250). Descoberta quente de 555
+declarações saem de uma varredura sintática, não do `SymbolIndex`; um arquivo com erro de
+sintaxe ou de módulo é pulado em vez de abortar o workspace (#250), e o erro de módulo não é
+memoizado (a causa pode estar fora do root). Descoberta quente de 555
 arquivos 8,4 ms, fingerprint 0,7 ms e 5.000 arquivos 51,6 ms. O custo frio residual é
 O(arquivos * closure) (~7,5 ms/arquivo com `std` importado, dominado pela reescrita do
 closure no loader). Os custos internos (descoberta,

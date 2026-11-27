@@ -132,6 +132,14 @@ class _Parsed:
     modules: tuple[tuple[ModuleKey, _Contribution], ...]
 
 
+@dataclass(frozen=True)
+class _Skip:
+    """Arquivo fora da análise: sintaxe quebrada (memoizável) ou erro de módulo."""
+
+    path: Path
+    module_error: bool
+
+
 @dataclass
 class _ModuleEntry:
     contribution: _Contribution
@@ -161,6 +169,9 @@ class _Workspace:
     # Insumos de resolução fora de `files` (manifest, lock, módulos externos),
     # com o digest do texto: editar um deles invalida o workspace.
     closure: tuple[tuple[Path, bytes], ...]
+    # `False` quando algum arquivo foi pulado por erro de módulo: a causa pode estar
+    # fora de `files`, então o workspace não pode ser memoizado.
+    complete: bool
 
 
 @dataclass
@@ -225,8 +236,14 @@ class WorkspaceCache:
                 cache=self,
                 load_text=loader,
             )
-            if not isinstance(built, str):
+            if built.complete:
                 self._retain({path.resolve() for path in files})
+        if not built.complete:
+            # Erro de módulo pode vir de insumo fora de `files`: não memoriza, senão
+            # consertar a dependência não apareceria na próxima request.
+            self._fingerprint = None
+            self._workspace = None
+            return built
         self._fingerprint = fingerprint
         self._workspace = built
         return built
@@ -421,6 +438,7 @@ def _build_workspace(
         texts[path] = text
         texts[path.resolve()] = text
     analyses: dict[Path, _Analysis] = {}
+    module_error = False
     positions: dict[tuple[Path, int], set[str]] = {}
     tokens_by_lexeme: dict[str, set[tuple[Path, int]]] = {}
     declarations: dict[str, tuple[Path, Token]] = {}
@@ -464,9 +482,10 @@ def _build_workspace(
             if lox is None:
                 lox = Loxia(error_format="json", color="never", max_errors=0)
             parsed = _analyze_file(root, path, text, overrides, module_cache, lox=lox)
-            if parsed is None:
+            if isinstance(parsed, _Skip):
                 # Um arquivo que não parseia não pode derrubar o workspace: o que
                 # der para analisar é analisado e os usos nele ficam de fora (#250).
+                module_error = module_error or parsed.module_error
                 continue
             # O texto do closure externo entra no workspace antes dos offsets: os
             # tokens do módulo apontam para o caminho real, não para o root.
@@ -490,6 +509,7 @@ def _build_workspace(
         tokens_by_lexeme,
         declarations,
         closure,
+        not module_error,
     )
 
 
@@ -530,10 +550,12 @@ def _analyze_file(
     module_cache: ModuleCache | None,
     *,
     lox: Loxia | None = None,
-) -> _Parsed | None:
+) -> _Parsed | _Skip:
     original = parse_source(text)
     if original is None:
-        return None
+        # Sintaxe quebrada: o texto está em `files`, então corrigir muda o
+        # fingerprint e o workspace pode ser memoizado.
+        return _Skip(path, module_error=False)
     if lox is None:
         lox = Loxia(error_format="json", color="never", max_errors=0)
     lox.use_file(display_path(str(path)), module_root=root)
@@ -541,7 +563,9 @@ def _analyze_file(
     # custo frio do workspace; rename/references não precisam de tipos (#249).
     merged = lox.load_modules(text, module_overrides=overrides, module_cache=module_cache)
     if merged is None:
-        return None
+        # Erro de módulo: a causa pode ser um insumo fora de `files` (dependência que
+        # ainda não existe), então o workspace não pode ser memorizado.
+        return _Skip(path, module_error=True)
     module_map = {display_path(str(path)): path.resolve()}
     module_map.update({name: real.resolve() for name, real in lox.module_files.items()})
     analysis = _Analysis(

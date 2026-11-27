@@ -15,7 +15,7 @@ Todas as mudanças relevantes da linguagem/interpretador. Decisões fechadas em
   **3,75 s** em 500; rebuild 55/160 ms → **14/136 ms**; `bench/lsp.py`: `references_cold`
   2314 → **321 ms** e `references_after_change` 83 → **42,5 ms**. Um `.lx` que não parseia
   é pulado em vez de abortar references/rename do workspace inteiro (usos nele ficam de
-  fora).
+  fora); erro de módulo também pula, mas não é memoizado (a causa pode estar fora do root).
 ### Adicionado
 - **Ponto de entrada `main -> Result` e a borda de exit 70** ([ADR-0148](docs/adr/0148-ponto-de-entrada-main-result.md),
   [#142](https://github.com/loxia-lang/loxia/issues/142)): o `fn main` de topo do arquivo de

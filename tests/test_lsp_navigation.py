@@ -1199,3 +1199,35 @@ def test_lsp_references_and_rename_survive_unparseable_workspace_file(tmp_path: 
     )
     assert isinstance(renamed, dict)
     assert {uri.rsplit("/", 1)[-1] for uri in renamed["changes"]} == {"lib.lx", "main.lx"}
+
+
+def test_workspace_rename_skips_unparseable_siblings(tmp_path: Path) -> None:
+    (tmp_path / "broken.lx").write_text("fn ( ->\n", encoding="utf-8")
+    (tmp_path / "lib.lx").write_text("fn soma(a: Int, b: Int) -> Int {\n  return a + b\n}\n")
+    text = "from lib import soma\n\nval total: Int = soma(1, 2)\n"
+    server, document = _open_in_process(tmp_path, text, "main.lx")
+    position, _ = _position_of(text, "soma(1")
+    token = server._token_at(document, position)
+    assert token is not None
+
+    result = server._workspace_rename(document, token, "soma2")
+
+    assert isinstance(result, dict)
+    changes = cast(dict[str, list[Any]], result["changes"])
+    assert {uri.rsplit("/", 1)[-1] for uri in changes} == {"lib.lx", "main.lx"}
+
+
+def test_workspace_rename_refuses_when_the_target_does_not_parse(tmp_path: Path) -> None:
+    broken_text = "val x = (\n"
+    broken = tmp_path / "broken.lx"
+    broken.write_text(broken_text, encoding="utf-8")
+    server, _document = _open_in_process(tmp_path, "val ok = 1\n", "main.lx")
+    broken_document = Document(text=broken_text, version=1, path=broken, uri=broken.as_uri())
+    server.documents[broken_document.uri] = broken_document
+    token = server._token_at(broken_document, {"line": 0, "character": 4})
+    assert token is not None
+
+    result = server._workspace_rename(broken_document, token, "novo")
+
+    assert isinstance(result, str)
+    assert "parse error in broken.lx" in result

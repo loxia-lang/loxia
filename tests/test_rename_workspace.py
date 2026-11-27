@@ -337,6 +337,7 @@ def test_workspace_above_the_budget_is_not_retained(
     # Acima do orçamento o workspace é servido sem reter nada: sem reter metade,
     # não há thrash.
     assert workspace.analyses.keys() == files.keys()
+    assert cache._entries == {}
     assert sorted(analyzed) == ["a.lx", "b.lx"]
 
 
@@ -389,6 +390,32 @@ def test_workspace_cache_clear_keeps_file_analyses(
     assert second.positions == first.positions
 
 
+def test_workspace_module_error_is_not_memoized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project, files, main, _token = _external_workspace(tmp_path)
+    shared = project.parent / "shared"
+    (shared / "lib.lx").write_text(
+        "import nao_existe\n\nfn soma(a: Int, b: Int) -> Int { return a + b }\n",
+        encoding="utf-8",
+    )
+    analyzed = _counting_analysis(monkeypatch)
+    cache = rename.WorkspaceCache()
+
+    first = cache.get(project, files)
+
+    # Erro de módulo pode vir de um insumo fora de `files`: não entra no closure e
+    # não pode ser memoizado, senão consertar a dependência não apareceria.
+    assert not first.complete and main not in first.analyses
+
+    (shared / "lib.lx").write_text(LIB, encoding="utf-8")
+    analyzed.clear()
+    second = cache.get(project, files)
+
+    assert second.complete and main in second.analyses
+    assert "main.lx" in analyzed
+
+
 def test_workspace_skips_unparseable_files(tmp_path: Path) -> None:
     good = tmp_path / "main.lx"
     broken = tmp_path / "broken.lx"
@@ -431,7 +458,7 @@ def test_workspace_cache_shares_module_contributions(tmp_path: Path) -> None:
     assert all(len(entry.modules) == 1 for entry in cache._entries.values())
 
 
-def test_top_level_declarations_match_symbol_index() -> None:
+def test_top_level_declarations_cover_renamable_declarations() -> None:
     from loxia.source_symbols import parse_source
     from loxia.symbols import SymbolIndex
 
@@ -447,7 +474,9 @@ val v: Int = 1
 val (a, b) = (1, 2)
 if (true) { fn dentro() -> Int { return 2 } }
 for x in 0..2 { print(x) }
-try { print(1) } except RuntimeError as e { print(e) }
+while (false) { fn usadoNoWhile() -> Int { return 3 } }
+try { print(1) } except RuntimeError as e { print(e) } finally { print(2) }
+{ fn emBloco() -> Int { return 4 } }
 """
     statements = parse_source(text)
     assert statements is not None
@@ -460,7 +489,8 @@ try { print(1) } except RuntimeError as e { print(e) }
 
     found = [(name, token.offset) for name, token in rename._top_level_declarations(statements)]
 
-    # O rename não paga `SymbolIndex`; a varredura tem de cobrir os mesmos nomes.
+    # O rename não paga `SymbolIndex`; a varredura cobre as declarações top-level
+    # renamáveis (bindings de `match` não são declaração de topo — ficam fora).
     assert found == expected
 
 
@@ -476,9 +506,12 @@ def test_workspace_build_does_not_run_the_checker(
     def forbidden(*args: object, **kwargs: object) -> int:
         raise AssertionError("rename não deve rodar o checker (#249)")
 
+    import loxia.engine as engine
     from loxia.engine import Loxia
 
     monkeypatch.setattr(Loxia, "check", forbidden)
+    monkeypatch.setattr(engine, "Resolver", forbidden)
+    monkeypatch.setattr(engine, "Checker", forbidden)
     cache = rename.WorkspaceCache()
 
     workspace = cache.get(tmp_path, files)

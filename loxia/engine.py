@@ -177,6 +177,9 @@ class Loxia:
         self.reporter.reset()
         self.reporter.file = self._file
         self._sources.add(self._file, source)
+        # Erro não pode deixar a árvore do arquivo anterior para um consumidor de
+        # `last_statements` (o caminho loader-only não passa pelo checker).
+        self.last_statements = None
         self._watched_files = set()
         self._module_files = {}
         # A análise anterior não pode financiar navegação de um parse que falhou.
